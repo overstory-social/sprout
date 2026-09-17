@@ -140,21 +140,21 @@ An item is `object name { … }` (its own anonymous kind: all of the
 members below are allowed) or `object name: Kind { … }` (an instance of
 a kind). Inside `object name { … }`:
 
-| member                          | meaning                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------- |
-| `:name`, `:names`, `prose`      | as for rooms                                                                    |
-| properties                      | `:lit false`, `:fuel 3 min 0 max 10`, `:state one_of [wet, fired] default wet`  |
-| `:takeable true`                | well-known: may be picked up (default `false`)                                  |
-| `:hidden true`                  | well-known: not listed, not addressable, until something un-hides it            |
-| `:scenery true`                 | well-known: mentioned in the room's prose only; `examine` works, `take` says so |
-| `:image`                        | a picture                                                                       |
-| `:remembers [seen: false]`      | per-visitor memory                                                              |
-| `describe { … }`                | its prose right now                                                             |
-| messages                        | what a visitor can do to it                                                     |
-| `on :m (from, value) { … }`     | handlers                                                                        |
-| `changed :p (value, was) { … }` | hooks                                                                           |
-| `depart (to) { … }`             | the guard it answers when something proposes to move it                         |
-| `release`, `accept`, `pass`     | only on a container (an object whose kind inherits `Container`)                 |
+| member                          | meaning                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `:name`, `:names`, `prose`      | as for rooms                                                                                         |
+| properties                      | `:lit false`, `:fuel 3 min 0 max 10`, `:state one_of [wet, fired] default wet`                       |
+| `:takeable true`                | well-known: may be picked up (default `false`)                                                       |
+| `:hidden true`                  | well-known and stored, but **not yet acted on**: the engine still lists and addresses a hidden thing |
+| `:scenery true`                 | well-known and stored, but **not yet acted on**: `take` asks only `:takeable`                        |
+| `:image`                        | a picture                                                                                            |
+| `:remembers [seen: false]`      | per-visitor memory                                                                                   |
+| `describe { … }`                | its prose right now                                                                                  |
+| messages                        | what a visitor can do to it                                                                          |
+| `on :m (from, value) { … }`     | handlers                                                                                             |
+| `changed :p (value, was) { … }` | hooks                                                                                                |
+| `depart (to) { … }`             | the guard it answers when something proposes to move it                                              |
+| `release`, `accept`, `pass`     | only on a container (an object whose kind inherits `Container`)                                      |
 
 **An instance of a kind is state, not behaviour.** Inside
 `object name: Kind { … }` you may set property _initial values_,
@@ -277,19 +277,23 @@ Every object also has the **well-known properties**, without declaring
 them, and redeclaring one with another type is refused where it
 applies:
 
-| property       | type    | default | applies to                                             |
-| -------------- | ------- | ------- | ------------------------------------------------------ |
-| `:takeable`    | boolean | false   | items                                                  |
-| `:hidden`      | boolean | false   | items                                                  |
-| `:scenery`     | boolean | false   | items                                                  |
-| `:illuminated` | boolean | true    | rooms                                                  |
-| `:open`        | boolean | true    | containers (rooms, and kinds that inherit `Container`) |
-| `:capacity`    | integer | 8       | containers (rooms, and kinds that inherit `Container`) |
-| `:image`       | media   | none    | rooms, items and kinds                                 |
+| property       | type    | default | applies to                                                           |
+| -------------- | ------- | ------- | -------------------------------------------------------------------- |
+| `:takeable`    | boolean | false   | items                                                                |
+| `:hidden`      | boolean | false   | items — declared and stored; nothing acts on it yet                  |
+| `:scenery`     | boolean | false   | items — declared and stored; nothing acts on it yet                  |
+| `:illuminated` | boolean | true    | rooms                                                                |
+| `:open`        | boolean | true    | containers (rooms, and kinds that inherit `Container`)               |
+| `:capacity`    | integer | 8       | kinds that inherit `Container`; a room is unbounded whatever it says |
+| `:image`       | media   | none    | rooms, items and kinds                                               |
 
 A well-known property an object never declared may still be set
 (`self.set(:hidden, true)`) and then lives in its state; unset, it reads
-as its default and is never stored. Where a well-known name does not
+as its default and is never stored. Two of them are ahead of the engine:
+`:hidden` and `:scenery` are reserved with their defaults and can be read
+and written like any property, but nothing in the engine or the parser
+consults them yet — a hidden thing is still listed and addressable, and
+`take` asks only `:takeable`. Where a well-known name does not
 apply — `:open` on a bucket that is not a container — the object may
 declare its own property of that name with any type.
 
@@ -329,8 +333,9 @@ use (with: object) {
 
 `[self]` is the object that owns the message and `[with]` an argument;
 a slot may only be one of those. Without any `grammar`, the line is the
-message's own name. At most 8 lines per message, 2 arguments, and the
-label a chip-based client shows is at most 40 characters. `when`
+message's own name. At most 8 lines per message, each at most 80
+characters, and 2 arguments; a chip-based client labels the verb with
+its first grammar line. `when`
 decides whether the verb is offered at all: a chip that is not there is
 a better answer than one that says no, and a typed verb whose guard
 fails is told "you can't do that right now".
@@ -338,7 +343,7 @@ fails is told "you can't do that right now".
 The parser also knows the built-ins, which are not messages a builder
 defines: `look`, `examine X`, `go <exit>` (or the exit's label), `take
 X`, `drop X`, `give X to Y`, `put X in Y`, `inventory`, `wait`, `help`,
-and the pronouns `it` and `them`, bound to the last noun. `take`,
+and the pronouns `it`, `them`, `him` and `her`, bound to the last noun. `take`,
 `drop`, `give`, `put` and `go` _propose a move_; the consent guards
 below are where a builder shapes them.
 
@@ -424,7 +429,8 @@ with the actor as the thing moving — is one protocol:
    the destination is an actor and the thing is not `:takeable`
    ("That is not something you can carry."); `release` allows while the
    container is `:open` (rooms and hands always); `accept` allows while
-   `:open` and under `:capacity`, and a room accepts an actor only
+   `:open` and under `:capacity` (a room has no bound), and a room
+   accepts an actor only
    through a declared exit from where they stand.
 3. **Move.** If all three allow, the engine rewrites containment — one
    write, the engine's — then sends `left (item, to)` to the old
@@ -644,9 +650,9 @@ was compiled from. The properties, messages, handlers, hooks, guards
 and rules are plain data, so a host can inspect, diff and moderate a
 definition without running it. `upgradeSproutDefinition` lifts the
 format-1 shape (views, verbs and effects authored in a form) to format
-2 mechanically: each item becomes an anonymous kind plus one placed
-instance, views become a `describe` if-chain, `portable` becomes
-`:takeable`.
+2 mechanically: each item keeps its behaviour inline as its own anonymous
+kind (one definition, `inherit: null`), views become a `describe`
+if-chain, `portable` becomes `:takeable`.
 
 `resolveDefinition(def, kinds)` folds an object's kind chain into one
 flat definition — parents first, the child overriding by name; the most
