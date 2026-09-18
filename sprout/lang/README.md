@@ -571,7 +571,7 @@ writes or sends inside it; `allow`/`refuse` outside a guard, or
 anything else inside one; a grammar slot that is not `[self]` or an
 argument; an abstract message on anything placed; behaviour on an
 instance of a kind; `pass` off a container; a kind inheriting itself or
-one that does not exist; `in` on a header; an exit to a room it does
+one that does not exist; `in` on a room or a kind; an exit to a room it does
 not know; more than the caps below; nesting deeper than 8 (an `else if`
 chain counts as one); a source over 64 KB. Every refusal names the line
 and the column.
