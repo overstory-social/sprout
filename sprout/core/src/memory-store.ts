@@ -40,7 +40,20 @@ function emptyWorld(): World {
   };
 }
 
-function reader(microworldId: string, w: World): ReadTx {
+function snapshotOf(live: World): World {
+  return {
+    microworld: live.microworld ? clone(live.microworld) : null,
+    spawn: live.spawn,
+    objects: new Map([...live.objects].map(([k, v]) => [k, clone(v)])),
+    actors: new Map([...live.actors].map(([k, v]) => [k, clone(v)])),
+    memory: new Map([...live.memory].map(([k, v]) => [k, clone(v)])),
+    actions: live.actions.map(clone),
+    misses: live.misses.map(clone),
+  };
+}
+
+/** Reads over `w`; `touchActor` — the one write a read may make — lands on `live` (the same world for a transaction). */
+function reader(microworldId: string, w: World, live: World = w): ReadTx {
   return {
     microworld: async () => (w.microworld ? clone(w.microworld) : null),
     objects: async () => [...w.objects.values()].map(clone),
@@ -53,10 +66,12 @@ function reader(microworldId: string, w: World): ReadTx {
         .filter((a) => a.roomId === room && a.lastSeen.getTime() >= since.getTime())
         .map(clone),
     touchActor: async (id, lastSeen, drained) => {
-      const a = w.actors.get(id);
-      if (!a) return;
-      a.lastSeen = lastSeen;
-      if (drained) a.pending = [];
+      for (const target of live === w ? [w] : [w, live]) {
+        const a = target.actors.get(id);
+        if (!a) continue;
+        a.lastSeen = lastSeen;
+        if (drained) a.pending = [];
+      }
     },
     memory: async (actorId) =>
       clone(w.memory.get(actorId) ?? { microworldId, actorId, byObject: {} }),
@@ -72,15 +87,7 @@ function reader(microworldId: string, w: World): ReadTx {
 
 /** A transaction over a snapshot: reads see the snapshot plus this tx's own writes; writes land on commit. */
 function writer(microworldId: string, live: World): { tx: StoreTx; commit: () => void } {
-  const snap: World = {
-    microworld: live.microworld ? clone(live.microworld) : null,
-    spawn: live.spawn,
-    objects: new Map([...live.objects].map(([k, v]) => [k, clone(v)])),
-    actors: new Map([...live.actors].map(([k, v]) => [k, clone(v)])),
-    memory: new Map([...live.memory].map(([k, v]) => [k, clone(v)])),
-    actions: live.actions.map(clone),
-    misses: live.misses.map(clone),
-  };
+  const snap = snapshotOf(live);
   const tx: StoreTx = {
     ...reader(microworldId, snap),
     putMicroworld: async (m) => {
@@ -156,7 +163,9 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
       }
     },
     async read(microworldId, fn) {
-      return fn(reader(microworldId, world(microworldId)));
+      // A consistent snapshot at entry: a commit that lands while `fn` awaits is not seen mid-read.
+      const live = world(microworldId);
+      return fn(reader(microworldId, snapshotOf(live), live));
     },
     async trim(before, keepMisses) {
       for (const w of worlds.values()) {

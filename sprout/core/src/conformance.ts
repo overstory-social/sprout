@@ -217,6 +217,32 @@ export const cases: ConformanceCase[] = [
     },
   },
   {
+    name: 'a read is a snapshot',
+    proves:
+      'a read that spans a concurrent commit on the same microworld sees the world as it was when the read began',
+    async run(make) {
+      const store = await make();
+      await store.transaction('w', async (tx) => {
+        await tx.putMicroworld(microworld('w'));
+        await tx.putObjects({ upsert: [object('w', 'lamp')], remove: [] });
+      });
+      await store.read('w', async (tx) => {
+        const before = await tx.objects();
+        await store.transaction('w', async (wtx) => {
+          await wtx.putObjects({ upsert: [object('w', 'coin')], remove: ['lamp'] });
+        });
+        equal(await tx.objects(), before, 'the read still sees what it began with');
+      });
+      await store.read('w', async (tx) =>
+        equal(
+          (await tx.objects()).map((o) => o.id),
+          ['coin'],
+          'a later read sees the commit',
+        ),
+      );
+    },
+  },
+  {
     name: 'a failed transaction writes nothing',
     proves:
       "a throw inside fn leaves the store as it was — the turn's writes land together or not at all",

@@ -69,7 +69,10 @@ the matcher against the scene, the open exits and the people present;
 for `chip`, the token resolved; the evaluator; the outcome applied to
 rows; notices queued to the others in the room; the action appended;
 the actor's narration and last noun written; the answer projected. A
-fault rolls the turn's writes back and appends only its action record.
+fault writes nothing of the world: the object rows are never issued,
+only its action record (with the chain) and the actor's own row land.
+A miss appends an action with `missed`; its text is kept only when the
+turn says `keepMissText`.
 
 ## Actors, presence, and the lines others read
 
@@ -88,7 +91,7 @@ shared world, not a shared database.
 load(microworldId, archive, now, { limits? }): LoadReport  // compile leniently, unfold, keep state that still fits
 reset(microworldId, now)          // back to the archive's initial state; memory untouched
 destroyMicroworld(microworldId, now)
-inspect(microworldId, 'owner' | 'operator'): MicroworldReport   // two projections, redaction in core
+inspect(microworldId, 'owner' | 'operator', now): MicroworldReport   // two projections, redaction in core
 snapshot(microworldId, objectId)  // an object's live state — a flag's live half
 forgetActor(actorId, now); exportActor(actorId)   // across every microworld: wipeout and takeout
 trim(now)                         // housekeeping; not a turn
@@ -122,7 +125,8 @@ zod schemas: `MicroworldRecord`, `ObjectRecord`, `ActorRecord`,
    the transaction it is handed, and every id it mints must derive from
    state it read inside that same invocation.
 3. A turn's writes land together or not at all; a fault writes nothing
-   but its action record.
+   of the world — only its action record, and the actor's own row as a
+   read turn would touch it (heartbeat, pending drained).
 4. Locks have timeouts and are not tuples.
 5. The host may supply the transaction.
 6. Housekeeping is not a turn.

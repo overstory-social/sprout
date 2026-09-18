@@ -19,7 +19,8 @@ import type {
 //      outside the tx it is handed, and every id it mints must derive
 //      from state it read inside that same invocation.
 //   3. A turn's writes land together or not at all; a fault writes
-//      nothing but its action record.
+//      nothing of the world — only its action record, and the actor's
+//      own row as a read turn would touch it.
 //   4. Locks have timeouts and are not tuples.
 //   5. The host may supply the transaction.
 //   6. Housekeeping is not a turn.

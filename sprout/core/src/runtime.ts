@@ -112,7 +112,7 @@ export interface Runtime {
   ): Promise<LoadReport>;
   reset(microworldId: string, now: Date): Promise<void>;
   destroyMicroworld(microworldId: string, now: Date): Promise<void>;
-  inspect(microworldId: string, as: 'owner' | 'operator'): Promise<MicroworldReport>;
+  inspect(microworldId: string, as: 'owner' | 'operator', now: Date): Promise<MicroworldReport>;
   snapshot(microworldId: string, objectId: string): Promise<ObjectSnapshot>;
   forgetActor(actorId: string, now: Date): Promise<void>;
   exportActor(actorId: string): Promise<ActorExport>;
@@ -326,7 +326,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       await store.destroyMicroworld(microworldId);
     },
 
-    async inspect(microworldId, as) {
+    async inspect(microworldId, as, now) {
       return store.read(microworldId, async (tx) => {
         const { m, program } = await loaded(tx, microworldId);
         const rows = await tx.objects();
@@ -339,10 +339,10 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           ...(as === 'operator' ? { chain: a.fault?.chain ?? [] } : {}),
         }));
         const misses = await tx.misses({ limit: m.limits.misses });
+        // Present means seen within the window — the same question "also here" asks.
+        const since = new Date(now.getTime() - presenceMs);
         const present: ActorRecord[] = [];
-        for (const room of program.rooms.keys()) {
-          present.push(...(await tx.actorsIn(room, new Date(0))));
-        }
+        for (const room of program.rooms.keys()) present.push(...(await tx.actorsIn(room, since)));
         return {
           microworldId,
           stamp: m.stamp,
@@ -579,17 +579,36 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         if (question !== null) {
           lines.push({ kind: missed ? 'miss' : 'question', text: question });
           if (missed) {
-            const snapshot = missSnapshot(
-              parseContextFor(scene, program, present, me.lastNoun),
+            // A miss is an action with `missed` (§4.2) — the zone's miss rate is a
+            // number the builder can see; the TEXT is kept only when they chose to.
+            await tx.appendAction({
+              microworldId: req.microworldId,
+              at: req.now,
               roomId,
-              req,
-            );
-            if (req.options?.keepMissText) await tx.appendMiss(snapshot);
+              command: commandText,
+              events: 0,
+              depth: 0,
+              spawned: 0,
+              faulted: false,
+              fault: null,
+              missed: true,
+              durationMs: Math.max(0, Date.now() - started),
+              lockWaitMs: Math.max(0, lockWaitMs),
+            });
+            if (req.options?.keepMissText) {
+              await tx.appendMiss(
+                missSnapshot(parseContextFor(scene, program, present, me.lastNoun), roomId, req),
+              );
+            }
           }
         }
 
         if (outcome?.fault) {
-          // A fault writes nothing but its action record (§4.5-3).
+          // A fault writes nothing OF THE WORLD (§4.5-3): the evaluator moved
+          // objects in memory only, and those rows are never written. What
+          // lands is the action record — and, as on a read turn, the actor's
+          // own row: the heartbeat, their pending lines drained (they read
+          // them just now), their narration cleared.
           lines.push({
             kind: 'fault',
             text: 'Something here tangles itself up, and nothing happens.',

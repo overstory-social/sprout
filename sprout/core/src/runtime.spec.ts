@@ -227,8 +227,17 @@ describe('the turn', () => {
       options: { keepMissText: true },
     });
     expect(texts(missed)).toEqual(['miss: I don\'t know the word "juggle" here.']);
-    const report = await rt.inspect('w', 'owner');
+    const report = await rt.inspect('w', 'owner', later(9));
     expect(report.misses.map((m) => m.input)).toEqual(['juggle the lantern']);
+    // a miss without the switch leaves an action with `missed`, and no text
+    const quiet = await rt.turn({
+      microworldId: 'w',
+      actor: marta,
+      input: { kind: 'say', text: 'dance' },
+      now: later(3),
+    });
+    expect(texts(quiet)[0]).toMatch(/^miss:/);
+    expect((await rt.inspect('w', 'owner', later(9))).misses).toHaveLength(1);
     expect(report.misses[0]?.couldSay).toContain('light brass lantern');
     // the memory survives a reload of the page: enter again prints the last narration
     const back = await rt.turn({
@@ -359,11 +368,16 @@ describe('the turn', () => {
       'fault: Something here tangles itself up, and nothing happens.',
     ]);
     expect(looped.scene?.carrying.map((i) => i.id)).toEqual([cupId]); // nothing rolled forward
-    const report = await rt.inspect('w', 'operator');
+    // §4.5-3: nothing of the world was written — the object rows are as before — but the
+    // action landed and the actor's own row was touched (a notice queued earlier is drained).
+    expect((await rt.snapshot('w', 'wheel')).state).toEqual({});
+    const report = await rt.inspect('w', 'operator', later(9));
     expect(report.faults).toHaveLength(1);
+    // presence is the window, not forever: marta was last seen at +3s, the window is 30s
+    expect((await rt.inspect('w', 'owner', later(60))).present).toBe(0);
     expect(report.faults[0]).toMatchObject({ command: 'loop the wheel' });
     expect(report.faults[0]?.chain?.length).toBeGreaterThan(0);
-    const owner = await rt.inspect('w', 'owner');
+    const owner = await rt.inspect('w', 'owner', later(9));
     expect(owner.faults[0]).not.toHaveProperty('chain');
     expect(owner.present).toBe(1);
     expect(owner).not.toHaveProperty('presentActors');
@@ -473,7 +487,9 @@ describe('the turn', () => {
     await rt.forgetActor(marta.id, later(4));
     expect((await rt.exportActor(marta.id)).actors).toEqual([]);
     await rt.destroyMicroworld('w', later(5));
-    await expect(rt.inspect('w', 'owner')).rejects.toMatchObject({ code: 'no-such-microworld' });
+    await expect(rt.inspect('w', 'owner', later(6))).rejects.toMatchObject({
+      code: 'no-such-microworld',
+    });
     await rt.trim(later(6));
   });
 
