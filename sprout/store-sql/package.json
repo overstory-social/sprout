@@ -1,0 +1,36 @@
+{
+  "name": "@overstory/sprout-store-sql",
+  "version": "0.1.0",
+  "description": "The Sprout runtime's store on Postgres: the `sprout` schema, its migrations exported as data, and an adapter that needs only `query(text, params)` — node-postgres and PGlite alike.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@overstory/sprout-core": "*"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@overstory/sprout": "*",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

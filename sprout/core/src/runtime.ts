@@ -82,6 +82,13 @@ export interface LoadReport {
   warnings: string[];
   /** Object rows dropped because nothing in the new archive answers for them. */
   dropped: string[];
+  /**
+   * Extension value type → the literals the archive's text gives properties
+   * of that type (a media id, say): what the host keeps beside the
+   * microworld for its own rules — the split proposal §7.1's published
+   * media set is `values.get('media')`.
+   */
+  values: ReadonlyMap<string, readonly string[]>;
 }
 
 export interface MicroworldReport {
@@ -312,7 +319,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           upsert.push({ ...row, state: obj.state, container: obj.container, home: obj.home });
         }
         await tx.putObjects({ upsert, remove: world.orphans });
-        return { microworldId, stamp, absent, warnings, dropped: world.orphans };
+        return {
+          microworldId,
+          stamp,
+          absent,
+          warnings,
+          dropped: world.orphans,
+          values: program.values,
+        };
       });
     },
 
