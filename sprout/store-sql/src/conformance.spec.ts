@@ -20,12 +20,21 @@ const NEEDS_TWO_BACKENDS = new Set([
 ]);
 
 let db: PGlite;
+/** A second, EMPTY database — never migrated — for the missing-schema case. */
+let empty: PGlite;
 
+// Booting a PGlite instance is a WASM start: a second or two here, longer
+// on a CI runner — which is why both instances boot in beforeAll (its own
+// timeout) and never inside a test's 5 s (2026-09-18: the missing-schema
+// case created its instance inline and timed out in CI's gate).
 beforeAll(async () => {
-  db = await PGlite.create();
+  [db, empty] = await Promise.all([PGlite.create(), PGlite.create()]);
   await runMigrations(db);
+}, 60_000);
+afterAll(async () => {
+  await db.close();
+  await empty.close();
 });
-afterAll(() => db.close());
 beforeEach(async () => {
   for (const t of ['microworld', 'spawn_counter', 'object', 'actor', 'memory', 'action', 'miss']) {
     await db.query(`DELETE FROM sprout.${t}`);
@@ -61,10 +70,8 @@ describe('the migrations', () => {
     await expect(wrong.read('w', async () => 1)).rejects.toThrow(
       /schema version 99 expected, 1 found/,
     );
-    const fresh = await PGlite.create();
-    const absent = sqlStore({ client: fresh as unknown as Queryable });
+    const absent = sqlStore({ client: empty as unknown as Queryable });
     await expect(absent.read('w', async () => 1)).rejects.toThrow(/no sprout schema found/);
-    await fresh.close();
   });
 });
 
