@@ -1,0 +1,10 @@
+object scale {
+  :name "Hanging scale"
+  :takeable false
+  prose "A brass spring scale on a beam, with a clay-crusted pan."
+
+  weigh_a_lump {
+    grammar "weigh a lump"
+    say "Nine hundred grams, near enough. A mug and a half."
+  }
+}

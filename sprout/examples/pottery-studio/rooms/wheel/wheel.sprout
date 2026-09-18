@@ -1,0 +1,47 @@
+object wheel {
+  :name "The wheel"
+  :stage one_of [bare, centred, cylinder, bowl] default bare
+  :takeable false
+  :remembers [thrown: 0 min 0 max 99]
+  prose "The electric wheel, still, its tray scraped clean."
+
+  describe {
+    if (self.get(:stage) == "centred") {
+      text "A lump of clay sits centred on the wheel head, dead still as it turns."
+    } else if (self.get(:stage) == "cylinder") {
+      text "A cylinder rises from the wheel head, walls even, rim a little wobbly."
+    } else if (self.get(:stage) == "bowl") {
+      text "A bowl, bellied out and true, turns slowly on the wheel head."
+    } else {
+      text "The electric wheel, still, its tray scraped clean."
+    }
+  }
+
+  wedge_a_lump_and_centre_it when (self.get(:stage) == "bare") {
+    grammar "wedge a lump and centre it"
+    self.set(:stage, "centred")
+    say "You slap the lump down, wet your hands, and lean in until it stops fighting you."
+    send room :wheel_on
+  }
+
+  open_it_and_pull_up_a_cylinder when (self.get(:stage) == "centred") {
+    grammar "open it and pull up a cylinder"
+    self.set(:stage, "cylinder")
+    say "Thumbs in, walls up. Three pulls and it is a cylinder, more or less."
+  }
+
+  belly_it_out_into_a_bowl when (self.get(:stage) == "cylinder") {
+    grammar "belly it out into a bowl"
+    self.set(:stage, "bowl")
+    say "A rib inside, a finger outside, and the cylinder opens like a flower."
+  }
+
+  wire_it_off when (self.get(:stage) == "bowl") {
+    grammar "wire it off"
+    self.set(:stage, "bare")
+    actor.remember(:thrown, 1)
+    say "You draw the wire under it and lift it onto a bat. Yours now."
+    send room :wheel_off
+    send wet_bowl :thrown_again
+  }
+}

@@ -1,0 +1,29 @@
+object bag_of_clay {
+  :name "Bag of clay"
+  :names ["bag", "clay", "bag of clay"]
+  :lumps 6 min 0 max 6
+
+  describe {
+    if (self.get(:lumps) == 0) { text "The bag is down to crumbs and a smell of wet earth." }
+    else if (self.get(:lumps) < 3) { text "The bag is getting light: a couple of fist-sized lumps left in the folds of the plastic." }
+    else { text "A twenty-five kilo bag of stoneware, the plastic folded back, the top of the block gone glossy where hands have been." }
+  }
+
+  cut when (self.get(:lumps) > 0) {
+    grammar "cut off a lump"
+    grammar "cut [self]"
+    self.adjust(:lumps, -1)
+    spawn Lump in actor
+  }
+
+  fold {
+    grammar "fold the plastic over"
+    say "You fold the bag shut so what is left stays soft for whoever comes next."
+  }
+
+  slake when (self.get(:lumps) < 6) {
+    grammar "slake the scraps back in"
+    self.adjust(:lumps, 1)
+    say "The bucket of scraps goes back into the bag, wedged until it is one clay again. Nothing is wasted here."
+  }
+}

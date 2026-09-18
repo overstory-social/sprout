@@ -1,0 +1,92 @@
+object cup {
+  :state one_of [wet, leather, bone_dry, bisqued, glazed, fired] default wet
+  :glaze one_of [none, tenmoku, celadon, shino] default none
+  :handled false
+  :takeable true
+  prose "A freshly thrown cup on a plaster bat, grey and glossy and too soft to touch."
+
+  describe {
+    if (self.get(:state) == "leather" && self.get(:handled) == true) {
+      text "A leather-hard cup with a handle pulled and joined, the join still shiny with slip."
+    } else if (self.get(:state) == "leather") {
+      text "A cup gone leather-hard: cool, matte, firm enough to trim."
+    } else if (self.get(:state) == "bone_dry") {
+      text "A bone-dry cup, chalk-pale, light as an eggshell and about as tough."
+    } else if (self.get(:state) == "bisqued") {
+      text "A bisque-fired cup, pink-white and porous, that rings when you flick it."
+    } else if (self.get(:state) == "glazed" && self.get(:glaze) == "tenmoku") {
+      text "A cup dipped in tenmoku: dull brown powder now, black glass later."
+    } else if (self.get(:state) == "glazed" && self.get(:glaze) == "celadon") {
+      text "A cup dipped in celadon, chalky grey-green, waiting for the kiln."
+    } else if (self.get(:state) == "glazed" && self.get(:glaze) == "shino") {
+      text "A cup dipped thick in shino, white and crawling already at the rim."
+    } else if (self.get(:state) == "fired" && self.get(:glaze) == "tenmoku") {
+      text "A finished cup, tenmoku gone to black glass with rust at the rim, crackled from the raku."
+    } else if (self.get(:state) == "fired" && self.get(:glaze) == "celadon") {
+      text "A finished cup, celadon glossy as pond water, a web of crackle from the raku."
+    } else if (self.get(:state) == "fired" && self.get(:glaze) == "shino") {
+      text "A finished cup, shino gone orange where it thinned and crawled into islands. The best kind of accident."
+    } else if (self.get(:state) == "fired") {
+      text "A cup fired bare, unglazed, the raku smoke gone into the clay in clouds."
+    } else {
+      text "A freshly thrown cup on a plaster bat, grey and glossy and too soft to touch."
+    }
+  }
+
+  leave_it_to_stiffen when (self.get(:state) == "wet") {
+    grammar "leave it to stiffen"
+    self.set(:state, "leather")
+    say "You turn it in the air a while. It stiffens to leather-hard."
+  }
+
+  pull_a_handle when (self.get(:state) == "leather" && self.get(:handled) == false) {
+    grammar "pull a handle"
+    self.set(:handled, true)
+    say "A carrot of clay, stroked out under a wet thumb until it is a handle, scored and slipped and pressed on. It looks like it has always been there."
+  }
+
+  let_it_dry_right_through when (self.get(:state) == "leather") {
+    grammar "let it dry right through"
+    self.set(:state, "bone_dry")
+    say "Days pass in a minute. Bone dry, and ready for the kiln."
+  }
+
+  dip_it_in_tenmoku when (self.get(:state) == "bisqued") {
+    grammar "dip it in tenmoku"
+    self.set(:state, "glazed")
+    self.set(:glaze, "tenmoku")
+    say "Into the tenmoku, count three, out. Wipe the foot."
+  }
+
+  dip_it_in_celadon when (self.get(:state) == "bisqued") {
+    grammar "dip it in celadon"
+    self.set(:state, "glazed")
+    self.set(:glaze, "celadon")
+    say "Into the celadon, count three, out. Wipe the foot."
+  }
+
+  dip_it_in_shino when (self.get(:state) == "bisqued") {
+    grammar "dip it in shino"
+    self.set(:state, "glazed")
+    self.set(:glaze, "shino")
+    say "Into the shino and out — twice, thick. Shino likes it thick. Wipe the foot."
+  }
+
+  on :fired {
+    if (self.get(:state) == "bone_dry") {
+      self.set(:state, "bisqued")
+      say "The cup comes out of the kiln bisqued, pink and porous and ringing."
+    } else if (self.get(:state) == "glazed") {
+      self.set(:state, "fired")
+      say "The cup comes out of the raku kiln alive: the glaze has gone to glass and cracked like ice, and the smoke has found every crack."
+    } else {
+      say "The cup was not ready for that firing; it comes out as it went in."
+    }
+  }
+
+  on :thrown_again {
+    self.set(:state, "wet")
+    self.set(:glaze, "none")
+    self.set(:handled, false)
+  }
+}

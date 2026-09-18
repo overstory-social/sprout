@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compileSprout } from './sprout-lang.js';
-import { type SproutDefinition2 } from './sprout.js';
+import { type SproutDefinition } from './sprout.js';
 import { type SproutState } from './definitions.js';
 
 import {
@@ -26,7 +26,7 @@ import {
 // keys and a question, "it", "take all", partial understanding, and the
 // same-kind rule that takes any one of four wet cups without asking.
 
-function sprout(source: string): SproutDefinition2 {
+function sprout(source: string): SproutDefinition {
   const result = compileSprout(source);
   if (!result.definition) {
     throw new Error(result.problems.map((p) => `${p.line}:${p.column} ${p.message}`).join('\n'));
@@ -39,7 +39,7 @@ const ACTOR = 'p-actor';
 function object(
   id: string,
   kind: 'room' | 'item',
-  definition: SproutDefinition2,
+  definition: SproutDefinition,
   state: SproutState = {},
   where: string | null = 'room',
   kinds: string[] = [],

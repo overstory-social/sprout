@@ -1,17 +1,16 @@
 import {
-  ItemDefinition2,
+  ItemDefinition,
   KindDefinition,
-  RoomDefinition2,
-  SPROUT_FORMAT,
+  RoomDefinition,
   humaniseKind,
-  sproutDefinitionProblems,
+  sproutDefinitionIssues,
   sproutDefinitionWarnings,
   type ProblemOptions,
   type SproutBinaryOp,
   type SproutChanged,
   type SproutConsent,
   type SproutConsentKind,
-  type SproutDefinition2,
+  type SproutDefinition,
   type SproutExpr,
   type SproutExtArg,
   type SproutKindBody,
@@ -21,7 +20,7 @@ import {
   type SproutStatement,
   type SproutTarget,
 } from './sprout.js';
-import { isBuiltinField, type RoomExit, type SproutField } from './definitions.js';
+import { LANGUAGE_LEVEL, isBuiltinField, type RoomExit, type SproutField } from './definitions.js';
 import { NO_EXTENSIONS, type ExtensionSet, type StatementSpec } from './extensions.js';
 
 // The written Sprout (sprout.md §2, the grammar in §2.4; #338): a
@@ -44,6 +43,8 @@ export interface SproutProblem {
   line: number;
   column: number;
   message: string;
+  /** Null for a structural problem; a policy refusal carries the language level that introduced it (§3.2). */
+  level?: number | null;
 }
 
 export interface CompileOptions extends ProblemOptions {
@@ -52,13 +53,22 @@ export interface CompileOptions extends ProblemOptions {
   // `ext` (ProblemOptions): the extensions the host installed — what `use <name>` may name.
   /** Messages other objects in the zone send or broadcast, for the warnings. */
   zoneMessages?: readonly string[];
+  /**
+   * The language level this text was ACCEPTED at (§3.2): a policy
+   * refusal introduced later is downgraded to a warning, so a runtime
+   * compiling older text at load never darkens a room the builder saw
+   * saved. Absent (a save, a check): every refusal is fatal.
+   */
+  acceptedLevel?: number;
 }
 
-export interface CompileResult<D = SproutDefinition2> {
+export interface CompileResult<D = SproutDefinition> {
   /** Null when there are problems. */
   definition: D | null;
   problems: SproutProblem[];
   warnings: string[];
+  /** The level this text needs: LANGUAGE_LEVEL, until the language grows. */
+  level: number;
 }
 
 // --- lexer -------------------------------------------------------------------
@@ -255,7 +265,7 @@ class Parser {
 
   // -- the object --------------------------------------------------------------
 
-  definition(): SproutDefinition2 | KindDefinition {
+  definition(): SproutDefinition | KindDefinition {
     // `use media` lines first (§3.5): what this source's statements and
     // value types may come from. `use` is not a keyword — `use (with:
     // object)` is the language's own example verb — it is only read here,
@@ -295,12 +305,10 @@ class Parser {
     this.expect('punct', '}');
     if (!this.at('eof')) this.fail('One object per source; nothing may follow its closing brace.');
     const header = {
-      format: SPROUT_FORMAT as 2,
       name: body.name ?? (isKind ? humaniseKind(ident) : humanise(ident)),
       names: body.names,
       prose: body.prose,
       inherit,
-      source: null,
       uses: [...this.uses],
     };
     if (isKind) return { ...header, role: 'kind', kindName: ident, ...body.kind };
@@ -966,16 +974,18 @@ function compileAny(
   source: string,
   options: CompileOptions,
   expect: 'object' | 'kind',
-): CompileResult<SproutDefinition2 | KindDefinition> {
-  let tree: SproutDefinition2 | KindDefinition;
+): CompileResult<SproutDefinition | KindDefinition> {
+  const level = LANGUAGE_LEVEL;
+  let tree: SproutDefinition | KindDefinition;
   try {
     tree = new Parser(tokenize(source), options.rooms, options.ext ?? NO_EXTENSIONS).definition();
   } catch (err) {
     if (err instanceof SproutSyntaxError) {
       return {
         definition: null,
-        problems: [{ line: err.line, column: err.column, message: err.message }],
+        problems: [{ line: err.line, column: err.column, message: err.message, level: null }],
         warnings: [],
+        level,
       };
     }
     throw err;
@@ -985,53 +995,56 @@ function compileAny(
       expect === 'kind'
         ? 'A kind starts with `kind <Name> {`; objects and rooms are written on their own pages.'
         : 'A kind is written in the kinds panel, not placed as an object or a room.';
-    return { definition: null, problems: [{ line: 1, column: 1, message }], warnings: [] };
+    return {
+      definition: null,
+      problems: [{ line: 1, column: 1, message, level: null }],
+      warnings: [],
+      level,
+    };
   }
+  // The schema alone refuses the structural shape; the language's own
+  // checks run here with the zone's kinds and the host's extensions in
+  // hand, and with each problem's level, so a policy refusal newer than
+  // the level this text was accepted at becomes a warning (§3.2).
   const schema =
-    tree.role === 'room'
-      ? RoomDefinition2
-      : tree.role === 'kind'
-        ? KindDefinition
-        : ItemDefinition2;
-  const parsed = schema.safeParse({ ...tree, source });
-  // The schema's own refine runs blind to the zone's kinds and the host's
-  // extensions; with either in hand the fuller checks run here.
-  if (parsed.success && (options.zoneKinds || options.ext)) {
-    const more = sproutDefinitionProblems(parsed.data, options);
-    if (more.length > 0) {
-      return {
-        definition: null,
-        problems: more.map((message) => ({ line: 1, column: 1, message })),
-        warnings: [],
-      };
-    }
-  }
-  if (!parsed.success) {
-    // Semantic problems have no position of their own; they point at the head.
+    tree.role === 'room' ? RoomDefinition : tree.role === 'kind' ? KindDefinition : ItemDefinition;
+  const shape = schema.safeParse(tree);
+  if (!shape.success) {
+    // A shape problem has no position of its own; it points at the head.
     const seen = new Set<string>();
     const problems: SproutProblem[] = [];
-    for (const issue of parsed.error.issues) {
+    for (const issue of shape.error.issues) {
       const message =
         issue.code === 'custom' ? issue.message : `${issue.path.join('.')}: ${issue.message}`;
       if (seen.has(message)) continue;
       seen.add(message);
-      problems.push({ line: 1, column: 1, message });
+      problems.push({ line: 1, column: 1, message, level: null });
     }
-    return { definition: null, problems, warnings: [] };
+    return { definition: null, problems, warnings: [], level };
   }
-  return {
-    definition: parsed.data,
-    problems: [],
-    warnings:
-      parsed.data.role === 'kind'
-        ? []
-        : sproutDefinitionWarnings(parsed.data, options.zoneMessages),
-  };
+  const warnings: string[] = [];
+  const problems: SproutProblem[] = [];
+  for (const issue of sproutDefinitionIssues(shape.data, options)) {
+    if (
+      issue.level !== null &&
+      options.acceptedLevel !== undefined &&
+      issue.level > options.acceptedLevel
+    ) {
+      warnings.push(issue.message);
+    } else {
+      problems.push({ line: 1, column: 1, message: issue.message, level: issue.level });
+    }
+  }
+  if (problems.length > 0) return { definition: null, problems, warnings, level };
+  if (shape.data.role !== 'kind') {
+    warnings.push(...sproutDefinitionWarnings(shape.data, options.zoneMessages));
+  }
+  return { definition: shape.data, problems: [], warnings, level };
 }
 
-/** The problems of a definition that came from the form, in the compiler's shape. */
-export function definitionProblems(def: SproutDefinition2): SproutProblem[] {
-  return sproutDefinitionProblems(def).map((message) => ({ line: 1, column: 1, message }));
+/** The problems of a definition that arrived some other way, in the compiler's shape. */
+export function definitionProblems(def: SproutDefinition): SproutProblem[] {
+  return sproutDefinitionIssues(def).map((i) => ({ line: 1, column: 1, ...i }));
 }
 
 // --- printer -----------------------------------------------------------------
@@ -1224,9 +1237,9 @@ function printStatement(s: SproutStatement, indent: string, ext: ExtensionSet): 
   }
 }
 
-/** Definition → canonical Sprout. `compileSprout(printSprout(d))` yields `d` (with `source` set). */
+/** Definition → canonical Sprout. `compileSprout(printSprout(d))` yields `d`. */
 export function printSprout(
-  def: SproutDefinition2 | KindDefinition,
+  def: SproutDefinition | KindDefinition,
   options: PrintOptions = {},
 ): string {
   const ident = def.role === 'kind' ? def.kindName : (options.ident ?? identOf(def.name));

@@ -1,0 +1,24 @@
+room shed {
+  :name "The Shed"
+  :radio false
+  prose "A lean-to at the bottom of a garden, the roof one sheet of corrugated iron and the walls whatever came to hand. A workbench runs under the window, scarred and floury with dried slip. A bag of clay slumps in the corner; a radio sits on the sill; a visitors' book lies open on the bench with a pencil on a string.\n\nA curtain of old sacking leads through to the wheel corner. The door stands open onto the yard."
+
+  describe {
+    if (self.get(:radio) == true) {
+      text "The radio on the sill is on, tuned somewhere between a cricket match and a brass band, and the shed feels less like a shed for it. The bench, the bag of clay, the open book with its pencil. Sacking through to the wheel corner; the door open onto the yard."
+    } else {
+      text "A lean-to at the bottom of a garden, the roof one sheet of corrugated iron and the walls whatever came to hand. A workbench runs under the window, scarred and floury with dried slip. A bag of clay slumps in the corner; a radio sits on the sill; a visitors' book lies open on the bench with a pencil on a string.\n\nA curtain of old sacking leads through to the wheel corner. The door stands open onto the yard."
+    }
+  }
+
+  on :radio_on {
+    self.set(:radio, true)
+  }
+
+  on :radio_off {
+    self.set(:radio, false)
+  }
+
+  exit "through the sacking to the wheel" to wheel
+  exit "out into the yard" to yard
+}

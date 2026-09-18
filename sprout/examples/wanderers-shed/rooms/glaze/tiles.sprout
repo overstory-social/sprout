@@ -1,0 +1,36 @@
+object tiles {
+  :name "Test tiles"
+  :takeable false
+  :remembers [favourite: one_of [none, tenmoku, celadon, shino] default none]
+  prose "A board of fired test tiles, each glaze thick and thin, on white clay and on red, with the recipe pencilled on the back where you cannot see it."
+
+  describe {
+    if (actor.recall(:favourite) == "tenmoku") {
+      text "The tile board. Your eye goes straight to the tenmoku now: black, with that rust at the edge."
+    } else if (actor.recall(:favourite) == "celadon") {
+      text "The tile board. Your eye goes straight to the celadon now: that green that is almost not there."
+    } else if (actor.recall(:favourite) == "shino") {
+      text "The tile board. Your eye goes straight to the shino now: white crawling to orange, never the same twice."
+    } else {
+      text "A board of fired test tiles, each glaze thick and thin, on white clay and on red, with the recipe pencilled on the back where you cannot see it."
+    }
+  }
+
+  pick_tenmoku {
+    grammar "pick tenmoku"
+    actor.remember(:favourite, "tenmoku")
+    say "Tenmoku, then. Black glass and a rust rim. You cannot go wrong, which is also the trouble with it."
+  }
+
+  pick_celadon {
+    grammar "pick celadon"
+    actor.remember(:favourite, "celadon")
+    say "Celadon. Quiet, green, a thousand years old. It will forgive a thin wall."
+  }
+
+  pick_shino {
+    grammar "pick shino"
+    actor.remember(:favourite, "shino")
+    say "Shino. Brave choice. It crawls, it pinholes, it goes orange where it likes — and once in ten it is the best pot in the kiln."
+  }
+}

@@ -1,0 +1,20 @@
+room glaze {
+  :name "The Glaze Cupboard"
+  :stirred false
+  prose "A walk-in cupboard no wider than your shoulders, lined with shelves. Three lidded buckets on the floor — tenmoku, celadon, shino, in marker pen — a board of test tiles nailed to the door, a sieve and a whisk on a hook.\n\nThe door back into the wheel corner is behind you; a hatch at the far end lifts onto the yard."
+
+  describe {
+    if (self.get(:stirred) == true) {
+      text "The cupboard smells of wet stone: the buckets are freshly stirred and glossy on top, the sieve dripping on its hook. Test tiles on the door. The wheel corner is behind you; the hatch lifts onto the yard."
+    } else {
+      text "A walk-in cupboard no wider than your shoulders, lined with shelves. Three lidded buckets on the floor — tenmoku, celadon, shino, in marker pen — a board of test tiles nailed to the door, a sieve and a whisk on a hook.\n\nThe door back into the wheel corner is behind you; a hatch at the far end lifts onto the yard."
+    }
+  }
+
+  on :stirred {
+    self.set(:stirred, true)
+  }
+
+  exit "back to the wheel corner" to wheel
+  exit "through the hatch to the yard" to yard
+}

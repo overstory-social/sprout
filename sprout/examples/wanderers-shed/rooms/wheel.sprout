@@ -1,0 +1,24 @@
+room wheel {
+  :name "The Wheel Corner"
+  :turning false
+  prose "The far end of the shed, curtained off with sacking: a kick wheel on a plinth of bricks, a stool, a slop bucket with a sponge floating in it, and a window so low you look out at the level of the cabbages.\n\nThe sacking leads back into the shed. A cupboard door in the end wall opens on the glaze cupboard."
+
+  describe {
+    if (self.get(:turning) == true) {
+      text "The kick wheel is turning, the flywheel humming under the bricks, a lump of clay going steadily nowhere on the head. Slip on the window. The sacking leads back into the shed; the cupboard door opens on the glaze cupboard."
+    } else {
+      text "The far end of the shed, curtained off with sacking: a kick wheel on a plinth of bricks, a stool, a slop bucket with a sponge floating in it, and a window so low you look out at the level of the cabbages.\n\nThe sacking leads back into the shed. A cupboard door in the end wall opens on the glaze cupboard."
+    }
+  }
+
+  on :wheel_on {
+    self.set(:turning, true)
+  }
+
+  on :wheel_off {
+    self.set(:turning, false)
+  }
+
+  exit "back through the sacking" to shed
+  exit "into the glaze cupboard" to glaze
+}

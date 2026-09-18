@@ -1,0 +1,16 @@
+object whisk {
+  :name "Sieve and whisk"
+  :takeable false
+  prose "A glaze sieve with a brush worn to a stump, and an old kitchen whisk gone grey."
+
+  stir_the_buckets {
+    grammar "stir the buckets"
+    say "You whisk each bucket from the bottom up until nothing sits on the floor of it. Your arm knows about it afterwards."
+    send room :stirred
+  }
+
+  sieve_a_bucket_through {
+    grammar "sieve a bucket through"
+    say "Brush, brush, brush. The lumps stay on the mesh; the glaze goes through smooth as paint."
+  }
+}

@@ -1,0 +1,15 @@
+object barrel {
+  :name "Rain barrel"
+  :takeable false
+  prose "A rain barrel under the downpipe, black water with a skin of leaves, a tin mug hung on a nail beside it."
+
+  look_in {
+    grammar "look in"
+    say "Your own face, the sky, a water boatman rowing across both."
+  }
+
+  fill_the_mug {
+    grammar "fill the mug"
+    say "Cold, leafy, and better than tap. Rain is what the clay wants anyway."
+  }
+}

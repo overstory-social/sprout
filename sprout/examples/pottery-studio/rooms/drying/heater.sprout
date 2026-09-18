@@ -1,0 +1,28 @@
+object heater {
+  :name "Small heater"
+  :on false
+  :takeable false
+  prose "A fan heater, unplugged, its cord coiled on top."
+
+  describe {
+    if (self.get(:on) == true) {
+      text "The fan heater whirs on the floor, its element glowing dull orange."
+    } else {
+      text "A fan heater, unplugged, its cord coiled on top."
+    }
+  }
+
+  plug_it_in when (self.get(:on) == false) {
+    grammar "plug it in"
+    self.set(:on, true)
+    say "It whirs, and a smell of hot dust rises."
+    send room :heat_on
+  }
+
+  unplug_it when (self.get(:on) == true) {
+    grammar "unplug it"
+    self.set(:on, false)
+    say "The fan winds down. The room starts, slowly, to cool."
+    send room :heat_off
+  }
+}

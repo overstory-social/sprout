@@ -1,0 +1,42 @@
+object buckets {
+  :name "Glaze buckets"
+  :open one_of [none, tenmoku, celadon, shino] default none
+  :takeable false
+  prose "Three buckets, lids on, labelled in marker pen. TENMOKU. CELADON. SHINO. A skin of dried glaze around each rim."
+
+  describe {
+    if (self.get(:open) == "tenmoku") {
+      text "The tenmoku bucket is open: a dull brown soup that will fire to black glass."
+    } else if (self.get(:open) == "celadon") {
+      text "The celadon bucket is open: grey-green and thin as milk, the sort of thing you have to trust."
+    } else if (self.get(:open) == "shino") {
+      text "The shino bucket is open: thick, white, and settling into a crust even as you watch."
+    } else {
+      text "Three buckets, lids on, labelled in marker pen. TENMOKU. CELADON. SHINO. A skin of dried glaze around each rim."
+    }
+  }
+
+  lift_the_tenmoku_lid when (self.get(:open) != "tenmoku") {
+    grammar "lift the tenmoku lid"
+    self.set(:open, "tenmoku")
+    say "The lid comes off with a suck. Brown as gravy."
+  }
+
+  lift_the_celadon_lid when (self.get(:open) != "celadon") {
+    grammar "lift the celadon lid"
+    self.set(:open, "celadon")
+    say "The lid comes off. The glaze is the colour of a pond you would not swim in."
+  }
+
+  lift_the_shino_lid when (self.get(:open) != "shino") {
+    grammar "lift the shino lid"
+    self.set(:open, "shino")
+    say "The lid comes off. The shino has settled into a white crust; it needs the whisk."
+  }
+
+  put_the_lids_back when (self.get(:open) != "none") {
+    grammar "put the lids back"
+    self.set(:open, "none")
+    say "Lids on, pressed down at the edges. Glaze keeps forever if you let it."
+  }
+}

@@ -1,0 +1,55 @@
+object raku {
+  :name "Raku kiln"
+  :state one_of [cold, packed, firing, cooling, open] default cold
+  :takeable false
+  :remembers [firings: 0 min 0 max 99]
+  prose "A dustbin kiln lined with ceramic fibre, a burner under it and a pair of long tongs leaning against it. Cold."
+
+  describe {
+    if (self.get(:state) == "packed") {
+      text "The kiln, packed: a shelf, a pot or two, the lid on. All it wants is a match."
+    } else if (self.get(:state) == "firing") {
+      text "The kiln roaring, the lid seams glowing orange, the whole bin shimmering with heat."
+    } else if (self.get(:state) == "cooling") {
+      text "The kiln, burner off, ticking as it cools, the glow gone from the seams."
+    } else if (self.get(:state) == "open") {
+      text "The kiln open, the lid on the paving, whatever was in it now out and smoking in the sawdust bin."
+    } else {
+      text "A dustbin kiln lined with ceramic fibre, a burner under it and a pair of long tongs leaning against it. Cold."
+    }
+  }
+
+  pack_it when (self.get(:state) == "cold") {
+    grammar "pack it"
+    self.set(:state, "packed")
+    say "Shelf in, pots on the shelf with a finger's width between them, lid on."
+  }
+
+  light_the_burner when (self.get(:state) == "packed") {
+    grammar "light the burner"
+    self.set(:state, "firing")
+    say "A match to the burner and a woof of blue flame. Twenty minutes to a thousand degrees, in a dustbin."
+    send room :kiln_lit
+  }
+
+  watch_until_the_glaze_shines when (self.get(:state) == "firing") {
+    grammar "watch until the glaze shines"
+    self.set(:state, "cooling")
+    say "You crack the lid with the tongs. Inside, the glaze has gone from matte to wet-looking to a shine like poured honey. Burner off."
+  }
+
+  pull_the_pots_with_the_tongs when (self.get(:state) == "cooling") {
+    grammar "pull the pots with the tongs"
+    self.set(:state, "open")
+    actor.remember(:firings, 1)
+    say "Lid off, tongs in, and the pots come out glowing and go straight into the sawdust bin, where they catch and smoke and crackle."
+    broadcast :fired
+  }
+
+  sweep_it_out when (self.get(:state) == "open") {
+    grammar "sweep it out"
+    self.set(:state, "cold")
+    say "Ash out, shelf wiped, lid back on. Cold again, and ready."
+    send room :kiln_out
+  }
+}
