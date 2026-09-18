@@ -129,7 +129,8 @@ export interface Runtime {
 
 const DEFAULT_PRESENCE_MS = 30_000;
 
-function archiveStamp(archive: Archive): string {
+/** The archive's content stamp — the program cache's key, and what a host compares to know whether a stored microworld is current. */
+export function archiveStamp(archive: Archive): string {
   const files = [...archive.files].sort((a, b) => (a.name < b.name ? -1 : 1));
   return stampOf(JSON.stringify([files, archive.manifest ?? null, LANGUAGE_LEVEL]));
 }
