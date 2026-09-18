@@ -90,6 +90,7 @@ describe('design/proposals/sprout-worked-example', () => {
     expect(has((d) => d.properties.some((p) => p.type === 'boolean'))).toBe(true);
     expect(has((d) => d.properties.some((p) => p.type === 'integer'))).toBe(true);
     expect(has((d) => d.properties.some((p) => p.type === 'enum'))).toBe(true);
+    expect(has((d) => d.properties.some((p) => p.type === 'string'))).toBe(true);
     expect(has((d) => d.properties.some((p) => p.type === 'media'))).toBe(true);
     expect(has((d) => d.remembers.length > 0)).toBe(true);
     expect(
@@ -100,15 +101,10 @@ describe('design/proposals/sprout-worked-example', () => {
     expect(has((d) => d.messages.some((m) => m.abstract))).toBe(true);
     expect(has((d) => d.hooks.length > 0)).toBe(true);
     expect(has((d) => d.passRules.length > 0)).toBe(true);
-    expect(
-      has(
-        (d) =>
-          d.consents
-            .map((c) => c.guard)
-            .sort()
-            .join() === 'accept,release',
-      ),
-    ).toBe(true);
+    // the three consent guards, each somewhere
+    for (const guard of ['depart', 'release', 'accept']) {
+      expect(has((d) => d.consents.some((c) => c.guard === guard))).toBe(true);
+    }
     expect(
       [...program.kinds.values()].some((k) => k.inherit !== null && k.inherit !== 'Container'),
     ).toBe(true);
