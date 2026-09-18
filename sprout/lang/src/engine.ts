@@ -1033,7 +1033,7 @@ class Runner {
         if (!obj || obj.kind === 'actor') return null;
         const value = obj.state[e.property];
         if (value !== undefined) return value;
-        const known = wellKnownFor(obj.definition).get(e.property);
+        const known = wellKnownFor(obj.definition, this.ext).get(e.property);
         return known ? known.default : null;
       }
       case 'recall': {

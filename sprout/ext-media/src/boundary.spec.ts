@@ -19,7 +19,13 @@ describe('@overstory/sprout-ext-media imports nothing but the language, zod and 
       const text = readFileSync(join(SRC, file), 'utf8');
       const specifiers = [...text.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
       const allowed = file.endsWith('.spec.ts') ? [...ALLOWED, ...ALLOWED_IN_SPECS] : ALLOWED;
-      const foreign = specifiers.filter((s) => !s.startsWith('./') && !allowed.includes(s));
+      // A spec may reach the language's own spec fixtures (parity.spec.ts); nothing shipped may.
+      const foreign = specifiers.filter(
+        (s) =>
+          !s.startsWith('./') &&
+          !(file.endsWith('.spec.ts') && s.startsWith('../../sprout/src/fixtures/')) &&
+          !allowed.includes(s),
+      );
       expect(foreign).toEqual([]);
     });
   }
