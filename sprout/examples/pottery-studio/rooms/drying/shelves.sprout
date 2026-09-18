@@ -1,4 +1,4 @@
-object shelves {
+object shelves in drying {
   :name "Drying shelves"
   :takeable false
   :remembers [checked: false]

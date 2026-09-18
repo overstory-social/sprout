@@ -1,4 +1,4 @@
-object tiles {
+object tiles in glaze {
   :name "Test tiles"
   :takeable false
   prose "A board of fired test tiles, each glaze at three thicknesses, each labelled in pencil."

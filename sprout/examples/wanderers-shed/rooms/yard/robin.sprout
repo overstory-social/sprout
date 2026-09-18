@@ -1,4 +1,4 @@
-object robin {
+object robin in yard {
   :tame 0 min 0 max 3
   :takeable false
   :remembers [fed: false]

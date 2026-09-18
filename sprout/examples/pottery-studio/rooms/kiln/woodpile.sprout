@@ -1,4 +1,4 @@
-object woodpile {
+object woodpile in kiln {
   :logs 18 min 0 max 30
   :takeable false
   prose "Split ash and oak stacked under a tin roof, seasoned two summers."

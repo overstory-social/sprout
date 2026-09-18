@@ -10,6 +10,8 @@ import {
   identOf,
   printSprout,
   tokenize,
+  compileFile,
+  usesOf,
 } from './sprout-lang.js';
 import { LANGUAGE_LEVEL } from './definitions.js';
 import { type SproutDefinition } from './sprout.js';
@@ -355,7 +357,7 @@ describe('compileSprout', () => {
       column: 1,
       message: 'A kind is written in the kinds panel, not placed as an object or a room.',
     });
-    expect(compileSprout('object torch: Torch in cellar {}').problems[0]!.message).toContain(
+    expect(compileSprout('room hall in cellar {}').problems[0]!.message).toContain(
       'leave `in` out',
     );
     expect(compileSprout('object o { if { }').problems[0]!.message).toContain('is a keyword');
@@ -434,6 +436,59 @@ describe('compileSprout', () => {
     );
     expect(structural.definition).toBeNull();
     expect(structural.problems[0]!.level).toBeNull();
+  });
+
+  it('`in <ident>` places an object (§3.3); a room or a kind is never placed; the printer prints it back', () => {
+    const placed = compileSprout('object torch: Torch in cellar {}', {
+      zoneKinds: new Map([['Torch', compileSproutKind('kind Torch {}').definition!]]),
+    });
+    expect(placed.definition?.placedIn).toBe('cellar');
+    expect(printSprout(placed.definition!)).toBe('object torch: Torch in cellar {\n}\n');
+    expect(compileSprout('object torch in cellar {}').definition?.placedIn).toBe('cellar');
+    expect(compileSprout('room hall in cellar {}').problems[0]?.message).toBe(
+      'A room is a place, not in one; leave `in` out.',
+    );
+    expect(compileSproutKind('kind Torch in cellar {}').problems[0]?.message).toBe(
+      'A kind is never placed; leave `in` out.',
+    );
+  });
+
+  it('compileFile reads a whole file — its `use` lines, then any number of definitions, each problem at its own head', () => {
+    const r = compileFile(
+      'use media\nkind Lamp { :lit false }\nroom hall {}\n\nobject lamp: Lamp in hall {\n  :image media "m-1"\n}\n',
+      {
+        ext: MEDIA,
+        rooms: new Map([['hall', 'hall']]),
+        zoneKinds: new Map([['Lamp', compileSproutKind('kind Lamp { :lit false }').definition!]]),
+      },
+    );
+    expect(r.problems).toEqual([]);
+    expect(r.uses).toEqual(['media']);
+    expect(r.definitions.map((d) => (d.role === 'kind' ? d.kindName : d.ident))).toEqual([
+      'Lamp',
+      'hall',
+      'lamp',
+    ]);
+    // a syntax error stops the file where it stands, with nothing kept
+    const bad = compileFile(
+      'room hall {}\nobject lamp in hall {\n  poke { say "x" }\n}\nobject { nope',
+    );
+    expect(bad.definitions).toEqual([]);
+    expect(bad.problems).toHaveLength(1);
+    expect(bad.problems[0]).toMatchObject({ line: 5, column: 8 });
+    // a check's problem points at the head of the definition it is about; the rest are kept
+    const half = compileFile(
+      'room hall {}\nobject lamp in hall {\n  poke { self.set(:zz, 1) }\n}\n',
+    );
+    expect(half.definitions.map((d) => d.ident)).toEqual(['hall']);
+    expect(half.problems[0]).toMatchObject({ line: 2, column: 1 });
+    expect(half.problems[0]?.message).toContain('"zz"');
+    // one object per source still holds for compileSprout — an editor's page
+    expect(compileSprout('room a {}\nroom b {}').problems[0]?.message).toBe(
+      'One object per source; nothing may follow its closing brace.',
+    );
+    expect(usesOf('use media\nuse other\nroom r {}')).toEqual(['media', 'other']);
+    expect(usesOf('room r { use (with: object) { say "x" } }')).toEqual([]);
   });
 
   it('carries the warnings through', () => {

@@ -1,4 +1,4 @@
-object whisk {
+object whisk in glaze {
   :name "Sieve and whisk"
   :takeable false
   prose "A glaze sieve with a brush worn to a stump, and an old kitchen whisk gone grey."

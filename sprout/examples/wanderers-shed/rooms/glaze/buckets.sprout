@@ -1,4 +1,4 @@
-object buckets {
+object buckets in glaze {
   :name "Glaze buckets"
   :open one_of [none, tenmoku, celadon, shino] default none
   :takeable false

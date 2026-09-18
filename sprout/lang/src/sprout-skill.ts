@@ -1,15 +1,16 @@
 import { SPROUT_BUILTIN_KINDS, SPROUT_RESERVED_MESSAGES, wellKnownFor } from './sprout.js';
 import { compileSprout, compileSproutKind, printSprout } from './sprout-lang.js';
 import { NO_EXTENSIONS, type ExtensionSet } from './extensions.js';
+import { BUILTIN_VERBS } from './grammar.js';
 import {
-  UNDERSTORY_CASCADE_DEPTH,
-  UNDERSTORY_DEFINITION_BYTES_MAX,
-  UNDERSTORY_EVENT_BUDGET,
-  UNDERSTORY_FIELDS_PER_OBJECT,
-  UNDERSTORY_MAX_INSTANCES,
-  UNDERSTORY_NODE_DEPTH_MAX,
-  UNDERSTORY_SPAWNS_PER_ACTION,
-  UNDERSTORY_VERBS_PER_OBJECT,
+  SPROUT_CASCADE_DEPTH,
+  SPROUT_DEFINITION_BYTES_MAX,
+  SPROUT_EVENT_BUDGET,
+  SPROUT_FIELDS_PER_OBJECT,
+  SPROUT_MAX_INSTANCES,
+  SPROUT_NODE_DEPTH_MAX,
+  SPROUT_SPAWNS_PER_ACTION,
+  SPROUT_VERBS_PER_OBJECT,
 } from './definitions.js';
 
 // The exportable skill (#347; sprout.md §7 step 9): a SKILL.md a builder
@@ -214,11 +215,15 @@ ${extensions || '_This host has installed none._'}
 
 The engine sends these; they are never verbs a visitor types, and a message may not be named after one: ${reserved}. Built-in kinds: ${SPROUT_BUILTIN_KINDS.map((k) => `\`${k}\``).join(', ')} (\`Actor\` cannot be inherited). Keywords cannot be message names.
 
+## What a visitor can always type
+
+The built-in verbs, in every microworld, tried after a message's own grammar lines: ${BUILTIN_VERBS.map((b) => `\`${b.lines[0]}\``).join(', ')}. \`[x]\` is a thing in reach — one in the hands for \`drop\` and \`give\`, an open container for \`put … in\`, an exit's label for \`go\`, someone present for \`give … to\`.
+
 ## What the compiler refuses
 
-A write to anything but \`self\`; a property self does not declare (well-known ones excepted); a value of the wrong type; \`adjust\` on a non-integer; \`text\` outside \`describe\`, and \`say\` or anything that writes or sends inside it; \`allow\`/\`refuse\` outside a guard, or anything else inside one; a grammar slot that is not \`[self]\` or an argument; an abstract message on anything placed; behaviour on an instance of a kind; \`pass\` off a container; a kind inheriting itself or one that does not exist; more than ${UNDERSTORY_FIELDS_PER_OBJECT} properties or ${UNDERSTORY_VERBS_PER_OBJECT} messages per object; nesting deeper than ${UNDERSTORY_NODE_DEPTH_MAX} (an \`else if\` chain counts as one); a source over ${UNDERSTORY_DEFINITION_BYTES_MAX / 1024} KB.
+A write to anything but \`self\`; a property self does not declare (well-known ones excepted); a value of the wrong type; \`adjust\` on a non-integer; \`text\` outside \`describe\`, and \`say\` or anything that writes or sends inside it; \`allow\`/\`refuse\` outside a guard, or anything else inside one; a grammar slot that is not \`[self]\` or an argument; an abstract message on anything placed; behaviour on an instance of a kind; \`pass\` off a container; a kind inheriting itself or one that does not exist; more than ${SPROUT_FIELDS_PER_OBJECT} properties or ${SPROUT_VERBS_PER_OBJECT} messages per object; nesting deeper than ${SPROUT_NODE_DEPTH_MAX} (an \`else if\` chain counts as one); a source over ${SPROUT_DEFINITION_BYTES_MAX / 1024} KB.
 
-At runtime, an action **faults** and is rolled back past ${UNDERSTORY_CASCADE_DEPTH} events deep or ${UNDERSTORY_EVENT_BUDGET} events in one action (two objects answering each other forever), more than ${UNDERSTORY_SPAWNS_PER_ACTION} spawns in one action, or ${UNDERSTORY_MAX_INSTANCES} live things in a zone.
+At runtime, an action **faults** and is rolled back past ${SPROUT_CASCADE_DEPTH} events deep or ${SPROUT_EVENT_BUDGET} events in one action (two objects answering each other forever), more than ${SPROUT_SPAWNS_PER_ACTION} spawns in one action, or ${SPROUT_MAX_INSTANCES} live things in a zone.
 
 ## A worked example
 

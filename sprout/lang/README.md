@@ -17,7 +17,7 @@ README is the language as it stands.
 
 - [Using the package](#using-the-package)
 - [The language](#the-language)
-  - [A source is one object](#a-source-is-one-object)
+  - [Files, and where things sit](#files-and-where-things-sit)
   - [Names](#names)
   - [Rooms](#rooms)
   - [Objects](#objects)
@@ -38,6 +38,7 @@ README is the language as it stands.
   - [Limits, and what faults at runtime](#limits-and-what-faults-at-runtime)
   - [A worked example](#a-worked-example)
 - [The definition format](#the-definition-format)
+- [Compiling a microworld](#compiling-a-microworld)
 - [Embedding the engine](#embedding-the-engine)
 - [Typing to play: the command parser](#typing-to-play-the-command-parser)
 - [What the host provides](#what-the-host-provides)
@@ -46,17 +47,20 @@ README is the language as it stands.
 
 ```ts
 import {
-  compileSprout, // a room's or an object's source → a definition
+  compileSprout, // one room's or object's source → a definition (an editor's page)
   compileSproutKind, // a kind's source → a kind definition
+  compileFile, // a whole file: its `use` lines, then any number of definitions
+  compileMicroworld, // an archive of files → a program (strict, or lenient with `absent`)
   printSprout, // a definition → Sprout, for an editor
   resolveDefinition, // fold an object's kind chain into one flat definition
   runVerb,
   runMove,
-  describeWith, // the engine
+  describeWith, // the engine, over a Scene and a TurnContext
   parseCommand,
   complete,
   whatYouCanSay, // typed commands
   sproutSkill, // a generated reference that teaches the language
+  tokenize, // the lexer, for an editor's highlighter
 } from '@overstory/sprout';
 
 const { definition, problems, warnings } = compileSprout(source, {
@@ -79,23 +83,28 @@ its output, and the example at the end of this README is the same one.
 
 ## The language
 
-### A source is one object
+### Files, and where things sit
 
-A source file defines exactly one thing, and starts with one of three
-headers:
+A file holds any number of definitions, after its `use` lines; each
+starts with one of these heads:
 
 ```sprout
 room the_kitchen { … }            // a room
-object oil_lamp { … }             // an item, on its own
-object oil_lamp: Lamp { … }       // an item that is an instance of a kind
+object oil_lamp in the_kitchen { … }        // an item, on its own, in that room
+object oil_lamp: Lamp in the_kitchen { … }  // an item that is an instance of a kind
+object coin in chest { … }        // an item inside a container object
 kind Lamp { … }                   // behaviour and defaults, never placed
 kind OilLamp: Lamp { … }          // a kind that inherits another
 ```
 
-Nothing may follow the closing brace. Where an object _sits_ — which
-room it is in, who is holding it — is not written in Sprout: that is the
-host's world state (`object x: Kind in cellar` is refused, and says so).
-The members inside the braces may come in any order.
+`in <identifier>` says where an object sits — a room, or a container
+object, in the same microworld — and is resolved by the microworld
+compile (below). A room is a place and a kind is never placed, so
+neither takes `in`. A host that keeps where things sit itself (Overstory
+does: an item's row is in a room) may leave `in` out, or write only what
+the host already knows. The members inside the braces may come in any
+order. An editor's page is ONE definition — `compileSprout` refuses a
+second — and `compileFile` reads a whole file.
 
 ### Names
 
@@ -562,7 +571,7 @@ writes or sends inside it; `allow`/`refuse` outside a guard, or
 anything else inside one; a grammar slot that is not `[self]` or an
 argument; an abstract message on anything placed; behaviour on an
 instance of a kind; `pass` off a container; a kind inheriting itself or
-one that does not exist; `in` on a header; an exit to a room it does
+one that does not exist; `in` on a room or a kind; an exit to a room it does
 not know; more than the caps below; nesting deeper than 8 (an `else if`
 chain counts as one); a source over 64 KB. Every refusal names the line
 and the column.
@@ -712,22 +721,66 @@ chain for `is(Kind)`. `kindAsItem(kind, kinds)` is what a spawned thing
 is. `sproutDefinitionProblems` and `sproutDefinitionWarnings` are the
 compiler's checks on a definition that arrived some other way.
 
+## Compiling a microworld
+
+A **microworld** travels as an **archive**: `sprout.json` (the
+`SproutManifest`: `format`, the `language` level it needs, the `entry`
+room, the `extensions` it uses) beside any number of `.sprout` files.
+`compileMicroworld(archive, { strict, ext })` compiles them together:
+
+- Files are read in name order and their `use` lines unioned first, so
+  every file compiles under ONE keyword set and one well-known table —
+  `use` is an archive-level fact, and the manifest repeats it so a host
+  can refuse before compiling.
+- Identifiers resolve across files: `exit "up" to hall`, `object torch:
+Torch in cellar`, `send bench :x`. Rooms and objects share one
+  namespace; kinds are capitalised and apart. Every cross-definition
+  check runs here with the whole microworld in view.
+- **Strict** (a host's save and publish, the CLI's `check`, an editor):
+  every unresolved reference is a `problem` naming its file, line and
+  column, and the definition it is about. **Lenient** (a runtime's
+  load): a definition that cannot be compiled or resolved is dropped
+  into `absent` with its reason — a file that does not parse, a
+  duplicate, an object of a missing kind, one placed in what holds
+  nothing or never reaches a room — and an exit to a missing room is
+  simply not there. The microworld keeps running minus the broken part,
+  which is what makes a take-down safe.
+- The **program** is what an evaluator and a matcher read: `kinds`,
+  `rooms` and `objects` by identifier (objects folded through their kind
+  chains, each with its `placedIn`), the `entry`, `order` — objects in
+  declaration order, files by name and definitions in file order, which
+  is the delivery order for a broadcast — `files` (what defined what),
+  the complete tokenised `grammar` table per reachable message and the
+  `builtins` a player may always type, `uses`, the `values` an
+  extension's types are given in the text (a picture's id), and
+  `absent`.
+
+`compileFile(source)` is one file alone — what an editor checks per
+keystroke — and `compileSprout(source)` one definition.
+
 ## Embedding the engine
 
-The engine runs against a `SproutWorld`: the room, the actor, the
-items in range (each a `SproutObject` naming its container), optionally
-the objects elsewhere, the spawnable kinds, an id minter, the live
-instance count and a budget. The host loads that from wherever it keeps
-state, inside whatever transaction it likes, and calls:
+The engine runs against a **`Scene`** — the room, the actor, the items
+in range (each a `SproutObject` naming its container), optionally the
+objects elsewhere, the spawnable kinds and the delivery `order` (object
+id → place: declaration order, then spawn order; absent, everything is
+by id) — and a **`TurnContext`**: the
+request's budget, where new instance ids come from, how many instances
+are alive, and the extensions the program was compiled with
+(`turnContext({ … })` fills in defaults). The host builds the scene from
+wherever it keeps state, inside whatever transaction it likes, makes one
+context per request so every runner in it shares the budget, and calls:
 
-- `runVerb(world, targetId, message, args)` — a typed or chosen verb.
-- `runMove(world, whatId, toId)` — a proposal (`take`, `drop`, `give`,
-  `put`, `go`, or a `move` from a body); `refused` carries the guard's
-  words.
-- `describeWith(obj, world)` — an object's prose and the pictures it
-  showed (`renderProse` for the text alone); `openVerbs(obj, world)` —
-  the verbs offered right now, for a chip-based client;
-  `memoryOf(world)` — what the objects remember about this visitor.
+- `runVerb(scene, ctx, targetId, message, args)` — a typed or chosen
+  verb.
+- `runMove(scene, ctx, whatId, toId)` — a proposal (`take`, `drop`,
+  `give`, `put`, `go`, or a `move` from a body); `refused` carries the
+  guard's words.
+- `describeWith(obj, scene, ctx)` — an object's prose and the pictures
+  it showed (`renderProse` for the text alone); `openVerbs(obj, scene,
+ctx)` — the verbs offered right now, for a chip-based client;
+  `memoryOf(scene)` — what the objects remember about this visitor;
+  `visibleItems(scene, container)`.
 
 An outcome carries what was said, in order; the property writes and
 containment changes to persist; what was spawned or destroyed; the
@@ -742,12 +795,14 @@ a fault.
 message on an object with bound arguments, or one of the built-ins —
 or a reply for the visitor. It is a classic interactive-fiction parser
 in the Inform lineage, and its grammar is _data_: the `ParseContext` is
-the world plus the exits the actor may take and the people present, and
+the scene plus the exits the actor may take and the people present, and
 from it the parser builds a dictionary (every addressable object's
 `:names`, its display name, its kind's name, a symbol-valued property's
 value as an adjective, the exits' labels, the people by handle) and a
 grammar table (every reachable message's lines with `[self]` bound,
-plus the built-ins). Articles and filler are dropped; slots are filled
+plus the built-ins — the same `grammarLines`, `grammarTokens` and
+`BUILTIN_VERBS` a program carries, from `grammar.ts`). Articles and
+filler are dropped; slots are filled
 longest noun first; ties on _which object_ ask "Which do you mean?"
 unless the candidates are one kind in one state, when any will do; ties
 on _which verb_ prefer the object's own message over a built-in. A miss

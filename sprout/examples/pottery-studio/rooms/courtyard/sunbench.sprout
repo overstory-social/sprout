@@ -1,4 +1,4 @@
-object sunbench {
+object sunbench in courtyard {
   :name "Bench in the sun"
   :takeable false
   prose "A slatted bench against the warm wall, under the fig."

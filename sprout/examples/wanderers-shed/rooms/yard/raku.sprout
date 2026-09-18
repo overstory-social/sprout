@@ -1,4 +1,4 @@
-object raku {
+object raku in yard {
   :name "Raku kiln"
   :state one_of [cold, packed, firing, cooling, open] default cold
   :takeable false

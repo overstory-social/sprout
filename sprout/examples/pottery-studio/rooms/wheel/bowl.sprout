@@ -1,4 +1,4 @@
-object bowl {
+object bowl in wheel {
   :name "Wet bowl"
   :state one_of [wet, leather, bone_dry, bisqued, glazed, fired] default wet
   :takeable true

@@ -1,4 +1,4 @@
-object pugmill {
+object pugmill in clay {
   :name "Pug mill"
   :running false
   :takeable false

@@ -1,4 +1,4 @@
-object heater {
+object heater in drying {
   :name "Small heater"
   :on false
   :takeable false

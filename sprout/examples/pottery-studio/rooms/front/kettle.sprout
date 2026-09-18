@@ -1,4 +1,4 @@
-object kettle {
+object kettle in front {
   :state one_of [cold, boiling] default cold
   :takeable false
   :remembers [had_tea: false]

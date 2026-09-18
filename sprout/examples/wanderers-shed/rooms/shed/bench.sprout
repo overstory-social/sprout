@@ -1,4 +1,4 @@
-object bench {
+object bench in shed {
   :name "Workbench"
   :takeable false
   prose "Two doors laid across trestles, worn smooth in the middle and cluttered at the edges: ribs, a wire, a sponge, a jar of pencils."

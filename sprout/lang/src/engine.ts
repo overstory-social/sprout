@@ -12,16 +12,16 @@ import {
 } from './sprout.js';
 import {
   SPROUT_EFFECTS_PER_ACTION,
-  UNDERSTORY_CASCADE_DEPTH,
-  UNDERSTORY_EVENT_BUDGET,
-  UNDERSTORY_FAULT_CHAIN,
-  UNDERSTORY_MAX_INSTANCES,
-  UNDERSTORY_SPAWNS_PER_ACTION,
+  SPROUT_CASCADE_DEPTH,
+  SPROUT_EVENT_BUDGET,
+  SPROUT_FAULT_CHAIN,
+  SPROUT_MAX_INSTANCES,
+  SPROUT_SPAWNS_PER_ACTION,
   isBuiltinField,
   type SproutField,
   type SproutState,
   type SproutValue,
-  type UnderstoryMemory,
+  type SproutMemory,
 } from './definitions.js';
 import {
   NO_EXTENSIONS,
@@ -58,7 +58,7 @@ import { humanise, identOf } from './sprout-lang.js';
 //   in allow or refuse — and only then does containment change, with
 //   `left`, `entered` and `moved` sent after.
 // - Every event is an envelope (§2.5). Depth over
-//   UNDERSTORY_CASCADE_DEPTH or more than UNDERSTORY_EVENT_BUDGET
+//   SPROUT_CASCADE_DEPTH or more than SPROUT_EVENT_BUDGET
 //   envelopes in one action is a FAULT: the caller rolls the action
 //   back and records the chain. No cycle rule.
 // - The caps are the REQUEST's, not a runner's (#441): the event, spawn
@@ -108,7 +108,14 @@ export interface SpawnableKind extends ResolvedDefinition {
   kindId: string;
 }
 
-export interface SproutWorld {
+/**
+ * The immutable slice the evaluator reads (§3.4): the room, the acting
+ * visitor, everything in reach, and — for a move across rooms or hands
+ * — the other side. Built by the host from its store; the language
+ * never sees a row. The objects' state is mutated in place by a run;
+ * the host writes back what the outcome names.
+ */
+export interface Scene {
   room: SproutObject;
   /** The acting visitor, as an object: kind Actor, their hands a container. */
   actor: SproutObject;
@@ -116,27 +123,49 @@ export interface SproutWorld {
   items: SproutObject[];
   /** For a move across rooms or hands: the destination and what it holds (a room and its items; another actor and theirs). */
   elsewhere?: SproutObject[];
-  /** The zone's kinds by name, for `spawn`. */
+  /** The microworld's kinds by name, for `spawn`. */
   kinds?: ReadonlyMap<string, SpawnableKind>;
-  /** New instance ids; the caller's (uuids from the world, counters in a spec). */
-  mint?: () => string;
-  /** Live instances in the zone before this action, for the cap. */
-  instanceCount?: number;
   /**
-   * The request's budget (#441): made by the first runner over this
-   * world and shared by every later one. A caller that builds a world
-   * for one request leaves it unset.
+   * Delivery order (the split proposal §3.3): object id → its place —
+   * placed objects in declaration order, spawned ones in spawn order.
+   * Where the engine lists or delivers "in order" it uses this; an id it
+   * does not name comes after, by id. Absent, everything is by id.
    */
-  budget?: SproutBudget;
-  /** The extensions the host installed (§3.5): their value types, well-known properties and statements. */
-  ext?: ExtensionSet;
+  order?: ReadonlyMap<string, number>;
+}
+
+/**
+ * The mutable half of a turn (§3.4), one per request and shared by every
+ * runner in it: the budget, where new instance ids come from, how many
+ * instances are alive before this action (for the cap), and the
+ * extensions the program was compiled with — which reach every helper
+ * that consults the well-known property table.
+ */
+export interface TurnContext {
+  budget: SproutBudget;
+  /** New instance ids; the host's (uuids from the world, counters in a spec). */
+  mint: () => string;
+  /** Live instances in the microworld before this action, for the cap. */
+  liveCount: number;
+  ext: ExtensionSet;
+}
+
+/** A turn context with defaults for what is not given: a fresh budget, counter ids, nothing alive, no extensions. */
+export function turnContext(partial: Partial<TurnContext> = {}): TurnContext {
+  let n = 0;
+  return {
+    budget: partial.budget ?? new SproutBudget(),
+    mint: partial.mint ?? (() => `spawn-${++n}`),
+    liveCount: partial.liveCount ?? 0,
+    ext: partial.ext ?? NO_EXTENSIONS,
+  };
 }
 
 /**
  * What one request may spend, wherever it spends it (§2.5, §2.8, #441):
- * envelopes against UNDERSTORY_EVENT_BUDGET, births against
- * UNDERSTORY_SPAWNS_PER_ACTION, and the net instances made against the
- * zone's UNDERSTORY_MAX_INSTANCES. Envelope ids come from here too, so
+ * envelopes against SPROUT_EVENT_BUDGET, births against
+ * SPROUT_SPAWNS_PER_ACTION, and the net instances made against the
+ * zone's SPROUT_MAX_INSTANCES. Envelope ids come from here too, so
  * they stay unique across the runners of one request.
  */
 export class SproutBudget {
@@ -160,13 +189,13 @@ export interface SproutEnvelope {
 
 export interface SproutFault {
   message: string;
-  /** The last UNDERSTORY_FAULT_CHAIN envelopes, oldest first. */
+  /** The last SPROUT_FAULT_CHAIN envelopes, oldest first. */
   chain: SproutEnvelope[];
   /** The object that was running when it faulted. */
   objectId: string;
 }
 
-export interface VerbOutcome {
+export interface Outcome {
   /** False when the target or the message was not there, its `when` did not pass, or an argument was missing. */
   ok: boolean;
   narration: string[];
@@ -187,7 +216,7 @@ export interface VerbOutcome {
   fault: SproutFault | null;
 }
 
-export interface MoveOutcome extends VerbOutcome {
+export interface MoveOutcome extends Outcome {
   /** The refusal the actor read, when a guard said no. */
   refused: string | null;
 }
@@ -198,6 +227,7 @@ export interface MoveOutcome extends VerbOutcome {
 export const ACTOR_DEFINITION: SproutDefinition = {
   role: 'item',
   ident: null,
+  placedIn: null,
   name: 'you',
   names: [],
   prose: '',
@@ -346,8 +376,16 @@ function rememberedFieldOf(obj: SproutObject, name: string): SproutField | undef
   return obj.definition.remembers.find((f) => f.name === name);
 }
 
-function sorted(items: readonly SproutObject[]): SproutObject[] {
-  return [...items].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+function sorted(
+  items: readonly SproutObject[],
+  order?: ReadonlyMap<string, number>,
+): SproutObject[] {
+  const rank = (o: SproutObject) => order?.get(o.id) ?? Number.POSITIVE_INFINITY;
+  return [...items].sort((a, b) => {
+    const d = rank(a) - rank(b);
+    if (d !== 0 && !Number.isNaN(d)) return d;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
 }
 
 // --- messages as verbs ------------------------------------------------------------
@@ -434,14 +472,17 @@ class Runner {
   readonly budget: SproutBudget;
   private readonly eventsBefore: number;
 
-  constructor(readonly world: SproutWorld) {
-    this.ext = world.ext ?? NO_EXTENSIONS;
-    this.budget = world.budget ??= new SproutBudget();
+  constructor(
+    readonly scene: Scene,
+    readonly ctx: TurnContext,
+  ) {
+    this.ext = ctx.ext;
+    this.budget = ctx.budget;
     this.eventsBefore = this.budget.events;
-    this.objects.set(world.room.id, world.room);
-    this.objects.set(world.actor.id, world.actor);
-    for (const item of world.items) this.objects.set(item.id, item);
-    for (const other of world.elsewhere ?? []) this.objects.set(other.id, other);
+    this.objects.set(scene.room.id, scene.room);
+    this.objects.set(scene.actor.id, scene.actor);
+    for (const item of scene.items) this.objects.set(item.id, item);
+    for (const other of scene.elsewhere ?? []) this.objects.set(other.id, other);
   }
 
   /** The envelopes this runner emitted — the action's own count, for its record. */
@@ -468,7 +509,7 @@ class Runner {
 
   private remember(env: SproutEnvelope): void {
     this.chain.push(env);
-    if (this.chain.length > UNDERSTORY_FAULT_CHAIN) this.chain.shift();
+    if (this.chain.length > SPROUT_FAULT_CHAIN) this.chain.shift();
   }
 
   private emit(
@@ -478,9 +519,9 @@ class Runner {
     value: SproutValue | null,
     options: { changed?: { was: SproutValue }; path?: string[]; from?: string } = {},
   ): void {
-    if (++this.budget.events > UNDERSTORY_EVENT_BUDGET) {
+    if (++this.budget.events > SPROUT_EVENT_BUDGET) {
       throw new Fault(
-        `More than ${UNDERSTORY_EVENT_BUDGET} events in one action — something here is answering itself without end.`,
+        `More than ${SPROUT_EVENT_BUDGET} events in one action — something here is answering itself without end.`,
         frame.self.id,
       );
     }
@@ -504,7 +545,10 @@ class Runner {
 
   /** What a container directly holds, in id order. */
   contentsOf(container: SproutObject): SproutObject[] {
-    return sorted([...this.objects.values()].filter((o) => o.container === container.id));
+    return sorted(
+      [...this.objects.values()].filter((o) => o.container === container.id),
+      this.scene.order,
+    );
   }
 
   containerOf(obj: SproutObject): SproutObject | null {
@@ -515,9 +559,9 @@ class Runner {
   roomOf(obj: SproutObject): SproutObject {
     let cur: SproutObject | null = obj;
     while (cur && cur.kind !== 'room') {
-      cur = cur.kind === 'actor' ? this.world.room : this.containerOf(cur);
+      cur = cur.kind === 'actor' ? this.scene.room : this.containerOf(cur);
     }
-    return cur ?? this.world.room;
+    return cur ?? this.scene.room;
   }
 
   private isInside(obj: SproutObject, ancestor: SproutObject): boolean {
@@ -561,8 +605,8 @@ class Runner {
       if (container.id !== sender.id && container.kind !== 'actor') targets.push(container.id);
       const held = this.contentsOf(container);
       // The actor stands in the world's room: their hands hear what the room hears.
-      if (container.kind === 'room' && container.id === this.world.room.id) {
-        held.push(this.world.actor);
+      if (container.kind === 'room' && container.id === this.scene.room.id) {
+        held.push(this.scene.actor);
       }
       for (const thing of held) {
         if (thing.id === sender.id) continue;
@@ -578,7 +622,7 @@ class Runner {
     while (container) {
       inward(container);
       const parent: SproutObject | null =
-        container.kind === 'actor' ? this.world.room : this.containerOf(container);
+        container.kind === 'actor' ? this.scene.room : this.containerOf(container);
       if (!parent || !this.passes(container, message)) break;
       container = parent;
     }
@@ -591,9 +635,9 @@ class Runner {
       const next = this.queue.shift()!;
       const target = this.objects.get(next.targetId);
       if (!target) continue;
-      if (next.envelope.depth > UNDERSTORY_CASCADE_DEPTH) {
+      if (next.envelope.depth > SPROUT_CASCADE_DEPTH) {
         throw new Fault(
-          `An event chain ran deeper than ${UNDERSTORY_CASCADE_DEPTH} — two things here are probably answering each other.`,
+          `An event chain ran deeper than ${SPROUT_CASCADE_DEPTH} — two things here are probably answering each other.`,
           target.id,
         );
       }
@@ -723,9 +767,9 @@ class Runner {
     s: Extract<SproutStatement, { kind: 'ext' }>,
     spec: NonNullable<ReturnType<ExtensionSet['statement']>>['spec'],
   ): void {
-    if (++this.budget.events > UNDERSTORY_EVENT_BUDGET) {
+    if (++this.budget.events > SPROUT_EVENT_BUDGET) {
       throw new Fault(
-        `More than ${UNDERSTORY_EVENT_BUDGET} events in one action — something here is answering itself without end.`,
+        `More than ${SPROUT_EVENT_BUDGET} events in one action — something here is answering itself without end.`,
         frame.self.id,
       );
     }
@@ -761,7 +805,7 @@ class Runner {
       self: ref(frame.self),
       room: ref(room),
       container: container ? ref(container) : frame.self.kind === 'actor' ? ref(room) : null,
-      actor: ref(this.world.actor),
+      actor: ref(this.scene.actor),
       resolve: (name: string) => {
         const obj = this.resolve({ kind: 'name', name }, frame);
         return obj ? ref(obj) : null;
@@ -825,11 +869,11 @@ class Runner {
    * `spawn Kind in target`: a new instance of one of the zone's published
    * kinds, at its defaults, placed without asking (it is being made, not
    * moved), then told `spawned`. Faults: an unknown or abstract kind, a
-   * target that holds nothing, more than UNDERSTORY_SPAWNS_PER_ACTION in
-   * one action, or the zone's UNDERSTORY_MAX_INSTANCES.
+   * target that holds nothing, more than SPROUT_SPAWNS_PER_ACTION in
+   * one action, or the zone's SPROUT_MAX_INSTANCES.
    */
   private spawn(frame: Frame, kindName: string, target: SproutObject): void {
-    const kind = this.world.kinds?.get(kindName);
+    const kind = this.scene.kinds?.get(kindName);
     if (!kind) throw new Fault(`No kind called "${kindName}" is published here.`, frame.self.id);
     if (kind.abstract.length > 0) {
       throw new Fault(
@@ -843,20 +887,20 @@ class Runner {
         frame.self.id,
       );
     }
-    if (++this.budget.spawns > UNDERSTORY_SPAWNS_PER_ACTION) {
+    if (++this.budget.spawns > SPROUT_SPAWNS_PER_ACTION) {
       throw new Fault(
-        `More than ${UNDERSTORY_SPAWNS_PER_ACTION} things made in one action.`,
+        `More than ${SPROUT_SPAWNS_PER_ACTION} things made in one action.`,
         frame.self.id,
       );
     }
-    const alive = (this.world.instanceCount ?? 0) + this.budget.made;
-    if (alive >= UNDERSTORY_MAX_INSTANCES) {
+    const alive = this.ctx.liveCount + this.budget.made;
+    if (alive >= SPROUT_MAX_INSTANCES) {
       throw new Fault(
-        `This understory already holds ${UNDERSTORY_MAX_INSTANCES} things — sweep it before making more.`,
+        `This understory already holds ${SPROUT_MAX_INSTANCES} things — sweep it before making more.`,
         frame.self.id,
       );
     }
-    const id = this.world.mint?.() ?? `spawn-${this.spawned.length + 1}`;
+    const id = this.ctx.mint();
     const made: SproutObject = {
       id,
       kind: 'item',
@@ -869,7 +913,7 @@ class Runner {
       spawnedFrom: kindName,
     };
     this.objects.set(id, made);
-    this.world.items.push(made);
+    this.scene.items.push(made);
     this.spawned.push(made);
     this.budget.made++;
     this.emit(frame, 'spawned', id, null);
@@ -886,8 +930,8 @@ class Runner {
       this.moved.set(held.id, self.container ?? '');
     }
     this.objects.delete(self.id);
-    const at = this.world.items.indexOf(self);
-    if (at >= 0) this.world.items.splice(at, 1);
+    const at = this.scene.items.indexOf(self);
+    if (at >= 0) this.scene.items.splice(at, 1);
     const made = this.spawned.indexOf(self);
     if (made >= 0) {
       this.spawned.splice(made, 1);
@@ -951,7 +995,7 @@ class Runner {
     if (what.kind === 'room') return refuse(REFUSALS.itself);
     if (!isContainer(to)) return refuse(REFUSALS.notContainer);
     if (what.id === to.id || this.isInside(to, what)) return refuse(REFUSALS.itself);
-    const from = this.containerOf(what) ?? (what.kind === 'actor' ? this.world.room : null);
+    const from = this.containerOf(what) ?? (what.kind === 'actor' ? this.scene.room : null);
     if (from?.id === to.id) return true;
     const departure = this.consent('depart', what, [to], frame);
     if (departure !== null) return refuse(departure);
@@ -979,9 +1023,9 @@ class Runner {
       case 'room':
         return this.roomOf(frame.self);
       case 'container':
-        return frame.self.kind === 'actor' ? this.world.room : this.containerOf(frame.self);
+        return frame.self.kind === 'actor' ? this.scene.room : this.containerOf(frame.self);
       case 'actor':
-        return this.world.actor;
+        return this.scene.actor;
       case 'name': {
         const bound = frame.bindings.get(target.name);
         if (bound) {
@@ -997,7 +1041,7 @@ class Runner {
   private byName(name: string): SproutObject | null {
     const key = name.toLowerCase();
     return (
-      sorted(this.world.items).find(
+      sorted(this.scene.items, this.scene.order).find(
         (i) =>
           (i.definition.ident ?? identOf(i.definition.name)) === key ||
           i.definition.names.includes(key),
@@ -1084,7 +1128,7 @@ function frameFor(obj: SproutObject): Frame {
   return { self: obj, depth: 0, envelope: null, bindings: new Map() };
 }
 
-function outcomeOf(runner: Runner): VerbOutcome {
+function outcomeOf(runner: Runner): Outcome {
   return {
     ok: false,
     narration: runner.narration,
@@ -1100,7 +1144,7 @@ function outcomeOf(runner: Runner): VerbOutcome {
   };
 }
 
-function settle(runner: Runner, outcome: VerbOutcome, body: () => void): void {
+function settle(runner: Runner, outcome: Outcome, body: () => void): void {
   try {
     body();
     runner.drain();
@@ -1117,11 +1161,11 @@ function settle(runner: Runner, outcome: VerbOutcome, body: () => void): void {
 /**
  * The object's prose right now: `describe` run for its `text`, paragraphs
  * joined; the plain prose when describe is empty or says nothing.
- * Describe may read other objects in range, so it takes the world; alone,
+ * Describe may read other objects in range, so it takes the scene; alone,
  * it reads only itself.
  */
-export function renderProse(obj: SproutObject, world?: SproutWorld): string {
-  return describeWith(obj, world).prose;
+export function renderProse(obj: SproutObject, scene?: Scene, ctx?: TurnContext): string {
+  return describeWith(obj, scene, ctx).prose;
 }
 
 /**
@@ -1130,15 +1174,16 @@ export function renderProse(obj: SproutObject, world?: SproutWorld): string {
  * #441): `run` skips any statement that would write or send, and any
  * extension statement not marked for describe, so a look leaves the
  * world — and the request's budget — exactly as it found them; the
- * runner over the caller's world draws on that world's one budget
+ * runner over the caller's scene draws on the turn's one budget
  * rather than minting its own.
  */
 export function describeWith(
   obj: SproutObject,
-  world?: SproutWorld,
+  scene?: Scene,
+  ctx?: TurnContext,
 ): { prose: string; effects: Effect[] } {
   if (obj.definition.describe.length === 0) return { prose: obj.definition.prose, effects: [] };
-  const runner = new Runner(world ?? worldOf(obj));
+  const runner = new Runner(scene ?? sceneOf(obj), ctx ?? turnContext());
   const out: string[] = [];
   try {
     runner.run(obj.definition.describe, frameFor(obj), out);
@@ -1151,7 +1196,7 @@ export function describeWith(
   };
 }
 
-function worldOf(obj: SproutObject): SproutWorld {
+function sceneOf(obj: SproutObject): Scene {
   const actor = actorObject('actor');
   return obj.kind === 'room'
     ? { room: obj, actor, items: [] }
@@ -1159,8 +1204,8 @@ function worldOf(obj: SproutObject): SproutWorld {
 }
 
 /** The verbs open right now — what the client renders as chips, never computes. */
-export function openVerbs(obj: SproutObject, world?: SproutWorld): string[] {
-  const runner = new Runner(world ?? worldOf(obj));
+export function openVerbs(obj: SproutObject, scene?: Scene, ctx?: TurnContext): string[] {
+  const runner = new Runner(scene ?? sceneOf(obj), ctx ?? turnContext());
   const frame = frameFor(obj);
   return obj.definition.messages
     .filter((m) => reachable(m) && (!m.when || truthy(runner.evaluate(m.when, frame))))
@@ -1172,9 +1217,9 @@ export function openVerbs(obj: SproutObject, world?: SproutWorld): string[] {
  * legible): only objects whose memory differs from its defaults, so a
  * fresh visitor — or one who just reset — sees an empty panel.
  */
-export function memoryOf(world: SproutWorld): UnderstoryMemory[] {
-  const out: UnderstoryMemory[] = [];
-  for (const obj of [world.room, ...sorted(world.items)]) {
+export function memoryOf(scene: Scene): SproutMemory[] {
+  const out: SproutMemory[] = [];
+  for (const obj of [scene.room, ...sorted(scene.items, scene.order)]) {
     const fields = obj.definition.remembers
       .filter((f) => obj.visitor[f.name] !== defaultOf(f))
       .map((f) => ({ name: f.name, value: obj.visitor[f.name]! }));
@@ -1188,8 +1233,8 @@ export function memoryOf(world: SproutWorld): UnderstoryMemory[] {
  * holds, and what OPEN containers in it hold, recursively, in id order —
  * a closed chest keeps its contents to itself.
  */
-export function visibleItems(world: SproutWorld, container: SproutObject): SproutObject[] {
-  const runner = new Runner(world);
+export function visibleItems(scene: Scene, container: SproutObject): SproutObject[] {
+  const runner = new Runner(scene, turnContext());
   const out: SproutObject[] = [];
   const walk = (c: SproutObject) => {
     for (const held of runner.contentsOf(c)) {
@@ -1211,12 +1256,13 @@ export function visibleItems(world: SproutWorld, container: SproutObject): Sprou
  * fault comes back in the outcome — the caller rolls back and records it.
  */
 export function runVerb(
-  world: SproutWorld,
+  scene: Scene,
+  ctx: TurnContext,
   targetId: string,
   verbName: string,
   args: Readonly<Record<string, string>> = {},
-): VerbOutcome {
-  const runner = new Runner(world);
+): Outcome {
+  const runner = new Runner(scene, ctx);
   const outcome = outcomeOf(runner);
   const target = runner.objects.get(targetId);
   if (!target) return outcome;
@@ -1241,14 +1287,14 @@ export function runVerb(
  * in the world; `refused` carries a guard's no (also spoken); a fault
  * comes back as for a verb.
  */
-export function runMove(world: SproutWorld, whatId: string, toId: string): MoveOutcome {
-  const runner = new Runner(world);
+export function runMove(scene: Scene, ctx: TurnContext, whatId: string, toId: string): MoveOutcome {
+  const runner = new Runner(scene, ctx);
   const outcome: MoveOutcome = { ...outcomeOf(runner), refused: null };
   const what = runner.objects.get(whatId);
   const to = runner.objects.get(toId);
   if (!what || !to) return outcome;
   outcome.ok = true;
-  const frame = frameFor(world.actor);
+  const frame = frameFor(scene.actor);
   frame.envelope = runner.root('move', what.id, to.id);
   settle(runner, outcome, () => {
     const before = runner.narration.length;

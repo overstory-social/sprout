@@ -1,4 +1,4 @@
-object kickwheel {
+object kickwheel in wheel {
   :name "Kick wheel"
   :stage one_of [bare, centred, open, cup] default bare
   :takeable false

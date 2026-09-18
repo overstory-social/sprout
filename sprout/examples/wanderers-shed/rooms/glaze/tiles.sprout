@@ -1,4 +1,4 @@
-object tiles {
+object tiles in glaze {
   :name "Test tiles"
   :takeable false
   :remembers [favourite: one_of [none, tenmoku, celadon, shino] default none]

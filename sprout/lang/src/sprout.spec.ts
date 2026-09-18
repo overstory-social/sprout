@@ -540,6 +540,7 @@ describe('issues carry a level (§3.2)', () => {
     const issues = sproutDefinitionIssues({
       role: 'item',
       ident: 'x',
+      placedIn: null,
       name: 'x',
       names: [],
       prose: '',
