@@ -5,6 +5,7 @@ import {
   RoomDefinition,
   RoomExit,
   SproutField,
+  isBuiltinField,
   SproutIdent,
   SproutValue,
   UNDERSTORY_DEFINITION_BYTES_MAX,
@@ -22,6 +23,13 @@ import {
   type SproutEffect,
   type SproutGuard,
 } from './definitions.js';
+import {
+  NO_EXTENSIONS,
+  SPROUT_BUILTIN_TYPES,
+  type CheckScope,
+  type ExtensionSet,
+  type StaticArgs,
+} from './extensions.js';
 
 // Sprout 1 (sprout.md, 2026-09-05; #337 is this file): the `format: 2`
 // AST — what the written language compiles to (#338), what the engine
@@ -84,7 +92,6 @@ export const SPROUT_WELL_KNOWN: Readonly<Record<string, SproutField>> = {
   illuminated: { type: 'boolean', name: 'illuminated', default: true },
   open: { type: 'boolean', name: 'open', default: true },
   capacity: { type: 'integer', name: 'capacity', default: 8, min: 0, max: 999 },
-  image: { type: 'media', name: 'image', default: null },
 };
 
 export function wellKnownField(name: string): SproutField | undefined {
@@ -97,17 +104,43 @@ export function wellKnownField(name: string): SproutField | undefined {
  * to containers. On anything else the name is the object's own — a
  * bucket may have an enum `:open` meaning which lid is off.
  */
-export function wellKnownFor(def: {
-  role: 'room' | 'item';
-  inherit: string | null;
-}): ReadonlyMap<string, SproutField> {
+export function wellKnownFor(
+  def: { role: 'room' | 'item' | 'kind'; inherit: string | null },
+  ext: ExtensionSet = NO_EXTENSIONS,
+): ReadonlyMap<string, SproutField> {
+  const role = def.role === 'room' ? 'room' : 'item';
   const names =
-    def.role === 'room'
-      ? ['illuminated', 'open', 'capacity', 'image']
+    role === 'room'
+      ? ['illuminated', 'open', 'capacity']
       : def.inherit === 'Container'
-        ? ['takeable', 'hidden', 'scenery', 'open', 'capacity', 'image']
-        : ['takeable', 'hidden', 'scenery', 'image'];
-  return new Map(names.map((n) => [n, SPROUT_WELL_KNOWN[n]!]));
+        ? ['takeable', 'hidden', 'scenery', 'open', 'capacity']
+        : ['takeable', 'hidden', 'scenery'];
+  const table = new Map<string, SproutField>(names.map((n) => [n, SPROUT_WELL_KNOWN[n]!]));
+  // An extension's well-known properties (§3.5): `:image` on rooms and items.
+  for (const w of ext.wellKnownFor(role)) {
+    if (table.has(w.name)) continue;
+    table.set(w.name, extensionWellKnownField(w.name, w.type, w.default));
+  }
+  return table;
+}
+
+function extensionWellKnownField(name: string, type: string, def: SproutValue): SproutField {
+  switch (type) {
+    case 'boolean':
+      return { type, name, default: def === true };
+    case 'string':
+      return { type, name, default: typeof def === 'string' ? def : '' };
+    case 'integer':
+      return {
+        type,
+        name,
+        default: typeof def === 'number' ? def : 0,
+        min: -999_999,
+        max: 999_999,
+      };
+    default:
+      return { type, name, default: def };
+  }
 }
 
 // --- expressions (§2.4) ---------------------------------------------------------
@@ -179,8 +212,13 @@ export type SproutStatement =
   | { kind: 'broadcast'; message: string; value: SproutExpr | null }
   | { kind: 'send'; target: SproutTarget; message: string; value: SproutExpr | null }
   | { kind: 'remember'; property: string; value: SproutExpr }
-  /** Open media in the lightbox (§2.9): `show`, `show self :blueprint`, `show room`. */
-  | { kind: 'show'; target: SproutTarget | null; property: string | null }
+  /** An extension's statement (§3.5 of the split proposal): `show self :blueprint` — records an effect, never performs one. */
+  | {
+      kind: 'ext';
+      extension: string;
+      statement: string;
+      args: Record<string, SproutExtArg | null>;
+    }
   /** A containment PROPOSAL (§2.6), never a write. */
   | { kind: 'move'; what: SproutTarget; to: SproutTarget }
   | { kind: 'spawn'; kindName: string; in: SproutTarget }
@@ -188,6 +226,22 @@ export type SproutStatement =
   | { kind: 'each'; variable: string; in: SproutTarget; body: SproutStatement[] }
   | { kind: 'allow' }
   | { kind: 'refuse'; text: string };
+
+/** One argument of an extension statement, as written. */
+export type SproutExtArg =
+  | { kind: 'target'; target: SproutTarget }
+  | { kind: 'symbol'; name: string }
+  | { kind: 'string'; text: string }
+  | { kind: 'expr'; expr: SproutExpr };
+
+export const SproutExtArg: z.ZodType<SproutExtArg> = z.lazy(() =>
+  z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('target'), target: SproutTarget }),
+    z.object({ kind: z.literal('symbol'), name: SproutIdent }),
+    z.object({ kind: z.literal('string'), text: z.string().max(UNDERSTORY_SAY_MAX) }),
+    z.object({ kind: z.literal('expr'), expr: SproutExpr }),
+  ]),
+);
 
 /**
  * The statements that change the world or send into it (§2.12, #441):
@@ -224,9 +278,10 @@ export const SproutStatement: z.ZodType<SproutStatement> = z.lazy(() =>
     }),
     z.object({ kind: z.literal('remember'), property: SproutIdent, value: SproutExpr }),
     z.object({
-      kind: z.literal('show'),
-      target: SproutTarget.nullable(),
-      property: SproutIdent.nullable(),
+      kind: z.literal('ext'),
+      extension: SproutIdent,
+      statement: SproutIdent,
+      args: z.record(SproutIdent, SproutExtArg.nullable()),
     }),
     z.object({ kind: z.literal('move'), what: SproutTarget, to: SproutTarget }),
     z.object({ kind: z.literal('spawn'), kindName: SproutKindName, in: SproutTarget }),
@@ -342,6 +397,8 @@ const SproutHeader = {
   inherit: SproutKindName.nullable().default(null),
   /** The Sprout text the builder wrote, kept beside the AST (§4 c). Null: built in the form. */
   source: z.string().max(UNDERSTORY_DEFINITION_BYTES_MAX).nullable().default(null),
+  /** The extensions this source `use`s (§3.5): what its statements and value types may come from. */
+  uses: z.array(SproutIdent).max(8).default([]),
 };
 
 /** A room: an instance of `Room`, with exits. */
@@ -492,6 +549,7 @@ export function kindAsItem(
     prose: '',
     inherit: kind.kindName,
     source: null,
+    uses: kind.uses,
     properties: [],
     remembers: [],
     describe: [],
@@ -548,7 +606,13 @@ function chainDepth(s: Extract<SproutStatement, { kind: 'if' }>): number {
   return Math.max(own, next ? chainDepth(next) : Math.max(0, ...s.else.map(statementDepth)));
 }
 
-function literalFits(field: SproutField, e: SproutExpr): boolean {
+function literalFits(field: SproutField, e: SproutExpr, ext: ExtensionSet): boolean {
+  if (!isBuiltinField(field)) {
+    if (e.kind === 'symbol') return false;
+    if (e.kind !== 'literal') return true;
+    const type = ext.valueType(field.type)?.type;
+    return type ? type.fit(e.value) !== undefined : true;
+  }
   if (e.kind === 'symbol') return field.type === 'enum' && field.options.includes(e.name);
   if (e.kind !== 'literal') return true; // a computed value is the engine's to fit at runtime
   switch (field.type) {
@@ -558,8 +622,8 @@ function literalFits(field: SproutField, e: SproutExpr): boolean {
       return typeof e.value === 'number';
     case 'enum':
       return typeof e.value === 'string' && field.options.includes(e.value);
-    case 'media':
-      return e.value === null || typeof e.value === 'string';
+    case 'string':
+      return typeof e.value === 'string';
   }
 }
 
@@ -576,6 +640,9 @@ interface Scope {
   describe: boolean;
   /** A consent guard: only `if`, `allow`, `refuse`. */
   consent: boolean;
+  /** The extensions the host installed, and the ones this source `use`s. */
+  ext: ExtensionSet;
+  uses: ReadonlySet<string>;
 }
 
 function* exprProblems(e: SproutExpr, scope: Scope): Generator<string> {
@@ -617,6 +684,10 @@ function* exprProblems(e: SproutExpr, scope: Scope): Generator<string> {
 
 function* statementProblems(body: readonly SproutStatement[], scope: Scope): Generator<string> {
   for (const s of body) {
+    if (s.kind === 'ext') {
+      yield* extStatementProblems(s, scope);
+      continue;
+    }
     if (scope.consent && s.kind !== 'if' && s.kind !== 'allow' && s.kind !== 'refuse') {
       yield `${scope.where}: a consent guard may only test, allow or refuse — "${s.kind}" is not allowed there.`;
       continue;
@@ -645,7 +716,7 @@ function* statementProblems(body: readonly SproutStatement[], scope: Scope): Gen
             yield `${scope.where}: "${s.kind}" names a property "${s.property}" that self does not declare.`;
         } else if (s.kind === 'adjust' && field.type !== 'integer') {
           yield `${scope.where}: "adjust" only moves integer properties; "${s.property}" is ${field.type}.`;
-        } else if (s.kind === 'set' && !literalFits(field, s.value)) {
+        } else if (s.kind === 'set' && !literalFits(field, s.value, scope.ext)) {
           yield `${scope.where}: that is not a value of "${s.property}".`;
         }
         yield* exprProblems(s.kind === 'set' ? s.value : s.by, scope);
@@ -656,7 +727,7 @@ function* statementProblems(body: readonly SproutStatement[], scope: Scope): Gen
         if (!field) {
           if (!scope.inherits)
             yield `${scope.where}: remembers "${s.property}", which self does not declare it remembers.`;
-        } else if (!literalFits(field, s.value)) {
+        } else if (!literalFits(field, s.value, scope.ext)) {
           yield `${scope.where}: that is not a value of remembered "${s.property}".`;
         }
         yield* exprProblems(s.value, scope);
@@ -674,8 +745,6 @@ function* statementProblems(body: readonly SproutStatement[], scope: Scope): Gen
       case 'send':
         if (s.value) yield* exprProblems(s.value, scope);
         break;
-      case 'show':
-        break;
       case 'move':
         break;
       case 'spawn':
@@ -689,6 +758,74 @@ function* statementProblems(body: readonly SproutStatement[], scope: Scope): Gen
       default:
         break;
     }
+  }
+}
+
+/**
+ * An extension statement (§3.5): the source must `use` its extension;
+ * it may sit in `describe` or a consent guard only when its spec says
+ * so; its expression arguments are checked like any other; and the
+ * extension's own `check` runs with what the compiler knows of self.
+ * Without an extension set (a definition parsed by the schema alone)
+ * only the `use` line can be checked.
+ */
+function* extStatementProblems(
+  s: Extract<SproutStatement, { kind: 'ext' }>,
+  scope: Scope,
+): Generator<string> {
+  const where = `${scope.where}: "${s.statement}"`;
+  if (!scope.uses.has(s.extension)) {
+    yield `${where} belongs to the "${s.extension}" extension — add \`use ${s.extension}\` at the top.`;
+    return;
+  }
+  const found = scope.ext.statement(s.statement);
+  if (!found) {
+    if (scope.ext.has(s.extension)) yield `${where} is not a statement of "${s.extension}".`;
+    return; // no extension set in hand: the parser already vouched for it
+  }
+  const { spec } = found;
+  if (scope.consent && !spec.inConsent) {
+    yield `${where} is not allowed in a consent guard — a refusal must leave the world as it was.`;
+    return;
+  }
+  if (scope.describe && !spec.inDescribe) {
+    yield `${where} does not belong in describe, which only reads.`;
+    return;
+  }
+  const staticArgs: Record<string, StaticArgs[string]> = {};
+  for (const a of spec.args) {
+    const arg = s.args[a.name] ?? null;
+    if (!arg) {
+      if (!a.optional) yield `${where} needs ${a.name}.`;
+      staticArgs[a.name] = null;
+      continue;
+    }
+    if (arg.kind !== a.kind) {
+      yield `${where}: ${a.name} should be a ${a.kind}.`;
+      continue;
+    }
+    if (arg.kind === 'expr') {
+      yield* exprProblems(arg.expr, scope);
+      staticArgs[a.name] = { kind: 'expr' };
+    } else if (arg.kind === 'target') {
+      staticArgs[a.name] = {
+        kind: 'target',
+        target:
+          arg.target.kind === 'name'
+            ? { kind: 'name', name: arg.target.name }
+            : { kind: arg.target.kind },
+      };
+    } else {
+      staticArgs[a.name] = arg;
+    }
+  }
+  if (spec.check) {
+    const checkScope: CheckScope = {
+      properties: scope.self,
+      wellKnown: scope.wellKnown,
+      inherits: scope.inherits,
+    };
+    for (const problem of spec.check(staticArgs, checkScope)) yield `${where}: ${problem}`;
   }
 }
 
@@ -737,6 +874,8 @@ function isContainerKind(
 export interface ProblemOptions {
   /** The zone's kinds by name; when given, `inherit` must name one (or a built-in). */
   zoneKinds?: ReadonlyMap<string, KindDefinition>;
+  /** The extensions the host installed (§3.5); absent, extension fields and statements are taken on the parser's word. */
+  ext?: ExtensionSet;
 }
 
 export function sproutDefinitionProblems(
@@ -744,9 +883,14 @@ export function sproutDefinitionProblems(
   options: ProblemOptions = {},
 ): string[] {
   const problems: string[] = [];
-  const wellKnown = wellKnownFor(
-    def.role === 'kind' ? { role: 'item', inherit: def.inherit } : def,
-  );
+  const ext = options.ext ?? NO_EXTENSIONS;
+  const uses = new Set(def.uses);
+  for (const name of def.uses) {
+    if (options.ext && !options.ext.has(name)) {
+      problems.push(`This host has no extension called "${name}".`);
+    }
+  }
+  const wellKnown = wellKnownFor(def, ext);
   const declare = (fields: readonly SproutField[], what: string): Map<string, SproutField> => {
     const table = new Map<string, SproutField>();
     for (const f of fields) {
@@ -756,6 +900,16 @@ export function sproutDefinitionProblems(
         problems.push(
           `"${f.name}" is a well-known ${known.type} property; it cannot be declared as ${f.type}.`,
         );
+      }
+      if (!SPROUT_BUILTIN_TYPES.has(f.type) && options.ext) {
+        const owner = options.ext.valueType(f.type);
+        if (!owner) {
+          problems.push(`"${f.name}": this host has no "${f.type}" type.`);
+        } else if (!uses.has(owner.ext.name)) {
+          problems.push(
+            `"${f.name}" is a ${f.type}, which the "${owner.ext.name}" extension provides — add \`use ${owner.ext.name}\` at the top.`,
+          );
+        }
       }
       table.set(f.name, f);
     }
@@ -798,6 +952,8 @@ export function sproutDefinitionProblems(
     where,
     describe: false,
     consent: false,
+    ext,
+    uses,
   });
   const deep = (where: string, body: readonly SproutStatement[], extra = 0) => {
     const depth = Math.max(extra, ...body.map(statementDepth));
@@ -1117,6 +1273,7 @@ export function upgradeSproutDefinition(
     prose: def.prose,
     inherit: null,
     source: null,
+    uses: [],
   } satisfies Partial<SproutDefinition2>;
   if ('exits' in def) {
     return { ...header, role: 'room', exits: [...def.exits], ...body };

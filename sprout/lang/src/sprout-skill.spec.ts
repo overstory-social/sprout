@@ -1,13 +1,12 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
+import { MEDIA } from './fixtures/media.js';
 import { compileSprout, compileSproutKind, sproutSkill, sproutSkillExamples } from './index.js';
 
 // The skill (#347) is generated from the compiler's own definitions and
-// its example is compiled before it goes in; the checked-in copy is
-// pinned to the generator so neither can drift.
+// its example is compiled before it goes in. The checked-in copy at
+// skills/sprout/SKILL.md is Overstory's — rendered with the media
+// extension — and is pinned in @overstory/sprout-ext-media's spec.
 
 describe('sproutSkill', () => {
   it('opens with the frontmatter and the one rule about whose words are whose', () => {
@@ -19,9 +18,11 @@ describe('sproutSkill', () => {
 
   it('lists every well-known property and every reserved name', () => {
     const skill = sproutSkill();
-    for (const p of ['takeable', 'hidden', 'scenery', 'illuminated', 'open', 'capacity', 'image']) {
+    for (const p of ['takeable', 'hidden', 'scenery', 'illuminated', 'open', 'capacity']) {
       expect(skill).toContain(`| \`:${p}\` |`);
     }
+    expect(skill).not.toContain('| `:image` |');
+    expect(skill).toContain('_This host has installed none._');
     for (const m of ['describe', 'entered', 'take', 'help']) expect(skill).toContain(`\`${m}\``);
     expect(skill).toContain('`Container`, `Room`, `Actor`');
   });
@@ -37,8 +38,11 @@ describe('sproutSkill', () => {
     expect(sproutSkill()).toContain(ex.item);
   });
 
-  it('matches the checked-in copy at skills/sprout/SKILL.md (regenerate with `npm run sprout:skill`)', () => {
-    const checkedIn = readFileSync(resolve(__dirname, '../../../skills/sprout/SKILL.md'), 'utf8');
-    expect(checkedIn).toBe(sproutSkill());
+  it('teaches an installed extension: its well-known properties, its literal, its statements', () => {
+    const skill = sproutSkill(MEDIA);
+    expect(skill).toContain('| `:image` | media | none | rooms, items and kinds |');
+    expect(skill).toContain('### `use media`');
+    expect(skill).toContain('`:name media ["…"]`');
+    expect(skill).toContain('`show [<target>] [:property]` — anywhere but a guard.');
   });
 });

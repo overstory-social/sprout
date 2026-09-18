@@ -1,5 +1,6 @@
-import { SPROUT_BUILTIN_KINDS, SPROUT_RESERVED_MESSAGES, SPROUT_WELL_KNOWN } from './sprout.js';
+import { SPROUT_BUILTIN_KINDS, SPROUT_RESERVED_MESSAGES, wellKnownFor } from './sprout.js';
 import { compileSprout, compileSproutKind, printSprout } from './sprout-lang.js';
+import { NO_EXTENSIONS, type ExtensionSet } from './extensions.js';
 import {
   UNDERSTORY_CASCADE_DEPTH,
   UNDERSTORY_DEFINITION_BYTES_MAX,
@@ -51,7 +52,6 @@ const EXAMPLE_KIND = `kind Torch {
 const EXAMPLE_ITEM = `object torch: Torch {
   :name "Old torch"
   :names ["torch", "brand", "old torch"]
-  :image media
 }
 `;
 
@@ -94,24 +94,64 @@ export function sproutSkillExamples(): { kind: string; item: string; room: strin
   };
 }
 
-/** The SKILL.md, as text. */
-export function sproutSkill(): string {
+/**
+ * The SKILL.md, as text, for the language AS CONFIGURED: an extension's
+ * well-known properties join the table and its own paragraph joins the
+ * text, so a host with pictures teaches pictures and a plain host does
+ * not.
+ */
+export function sproutSkill(ext: ExtensionSet = NO_EXTENSIONS): string {
   const ex = sproutSkillExamples();
-  const wellKnown = Object.values(SPROUT_WELL_KNOWN)
-    .map((f) => {
+  const rows = new Map<string, string>();
+  for (const role of ['room', 'item'] as const) {
+    for (const [name, f] of wellKnownFor({ role, inherit: 'Container' }, ext)) {
+      if (rows.has(name)) continue;
       const applies =
-        f.name === 'illuminated'
+        name === 'illuminated'
           ? 'rooms'
-          : f.name === 'open' || f.name === 'capacity'
+          : name === 'open' || name === 'capacity'
             ? 'containers (rooms, and kinds that inherit Container)'
-            : f.name === 'image'
+            : ext.wellKnownFor('room').some((w) => w.name === name)
               ? 'rooms, items and kinds'
               : 'items';
-      const def = f.type === 'media' ? 'none' : f.type === 'enum' ? f.default : String(f.default);
-      return `| \`:${f.name}\` | ${f.type} | ${def} | ${applies} |`;
-    })
-    .join('\n');
+      const def = f.default === null ? 'none' : String(f.default);
+      rows.set(name, `| \`:${name}\` | ${f.type} | ${def} | ${applies} |`);
+    }
+  }
+  const wellKnown = [...rows.values()].join('\n');
   const reserved = [...SPROUT_RESERVED_MESSAGES].map((m) => `\`${m}\``).join(', ');
+  const extensions = ext.extensions
+    .map((e) => {
+      const statements = Object.entries(e.statements ?? {}).map(([k, spec]) => {
+        const args = spec.args
+          .map((a) => {
+            const shape =
+              a.kind === 'target'
+                ? '<target>'
+                : a.kind === 'symbol'
+                  ? ':property'
+                  : a.kind === 'string'
+                    ? '"…"'
+                    : '(expr)';
+            return a.optional ? `[${shape}]` : shape;
+          })
+          .join(' ');
+        const where = spec.inDescribe ? 'anywhere but a guard' : 'not `describe`, not a guard';
+        return `- \`${k}${args ? ` ${args}` : ''}\` — ${where}.`;
+      });
+      const types = (e.valueTypes ?? []).map(
+        (t) =>
+          `- \`:name ${t.literal.keyword}${t.literal.takes === 'none' ? '' : t.literal.takes === 'string' ? ' "…"' : ' ["…"]'}\` — a ${t.name} property.`,
+      );
+      return [
+        `### \`use ${e.name}\``,
+        '',
+        e.skill ?? `The ${e.name} extension.`,
+        ...(types.length > 0 ? ['', ...types] : []),
+        ...(statements.length > 0 ? ['', ...statements] : []),
+      ].join('\n');
+    })
+    .join('\n\n');
   return `---
 name: sprout
 description: Write Sprout, the language of Overstory's Understory — rooms, items and kinds with properties, messages, handlers and guards — around the builder's own prose. Use when someone is building an understory and wants help with the syntax, the shape of a kind, or why the compiler refused something.
@@ -138,9 +178,9 @@ One object per source. A source starts with one of:
 Inside the braces, in any order:
 
 - \`:name "Display name"\` (optional; the name is humanised from the identifier otherwise), \`:names ["torch", "brand"]\` (what a visitor may call it), \`prose "…"\` (what \`describe\` falls back to).
-- Properties: \`:lit false\`, \`:fuel 3 min 0 max 10\` (an integer clamps), \`:state one_of [wet, fired] default wet\` (a symbol from a set), \`:image "m-…"\` or \`:image media\` (a picture, or none yet).
+- Properties: \`:lit false\`, \`:fuel 3 min 0 max 10\` (an integer clamps), \`:state one_of [wet, fired] default wet\` (a symbol from a set), \`:label "Sold out"\` (a short text). An extension the host installs may add more (below).
 - \`:remembers [seen: false, cups: 0 min 0 max 99]\` — what the object remembers about each visitor, read with \`actor.recall(:seen)\`, written with \`actor.remember(:seen, true)\`.
-- \`describe { … }\` — the object's prose right now, with \`text "…"\` lines (paragraphs); \`show\` here opens its picture on examine. Describe READS — anything in range — and never writes or sends: no \`set\`, \`adjust\`, \`remember\`, \`send\`, \`broadcast\`, \`move\`, \`spawn\` or \`destroy\` in it (only \`if\`, \`text\`, \`show\`, \`each\`).
+- \`describe { … }\` — the object's prose right now, with \`text "…"\` lines (paragraphs). Describe READS — anything in range — and never writes or sends: no \`set\`, \`adjust\`, \`remember\`, \`send\`, \`broadcast\`, \`move\`, \`spawn\` or \`destroy\` in it (only \`if\`, \`text\`, \`each\`, and an extension's statement marked for describe).
 - Messages: \`name { … }\`, \`name (with: object) { … }\` (an argument is always an object), \`name when (expr) { … }\` (offered only while it holds), \`name (with: object) abstract\` (on a kind: children must define it). \`grammar "light [self] with [with]"\` lines inside the body are what a visitor may type; without any, the name itself is the line.
 - Handlers: \`on :message (from, value) { … }\` runs when a message arrives; \`changed :property (value, was) { … }\` runs when self's property changed. \`_\` leaves a parameter unnamed.
 - Containers: \`pass :message (expr)\` / \`pass any (expr)\` on a container kind decides whether a broadcast carries through it (rooms pass inward, never out; a container passes while \`:open\`).
@@ -148,7 +188,7 @@ Inside the braces, in any order:
 
 ## Statements
 
-\`if (expr) { … } else if (expr) { … } else { … }\`; \`self.set(:p, expr)\`; \`self.adjust(:p, expr)\`; \`say "…"\` (to the actor); \`text "…"\` (describe only); \`broadcast :m\` or \`broadcast :m(expr)\` (to everything in range, through containers); \`send <target> :m\` or \`send <target> :m(expr)\` (to one object); \`actor.remember(:p, expr)\`; \`show\`, \`show self :blueprint\`, \`show room\` (open a picture); \`move <what> to <target>\` (a proposal: the three guards are asked); \`spawn Kind in <target>\`; \`destroy self\`; \`each x in <target> { … }\` (a container's direct contents); \`allow\` / \`refuse "…"\` (guards only).
+\`if (expr) { … } else if (expr) { … } else { … }\`; \`self.set(:p, expr)\`; \`self.adjust(:p, expr)\`; \`say "…"\` (to the actor); \`text "…"\` (describe only); \`broadcast :m\` or \`broadcast :m(expr)\` (to everything in range, through containers); \`send <target> :m\` or \`send <target> :m(expr)\` (to one object); \`actor.remember(:p, expr)\`; \`move <what> to <target>\` (a proposal: the three guards are asked); \`spawn Kind in <target>\`; \`destroy self\`; \`each x in <target> { … }\` (a container's direct contents); \`allow\` / \`refuse "…"\` (guards only).
 
 **Only \`self\` may be written.** To change the room, \`send room :message\` and let the room's handler decide. Targets are \`self\`, \`room\`, \`container\`, \`actor\`, an argument or parameter, or a named object in range.
 
@@ -163,6 +203,12 @@ Every object has these without declaring them, with these defaults; declaring on
 | property | type | default | applies to |
 |---|---|---|---|
 ${wellKnown}
+
+## Extensions
+
+A source may begin with \`use <name>\` lines naming extensions the host installed; each adds value types, well-known properties and statements. An extension's statement records something for the host to act on after the action (a picture to open) and never changes the world itself. A source that uses an extension the host lacks does not compile.
+
+${extensions || '_This host has installed none._'}
 
 ## Reserved names
 

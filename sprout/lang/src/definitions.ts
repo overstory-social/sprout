@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { SPROUT_BUILTIN_TYPES } from './extensions.js';
+
 // The Sprout definition format (sprout.md; understory.md §3): the caps,
 // the AST — values, fields, guards, effects, handlers, views, verbs — the
 // save-time cross-validation, and the format-1 room and item shapes. Store
@@ -41,6 +43,8 @@ export const UNDERSTORY_FAULT_CHAIN = 20;
  */
 export const UNDERSTORY_MAX_INSTANCES = 2000;
 export const UNDERSTORY_SPAWNS_PER_ACTION = 8;
+/** Effects an action's extension statements may record (§3.5 of the split proposal): past it, a fault. */
+export const SPROUT_EFFECTS_PER_ACTION = 64;
 export const UNDERSTORY_VERB_LABEL_MAX = 40;
 export const UNDERSTORY_SAY_MAX = 600;
 export const UNDERSTORY_VALUE_MAX = 80;
@@ -58,7 +62,7 @@ export const SproutValue = z.union([
   z.boolean(),
   z.number().int(),
   z.string().max(UNDERSTORY_VALUE_MAX),
-  /** #345: a media property with no picture. */
+  /** An extension value with nothing in it (a media property with no picture). */
   z.null(),
 ]);
 export type SproutValue = z.infer<typeof SproutValue>;
@@ -73,10 +77,14 @@ export type SproutState = z.infer<typeof SproutState>;
  * what it remembers about each visitor (§3.2, "the dangerous primitive",
  * kept legible by the memory panel).
  */
-export const SproutField = z.discriminatedUnion('type', [
+export const SproutBuiltinField = z.discriminatedUnion('type', [
   z.object({ type: z.literal('boolean'), name: SproutIdent, default: z.boolean() }),
-  /** #345 (sprout.md §2.9): a media id the uploader minted, or none; `show` opens it. */
-  z.object({ type: z.literal('media'), name: SproutIdent, default: z.string().nullable() }),
+  /** A short text (sprout.md §2.2: "a string"): `:label "Sold out"`. */
+  z.object({
+    type: z.literal('string'),
+    name: SproutIdent,
+    default: z.string().max(UNDERSTORY_VALUE_MAX),
+  }),
   z
     .object({
       type: z.literal('integer'),
@@ -102,7 +110,28 @@ export const SproutField = z.discriminatedUnion('type', [
       error: 'An enum field needs distinct options, and a default among them.',
     }),
 ]);
-export type SproutField = z.infer<typeof SproutField>;
+export type SproutBuiltinField = z.infer<typeof SproutBuiltinField>;
+
+/**
+ * A field of a type an extension adds (`:image media "m-…"`): the type's
+ * tag, the name, the default in the type's storage shape. Which
+ * extension owns the tag, and whether the source `use`s it, is the
+ * compiler's to check with the extension set in hand.
+ */
+export const SproutExtensionField = z
+  .object({ type: SproutIdent, name: SproutIdent, default: SproutValue })
+  .refine((f) => !SPROUT_BUILTIN_TYPES.has(f.type), {
+    error: 'A built-in type is declared with its own shape.',
+  });
+export type SproutExtensionField = z.infer<typeof SproutExtensionField>;
+
+export const SproutField = z.union([SproutBuiltinField, SproutExtensionField]);
+export type SproutField = SproutBuiltinField | SproutExtensionField;
+
+/** A field of one of the language's own types — the narrowing every `switch` on `type` needs. */
+export function isBuiltinField(field: SproutField): field is SproutBuiltinField {
+  return SPROUT_BUILTIN_TYPES.has(field.type);
+}
 
 export const SPROUT_GUARD_OPS = ['eq', 'neq', 'gt', 'lt', 'gte', 'lte', 'in'] as const;
 export const SproutGuardOp = z.enum(SPROUT_GUARD_OPS);
@@ -212,8 +241,9 @@ export type SproutHandler = z.infer<typeof SproutHandler>;
 
 /** The behaviour half every object carries — a room and an item alike. */
 const SproutBehaviour = {
-  fields: z.array(SproutField).max(UNDERSTORY_FIELDS_PER_OBJECT).default([]),
-  visitorFields: z.array(SproutField).max(UNDERSTORY_FIELDS_PER_OBJECT).default([]),
+  // The form (v0) only ever declared the language's own types; an extension's arrive by Sprout.
+  fields: z.array(SproutBuiltinField).max(UNDERSTORY_FIELDS_PER_OBJECT).default([]),
+  visitorFields: z.array(SproutBuiltinField).max(UNDERSTORY_FIELDS_PER_OBJECT).default([]),
   views: z.array(SproutView).max(UNDERSTORY_VIEWS_PER_OBJECT).default([]),
   verbs: z.array(SproutVerb).max(UNDERSTORY_VERBS_PER_OBJECT).default([]),
   handlers: z.array(SproutHandler).max(UNDERSTORY_HANDLERS_PER_OBJECT).default([]),
@@ -243,6 +273,7 @@ function effectDepth(e: SproutEffect): number {
 }
 
 function valueFits(field: SproutField, value: SproutValue): boolean {
+  if (!isBuiltinField(field)) return false; // the form never declared an extension's type
   switch (field.type) {
     case 'boolean':
       return typeof value === 'boolean';
@@ -250,8 +281,8 @@ function valueFits(field: SproutField, value: SproutValue): boolean {
       return typeof value === 'number';
     case 'enum':
       return typeof value === 'string' && field.options.includes(value);
-    case 'media':
-      return value === null || typeof value === 'string';
+    case 'string':
+      return typeof value === 'string';
   }
 }
 
