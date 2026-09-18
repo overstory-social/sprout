@@ -27,12 +27,6 @@ const self = (property: string): SproutExpr => ({
   target: { kind: 'self' },
   property,
 });
-const eq = (left: SproutExpr, right: SproutExpr): SproutExpr => ({
-  kind: 'binary',
-  op: '==',
-  left,
-  right,
-});
 
 /** The torch from sprout.md §2.1, as the compiler will emit it. */
 function torch(overrides: Partial<Item2> = {}): unknown {
@@ -545,6 +539,7 @@ describe('issues carry a level (§3.2)', () => {
     // Raw, not parsed: the schema's own refine would refuse this before the levels could be read.
     const issues = sproutDefinitionIssues({
       role: 'item',
+      ident: 'x',
       name: 'x',
       names: [],
       prose: '',

@@ -369,6 +369,13 @@ export const SproutKindBodyShape = z.object(SproutKindBody);
 export type SproutKindBody = z.infer<typeof SproutKindBodyShape>;
 
 const SproutHeader = {
+  /**
+   * The identifier the source wrote after `room` / `object` — what
+   * `exit "…" to <ident>` and `send <ident> :m` name (§3.3 of the split
+   * proposal). Null on a definition built by hand; the printer then
+   * derives one from the name.
+   */
+  ident: SproutIdent.nullable().default(null),
   /** The display name. */
   name: z.string().trim().min(1, { error: 'It needs a name.' }).max(UNDERSTORY_NAME_MAX),
   /** `:names` — the words the parser accepts; empty = the name, humanised. */
@@ -384,27 +391,40 @@ const SproutHeader = {
   uses: z.array(SproutIdent).max(8).default([]),
 };
 
+// Each definition schema comes in two layers: the SHAPE (the structural
+// contract alone — what the tree must look like) and the refined schema
+// on top of it, which also runs the language's own checks with no zone
+// in hand. The compiler parses the shape and runs the checks itself, with
+// the zone's kinds, the host's extensions and each problem's LEVEL, so a
+// policy refusal newer than the level a text was accepted at can be a
+// warning (§3.2) instead of a shape failure; everything else — the wire,
+// a stored tree — parses the refined one.
+
+/** A room's structural shape; `RoomDefinition` adds the language's checks. */
+export const RoomDefinitionShape = z.object({
+  ...SproutHeader,
+  role: z.literal('room'),
+  exits: z.array(RoomExit).max(UNDERSTORY_EXITS_PER_ROOM),
+  ...SproutKindBody,
+});
 /** A room: an instance of `Room`, with exits. */
-export const RoomDefinition = z
-  .object({
-    ...SproutHeader,
-    role: z.literal('room'),
-    exits: z.array(RoomExit).max(UNDERSTORY_EXITS_PER_ROOM),
-    ...SproutKindBody,
-  })
-  .superRefine((def, ctx) => {
-    for (const problem of sproutDefinitionProblems(def))
-      ctx.addIssue({ code: 'custom', message: problem });
-  });
+export const RoomDefinition = RoomDefinitionShape.superRefine((def, ctx) => {
+  for (const problem of sproutDefinitionProblems(def))
+    ctx.addIssue({ code: 'custom', message: problem });
+});
 export type RoomDefinition = z.infer<typeof RoomDefinition>;
 
+/** An item's structural shape; `ItemDefinition` adds the language's checks. */
+export const ItemDefinitionShape = z.object({
+  ...SproutHeader,
+  role: z.literal('item'),
+  ...SproutKindBody,
+});
 /** An item: an anonymous kind of one (inherit null), or an instance of a kind. */
-export const ItemDefinition = z
-  .object({ ...SproutHeader, role: z.literal('item'), ...SproutKindBody })
-  .superRefine((def, ctx) => {
-    for (const problem of sproutDefinitionProblems(def))
-      ctx.addIssue({ code: 'custom', message: problem });
-  });
+export const ItemDefinition = ItemDefinitionShape.superRefine((def, ctx) => {
+  for (const problem of sproutDefinitionProblems(def))
+    ctx.addIssue({ code: 'custom', message: problem });
+});
 export type ItemDefinition = z.infer<typeof ItemDefinition>;
 
 export type SproutDefinition = RoomDefinition | ItemDefinition;
@@ -414,12 +434,16 @@ export type SproutDefinition = RoomDefinition | ItemDefinition;
  * the display name a spawned instance carries ("Wet cup"); `kindName`
  * is what Sprout calls it (`WetCup`). Abstract messages are legal here.
  */
-export const KindDefinition = z
-  .object({ ...SproutHeader, role: z.literal('kind'), kindName: SproutKindName, ...SproutKindBody })
-  .superRefine((def, ctx) => {
-    for (const problem of sproutDefinitionProblems(def))
-      ctx.addIssue({ code: 'custom', message: problem });
-  });
+export const KindDefinitionShape = z.object({
+  ...SproutHeader,
+  role: z.literal('kind'),
+  kindName: SproutKindName,
+  ...SproutKindBody,
+});
+export const KindDefinition = KindDefinitionShape.superRefine((def, ctx) => {
+  for (const problem of sproutDefinitionProblems(def))
+    ctx.addIssue({ code: 'custom', message: problem });
+});
 export type KindDefinition = z.infer<typeof KindDefinition>;
 
 /** `WetCup` → "Wet cup": a kind's default display name. */
@@ -524,6 +548,7 @@ export function kindAsItem(
 ): ResolvedDefinition {
   const instance: ItemDefinition = {
     role: 'item',
+    ident: null,
     name: kind.name,
     names: [],
     prose: '',

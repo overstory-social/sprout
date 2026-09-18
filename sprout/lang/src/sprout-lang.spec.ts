@@ -11,6 +11,7 @@ import {
   printSprout,
   tokenize,
 } from './sprout-lang.js';
+import { LANGUAGE_LEVEL } from './definitions.js';
 import { type SproutDefinition } from './sprout.js';
 
 /** sprout.md §2.1, the torch — one object per source, so the torch alone. */
@@ -402,6 +403,39 @@ describe('compileSprout', () => {
     ]);
   });
 
+  it('a policy refusal carries the level that introduced it, and the level a text was accepted at downgrades a newer one to a warning (§3.2)', () => {
+    const source =
+      'object bag {\n  :n 0 min 0 max 9\n  describe { text "A bag." self.set(:n, 1) }\n}';
+    const strict = compileSprout(source);
+    expect(strict.definition).toBeNull();
+    expect(strict.problems).toEqual([
+      {
+        line: 1,
+        column: 1,
+        message:
+          'Describe: "set" changes the world, and describe only reads it — put it in a message or a handler.',
+        level: 1,
+      },
+    ]);
+    expect(strict.level).toBe(LANGUAGE_LEVEL);
+    // accepted before the rule existed: it still loads, and the rule is a warning
+    const lenient = compileSprout(source, { acceptedLevel: 0 });
+    expect(lenient.definition?.role).toBe('item');
+    expect(lenient.problems).toEqual([]);
+    expect(lenient.warnings).toEqual([strict.problems[0]!.message]);
+    // at the current level nothing is downgraded
+    expect(compileSprout(source, { acceptedLevel: LANGUAGE_LEVEL }).definition).toBeNull();
+    // a structural fault has no level and is never a warning
+    const structural = compileSprout(
+      'object bag {\n  :n 0 min 0 max 9\n  poke { self.set(:zz, 1) }\n}',
+      {
+        acceptedLevel: 0,
+      },
+    );
+    expect(structural.definition).toBeNull();
+    expect(structural.problems[0]!.level).toBeNull();
+  });
+
   it('carries the warnings through', () => {
     const quiet = 'object o {\n  :a false\n  changed :a { say "x" }\n  on :ping { say "y" }\n}';
     const result = compileSprout(quiet);
@@ -552,7 +586,12 @@ describe('printSprout', () => {
     expect(identOf('Kick wheel')).toBe('kick_wheel');
     expect(identOf('The Front Room!')).toBe('the_front_room');
     expect(printSprout(compiled('object kick_wheel {}'))).toBe('object kick_wheel {\n}\n');
+    // the identifier the source wrote is the truth: it prints back as written
     expect(printSprout(compiled('object x { :name "Kick wheel" }'))).toBe(
+      'object x {\n  :name "Kick wheel"\n}\n',
+    );
+    // a definition built by hand has none; the printer derives one from the name
+    expect(printSprout({ ...compiled('object x { :name "Kick wheel" }'), ident: null })).toBe(
       'object kick_wheel {\n}\n',
     );
   });

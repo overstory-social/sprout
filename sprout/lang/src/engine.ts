@@ -197,6 +197,7 @@ export interface MoveOutcome extends VerbOutcome {
 /** The actor's definition (§2.5): kind Actor, engine-defined, never placeable, never read beyond `is(Actor)`. */
 export const ACTOR_DEFINITION: SproutDefinition = {
   role: 'item',
+  ident: null,
   name: 'you',
   names: [],
   prose: '',
@@ -992,12 +993,14 @@ class Runner {
     }
   }
 
-  /** A named object in range: by identifier of its name, or one of its `:names`. */
+  /** A named object in range: by its identifier (the source's, else its name's), or one of its `:names`. */
   private byName(name: string): SproutObject | null {
     const key = name.toLowerCase();
     return (
       sorted(this.world.items).find(
-        (i) => identOf(i.definition.name) === key || i.definition.names.includes(key),
+        (i) =>
+          (i.definition.ident ?? identOf(i.definition.name)) === key ||
+          i.definition.names.includes(key),
       ) ?? null
     );
   }

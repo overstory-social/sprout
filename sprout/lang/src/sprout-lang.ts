@@ -1,7 +1,7 @@
 import {
-  ItemDefinition,
-  KindDefinition,
-  RoomDefinition,
+  ItemDefinitionShape,
+  KindDefinitionShape,
+  RoomDefinitionShape,
   humaniseKind,
   sproutDefinitionIssues,
   sproutDefinitionWarnings,
@@ -13,6 +13,7 @@ import {
   type SproutDefinition,
   type SproutExpr,
   type SproutExtArg,
+  type KindDefinition,
   type SproutKindBody,
   type SproutMessage,
   type SproutOn,
@@ -305,6 +306,7 @@ class Parser {
     this.expect('punct', '}');
     if (!this.at('eof')) this.fail('One object per source; nothing may follow its closing brace.');
     const header = {
+      ident: isKind ? null : ident,
       name: body.name ?? (isKind ? humaniseKind(ident) : humanise(ident)),
       names: body.names,
       prose: body.prose,
@@ -1002,12 +1004,18 @@ function compileAny(
       level,
     };
   }
-  // The schema alone refuses the structural shape; the language's own
-  // checks run here with the zone's kinds and the host's extensions in
-  // hand, and with each problem's level, so a policy refusal newer than
-  // the level this text was accepted at becomes a warning (§3.2).
+  // The SHAPE schema refuses the structural shape alone; the language's
+  // own checks run here with the zone's kinds and the host's extensions
+  // in hand, and with each problem's level, so a policy refusal newer
+  // than the level this text was accepted at becomes a warning (§3.2).
+  // (The refined `RoomDefinition` would run those checks inside the
+  // parse, with no zone and no level, and fail the shape on them.)
   const schema =
-    tree.role === 'room' ? RoomDefinition : tree.role === 'kind' ? KindDefinition : ItemDefinition;
+    tree.role === 'room'
+      ? RoomDefinitionShape
+      : tree.role === 'kind'
+        ? KindDefinitionShape
+        : ItemDefinitionShape;
   const shape = schema.safeParse(tree);
   if (!shape.success) {
     // A shape problem has no position of its own; it points at the head.
@@ -1024,7 +1032,10 @@ function compileAny(
   }
   const warnings: string[] = [];
   const problems: SproutProblem[] = [];
+  const seen = new Set<string>();
   for (const issue of sproutDefinitionIssues(shape.data, options)) {
+    if (seen.has(issue.message)) continue;
+    seen.add(issue.message);
     if (
       issue.level !== null &&
       options.acceptedLevel !== undefined &&
@@ -1052,7 +1063,7 @@ export function definitionProblems(def: SproutDefinition): SproutProblem[] {
 export interface PrintOptions {
   /** Room id → identifier, the inverse of CompileOptions.rooms; unmapped ids print as strings. */
   roomIdents?: ReadonlyMap<string, string>;
-  /** The object's own identifier; derived from its name when absent. */
+  /** The object's own identifier, overriding the definition's; derived from its name when neither is set. */
   ident?: string;
   /** The extensions, for their value types' literals and their statements' argument order. */
   ext?: ExtensionSet;
@@ -1242,7 +1253,8 @@ export function printSprout(
   def: SproutDefinition | KindDefinition,
   options: PrintOptions = {},
 ): string {
-  const ident = def.role === 'kind' ? def.kindName : (options.ident ?? identOf(def.name));
+  const ident =
+    def.role === 'kind' ? def.kindName : (options.ident ?? def.ident ?? identOf(def.name));
   const ext = options.ext ?? NO_EXTENSIONS;
   const head =
     def.role === 'room'
