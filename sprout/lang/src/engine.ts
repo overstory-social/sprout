@@ -125,6 +125,13 @@ export interface Scene {
   elsewhere?: SproutObject[];
   /** The microworld's kinds by name, for `spawn`. */
   kinds?: ReadonlyMap<string, SpawnableKind>;
+  /**
+   * Delivery order (the split proposal §3.3): object id → its place —
+   * placed objects in declaration order, spawned ones in spawn order.
+   * Where the engine lists or delivers "in order" it uses this; an id it
+   * does not name comes after, by id. Absent, everything is by id.
+   */
+  order?: ReadonlyMap<string, number>;
 }
 
 /**
@@ -369,8 +376,16 @@ function rememberedFieldOf(obj: SproutObject, name: string): SproutField | undef
   return obj.definition.remembers.find((f) => f.name === name);
 }
 
-function sorted(items: readonly SproutObject[]): SproutObject[] {
-  return [...items].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+function sorted(
+  items: readonly SproutObject[],
+  order?: ReadonlyMap<string, number>,
+): SproutObject[] {
+  const rank = (o: SproutObject) => order?.get(o.id) ?? Number.POSITIVE_INFINITY;
+  return [...items].sort((a, b) => {
+    const d = rank(a) - rank(b);
+    if (d !== 0 && !Number.isNaN(d)) return d;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
 }
 
 // --- messages as verbs ------------------------------------------------------------
@@ -530,7 +545,10 @@ class Runner {
 
   /** What a container directly holds, in id order. */
   contentsOf(container: SproutObject): SproutObject[] {
-    return sorted([...this.objects.values()].filter((o) => o.container === container.id));
+    return sorted(
+      [...this.objects.values()].filter((o) => o.container === container.id),
+      this.scene.order,
+    );
   }
 
   containerOf(obj: SproutObject): SproutObject | null {
@@ -1023,7 +1041,7 @@ class Runner {
   private byName(name: string): SproutObject | null {
     const key = name.toLowerCase();
     return (
-      sorted(this.scene.items).find(
+      sorted(this.scene.items, this.scene.order).find(
         (i) =>
           (i.definition.ident ?? identOf(i.definition.name)) === key ||
           i.definition.names.includes(key),
@@ -1201,7 +1219,7 @@ export function openVerbs(obj: SproutObject, scene?: Scene, ctx?: TurnContext): 
  */
 export function memoryOf(scene: Scene): SproutMemory[] {
   const out: SproutMemory[] = [];
-  for (const obj of [scene.room, ...sorted(scene.items)]) {
+  for (const obj of [scene.room, ...sorted(scene.items, scene.order)]) {
     const fields = obj.definition.remembers
       .filter((f) => obj.visitor[f.name] !== defaultOf(f))
       .map((f) => ({ name: f.name, value: obj.visitor[f.name]! }));

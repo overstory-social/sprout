@@ -349,6 +349,27 @@ describe('projections', () => {
   });
 });
 
+describe('delivery order (§3.3 of the split proposal)', () => {
+  it('lists and delivers in the order the scene gives, ids after, else by id', () => {
+    const a = object('i-a', 'item', sprout('object a { on :ping { say "a" } }'));
+    const b = object('i-b', 'item', sprout('object b { on :ping { say "b" } }'));
+    const c = object('i-c', 'item', sprout('object c { on :ping { say "c" } }'));
+    const room = object('r', 'room', sprout('room r { clap { broadcast :ping } }'));
+    const byId = world(room, [c, a, b]);
+    expect(visibleItems(byId, byId.room).map((o) => o.id)).toEqual(['i-a', 'i-b', 'i-c']);
+    expect(runVerb(byId, byId.ctx, 'r', 'clap').narration).toEqual(['a', 'b', 'c']);
+    const declared = {
+      ...world(room, [c, a, b]),
+      order: new Map([
+        ['i-c', 0],
+        ['i-b', 1],
+      ]),
+    };
+    expect(visibleItems(declared, declared.room).map((o) => o.id)).toEqual(['i-c', 'i-b', 'i-a']);
+    expect(runVerb(declared, declared.ctx, 'r', 'clap').narration).toEqual(['c', 'b', 'a']);
+  });
+});
+
 // --- runVerb: the v0 semantics, unchanged ----------------------------------------------
 
 describe('runVerb on the lantern and the conservatory', () => {

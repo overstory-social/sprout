@@ -762,7 +762,9 @@ keystroke — and `compileSprout(source)` one definition.
 
 The engine runs against a **`Scene`** — the room, the actor, the items
 in range (each a `SproutObject` naming its container), optionally the
-objects elsewhere and the spawnable kinds — and a **`TurnContext`**: the
+objects elsewhere, the spawnable kinds and the delivery `order` (object
+id → place: declaration order, then spawn order; absent, everything is
+by id) — and a **`TurnContext`**: the
 request's budget, where new instance ids come from, how many instances
 are alive, and the extensions the program was compiled with
 (`turnContext({ … })` fills in defaults). The host builds the scene from
