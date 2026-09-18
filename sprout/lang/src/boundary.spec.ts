@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -15,14 +15,20 @@ const ALLOWED = ['zod'];
 const ALLOWED_IN_SPECS = ['vitest', 'node:fs', 'node:path', 'node:url'];
 
 describe('@overstory/sprout imports nothing but zod and itself', () => {
-  const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
+  // Every .ts under src, subdirectories included (src/fixtures holds spec support).
+  const files = readdirSync(SRC, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith('.ts'))
+    .map((e) => relative(SRC, join(e.parentPath, e.name)));
   it('has files to check', () => expect(files.length).toBeGreaterThan(5));
+  it('walks into subdirectories', () => expect(files).toContain('fixtures/media.ts'));
   for (const file of files) {
     it(file, () => {
       const text = readFileSync(join(SRC, file), 'utf8');
       const specifiers = [...text.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
       const allowed = file.endsWith('.spec.ts') ? [...ALLOWED, ...ALLOWED_IN_SPECS] : ALLOWED;
-      const foreign = specifiers.filter((s) => !s.startsWith('./') && !allowed.includes(s));
+      const foreign = specifiers.filter(
+        (s) => !s.startsWith('./') && !s.startsWith('../') && !allowed.includes(s),
+      );
       expect(foreign).toEqual([]);
     });
   }

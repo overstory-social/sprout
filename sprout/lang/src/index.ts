@@ -7,6 +7,7 @@
 // language never learns whose world it is running in.
 
 export * from './definitions.js';
+export * from './extensions.js';
 export * from './sprout.js';
 export * from './sprout-lang.js';
 export * from './sprout-skill.js';

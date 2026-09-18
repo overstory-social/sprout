@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { MEDIA } from './fixtures/media.js';
+
 import {
   ItemDefinition,
   RoomDefinition,
@@ -46,7 +48,7 @@ import {
 // rule, delivery order — all without a database.
 
 function sprout(source: string): SproutDefinition2 {
-  const result = compileSprout(source);
+  const result = compileSprout(source, { ext: MEDIA });
   if (!result.definition) {
     throw new Error(result.problems.map((p) => `${p.line}:${p.column} ${p.message}`).join('\n'));
   }
@@ -69,8 +71,8 @@ function object(
     id,
     kind,
     definition,
-    state: normalizeObjectState(definition, state),
-    visitor: normalizeState(definition.remembers, visitor),
+    state: normalizeObjectState(definition, state, MEDIA),
+    visitor: normalizeState(definition.remembers, visitor, MEDIA),
     container: kind === 'room' ? null : (inside ?? (carried ? ACTOR : 'room')),
     home: kind === 'room' ? null : 'room',
     spawnedFrom: null,
@@ -95,6 +97,7 @@ function world(
     room,
     actor: actorObject(ACTOR),
     items: fixed,
+    ext: MEDIA,
     ...(elsewhere ? { elsewhere } : {}),
     ...(kinds ? { kinds, mint: () => `made-${++n}`, instanceCount: fixed.length + 1 } : {}),
   };
@@ -599,9 +602,10 @@ describe('runVerb on Sprout', () => {
     expect(out.maxDepth).toBeLessThan(UNDERSTORY_CASCADE_DEPTH);
   });
 
-  it('show opens a picture (#345): self’s :image, a named media property, the room’s — or nothing when none', () => {
-    const lamp = sprout(`object lamp {
-      :image "m-lamp"
+  it('an extension statement records an effect (§3.5): show — self’s :image, a named media property, the room’s — or nothing when none', () => {
+    const lamp = sprout(`use media
+    object lamp {
+      :image media "m-lamp"
       :blueprint media
       peek { show }
       plan { show self :blueprint }
@@ -609,15 +613,34 @@ describe('runVerb on Sprout', () => {
       hang { self.set(:blueprint, "m-plan")  show self :blueprint  show self :blueprint }
       describe { show  text "A lamp." }
     }`);
-    const room = sprout(`room r { :image "m-room" }`);
+    const room = sprout(`use media\nroom r { :image media "m-room" }`);
     const w = world(object('r', 'room', room), [object('i', 'item', lamp)]);
-    expect(runVerb(w, 'i', 'peek').shown).toEqual(['m-lamp']);
-    expect(runVerb(w, 'i', 'plan').shown).toEqual([]);
-    expect(runVerb(w, 'i', 'around').shown).toEqual(['m-room']);
-    expect(runVerb(w, 'i', 'hang').shown).toEqual(['m-plan']); // once, and the state took the id
+    const shown = (ids: string[]) =>
+      ids.map((mediaId) => ({ extension: 'media', kind: 'show', mediaId }));
+    expect(runVerb(w, 'i', 'peek').effects).toEqual(shown(['m-lamp']));
+    expect(runVerb(w, 'i', 'plan').effects).toEqual([]);
+    expect(runVerb(w, 'i', 'around').effects).toEqual(shown(['m-room']));
+    // Recorded twice, in order — the host decides whether one lightbox opens once; the state took the id.
+    expect(runVerb(w, 'i', 'hang').effects).toEqual(shown(['m-plan', 'm-plan']));
     expect(w.items[0]!.state['blueprint']).toBe('m-plan');
-    expect(describeWith(w.items[0]!, w)).toEqual({ prose: 'A lamp.', shown: ['m-lamp'] });
+    expect(describeWith(w.items[0]!, w)).toEqual({ prose: 'A lamp.', effects: shown(['m-lamp']) });
     expect(runVerb(w, 'i', 'peek').fault).toBeNull();
+  });
+
+  it('an extension’s run sees a frozen frame, and a throw in it is a fault naming the extension', () => {
+    const lamp = sprout(`use media\nobject lamp { :image media "m-lamp" peek { show } }`);
+    const w = world(object('r', 'room', CELLAR), [object('i', 'item', lamp)]);
+    const original = MEDIA.statement('show')!.spec.run;
+    MEDIA.statement('show')!.spec.run = (frame) => {
+      (frame.self as { name: string }).name = 'x'; // frozen: throws in strict mode
+      return undefined;
+    };
+    try {
+      const out = runVerb(w, 'i', 'peek');
+      expect(out.fault?.message).toContain('The "media" extension failed on "show"');
+    } finally {
+      MEDIA.statement('show')!.spec.run = original;
+    }
   });
 
   it('a send to the actor is delivered to nothing that answers; a name nothing has is ignored', () => {
@@ -976,7 +999,7 @@ describe('kinds and instances (§2.8)', () => {
       KINDS,
     );
     const shelf = w.items[0]!;
-    expect(describeWith(shelf, w)).toEqual({ prose: 'A shelf.\n\nNothing on it.', shown: [] });
+    expect(describeWith(shelf, w)).toEqual({ prose: 'A shelf.\n\nNothing on it.', effects: [] });
     expect(w.items.map((i) => i.id)).toEqual(['i-shelf']); // no spawn, no destroy
     expect(shelf.state).toEqual({ dusty: false }); // no set
     expect(shelf.container).toBe('r'); // no move

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { MEDIA } from './fixtures/media.js';
+
 import {
   ItemDefinition,
   ItemDefinition2,
@@ -143,15 +145,25 @@ describe('format 2: the AST', () => {
       'illuminated',
       'open',
       'capacity',
-      'image',
     ]);
     expect([...wellKnownFor({ role: 'item', inherit: null }).keys()]).toEqual([
       'takeable',
       'hidden',
       'scenery',
-      'image',
     ]);
     expect(wellKnownFor({ role: 'item', inherit: 'Container' }).has('capacity')).toBe(true);
+    // An extension's well-known properties join the table where they apply (§3.5): `:image` from media.
+    expect([...wellKnownFor({ role: 'room', inherit: null }, MEDIA).keys()]).toEqual([
+      'illuminated',
+      'open',
+      'capacity',
+      'image',
+    ]);
+    expect(wellKnownFor({ role: 'item', inherit: null }, MEDIA).get('image')).toEqual({
+      type: 'media',
+      name: 'image',
+      default: null,
+    });
   });
 
   it('knows the well-known properties and their types', () => {
@@ -331,7 +343,6 @@ describe('format 2: what the compiler refuses without a parser', () => {
           },
           // what describe may do
           { kind: 'text', text: 'A torch.' },
-          { kind: 'show', target: null, property: null },
           {
             kind: 'each',
             variable: 'y',
@@ -355,6 +366,49 @@ describe('format 2: what the compiler refuses without a parser', () => {
     expect([...SPROUT_MUTATING_STATEMENTS].sort()).toEqual(
       ['adjust', 'broadcast', 'destroy', 'move', 'remember', 'send', 'set', 'spawn'].sort(),
     );
+  });
+
+  it('§3.5: an extension statement is refused where its spec says — a consent guard always, describe unless marked', () => {
+    const show = (where: string) => ({
+      kind: 'ext' as const,
+      extension: 'media',
+      statement: where,
+      args: {},
+    });
+    // `torch()` is the raw shape a saver receives; zod fills the empty lists, so fill them here.
+    const filled = (overrides: Partial<Item2>, uses: string[]): Item2 => {
+      const base = torch(overrides) as Partial<Item2>;
+      return {
+        remembers: [],
+        describe: [],
+        messages: [],
+        handlers: [],
+        hooks: [],
+        passRules: [],
+        consents: [],
+        ...base,
+        inherit: null,
+        uses,
+      } as Item2;
+    };
+    const withExt = (overrides: Partial<Item2>): string[] =>
+      sproutDefinitionProblems(filled(overrides, ['media']), { ext: MEDIA });
+    expect(withExt({ describe: [show('show'), { kind: 'text', text: 'x' }] })).toEqual([]);
+    expect(
+      withExt({
+        consents: [{ guard: 'depart', params: ['to'], body: [show('show'), { kind: 'allow' }] }],
+      }),
+    ).toEqual([
+      'Depart guard: "show" is not allowed in a consent guard — a refusal must leave the world as it was.',
+    ]);
+    // Not `use`d: refused before anything else is asked.
+    expect(
+      sproutDefinitionProblems(filled({ describe: [show('show')] }, []), { ext: MEDIA }),
+    ).toEqual(['Describe: "show" belongs to the "media" extension — add `use media` at the top.']);
+    // An extension the host lacks.
+    expect(sproutDefinitionProblems(filled({}, ['pictures']), { ext: MEDIA })).toEqual([
+      'This host has no extension called "pictures".',
+    ]);
   });
 
   it('refuses pass rules and release / accept guards off a container', () => {

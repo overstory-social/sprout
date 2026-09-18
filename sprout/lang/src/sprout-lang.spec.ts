@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { MEDIA } from './fixtures/media.js';
+
 import { ItemDefinition } from './definitions.js';
 import {
   compileSprout,
@@ -68,7 +70,7 @@ const ROOMS = new Map([
 ]);
 
 function compiled(source: string): SproutDefinition2 {
-  const result = compileSprout(source, { rooms: ROOMS });
+  const result = compileSprout(source, { rooms: ROOMS, ext: MEDIA });
   if (!result.definition) {
     throw new Error(result.problems.map((p) => `${p.line}:${p.column} ${p.message}`).join('\n'));
   }
@@ -78,7 +80,7 @@ function compiled(source: string): SproutDefinition2 {
 /** print → compile is the identity on the tree (source aside). */
 function roundTrips(def: SproutDefinition2): string {
   const idents = new Map([...ROOMS].map(([k, v]) => [v, k]));
-  const printed = printSprout(def, { roomIdents: idents });
+  const printed = printSprout(def, { roomIdents: idents, ext: MEDIA });
   const again = compiled(printed);
   expect({ ...again, source: null }).toEqual({ ...def, source: null });
   return printed;
@@ -172,17 +174,20 @@ describe('compileSprout', () => {
   });
 
   it('reads every property shape', () => {
-    const def = compiled(`object o {
+    const def = compiled(`use media
+    object o {
       :a true
       :b default false
       :c 3
       :d -2 min -5 max 5
       :e one_of [wet, "bone dry", fired] default fired
       :f one_of [x]
-      :image "m-abc"
+      :g "Sold out"
+      :image media "m-abc"
       :blueprint media
       :remembers [met: false, cups: 0 min 0 max 99, mood: one_of [a, b] default b]
     }`);
+    expect(def.uses).toEqual(['media']);
     expect(def.properties).toEqual([
       { type: 'boolean', name: 'a', default: true },
       { type: 'boolean', name: 'b', default: false },
@@ -190,6 +195,7 @@ describe('compileSprout', () => {
       { type: 'integer', name: 'd', default: -2, min: -5, max: 5 },
       { type: 'enum', name: 'e', options: ['wet', 'bone dry', 'fired'], default: 'fired' },
       { type: 'enum', name: 'f', options: ['x'], default: 'x' },
+      { type: 'string', name: 'g', default: 'Sold out' },
       { type: 'media', name: 'image', default: 'm-abc' },
       { type: 'media', name: 'blueprint', default: null },
     ]);
@@ -251,7 +257,9 @@ describe('compileSprout', () => {
   });
 
   it('parses every statement', () => {
-    const def = compiled(`object o: Container {
+    const def = compiled(`use media
+    object o: Container {
+      :blueprint media
       :n 0
       :s one_of [a, b]
       :remembers [seen: 0 min 0 max 9]
@@ -285,25 +293,35 @@ describe('compileSprout', () => {
       'broadcast',
       'send',
       'send',
-      'show',
-      'show',
-      'show',
+      'ext',
+      'ext',
+      'ext',
       'move',
       'move',
       'spawn',
       'each',
       'destroy',
     ]);
-    expect(def.messages[0]!.body[8]).toEqual({ kind: 'show', target: null, property: null });
+    expect(def.messages[0]!.body[8]).toEqual({
+      kind: 'ext',
+      extension: 'media',
+      statement: 'show',
+      args: { target: null, property: null },
+    });
     expect(def.messages[0]!.body[9]).toEqual({
-      kind: 'show',
-      target: { kind: 'self' },
-      property: 'blueprint',
+      kind: 'ext',
+      extension: 'media',
+      statement: 'show',
+      args: {
+        target: { kind: 'target', target: { kind: 'self' } },
+        property: { kind: 'symbol', name: 'blueprint' },
+      },
     });
     expect(def.messages[0]!.body[10]).toEqual({
-      kind: 'show',
-      target: { kind: 'room' },
-      property: null,
+      kind: 'ext',
+      extension: 'media',
+      statement: 'show',
+      args: { target: { kind: 'target', target: { kind: 'room' } }, property: null },
     });
   });
 
@@ -391,9 +409,26 @@ describe('compileSprout', () => {
     ).toHaveLength(1);
   });
 
-  it("does not take the next statement as show's target", () => {
-    const def = compiled('object o {\n  :n 0\n  poke {\n    show\n    self.set(:n, 1)\n  }\n}');
-    expect(def.messages[0]!.body.map((s) => s.kind)).toEqual(['show', 'set']);
+  it("does not take the next statement as an extension statement's optional target", () => {
+    const def = compiled(
+      'use media\nobject o {\n  :n 0\n  poke {\n    show\n    self.set(:n, 1)\n  }\n}',
+    );
+    expect(def.messages[0]!.body.map((s) => s.kind)).toEqual(['ext', 'set']);
+  });
+
+  it('refuses an extension the host lacks, and an extension statement in a source that does not use it', () => {
+    expect(compileSprout('use pictures\nobject o { }', { ext: MEDIA }).problems[0]).toMatchObject({
+      line: 1,
+      message: 'This host has no extension called "pictures".',
+    });
+    // Without `use media`, `show` is an ordinary word — here a message nobody defined.
+    expect(compileSprout('object o { poke { show } }', { ext: MEDIA }).problems[0]?.message).toBe(
+      '"show" is not a statement.',
+    );
+    // `use` itself stays an ordinary word: the language's own example verb.
+    expect(
+      compileSprout('object o { use (with: object) { say "x" } }', { ext: MEDIA }).problems,
+    ).toEqual([]);
   });
 });
 
@@ -410,14 +445,16 @@ describe('printSprout', () => {
 
   it('round-trips every property shape, statement and expression', () => {
     roundTrips(
-      compiled(`object o: Container {
+      compiled(`use media
+      object o: Container {
       :name "The odd one, comma and all"
       :names ["odd one", "thing"]
       :a true
       :c 3
       :d -2 min -5 max 5
       :e one_of [wet, "bone dry", fired] default fired
-      :image "m-1"
+      :g "text"
+      :image media "m-1"
       :plan media
       :remembers [met: false, cups: 0 min 0 max 99]
       prose "Plain \\"prose\\" with a\\nnewline."
@@ -440,7 +477,7 @@ describe('printSprout', () => {
         send room :hush
         send onto :nudge(true)
         show
-        show self :blueprint
+        show self :plan
         move with to actor
         spawn Cup in room
         each thing in self { send thing :shake }

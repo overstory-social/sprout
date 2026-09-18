@@ -13,16 +13,26 @@ import {
   type SproutTarget,
 } from './sprout.js';
 import {
+  SPROUT_EFFECTS_PER_ACTION,
   UNDERSTORY_CASCADE_DEPTH,
   UNDERSTORY_EVENT_BUDGET,
   UNDERSTORY_FAULT_CHAIN,
   UNDERSTORY_MAX_INSTANCES,
   UNDERSTORY_SPAWNS_PER_ACTION,
+  isBuiltinField,
   type SproutField,
   type SproutState,
   type SproutValue,
   type UnderstoryMemory,
 } from './definitions.js';
+import {
+  NO_EXTENSIONS,
+  type BoundArgs,
+  type Effect,
+  type ExtensionSet,
+  type ObjectRef,
+  type ReadOnlyFrame,
+} from './extensions.js';
 import { humanise, identOf } from './sprout-lang.js';
 
 // The Sprout engine (#259, #339, #340; understory.md §3.1, sprout.md §2):
@@ -71,7 +81,10 @@ import { humanise, identOf } from './sprout-lang.js';
 //   world's kinds (the zone's published ones), bounded per action and
 //   per zone; `destroy self` takes an item out, its contents falling to
 //   its container. Both are faults past their caps.
-// - `show` is #345 and faults here.
+// - An extension statement (§3.5 of the split proposal) records an
+//   EFFECT on the outcome and performs nothing: `run` sees a frozen,
+//   read-only frame; a throw is a fault naming the extension; every run
+//   is charged as an event and the effects of one action are capped.
 
 export interface SproutObject {
   id: string;
@@ -117,6 +130,8 @@ export interface SproutWorld {
    * for one request leaves it unset.
    */
   budget?: SproutBudget;
+  /** The extensions the host installed (§3.5): their value types, well-known properties and statements. */
+  ext?: ExtensionSet;
 }
 
 /**
@@ -163,8 +178,8 @@ export interface VerbOutcome {
   remembered: Set<string>;
   /** Object id → the container it now sits in, for every move that was allowed. */
   moved: Map<string, string>;
-  /** #345: the pictures `show` opened, as media ids, in order. */
-  shown: string[];
+  /** What the extensions' statements recorded, in order (§3.5): the host acts on these after the turn. */
+  effects: Effect[];
   /** Instances made this action (already in `world.items`), and ids destroyed. */
   spawned: SproutObject[];
   destroyed: Set<string>;
@@ -195,6 +210,7 @@ export const ACTOR_DEFINITION: SproutDefinition2 = {
   prose: '',
   inherit: 'Actor',
   source: null,
+  uses: [],
   properties: [],
   remembers: [],
   describe: [],
@@ -236,12 +252,16 @@ export function isContainer(obj: SproutObject): boolean {
  * well-known property the state does not hold is read as its default,
  * never stored.
  */
-export function normalizeObjectState(def: SproutDefinition2, raw: unknown): SproutState {
-  const out = normalizeState(def.properties, raw);
+export function normalizeObjectState(
+  def: SproutDefinition2,
+  raw: unknown,
+  ext: ExtensionSet = NO_EXTENSIONS,
+): SproutState {
+  const out = normalizeState(def.properties, raw, ext);
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  for (const [name, field] of wellKnownFor(def)) {
+  for (const [name, field] of wellKnownFor(def, ext)) {
     if (name in out || !(name in source)) continue;
-    const value = fit(field, source[name]);
+    const value = fit(field, source[name], ext);
     if (value !== undefined) out[name] = value;
   }
   return out;
@@ -265,7 +285,9 @@ export function capacityOf(obj: SproutObject): number {
   if (typeof declared === 'number') return declared;
   if (obj.kind === 'actor') return ACTOR_CAPACITY;
   const known = wellKnownFor(obj.definition).get('capacity');
-  return known?.type === 'integer' ? known.default : ACTOR_CAPACITY;
+  return known && isBuiltinField(known) && known.type === 'integer'
+    ? known.default
+    : ACTOR_CAPACITY;
 }
 
 // --- state ------------------------------------------------------------------
@@ -276,10 +298,16 @@ export function defaultOf(field: SproutField): SproutValue {
 
 /**
  * A value fit to its field: the declared type, integers clamped, enums
- * among the options; `undefined` when it does not fit. A media property
- * holds an id or null — null is a VALUE there, never a miss.
+ * among the options, an extension's type by its own `fit`; `undefined`
+ * when it does not fit. An extension value may be null (a media
+ * property with no picture) — null is a VALUE there, never a miss.
  */
-export function fit(field: SproutField, value: unknown): SproutValue | undefined {
+export function fit(
+  field: SproutField,
+  value: unknown,
+  ext: ExtensionSet = NO_EXTENSIONS,
+): SproutValue | undefined {
+  if (!isBuiltinField(field)) return ext.valueType(field.type)?.type.fit(value);
   switch (field.type) {
     case 'boolean':
       return typeof value === 'boolean' ? value : undefined;
@@ -289,8 +317,8 @@ export function fit(field: SproutField, value: unknown): SproutValue | undefined
         : undefined;
     case 'enum':
       return typeof value === 'string' && field.options.includes(value) ? value : undefined;
-    case 'media':
-      return value === null || typeof value === 'string' ? value : undefined;
+    case 'string':
+      return typeof value === 'string' ? value : undefined;
   }
 }
 
@@ -300,20 +328,25 @@ export function fit(field: SproutField, value: unknown): SproutValue | undefined
  * This is the state-migration seam (§5): a field the new version
  * dropped disappears; one it added starts at its default.
  */
-export function normalizeState(fields: readonly SproutField[], raw: unknown): SproutState {
+export function normalizeState(
+  fields: readonly SproutField[],
+  raw: unknown,
+  ext: ExtensionSet = NO_EXTENSIONS,
+): SproutState {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const out: SproutState = {};
   for (const f of fields) {
-    const fitted = fit(f, source[f.name]);
+    const fitted = fit(f, source[f.name], ext);
     out[f.name] = fitted === undefined ? defaultOf(f) : fitted;
   }
   return out;
 }
 
 /** The field a write lands in: declared, else a well-known one that applies here. */
-function fieldOf(obj: SproutObject, name: string): SproutField | undefined {
+function fieldOf(obj: SproutObject, name: string, ext: ExtensionSet): SproutField | undefined {
   return (
-    obj.definition.properties.find((f) => f.name === name) ?? wellKnownFor(obj.definition).get(name)
+    obj.definition.properties.find((f) => f.name === name) ??
+    wellKnownFor(obj.definition, ext).get(name)
   );
 }
 
@@ -398,7 +431,8 @@ class Runner {
   readonly moved = new Map<string, string>();
   readonly spawned: SproutObject[] = [];
   readonly destroyed = new Set<string>();
-  readonly shown: string[] = [];
+  readonly effects: Effect[] = [];
+  readonly ext: ExtensionSet;
   readonly queue: { envelope: SproutEnvelope; targetId: string; changed?: { was: SproutValue } }[] =
     [];
   readonly chain: SproutEnvelope[] = [];
@@ -409,6 +443,7 @@ class Runner {
   private readonly eventsBefore: number;
 
   constructor(readonly world: SproutWorld) {
+    this.ext = world.ext ?? NO_EXTENSIONS;
     this.budget = world.budget ??= new SproutBudget();
     this.eventsBefore = this.budget.events;
     this.objects.set(world.room.id, world.room);
@@ -607,6 +642,12 @@ class Runner {
       // is queued. The builder hears about it where every problem is
       // heard: at the next save.
       if (describe && SPROUT_MUTATING_STATEMENTS.has(s.kind)) continue;
+      if (s.kind === 'ext') {
+        const found = this.ext.statement(s.statement);
+        if (!found || (describe && !found.spec.inDescribe)) continue;
+        this.record(frame, s, found.spec);
+        continue;
+      }
       switch (s.kind) {
         case 'if':
           this.run(truthy(this.evaluate(s.cond, frame)) ? s.then : s.else, frame, describe);
@@ -669,13 +710,6 @@ class Runner {
         case 'destroy':
           this.destroy(frame);
           return; // nothing after it runs on what is gone
-        case 'show': {
-          // `show` (self's :image), `show self :blueprint`, `show room` (§2.9): a media id, or nothing.
-          const target = s.target ? this.resolve(s.target, frame) : frame.self;
-          const id = target?.state[s.property ?? 'image'];
-          if (typeof id === 'string' && id !== '' && !this.shown.includes(id)) this.shown.push(id);
-          break;
-        }
         case 'allow':
           frame.decision = { allow: true, text: '' };
           return;
@@ -686,10 +720,103 @@ class Runner {
     }
   }
 
+  /**
+   * An extension statement (§3.5): resolve its arguments, hand a frozen
+   * read-only view of the frame to its `run`, and record what it
+   * returns. Charged as an event; a throw is a fault naming the
+   * extension; more than SPROUT_EFFECTS_PER_ACTION effects is a fault.
+   */
+  private record(
+    frame: Frame,
+    s: Extract<SproutStatement, { kind: 'ext' }>,
+    spec: NonNullable<ReturnType<ExtensionSet['statement']>>['spec'],
+  ): void {
+    if (++this.budget.events > UNDERSTORY_EVENT_BUDGET) {
+      throw new Fault(
+        `More than ${UNDERSTORY_EVENT_BUDGET} events in one action — something here is answering itself without end.`,
+        frame.self.id,
+      );
+    }
+    const ref = (obj: SproutObject): ObjectRef =>
+      Object.freeze({ id: obj.id, kind: obj.kind, name: obj.definition.name });
+    const args: Record<string, ObjectRef | SproutValue | null> = {};
+    for (const a of spec.args) {
+      const arg = s.args[a.name] ?? null;
+      if (!arg) {
+        args[a.name] = null;
+        continue;
+      }
+      switch (arg.kind) {
+        case 'target': {
+          const obj = this.resolve(arg.target, frame);
+          args[a.name] = obj ? ref(obj) : null;
+          break;
+        }
+        case 'symbol':
+          args[a.name] = arg.name;
+          break;
+        case 'string':
+          args[a.name] = arg.text;
+          break;
+        case 'expr':
+          args[a.name] = this.evaluate(arg.expr, frame);
+          break;
+      }
+    }
+    const room = this.roomOf(frame.self);
+    const container = this.containerOf(frame.self);
+    const view: ReadOnlyFrame = Object.freeze({
+      self: ref(frame.self),
+      room: ref(room),
+      container: container ? ref(container) : frame.self.kind === 'actor' ? ref(room) : null,
+      actor: ref(this.world.actor),
+      resolve: (name: string) => {
+        const obj = this.resolve({ kind: 'name', name }, frame);
+        return obj ? ref(obj) : null;
+      },
+      get: (r: ObjectRef, property: string) => {
+        const obj = this.objects.get(r.id);
+        if (!obj || obj.kind === 'actor') return null;
+        const value = obj.state[property];
+        if (value !== undefined) return value;
+        const known = wellKnownFor(obj.definition, this.ext).get(property);
+        return known ? known.default : null;
+      },
+      is: (r: ObjectRef, kindName: string) => {
+        const obj = this.objects.get(r.id);
+        return obj
+          ? truthy(
+              this.evaluate(
+                { kind: 'is', target: { kind: 'name', name: '' }, kindName },
+                { ...frame, bindings: new Map([['', { kind: 'object', id: obj.id }]]) },
+              ),
+            )
+          : false;
+      },
+    });
+    let effect: Effect | void;
+    try {
+      effect = spec.run(view, Object.freeze(args) as BoundArgs);
+    } catch (err) {
+      throw new Fault(
+        `The "${s.extension}" extension failed on "${s.statement}": ${err instanceof Error ? err.message : String(err)}`,
+        frame.self.id,
+      );
+    }
+    if (effect === undefined) return;
+    if (this.effects.length >= SPROUT_EFFECTS_PER_ACTION) {
+      throw new Fault(
+        `More than ${SPROUT_EFFECTS_PER_ACTION} effects in one action.`,
+        frame.self.id,
+      );
+    }
+    this.effects.push(effect);
+  }
+
   /** A property write, fit to its field; a real change fires the `changed` hook (§2.5). */
   private write(frame: Frame, property: string, raw: SproutValue | null): void {
-    const field = fieldOf(frame.self, property);
-    const value = field ? fit(field, raw) : undefined;
+    const field = fieldOf(frame.self, property, this.ext);
+    const value = field ? fit(field, raw, this.ext) : undefined;
     if (value === undefined) return;
     const was = frame.self.state[property];
     if (was === value) return;
@@ -743,7 +870,7 @@ class Runner {
       kind: 'item',
       definition: kind.definition,
       kinds: kind.kinds,
-      state: normalizeObjectState(kind.definition, {}),
+      state: normalizeObjectState(kind.definition, {}, this.ext),
       visitor: {},
       container: target.id,
       home: this.roomOf(target).id,
@@ -906,7 +1033,7 @@ class Runner {
         if (!obj || obj.kind === 'actor') return null;
         const value = obj.state[e.property];
         if (value !== undefined) return value;
-        const known = wellKnownFor(obj.definition).get(e.property);
+        const known = wellKnownFor(obj.definition, this.ext).get(e.property);
         return known ? known.default : null;
       }
       case 'recall': {
@@ -972,7 +1099,7 @@ function outcomeOf(runner: Runner): VerbOutcome {
     moved: runner.moved,
     spawned: runner.spawned,
     destroyed: runner.destroyed,
-    shown: runner.shown,
+    effects: runner.effects,
     events: 0,
     maxDepth: 0,
     fault: null,
@@ -1004,17 +1131,19 @@ export function renderProse(obj: SproutObject, world?: SproutWorld): string {
 }
 
 /**
- * `describe`, run for its text AND the pictures it `show`s (§2.9: examine
- * opens them). Read-only (§2.12, #441): `run` skips any statement that
- * would write or send, so a look leaves the world — and the request's
- * budget — exactly as it found them; the runner over the caller's world
- * draws on that world's one budget rather than minting its own.
+ * `describe`, run for its text AND the effects its extension statements
+ * record (a `show` opens a picture on examine). Read-only (§2.12,
+ * #441): `run` skips any statement that would write or send, and any
+ * extension statement not marked for describe, so a look leaves the
+ * world — and the request's budget — exactly as it found them; the
+ * runner over the caller's world draws on that world's one budget
+ * rather than minting its own.
  */
 export function describeWith(
   obj: SproutObject,
   world?: SproutWorld,
-): { prose: string; shown: string[] } {
-  if (obj.definition.describe.length === 0) return { prose: obj.definition.prose, shown: [] };
+): { prose: string; effects: Effect[] } {
+  if (obj.definition.describe.length === 0) return { prose: obj.definition.prose, effects: [] };
   const runner = new Runner(world ?? worldOf(obj));
   const out: string[] = [];
   try {
@@ -1022,7 +1151,10 @@ export function describeWith(
   } catch (err) {
     if (!(err instanceof Fault)) throw err;
   }
-  return { prose: out.length > 0 ? out.join('\n\n') : obj.definition.prose, shown: runner.shown };
+  return {
+    prose: out.length > 0 ? out.join('\n\n') : obj.definition.prose,
+    effects: runner.effects,
+  };
 }
 
 function worldOf(obj: SproutObject): SproutWorld {

@@ -13,6 +13,7 @@ import {
   type SproutConsentKind,
   type SproutDefinition2,
   type SproutExpr,
+  type SproutExtArg,
   type SproutKindBody,
   type SproutMessage,
   type SproutOn,
@@ -20,7 +21,8 @@ import {
   type SproutStatement,
   type SproutTarget,
 } from './sprout.js';
-import { type RoomExit, type SproutField } from './definitions.js';
+import { isBuiltinField, type RoomExit, type SproutField } from './definitions.js';
+import { NO_EXTENSIONS, type ExtensionSet, type StatementSpec } from './extensions.js';
 
 // The written Sprout (sprout.md §2, the grammar in §2.4; #338): a
 // hand-written lexer and recursive-descent parser from one object's
@@ -47,6 +49,7 @@ export interface SproutProblem {
 export interface CompileOptions extends ProblemOptions {
   /** Room identifier → room id, for `exit "…" to <ident>`. */
   rooms?: ReadonlyMap<string, string>;
+  // `ext` (ProblemOptions): the extensions the host installed — what `use <name>` may name.
   /** Messages other objects in the zone send or broadcast, for the warnings. */
   zoneMessages?: readonly string[];
 }
@@ -196,10 +199,27 @@ const CONSENT_ARITY: Record<SproutConsentKind, number> = { depart: 1, release: 2
 
 class Parser {
   private pos = 0;
+  /** The extensions this source `use`s, in order, and the words they reserve here. */
+  private readonly uses: string[] = [];
+  private readonly extKeywords = new Set<string>();
   constructor(
     private readonly tokens: Token[],
     private readonly rooms: ReadonlyMap<string, string> | undefined,
+    private readonly ext: ExtensionSet,
   ) {}
+
+  private keyword(text: string): boolean {
+    return KEYWORDS.has(text) || this.extKeywords.has(text);
+  }
+
+  /** An extension statement this source may use, by its keyword. */
+  private extStatement(text: string): { name: string; spec: StatementSpec } | null {
+    if (!this.extKeywords.has(text)) return null;
+    const found = this.ext.statement(text);
+    return found && this.uses.includes(found.ext.name)
+      ? { name: found.ext.name, spec: found.spec }
+      : null;
+  }
 
   private peek(offset = 0): Token {
     return this.tokens[Math.min(this.pos + offset, this.tokens.length - 1)]!;
@@ -236,6 +256,21 @@ class Parser {
   // -- the object --------------------------------------------------------------
 
   definition(): SproutDefinition2 | KindDefinition {
+    // `use media` lines first (§3.5): what this source's statements and
+    // value types may come from. `use` is not a keyword — `use (with:
+    // object)` is the language's own example verb — it is only read here,
+    // before the head, where nothing else can start a source.
+    while (this.atWord('use') && this.peek(1).kind === 'ident') {
+      this.next();
+      const t = this.expect('ident', undefined, "an extension's name");
+      if (!this.ext.has(t.text)) {
+        this.fail(`This host has no extension called "${t.text}".`, t);
+      }
+      if (!this.uses.includes(t.text)) {
+        this.uses.push(t.text);
+        for (const k of this.ext.keywordsOf(t.text)) this.extKeywords.add(k);
+      }
+    }
     const head = this.next();
     const isKind = head.kind === 'ident' && head.text === 'kind';
     if (head.kind !== 'ident' || (head.text !== 'room' && head.text !== 'object' && !isKind)) {
@@ -266,6 +301,7 @@ class Parser {
       prose: body.prose,
       inherit,
       source: null,
+      uses: [...this.uses],
     };
     if (isKind) return { ...header, role: 'kind', kindName: ident, ...body.kind };
     return head.text === 'room'
@@ -400,11 +436,26 @@ class Parser {
     if (this.atWord('true') || this.atWord('false')) {
       return { type: 'boolean', name, default: this.next().text === 'true' };
     }
-    // A picture (§2.9): `:image "m-…"` (a media id the uploader minted) or `:image media` (none yet).
-    if (this.at('string')) return { type: 'media', name, default: this.next().text };
-    if (this.atWord('media')) {
-      this.next();
-      return { type: 'media', name, default: null };
+    // A short text: `:label "Sold out"` (sprout.md §2.2's "a string").
+    if (this.at('string')) return { type: 'string', name, default: this.next().text };
+    // An extension's value (§3.5): `:image media "m-…"` or `:image media` (its default).
+    if (this.peek().kind === 'ident' && this.extKeywords.has(this.peek().text)) {
+      const t = this.peek();
+      const found = this.ext.literal(t.text);
+      if (found && this.uses.includes(found.ext.name)) {
+        this.next();
+        const { type } = found;
+        if (type.literal.takes !== 'none' && this.at('string')) {
+          const raw = this.next().text;
+          const value = type.fit(raw);
+          if (value === undefined) this.fail(`That is not a ${type.name} value.`, t);
+          return { type: type.name, name, default: value };
+        }
+        if (type.literal.takes === 'string') {
+          this.fail(`\`${t.text}\` needs a value in quotes.`, t);
+        }
+        return { type: type.name, name, default: type.default };
+      }
     }
     const value = this.integerLiteral();
     let min = Math.min(0, value);
@@ -455,7 +506,7 @@ class Parser {
   private message(): SproutMessage {
     const start = this.peek();
     const name = this.ident('a message name');
-    if (KEYWORDS.has(name))
+    if (this.keyword(name))
       this.fail(`"${name}" is a keyword; a message needs another name.`, start);
     const args: SproutMessage['args'] = [];
     if (this.at('punct', '(')) {
@@ -571,6 +622,11 @@ class Parser {
         t,
       );
     }
+    const extension = this.extStatement(t.text);
+    if (extension) {
+      this.next();
+      return this.extArgs(extension.name, t.text, extension.spec);
+    }
     switch (t.text) {
       case 'if':
         return this.ifStatement(describe);
@@ -593,12 +649,6 @@ class Parser {
         const target = this.target();
         const message = this.expect('symbol', undefined, 'the message (`:name`)').text;
         return { kind: 'send', target, message, value: this.optionalValue() };
-      }
-      case 'show': {
-        this.next();
-        const target = this.atTarget() && this.peek(1).text !== '.' ? this.target() : null;
-        const property = this.at('symbol') ? this.next().text : null;
-        return { kind: 'show', target, property };
       }
       case 'move': {
         this.next();
@@ -647,6 +697,53 @@ class Parser {
     const value = this.expr();
     this.expect('punct', ')');
     return value;
+  }
+
+  /**
+   * An extension statement's arguments, in its spec's order (§3.5): a
+   * target (an optional one is taken only when the next token is not a
+   * statement of its own — `self` before `.set` is the next line), a
+   * `:symbol`, a "string", or an (expression).
+   */
+  private extArgs(extension: string, statement: string, spec: StatementSpec): SproutStatement {
+    const args: Record<string, SproutExtArg | null> = {};
+    for (const a of spec.args) {
+      switch (a.kind) {
+        case 'target':
+          if (a.optional && !(this.atTarget() && this.peek(1).text !== '.')) {
+            args[a.name] = null;
+          } else {
+            args[a.name] = { kind: 'target', target: this.target() };
+          }
+          break;
+        case 'symbol':
+          if (a.optional && !this.at('symbol')) args[a.name] = null;
+          else
+            args[a.name] = {
+              kind: 'symbol',
+              name: this.expect('symbol', undefined, `${a.name} (\`:name\`)`).text,
+            };
+          break;
+        case 'string':
+          if (a.optional && !this.at('string')) args[a.name] = null;
+          else
+            args[a.name] = {
+              kind: 'string',
+              text: this.expect('string', undefined, `${a.name}, in quotes`).text,
+            };
+          break;
+        case 'expr':
+          if (a.optional && !this.at('punct', '(')) args[a.name] = null;
+          else {
+            this.expect('punct', '(');
+            const expr = this.expr();
+            this.expect('punct', ')');
+            args[a.name] = { kind: 'expr', expr };
+          }
+          break;
+      }
+    }
+    return { kind: 'ext', extension, statement, args };
   }
 
   private ifStatement(describe: boolean): SproutStatement {
@@ -788,7 +885,7 @@ class Parser {
   }
 
   private atTarget(): boolean {
-    return this.peek().kind === 'ident' && !KEYWORDS.has(this.peek().text);
+    return this.peek().kind === 'ident' && !this.keyword(this.peek().text);
   }
 
   private target(): SproutTarget {
@@ -800,7 +897,7 @@ class Parser {
       case 'actor':
         return { kind: t.text };
       default:
-        if (KEYWORDS.has(t.text)) this.fail(`"${t.text}" is a keyword, not a name.`, t);
+        if (this.keyword(t.text)) this.fail(`"${t.text}" is a keyword, not a name.`, t);
         return { kind: 'name', name: t.text };
     }
   }
@@ -815,7 +912,6 @@ const KEYWORDS = new Set([
   'text',
   'broadcast',
   'send',
-  'show',
   'move',
   'spawn',
   'destroy',
@@ -841,7 +937,6 @@ const KEYWORDS = new Set([
   'max',
   'one_of',
   'default',
-  'media',
   'none',
 ]);
 
@@ -874,7 +969,7 @@ function compileAny(
 ): CompileResult<SproutDefinition2 | KindDefinition> {
   let tree: SproutDefinition2 | KindDefinition;
   try {
-    tree = new Parser(tokenize(source), options.rooms).definition();
+    tree = new Parser(tokenize(source), options.rooms, options.ext ?? NO_EXTENSIONS).definition();
   } catch (err) {
     if (err instanceof SproutSyntaxError) {
       return {
@@ -899,7 +994,9 @@ function compileAny(
         ? KindDefinition
         : ItemDefinition2;
   const parsed = schema.safeParse({ ...tree, source });
-  if (parsed.success && options.zoneKinds) {
+  // The schema's own refine runs blind to the zone's kinds and the host's
+  // extensions; with either in hand the fuller checks run here.
+  if (parsed.success && (options.zoneKinds || options.ext)) {
     const more = sproutDefinitionProblems(parsed.data, options);
     if (more.length > 0) {
       return {
@@ -944,6 +1041,8 @@ export interface PrintOptions {
   roomIdents?: ReadonlyMap<string, string>;
   /** The object's own identifier; derived from its name when absent. */
   ident?: string;
+  /** The extensions, for their value types' literals and their statements' argument order. */
+  ext?: ExtensionSet;
 }
 
 const IDENT = /^[a-z][a-z0-9_]{0,31}$/;
@@ -968,7 +1067,13 @@ export function identOf(name: string): string {
   return ident === '' ? 'it' : ident;
 }
 
-function printField(f: SproutField): string {
+function printField(f: SproutField, ext: ExtensionSet): string {
+  if (!isBuiltinField(f)) {
+    const type = ext.valueType(f.type)?.type;
+    // Without the extension in hand the best print is its keyword and the value as a string.
+    if (!type) return `${f.type}${f.default === null ? '' : ` ${str(String(f.default))}`}`;
+    return type.print(f.default);
+  }
   switch (f.type) {
     case 'boolean':
       return String(f.default);
@@ -978,8 +1083,21 @@ function printField(f: SproutField): string {
         : `${f.default} min ${f.min} max ${f.max}`;
     case 'enum':
       return `one_of [${f.options.map(option).join(' , ').replace(/ , /g, ', ')}] default ${option(f.default)}`;
-    case 'media':
-      return f.default === null ? 'media' : str(f.default);
+    case 'string':
+      return str(f.default);
+  }
+}
+
+function printExtArg(a: SproutExtArg): string {
+  switch (a.kind) {
+    case 'target':
+      return printTarget(a.target);
+    case 'symbol':
+      return `:${a.name}`;
+    case 'string':
+      return str(a.text);
+    case 'expr':
+      return `(${printExpr(a.expr)})`;
   }
 }
 
@@ -1036,18 +1154,24 @@ function printExpr(e: SproutExpr, parent = -1, right = false): string {
 function printBlock(
   body: readonly SproutStatement[],
   indent: string,
+  ext: ExtensionSet,
   lead: string[] = [],
 ): string[] {
   const inner = indent + '  ';
   const lines = [...lead.map((l) => inner + l)];
-  for (const s of body) lines.push(...printStatement(s, inner));
+  for (const s of body) lines.push(...printStatement(s, inner, ext));
   return lines;
 }
 
-function printStatement(s: SproutStatement, indent: string): string[] {
+function printStatement(s: SproutStatement, indent: string, ext: ExtensionSet): string[] {
   switch (s.kind) {
+    case 'ext': {
+      const order = ext.statement(s.statement)?.spec.args.map((a) => a.name) ?? Object.keys(s.args);
+      const parts = order.map((n) => s.args[n]).filter((a): a is SproutExtArg => a != null);
+      return [`${indent}${s.statement}${parts.map((a) => ` ${printExtArg(a)}`).join('')}`];
+    }
     case 'if': {
-      const lines = [`${indent}if (${printExpr(s.cond)}) {`, ...printBlock(s.then, indent)];
+      const lines = [`${indent}if (${printExpr(s.cond)}) {`, ...printBlock(s.then, indent, ext)];
       let tail = s;
       const elseLines: string[] = [];
       while (tail.else.length > 0) {
@@ -1055,12 +1179,12 @@ function printStatement(s: SproutStatement, indent: string): string[] {
         if (only && only.kind === 'if') {
           elseLines.push(
             `${indent}} else if (${printExpr(only.cond)}) {`,
-            ...printBlock(only.then, indent),
+            ...printBlock(only.then, indent, ext),
           );
           tail = only;
           continue;
         }
-        elseLines.push(`${indent}} else {`, ...printBlock(tail.else, indent));
+        elseLines.push(`${indent}} else {`, ...printBlock(tail.else, indent, ext));
         break;
       }
       return [...lines, ...elseLines, `${indent}}`];
@@ -1081,10 +1205,6 @@ function printStatement(s: SproutStatement, indent: string): string[] {
       ];
     case 'remember':
       return [`${indent}actor.remember(:${s.property}, ${printExpr(s.value)})`];
-    case 'show':
-      return [
-        `${indent}show${s.target ? ` ${printTarget(s.target)}` : ''}${s.property ? ` :${s.property}` : ''}`,
-      ];
     case 'move':
       return [`${indent}move ${printTarget(s.what)} to ${printTarget(s.to)}`];
     case 'spawn':
@@ -1094,7 +1214,7 @@ function printStatement(s: SproutStatement, indent: string): string[] {
     case 'each':
       return [
         `${indent}each ${s.variable} in ${printTarget(s.in)} {`,
-        ...printBlock(s.body, indent),
+        ...printBlock(s.body, indent, ext),
         `${indent}}`,
       ];
     case 'allow':
@@ -1110,24 +1230,25 @@ export function printSprout(
   options: PrintOptions = {},
 ): string {
   const ident = def.role === 'kind' ? def.kindName : (options.ident ?? identOf(def.name));
+  const ext = options.ext ?? NO_EXTENSIONS;
   const head =
     def.role === 'room'
       ? `room ${ident} {`
       : `${def.role === 'kind' ? 'kind' : 'object'} ${ident}${def.inherit ? `: ${def.inherit}` : ''} {`;
-  const lines: string[] = [head];
+  const lines: string[] = [...def.uses.map((u) => `use ${u}`), head];
   const in1 = '  ';
   const plain = def.role === 'kind' ? humaniseKind(ident) : humanise(ident);
   if (def.name !== plain) lines.push(`${in1}:name ${str(def.name)}`);
   if (def.names.length > 0) lines.push(`${in1}:names [${def.names.map(str).join(', ')}]`);
-  for (const p of def.properties) lines.push(`${in1}:${p.name} ${printField(p)}`);
+  for (const p of def.properties) lines.push(`${in1}:${p.name} ${printField(p, ext)}`);
   if (def.remembers.length > 0) {
     lines.push(
-      `${in1}:remembers [${def.remembers.map((f) => `${f.name}: ${printField(f)}`).join(', ')}]`,
+      `${in1}:remembers [${def.remembers.map((f) => `${f.name}: ${printField(f, ext)}`).join(', ')}]`,
     );
   }
   if (def.prose !== '') lines.push(`${in1}prose ${str(def.prose)}`);
   if (def.describe.length > 0) {
-    lines.push('', `${in1}describe {`, ...printBlock(def.describe, in1), `${in1}}`);
+    lines.push('', `${in1}describe {`, ...printBlock(def.describe, in1, ext), `${in1}}`);
   }
   for (const m of def.messages) {
     const args =
@@ -1143,6 +1264,7 @@ export function printSprout(
       ...printBlock(
         m.body,
         in1,
+        ext,
         m.grammar.map((g) => `grammar ${str(g)}`),
       ),
       `${in1}}`,
@@ -1153,7 +1275,7 @@ export function printSprout(
       h.from || h.value
         ? ` (${[h.from ?? '_', h.value].filter((p) => p !== null).join(', ')})`
         : '';
-    lines.push('', `${in1}on :${h.message}${params} {`, ...printBlock(h.body, in1), `${in1}}`);
+    lines.push('', `${in1}on :${h.message}${params} {`, ...printBlock(h.body, in1, ext), `${in1}}`);
   }
   for (const c of def.hooks) {
     const params =
@@ -1161,7 +1283,7 @@ export function printSprout(
     lines.push(
       '',
       `${in1}changed :${c.property}${params} {`,
-      ...printBlock(c.body, in1),
+      ...printBlock(c.body, in1, ext),
       `${in1}}`,
     );
   }
@@ -1173,7 +1295,7 @@ export function printSprout(
   }
   for (const c of def.consents) {
     const params = c.params.length > 0 ? ` (${c.params.join(', ')})` : '';
-    lines.push('', `${in1}${c.guard}${params} {`, ...printBlock(c.body, in1), `${in1}}`);
+    lines.push('', `${in1}${c.guard}${params} {`, ...printBlock(c.body, in1, ext), `${in1}}`);
   }
   if (def.role === 'room' && def.exits.length > 0) {
     lines.push('');

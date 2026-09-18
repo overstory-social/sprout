@@ -30,7 +30,7 @@ README is the language as it stands.
   - [Containers are the bus](#containers-are-the-bus)
   - [Every move is a proposal](#every-move-is-a-proposal)
   - [`describe` is prose](#describe-is-prose)
-  - [Pictures](#pictures)
+  - [Extensions, and pictures](#extensions-and-pictures)
   - [Statements](#statements)
   - [Expressions](#expressions)
   - [Reserved names](#reserved-names)
@@ -119,7 +119,6 @@ you may write:
 | `prose "…"`                                                   | the description `describe` falls back to (plain text; paragraphs are blank lines)                        |
 | `exit "up the ladder" to the_loft`                            | an exit: a label the visitor may type, and the identifier of a room in the same zone. At most 8 per room |
 | `:illuminated true`                                           | well-known on rooms: a dark room shows only its dark description, and nothing in it is addressable       |
-| `:image "m-…"` / `:image media`                               | a picture (see [Pictures](#pictures))                                                                    |
 | properties, `:remembers`                                      | as on any object                                                                                         |
 | `describe { … }`                                              | its prose right now                                                                                      |
 | messages, `on`, `changed`                                     | as on any object                                                                                         |
@@ -147,7 +146,6 @@ a kind). Inside `object name { … }`:
 | `:takeable true`                | well-known: may be picked up (default `false`)                                                       |
 | `:hidden true`                  | well-known and stored, but **not yet acted on**: the engine still lists and addresses a hidden thing |
 | `:scenery true`                 | well-known and stored, but **not yet acted on**: `take` asks only `:takeable`                        |
-| `:image`                        | a picture                                                                                            |
 | `:remembers [seen: false]`      | per-visitor memory                                                                                   |
 | `describe { … }`                | its prose right now                                                                                  |
 | messages                        | what a visitor can do to it                                                                          |
@@ -199,7 +197,6 @@ somewhere:
 object old_torch: Torch {
   :names ["torch", "brand", "old torch"]   // adds to the kind's names
   :on_fire true                             // overrides the kind's default for this one
-  :image media
 }
 ```
 
@@ -261,7 +258,10 @@ default:
 | `:fuel 3`                                | integer | `:fuel 3 min 0 max 10` clamps; `adjust` stays inside the bounds |
 | `:label "…"`                             | string  | plain text; no markup, no concatenation                         |
 | `:state one_of [wet, fired] default wet` | symbol  | one of a declared set, at most 12 options                       |
-| `:image "m-…"` or `:image media`         | media   | a picture id the host's uploader minted, or none yet            |
+
+An extension the host installs may add types of its own, written with
+the extension's keyword after the name — `:image media "m-…"` from the
+media extension (see [Extensions](#extensions-and-pictures)).
 
 `default` is optional sugar: `:takeable default true` and
 `:takeable true` mean the same. Two objects may each declare `:lit`;
@@ -285,7 +285,9 @@ applies:
 | `:illuminated` | boolean | true    | rooms                                                                |
 | `:open`        | boolean | true    | containers (rooms, and kinds that inherit `Container`)               |
 | `:capacity`    | integer | 8       | kinds that inherit `Container`; a room is unbounded whatever it says |
-| `:image`       | media   | none    | rooms, items and kinds                                               |
+
+An installed extension may add to this table — the media extension adds
+`:image` (media, none) on rooms, items and kinds.
 
 A well-known property an object never declared may still be set
 (`self.set(:hidden, true)`) and then lives in its state; unset, it reads
@@ -458,42 +460,76 @@ in the case's `release`.
 ### `describe` is prose
 
 `describe { … }` is the object's description right now. It may read
-anything in range, `show` a picture, walk a container with `each`, and
-branch with `if`; it produces `text "…"` lines (paragraphs) and nothing
-else. A `set`, `adjust`, `remember`, `send`, `broadcast`, `move`,
-`spawn` or `destroy` inside it is refused by the compiler: looking at a
-thing changes nothing. Without a `describe`, `prose` is the description.
+anything in range, walk a container with `each`, branch with `if`, and
+use an extension's statement that is marked for describe (`show` a
+picture); it produces `text "…"` lines (paragraphs) and nothing else. A
+`set`, `adjust`, `remember`, `send`, `broadcast`, `move`, `spawn` or
+`destroy` inside it is refused by the compiler: looking at a thing
+changes nothing. Without a `describe`, `prose` is the description.
 `examine` defaults to `describe`.
 
-### Pictures
+### Extensions, and pictures
 
-`:image "m-…"` (an id the host's uploader minted) or `:image media`
-(none yet) is a media property on any room, item or kind; it may be set
-at runtime (`self.set(:image, "m-…")`, or `none`). Nothing shows a
-picture on its own. `show` opens one: `show` (self's `:image`), `show
-self :blueprint` (a named media property), `show room`. Inside
-`describe`, `examine` and `look` open it; inside a handler, only that
-action does. What the id means, and who may see the bytes, is the
-host's.
+The language ends at the room's edge; what a host can do beyond it —
+open a picture, play a sound — arrives as an **extension** the host
+installs (`sprout({ extensions: [media] })`), and a source names the
+ones it depends on at its top:
+
+```sprout
+use media
+object lamp {
+  :image media "m-lamp"
+  :blueprint media
+  describe { show  text "A brass lamp." }
+  study { show self :blueprint }
+}
+```
+
+An extension may add **value types** (`media`: an id the host's
+uploader minted, or none — `:image media "m-…"`, `:image media`;
+settable at runtime with `self.set(:image, "m-…")` or `none`),
+**well-known properties** (`:image` on rooms, items and kinds), and
+**statements** (`show`, `show self :blueprint`, `show room`). Its words
+are reserved only in a source that `use`s it, so an object called
+`show` is legal in a source that does not; and a source that uses an
+extension the host lacks does not compile ("This host has no
+extension called …").
+
+One rule keeps the language what it is: **an extension statement
+records an effect; it never performs one.** `show` reads the target's
+picture and records `{ extension: 'media', kind: 'show', mediaId }` on
+the outcome's `effects`; what happens because of that — a lightbox, a
+signed URL, `[a picture opens]` in a terminal — is the host's, after
+the action. The evaluator hands an extension a frozen, read-only view
+of the frame, turns a throw inside it into a fault naming the
+extension, charges every run against the event budget, and caps the
+effects of one action. Which statements may sit in `describe` or in a
+consent guard is the extension's declaration, and `checkExtension`
+verifies the describe claim by running the statement where nothing may
+be written.
+
+The media extension is `@overstory/sprout-ext-media`; this README's
+examples use it. What a media id means, and who may see the bytes, is
+the host's.
 
 ### Statements
 
-| statement                                         | where                       | meaning                                                                 |
-| ------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| `if (expr) { … } else if (expr) { … } else { … }` | anywhere                    | branching; a chain counts as one level of nesting                       |
-| `self.set(:p, expr)`                              | not `describe`, not a guard | write a property of self                                                |
-| `self.adjust(:p, expr)`                           | same                        | add to an integer property of self, clamped to its bounds               |
-| `say "…"`                                         | not `describe`              | a line to the actor                                                     |
-| `text "…"`                                        | `describe` only             | a paragraph of the description                                          |
-| `broadcast :m` / `broadcast :m(expr)`             | not `describe`              | an event, handed to self's container                                    |
-| `send <target> :m` / `send <target> :m(expr)`     | not `describe`              | an event, to one object                                                 |
-| `actor.remember(:p, expr)`                        | not `describe`              | write the visitor's memory on self                                      |
-| `show`, `show self :prop`, `show room`            | anywhere                    | open a picture                                                          |
-| `move <what> to <target>`                         | not `describe`              | a proposal: the three guards are asked                                  |
-| `spawn Kind in <target>`                          | not `describe`              | a new instance of the kind                                              |
-| `destroy self`                                    | not `describe`              | self leaves the world; its contents fall to its container               |
-| `each x in <target> { … }`                        | anywhere                    | the target container's direct contents; the only loop, and it is finite |
-| `allow` / `refuse "…"`                            | guards only                 | the guard's answer                                                      |
+| statement                                            | where                       | meaning                                                                 |
+| ---------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
+| `if (expr) { … } else if (expr) { … } else { … }`    | anywhere                    | branching; a chain counts as one level of nesting                       |
+| `self.set(:p, expr)`                                 | not `describe`, not a guard | write a property of self                                                |
+| `self.adjust(:p, expr)`                              | same                        | add to an integer property of self, clamped to its bounds               |
+| `say "…"`                                            | not `describe`              | a line to the actor                                                     |
+| `text "…"`                                           | `describe` only             | a paragraph of the description                                          |
+| `broadcast :m` / `broadcast :m(expr)`                | not `describe`              | an event, handed to self's container                                    |
+| `send <target> :m` / `send <target> :m(expr)`        | not `describe`              | an event, to one object                                                 |
+| `actor.remember(:p, expr)`                           | not `describe`              | write the visitor's memory on self                                      |
+| an extension's statement (`show`, `show self :prop`) | as the extension declares   | record an effect for the host                                           |
+| `move <what> to <target>`                            | not `describe`              | a proposal: the three guards are asked                                  |
+| `spawn Kind in <target>`                             | not `describe`              | a new instance of the kind                                              |
+| `destroy self`                                       | not `describe`              | self leaves the world; its contents fall to its container               |
+| `each x in <target> { … }`                           | anywhere                    | the target container's direct contents; the only loop, and it is finite |
+| `allow` / `refuse "…"`                               | guards only                 | the guard's answer                                                      |
 
 Targets are `self`, `room`, `container`, `actor`, an argument or
 parameter, or a named object in range. Every body terminates by
@@ -599,7 +635,6 @@ kind Torch {
 ```sprout
 object old_torch: Torch {
   :names ["torch", "brand", "old torch"]
-  :image media
 }
 ```
 
