@@ -1,4 +1,4 @@
-object shelf {
+object shelf in front {
   :name "Shelf of finished ware"
   :bowls 7 min 0 max 12
   :takeable false

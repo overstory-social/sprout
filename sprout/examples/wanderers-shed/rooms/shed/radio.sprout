@@ -1,4 +1,4 @@
-object radio {
+object radio in shed {
   :playing false
   :takeable false
   prose "A paint-spattered radio with a coat-hanger for an aerial."

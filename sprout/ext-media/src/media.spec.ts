@@ -9,7 +9,8 @@ import {
   printSprout,
   runVerb,
   type SproutObject,
-  type SproutWorld,
+  type Scene,
+  turnContext,
 } from '@overstory/sprout';
 
 import { MEDIA, Shown, media, shownMedia } from './media.js';
@@ -36,7 +37,7 @@ function compiled(source: string) {
   return r.definition;
 }
 
-function world(): SproutWorld {
+function world(): Scene {
   const lamp = compiled(LAMP);
   const room = compiled('use media\nroom r { :image media "m-room" }');
   const obj = (id: string, kind: 'room' | 'item', definition: typeof lamp): SproutObject => ({
@@ -54,7 +55,6 @@ function world(): SproutWorld {
     room: obj('r', 'room', room),
     actor: actorObject('a'),
     items: [obj('i', 'item', lamp)],
-    ext: MEDIA,
   };
 }
 
@@ -87,14 +87,15 @@ describe('the media extension', () => {
 
   it('records what to show as effects, and shownMedia reads them once each', () => {
     const w = world();
+    const ctx = turnContext({ ext: MEDIA });
     const shown = (ids: string[]) =>
       ids.map((mediaId) => ({ extension: 'media', kind: 'show', mediaId }));
-    expect(runVerb(w, 'i', 'study').effects).toEqual([]);
-    expect(runVerb(w, 'i', 'around').effects).toEqual(shown(['m-room']));
-    const redraw = runVerb(w, 'i', 'redraw');
+    expect(runVerb(w, ctx, 'i', 'study').effects).toEqual([]);
+    expect(runVerb(w, ctx, 'i', 'around').effects).toEqual(shown(['m-room']));
+    const redraw = runVerb(w, ctx, 'i', 'redraw');
     expect(redraw.effects).toEqual(shown(['m-plan', 'm-plan']));
     expect(shownMedia(redraw.effects)).toEqual(['m-plan']);
-    expect(describeWith(w.items[0]!, w)).toEqual({
+    expect(describeWith(w.items[0]!, w, ctx)).toEqual({
       prose: 'A brass lamp.',
       effects: shown(['m-lamp']),
     });

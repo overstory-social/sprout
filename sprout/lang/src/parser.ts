@@ -1,13 +1,17 @@
-import { SPROUT_RESERVED_MESSAGES, type SproutMessage } from './sprout.js';
+import type { SproutMessage } from './sprout.js';
 import { humanise, identOf } from './sprout-lang.js';
-
 import {
-  isContainer,
-  openOf,
-  visibleItems,
-  type SproutObject,
-  type SproutWorld,
-} from './engine.js';
+  BUILTIN_VERBS,
+  GRAMMAR_FILLER,
+  grammarLines,
+  grammarTokens,
+  reachableMessage,
+  type BuiltinVerbName,
+  type GrammarToken,
+  type SlotKind,
+} from './grammar.js';
+
+import { isContainer, openOf, visibleItems, type Scene, type SproutObject } from './engine.js';
 
 // The command parser (#342; sprout.md §5): typing to play. Inform's
 // lineage, written here, grammar from Sprout — a builder who wants
@@ -41,7 +45,7 @@ export interface Person {
 }
 
 export interface ParseContext {
-  world: SproutWorld;
+  scene: Scene;
   /** The exits the actor may take from here. */
   exits: readonly Exit[];
   /** The people present, for `give … to`. */
@@ -75,7 +79,7 @@ export type ParseResult =
 
 // --- words ---------------------------------------------------------------------------
 
-const FILLER = new Set(['the', 'a', 'an', 'some', 'please', 'my', 'your', 'this', 'that']);
+const FILLER = GRAMMAR_FILLER;
 const PRONOUNS = new Set(['it', 'them', 'this', 'that', 'him', 'her']);
 const ALL = new Set(['all', 'everything']);
 
@@ -97,8 +101,6 @@ function phraseOf(text: string): string[] {
 }
 
 // --- the dictionary ----------------------------------------------------------------------
-
-type SlotKind = 'object' | 'held' | 'container' | 'exit' | 'person';
 
 interface Entry {
   id: string;
@@ -162,9 +164,9 @@ function objectEntry(obj: SproutObject): Entry {
 
 /** What can be named right now: what the room shows, what the hands hold, the exits, the people. */
 export function dictionary(ctx: ParseContext): Entry[] {
-  const { world } = ctx;
+  const { scene } = ctx;
   const entries: Entry[] = [];
-  for (const obj of [...visibleItems(world, world.room), ...visibleItems(world, world.actor)]) {
+  for (const obj of [...visibleItems(scene, scene.room), ...visibleItems(scene, scene.actor)]) {
     entries.push(objectEntry(obj));
   }
   for (const exit of ctx.exits) {
@@ -205,79 +207,28 @@ export function dictionary(ctx: ParseContext): Entry[] {
 
 // --- the grammar table -----------------------------------------------------------------
 
-type Token = { lit: string; filler?: boolean } | { slot: string; kind: SlotKind };
+type Token = GrammarToken;
 
 interface Line {
   tokens: Token[];
   /** The message on an object, or a built-in. */
   action:
     | { kind: 'message'; ownerId: string; message: SproutMessage }
-    | { kind: 'builtin'; name: Command['kind'] };
+    | { kind: 'builtin'; name: BuiltinVerbName };
   /** True when `[self]` appears; otherwise the owner is implied. */
   namesSelf: boolean;
 }
 
-export function grammarTokens(line: string, args: readonly string[]): Token[] {
-  const out: Token[] = [];
-  for (const part of line.toLowerCase().split(/(\[[a-z][a-z0-9_]*\])/)) {
-    const slot = /^\[([a-z][a-z0-9_]*)\]$/.exec(part);
-    if (slot) {
-      const name = slot[1]!;
-      if (name === 'self' || args.includes(name)) out.push({ slot: name, kind: 'object' });
-      continue;
-    }
-    for (const w of part.replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/)) {
-      if (w === '') continue;
-      out.push(FILLER.has(w) ? { lit: w, filler: true } : { lit: w });
-    }
-  }
-  return out;
-}
+const reachable = reachableMessage;
 
-const BUILTINS: { lines: string[]; name: Command['kind']; slots?: Record<string, SlotKind> }[] = [
-  { lines: ['look', 'l', 'look around'], name: 'look' },
-  { lines: ['examine [x]', 'x [x]', 'look at [x]', 'inspect [x]', 'read [x]'], name: 'examine' },
-  { lines: ['inventory', 'i', 'inv'], name: 'inventory' },
-  { lines: ['take [x]', 'get [x]', 'pick up [x]', 'pick [x] up', 'grab [x]'], name: 'take' },
-  { lines: ['drop [x]', 'put down [x]', 'put [x] down'], name: 'drop', slots: { x: 'held' } },
-  {
-    lines: ['put [x] in [y]', 'put [x] into [y]', 'place [x] in [y]', 'put [x] on [y]'],
-    name: 'put',
-    slots: { x: 'object', y: 'container' },
-  },
-  {
-    lines: ['give [x] to [y]', 'hand [x] to [y]', 'offer [x] to [y]'],
-    name: 'give',
-    slots: { x: 'held', y: 'person' },
-  },
-  {
-    lines: ['go [x]', 'go through [x]', 'walk [x]', 'leave [x]', '[x]'],
-    name: 'go',
-    slots: { x: 'exit' },
-  },
-  { lines: ['wait', 'z'], name: 'wait' },
-  { lines: ['help', '?', 'what can i do', 'what can i say'], name: 'help' },
-];
-
-/** A message a player can reach by typing (has a body, not the engine's). */
-function reachable(m: SproutMessage): boolean {
-  return !m.abstract && !SPROUT_RESERVED_MESSAGES.has(m.name);
-}
-
-/** The grammar lines of one message, the builder's or the default (§2.7). */
-export function grammarLines(m: SproutMessage): string[] {
-  if (m.grammar.length > 0) return m.grammar;
-  const name = humanise(m.name).toLowerCase();
-  return [`${name} [self]`, ...m.args.map((a) => `${name} [self] with [${a.name}]`)];
-}
-
+/** The grammar table for what is in reach: every reachable message's lines (grammar.ts), then the built-ins. */
 export function grammarTable(ctx: ParseContext): Line[] {
-  const { world } = ctx;
+  const { scene } = ctx;
   const lines: Line[] = [];
   for (const owner of [
-    world.room,
-    ...visibleItems(world, world.room),
-    ...visibleItems(world, world.actor),
+    scene.room,
+    ...visibleItems(scene, scene.room),
+    ...visibleItems(scene, scene.actor),
   ]) {
     for (const message of owner.definition.messages) {
       if (!reachable(message)) continue;
@@ -299,12 +250,13 @@ export function grammarTable(ctx: ParseContext): Line[] {
       }
     }
   }
-  for (const b of BUILTINS) {
-    for (const line of b.lines) {
-      const tokens = grammarTokens(line, ['x', 'y']).map((t) =>
-        'slot' in t ? { slot: t.slot, kind: b.slots?.[t.slot] ?? 'object' } : t,
-      );
-      lines.push({ tokens, action: { kind: 'builtin', name: b.name }, namesSelf: false });
+  for (const b of BUILTIN_VERBS) {
+    for (const tokens of b.tokens) {
+      lines.push({
+        tokens: [...tokens],
+        action: { kind: 'builtin', name: b.name },
+        namesSelf: false,
+      });
     }
   }
   return lines;
@@ -331,7 +283,7 @@ function fits(entry: Entry, kind: SlotKind, ctx: ParseContext): boolean {
     case 'object':
       return entry.slot === 'object';
     case 'held':
-      return entry.slot === 'object' && entry.object?.container === ctx.world.actor.id;
+      return entry.slot === 'object' && entry.object?.container === ctx.scene.actor.id;
     case 'container':
       return (
         entry.slot === 'object' &&
@@ -393,7 +345,7 @@ function align(
         candidates = entries.filter(
           (e) =>
             fits(e, p.kind, ctx) &&
-            (p.kind === 'held' || e.object?.container !== ctx.world.actor.id),
+            (p.kind === 'held' || e.object?.container !== ctx.scene.actor.id),
         );
         if (candidates.length === 0) continue;
         const rest = go(ti + len, pi + 1, [
@@ -519,7 +471,7 @@ function finishMessage(
 }
 
 function finishBuiltin(match: Match, noun: (fills: Fill[]) => string | null): ParseResult {
-  const name = (match.line.action as { kind: 'builtin'; name: Command['kind'] }).name;
+  const name = (match.line.action as { kind: 'builtin'; name: BuiltinVerbName }).name;
   const one = (slot: string): { id: string } | { ask: string } | null => {
     const fill = match.fills.find((f) => f.slot === slot);
     return fill ? choose(fill) : null;
@@ -670,7 +622,7 @@ export function whatYouCanSay(ctx: ParseContext): string[] {
   for (const line of grammarTable(ctx)) {
     if (line.action.kind !== 'message') continue;
     const ownerId = line.action.ownerId;
-    const owner = ctx.world.items.find((o) => o.id === ownerId) ?? ctx.world.room;
+    const owner = ctx.scene.items.find((o) => o.id === ownerId) ?? ctx.scene.room;
     const words = line.tokens
       .map((t) =>
         'lit' in t ? t.lit : t.slot === 'self' ? owner.definition.name.toLowerCase() : '…',

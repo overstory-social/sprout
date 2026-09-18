@@ -20,19 +20,19 @@ import { SPROUT_BUILTIN_TYPES } from './extensions.js';
  */
 export const LANGUAGE_LEVEL = 1;
 
-export const UNDERSTORY_EXITS_PER_ROOM = 8;
-export const UNDERSTORY_NAME_MAX = 80;
-export const UNDERSTORY_PROSE_MAX = 4000;
-export const UNDERSTORY_EXIT_LABEL_MAX = 40;
-export const UNDERSTORY_FIELDS_PER_OBJECT = 16;
-export const UNDERSTORY_VERBS_PER_OBJECT = 16;
-export const UNDERSTORY_VIEWS_PER_OBJECT = 16;
-export const UNDERSTORY_HANDLERS_PER_OBJECT = 16;
-export const UNDERSTORY_EFFECTS_PER_HANDLER = 16;
-export const UNDERSTORY_ENUM_OPTIONS_MAX = 12;
-export const UNDERSTORY_DEFINITION_BYTES_MAX = 64 * 1024;
+export const SPROUT_EXITS_PER_ROOM = 8;
+export const SPROUT_NAME_MAX = 80;
+export const SPROUT_PROSE_MAX = 4000;
+export const SPROUT_EXIT_LABEL_MAX = 40;
+export const SPROUT_FIELDS_PER_OBJECT = 16;
+export const SPROUT_VERBS_PER_OBJECT = 16;
+export const SPROUT_VIEWS_PER_OBJECT = 16;
+export const SPROUT_HANDLERS_PER_OBJECT = 16;
+export const SPROUT_EFFECTS_PER_HANDLER = 16;
+export const SPROUT_ENUM_OPTIONS_MAX = 12;
+export const SPROUT_DEFINITION_BYTES_MAX = 64 * 1024;
 /** How deep a guard or an effect tree may nest (§10.3-8). */
-export const UNDERSTORY_NODE_DEPTH_MAX = 8;
+export const SPROUT_NODE_DEPTH_MAX = 8;
 /**
  * The event bounds (sprout.md §2.5, #339): the actor's command is depth
  * 0, every event a handler emits is one deeper. Past the depth, or past
@@ -40,22 +40,22 @@ export const UNDERSTORY_NODE_DEPTH_MAX = 8;
  * back, recorded, the visitor told nothing happened. Both are set high
  * for the early beta and revised from `understory_action` (§2.11).
  */
-export const UNDERSTORY_CASCADE_DEPTH = 20;
-export const UNDERSTORY_EVENT_BUDGET = 256;
+export const SPROUT_CASCADE_DEPTH = 20;
+export const SPROUT_EVENT_BUDGET = 256;
 /** How many envelopes a fault record keeps, oldest first. */
-export const UNDERSTORY_FAULT_CHAIN = 20;
+export const SPROUT_FAULT_CHAIN = 20;
 /**
  * The universe is capped (sprout.md §2.8, #341): live instances per zone
  * (placed and spawned), spawns in one action, and kinds a zone may define.
  * Past a cap a `spawn` is a runtime fault; kinds are refused at the boundary.
  */
-export const UNDERSTORY_MAX_INSTANCES = 2000;
-export const UNDERSTORY_SPAWNS_PER_ACTION = 8;
+export const SPROUT_MAX_INSTANCES = 2000;
+export const SPROUT_SPAWNS_PER_ACTION = 8;
 /** Effects an action's extension statements may record (§3.5 of the split proposal): past it, a fault. */
 export const SPROUT_EFFECTS_PER_ACTION = 64;
-export const UNDERSTORY_VERB_LABEL_MAX = 40;
-export const UNDERSTORY_SAY_MAX = 600;
-export const UNDERSTORY_VALUE_MAX = 80;
+export const SPROUT_VERB_LABEL_MAX = 40;
+export const SPROUT_SAY_MAX = 600;
+export const SPROUT_VALUE_MAX = 80;
 
 // --- the Sprout AST (§3.2: store structure, never text) --------------------
 
@@ -69,7 +69,7 @@ export type SproutIdent = z.infer<typeof SproutIdent>;
 export const SproutValue = z.union([
   z.boolean(),
   z.number().int(),
-  z.string().max(UNDERSTORY_VALUE_MAX),
+  z.string().max(SPROUT_VALUE_MAX),
   /** An extension value with nothing in it (a media property with no picture). */
   z.null(),
 ]);
@@ -91,7 +91,7 @@ export const SproutBuiltinField = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('string'),
     name: SproutIdent,
-    default: z.string().max(UNDERSTORY_VALUE_MAX),
+    default: z.string().max(SPROUT_VALUE_MAX),
   }),
   z
     .object({
@@ -109,9 +109,9 @@ export const SproutBuiltinField = z.discriminatedUnion('type', [
       type: z.literal('enum'),
       name: SproutIdent,
       options: z
-        .array(z.string().trim().min(1).max(UNDERSTORY_VALUE_MAX))
+        .array(z.string().trim().min(1).max(SPROUT_VALUE_MAX))
         .min(1)
-        .max(UNDERSTORY_ENUM_OPTIONS_MAX),
+        .max(SPROUT_ENUM_OPTIONS_MAX),
       default: z.string(),
     })
     .refine((f) => f.options.includes(f.default) && new Set(f.options).size === f.options.length, {
@@ -144,18 +144,14 @@ export function isBuiltinField(field: SproutField): field is SproutBuiltinField 
 // --- shapes a host shares with the language ----------------------------------
 
 export const RoomExit = z.object({
-  label: z
-    .string()
-    .trim()
-    .min(1, { error: 'An exit needs a label.' })
-    .max(UNDERSTORY_EXIT_LABEL_MAX),
+  label: z.string().trim().min(1, { error: 'An exit needs a label.' }).max(SPROUT_EXIT_LABEL_MAX),
   toRoomId: z.string().min(1),
 });
 export type RoomExit = z.infer<typeof RoomExit>;
 
 /** One object's memory of the visitor: the legible half of per-visitor state. */
-export const UnderstoryMemory = z.object({
+export const SproutMemory = z.object({
   object: z.string(),
   fields: z.array(z.object({ name: z.string(), value: SproutValue })),
 });
-export type UnderstoryMemory = z.infer<typeof UnderstoryMemory>;
+export type SproutMemory = z.infer<typeof SproutMemory>;

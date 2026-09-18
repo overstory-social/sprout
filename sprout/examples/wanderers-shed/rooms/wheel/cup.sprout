@@ -1,4 +1,4 @@
-object cup {
+object cup in wheel {
   :state one_of [wet, leather, bone_dry, bisqued, glazed, fired] default wet
   :glaze one_of [none, tenmoku, celadon, shino] default none
   :handled false

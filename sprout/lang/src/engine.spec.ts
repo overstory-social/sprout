@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { MEDIA } from './fixtures/media.js';
 
 import {
-  UNDERSTORY_CASCADE_DEPTH,
-  UNDERSTORY_EVENT_BUDGET,
-  UNDERSTORY_FAULT_CHAIN,
-  UNDERSTORY_MAX_INSTANCES,
-  UNDERSTORY_SPAWNS_PER_ACTION,
+  SPROUT_CASCADE_DEPTH,
+  SPROUT_EVENT_BUDGET,
+  SPROUT_FAULT_CHAIN,
+  SPROUT_MAX_INSTANCES,
+  SPROUT_SPAWNS_PER_ACTION,
   type SproutState,
 } from './definitions.js';
 import { compileSprout, compileSproutKind } from './sprout-lang.js';
@@ -35,7 +35,9 @@ import {
   visibleItems,
   type SpawnableKind,
   type SproutObject,
-  type SproutWorld,
+  type Scene,
+  type TurnContext,
+  turnContext,
 } from './engine.js';
 
 // The one evaluator, exhaustively (#259, #339): the lantern and the
@@ -78,12 +80,15 @@ function object(
 }
 
 /** A world whose room is `room`; items default to sitting in it. */
+/** A scene with its turn context beside it — what a spec passes as `(w, w.ctx)`. */
+type World = Scene & { ctx: TurnContext };
+
 function world(
   room: SproutObject,
   items: SproutObject[],
   elsewhere?: SproutObject[],
   kinds?: ReadonlyMap<string, SpawnableKind>,
-): SproutWorld {
+): World {
   const fixed = items.map((i) => ({
     ...i,
     container: i.container === 'room' ? room.id : i.container,
@@ -94,9 +99,13 @@ function world(
     room,
     actor: actorObject(ACTOR),
     items: fixed,
-    ext: MEDIA,
     ...(elsewhere ? { elsewhere } : {}),
-    ...(kinds ? { kinds, mint: () => `made-${++n}`, instanceCount: fixed.length + 1 } : {}),
+    ...(kinds ? { kinds } : {}),
+    ctx: turnContext({
+      ext: MEDIA,
+      mint: () => `made-${++n}`,
+      liveCount: kinds ? fixed.length + 1 : 0,
+    }),
   };
 }
 
@@ -174,7 +183,7 @@ const conservatoryDef = sprout(`room the_conservatory {
   on :lantern_out { self.set(:light, "dim") }
 }`);
 
-function conservatory(lanternState: SproutState = {}): SproutWorld {
+function conservatory(lanternState: SproutState = {}): World {
   return world(object('r-cons', 'room', conservatoryDef), [
     object('i-lantern', 'item', lanternDef, lanternState),
   ]);
@@ -231,7 +240,7 @@ const CELLAR = sprout(`room cellar {
   on :illuminating (from, value) { self.set(:illuminated, value) }
 }`);
 
-function cellar(): SproutWorld {
+function cellar(): World {
   return world(object('r-cellar', 'room', CELLAR), [
     object('i-torch', 'item', TORCH),
     object('i-flint', 'item', FLINT, {}, {}, true),
@@ -290,9 +299,9 @@ describe('projections', () => {
     }`);
     const world = cellar();
     const obj = object('i-shelf', 'item', shelf);
-    expect(renderProse(obj, world)).toBe('A shelf.');
+    expect(renderProse(obj, world, world.ctx)).toBe('A shelf.');
     world.room.state['illuminated'] = true;
-    expect(renderProse(obj, world)).toBe('A shelf, and on it a key.');
+    expect(renderProse(obj, world, world.ctx)).toBe('A shelf, and on it a key.');
   });
 
   it('open verbs are those offered `when` it holds, labelled as written', () => {
@@ -345,7 +354,7 @@ describe('projections', () => {
 describe('runVerb on the lantern and the conservatory', () => {
   it('a verb on an item changes its state, remembers the visitor, speaks, and messages the room', () => {
     const world = conservatory();
-    const out = runVerb(world, 'i-lantern', 'light');
+    const out = runVerb(world, world.ctx, 'i-lantern', 'light');
     expect(out.ok).toBe(true);
     expect(out.fault).toBeNull();
     expect(out.narration).toEqual(['The wick catches.']);
@@ -362,21 +371,21 @@ describe('runVerb on the lantern and the conservatory', () => {
 
   it('verb names match case-insensitively; a closed or unknown verb is not ok and changes nothing', () => {
     const world = conservatory();
-    expect(runVerb(world, 'i-lantern', 'LIGHT').ok).toBe(true);
-    const closed = runVerb(world, 'i-lantern', 'light');
+    expect(runVerb(world, world.ctx, 'i-lantern', 'LIGHT').ok).toBe(true);
+    const closed = runVerb(world, world.ctx, 'i-lantern', 'light');
     expect(closed.ok).toBe(false);
     expect(closed.narration).toEqual([]);
-    expect(runVerb(world, 'i-lantern', 'juggle').ok).toBe(false);
-    expect(runVerb(world, 'i-nobody', 'light').ok).toBe(false);
-    expect(runVerb(world, 'r-cons', 'study the fresco').ok).toBe(true);
+    expect(runVerb(world, world.ctx, 'i-lantern', 'juggle').ok).toBe(false);
+    expect(runVerb(world, world.ctx, 'i-nobody', 'light').ok).toBe(false);
+    expect(runVerb(world, world.ctx, 'r-cons', 'study the fresco').ok).toBe(true);
   });
 
   it('adjust clamps to the declared bounds', () => {
     const world = conservatory({ fuel: 1 });
-    runVerb(world, 'i-lantern', 'light');
+    runVerb(world, world.ctx, 'i-lantern', 'light');
     expect(world.items[0]!.state['fuel']).toBe(0);
-    runVerb(world, 'i-lantern', 'snuff');
-    expect(runVerb(world, 'i-lantern', 'light').ok).toBe(false); // fuel gt 0 fails
+    runVerb(world, world.ctx, 'i-lantern', 'snuff');
+    expect(runVerb(world, world.ctx, 'i-lantern', 'light').ok).toBe(false); // fuel gt 0 fails
   });
 
   it('a broadcast from the room reaches the items in id order, after the room’s own line', () => {
@@ -387,7 +396,7 @@ describe('runVerb on the lantern and the conservatory', () => {
       object('i-lantern', 'item', lanternDef, { lit: true }),
       object('i-alpha', 'item', listener('alpha')),
     ]);
-    const out = runVerb(w, 'r-cons', 'open the window');
+    const out = runVerb(w, w.ctx, 'r-cons', 'open the window');
     log.push(...out.narration);
     expect(log).toEqual(['A cold draught.', 'alpha', 'The lantern gutters out.', 'zed']);
     expect(w.items[1]!.state['lit']).toBe(false);
@@ -397,7 +406,9 @@ describe('runVerb on the lantern and the conservatory', () => {
 
   it('a message to one item goes by the identifier of its name', () => {
     const world = conservatory({ lit: true });
-    expect(runVerb(world, 'r-cons', 'clap').narration).toEqual(['The lantern gutters out.']);
+    expect(runVerb(world, world.ctx, 'r-cons', 'clap').narration).toEqual([
+      'The lantern gutters out.',
+    ]);
     expect(world.items[0]!.state['lit']).toBe(false);
   });
 
@@ -407,7 +418,7 @@ describe('runVerb on the lantern and the conservatory', () => {
       object('i-lantern', 'item', lanternDef),
       object('i-q', 'item', quiet),
     ]);
-    expect(runVerb(w, 'r-cons', 'open the window').narration).toEqual(['A cold draught.']);
+    expect(runVerb(w, w.ctx, 'r-cons', 'open the window').narration).toEqual(['A cold draught.']);
     expect(w.items[0]!.state['lit']).toBe(false);
   });
 });
@@ -417,7 +428,7 @@ describe('runVerb on the lantern and the conservatory', () => {
 describe('runVerb on Sprout', () => {
   it('binds an argument, reads its property, and the change cascades through a hook and a broadcast', () => {
     const world = cellar();
-    const out = runVerb(world, 'i-torch', 'use', { with: 'i-flint' });
+    const out = runVerb(world, world.ctx, 'i-torch', 'use', { with: 'i-flint' });
     expect(out.ok).toBe(true);
     expect(out.fault).toBeNull();
     expect(out.narration).toEqual([
@@ -427,8 +438,8 @@ describe('runVerb on Sprout', () => {
     expect(world.items[0]!.state).toMatchObject({ on_fire: true, illuminating: true });
     expect(world.room.state['illuminated']).toBe(true);
     expect(world.items[2]!.state['glinting']).toBe(true);
-    expect(renderProse(world.room, world)).toBe('A vaulted cellar.');
-    expect(renderProse(world.items[2]!, world)).toBe('A brass key, catching the light.');
+    expect(renderProse(world.room, world, world.ctx)).toBe('A vaulted cellar.');
+    expect(renderProse(world.items[2]!, world, world.ctx)).toBe('A brass key, catching the light.');
     // the hook (depth 1) then its broadcast to the room, the flint and the key (depth 2)
     expect(out.events).toBe(4);
     expect(out.maxDepth).toBe(2);
@@ -436,8 +447,9 @@ describe('runVerb on Sprout', () => {
   });
 
   it('an argument that is missing, or not in range, is not ok', () => {
-    expect(runVerb(cellar(), 'i-torch', 'use').ok).toBe(false);
-    expect(runVerb(cellar(), 'i-torch', 'use', { with: 'i-nobody' }).ok).toBe(false);
+    const c = cellar();
+    expect(runVerb(c, c.ctx, 'i-torch', 'use').ok).toBe(false);
+    expect(runVerb(c, c.ctx, 'i-torch', 'use', { with: 'i-nobody' }).ok).toBe(false);
   });
 
   it('a hook fires only on a real change, with the old value bound', () => {
@@ -449,19 +461,19 @@ describe('runVerb on Sprout', () => {
       changed :n (value, was) { self.set(:log, self.get(:log) + 1) say "was" }
     }`);
     const w = world(object('r', 'room', CELLAR), [object('i', 'item', counter)]);
-    runVerb(w, 'i', 'bump');
+    runVerb(w, w.ctx, 'i', 'bump');
     expect(w.items[0]!.state).toEqual({ n: 1, log: 1 });
-    const again = runVerb(w, 'i', 'bump');
+    const again = runVerb(w, w.ctx, 'i', 'bump');
     expect(again.events).toBe(0);
     expect(w.items[0]!.state['log']).toBe(1);
-    expect(runVerb(w, 'i', 'same').events).toBe(0);
+    expect(runVerb(w, w.ctx, 'i', 'same').events).toBe(0);
   });
 
   it('a well-known property may be set undeclared and lands in the state', () => {
     const world = cellar();
     const hider = sprout(`object hider { vanish { self.set(:hidden, true) } }`);
     world.items.push(object('i-h', 'item', hider));
-    runVerb(world, 'i-h', 'vanish');
+    runVerb(world, world.ctx, 'i-h', 'vanish');
     expect(world.items[3]!.state).toEqual({ hidden: true });
   });
 
@@ -478,11 +490,11 @@ describe('runVerb on Sprout', () => {
       }
     }`);
     const w = world(object('r', 'room', CELLAR), [object('i', 'item', wheel)]);
-    expect(runVerb(w, 'i', 'kick').narration).toEqual(['centred']);
-    expect(runVerb(w, 'i', 'kick').narration).toEqual(['a cup']);
+    expect(runVerb(w, w.ctx, 'i', 'kick').narration).toEqual(['centred']);
+    expect(runVerb(w, w.ctx, 'i', 'kick').narration).toEqual(['a cup']);
     expect(w.items[0]!.visitor).toEqual({ thrown: 1 });
     expect(w.items[0]!.state).toEqual({ stage: 'cup', spins: 2 });
-    expect(runVerb(w, 'i', 'kick').narration).toEqual(['nothing']);
+    expect(runVerb(w, w.ctx, 'i', 'kick').narration).toEqual(['nothing']);
   });
 
   it('each walks the room (not carried) or the actor (carried); count agrees; send by :names', () => {
@@ -503,7 +515,7 @@ describe('runVerb on Sprout', () => {
       object('i-held', 'item', nudged('held'), {}, {}, true),
       object('i-k', 'item', { ...KEY, handlers: nudged('key').handlers }),
     ]);
-    const out = runVerb(w, 'i-s', 'sweep');
+    const out = runVerb(w, w.ctx, 'i-s', 'sweep');
     expect(out.narration).toEqual(['counted', 'a', 'b', 'key', 'held', 'key']);
   });
 
@@ -518,7 +530,7 @@ describe('runVerb on Sprout', () => {
       object('i-echo', 'item', echo),
       object('i-wall', 'item', wall),
     ]);
-    const out = runVerb(w, 'i-echo', 'shout');
+    const out = runVerb(w, w.ctx, 'i-echo', 'shout');
     expect(out.fault).toBeNull();
     expect(out.narration).toEqual(['echo hears pong', 'echo hears pong']);
   });
@@ -530,12 +542,12 @@ describe('runVerb on Sprout', () => {
       object('i-ping', 'item', ping),
       object('i-pong', 'item', pong),
     ]);
-    const out = runVerb(w, 'i-ping', 'start');
+    const out = runVerb(w, w.ctx, 'i-ping', 'start');
     expect(out.ok).toBe(true);
-    expect(out.fault?.message).toContain(`deeper than ${UNDERSTORY_CASCADE_DEPTH}`);
-    expect(out.maxDepth).toBe(UNDERSTORY_CASCADE_DEPTH + 1);
-    expect(out.fault?.chain).toHaveLength(UNDERSTORY_FAULT_CHAIN);
-    expect(out.fault?.chain.at(-1)).toMatchObject({ depth: UNDERSTORY_CASCADE_DEPTH + 1 });
+    expect(out.fault?.message).toContain(`deeper than ${SPROUT_CASCADE_DEPTH}`);
+    expect(out.maxDepth).toBe(SPROUT_CASCADE_DEPTH + 1);
+    expect(out.fault?.chain).toHaveLength(SPROUT_FAULT_CHAIN);
+    expect(out.fault?.chain.at(-1)).toMatchObject({ depth: SPROUT_CASCADE_DEPTH + 1 });
     expect(out.fault?.chain.every((e) => e.instigator === 1)).toBe(true);
     expect(['i-ping', 'i-pong']).toContain(out.fault?.objectId);
   });
@@ -546,10 +558,10 @@ describe('runVerb on Sprout', () => {
       on :grow { send self :grow send self :grow send self :grow }
     }`);
     const w = world(object('r', 'room', CELLAR), [object('i', 'item', tree)]);
-    const out = runVerb(w, 'i', 'start');
-    expect(out.fault?.message).toContain(`More than ${UNDERSTORY_EVENT_BUDGET} events`);
-    expect(out.events).toBe(UNDERSTORY_EVENT_BUDGET + 1);
-    expect(out.maxDepth).toBeLessThan(UNDERSTORY_CASCADE_DEPTH);
+    const out = runVerb(w, w.ctx, 'i', 'start');
+    expect(out.fault?.message).toContain(`More than ${SPROUT_EVENT_BUDGET} events`);
+    expect(out.events).toBe(SPROUT_EVENT_BUDGET + 1);
+    expect(out.maxDepth).toBeLessThan(SPROUT_CASCADE_DEPTH);
   });
 
   it('an extension statement records an effect (§3.5): show — self’s :image, a named media property, the room’s — or nothing when none', () => {
@@ -567,14 +579,17 @@ describe('runVerb on Sprout', () => {
     const w = world(object('r', 'room', room), [object('i', 'item', lamp)]);
     const shown = (ids: string[]) =>
       ids.map((mediaId) => ({ extension: 'media', kind: 'show', mediaId }));
-    expect(runVerb(w, 'i', 'peek').effects).toEqual(shown(['m-lamp']));
-    expect(runVerb(w, 'i', 'plan').effects).toEqual([]);
-    expect(runVerb(w, 'i', 'around').effects).toEqual(shown(['m-room']));
+    expect(runVerb(w, w.ctx, 'i', 'peek').effects).toEqual(shown(['m-lamp']));
+    expect(runVerb(w, w.ctx, 'i', 'plan').effects).toEqual([]);
+    expect(runVerb(w, w.ctx, 'i', 'around').effects).toEqual(shown(['m-room']));
     // Recorded twice, in order — the host decides whether one lightbox opens once; the state took the id.
-    expect(runVerb(w, 'i', 'hang').effects).toEqual(shown(['m-plan', 'm-plan']));
+    expect(runVerb(w, w.ctx, 'i', 'hang').effects).toEqual(shown(['m-plan', 'm-plan']));
     expect(w.items[0]!.state['blueprint']).toBe('m-plan');
-    expect(describeWith(w.items[0]!, w)).toEqual({ prose: 'A lamp.', effects: shown(['m-lamp']) });
-    expect(runVerb(w, 'i', 'peek').fault).toBeNull();
+    expect(describeWith(w.items[0]!, w, w.ctx)).toEqual({
+      prose: 'A lamp.',
+      effects: shown(['m-lamp']),
+    });
+    expect(runVerb(w, w.ctx, 'i', 'peek').fault).toBeNull();
   });
 
   it('an extension’s run sees a frozen frame, and a throw in it is a fault naming the extension', () => {
@@ -586,7 +601,7 @@ describe('runVerb on Sprout', () => {
       return undefined;
     };
     try {
-      const out = runVerb(w, 'i', 'peek');
+      const out = runVerb(w, w.ctx, 'i', 'peek');
       expect(out.fault?.message).toContain('The "media" extension failed on "show"');
     } finally {
       MEDIA.statement('show')!.spec.run = original;
@@ -596,7 +611,7 @@ describe('runVerb on Sprout', () => {
   it('a send to the actor is delivered to nothing that answers; a name nothing has is ignored', () => {
     const def = sprout(`object o { poke { send actor :hi send nobody :hi say "fine" } }`);
     const w = world(object('r', 'room', CELLAR), [object('i', 'item', def)]);
-    const out = runVerb(w, 'i', 'poke');
+    const out = runVerb(w, w.ctx, 'i', 'poke');
     expect(out.narration).toEqual(['fine']);
     expect(out.events).toBe(1);
     expect(out.fault).toBeNull();
@@ -643,7 +658,7 @@ describe('containers as the bus (§2.5)', () => {
       object('i-held', 'item', LISTENER('held'), {}, {}, true),
       object('i-floor', 'item', LISTENER('floor')),
     ]);
-    const out = runVerb(w, 'i-lamp', 'light');
+    const out = runVerb(w, w.ctx, 'i-lamp', 'light');
     expect(out.fault).toBeNull();
     // the room hears it (sets :illuminated), then what it holds in id order, depth first: glass
     // passes light to the jewel; the chest is shut and hears it itself but keeps it from the coin;
@@ -663,14 +678,14 @@ describe('containers as the bus (§2.5)', () => {
       object('i-bell', 'item', BELL, {}, {}, false, 'i-chest'),
       object('i-floor', 'item', LISTENER('floor')),
     ]);
-    const out = runVerb(w, 'i-bell', 'ring');
+    const out = runVerb(w, w.ctx, 'i-bell', 'ring');
     // the chest hears the noise (it is the bell's container), opens, and says so; the room did not hear it
     expect(out.narration).toEqual([
       'Something inside the chest thumps, and the lid jumps its catch.',
     ]);
     expect(w.items[0]!.state['open']).toBe(true);
     // rung again, the open chest passes it on to the room and the floor
-    const again = runVerb(w, 'i-bell', 'ring');
+    const again = runVerb(w, w.ctx, 'i-bell', 'ring');
     expect(again.narration).toEqual(['floor hears noise']);
   });
 
@@ -679,9 +694,9 @@ describe('containers as the bus (§2.5)', () => {
       object('i-lamp', 'item', LAMP, {}, {}, true),
       object('i-floor', 'item', LISTENER('floor')),
     ]);
-    runVerb(w, 'i-lamp', 'light');
+    runVerb(w, w.ctx, 'i-lamp', 'light');
     expect(w.room.state['illuminated']).toBe(true);
-    expect(runVerb(w, 'i-lamp', 'light').events).toBe(0);
+    expect(runVerb(w, w.ctx, 'i-lamp', 'light').events).toBe(0);
   });
 
   it('`room` resolves through nesting; `container` is what holds self; `each`/`count` walk direct contents', () => {
@@ -699,7 +714,7 @@ describe('containers as the bus (§2.5)', () => {
       object('i-other', 'item', LISTENER('other'), {}, {}, false, 'i-chest'),
       object('i-floor', 'item', sprout(`object floor { on :hi { say "floor hi" } }`)),
     ]);
-    const out = runVerb(w, 'i-probe', 'poke');
+    const out = runVerb(w, w.ctx, 'i-probe', 'poke');
     expect(out.narration).toEqual(['room lit', 'in a container', 'two here', 'floor hi']);
   });
 
@@ -722,12 +737,12 @@ describe('the containment protocol (§2.6)', () => {
 
   it('take: the thing must be takeable; the hands accept up to their capacity', () => {
     const w = world(object('r', 'room', CELLAR), [key(), rock()]);
-    const taken = runMove(w, 'i-key', ACTOR);
+    const taken = runMove(w, w.ctx, 'i-key', ACTOR);
     expect(taken.ok).toBe(true);
     expect(taken.refused).toBeNull();
     expect(taken.moved).toEqual(new Map([['i-key', ACTOR]]));
     expect(w.items[0]!.container).toBe(ACTOR);
-    const notTakeable = runMove(w, 'i-rock', ACTOR);
+    const notTakeable = runMove(w, w.ctx, 'i-rock', ACTOR);
     expect(notTakeable.refused).toBe('That is not something you can carry.');
     expect(notTakeable.narration).toEqual(['That is not something you can carry.']);
     expect(w.items[1]!.container).toBe('r');
@@ -736,7 +751,7 @@ describe('the containment protocol (§2.6)', () => {
       key(),
       ...Array.from({ length: 8 }, (_, n) => object(`i-h${n}`, 'item', KEY, {}, {}, true)),
     ]);
-    expect(runMove(full, 'i-key', ACTOR).refused).toBe('There is no room in you.');
+    expect(runMove(full, full.ctx, 'i-key', ACTOR).refused).toBe('There is no room in you.');
   });
 
   it('a shut container neither releases nor accepts; open, it does both, and the notices are sent', () => {
@@ -750,13 +765,13 @@ describe('the containment protocol (§2.6)', () => {
       key(),
       object('i-coin', 'item', key().definition, {}, {}, false, 'i-chest'),
     ]);
-    expect(runMove(w, 'i-key', 'i-chest').refused).toBe('Chest is shut.');
-    expect(runMove(w, 'i-coin', ACTOR).refused).toBe('Chest is shut.');
+    expect(runMove(w, w.ctx, 'i-key', 'i-chest').refused).toBe('Chest is shut.');
+    expect(runMove(w, w.ctx, 'i-coin', ACTOR).refused).toBe('Chest is shut.');
     w.items[0]!.state['open'] = true;
-    const put = runMove(w, 'i-key', 'i-chest');
+    const put = runMove(w, w.ctx, 'i-key', 'i-chest');
     expect(put.refused).toBeNull();
     expect(put.narration).toEqual(['in goes something']);
-    const took = runMove(w, 'i-coin', ACTOR);
+    const took = runMove(w, w.ctx, 'i-coin', ACTOR);
     expect(took.narration).toEqual(['out comes something']);
     expect(w.items[2]!.container).toBe(ACTOR);
   });
@@ -784,23 +799,23 @@ describe('the containment protocol (§2.6)', () => {
       [object('i-lump', 'item', lump)],
       [object('r-cupboard', 'room', cupboard)],
     );
-    const locked = runMove(w, ACTOR, 'r-cupboard');
+    const locked = runMove(w, w.ctx, ACTOR, 'r-cupboard');
     expect(locked.refused).toBe('The cupboard door is locked. There is a keyhole.');
     w.elsewhere![0]!.state['locked'] = false;
-    const went = runMove(w, ACTOR, 'r-cupboard');
+    const went = runMove(w, w.ctx, ACTOR, 'r-cupboard');
     expect(went.refused).toBeNull();
     expect(went.narration).toEqual(['The smell of raw glaze.']);
     expect(went.moved).toEqual(new Map([[ACTOR, 'r-cupboard']]));
-    const dry = runMove(w, 'i-lump', ACTOR);
+    const dry = runMove(w, w.ctx, 'i-lump', ACTOR);
     expect(dry.refused).toBe('It would stick to dry hands. Wet them first.');
     w.items[0]!.visitor['hands_wet'] = true;
-    expect(runMove(w, 'i-lump', ACTOR).refused).toBeNull();
+    expect(runMove(w, w.ctx, 'i-lump', ACTOR).refused).toBeNull();
   });
 
   it('a guard that writes is refused by the compiler; the engine never reaches one — and a refused move leaves the world as it was', () => {
     const w = world(object('r', 'room', CELLAR), [rock()]);
     const before = JSON.stringify(w.items);
-    runMove(w, 'i-rock', ACTOR);
+    runMove(w, w.ctx, 'i-rock', ACTOR);
     expect(JSON.stringify(w.items)).toBe(before);
   });
 
@@ -810,11 +825,11 @@ describe('the containment protocol (§2.6)', () => {
       object('i-box', 'item', GLASS_CASE, { open: true }, {}, false, 'i-chest'),
       key(),
     ]);
-    expect(runMove(w, 'i-chest', 'i-chest').refused).toBe('It cannot go inside itself.');
-    expect(runMove(w, 'i-chest', 'i-box').refused).toBe('It cannot go inside itself.');
-    expect(runMove(w, 'i-chest', 'i-key').refused).toBe('Nothing goes in there.');
-    expect(runMove(w, 'r', 'i-chest').refused).toBe('It cannot go inside itself.');
-    expect(runMove(w, 'i-nobody', 'i-chest').ok).toBe(false);
+    expect(runMove(w, w.ctx, 'i-chest', 'i-chest').refused).toBe('It cannot go inside itself.');
+    expect(runMove(w, w.ctx, 'i-chest', 'i-box').refused).toBe('It cannot go inside itself.');
+    expect(runMove(w, w.ctx, 'i-chest', 'i-key').refused).toBe('Nothing goes in there.');
+    expect(runMove(w, w.ctx, 'r', 'i-chest').refused).toBe('It cannot go inside itself.');
+    expect(runMove(w, w.ctx, 'i-nobody', 'i-chest').ok).toBe(false);
   });
 
   it('`move` in a verb body is the same proposal, and a refusal is spoken there too', () => {
@@ -827,13 +842,13 @@ describe('the containment protocol (§2.6)', () => {
       object('i-tray', 'item', tray),
       key(),
     ]);
-    const notContainer = runVerb(w, 'i-magnet', 'pull', { what: 'i-key' });
+    const notContainer = runVerb(w, w.ctx, 'i-magnet', 'pull', { what: 'i-key' });
     expect(notContainer.narration).toEqual(['Nothing goes in there.', 'click']);
     const trayPull = sprout(
       `object tray: Container { :open true  pull (what: object) { move what to self } }`,
     );
     const w2 = world(object('r', 'room', CELLAR), [object('i-tray', 'item', trayPull), key()]);
-    const out = runVerb(w2, 'i-tray', 'pull', { what: 'i-key' });
+    const out = runVerb(w2, w2.ctx, 'i-tray', 'pull', { what: 'i-key' });
     expect(out.moved).toEqual(new Map([['i-key', 'i-tray']]));
     expect(w2.items[1]!.container).toBe('i-tray');
   });
@@ -864,7 +879,7 @@ describe('kinds and instances (§2.8)', () => {
 
   it('spawn makes an instance of a published kind at its defaults, in the target, and tells it so', () => {
     const w = world(object('r', 'room', CELLAR), [object('i-bag', 'item', BAG)], undefined, KINDS);
-    const out = runVerb(w, 'i-bag', 'cut');
+    const out = runVerb(w, w.ctx, 'i-bag', 'cut');
     expect(out.fault).toBeNull();
     expect(out.narration).toEqual(['A lump, cold and heavy.']);
     expect(out.spawned).toHaveLength(1);
@@ -879,15 +894,15 @@ describe('kinds and instances (§2.8)', () => {
     });
     expect(lump.state).toEqual({ takeable: true, wet: true });
     expect(w.items).toContain(lump);
-    expect(renderProse(lump, w)).toBe('A grapefruit of clay.');
-    expect(openVerbs(lump, w)).toEqual(['Use']);
+    expect(renderProse(lump, w, w.ctx)).toBe('A grapefruit of clay.');
+    expect(openVerbs(lump, w, w.ctx)).toEqual(['Use']);
     // the new thing is in the world: it can be moved, and `is` knows it
-    expect(runMove(w, 'made-1', 'r').refused).toBeNull();
+    expect(runMove(w, w.ctx, 'made-1', 'r').refused).toBeNull();
   });
 
   it('spawns into a spawned container by name, and refuses what cannot hold', () => {
     const w = world(object('r', 'room', CELLAR), [object('i-bag', 'item', BAG)], undefined, KINDS);
-    const out = runVerb(w, 'i-bag', 'fill');
+    const out = runVerb(w, w.ctx, 'i-bag', 'fill');
     expect(out.fault).toBeNull();
     expect(out.spawned.map((o) => [o.spawnedFrom, o.container])).toEqual([
       ['Crate', 'r'],
@@ -899,22 +914,26 @@ describe('kinds and instances (§2.8)', () => {
       undefined,
       KINDS,
     );
-    expect(runVerb(bad, 'i-bag', 'stuff').fault?.message).toBe('Bag cannot hold a new Lump.');
+    expect(runVerb(bad, bad.ctx, 'i-bag', 'stuff').fault?.message).toBe(
+      'Bag cannot hold a new Lump.',
+    );
   });
 
   it('an unknown or abstract kind is a fault', () => {
     const w = world(object('r', 'room', CELLAR), [object('i-bag', 'item', BAG)], undefined, KINDS);
-    expect(runVerb(w, 'i-bag', 'ghost').fault?.message).toBe(
+    expect(runVerb(w, w.ctx, 'i-bag', 'ghost').fault?.message).toBe(
       'No kind called "Ghost" is published here.',
     );
-    expect(runVerb(w, 'i-bag', 'tool').fault?.message).toContain('"Usable" is abstract (use)');
+    expect(runVerb(w, w.ctx, 'i-bag', 'tool').fault?.message).toContain(
+      '"Usable" is abstract (use)',
+    );
   });
 
   it('the caps: spawns per action, and live instances per zone', () => {
     const greedy = sprout(`object greedy { grab { ${'spawn Lump in room  '.repeat(9)} } }`);
     const w = world(object('r', 'room', CELLAR), [object('i-g', 'item', greedy)], undefined, KINDS);
-    expect(runVerb(w, 'i-g', 'grab').fault?.message).toContain(
-      `More than ${UNDERSTORY_SPAWNS_PER_ACTION} things made`,
+    expect(runVerb(w, w.ctx, 'i-g', 'grab').fault?.message).toContain(
+      `More than ${SPROUT_SPAWNS_PER_ACTION} things made`,
     );
     const full = world(
       object('r', 'room', CELLAR),
@@ -922,8 +941,10 @@ describe('kinds and instances (§2.8)', () => {
       undefined,
       KINDS,
     );
-    full.instanceCount = UNDERSTORY_MAX_INSTANCES;
-    expect(runVerb(full, 'i-bag', 'cut').fault?.message).toContain('sweep it before making more');
+    full.ctx.liveCount = SPROUT_MAX_INSTANCES;
+    expect(runVerb(full, full.ctx, 'i-bag', 'cut').fault?.message).toContain(
+      'sweep it before making more',
+    );
   });
 
   // A describe the compiler would refuse today (§2.12, #441), built as
@@ -949,11 +970,14 @@ describe('kinds and instances (§2.8)', () => {
       KINDS,
     );
     const shelf = w.items[0]!;
-    expect(describeWith(shelf, w)).toEqual({ prose: 'A shelf.\n\nNothing on it.', effects: [] });
+    expect(describeWith(shelf, w, w.ctx)).toEqual({
+      prose: 'A shelf.\n\nNothing on it.',
+      effects: [],
+    });
     expect(w.items.map((i) => i.id)).toEqual(['i-shelf']); // no spawn, no destroy
     expect(shelf.state).toEqual({ dusty: false }); // no set
     expect(shelf.container).toBe('r'); // no move
-    expect(w.budget).toMatchObject({ events: 0, spawns: 0, made: 0 }); // no broadcast, nothing queued
+    expect(w.ctx.budget).toMatchObject({ events: 0, spawns: 0, made: 0 }); // no broadcast, nothing queued
   });
 
   it('#441: the budget is the request’s — describing forty items draws nothing from it, and two actions in one request share it', () => {
@@ -967,11 +991,11 @@ describe('kinds and instances (§2.8)', () => {
       KINDS,
     );
     for (const shelf of w.items.slice(0, 40)) {
-      expect(describeWith(shelf, w).prose).toBe('A shelf.\n\nNothing on it.');
-      expect(openVerbs(shelf, w)).toEqual([]);
+      expect(describeWith(shelf, w, w.ctx).prose).toBe('A shelf.\n\nNothing on it.');
+      expect(openVerbs(shelf, w, w.ctx)).toEqual([]);
     }
     expect(w.items).toHaveLength(41);
-    expect(w.budget).toMatchObject({ events: 0, spawns: 0, made: 0 });
+    expect(w.ctx.budget).toMatchObject({ events: 0, spawns: 0, made: 0 });
     // One budget across the runners of a request: five births, then five more, is nine past eight.
     const five = sprout(`object five { pour { ${'spawn Lump in room  '.repeat(5)} } }`);
     const shared = world(
@@ -980,16 +1004,14 @@ describe('kinds and instances (§2.8)', () => {
       undefined,
       KINDS,
     );
-    const first = runVerb(shared, 'i-5', 'pour');
+    const first = runVerb(shared, shared.ctx, 'i-5', 'pour');
     expect(first.fault).toBeNull();
     expect(first.spawned).toHaveLength(5);
     expect(first.events).toBe(5); // this action's own count, for its record
-    const second = runVerb(shared, 'i-5', 'pour');
-    expect(second.fault?.message).toContain(
-      `More than ${UNDERSTORY_SPAWNS_PER_ACTION} things made`,
-    );
+    const second = runVerb(shared, shared.ctx, 'i-5', 'pour');
+    expect(second.fault?.message).toContain(`More than ${SPROUT_SPAWNS_PER_ACTION} things made`);
     expect(second.events).toBe(3); // the three it managed before the ninth birth, not the request's eight
-    expect(shared.budget?.spawns).toBe(9);
+    expect(shared.ctx.budget.spawns).toBe(9);
     // The zone cap counts what earlier runners of the request made and still holds.
     const nearly = world(
       object('r', 'room', CELLAR),
@@ -997,9 +1019,11 @@ describe('kinds and instances (§2.8)', () => {
       undefined,
       KINDS,
     );
-    nearly.instanceCount = UNDERSTORY_MAX_INSTANCES - 1;
-    expect(runVerb(nearly, 'i-bag', 'cut').fault).toBeNull();
-    expect(runVerb(nearly, 'i-bag', 'cut').fault?.message).toContain('sweep it before making more');
+    nearly.ctx.liveCount = SPROUT_MAX_INSTANCES - 1;
+    expect(runVerb(nearly, nearly.ctx, 'i-bag', 'cut').fault).toBeNull();
+    expect(runVerb(nearly, nearly.ctx, 'i-bag', 'cut').fault?.message).toContain(
+      'sweep it before making more',
+    );
   });
 
   it('destroy takes an item out; what it held falls to its container; later events to it are nothing', () => {
@@ -1012,13 +1036,13 @@ describe('kinds and instances (§2.8)', () => {
       object('i-inside', 'item', KEY, {}, {}, false, 'i-crumb'),
       object('i-poker', 'item', sprout(`object poker { poke { send crumb :poke } }`)),
     ]);
-    const out = runVerb(w, 'i-crumb', 'eat');
+    const out = runVerb(w, w.ctx, 'i-crumb', 'eat');
     expect(out.narration).toEqual(['gone']);
     expect(out.destroyed).toEqual(new Set(['i-crumb']));
     expect(w.items.map((i) => i.id)).toEqual(['i-inside', 'i-poker']);
     expect(w.items[0]!.container).toBe('r');
     expect(out.moved).toEqual(new Map([['i-inside', 'r']]));
-    expect(runVerb(w, 'i-poker', 'poke').narration).toEqual([]);
+    expect(runVerb(w, w.ctx, 'i-poker', 'poke').narration).toEqual([]);
   });
 
   it('a thing spawned and destroyed in one action leaves no trace; a room cannot be destroyed', () => {
@@ -1030,13 +1054,13 @@ describe('kinds and instances (§2.8)', () => {
       undefined,
       KINDS2,
     );
-    const out = runVerb(w, 'i-s', 'strike');
+    const out = runVerb(w, w.ctx, 'i-s', 'strike');
     expect(out.spawned).toEqual([]);
     expect(out.destroyed.size).toBe(0);
     expect(w.items.map((i) => i.id)).toEqual(['i-s']);
     const room = sprout(`room r { collapse { destroy self } }`);
     const w2 = world(object('r', 'room', room), []);
-    expect(runVerb(w2, 'r', 'collapse').fault?.message).toBe('R cannot be destroyed.');
+    expect(runVerb(w2, w2.ctx, 'r', 'collapse').fault?.message).toBe('R cannot be destroyed.');
   });
 
   it('a placed item of a kind runs the kind, folded: is(Kind) walks the chain', () => {
@@ -1061,7 +1085,7 @@ describe('kinds and instances (§2.8)', () => {
     );
     const w = world(object('r', 'room', CELLAR), [obj, object('i-probe', 'item', probe)]);
     expect(obj.state).toEqual({ wet: false, takeable: true });
-    expect(runVerb(w, 'i-probe', 'check', { what: 'i-lump' }).narration).toEqual(['a lump']);
-    expect(runVerb(w, 'i-lump', 'use', { with: 'i-probe' }).narration).toEqual(['squish']);
+    expect(runVerb(w, w.ctx, 'i-probe', 'check', { what: 'i-lump' }).narration).toEqual(['a lump']);
+    expect(runVerb(w, w.ctx, 'i-lump', 'use', { with: 'i-probe' }).narration).toEqual(['squish']);
   });
 });

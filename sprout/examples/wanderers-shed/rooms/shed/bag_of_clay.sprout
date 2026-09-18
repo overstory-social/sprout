@@ -1,4 +1,4 @@
-object bag_of_clay {
+object bag_of_clay in shed {
   :name "Bag of clay"
   :names ["bag", "clay", "bag of clay"]
   :lumps 6 min 0 max 6

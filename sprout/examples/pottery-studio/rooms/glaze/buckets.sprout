@@ -1,4 +1,4 @@
-object buckets {
+object buckets in glaze {
   :name "Glaze buckets"
   :stirred false
   :takeable false

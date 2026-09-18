@@ -1,4 +1,4 @@
-object stool {
+object stool in wheel {
   :takeable false
   prose "A three-legged stool, one leg shorter than the others."
 

@@ -1,4 +1,4 @@
-object scale {
+object scale in clay {
   :name "Hanging scale"
   :takeable false
   prose "A brass spring scale on a beam, with a clay-crusted pan."

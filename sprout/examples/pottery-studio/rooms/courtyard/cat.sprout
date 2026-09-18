@@ -1,4 +1,4 @@
-object cat {
+object cat in courtyard {
   :name "The studio cat"
   :mood one_of [asleep, awake, gone] default asleep
   :takeable false

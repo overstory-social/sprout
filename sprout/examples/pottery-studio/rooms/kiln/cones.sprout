@@ -1,4 +1,4 @@
-object cones {
+object cones in kiln {
   :name "Cone pack"
   :takeable false
   prose "Three pyrometric cones set in a pad of clay, leaning like little teeth."

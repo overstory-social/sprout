@@ -1,4 +1,4 @@
-object stool {
+object stool in wheel {
   :takeable false
   prose "A milking stool, one leg mended with a nail."
 

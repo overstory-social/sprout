@@ -1,4 +1,4 @@
-object slop {
+object slop in wheel {
   :name "Slop bucket"
   :takeable false
   :remembers [found_rib: false]

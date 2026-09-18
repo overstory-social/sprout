@@ -1,4 +1,4 @@
-object guestbook {
+object guestbook in front {
   :name "Guest book"
   :takeable false
   :remembers [signed: false]

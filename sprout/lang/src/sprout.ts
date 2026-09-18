@@ -6,16 +6,16 @@ import {
   isBuiltinField,
   SproutIdent,
   SproutValue,
-  UNDERSTORY_DEFINITION_BYTES_MAX,
-  UNDERSTORY_EFFECTS_PER_HANDLER,
-  UNDERSTORY_EXITS_PER_ROOM,
-  UNDERSTORY_FIELDS_PER_OBJECT,
-  UNDERSTORY_HANDLERS_PER_OBJECT,
-  UNDERSTORY_NAME_MAX,
-  UNDERSTORY_NODE_DEPTH_MAX,
-  UNDERSTORY_PROSE_MAX,
-  UNDERSTORY_SAY_MAX,
-  UNDERSTORY_VERBS_PER_OBJECT,
+  SPROUT_DEFINITION_BYTES_MAX,
+  SPROUT_EFFECTS_PER_HANDLER,
+  SPROUT_EXITS_PER_ROOM,
+  SPROUT_FIELDS_PER_OBJECT,
+  SPROUT_HANDLERS_PER_OBJECT,
+  SPROUT_NAME_MAX,
+  SPROUT_NODE_DEPTH_MAX,
+  SPROUT_PROSE_MAX,
+  SPROUT_SAY_MAX,
+  SPROUT_VERBS_PER_OBJECT,
 } from './definitions.js';
 import {
   NO_EXTENSIONS,
@@ -224,7 +224,7 @@ export const SproutExtArg: z.ZodType<SproutExtArg> = z.lazy(() =>
   z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('target'), target: SproutTarget }),
     z.object({ kind: z.literal('symbol'), name: SproutIdent }),
-    z.object({ kind: z.literal('string'), text: z.string().max(UNDERSTORY_SAY_MAX) }),
+    z.object({ kind: z.literal('string'), text: z.string().max(SPROUT_SAY_MAX) }),
     z.object({ kind: z.literal('expr'), expr: SproutExpr }),
   ]),
 );
@@ -242,15 +242,15 @@ export const SPROUT_MUTATING_STATEMENTS: ReadonlySet<SproutStatement['kind']> = 
 >(['set', 'adjust', 'remember', 'broadcast', 'send', 'move', 'spawn', 'destroy']);
 
 const Body = (): z.ZodType<SproutStatement[]> =>
-  z.array(z.lazy(() => SproutStatement)).max(UNDERSTORY_EFFECTS_PER_HANDLER);
+  z.array(z.lazy(() => SproutStatement)).max(SPROUT_EFFECTS_PER_HANDLER);
 
 export const SproutStatement: z.ZodType<SproutStatement> = z.lazy(() =>
   z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('if'), cond: SproutExpr, then: Body(), else: Body() }),
     z.object({ kind: z.literal('set'), property: SproutIdent, value: SproutExpr }),
     z.object({ kind: z.literal('adjust'), property: SproutIdent, by: SproutExpr }),
-    z.object({ kind: z.literal('say'), text: z.string().max(UNDERSTORY_SAY_MAX) }),
-    z.object({ kind: z.literal('text'), text: z.string().max(UNDERSTORY_PROSE_MAX) }),
+    z.object({ kind: z.literal('say'), text: z.string().max(SPROUT_SAY_MAX) }),
+    z.object({ kind: z.literal('text'), text: z.string().max(SPROUT_PROSE_MAX) }),
     z.object({
       kind: z.literal('broadcast'),
       message: SproutIdent,
@@ -279,7 +279,7 @@ export const SproutStatement: z.ZodType<SproutStatement> = z.lazy(() =>
       body: Body(),
     }),
     z.object({ kind: z.literal('allow') }),
-    z.object({ kind: z.literal('refuse'), text: z.string().max(UNDERSTORY_SAY_MAX) }),
+    z.object({ kind: z.literal('refuse'), text: z.string().max(SPROUT_SAY_MAX) }),
   ]),
 );
 
@@ -356,13 +356,13 @@ export type SproutConsent = z.infer<typeof SproutConsent>;
  * (v0 `visitorFields`), declared so the legibility panel knows the shape.
  */
 const SproutKindBody = {
-  properties: z.array(SproutField).max(UNDERSTORY_FIELDS_PER_OBJECT).default([]),
-  remembers: z.array(SproutField).max(UNDERSTORY_FIELDS_PER_OBJECT).default([]),
+  properties: z.array(SproutField).max(SPROUT_FIELDS_PER_OBJECT).default([]),
+  remembers: z.array(SproutField).max(SPROUT_FIELDS_PER_OBJECT).default([]),
   describe: Body().default([]),
-  messages: z.array(SproutMessage).max(UNDERSTORY_VERBS_PER_OBJECT).default([]),
-  handlers: z.array(SproutOn).max(UNDERSTORY_HANDLERS_PER_OBJECT).default([]),
-  hooks: z.array(SproutChanged).max(UNDERSTORY_HANDLERS_PER_OBJECT).default([]),
-  passRules: z.array(SproutPass).max(UNDERSTORY_HANDLERS_PER_OBJECT).default([]),
+  messages: z.array(SproutMessage).max(SPROUT_VERBS_PER_OBJECT).default([]),
+  handlers: z.array(SproutOn).max(SPROUT_HANDLERS_PER_OBJECT).default([]),
+  hooks: z.array(SproutChanged).max(SPROUT_HANDLERS_PER_OBJECT).default([]),
+  passRules: z.array(SproutPass).max(SPROUT_HANDLERS_PER_OBJECT).default([]),
   consents: z.array(SproutConsent).max(SPROUT_CONSENTS.length).default([]),
 };
 export const SproutKindBodyShape = z.object(SproutKindBody);
@@ -376,15 +376,22 @@ const SproutHeader = {
    * derives one from the name.
    */
   ident: SproutIdent.nullable().default(null),
+  /**
+   * Where an OBJECT sits (`object torch: Torch in cellar`, §3.3 of the
+   * split proposal): the identifier of a room or a container in the same
+   * microworld. Null on a room, a kind, or an object whose place the host
+   * keeps (the Understory's item rows). Resolved by `compileMicroworld`.
+   */
+  placedIn: SproutIdent.nullable().default(null),
   /** The display name. */
-  name: z.string().trim().min(1, { error: 'It needs a name.' }).max(UNDERSTORY_NAME_MAX),
+  name: z.string().trim().min(1, { error: 'It needs a name.' }).max(SPROUT_NAME_MAX),
   /** `:names` — the words the parser accepts; empty = the name, humanised. */
   names: z
     .array(z.string().trim().min(1).max(SPROUT_NAME_WORD_MAX))
     .max(SPROUT_NAMES_MAX)
     .default([]),
   /** The plain prose `describe` falls back to. */
-  prose: z.string().max(UNDERSTORY_PROSE_MAX),
+  prose: z.string().max(SPROUT_PROSE_MAX),
   /** The kind this object is an instance of: one of the zone's, or a built-in. */
   inherit: SproutKindName.nullable().default(null),
   /** The extensions this source `use`s (§3.5): what its statements and value types may come from. */
@@ -407,7 +414,7 @@ const SproutHeader = {
 export const RoomDefinitionShape = z.object({
   ...SproutHeader,
   role: z.literal('room'),
-  exits: z.array(RoomExit).max(UNDERSTORY_EXITS_PER_ROOM),
+  exits: z.array(RoomExit).max(SPROUT_EXITS_PER_ROOM),
   ...SproutKindBody,
 });
 /** A room: an instance of `Room`, with exits. */
@@ -552,6 +559,7 @@ export function kindAsItem(
   const instance: ItemDefinition = {
     role: 'item',
     ident: null,
+    placedIn: null,
     name: kind.name,
     names: [],
     prose: '',
@@ -955,8 +963,8 @@ export function sproutDefinitionProblems(
   });
   const deep = (where: string, body: readonly SproutStatement[], extra = 0) => {
     const depth = Math.max(extra, ...body.map(statementDepth));
-    if (depth > UNDERSTORY_NODE_DEPTH_MAX) {
-      problems.push(`${where}: nests too deep (${UNDERSTORY_NODE_DEPTH_MAX} at most).`);
+    if (depth > SPROUT_NODE_DEPTH_MAX) {
+      problems.push(`${where}: nests too deep (${SPROUT_NODE_DEPTH_MAX} at most).`);
     }
   };
 
@@ -1055,10 +1063,8 @@ export function sproutDefinitionProblems(
     deep(where, c.body);
   }
 
-  if (JSON.stringify(def).length > UNDERSTORY_DEFINITION_BYTES_MAX) {
-    problems.push(
-      `The definition is too big (${UNDERSTORY_DEFINITION_BYTES_MAX / 1024} KB at most).`,
-    );
+  if (JSON.stringify(def).length > SPROUT_DEFINITION_BYTES_MAX) {
+    problems.push(`The definition is too big (${SPROUT_DEFINITION_BYTES_MAX / 1024} KB at most).`);
   }
   return problems;
 }

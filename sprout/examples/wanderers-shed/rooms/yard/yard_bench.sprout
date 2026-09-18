@@ -1,4 +1,4 @@
-object bench {
+object yard_bench in yard {
   :takeable false
   :remembers [rested: false]
   prose "A bench of two scaffold planks on breeze blocks, warm where the sun has been on it."

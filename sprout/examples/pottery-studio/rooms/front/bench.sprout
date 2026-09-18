@@ -1,4 +1,4 @@
-object bench {
+object bench in front {
   :takeable false
   prose "A long oak bench under the window, polished by years of trousers."
 

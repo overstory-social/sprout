@@ -6,10 +6,10 @@ import {
   SproutField,
   SproutState,
   SproutValue,
-  UNDERSTORY_DEFINITION_BYTES_MAX,
-  UNDERSTORY_EXITS_PER_ROOM,
-  UNDERSTORY_NODE_DEPTH_MAX,
-  UNDERSTORY_VALUE_MAX,
+  SPROUT_DEFINITION_BYTES_MAX,
+  SPROUT_EXITS_PER_ROOM,
+  SPROUT_NODE_DEPTH_MAX,
+  SPROUT_VALUE_MAX,
   isBuiltinField,
 } from './definitions.js';
 
@@ -22,8 +22,8 @@ describe('values and state', () => {
     expect(SproutValue.safeParse(true).success).toBe(true);
     expect(SproutValue.safeParse(3).success).toBe(true);
     expect(SproutValue.safeParse(1.5).success).toBe(false);
-    expect(SproutValue.safeParse('x'.repeat(UNDERSTORY_VALUE_MAX)).success).toBe(true);
-    expect(SproutValue.safeParse('x'.repeat(UNDERSTORY_VALUE_MAX + 1)).success).toBe(false);
+    expect(SproutValue.safeParse('x'.repeat(SPROUT_VALUE_MAX)).success).toBe(true);
+    expect(SproutValue.safeParse('x'.repeat(SPROUT_VALUE_MAX + 1)).success).toBe(false);
     expect(SproutValue.safeParse(null).success).toBe(true);
     expect(SproutState.safeParse({ lit: true, fuel: 2 }).success).toBe(true);
     expect(SproutState.safeParse({ Lit: true }).success).toBe(false);
@@ -70,9 +70,9 @@ describe('what a host shares', () => {
     expect(RoomExit.safeParse({ label: '', toRoomId: 'r1' }).success).toBe(false);
     for (const n of [
       LANGUAGE_LEVEL,
-      UNDERSTORY_EXITS_PER_ROOM,
-      UNDERSTORY_NODE_DEPTH_MAX,
-      UNDERSTORY_DEFINITION_BYTES_MAX,
+      SPROUT_EXITS_PER_ROOM,
+      SPROUT_NODE_DEPTH_MAX,
+      SPROUT_DEFINITION_BYTES_MAX,
     ]) {
       expect(Number.isInteger(n) && n > 0).toBe(true);
     }

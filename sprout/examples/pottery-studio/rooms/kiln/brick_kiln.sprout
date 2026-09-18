@@ -1,4 +1,4 @@
-object kiln {
+object brick_kiln in kiln {
   :name "The kiln"
   :door one_of [open, closed] default closed
   :temp 0 min 0 max 1300

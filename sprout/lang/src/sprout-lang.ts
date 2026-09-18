@@ -61,6 +61,12 @@ export interface CompileOptions extends ProblemOptions {
    * saved. Absent (a save, a check): every refusal is fatal.
    */
   acceptedLevel?: number;
+  /**
+   * Extensions every file of a microworld is compiled under (§3.3): the
+   * union of the archive's `use` lines, so one keyword set and one
+   * well-known table hold across files. A file's own `use` lines add to it.
+   */
+  presetUses?: readonly string[];
 }
 
 export interface CompileResult<D = SproutDefinition> {
@@ -82,6 +88,9 @@ interface Token {
   line: number;
   column: number;
 }
+/** The lexer's token, exported for an editor's highlighter (§3.6): one grammar, one tokenizer. */
+export type SproutToken = Token;
+export type SproutTokenKind = TokenKind;
 
 const PUNCT = [
   '==',
@@ -106,7 +115,7 @@ const PUNCT = [
   '!',
 ];
 
-class SproutSyntaxError extends Error {
+export class SproutSyntaxError extends Error {
   constructor(
     message: string,
     readonly line: number,
@@ -217,7 +226,17 @@ class Parser {
     private readonly tokens: Token[],
     private readonly rooms: ReadonlyMap<string, string> | undefined,
     private readonly ext: ExtensionSet,
-  ) {}
+    presetUses: readonly string[] = [],
+  ) {
+    for (const name of presetUses) this.use(name);
+  }
+
+  /** Bring an extension's keywords into scope; unknown names are the caller's to refuse. */
+  private use(name: string): void {
+    if (!this.ext.has(name) || this.uses.includes(name)) return;
+    this.uses.push(name);
+    for (const k of this.ext.keywordsOf(name)) this.extKeywords.add(k);
+  }
 
   private keyword(text: string): boolean {
     return KEYWORDS.has(text) || this.extKeywords.has(text);
@@ -266,22 +285,48 @@ class Parser {
 
   // -- the object --------------------------------------------------------------
 
-  definition(): SproutDefinition | KindDefinition {
-    // `use media` lines first (§3.5): what this source's statements and
-    // value types may come from. `use` is not a keyword — `use (with:
-    // object)` is the language's own example verb — it is only read here,
-    // before the head, where nothing else can start a source.
+  /**
+   * `use media` lines first (§3.5): what this file's statements and value
+   * types may come from. `use` is not a keyword — `use (with: object)` is
+   * the language's own example verb — it is only read here, before the
+   * first head, where nothing else can start a file.
+   */
+  private useLines(): void {
     while (this.atWord('use') && this.peek(1).kind === 'ident') {
       this.next();
       const t = this.expect('ident', undefined, "an extension's name");
       if (!this.ext.has(t.text)) {
         this.fail(`This host has no extension called "${t.text}".`, t);
       }
-      if (!this.uses.includes(t.text)) {
-        this.uses.push(t.text);
-        for (const k of this.ext.keywordsOf(t.text)) this.extKeywords.add(k);
-      }
+      this.use(t.text);
     }
+  }
+
+  /** The extensions in scope, in order: the preset ones, then the file's own `use` lines. */
+  get usesInScope(): readonly string[] {
+    return this.uses;
+  }
+
+  /** One object per source: an editor's page (§3.3, `compileFile` reads a whole file). */
+  definition(): SproutDefinition | KindDefinition {
+    this.useLines();
+    const def = this.one();
+    if (!this.at('eof')) this.fail('One object per source; nothing may follow its closing brace.');
+    return def;
+  }
+
+  /** A whole file: its `use` lines, then any number of kinds, rooms and objects, each with the position of its head. */
+  file(): { tree: SproutDefinition | KindDefinition; line: number; column: number }[] {
+    this.useLines();
+    const out: { tree: SproutDefinition | KindDefinition; line: number; column: number }[] = [];
+    while (!this.at('eof')) {
+      const head = this.peek();
+      out.push({ tree: this.one(), line: head.line, column: head.column });
+    }
+    return out;
+  }
+
+  private one(): SproutDefinition | KindDefinition {
     const head = this.next();
     const isKind = head.kind === 'ident' && head.text === 'kind';
     if (head.kind !== 'ident' || (head.text !== 'room' && head.text !== 'object' && !isKind)) {
@@ -298,15 +343,28 @@ class Parser {
       this.next();
       inherit = this.expect('kind', undefined, 'a kind name (capitalised)').text;
     }
+    // `in <ident>` (§3.3): where an object sits, by the identifier of a
+    // room or a container in the same microworld. A room is a place, a
+    // kind is never placed.
+    let placedIn: string | null = null;
     if (this.atWord('in')) {
-      this.fail("Where an object sits is the builder's (the row it lives in); leave `in` out.");
+      const at = this.next();
+      if (head.text !== 'object') {
+        this.fail(
+          isKind
+            ? 'A kind is never placed; leave `in` out.'
+            : 'A room is a place, not in one; leave `in` out.',
+          at,
+        );
+      }
+      placedIn = this.ident('the identifier of the room or container it sits in');
     }
     this.expect('punct', '{');
     const body = this.members(head.text === 'room');
     this.expect('punct', '}');
-    if (!this.at('eof')) this.fail('One object per source; nothing may follow its closing brace.');
     const header = {
       ident: isKind ? null : ident,
+      placedIn,
       name: body.name ?? (isKind ? humaniseKind(ident) : humanise(ident)),
       names: body.names,
       prose: body.prose,
@@ -980,7 +1038,12 @@ function compileAny(
   const level = LANGUAGE_LEVEL;
   let tree: SproutDefinition | KindDefinition;
   try {
-    tree = new Parser(tokenize(source), options.rooms, options.ext ?? NO_EXTENSIONS).definition();
+    tree = new Parser(
+      tokenize(source),
+      options.rooms,
+      options.ext ?? NO_EXTENSIONS,
+      options.presetUses,
+    ).definition();
   } catch (err) {
     if (err instanceof SproutSyntaxError) {
       return {
@@ -1004,12 +1067,25 @@ function compileAny(
       level,
     };
   }
-  // The SHAPE schema refuses the structural shape alone; the language's
-  // own checks run here with the zone's kinds and the host's extensions
-  // in hand, and with each problem's level, so a policy refusal newer
-  // than the level this text was accepted at becomes a warning (§3.2).
-  // (The refined `RoomDefinition` would run those checks inside the
-  // parse, with no zone and no level, and fail the shape on them.)
+  return checkTree(tree, options);
+}
+
+/**
+ * The checks on one parsed tree (§3.2): the SHAPE schema refuses the
+ * structural shape alone; the language's own checks run here with the
+ * zone's kinds and the host's extensions in hand, and with each
+ * problem's level, so a policy refusal newer than the level this text
+ * was accepted at becomes a warning. (The refined `RoomDefinition` would
+ * run those checks inside the parse, with no zone and no level, and fail
+ * the shape on them.) Problems a check raises point at `at` — the head
+ * of the definition — since they have no position of their own.
+ */
+export function checkTree(
+  tree: SproutDefinition | KindDefinition,
+  options: CompileOptions = {},
+  at: { line: number; column: number } = { line: 1, column: 1 },
+): CompileResult<SproutDefinition | KindDefinition> {
+  const level = LANGUAGE_LEVEL;
   const schema =
     tree.role === 'room'
       ? RoomDefinitionShape
@@ -1018,7 +1094,6 @@ function compileAny(
         : ItemDefinitionShape;
   const shape = schema.safeParse(tree);
   if (!shape.success) {
-    // A shape problem has no position of its own; it points at the head.
     const seen = new Set<string>();
     const problems: SproutProblem[] = [];
     for (const issue of shape.error.issues) {
@@ -1026,7 +1101,7 @@ function compileAny(
         issue.code === 'custom' ? issue.message : `${issue.path.join('.')}: ${issue.message}`;
       if (seen.has(message)) continue;
       seen.add(message);
-      problems.push({ line: 1, column: 1, message, level: null });
+      problems.push({ ...at, message, level: null });
     }
     return { definition: null, problems, warnings: [], level };
   }
@@ -1043,7 +1118,7 @@ function compileAny(
     ) {
       warnings.push(issue.message);
     } else {
-      problems.push({ line: 1, column: 1, message: issue.message, level: issue.level });
+      problems.push({ ...at, message: issue.message, level: issue.level });
     }
   }
   if (problems.length > 0) return { definition: null, problems, warnings, level };
@@ -1051,6 +1126,101 @@ function compileAny(
     warnings.push(...sproutDefinitionWarnings(shape.data, options.zoneMessages));
   }
   return { definition: shape.data, problems: [], warnings, level };
+}
+
+/** One parsed definition of a file, with where its head stands. */
+export interface ParsedDefinition {
+  tree: SproutDefinition | KindDefinition;
+  line: number;
+  column: number;
+}
+
+export interface ParsedFile {
+  /** The definitions in file order; empty when the file does not parse. */
+  definitions: ParsedDefinition[];
+  /** The extensions in scope: the preset ones, then the file's own `use` lines. */
+  uses: string[];
+  /** The syntax error, if the file did not parse. */
+  problem: SproutProblem | null;
+}
+
+/**
+ * Parse a whole file (§3.3): any number of kinds, rooms and objects after
+ * its `use` lines. Nothing is checked here — `checkTree` is the checks,
+ * `compileMicroworld` runs them with the whole microworld in view.
+ */
+export function parseFile(source: string, options: CompileOptions = {}): ParsedFile {
+  try {
+    const parser = new Parser(
+      tokenize(source),
+      options.rooms,
+      options.ext ?? NO_EXTENSIONS,
+      options.presetUses,
+    );
+    const definitions = parser.file();
+    return { definitions, uses: [...parser.usesInScope], problem: null };
+  } catch (err) {
+    if (err instanceof SproutSyntaxError) {
+      return {
+        definitions: [],
+        uses: [],
+        problem: { line: err.line, column: err.column, message: err.message, level: null },
+      };
+    }
+    throw err;
+  }
+}
+
+/** The `use` lines at the top of a file, read without parsing the rest (an unparseable file has none). */
+export function usesOf(source: string): string[] {
+  let tokens: Token[];
+  try {
+    tokens = tokenize(source);
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  for (let i = 0; i + 1 < tokens.length; i += 2) {
+    const a = tokens[i]!;
+    const b = tokens[i + 1]!;
+    if (a.kind !== 'ident' || a.text !== 'use' || b.kind !== 'ident') break;
+    if (!out.includes(b.text)) out.push(b.text);
+  }
+  return out;
+}
+
+export interface CompileFileResult {
+  /** The definitions that compiled clean, in file order. */
+  definitions: (SproutDefinition | KindDefinition)[];
+  /** The extensions in scope. */
+  uses: string[];
+  problems: SproutProblem[];
+  warnings: string[];
+  level: number;
+}
+
+/**
+ * Compile one file on its own (§3.3): what can be known without the rest
+ * of the microworld — an editor's per-keystroke check, the CLI's
+ * `check --json` of one file. Exits resolve through `options.rooms`
+ * when the caller has them; a definition's problems point at its head.
+ */
+export function compileFile(source: string, options: CompileOptions = {}): CompileFileResult {
+  const level = LANGUAGE_LEVEL;
+  const parsed = parseFile(source, options);
+  if (parsed.problem) {
+    return { definitions: [], uses: parsed.uses, problems: [parsed.problem], warnings: [], level };
+  }
+  const definitions: (SproutDefinition | KindDefinition)[] = [];
+  const problems: SproutProblem[] = [];
+  const warnings: string[] = [];
+  for (const d of parsed.definitions) {
+    const r = checkTree(d.tree, options, { line: d.line, column: d.column });
+    if (r.definition) definitions.push(r.definition);
+    problems.push(...r.problems);
+    warnings.push(...r.warnings);
+  }
+  return { definitions, uses: parsed.uses, problems, warnings, level };
 }
 
 /** The problems of a definition that arrived some other way, in the compiler's shape. */
@@ -1259,7 +1429,7 @@ export function printSprout(
   const head =
     def.role === 'room'
       ? `room ${ident} {`
-      : `${def.role === 'kind' ? 'kind' : 'object'} ${ident}${def.inherit ? `: ${def.inherit}` : ''} {`;
+      : `${def.role === 'kind' ? 'kind' : 'object'} ${ident}${def.inherit ? `: ${def.inherit}` : ''}${def.role === 'item' && def.placedIn ? ` in ${def.placedIn}` : ''} {`;
   const lines: string[] = [...def.uses.map((u) => `use ${u}`), head];
   const in1 = '  ';
   const plain = def.role === 'kind' ? humaniseKind(ident) : humanise(ident);

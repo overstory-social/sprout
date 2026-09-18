@@ -9,17 +9,16 @@ import {
   normalizeObjectState,
   normalizeState,
   type SproutObject,
-  type SproutWorld,
+  type Scene,
 } from './engine.js';
 import {
   complete,
-  grammarLines,
-  grammarTokens,
   parseCommand,
   tokenizeCommand,
   whatYouCanSay,
   type ParseContext,
 } from './parser.js';
+import { grammarLines, grammarTokens } from './grammar.js';
 
 // The command parser (#342), in Inform's test cases in miniature:
 // articles ignored, multi-word nouns, adjectives that disambiguate, two
@@ -98,9 +97,9 @@ function ctx(items: SproutObject[], extra: Partial<ParseContext> = {}): ParseCon
     container: i.container === 'room' ? room.id : i.container,
     home: room.id,
   }));
-  const world: SproutWorld = { room, actor: actorObject(ACTOR), items: fixed };
+  const scene: Scene = { room, actor: actorObject(ACTOR), items: fixed };
   return {
-    world,
+    scene,
     exits: [
       { label: 'up the stair', toRoomId: 'r-hall' },
       { label: 'through the beaded curtain', toRoomId: 'r-shop' },
@@ -217,7 +216,7 @@ describe('parseCommand: the builder’s grammar', () => {
   });
 
   it('"it" is the last noun; "take all" is everything here', () => {
-    expect(command('wave it', ctx(HERE().world.items, { lastNoun: 'i-torch' }))).toMatchObject({
+    expect(command('wave it', ctx(HERE().scene.items, { lastNoun: 'i-torch' }))).toMatchObject({
       targetId: 'i-torch',
       message: 'wave',
     });

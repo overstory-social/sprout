@@ -5,19 +5,19 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
-  UNDERSTORY_CASCADE_DEPTH,
-  UNDERSTORY_DEFINITION_BYTES_MAX,
-  UNDERSTORY_EFFECTS_PER_HANDLER,
-  UNDERSTORY_ENUM_OPTIONS_MAX,
-  UNDERSTORY_EVENT_BUDGET,
-  UNDERSTORY_EXITS_PER_ROOM,
-  UNDERSTORY_FAULT_CHAIN,
-  UNDERSTORY_FIELDS_PER_OBJECT,
-  UNDERSTORY_HANDLERS_PER_OBJECT,
-  UNDERSTORY_MAX_INSTANCES,
-  UNDERSTORY_NODE_DEPTH_MAX,
-  UNDERSTORY_SPAWNS_PER_ACTION,
-  UNDERSTORY_VERBS_PER_OBJECT,
+  SPROUT_CASCADE_DEPTH,
+  SPROUT_DEFINITION_BYTES_MAX,
+  SPROUT_EFFECTS_PER_HANDLER,
+  SPROUT_ENUM_OPTIONS_MAX,
+  SPROUT_EVENT_BUDGET,
+  SPROUT_EXITS_PER_ROOM,
+  SPROUT_FAULT_CHAIN,
+  SPROUT_FIELDS_PER_OBJECT,
+  SPROUT_HANDLERS_PER_OBJECT,
+  SPROUT_MAX_INSTANCES,
+  SPROUT_NODE_DEPTH_MAX,
+  SPROUT_SPAWNS_PER_ACTION,
+  SPROUT_VERBS_PER_OBJECT,
 } from './definitions.js';
 import { compileSprout, compileSproutKind } from './sprout-lang.js';
 import {
@@ -101,24 +101,22 @@ describe('README.md, pinned to the compiler', () => {
   it('states each cap as the constant’s value', () => {
     const table = README.slice(README.indexOf('| cap '), README.indexOf('At runtime an action'));
     const row = (label: string) => table.split('\n').find((l) => l.includes(label)) ?? '';
-    expect(row('properties per object')).toContain(`| ${UNDERSTORY_FIELDS_PER_OBJECT} `);
-    expect(row('messages per object')).toContain(`| ${UNDERSTORY_VERBS_PER_OBJECT} `);
-    expect(row('handlers, hooks, pass rules')).toContain(
-      `| ${UNDERSTORY_HANDLERS_PER_OBJECT} each`,
-    );
-    expect(row('statements in one body')).toContain(`| ${UNDERSTORY_EFFECTS_PER_HANDLER} `);
-    expect(row('options in a')).toContain(`| ${UNDERSTORY_ENUM_OPTIONS_MAX} `);
+    expect(row('properties per object')).toContain(`| ${SPROUT_FIELDS_PER_OBJECT} `);
+    expect(row('messages per object')).toContain(`| ${SPROUT_VERBS_PER_OBJECT} `);
+    expect(row('handlers, hooks, pass rules')).toContain(`| ${SPROUT_HANDLERS_PER_OBJECT} each`);
+    expect(row('statements in one body')).toContain(`| ${SPROUT_EFFECTS_PER_HANDLER} `);
+    expect(row('options in a')).toContain(`| ${SPROUT_ENUM_OPTIONS_MAX} `);
     expect(row('`:names` per object')).toContain(`| ${SPROUT_NAMES_MAX}, `);
     expect(row('grammar lines per message')).toContain(`| ${SPROUT_GRAMMAR_PER_MESSAGE}, `);
     expect(row('arguments per message')).toContain(`| ${SPROUT_ARGS_PER_MESSAGE} `);
-    expect(row('exits per room')).toContain(`| ${UNDERSTORY_EXITS_PER_ROOM}, `);
-    expect(row('nesting depth')).toContain(`| ${UNDERSTORY_NODE_DEPTH_MAX} `);
-    expect(row('a source')).toContain(`| ${UNDERSTORY_DEFINITION_BYTES_MAX / 1024} KB`);
+    expect(row('exits per room')).toContain(`| ${SPROUT_EXITS_PER_ROOM}, `);
+    expect(row('nesting depth')).toContain(`| ${SPROUT_NODE_DEPTH_MAX} `);
+    expect(row('a source')).toContain(`| ${SPROUT_DEFINITION_BYTES_MAX / 1024} KB`);
     const faults = README.slice(README.indexOf('At runtime an action'));
-    expect(faults).toContain(`**${UNDERSTORY_CASCADE_DEPTH} events deep**`);
-    expect(faults).toContain(`**${UNDERSTORY_EVENT_BUDGET} events in one action**`);
-    expect(faults).toContain(`**${UNDERSTORY_SPAWNS_PER_ACTION} spawns**`);
-    expect(faults).toContain(`**${UNDERSTORY_MAX_INSTANCES} live instances**`);
-    expect(faults).toContain(`last ${UNDERSTORY_FAULT_CHAIN}`);
+    expect(faults).toContain(`**${SPROUT_CASCADE_DEPTH} events deep**`);
+    expect(faults).toContain(`**${SPROUT_EVENT_BUDGET} events in one action**`);
+    expect(faults).toContain(`**${SPROUT_SPAWNS_PER_ACTION} spawns**`);
+    expect(faults).toContain(`**${SPROUT_MAX_INSTANCES} live instances**`);
+    expect(faults).toContain(`last ${SPROUT_FAULT_CHAIN}`);
   });
 });

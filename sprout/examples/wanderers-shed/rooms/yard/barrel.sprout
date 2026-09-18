@@ -1,4 +1,4 @@
-object barrel {
+object barrel in yard {
   :name "Rain barrel"
   :takeable false
   prose "A rain barrel under the downpipe, black water with a skin of leaves, a tin mug hung on a nail beside it."

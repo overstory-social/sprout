@@ -10,6 +10,8 @@ export * from './definitions.js';
 export * from './extensions.js';
 export * from './sprout.js';
 export * from './sprout-lang.js';
+export * from './grammar.js';
+export * from './microworld.js';
 export * from './sprout-skill.js';
 export * from './engine.js';
 export * from './parser.js';
