@@ -397,8 +397,11 @@ const SproutHeader = {
 // in hand. The compiler parses the shape and runs the checks itself, with
 // the zone's kinds, the host's extensions and each problem's LEVEL, so a
 // policy refusal newer than the level a text was accepted at can be a
-// warning (§3.2) instead of a shape failure; everything else — the wire,
-// a stored tree — parses the refined one.
+// warning (§3.2) instead of a shape failure. Nothing on the wire and no
+// table carries a tree since #523 (source is the truth), so the refined
+// schemas are today a typed contract and a spec's check — a host that
+// ever parses a tree it did not compile itself would parse the refined
+// one, and forgo the level.
 
 /** A room's structural shape; `RoomDefinition` adds the language's checks. */
 export const RoomDefinitionShape = z.object({
