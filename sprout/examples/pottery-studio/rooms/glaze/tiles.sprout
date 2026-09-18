@@ -1,0 +1,10 @@
+object tiles {
+  :name "Test tiles"
+  :takeable false
+  prose "A board of fired test tiles, each glaze at three thicknesses, each labelled in pencil."
+
+  read_the_tiles {
+    grammar "read the tiles"
+    say "Celadon thin is grey, thick is jade. Tenmoku breaks rust on every edge. The shino has crawled beautifully on tile three, which is the one everybody wants and nobody can repeat."
+  }
+}

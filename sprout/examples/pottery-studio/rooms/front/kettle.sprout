@@ -1,0 +1,34 @@
+object kettle {
+  :state one_of [cold, boiling] default cold
+  :takeable false
+  :remembers [had_tea: false]
+  prose "A dented steel kettle on a gas ring, cold."
+
+  describe {
+    if (self.get(:state) == "boiling") {
+      text "The kettle is boiling, rattling its lid. There is tea, if you want it."
+    } else {
+      text "A dented steel kettle on a gas ring, cold."
+    }
+  }
+
+  put_the_kettle_on when (self.get(:state) == "cold") {
+    grammar "put the kettle on"
+    self.set(:state, "boiling")
+    say "You light the ring. In a minute the kettle starts to tick, then to sing."
+    send room :kettle_on
+  }
+
+  pour_yourself_a_cup when (self.get(:state) == "boiling") {
+    grammar "pour yourself a cup"
+    actor.remember(:had_tea, true)
+    say "Strong black tea in a cup with a thumbprint handle. It is very good."
+  }
+
+  turn_it_off when (self.get(:state) == "boiling") {
+    grammar "turn it off"
+    self.set(:state, "cold")
+    say "The singing stops."
+    send room :kettle_off
+  }
+}

@@ -1,0 +1,24 @@
+room wheel {
+  :name "The Wheel Room"
+  :humming false
+  prose "A kick wheel and an electric wheel side by side, both grey with slip. A stool. A bucket of water with a sponge floating in it. The window looks onto the courtyard.\n\nThe front room is back the way you came; a door leads through to the drying room."
+
+  describe {
+    if (self.get(:humming) == true) {
+      text "The electric wheel hums under its tray; a lump of clay turns on it, going steadily nowhere. Slip spatters the wall behind. The front room is back the way you came; a door leads through to the drying room."
+    } else {
+      text "A kick wheel and an electric wheel side by side, both grey with slip. A stool. A bucket of water with a sponge floating in it. The window looks onto the courtyard.\n\nThe front room is back the way you came; a door leads through to the drying room."
+    }
+  }
+
+  on :wheel_on {
+    self.set(:humming, true)
+  }
+
+  on :wheel_off {
+    self.set(:humming, false)
+  }
+
+  exit "back to the front room" to front
+  exit "through to the drying room" to drying
+}

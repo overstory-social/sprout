@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { MEDIA } from './fixtures/media.js';
 
-import { ItemDefinition } from './definitions.js';
 import {
   compileSprout,
   compileSproutKind,
@@ -12,7 +11,8 @@ import {
   printSprout,
   tokenize,
 } from './sprout-lang.js';
-import { upgradeSproutDefinition, type SproutDefinition2 } from './sprout.js';
+import { LANGUAGE_LEVEL } from './definitions.js';
+import { type SproutDefinition } from './sprout.js';
 
 /** sprout.md §2.1, the torch — one object per source, so the torch alone. */
 const TORCH = `
@@ -69,7 +69,7 @@ const ROOMS = new Map([
   ['cellar', 'room-cellar-id'],
 ]);
 
-function compiled(source: string): SproutDefinition2 {
+function compiled(source: string): SproutDefinition {
   const result = compileSprout(source, { rooms: ROOMS, ext: MEDIA });
   if (!result.definition) {
     throw new Error(result.problems.map((p) => `${p.line}:${p.column} ${p.message}`).join('\n'));
@@ -78,11 +78,11 @@ function compiled(source: string): SproutDefinition2 {
 }
 
 /** print → compile is the identity on the tree (source aside). */
-function roundTrips(def: SproutDefinition2): string {
+function roundTrips(def: SproutDefinition): string {
   const idents = new Map([...ROOMS].map(([k, v]) => [v, k]));
   const printed = printSprout(def, { roomIdents: idents, ext: MEDIA });
   const again = compiled(printed);
-  expect({ ...again, source: null }).toEqual({ ...def, source: null });
+  expect(again).toEqual(def);
   return printed;
 }
 
@@ -115,7 +115,7 @@ describe('the lexer', () => {
 });
 
 describe('compileSprout', () => {
-  it('compiles the torch with zero problems and keeps the source', () => {
+  it('compiles the torch with zero problems', () => {
     const result = compileSprout(TORCH);
     expect(result.problems).toEqual([]);
     expect(result.warnings).toEqual([]);
@@ -123,7 +123,6 @@ describe('compileSprout', () => {
     expect(def.role).toBe('item');
     expect(def.name).toBe('Torch');
     expect(def.inherit).toBe('Container');
-    expect(def.source).toBe(TORCH);
     expect(def.names).toEqual(['torch', 'brand', 'stick']);
     expect(def.properties).toEqual([
       { type: 'boolean', name: 'on_fire', default: false },
@@ -170,7 +169,7 @@ describe('compileSprout', () => {
     expect(raw.role === 'room' && raw.exits).toEqual([{ label: 'out', toRoomId: 'raw-id' }]);
     expect(
       compileSprout('room r {\n  exit "out" to nowhere\n}', { rooms: ROOMS }).problems,
-    ).toEqual([{ line: 2, column: 17, message: 'No room is called "nowhere" here.' }]);
+    ).toEqual([{ line: 2, column: 17, message: 'No room is called "nowhere" here.', level: null }]);
   });
 
   it('reads every property shape', () => {
@@ -335,7 +334,12 @@ describe('compileSprout', () => {
 
   it('reports syntax problems with a line and column', () => {
     expect(compileSprout('object o {\n  say "hi"\n}').problems).toEqual([
-      { line: 2, column: 3, message: '"say" is a keyword; a message needs another name.' },
+      {
+        line: 2,
+        column: 3,
+        message: '"say" is a keyword; a message needs another name.',
+        level: null,
+      },
     ]);
     expect(compileSprout('object o {\n  poke {\n    room.set(:x, 1)\n  }\n}').problems).toEqual([
       {
@@ -343,6 +347,7 @@ describe('compileSprout', () => {
         column: 5,
         message:
           'Only self may be written: tell the room (`send room :message`) and let it decide.',
+        level: null,
       },
     ]);
     expect(compileSprout('kind Torch {}').problems[0]).toMatchObject({
@@ -368,6 +373,7 @@ describe('compileSprout', () => {
       line: 1,
       column: 14,
       message: 'Unexpected character "@".',
+      level: null,
     });
   });
 
@@ -381,6 +387,7 @@ describe('compileSprout', () => {
         line: 1,
         column: 1,
         message: 'Message "poke": "set" names a property "warmth" that self does not declare.',
+        level: null,
       },
     ]);
     expect(definitionProblems(compiled(TORCH))).toEqual([]);
@@ -396,17 +403,47 @@ describe('compileSprout', () => {
     ]);
   });
 
-  it('carries the warnings through', () => {
-    const result = compileSprout(
-      'object o {\n  :a false\n  changed :a { say "x" }\n  on :ping { say "y" }\n}',
+  it('a policy refusal carries the level that introduced it, and the level a text was accepted at downgrades a newer one to a warning (§3.2)', () => {
+    const source =
+      'object bag {\n  :n 0 min 0 max 9\n  describe { text "A bag." self.set(:n, 1) }\n}';
+    const strict = compileSprout(source);
+    expect(strict.definition).toBeNull();
+    expect(strict.problems).toEqual([
+      {
+        line: 1,
+        column: 1,
+        message:
+          'Describe: "set" changes the world, and describe only reads it — put it in a message or a handler.',
+        level: 1,
+      },
+    ]);
+    expect(strict.level).toBe(LANGUAGE_LEVEL);
+    // accepted before the rule existed: it still loads, and the rule is a warning
+    const lenient = compileSprout(source, { acceptedLevel: 0 });
+    expect(lenient.definition?.role).toBe('item');
+    expect(lenient.problems).toEqual([]);
+    expect(lenient.warnings).toEqual([strict.problems[0]!.message]);
+    // at the current level nothing is downgraded
+    expect(compileSprout(source, { acceptedLevel: LANGUAGE_LEVEL }).definition).toBeNull();
+    // a structural fault has no level and is never a warning
+    const structural = compileSprout(
+      'object bag {\n  :n 0 min 0 max 9\n  poke { self.set(:zz, 1) }\n}',
+      {
+        acceptedLevel: 0,
+      },
     );
+    expect(structural.definition).toBeNull();
+    expect(structural.problems[0]!.level).toBeNull();
+  });
+
+  it('carries the warnings through', () => {
+    const quiet = 'object o {\n  :a false\n  changed :a { say "x" }\n  on :ping { say "y" }\n}';
+    const result = compileSprout(quiet);
     expect(result.warnings).toEqual([
       'Changed "a" never fires: nothing here sets it.',
       'On "ping" never fires: nothing sends it here.',
     ]);
-    expect(
-      compileSprout(result.definition!.source!, { zoneMessages: ['ping'] }).warnings,
-    ).toHaveLength(1);
+    expect(compileSprout(quiet, { zoneMessages: ['ping'] }).warnings).toHaveLength(1);
   });
 
   it("does not take the next statement as an extension statement's optional target", () => {
@@ -512,55 +549,6 @@ describe('printSprout', () => {
     );
   });
 
-  it('prints an upgraded v0 item as readable Sprout and round-trips it', () => {
-    const v0 = ItemDefinition.parse({
-      format: 1,
-      name: 'Slop bucket',
-      prose: 'A bucket of slip, a sponge afloat.',
-      portable: true,
-      fields: [
-        { type: 'enum', name: 'level', options: ['full', 'half', 'empty'], default: 'half' },
-      ],
-      views: [
-        {
-          guard: { kind: 'field', on: 'self', field: 'level', op: 'eq', value: 'empty' },
-          prose: 'Dry.',
-        },
-      ],
-      verbs: [
-        {
-          name: 'Wring the sponge',
-          guard: { kind: 'field', on: 'self', field: 'level', op: 'neq', value: 'empty' },
-          effects: [
-            { op: 'set', field: 'level', value: 'empty' },
-            { op: 'say', text: 'Grey water runs back in.' },
-          ],
-        },
-      ],
-    });
-    const printed = roundTrips(upgradeSproutDefinition(v0));
-    expect(printed).toBe(`object slop_bucket {
-  :level one_of [full, half, empty] default half
-  :takeable true
-  prose "A bucket of slip, a sponge afloat."
-
-  describe {
-    if (self.get(:level) == "empty") {
-      text "Dry."
-    } else {
-      text "A bucket of slip, a sponge afloat."
-    }
-  }
-
-  wring_the_sponge when (self.get(:level) != "empty") {
-    grammar "Wring the sponge"
-    self.set(:level, "empty")
-    say "Grey water runs back in."
-  }
-}
-`);
-  });
-
   it('compiles and prints a kind (#341)', () => {
     const source = `kind WetCup: Usable {
   :names ["cup"]
@@ -598,7 +586,12 @@ describe('printSprout', () => {
     expect(identOf('Kick wheel')).toBe('kick_wheel');
     expect(identOf('The Front Room!')).toBe('the_front_room');
     expect(printSprout(compiled('object kick_wheel {}'))).toBe('object kick_wheel {\n}\n');
+    // the identifier the source wrote is the truth: it prints back as written
     expect(printSprout(compiled('object x { :name "Kick wheel" }'))).toBe(
+      'object x {\n  :name "Kick wheel"\n}\n',
+    );
+    // a definition built by hand has none; the printer derives one from the name
+    expect(printSprout({ ...compiled('object x { :name "Kick wheel" }'), ident: null })).toBe(
       'object kick_wheel {\n}\n',
     );
   });

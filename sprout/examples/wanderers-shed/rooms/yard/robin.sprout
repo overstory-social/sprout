@@ -1,0 +1,34 @@
+object robin {
+  :tame 0 min 0 max 3
+  :takeable false
+  :remembers [fed: false]
+  prose "A robin on the fork handle, head on one side, watching you with the frank interest of a bird that has never once been refused."
+
+  describe {
+    if (self.get(:tame) == 1) {
+      text "The robin, a fork-handle closer than before, still watching."
+    } else if (self.get(:tame) == 2) {
+      text "The robin on the end of the bench, near enough to see the fleck in its eye."
+    } else if (self.get(:tame) == 3) {
+      text "The robin on your boot, as if it had always lived there."
+    } else {
+      text "A robin on the fork handle, head on one side, watching you with the frank interest of a bird that has never once been refused."
+    }
+  }
+
+  hold_out_a_crumb {
+    grammar "hold out a crumb"
+    if (self.get(:tame) < 3) {
+      self.adjust(:tame, 1)
+      actor.remember(:fed, true)
+      say "The robin considers the crumb, and you, and the crumb again, and comes a little closer."
+    } else {
+      say "The robin takes it from your fingers without ceremony. You have been accepted."
+    }
+  }
+
+  whistle {
+    grammar "whistle"
+    say "The robin sings back: a thin, sweet, complicated thing, much better than yours."
+  }
+}

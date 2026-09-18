@@ -1,0 +1,25 @@
+room kiln {
+  :name "The Kiln Yard"
+  :firing false
+  prose "A brick yard open to the sky, with a wood-fired kiln at the far end like a whitewashed beehive, its chimney black at the mouth. A woodpile under a tin roof. A cone pack sits on the ledge by the spy hole.\n\nThe half-door leads back into the front room; the glazing room is through the side door; a gate opens into the courtyard."
+
+  describe {
+    if (self.get(:firing) == true) {
+      text "Heat rolls off the brick; the air above the chimney wobbles and the whole yard smells of woodsmoke. The kiln roars softly to itself. The half-door leads back into the front room; the glazing room is through the side door; a gate opens into the courtyard."
+    } else {
+      text "A brick yard open to the sky, with a wood-fired kiln at the far end like a whitewashed beehive, its chimney black at the mouth. A woodpile under a tin roof. A cone pack sits on the ledge by the spy hole.\n\nThe half-door leads back into the front room; the glazing room is through the side door; a gate opens into the courtyard."
+    }
+  }
+
+  on :kiln_lit {
+    self.set(:firing, true)
+  }
+
+  on :kiln_cold {
+    self.set(:firing, false)
+  }
+
+  exit "back through the half-door" to front
+  exit "through the side door to the glazes" to glaze
+  exit "through the gate to the courtyard" to courtyard
+}

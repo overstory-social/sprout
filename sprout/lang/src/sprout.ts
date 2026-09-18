@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
 import {
-  ItemDefinition,
-  RoomDefinition,
   RoomExit,
   SproutField,
   isBuiltinField,
@@ -18,10 +16,6 @@ import {
   UNDERSTORY_PROSE_MAX,
   UNDERSTORY_SAY_MAX,
   UNDERSTORY_VERBS_PER_OBJECT,
-  bindFormat2,
-  type SproutDefinition,
-  type SproutEffect,
-  type SproutGuard,
 } from './definitions.js';
 import {
   NO_EXTENSIONS,
@@ -31,20 +25,14 @@ import {
   type StaticArgs,
 } from './extensions.js';
 
-// Sprout 1 (sprout.md, 2026-09-05; #337 is this file): the `format: 2`
-// AST — what the written language compiles to (#338), what the engine
-// runs (#339–#341), what the form editor and a later Blockly adapter
-// edit. It is a SUPERSET of format 1: `upgradeSproutDefinition` turns
-// any v0 room or item into a v2 one mechanically, and the two seeded
-// studios upgrade with zero problems (the seeder asserts it, so CI's
-// `schema` job executes the claim).
-//
-// Storage stays one row per object (understory_room / understory_item,
-// each drafted and published on its own): a v2 definition is one
-// object's kind body — an anonymous kind when `inherit` is null, the
-// overrides of a placed instance when it names one — plus the object's
-// own header (name, names, prose, exits). Kinds as rows of their own,
-// and `spawn`, are #341; until then `inherit` may only name a built-in.
+// The Sprout AST (sprout.md, 2026-09-05; #337, #338): what the written
+// language compiles to and what the engine runs (#339–#341). Since stage
+// 1b of the split (#523) it is NEVER stored: source text is the truth,
+// the compiler rebuilds this at load, and the shape may change in a
+// minor version. A definition is one object's kind body — an anonymous
+// kind when `inherit` is null, the overrides of a placed instance when it
+// names one — plus the object's own header (name, names, prose, exits);
+// a kind is a body with a name.
 //
 // What this file refuses is what the compiler can judge without a
 // parser (sprout.md §3): writes anywhere but self, undeclared
@@ -53,8 +41,6 @@ import {
 // writes inside a consent guard, anything but reading inside `describe`
 // (§2.12, #441), the caps. Runtime faults (depth, the event budget, the
 // instance cap) are the engine's (§2.5, §2.8).
-
-export const SPROUT_FORMAT = 2;
 
 /** The player-facing words for one object (§2.2 `:names`), and the caps around them. */
 export const SPROUT_NAMES_MAX = 8;
@@ -383,8 +369,14 @@ export const SproutKindBodyShape = z.object(SproutKindBody);
 export type SproutKindBody = z.infer<typeof SproutKindBodyShape>;
 
 const SproutHeader = {
-  format: z.literal(SPROUT_FORMAT),
-  /** The display name, as v0. */
+  /**
+   * The identifier the source wrote after `room` / `object` — what
+   * `exit "…" to <ident>` and `send <ident> :m` name (§3.3 of the split
+   * proposal). Null on a definition built by hand; the printer then
+   * derives one from the name.
+   */
+  ident: SproutIdent.nullable().default(null),
+  /** The display name. */
   name: z.string().trim().min(1, { error: 'It needs a name.' }).max(UNDERSTORY_NAME_MAX),
   /** `:names` — the words the parser accepts; empty = the name, humanised. */
   names: z
@@ -393,52 +385,68 @@ const SproutHeader = {
     .default([]),
   /** The plain prose `describe` falls back to. */
   prose: z.string().max(UNDERSTORY_PROSE_MAX),
-  /** The kind this object is an instance of — a built-in until #341 lets a zone define its own. */
+  /** The kind this object is an instance of: one of the zone's, or a built-in. */
   inherit: SproutKindName.nullable().default(null),
-  /** The Sprout text the builder wrote, kept beside the AST (§4 c). Null: built in the form. */
-  source: z.string().max(UNDERSTORY_DEFINITION_BYTES_MAX).nullable().default(null),
   /** The extensions this source `use`s (§3.5): what its statements and value types may come from. */
   uses: z.array(SproutIdent).max(8).default([]),
 };
 
+// Each definition schema comes in two layers: the SHAPE (the structural
+// contract alone — what the tree must look like) and the refined schema
+// on top of it, which also runs the language's own checks with no zone
+// in hand. The compiler parses the shape and runs the checks itself, with
+// the zone's kinds, the host's extensions and each problem's LEVEL, so a
+// policy refusal newer than the level a text was accepted at can be a
+// warning (§3.2) instead of a shape failure. Nothing on the wire and no
+// table carries a tree since #523 (source is the truth), so the refined
+// schemas are today a typed contract and a spec's check — a host that
+// ever parses a tree it did not compile itself would parse the refined
+// one, and forgo the level.
+
+/** A room's structural shape; `RoomDefinition` adds the language's checks. */
+export const RoomDefinitionShape = z.object({
+  ...SproutHeader,
+  role: z.literal('room'),
+  exits: z.array(RoomExit).max(UNDERSTORY_EXITS_PER_ROOM),
+  ...SproutKindBody,
+});
 /** A room: an instance of `Room`, with exits. */
-export const RoomDefinition2 = z
-  .object({
-    ...SproutHeader,
-    role: z.literal('room'),
-    exits: z.array(RoomExit).max(UNDERSTORY_EXITS_PER_ROOM),
-    ...SproutKindBody,
-  })
-  .superRefine((def, ctx) => {
-    for (const problem of sproutDefinitionProblems(def))
-      ctx.addIssue({ code: 'custom', message: problem });
-  });
-export type RoomDefinition2 = z.infer<typeof RoomDefinition2>;
+export const RoomDefinition = RoomDefinitionShape.superRefine((def, ctx) => {
+  for (const problem of sproutDefinitionProblems(def))
+    ctx.addIssue({ code: 'custom', message: problem });
+});
+export type RoomDefinition = z.infer<typeof RoomDefinition>;
 
+/** An item's structural shape; `ItemDefinition` adds the language's checks. */
+export const ItemDefinitionShape = z.object({
+  ...SproutHeader,
+  role: z.literal('item'),
+  ...SproutKindBody,
+});
 /** An item: an anonymous kind of one (inherit null), or an instance of a kind. */
-export const ItemDefinition2 = z
-  .object({ ...SproutHeader, role: z.literal('item'), ...SproutKindBody })
-  .superRefine((def, ctx) => {
-    for (const problem of sproutDefinitionProblems(def))
-      ctx.addIssue({ code: 'custom', message: problem });
-  });
-export type ItemDefinition2 = z.infer<typeof ItemDefinition2>;
+export const ItemDefinition = ItemDefinitionShape.superRefine((def, ctx) => {
+  for (const problem of sproutDefinitionProblems(def))
+    ctx.addIssue({ code: 'custom', message: problem });
+});
+export type ItemDefinition = z.infer<typeof ItemDefinition>;
 
-export type SproutDefinition2 = RoomDefinition2 | ItemDefinition2;
-
-bindFormat2(RoomDefinition2, ItemDefinition2);
+export type SproutDefinition = RoomDefinition | ItemDefinition;
 
 /**
  * A kind (#341, §2.8): behaviour and defaults, never placed. `name` is
  * the display name a spawned instance carries ("Wet cup"); `kindName`
  * is what Sprout calls it (`WetCup`). Abstract messages are legal here.
  */
-export const KindDefinition = z
-  .object({ ...SproutHeader, role: z.literal('kind'), kindName: SproutKindName, ...SproutKindBody })
-  .superRefine((def, ctx) => {
-    for (const problem of sproutDefinitionProblems(def))
-      ctx.addIssue({ code: 'custom', message: problem });
-  });
+export const KindDefinitionShape = z.object({
+  ...SproutHeader,
+  role: z.literal('kind'),
+  kindName: SproutKindName,
+  ...SproutKindBody,
+});
+export const KindDefinition = KindDefinitionShape.superRefine((def, ctx) => {
+  for (const problem of sproutDefinitionProblems(def))
+    ctx.addIssue({ code: 'custom', message: problem });
+});
 export type KindDefinition = z.infer<typeof KindDefinition>;
 
 /** `WetCup` → "Wet cup": a kind's default display name. */
@@ -453,7 +461,7 @@ export function humaniseKind(kindName: string): string {
 /** What a kind resolves to once its parents are folded in. */
 export interface ResolvedDefinition {
   /** The flattened definition: every inherited member folded in, `inherit` the built-in root (or null). */
-  definition: SproutDefinition2;
+  definition: SproutDefinition;
   /** The kind names on the chain, most specific first — what `is(Kind)` answers. */
   kinds: string[];
   /** Messages still abstract after folding — a placed instance with any cannot run them. */
@@ -487,7 +495,7 @@ function chainOf(
  * asks `kinds` for `is(Kind)`.
  */
 export function resolveDefinition(
-  def: SproutDefinition2,
+  def: SproutDefinition,
   kinds: ReadonlyMap<string, KindDefinition>,
 ): ResolvedDefinition {
   const { chain, root } = chainOf(def.inherit, kinds);
@@ -528,7 +536,7 @@ export function resolveDefinition(
     if (describe.length === 0 && layer.describe.length > 0) describe = layer.describe;
   }
   merged.describe = describe;
-  const definition: SproutDefinition2 = { ...def, names, prose, inherit: root, ...merged };
+  const definition: SproutDefinition = { ...def, names, prose, inherit: root, ...merged };
   return {
     definition,
     kinds: chain.map((k) => k.kindName),
@@ -541,14 +549,13 @@ export function kindAsItem(
   kind: KindDefinition,
   kinds: ReadonlyMap<string, KindDefinition>,
 ): ResolvedDefinition {
-  const instance: ItemDefinition2 = {
-    format: 2,
+  const instance: ItemDefinition = {
     role: 'item',
+    ident: null,
     name: kind.name,
     names: [],
     prose: '',
     inherit: kind.kindName,
-    source: null,
     uses: kind.uses,
     properties: [],
     remembers: [],
@@ -561,15 +568,6 @@ export function kindAsItem(
   };
   return resolveDefinition(instance, kinds);
 }
-
-/** Either format, as a saver receives it. The engine runs v1 until #339; a v2 row is upgraded-in-place v1 until then. */
-export const AnySproutDefinition = z.union([
-  RoomDefinition,
-  ItemDefinition,
-  RoomDefinition2,
-  ItemDefinition2,
-]);
-export type AnySproutDefinition = z.infer<typeof AnySproutDefinition>;
 
 // --- the compiler's checks that need no parser (§3) ------------------------------
 
@@ -868,7 +866,7 @@ function isContainerKind(
 
 /**
  * Everything a v2 definition can get wrong on its own (sprout.md §3).
- * Returned as prose for the editor; `RoomDefinition2` / `ItemDefinition2`
+ * Returned as prose for the editor; `RoomDefinition` / `ItemDefinition`
  * refuse at parse when any is present, so nothing with problems is saved.
  */
 export interface ProblemOptions {
@@ -879,7 +877,7 @@ export interface ProblemOptions {
 }
 
 export function sproutDefinitionProblems(
-  def: Omit<RoomDefinition2, 'exits'> | ItemDefinition2 | KindDefinition,
+  def: Omit<RoomDefinition, 'exits'> | ItemDefinition | KindDefinition,
   options: ProblemOptions = {},
 ): string[] {
   const problems: string[] = [];
@@ -1065,6 +1063,29 @@ export function sproutDefinitionProblems(
   return problems;
 }
 
+/** One problem with its level (see `sproutDefinitionProblems`). */
+export interface SproutIssue {
+  message: string;
+  /** Null: structural, fatal at every moment. A number: the LANGUAGE_LEVEL whose policy introduced it. */
+  level: number | null;
+}
+
+/** The policy refusals, by the words that open them, and the level that introduced each. */
+const POLICY_LEVELS: readonly [RegExp, number][] = [
+  [/changes the world, and describe only reads it/, 1], // §2.12, #441
+  [/is a well-known \w+ property; it cannot be declared as/, 1], // §2.2, #337
+];
+
+export function sproutDefinitionIssues(
+  def: Omit<RoomDefinition, 'exits'> | ItemDefinition | KindDefinition,
+  options: ProblemOptions = {},
+): SproutIssue[] {
+  return sproutDefinitionProblems(def, options).map((message) => ({
+    message,
+    level: POLICY_LEVELS.find(([re]) => re.test(message))?.[1] ?? null,
+  }));
+}
+
 /**
  * Warnings (sprout.md §3): saved, shown in the editor. A `changed` for a
  * property nothing sets; an `on` for a message nothing here sends and
@@ -1072,7 +1093,7 @@ export function sproutDefinitionProblems(
  * broadcasting it) is the saver's, which knows the siblings.
  */
 export function sproutDefinitionWarnings(
-  def: SproutDefinition2,
+  def: SproutDefinition,
   zoneMessages?: readonly string[],
 ): string[] {
   const warnings: string[] = [];
@@ -1106,196 +1127,4 @@ export function sproutDefinitionWarnings(
     }
   }
   return warnings;
-}
-
-// --- the upgrade from format 1 (§4, §6) -------------------------------------------
-
-function guardToExpr(g: SproutGuard): SproutExpr {
-  switch (g.kind) {
-    case 'all':
-      return g.guards
-        .map(guardToExpr)
-        .reduce((l, r) => ({ kind: 'binary', op: '&&', left: l, right: r }));
-    case 'any':
-      return g.guards
-        .map(guardToExpr)
-        .reduce((l, r) => ({ kind: 'binary', op: '||', left: l, right: r }));
-    case 'not':
-      return { kind: 'not', expr: guardToExpr(g.guard) };
-    case 'field': {
-      const read: SproutExpr =
-        g.on === 'self'
-          ? { kind: 'get', target: { kind: 'self' }, property: g.field }
-          : { kind: 'recall', property: g.field };
-      const lit = (value: SproutValue): SproutExpr => ({ kind: 'literal', value });
-      if (g.op === 'in') {
-        const values = Array.isArray(g.value) ? g.value : [g.value];
-        if (values.length === 0) return lit(false);
-        return values
-          .map((v): SproutExpr => ({ kind: 'binary', op: '==', left: read, right: lit(v) }))
-          .reduce((l, r) => ({ kind: 'binary', op: '||', left: l, right: r }));
-      }
-      const value = Array.isArray(g.value) ? (g.value[0] ?? false) : g.value;
-      const op: SproutBinaryOp = (
-        { eq: '==', neq: '!=', gt: '>', lt: '<', gte: '>=', lte: '<=' } as const
-      )[g.op];
-      return { kind: 'binary', op, left: read, right: lit(value) };
-    }
-  }
-}
-
-function effectsToBody(effects: readonly SproutEffect[]): SproutStatement[] {
-  const out: SproutStatement[] = [];
-  for (const e of effects) {
-    switch (e.op) {
-      case 'set':
-        out.push({ kind: 'set', property: e.field, value: { kind: 'literal', value: e.value } });
-        break;
-      case 'adjust':
-        out.push({ kind: 'adjust', property: e.field, by: { kind: 'literal', value: e.by } });
-        break;
-      case 'set_visitor':
-        out.push({
-          kind: 'remember',
-          property: e.field,
-          value: { kind: 'literal', value: e.value },
-        });
-        break;
-      case 'say':
-        out.push({ kind: 'say', text: e.text });
-        break;
-      case 'send_message':
-        if (e.to === 'room') {
-          out.push({ kind: 'send', target: { kind: 'room' }, message: e.message, value: null });
-        } else if (e.to === 'items') {
-          // v0 "every item" reached the items and not the room; a broadcast
-          // reaches the room too, which may now handle it (sprout.md §6).
-          out.push({ kind: 'broadcast', message: e.message, value: null });
-        } else {
-          out.push({
-            kind: 'send',
-            target: { kind: 'name', name: messageIdent(e.item ?? '') },
-            message: e.message,
-            value: null,
-          });
-        }
-        break;
-      case 'branch':
-        out.push({
-          kind: 'if',
-          cond: guardToExpr(e.guard),
-          then: effectsToBody(e.then),
-          else: effectsToBody(e.otherwise),
-        });
-        break;
-    }
-  }
-  return out;
-}
-
-/** A v0 label ("Kick the wheel", "Brass key") as an identifier: `kick_the_wheel`. */
-export function messageIdent(label: string): string {
-  const ident = label
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .replace(/^[0-9]/, (d) => `n${d}`)
-    .slice(0, 32);
-  return ident === '' ? 'it' : ident;
-}
-
-/**
- * v0 → v2, mechanically and totally (sprout.md §4, §6): fields become
- * properties, `portable` a declared `:takeable`, views a `describe`
- * if-chain ending in the plain prose, verbs messages offered `when`
- * their guard passes with the label, as written, as their one grammar
- * line (grammar matches case-insensitively; the chip keeps the case), handlers
- * `on` handlers guarded by `if`, effects statements. The name and the
- * prose are kept as they are; `source` is null (the printer, #338,
- * shows it as Sprout). A v2 definition is returned unchanged.
- */
-export function upgradeSproutDefinition(
-  def: SproutDefinition | SproutDefinition2,
-): SproutDefinition2 {
-  if (def.format === 2) return def;
-  const describe: SproutStatement[] = [];
-  const plain: SproutStatement = { kind: 'text', text: def.prose };
-  let unconditional = false;
-  const chain: { cond: SproutExpr; text: string }[] = [];
-  for (const v of def.views) {
-    if (v.guard === null) {
-      describe.push(...chainToBody(chain, { kind: 'text', text: v.prose }));
-      unconditional = true;
-      break;
-    }
-    chain.push({ cond: guardToExpr(v.guard), text: v.prose });
-  }
-  if (!unconditional && chain.length > 0) describe.push(...chainToBody(chain, plain));
-
-  const taken = new Set<string>();
-  const messages: SproutMessage[] = def.verbs.map((v) => {
-    let name = messageIdent(v.name);
-    for (let n = 2; taken.has(name); n++) name = `${messageIdent(v.name).slice(0, 29)}_${n}`;
-    taken.add(name);
-    return {
-      name,
-      args: [],
-      grammar: [v.name.trim()],
-      when: v.guard ? guardToExpr(v.guard) : null,
-      abstract: false,
-      body: effectsToBody(v.effects),
-    };
-  });
-  const handlers: SproutOn[] = def.handlers.map((h) => ({
-    message: h.message,
-    from: null,
-    value: null,
-    body: h.guard
-      ? [{ kind: 'if', cond: guardToExpr(h.guard), then: effectsToBody(h.effects), else: [] }]
-      : effectsToBody(h.effects),
-  }));
-  const properties: SproutField[] = [...def.fields];
-  const body: SproutKindBody = {
-    properties,
-    remembers: [...def.visitorFields],
-    describe,
-    messages,
-    handlers,
-    hooks: [],
-    passRules: [],
-    consents: [],
-  };
-  const header = {
-    format: SPROUT_FORMAT,
-    name: def.name,
-    names: [],
-    prose: def.prose,
-    inherit: null,
-    source: null,
-    uses: [],
-  } satisfies Partial<SproutDefinition2>;
-  if ('exits' in def) {
-    return { ...header, role: 'room', exits: [...def.exits], ...body };
-  }
-  if (!properties.some((p) => p.name === 'takeable')) {
-    properties.push({ type: 'boolean', name: 'takeable', default: def.portable });
-  }
-  return { ...header, role: 'item', ...body };
-}
-
-function chainToBody(
-  chain: readonly { cond: SproutExpr; text: string }[],
-  last: SproutStatement,
-): SproutStatement[] {
-  if (chain.length === 0) return [last];
-  const [head, ...rest] = chain;
-  return [
-    {
-      kind: 'if',
-      cond: head!.cond,
-      then: [{ kind: 'text', text: head!.text }],
-      else: chainToBody(rest, last),
-    },
-  ];
 }

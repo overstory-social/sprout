@@ -1,0 +1,10 @@
+object bench {
+  :name "Workbench"
+  :takeable false
+  prose "Two doors laid across trestles, worn smooth in the middle and cluttered at the edges: ribs, a wire, a sponge, a jar of pencils."
+
+  tidy_the_tools {
+    grammar "tidy the tools"
+    say "Ribs in the jar, wire on its hook, sponge wrung out. It will last until the next person."
+  }
+}

@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { MEDIA } from './fixtures/media.js';
 
 import {
-  ItemDefinition,
-  RoomDefinition,
   UNDERSTORY_CASCADE_DEPTH,
   UNDERSTORY_EVENT_BUDGET,
   UNDERSTORY_FAULT_CHAIN,
@@ -17,12 +15,11 @@ import {
   kindAsItem,
   resolveDefinition,
   type KindDefinition,
-  type SproutDefinition2,
+  type SproutDefinition,
 } from './sprout.js';
 
 import {
   actorObject,
-  definitionOf,
   describeWith,
   findMessage,
   fit,
@@ -41,13 +38,13 @@ import {
   type SproutWorld,
 } from './engine.js';
 
-// The one evaluator, exhaustively (#259, #339): v0 definitions upgraded
-// (so the seeded studios' semantics are asserted, not assumed) and
-// Sprout compiled straight from the language — expressions, hooks,
+// The one evaluator, exhaustively (#259, #339): the lantern and the
+// conservatory from #259, now written in Sprout (source is the truth
+// since #523), and the torch, the key and the cellar of sprout.md §2.1 — expressions, hooks,
 // envelopes, the depth cap and the event budget as faults, no cycle
 // rule, delivery order — all without a database.
 
-function sprout(source: string): SproutDefinition2 {
+function sprout(source: string): SproutDefinition {
   const result = compileSprout(source, { ext: MEDIA });
   if (!result.definition) {
     throw new Error(result.problems.map((p) => `${p.line}:${p.column} ${p.message}`).join('\n'));
@@ -61,7 +58,7 @@ const ACTOR = 'p-actor';
 function object(
   id: string,
   kind: 'room' | 'item',
-  definition: SproutDefinition2,
+  definition: SproutDefinition,
   state: SproutState = {},
   visitor: SproutState = {},
   carried = false,
@@ -116,113 +113,66 @@ function kindsOf(...sources: string[]): ReadonlyMap<string, SpawnableKind> {
   );
 }
 
-// --- v0, upgraded: the lantern and the conservatory from #259 ---------------------
+// --- the lantern and the conservatory from #259, in Sprout --------------------------
 
-const lanternDef = definitionOf(
-  ItemDefinition.parse({
-    format: 1,
-    name: 'Brass lantern',
-    prose: 'A brass lantern, dark.',
-    fields: [
-      { type: 'boolean', name: 'lit', default: false },
-      { type: 'integer', name: 'fuel', default: 2, min: 0, max: 10 },
-    ],
-    visitorFields: [{ type: 'boolean', name: 'has_lit', default: false }],
-    views: [
-      {
-        guard: { kind: 'field', on: 'self', field: 'lit', op: 'eq', value: true },
-        prose: 'It burns.',
-      },
-    ],
-    verbs: [
-      {
-        name: 'light',
-        guard: {
-          kind: 'all',
-          guards: [
-            { kind: 'field', on: 'self', field: 'lit', op: 'eq', value: false },
-            { kind: 'field', on: 'self', field: 'fuel', op: 'gt', value: 0 },
-          ],
-        },
-        effects: [
-          { op: 'set', field: 'lit', value: true },
-          { op: 'adjust', field: 'fuel', by: -1 },
-          { op: 'set_visitor', field: 'has_lit', value: true },
-          { op: 'say', text: 'The wick catches.' },
-          { op: 'send_message', to: 'room', item: null, message: 'lantern_lit' },
-        ],
-      },
-      {
-        name: 'Snuff',
-        guard: { kind: 'field', on: 'self', field: 'lit', op: 'eq', value: true },
-        effects: [
-          { op: 'set', field: 'lit', value: false },
-          { op: 'send_message', to: 'room', item: null, message: 'lantern_out' },
-        ],
-      },
-    ],
-    handlers: [
-      {
-        message: 'gust',
-        guard: { kind: 'field', on: 'self', field: 'lit', op: 'eq', value: true },
-        effects: [
-          { op: 'set', field: 'lit', value: false },
-          { op: 'say', text: 'The lantern gutters out.' },
-        ],
-      },
-    ],
-  }),
-);
+const lanternDef = sprout(`object brass_lantern {
+  :name "Brass lantern"
+  :lit false
+  :fuel 2 min 0 max 10
+  :takeable false
+  :remembers [has_lit: false]
+  prose "A brass lantern, dark."
+  describe {
+    if (self.get(:lit) == true) { text "It burns." }
+    else { text "A brass lantern, dark." }
+  }
+  light when (self.get(:lit) == false && self.get(:fuel) > 0) {
+    grammar "light"
+    self.set(:lit, true)
+    self.adjust(:fuel, -1)
+    actor.remember(:has_lit, true)
+    say "The wick catches."
+    send room :lantern_lit
+  }
+  snuff when (self.get(:lit) == true) {
+    grammar "Snuff"
+    self.set(:lit, false)
+    send room :lantern_out
+  }
+  on :gust {
+    if (self.get(:lit) == true) {
+      self.set(:lit, false)
+      say "The lantern gutters out."
+    }
+  }
+}`);
 
-const conservatoryDef = definitionOf(
-  RoomDefinition.parse({
-    format: 1,
-    name: 'The Conservatory',
-    prose: 'Gloaming light. Shadows pool in the corners.',
-    exits: [],
-    fields: [{ type: 'enum', name: 'light', options: ['dim', 'bright'], default: 'dim' }],
-    visitorFields: [{ type: 'integer', name: 'visits', default: 0, min: 0, max: 99 }],
-    views: [
-      {
-        guard: { kind: 'field', on: 'self', field: 'light', op: 'eq', value: 'bright' },
-        prose: 'Warm light everywhere. A fresco shows on the north wall.',
-      },
-    ],
-    verbs: [
-      {
-        name: 'open the window',
-        guard: null,
-        effects: [
-          { op: 'set_visitor', field: 'visits', value: 1 },
-          { op: 'send_message', to: 'items', item: null, message: 'gust' },
-          { op: 'say', text: 'A cold draught.' },
-        ],
-      },
-      {
-        name: 'study the fresco',
-        guard: { kind: 'field', on: 'self', field: 'light', op: 'eq', value: 'bright' },
-        effects: [{ op: 'say', text: 'Saints, mostly.' }],
-      },
-      {
-        name: 'clap',
-        guard: null,
-        effects: [{ op: 'send_message', to: 'item', item: 'Brass lantern', message: 'gust' }],
-      },
-    ],
-    handlers: [
-      {
-        message: 'lantern_lit',
-        guard: null,
-        effects: [{ op: 'set', field: 'light', value: 'bright' }],
-      },
-      {
-        message: 'lantern_out',
-        guard: null,
-        effects: [{ op: 'set', field: 'light', value: 'dim' }],
-      },
-    ],
-  }),
-);
+const conservatoryDef = sprout(`room the_conservatory {
+  :name "The Conservatory"
+  :light one_of [dim, bright] default dim
+  :remembers [visits: 0 min 0 max 99]
+  prose "Gloaming light. Shadows pool in the corners."
+  describe {
+    if (self.get(:light) == "bright") { text "Warm light everywhere. A fresco shows on the north wall." }
+    else { text "Gloaming light. Shadows pool in the corners." }
+  }
+  open_the_window {
+    grammar "open the window"
+    actor.remember(:visits, 1)
+    broadcast :gust
+    say "A cold draught."
+  }
+  study_the_fresco when (self.get(:light) == "bright") {
+    grammar "study the fresco"
+    say "Saints, mostly."
+  }
+  clap {
+    grammar "clap"
+    send brass_lantern :gust
+  }
+  on :lantern_lit { self.set(:light, "bright") }
+  on :lantern_out { self.set(:light, "dim") }
+}`);
 
 function conservatory(lanternState: SproutState = {}): SproutWorld {
   return world(object('r-cons', 'room', conservatoryDef), [
@@ -328,7 +278,7 @@ describe('state normalization (the §5 migration seam)', () => {
 // --- projections ---------------------------------------------------------------------
 
 describe('projections', () => {
-  it('describe from upgraded views: the first applicable, else the plain prose', () => {
+  it('describe: the first applicable branch, else the plain prose', () => {
     expect(renderProse(object('i', 'item', lanternDef))).toBe('A brass lantern, dark.');
     expect(renderProse(object('i', 'item', lanternDef, { lit: true }))).toBe('It burns.');
   });
@@ -392,7 +342,7 @@ describe('projections', () => {
 
 // --- runVerb: the v0 semantics, unchanged ----------------------------------------------
 
-describe('runVerb on upgraded v0 definitions', () => {
+describe('runVerb on the lantern and the conservatory', () => {
   it('a verb on an item changes its state, remembers the visitor, speaks, and messages the room', () => {
     const world = conservatory();
     const out = runVerb(world, 'i-lantern', 'light');
@@ -429,7 +379,7 @@ describe('runVerb on upgraded v0 definitions', () => {
     expect(runVerb(world, 'i-lantern', 'light').ok).toBe(false); // fuel gt 0 fails
   });
 
-  it('"every item" became a broadcast: the room hears it too, then items in id order', () => {
+  it('a broadcast from the room reaches the items in id order, after the room’s own line', () => {
     const log: string[] = [];
     const listener = (name: string) => sprout(`object ${name} { on :gust { say "${name}" } }`);
     const w = world(object('r-cons', 'room', conservatoryDef), [
@@ -978,7 +928,7 @@ describe('kinds and instances (§2.8)', () => {
 
   // A describe the compiler would refuse today (§2.12, #441), built as
   // an AST the way a definition saved before the rule would sit in a row.
-  const lookingSpawns = (): SproutDefinition2 => ({
+  const lookingSpawns = (): SproutDefinition => ({
     ...sprout(`object shelf { :dusty false prose "A shelf." }`),
     describe: [
       { kind: 'text', text: 'A shelf.' },
@@ -1090,13 +1040,6 @@ describe('kinds and instances (§2.8)', () => {
   });
 
   it('a placed item of a kind runs the kind, folded: is(Kind) walks the chain', () => {
-    const byName = new Map(
-      [...KINDS].map(([name, k]) => [
-        name,
-        compileSproutKind(k.definition.source ?? '').definition!,
-      ]),
-    );
-    void byName;
     const lumpKind = compileSproutKind(
       `kind Lump: Usable { :wet true  use (with: object) { say "squish" } }`,
     ).definition!;

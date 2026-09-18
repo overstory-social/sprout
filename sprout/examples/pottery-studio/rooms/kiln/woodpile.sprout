@@ -1,0 +1,27 @@
+object woodpile {
+  :logs 18 min 0 max 30
+  :takeable false
+  prose "Split ash and oak stacked under a tin roof, seasoned two summers."
+
+  describe {
+    if (self.get(:logs) == 0) {
+      text "The woodpile is down to bark and beetles."
+    } else if (self.get(:logs) == 30) {
+      text "The woodpile is stacked to the tin, tight as a wall."
+    } else {
+      text "Split ash and oak stacked under a tin roof, seasoned two summers."
+    }
+  }
+
+  split_some_logs when (self.get(:logs) < 30) {
+    grammar "split some logs"
+    self.adjust(:logs, 6)
+    say "The maul rings; a round falls into halves, then quarters."
+  }
+
+  carry_an_armful_to_the_firebox when (self.get(:logs) > 0) {
+    grammar "carry an armful to the firebox"
+    self.adjust(:logs, -6)
+    say "An armful of splits, bark side down by the kiln."
+  }
+}

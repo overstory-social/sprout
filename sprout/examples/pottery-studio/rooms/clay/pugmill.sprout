@@ -1,0 +1,28 @@
+object pugmill {
+  :name "Pug mill"
+  :running false
+  :takeable false
+  prose "A green cast-iron pug mill, switched off, its hopper half full of scraps."
+
+  describe {
+    if (self.get(:running) == true) {
+      text "The pug mill runs, thumping, a grey worm of clay pushing out of its nozzle."
+    } else {
+      text "A green cast-iron pug mill, switched off, its hopper half full of scraps."
+    }
+  }
+
+  switch_it_on when (self.get(:running) == false) {
+    grammar "switch it on"
+    self.set(:running, true)
+    say "It coughs, then settles into a thump-thump-thump."
+    send room :mill_on
+  }
+
+  switch_it_off when (self.get(:running) == true) {
+    grammar "switch it off"
+    self.set(:running, false)
+    say "Silence, and a worm of clay left hanging."
+    send room :mill_off
+  }
+}

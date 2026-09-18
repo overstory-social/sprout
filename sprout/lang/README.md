@@ -633,7 +633,8 @@ kind Torch {
 ```
 
 ```sprout
-object old_torch: Torch {
+object torch: Torch {
+  :name "Old torch"
   :names ["torch", "brand", "old torch"]
 }
 ```
@@ -676,18 +677,33 @@ cellar; each decided for itself what a light nearby means.
 
 ## The definition format
 
-Sprout is stored as structure, never as text to be re-parsed: the
-compiler produces a **definition** (`SproutDefinition2` for a room or an
-item, `KindDefinition` for a kind — zod schemas in `definitions.ts` and
-`sprout.ts`, `format: 2`), and `printSprout` turns a definition back
-into readable source for an editor. A definition carries the source it
-was compiled from. The properties, messages, handlers, hooks, guards
-and rules are plain data, so a host can inspect, diff and moderate a
-definition without running it. `upgradeSproutDefinition` lifts the
-format-1 shape (views, verbs and effects authored in a form) to format
-2 mechanically: each item keeps its behaviour inline as its own anonymous
-kind (one definition, `inherit: null`), views become a `describe`
-if-chain, `portable` becomes `:takeable`.
+**Source is the truth** (stage 1b of the split, #523). What a host
+stores, versions, diffs and moderates is the Sprout text as written;
+the compiler produces a **definition** (`SproutDefinition` for a room
+or an item, `KindDefinition` for a kind — zod schemas in `sprout.ts`)
+from it every time a world is loaded, and a host caches that by the
+hash of what went in. A definition carries the identifier its head
+declared (`ident`; null on one built by hand) and `printSprout` turns a
+definition back into canonical source — `compileSprout(printSprout(d))`
+yields `d` — for an editor that wants to start from a name alone. The
+properties, messages, handlers, hooks, guards and rules are plain data,
+so a host can inspect a definition without running it, but it never
+needs to keep one.
+
+`LANGUAGE_LEVEL` is the language's version, an integer that steps when
+a **policy** refusal is added — a rule about what a well-formed source
+may say (`describe` may not write, a well-known property may not be
+redeclared with another type). A source accepted at level _n_ is
+stored with _n_ beside it; compiling it later with
+`acceptedLevel: n` turns any policy refusal introduced after _n_ into a
+**warning**, so an old text still loads under a stricter language
+(`CompileResult.level` is the level it was compiled under, and each
+problem carries the level that introduced it, or `null` for a
+structural fault that no level forgives). The two schemas come in
+layers — `RoomDefinitionShape` is the structural contract alone, and
+`RoomDefinition` adds the language's checks — because the compiler
+parses the shape and runs the checks itself, with the zone's kinds, the
+host's extensions and the accepted level in hand.
 
 `resolveDefinition(def, kinds)` folds an object's kind chain into one
 flat definition — parents first, the child overriding by name; the most

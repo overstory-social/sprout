@@ -1,0 +1,9 @@
+object bench {
+  :takeable false
+  prose "A long oak bench under the window, polished by years of trousers."
+
+  sit_for_a_while {
+    grammar "sit for a while"
+    say "You sit. Dust drifts in the light from the window. Somewhere a wheel is running, or was."
+  }
+}

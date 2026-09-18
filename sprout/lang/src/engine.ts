@@ -1,12 +1,10 @@
 import {
   SPROUT_MUTATING_STATEMENTS,
   SPROUT_RESERVED_MESSAGES,
-  upgradeSproutDefinition,
   wellKnownFor,
-  type AnySproutDefinition,
   type ResolvedDefinition,
   type SproutConsentKind,
-  type SproutDefinition2,
+  type SproutDefinition,
   type SproutExpr,
   type SproutMessage,
   type SproutStatement,
@@ -38,7 +36,7 @@ import { humanise, identOf } from './sprout-lang.js';
 // The Sprout engine (#259, #339, #340; understory.md §3.1, sprout.md §2):
 // the ONE evaluator, pure — no database, no clock, no identity. It is
 // handed a WORLD — the room, the actor, and every object in reach, each
-// with a format-2 definition, a state, what it remembers about the
+// with a compiled definition, a state, what it remembers about the
 // acting visitor, and the container it sits in — runs one message or
 // one move, and hands back the narration for the actor; state and
 // position changes land on the objects in place and the caller writes
@@ -90,7 +88,7 @@ export interface SproutObject {
   id: string;
   kind: 'room' | 'item' | 'actor';
   /** The flattened definition: every kind on the chain folded in, `inherit` the built-in root. */
-  definition: SproutDefinition2;
+  definition: SproutDefinition;
   /** The kind names on the chain, most specific first — what `is(Kind)` answers. */
   kinds: string[];
   /** Own state, normalized (every declared property, fitting values). */
@@ -196,20 +194,14 @@ export interface MoveOutcome extends VerbOutcome {
 
 // --- definitions ---------------------------------------------------------------
 
-/** Whatever format a row holds, as the engine runs it. */
-export function definitionOf(def: AnySproutDefinition): SproutDefinition2 {
-  return upgradeSproutDefinition(def);
-}
-
 /** The actor's definition (§2.5): kind Actor, engine-defined, never placeable, never read beyond `is(Actor)`. */
-export const ACTOR_DEFINITION: SproutDefinition2 = {
-  format: 2,
+export const ACTOR_DEFINITION: SproutDefinition = {
   role: 'item',
+  ident: null,
   name: 'you',
   names: [],
   prose: '',
   inherit: 'Actor',
-  source: null,
   uses: [],
   properties: [],
   remembers: [],
@@ -253,7 +245,7 @@ export function isContainer(obj: SproutObject): boolean {
  * never stored.
  */
 export function normalizeObjectState(
-  def: SproutDefinition2,
+  def: SproutDefinition,
   raw: unknown,
   ext: ExtensionSet = NO_EXTENSIONS,
 ): SproutState {
@@ -1001,12 +993,14 @@ class Runner {
     }
   }
 
-  /** A named object in range: by identifier of its name, or one of its `:names`. */
+  /** A named object in range: by its identifier (the source's, else its name's), or one of its `:names`. */
   private byName(name: string): SproutObject | null {
     const key = name.toLowerCase();
     return (
       sorted(this.world.items).find(
-        (i) => identOf(i.definition.name) === key || i.definition.names.includes(key),
+        (i) =>
+          (i.definition.ident ?? identOf(i.definition.name)) === key ||
+          i.definition.names.includes(key),
       ) ?? null
     );
   }

@@ -1,0 +1,9 @@
+object stool {
+  :takeable false
+  prose "A milking stool, one leg mended with a nail."
+
+  sit_at_the_wheel {
+    grammar "sit at the wheel"
+    say "You sit. It holds. It always holds, just about."
+  }
+}

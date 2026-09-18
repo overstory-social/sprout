@@ -4,22 +4,19 @@ import { MEDIA } from './fixtures/media.js';
 
 import {
   ItemDefinition,
-  ItemDefinition2,
   RoomDefinition,
-  RoomDefinition2,
   SPROUT_MUTATING_STATEMENTS,
   SPROUT_WELL_KNOWN,
-  messageIdent,
+  sproutDefinitionIssues,
   sproutDefinitionProblems,
   sproutDefinitionWarnings,
-  upgradeSproutDefinition,
   KindDefinition,
   resolveDefinition,
   kindAsItem,
   humaniseKind,
   wellKnownField,
   wellKnownFor,
-  type ItemDefinition2 as Item2,
+  type ItemDefinition as Item2,
   type SproutExpr,
   type SproutStatement,
 } from './index.js';
@@ -30,17 +27,10 @@ const self = (property: string): SproutExpr => ({
   target: { kind: 'self' },
   property,
 });
-const eq = (left: SproutExpr, right: SproutExpr): SproutExpr => ({
-  kind: 'binary',
-  op: '==',
-  left,
-  right,
-});
 
 /** The torch from sprout.md §2.1, as the compiler will emit it. */
 function torch(overrides: Partial<Item2> = {}): unknown {
   return {
-    format: 2,
     role: 'item',
     name: 'Torch',
     names: ['torch', 'brand'],
@@ -97,19 +87,17 @@ function torch(overrides: Partial<Item2> = {}): unknown {
   };
 }
 
-describe('format 2: the AST', () => {
+describe('the AST', () => {
   it('parses the torch, filling the defaults', () => {
-    const def = ItemDefinition2.parse(torch());
+    const def = ItemDefinition.parse(torch());
     expect(def.inherit).toBeNull();
-    expect(def.source).toBeNull();
     expect(def.remembers).toEqual([]);
     expect(def.consents).toEqual([]);
     expect(sproutDefinitionProblems(def)).toEqual([]);
   });
 
   it('parses a room with exits and a consent guard', () => {
-    const def = RoomDefinition2.parse({
-      format: 2,
+    const def = RoomDefinition.parse({
       role: 'room',
       name: 'Glaze cupboard',
       prose: 'Chalk, ash, a little metal.',
@@ -178,14 +166,14 @@ describe('format 2: the AST', () => {
   });
 
   it('insists kinds are capitalised', () => {
-    expect(ItemDefinition2.safeParse(torch({ inherit: 'container' })).success).toBe(false);
-    expect(ItemDefinition2.safeParse(torch({ inherit: 'Container' })).success).toBe(true);
+    expect(ItemDefinition.safeParse(torch({ inherit: 'container' })).success).toBe(false);
+    expect(ItemDefinition.safeParse(torch({ inherit: 'Container' })).success).toBe(true);
   });
 });
 
-describe('format 2: what the compiler refuses without a parser', () => {
+describe('what the compiler refuses without a parser', () => {
   const problemsOf = (overrides: Partial<Item2>): string[] => {
-    const parsed = ItemDefinition2.safeParse(torch(overrides));
+    const parsed = ItemDefinition.safeParse(torch(overrides));
     return parsed.success ? [] : parsed.error.issues.map((i) => i.message);
   };
 
@@ -456,7 +444,7 @@ describe('format 2: what the compiler refuses without a parser', () => {
     expect(problemsOf({ inherit: 'Torch', messages: [], hooks: [] })).toEqual([]);
     expect(
       sproutDefinitionProblems(
-        ItemDefinition2.parse(torch({ inherit: 'Torch', messages: [], hooks: [] })),
+        ItemDefinition.parse(torch({ inherit: 'Torch', messages: [], hooks: [] })),
         { zoneKinds: new Map() },
       ),
     ).toEqual(['No kind called "Torch" is defined here.']);
@@ -466,7 +454,6 @@ describe('format 2: what the compiler refuses without a parser', () => {
 
   it('a kind may hold abstract messages and inherit another kind; it may not inherit itself', () => {
     const usable = KindDefinition.parse({
-      format: 2,
       role: 'kind',
       kindName: 'Usable',
       name: 'Usable',
@@ -547,9 +534,45 @@ describe('format 2: what the compiler refuses without a parser', () => {
   });
 });
 
-describe('format 2: warnings', () => {
+describe('issues carry a level (§3.2)', () => {
+  it('marks the describe-writes and well-known-type refusals as level-1 policy, everything else structural', () => {
+    // Raw, not parsed: the schema's own refine would refuse this before the levels could be read.
+    const issues = sproutDefinitionIssues({
+      role: 'item',
+      ident: 'x',
+      name: 'x',
+      names: [],
+      prose: '',
+      inherit: null,
+      uses: [],
+      properties: [{ type: 'integer', name: 'takeable', default: 0, min: 0, max: 1 }],
+      remembers: [],
+      describe: [],
+      messages: [
+        {
+          name: 'poke',
+          args: [],
+          grammar: [],
+          when: null,
+          abstract: false,
+          body: [{ kind: 'set', property: 'nope', value: lit(1) }],
+        },
+      ],
+      handlers: [],
+      hooks: [],
+      passRules: [],
+      consents: [],
+    });
+    expect(issues.map((i) => [i.level, i.message.slice(0, 30)])).toEqual([
+      [1, '"takeable" is a well-known boo'],
+      [null, 'Message "poke": "set" names a '],
+    ]);
+  });
+});
+
+describe('warnings', () => {
   it('warns about a hook nothing sets and a handler nothing sends', () => {
-    const def = ItemDefinition2.parse(
+    const def = ItemDefinition.parse(
       torch({
         hooks: [{ property: 'on_fire', value: null, was: null, body: [] }],
         handlers: [
@@ -562,265 +585,10 @@ describe('format 2: warnings', () => {
       'On "noisy" never fires: nothing sends it here.',
     ]);
     expect(sproutDefinitionWarnings(def, ['noisy'])).toEqual([]);
-    const cold = ItemDefinition2.parse(torch({ messages: [] }));
+    const cold = ItemDefinition.parse(torch({ messages: [] }));
     expect(sproutDefinitionWarnings(cold)).toEqual([
       'Changed "illuminating" never fires: nothing here sets it.',
     ]);
-  });
-});
-
-describe('the upgrade from format 1', () => {
-  const v0Item = ItemDefinition.parse({
-    format: 1,
-    name: 'Kick wheel',
-    prose: 'A kick wheel, the head scraped clean.',
-    portable: false,
-    fields: [
-      { type: 'enum', name: 'stage', options: ['bare', 'centred', 'cup'], default: 'bare' },
-      { type: 'integer', name: 'spins', default: 0, min: 0, max: 99 },
-    ],
-    visitorFields: [{ type: 'integer', name: 'thrown', default: 0, min: 0, max: 99 }],
-    views: [
-      {
-        guard: { kind: 'field', on: 'self', field: 'stage', op: 'eq', value: 'cup' },
-        prose: 'A cup rises.',
-      },
-      {
-        guard: { kind: 'field', on: 'self', field: 'stage', op: 'in', value: ['centred'] },
-        prose: 'A lump sits centred.',
-      },
-    ],
-    verbs: [
-      {
-        name: 'Kick the wheel',
-        guard: {
-          kind: 'all',
-          guards: [
-            { kind: 'field', on: 'self', field: 'stage', op: 'neq', value: 'cup' },
-            {
-              kind: 'not',
-              guard: { kind: 'field', on: 'visitor', field: 'thrown', op: 'gt', value: 3 },
-            },
-          ],
-        },
-        effects: [
-          { op: 'adjust', field: 'spins', by: 1 },
-          { op: 'set', field: 'stage', value: 'centred' },
-          { op: 'set_visitor', field: 'thrown', value: 1 },
-          { op: 'say', text: 'It hums.' },
-          { op: 'send_message', to: 'room', item: null, message: 'wheel_on' },
-          { op: 'send_message', to: 'items', item: null, message: 'humming' },
-          { op: 'send_message', to: 'item', item: 'Slop bucket', message: 'splash' },
-          {
-            op: 'branch',
-            guard: {
-              kind: 'any',
-              guards: [{ kind: 'field', on: 'self', field: 'spins', op: 'gte', value: 5 }],
-            },
-            then: [{ op: 'say', text: 'Fast now.' }],
-            otherwise: [],
-          },
-        ],
-      },
-      { name: 'Kick the wheel!', guard: null, effects: [] },
-    ],
-    handlers: [
-      {
-        message: 'fired',
-        guard: { kind: 'field', on: 'self', field: 'stage', op: 'eq', value: 'cup' },
-        effects: [{ op: 'set', field: 'stage', value: 'bare' }],
-      },
-      { message: 'swept', guard: null, effects: [{ op: 'set', field: 'stage', value: 'bare' }] },
-    ],
-  });
-
-  it('turns a v0 item into a v2 one with zero problems, keeping name and prose', () => {
-    const up = upgradeSproutDefinition(v0Item);
-    expect(up.format).toBe(2);
-    expect(up.role).toBe('item');
-    expect(up.name).toBe('Kick wheel');
-    expect(up.prose).toBe(v0Item.prose);
-    expect(up.inherit).toBeNull();
-    expect(up.source).toBeNull();
-    expect(sproutDefinitionProblems(up)).toEqual([]);
-    expect(ItemDefinition2.safeParse(up).success).toBe(true);
-  });
-
-  it('is the identity on a v2 definition', () => {
-    const up = upgradeSproutDefinition(v0Item);
-    expect(upgradeSproutDefinition(up)).toBe(up);
-  });
-
-  it('declares portable as :takeable and keeps the fields as properties', () => {
-    const up = upgradeSproutDefinition(v0Item);
-    expect(up.properties.map((p) => p.name)).toEqual(['stage', 'spins', 'takeable']);
-    expect(up.properties[2]).toEqual({ type: 'boolean', name: 'takeable', default: false });
-    expect(up.remembers).toEqual(v0Item.visitorFields);
-    const declared = upgradeSproutDefinition(
-      ItemDefinition.parse({
-        format: 1,
-        name: 'x',
-        prose: '',
-        portable: true,
-        fields: [{ type: 'boolean', name: 'takeable', default: false }],
-      }),
-    );
-    expect(declared.properties).toHaveLength(1);
-  });
-
-  it('turns views into a describe if-chain ending in the plain prose', () => {
-    const up = upgradeSproutDefinition(v0Item);
-    expect(up.describe).toEqual([
-      {
-        kind: 'if',
-        cond: eq(self('stage'), lit('cup')),
-        then: [{ kind: 'text', text: 'A cup rises.' }],
-        else: [
-          {
-            kind: 'if',
-            cond: eq(self('stage'), lit('centred')),
-            then: [{ kind: 'text', text: 'A lump sits centred.' }],
-            else: [{ kind: 'text', text: v0Item.prose }],
-          },
-        ],
-      },
-    ]);
-  });
-
-  it('stops the chain at an unguarded view, and leaves describe empty with no views', () => {
-    const plain = upgradeSproutDefinition(
-      ItemDefinition.parse({
-        format: 1,
-        name: 'x',
-        prose: 'plain',
-        views: [
-          { guard: null, prose: 'always' },
-          {
-            guard: { kind: 'field', on: 'self', field: 'a', op: 'eq', value: 1 },
-            prose: 'never reached',
-          },
-        ],
-        fields: [{ type: 'integer', name: 'a', default: 0, min: 0, max: 1 }],
-      }),
-    );
-    expect(plain.describe).toEqual([{ kind: 'text', text: 'always' }]);
-    const none = upgradeSproutDefinition(
-      ItemDefinition.parse({ format: 1, name: 'x', prose: 'p' }),
-    );
-    expect(none.describe).toEqual([]);
-  });
-
-  it('turns verbs into messages offered when their guard passes, with the label as grammar', () => {
-    const up = upgradeSproutDefinition(v0Item);
-    const [kick, kick2] = up.messages;
-    expect(kick!.name).toBe('kick_the_wheel');
-    expect(kick!.grammar).toEqual(['Kick the wheel']);
-    expect(kick!.args).toEqual([]);
-    expect(kick!.when).toEqual({
-      kind: 'binary',
-      op: '&&',
-      left: { kind: 'binary', op: '!=', left: self('stage'), right: lit('cup') },
-      right: {
-        kind: 'not',
-        expr: {
-          kind: 'binary',
-          op: '>',
-          left: { kind: 'recall', property: 'thrown' },
-          right: lit(3),
-        },
-      },
-    });
-    expect(kick2!.name).toBe('kick_the_wheel_2');
-    expect(kick2!.when).toBeNull();
-  });
-
-  it('turns every effect into its statement', () => {
-    const body = upgradeSproutDefinition(v0Item).messages[0]!.body;
-    expect(body).toEqual([
-      { kind: 'adjust', property: 'spins', by: lit(1) },
-      { kind: 'set', property: 'stage', value: lit('centred') },
-      { kind: 'remember', property: 'thrown', value: lit(1) },
-      { kind: 'say', text: 'It hums.' },
-      { kind: 'send', target: { kind: 'room' }, message: 'wheel_on', value: null },
-      { kind: 'broadcast', message: 'humming', value: null },
-      {
-        kind: 'send',
-        target: { kind: 'name', name: 'slop_bucket' },
-        message: 'splash',
-        value: null,
-      },
-      {
-        kind: 'if',
-        cond: { kind: 'binary', op: '>=', left: self('spins'), right: lit(5) },
-        then: [{ kind: 'say', text: 'Fast now.' }],
-        else: [],
-      },
-    ]);
-  });
-
-  it('turns an "in" guard into an or-chain', () => {
-    const up = upgradeSproutDefinition(
-      ItemDefinition.parse({
-        format: 1,
-        name: 'x',
-        prose: '',
-        fields: [{ type: 'enum', name: 's', options: ['a', 'b', 'c'], default: 'a' }],
-        views: [
-          {
-            guard: { kind: 'field', on: 'self', field: 's', op: 'in', value: ['a', 'b'] },
-            prose: 'ab',
-          },
-        ],
-      }),
-    );
-    const cond = (up.describe[0] as Extract<SproutStatement, { kind: 'if' }>).cond;
-    expect(cond).toEqual({
-      kind: 'binary',
-      op: '||',
-      left: eq(self('s'), lit('a')),
-      right: eq(self('s'), lit('b')),
-    });
-  });
-
-  it('turns handlers into on-handlers, guarded by an if when they had a guard', () => {
-    const [fired, swept] = upgradeSproutDefinition(v0Item).handlers;
-    expect(fired).toEqual({
-      message: 'fired',
-      from: null,
-      value: null,
-      body: [
-        {
-          kind: 'if',
-          cond: eq(self('stage'), lit('cup')),
-          then: [{ kind: 'set', property: 'stage', value: lit('bare') }],
-          else: [],
-        },
-      ],
-    });
-    expect(swept!.body).toEqual([{ kind: 'set', property: 'stage', value: lit('bare') }]);
-  });
-
-  it('keeps a room a room, with its exits', () => {
-    const room = upgradeSproutDefinition(
-      RoomDefinition.parse({
-        format: 1,
-        name: 'Shed',
-        prose: 'A shed.',
-        exits: [{ label: 'out', toRoomId: 'yard' }],
-      }),
-    );
-    expect(room.role).toBe('room');
-    expect('exits' in room && room.exits).toEqual([{ label: 'out', toRoomId: 'yard' }]);
-    expect('takeable' in room.properties.map((p) => p.name)).toBe(false);
-    expect(RoomDefinition2.safeParse(room).success).toBe(true);
-  });
-
-  it('makes identifiers of labels', () => {
-    expect(messageIdent('Kick the wheel')).toBe('kick_the_wheel');
-    expect(messageIdent('  Wire it off!  ')).toBe('wire_it_off');
-    expect(messageIdent('3 pulls')).toBe('n3_pulls');
-    expect(messageIdent('???')).toBe('it');
-    expect(messageIdent('a'.repeat(40))).toHaveLength(32);
   });
 });
 
@@ -878,7 +646,7 @@ describe('kinds resolved into a definition (#341)', () => {
   ]);
 
   it('folds the chain parents-first, child overriding by name; the root is the built-in', () => {
-    const placed = ItemDefinition2.parse(
+    const placed = ItemDefinition.parse(
       torch({
         inherit: 'Torch',
         messages: [],
@@ -905,12 +673,12 @@ describe('kinds resolved into a definition (#341)', () => {
   });
 
   it('an instance of the abstract kind keeps the abstract message on the list', () => {
-    const placed = ItemDefinition2.parse(torch({ inherit: 'Usable', messages: [], hooks: [] }));
+    const placed = ItemDefinition.parse(torch({ inherit: 'Usable', messages: [], hooks: [] }));
     expect(resolveDefinition(placed, kinds).abstract).toEqual(['use']);
   });
 
   it('an unknown kind, or a cycle, stops the chain with no root', () => {
-    const placed = ItemDefinition2.parse(torch({ inherit: 'Ghost', messages: [], hooks: [] }));
+    const placed = ItemDefinition.parse(torch({ inherit: 'Ghost', messages: [], hooks: [] }));
     expect(resolveDefinition(placed, kinds)).toMatchObject({
       kinds: [],
       definition: { inherit: null },
@@ -923,7 +691,7 @@ describe('kinds resolved into a definition (#341)', () => {
     ]);
     expect(
       resolveDefinition(
-        ItemDefinition2.parse(torch({ inherit: 'A', messages: [], hooks: [] })),
+        ItemDefinition.parse(torch({ inherit: 'A', messages: [], hooks: [] })),
         loop,
       ).kinds,
     ).toEqual(['A', 'B']);
