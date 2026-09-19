@@ -17,7 +17,7 @@ import { createRuntime, memoryStore } from '@overstory/sprout-core';
 import { MEDIA } from '@overstory/sprout-ext-media';
 
 const runtime = createRuntime({
-  store: memoryStore(), // or an adapter: sqlStore({ client }), documentStore(backend)
+  store: memoryStore(), // or an adapter: sqlStore({ client }) from @overstory/sprout-store-sql, documentStore(backend) from @overstory/sprout-store-document
   ext: MEDIA, // what a `use` line may name
   limits: { rooms: 32 }, // defaults otherwise
 });
