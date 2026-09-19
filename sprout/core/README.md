@@ -158,3 +158,36 @@ Postgres.
 a runtime over the memory store with the archive loaded, and
 `play(line, as?)` that types a line as an actor and returns the lines
 that came back.
+
+## The engine underneath
+
+Core's `turn` is the whole of what a host calls. What it runs, for a
+host that wants the evaluator alone, is the language's engine
+(`@overstory/sprout`): it runs against a **`Scene`** — the room, the actor, the items
+in range (each a `SproutObject` naming its container), optionally the
+objects elsewhere, the spawnable kinds and the delivery `order` (object
+id → place: declaration order, then spawn order; absent, everything is
+by id) — and a **`TurnContext`**: the
+request's budget, where new instance ids come from, how many instances
+are alive, and the extensions the program was compiled with
+(`turnContext({ … })` fills in defaults). The host builds the scene from
+wherever it keeps state, inside whatever transaction it likes, makes one
+context per request so every runner in it shares the budget, and calls:
+
+- `runVerb(scene, ctx, targetId, message, args)` — a typed or chosen
+  verb.
+- `runMove(scene, ctx, whatId, toId)` — a proposal (`take`, `drop`,
+  `give`, `put`, `go`, or a `move` from a body); `refused` carries the
+  guard's words.
+- `describeWith(obj, scene, ctx)` — an object's prose and the pictures
+  it showed (`renderProse` for the text alone); `openVerbs(obj, scene,
+ctx)` — the verbs offered right now, for a chip-based client;
+  `memoryOf(scene)` — what the objects remember about this visitor;
+  `visibleItems(scene, container)`.
+
+An outcome carries what was said, in order; the property writes and
+containment changes to persist; what was spawned or destroyed; the
+pictures shown; the envelopes delivered; and a fault, if the action
+faulted, with the chain that led there. The engine writes nothing
+itself: the host applies the outcome, or rolls the transaction back on
+a fault.
