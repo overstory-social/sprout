@@ -2,8 +2,12 @@ name: release
 
 # Changesets: a PR to main with a changeset opens (or updates) a "Version
 # packages" PR; merging that publishes both packages (a `fixed` group, one
-# version). NPM_TOKEN is a repository secret with publish rights on the
-# @overstory scope.
+# version). Publishing is npm TRUSTED PUBLISHING (OIDC): each package's
+# Access page on npmjs.com names this repository and this workflow file as
+# its publisher, so there is no token here — `id-token: write` is what npm
+# checks, and it attaches provenance. Needs npm ≥ 11.5 (Node 22+ ships it)
+# and, for the version PR, the repository's Actions setting "Allow GitHub
+# Actions to create and approve pull requests".
 on:
   push:
     branches: [main]
@@ -24,7 +28,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run gate
       - uses: changesets/action@v1
@@ -33,5 +36,3 @@ jobs:
           version: npm run version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

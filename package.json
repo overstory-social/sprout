@@ -21,7 +21,7 @@
     "gate": "npm run lint && npm run format:check && npm run build && npm test && npm run typecheck:spec && npm run check",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "npm run build && changeset publish"
+    "release": "npm run build && changeset publish --provenance"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.0",
