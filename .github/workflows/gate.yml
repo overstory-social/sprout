@@ -21,7 +21,7 @@ jobs:
       - run: npm run gate
       # The published tarballs would install and run from an empty folder.
       - run: |
-          npm pack -w sprout -w cli --pack-destination /tmp/packs
+          mkdir -p /tmp/packs && npm pack -w sprout -w cli --pack-destination /tmp/packs
           cd "$(mktemp -d)" && npm init -y >/dev/null
           npm install /tmp/packs/overstory-sprout-*.tgz /tmp/packs/overstory-sprout-cli-*.tgz
           npx sprout check node_modules/@overstory/sprout/examples/pottery-studio
