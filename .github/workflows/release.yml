@@ -36,3 +36,5 @@ jobs:
           version: npm run version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # provenance is npm's config, not changesets' flag
+          NPM_CONFIG_PROVENANCE: 'true'
