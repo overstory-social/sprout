@@ -379,8 +379,8 @@ const SproutHeader = {
   /**
    * Where an OBJECT sits (`object torch: Torch in cellar`, §3.3 of the
    * split proposal): the identifier of a room or a container in the same
-   * microworld. Null on a room, a kind, or an object whose place the host
-   * keeps (the Understory's item rows). Resolved by `compileMicroworld`.
+   * microworld. Null on a room or a kind; an object with none sits
+   * nowhere, which `compileMicroworld` names (strict) or drops (lenient).
    */
   placedIn: SproutIdent.nullable().default(null),
   /** The display name. */
