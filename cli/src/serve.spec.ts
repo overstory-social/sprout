@@ -72,7 +72,8 @@ describe('serve', () => {
     // marta's poll delivers alba's arrival without marta typing anything
     await marta.until(/\* alba arrives\./);
     alba.send('through to the wheel room');
-    await alba.until(/== The Wheel Room ==/);
+    // …and her prompt after it: the answer, then the prompt, then the assertion.
+    await alba.until(/== The Wheel Room ==[\s\S]*> $/);
     await marta.until(/\* alba (goes|leaves|heads)/);
     marta.send('quit');
     await new Promise<void>((r) => marta.socket.once('close', () => r()));
