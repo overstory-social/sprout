@@ -192,6 +192,38 @@ describe('the layout on the backend', () => {
     ]);
   });
 
+  it('forgetActor holds the actor’s keys, so a heartbeat racing it cannot bring the row back (review on #539)', async () => {
+    const backend = memoryBackend();
+    const store = documentStore(backend);
+    await store.transaction('w', async (tx) => {
+      await tx.putMicroworld(microworld('w'));
+      await tx.putActor(actor('w', 'v'));
+      await tx.putMemory({ microworldId: 'w', actorId: 'v', byObject: {} });
+    });
+    // The heartbeat is a small transaction on the actor's key; the forget
+    // takes the same key, so they run in order — whichever is first.
+    await Promise.all([
+      store.read('w', (tx) => tx.touchActor('v', new Date(NOW.getTime() + 1000), true)),
+      store.forgetActor('v'),
+      store.read('w', (tx) => tx.touchActor('v', new Date(NOW.getTime() + 2000), true)),
+    ]);
+    expect(await backend.list('microworld/w/')).toEqual(['microworld/w/archive']);
+    // …and the keys were held, not merely deleted one by one
+    const locked: string[][] = [];
+    const watching: DocumentBackend = {
+      ...backend,
+      transact: (ks, fn) => {
+        locked.push([...ks].sort());
+        return backend.transact(ks, fn);
+      },
+    };
+    const again = documentStore(watching);
+    await again.transaction('w', async (tx) => tx.putActor(actor('w', 'v')));
+    await again.exportActor('v');
+    await again.forgetActor('v');
+    expect(locked.slice(1)).toEqual([['microworld/w/actors/v'], ['microworld/w/actors/v']]);
+  });
+
   it('destroyMicroworld takes every document under its prefix and nothing under a lookalike', async () => {
     const backend = memoryBackend();
     const store = documentStore(backend);

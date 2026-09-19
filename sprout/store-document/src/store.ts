@@ -280,17 +280,35 @@ export function documentStore(backend: DocumentBackend): SproutStore {
       backend.transact([keys.objects(w)], async (tx) => {
         for (const k of await tx.list(keys.microworld(w))) await tx.delete(k);
       }),
+    // Both hold the actor's keys for the duration (review on #539): a
+    // heartbeat locks the actor's own key, so a forget that did not would
+    // race it and the row could come back; an export that did not could
+    // read one microworld before a write and the next after it.
     async forgetActor(actorId) {
-      for (const { key } of await actorKeys(backend, actorId)) await backend.delete(key);
+      const found = await actorKeys(backend, actorId);
+      if (found.length === 0) return;
+      await backend.transact(
+        found.map((f) => f.key),
+        async (tx) => {
+          for (const { key } of found) await tx.delete(key);
+        },
+      );
     },
     async exportActor(actorId) {
       const out: ActorExport = { actorId, actors: [], memory: [] };
-      for (const { key, collection } of await actorKeys(backend, actorId)) {
-        const doc = await backend.get(key);
-        if (doc === null) continue;
-        if (collection === 'actors') out.actors.push(parseOr(ActorDoc, doc, key));
-        else out.memory.push(parseOr(MemoryRecord, doc, key));
-      }
+      const found = await actorKeys(backend, actorId);
+      if (found.length === 0) return out;
+      await backend.transact(
+        found.map((f) => f.key),
+        async (tx) => {
+          for (const { key, collection } of found) {
+            const doc = await tx.get(key);
+            if (doc === null) continue;
+            if (collection === 'actors') out.actors.push(parseOr(ActorDoc, doc, key));
+            else out.memory.push(parseOr(MemoryRecord, doc, key));
+          }
+        },
+      );
       return out;
     },
   };
