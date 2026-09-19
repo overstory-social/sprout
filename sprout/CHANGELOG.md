@@ -1,0 +1,10 @@
+# @overstory/sprout
+
+## 0.2.0
+
+### Minor Changes
+
+- c147e13: 0.1.0 — the first published cut: the language (`./lang`), the runtime
+  (`./core`, `./conformance`, `./testing`), the two stores (`./store-sql`,
+  `./store-document`), pictures (`./ext-media`), the example microworlds
+  (`./examples`), and the `sprout` command line.

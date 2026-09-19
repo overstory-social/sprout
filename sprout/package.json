@@ -1,6 +1,6 @@
 {
   "name": "@overstory/sprout",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sprout — a small, total, deterministic language for interactive rooms and objects, with its runtime, two stores and its first extension. The language is `./lang`; the runtime `./core`; the stores `./store-sql` and `./store-document`; pictures `./ext-media`; the example microworlds `./examples`.",
   "license": "MIT",
   "type": "module",
@@ -11,18 +11,53 @@
   },
   "homepage": "https://github.com/overstory-social/sprout#readme",
   "bugs": "https://github.com/overstory-social/sprout/issues",
-  "keywords": ["sprout", "interactive-fiction", "microworld", "language", "mud"],
-  "engines": { "node": ">=22" },
+  "keywords": [
+    "sprout",
+    "interactive-fiction",
+    "microworld",
+    "language",
+    "mud"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
-    ".": { "types": "./lang/dist/index.d.ts", "default": "./lang/dist/index.js" },
-    "./lang": { "types": "./lang/dist/index.d.ts", "default": "./lang/dist/index.js" },
-    "./core": { "types": "./core/dist/index.d.ts", "default": "./core/dist/index.js" },
-    "./conformance": { "types": "./core/dist/conformance.d.ts", "default": "./core/dist/conformance.js" },
-    "./testing": { "types": "./core/dist/testing.d.ts", "default": "./core/dist/testing.js" },
-    "./store-sql": { "types": "./store-sql/dist/index.d.ts", "default": "./store-sql/dist/index.js" },
-    "./store-document": { "types": "./store-document/dist/index.d.ts", "default": "./store-document/dist/index.js" },
-    "./ext-media": { "types": "./ext-media/dist/index.d.ts", "default": "./ext-media/dist/index.js" },
-    "./examples": { "types": "./examples/dist/index.d.ts", "default": "./examples/dist/index.js" },
+    ".": {
+      "types": "./lang/dist/index.d.ts",
+      "default": "./lang/dist/index.js"
+    },
+    "./lang": {
+      "types": "./lang/dist/index.d.ts",
+      "default": "./lang/dist/index.js"
+    },
+    "./core": {
+      "types": "./core/dist/index.d.ts",
+      "default": "./core/dist/index.js"
+    },
+    "./conformance": {
+      "types": "./core/dist/conformance.d.ts",
+      "default": "./core/dist/conformance.js"
+    },
+    "./testing": {
+      "types": "./core/dist/testing.d.ts",
+      "default": "./core/dist/testing.js"
+    },
+    "./store-sql": {
+      "types": "./store-sql/dist/index.d.ts",
+      "default": "./store-sql/dist/index.js"
+    },
+    "./store-document": {
+      "types": "./store-document/dist/index.d.ts",
+      "default": "./store-document/dist/index.js"
+    },
+    "./ext-media": {
+      "types": "./ext-media/dist/index.d.ts",
+      "default": "./ext-media/dist/index.js"
+    },
+    "./examples": {
+      "types": "./examples/dist/index.d.ts",
+      "default": "./examples/dist/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
