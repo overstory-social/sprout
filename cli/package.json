@@ -1,0 +1,42 @@
+{
+  "name": "@overstory/sprout-cli",
+  "version": "0.1.0",
+  "description": "The Sprout command line: init, check, play, serve, pack and skill on a microworld archive — a folder of .sprout files with a sprout.json, or a zip of the same.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "sprout": "bin/sprout.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@overstory/sprout": "*",
+    "@overstory/sprout-core": "*",
+    "@overstory/sprout-ext-media": "*",
+    "@overstory/sprout-store-sql": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

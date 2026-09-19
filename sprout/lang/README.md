@@ -479,49 +479,25 @@ picture); it produces `text "…"` lines (paragraphs) and nothing else. A
 changes nothing. Without a `describe`, `prose` is the description.
 `examine` defaults to `describe`.
 
-### Extensions, and pictures
+### Extensions
 
 The language ends at the room's edge; what a host can do beyond it —
 open a picture, play a sound — arrives as an **extension** the host
 installs (`sprout({ extensions: [media] })`), and a source names the
-ones it depends on at its top:
+ones it depends on at its top with `use <name>`. An extension may add
+value types, well-known properties and statements; its words are
+reserved only in a source that `use`s it, and a source that uses an
+extension the host lacks does not compile ("This host has no extension
+called …"). One rule keeps the language what it is: **an extension
+statement records an effect; it never performs one** — what happens
+because of the effect is the host's, after the action. The evaluator
+hands an extension a frozen, read-only view of the frame, turns a throw
+inside it into a fault naming the extension, and charges every run
+against the event budget.
 
-```sprout
-use media
-object lamp {
-  :image media "m-lamp"
-  :blueprint media
-  describe { show  text "A brass lamp." }
-  study { show self :blueprint }
-}
-```
-
-An extension may add **value types** (`media`: an id the host's
-uploader minted, or none — `:image media "m-…"`, `:image media`;
-settable at runtime with `self.set(:image, "m-…")` or `none`),
-**well-known properties** (`:image` on rooms, items and kinds), and
-**statements** (`show`, `show self :blueprint`, `show room`). Its words
-are reserved only in a source that `use`s it, so an object called
-`show` is legal in a source that does not; and a source that uses an
-extension the host lacks does not compile ("This host has no
-extension called …").
-
-One rule keeps the language what it is: **an extension statement
-records an effect; it never performs one.** `show` reads the target's
-picture and records `{ extension: 'media', kind: 'show', mediaId }` on
-the outcome's `effects`; what happens because of that — a lightbox, a
-signed URL, `[a picture opens]` in a terminal — is the host's, after
-the action. The evaluator hands an extension a frozen, read-only view
-of the frame, turns a throw inside it into a fault naming the
-extension, charges every run against the event budget, and caps the
-effects of one action. Which statements may sit in `describe` or in a
-consent guard is the extension's declaration, and `checkExtension`
-verifies the describe claim by running the statement where nothing may
-be written.
-
-The media extension is `@overstory/sprout-ext-media`; this README's
-examples use it. What a media id means, and who may see the bytes, is
-the host's.
+Pictures — the `media` value type, `:image`, `show` — are the first
+extension, `@overstory/sprout-ext-media`; its README is where they are
+described.
 
 ### Statements
 
@@ -762,34 +738,11 @@ keystroke — and `compileSprout(source)` one definition.
 
 ## Embedding the engine
 
-The engine runs against a **`Scene`** — the room, the actor, the items
-in range (each a `SproutObject` naming its container), optionally the
-objects elsewhere, the spawnable kinds and the delivery `order` (object
-id → place: declaration order, then spawn order; absent, everything is
-by id) — and a **`TurnContext`**: the
-request's budget, where new instance ids come from, how many instances
-are alive, and the extensions the program was compiled with
-(`turnContext({ … })` fills in defaults). The host builds the scene from
-wherever it keeps state, inside whatever transaction it likes, makes one
-context per request so every runner in it shares the budget, and calls:
-
-- `runVerb(scene, ctx, targetId, message, args)` — a typed or chosen
-  verb.
-- `runMove(scene, ctx, whatId, toId)` — a proposal (`take`, `drop`,
-  `give`, `put`, `go`, or a `move` from a body); `refused` carries the
-  guard's words.
-- `describeWith(obj, scene, ctx)` — an object's prose and the pictures
-  it showed (`renderProse` for the text alone); `openVerbs(obj, scene,
-ctx)` — the verbs offered right now, for a chip-based client;
-  `memoryOf(scene)` — what the objects remember about this visitor;
-  `visibleItems(scene, container)`.
-
-An outcome carries what was said, in order; the property writes and
-containment changes to persist; what was spawned or destroyed; the
-pictures shown; the envelopes delivered; and a fault, if the action
-faulted, with the chain that led there. The engine writes nothing
-itself: the host applies the outcome, or rolls the transaction back on
-a fault.
+A host plays a microworld through `@overstory/sprout-core` — `load` an
+archive, then `turn` — and its README opens with the twelve-line
+embedding. The engine underneath (`runVerb`, `runMove`, `describeWith`
+on a `Scene` and a `TurnContext`) is described there too, for a host
+that wants the evaluator without the runtime.
 
 ## Typing to play: the command parser
 
