@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { memoryBackend } from './backend.js';
+import { memoryBackend, type DocumentBackend } from './backend.js';
 import { documentStore, keys, parseKey } from './store.js';
 
 // The layout (the split proposal §5.2), pinned: which key holds what,
@@ -171,9 +171,9 @@ describe('the layout on the backend', () => {
   it('a write transaction locks the objects key alone; the heartbeat locks the actor’s', async () => {
     const backend = memoryBackend();
     const locked: string[][] = [];
-    const watching = {
+    const watching: DocumentBackend = {
       ...backend,
-      transact: (ks: readonly string[], fn: Parameters<typeof backend.transact>[1]) => {
+      transact: (ks, fn) => {
         locked.push([...ks]);
         return backend.transact(ks, fn);
       },
