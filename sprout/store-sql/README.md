@@ -1,8 +1,8 @@
-# @overstory/sprout-store-sql
+# @overstory/sprout/store-sql
 
 The Sprout runtime's store on Postgres: the `sprout` schema, its
 migrations exported as data with a runner, and an adapter for
-`@overstory/sprout-core`'s store port that needs only
+`@overstory/sprout/core`'s store port that needs only
 `query(text, params)` — node-postgres and PGlite alike.
 
 MIT. Imports core, and nothing else; a host brings the client.
@@ -10,8 +10,8 @@ MIT. Imports core, and nothing else; a host brings the client.
 ## Use
 
 ```ts
-import { createRuntime } from '@overstory/sprout-core';
-import { runMigrations, sqlStore } from '@overstory/sprout-store-sql';
+import { createRuntime } from '@overstory/sprout/core';
+import { runMigrations, sqlStore } from '@overstory/sprout/store-sql';
 
 await runMigrations(client); // once — or apply `migrations` through your own ledger
 

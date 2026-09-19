@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { ExtensionSet, type Effect, type SproutExtension } from '@overstory/sprout';
+import { ExtensionSet, type Effect, type SproutExtension } from '@overstory/sprout/lang';
 
 // Pictures, as a Sprout extension (sprout.md §2.9; the split proposal
 // §3.5): a `media` value type holding an id the host's uploader minted

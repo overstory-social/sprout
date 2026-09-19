@@ -9,7 +9,7 @@ import {
   type SproutMemory,
   type SproutObject,
   type TurnContext,
-} from '@overstory/sprout';
+} from '@overstory/sprout/lang';
 
 import { stampOf } from './scene.js';
 

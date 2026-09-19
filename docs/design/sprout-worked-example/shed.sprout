@@ -1,0 +1,68 @@
+// The making side: a wheel that spawns cups, a bin of clay, a glass
+// case with the one finished piece. Placement is in the head — an
+// object sits in a room or in a container object in the same
+// microworld — and nesting works: `lump_a in bin in shed`.
+room shed {
+  :name "The Shed"
+  :names ["shed", "workshop"]
+  :illuminated false
+  prose "A lean-to workshop: a kick wheel, a clay bin, a glass case on the wall."
+  describe {
+    if (self.get(:illuminated)) { text "The shed, lamplit: the wheel's rim glints, the case throws back the light." }
+    else { text "A lean-to workshop: a kick wheel, a clay bin, a glass case on the wall." }
+    if (bin.count == 0) { text "The clay bin is empty." }
+  }
+  exit "out to the yard" to yard
+  on :illuminating (from, value) { self.set(:illuminated, value) }
+}
+
+object wheel in shed {
+  :name "Kick wheel"
+  :names ["wheel", "kick wheel"]
+  :scenery true
+  :thrown 0 min 0 max 99
+  prose "A kick wheel, its flywheel scarred by forty years of feet."
+  // spawn: a new instance of a kind, placed in a container in range
+  throw (from: object) {
+    grammar "throw [from] on [self]"
+    grammar "throw a cup from [from]"
+    if (from.is(Lump) && from.get(:wedged)) {
+      self.adjust(:thrown, 1)
+      spawn Cup in room
+      say "You centre it, open it, pull the wall. A cup."
+      // the lump is used up: `destroy` from another object is not allowed, so ask it
+      send from :used
+    } else if (from.is(Lump)) {
+      say "It wobbles off centre. Wedge it first."
+    } else {
+      say "That will not throw."
+    }
+  }
+}
+
+object bin: Container in shed {
+  :name "Clay bin"
+  :names ["bin"]
+  :open true
+  :capacity 6
+  prose "A dustbin of clay under damp sacking."
+  describe {
+    if (self.count == 0) { text "Empty but for damp sacking." }
+    else { text "Lumps of clay under damp sacking." }
+    each lump in self { text "A lump waits." }
+  }
+}
+
+object lump_a: Lump in bin {}
+object lump_b: Lump in bin { :wedged true }
+
+object case: GlassCase in shed {
+  :name "Glass case"
+}
+
+// `destroy self` — the lump goes when the wheel says it was used;
+// what it held (nothing) would fall to its container.
+object sample: Lump in bin {
+  :name "Sample lump"
+  :names ["sample"]
+}

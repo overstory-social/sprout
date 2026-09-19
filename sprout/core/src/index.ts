@@ -1,4 +1,4 @@
-// @overstory/sprout-core — the Sprout runtime (MIT; stage 2a of the
+// @overstory/sprout/core — the Sprout runtime (MIT; stage 2a of the
 // split, design/proposals/2026-09-17-sprout-split.md §4). Core plays
 // what a host hands it: `load` an archive, then `turn`. It owns runtime
 // state only — objects, actors, memory, the action log — and knows no

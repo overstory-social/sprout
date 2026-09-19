@@ -11,7 +11,7 @@ import {
   type ReadTx,
   type SproutStore,
   type StoreTx,
-} from '@overstory/sprout-core';
+} from '@overstory/sprout/core';
 
 import type { DocumentBackend, DocumentReader, DocumentWriter } from './backend.js';
 

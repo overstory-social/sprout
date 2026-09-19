@@ -1,12 +1,14 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { sproutSkill } from '@overstory/sprout';
-import { MEDIA } from '@overstory/sprout-ext-media';
+import { examplesDir } from '@overstory/sprout/examples';
+
+import { sproutSkill } from '@overstory/sprout/lang';
+import { MEDIA } from '@overstory/sprout/ext-media';
 
 import { readArchiveZip } from './archive.js';
 import { checkArchive } from './check.js';
@@ -18,7 +20,7 @@ import { renderTurn } from './transcript.js';
 // The command line's edges: the arguments, init, pack, skill, and the
 // transcript's rendering of each line kind.
 
-const EXAMPLES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'sprout-examples');
+const EXAMPLES = examplesDir();
 
 describe('parseArgs', () => {
   it('a command, positionals, --flag value, --flag=value, --flag alone, and -o', () => {

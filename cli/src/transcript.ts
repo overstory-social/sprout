@@ -1,4 +1,4 @@
-import type { SceneView, TurnResponse } from '@overstory/sprout-core';
+import type { SceneView, TurnResponse } from '@overstory/sprout/core';
 
 // A turn's answer as the terminal prints it (the split proposal §7.3,
 // as Overstory's transcript does): core's lines, one channel per fact.

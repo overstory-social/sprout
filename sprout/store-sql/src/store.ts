@@ -9,7 +9,7 @@ import {
   type ReadTx,
   type SproutStore,
   type StoreTx,
-} from '@overstory/sprout-core';
+} from '@overstory/sprout/core';
 
 import { SCHEMA_VERSION, schemaVersionOf } from './migrations.js';
 

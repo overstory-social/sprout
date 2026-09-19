@@ -10,17 +10,18 @@ import { describe, expect, it } from 'vitest';
 // as a dev dependency of its own.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
-const ALLOWED = ['@overstory/sprout-core'];
+const ALLOWED = ['@overstory/sprout/core'];
 const ALLOWED_IN_SPECS = [
   'vitest',
   'node:fs',
   'node:path',
   'node:url',
   '@electric-sql/pglite',
-  '@overstory/sprout-core/conformance',
+  'pg',
+  '@overstory/sprout/conformance',
 ];
 
-describe('@overstory/sprout-store-sql imports nothing but core and itself', () => {
+describe('@overstory/sprout/store-sql imports nothing but core and itself', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
   it('has files to check', () => expect(files.length).toBeGreaterThan(3));
   for (const file of files) {

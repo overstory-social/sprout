@@ -11,7 +11,7 @@ import {
   type SproutObject,
   type Scene,
   turnContext,
-} from '@overstory/sprout';
+} from '@overstory/sprout/lang';
 
 import { MEDIA, Shown, media, shownMedia } from './media.js';
 

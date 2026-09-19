@@ -1,0 +1,18 @@
+[
+  {
+    "line": 2,
+    "column": 9,
+    "message": "A string does not span lines.",
+    "level": null,
+    "file": "hall.sprout",
+    "definition": null
+  },
+  {
+    "line": 1,
+    "column": 1,
+    "message": "The manifest's entry room \"hall\" is not here.",
+    "level": null,
+    "file": null,
+    "definition": "hall"
+  }
+]

@@ -1,0 +1,70 @@
+use media
+
+// The yard: the door. A room is a container that may hold visitors;
+// its `accept` says who may enter, its `entered` is where arrival
+// prose lives, and `:remembers` is per-visitor memory.
+room yard {
+  :name "The Yard"
+  :names ["yard", "outside"]
+  :illuminated false
+  :remembers [visits: 0 min 0 max 99]
+  :image media "m-yard"
+  prose "A brick yard between a shed and a kiln shed. A bench under the eave; a lantern on a hook."
+
+  describe {
+    if (self.get(:illuminated)) { text "The yard, lamplit: brick, bench, the two sheds' doors." }
+    else { text "A brick yard between a shed and a kiln shed. A bench under the eave; a lantern on a hook." }
+    if (actor.recall(:visits) > 3) { text "You know this yard by now." }
+    show
+  }
+
+  exit "into the shed" to shed
+  exit "into the kiln shed" to kiln_shed
+
+  on :entered (item, from) {
+    if (item.is(Actor)) {
+      actor.remember(:visits, actor.recall(:visits) + 1)
+      say "Gravel under your feet."
+    }
+  }
+  on :illuminating (from, value) { self.set(:illuminated, value) }
+
+  // a message on the room itself, and a broadcast every object in reach hears
+  whistle {
+    grammar "whistle"
+    grammar "call the wind"
+    say "A gust answers, out of nowhere."
+    broadcast :gust
+  }
+}
+
+object bench in yard {
+  :name "Bench"
+  :names ["bench", "seat"]
+  :scenery true
+  :sat 0 min 0 max 99
+  prose "A plank bench under the eave, floury with dried slip."
+  sit {
+    grammar "sit on [self]"
+    grammar "sit down"
+    self.adjust(:sat, 1)
+    say "You sit. Somewhere a wheel is running, or was."
+  }
+}
+
+// An instance of a kind: only initial values, names, prose, describe.
+object lantern: Lantern in yard {
+  :name "Brass lantern"
+  :fuel 2
+}
+
+object matches in yard {
+  :name "Box of matches"
+  :names ["matches", "match", "box"]
+  :takeable true
+  :left 5 min 0 max 5
+  describe {
+    if (self.get(:left) == 0) { text "An empty matchbox." }
+    else { text "A box of matches, a few left." }
+  }
+}

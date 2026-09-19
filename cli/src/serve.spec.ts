@@ -1,8 +1,9 @@
 import { createConnection, type Socket } from 'node:net';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
+
+import { examplesDir } from '@overstory/sprout/examples';
 
 import { main } from './cli.js';
 import { serve, type Serving } from './serve.js';
@@ -12,7 +13,7 @@ import { captured } from './testing.js';
 // first's arrival as it happens (the poll delivers the notice), and each
 // walks on their own. Loopback only unless --host says otherwise.
 
-const EXAMPLES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'sprout-examples');
+const EXAMPLES = examplesDir();
 
 /** A line-buffered client: `send` a line, `until` a pattern shows in what came back. */
 function client(port: number): {

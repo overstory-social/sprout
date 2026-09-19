@@ -1,12 +1,12 @@
 import { basename } from 'node:path';
 
-import type { Archive } from '@overstory/sprout';
+import type { Archive } from '@overstory/sprout/lang';
 import {
   archiveStamp,
   createRuntime,
   type Runtime,
   type SproutStore,
-} from '@overstory/sprout-core';
+} from '@overstory/sprout/core';
 
 import { EXTENSIONS } from './check.js';
 import type { ReadArchive } from './archive.js';

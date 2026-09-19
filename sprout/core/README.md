@@ -1,4 +1,4 @@
-# @overstory/sprout-core
+# @overstory/sprout/core
 
 The Sprout runtime: **load** a microworld from an archive, then **turn**.
 Core plays what a host hands it and holds runtime state only — objects,
@@ -7,17 +7,17 @@ versions, publishing and schedules are the host's; a builder's draft is
 just another microworld under an id the host chooses), and it knows no
 identity (an actor is an id and a name the host supplies each turn).
 
-MIT. Imports the language (`@overstory/sprout`) and zod, and nothing
+MIT. Imports the language (`@overstory/sprout/lang`) and zod, and nothing
 else; the store is a port an adapter fills.
 
 ## An embedding, in twelve lines
 
 ```ts
-import { createRuntime, memoryStore } from '@overstory/sprout-core';
-import { MEDIA } from '@overstory/sprout-ext-media';
+import { createRuntime, memoryStore } from '@overstory/sprout/core';
+import { MEDIA } from '@overstory/sprout/ext-media';
 
 const runtime = createRuntime({
-  store: memoryStore(), // or an adapter: sqlStore({ client }) from @overstory/sprout-store-sql, documentStore(backend) from @overstory/sprout-store-document
+  store: memoryStore(), // or an adapter: sqlStore({ client }) from @overstory/sprout/store-sql, documentStore(backend) from @overstory/sprout/store-document
   ext: MEDIA, // what a `use` line may name
   limits: { rooms: 32 }, // defaults otherwise
 });
@@ -137,12 +137,12 @@ run on and what a host's unit tests use in place of a database.
 
 ## The conformance suite
 
-`@overstory/sprout-core/conformance` exports `cases`, each `{ name,
+`@overstory/sprout/conformance` exports `cases`, each `{ name,
 proves, run(makeStore) }`, importing no test framework; a host runs them
 under whatever runner it has:
 
 ```ts
-import { cases } from '@overstory/sprout-core/conformance';
+import { cases } from '@overstory/sprout/conformance';
 for (const c of cases) it(c.name, () => c.run(() => myStore()));
 ```
 
@@ -154,7 +154,7 @@ Postgres.
 
 ## For a host's tests
 
-`@overstory/sprout-core/testing` exports `testWorld(archive, { ext? })`:
+`@overstory/sprout/testing` exports `testWorld(archive, { ext? })`:
 a runtime over the memory store with the archive loaded, and
 `play(line, as?)` that types a line as an actor and returns the lines
 that came back.
@@ -163,7 +163,7 @@ that came back.
 
 Core's `turn` is the whole of what a host calls. What it runs, for a
 host that wants the evaluator alone, is the language's engine
-(`@overstory/sprout`): it runs against a **`Scene`** — the room, the actor, the items
+(`@overstory/sprout/lang`): it runs against a **`Scene`** — the room, the actor, the items
 in range (each a `SproutObject` naming its container), optionally the
 objects elsewhere, the spawnable kinds and the delivery `order` (object
 id → place: declaration order, then spawn order; absent, everything is

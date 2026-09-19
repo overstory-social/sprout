@@ -6,7 +6,7 @@ import { compileSprout, compileSproutKind, sproutSkill, sproutSkillExamples } fr
 // The skill (#347) is generated from the compiler's own definitions and
 // its example is compiled before it goes in. The checked-in copy at
 // skills/sprout/SKILL.md is Overstory's — rendered with the media
-// extension — and is pinned in @overstory/sprout-ext-media's spec.
+// extension — and is pinned in @overstory/sprout/ext-media's spec.
 
 describe('sproutSkill', () => {
   it('opens with the frontmatter and the one rule about whose words are whose', () => {

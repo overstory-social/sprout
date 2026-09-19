@@ -11,16 +11,16 @@ import { describe, expect, it } from 'vitest';
 // `conformance.ts` and `testing.ts` may not import vitest either.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
-const ALLOWED = ['zod', '@overstory/sprout'];
+const ALLOWED = ['zod', '@overstory/sprout/lang'];
 const ALLOWED_IN_SPECS = [
   'vitest',
   'node:fs',
   'node:path',
   'node:url',
-  '@overstory/sprout-ext-media',
+  '@overstory/sprout/ext-media',
 ];
 
-describe('@overstory/sprout-core imports nothing but the language, zod and itself', () => {
+describe('@overstory/sprout/core imports nothing but the language, zod and itself', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
   it('has files to check', () => expect(files.length).toBeGreaterThan(6));
   for (const file of files) {

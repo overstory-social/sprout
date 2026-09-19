@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NO_EXTENSIONS, compileMicroworld, runMove, turnContext } from '@overstory/sprout';
+import { NO_EXTENSIONS, compileMicroworld, runMove, turnContext } from '@overstory/sprout/lang';
 
 import type { ObjectRecord } from './records.js';
 import { memoryAfter, microworldOf, rowsAfter, sceneFor, stampOf, under } from './scene.js';

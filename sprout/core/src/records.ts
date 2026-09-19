@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { SproutManifest, SproutState } from '@overstory/sprout';
+import { SproutManifest, SproutState } from '@overstory/sprout/lang';
 
 // What a store holds for one microworld (the split proposal §4.1, §4.6):
 // seven record types, every one a zod schema, because an adapter author

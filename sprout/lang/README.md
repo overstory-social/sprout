@@ -1,4 +1,4 @@
-# @overstory/sprout
+# @overstory/sprout/lang
 
 Sprout is a small language for interactive rooms and objects: the kind
 of thing a text adventure is made of, written by the people who visit
@@ -61,7 +61,7 @@ import {
   whatYouCanSay, // typed commands
   sproutSkill, // a generated reference that teaches the language
   tokenize, // the lexer, for an editor's highlighter
-} from '@overstory/sprout';
+} from '@overstory/sprout/lang';
 
 const { definition, problems, warnings } = compileSprout(source, {
   rooms, // Map<identifier, room id>, for `exit "…" to <identifier>`
@@ -496,7 +496,7 @@ inside it into a fault naming the extension, and charges every run
 against the event budget.
 
 Pictures — the `media` value type, `:image`, `show` — are the first
-extension, `@overstory/sprout-ext-media`; its README is where they are
+extension, `@overstory/sprout/ext-media`; its README is where they are
 described.
 
 ### Statements
@@ -738,7 +738,7 @@ keystroke — and `compileSprout(source)` one definition.
 
 ## Embedding the engine
 
-A host plays a microworld through `@overstory/sprout-core` — `load` an
+A host plays a microworld through `@overstory/sprout/core` — `load` an
 archive, then `turn` — and its README opens with the twelve-line
 embedding. The engine underneath (`runVerb`, `runMove`, `describeWith`
 on a `Scene` and a `TurnContext`) is described there too, for a host

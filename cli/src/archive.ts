@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 
-import { SproutManifest, type Archive, type ArchiveFile } from '@overstory/sprout';
+import { SproutManifest, type Archive, type ArchiveFile } from '@overstory/sprout/lang';
 
 import { readZip, writeZip } from './zip.js';
 

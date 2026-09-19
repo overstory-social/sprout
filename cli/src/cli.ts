@@ -1,4 +1,4 @@
-import { sproutSkill } from '@overstory/sprout';
+import { sproutSkill } from '@overstory/sprout/lang';
 
 import { packArchive, readArchive, writeFile } from './archive.js';
 import { EXTENSIONS, checkArchive, formatCheck, formatCheckJson } from './check.js';

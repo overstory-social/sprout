@@ -1,0 +1,5 @@
+room yard {
+  :name "The Yard"
+  prose "Weeds and a water butt."
+  exit "in" to shed
+}

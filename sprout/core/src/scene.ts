@@ -10,7 +10,7 @@ import {
   type SpawnableKind,
   type SproutObject,
   type SproutState,
-} from '@overstory/sprout';
+} from '@overstory/sprout/lang';
 
 import type { MemoryRecord, ObjectRecord } from './records.js';
 

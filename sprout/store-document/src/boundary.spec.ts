@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 // not an import; the specs bring fake-indexeddb in as a dev dependency.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
-const ALLOWED = ['@overstory/sprout-core', 'zod'];
+const ALLOWED = ['@overstory/sprout/core', 'zod'];
 const ALLOWED_IN_SPECS = [
   'vitest',
   'node:fs',
@@ -18,10 +18,10 @@ const ALLOWED_IN_SPECS = [
   'node:url',
   'fake-indexeddb',
   'fake-indexeddb/auto',
-  '@overstory/sprout-core/conformance',
+  '@overstory/sprout/conformance',
 ];
 
-describe('@overstory/sprout-store-document imports nothing but core, zod and itself', () => {
+describe('@overstory/sprout/store-document imports nothing but core, zod and itself', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
   it('has files to check', () => expect(files.length).toBeGreaterThan(3));
   for (const file of files) {

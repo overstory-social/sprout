@@ -10,13 +10,13 @@ import { describe, expect, it } from 'vitest';
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = [
-  '@overstory/sprout',
-  '@overstory/sprout-core',
-  '@overstory/sprout-store-sql',
-  '@overstory/sprout-ext-media',
+  '@overstory/sprout/lang',
+  '@overstory/sprout/core',
+  '@overstory/sprout/store-sql',
+  '@overstory/sprout/ext-media',
   '@electric-sql/pglite',
 ];
-const ALLOWED_IN_SPECS = ['vitest'];
+const ALLOWED_IN_SPECS = ['vitest', '@overstory/sprout/examples'];
 
 describe('@overstory/sprout-cli imports the Sprout packages, PGlite and node:* only', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));

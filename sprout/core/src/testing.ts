@@ -1,4 +1,4 @@
-import type { Archive, ExtensionSet } from '@overstory/sprout';
+import type { Archive, ExtensionSet } from '@overstory/sprout/lang';
 
 import { memoryStore } from './memory-store.js';
 import { createRuntime, type LoadReport, type Runtime } from './runtime.js';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { MEDIA, shownMedia } from '@overstory/sprout-ext-media';
-import type { Archive } from '@overstory/sprout';
+import { MEDIA, shownMedia } from '@overstory/sprout/ext-media';
+import type { Archive } from '@overstory/sprout/lang';
 
 import { SproutError } from './errors.js';
 import { memoryStore } from './memory-store.js';

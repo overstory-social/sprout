@@ -1,4 +1,4 @@
-// @overstory/sprout — the Sprout language, on its own (MIT). The
+// @overstory/sprout/lang — the Sprout language, on its own (MIT). The
 // definition format and its caps, the written language and its compiler,
 // the skill that teaches it, the engine that runs a definition inside a
 // world, and the command parser that turns typed words into a verb. It

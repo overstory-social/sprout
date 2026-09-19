@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ExtensionSet, type SproutExtension } from '../extensions.js';
 
 // The media extension as the language's OWN specs (and README) need it:
-// the shape `@overstory/sprout-ext-media` has — a `media` value type,
+// the shape `@overstory/sprout/ext-media` has — a `media` value type,
 // `:image` well-known on rooms and items, a `show` statement allowed in
 // describe — written here so the specs can prove the mechanism. It must
 // behave EXACTLY as the real one: ext-media's `parity.spec.ts` imports

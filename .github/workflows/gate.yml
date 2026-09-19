@@ -1,0 +1,58 @@
+name: gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # lint, prettier, tsc builds, every suite (the conformance suite on
+      # PGlite, the memory backend and fake-indexeddb), the spec typechecks,
+      # then `sprout check` over the examples and the corpus.
+      - run: npm run gate
+      # The published tarballs would install and run from an empty folder.
+      - run: |
+          npm pack -w sprout -w cli --pack-destination /tmp/packs
+          cd "$(mktemp -d)" && npm init -y >/dev/null
+          npm install /tmp/packs/overstory-sprout-*.tgz /tmp/packs/overstory-sprout-cli-*.tgz
+          npx sprout check node_modules/@overstory/sprout/examples/pottery-studio
+          printf 'look\nquit\n' | npx sprout play node_modules/@overstory/sprout/examples/pottery-studio --store memory | head -20
+
+  # What one backend cannot prove (core's `cannotProve`): real contention
+  # and a lock timeout firing — the two conformance cases PGlite skips,
+  # against a real Postgres.
+  contention:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sprout
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/sprout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w sprout
+      - run: npx vitest run store-sql/src/contention.db.spec.ts
+        working-directory: sprout

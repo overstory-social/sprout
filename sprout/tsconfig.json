@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "lang" },
+    { "path": "core" },
+    { "path": "ext-media" },
+    { "path": "store-sql" },
+    { "path": "store-document" },
+    { "path": "examples" }
+  ]
+}

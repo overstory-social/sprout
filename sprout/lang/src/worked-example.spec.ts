@@ -16,7 +16,7 @@ import type { KindDefinition, SproutDefinition, SproutStatement } from './sprout
 
 const ROOT = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../design/proposals/sprout-worked-example',
+  '../../../docs/design/sprout-worked-example',
 );
 
 function archive(): Archive {

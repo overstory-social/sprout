@@ -1,11 +1,11 @@
-# @overstory/sprout-store-document
+# @overstory/sprout/store-document
 
 The Sprout runtime's store on a document backend: five methods over any
 key → document database, the layout split by write rate, and two
 backends — memory, and IndexedDB for a single-player microworld in a
 browser tab, no server at all.
 
-MIT. Imports `@overstory/sprout-core` and zod, and nothing else; a host
+MIT. Imports `@overstory/sprout/core` and zod, and nothing else; a host
 brings the backend.
 
 ## Use
@@ -13,8 +13,8 @@ brings the backend.
 A microworld in a tab — the smallest embedding there is:
 
 ```ts
-import { createRuntime } from '@overstory/sprout-core';
-import { documentStore, indexedDbBackend } from '@overstory/sprout-store-document';
+import { createRuntime } from '@overstory/sprout/core';
+import { documentStore, indexedDbBackend } from '@overstory/sprout/store-document';
 
 const runtime = createRuntime({ store: documentStore(indexedDbBackend('my-microworld')) });
 await runtime.load('shed', archive, new Date());

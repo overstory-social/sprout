@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { cannotProve, cases } from '@overstory/sprout-core/conformance';
+import { cannotProve, cases } from '@overstory/sprout/conformance';
 
 import { SCHEMA_VERSION, migrations, runMigrations, schemaVersionOf } from './migrations.js';
 import { sqlStore, type Queryable } from './store.js';

@@ -1,0 +1,162 @@
+// The kinds: behaviour and defaults with no place in the world. An
+// object that is `: Kind` is an instance and may only set initial
+// values, its name(s), prose and describe — the behaviour lives here.
+
+kind Vessel {
+  :names ["pot", "vessel"]
+  :takeable true
+  :state one_of [raw, leather, dry, bisque, glazed] default raw
+  :glaze one_of [none, shino, tenmoku] default none
+  // a string property: short text, set and compared, never joined
+  :mark "unsigned"
+  :remembers [handled: false]
+
+  // the third consent guard: the thing moving has a say. A raw pot will
+  // not survive being lifted; the actor reads the refusal.
+  depart (to) {
+    if (to.is(Actor) && self.get(:state) == :raw) { refuse "Too soft to lift; it would slump." }
+    else { allow }
+  }
+
+  describe {
+    if (self.get(:state) == :glazed) { text "Glazed and glassy, ringing when tapped." }
+    else if (self.get(:state) == :bisque) { text "Bisqued: pink, porous, thirsty for glaze." }
+    else if (self.get(:state) == :dry) { text "Bone dry and pale. Ready for the kiln." }
+    else { text "Still soft; a thumbprint would stay." }
+  }
+
+  // a message with a guard: offered only while it can happen
+  dry when (self.get(:state) == :raw || self.get(:state) == :leather) {
+    grammar "dry [self]"
+    grammar "leave [self] to dry"
+    self.set(:state, :dry)
+    actor.remember(:handled, true)
+    say "You set it on the shelf. Days pass in a minute; it goes pale."
+  }
+
+  // a message with an argument, and two ways to say it
+  dip (into: object) when (self.get(:state) == :bisque && self.get(:glaze) == :none) {
+    grammar "dip [self] in [into]"
+    grammar "glaze [self] with [into]"
+    if (into.is(GlazeBucket)) {
+      self.set(:glaze, into.get(:colour))
+      say "A skin of colour, dull until it fires."
+    } else {
+      say "That is not glaze."
+    }
+  }
+
+  // the engine's own messages: the kiln tells a vessel it was fired
+  on :fired (from) {
+    if (self.get(:state) == :dry) { self.set(:state, :bisque) }
+    else if (self.get(:state) == :bisque && self.get(:glaze) != :none) { self.set(:state, :glazed) }
+  }
+}
+
+kind Cup: Vessel {
+  :names ["cup"]
+  // a spawned thing is told so: the birth line
+  on :spawned (from) { say "A cup, still wet, the rim just this side of true." }
+}
+
+kind Bowl: Vessel {
+  :names ["bowl"]
+  // a hook: runs on the object whose property just changed
+  changed :state (value, was) {
+    if (value == :glazed) { say "The bowl comes out alive: the glaze has gone to glass." }
+  }
+}
+
+kind GlazeBucket {
+  :names ["bucket", "glaze"]
+  :colour one_of [shino, tenmoku] default shino
+  describe {
+    if (self.get(:colour) == :shino) { text "A bucket of shino: thick, cream-coloured, brave." }
+    else { text "A bucket of tenmoku, black as a still pond." }
+  }
+}
+
+kind Lump {
+  :names ["lump", "clay"]
+  :takeable true
+  :wedged false
+  describe {
+    if (self.get(:wedged)) { text "A wedged lump, smooth and even." }
+    else { text "A lump of clay, still marbled and a little slumped." }
+  }
+  wedge when (!self.get(:wedged)) {
+    grammar "wedge [self]"
+    grammar "knead [self]"
+    self.set(:wedged, true)
+    say "Rams-head, again and again, until it is one thing."
+  }
+  // `destroy self`: only an object may end itself, so the wheel ASKS
+  // (`send from :used`) and the lump answers by leaving the world.
+  on :used (from) { destroy self }
+}
+
+// An abstract message: children must define it. `Usable` is what the
+// parser reaches through `use [self] with [with]`.
+kind Usable {
+  :takeable true
+  use (with: object) abstract
+}
+
+kind Lantern: Usable {
+  :names ["lantern", "lamp"]
+  :lit false
+  :fuel 3 min 0 max 9
+  describe {
+    if (self.get(:lit)) { text "It burns steadily, amber and warm." }
+    else { text "A brass lantern, dark, smelling faintly of oil." }
+  }
+  use (with: object) {
+    grammar "light [self] with [with]"
+    grammar "strike a match"
+    if (self.get(:lit)) { say "It is already lit." }
+    else if (self.get(:fuel) == 0) { say "Dry. It needs oil." }
+    else {
+      self.set(:lit, true)
+      self.adjust(:fuel, -1)
+      say "The wick catches with a soft pop."
+    }
+  }
+  snuff when (self.get(:lit)) {
+    self.set(:lit, false)
+    say "You pinch the wick. Dark."
+  }
+  // a hook that tells the world: light crosses to whatever is in range
+  changed :lit (value, was) {
+    if (value) { broadcast :illuminating(true) } else { broadcast :illuminating(false) }
+  }
+  on :gust {
+    if (self.get(:lit)) {
+      self.set(:lit, false)
+      say "The lantern gutters out."
+    }
+  }
+}
+
+// A container with a routing policy: light crosses glass, open or shut;
+// everything else only while open. Its own release guard.
+kind GlassCase: Container {
+  :names ["case", "glass case"]
+  :open false
+  :capacity 2
+  pass :illuminating (true)
+  pass any (self.get(:open))
+  release (item, to) {
+    if (self.get(:open)) { allow } else { refuse "The case is latched." }
+  }
+  unlatch when (!self.get(:open)) {
+    grammar "open [self]"
+    grammar "unlatch [self]"
+    self.set(:open, true)
+    say "The latch gives; the front swings up."
+  }
+  latch when (self.get(:open)) {
+    grammar "close [self]"
+    self.set(:open, false)
+    say "It swings down and clicks."
+  }
+}

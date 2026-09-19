@@ -1,12 +1,12 @@
-# @overstory/sprout-ext-media
+# @overstory/sprout/ext-media
 
 Pictures for [Sprout](../sprout/README.md), as a language extension:
 the `media` value type, the `:image` well-known property on rooms,
 items and kinds, and the `show` statement.
 
 ```ts
-import { ExtensionSet, compileSprout, runVerb } from '@overstory/sprout';
-import { media, shownMedia } from '@overstory/sprout-ext-media';
+import { ExtensionSet, compileSprout, runVerb } from '@overstory/sprout/lang';
+import { media, shownMedia } from '@overstory/sprout/ext-media';
 
 const ext = new ExtensionSet([media]);
 const { definition } = compileSprout(source, { ext });

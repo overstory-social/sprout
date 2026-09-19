@@ -1,0 +1,10 @@
+[
+  {
+    "line": 1,
+    "column": 1,
+    "message": "No kind called \"Ghost\" is defined here.",
+    "level": null,
+    "file": "ghost.sprout",
+    "definition": "ghost"
+  }
+]

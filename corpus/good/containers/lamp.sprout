@@ -1,0 +1,10 @@
+object lamp in crate {
+  :name "Lamp"
+  :lit false
+  :takeable true
+  prose "A brass lamp."
+  light when (self.get(:lit) == false) {
+    self.set(:lit, true)
+    say "The wick catches."
+  }
+}

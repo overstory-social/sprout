@@ -22,7 +22,7 @@ import {
   type Program,
   type Scene,
   type TurnContext,
-} from '@overstory/sprout';
+} from '@overstory/sprout/lang';
 
 import { SproutError } from './errors.js';
 import {

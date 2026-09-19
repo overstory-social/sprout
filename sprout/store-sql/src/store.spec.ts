@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MicroworldRecord } from '@overstory/sprout-core';
+import type { MicroworldRecord } from '@overstory/sprout/core';
 
 import { LOCK_TIMEOUT, sqlStore, type Queryable } from './store.js';
 

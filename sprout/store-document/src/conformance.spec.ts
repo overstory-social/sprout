@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cannotProve, cases, runConformance } from '@overstory/sprout-core/conformance';
+import { cannotProve, cases, runConformance } from '@overstory/sprout/conformance';
 
 import { memoryBackend } from './backend.js';
 import { indexedDbBackend } from './indexeddb.js';

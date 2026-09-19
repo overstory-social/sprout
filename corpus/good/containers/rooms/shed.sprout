@@ -1,0 +1,5 @@
+room shed {
+  :name "The Shed"
+  prose "Tools on every wall."
+  exit "out" to yard
+}

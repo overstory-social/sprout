@@ -1,0 +1,11 @@
+dist/
+node_modules/
+node_modules
+*.tsbuildinfo
+.sprout/
+.sprout-*/
+npm-debug.log
+.idea/
+.vscode/*
+!.vscode/settings.json
+.DS_Store

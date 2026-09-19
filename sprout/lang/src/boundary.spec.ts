@@ -14,7 +14,7 @@ const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['zod'];
 const ALLOWED_IN_SPECS = ['vitest', 'node:fs', 'node:path', 'node:url'];
 
-describe('@overstory/sprout imports nothing but zod and itself', () => {
+describe('@overstory/sprout/lang imports nothing but zod and itself', () => {
   // Every .ts under src, subdirectories included (src/fixtures holds spec support).
   const files = readdirSync(SRC, { recursive: true, withFileTypes: true })
     .filter((e) => e.isFile() && e.name.endsWith('.ts'))

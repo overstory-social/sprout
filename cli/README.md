@@ -9,7 +9,7 @@ files with a `sprout.json` beside them, or a zip of the same — checked,
 walked, served, packed. Authoring is text files in whatever editor you
 like; this is the rest.
 
-MIT. Imports the Sprout packages (`@overstory/sprout`, `-core`,
+MIT. Imports the Sprout packages (`@overstory/sprout/lang`, `-core`,
 `-store-sql`, `-ext-media`), PGlite and `node:*`, and nothing else.
 
 ## Commands
@@ -28,7 +28,7 @@ MIT. Imports the Sprout packages (`@overstory/sprout`, `-core`,
 `play` and `serve` keep the microworld's runtime state — where things
 are, what is lit, what objects remember about you — in **`.sprout/`
 beside the folder** (`.sprout-<name>/` beside a zip), as a PGlite
-database through `@overstory/sprout-store-sql`. A session survives the
+database through `@overstory/sprout/store-sql`. A session survives the
 process: come back tomorrow and the kettle is still on. The archive is
 loaded again only when its files changed (core compares the archive's
 stamp); state that still fits is kept, and `--fresh` puts every placed

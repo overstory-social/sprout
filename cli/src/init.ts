@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
-import { LANGUAGE_LEVEL, type SproutManifest } from '@overstory/sprout';
+import { LANGUAGE_LEVEL, type SproutManifest } from '@overstory/sprout/lang';
 
 import { MANIFEST } from './archive.js';
 

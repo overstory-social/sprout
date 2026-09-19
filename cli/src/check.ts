@@ -4,8 +4,8 @@ import {
   type Archive,
   type MicroworldProblem,
   type Program,
-} from '@overstory/sprout';
-import { MEDIA } from '@overstory/sprout-ext-media';
+} from '@overstory/sprout/lang';
+import { MEDIA } from '@overstory/sprout/ext-media';
 
 // `sprout check` (the split proposal §6): `compileMicroworld` in strict
 // mode with the extensions the CLI installs — problems by file, line

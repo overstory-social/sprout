@@ -1,9 +1,11 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { examplesDir } from '@overstory/sprout/examples';
 
 import { readArchive } from './archive.js';
 import { checkArchive, formatCheck, formatCheckJson } from './check.js';
@@ -14,7 +16,7 @@ import { captured } from './testing.js';
 // one fails by file, line and column, and the same as JSON — the
 // compiler's Problem exactly, for an editor or a CI step.
 
-const EXAMPLES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'sprout-examples');
+const EXAMPLES = examplesDir();
 
 describe('checkArchive', () => {
   it('both example archives compile strictly, with a door', () => {

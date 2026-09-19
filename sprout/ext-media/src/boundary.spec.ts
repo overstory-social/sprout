@@ -8,10 +8,10 @@ import { describe, expect, it } from 'vitest';
 // database, or a media store. What a media id means is the host's.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
-const ALLOWED = ['zod', '@overstory/sprout'];
+const ALLOWED = ['zod', '@overstory/sprout/lang'];
 const ALLOWED_IN_SPECS = ['vitest', 'node:fs', 'node:path', 'node:url'];
 
-describe('@overstory/sprout-ext-media imports nothing but the language, zod and itself', () => {
+describe('@overstory/sprout/ext-media imports nothing but the language, zod and itself', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
   it('has files to check', () => expect(files.length).toBeGreaterThan(2));
   for (const file of files) {
@@ -23,7 +23,7 @@ describe('@overstory/sprout-ext-media imports nothing but the language, zod and 
       const foreign = specifiers.filter(
         (s) =>
           !s.startsWith('./') &&
-          !(file.endsWith('.spec.ts') && s.startsWith('../../sprout/src/fixtures/')) &&
+          !(file.endsWith('.spec.ts') && s.startsWith('../../lang/src/fixtures/')) &&
           !allowed.includes(s),
       );
       expect(foreign).toEqual([]);

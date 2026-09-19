@@ -1,0 +1,101 @@
+// The firing side: a kiln that is a container with `release` and `accept`
+// guards (`depart` is on Vessel, in kinds.sprout), an `each` over what it holds, `move`
+// from a body, and a message sent BY IDENTIFIER to another object.
+room kiln_shed {
+  :name "The Kiln Shed"
+  :names ["kiln shed"]
+  prose "A roof on posts over a brick kiln. Wood stacked to the eave."
+  exit "back to the yard" to yard
+  on :entered (item, from) {
+    if (item.is(Actor)) { say "Heat, or the memory of it, comes off the bricks." }
+  }
+}
+
+object kiln: Container in kiln_shed {
+  :name "Brick kiln"
+  :names ["kiln"]
+  :open true
+  :capacity 4
+  :hot false
+  :firings 0 min 0 max 99
+  prose "A brick kiln with an iron door and a spy hole."
+  describe {
+    if (self.get(:hot)) { text "The bricks tick and the spy hole glows orange." }
+    else if (self.count > 0) { text "Cold, loaded, waiting for a match." }
+    else { text "Cold and empty." }
+  }
+  // consent: nothing goes in or out while it is hot
+  accept (item, from) {
+    if (self.get(:hot)) { refuse "You would lose your eyebrows." }
+    else if (item.is(Actor)) { refuse "You are not a pot." }
+    else { allow }
+  }
+  release (item, to) {
+    if (self.get(:hot)) { refuse "Wait for it to cool." } else { allow }
+  }
+  fire (with: object) when (!self.get(:hot) && self.count > 0) {
+    grammar "fire [self] with [with]"
+    grammar "light [self]"
+    if (with.get(:left) > 0) {
+      self.set(:hot, true)
+      self.adjust(:firings, 1)
+      say "You feed the firebox. The draw begins; the bricks start to tick."
+      send with :struck
+    } else {
+      say "No matches left."
+    }
+  }
+  cool when (self.get(:hot)) {
+    grammar "wait for [self]"
+    grammar "let [self] cool"
+    self.set(:hot, false)
+    say "Hours pass in a minute. The ticking slows and stops."
+    // tell everything inside it what happened, one by one
+    each pot in self { send pot :fired }
+  }
+  // `move` from a body: unload onto the shelf
+  unload when (!self.get(:hot) && self.count > 0) {
+    grammar "unload [self]"
+    each pot in self { move pot to shelf }
+    say "You lift them out with the tongs and line them up."
+  }
+}
+
+object shelf: Container in kiln_shed {
+  :name "Ware shelf"
+  :names ["shelf", "ware shelf"]
+  :open true
+  :capacity 8
+  prose "A plank shelf for finished ware."
+  describe {
+    if (self.count == 0) { text "Bare planks." }
+    else { text "Pots in a row." }
+  }
+  on :entered (item, from) {
+    if (item.is(Vessel)) { say "Set down with a small ring." }
+  }
+}
+
+// An instance's initial value for an enum restates the options today
+// (see the README's gaps): there is no bare `:state :dry` on an instance.
+object bowl: Bowl in shelf {
+  :name "Bowl"
+  :state one_of [raw, leather, dry, bisque, glazed] default dry
+}
+
+object shino: GlazeBucket in kiln_shed {
+  :name "Shino bucket"
+  :names ["shino", "bucket"]
+}
+
+object tenmoku: GlazeBucket in kiln_shed {
+  :name "Tenmoku bucket"
+  :names ["tenmoku"]
+  :colour one_of [shino, tenmoku] default tenmoku
+}
+
+// A lump that answers `used` by leaving the world.
+object wadding: Lump in kiln_shed {
+  :name "Wadding"
+  :names ["wadding"]
+}

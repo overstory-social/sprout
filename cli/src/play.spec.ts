@@ -1,9 +1,11 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { examplesDir } from '@overstory/sprout/examples';
 
 import { main } from './cli.js';
 import { play } from './play.js';
@@ -15,7 +17,7 @@ import { captured } from './testing.js';
 // transcript as the terminal prints it. Then PGlite: a session that
 // survives the process, and `--fresh` that does not.
 
-const EXAMPLES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'sprout-examples');
+const EXAMPLES = examplesDir();
 const NOW = new Date('2026-09-18T12:00:00Z');
 
 describe('play', () => {

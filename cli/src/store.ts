@@ -2,11 +2,11 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { PGlite } from '@electric-sql/pglite';
-import { memoryStore, type SproutStore } from '@overstory/sprout-core';
-import { runMigrations, sqlStore, type Queryable } from '@overstory/sprout-store-sql';
+import { memoryStore, type SproutStore } from '@overstory/sprout/core';
+import { runMigrations, sqlStore, type Queryable } from '@overstory/sprout/store-sql';
 
 // Where a play keeps its state (the split proposal §6): `.sprout/db`
-// beside the folder, a PGlite database through `@overstory/sprout-store-sql`
+// beside the folder, a PGlite database through `@overstory/sprout/store-sql`
 // — so a session survives the process — or core's memory store, for a
 // run that leaves nothing behind (`--store memory`, and the specs).
 

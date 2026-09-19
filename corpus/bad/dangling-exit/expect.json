@@ -1,0 +1,10 @@
+[
+  {
+    "line": 1,
+    "column": 1,
+    "message": "No room is called \"cellar\" here (the exit \"down\" from hall).",
+    "level": null,
+    "file": "rooms/hall.sprout",
+    "definition": "cellar"
+  }
+]

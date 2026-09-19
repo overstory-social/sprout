@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkExtension, type SproutExtension } from '@overstory/sprout';
+import { checkExtension, type SproutExtension } from '@overstory/sprout/lang';
 
-import { media as fixture } from '../../sprout/src/fixtures/media.js';
+import { media as fixture } from '../../lang/src/fixtures/media.js';
 import { media } from './media.js';
 
 // The language's specs use a FIXTURE of this extension (it cannot depend

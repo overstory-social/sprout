@@ -1,0 +1,40 @@
+{
+  "name": "sprout-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "sprout",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -w sprout && npm run build -w cli",
+    "test": "npm run test -w sprout && npm run test -w cli",
+    "typecheck:spec": "npm run typecheck:spec -w sprout && npm run typecheck:spec -w cli",
+    "lint": "eslint .",
+    "format": "prettier --write \"sprout/*/src/**/*.ts\" \"sprout/examples/src/**/*.ts\" \"cli/src/**/*.ts\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\"",
+    "format:check": "prettier --check \"sprout/*/src/**/*.ts\" \"sprout/examples/src/**/*.ts\" \"cli/src/**/*.ts\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\"",
+    "check": "node scripts/check-corpus.mjs",
+    "skill": "node cli/bin/sprout.js skill > SKILL.md",
+    "gate": "npm run lint && npm run format:check && npm run build && npm test && npm run typecheck:spec && npm run check",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "npm run build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.0",
+    "@electric-sql/pglite": "^0.5.8",
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "eslint": "^9.39.5",
+    "fake-indexeddb": "^6.2.5",
+    "pg": "^8.16.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.0.0"
+  }
+}
