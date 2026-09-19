@@ -146,6 +146,15 @@ class IdentityRooms extends Map<string, string> {
   }
 }
 
+/**
+ * The `rooms` a host passes `parseFile` to read a file's HEADS before the
+ * archive is in view — every exit accepted as written, to be resolved by
+ * `compileMicroworld` once every room is read.
+ */
+export function unresolvedRooms(): ReadonlyMap<string, string> {
+  return new IdentityRooms();
+}
+
 /** The names every `send` and `broadcast` in a body names, recursively. */
 function sentIn(body: readonly SproutStatement[], out: Set<string>): void {
   for (const s of body) {

@@ -100,11 +100,13 @@ kind OilLamp: Lamp { … }          // a kind that inherits another
 `in <identifier>` says where an object sits — a room, or a container
 object, in the same microworld — and is resolved by the microworld
 compile (below). A room is a place and a kind is never placed, so
-neither takes `in`. A host that keeps where things sit itself (Overstory
-does: an item's row is in a room) may leave `in` out, or write only what
-the host already knows. The members inside the braces may come in any
-order. An editor's page is ONE definition — `compileSprout` refuses a
-second — and `compileFile` reads a whole file.
+neither takes `in`; an object with none sits nowhere, which a strict
+compile names and a lenient one drops. The members inside the braces
+may come in any order. An editor's page is ONE definition —
+`compileSprout` refuses a second — and `compileFile` reads a whole
+file; to read a file's heads before the rest of the archive is in hand,
+`parseFile(source, { rooms: unresolvedRooms() })` accepts every exit as
+written.
 
 ### Names
 
