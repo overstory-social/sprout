@@ -423,6 +423,17 @@ function callType(
     case 'count':
       if (!arity(method, args, 1, context)) return null;
       if (!countable(type, method.at, context)) return null;
+      // `count(K)` counts the contents that compose a kind, which a
+      // list has none of: a list holds values, and `[Ward]` is the
+      // whole of what it holds.
+      if (type.binds === 'value') {
+        context.diagnostics.refuse(
+          method.at,
+          `A list holds ${showType(type.type)}, not things of a kind.`,
+          'Write `count` on its own to ask how many it holds.',
+        );
+        return null;
+      }
       return resolveKind(args[0]!, context) === null ? null : valueOf(integer());
     default:
       context.diagnostics.refuse(
@@ -861,6 +872,11 @@ function declaredOn(kind: KindRef, named: Ident, context: CheckContext): Resolve
 /** `x.count` and `x.count(K)` — a container or a set role. */
 function countable(type: BindingType, at: Span, context: CheckContext): boolean {
   if (type.binds === 'set') return true;
+  // Lists names `count` as one of a list's four operations, where the
+  // checker's own table names only a container and a set role. The
+  // fuller sentence wins, and the narrower row is recorded in the
+  // notes as a row to widen.
+  if (type.binds === 'value' && type.type.type === 'list') return true;
   return container(type, at, context);
 }
 

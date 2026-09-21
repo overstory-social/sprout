@@ -410,6 +410,19 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(saidBy(noSuchKind).join(' ')).toContain('Nothing here is a `Kiln`');
   });
 
+  it('`x.count` — a list too, which the checker’s own table leaves out', () => {
+    // Lists names `count` as one of a list's four operations; the
+    // checker's table names only a container and a set role. The
+    // fuller sentence wins.
+    expect(shapeOf('tool.get(:opens).count', warded())).toBe('integer');
+
+    // `count(K)` counts contents that compose a kind, which a list has
+    // none of.
+    const kinded = warded();
+    expect(read('tool.get(:opens).count(Rib)', kinded).type).toBeNull();
+    expect(saidBy(kinded).join(' ')).toContain('not things of a kind');
+  });
+
   it('`x.holds(y)` — `x` a container, `y` an object binding', () => {
     expect(shapeOf('self.holds(target)', vessel())).toBe('boolean');
     const value = vessel();

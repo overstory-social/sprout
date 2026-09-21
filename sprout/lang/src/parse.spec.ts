@@ -1090,11 +1090,50 @@ function readExpressionOf(text: string) {
   return { refusals: diagnostics.refusals };
 }
 
+/** One property declaration, with whatever caps the host set. */
+function readProperty(text: string, caps = DEFAULT_LIMITS.caps) {
+  const diagnostics = new Diagnostics();
+  const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics, caps);
+  return { declared, diagnostics, refusals: diagnostics.refusals };
+}
+
 function readExpression(text: string, caps = DEFAULT_LIMITS.caps) {
   const diagnostics = new Diagnostics();
   const expr = parseExpression(new SourceFile('body.sprout', text), diagnostics, caps);
   return { expr, shape: shape(expr), diagnostics, refusals: diagnostics.refusals };
 }
+
+describe('a list is bounded by what the host allows', () => {
+  const allowed = DEFAULT_LIMITS.caps.listElements;
+  const list = (many: number) =>
+    `:x [Ward] default [${Array.from({ length: many }, (_, i) => `e${i}`).join(', ')}]`;
+
+  it('reads a list up to the cap, and refuses one past it', () => {
+    expect(readProperty(list(allowed)).declared).not.toBeNull();
+    expect(readProperty(list(allowed + 1)).declared).toBeNull();
+  });
+
+  it('refuses rather than keeping the first few, because a silent drop is the one thing it must not be', () => {
+    const { declared, refusals } = readProperty(list(allowed + 4));
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toContain(`A list holds at most ${allowed} things.`);
+  });
+
+  it('says it once, and still says what else is wrong inside', () => {
+    const over = `:x [Ward] default [${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
+    const said = readProperty(over).refusals.map((d) => d.message);
+    expect(said.filter((m) => m.startsWith('A list holds at most'))).toHaveLength(1);
+    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
+  });
+
+  it('takes the bound from the host rather than a number of its own', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, listElements: 2 };
+    expect(readProperty(list(2), caps).declared).not.toBeNull();
+    const { declared, refusals } = readProperty(list(3), caps);
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toContain('A list holds at most 2 things.');
+  });
+});
 
 describe('an expression', () => {
   it('reads every expression the spec writes', () => {

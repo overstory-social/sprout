@@ -630,9 +630,16 @@ class Parser {
   private listLiteral(open: Token): Literal | null {
     const elements: Literal[] = [];
     let missingComma: Span | null = null;
+    // Said once, at the element that breaks it, and then read on: the
+    // cap is one fact about one list, and an author whose list is two
+    // too long is still owed whatever else is wrong inside it. The
+    // declaration is refused at the end rather than truncated, because
+    // a silent drop is the one thing a full list must never be.
+    let overCap = false;
     for (;;) {
       const close = this.take('punct', ']');
       if (close !== null) {
+        if (overCap) return null;
         return { kind: 'list-literal', at: spanning(open.at, close.at), elements };
       }
       if (this.done) {
@@ -670,7 +677,18 @@ class Parser {
         );
         missingComma = null;
       }
-      elements.push(element);
+      if (elements.length >= this.caps.listElements) {
+        if (!overCap) {
+          this.diagnostics.refuse(
+            element.at,
+            `A list holds at most ${this.caps.listElements} things.`,
+            'Take some out, or hold them somewhere that is not a list.',
+          );
+          overCap = true;
+        }
+      } else {
+        elements.push(element);
+      }
       if (this.separator(']') === 'missing') missingComma = this.here();
     }
   }

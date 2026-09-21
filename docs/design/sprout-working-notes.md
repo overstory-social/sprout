@@ -263,6 +263,12 @@ One thing to hand to B24, which is where it lands rather than where it was found
 
 `chance` and `random` are **not** read yet. Their types are two sentences of spec, but the rules about where they may appear — and the reachability check behind them — are B33's, and the backlog puts both words in that item. The parser reads the shape of a call with no receiver so the refusal can name the word, and the checker's table of such calls is empty until B33 fills it.
 
+Found while building lists (B10):
+
+- **`count` on a list is in one place and not the other.** *Lists* says a list has four operations — `includes(x)`, `count`, `add` and `remove` — and the checker's own table says `x.count` is for "a container or a set role", naming no list. The fuller sentence is implemented: a list answers `count`. `count(K)` is refused on one, since a list holds values and has no contents composing a kind. The table row is the one to widen.
+- **The `listElements` cap does two things, and the table names one.** The limits table has it as a cap whose breach is a *refusal*, which is what a written list too long for it gets. But *Lists* also says "adding a new one to a full list is a fault rather than a silent drop" — the same number, the other side of the compile/run line. Both are enforced: the parser refuses a literal past it, and the value faults. Nothing in the spec is wrong; the table just describes the compile half, and a reader could take it for the whole.
+- **Whether a list may hold what a full one was asked to hold.** Nothing says what happens when a full list is added to with something it ALREADY holds. Taken as: nothing, the same as any other `add` of a held element, because the list does not change and there is nothing to drop. The fault is for growing past the bound, not for touching a full list.
+
 Found while building strict publish and lenient load (B04):
 
 - **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)
