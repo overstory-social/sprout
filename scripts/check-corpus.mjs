@@ -12,7 +12,10 @@ const write = process.argv.includes('--write');
 const cli = join('cli', 'bin', 'sprout.js');
 const check = (dir) => {
   try {
-    return { code: 0, json: JSON.parse(execFileSync('node', [cli, 'check', dir, '--json'], { encoding: 'utf8' })) };
+    return {
+      code: 0,
+      json: JSON.parse(execFileSync('node', [cli, 'check', dir, '--json'], { encoding: 'utf8' })),
+    };
   } catch (err) {
     return { code: err.status, json: JSON.parse(String(err.stdout)) };
   }
@@ -20,7 +23,11 @@ const check = (dir) => {
 const dirs = (root) => readdirSync(root).map((d) => join(root, d));
 
 let failed = 0;
-const EXAMPLES = ['pottery-studio', 'wanderers-shed'].map((s) => join('sprout', 'examples', s));
+// Every example world is a directory holding a sprout.json; one fenced under
+// sprout/examples/legacy/ (CLAUDE.md, The legacy fence) is not an example.
+const EXAMPLES = readdirSync(join('sprout', 'examples'))
+  .map((d) => join('sprout', 'examples', d))
+  .filter((d) => existsSync(join(d, 'sprout.json')));
 for (const dir of [...EXAMPLES, ...dirs('corpus/good')]) {
   const { code, json } = check(dir);
   if (code !== 0 || !json.ok) {
