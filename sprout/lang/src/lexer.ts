@@ -99,6 +99,14 @@ const isKindRest = (ch: string): boolean => isNameRest(ch) || isUpper(ch);
 export class Lexer {
   private at = 0;
   private readonly ahead: Token[] = [];
+  /**
+   * How far into `ahead` the reader has got. A cursor rather than a
+   * `shift()` per token, because `peek` will buffer as far as it is
+   * asked to — a parser stepping over a construct it could not read
+   * looks for its closing bracket first — and shifting one token at a
+   * time out of a long buffer is quadratic in its length.
+   */
+  private aheadAt = 0;
   /** Whether a character was refused since the last token was made. */
   private pendingRefusal = false;
 
@@ -109,13 +117,19 @@ export class Lexer {
 
   /** The next token, consuming it. At the end of the file, the `end` token, for ever. */
   next(): Token {
-    return this.ahead.length > 0 ? this.ahead.shift()! : this.read();
+    if (this.aheadAt >= this.ahead.length) return this.read();
+    const token = this.ahead[this.aheadAt++]!;
+    if (this.aheadAt === this.ahead.length) {
+      this.ahead.length = 0;
+      this.aheadAt = 0;
+    }
+    return token;
   }
 
   /** The token `ahead` places along, without consuming anything. */
   peek(ahead = 0): Token {
-    while (this.ahead.length <= ahead) this.ahead.push(this.read());
-    return this.ahead[ahead]!;
+    while (this.ahead.length - this.aheadAt <= ahead) this.ahead.push(this.read());
+    return this.ahead[this.aheadAt + ahead]!;
   }
 
   /** Whether everything but the `end` token has been read. */

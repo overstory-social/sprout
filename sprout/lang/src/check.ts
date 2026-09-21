@@ -587,10 +587,17 @@ function effectCall(
   // per actor and written through `remember`, so a `set` that reached it
   // would write one object's idea of everybody at once.
   if (property.remembered) {
+    // `adjust` has its own memory reading, and it is the one that keeps
+    // what the author wrote: stepping by one is not overwriting with
+    // one, so sending them to `remember` would trade the meaning.
+    const memory =
+      method.text === 'adjust'
+        ? `Step it on the actor, as in \`actor.adjust(:${named.text}, …)\`.`
+        : `Write it with \`remember\`, as in \`actor.remember(:${named.text}, …)\`.`;
     context.diagnostics.refuse(
       named.at,
       `\`:${named.text}\` is remembered about each actor, not held by the object.`,
-      `Write it with \`remember\`, as in \`actor.remember(:${named.text}, …)\`.`,
+      memory,
     );
     return null;
   }

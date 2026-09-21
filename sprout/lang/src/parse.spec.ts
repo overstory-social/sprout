@@ -1307,12 +1307,75 @@ message :b with ${deep}Ward
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
   });
 
+  it('walks past a word that only looks like a declaration inside it', () => {
+    // Nothing reserves `message` or `enum`, so `[message foo]` is a
+    // list of two things. A skip that stopped at one left the real
+    // closers behind — which is the stray-closer bug the skip exists
+    // to prevent, reintroduced by its own guard.
+    const trap = '['.repeat(nesting + 1) + 'message foo' + ']'.repeat(nesting + 1);
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${trap}, c: 3]`),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+
+    // And at file scope it must not invent a declaration out of the
+    // trapped word: `A message needs a name.` about content the author
+    // never wrote as one is worse than saying nothing.
+    const atFile = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile('k.sprout', `message :first with ${trap}\nmessage :second\n`),
+      atFile,
+    );
+    expect(declared.map((d) => d.name.text)).toEqual(['second']);
+    expect(atFile.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+  });
+
+  it('takes nothing at all where the closer was never written', () => {
+    // The skip looks for its closer before consuming anything, so a
+    // bracket that was never closed does not take the rest of the file
+    // with it — which is how a second declaration used to vanish.
+    const diagnostics = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile(
+        'k.sprout',
+        `message :a with ${'['.repeat(nesting + 2)}Ward\nmessage :b with ${'['.repeat(nesting + 2)}Ward\n`,
+      ),
+      diagnostics,
+    );
+    expect(declared).toHaveLength(0);
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(2);
+  });
+
+  it('names what the author actually wrote too much of', () => {
+    const brackets = readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1));
+    expect(brackets.refusals[0]!.remedy).toContain('brackets');
+    // A wall of signs has no bracket in it.
+    const signs = readExpression('!'.repeat(nesting + 1) + 'a');
+    expect(signs.refusals[0]!.remedy).toContain('signs');
+  });
+
   it('never throws, however deep or however long', () => {
     // `parseExpression` directly, not `readExpression`: `shape()` above
     // walks the tree by recursion, and a chain of fifty thousand terms
     // overflows the SPEC rather than the parser. Which is its own small
     // lesson — the suite has to be the thing under test, not the thing
     // that fails first.
+    //
+    // This also guards SPEED, not only throwing, and the guard is the
+    // test timeout rather than an assertion. Stepping over a construct
+    // the cap refused looks ahead for its closing bracket, which fills
+    // the lexer's buffer; draining that buffer one `shift()` at a time
+    // was quadratic and took this test from a millisecond to fifty-two
+    // seconds. Do not raise the timeout to make this pass.
     for (const text of [
       '('.repeat(50_000) + 'a' + ')'.repeat(50_000),
       Array(50_000).fill('a').join(' + '),

@@ -354,6 +354,25 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(effect('actor.remember(:visits, 5)', bodyOf(PRINTER))).toBe(true);
   });
 
+  it('sends `adjust` to `adjust`, not to `remember`, which would lose the step', () => {
+    // Stepping by one is not overwriting with one. An author who
+    // follows the remedy literally must end up with what they asked
+    // for, so only `adjust` is told to step it on the actor.
+    const stepping = bodyOf(PRINTER);
+    expect(effect('self.adjust(:visits, 1)', stepping)).toBe(false);
+    expect(saidBy(stepping).join(' ')).toContain('actor.adjust(:visits');
+    // The remedy, not the message — which says "remembered about each
+    // actor" and so contains the word either way.
+    expect(stepping.diagnostics.refusals[0]!.remedy).not.toContain('remember');
+
+    const writing = bodyOf(PRINTER);
+    expect(effect('self.set(:visits, 1)', writing)).toBe(false);
+    expect(saidBy(writing).join(' ')).toContain('actor.remember(:visits');
+
+    // The reading it points at is the one that works.
+    expect(effect('actor.adjust(:visits, 1)', bodyOf(PRINTER))).toBe(true);
+  });
+
   it('`get` does not read memory, and says which word does', () => {
     const context = bodyOf(PRINTER);
     expect(read('self.get(:visits)', context).type).toBeNull();

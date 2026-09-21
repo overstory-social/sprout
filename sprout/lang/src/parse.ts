@@ -214,9 +214,9 @@ class Parser {
   }
 
   /** One deeper, or a refusal that the host's nesting cap is reached. */
-  private deeper(at: Span): boolean {
+  private deeper(at: Span, remedy = 'Take some of the brackets out.'): boolean {
     if (this.depth + 1 > this.caps.nesting) {
-      this.reportCap(at, 'Take some of the brackets out.');
+      this.reportCap(at, remedy);
       return false;
     }
     this.depth += 1;
@@ -233,17 +233,27 @@ class Parser {
    */
   private skipBracketed(close: string): void {
     const open = OPENER_OF.get(close)!;
+    // Find the closer BEFORE taking anything. Two failures this avoids,
+    // and the first version of this walked into both: a bracket that
+    // was never closed takes the rest of the file with it, including
+    // declarations that have nothing to do with this one; and a guard
+    // that stops the skip early — on a declaration keyword, say —
+    // leaves the real closers behind, which is the stray-closer bug
+    // this helper exists to prevent. Nothing reserves `message` as a
+    // word, so `[message foo]` is a list of two things and the skip
+    // must walk straight past it.
     let depth = 1;
-    while (!this.done && depth > 0) {
-      // A closer that was never written would otherwise take the rest
-      // of the file with it, including declarations that have nothing
-      // to do with this one. A declaration keyword ends the skip.
-      if (this.atDeclarationKeyword()) return;
-      const token = this.next();
-      if (token.kind !== 'punct') continue;
-      if (token.text === open) depth += 1;
-      else if (token.text === close) depth -= 1;
+    let ahead = 0;
+    for (;;) {
+      const token = this.peek(ahead);
+      if (token.kind === 'end') return; // never closed: take nothing
+      if (token.kind === 'punct') {
+        if (token.text === open) depth += 1;
+        else if (token.text === close && --depth === 0) break;
+      }
+      ahead += 1;
     }
+    for (let i = 0; i <= ahead; i++) this.next();
   }
 
   /** The nesting cap, said once per declaration and refused in silence after. */
@@ -894,7 +904,10 @@ class Parser {
       // bracketed level a fresh allowance of signs on top of the
       // shared one, so eight parentheses each holding eight `!` would
       // nest sixty-four deep under a cap of eight.
-      if (!this.deeper(token.at)) {
+      // Its own remedy: a wall of signs has no bracket in it, and
+      // telling the author to take some brackets out names something
+      // they did not write.
+      if (!this.deeper(token.at, 'Take some of the signs out.')) {
         refused = true;
         break;
       }
