@@ -229,6 +229,9 @@ Found while building property and message declarations (B06, B07):
 - **Whether a list may hold a list.** A list is "a bounded, ordered collection of one element type", and nothing says whether that element type may itself be a list. `[[Ward]]` is refused, which is the narrow reading.
 - **Where an integer's range may be written.** The spec shows only `:wear 0 min 0 max 99` — the literal form, min before max. Both bounds are accepted with a written type as well, each is optional on its own, and they may be written in either order, none of which the spec forbids.
 
+- **Whether an enum's options are reserved words.** *Reserved names* reserves engine message names, engine verb names and the member words, and says nothing about an enum's options — so `enum Setting { boolean, custom }` is legal. But `boolean`, `integer`, `string` and `object` are read as types wherever a type may be written, so `:x boolean` meant as "default to the option" is refused. Writing the type out (`:x Setting default boolean`) works, so nothing is unreachable; the four words are simply not usable in the type-from-the-literal shorthand. Left as is rather than reserving them, because reserving words the spec does not is the larger change.
+- **Whether a type can be taken from a list literal.** It cannot, for any list — not only an ambiguous one. `[]` says nothing about what it would hold, and a rule that infers from `[true, false]` and not from `[]` would be a rule an author has to remember the edge of. A list property writes its element type.
+
 One asymmetry worth writing down, since it is consistent in the spec and easy to get backwards: a symbol is written BARE in a declaration (`default wet`, `:ward iron`) and with a colon in an expression (`state == :wet`, `self.set(:cuff, :damp)`).
 
 Found while building strict publish and lenient load (B04):

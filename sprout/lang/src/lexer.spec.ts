@@ -276,3 +276,34 @@ describe('the spec worked example reads as tokens', () => {
     expect(locationOf(season.at)).toBe('world.sprout:5:3');
   });
 });
+
+describe('the lexer remembers the characters it stepped over', () => {
+  it('says a character was refused in a gap it left behind', () => {
+    const source = new SourceFile('kiln.sprout', 'oak % silver');
+    const lexer = new Lexer(source, new Diagnostics());
+    while (!lexer.done) lexer.next();
+    expect(lexer.refusedBetween(3, 6)).toBe(true);
+  });
+
+  it('says nothing about a gap that holds only spaces', () => {
+    const source = new SourceFile('kiln.sprout', 'oak   silver');
+    const lexer = new Lexer(source, new Diagnostics());
+    while (!lexer.done) lexer.next();
+    expect(lexer.refusedBetween(3, 6)).toBe(false);
+  });
+
+  it('answers about the gap it was asked about and no other', () => {
+    const source = new SourceFile('kiln.sprout', 'a % b c');
+    const lexer = new Lexer(source, new Diagnostics());
+    while (!lexer.done) lexer.next();
+    expect(lexer.refusedBetween(1, 4)).toBe(true);
+    expect(lexer.refusedBetween(4, 7)).toBe(false);
+  });
+
+  it('knows nothing until the characters have actually been read', () => {
+    const lexer = new Lexer(new SourceFile('kiln.sprout', 'a % b'), new Diagnostics());
+    expect(lexer.refusedBetween(0, 5)).toBe(false);
+    while (!lexer.done) lexer.next();
+    expect(lexer.refusedBetween(0, 5)).toBe(true);
+  });
+});

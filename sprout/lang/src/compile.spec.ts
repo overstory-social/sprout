@@ -82,7 +82,9 @@ describe('the first tier reads one file alone, for its shape', () => {
 
   it('names the line and column of what it refuses', () => {
     const { diagnostics } = checkShape(file('ward.sprout', 'enum Ward {\n  oak % silver\n}'));
-    expect(diagnostics.length).toBeGreaterThan(0);
+    // Exactly one: the lexer steps the character over and the parser
+    // does not report the gap it left as a missing comma.
+    expect(diagnostics).toHaveLength(1);
     expect(locationOf(diagnostics[0]!.at)).toBe('ward.sprout:2:7');
   });
 

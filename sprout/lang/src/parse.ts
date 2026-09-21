@@ -100,6 +100,21 @@ class Parser {
     return { kind: 'ident', at: token.at, text: token.text };
   }
 
+  /** Whether the next token begins a declaration, which inside a body means a brace was forgotten. */
+  private atDeclarationKeyword(): boolean {
+    const token = this.peek();
+    return token.kind === 'name' && (DECLARATIONS as readonly string[]).includes(token.text);
+  }
+
+  /**
+   * Whether the lexer already refused something in the gap since
+   * `after`. When it did, the author has the real message and a
+   * "needs a comma" here would be the same mistake said twice.
+   */
+  private gapRefused(after: number): boolean {
+    return this.lexer.refusedBetween(after, this.peek().at.start);
+  }
+
   /** Step over everything up to the next thing that could start a declaration. */
   private recover(): void {
     while (!this.done) {
@@ -193,6 +208,17 @@ class Parser {
         this.next();
         break;
       }
+      if (this.atDeclarationKeyword()) {
+        // `enum` or `message` here is the next declaration, not an
+        // option. Reading it as one swallows that declaration whole.
+        this.diagnostics.refuse(
+          this.peek().at,
+          `\`${name.text}\` is never closed.`,
+          'Add a } after its options.',
+        );
+        refused = true;
+        break;
+      }
       const word = this.take('name');
       if (word === null) {
         const wrong = this.peek();
@@ -208,7 +234,9 @@ class Parser {
       options.push({ kind: 'option', at: word.at, name: this.ident(word) });
 
       if (this.done) continue; // the top of the loop says what an unclosed enum is
+      if (this.atDeclarationKeyword()) continue; // and what a forgotten brace is
       if (this.at('punct', '}')) continue;
+      if (this.gapRefused(word.at.end)) continue; // the lexer already said what is wrong here
       if (this.take('punct', ',') !== null) {
         if (this.at('punct', '}')) {
           this.diagnostics.refuse(
@@ -377,6 +405,7 @@ class Parser {
         elements.push(element);
         if (this.done) continue; // the top of the loop says what an unclosed list is
         if (this.at('punct', ']')) continue;
+        if (this.gapRefused(element.at.end)) continue;
         if (this.take('punct', ',') !== null) continue;
         this.diagnostics.refuse(
           this.here(),
@@ -399,8 +428,9 @@ class Parser {
    * an optional type, then a default, then an optional integer range.
    */
   private propertyBody(name: Ident, from: Span): PropertyDeclaration | null {
-    const type = this.atType() ? this.typeExpr() : null;
-    if (this.atType() && type === null) return null;
+    const wantedType = this.atType();
+    const type = wantedType ? this.typeExpr() : null;
+    if (wantedType && type === null) return null;
 
     let value: Literal | null = null;
     if (type === null) {
@@ -519,6 +549,7 @@ class Parser {
       properties.push(declared);
       if (this.done) continue; // the top of the loop says what an unclosed one is
       if (this.at('punct', ']')) continue;
+      if (this.gapRefused(declared.at.end)) continue;
       if (this.take('punct', ',') !== null) continue;
       this.diagnostics.refuse(
         this.here(),

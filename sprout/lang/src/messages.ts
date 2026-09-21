@@ -57,7 +57,6 @@ export class MessageTable {
       if (declared.carries !== null) {
         carries = resolveType(declared.carries, enums, library, diagnostics);
         if (carries === null) continue;
-        if (carries.type === 'object') continue; // resolveType has already refused it
       }
       this.byQualified.set(key, {
         library,

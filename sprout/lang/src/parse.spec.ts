@@ -422,3 +422,87 @@ describe('a :remembers, as an object writes one', () => {
     }
   });
 });
+
+describe('a forgotten brace does not eat the declaration after it', () => {
+  it('names the unclosed enum and keeps the sibling that follows', () => {
+    const { declarations, refusals } = read('enum Ward {\n  oak\nenum Two { a, b }\n');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+    expect(declarations.map((d) => (d as EnumDeclaration).name.text)).toEqual(['Ward', 'Two']);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
+  });
+
+  it('does the same for a message after it', () => {
+    const { declarations, refusals } = read('enum Ward {\n  oak\nmessage :stir\n');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+    expect(declarations.map((d) => d.kind)).toEqual(['enum', 'message']);
+  });
+
+  it('never reads a declaration keyword as an option', () => {
+    for (const word of DECLARATIONS) {
+      const { declarations } = read(`enum Ward {\n  oak\n${word} `);
+      expect(optionsOf(declarations[0] as EnumDeclaration), word).toEqual(['oak']);
+    }
+  });
+
+  it('points at the keyword, which is where the brace should have been', () => {
+    const { refusals } = read('enum Ward {\n  oak\nenum Two { a }\n');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:3:1');
+  });
+
+  it('says it once, not once per option it had already read', () => {
+    const { refusals } = read('enum Ward {\n  oak, silver, brass\nenum Two { a }\n');
+    expect(refusals).toHaveLength(1);
+  });
+});
+
+describe('a character the lexer stepped over is not reported again as a missing separator', () => {
+  it('says only what the lexer said, inside an enum', () => {
+    const { refusals } = read('enum Ward {\n  oak % silver\n}');
+    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+  });
+
+  it('says only what the lexer said, inside a list', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':a [Ward] default [oak % silver]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+  });
+
+  it('says only what the lexer said, inside a :remembers', () => {
+    const diagnostics = new Diagnostics();
+    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 % b: 1]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+  });
+
+  it('still reports a comma an author really did forget', () => {
+    const { refusals } = read('enum Ward { oak silver }');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` needs a comma between its options.']);
+  });
+});
+
+describe('a type that failed to parse is not mistaken for no type at all', () => {
+  const declare = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(new SourceFile('kiln.sprout', text), diagnostics);
+    return { declared, refusals: diagnostics.refusals };
+  };
+
+  it('gives back nothing, having already said what was wrong', () => {
+    const { declared, refusals } = declare(':opens [Ward default oak');
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toEqual(['A list type is never closed.']);
+  });
+
+  it('does not swallow the `default` keyword as a value', () => {
+    const { declared, refusals } = declare(':x sprout.lower default true');
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toEqual(['`sprout.` is not followed by a name.']);
+  });
+
+  it('still reads a property whose type is genuinely left out', () => {
+    expect(declare(':lit false').declared!.type).toBeNull();
+  });
+});
