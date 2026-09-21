@@ -944,21 +944,34 @@ describe('#60 — the shape every round of bugs here has turned on, enumerated',
   // The random generator above reaches nesting depth two in about one
   // input in forty, which is thin cover for the one shape that has
   // produced a bug in all four rounds on this file: brackets inside
-  // brackets, with something unreadable at the bottom, closed or not.
-  // So that shape is enumerated rather than sampled.
-  // Each of these is something that cannot be a value. `enum` is not
-  // among them on purpose: nothing reserves an option's name, so
-  // `:x [enum]` is a legal list holding one option.
+  // brackets, something unreadable at the bottom, closed or not. So
+  // that shape is enumerated rather than sampled.
+  //
+  // Every level opens with a lower-case element, which is not
+  // decoration. `atType()` skips past every leading `[` before deciding
+  // whether what is underneath looks like a type, so `:x [[[Zeta` is
+  // read as an attempted list TYPE and never reaches the recovery this
+  // suite is about. A lower-case element at the head of each level is
+  // what makes the brackets values — and it is what the historical bugs
+  // looked like: `:x [oak,[Zeta`, `:x [oak, [oak2, [Zeta`.
+  //
+  // `enum` is not among the unreadable tokens on purpose: nothing
+  // reserves an option's name, so `[enum]` is a legal list holding one
+  // option and says nothing.
   const BAD = ['Zeta', '{', '}', ':a', '1.5', '%'];
+
+  /** The vocabulary of the type path, which these shapes must never reach. */
+  const TYPE_PATH = 'list type';
 
   function* shapes(): Generator<{ text: string; what: string }> {
     for (let depth = 1; depth <= 6; depth++) {
-      const open = '['.repeat(depth);
+      const open = Array.from({ length: depth }, (_, i) => `[oak${i}, `).join('');
+      const close = ']'.repeat(depth);
       for (const bad of BAD) {
         for (const [tail, what] of [
           ['', 'unclosed'],
-          [']'.repeat(depth), 'closed'],
-          [`, oak${']'.repeat(depth)}`, 'closed with a good neighbour'],
+          [close, 'closed'],
+          [`, last${close}`, 'closed with a good neighbour'],
         ] as const) {
           yield { text: `:x ${open}${bad}${tail}`, what: `depth ${depth}, ${bad}, ${what}` };
           yield {
@@ -970,10 +983,37 @@ describe('#60 — the shape every round of bugs here has turned on, enumerated',
     }
   }
 
+  const readings = (text: string): { property: string[]; remembers: string[] } => {
+    const property = new Diagnostics();
+    const remembers = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', text), property);
+    parseRemembers(new SourceFile('k.sprout', text), remembers);
+    return {
+      property: property.all.map((d) => d.message),
+      remembers: remembers.all.map((d) => d.message),
+    };
+  };
+
+  it('actually reaches the recovery it is about, for every shape in it', () => {
+    // The check that keeps this suite from passing while covering
+    // nothing — which is what it did on its first draft, and what two
+    // fuzzing setups did before it.
+    let reached = 0;
+    for (const { text, what } of shapes()) {
+      const said = readings(text);
+      const both = [...said.property, ...said.remembers];
+      expect(
+        both.some((m) => m.includes(TYPE_PATH)),
+        `${what}: ${text} went to the type path`,
+      ).toBe(false);
+      expect(both.length, `${what}: ${text} said nothing`).toBeGreaterThan(0);
+      reached += 1;
+    }
+    expect(reached).toBe(6 * BAD.length * 3 * 2);
+  });
+
   it('says nothing twice in one place, at any depth', () => {
     for (const { text, what } of shapes()) {
-      // One collector per read: two independent reads of the same text
-      // saying the same thing is the suite's doing, not the parser's.
       for (const read of [parseProperty, parseRemembers]) {
         const diagnostics = new Diagnostics();
         read(new SourceFile('k.sprout', text), diagnostics);
@@ -989,21 +1029,21 @@ describe('#60 — the shape every round of bugs here has turned on, enumerated',
 
   it('says "never closed" at most once, however deep the brackets go', () => {
     for (const { text, what } of shapes()) {
-      const diagnostics = new Diagnostics();
-      parseProperty(new SourceFile('k.sprout', text), diagnostics);
-      const unclosed = diagnostics.all.filter((d) => d.message.includes('never closed'));
+      const said = readings(text).property;
+      const unclosed = said.filter((m) => m.includes('never closed'));
       expect(unclosed.length, `${what}: ${text}`).toBeLessThanOrEqual(1);
     }
   });
 
-  it('always says something, and never throws', () => {
-    for (const { text, what } of shapes()) {
-      const diagnostics = new Diagnostics();
-      expect(
-        () => parseProperty(new SourceFile('k.sprout', text), diagnostics),
-        what,
-      ).not.toThrow();
-      expect(diagnostics.all.length, `${what}: ${text} said nothing`).toBeGreaterThan(0);
+  it('keeps the well-formed neighbour that follows the unreadable one', () => {
+    for (let depth = 1; depth <= 4; depth++) {
+      const open = Array.from({ length: depth }, (_, i) => `[oak${i}, `).join('');
+      for (const bad of BAD) {
+        const text = `:x ${open}${bad}, last${']'.repeat(depth)}`;
+        const diagnostics = new Diagnostics();
+        const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        expect(declared, `${text} gave back nothing`).not.toBeNull();
+      }
     }
   });
 });
