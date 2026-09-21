@@ -32,6 +32,7 @@ import type {
   BinaryOperator,
   Declaration,
   Expr,
+  LetStatement,
   EnumDeclaration,
   EnumOption,
   Ident,
@@ -1141,6 +1142,53 @@ class Parser {
     }
   }
 
+  /**
+   * `let ribs = tools.count(Rib)`. The name is lower-case like every
+   * other binding, and there is no type to write: a `let` takes its
+   * type from what it names, exactly.
+   */
+  letStatement(): LetStatement | null {
+    const keyword = this.take('name', 'let');
+    if (keyword === null) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        `${this.describe(this.peek())} does not name a value.`,
+        'Write `let <name> = <what it names>`.',
+      );
+      return null;
+    }
+    const name = this.take('name');
+    if (name === null) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        this.peek().kind === 'kind'
+          ? `A name for a value starts with a small letter, and \`${this.peek().text}\` starts with a capital.`
+          : 'A `let` needs a name.',
+        'Write `let <name> = <what it names>`, as in `let ribs = tools.count(Rib)`.',
+      );
+      return null;
+    }
+    if (this.at('punct', ':')) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        'A `let` takes its type from what it names, so there is none to write.',
+        `Write \`let ${name.text} = <what it names>\`.`,
+      );
+      return null;
+    }
+    if (this.take('punct', '=') === null) {
+      this.diagnostics.refuse(
+        this.here(),
+        `\`${name.text}\` is not given anything to name.`,
+        `Write \`let ${name.text} = <what it names>\`.`,
+      );
+      return null;
+    }
+    const value = this.expression();
+    if (value === null) return null;
+    return { kind: 'let', at: spanning(keyword.at, value.at), name: this.ident(name), value };
+  }
+
   private describe(token: Token): string {
     switch (token.kind) {
       case 'kind':
@@ -1179,6 +1227,19 @@ export function parseProperty(
   caps?: StaticCaps,
 ): PropertyDeclaration | null {
   return new Parser(source, diagnostics, caps).property();
+}
+
+/**
+ * One `let`, read on its own. A `let` is written inside a body, and no
+ * body exists yet (B24 onward), so this is how B11 is exercised and how
+ * those items will read one.
+ */
+export function parseLet(
+  source: SourceFile,
+  diagnostics: Diagnostics,
+  caps?: StaticCaps,
+): LetStatement | null {
+  return new Parser(source, diagnostics, caps).letStatement();
 }
 
 /**

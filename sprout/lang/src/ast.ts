@@ -231,5 +231,18 @@ export type Expr =
   | CallExpr
   | FreeCallExpr;
 
+/**
+ * `let ribs = tools.count(Rib)` — a name for the result of an
+ * expression, for the rest of its block. Written once and never again;
+ * there is no reassignment, so a name means one thing everywhere it is
+ * in scope. Its type is the expression's, exactly, so nothing is
+ * annotated and the node carries no type.
+ */
+export interface LetStatement extends Node {
+  readonly kind: 'let';
+  readonly name: Ident;
+  readonly value: Expr;
+}
+
 /** Everything that can be written at the top of a file. The union grows per item. */
 export type Declaration = EnumDeclaration | MessageDeclaration;

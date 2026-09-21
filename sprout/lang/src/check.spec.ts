@@ -18,6 +18,7 @@ import {
   ACTOR,
   checkCondition,
   checkEffect,
+  checkLet,
   narrowingOf,
   typeOf,
   type CheckContext,
@@ -25,7 +26,7 @@ import {
 } from './check.js';
 import { Diagnostics } from './diagnostics.js';
 import { EnumTable } from './enums.js';
-import { parseDeclarations, parseExpression, parseProperty } from './parse.js';
+import { parseDeclarations, parseExpression, parseLet, parseProperty } from './parse.js';
 import { resolveProperty, type ResolvedProperty } from './properties.js';
 import { locationOf, SourceFile } from './source.js';
 import { integer } from './types.js';
@@ -647,3 +648,86 @@ function effectSaid(text: string, context: CheckContext): { ok: boolean; message
     messages: context.diagnostics.all.map((d) => `${d.message} ${d.remedy ?? ''}`.trim()),
   };
 }
+
+// --- `let` (B11) ----------------------------------------------------------
+
+/** Read a `let` and bring it into scope, or say why it does not come. */
+function named(text: string, context: CheckContext) {
+  const parsing = new Diagnostics();
+  const statement = parseLet(new SourceFile('b.sprout', text), parsing);
+  expect(
+    parsing.refusals.map((d) => d.message),
+    `\`${text}\` did not parse`,
+  ).toEqual([]);
+  const binding = checkLet(statement!, context);
+  return { binding, shown: binding === null ? null : showBindingType(binding.type) };
+}
+
+describe('`let` names a value', () => {
+  it('reads the spec’s own example, in a body that has what it needs', () => {
+    const context = vessel();
+    expect(named('let ribs = tools.count(Rib)', context).shown).toBe('integer');
+    expect(named('let state = self.get(:inked)', context).shown).toBe('boolean');
+    expect(context.scope.lookup('ribs')!.origin).toBe('let');
+  });
+
+  it('takes the expression’s type EXACTLY, widening nothing', () => {
+    // An integer 0 to 9 stays an integer 0 to 9: there is nothing
+    // annotated, so there is nothing to widen towards.
+    expect(named('let room = self.get(:capacity)', vessel()).shown).toBe('integer 0 to 9');
+    expect(named('let opens = tool.get(:opens)', warded()).shown).toBe('[Ward]');
+  });
+
+  it('may name a thing in the world, at the kind it was known by', () => {
+    expect(named('let it = target', vessel()).shown).toBe('an object');
+    expect(named('let key = tool', warded()).shown).toBe('shop.Key');
+  });
+
+  it('names a thing narrowed by `is()` at the kind it was narrowed to', () => {
+    const context = vessel();
+    const expr = parseExpression(new SourceFile('b.sprout', 'target.is(Key)'), new Diagnostics());
+    const narrowing = narrowingOf(expr!, context)!;
+    const branch = context.scope.narrowing(narrowing.binding, narrowing.kind);
+    const inside: CheckContext = { ...context, scope: branch, diagnostics: new Diagnostics() };
+    expect(named('let it = target', inside).shown).toBe('shop.Key');
+  });
+
+  it('is written once and never again', () => {
+    // There is no reassignment anywhere in the language, so the only
+    // way to write a name twice is to `let` it twice.
+    const context = vessel();
+    expect(named('let n = 1', context).shown).toBe('integer');
+    expect(named('let n = 2', context).binding).toBeNull();
+    expect(saidBy(context).join(' ')).toContain('`n` already names a name for a value');
+    // And the first one still means what it did.
+    expect(context.scope.lookup('n')!.origin).toBe('let');
+  });
+
+  it('may not take the name of a role, a loop variable, or anything else in scope', () => {
+    for (const [text, first] of [
+      ['let tools = 1', "this verb's role"],
+      ['let self = 1', 'the role-player'],
+      ['let actor = 1', 'whoever is acting'],
+      ['let here = 1', "the actor's place"],
+    ] as const) {
+      const context = vessel();
+      expect(named(text, context).binding, text).toBeNull();
+      expect(saidBy(context).join(' '), text).toContain(first);
+    }
+  });
+
+  it('cannot name something that changes the world, because an initializer is an expression', () => {
+    const context = vessel();
+    expect(named('let x = self.set(:inked, true)', context).binding).toBeNull();
+    expect(saidBy(context).join(' ')).toContain('it is not a value');
+    // And the name does not come into scope after a refusal.
+    expect(context.scope.lookup('x')).toBeNull();
+  });
+
+  it('cannot name something that is not there', () => {
+    const context = vessel();
+    expect(named('let x = nothing_at_all', context).binding).toBeNull();
+    expect(saidBy(context).join(' ')).toContain('Nothing here is called `nothing_at_all`');
+    expect(context.scope.lookup('x')).toBeNull();
+  });
+});

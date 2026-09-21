@@ -269,6 +269,17 @@ Found while building lists (B10):
 - **The `listElements` cap does two things, and the table names one.** The limits table has it as a cap whose breach is a *refusal*, which is what a written list too long for it gets. But *Lists* also says "adding a new one to a full list is a fault rather than a silent drop" — the same number, the other side of the compile/run line. Both are enforced: the parser refuses a literal past it, and the value faults. Nothing in the spec is wrong; the table just describes the compile half, and a reader could take it for the whole.
 - **Whether a list may hold what a full one was asked to hold.** Nothing says what happens when a full list is added to with something it ALREADY holds. Taken as: nothing, the same as any other `add` of a held element, because the list does not change and there is nothing to drop. The fault is for growing past the bound, not for touching a full list.
 
+Found while building `let` (B11):
+
+- **Whether a `let` may be annotated.** *"Its type is the expression's, exactly, so nothing is annotated"* says there is nothing to write, not that writing one is refused. `let n: integer = 1` is refused, saying that a `let` takes its type from what it names — the narrow reading, and the one that keeps a second way of spelling a type out of the language.
+- **What a `let` may be called.** Nothing says whether the name follows the same rule as every other binding. It does: a lower-case word, so `let Ward = …` is refused for the same reason a kind cannot be a binding. The alternative would make a name's case stop telling a reader what kind of thing it is.
+
+Three parts of this item have nowhere to land yet, and are recorded so that the items which build those places know they inherit them:
+
+- **Where a `let` may be written.** *"Allowed everywhere an expression is"* — a role's `permit` and `do`, handlers, hooks, consent guards and `describe` — and **not in a passage**. None of those exist: a body is B24's and a passage is B29's, and each has to enforce it where it reads one.
+- **`let x = spawn …`**, whose initializer is a statement rather than an expression, and which is allowed only where `spawn` is. B18 adds `spawn`; until then there is nothing to name that way, and `parseLet` reads an expression only.
+- **What a `let` costs.** *"One `let` costs fewer steps than the reads it replaces"* is a claim about the step budget, which B34 counts. Nothing here charges anything.
+
 Found while building strict publish and lenient load (B04):
 
 - **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)
