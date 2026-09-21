@@ -277,33 +277,33 @@ describe('the spec worked example reads as tokens', () => {
   });
 });
 
-describe('the lexer remembers the characters it stepped over', () => {
-  it('says a character was refused in a gap it left behind', () => {
-    const source = new SourceFile('kiln.sprout', 'oak % silver');
-    const lexer = new Lexer(source, new Diagnostics());
-    while (!lexer.done) lexer.next();
-    expect(lexer.refusedBetween(3, 6)).toBe(true);
+describe('a token says whether a character was refused just before it', () => {
+  const read = (text: string) => tokenise(new SourceFile('kiln.sprout', text), new Diagnostics());
+
+  it('marks the token after a character it stepped over', () => {
+    const tokens = read('oak % silver');
+    expect(tokens.map((t) => `${t.text}:${t.afterRefusal}`)).toEqual([
+      'oak:false',
+      'silver:true',
+      ':false',
+    ]);
   });
 
-  it('says nothing about a gap that holds only spaces', () => {
-    const source = new SourceFile('kiln.sprout', 'oak   silver');
-    const lexer = new Lexer(source, new Diagnostics());
-    while (!lexer.done) lexer.next();
-    expect(lexer.refusedBetween(3, 6)).toBe(false);
+  it('marks nothing when the gap holds only spaces', () => {
+    expect(read('oak   silver').every((t) => !t.afterRefusal)).toBe(true);
   });
 
-  it('answers about the gap it was asked about and no other', () => {
-    const source = new SourceFile('kiln.sprout', 'a % b c');
-    const lexer = new Lexer(source, new Diagnostics());
-    while (!lexer.done) lexer.next();
-    expect(lexer.refusedBetween(1, 4)).toBe(true);
-    expect(lexer.refusedBetween(4, 7)).toBe(false);
+  it('marks only the token that follows the character, not the ones after that', () => {
+    expect(read('a % b c').map((t) => t.afterRefusal)).toEqual([false, true, false, false]);
   });
 
-  it('knows nothing until the characters have actually been read', () => {
-    const lexer = new Lexer(new SourceFile('kiln.sprout', 'a % b'), new Diagnostics());
-    expect(lexer.refusedBetween(0, 5)).toBe(false);
-    while (!lexer.done) lexer.next();
-    expect(lexer.refusedBetween(0, 5)).toBe(true);
+  it('marks the end token when the file ends on a refused character', () => {
+    const tokens = read('a %');
+    expect(tokens.at(-1)!.kind).toBe('end');
+    expect(tokens.at(-1)!.afterRefusal).toBe(true);
+  });
+
+  it('marks once for a run of refused characters, since it is one gap', () => {
+    expect(read('a %%% b').map((t) => t.afterRefusal)).toEqual([false, true, false]);
   });
 });

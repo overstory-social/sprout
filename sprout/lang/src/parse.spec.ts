@@ -5,6 +5,7 @@ import { Diagnostics, type Diagnostic } from './diagnostics.js';
 import { unspanned } from './nodes.js';
 import { DECLARATIONS, parseDeclarations, parseProperty, parseRemembers } from './parse.js';
 import { locationOf, SourceFile, textOf } from './source.js';
+import { DEFAULT_LIMITS } from './limits.js';
 
 function read(text: string, name = 'ward.sprout') {
   const diagnostics = new Diagnostics();
@@ -437,11 +438,20 @@ describe('a forgotten brace does not eat the declaration after it', () => {
     expect(declarations.map((d) => d.kind)).toEqual(['enum', 'message']);
   });
 
-  it('never reads a declaration keyword as an option', () => {
+  it('reads a declaration keyword as one wherever its own name follows it', () => {
     for (const word of DECLARATIONS) {
-      const { declarations } = read(`enum Ward {\n  oak\n${word} `);
+      const { declarations } = read(`enum Ward {\n  oak\n${word} Two { a }`);
       expect(optionsOf(declarations[0] as EnumDeclaration), word).toEqual(['oak']);
     }
+  });
+
+  it('reads one at the very end of the file as an option, not as a declaration', () => {
+    // The file stops: the author's one mistake is the missing brace.
+    // Treating the word as a declaration they started would refuse them
+    // twice, once for the brace and once for a name they never wrote.
+    const { declarations, refusals } = read('enum Ward { oak, message');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message']);
   });
 
   it('points at the keyword, which is where the brace should have been', () => {
@@ -601,5 +611,157 @@ describe('a stepped-over character beside a separator that is, or is not, there'
       'Sprout does not use the character "%".',
     ]);
     expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
+  });
+});
+
+// #59: a structural pass over this file's recovery, after five bugs in
+// three rounds on PR #58. Each case below is one finding from it, and
+// each is an input where the parser used to say something that was not
+// the author's mistake, eat a declaration, or throw.
+
+describe('#59 — one mistake is said once, and said truly', () => {
+  const only = (text: string): string[] => read(text).refusals.map((d) => d.message);
+
+  it('does not stop recovery on a word that merely spells a keyword', () => {
+    // `recover()` matched the word by spelling where every other stop
+    // rule asked `atDeclarationKeyword()`, so it halted on an option.
+    expect(only('enum { message, silver }')).toEqual(['An enum needs a name.']);
+    expect(only('enum { enum, silver }')).toEqual(['An enum needs a name.']);
+  });
+
+  it('says a truncated enum is unclosed, and not that it has no options', () => {
+    expect(only('enum Ward {')).toEqual(['`Ward` is never closed.']);
+    expect(only('enum Ward {\n')).toEqual(['`Ward` is never closed.']);
+  });
+
+  it('does not charge a token that cannot be an option as a missing comma too', () => {
+    expect(only('enum Ward { oak 4 }')).toEqual(['`Ward` cannot hold the number 4.']);
+    expect(only('enum Ward { oak Silver }')).toEqual([
+      '`Ward` cannot hold `Silver`, which starts with a capital.',
+    ]);
+  });
+
+  it('says an enum is unclosed even when a bad option sent it into recovery', () => {
+    expect(only('enum Ward { oak, 4')).toEqual([
+      '`Ward` cannot hold the number 4.',
+      '`Ward` is never closed.',
+    ]);
+  });
+
+  it('does not read a built-in type word followed by a dot as a library', () => {
+    const { declarations, refusals } = read('message :n2 with boolean\n. message :n3 with boolean');
+    expect(refusals.map((d) => d.message)).toEqual([
+      'Sprout does not know what to do with "." here.',
+    ]);
+    expect(declarations.map((d) => (d as { name: { text: string } }).name.text)).toEqual([
+      'n2',
+      'n3',
+    ]);
+  });
+
+  it('does not promote what is nested inside an unmatched brace to the top of the file', () => {
+    const { declarations, refusals } = read('enum Ward { 4 { message :x } }');
+    expect(refusals).toHaveLength(1);
+    expect(declarations).toEqual([]);
+  });
+
+  it('says a list type names one element type, rather than blaming the bracket', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x [Ward, oak]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'A list type names one element type.',
+    ]);
+  });
+
+  it('says Sprout has no fractions, rather than blaming the comma after one', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: 1.5, b: 2]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual(['Sprout has no fractions.']);
+    // And the entry after the broken one is still read.
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
+  });
+
+  it('reads a list past an element it could not read, as the enum does', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x [Ward] default [oak silver brass]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'A list needs a comma between its elements.',
+      'A list needs a comma between its elements.',
+    ]);
+  });
+
+  it('reads a property’s bounds in either order without its span going short', () => {
+    // The span ended at `max ?? min ?? value`, so `max 1 min 2` stopped
+    // before the min — and the stale end then suppressed a real missing
+    // comma one level up. The two readings have to agree.
+    const read1 = new Diagnostics();
+    const read2 = new Diagnostics();
+    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 max 1 min % 2 b: 3]'), read1);
+    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 min 1 max % 2 b: 3]'), read2);
+    expect(read1.refusals.map((d) => d.message)).toEqual(read2.refusals.map((d) => d.message));
+    expect(read1.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+      'A `:remembers` needs a comma between what it remembers.',
+    ]);
+  });
+
+  it('spans a property to its last bound, whichever order they came in', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(new SourceFile('k.sprout', ':x 0 max 1 min 2'), diagnostics);
+    expect(textOf(declared!.at)).toBe(':x 0 max 1 min 2');
+  });
+});
+
+describe('#59 — the parser refuses rather than throwing, at the host’s cap', () => {
+  const deep = (n: number) => `message :m with ${'['.repeat(n)}Ward`;
+
+  it('refuses nesting past the cap instead of running out of stack', () => {
+    const { refusals } = read(deep(7000));
+    expect(refusals[0]!.message).toBe('Nothing here may be nested more than 8 deep.');
+  });
+
+  it('takes the cap from the host, since every limit is the host’s', () => {
+    const diagnostics = new Diagnostics();
+    parseDeclarations(new SourceFile('t.sprout', deep(4)), diagnostics, {
+      ...DEFAULT_LIMITS.caps,
+      nesting: 2,
+    });
+    expect(diagnostics.refusals[0]!.message).toBe('Nothing here may be nested more than 2 deep.');
+  });
+
+  it('allows nesting up to the cap', () => {
+    expect(read(`message :m with ${'['.repeat(8)}Ward${']'.repeat(8)}`).refusals).toEqual([]);
+  });
+
+  it('never throws, however deep it is given', () => {
+    for (const n of [100, 1_000, 20_000]) {
+      expect(() => read(deep(n)), String(n)).not.toThrow();
+      expect(() => read(`:x ${'['.repeat(n)}`), String(n)).not.toThrow();
+    }
+  });
+});
+
+describe('#59 — every place that asks where a declaration starts reads one table', () => {
+  it('reads every word it says it reads', () => {
+    const minimal: Record<string, string> = {
+      enum: 'enum Ward { oak }',
+      message: 'message :stir',
+    };
+    for (const word of DECLARATIONS) {
+      expect(Object.keys(minimal), `${word} has no sample here`).toContain(word);
+      const { declarations, refusals } = read(minimal[word]!);
+      expect(refusals, word).toEqual([]);
+      expect(declarations, word).toHaveLength(1);
+    }
+  });
+
+  it('stops recovery at every word it reads, and at no other', () => {
+    for (const word of DECLARATIONS) {
+      const { declarations } = read(`nonsense\n${word === 'enum' ? 'enum A { a }' : 'message :a'}`);
+      expect(declarations, word).toHaveLength(1);
+    }
   });
 });
