@@ -195,6 +195,8 @@ There is no sweep primitive. An object that should not outlive its usefulness as
 
 A microworld is a manifest, some `.sprout` files, the `.prose` files they point at, and the vendored source of every library they use. A place to a file is the convention rather than a rule, and identifiers resolve across files by the scope rules in Names.
 
+A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
+
 ### The manifest
 
 The manifest is what a world says about itself before any of it is read.
@@ -214,9 +216,7 @@ None of it needs a parser, and that is the point: whether a bundle is closed and
 
 `files` is what makes a file that did not arrive *missing* rather than merely absent — without it there is nothing for a file to be missing from. What travelled must be exactly what the manifest names; publishing refuses otherwise, and loading says so and runs.
 
-`libraries` is what closes the bundle. A library named here whose source did not travel is absent, and so is one whose source does not hash to the value recorded beside it: a world runs against the library it meant to vendor or against none, because running against some other copy under a trusted name is the worse of the two failures. It is the same hash a host's blessed set is keyed on, under Kinds › Libraries and namespaces.
-
-A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
+`libraries` is what closes the bundle. A library named here whose source did not travel is absent, and so is one whose source does not hash to the value recorded beside it: a world runs against the library it meant to vendor or against none, because running against some other copy under a trusted name is the worse of the two failures. It is the same hash a host's blessed set is keyed on, under Libraries and namespaces.
 
 ## Kinds, composition and libraries
 
