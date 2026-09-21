@@ -307,3 +307,95 @@ describe('a token says whether a character was refused just before it', () => {
     expect(read('a %%% b').map((t) => t.afterRefusal)).toEqual([false, true, false]);
   });
 });
+
+describe('looking ahead, and the cursor that reading back does not pay for', () => {
+  // `peek` buffers as far as it is asked, and something does ask: the
+  // parser steps over a construct it could not read by looking for its
+  // closing bracket first. Draining that buffer one `shift()` at a time
+  // was quadratic in its length, and took a fifty-thousand-deep
+  // expression from a millisecond to fifty-two seconds.
+  const source = () => new SourceFile('k.sprout', 'a b c d e f g h\n');
+
+  it('hands back the same tokens whether they were peeked at first or not', () => {
+    const straight = new Lexer(source(), new Diagnostics());
+    const peeked = new Lexer(source(), new Diagnostics());
+    for (let i = 0; i < 8; i++) peeked.peek(i);
+
+    for (let i = 0; i < 8; i++) {
+      expect(peeked.next().text, `token ${i}`).toBe(straight.next().text);
+    }
+    expect(peeked.next().kind).toBe('end');
+  });
+
+  it('keeps `peek` and `next` agreeing while they are interleaved', () => {
+    const lexer = new Lexer(source(), new Diagnostics());
+    const read: string[] = [];
+    while (!lexer.done) {
+      const ahead = lexer.peek(1);
+      const here = lexer.next();
+      read.push(here.text);
+      if (!lexer.done) expect(lexer.peek().text, `after ${here.text}`).toBe(ahead.text);
+    }
+    expect(read).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+  });
+
+  it('reads on correctly across the point the buffer empties and is reset', () => {
+    // The boundary the cursor has to get right: fill it, drain it
+    // exactly, then ask for more.
+    const lexer = new Lexer(source(), new Diagnostics());
+    expect(lexer.peek(3).text).toBe('d');
+    expect([lexer.next(), lexer.next(), lexer.next(), lexer.next()].map((t) => t.text)).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+    expect(lexer.peek().text).toBe('e');
+    expect(lexer.peek(2).text).toBe('g');
+    expect(lexer.next().text).toBe('e');
+  });
+
+  it('reads on correctly when the buffer is drained only part way', () => {
+    const lexer = new Lexer(source(), new Diagnostics());
+    lexer.peek(7);
+    expect([lexer.next(), lexer.next()].map((t) => t.text)).toEqual(['a', 'b']);
+    lexer.peek(5);
+    expect(lexer.next().text).toBe('c');
+    expect(lexer.peek(4).text).toBe('h');
+  });
+
+  it('keeps a token’s own answers whichever way it was reached', () => {
+    // A cursor read from the wrong index would be subtle everywhere, so
+    // the span and `afterRefusal` are checked against a straight read.
+    const straight = new Lexer(new SourceFile('k.sprout', 'a % b c'), new Diagnostics());
+    const peeked = new Lexer(new SourceFile('k.sprout', 'a % b c'), new Diagnostics());
+    peeked.peek(2);
+    for (let i = 0; i < 3; i++) {
+      const one = straight.next();
+      const other = peeked.next();
+      expect(other.text, `token ${i}`).toBe(one.text);
+      expect(other.afterRefusal, `token ${i} afterRefusal`).toBe(one.afterRefusal);
+      expect(locationOf(other.at), `token ${i} at`).toBe(locationOf(one.at));
+    }
+  });
+
+  it('reads a long lookahead back without paying for it twice', () => {
+    // Not a timing assertion — the test timeout is the guard, the same
+    // way it is in `parse.spec.ts`. The size is chosen so that it
+    // actually bites: draining this buffer by `shift()` takes about
+    // nineteen seconds against a default timeout of five, where the
+    // cursor takes well under one. Fifty thousand was NOT enough —
+    // `shift()` does that in a fifth of a second, and a mutant that put
+    // it back survived the first version of this spec. Do not lower
+    // the count, and do not raise the timeout.
+    const count = 400_000;
+    const lexer = new Lexer(new SourceFile('k.sprout', 'a '.repeat(count)), new Diagnostics());
+    lexer.peek(count - 1);
+    let read = 0;
+    while (!lexer.done) {
+      lexer.next();
+      read += 1;
+    }
+    expect(read).toBe(count);
+  });
+});

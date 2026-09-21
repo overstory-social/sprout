@@ -29,7 +29,9 @@
 //     enum, because nothing reserves an option's name.
 
 import type {
+  BinaryOperator,
   Declaration,
+  Expr,
   EnumDeclaration,
   EnumOption,
   Ident,
@@ -38,6 +40,7 @@ import type {
   PropertyDeclaration,
   RemembersDeclaration,
   TypeExpr,
+  UnaryOperator,
 } from './ast.js';
 import type { Diagnostics } from './diagnostics.js';
 import { Lexer, type Token, type TokenKind } from './lexer.js';
@@ -68,6 +71,43 @@ const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
 /** Punctuation that ends a list of things, so a word before it is the last one. */
 const CLOSERS = new Set([',', '}', ']']);
 
+/** Which bracket opens which, for stepping over what the cap refused. */
+const OPENER_OF: ReadonlyMap<string, string> = new Map([
+  [']', '['],
+  [')', '('],
+  ['}', '{'],
+]);
+
+/**
+ * How tightly each binary operator binds, loosest first. Nothing in the
+ * spec states a precedence — see the notes' hole — so this is the
+ * conventional one, which is what every expression the spec writes
+ * already assumes: `p != self && chance(4)` reads as `(p != self) &&
+ * chance(4)` and no other way.
+ *
+ * It is a table read by ONE loop rather than five near-identical
+ * functions, for the reason #59 exists: four places that answered the
+ * same question separately gave three different answers.
+ */
+const BINARY_PRECEDENCE: ReadonlyMap<string, number> = new Map([
+  ['||', 1],
+  ['&&', 2],
+  ['==', 3],
+  ['!=', 3],
+  ['<', 4],
+  ['<=', 4],
+  ['>', 4],
+  ['>=', 4],
+  ['+', 5],
+  ['-', 5],
+]);
+
+const LOOSEST = 1;
+const TIGHTEST = 5;
+
+/** The two prefix operators. `-x` is an expression; `!` has no truthiness behind it. */
+const PREFIX = new Set<string>(['!', '-']);
+
 /** What the text after an item turns out to mean. */
 type Separator =
   /** The list ends here, or the file does. */
@@ -93,6 +133,20 @@ class Parser {
   private readonly readers: ReadonlyMap<string, () => Declaration | null>;
   /** How deep the brackets currently are, against the host's nesting cap. */
   private depth = 0;
+  /**
+   * Whether the host's nesting cap has already been reported for the
+   * declaration being read. Too many brackets is ONE fact about one
+   * piece of writing, and reading on past what could not be read —
+   * which is how an author owed three problems is owed all three —
+   * would otherwise walk into the same wall once per bracket and say
+   * it again each time. `:x [[[[…` said it 1,992 times.
+   *
+   * Reported once and then refused in silence, rather than abandoning
+   * the rest: a `:remembers` whose first entry is too deep still owes
+   * the author the missing colon in its third. Cleared between
+   * declarations, so two deep ones are two reports.
+   */
+  private capReported = false;
 
   constructor(
     private readonly source: SourceFile,
@@ -160,17 +214,57 @@ class Parser {
   }
 
   /** One deeper, or a refusal that the host's nesting cap is reached. */
-  private deeper(at: Span): boolean {
+  private deeper(at: Span, remedy = 'Take some of the brackets out.'): boolean {
     if (this.depth + 1 > this.caps.nesting) {
-      this.diagnostics.refuse(
-        at,
-        `Nothing here may be nested more than ${this.caps.nesting} deep.`,
-        'Take some of the brackets out.',
-      );
+      this.reportCap(at, remedy);
       return false;
     }
     this.depth += 1;
     return true;
+  }
+
+  /**
+   * Step over what the cap would not let us read, the opening bracket
+   * already taken. Without this the bracket is consumed, its level
+   * never opens, and its CLOSER is left in the stream — where the next
+   * recovery loop takes it for its own closing bracket and ends early,
+   * dropping everything after it with nothing said. Counting matched
+   * pairs on the way leaves the reader exactly past the construct.
+   */
+  private skipBracketed(close: string): void {
+    const open = OPENER_OF.get(close)!;
+    // Find the closer BEFORE taking anything. Two failures this avoids,
+    // and the first version of this walked into both: a bracket that
+    // was never closed takes the rest of the file with it, including
+    // declarations that have nothing to do with this one; and a guard
+    // that stops the skip early — on a declaration keyword, say —
+    // leaves the real closers behind, which is the stray-closer bug
+    // this helper exists to prevent. Nothing reserves `message` as a
+    // word, so `[message foo]` is a list of two things and the skip
+    // must walk straight past it.
+    let depth = 1;
+    let ahead = 0;
+    for (;;) {
+      const token = this.peek(ahead);
+      if (token.kind === 'end') return; // never closed: take nothing
+      if (token.kind === 'punct') {
+        if (token.text === open) depth += 1;
+        else if (token.text === close && --depth === 0) break;
+      }
+      ahead += 1;
+    }
+    for (let i = 0; i <= ahead; i++) this.next();
+  }
+
+  /** The nesting cap, said once per declaration and refused in silence after. */
+  private reportCap(at: Span, remedy: string): void {
+    if (this.capReported) return;
+    this.capReported = true;
+    this.diagnostics.refuse(
+      at,
+      `Nothing here may be nested more than ${this.caps.nesting} deep.`,
+      remedy,
+    );
   }
 
   /** What the text after an item means. A comma, where there is one, is consumed. */
@@ -226,6 +320,8 @@ class Parser {
       const token = this.peek();
       const read = token.kind === 'name' ? this.readers.get(token.text) : undefined;
       if (read !== undefined) {
+        // Each declaration is owed its own account of being too deep.
+        this.capReported = false;
         const declared = read();
         if (declared !== null) declarations.push(declared);
         continue;
@@ -359,7 +455,10 @@ class Parser {
   private typeExpr(): TypeExpr | null {
     const open = this.take('punct', '[');
     if (open !== null) {
-      if (!this.deeper(open.at)) return null;
+      if (!this.deeper(open.at)) {
+        this.skipBracketed(']');
+        return null;
+      }
       try {
         const element = this.typeExpr();
         if (element === null) return null;
@@ -492,7 +591,10 @@ class Parser {
     }
     if (token.kind === 'punct' && token.text === '[') {
       const open = this.next();
-      if (!this.deeper(open.at)) return null;
+      if (!this.deeper(open.at)) {
+        this.skipBracketed(']');
+        return null;
+      }
       try {
         return this.listLiteral(open);
       } finally {
@@ -755,6 +857,272 @@ class Parser {
   }
 
   /** A token as a person would describe it, for a message about the wrong one. */
+  // --- expressions --------------------------------------------------
+  //
+  // Precedence climbing over one table. Every operand of a given level
+  // is read at the level above it, and the loop at each level consumes
+  // its own operators left to right, so `a - b - c` is `(a - b) - c`.
+  //
+  // Nothing here recurses without a bound. Parentheses, call arguments
+  // and stacked prefix operators all count against the host's nesting
+  // cap; a chain of operators at one level is read by the loop rather
+  // than by recursion.
+
+  /** An expression, or null having said why it is not one. */
+  expression(level: number = LOOSEST): Expr | null {
+    if (level > TIGHTEST) return this.unary();
+    let left = this.expression(level + 1);
+    if (left === null) return null;
+    for (;;) {
+      const token = this.peek();
+      if (token.kind !== 'punct' || BINARY_PRECEDENCE.get(token.text) !== level) return left;
+      this.next();
+      const right = this.expression(level + 1);
+      if (right === null) return null;
+      left = {
+        kind: 'binary',
+        at: spanning(left.at, right.at),
+        operator: token.text as BinaryOperator,
+        left,
+        right,
+      };
+    }
+  }
+
+  /**
+   * `!x`, `-x`, and the stacks of them. Read into a list and applied
+   * afterwards rather than by recursing, so that a wall of `!` is
+   * refused by the nesting cap instead of exhausting the stack.
+   */
+  private unary(): Expr | null {
+    const operators: Token[] = [];
+    let refused = false;
+    while (this.peek().kind === 'punct' && PREFIX.has(this.peek().text)) {
+      const token = this.next();
+      // Against `this.depth`, which parentheses, lists and call
+      // arguments all share. A counter of its own would give every
+      // bracketed level a fresh allowance of signs on top of the
+      // shared one, so eight parentheses each holding eight `!` would
+      // nest sixty-four deep under a cap of eight.
+      // Its own remedy: a wall of signs has no bracket in it, and
+      // telling the author to take some brackets out names something
+      // they did not write.
+      if (!this.deeper(token.at, 'Take some of the signs out.')) {
+        refused = true;
+        break;
+      }
+      operators.push(token);
+    }
+    try {
+      return refused ? null : this.applyPrefix(operators);
+    } finally {
+      this.depth -= operators.length;
+    }
+  }
+
+  /** The operators of a prefix stack, applied to what they were written before. */
+  private applyPrefix(operators: readonly Token[]): Expr | null {
+    let expr = this.postfix();
+    if (expr === null) return null;
+    for (let i = operators.length - 1; i >= 0; i--) {
+      const token = operators[i]!;
+      expr = {
+        kind: 'unary',
+        at: spanning(token.at, expr.at),
+        operator: token.text as UnaryOperator,
+        operand: expr,
+      };
+    }
+    return expr;
+  }
+
+  /** `x.count`, `x.get(:p)`, and the chains of them. */
+  private postfix(): Expr | null {
+    let expr = this.primary();
+    if (expr === null) return null;
+    while (this.at('punct', '.')) {
+      this.next();
+      const name = this.take('name');
+      if (name === null) {
+        this.diagnostics.refuse(
+          this.peek().at,
+          'A dot needs the name of something to read after it.',
+          'Write what to read, as in `self.count` or `self.get(:wear)`.',
+        );
+        return null;
+      }
+      const open = this.take('punct', '(');
+      if (open === null) {
+        expr = {
+          kind: 'member',
+          at: spanning(expr.at, name.at),
+          receiver: expr,
+          member: this.ident(name),
+        };
+        continue;
+      }
+      const read = this.argumentList(open);
+      if (read === null) return null;
+      expr = {
+        kind: 'call',
+        at: spanning(expr.at, read.at),
+        receiver: expr,
+        method: this.ident(name),
+        arguments: read.arguments,
+      };
+    }
+    return expr;
+  }
+
+  /** A whole expression in brackets, a value, a name, a symbol or a kind. */
+  private primary(): Expr | null {
+    const token = this.peek();
+
+    if (token.kind === 'punct' && token.text === '(') {
+      const open = this.next();
+      if (!this.deeper(open.at)) {
+        this.skipBracketed(')');
+        return null;
+      }
+      try {
+        const inner = this.expression();
+        if (inner === null) {
+          // Give up on the whole bracket, not on its contents: leaving
+          // the closer behind hands it to whatever is reading around
+          // this, which takes it for its own and ends early.
+          this.skipBracketed(')');
+          return null;
+        }
+        const close = this.take('punct', ')');
+        if (close === null) {
+          this.diagnostics.refuse(
+            this.done ? this.source.endSpan : this.peek().at,
+            'This bracket is never closed.',
+            'Add a ) after what it holds.',
+          );
+          this.skipBracketed(')');
+          return null;
+        }
+        return inner;
+      } finally {
+        this.depth -= 1;
+      }
+    }
+
+    if (token.kind === 'integer') {
+      this.next();
+      if (this.atFraction()) return null;
+      return { kind: 'integer', at: token.at, value: Number(token.text) };
+    }
+    if (token.kind === 'string') {
+      this.next();
+      return { kind: 'string', at: token.at, value: token.text };
+    }
+    if (token.kind === 'symbol') {
+      this.next();
+      return { kind: 'symbol-expr', at: token.at, name: this.ident(token) };
+    }
+    if (token.kind === 'kind') {
+      this.next();
+      return { kind: 'kind-expr', at: token.at, library: null, name: this.ident(token) };
+    }
+    if (token.kind === 'name') {
+      if (token.text === 'true' || token.text === 'false') {
+        this.next();
+        return { kind: 'boolean', at: token.at, value: token.text === 'true' };
+      }
+      // `sprout.Container` is a kind, where `actor.recall` is a read:
+      // what follows the dot decides, the same way it does for a type.
+      if (
+        this.peek(1).kind === 'punct' &&
+        this.peek(1).text === '.' &&
+        this.peek(2).kind === 'kind'
+      ) {
+        const library = this.next();
+        this.next();
+        const name = this.next();
+        return {
+          kind: 'kind-expr',
+          at: spanning(library.at, name.at),
+          library: this.ident(library),
+          name: this.ident(name),
+        };
+      }
+      if (this.peek(1).kind === 'punct' && this.peek(1).text === '(') {
+        const name = this.next();
+        const open = this.next();
+        const read = this.argumentList(open);
+        if (read === null) return null;
+        return {
+          kind: 'free-call',
+          at: spanning(name.at, read.at),
+          name: this.ident(name),
+          arguments: read.arguments,
+        };
+      }
+      this.next();
+      return { kind: 'binding', at: token.at, name: this.ident(token) };
+    }
+
+    this.diagnostics.refuse(
+      token.at,
+      `${this.describe(token)} is not something to read.`,
+      'Write a value, a name something in scope answers to, or a reading such as `self.get(:wear)`.',
+    );
+    return null;
+  }
+
+  /**
+   * What is between a call's brackets, the opening one already taken.
+   * The same loop `listLiteral` uses, for the same reasons: it reads ON
+   * past an argument it could not read rather than skipping to the next
+   * comma, and a missing comma is reported only once the next argument
+   * reads.
+   */
+  private argumentList(open: Token): { arguments: Expr[]; at: Span } | null {
+    if (!this.deeper(open.at)) {
+      this.skipBracketed(')');
+      return null;
+    }
+    try {
+      const args: Expr[] = [];
+      let missingComma: Span | null = null;
+      for (;;) {
+        const close = this.take('punct', ')');
+        if (close !== null) return { arguments: args, at: spanning(open.at, close.at) };
+        if (this.done) {
+          this.diagnostics.refuse(
+            this.source.endSpan,
+            'This bracket is never closed.',
+            'Add a ) after what it holds.',
+          );
+          return null;
+        }
+        const before = this.peek();
+        const argument = this.expression();
+        if (argument === null) {
+          if (this.done) return null;
+          if (this.peek().at.start === before.at.start) this.next();
+          this.separator(')');
+          missingComma = null;
+          continue;
+        }
+        if (missingComma !== null) {
+          this.diagnostics.refuse(
+            missingComma,
+            'A reading needs a comma between what it is given.',
+            'Write `self.set(:wear, 1)`.',
+          );
+          missingComma = null;
+        }
+        args.push(argument);
+        if (this.separator(')') === 'missing') missingComma = this.here();
+      }
+    } finally {
+      this.depth -= 1;
+    }
+  }
+
   private describe(token: Token): string {
     switch (token.kind) {
       case 'kind':
@@ -793,6 +1161,19 @@ export function parseProperty(
   caps?: StaticCaps,
 ): PropertyDeclaration | null {
   return new Parser(source, diagnostics, caps).property();
+}
+
+/**
+ * One expression, read on its own. Expressions are written inside
+ * bodies, and no body exists yet (B24 onward), so this is how B09 is
+ * exercised and how those items will read one.
+ */
+export function parseExpression(
+  source: SourceFile,
+  diagnostics: Diagnostics,
+  caps?: StaticCaps,
+): Expr | null {
+  return new Parser(source, diagnostics, caps).expression();
 }
 
 /** One `:remembers`, read on its own, for the same reason. */

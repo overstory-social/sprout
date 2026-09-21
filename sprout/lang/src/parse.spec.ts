@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EnumDeclaration } from './ast.js';
+import type { EnumDeclaration, Expr } from './ast.js';
 import { Diagnostics, type Diagnostic } from './diagnostics.js';
 import { unspanned } from './nodes.js';
-import { DECLARATIONS, parseDeclarations, parseProperty, parseRemembers } from './parse.js';
+import {
+  DECLARATIONS,
+  parseDeclarations,
+  parseExpression,
+  parseProperty,
+  parseRemembers,
+} from './parse.js';
 import { locationOf, SourceFile, textOf } from './source.js';
 import { DEFAULT_LIMITS } from './limits.js';
 
@@ -1044,6 +1050,343 @@ describe('#60 — the shape every round of bugs here has turned on, enumerated',
         const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
         expect(declared, `${text} gave back nothing`).not.toBeNull();
       }
+    }
+  });
+});
+
+// --- expressions (B09) ----------------------------------------------------
+
+/** An expression as a shape, brackets showing what bound to what. */
+function shape(expr: Expr | null): string {
+  if (expr === null) return 'null';
+  switch (expr.kind) {
+    case 'binary':
+      return `(${shape(expr.left)} ${expr.operator} ${shape(expr.right)})`;
+    case 'unary':
+      return `(${expr.operator}${shape(expr.operand)})`;
+    case 'member':
+      return `${shape(expr.receiver)}.${expr.member.text}`;
+    case 'call':
+      return `${shape(expr.receiver)}.${expr.method.text}(${expr.arguments.map(shape).join(', ')})`;
+    case 'free-call':
+      return `${expr.name.text}(${expr.arguments.map(shape).join(', ')})`;
+    case 'binding':
+      return expr.name.text;
+    case 'symbol-expr':
+      return `:${expr.name.text}`;
+    case 'kind-expr':
+      return expr.library === null ? expr.name.text : `${expr.library.text}.${expr.name.text}`;
+    case 'string':
+      return JSON.stringify(expr.value);
+    default:
+      return String(expr.value);
+  }
+}
+
+/** A property, for the specs about depth that are written as one. */
+function readExpressionOf(text: string) {
+  const diagnostics = new Diagnostics();
+  parseProperty(new SourceFile('k.sprout', text), diagnostics);
+  return { refusals: diagnostics.refusals };
+}
+
+function readExpression(text: string, caps = DEFAULT_LIMITS.caps) {
+  const diagnostics = new Diagnostics();
+  const expr = parseExpression(new SourceFile('body.sprout', text), diagnostics, caps);
+  return { expr, shape: shape(expr), diagnostics, refusals: diagnostics.refusals };
+}
+
+describe('an expression', () => {
+  it('reads every expression the spec writes', () => {
+    // Taken from the spec's own bodies, so the suite fails if the
+    // grammar drifts from what the language is written in.
+    const written: [string, string][] = [
+      ['self.get(:sealed)', 'self.get(:sealed)'],
+      ['self.get(:wear) >= 99', '(self.get(:wear) >= 99)'],
+      ['!self.get(:inked)', '(!self.get(:inked))'],
+      ['tools.count(Rib) > 1', '(tools.count(Rib) > 1)'],
+      ['self.get(:state) == :wet', '(self.get(:state) == :wet)'],
+      ['elapsed > 7200', '(elapsed > 7200)'],
+      ['p != self && chance(4)', '((p != self) && chance(4))'],
+      ['self.count >= self.get(:capacity)', '(self.count >= self.get(:capacity))'],
+      ['actor.recall(:visits) <= 1', '(actor.recall(:visits) <= 1)'],
+      ['item.is(Creature)', 'item.is(Creature)'],
+      ['from.get(:opens).includes(self.get(:ward))', 'from.get(:opens).includes(self.get(:ward))'],
+      ['self.holds(target)', 'self.holds(target)'],
+      ['self.adjust(:wear, 1)', 'self.adjust(:wear, 1)'],
+      ['random(6)', 'random(6)'],
+      ['to.is(sprout.Container)', 'to.is(sprout.Container)'],
+    ];
+    for (const [text, expected] of written) {
+      const read = readExpression(text);
+      expect(
+        read.refusals.map((d) => d.message),
+        text,
+      ).toEqual([]);
+      expect(read.shape, text).toBe(expected);
+    }
+  });
+
+  it('binds operators as the spec’s own expressions assume', () => {
+    const table: [string, string][] = [
+      ['a || b && c', '(a || (b && c))'],
+      ['a && b == c', '(a && (b == c))'],
+      ['a == b < c', '(a == (b < c))'],
+      ['a < b + c', '(a < (b + c))'],
+      ['-a + b', '((-a) + b)'],
+      ['!a && b', '((!a) && b)'],
+      ['a - b - c', '((a - b) - c)'],
+      ['(a || b) && c', '((a || b) && c)'],
+      ['a.b.c', 'a.b.c'],
+    ];
+    for (const [text, expected] of table) expect(readExpression(text).shape, text).toBe(expected);
+  });
+
+  it('tells a library’s kind from a reading, by what follows the dot', () => {
+    // `sprout.Container` is a kind and `actor.recall` is a reading, and
+    // the only difference is the capital letter after the dot.
+    expect(readExpression('sprout.Container').shape).toBe('sprout.Container');
+    expect(readExpression('sprout.recall').shape).toBe('sprout.recall');
+  });
+
+  it('says what it could not read, and where', () => {
+    const table: [string, string][] = [
+      ['', 'the end of the file is not something to read'],
+      ['&&', '`&&` is not something to read'],
+      ['a +', 'the end of the file is not something to read'],
+      ['(a + b', 'This bracket is never closed.'],
+      ['self.get(:p', 'This bracket is never closed.'],
+      ['self.', 'A dot needs the name of something to read after it.'],
+      ['1.5', 'Sprout has no fractions.'],
+    ];
+    for (const [text, said] of table) {
+      const read = readExpression(text);
+      expect(read.expr, text).toBeNull();
+      expect(read.refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of read.refusals) {
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+      }
+    }
+  });
+
+  it('keeps the well-formed neighbour of an argument it could not read', () => {
+    const read = readExpression('self.set(:wear % , 1)');
+    expect(read.shape).toBe('self.set(:wear, 1)');
+  });
+
+  it('asks for a comma only once the next thing reads', () => {
+    const read = readExpression('self.set(:wear 1)');
+    expect(read.refusals.map((d) => d.message)).toEqual([
+      'A reading needs a comma between what it is given.',
+    ]);
+    expect(read.shape).toBe('self.set(:wear, 1)');
+  });
+});
+
+describe('an expression counts against the host’s nesting cap', () => {
+  const nesting = DEFAULT_LIMITS.caps.nesting;
+
+  it('reads what is within it, and refuses what is past it', () => {
+    expect(readExpression('('.repeat(nesting) + 'a' + ')'.repeat(nesting)).expr).not.toBeNull();
+    expect(readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1)).expr).toBeNull();
+    expect(readExpression('!'.repeat(nesting) + 'a').expr).not.toBeNull();
+    expect(readExpression('!'.repeat(nesting + 1) + 'a').expr).toBeNull();
+  });
+
+  it('says so ONCE, however far past it goes', () => {
+    // The refusal used to multiply: reading on past an item that could
+    // not be read is what an author owed three problems is owed all
+    // three for, but every item past the cap sits at the same depth and
+    // fails identically, so reading on said one true thing once per
+    // level. `:x [[[[…` said it 1,992 times.
+    for (const text of [
+      '('.repeat(2000) + 'a' + ')'.repeat(2000),
+      'a' + '.f(a'.repeat(2000) + ')'.repeat(2000),
+      '!'.repeat(2000) + 'a',
+    ]) {
+      const said = readExpression(text).refusals.map((d) => d.message);
+      expect(said, text.slice(0, 20)).toEqual([
+        `Nothing here may be nested more than ${nesting} deep.`,
+      ]);
+    }
+  });
+
+  it('says so once for a list too, which is where the multiplying was', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x ' + '['.repeat(2000) + 'oak'), diagnostics);
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(1);
+  });
+
+  it('says so once for a `:remembers` too, which has the same loop', () => {
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: ' + '['.repeat(2000) + 'oak]'),
+      diagnostics,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(1);
+  });
+
+  it('says it once, and takes the whole construct with it rather than half', () => {
+    // Two things had to be told apart here. What is INSIDE a construct
+    // the cap abandoned goes with it — the same way an enum's options
+    // go with an enum that could not be read — and one message is the
+    // whole account of it. What comes AFTER it is a sibling the author
+    // is still owed, and the first fix lost those: stopping at the
+    // first too-deep item said the depth once and dropped everything
+    // else that was wrong.
+    const deep = '['.repeat(12);
+    const inside = readExpressionOf(`:x [${deep}oak, Zeta]`).refusals.map((d) => d.message);
+    expect(inside.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+
+    const diagnostics = new Diagnostics();
+    const after = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${deep}oak${']'.repeat(12)}, b c: 1]`),
+      diagnostics,
+    );
+    const said = diagnostics.refusals.map((d) => d.message);
+    expect(said.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+    expect(said.join(' ')).toContain('needs a colon between its name and its value');
+    expect(after).not.toBeNull();
+  });
+
+  it('gives each declaration its own account of being too deep', () => {
+    const diagnostics = new Diagnostics();
+    const deep = '[[[[[[[[[[';
+    parseDeclarations(
+      new SourceFile(
+        'k.sprout',
+        `message :a with ${deep}Ward
+message :b with ${deep}Ward
+`,
+      ),
+      diagnostics,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(2);
+  });
+
+  it('counts prefix signs against the same depth brackets do', () => {
+    // A counter of its own would give every bracketed level a fresh
+    // allowance of signs on top of the shared one: eight parentheses
+    // each holding eight `!` nested sixty-four deep under a cap of
+    // eight, with nothing said.
+    expect(readExpression('(' + '!'.repeat(nesting - 1) + 'a)').expr).not.toBeNull();
+    expect(readExpression('(' + '!'.repeat(nesting) + 'a)').expr).toBeNull();
+    const stacked = ('(' + '!'.repeat(nesting)).repeat(nesting) + 'a' + ')'.repeat(nesting);
+    expect(readExpression(stacked).refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+  });
+
+  it('steps over what it would not read, rather than leaving its closer behind', () => {
+    // A bracket the cap refuses is consumed and never opens a level, so
+    // its CLOSER is left in the stream — where the loop reading around
+    // it takes the closer for its own and ends early, dropping
+    // everything after it with nothing said.
+    const deep = '('.repeat(nesting) + 'a' + ')'.repeat(nesting);
+    const call = readExpression(`self.f(${deep}, b)`);
+    expect(call.shape).toBe('self.f(b)');
+    expect(call.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+
+    // The same shape in a `:remembers`, which is where it was found.
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile(
+        'k.sprout',
+        ':remembers [a: ' + '['.repeat(nesting + 1) + 'oak' + ']'.repeat(nesting + 1) + ', b: 3]',
+      ),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
+  });
+
+  it('walks past a word that only looks like a declaration inside it', () => {
+    // Nothing reserves `message` or `enum`, so `[message foo]` is a
+    // list of two things. A skip that stopped at one left the real
+    // closers behind — which is the stray-closer bug the skip exists
+    // to prevent, reintroduced by its own guard.
+    const trap = '['.repeat(nesting + 1) + 'message foo' + ']'.repeat(nesting + 1);
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${trap}, c: 3]`),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+
+    // And at file scope it must not invent a declaration out of the
+    // trapped word: `A message needs a name.` about content the author
+    // never wrote as one is worse than saying nothing.
+    const atFile = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile('k.sprout', `message :first with ${trap}\nmessage :second\n`),
+      atFile,
+    );
+    expect(declared.map((d) => d.name.text)).toEqual(['second']);
+    expect(atFile.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+  });
+
+  it('takes nothing at all where the closer was never written', () => {
+    // The skip looks for its closer before consuming anything, so a
+    // bracket that was never closed does not take the rest of the file
+    // with it — which is how a second declaration used to vanish.
+    const diagnostics = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile(
+        'k.sprout',
+        `message :a with ${'['.repeat(nesting + 2)}Ward\nmessage :b with ${'['.repeat(nesting + 2)}Ward\n`,
+      ),
+      diagnostics,
+    );
+    expect(declared).toHaveLength(0);
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(2);
+  });
+
+  it('names what the author actually wrote too much of', () => {
+    const brackets = readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1));
+    expect(brackets.refusals[0]!.remedy).toContain('brackets');
+    // A wall of signs has no bracket in it.
+    const signs = readExpression('!'.repeat(nesting + 1) + 'a');
+    expect(signs.refusals[0]!.remedy).toContain('signs');
+  });
+
+  it('never throws, however deep or however long', () => {
+    // `parseExpression` directly, not `readExpression`: `shape()` above
+    // walks the tree by recursion, and a chain of fifty thousand terms
+    // overflows the SPEC rather than the parser. Which is its own small
+    // lesson — the suite has to be the thing under test, not the thing
+    // that fails first.
+    //
+    // This also guards SPEED, not only throwing, and the guard is the
+    // test timeout rather than an assertion. Stepping over a construct
+    // the cap refused looks ahead for its closing bracket, which fills
+    // the lexer's buffer; draining that buffer one `shift()` at a time
+    // was quadratic and took this test from a millisecond to fifty-two
+    // seconds. Do not raise the timeout to make this pass.
+    for (const text of [
+      '('.repeat(50_000) + 'a' + ')'.repeat(50_000),
+      Array(50_000).fill('a').join(' + '),
+      'a' + '.count'.repeat(50_000),
+      '!'.repeat(50_000) + 'a',
+      'a' + '.f(a'.repeat(50_000) + ')'.repeat(50_000),
+    ]) {
+      expect(
+        () => parseExpression(new SourceFile('body.sprout', text), new Diagnostics()),
+        text.slice(0, 16),
+      ).not.toThrow();
     }
   });
 });
