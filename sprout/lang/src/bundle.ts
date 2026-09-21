@@ -19,7 +19,7 @@
 // bundle that produced it.
 
 import type { Gap } from './absent.js';
-import type { Node } from './nodes.js';
+import type { Declaration } from './ast.js';
 import type { SourceFile } from './source.js';
 import type { StaticCaps } from './limits.js';
 import { hashOfNamed } from './sha256.js';
@@ -152,10 +152,11 @@ export interface Bundle {
   readonly manifest: Manifest;
   /**
    * The definitions, rebuilt from source at every load and never
-   * persisted. The node union narrows as the syntax items land; what
-   * holds from the start is that every one of them carries a span.
+   * persisted. The union grows as the syntax items land; what holds from
+   * the start is that every one of them carries a span. Which library a
+   * declaration belongs to is recoverable from the file its span names.
    */
-  readonly definitions: readonly Node[];
+  readonly definitions: readonly Declaration[];
   readonly words: WordSet;
   /** The highest level of any part, library source included. */
   readonly level: number;

@@ -217,6 +217,11 @@ This makes two checks possible before a line has parsed, and both are now made: 
 
 Still unsaid, and decided the narrow way: whether a version is semver or free text (free text, non-empty), and whether an author is a name or a structured record (a name). B12's `world` declaration will have to agree with the manifest's name, or replace it.
 
+Found while building enums and the declaration parser (B05):
+
+- **How an enum's options are separated.** The spec writes `enum Ward { oak, silver }` and never says whether the commas are required or whether a trailing one is allowed. They are required and a trailing one is refused: the narrow reading of the examples, and the easy one to loosen.
+- **What bounds an enum.** The static caps table has no cap on options per enum, where the previous language had twelve. The silence sits beside an explicit "there is no limit on statements in a body", so it reads as deliberate and none is enforced. A one-option enum is accepted as an ordinary type with one value; a zero-option one is refused, since nothing could ever hold one.
+
 Found while building strict publish and lenient load (B04):
 
 - **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)
