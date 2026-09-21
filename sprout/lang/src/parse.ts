@@ -46,9 +46,13 @@ import { spanning, type SourceFile, type Span } from './source.js';
 
 /**
  * The words that start a declaration, as this compiler reads them
- * today. Each backlog item that adds a declaration adds its word here
- * AND its reader in `readers()`; a spec holds that the two agree, so a
- * word listed without a reader cannot ship.
+ * today, for anything outside the parser that needs the list.
+ *
+ * The parser itself never reads this: it dispatches off the `readers`
+ * table and builds its "this compiler reads …" message from the same
+ * table, so the message cannot go stale when a declaration is added. A
+ * spec holds that this list and that message name the same words, in
+ * both directions.
  */
 export const DECLARATIONS = ['enum', 'message'] as const;
 
@@ -178,15 +182,6 @@ class Parser {
     return 'missing';
   }
 
-  /** Step over a broken item, to the next separator or the end of its list. */
-  private skipToSeparator(close: string): void {
-    while (!this.done) {
-      if (this.at('punct', close) || this.at('punct', ',')) return;
-      if (this.atDeclarationKeyword()) return;
-      this.next();
-    }
-  }
-
   /** Step over everything up to the next thing that could start a declaration. */
   private recover(): void {
     while (!this.done) {
@@ -238,7 +233,7 @@ class Parser {
       this.diagnostics.refuse(
         token.at,
         `Sprout does not know what to do with "${token.text}" here.`,
-        `A file holds declarations, and this compiler reads ${readable(DECLARATIONS)}.`,
+        `A file holds declarations, and this compiler reads ${readable([...this.readers.keys()])}.`,
       );
       this.next();
       this.recover();
@@ -309,7 +304,13 @@ class Parser {
           `\`${name.text}\` cannot hold ${this.describe(wrong)}.`,
           'An option is a lower-case word: `oak`, `touch_dry`, `the_press`.',
         );
-        if (!this.recoverInBraces()) unclosed(this.source.endSpan);
+        // `recoverInBraces` gives up for two reasons: the file ran out,
+        // or it found the next declaration and left it unconsumed. The
+        // second has a token to point at, and pointing past it at the
+        // end of the file names the wrong place.
+        if (!this.recoverInBraces()) {
+          unclosed(this.done ? this.source.endSpan : this.peek().at);
+        }
         refused = true;
         break;
       }
@@ -540,13 +541,17 @@ class Parser {
         );
         return null;
       }
+      const before = this.peek();
       const element = this.literal();
       if (element === null) {
         // An author owed three problems is owed all three, so the list
-        // reads on rather than ending at the first bad element.
-        this.skipToSeparator(']');
+        // reads ON — past the element it could not read, and not past
+        // everything up to the next comma, which would swallow the
+        // well-formed elements in between without saying so.
+        if (this.done) continue;
+        if (this.peek().at.start === before.at.start) this.next();
+        this.separator(']');
         missingComma = null;
-        if (this.separator(']') === 'end' && !this.at('punct', ']')) return null;
         continue;
       }
       if (missingComma !== null) {
@@ -672,11 +677,15 @@ class Parser {
         return null;
       }
 
+      const before = this.peek();
       const declared = this.rememberedProperty();
       if (declared === null) {
-        this.skipToSeparator(']');
+        // As the list above: on past the one it could not read, not
+        // past what follows it.
+        if (this.done) continue;
+        if (this.peek().at.start === before.at.start) this.next();
+        this.separator(']');
         missingComma = null;
-        if (this.separator(']') === 'end' && !this.at('punct', ']')) return null;
         continue;
       }
       if (missingComma !== null) {

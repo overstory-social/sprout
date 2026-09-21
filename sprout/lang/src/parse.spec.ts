@@ -765,3 +765,58 @@ describe('#59 — every place that asks where a declaration starts reads one tab
     }
   });
 });
+
+describe('#60 — what the review of the #59 pass found', () => {
+  it('names where recovery actually stopped, not the end of the file', () => {
+    // `recoverInBraces` gives up for two reasons and the caller knew
+    // only one of them, so it pointed past the file's own closing brace.
+    const { refusals } = read('enum Ward { 4\nmessage :x\n}\n');
+    const unclosed = refusals.find((d) => d.message === '`Ward` is never closed.')!;
+    expect(locationOf(unclosed.at)).toBe('ward.sprout:2:1');
+  });
+
+  it('still names the end of the file when that is where it ran out', () => {
+    const { refusals } = read('enum Ward { oak, 4');
+    const unclosed = refusals.find((d) => d.message === '`Ward` is never closed.')!;
+    expect(locationOf(unclosed.at)).toBe('ward.sprout:1:19');
+  });
+
+  it('keeps a well-formed element that follows one it could not read', () => {
+    for (const text of [':x [oak, Zeta silver]', ':x [oak, Zeta, silver]']) {
+      const diagnostics = new Diagnostics();
+      const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+      expect(diagnostics.refusals, text).toHaveLength(1);
+      const value = declared!.default!;
+      expect(value.kind === 'list-literal' && value.elements.length, text).toBe(2);
+    }
+  });
+
+  it('keeps a well-formed :remembers entry that follows one it could not read', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: 0, b c: 1]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals).toHaveLength(1);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
+  });
+
+  it('never loops on an item it cannot read and cannot step over', () => {
+    for (const text of [':x [Zeta]', ':x [Zeta Zeta Zeta]', ':remembers [Zeta]', ':x [,,,]']) {
+      expect(() => {
+        const diagnostics = new Diagnostics();
+        parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        parseRemembers(new SourceFile('k.sprout', text), new Diagnostics());
+      }, text).not.toThrow();
+    }
+  });
+
+  it('names in its message exactly the declarations it reads, both ways round', () => {
+    // The message is built from the dispatch table, so a declaration
+    // added to one and not the other cannot ship. This catches the
+    // direction the earlier spec did not: a reader with no entry here.
+    const { refusals } = read('nonsense');
+    const named = [...refusals[0]!.remedy!.matchAll(/`([a-z]+)`/g)].map((m) => m[1]!);
+    expect(named.sort()).toEqual([...DECLARATIONS].sort());
+  });
+});
