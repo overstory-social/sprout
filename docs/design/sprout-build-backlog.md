@@ -74,7 +74,7 @@ Every item names the sections of the design spec it implements. The spec is the 
 | B30 | The three audiences: `say`, `tell`, `tell <x>`, `text`; where `actor` and `here` are bound; participants excluded from bystanders; the refusals in the compiler's list; the no-`say` warning | B29 B24 | Prose; Other people › Who hears it | M |
 | B31 | `describe` and the engine verbs `look`, `examine`, `inventory`, `wait`, `help`; `unremarkable` for an object with no description; a `describe` with no `text` refused | B29 | Prose; Verbs › Engine verbs | M |
 | B32 | Events: `send` to an identifier or binding, the broadcast algorithm, `pass :m` and `pass any`, breadth-first drain after the effect pass, `changed` hooks queued once per change, event and cascade budgets, the unsent/unhandled warnings | B15 B07 | Events, messages and the bus | M |
-| B33 | Chance: `{one of}`, `chance`, `random`, the per-turn seed in the log, refusal in `describe`/`when`/guards/`permit` with exact reachability through typed slots | B29 B40 | Chance | M |
+| B33 | Chance: `{one of}`, `chance`, `random`, the per-turn seed in the log, refusal in `describe`/`when`/guards/`permit` with exact reachability through typed slots | B29 B34 | Chance | M |
 
 ### 5 — Time and the runtime
 
