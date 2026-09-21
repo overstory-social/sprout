@@ -295,6 +295,15 @@ describe('where types come from — the table, row by row', () => {
     expect(setMemberBinding('thing', null, at('thing')).type).toEqual(OPEN_OBJECT);
   });
 
+  it('calls a set role’s member what the author called it, in a body or in a passage', () => {
+    expect(setMemberBinding('pot', VESSEL, at('pot')).origin).toBe('each');
+    expect(setMemberBinding('pot', VESSEL, at('pot'), true).origin).toBe('for');
+    // The same two forms a container has, and the same flag, so the two
+    // constructors cannot drift apart.
+    expect(loopBinding('thing', null, at('thing')).origin).toBe('each');
+    expect(loopBinding('thing', null, at('thing'), true).origin).toBe('for');
+  });
+
   it('a `let` binding — the expression it names, exactly', () => {
     expect(letBinding('n', valueOf(integer(0, 99)), at('n')).type).toEqual(valueOf(integer(0, 99)));
     expect(letBinding('pot', objectOf(VESSEL), at('pot')).type).toEqual(objectOf(VESSEL));
@@ -608,6 +617,44 @@ describe('a scope says what is in reach', () => {
 
     expect(inner.names()).toEqual(['n', 'self', 'here']);
     expect(new Set(inner.names()).size).toBe(inner.names().length);
+  });
+});
+
+describe('a scope goes as deep as blocks nest, and says so rather than dying', () => {
+  // `lookup` and `names` both walked the chain by recursion for one
+  // commit of this PR, written that way to satisfy a lint rule, and
+  // both threw `RangeError` out of a file whose whole job is producing
+  // diagnostics — `names` from about eight thousand, `lookup` from
+  // about twenty. The depth here is far past anything a body will nest
+  // and costs the suite a few milliseconds.
+  const DEEP = 40_000;
+
+  function nested(depth: number): Scope {
+    const root = Scope.root();
+    root.introduce(selfBinding(VESSEL, at('self')), new Diagnostics());
+    root.introduce(hereBinding(at('here')), new Diagnostics());
+    let scope = root;
+    for (let i = 0; i < depth; i++) scope = scope.inner();
+    return scope;
+  }
+
+  it('finds a name through a chain far deeper than a body could nest', () => {
+    const deep = nested(DEEP);
+    expect(deep.lookup('self')!.type).toEqual(objectOf(VESSEL));
+    expect(deep.lookup('nothing')).toBeNull();
+  });
+
+  it('lists what is in reach through one, without throwing', () => {
+    expect(nested(DEEP).names()).toEqual(['self', 'here']);
+  });
+
+  it('still refuses a shadow from the bottom of one', () => {
+    const deep = nested(DEEP);
+    const { made, said } = trying((d) =>
+      deep.introduce(letBinding('self', valueOf(BOOLEAN), at('self')), d),
+    );
+    expect(made).toBe(false);
+    expect(said.join(' ')).toContain('`self` already names');
   });
 });
 

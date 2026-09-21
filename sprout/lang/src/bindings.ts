@@ -244,10 +244,21 @@ export function forElementBinding(name: string, element: HeldType, at: Span): Bi
   return bind(name, valueOf(element), 'for', at);
 }
 
-/** `each … of <set role>` — each member, at the role's kind. */
-export function setMemberBinding(name: string, kind: KindRef | null, at: Span): Binding {
+/**
+ * `each … of <set role>` — each member, at the role's kind. A set role
+ * has the same two forms a container does, `each tool of tools` in a
+ * body and `{for x of <set role>}` in a passage, so this takes the same
+ * `inProse` flag `loopBinding` does and for the same reason: a refusal
+ * about the name should call it what the author called it.
+ */
+export function setMemberBinding(
+  name: string,
+  kind: KindRef | null,
+  at: Span,
+  inProse = false,
+): Binding {
   const type = kind === null ? OPEN_OBJECT : objectOf(kind);
-  return bind(name, type, 'each', at);
+  return bind(name, type, inProse ? 'for' : 'each', at);
 }
 
 /** A `let` binding — the expression it names, exactly, so nothing is annotated. */
@@ -531,11 +542,26 @@ export class Scope {
     return true;
   }
 
-  /** What a name means here, looking outward, or null where nothing answers to it. */
+  /**
+   * What a name means here, looking outward, or null where nothing
+   * answers to it.
+   *
+   * Iterative, and so is `names()`. Both read outward from `this.parent`
+   * rather than recursing, because a scope chain is as deep as the
+   * blocks a body nests and a `RangeError` is not a diagnostic. The
+   * parser learned the same lesson from seven thousand brackets; the
+   * difference is that it bounds its recursion against the host's
+   * `nesting` cap, while a scope has nothing to count and simply does
+   * not recurse.
+   */
   lookup(name: string): Binding | null {
-    const found = this.bindings.get(name);
-    if (found !== undefined) return found;
-    return this.parent === null ? null : this.parent.lookup(name);
+    const own = this.bindings.get(name);
+    if (own !== undefined) return own;
+    for (let scope = this.parent; scope !== null; scope = scope.parent) {
+      const found = scope.bindings.get(name);
+      if (found !== undefined) return found;
+    }
+    return null;
   }
 
   /** What a name means in THIS scope, ignoring the ones around it. */
@@ -545,8 +571,11 @@ export class Scope {
 
   /** Every name in reach, nearest first, each appearing once. */
   names(): string[] {
-    const outward = this.parent === null ? [] : this.parent.names();
-    return [...new Set([...this.bindings.keys(), ...outward])];
+    const seen = new Set<string>(this.bindings.keys());
+    for (let scope = this.parent; scope !== null; scope = scope.parent) {
+      for (const name of scope.bindings.keys()) seen.add(name);
+    }
+    return [...seen];
   }
 
   /**
