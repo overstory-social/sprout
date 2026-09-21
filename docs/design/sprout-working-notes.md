@@ -199,6 +199,11 @@ Found while building the foundations (B01), all four lexical and all four decide
 - **What a backslash means inside quoted text.** Prose has `{{` for a literal brace; a quoted string has nothing stated. `\"`, `\\` and `\n` are taken and anything else is refused, so an escape the language adds later is not already spelling something.
 - **The gutter of a printed diagnostic.** The spec's three examples are hand-set and their gutters disagree by a column. A group is aligned to its widest location plus two spaces, which is what two of the three do.
 
+Found while building the limits (B02):
+
+- **What an unset host limit means.** Five static caps (places, objects, kinds, files, total source bytes) and the wall-clock backstop have no figure in the spec — "as the host says", "a backstop that should never fire" — and nothing says whether a host that sets none leaves a world unbounded or refuses to load it. Unset reads as unbounded, because a language library cannot invent a host's quota and the step budget is what actually bounds cost.
+- **Where the three world-scoped budgets are counted.** Spawns per world per hour, live instances per world and pending wakes per object sit in the runtime-budget table, whose preamble says the budgets are per turn. They are not: they are per world and per object, and outlive any turn. The turn meter names them and does not hold them.
+
 *Closed on 2026-09-20, against the five reviews:* an open role, a handler's sender and an unfiltered loop variable are of the bare object type and are read only through `is()`; `each` is defined; `:remembers` uses the property declaration syntax; NPCs compose the visitor kind, have a name, read nothing, act with `act`, and do not keep a place ticking.
 
 *Closed: range and visitors are in the world model; `let` is specified; type parameters, stateful alternatives and stored references were all decided against; listing contents needs no convention, since `{thing}` renders an object's name; `look` and `examine` render a `describe`, and `text` is the statement that writes inside one.*
