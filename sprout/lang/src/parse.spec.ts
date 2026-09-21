@@ -939,3 +939,71 @@ describe('#60 — invariants over generated input, brackets included', () => {
     }
   });
 });
+
+describe('#60 — the shape every round of bugs here has turned on, enumerated', () => {
+  // The random generator above reaches nesting depth two in about one
+  // input in forty, which is thin cover for the one shape that has
+  // produced a bug in all four rounds on this file: brackets inside
+  // brackets, with something unreadable at the bottom, closed or not.
+  // So that shape is enumerated rather than sampled.
+  // Each of these is something that cannot be a value. `enum` is not
+  // among them on purpose: nothing reserves an option's name, so
+  // `:x [enum]` is a legal list holding one option.
+  const BAD = ['Zeta', '{', '}', ':a', '1.5', '%'];
+
+  function* shapes(): Generator<{ text: string; what: string }> {
+    for (let depth = 1; depth <= 6; depth++) {
+      const open = '['.repeat(depth);
+      for (const bad of BAD) {
+        for (const [tail, what] of [
+          ['', 'unclosed'],
+          [']'.repeat(depth), 'closed'],
+          [`, oak${']'.repeat(depth)}`, 'closed with a good neighbour'],
+        ] as const) {
+          yield { text: `:x ${open}${bad}${tail}`, what: `depth ${depth}, ${bad}, ${what}` };
+          yield {
+            text: `:remembers [a: ${open}${bad}${tail}]`,
+            what: `remembers depth ${depth}, ${bad}, ${what}`,
+          };
+        }
+      }
+    }
+  }
+
+  it('says nothing twice in one place, at any depth', () => {
+    for (const { text, what } of shapes()) {
+      // One collector per read: two independent reads of the same text
+      // saying the same thing is the suite's doing, not the parser's.
+      for (const read of [parseProperty, parseRemembers]) {
+        const diagnostics = new Diagnostics();
+        read(new SourceFile('k.sprout', text), diagnostics);
+        const seen = new Set<string>();
+        for (const problem of diagnostics.all) {
+          const key = `${problem.message}@${problem.at.start}-${problem.at.end}`;
+          expect(seen.has(key), `${what}: ${text}\n  repeated: ${problem.message}`).toBe(false);
+          seen.add(key);
+        }
+      }
+    }
+  });
+
+  it('says "never closed" at most once, however deep the brackets go', () => {
+    for (const { text, what } of shapes()) {
+      const diagnostics = new Diagnostics();
+      parseProperty(new SourceFile('k.sprout', text), diagnostics);
+      const unclosed = diagnostics.all.filter((d) => d.message.includes('never closed'));
+      expect(unclosed.length, `${what}: ${text}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('always says something, and never throws', () => {
+    for (const { text, what } of shapes()) {
+      const diagnostics = new Diagnostics();
+      expect(
+        () => parseProperty(new SourceFile('k.sprout', text), diagnostics),
+        what,
+      ).not.toThrow();
+      expect(diagnostics.all.length, `${what}: ${text} said nothing`).toBeGreaterThan(0);
+    }
+  });
+});
