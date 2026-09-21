@@ -72,8 +72,9 @@ the author's e2e receipt is enough.
    those sections in full; the diff is judged against them, not against
    the issue's one-line paraphrase.
 4. The matching *Decisions* in `docs/design/sprout-working-notes.md` when
-   the change is in an area a decision covers (actors, prose audiences,
-   typing, the poll, limits) — a PR that quietly re-decides one is
+   the change is in an area a decision covers (actor-less turns and the
+   prose audiences, silence, typing, the poll, stored references, the
+   limits' numbers) — a PR that quietly re-decides one is
    blocking.
 5. `git log` / `git blame` on the touched regions when a line looks
    deliberate and the diff undoes it. A comment above the code explaining

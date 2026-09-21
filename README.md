@@ -46,12 +46,17 @@ does; it is never the package version.
 
 ## Design
 
-`docs/design/` is the design history: [`sprout.md`](docs/design/sprout.md), the
-language proposal; [`2026-09-17-sprout-split.md`](docs/design/2026-09-17-sprout-split.md),
-the architecture of core, the stores, the extensions and the CLI, with the six
-outside reviews that shaped it beside it; and
-[`sprout-worked-example/`](docs/design/sprout-worked-example/), one microworld
-that uses every construct, kept compiling by a spec. Sprout was designed for
+[`docs/design/sprout-design-spec.md`](docs/design/sprout-design-spec.md) is the
+language as it is to be built — whole, not as changes to what is here, and
+authoritative where the two disagree. Beside it:
+[`sprout-working-notes.md`](docs/design/sprout-working-notes.md), the
+reasoning and the decisions; [`sprout-build-backlog.md`](docs/design/sprout-build-backlog.md),
+53 numbered items that are the GitHub issues (#nn is item B*nn*, #54 is
+the build order); and [`2026-09-20-reviews/`](docs/design/2026-09-20-reviews/),
+the five critiques the spec was revised against. The dated files —
+[`sprout.md`](docs/design/sprout.md), [`2026-09-17-sprout-split.md`](docs/design/2026-09-17-sprout-split.md)
+and [`sprout-worked-example/`](docs/design/sprout-worked-example/) — are the
+previous language and its architecture, kept as history. Sprout was designed for
 [Overstory Social](https://overstory.social)'s Understory, and the sections of
 those documents that are about that product's hosting of it stay in that
 product's repository; what is here is the language and the runtime.

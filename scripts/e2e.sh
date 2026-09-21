@@ -7,6 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 EXAMPLE=${EXAMPLE:-pottery-studio}
+sha=$(git rev-parse --short HEAD)
 packs=$(mktemp -d)
 npm run build >/dev/null
 npm pack -w sprout -w cli --pack-destination "$packs" >/dev/null
@@ -17,4 +18,4 @@ npm install --silent "$packs"/overstory-sprout-*.tgz "$packs"/overstory-sprout-c
 npx sprout check "node_modules/@overstory/sprout/examples/$EXAMPLE"
 printf 'look\nquit\n' | npx sprout play "node_modules/@overstory/sprout/examples/$EXAMPLE" --store memory | head -20
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green ($EXAMPLE installed from tarballs and played at $(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || echo HEAD))"
+echo "e2e: green ($EXAMPLE installed from tarballs and played at $sha)"
