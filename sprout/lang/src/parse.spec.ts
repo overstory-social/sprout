@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { EnumDeclaration } from './ast.js';
 import { Diagnostics, type Diagnostic } from './diagnostics.js';
 import { unspanned } from './nodes.js';
-import { DECLARATIONS, parseDeclarations } from './parse.js';
+import { DECLARATIONS, parseDeclarations, parseProperty, parseRemembers } from './parse.js';
 import { locationOf, SourceFile, textOf } from './source.js';
 
 function read(text: string, name = 'ward.sprout') {
@@ -173,7 +173,9 @@ describe('what the parser refuses, and where it says so', () => {
   it('refuses a word it cannot read at the top of a file, and says what it can read', () => {
     const { refusals } = read('world printers_shop { }');
     expect(refusals[0]!.message).toBe('Sprout does not know what to do with "world" here.');
-    expect(refusals[0]!.remedy).toBe('A file holds declarations, and this compiler reads `enum`.');
+    expect(refusals[0]!.remedy).toBe(
+      'A file holds declarations, and this compiler reads `enum` and `message`.',
+    );
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:1');
   });
 
@@ -247,5 +249,176 @@ describe('a lexical problem is reported once, and the parser reads around it', (
   it('reads an enum whose own name is misspelt into the lexer’s hands', () => {
     const { refusals } = read('enum Wa%rd { oak }');
     expect(refusals.map((d) => d.message)).toContain('Sprout does not use the character "%".');
+  });
+});
+
+describe('a property declaration, as a kind or an object writes one', () => {
+  const declare = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(new SourceFile('kiln.sprout', text), diagnostics);
+    return { declared, diagnostics, refusals: diagnostics.refusals };
+  };
+
+  it('reads a literal with the type left out', () => {
+    const { declared, refusals } = declare(':lit false');
+    expect(refusals).toEqual([]);
+    expect(declared!.name.text).toBe('lit');
+    expect(declared!.type).toBeNull();
+    expect(declared!.default).toMatchObject({ kind: 'boolean', value: false });
+  });
+
+  it('reads a written type and a default', () => {
+    const { declared } = declare(':lit boolean default false');
+    expect(declared!.type).toMatchObject({ kind: 'named-type', name: { text: 'boolean' } });
+    expect(declared!.default).toMatchObject({ kind: 'boolean', value: false });
+  });
+
+  it('reads an integer with a range', () => {
+    const { declared } = declare(':wear 0 min 0 max 99');
+    expect(declared!.min).toMatchObject({ value: 0 });
+    expect(declared!.max).toMatchObject({ value: 99 });
+  });
+
+  it('reads an enum and a bare option as its default', () => {
+    const { declared } = declare(':state Drying default wet');
+    expect(declared!.type).toMatchObject({ name: { text: 'Drying' } });
+    expect(declared!.default).toMatchObject({ kind: 'option-literal', name: { text: 'wet' } });
+  });
+
+  it('reads a list type and a list default', () => {
+    const { declared } = declare(':opens [Ward] default [oak, silver]');
+    expect(declared!.type).toMatchObject({ kind: 'list-type' });
+    const value = declared!.default!;
+    expect(value.kind).toBe('list-literal');
+    if (value.kind !== 'list-literal') expect.unreachable('just asserted it is one');
+    else expect(value.elements.map((e) => e.kind)).toEqual(['option-literal', 'option-literal']);
+  });
+
+  it('reads an enum named with its library', () => {
+    const { declared, refusals } = declare(':ward sprout.Ward default oak');
+    expect(refusals).toEqual([]);
+    expect(declared!.type).toMatchObject({ library: { text: 'sprout' }, name: { text: 'Ward' } });
+  });
+
+  it('tells `[Ward]` the type from `[oak]` the value by the capital', () => {
+    expect(declare(':a [Ward] default [oak]').declared!.type!.kind).toBe('list-type');
+    expect(declare(':a [oak]').declared!.type).toBeNull();
+  });
+
+  it('reads a negative number', () => {
+    expect(declare(':below -5').declared!.default).toMatchObject({ kind: 'integer', value: -5 });
+  });
+
+  it('keeps a span on every node it built', () => {
+    expect(unspanned(declare(':opens [Ward] default [oak, silver]').declared)).toEqual([]);
+  });
+
+  it('refuses a written type with nothing to start at', () => {
+    const { declared, refusals } = declare(':lit boolean');
+    expect(declared).toBeNull();
+    expect(refusals[0]!.message).toBe('`:lit` has a type and no value to start at.');
+    expect(refusals[0]!.remedy).toContain('default');
+  });
+
+  it('refuses a name with no colon before it', () => {
+    const { refusals } = declare('lit false');
+    expect(refusals[0]!.message).toContain('A property starts with its name');
+  });
+
+  it('refuses a min that is not a whole number', () => {
+    expect(declare(':wear 0 min "x"').refusals[0]!.message).toBe('A min is a whole number.');
+  });
+
+  it('refuses the same bound twice', () => {
+    expect(declare(':wear 0 min 0 min 1').refusals[0]!.message).toBe('`:wear` says min twice.');
+  });
+
+  it('refuses a list that is never closed, and one missing a comma', () => {
+    expect(declare(':a [Ward] default [oak').refusals[0]!.message).toBe(
+      'This list is never closed.',
+    );
+    expect(declare(':a [Ward] default [oak silver]').refusals[0]!.message).toBe(
+      'A list needs a comma between its elements.',
+    );
+  });
+
+  it('refuses a minus sign with no number after it', () => {
+    expect(declare(':a -').refusals[0]!.message).toBe('A minus sign needs a number after it.');
+  });
+
+  it('never throws, whatever it is given', () => {
+    for (const text of [
+      ':a',
+      ':a default',
+      ':a [',
+      ':a [Ward',
+      ':a [] default',
+      ':a min',
+      ':',
+      ':a sprout.',
+      ':a boolean default',
+    ]) {
+      expect(() => declare(text), text).not.toThrow();
+    }
+  });
+});
+
+describe('a :remembers, as an object writes one', () => {
+  const remember = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(new SourceFile('kiln.sprout', text), diagnostics);
+    return { declared, refusals: diagnostics.refusals };
+  };
+
+  it('reads the spec’s own example', () => {
+    const { declared, refusals } = remember(
+      ':remembers [handled: false, ward_seen: Ward default oak, visits: 0 min 0 max 99]',
+    );
+    expect(refusals).toEqual([]);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual([
+      'handled',
+      'ward_seen',
+      'visits',
+    ]);
+    expect(declared!.properties[2]!.max).toMatchObject({ value: 99 });
+  });
+
+  it('reads one that remembers nothing', () => {
+    expect(remember(':remembers []').declared!.properties).toEqual([]);
+  });
+
+  it('keeps a span on every node it built', () => {
+    expect(unspanned(remember(':remembers [visits: 0]').declared)).toEqual([]);
+  });
+
+  it('refuses a name with a colon before it, which is the other syntax', () => {
+    expect(remember(':remembers [:visits 0]').refusals[0]!.message).toContain(
+      'A remembered property starts with its name',
+    );
+  });
+
+  it('refuses a missing colon between a name and its value', () => {
+    expect(remember(':remembers [visits 0]').refusals[0]!.message).toBe(
+      '`visits` needs a colon between its name and its value.',
+    );
+  });
+
+  it('refuses a missing comma, and one that is never closed', () => {
+    expect(remember(':remembers [a: 0 b: 1]').refusals[0]!.message).toContain('needs a comma');
+    expect(remember(':remembers [a: 0').refusals[0]!.message).toBe(
+      'This `:remembers` is never closed.',
+    );
+  });
+
+  it('refuses brackets left out altogether', () => {
+    expect(remember(':remembers visits: 0').refusals[0]!.message).toBe(
+      'What an object remembers goes in brackets.',
+    );
+  });
+
+  it('never throws, whatever it is given', () => {
+    for (const text of [':remembers', ':remembers [', ':remembers [a', ':remembers [a:', ':x []']) {
+      expect(() => remember(text), text).not.toThrow();
+    }
   });
 });

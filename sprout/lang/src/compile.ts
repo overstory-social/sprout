@@ -39,6 +39,7 @@ import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js'
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from './diagnostics.js';
 import { checkEnumDeclaration, EnumTable } from './enums.js';
+import { MessageTable } from './messages.js';
 import { parseDeclarations } from './parse.js';
 import { DEFAULT_LIMITS, type Limits } from './limits.js';
 import type { Span, SourceFile } from './source.js';
@@ -545,6 +546,18 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     enums.add(
       library,
       declared.filter((d) => d.kind === 'enum'),
+      report.diagnostics,
+    );
+  }
+
+  // Messages after enums, because what a message carries may be an
+  // enum's option and the enum has to be known before it can be named.
+  const messages = new MessageTable();
+  for (const [library, declared] of byLibrary) {
+    messages.add(
+      library,
+      declared.filter((d) => d.kind === 'message'),
+      enums,
       report.diagnostics,
     );
   }
