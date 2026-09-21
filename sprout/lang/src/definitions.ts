@@ -11,14 +11,10 @@ import { SPROUT_BUILTIN_TYPES } from './extensions.js';
 // lives here; a cap of a zone or a product policy (rooms per zone, how long
 // an action row lives) stays with the product.
 
-/**
- * The language level (the split proposal §3.2): an integer bumped only
- * when syntax is ADDED. A host records the level a source needs beside
- * the source; a runtime refuses to load text that needs a newer level
- * than its own compiler, and a policy refusal newer than the level a
- * text was accepted at is a warning at load, never a dark room.
- */
-export const LANGUAGE_LEVEL = 1;
+// The language level moved to bundle.ts with B03, where the rest of what
+// a bundle carries lives; it is re-exported here so the previous
+// language's modules keep reading it from where they always did.
+export { LANGUAGE_LEVEL } from './bundle.js';
 
 export const SPROUT_EXITS_PER_ROOM = 8;
 export const SPROUT_NAME_MAX = 80;

@@ -12,7 +12,12 @@ import { describe, expect, it } from 'vitest';
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['zod'];
-const ALLOWED_IN_SPECS = ['vitest', 'node:fs', 'node:path', 'node:url'];
+// `node:crypto` is here for one reason: sha256.spec.ts checks the
+// language's own SHA-256 against the platform's for a thousand random
+// inputs. The hash is a trust boundary (a blessed library is a hash the
+// host knows), so it is worth proving against something that did not
+// come from the same head. No src/ file may import it.
+const ALLOWED_IN_SPECS = ['vitest', 'node:fs', 'node:path', 'node:url', 'node:crypto'];
 
 describe('@overstory/sprout/lang imports nothing but zod and itself', () => {
   // Every .ts under src, subdirectories included (src/fixtures holds spec support).
