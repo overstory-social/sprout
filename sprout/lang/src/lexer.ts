@@ -86,6 +86,8 @@ const isKindRest = (ch: string): boolean => isNameRest(ch) || isUpper(ch);
 export class Lexer {
   private at = 0;
   private readonly ahead: Token[] = [];
+  /** Offsets of characters refused and stepped over, which leave no token behind. */
+  private readonly stepped: number[] = [];
 
   constructor(
     readonly source: SourceFile,
@@ -106,6 +108,17 @@ export class Lexer {
   /** Whether everything but the `end` token has been read. */
   get done(): boolean {
     return this.peek().kind === 'end';
+  }
+
+  /**
+   * Whether a character was refused and stepped over between two
+   * offsets. A skipped character leaves no token, so the parser sees two
+   * things side by side that were not, and would otherwise report the
+   * gap as a missing separator — one mistake, said twice, the second
+   * time wrongly.
+   */
+  refusedBetween(start: number, end: number): boolean {
+    return this.stepped.some((at) => at >= start && at < end);
   }
 
   private span(start: number, end: number): Span {
@@ -175,6 +188,7 @@ export class Lexer {
       }
 
       this.at = start + 1;
+      this.stepped.push(start);
       this.diagnostics.refuse(
         this.span(start, this.at),
         `Sprout does not use the character "${ch}".`,

@@ -217,6 +217,23 @@ This makes two checks possible before a line has parsed, and both are now made: 
 
 Still unsaid, and decided the narrow way: whether a version is semver or free text (free text, non-empty), and whether an author is a name or a structured record (a name). B12's `world` declaration will have to agree with the manifest's name, or replace it.
 
+Found while building enums and the declaration parser (B05):
+
+- **How an enum's options are separated.** The spec writes `enum Ward { oak, silver }` and never says whether the commas are required or whether a trailing one is allowed. They are required and a trailing one is refused: the narrow reading of the examples, and the easy one to loosen.
+- **What bounds an enum.** The static caps table has no cap on options per enum, where the previous language had twelve. The silence sits beside an explicit "there is no limit on statements in a body", so it reads as deliberate and none is enforced. A one-option enum is accepted as an ordinary type with one value; a zero-option one is refused, since nothing could ever hold one.
+
+Found while building property and message declarations (B06, B07):
+
+- **Which literal a type can be taken from.** "The type may be written or taken from the literal" holds for a boolean, an integer and a string, each of which names its own type. It cannot hold for a bare option: `:ward iron` says nothing about which enum `iron` belongs to, and every example in the spec that defaults to an option writes the enum first (`:state Drying default wet`). A bare option with no written type is refused, saying so. The worked example's `:ward iron` is a RESTATEMENT of a property `Warded` already declared, which keeps the type and changes only the default — that path is B19's, and it is the only way a bare option stands alone.
+- **Whether a default is optional.** "A property is a name, a type, and a default" reads as all three, and every example writes one. A written type with no `default` is refused: there is no null for a property to hold instead, so a type with no default would have nothing to start at.
+- **Whether a list may hold a list.** A list is "a bounded, ordered collection of one element type", and nothing says whether that element type may itself be a list. `[[Ward]]` is refused, which is the narrow reading.
+- **Where an integer's range may be written.** The spec shows only `:wear 0 min 0 max 99` — the literal form, min before max. Both bounds are accepted with a written type as well, each is optional on its own, and they may be written in either order, none of which the spec forbids.
+
+- **Whether an enum's options are reserved words.** *Reserved names* reserves engine message names, engine verb names and the member words, and says nothing about an enum's options — so `enum Setting { boolean, custom }` is legal. But `boolean`, `integer`, `string` and `object` are read as types wherever a type may be written, so `:x boolean` meant as "default to the option" is refused. Writing the type out (`:x Setting default boolean`) works, so nothing is unreachable; the four words are simply not usable in the type-from-the-literal shorthand. Left as is rather than reserving them, because reserving words the spec does not is the larger change.
+- **Whether a type can be taken from a list literal.** It cannot, for any list — not only an ambiguous one. `[]` says nothing about what it would hold, and a rule that infers from `[true, false]` and not from `[]` would be a rule an author has to remember the edge of. A list property writes its element type.
+
+One asymmetry worth writing down, since it is consistent in the spec and easy to get backwards: a symbol is written BARE in a declaration (`default wet`, `:ward iron`) and with a colon in an expression (`state == :wet`, `self.set(:cuff, :damp)`).
+
 Found while building strict publish and lenient load (B04):
 
 - **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)

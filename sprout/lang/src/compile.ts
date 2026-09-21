@@ -34,12 +34,14 @@
 // pretending.
 
 import type { CompileMode, Gap } from './absent.js';
+import type { Declaration } from './ast.js';
 import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js';
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from './diagnostics.js';
-import { Lexer, type Token } from './lexer.js';
+import { checkEnumDeclaration, EnumTable } from './enums.js';
+import { MessageTable } from './messages.js';
+import { parseDeclarations } from './parse.js';
 import { DEFAULT_LIMITS, type Limits } from './limits.js';
-import type { Node } from './nodes.js';
 import type { Span, SourceFile } from './source.js';
 
 /**
@@ -66,7 +68,7 @@ export interface BundleOptions {
 
 /** What the first tier makes of one file. */
 export interface ShapeResult {
-  readonly tokens: readonly Token[];
+  readonly declarations: readonly Declaration[];
   readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -119,16 +121,12 @@ const NAMESPACE = /^[a-z][a-z0-9_]*$/;
  */
 export function checkShape(file: SourceFile): ShapeResult {
   const diagnostics = new Diagnostics();
-  const tokens: Token[] = [];
-  if (isCode(file)) {
-    const lexer = new Lexer(file, diagnostics);
-    for (;;) {
-      const token = lexer.next();
-      tokens.push(token);
-      if (token.kind === 'end') break;
-    }
+  if (!isCode(file)) return { declarations: [], diagnostics: [] };
+  const declarations = parseDeclarations(file, diagnostics);
+  for (const declared of declarations) {
+    if (declared.kind === 'enum') checkEnumDeclaration(declared, diagnostics);
   }
-  return { tokens, diagnostics: diagnostics.all };
+  return { declarations, diagnostics: diagnostics.all };
 }
 
 /** Vendor the libraries: hash each one, and ask the host's blessed set about the hash. */
@@ -505,13 +503,27 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   // own and every usable library's, because they compile together. A
   // file that does not compile refuses at publish; at load it reads as
   // absent, and what referred to it keeps compiling.
-  for (const file of [...arrived, ...usable.flatMap((library) => library.files)]) {
+  const readable: { library: string; file: SourceFile }[] = [
+    ...arrived.map((file) => ({ library: manifest.name, file })),
+    ...usable.flatMap((library) => library.files.map((file) => ({ library: library.name, file }))),
+  ];
+  const declarations: Declaration[] = [];
+  const byLibrary = new Map<string, Declaration[]>();
+  for (const { library, file } of readable) {
     const shape = checkShape(file);
-    if (shape.diagnostics.length === 0) continue;
+    const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
+    if (!refused) {
+      declarations.push(...shape.declarations);
+      byLibrary.set(library, [...(byLibrary.get(library) ?? []), ...shape.declarations]);
+      report.diagnostics.add(...shape.diagnostics);
+      continue;
+    }
     if (mode === 'publish') {
       report.diagnostics.add(...shape.diagnostics);
       continue;
     }
+    // A file that does not compile reads as absent: what it declared is
+    // not in the world, and what referred to it keeps compiling.
     report.absent.push({
       what: file.name,
       kind: 'file',
@@ -524,6 +536,30 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
         diagnostic.severity === 'refusal' ? { ...diagnostic, severity: 'warning' } : diagnostic,
       );
     }
+  }
+
+  // The second tier over what parsed: an enum's identity is its library
+  // and its name, so two of one name in one library collide and two in
+  // different libraries do not.
+  const enums = new EnumTable();
+  for (const [library, declared] of byLibrary) {
+    enums.add(
+      library,
+      declared.filter((d) => d.kind === 'enum'),
+      report.diagnostics,
+    );
+  }
+
+  // Messages after enums, because what a message carries may be an
+  // enum's option and the enum has to be known before it can be named.
+  const messages = new MessageTable();
+  for (const [library, declared] of byLibrary) {
+    messages.add(
+      library,
+      declared.filter((d) => d.kind === 'message'),
+      enums,
+      report.diagnostics,
+    );
   }
 
   // A world accepted at one level keeps loading when the language
@@ -541,10 +577,9 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   // are what it hashes. A publish hashes the whole of what was
   // published; a load with a file withheld is honestly a different
   // bundle, and the log records the withholding as its own event.
-  const definitions: readonly Node[] = [];
   const bundle: Bundle = {
     manifest,
-    definitions,
+    definitions: declarations,
     // B27 fills this from nouns, tokens, directions, articles,
     // connectors and phrase words, once there is a grammar to read.
     words: [],

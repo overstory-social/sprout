@@ -13,8 +13,8 @@ const SPROUT: LibrarySource = {
   version: '1.0.0',
   level: 1,
   files: [
-    file('actor.sprout', 'kind Actor { :capacity 4 }'),
-    file('place.sprout', 'kind Place { contains actors }'),
+    file('ward.sprout', 'enum Ward { oak, silver }'),
+    file('glaze.sprout', 'enum Glaze { none, shino, tenmoku }'),
   ],
 };
 const SPROUT_SHA = libraryHash(SPROUT);
@@ -33,7 +33,9 @@ const MANIFEST = [
   '',
 ].join('\n');
 
-const WORLD_TEXT = 'world printers_shop { contains }';
+const WORLD_TEXT = 'enum Season { spring, summer, autumn, winter }';
+/** Exactly the world's own source: blessed fits, unblessed does not. */
+const OWN_BYTES = WORLD_TEXT.length;
 
 /** A world as it arrives, with whatever this suite wants to move about it. */
 function world(
@@ -71,24 +73,33 @@ const warnings = (diagnostics: readonly Diagnostic[]): Diagnostic[] =>
   diagnostics.filter((d) => d.severity === 'warning');
 
 describe('the first tier reads one file alone, for its shape', () => {
-  it('gives back the file’s tokens and nothing to say about a clean one', () => {
-    const { tokens, diagnostics } = checkShape(file('kiln.sprout', 'object kiln { :door open }'));
+  it('gives back the file’s declarations and nothing to say about a clean one', () => {
+    const { declarations, diagnostics } = checkShape(file('ward.sprout', 'enum Ward { oak }'));
     expect(diagnostics).toEqual([]);
-    expect(tokens.map((t) => t.text)).toEqual(['object', 'kiln', '{', 'door', 'open', '}', '']);
+    expect(declarations).toHaveLength(1);
+    expect(declarations[0]!.kind).toBe('enum');
   });
 
   it('names the line and column of what it refuses', () => {
-    const { diagnostics } = checkShape(file('kiln.sprout', 'object kiln {\n  :door % open\n}'));
+    const { diagnostics } = checkShape(file('ward.sprout', 'enum Ward {\n  oak % silver\n}'));
+    // Exactly one: the lexer steps the character over and the parser
+    // does not report the gap it left as a missing comma.
     expect(diagnostics).toHaveLength(1);
-    expect(locationOf(diagnostics[0]!.at)).toBe('kiln.sprout:2:9');
+    expect(locationOf(diagnostics[0]!.at)).toBe('ward.sprout:2:7');
+  });
+
+  it('checks a declaration against itself, which is all the first tier can see', () => {
+    const { diagnostics } = checkShape(file('ward.sprout', 'enum Ward { oak, oak }'));
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]!.message).toContain('twice');
   });
 
   it('leaves a .prose file to B29 rather than reading it as code', () => {
-    const { tokens, diagnostics } = checkShape(
+    const { declarations, diagnostics } = checkShape(
       file('mirror.prose', 'You see yourself, and % is not a problem here.'),
     );
     expect(diagnostics).toEqual([]);
-    expect(tokens).toEqual([]);
+    expect(declarations).toEqual([]);
   });
 });
 
@@ -167,7 +178,7 @@ describe('the manifest enumerates the world’s own files', () => {
   it('refuses a file that travelled and the manifest does not name', () => {
     const { bundle, diagnostics } = compileBundle(
       world({
-        files: [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'object kiln { }')],
+        files: [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')],
         manifest: { files: ['world.sprout'] },
       }),
     );
@@ -197,7 +208,9 @@ describe('the manifest enumerates the world’s own files', () => {
 
   it('refuses two files of one name arriving', () => {
     expect(
-      compileBundle(world({ files: [file('a.sprout', 'x'), file('a.sprout', 'y')] })).bundle,
+      compileBundle(
+        world({ files: [file('a.sprout', 'enum A { a }'), file('a.sprout', 'enum B { b }')] }),
+      ).bundle,
     ).toBeNull();
   });
 });
@@ -218,7 +231,7 @@ describe('the manifest records every library by version and by the hash of its s
   it('refuses a library whose source is not the source the manifest recorded', () => {
     const fork: LibrarySource = {
       ...SPROUT,
-      files: [SPROUT.files[0]!, file('place.sprout', 'kind Place { contains }')],
+      files: [SPROUT.files[0]!, file('glaze.sprout', 'enum Glaze { none }')],
     };
     const { bundle, diagnostics } = compileBundle(world({ libraries: [fork] }));
     expect(bundle).toBeNull();
@@ -257,7 +270,7 @@ describe('the manifest records every library by version and by the hash of its s
       name: 'ericworld',
       version: '0.1.0',
       level: 1,
-      files: [file('a.sprout', 'kind A')],
+      files: [file('a.sprout', 'enum Spare { one }')],
     };
     const { bundle, diagnostics } = compileBundle(world({ libraries: [SPROUT, spare] }));
     expect(bundle).not.toBeNull();
@@ -266,7 +279,7 @@ describe('the manifest records every library by version and by the hash of its s
   });
 
   it('lets a library and the world share a file name, since they are different source', () => {
-    const files = [file('actor.sprout', 'object a { }')];
+    const files = [file('ward.sprout', 'enum Mine { one }')];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 });
@@ -300,7 +313,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
   });
 
   it('refuses a world past the host’s source cap, and says what to do', () => {
-    const limits = limitsFrom({ caps: { sourceBytes: 40 } });
+    const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
     const { bundle, diagnostics } = compileBundle(world(), { limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toContain('bytes of source');
@@ -308,7 +321,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
   });
 
   it('lets the same world through once its library is blessed', () => {
-    const limits = limitsFrom({ caps: { sourceBytes: 40 } });
+    const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
     expect(
       compileBundle(world(), { limits, blessed: new Set([SPROUT_SHA]) }).bundle,
     ).not.toBeNull();
@@ -323,7 +336,9 @@ describe('blessed library source costs the author nothing, and a fork costs them
   });
 
   it('bounds nothing the host did not bound', () => {
-    const big = file('big.sprout', 'x'.repeat(1_000_000));
+    // A .prose file, because a megabyte of source would be a megabyte
+    // of parse errors and this test is about the cap, not the parser.
+    const big = file('big.prose', 'x'.repeat(1_000_000));
     expect(compileBundle(world({ files: [big] })).bundle).not.toBeNull();
   });
 });
@@ -362,14 +377,17 @@ describe('a bundle’s level is the highest of any of its parts', () => {
 describe('the whole bundle is read, the world’s files and its libraries alike', () => {
   it('refuses a syntax problem in the world’s own source, naming the file', () => {
     const { bundle, diagnostics } = compileBundle(
-      world({ files: [file('world.sprout', 'world printers_shop {\n  % \n}')] }),
+      world({ files: [file('world.sprout', 'enum Season { spring }\n%\n')] }),
     );
     expect(bundle).toBeNull();
-    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('world.sprout:2:3');
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('world.sprout:2:1');
   });
 
   it('refuses a syntax problem in a vendored library too, because they compile together', () => {
-    const broken: LibrarySource = { ...SPROUT, files: [file('actor.sprout', 'kind Actor { % }')] };
+    const broken: LibrarySource = {
+      ...SPROUT,
+      files: [file('ward.sprout', 'enum Ward { oak }\n%\n')],
+    };
     const { bundle, diagnostics } = compileBundle(
       world({
         libraries: [broken],
@@ -377,7 +395,7 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
       }),
     );
     expect(bundle).toBeNull();
-    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('actor.sprout:1:14');
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('ward.sprout:2:1');
   });
 
   it('gives every problem in reading order, not the first', () => {
@@ -407,13 +425,13 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('hashes differently once anything about the world changes', () => {
-    const changed = world({ files: [file('world.sprout', 'world printers_shop { }')] });
+    const changed = world({ files: [file('world.sprout', 'enum Season { spring }')] });
     expect(compileBundle(changed).bundle!.hash).not.toBe(bundle!.hash);
   });
 
-  it('carries no definitions and no word set yet, because nothing parses yet', () => {
-    // B05–B19 fill the definitions; B27 fills the word set.
-    expect(bundle!.definitions).toEqual([]);
+  it('carries the declarations it read, the world’s and its libraries’ alike', () => {
+    // B06 onward add to the union; B27 fills the word set.
+    expect(bundle!.definitions.map((d) => d.name.text)).toEqual(['Season', 'Ward', 'Glaze']);
     expect(bundle!.words).toEqual([]);
   });
 });
@@ -456,7 +474,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world whose library is not the source recorded, and does not use that library', () => {
-    const fork: LibrarySource = { ...SPROUT, files: [file('actor.sprout', 'kind Actor { }')] };
+    const fork: LibrarySource = { ...SPROUT, files: [file('ward.sprout', 'enum Ward { oak }')] };
     const { bundle } = compileBundle(world({ libraries: [fork] }), load);
     expect(bundle).not.toBeNull();
     expect(bundle!.absent[0]).toMatchObject({ what: 'sprout', reason: 'mismatched' });
@@ -493,7 +511,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world one of whose files does not compile, and names the file', () => {
-    const files = [file('world.sprout', 'world x { }'), file('b.sprout', '%')];
+    const files = [file('world.sprout', WORLD_TEXT), file('b.sprout', '%')];
     const { bundle, diagnostics } = compileBundle(world({ files }), load);
     expect(bundle).not.toBeNull();
     expect(bundle!.absent).toHaveLength(1);
@@ -509,20 +527,20 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('leaves the files that do compile alone', () => {
-    const files = [file('good.sprout', 'object kiln { }'), file('bad.sprout', '%')];
+    const files = [file('good.sprout', 'enum Good { yes }'), file('bad.sprout', '%')];
     const { bundle } = compileBundle(world({ files }), load);
     expect(bundle!.absent.map((a) => a.what)).toEqual(['bad.sprout']);
   });
 
   it('warns rather than refuses past a cap, since the world was accepted once', () => {
-    const limits = limitsFrom({ caps: { sourceBytes: 40 } });
+    const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
     const { bundle, diagnostics } = compileBundle(world(), { ...load, limits });
     expect(bundle).not.toBeNull();
     expect(warnings(diagnostics)[0]!.message).toContain('bytes of source');
   });
 
   it('warns rather than refuses about a file the manifest does not name', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'object kiln { }')];
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const { bundle } = compileBundle(world({ files, manifest: { files: ['world.sprout'] } }), load);
     expect(bundle).not.toBeNull();
   });
@@ -597,7 +615,10 @@ describe('a library’s own file reads as absent when it will not compile', () =
   // alike, with no branch between them; this is the library half of the
   // world-file case above, kept because the two are only obviously the
   // same path if you have read the loop.
-  const broken: LibrarySource = { ...SPROUT, files: [file('actor.sprout', 'kind Actor { % }')] };
+  const broken: LibrarySource = {
+    ...SPROUT,
+    files: [file('ward.sprout', 'enum Ward { oak }\n%\n')],
+  };
   const withBroken = () =>
     world({
       libraries: [broken],
@@ -613,7 +634,7 @@ describe('a library’s own file reads as absent when it will not compile', () =
     expect(bundle).not.toBeNull();
     expect(bundle!.absent).toHaveLength(1);
     expect(bundle!.absent[0]).toMatchObject({
-      what: 'actor.sprout',
+      what: 'ward.sprout',
       kind: 'file',
       reason: 'broken',
     });
