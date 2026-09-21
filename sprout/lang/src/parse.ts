@@ -71,6 +71,13 @@ const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
 /** Punctuation that ends a list of things, so a word before it is the last one. */
 const CLOSERS = new Set([',', '}', ']']);
 
+/** Which bracket opens which, for stepping over what the cap refused. */
+const OPENER_OF: ReadonlyMap<string, string> = new Map([
+  [']', '['],
+  [')', '('],
+  ['}', '{'],
+]);
+
 /**
  * How tightly each binary operator binds, loosest first. Nothing in the
  * spec states a precedence — see the notes' hole — so this is the
@@ -214,6 +221,29 @@ class Parser {
     }
     this.depth += 1;
     return true;
+  }
+
+  /**
+   * Step over what the cap would not let us read, the opening bracket
+   * already taken. Without this the bracket is consumed, its level
+   * never opens, and its CLOSER is left in the stream — where the next
+   * recovery loop takes it for its own closing bracket and ends early,
+   * dropping everything after it with nothing said. Counting matched
+   * pairs on the way leaves the reader exactly past the construct.
+   */
+  private skipBracketed(close: string): void {
+    const open = OPENER_OF.get(close)!;
+    let depth = 1;
+    while (!this.done && depth > 0) {
+      // A closer that was never written would otherwise take the rest
+      // of the file with it, including declarations that have nothing
+      // to do with this one. A declaration keyword ends the skip.
+      if (this.atDeclarationKeyword()) return;
+      const token = this.next();
+      if (token.kind !== 'punct') continue;
+      if (token.text === open) depth += 1;
+      else if (token.text === close) depth -= 1;
+    }
   }
 
   /** The nesting cap, said once per declaration and refused in silence after. */
@@ -415,7 +445,10 @@ class Parser {
   private typeExpr(): TypeExpr | null {
     const open = this.take('punct', '[');
     if (open !== null) {
-      if (!this.deeper(open.at)) return null;
+      if (!this.deeper(open.at)) {
+        this.skipBracketed(']');
+        return null;
+      }
       try {
         const element = this.typeExpr();
         if (element === null) return null;
@@ -548,7 +581,10 @@ class Parser {
     }
     if (token.kind === 'punct' && token.text === '[') {
       const open = this.next();
-      if (!this.deeper(open.at)) return null;
+      if (!this.deeper(open.at)) {
+        this.skipBracketed(']');
+        return null;
+      }
       try {
         return this.listLiteral(open);
       } finally {
@@ -850,14 +886,29 @@ class Parser {
    */
   private unary(): Expr | null {
     const operators: Token[] = [];
+    let refused = false;
     while (this.peek().kind === 'punct' && PREFIX.has(this.peek().text)) {
       const token = this.next();
-      if (operators.length >= this.caps.nesting) {
-        this.reportCap(token.at, 'Take some of the signs out.');
-        return null;
+      // Against `this.depth`, which parentheses, lists and call
+      // arguments all share. A counter of its own would give every
+      // bracketed level a fresh allowance of signs on top of the
+      // shared one, so eight parentheses each holding eight `!` would
+      // nest sixty-four deep under a cap of eight.
+      if (!this.deeper(token.at)) {
+        refused = true;
+        break;
       }
       operators.push(token);
     }
+    try {
+      return refused ? null : this.applyPrefix(operators);
+    } finally {
+      this.depth -= operators.length;
+    }
+  }
+
+  /** The operators of a prefix stack, applied to what they were written before. */
+  private applyPrefix(operators: readonly Token[]): Expr | null {
     let expr = this.postfix();
     if (expr === null) return null;
     for (let i = operators.length - 1; i >= 0; i--) {
@@ -916,10 +967,19 @@ class Parser {
 
     if (token.kind === 'punct' && token.text === '(') {
       const open = this.next();
-      if (!this.deeper(open.at)) return null;
+      if (!this.deeper(open.at)) {
+        this.skipBracketed(')');
+        return null;
+      }
       try {
         const inner = this.expression();
-        if (inner === null) return null;
+        if (inner === null) {
+          // Give up on the whole bracket, not on its contents: leaving
+          // the closer behind hands it to whatever is reading around
+          // this, which takes it for its own and ends early.
+          this.skipBracketed(')');
+          return null;
+        }
         const close = this.take('punct', ')');
         if (close === null) {
           this.diagnostics.refuse(
@@ -927,6 +987,7 @@ class Parser {
             'This bracket is never closed.',
             'Add a ) after what it holds.',
           );
+          this.skipBracketed(')');
           return null;
         }
         return inner;
@@ -1006,7 +1067,10 @@ class Parser {
    * reads.
    */
   private argumentList(open: Token): { arguments: Expr[]; at: Span } | null {
-    if (!this.deeper(open.at)) return null;
+    if (!this.deeper(open.at)) {
+      this.skipBracketed(')');
+      return null;
+    }
     try {
       const args: Expr[] = [];
       let missingComma: Span | null = null;

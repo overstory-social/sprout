@@ -259,6 +259,8 @@ Two things the spec does settle, which are worth writing down because they read 
 - **Two object bindings of different kinds may be compared.** *Object identity* says `==` on two bindings tests whether they are the same object, and asking whether the mover is the actor is the point of it. No kind agreement is required, and none is demanded.
 - **A `set` whose value cannot be decided until the world runs is not refused.** The table says "within its range where the compiler can tell", and *What the compiler checks* adds that an out-of-range `set` at run time is a fault. So only a written number is range-checked; anything read is left alone, because reporting a problem that might not be one is the thing this compiler does not do.
 
+One thing to hand to B24, which is where it lands rather than where it was found: the moment `if`/`permit`/`do` exist, the spec's own worked example — `if (p != self && chance(4))` — becomes writable in a real world, and a compiler that does not read `chance` stops being incomplete and starts being wrong. B24 is a hard prerequisite of B33 by the backlog's own graph, so it will necessarily land first.
+
 `chance` and `random` are **not** read yet. Their types are two sentences of spec, but the rules about where they may appear — and the reachability check behind them — are B33's, and the backlog puts both words in that item. The parser reads the shape of a call with no receiver so the refusal can name the word, and the checker's table of such calls is empty until B33 fills it.
 
 Found while building strict publish and lenient load (B04):

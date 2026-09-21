@@ -583,6 +583,17 @@ function effectCall(
   if (named === null) return null;
   const property = declaredOn(kind, named, context);
   if (property === null) return null;
+  // The same split `get` draws, and for the same reason: memory is held
+  // per actor and written through `remember`, so a `set` that reached it
+  // would write one object's idea of everybody at once.
+  if (property.remembered) {
+    context.diagnostics.refuse(
+      named.at,
+      `\`:${named.text}\` is remembered about each actor, not held by the object.`,
+      `Write it with \`remember\`, as in \`actor.remember(:${named.text}, …)\`.`,
+    );
+    return null;
+  }
 
   switch (method.text) {
     case 'set': {

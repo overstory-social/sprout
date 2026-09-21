@@ -1230,17 +1230,27 @@ describe('an expression counts against the host’s nesting cap', () => {
     ).toHaveLength(1);
   });
 
-  it('says it once WITHOUT abandoning what comes after it', () => {
-    // The first fix for the multiplying was to stop the whole
-    // construct at the first item that was too deep. That said the
-    // depth once and lost everything else the author had got wrong —
-    // so it is reported once and then refused in silence instead, and
-    // the list reads on exactly as it does past any other bad element.
+  it('says it once, and takes the whole construct with it rather than half', () => {
+    // Two things had to be told apart here. What is INSIDE a construct
+    // the cap abandoned goes with it — the same way an enum's options
+    // go with an enum that could not be read — and one message is the
+    // whole account of it. What comes AFTER it is a sibling the author
+    // is still owed, and the first fix lost those: stopping at the
+    // first too-deep item said the depth once and dropped everything
+    // else that was wrong.
     const deep = '['.repeat(12);
-    const { refusals } = readExpressionOf(`:x [${deep}oak, Zeta]`);
-    const said = refusals.map((d) => d.message);
+    const inside = readExpressionOf(`:x [${deep}oak, Zeta]`).refusals.map((d) => d.message);
+    expect(inside.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+
+    const diagnostics = new Diagnostics();
+    const after = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${deep}oak${']'.repeat(12)}, b c: 1]`),
+      diagnostics,
+    );
+    const said = diagnostics.refusals.map((d) => d.message);
     expect(said.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
-    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
+    expect(said.join(' ')).toContain('needs a colon between its name and its value');
+    expect(after).not.toBeNull();
   });
 
   it('gives each declaration its own account of being too deep', () => {
@@ -1258,6 +1268,43 @@ message :b with ${deep}Ward
     expect(
       diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
     ).toHaveLength(2);
+  });
+
+  it('counts prefix signs against the same depth brackets do', () => {
+    // A counter of its own would give every bracketed level a fresh
+    // allowance of signs on top of the shared one: eight parentheses
+    // each holding eight `!` nested sixty-four deep under a cap of
+    // eight, with nothing said.
+    expect(readExpression('(' + '!'.repeat(nesting - 1) + 'a)').expr).not.toBeNull();
+    expect(readExpression('(' + '!'.repeat(nesting) + 'a)').expr).toBeNull();
+    const stacked = ('(' + '!'.repeat(nesting)).repeat(nesting) + 'a' + ')'.repeat(nesting);
+    expect(readExpression(stacked).refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+  });
+
+  it('steps over what it would not read, rather than leaving its closer behind', () => {
+    // A bracket the cap refuses is consumed and never opens a level, so
+    // its CLOSER is left in the stream — where the loop reading around
+    // it takes the closer for its own and ends early, dropping
+    // everything after it with nothing said.
+    const deep = '('.repeat(nesting) + 'a' + ')'.repeat(nesting);
+    const call = readExpression(`self.f(${deep}, b)`);
+    expect(call.shape).toBe('self.f(b)');
+    expect(call.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+
+    // The same shape in a `:remembers`, which is where it was found.
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile(
+        'k.sprout',
+        ':remembers [a: ' + '['.repeat(nesting + 1) + 'oak' + ']'.repeat(nesting + 1) + ', b: 3]',
+      ),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
   });
 
   it('never throws, however deep or however long', () => {

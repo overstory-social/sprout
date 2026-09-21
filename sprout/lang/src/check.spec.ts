@@ -104,7 +104,11 @@ const VESSEL = kind(
 );
 const PRINTER = kind(
   'Printer',
-  [property(':visits 0 min 0 max 99', true), property(':handled false', true)],
+  [
+    property(':visits 0 min 0 max 99', true),
+    property(':handled false', true),
+    property(':seen [Ward] default [oak]', true),
+  ],
   [ACTOR],
   true,
 );
@@ -330,6 +334,24 @@ describe('what the compiler checks — the table, row by row', () => {
     const fromVessel = bodyOf(VESSEL);
     expect(effect('actor.remember(:handled, true)', fromVessel)).toBe(false);
     expect(saidBy(fromVessel).join(' ')).toContain('remembers nothing called `:handled`');
+  });
+
+  it('nothing but `remember` writes memory, for any of the four that write', () => {
+    // `get` drew this line and the four that write did not, so a `set`
+    // reached memory and wrote one object's idea of everybody at once.
+    for (const text of [
+      'self.set(:visits, 5)',
+      'self.adjust(:visits, 1)',
+      'self.add(:seen, :silver)',
+      'self.remove(:seen, :oak)',
+    ]) {
+      const context = bodyOf(PRINTER);
+      expect(effect(text, context), text).toBe(false);
+      expect(saidBy(context).join(' '), text).toContain('remembered about each actor');
+      expect(saidBy(context).join(' '), text).toContain('remember');
+    }
+    // And the word that does write memory still does.
+    expect(effect('actor.remember(:visits, 5)', bodyOf(PRINTER))).toBe(true);
   });
 
   it('`get` does not read memory, and says which word does', () => {
