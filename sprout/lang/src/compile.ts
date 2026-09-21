@@ -41,7 +41,7 @@ import { Diagnostics, softenPolicy, type Diagnostic } from './diagnostics.js';
 import { checkEnumDeclaration, EnumTable } from './enums.js';
 import { MessageTable } from './messages.js';
 import { parseDeclarations } from './parse.js';
-import { DEFAULT_LIMITS, type Limits } from './limits.js';
+import { DEFAULT_LIMITS, type Limits, type StaticCaps } from './limits.js';
 import type { Span, SourceFile } from './source.js';
 
 /**
@@ -115,14 +115,15 @@ const NAMESPACE = /^[a-z][a-z0-9_]*$/;
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
- * its syntax; the caps that apply to a definition on its own, its
- * declarations agreeing with themselves and every write going to `self`
- * join it as the syntax that expresses them lands.
+ * its syntax and the nesting cap; the rest of the caps that apply to a
+ * definition on its own, its declarations agreeing with themselves and
+ * every write going to `self` join it as the syntax that expresses them
+ * lands. The caps are the host's, as every limit is.
  */
-export function checkShape(file: SourceFile): ShapeResult {
+export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const diagnostics = new Diagnostics();
   if (!isCode(file)) return { declarations: [], diagnostics: [] };
-  const declarations = parseDeclarations(file, diagnostics);
+  const declarations = parseDeclarations(file, diagnostics, caps);
   for (const declared of declarations) {
     if (declared.kind === 'enum') checkEnumDeclaration(declared, diagnostics);
   }
@@ -510,7 +511,7 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
   for (const { library, file } of readable) {
-    const shape = checkShape(file);
+    const shape = checkShape(file, limits.caps);
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
     if (!refused) {
       declarations.push(...shape.declarations);

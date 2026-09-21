@@ -44,6 +44,19 @@ export interface Token extends Spanned {
    * without its colon, everything else exactly as it was written.
    */
   readonly text: string;
+  /**
+   * Whether a character was refused and stepped over immediately before
+   * this token. A refused character leaves no token, so without this the
+   * parser sees two things side by side that were not, and reports the
+   * gap as a missing separator — one mistake, said twice, the second
+   * time wrongly.
+   *
+   * It rides on the token rather than being reconstructed from offsets
+   * afterwards, because a reconstruction depends on the caller passing
+   * an exact end offset, and a caller with a stale span then turns a
+   * defect in one place into a wrong diagnostic somewhere else.
+   */
+  readonly afterRefusal: boolean;
 }
 
 /** Longest first, so `->` is never read as `-` and `==` is never read as `=`. */
@@ -86,8 +99,8 @@ const isKindRest = (ch: string): boolean => isNameRest(ch) || isUpper(ch);
 export class Lexer {
   private at = 0;
   private readonly ahead: Token[] = [];
-  /** Offsets of characters refused and stepped over, which leave no token behind. */
-  private readonly stepped: number[] = [];
+  /** Whether a character was refused since the last token was made. */
+  private pendingRefusal = false;
 
   constructor(
     readonly source: SourceFile,
@@ -110,23 +123,19 @@ export class Lexer {
     return this.peek().kind === 'end';
   }
 
-  /**
-   * Whether a character was refused and stepped over between two
-   * offsets. A skipped character leaves no token, so the parser sees two
-   * things side by side that were not, and would otherwise report the
-   * gap as a missing separator — one mistake, said twice, the second
-   * time wrongly.
-   */
-  refusedBetween(start: number, end: number): boolean {
-    return this.stepped.some((at) => at >= start && at < end);
-  }
-
   private span(start: number, end: number): Span {
     return this.source.span(start, end);
   }
 
   private token(kind: TokenKind, start: number, end: number, text?: string): Token {
-    return { kind, at: this.span(start, end), text: text ?? this.source.text.slice(start, end) };
+    const afterRefusal = this.pendingRefusal;
+    this.pendingRefusal = false;
+    return {
+      kind,
+      at: this.span(start, end),
+      text: text ?? this.source.text.slice(start, end),
+      afterRefusal,
+    };
   }
 
   /** Past spaces, newlines and `//` comments, to the next thing that is a token. */
@@ -188,7 +197,7 @@ export class Lexer {
       }
 
       this.at = start + 1;
-      this.stepped.push(start);
+      this.pendingRefusal = true;
       this.diagnostics.refuse(
         this.span(start, this.at),
         `Sprout does not use the character "${ch}".`,
