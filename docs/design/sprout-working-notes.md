@@ -236,6 +236,18 @@ Found while building property and message declarations (B06, B07):
 
 One asymmetry worth writing down, since it is consistent in the spec and easy to get backwards: a symbol is written BARE in a declaration (`default wet`, `:ward iron`) and with a colon in an expression (`state == :wet`, `self.set(:cuff, :damp)`).
 
+Found while building typed bindings (B08):
+
+- **What a `symbol` role binds to where the role-player wrote no `from`.** "Without a `from`, a `symbol` role has no options at all and the phrase never matches — the role-player must say what it can hear." That describes a phrase that never matches, not a refusal; but the body still has to compile, and with no `from` there is no enum to type the binding by. Refused, naming what to write. If the intent is that such a body compiles and is simply unreachable, the binding needs a type the spec does not supply.
+- **What an `integer` role binds to where the role-player wrote no `from`.** The symbol case is stated and this one is not. Taken as the whole integer range, which is the reading that makes `from` a narrowing rather than a requirement — an integer role has values to offer without one, where a symbol role has none.
+- **Whether a value role may be marked `many`.** *Set roles* is written entirely about objects — "filled by every object the visitor names in one run", "each filler permits and acts for itself" — and *Value roles* is a separate section that never mentions `many`. A set role binds objects here, and a `many` on a `symbol` or an `integer` role has nowhere to go. B23 declares roles and is where it has to be settled.
+- **What the prose loop's `$first`, `$last`, `$index` and `$count` are typed as.** *Slots* names all four and the table in *Where types come from* holds none of them, though it opens by saying every binding is typed where it enters scope. Boolean, boolean, integer, integer is the only reading there is, but it is inferred rather than written. B29's to make good.
+
+Two rows of that table are narrower than the prose they summarise, and the prose is the one implemented:
+
+- **"a role narrowed by `from` | the element type of the property named"** is the symbol case. *A role-player narrows its own options* says an `integer` role's `from` names "an integer property whose range bounds it" — which is that property's RANGE, not an element type — and "a `from` may also give a literal range, `topic from 1 to 12`", which names no property at all. Three cases, one row.
+- **"a `{for}` variable | the same"** as an `each` variable holds for `{for x in <container>}` and `{for x: Kind in <container>}`. *Slots* also has `{for x of <list>}`, which binds the list's element type — a value, where every `each` binds an object, and the one loop `each` deliberately does not have.
+
 Found while building strict publish and lenient load (B04):
 
 - **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)
