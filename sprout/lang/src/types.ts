@@ -39,12 +39,25 @@ export type SproutType =
   /** A thing in the world, known only by identity and kind. Never written. */
   | { readonly type: 'object' };
 
-export const BOOLEAN: SproutType = { type: 'boolean' };
-export const STRING: SproutType = { type: 'string' };
-export const OBJECT: SproutType = { type: 'object' };
+// Annotated with `satisfies` rather than `: SproutType` for the same
+// reason `integer()` returns its own arm: a caller asking for boolean
+// should get back boolean, not the whole union with the object type
+// still in it.
+export const BOOLEAN = { type: 'boolean' } as const satisfies SproutType;
+export const STRING = { type: 'string' } as const satisfies SproutType;
+export const OBJECT = { type: 'object' } as const satisfies SproutType;
+
+/**
+ * The integer arm on its own. `integer()` returns this rather than a
+ * bare `SproutType` so that a range survives being built: a caller that
+ * needs a value type, and not the object type that can never be one,
+ * would otherwise have to widen and narrow again to get back what it
+ * just asked for.
+ */
+export type IntegerType = Extract<SproutType, { readonly type: 'integer' }>;
 
 /** An integer over a range, defaulting to the whole of it. */
-export function integer(min = INTEGER_MIN, max = INTEGER_MAX): SproutType {
+export function integer(min = INTEGER_MIN, max = INTEGER_MAX): IntegerType {
   return { type: 'integer', min, max };
 }
 
