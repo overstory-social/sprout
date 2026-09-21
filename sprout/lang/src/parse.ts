@@ -100,10 +100,24 @@ class Parser {
     return { kind: 'ident', at: token.at, text: token.text };
   }
 
-  /** Whether the next token begins a declaration, which inside a body means a brace was forgotten. */
+  /**
+   * Whether the next token begins a declaration rather than being an
+   * option that happens to spell one.
+   *
+   * Nothing reserves `enum` or `message` as an option name — *Reserved
+   * names* covers message, verb and member names and not these — so the
+   * word alone decides nothing, and `enum Ward { message, silver }` is a
+   * well-formed enum. What decides is what FOLLOWS: an option is
+   * followed by a comma or by the closing brace, and a declaration is
+   * followed by its own name.
+   */
   private atDeclarationKeyword(): boolean {
     const token = this.peek();
-    return token.kind === 'name' && (DECLARATIONS as readonly string[]).includes(token.text);
+    if (token.kind !== 'name' || !(DECLARATIONS as readonly string[]).includes(token.text)) {
+      return false;
+    }
+    const after = this.peek(1);
+    return !(after.kind === 'punct' && (after.text === ',' || after.text === '}'));
   }
 
   /**
@@ -135,8 +149,7 @@ class Parser {
         if (depth === 0) return;
         continue;
       }
-      const token = this.peek();
-      if (token.kind === 'name' && (DECLARATIONS as readonly string[]).includes(token.text)) return;
+      if (this.atDeclarationKeyword()) return;
       this.next();
     }
   }
@@ -236,7 +249,6 @@ class Parser {
       if (this.done) continue; // the top of the loop says what an unclosed enum is
       if (this.atDeclarationKeyword()) continue; // and what a forgotten brace is
       if (this.at('punct', '}')) continue;
-      if (this.gapRefused(word.at.end)) continue; // the lexer already said what is wrong here
       if (this.take('punct', ',') !== null) {
         if (this.at('punct', '}')) {
           this.diagnostics.refuse(
@@ -247,6 +259,9 @@ class Parser {
         }
         continue;
       }
+      // Only now: a comma is genuinely not there, so a character the
+      // lexer stepped over is the better explanation of the gap.
+      if (this.gapRefused(word.at.end)) continue;
       this.diagnostics.refuse(
         this.here(),
         `\`${name.text}\` needs a comma between its options.`,
@@ -405,8 +420,8 @@ class Parser {
         elements.push(element);
         if (this.done) continue; // the top of the loop says what an unclosed list is
         if (this.at('punct', ']')) continue;
-        if (this.gapRefused(element.at.end)) continue;
         if (this.take('punct', ',') !== null) continue;
+        if (this.gapRefused(element.at.end)) continue;
         this.diagnostics.refuse(
           this.here(),
           'A list needs a comma between its elements.',
@@ -549,8 +564,8 @@ class Parser {
       properties.push(declared);
       if (this.done) continue; // the top of the loop says what an unclosed one is
       if (this.at('punct', ']')) continue;
-      if (this.gapRefused(declared.at.end)) continue;
       if (this.take('punct', ',') !== null) continue;
+      if (this.gapRefused(declared.at.end)) continue;
       this.diagnostics.refuse(
         this.here(),
         'A `:remembers` needs a comma between what it remembers.',

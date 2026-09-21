@@ -506,3 +506,100 @@ describe('a type that failed to parse is not mistaken for no type at all', () =>
     expect(declare(':lit false').declared!.type).toBeNull();
   });
 });
+
+// The two describes below are paired on purpose. Twice now, a fix to
+// this file's recovery was specced only against the input that prompted
+// it, and each time the adjacent input — the same shape, read the other
+// way — was the one that broke. So each case is written as a table with
+// both readings side by side, and neither can be changed without the
+// other being looked at.
+
+describe('`enum` and `message` inside a body: an option, or a forgotten brace', () => {
+  const asOption: [string, string[]][] = [
+    ['enum Ward { message, silver }', ['message', 'silver']],
+    ['enum Ward { oak, message }', ['oak', 'message']],
+    ['enum Ward { enum, silver }', ['enum', 'silver']],
+    ['enum Ward { message }', ['message']],
+  ];
+  for (const [text, options] of asOption) {
+    it(`reads it as an option in ${text}`, () => {
+      // Nothing reserves these words as option names: the spec's
+      // Reserved names covers message, verb and member names only.
+      const { declarations, refusals } = read(text);
+      expect(refusals).toEqual([]);
+      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(options);
+    });
+  }
+
+  const asForgottenBrace: string[] = [
+    'enum Ward {\n  oak\nenum Two { a, b }\n',
+    'enum Ward {\n  oak\nmessage :stir\n',
+    'enum Ward {\n  oak,\nenum Two { a }\n',
+  ];
+  for (const text of asForgottenBrace) {
+    it(`reads it as a forgotten brace in ${JSON.stringify(text)}`, () => {
+      const { declarations, refusals } = read(text);
+      expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+      expect(declarations).toHaveLength(2);
+      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
+    });
+  }
+
+  it('is decided by what follows the word, not by the word', () => {
+    // A comma or a brace after it means an option; its own name after
+    // it means a declaration.
+    expect(read('enum Ward { message, a }').refusals).toEqual([]);
+    expect(read('enum Ward { message :stir }').refusals).not.toEqual([]);
+  });
+});
+
+describe('a stepped-over character beside a separator that is, or is not, there', () => {
+  const stillReported: [string, string][] = [
+    ['enum Ward { oak silver }', '`Ward` needs a comma between its options.'],
+  ];
+  for (const [text, message] of stillReported) {
+    it(`still reports the missing comma in ${text}`, () => {
+      expect(read(text).refusals.map((d) => d.message)).toEqual([message]);
+    });
+  }
+
+  const onlyTheLexer: string[] = [
+    'enum Ward {\n  oak % silver\n}', // no comma written: the gap explains it
+    'enum Ward { oak % , silver }', // a comma IS written, right after the character
+    'enum Ward { oak, % silver }',
+  ];
+  for (const text of onlyTheLexer) {
+    it(`says only what the lexer said for ${JSON.stringify(text)}`, () => {
+      const { declarations, refusals } = read(text);
+      expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+      // The comma the author did write is never blamed, and nothing
+      // after it is lost.
+      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+    });
+  }
+
+  it('keeps every element of a list whose separator sits beside the character', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(
+      new SourceFile('k.sprout', ':a [Ward] default [oak % , silver]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+    const value = declared!.default!;
+    expect(value.kind === 'list-literal' && value.elements).toHaveLength(2);
+  });
+
+  it('keeps every entry of a :remembers whose separator sits beside the character', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: 0 % , b: 1]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
+  });
+});
