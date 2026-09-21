@@ -195,7 +195,28 @@ There is no sweep primitive. An object that should not outlive its usefulness as
 
 A microworld is a manifest, some `.sprout` files, the `.prose` files they point at, and the vendored source of every library they use. A place to a file is the convention rather than a rule, and identifiers resolve across files by the scope rules in Names.
 
-A file that is removed, withheld or fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
+A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
+
+### The manifest
+
+The manifest is what a world says about itself before any of it is read.
+
+| field | what it holds |
+| --- | --- |
+| `name` | the world's own name, which is the namespace its declarations are unqualified in |
+| `version` | which version of this world this is |
+| `author` | who made it |
+| `license` | the terms it is offered under |
+| `level` | the language level it was written for |
+| `extensions` | the extensions it pins, by name and major version |
+| `libraries` | every library it uses, each by name, by version, and by the hash of the source vendored beside it |
+| `files` | its own `.sprout` and `.prose` files, by name |
+
+None of it needs a parser, and that is the point: whether a bundle is closed and whether it is complete are both settled before a line of the language has been read.
+
+`files` is what makes a file that did not arrive *missing* rather than merely absent — without it there is nothing for a file to be missing from. What travelled must be exactly what the manifest names; publishing refuses otherwise, and loading says so and runs.
+
+`libraries` is what closes the bundle. A library named here whose source did not travel is absent, and so is one whose source does not hash to the value recorded beside it: a world runs against the library it meant to vendor or against none, because running against some other copy under a trusted name is the worse of the two failures. It is the same hash a host's blessed set is keyed on, under Libraries and namespaces.
 
 ## Kinds, composition and libraries
 
@@ -1497,11 +1518,11 @@ cat.sprout:12:5      `say` has nobody to speak to inside `on :stir`.
 
 ### What compiling produces
 
-A bundle: the definitions, the world's complete word set, the language level, the extensions it pins, the hash of every vendored library, the static caps it was checked against, and which of those the host blessed at publish.
+A bundle: the manifest it was compiled from, the definitions, the world's complete word set, the language level, the extensions it pins, the hash of every vendored library, the static caps it was checked against, and which of those the host blessed at publish.
 
 ### Language levels
 
-A level is how the language changes without breaking what already runs. Added syntax raises it, and a bundle's level is the highest of any of its parts, library source included. A world accepted at one level keeps loading when the language tightens: refusals introduced later apply as warnings to it, not as errors.
+A level is how the language changes without breaking what already runs. Added syntax raises it, and a bundle's level is the highest of any of its parts, library source included: the manifest records the level the world itself was written for, and each vendored library carries its own. A world accepted at one level keeps loading when the language tightens: refusals introduced later apply as warnings to it, not as errors — and the level it was accepted at is the bundle's, not the one its manifest asked for.
 
 The language starts at level 1, and nothing here is shaped by compatibility with anything built before it.
 
