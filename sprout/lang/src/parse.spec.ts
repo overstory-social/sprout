@@ -820,3 +820,119 @@ describe('#60 — what the review of the #59 pass found', () => {
     expect(named.sort()).toEqual([...DECLARATIONS].sort());
   });
 });
+
+describe('#60 — a file that runs out is explained once, not once per bracket', () => {
+  const diagnose = (text: string, fn = parseProperty): string[] => {
+    const diagnostics = new Diagnostics();
+    fn(new SourceFile('k.sprout', text), diagnostics);
+    return diagnostics.all.map((d) => d.message);
+  };
+
+  it('says a nested unclosed list is unclosed once, however deep it is', () => {
+    for (const text of [':x [oak,[Zeta', ':x [oak, [oak2, [Zeta', ':x [a, [b, [c, [Zeta']) {
+      const said = diagnose(text);
+      expect(
+        said.filter((m) => m === 'This list is never closed.'),
+        text,
+      ).toHaveLength(1);
+    }
+  });
+
+  it('does not add the outer construct’s own complaint on top of the inner one', () => {
+    expect(diagnose(':remembers [a: [oak,[Zeta', parseRemembers)).toEqual([
+      '`Zeta`, which starts with a capital is not a value.',
+      'This list is never closed.',
+    ]);
+  });
+
+  it('still says so once where the list itself is the one that ran out', () => {
+    expect(diagnose(':x [oak')).toEqual(['This list is never closed.']);
+    expect(diagnose(':x [oak, Zeta')).toEqual([
+      '`Zeta`, which starts with a capital is not a value.',
+      'This list is never closed.',
+    ]);
+    expect(diagnose(':remembers [a: 0', parseRemembers)).toEqual([
+      'This `:remembers` is never closed.',
+    ]);
+  });
+});
+
+describe('#60 — invariants over generated input, brackets included', () => {
+  // Two fuzzing setups in a row came back clean on this file because
+  // their token pools held no brackets, so they never generated a
+  // nested list — the shape every one of the four rounds of bugs here
+  // has turned on. This keeps a small, deterministic generator in the
+  // suite, with the brackets in it, checking the invariants the bugs
+  // actually broke rather than any particular input.
+  const POOL = [
+    'enum',
+    'message',
+    'Ward',
+    'oak',
+    'boolean',
+    'default',
+    'min',
+    'true',
+    '4',
+    '1.5',
+    '"x"',
+    ':a',
+    '[',
+    ']',
+    '{',
+    '}',
+    ',',
+    ':',
+    '.',
+    '%',
+    '-',
+  ];
+
+  /** A fixed sequence, so a failure is reproducible and the suite is deterministic. */
+  function* generated(count: number, seed = 20_260_921): Generator<string> {
+    let state = seed;
+    const next = (): number => (state = (state * 1_103_515_245 + 12_345) % 2_147_483_648);
+    for (let i = 0; i < count; i++) {
+      const length = 1 + (next() % 12);
+      const words: string[] = [];
+      for (let w = 0; w < length; w++) words.push(POOL[next() % POOL.length]!);
+      yield words.join(' ');
+    }
+  }
+
+  const readers: [string, (s: SourceFile, d: Diagnostics) => unknown][] = [
+    ['parseDeclarations', parseDeclarations],
+    ['parseProperty', parseProperty],
+    ['parseRemembers', parseRemembers],
+  ];
+
+  for (const [name, read] of readers) {
+    it(`${name} never throws, and never says one thing twice in one place`, () => {
+      for (const text of generated(600)) {
+        const diagnostics = new Diagnostics();
+        const source = new SourceFile('fuzz.sprout', text);
+        expect(() => read(source, diagnostics), text).not.toThrow();
+        const seen = new Set<string>();
+        for (const problem of diagnostics.all) {
+          const key = `${problem.message}@${problem.at.start}-${problem.at.end}`;
+          expect(seen.has(key), `${text}\n  repeated: ${problem.message}`).toBe(false);
+          seen.add(key);
+        }
+      }
+    });
+  }
+
+  it('gives the same answer for the same source, every time', () => {
+    for (const text of generated(200, 7)) {
+      const source = new SourceFile('fuzz.sprout', text);
+      const once = new Diagnostics();
+      const twice = new Diagnostics();
+      parseDeclarations(source, once);
+      parseDeclarations(new SourceFile('fuzz.sprout', text), twice);
+      expect(
+        twice.all.map((d) => d.message),
+        text,
+      ).toEqual(once.all.map((d) => d.message));
+    }
+  });
+});

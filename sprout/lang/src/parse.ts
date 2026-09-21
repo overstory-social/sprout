@@ -548,7 +548,13 @@ class Parser {
         // reads ON — past the element it could not read, and not past
         // everything up to the next comma, which would swallow the
         // well-formed elements in between without saying so.
-        if (this.done) continue;
+        //
+        // Unless the file itself ran out inside that element, in which
+        // case whatever it already said is the whole explanation.
+        // Looping back to the top would have every list enclosing this
+        // one say "never closed" about the same exhausted file, once
+        // per level of nesting.
+        if (this.done) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
@@ -680,9 +686,9 @@ class Parser {
       const before = this.peek();
       const declared = this.rememberedProperty();
       if (declared === null) {
-        // As the list above: on past the one it could not read, not
-        // past what follows it.
-        if (this.done) continue;
+        // As the list above, including that a file which ran out inside
+        // the entry has already been explained by whatever read it.
+        if (this.done) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
