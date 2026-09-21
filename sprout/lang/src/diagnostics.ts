@@ -32,20 +32,59 @@ export interface Diagnostic {
   readonly message: string;
   /** What to write instead, where there is something to write. */
   readonly remedy?: string;
+  /**
+   * The language level this refusal was introduced at, where it is a
+   * POLICY the language tightened rather than something that was always
+   * wrong. A world accepted at one level keeps loading when the language
+   * tightens: at load, a refusal introduced after the level a world was
+   * written for applies to it as a warning, never as an error. See
+   * `softenPolicy`.
+   */
+  readonly since?: number;
 }
 
-/** A refusal about the token at `at`. */
-export function refusal(at: Span, message: string, remedy?: string): Diagnostic {
-  return remedy === undefined
-    ? { severity: 'refusal', at, message }
-    : { severity: 'refusal', at, message, remedy };
+function made(
+  severity: Severity,
+  at: Span,
+  message: string,
+  remedy?: string,
+  since?: number,
+): Diagnostic {
+  const diagnostic: Diagnostic = { severity, at, message };
+  return {
+    ...diagnostic,
+    ...(remedy === undefined ? {} : { remedy }),
+    ...(since === undefined ? {} : { since }),
+  };
+}
+
+/** A refusal about the token at `at`. `since` marks it as a policy the language tightened. */
+export function refusal(at: Span, message: string, remedy?: string, since?: number): Diagnostic {
+  return made('refusal', at, message, remedy, since);
 }
 
 /** A warning about the token at `at`. */
-export function warning(at: Span, message: string, remedy?: string): Diagnostic {
-  return remedy === undefined
-    ? { severity: 'warning', at, message }
-    : { severity: 'warning', at, message, remedy };
+export function warning(at: Span, message: string, remedy?: string, since?: number): Diagnostic {
+  return made('warning', at, message, remedy, since);
+}
+
+/**
+ * A world accepted at one level keeps loading when the language tightens
+ * (the spec's The compiler › Language levels). A refusal introduced
+ * after the level a world was written for applies to that world as a
+ * WARNING rather than as an error, so the language can grow stricter
+ * without darkening a room somebody already built.
+ *
+ * A refusal with no `since` was always wrong and stays a refusal.
+ */
+export function softenPolicy(diagnostics: readonly Diagnostic[], writtenFor: number): Diagnostic[] {
+  return diagnostics.map((diagnostic) =>
+    diagnostic.severity === 'refusal' &&
+    diagnostic.since !== undefined &&
+    diagnostic.since > writtenFor
+      ? { ...diagnostic, severity: 'warning' }
+      : diagnostic,
+  );
 }
 
 /**
@@ -103,15 +142,15 @@ export class Diagnostics {
   private readonly collected: Diagnostic[] = [];
 
   /** Refuse the token at `at`, saying what to write instead where there is something. */
-  refuse(at: Span, message: string, remedy?: string): Diagnostic {
-    const diagnostic = refusal(at, message, remedy);
+  refuse(at: Span, message: string, remedy?: string, since?: number): Diagnostic {
+    const diagnostic = refusal(at, message, remedy, since);
     this.collected.push(diagnostic);
     return diagnostic;
   }
 
   /** Warn about the token at `at`. A warning never refuses a world. */
-  warn(at: Span, message: string, remedy?: string): Diagnostic {
-    const diagnostic = warning(at, message, remedy);
+  warn(at: Span, message: string, remedy?: string, since?: number): Diagnostic {
+    const diagnostic = warning(at, message, remedy, since);
     this.collected.push(diagnostic);
     return diagnostic;
   }

@@ -307,3 +307,141 @@ describe('what a compiled bundle carries', () => {
     expect(bundle!.words).toEqual([]);
   });
 });
+
+describe('publishing is strict: any problem is a refusal', () => {
+  it('is what a compile does when nothing says otherwise', () => {
+    expect(compileBundle(world({ libraries: [] })).bundle).toBeNull();
+    expect(compileBundle(world({ libraries: [] }), { mode: 'publish' }).bundle).toBeNull();
+  });
+
+  it('refuses a world with a file held back, because a world is not published in pieces', () => {
+    const source = { ...world(), withheld: ['world.sprout'] };
+    const { bundle, diagnostics } = compileBundle(source, { mode: 'publish' });
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics)[0]!.message).toContain('withheld');
+  });
+
+  it('records no gaps, since a published world has none', () => {
+    expect(compileBundle(world()).bundle!.absent).toEqual([]);
+  });
+});
+
+describe('loading is lenient: what is missing reads as absent and the rest runs', () => {
+  const load = { mode: 'load' } as const;
+
+  it('runs a world whose library did not travel, and records the gap', () => {
+    const { bundle, diagnostics } = compileBundle(world({ libraries: [] }), load);
+    expect(bundle).not.toBeNull();
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.absent).toEqual([
+      {
+        what: 'sprout',
+        kind: 'library',
+        reason: 'missing',
+        at: expect.anything(),
+        consequence: 'every kind, enum, verb and message it holds reads as absent',
+      },
+    ]);
+  });
+
+  it('says so, so the gap is visible rather than swallowed', () => {
+    const { diagnostics } = compileBundle(world({ libraries: [] }), load);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]!.severity).toBe('warning');
+    expect(diagnostics[0]!.message).toContain('reads as absent');
+  });
+
+  it('runs a world with a file withheld, and keeps the objects’ state', () => {
+    const source = { ...world(), withheld: ['world.sprout'] };
+    const { bundle } = compileBundle(source, load);
+    expect(bundle).not.toBeNull();
+    expect(bundle!.absent[0]).toMatchObject({ what: 'world.sprout', reason: 'withheld' });
+    expect(bundle!.absent[0]!.consequence).toContain('keep their state');
+  });
+
+  it('runs a world one of whose files does not compile, and names the file', () => {
+    const broken = world({ files: [file('world.sprout', 'world x { }'), file('b.sprout', '%')] });
+    const { bundle, diagnostics } = compileBundle(broken, load);
+    expect(bundle).not.toBeNull();
+    expect(bundle!.absent).toHaveLength(1);
+    expect(bundle!.absent[0]).toMatchObject({ what: 'b.sprout', kind: 'file', reason: 'broken' });
+    expect(locationOf(bundle!.absent[0]!.at!)).toBe('b.sprout:1:1');
+    expect(refusals(diagnostics)).toEqual([]);
+  });
+
+  it('keeps what a broken file had to say, as warnings, so a moderator sees why', () => {
+    const broken = world({ files: [file('b.sprout', '% ; %')] });
+    const { diagnostics } = compileBundle(broken, load);
+    expect(diagnostics.filter((d) => d.severity === 'warning')).toHaveLength(3);
+    expect(diagnostics.every((d) => d.severity === 'warning')).toBe(true);
+  });
+
+  it('leaves the files that do compile alone', () => {
+    const mixed = world({
+      files: [file('good.sprout', 'object kiln { }'), file('bad.sprout', '%')],
+    });
+    const { bundle } = compileBundle(mixed, load);
+    expect(bundle!.absent.map((a) => a.what)).toEqual(['bad.sprout']);
+  });
+
+  it('reads a broken library file as absent too, because they compile together', () => {
+    const broken: LibrarySource = { ...SPROUT, files: [file('actor.sprout', 'kind Actor { % }')] };
+    const { bundle } = compileBundle(world({ libraries: [broken] }), load);
+    expect(bundle).not.toBeNull();
+    expect(bundle!.absent[0]).toMatchObject({ what: 'actor.sprout', reason: 'broken' });
+  });
+
+  it('warns rather than refuses past a cap, since the world was accepted once', () => {
+    const limits = limitsFrom({ caps: { sourceBytes: 40 } });
+    const { bundle, diagnostics } = compileBundle(world(), { ...load, limits });
+    expect(bundle).not.toBeNull();
+    expect(diagnostics.filter((d) => d.severity === 'warning')[0]!.message).toContain(
+      'bytes of source',
+    );
+  });
+
+  it('still refuses text newer than the compiler, because it cannot read it', () => {
+    const { bundle } = compileBundle(world({ manifest: { level: 4 } }), {
+      ...load,
+      compilerLevel: 2,
+    });
+    expect(bundle).toBeNull();
+  });
+
+  it('still refuses what was never allowable, such as a world with no name', () => {
+    expect(compileBundle(world({ manifest: { world: 'Shop' } }), load).bundle).toBeNull();
+  });
+
+  it('hashes the source that actually arrived, a withheld file not among it', () => {
+    const whole = compileBundle(world(), load).bundle!;
+    const held = compileBundle({ ...world(), withheld: ['world.sprout'] }, load).bundle!;
+    expect(held.hash).not.toBe(whole.hash);
+  });
+
+  it('has nothing to soften yet, since no policy has been tightened since level 1', () => {
+    // `softenPolicy` is wired into the load path; the first refusal
+    // carrying a `since` will be the first to exercise it end to end.
+    const { diagnostics } = compileBundle(world(), load);
+    expect(diagnostics.filter((d) => d.since !== undefined)).toEqual([]);
+  });
+});
+
+describe('a gap is said in whole sentences, and still says what to do about it', () => {
+  it('starts the consequence with a capital, since it is a sentence and not a table cell', () => {
+    const { diagnostics } = compileBundle(world({ libraries: [] }), { mode: 'load' });
+    expect(diagnostics[0]!.message).toBe(
+      'This world uses the library "sprout", and its source did not travel with it. ' +
+        'Every kind, enum, verb and message it holds reads as absent.',
+    );
+  });
+
+  it('keeps the remedy, which a moderator reading a withheld world still needs', () => {
+    const { diagnostics } = compileBundle(
+      { ...world(), withheld: ['world.sprout'] },
+      {
+        mode: 'load',
+      },
+    );
+    expect(diagnostics[0]!.remedy).toContain('Restore it');
+  });
+});

@@ -1,29 +1,36 @@
-// Compiling, in two tiers (B03; the spec's The compiler › Two tiers).
+// Compiling, in two tiers and two modes (B03, B04; the spec's The
+// compiler › Two tiers, Strict and lenient, What absent means).
 //
-// A single definition can be checked ALONE for its shape: syntax, the
-// caps that apply to it, its own declarations agreeing with themselves,
-// every write going to `self`. That is `checkShape`, and it is what an
-// editor runs on each keystroke.
+// THE TIERS. A single definition can be checked ALONE for its shape:
+// syntax, the caps that apply to it, its own declarations agreeing with
+// themselves, every write going to `self`. That is `checkShape`, and it
+// is what an editor runs on each keystroke. Everything typed needs the
+// WHOLE BUNDLE: composition resolved across kinds, properties merged,
+// exclusive members checked for collision, every `get` and `set` against
+// a resolved kind, `chance` and `actor` reachability through passages,
+// the world's word set. That is `compileBundle`. Because libraries are
+// vendored the bundle is closed, so whole-bundle checking is exact
+// rather than a guess — and an editor cannot catch every error live,
+// which is a consequence worth stating rather than discovering.
 //
-// Everything typed needs the WHOLE BUNDLE: composition resolved across
-// kinds, properties merged, exclusive members checked for collision,
-// every `get` and `set` against a resolved kind, `chance` and `actor`
-// reachability through passages, the world's word set. That is
-// `compileBundle`. Because libraries are vendored the bundle is closed,
-// so whole-bundle checking is exact rather than a guess — and an editor
-// cannot catch every error live, which is a consequence worth stating
-// rather than discovering.
+// THE MODES. Saving and publishing are STRICT: any problem is a refusal.
+// Loading is LENIENT: a file that is missing, withheld or broken reads
+// as absent, what referred to it keeps compiling, and the world runs
+// with a visible gap. That is what makes a takedown safe, and why every
+// gap is recorded in the bundle rather than swallowed.
 //
 // What each tier can check grows as the syntax items land. What is here
 // is the closed bundle itself — vendoring, hashing, the caps a bundle
 // records, the level it needs — and the seam each later item plugs into:
 // B05–B19 fill `definitions`, B27 fills the word set, B09 and B19 fill
-// the typed half of the second tier. Where a check is not yet possible,
-// this says so rather than pretending.
+// the typed half of the second tier, and the rest of the absent table
+// belongs to the items that build what it is about. Where a check is not
+// yet possible, this says so rather than pretending.
 
+import type { CompileMode, Gap } from './absent.js';
 import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js';
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
-import { Diagnostics, type Diagnostic } from './diagnostics.js';
+import { Diagnostics, softenPolicy, type Diagnostic } from './diagnostics.js';
 import { Lexer, type Token } from './lexer.js';
 import { DEFAULT_LIMITS, type Limits } from './limits.js';
 import type { Node } from './nodes.js';
@@ -35,6 +42,8 @@ import type { Span, SourceFile } from './source.js';
  * `CompileOptions` until the issue that replaces it deletes it.
  */
 export interface BundleOptions {
+  /** Strict at save and publish, lenient at load. Strict unless a host says otherwise. */
+  readonly mode?: CompileMode;
   /** The host's limits. The caps a bundle is checked against are recorded in it. */
   readonly limits?: Limits;
   /**
@@ -45,7 +54,7 @@ export interface BundleOptions {
    * limits.
    */
   readonly blessed?: ReadonlySet<string>;
-  /** The level this compiler understands. Text needing a newer one is refused. */
+  /** The level this compiler understands. Text needing a newer one is refused, in either mode. */
   readonly compilerLevel?: number;
 }
 
@@ -116,16 +125,62 @@ function vendor(
   });
 }
 
+/**
+ * The one decision the two modes turn on: at publish a problem refuses,
+ * at load the same problem is a gap the world runs around. Everything
+ * below says which it is raising and lets this answer.
+ */
+class Report {
+  readonly diagnostics = new Diagnostics();
+  readonly absent: Gap[] = [];
+
+  /** @param anywhere where a gap with nothing of its own to point at is reported. */
+  constructor(
+    readonly mode: CompileMode,
+    private readonly anywhere: Span,
+  ) {}
+
+  /** Always wrong, in either mode: a refusal that leniency does not soften. */
+  refuse(at: Span, message: string, remedy?: string): void {
+    this.diagnostics.refuse(at, message, remedy);
+  }
+
+  /** Worth saying, never fatal. */
+  warn(at: Span, message: string, remedy?: string): void {
+    this.diagnostics.warn(at, message, remedy);
+  }
+
+  /**
+   * Something is not there. At publish that refuses — a world is not
+   * published with a piece missing. At load it is a gap: recorded,
+   * warned about, and run around.
+   */
+  gap(absent: Gap, message: string, remedy?: string): void {
+    const at = absent.at ?? this.anywhere;
+    if (this.mode === 'publish') {
+      this.diagnostics.refuse(at, message, remedy);
+      return;
+    }
+    this.absent.push(absent);
+    this.diagnostics.warn(at, `${message} ${sentence(absent.consequence)}`, remedy);
+  }
+}
+
+/** A table cell, written as a sentence: the rows read as `the object is absent`, lower-case. */
+function sentence(cell: string): string {
+  return `${cell.charAt(0).toUpperCase()}${cell.slice(1)}.`;
+}
+
 /** Refuse a name that appears twice in a list, naming the second one. */
 function refuseRepeats(
-  diagnostics: Diagnostics,
+  report: Report,
   named: readonly { name: string; at: Span }[],
   what: string,
 ): void {
   const seen = new Set<string>();
   for (const { name, at } of named) {
     if (seen.has(name)) {
-      diagnostics.refuse(
+      report.refuse(
         at,
         `There are two ${what} called "${name}".`,
         'Give one of them another name, or remove it.',
@@ -136,26 +191,26 @@ function refuseRepeats(
 }
 
 /**
- * The second tier: a closed bundle, checked whole. Refuses rather than
- * returning a bundle when anything is wrong — publishing is strict, and
- * the lenient half of that rule is B04's.
+ * The second tier: a closed bundle, checked whole. Strict at publish,
+ * lenient at load.
  */
 export function compileBundle(source: MicroworldSource, options: BundleOptions = {}): BundleResult {
+  const mode = options.mode ?? 'publish';
   const limits = options.limits ?? DEFAULT_LIMITS;
   const blessed = options.blessed ?? new Set<string>();
   const compilerLevel = options.compilerLevel ?? LANGUAGE_LEVEL;
   const { manifest, manifestFile } = source;
-  const diagnostics = new Diagnostics();
+  const report = new Report(mode, manifestFile.span(0, 0));
 
   if (!NAMESPACE.test(manifest.world)) {
-    diagnostics.refuse(
+    report.refuse(
       atKey(manifestFile, 'world'),
       `"${manifest.world}" cannot be a world's name.`,
       'A name starts with a lower-case letter and holds letters, digits and _.',
     );
   }
   if (!Number.isInteger(manifest.level) || manifest.level < 1) {
-    diagnostics.refuse(
+    report.refuse(
       atKey(manifestFile, 'level'),
       `A language level is a whole number from 1 up, not ${manifest.level}.`,
       'Write 1 if you are not sure which level this world needs.',
@@ -164,7 +219,7 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
 
   for (const pin of manifest.extensions) {
     if (!Number.isInteger(pin.major) || pin.major < 0) {
-      diagnostics.refuse(
+      report.refuse(
         atKey(manifestFile, 'extensions'),
         `The extension "${pin.name}" is pinned to major version ${pin.major}.`,
         'A major version is a whole number from 0 up.',
@@ -172,17 +227,19 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     }
   }
   refuseRepeats(
-    diagnostics,
+    report,
     manifest.extensions.map((pin) => ({ name: pin.name, at: atKey(manifestFile, 'extensions') })),
     'extensions pinned',
   );
 
   // A closed bundle: everything the world says it uses travels with it,
-  // because nothing is resolved or fetched at run time.
+  // because nothing is resolved or fetched at run time. A library that
+  // did not travel is a gap — refused at publish, absent at load, where
+  // every kind it holds reads as absent by the table's first row.
   const vendored = vendor(source.libraries, blessed);
   const byName = new Map(vendored.map((library) => [library.name, library]));
   refuseRepeats(
-    diagnostics,
+    report,
     vendored.map((library) => ({
       name: library.name,
       at: library.files[0]?.span(0, 0) ?? atKey(manifestFile, 'libraries'),
@@ -190,25 +247,31 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     'libraries vendored',
   );
   for (const name of manifest.libraries) {
-    if (!byName.has(name)) {
-      diagnostics.refuse(
-        atKey(manifestFile, 'libraries'),
-        `This world uses the library "${name}", and its source did not travel with it.`,
-        'A published world carries the full source of every library it uses: vendor it, or stop using it.',
-      );
-    }
     if (!NAMESPACE.test(name)) {
-      diagnostics.refuse(
+      report.refuse(
         atKey(manifestFile, 'libraries'),
         `"${name}" cannot be a library's name.`,
         'A name starts with a lower-case letter and holds letters, digits and _.',
+      );
+    }
+    if (!byName.has(name)) {
+      report.gap(
+        {
+          what: name,
+          kind: 'library',
+          reason: 'missing',
+          at: atKey(manifestFile, 'libraries'),
+          consequence: 'every kind, enum, verb and message it holds reads as absent',
+        },
+        `This world uses the library "${name}", and its source did not travel with it.`,
+        'A published world carries the full source of every library it uses: vendor it, or stop using it.',
       );
     }
   }
   const used = new Set(manifest.libraries);
   for (const library of vendored) {
     if (!used.has(library.name)) {
-      diagnostics.warn(
+      report.warn(
         library.files[0]?.span(0, 0) ?? atKey(manifestFile, 'libraries'),
         `The library "${library.name}" travels with this world and the world does not use it.`,
         'Remove it from the world, or name it among the libraries the world uses.',
@@ -217,27 +280,47 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   }
 
   refuseRepeats(
-    diagnostics,
+    report,
     source.files.map((file) => ({ name: file.name, at: file.span(0, 0) })),
     'files',
   );
   for (const library of vendored) {
     refuseRepeats(
-      diagnostics,
+      report,
       library.files.map((file) => ({ name: file.name, at: file.span(0, 0) })),
       `files in the library "${library.name}"`,
     );
   }
 
+  // A file the host is withholding did not travel. At publish that
+  // refuses: a world is not published with a piece held back. At load it
+  // is a gap, and a reversible one — the withholding is a moderator's
+  // act, and restoring the file brings its objects back as they were.
+  const withheld = new Set(source.withheld ?? []);
+  for (const name of withheld) {
+    report.gap(
+      {
+        what: name,
+        kind: 'file',
+        reason: 'withheld',
+        at: manifestFile.span(0, 0),
+        consequence: 'everything it declared reads as absent, and its objects keep their state',
+      },
+      `The file "${name}" is being withheld.`,
+      'Restore it, or publish the world without what it held.',
+    );
+  }
+
   // A bundle's level is the highest of any of its parts, library source
-  // included, and a runtime refuses text newer than its compiler.
+  // included, and a runtime refuses text newer than its compiler — in
+  // either mode, because a compiler cannot read what it does not know.
   const level = vendored.reduce(
     (highest, library) => Math.max(highest, library.level),
     manifest.level,
   );
   if (level > compilerLevel) {
     const newer = vendored.filter((library) => library.level > compilerLevel);
-    diagnostics.refuse(
+    report.refuse(
       newer.length > 0 && manifest.level <= compilerLevel
         ? atKey(manifestFile, 'libraries')
         : atKey(manifestFile, 'level'),
@@ -261,16 +344,23 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     source.files.length +
     chargedLibraries.reduce((count, library) => count + library.files.length, 0);
 
+  // A cap is checked at save and publish. At load it is a warning: the
+  // world was accepted once, and refusing to load it now would darken a
+  // room somebody already built. Which recorded caps a host will honour
+  // and which it will refuse is the host's own decision (B43).
+  const overCap = (message: string, remedy: string): void => {
+    const at = atKey(manifestFile, 'world');
+    if (mode === 'publish') report.refuse(at, message, remedy);
+    else report.warn(at, message, remedy);
+  };
   if (limits.caps.sourceBytes !== null && sourceBytes > limits.caps.sourceBytes) {
-    diagnostics.refuse(
-      atKey(manifestFile, 'world'),
+    overCap(
       `This world is ${sourceBytes} bytes of source, and ${limits.caps.sourceBytes} is as much as it may be.`,
       'Take something out, or use a library the host has blessed, whose source costs nothing.',
     );
   }
   if (limits.caps.files !== null && files > limits.caps.files) {
-    diagnostics.refuse(
-      atKey(manifestFile, 'world'),
+    overCap(
       `This world is ${files} files, and ${limits.caps.files} is as many as it may have.`,
       'Put more in each file, or take something out.',
     );
@@ -279,13 +369,44 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   // declarations to count (B12, B19).
 
   // The first tier, over every file in the closed bundle — the world's
-  // own and every library's, because they compile together.
+  // own and every library's, because they compile together. A file that
+  // does not compile refuses at publish; at load it reads as absent, and
+  // what referred to it keeps compiling.
   for (const file of [...source.files, ...vendored.flatMap((library) => library.files)]) {
-    diagnostics.add(...checkShape(file).diagnostics);
+    const shape = checkShape(file);
+    if (shape.diagnostics.length === 0) continue;
+    if (mode === 'publish') {
+      report.diagnostics.add(...shape.diagnostics);
+      continue;
+    }
+    report.absent.push({
+      what: file.name,
+      kind: 'file',
+      reason: 'broken',
+      at: shape.diagnostics[0]!.at,
+      consequence: 'everything it declared reads as absent, and its objects keep their state',
+    });
+    for (const diagnostic of shape.diagnostics) {
+      report.diagnostics.add(
+        diagnostic.severity === 'refusal' ? { ...diagnostic, severity: 'warning' } : diagnostic,
+      );
+    }
   }
 
-  if (diagnostics.refused) return { bundle: null, diagnostics: diagnostics.sorted() };
+  // A world accepted at one level keeps loading when the language
+  // tightens: a refusal introduced after the level it was written for
+  // applies to it as a warning.
+  const diagnostics =
+    mode === 'load'
+      ? softenPolicy(report.diagnostics.sorted(), manifest.level)
+      : report.diagnostics.sorted();
+  if (diagnostics.some((d) => d.severity === 'refusal')) return { bundle: null, diagnostics };
 
+  // The files that actually arrived are what the world runs on, so they
+  // are what it hashes. A publish hashes the whole of what was
+  // published; a load with a file withheld is honestly a different
+  // bundle, and the log records the withholding as its own event.
+  const arrived = source.files.filter((file) => !withheld.has(file.name));
   const definitions: readonly Node[] = [];
   const bundle: Bundle = {
     world: manifest.world,
@@ -298,7 +419,8 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     libraries: vendored,
     caps: limits.caps,
     size: { files, sourceBytes, exemptBytes },
-    hash: bundleHashOf(manifest, source.files, vendored),
+    absent: report.absent,
+    hash: bundleHashOf(manifest, arrived, vendored),
   };
-  return { bundle, diagnostics: diagnostics.sorted() };
+  return { bundle, diagnostics };
 }

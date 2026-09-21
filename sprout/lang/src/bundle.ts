@@ -18,6 +18,7 @@
 // beside every publish so that a segment of the log is read against the
 // bundle that produced it.
 
+import type { Gap } from './absent.js';
 import type { Node } from './nodes.js';
 import type { SourceFile } from './source.js';
 import type { StaticCaps } from './limits.js';
@@ -69,6 +70,12 @@ export interface MicroworldSource {
   /** The world's own `.sprout` files and the `.prose` files they point at. */
   readonly files: readonly SourceFile[];
   readonly libraries: readonly LibrarySource[];
+  /**
+   * Files the host is withholding, by name — a moderator's act, and a
+   * reversible one. They read as absent at load; a world is not
+   * published with a piece held back.
+   */
+  readonly withheld?: readonly string[];
 }
 
 /** A library in a bundle: its source, the hash of it, and whether the host blessed that hash. */
@@ -126,6 +133,13 @@ export interface Bundle {
    */
   readonly caps: StaticCaps;
   readonly size: BundleSize;
+  /**
+   * The gaps this world is running with: what is missing, withheld or
+   * broken, and what the world does without it. Empty for anything that
+   * published, since publishing is strict; a loaded world with an entry
+   * here runs, visibly, around it.
+   */
+  readonly absent: readonly Gap[];
   /** The hash of the closed bundle: what the log records beside a publish. */
   readonly hash: string;
 }

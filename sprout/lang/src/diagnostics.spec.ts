@@ -7,6 +7,7 @@ import {
   refusal,
   renderDiagnostic,
   renderDiagnostics,
+  softenPolicy,
   warning,
 } from './diagnostics.js';
 import { SourceFile } from './source.js';
@@ -166,5 +167,54 @@ describe('Diagnostics collects what a compile has to say', () => {
     diagnostics.refuse(stateValue, 'late');
     diagnostics.refuse(doorValue, 'early');
     expect(diagnostics.render().split('\n\n')[0]).toContain('early');
+  });
+});
+
+describe('a policy the language tightens becomes a warning for a world written before it', () => {
+  const since = (level: number) =>
+    refusal(doorValue, 'a rule added later', 'do it the new way', level);
+
+  it('softens a refusal introduced after the level the world was written for', () => {
+    const [softened] = softenPolicy([since(3)], 2);
+    expect(softened!.severity).toBe('warning');
+    expect(softened!.message).toBe('a rule added later');
+    expect(softened!.remedy).toBe('do it the new way');
+    expect(softened!.since).toBe(3);
+  });
+
+  it('leaves a refusal introduced at or before that level alone', () => {
+    expect(softenPolicy([since(2)], 2)[0]!.severity).toBe('refusal');
+    expect(softenPolicy([since(1)], 2)[0]!.severity).toBe('refusal');
+  });
+
+  it('leaves a refusal that was always wrong alone, whatever the level', () => {
+    expect(softenPolicy([refusal(doorValue, 'always wrong')], 1)[0]!.severity).toBe('refusal');
+  });
+
+  it('leaves warnings alone', () => {
+    const [left] = softenPolicy([warning(doorValue, 'a warning', undefined, 9)], 1);
+    expect(left!.severity).toBe('warning');
+  });
+
+  it('softens each one it should and no others', () => {
+    const page = [since(3), refusal(stateValue, 'always wrong'), since(1)];
+    expect(softenPolicy(page, 2).map((d) => d.severity)).toEqual(['warning', 'refusal', 'refusal']);
+  });
+
+  it('leaves the list it was given alone', () => {
+    const page = [since(3)];
+    softenPolicy(page, 2);
+    expect(page[0]!.severity).toBe('refusal');
+  });
+
+  it('keeps `since` off a diagnostic that has no policy behind it', () => {
+    expect(refusal(doorValue, 'x')).not.toHaveProperty('since');
+    expect(refusal(doorValue, 'x', 'y')).not.toHaveProperty('since');
+  });
+
+  it('carries `since` through a collector', () => {
+    const diagnostics = new Diagnostics();
+    diagnostics.refuse(doorValue, 'a rule added later', undefined, 4);
+    expect(diagnostics.all[0]!.since).toBe(4);
   });
 });

@@ -1,7 +1,7 @@
 // @overstory/sprout/lang — the Sprout language, on its own (MIT). Where
 // a thing was written and what the compiler has to say about it, the
 // limits a host sets and the meter a turn spends against, the closed
-// bundle a microworld compiles to, the
+// bundle a microworld compiles to and what it runs without, the
 // definition format and its caps, the written language and its compiler,
 // the skill that teaches it, the engine that runs a definition inside a
 // world, and the command parser that turns typed words into a verb. It
@@ -18,6 +18,7 @@ export * from './budget.js';
 export * from './sha256.js';
 export * from './bundle.js';
 export * from './compile.js';
+export * from './absent.js';
 export * from './definitions.js';
 export * from './extensions.js';
 export * from './sprout.js';

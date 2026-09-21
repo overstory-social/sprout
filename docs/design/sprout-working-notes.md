@@ -212,6 +212,11 @@ Found while building the closed bundle (B03):
 
 The bundle carries three things the spec's list does not name: the world's name, for the namespace its declarations are unqualified in; the size its source came to, so that what was counted against a cap and what was exempt is legible rather than re-derived; and the bundle's own hash, which the log already records beside every publish.
 
+Found while building strict publish and lenient load (B04):
+
+- **What a static cap exceeded at load means.** The lenient rule is stated for "a file that is missing, withheld or broken" and says nothing about a cap. Refusing would darken a world that was accepted at publish, so a cap is a warning at load and the host decides whether to run it — the same shape as "a world accepted at one level keeps loading when the language tightens", and the decision B43 makes explicit.
+- **Whether a withheld file changes the bundle's hash.** The log records a publish with the bundle's hash and a withholding as its own event. A load with a file withheld hashes what arrived, which is honestly not the published bundle; whether replay should read such a segment against the published hash or the loaded one is unstated. Withholding is also how the compiler learns a file is gone rather than never written: the source carries the withheld names, since a removed file and a withheld one differ only in whether the host still knows its name.
+
 *Closed on 2026-09-20, against the five reviews:* an open role, a handler's sender and an unfiltered loop variable are of the bare object type and are read only through `is()`; `each` is defined; `:remembers` uses the property declaration syntax; NPCs compose the visitor kind, have a name, read nothing, act with `act`, and do not keep a place ticking.
 
 *Closed: range and visitors are in the world model; `let` is specified; type parameters, stateful alternatives and stored references were all decided against; listing contents needs no convention, since `{thing}` renders an object's name; `look` and `examine` render a `describe`, and `text` is the statement that writes inside one.*
