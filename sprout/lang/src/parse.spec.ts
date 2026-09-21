@@ -822,7 +822,10 @@ describe('#60 — what the review of the #59 pass found', () => {
 });
 
 describe('#60 — a file that runs out is explained once, not once per bracket', () => {
-  const diagnose = (text: string, fn = parseProperty): string[] => {
+  const diagnose = (
+    text: string,
+    fn: (source: SourceFile, diagnostics: Diagnostics) => unknown = parseProperty,
+  ): string[] => {
     const diagnostics = new Diagnostics();
     fn(new SourceFile('k.sprout', text), diagnostics);
     return diagnostics.all.map((d) => d.message);
