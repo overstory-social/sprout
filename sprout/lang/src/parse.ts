@@ -32,6 +32,7 @@ import type {
   BinaryOperator,
   Declaration,
   Expr,
+  IntegerLiteral,
   LetStatement,
   EnumDeclaration,
   EnumOption,
@@ -725,16 +726,8 @@ class Parser {
       const which = this.at('name', 'min') ? 'min' : this.at('name', 'max') ? 'max' : null;
       if (which === null) break;
       const word = this.next();
-      const bound = this.literal();
+      const bound = this.integerBound(which);
       if (bound === null) return null;
-      if (bound.kind !== 'integer') {
-        this.diagnostics.refuse(
-          bound.at,
-          `A ${which} is a whole number.`,
-          `Write \`${which} 0\`, or leave it out.`,
-        );
-        return null;
-      }
       if ((which === 'min' ? min : max) !== null) {
         this.diagnostics.refuse(
           word.at,
@@ -752,6 +745,34 @@ class Parser {
     const parts = [value, min, max].filter((part) => part !== null);
     const end = parts.reduce((latest, part) => (part.at.end >= latest.at.end ? part : latest));
     return { kind: 'property', at: spanning(from, end.at), name, type, default: value, min, max };
+  }
+
+  /**
+   * A `min` or a `max`, which is a whole number and nothing else.
+   *
+   * It asks what is written BEFORE reading it, rather than reading any
+   * literal and complaining about the shape afterwards. Reading first
+   * meant that whatever went wrong INSIDE the literal answered for the
+   * bound: `min [… seventeen things …]` said "A list holds at most 16
+   * things", whose remedy is no use to an author who should not have
+   * written a list there at all.
+   */
+  private integerBound(which: 'min' | 'max'): IntegerLiteral | null {
+    const token = this.peek();
+    const written =
+      token.kind === 'integer' ||
+      (token.kind === 'punct' && token.text === '-' && this.peek(1).kind === 'integer');
+    if (!written) {
+      this.diagnostics.refuse(
+        token.at,
+        `A ${which} is a whole number.`,
+        `Write \`${which} 0\`, or leave it out.`,
+      );
+      return null;
+    }
+    // `literal()` has already said what is wrong with `min 1.5`.
+    const bound = this.literal();
+    return bound !== null && bound.kind === 'integer' ? bound : null;
   }
 
   /** `:wear 0 min 0 max 99` — a property as a kind or an object writes one. */

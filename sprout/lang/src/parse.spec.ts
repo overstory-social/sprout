@@ -1120,6 +1120,31 @@ describe('a list is bounded by what the host allows', () => {
     expect(refusals.map((d) => d.message)).toContain(`A list holds at most ${allowed} things.`);
   });
 
+  it('points at the element that breaks it, not at the list', () => {
+    // The span, not only the words: a report that moved to the opening
+    // bracket used to pass every test here.
+    const { refusals } = readProperty(list(allowed + 1));
+    const cap = refusals.find((d) => d.message.startsWith('A list holds at most'))!;
+    expect(textOf(cap.at)).toBe(`e${allowed}`);
+  });
+
+  it('is counted per list, so two over-cap lists are two reports', () => {
+    // `overCap` is a local, where the nesting cap two lines above it is
+    // a field reset once per declaration. Copying that shape here would
+    // report the first list and drop the second in silence, which is
+    // the one thing a full list must never do.
+    const caps = { ...DEFAULT_LIMITS.caps, listElements: 3 };
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: [1, 2, 3, 4], b: [5, 6, 7, 8]]'),
+      diagnostics,
+      caps,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('A list holds at most')),
+    ).toHaveLength(2);
+  });
+
   it('says it once, and still says what else is wrong inside', () => {
     const over = `:x [Ward] default [${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
     const said = readProperty(over).refusals.map((d) => d.message);
@@ -1133,6 +1158,46 @@ describe('a list is bounded by what the host allows', () => {
     const { declared, refusals } = readProperty(list(3), caps);
     expect(declared).toBeNull();
     expect(refusals.map((d) => d.message)).toContain('A list holds at most 2 things.');
+  });
+});
+
+describe('a `min` and a `max` are whole numbers, whatever else was written', () => {
+  it('names what a bound is, rather than what was wrong inside what was written', () => {
+    // Reading the bound as any literal first meant that whatever went
+    // wrong INSIDE it answered for the bound. A list too long for the
+    // cap said "A list holds at most 16 things", whose remedy does not
+    // help someone who should not have written a list there at all.
+    const allowed = DEFAULT_LIMITS.caps.listElements;
+    const over = `[${Array.from({ length: allowed + 1 }, (_, i) => i + 1).join(', ')}]`;
+    for (const [text, said] of [
+      [':x integer default 0 min [1, 2, 3]', 'A min is a whole number.'],
+      [`:x integer default 0 min ${over}`, 'A min is a whole number.'],
+      [`:x integer default 0 max ${over}`, 'A max is a whole number.'],
+      [':x integer default 0 min oak', 'A min is a whole number.'],
+      [':x integer default 0 max "9"', 'A max is a whole number.'],
+      [':x integer default 0 min true', 'A min is a whole number.'],
+    ] as const) {
+      const { declared, refusals } = readProperty(text);
+      expect(declared, text).toBeNull();
+      expect(
+        refusals.map((d) => d.message),
+        text,
+      ).toContain(said);
+    }
+  });
+
+  it('still reads the bounds it should, including a negative one', () => {
+    expect(readProperty(':x integer default 0 min -3 max 9').declared).toMatchObject({
+      min: { value: -3 },
+      max: { value: 9 },
+    });
+  });
+
+  it('still says what is wrong with a fraction, rather than calling it not a number', () => {
+    // `literal()` has its own sentence for this one, and it is better.
+    const said = readProperty(':x integer default 0 min 1.5').refusals.map((d) => d.message);
+    expect(said).toContain('Sprout has no fractions.');
+    expect(said).not.toContain('A min is a whole number.');
   });
 });
 
