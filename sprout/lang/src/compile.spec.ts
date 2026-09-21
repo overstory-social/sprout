@@ -591,3 +591,32 @@ describe('the level a world was accepted at is the bundle’s, not the manifest�
     expect(bundle!.level).toBe(bundle!.manifest.level);
   });
 });
+
+describe('a library’s own file reads as absent when it will not compile', () => {
+  // The tier-one pass walks the world's files and every usable library's
+  // alike, with no branch between them; this is the library half of the
+  // world-file case above, kept because the two are only obviously the
+  // same path if you have read the loop.
+  const broken: LibrarySource = { ...SPROUT, files: [file('actor.sprout', 'kind Actor { % }')] };
+  const withBroken = () =>
+    world({
+      libraries: [broken],
+      manifest: { libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(broken) }] },
+    });
+
+  it('refuses it at publish', () => {
+    expect(compileBundle(withBroken()).bundle).toBeNull();
+  });
+
+  it('reads it as absent at load, and keeps the rest of the world running', () => {
+    const { bundle, diagnostics } = compileBundle(withBroken(), { mode: 'load' });
+    expect(bundle).not.toBeNull();
+    expect(bundle!.absent).toHaveLength(1);
+    expect(bundle!.absent[0]).toMatchObject({
+      what: 'actor.sprout',
+      kind: 'file',
+      reason: 'broken',
+    });
+    expect(refusals(diagnostics)).toEqual([]);
+  });
+});

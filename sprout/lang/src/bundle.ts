@@ -77,7 +77,14 @@ export interface Manifest {
   readonly extensions: readonly ExtensionPin[];
   /** Every library it uses, with the version and the hash of the source that travelled. */
   readonly libraries: readonly LibraryPin[];
-  /** Its own `.sprout` and `.prose` files, by name. What travelled must be exactly this. */
+  /**
+   * Its own `.sprout` and `.prose` files, by name. At publish, what
+   * travelled must be exactly this. At load the equality is only
+   * flagged: a file the manifest does not name still runs, because
+   * refusing to load a world over a bookkeeping difference would darken
+   * a room that was accepted once. A file named here that did NOT
+   * travel is absent either way.
+   */
   readonly files: readonly string[];
 }
 
