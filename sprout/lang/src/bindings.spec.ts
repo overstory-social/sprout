@@ -101,6 +101,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     name,
     composes: new Set([`${library}.${name}`, ...composes]),
     properties: new Map(),
+    contains: false,
   };
 }
 

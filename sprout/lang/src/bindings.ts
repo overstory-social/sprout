@@ -53,6 +53,12 @@ export interface KindRef {
   readonly composes: ReadonlySet<string>;
   /** What it declares, by name, the remembered ones included. */
   readonly properties: ReadonlyMap<string, ResolvedProperty>;
+  /**
+   * Whether it declares `contains`. Containment is a declaration, and
+   * what declares it is B13's; typing only asks, because `x.count` and
+   * `x.holds(y)` are the two readings that need a container.
+   */
+  readonly contains: boolean;
 }
 
 /** `sprout.Container` — a kind's full identity, which is its library and its name. */

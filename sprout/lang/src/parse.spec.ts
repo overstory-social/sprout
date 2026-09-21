@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EnumDeclaration } from './ast.js';
+import type { EnumDeclaration, Expr } from './ast.js';
 import { Diagnostics, type Diagnostic } from './diagnostics.js';
 import { unspanned } from './nodes.js';
-import { DECLARATIONS, parseDeclarations, parseProperty, parseRemembers } from './parse.js';
+import {
+  DECLARATIONS,
+  parseDeclarations,
+  parseExpression,
+  parseProperty,
+  parseRemembers,
+} from './parse.js';
 import { locationOf, SourceFile, textOf } from './source.js';
 import { DEFAULT_LIMITS } from './limits.js';
 
@@ -1044,6 +1050,233 @@ describe('#60 — the shape every round of bugs here has turned on, enumerated',
         const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
         expect(declared, `${text} gave back nothing`).not.toBeNull();
       }
+    }
+  });
+});
+
+// --- expressions (B09) ----------------------------------------------------
+
+/** An expression as a shape, brackets showing what bound to what. */
+function shape(expr: Expr | null): string {
+  if (expr === null) return 'null';
+  switch (expr.kind) {
+    case 'binary':
+      return `(${shape(expr.left)} ${expr.operator} ${shape(expr.right)})`;
+    case 'unary':
+      return `(${expr.operator}${shape(expr.operand)})`;
+    case 'member':
+      return `${shape(expr.receiver)}.${expr.member.text}`;
+    case 'call':
+      return `${shape(expr.receiver)}.${expr.method.text}(${expr.arguments.map(shape).join(', ')})`;
+    case 'free-call':
+      return `${expr.name.text}(${expr.arguments.map(shape).join(', ')})`;
+    case 'binding':
+      return expr.name.text;
+    case 'symbol-expr':
+      return `:${expr.name.text}`;
+    case 'kind-expr':
+      return expr.library === null ? expr.name.text : `${expr.library.text}.${expr.name.text}`;
+    case 'string':
+      return JSON.stringify(expr.value);
+    default:
+      return String(expr.value);
+  }
+}
+
+/** A property, for the specs about depth that are written as one. */
+function readExpressionOf(text: string) {
+  const diagnostics = new Diagnostics();
+  parseProperty(new SourceFile('k.sprout', text), diagnostics);
+  return { refusals: diagnostics.refusals };
+}
+
+function readExpression(text: string, caps = DEFAULT_LIMITS.caps) {
+  const diagnostics = new Diagnostics();
+  const expr = parseExpression(new SourceFile('body.sprout', text), diagnostics, caps);
+  return { expr, shape: shape(expr), diagnostics, refusals: diagnostics.refusals };
+}
+
+describe('an expression', () => {
+  it('reads every expression the spec writes', () => {
+    // Taken from the spec's own bodies, so the suite fails if the
+    // grammar drifts from what the language is written in.
+    const written: [string, string][] = [
+      ['self.get(:sealed)', 'self.get(:sealed)'],
+      ['self.get(:wear) >= 99', '(self.get(:wear) >= 99)'],
+      ['!self.get(:inked)', '(!self.get(:inked))'],
+      ['tools.count(Rib) > 1', '(tools.count(Rib) > 1)'],
+      ['self.get(:state) == :wet', '(self.get(:state) == :wet)'],
+      ['elapsed > 7200', '(elapsed > 7200)'],
+      ['p != self && chance(4)', '((p != self) && chance(4))'],
+      ['self.count >= self.get(:capacity)', '(self.count >= self.get(:capacity))'],
+      ['actor.recall(:visits) <= 1', '(actor.recall(:visits) <= 1)'],
+      ['item.is(Creature)', 'item.is(Creature)'],
+      ['from.get(:opens).includes(self.get(:ward))', 'from.get(:opens).includes(self.get(:ward))'],
+      ['self.holds(target)', 'self.holds(target)'],
+      ['self.adjust(:wear, 1)', 'self.adjust(:wear, 1)'],
+      ['random(6)', 'random(6)'],
+      ['to.is(sprout.Container)', 'to.is(sprout.Container)'],
+    ];
+    for (const [text, expected] of written) {
+      const read = readExpression(text);
+      expect(
+        read.refusals.map((d) => d.message),
+        text,
+      ).toEqual([]);
+      expect(read.shape, text).toBe(expected);
+    }
+  });
+
+  it('binds operators as the spec’s own expressions assume', () => {
+    const table: [string, string][] = [
+      ['a || b && c', '(a || (b && c))'],
+      ['a && b == c', '(a && (b == c))'],
+      ['a == b < c', '(a == (b < c))'],
+      ['a < b + c', '(a < (b + c))'],
+      ['-a + b', '((-a) + b)'],
+      ['!a && b', '((!a) && b)'],
+      ['a - b - c', '((a - b) - c)'],
+      ['(a || b) && c', '((a || b) && c)'],
+      ['a.b.c', 'a.b.c'],
+    ];
+    for (const [text, expected] of table) expect(readExpression(text).shape, text).toBe(expected);
+  });
+
+  it('tells a library’s kind from a reading, by what follows the dot', () => {
+    // `sprout.Container` is a kind and `actor.recall` is a reading, and
+    // the only difference is the capital letter after the dot.
+    expect(readExpression('sprout.Container').shape).toBe('sprout.Container');
+    expect(readExpression('sprout.recall').shape).toBe('sprout.recall');
+  });
+
+  it('says what it could not read, and where', () => {
+    const table: [string, string][] = [
+      ['', 'the end of the file is not something to read'],
+      ['&&', '`&&` is not something to read'],
+      ['a +', 'the end of the file is not something to read'],
+      ['(a + b', 'This bracket is never closed.'],
+      ['self.get(:p', 'This bracket is never closed.'],
+      ['self.', 'A dot needs the name of something to read after it.'],
+      ['1.5', 'Sprout has no fractions.'],
+    ];
+    for (const [text, said] of table) {
+      const read = readExpression(text);
+      expect(read.expr, text).toBeNull();
+      expect(read.refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of read.refusals) {
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+      }
+    }
+  });
+
+  it('keeps the well-formed neighbour of an argument it could not read', () => {
+    const read = readExpression('self.set(:wear % , 1)');
+    expect(read.shape).toBe('self.set(:wear, 1)');
+  });
+
+  it('asks for a comma only once the next thing reads', () => {
+    const read = readExpression('self.set(:wear 1)');
+    expect(read.refusals.map((d) => d.message)).toEqual([
+      'A reading needs a comma between what it is given.',
+    ]);
+    expect(read.shape).toBe('self.set(:wear, 1)');
+  });
+});
+
+describe('an expression counts against the host’s nesting cap', () => {
+  const nesting = DEFAULT_LIMITS.caps.nesting;
+
+  it('reads what is within it, and refuses what is past it', () => {
+    expect(readExpression('('.repeat(nesting) + 'a' + ')'.repeat(nesting)).expr).not.toBeNull();
+    expect(readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1)).expr).toBeNull();
+    expect(readExpression('!'.repeat(nesting) + 'a').expr).not.toBeNull();
+    expect(readExpression('!'.repeat(nesting + 1) + 'a').expr).toBeNull();
+  });
+
+  it('says so ONCE, however far past it goes', () => {
+    // The refusal used to multiply: reading on past an item that could
+    // not be read is what an author owed three problems is owed all
+    // three for, but every item past the cap sits at the same depth and
+    // fails identically, so reading on said one true thing once per
+    // level. `:x [[[[…` said it 1,992 times.
+    for (const text of [
+      '('.repeat(2000) + 'a' + ')'.repeat(2000),
+      'a' + '.f(a'.repeat(2000) + ')'.repeat(2000),
+      '!'.repeat(2000) + 'a',
+    ]) {
+      const said = readExpression(text).refusals.map((d) => d.message);
+      expect(said, text.slice(0, 20)).toEqual([
+        `Nothing here may be nested more than ${nesting} deep.`,
+      ]);
+    }
+  });
+
+  it('says so once for a list too, which is where the multiplying was', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x ' + '['.repeat(2000) + 'oak'), diagnostics);
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(1);
+  });
+
+  it('says so once for a `:remembers` too, which has the same loop', () => {
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: ' + '['.repeat(2000) + 'oak]'),
+      diagnostics,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(1);
+  });
+
+  it('says it once WITHOUT abandoning what comes after it', () => {
+    // The first fix for the multiplying was to stop the whole
+    // construct at the first item that was too deep. That said the
+    // depth once and lost everything else the author had got wrong —
+    // so it is reported once and then refused in silence instead, and
+    // the list reads on exactly as it does past any other bad element.
+    const deep = '['.repeat(12);
+    const { refusals } = readExpressionOf(`:x [${deep}oak, Zeta]`);
+    const said = refusals.map((d) => d.message);
+    expect(said.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
+  });
+
+  it('gives each declaration its own account of being too deep', () => {
+    const diagnostics = new Diagnostics();
+    const deep = '[[[[[[[[[[';
+    parseDeclarations(
+      new SourceFile(
+        'k.sprout',
+        `message :a with ${deep}Ward
+message :b with ${deep}Ward
+`,
+      ),
+      diagnostics,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(2);
+  });
+
+  it('never throws, however deep or however long', () => {
+    // `parseExpression` directly, not `readExpression`: `shape()` above
+    // walks the tree by recursion, and a chain of fifty thousand terms
+    // overflows the SPEC rather than the parser. Which is its own small
+    // lesson — the suite has to be the thing under test, not the thing
+    // that fails first.
+    for (const text of [
+      '('.repeat(50_000) + 'a' + ')'.repeat(50_000),
+      Array(50_000).fill('a').join(' + '),
+      'a' + '.count'.repeat(50_000),
+      '!'.repeat(50_000) + 'a',
+      'a' + '.f(a'.repeat(50_000) + ')'.repeat(50_000),
+    ]) {
+      expect(
+        () => parseExpression(new SourceFile('body.sprout', text), new Diagnostics()),
+        text.slice(0, 16),
+      ).not.toThrow();
     }
   });
 });

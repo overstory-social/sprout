@@ -140,5 +140,96 @@ export interface MessageDeclaration extends Node {
   readonly carries: TypeExpr | null;
 }
 
+// --- expressions ----------------------------------------------------------
+//
+// An expression is read WITHOUT deciding what its parts mean. `:opens`
+// is a symbol wherever it appears, and whether it names a property or
+// an option of an enum is decided by the call it sits in; `Key` is a
+// kind wherever it appears, and only `is()` and `count()` accept one.
+// That is the same split `NamedType` already makes — the parser records
+// what was written, and the checker resolves it — and it keeps the
+// parser from having to know the method table.
+
+/** A value written down. A list is not one: see the notes on lists in expressions. */
+export type LiteralExpr = BooleanLiteral | IntegerLiteral | StringLiteral;
+
+/** `self`, `actor`, `topic`, `tools` — a name something in scope answers to. */
+export interface BindingExpr extends Node {
+  readonly kind: 'binding';
+  readonly name: Ident;
+}
+
+/**
+ * `:wet`, `:opens` — written WITH its colon, where a declaration writes
+ * an option bare. Whether it names a property or an option is the
+ * checker's to say from where it sits.
+ */
+export interface SymbolExpr extends Node {
+  readonly kind: 'symbol-expr';
+  readonly name: Ident;
+}
+
+/** `Key`, `sprout.Container` — a kind, which `is()` and `count()` take. */
+export interface KindExpr extends Node {
+  readonly kind: 'kind-expr';
+  readonly library: Ident | null;
+  readonly name: Ident;
+}
+
+export type UnaryOperator = '!' | '-';
+
+export interface UnaryExpr extends Node {
+  readonly kind: 'unary';
+  readonly operator: UnaryOperator;
+  readonly operand: Expr;
+}
+
+export type BinaryOperator = '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' | '&&' | '||';
+
+export interface BinaryExpr extends Node {
+  readonly kind: 'binary';
+  readonly operator: BinaryOperator;
+  readonly left: Expr;
+  readonly right: Expr;
+}
+
+/** `self.count` — a member read with no arguments and no parentheses. */
+export interface MemberExpr extends Node {
+  readonly kind: 'member';
+  readonly receiver: Expr;
+  readonly member: Ident;
+}
+
+/** `self.get(:wear)`, `tools.count(Rib)`, `x.remember(:p, e)`. */
+export interface CallExpr extends Node {
+  readonly kind: 'call';
+  readonly receiver: Expr;
+  readonly method: Ident;
+  readonly arguments: readonly Expr[];
+}
+
+/**
+ * `chance(30)`, `random(6)` — a call with no receiver. The parser reads
+ * the shape so that a diagnostic can be about the name rather than
+ * about a bracket; which names are readable is the checker's table, and
+ * it is empty until B33 adds chance to it.
+ */
+export interface FreeCallExpr extends Node {
+  readonly kind: 'free-call';
+  readonly name: Ident;
+  readonly arguments: readonly Expr[];
+}
+
+export type Expr =
+  | LiteralExpr
+  | BindingExpr
+  | SymbolExpr
+  | KindExpr
+  | UnaryExpr
+  | BinaryExpr
+  | MemberExpr
+  | CallExpr
+  | FreeCallExpr;
+
 /** Everything that can be written at the top of a file. The union grows per item. */
 export type Declaration = EnumDeclaration | MessageDeclaration;
