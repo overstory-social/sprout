@@ -8,9 +8,10 @@ name: release
 # checks, and it attaches provenance. Needs npm ≥ 11.5 (Node 22+ ships it)
 # and, for the version PR, the repository's Actions setting "Allow GitHub
 # Actions to create and approve pull requests".
+# Manual only while the repository is pre-1.0: GitHub minutes are not spent
+# on it until it is stable, and every gate runs locally (CLAUDE.md).
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
