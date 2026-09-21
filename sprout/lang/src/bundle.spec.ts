@@ -16,6 +16,7 @@ const file = (name: string, text: string): SourceFile => new SourceFile(name, te
 
 const sprout: LibrarySource = {
   name: 'sprout',
+  version: '1.0.0',
   level: 1,
   files: [file('actor.sprout', 'kind Actor { }'), file('place.sprout', 'kind Place { contains }')],
 };
@@ -28,10 +29,14 @@ const vendored = (library: LibrarySource, blessed = false): VendoredLibrary => (
 });
 
 const manifest: Manifest = {
-  world: 'printers_shop',
+  name: 'printers_shop',
+  version: '0.3.1',
+  author: 'Eric Eslinger',
+  license: 'MIT',
   level: 1,
   extensions: [{ name: 'media', major: 2 }],
-  libraries: ['sprout'],
+  libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(sprout) }],
+  files: ['world.sprout'],
 };
 
 const own = [file('world.sprout', 'world printers_shop { contains }')];
@@ -65,8 +70,9 @@ describe('a library’s hash is its source and nothing else', () => {
     expect(libraryHash({ ...sprout, name: 'a_fork_of_sprout' })).toBe(libraryHash(sprout));
   });
 
-  it('is the same whatever level the copy declares', () => {
+  it('is the same whatever level or version the copy declares', () => {
     expect(libraryHash({ ...sprout, level: 9 })).toBe(libraryHash(sprout));
+    expect(libraryHash({ ...sprout, version: '9.9.9' })).toBe(libraryHash(sprout));
   });
 
   it('is the same however the files were handed over', () => {
@@ -115,35 +121,57 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
     expect(bundleHashOf(manifest, own, [vendored({ ...sprout, level: 2 })])).not.toBe(hash);
   });
 
-  it('changes when the manifest changes', () => {
+  it('changes when anything the manifest says changes', () => {
     for (const changed of [
-      { ...manifest, world: 'other_shop' },
+      { ...manifest, name: 'other_shop' },
+      { ...manifest, version: '0.3.2' },
+      { ...manifest, author: 'Somebody Else' },
+      { ...manifest, license: 'Apache-2.0' },
       { ...manifest, level: 2 },
       { ...manifest, extensions: [] },
       { ...manifest, extensions: [{ name: 'media', major: 3 }] },
       { ...manifest, libraries: [] },
+      { ...manifest, files: ['world.sprout', 'kiln.prose'] },
     ] satisfies Manifest[]) {
-      expect(bundleHashOf(changed, own, [vendored(sprout)])).not.toBe(hash);
+      expect(bundleHashOf(changed, own, [vendored(sprout)]), changed.version).not.toBe(hash);
     }
+  });
+
+  it('changes when a library is pinned at a different version or sha', () => {
+    const version: Manifest = {
+      ...manifest,
+      libraries: [{ name: 'sprout', version: '2.0.0', sha: libraryHash(sprout) }],
+    };
+    const sha: Manifest = {
+      ...manifest,
+      libraries: [{ name: 'sprout', version: '1.0.0', sha: 'f'.repeat(64) }],
+    };
+    expect(bundleHashOf(version, own, [vendored(sprout)])).not.toBe(hash);
+    expect(bundleHashOf(sha, own, [vendored(sprout)])).not.toBe(hash);
   });
 
   it('does not change when the host blesses a library, since blessing is a quota decision', () => {
     expect(bundleHashOf(manifest, own, [vendored(sprout, true)])).toBe(hash);
   });
 
-  it('does not care what order the manifest listed its extensions or libraries in', () => {
+  it('does not care what order the manifest listed its parts in', () => {
     const two: Manifest = {
       ...manifest,
       extensions: [
         { name: 'media', major: 2 },
         { name: 'audio', major: 1 },
       ],
-      libraries: ['sprout', 'ericworld'],
+      libraries: [
+        { name: 'sprout', version: '1.0.0', sha: 'a'.repeat(64) },
+        { name: 'ericworld', version: '0.1.0', sha: 'b'.repeat(64) },
+      ],
+      files: ['world.sprout', 'kiln.sprout'],
     };
     const reversed: Manifest = {
       ...two,
       extensions: [...two.extensions].reverse(),
       libraries: [...two.libraries].reverse(),
+      files: [...two.files].reverse(),
     };
     expect(bundleHashOf(reversed, own, [])).toBe(bundleHashOf(two, own, []));
   });

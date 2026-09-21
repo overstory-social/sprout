@@ -35,7 +35,12 @@ export interface AbsenceRule {
   readonly reference: ReferenceKind;
   /** What the language does when the target is absent, in the words a moderation view uses. */
   readonly consequence: string;
-  /** The world passage somebody is told through, where somebody is told at all. */
+  /**
+   * The world passage somebody is told through, where the spec NAMES
+   * one. `null` does not mean nobody is told — the arrival row says the
+   * world "says so" and names no passage — only that the language does
+   * not yet know which passage says it.
+   */
   readonly told: string | null;
 }
 
@@ -72,8 +77,13 @@ export const ABSENT_TABLE: readonly AbsenceRule[] = [
   },
   {
     reference: 'place-of-arrival',
+    // The spec says the world "says so" and, unlike the row above it,
+    // names no passage to say it through. `displaced` would be the
+    // guess, and it is the wrong one — "The place you were standing is
+    // gone" is not true of somebody who never stood anywhere. Left open,
+    // and recorded in the working notes' Holes in the spec.
     consequence: 'the world does not admit anyone, and says so',
-    told: 'displaced',
+    told: null,
   },
   {
     reference: 'extension',
@@ -95,6 +105,8 @@ export type AbsenceReason =
   | 'missing'
   /** The host is withholding it — a moderator's act, and reversible. */
   | 'withheld'
+  /** It travelled, and it is not the source the manifest recorded. */
+  | 'mismatched'
   /** It travelled and does not compile. */
   | 'broken';
 

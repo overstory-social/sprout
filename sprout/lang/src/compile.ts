@@ -14,18 +14,24 @@
 // which is a consequence worth stating rather than discovering.
 //
 // THE MODES. Saving and publishing are STRICT: any problem is a refusal.
-// Loading is LENIENT: a file that is missing, withheld or broken reads
-// as absent, what referred to it keeps compiling, and the world runs
-// with a visible gap. That is what makes a takedown safe, and why every
-// gap is recorded in the bundle rather than swallowed.
+// Loading is LENIENT: a file that is missing, withheld, mismatched or
+// broken reads as absent, what referred to it keeps compiling, and the
+// world runs with a visible gap. That is what makes a takedown safe, and
+// why every gap is recorded in the bundle rather than swallowed.
+//
+// The manifest is what makes both possible before a line has parsed. It
+// names every file the world is made of and every library it vendored,
+// with the hash of the source that travelled, so completeness and
+// closedness are settled by comparison rather than by inference.
 //
 // What each tier can check grows as the syntax items land. What is here
-// is the closed bundle itself — vendoring, hashing, the caps a bundle
-// records, the level it needs — and the seam each later item plugs into:
-// B05–B19 fill `definitions`, B27 fills the word set, B09 and B19 fill
-// the typed half of the second tier, and the rest of the absent table
-// belongs to the items that build what it is about. Where a check is not
-// yet possible, this says so rather than pretending.
+// is the closed bundle itself — the manifest, vendoring, hashing, the
+// caps a bundle records, the level it needs — and the seam each later
+// item plugs into: B05–B19 fill `definitions`, B27 fills the word set,
+// B09 and B19 fill the typed half of the second tier, and the rest of
+// the absent table belongs to the items that build what it is about.
+// Where a check is not yet possible, this says so rather than
+// pretending.
 
 import type { CompileMode, Gap } from './absent.js';
 import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js';
@@ -75,6 +81,11 @@ function isCode(file: SourceFile): boolean {
   return file.name.endsWith('.sprout');
 }
 
+/** A world's own files are its `.sprout` files and the `.prose` files they point at. */
+function isWorldFile(name: string): boolean {
+  return name.endsWith('.sprout') || name.endsWith('.prose');
+}
+
 /**
  * Where a manifest key was written, so a problem with the manifest names
  * a line and column like everything else. The manifest arrives already
@@ -84,6 +95,17 @@ function isCode(file: SourceFile): boolean {
 function atKey(manifest: SourceFile, key: string): Span {
   const at = manifest.text.indexOf(`"${key}"`);
   return at < 0 ? manifest.span(0, 0) : manifest.span(at, at + key.length + 2);
+}
+
+/**
+ * Where a value was written inside the manifest, for a problem about one
+ * entry of a list. It finds the first place the value is written, which
+ * is the right one for a name that appears once — scaffolding until the
+ * manifest is read with spans of its own rather than arriving parsed.
+ */
+function atValue(manifest: SourceFile, value: string, fallback: Span): Span {
+  const at = manifest.text.indexOf(`"${value}"`);
+  return at < 0 ? fallback : manifest.span(at, at + value.length + 2);
 }
 
 /** A world or library name: the namespace its declarations are unqualified in. */
@@ -125,6 +147,11 @@ function vendor(
   });
 }
 
+/** A table cell, written as a sentence: the rows read as `the object is absent`, lower-case. */
+function sentence(cell: string): string {
+  return `${cell.charAt(0).toUpperCase()}${cell.slice(1)}.`;
+}
+
 /**
  * The one decision the two modes turn on: at publish a problem refuses,
  * at load the same problem is a gap the world runs around. Everything
@@ -151,6 +178,16 @@ class Report {
   }
 
   /**
+   * Wrong to publish and survivable to run: a refusal at publish, a
+   * warning at load. Refusing at load would darken a world that was
+   * accepted once, which is the opposite of what leniency is for.
+   */
+  strict(at: Span, message: string, remedy?: string): void {
+    if (this.mode === 'publish') this.refuse(at, message, remedy);
+    else this.warn(at, message, remedy);
+  }
+
+  /**
    * Something is not there. At publish that refuses — a world is not
    * published with a piece missing. At load it is a gap: recorded,
    * warned about, and run around.
@@ -158,17 +195,12 @@ class Report {
   gap(absent: Gap, message: string, remedy?: string): void {
     const at = absent.at ?? this.anywhere;
     if (this.mode === 'publish') {
-      this.diagnostics.refuse(at, message, remedy);
+      this.refuse(at, message, remedy);
       return;
     }
     this.absent.push(absent);
-    this.diagnostics.warn(at, `${message} ${sentence(absent.consequence)}`, remedy);
+    this.warn(at, `${message} ${sentence(absent.consequence)}`, remedy);
   }
-}
-
-/** A table cell, written as a sentence: the rows read as `the object is absent`, lower-case. */
-function sentence(cell: string): string {
-  return `${cell.charAt(0).toUpperCase()}${cell.slice(1)}.`;
 }
 
 /** Refuse a name that appears twice in a list, naming the second one. */
@@ -190,6 +222,11 @@ function refuseRepeats(
   }
 }
 
+/** What a world runs without when a library is not there. */
+const LIBRARY_GONE = 'every kind, enum, verb and message it holds reads as absent';
+/** What a world runs without when one of its own files is not there. */
+const FILE_GONE = 'everything it declared reads as absent, and its objects keep their state';
+
 /**
  * The second tier: a closed bundle, checked whole. Strict at publish,
  * lenient at load.
@@ -202,12 +239,29 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   const { manifest, manifestFile } = source;
   const report = new Report(mode, manifestFile.span(0, 0));
 
-  if (!NAMESPACE.test(manifest.world)) {
+  // --- what the world says it is ------------------------------------------
+
+  if (!NAMESPACE.test(manifest.name)) {
     report.refuse(
-      atKey(manifestFile, 'world'),
-      `"${manifest.world}" cannot be a world's name.`,
+      atKey(manifestFile, 'name'),
+      `"${manifest.name}" cannot be a world's name.`,
       'A name starts with a lower-case letter and holds letters, digits and _.',
     );
+  }
+  for (const [key, value] of [
+    ['version', manifest.version],
+    ['author', manifest.author],
+    ['license', manifest.license],
+  ] as const) {
+    if (value.trim() === '') {
+      report.refuse(
+        atKey(manifestFile, key),
+        `This world's ${key} is empty.`,
+        key === 'license'
+          ? 'Write the terms it is offered under, such as MIT.'
+          : `Write the ${key} in the manifest.`,
+      );
+    }
   }
   if (!Number.isInteger(manifest.level) || manifest.level < 1) {
     report.refuse(
@@ -217,10 +271,11 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     );
   }
 
+  const extensionsKey = atKey(manifestFile, 'extensions');
   for (const pin of manifest.extensions) {
     if (!Number.isInteger(pin.major) || pin.major < 0) {
       report.refuse(
-        atKey(manifestFile, 'extensions'),
+        atValue(manifestFile, pin.name, extensionsKey),
         `The extension "${pin.name}" is pinned to major version ${pin.major}.`,
         'A major version is a whole number from 0 up.',
       );
@@ -228,62 +283,156 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   }
   refuseRepeats(
     report,
-    manifest.extensions.map((pin) => ({ name: pin.name, at: atKey(manifestFile, 'extensions') })),
+    manifest.extensions.map((pin) => ({
+      name: pin.name,
+      at: atValue(manifestFile, pin.name, extensionsKey),
+    })),
     'extensions pinned',
   );
 
-  // A closed bundle: everything the world says it uses travels with it,
-  // because nothing is resolved or fetched at run time. A library that
-  // did not travel is a gap — refused at publish, absent at load, where
-  // every kind it holds reads as absent by the table's first row.
-  const vendored = vendor(source.libraries, blessed);
-  const byName = new Map(vendored.map((library) => [library.name, library]));
+  // --- the files the world is made of --------------------------------------
+
+  const withheld = new Set(source.withheld ?? []);
+  const filesKey = atKey(manifestFile, 'files');
   refuseRepeats(
     report,
-    vendored.map((library) => ({
-      name: library.name,
-      at: library.files[0]?.span(0, 0) ?? atKey(manifestFile, 'libraries'),
-    })),
-    'libraries vendored',
+    manifest.files.map((name) => ({ name, at: atValue(manifestFile, name, filesKey) })),
+    'files named',
   );
-  for (const name of manifest.libraries) {
-    if (!NAMESPACE.test(name)) {
+  for (const name of manifest.files) {
+    if (!isWorldFile(name)) {
       report.refuse(
-        atKey(manifestFile, 'libraries'),
-        `"${name}" cannot be a library's name.`,
-        'A name starts with a lower-case letter and holds letters, digits and _.',
-      );
-    }
-    if (!byName.has(name)) {
-      report.gap(
-        {
-          what: name,
-          kind: 'library',
-          reason: 'missing',
-          at: atKey(manifestFile, 'libraries'),
-          consequence: 'every kind, enum, verb and message it holds reads as absent',
-        },
-        `This world uses the library "${name}", and its source did not travel with it.`,
-        'A published world carries the full source of every library it uses: vendor it, or stop using it.',
-      );
-    }
-  }
-  const used = new Set(manifest.libraries);
-  for (const library of vendored) {
-    if (!used.has(library.name)) {
-      report.warn(
-        library.files[0]?.span(0, 0) ?? atKey(manifestFile, 'libraries'),
-        `The library "${library.name}" travels with this world and the world does not use it.`,
-        'Remove it from the world, or name it among the libraries the world uses.',
+        atValue(manifestFile, name, filesKey),
+        `"${name}" is not a file this world can be made of.`,
+        'A world is written in `.sprout` files and the `.prose` files they point at.',
       );
     }
   }
 
+  const arrivedByName = new Map(source.files.map((file) => [file.name, file]));
   refuseRepeats(
     report,
     source.files.map((file) => ({ name: file.name, at: file.span(0, 0) })),
     'files',
   );
+
+  // A file the host is withholding did not travel. At publish that
+  // refuses: a world is not published with a piece held back. At load it
+  // is a gap, and a reversible one — restoring the file brings its
+  // objects back as they were, because their state was never touched.
+  for (const name of withheld) {
+    report.gap(
+      {
+        what: name,
+        kind: 'file',
+        reason: 'withheld',
+        at: atValue(manifestFile, name, filesKey),
+        consequence: FILE_GONE,
+      },
+      `The file "${name}" is being withheld.`,
+      'Restore it, or publish the world without what it held.',
+    );
+  }
+
+  // The manifest enumerates the world's own files, so what travelled is
+  // checked against what was meant to rather than inferred from it.
+  for (const name of manifest.files) {
+    if (arrivedByName.has(name) || withheld.has(name)) continue;
+    report.gap(
+      {
+        what: name,
+        kind: 'file',
+        reason: 'missing',
+        at: atValue(manifestFile, name, filesKey),
+        consequence: FILE_GONE,
+      },
+      `The manifest names the file "${name}", and it did not travel with the world.`,
+      'Add the file, or take its name out of the manifest.',
+    );
+  }
+  const named = new Set(manifest.files);
+  for (const file of source.files) {
+    if (named.has(file.name)) continue;
+    report.strict(
+      file.span(0, 0),
+      `The file "${file.name}" travelled with this world and the manifest does not name it.`,
+      'Name it among the world’s files, or leave it out of the world.',
+    );
+  }
+
+  // --- the libraries it vendored -------------------------------------------
+
+  // A closed bundle: everything the world says it uses travels with it,
+  // because nothing is resolved or fetched at run time. A library that
+  // did not travel, or whose source is not the source the manifest
+  // recorded, is a gap — refused at publish, absent at load, where every
+  // kind it holds reads as absent by the table's first row.
+  const vendored = vendor(source.libraries, blessed);
+  const byName = new Map(vendored.map((library) => [library.name, library]));
+  const librariesKey = atKey(manifestFile, 'libraries');
+  refuseRepeats(
+    report,
+    vendored.map((library) => ({
+      name: library.name,
+      at: library.files[0]?.span(0, 0) ?? librariesKey,
+    })),
+    'libraries vendored',
+  );
+  refuseRepeats(
+    report,
+    manifest.libraries.map((pin) => ({
+      name: pin.name,
+      at: atValue(manifestFile, pin.name, librariesKey),
+    })),
+    'libraries used',
+  );
+
+  const unusable = new Set<string>();
+  for (const pin of manifest.libraries) {
+    const at = atValue(manifestFile, pin.name, librariesKey);
+    if (!NAMESPACE.test(pin.name)) {
+      report.refuse(
+        at,
+        `"${pin.name}" cannot be a library's name.`,
+        'A name starts with a lower-case letter and holds letters, digits and _.',
+      );
+    }
+    const library = byName.get(pin.name);
+    if (library === undefined) {
+      unusable.add(pin.name);
+      report.gap(
+        { what: pin.name, kind: 'library', reason: 'missing', at, consequence: LIBRARY_GONE },
+        `This world uses the library "${pin.name}", and its source did not travel with it.`,
+        'A published world carries the full source of every library it uses: vendor it, or stop using it.',
+      );
+      continue;
+    }
+    if (library.hash !== pin.sha) {
+      unusable.add(pin.name);
+      report.gap(
+        { what: pin.name, kind: 'library', reason: 'mismatched', at, consequence: LIBRARY_GONE },
+        `The library "${pin.name}" that travelled is not the source the manifest recorded.`,
+        'Vendor the library again, so that what travels and what the manifest records are one thing.',
+      );
+      continue;
+    }
+    if (library.version !== pin.version) {
+      report.strict(
+        at,
+        `The manifest records "${pin.name}" at version ${pin.version}, and the source that travelled says ${library.version}.`,
+        'The source is what runs; correct the version the manifest records.',
+      );
+    }
+  }
+  const used = new Set(manifest.libraries.map((pin) => pin.name));
+  for (const library of vendored) {
+    if (used.has(library.name)) continue;
+    report.warn(
+      library.files[0]?.span(0, 0) ?? librariesKey,
+      `The library "${library.name}" travels with this world and the world does not use it.`,
+      'Remove it from the world, or name it among the libraries the world uses.',
+    );
+  }
   for (const library of vendored) {
     refuseRepeats(
       report,
@@ -292,37 +441,25 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
     );
   }
 
-  // A file the host is withholding did not travel. At publish that
-  // refuses: a world is not published with a piece held back. At load it
-  // is a gap, and a reversible one — the withholding is a moderator's
-  // act, and restoring the file brings its objects back as they were.
-  const withheld = new Set(source.withheld ?? []);
-  for (const name of withheld) {
-    report.gap(
-      {
-        what: name,
-        kind: 'file',
-        reason: 'withheld',
-        at: manifestFile.span(0, 0),
-        consequence: 'everything it declared reads as absent, and its objects keep their state',
-      },
-      `The file "${name}" is being withheld.`,
-      'Restore it, or publish the world without what it held.',
-    );
-  }
+  // A library whose source is not the recorded source is not used at
+  // all. Running a world against a library it did not mean to vendor
+  // would be worse than running it without one.
+  const usable = vendored.filter((library) => !unusable.has(library.name));
+
+  // --- the level, the caps, and the files themselves ------------------------
 
   // A bundle's level is the highest of any of its parts, library source
   // included, and a runtime refuses text newer than its compiler — in
   // either mode, because a compiler cannot read what it does not know.
-  const level = vendored.reduce(
+  const level = usable.reduce(
     (highest, library) => Math.max(highest, library.level),
     manifest.level,
   );
   if (level > compilerLevel) {
-    const newer = vendored.filter((library) => library.level > compilerLevel);
+    const newer = usable.filter((library) => library.level > compilerLevel);
     report.refuse(
       newer.length > 0 && manifest.level <= compilerLevel
-        ? atKey(manifestFile, 'libraries')
+        ? librariesKey
         : atKey(manifestFile, 'level'),
       `This world needs Sprout level ${level}, and this one understands level ${compilerLevel}.`,
       newer.length > 0
@@ -333,34 +470,30 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
 
   // Blessed library source costs the author nothing; a modified copy is
   // the author's own source and counts as it.
-  const exemptBytes = vendored
+  const arrived = source.files.filter((file) => !withheld.has(file.name));
+  const exemptBytes = usable
     .filter((library) => library.blessed)
     .reduce((bytes, library) => bytes + library.bytes, 0);
-  const ownBytes = source.files.reduce((bytes, file) => bytes + bytesOf(file.text), 0);
-  const chargedLibraries = vendored.filter((library) => !library.blessed);
-  const sourceBytes =
-    ownBytes + chargedLibraries.reduce((bytes, library) => bytes + library.bytes, 0);
+  const ownBytes = arrived.reduce((bytes, file) => bytes + bytesOf(file.text), 0);
+  const charged = usable.filter((library) => !library.blessed);
+  const sourceBytes = ownBytes + charged.reduce((bytes, library) => bytes + library.bytes, 0);
   const files =
-    source.files.length +
-    chargedLibraries.reduce((count, library) => count + library.files.length, 0);
+    arrived.length + charged.reduce((count, library) => count + library.files.length, 0);
 
   // A cap is checked at save and publish. At load it is a warning: the
   // world was accepted once, and refusing to load it now would darken a
   // room somebody already built. Which recorded caps a host will honour
   // and which it will refuse is the host's own decision (B43).
-  const overCap = (message: string, remedy: string): void => {
-    const at = atKey(manifestFile, 'world');
-    if (mode === 'publish') report.refuse(at, message, remedy);
-    else report.warn(at, message, remedy);
-  };
   if (limits.caps.sourceBytes !== null && sourceBytes > limits.caps.sourceBytes) {
-    overCap(
+    report.strict(
+      atKey(manifestFile, 'name'),
       `This world is ${sourceBytes} bytes of source, and ${limits.caps.sourceBytes} is as much as it may be.`,
       'Take something out, or use a library the host has blessed, whose source costs nothing.',
     );
   }
   if (limits.caps.files !== null && files > limits.caps.files) {
-    overCap(
+    report.strict(
+      atKey(manifestFile, 'name'),
       `This world is ${files} files, and ${limits.caps.files} is as many as it may have.`,
       'Put more in each file, or take something out.',
     );
@@ -369,10 +502,10 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   // declarations to count (B12, B19).
 
   // The first tier, over every file in the closed bundle — the world's
-  // own and every library's, because they compile together. A file that
-  // does not compile refuses at publish; at load it reads as absent, and
-  // what referred to it keeps compiling.
-  for (const file of [...source.files, ...vendored.flatMap((library) => library.files)]) {
+  // own and every usable library's, because they compile together. A
+  // file that does not compile refuses at publish; at load it reads as
+  // absent, and what referred to it keeps compiling.
+  for (const file of [...arrived, ...usable.flatMap((library) => library.files)]) {
     const shape = checkShape(file);
     if (shape.diagnostics.length === 0) continue;
     if (mode === 'publish') {
@@ -384,7 +517,7 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
       kind: 'file',
       reason: 'broken',
       at: shape.diagnostics[0]!.at,
-      consequence: 'everything it declared reads as absent, and its objects keep their state',
+      consequence: FILE_GONE,
     });
     for (const diagnostic of shape.diagnostics) {
       report.diagnostics.add(
@@ -394,11 +527,13 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   }
 
   // A world accepted at one level keeps loading when the language
-  // tightens: a refusal introduced after the level it was written for
-  // applies to it as a warning.
+  // tightens: a refusal introduced after that level applies to it as a
+  // warning. The level it was ACCEPTED at is the bundle's — the highest
+  // of any of its parts — and not the one the manifest was written for,
+  // which can be lower when a library it vendored is newer.
   const diagnostics =
     mode === 'load'
-      ? softenPolicy(report.diagnostics.sorted(), manifest.level)
+      ? softenPolicy(report.diagnostics.sorted(), level)
       : report.diagnostics.sorted();
   if (diagnostics.some((d) => d.severity === 'refusal')) return { bundle: null, diagnostics };
 
@@ -406,21 +541,20 @@ export function compileBundle(source: MicroworldSource, options: BundleOptions =
   // are what it hashes. A publish hashes the whole of what was
   // published; a load with a file withheld is honestly a different
   // bundle, and the log records the withholding as its own event.
-  const arrived = source.files.filter((file) => !withheld.has(file.name));
   const definitions: readonly Node[] = [];
   const bundle: Bundle = {
-    world: manifest.world,
+    manifest,
     definitions,
     // B27 fills this from nouns, tokens, directions, articles,
     // connectors and phrase words, once there is a grammar to read.
     words: [],
     level,
     extensions: manifest.extensions,
-    libraries: vendored,
+    libraries: usable,
     caps: limits.caps,
     size: { files, sourceBytes, exemptBytes },
     absent: report.absent,
-    hash: bundleHashOf(manifest, arrived, vendored),
+    hash: bundleHashOf(manifest, arrived, usable),
   };
   return { bundle, diagnostics };
 }

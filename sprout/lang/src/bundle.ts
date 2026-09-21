@@ -40,24 +40,51 @@ export interface ExtensionPin {
   readonly major: number;
 }
 
-/** What a microworld says about itself, before anything of it is read. */
+/**
+ * A library the world uses, as the manifest records it: which one, which
+ * version of it, and the hash of the source that was vendored. The sha
+ * is the load-bearing field — the name and version are labels, and the
+ * hash is what says the source that travelled is the source that was
+ * meant to.
+ */
+export interface LibraryPin {
+  readonly name: string;
+  readonly version: string;
+  /** The content hash of the vendored source, as `libraryHash` computes it. */
+  readonly sha: string;
+}
+
+/**
+ * What a microworld says about itself, before anything of it is read:
+ * who made it, under what terms, which version of it this is, exactly
+ * which libraries it vendored, and exactly which of its own files there
+ * are. Everything here is checkable without a parser, which is the
+ * point — closedness and completeness are settled before a line of the
+ * language is read.
+ */
 export interface Manifest {
   /** The world's own name, which is also the namespace its declarations are unqualified in. */
-  readonly world: string;
+  readonly name: string;
+  /** Which version of this world this is. */
+  readonly version: string;
+  /** Who made it. */
+  readonly author: string;
+  /** The terms it is offered under, as an SPDX identifier by convention: `MIT`. */
+  readonly license: string;
   /** The language level the world was written for. */
   readonly level: number;
   /** The extensions it pins. */
   readonly extensions: readonly ExtensionPin[];
-  /**
-   * The libraries it uses, by name. Naming them is what lets the
-   * compiler know a bundle is closed before it has read a line of it.
-   */
-  readonly libraries: readonly string[];
+  /** Every library it uses, with the version and the hash of the source that travelled. */
+  readonly libraries: readonly LibraryPin[];
+  /** Its own `.sprout` and `.prose` files, by name. What travelled must be exactly this. */
+  readonly files: readonly string[];
 }
 
-/** A library as it travels: its name, the level its source needs, and that source. */
+/** A library as it travels: what it is, the level its source needs, and that source. */
 export interface LibrarySource {
   readonly name: string;
+  readonly version: string;
   readonly level: number;
   readonly files: readonly SourceFile[];
 }
@@ -114,7 +141,8 @@ export interface BundleSize {
 
 /** What compiling a closed bundle produces. */
 export interface Bundle {
-  readonly world: string;
+  /** What the world says about itself: its name, version, author, terms, parts. */
+  readonly manifest: Manifest;
   /**
    * The definitions, rebuilt from source at every load and never
    * persisted. The node union narrows as the syntax items land; what
@@ -134,10 +162,10 @@ export interface Bundle {
   readonly caps: StaticCaps;
   readonly size: BundleSize;
   /**
-   * The gaps this world is running with: what is missing, withheld or
-   * broken, and what the world does without it. Empty for anything that
-   * published, since publishing is strict; a loaded world with an entry
-   * here runs, visibly, around it.
+   * The gaps this world is running with: what is missing, withheld,
+   * mismatched or broken, and what the world does without it. Empty for
+   * anything that published, since publishing is strict; a loaded world
+   * with an entry here runs, visibly, around it.
    */
   readonly absent: readonly Gap[];
   /** The hash of the closed bundle: what the log records beside a publish. */
@@ -156,12 +184,34 @@ export function sourceBytesOf(files: readonly SourceFile[]): number {
 
 /**
  * A library's content hash: its files by name and text, and nothing
- * else. Not its level and not the name it was vendored under, so that
- * two copies of one library hash alike wherever they were vendored from
- * and a host's blessed set is about source and nothing else.
+ * else. Not its level, not its version and not the name it was vendored
+ * under, so that two copies of one library hash alike wherever they were
+ * vendored from and a host's blessed set is about source and nothing
+ * else. This is what a manifest's `sha` is checked against.
  */
 export function libraryHash(library: LibrarySource): string {
   return hashOfNamed(library.files.map((file) => [file.name, file.text] as const));
+}
+
+/** The manifest as the compiler read it, written down one way so that it hashes one way. */
+function canonicalManifest(manifest: Manifest): string {
+  const by = <T>(key: (item: T) => string) => {
+    return (a: T, b: T): number => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+  };
+  return JSON.stringify({
+    name: manifest.name,
+    version: manifest.version,
+    author: manifest.author,
+    license: manifest.license,
+    level: manifest.level,
+    extensions: [...manifest.extensions]
+      .sort(by((pin: ExtensionPin) => pin.name))
+      .map((pin) => [pin.name, pin.major]),
+    libraries: [...manifest.libraries]
+      .sort(by((pin: LibraryPin) => pin.name))
+      .map((pin) => [pin.name, pin.version, pin.sha]),
+    files: [...manifest.files].sort(),
+  });
 }
 
 /**
@@ -175,17 +225,7 @@ export function bundleHashOf(
   libraries: readonly VendoredLibrary[],
 ): string {
   const parts: [string, string][] = [
-    [
-      'manifest',
-      JSON.stringify({
-        world: manifest.world,
-        level: manifest.level,
-        extensions: [...manifest.extensions]
-          .map((pin) => [pin.name, pin.major] as const)
-          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-        libraries: [...manifest.libraries].sort(),
-      }),
-    ],
+    ['manifest', canonicalManifest(manifest)],
     ...libraries.map(
       (library) =>
         [`library:${library.name}`, `${library.level}:${library.hash}`] as [string, string],

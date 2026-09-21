@@ -37,17 +37,26 @@ describe('the absent table is the spec’s, whole', () => {
   });
 });
 
-describe('somebody is told where the spec says somebody is told', () => {
-  it('tells a displaced visitor, and a visitor a world cannot admit', () => {
+describe('somebody is told through the passage the spec names, where it names one', () => {
+  it('tells a displaced visitor through `displaced`', () => {
     expect(absenceRule('place-underfoot').told).toBe('displaced');
-    expect(absenceRule('place-of-arrival').told).toBe('displaced');
   });
 
   it('tells a visitor once, on entry, about an extension the host cannot supply', () => {
     expect(absenceRule('extension').told).toBe('missing');
   });
 
-  it('tells nobody about the rest, because there is nobody there to tell', () => {
+  it('names no passage for a world that cannot admit anyone, because the spec names none', () => {
+    // The row says the world "says so" and, unlike the one above it,
+    // does not say through what. `displaced` would be the guess and it
+    // is the wrong one: nobody who was never admitted was standing
+    // anywhere. Recorded under Holes in the spec.
+    const rule = absenceRule('place-of-arrival');
+    expect(rule.told).toBeNull();
+    expect(rule.consequence).toContain('says so');
+  });
+
+  it('names no passage for the rest, because there is nobody there to tell', () => {
     for (const reference of [
       'kind-in-composition',
       'kind-in-role',
@@ -57,6 +66,13 @@ describe('somebody is told where the spec says somebody is told', () => {
       'place-in-exit',
     ] as const) {
       expect(absenceRule(reference).told, reference).toBeNull();
+    }
+  });
+
+  it("names only passages the spec's own standard library declares", () => {
+    const declared = new Set(['displaced', 'missing', 'fault', 'unseen', 'nothing_happens']);
+    for (const row of ABSENT_TABLE) {
+      if (row.told !== null) expect(declared.has(row.told), row.told).toBe(true);
     }
   });
 });
