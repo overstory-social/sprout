@@ -134,17 +134,6 @@ export class SproutList {
     );
   }
 
-  /**
-   * Whether two lists are the same list: the same element type, the
-   * same things, in the same order. Order counts because it is visible
-   * in prose, so two lists that render differently are not equal.
-   */
-  equals(other: SproutList): boolean {
-    if (!sameType(this.holds, other.holds)) return false;
-    if (this.items.length !== other.items.length) return false;
-    return this.items.every((element, index) => element === other.items[index]);
-  }
-
   /** As a message names it: `[oak, silver]`, or `[[oak], [silver]]`. */
   toString(): string {
     return `[${this.items.map((element) => String(element)).join(', ')}]`;
