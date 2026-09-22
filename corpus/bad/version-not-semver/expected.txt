@@ -1,0 +1,4 @@
+sprout.json:3:3  "1.0" is not a version.
+                 A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.
+
+refused: 1 problem
