@@ -772,7 +772,7 @@ A run is either several single slots or one set slot, never a mix. Parsing split
 
 A visitor does not fill every slot every time. *Shove the statue* is a reading of a verb that also takes *shove the statue with the pole*, and the body that plays `target` runs either way. What it sees is decided statically, from the verb's phrases.
 
-A tool that some phrase leaves out is **optional**; a tool that every phrase fills is not, and needs nothing. Inside a body, an optional tool may be read only under a test that narrows it, the same move `is()` makes for the object type:
+A tool that some phrase leaves out is **optional**; a tool that every phrase fills is not, and needs nothing. Every value tool is optional as well, because what a visitor types is never one of a closed set until it has been checked against one: see A role-player narrows its own options. Inside a body, an optional tool may be read only under a test that narrows it, the same move `is()` makes for the object type:
 
 ```sprout
 verb unlock {
@@ -803,7 +803,7 @@ A verb with no phrases has nothing to infer from, so it says which tools may be 
 
 Not every role is filled by a thing you could pick up. A subject of conversation, a setting on a dial, a number on a keypad — each is something the visitor names rather than something the world contains.
 
-A role may declare a value type instead of a kind: `symbol`, or `integer`. Not a string. A string role would be the one place unmoderated player text enters a world, and every case is served by an enum or a number — a password is an enum of accepted words, and a wrong guess is simply a phrase that does not match.
+A role may declare a value type instead of a kind: `symbol`, or `integer`. Not a string. A string role would be the one place unmoderated player text enters a world, and every case is served by an enum or a number — a password is an enum of accepted words, and a wrong guess arrives as an unbound tool, under Optional tools, carrying nothing of what was typed.
 
 ```sprout
 enum Topic { bridge, toll, weather }
@@ -832,9 +832,9 @@ kind Guard {
 
 ### A role-player narrows its own options
 
-`topic from :knows` names a list property, and only the options in it match or are offered. Inside the body `topic` is typed by the list's element type, so `topic == :toll` checks against `Topic`. Without a `from`, a `symbol` tool has no options at all for this role-player: the phrases that name it never match, so it is never bound here, and the body may not read it — not even under `bound`, since the test could only ever be false. A phrase that leaves the tool out still matches, so *ask the statue* can run where *ask the statue about the press* cannot.
+`topic from :knows` names a list property. The options in it are what a client offers, and a typed value among them binds; inside the body `topic` is typed by the list's element type, so `topic == :toll` checks against `Topic`. Anything else the visitor supplies — *ask the guard about potatoes* — still matches the phrase, and arrives with `topic` unbound, so the guard's `else` branch is where "he has never heard of potatoes" is written. A value tool is therefore always optional, whatever the phrases say: a typed value is never naturally closed, and a client that offers chips is simply one that never produces the unbound case. Without a `from`, a `symbol` tool has no options for this role-player at all, so it is never bound here and the body may not read it, not even under `bound`.
 
-A guard learns a topic by adding to the list, which is why list mutation earns its place here. An `integer` role narrows the same way, with `from` naming an integer property whose range bounds it; a `from` may also give a literal range, `topic from 1 to 12`.
+A guard learns a topic by adding to the list, which is why list mutation earns its place here. An `integer` role narrows the same way, with `from` naming an integer property whose range bounds it; a `from` may also give a literal range, `topic from 1 to 12`. A number inside the range binds; one outside it, or no `from` at all, leaves the tool unbound, exactly as for a symbol.
 
 This is also the oldest problem in parser interactive fiction, which is that a visitor cannot guess what to ask about. Because the options are declared and narrowed per object, they are data the runtime exports along with everything else a client renders — the same derivation behind completion and chips. How a client presents them, including asking for the target first and the topic second, is the client's business and not the language's.
 
