@@ -14,7 +14,7 @@ import type { Ident, WorldDeclaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from './kinds.js';
 import { kindName, WORLD, writesWorld } from './kinds.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import type { EnumTable } from './enums.js';
+import { qualifiedName, type EnumTable } from './enums.js';
 import { resolveProperty, resolveRemembers, type ResolvedProperty } from './properties.js';
 
 /**
@@ -151,6 +151,8 @@ export function resolveWorld(
   let wroteContains = false;
   let wroteContainsActors = false;
 
+  // What the world's own body declares has the world as its origin.
+  const origin = qualifiedName(from, declared.name.text);
   const properties = new Map<string, ResolvedProperty>();
   const hold = (property: ResolvedProperty, at: Ident): void => {
     const before = properties.get(property.name);
@@ -216,12 +218,12 @@ export function resolveWorld(
         wroteContainsActors = wroteContainsActors || member.actors;
         break;
       case 'remembers':
-        for (const remembered of resolveRemembers(member, enums, from, diagnostics)) {
+        for (const remembered of resolveRemembers(member, enums, from, origin, diagnostics)) {
           hold(remembered, remembered.declaration.name);
         }
         break;
       default: {
-        const resolved = resolveProperty(member, enums, from, diagnostics);
+        const resolved = resolveProperty(member, enums, from, origin, diagnostics);
         if (resolved !== null) hold(resolved, member.name);
         break;
       }

@@ -3,7 +3,9 @@ object composing_room: Room in composition
 
 object type_case: Lidded, Heavy in composing_room
 
+// A body restates what the object composes, keeping its type: `:worn`
+// stays 0 to 9, and `:opened` stays remembered.
 object chest: Chest in composing_room {
   :worn 3
-  :remembers [counted: 0 min 0 max 99]
+  :remembers [opened: true, counted: 0 min 0 max 99]
 }

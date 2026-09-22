@@ -64,7 +64,9 @@ function property(text: string, remembered = false): ResolvedProperty {
   const diagnostics = new Diagnostics();
   const declared = parseProperty(new SourceFile('p.sprout', text), diagnostics);
   const resolved =
-    declared === null ? null : resolveProperty(declared, ENUMS, 'shop', diagnostics, remembered);
+    declared === null
+      ? null
+      : resolveProperty(declared, ENUMS, 'shop', 'shop.Declared', diagnostics, remembered);
   expect(diagnostics.refusals, text).toHaveLength(0);
   return resolved!;
 }
@@ -77,10 +79,12 @@ function kind(
   library = 'shop',
   containsActors = false,
 ): KindRef {
+  const order = [...composes, `${library}.${name}`];
   return {
     library,
     name,
-    composes: new Set([`${library}.${name}`, ...composes]),
+    order,
+    composes: new Set(order),
     properties: new Map(properties.map((p) => [p.name, p])),
     // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.

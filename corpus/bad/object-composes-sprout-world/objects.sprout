@@ -1,0 +1,7 @@
+// A bare `World` with no world-local kind of that name is the standard
+// library's, which only a world may compose.
+kind Room {
+  contains actors
+}
+
+object composing_room: Room, World in object_composes_sprout_world

@@ -1,0 +1,8 @@
+// `Wodden` is nobody's kind, and a kind made of it cannot be made.
+kind Wooden {
+  :worn 0 min 0 max 9
+}
+
+kind Chest: Wodden { }
+
+object press: Wooden, Heavy in composing_room

@@ -1,0 +1,9 @@
+// A kind cannot be made of itself, however far round the loop is.
+kind Lidded: Chest { }
+
+kind Chest: Trunk { }
+
+kind Trunk: Lidded { }
+
+// Composing a kind in the loop says nothing more about it.
+kind Coffer: Chest { }

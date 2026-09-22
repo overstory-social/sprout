@@ -10,6 +10,7 @@ import {
   nearestOption,
   optionFromWords,
   qualifiedName,
+  shownName,
   SPROUT,
   type DeclaredEnum,
 } from './enums.js';
@@ -33,6 +34,13 @@ const DRYING = declared('enum Drying { raw, leather, dry, bisque, glazed }');
 
 describe('an enum’s identity is its library and its name', () => {
   it('writes as one', () => expect(qualifiedName('sprout', 'Ward')).toBe('sprout.Ward'));
+
+  it('is shown bare only to the library that declared it', () => {
+    expect(shownName('printers_shop.Ward', 'printers_shop')).toBe('Ward');
+    expect(shownName('sprout.Ward', 'printers_shop')).toBe('sprout.Ward');
+    // A prefix of another library's name is not that library.
+    expect(shownName('printers_shop2.Ward', 'printers_shop')).toBe('printers_shop2.Ward');
+  });
 
   it('keeps two libraries’ enums of one name apart', () => {
     const table = new EnumTable();

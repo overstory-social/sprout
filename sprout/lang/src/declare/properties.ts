@@ -10,15 +10,18 @@
 // it, so the default is checked against the declared range and not
 // against the whole of the integer range: `:wear 0 min 5` is refused.
 //
-// Where a property is WRITTEN — inside a kind, an object or the world —
-// is the declaration that holds it (`world.ts`; B19 for kinds), as is
-// what happens when two kinds declare the same one.
+// A property's ORIGIN is the kind that declared it, and it is what
+// composition merges on (`compose.ts`): one origin reached twice is one
+// property, two origins are refused until the composer restates it. A
+// restatement keeps the type it restates, so there `:ward iron` is
+// enough, and the restating kind becomes the origin.
 
-import type { PropertyDeclaration, RemembersDeclaration } from '../syntax/ast.js';
-import type { Diagnostics } from '../source/diagnostics.js';
-import type { EnumTable } from './enums.js';
+import type { Literal, PropertyDeclaration, RemembersDeclaration } from '../syntax/ast.js';
+import { Diagnostics } from '../source/diagnostics.js';
+import { shownName, type EnumTable } from './enums.js';
 import {
   checkLiteral,
+  identicalType,
   integer,
   resolveType,
   showType,
@@ -32,6 +35,12 @@ export interface ResolvedProperty {
   readonly type: ValueType;
   /** Whether it is held per actor rather than per object. */
   readonly remembered: boolean;
+  /**
+   * The kind that declared it, or last restated it, by qualified name:
+   * `sprout.Container`. An object's own body is its anonymous kind,
+   * named for the object; a world's is named for the world.
+   */
+  readonly origin: string;
   readonly declaration: PropertyDeclaration;
 }
 
@@ -44,6 +53,7 @@ export function resolveProperty(
   declared: PropertyDeclaration,
   enums: EnumTable,
   from: string,
+  origin: string,
   diagnostics: Diagnostics,
   remembered = false,
 ): ResolvedProperty | null {
@@ -77,7 +87,7 @@ export function resolveProperty(
   }
 
   if (!checkLiteral(type, declared.default!, diagnostics)) return null;
-  return { name: declared.name.text, type, remembered, declaration: declared };
+  return { name: declared.name.text, type, remembered, origin, declaration: declared };
 }
 
 /**
@@ -90,6 +100,7 @@ export function resolveRemembers(
   declared: RemembersDeclaration,
   enums: EnumTable,
   from: string,
+  origin: string,
   diagnostics: Diagnostics,
 ): ResolvedProperty[] {
   const resolved: ResolvedProperty[] = [];
@@ -104,8 +115,73 @@ export function resolveRemembers(
       continue;
     }
     seen.add(property.name.text);
-    const one = resolveProperty(property, enums, from, diagnostics, true);
+    const one = resolveProperty(property, enums, from, origin, diagnostics, true);
     if (one !== null) resolved.push(one);
   }
   return resolved;
+}
+
+/**
+ * A composed property restated in a composer's body, which changes its
+ * default and keeps its type: with no type written the default is
+ * checked against the composed type, so `:ward iron` is enough; a type
+ * or a range written must be the composed one exactly, and remembered
+ * stays remembered. The composer is `origin`. Null having said why.
+ */
+export function restateProperty(
+  composed: ResolvedProperty,
+  declared: PropertyDeclaration,
+  remembered: boolean,
+  enums: EnumTable,
+  from: string,
+  origin: string,
+  diagnostics: Diagnostics,
+): ResolvedProperty | null {
+  const name = declared.name.text;
+  const where = shownName(composed.origin, from);
+  if (remembered !== composed.remembered) {
+    diagnostics.refuse(
+      declared.name.at,
+      composed.remembered
+        ? `\`:${name}\` is remembered about each actor in \`${where}\`, and whatever composes it keeps that.`
+        : `\`:${name}\` is not remembered in \`${where}\`, and whatever composes it keeps that.`,
+      `Restate it as it is declared there: ${restatementOf(composed, declared.default)}.`,
+    );
+    return null;
+  }
+
+  const wrote = declared.type ?? declared.min ?? declared.max;
+  if (wrote !== null) {
+    const written = resolveProperty(declared, enums, from, origin, diagnostics, remembered);
+    if (written === null) return null;
+    if (!identicalType(written.type, composed.type)) {
+      diagnostics.refuse(
+        wrote.at,
+        `\`:${name}\` holds ${showType(composed.type)} in \`${where}\`, and whatever composes it keeps that type.`,
+        `Restate only its default, as in ${restatementOf(composed, declared.default)}; a property holding something else takes a name of its own.`,
+      );
+      return null;
+    }
+    return { ...written, type: composed.type };
+  }
+
+  if (!checkLiteral(composed.type, declared.default!, diagnostics)) return null;
+  return { name, type: composed.type, remembered, origin, declaration: declared };
+}
+
+/**
+ * How to restate a property, written out for a remedy: `:open true`, or
+ * `:remembers [opened: false]`. The default shown is `preferred` when it
+ * is a value of the property's type, and the property's own otherwise.
+ */
+export function restatementOf(
+  property: ResolvedProperty,
+  preferred: Literal | null = null,
+): string {
+  const fits = preferred !== null && checkLiteral(property.type, preferred, new Diagnostics());
+  const literal = fits ? preferred : property.declaration.default!;
+  const value = literal.at.source.text.slice(literal.at.start, literal.at.end);
+  return property.remembered
+    ? `\`:remembers [${property.name}: ${value}]\``
+    : `\`:${property.name} ${value}\``;
 }

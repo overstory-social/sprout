@@ -39,6 +39,14 @@ export function qualifiedName(library: string, name: string): string {
 }
 
 /**
+ * A qualified name as an author inside `from` would write it: their own
+ * declarations bare, anything of another library's with the library.
+ */
+export function shownName(qualified: string, from: string): string {
+  return qualified.startsWith(`${from}.`) ? qualified.slice(from.length + 1) : qualified;
+}
+
+/**
  * On input an option is typed as its humanised form, and on output a
  * slot renders it the same way: `the_press` is what a visitor means by
  * "the press".

@@ -1,0 +1,7 @@
+kinds.sprout:6:13  Nothing here is a `Wodden`. Did you mean `Wooden`?
+                   Write `Wooden`, or declare `Wodden` with `kind Wodden { … }`.
+
+kinds.sprout:8:23  Nothing here is a `Heavy`.
+                   Declare it with `kind Heavy { … }`, or check the spelling of a kind this world or a library it uses declares.
+
+refused: 2 problems

@@ -86,6 +86,19 @@ export function sameType(a: ValueType, b: ValueType): boolean {
   return true;
 }
 
+/**
+ * Whether two types are the same one AND bound the same values: an
+ * integer's range counts here. This is what a restatement under
+ * composition is held to, since it keeps the type it restates and a
+ * narrower or wider range would change what the slot may hold.
+ */
+export function identicalType(a: ValueType, b: ValueType): boolean {
+  if (!sameType(a, b)) return false;
+  if (a.type === 'integer' && b.type === 'integer') return a.min === b.min && a.max === b.max;
+  if (a.type === 'list' && b.type === 'list') return identicalType(a.element, b.element);
+  return true;
+}
+
 /** What a written type means, read from inside the library `from`. */
 export function resolveType(
   written: TypeExpr,

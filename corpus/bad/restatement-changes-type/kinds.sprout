@@ -1,0 +1,13 @@
+// A restatement changes a default and keeps the type, range and all.
+kind Wooden {
+  :worn 0 min 0 max 9
+  :remembers [seen: false]
+}
+
+kind Chest: Wooden {
+  :worn 0 min 0 max 99
+}
+
+object drawer: Wooden in composing_room {
+  :seen true
+}

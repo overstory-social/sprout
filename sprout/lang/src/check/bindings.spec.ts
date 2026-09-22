@@ -45,10 +45,10 @@ import { BOOLEAN, integer, STRING } from '../declare/types.js';
 
 // --- the world these specs are written about ------------------------------
 //
-// The printer's shop, the same one the other suites use. Kinds have no
-// syntax yet (B19), so a `KindRef` is built here by hand — which is the
-// seam this file is about: everything below needs of a kind only its
-// identity, what it composes and what it declares.
+// The printer's shop, the same one the other suites use. A `KindRef` is
+// built here by hand rather than composed, which is the seam this file
+// is about: everything below needs of a kind only its identity, what it
+// composes and what it declares.
 
 const FILE = new SourceFile(
   'shop.sprout',
@@ -80,7 +80,9 @@ function property(text: string): ResolvedProperty {
   const diagnostics = new Diagnostics();
   const declared = parseProperty(new SourceFile('guard.sprout', text), diagnostics);
   const resolved =
-    declared === null ? null : resolveProperty(declared, ENUMS, 'printers_shop', diagnostics);
+    declared === null
+      ? null
+      : resolveProperty(declared, ENUMS, 'printers_shop', 'printers_shop.Declared', diagnostics);
   expect(diagnostics.refusals, `\`${text}\` did not resolve`).toHaveLength(0);
   return resolved!;
 }
@@ -93,10 +95,12 @@ const SIZES = property(':sizes [integer] default [1]');
 
 /** A kind, reduced to what typing asks of it, composing everything named. */
 function kind(library: string, name: string, ...composes: string[]): KindRef {
+  const order = [...composes, `${library}.${name}`];
   return {
     library,
     name,
-    composes: new Set([`${library}.${name}`, ...composes]),
+    order,
+    composes: new Set(order),
     properties: new Map(),
     contains: false,
     containsActors: false,

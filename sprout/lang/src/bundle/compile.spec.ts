@@ -367,6 +367,35 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     expect(locationOf(problem.at)).toBe('root.sprout:1:7');
   });
 
+  it('refuses an `object` in a vendored library’s files, since objects are the world’s', () => {
+    // No library can be vendored in the corpus yet, so this is pinned here.
+    const withObject: LibrarySource = {
+      ...SPROUT,
+      files: [...SPROUT.files, file('box.sprout', 'kind Box { }\nobject box: Box in hall')],
+    };
+    const compiled = (mode: 'publish' | 'load') =>
+      compileBundle(
+        world({
+          libraries: [withObject],
+          manifest: {
+            libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(withObject) }],
+          },
+        }),
+        { mode },
+      );
+    const { bundle, diagnostics } = compiled('publish');
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'box.sprout:2:8',
+        'A library does not declare an object, and `box` is one.',
+        "The world's own files do; move it there, or declare a kind here for the world to make it of.",
+      ],
+    ]);
+    // Never allowable, so not softened at load.
+    expect(compiled('load').bundle).toBeNull();
+  });
+
   it('is a gap at load when there is no `world` declaration, and still produces a bundle', () => {
     const files = [file('world.sprout', 'enum Season { spring }')];
     const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
@@ -667,6 +696,23 @@ describe('what a compiled bundle carries', () => {
     expect(compileBundle(changed).bundle!.hash).not.toBe(bundle!.hash);
   });
 
+  it('carries every kind composed and the world’s objects', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nkind Crate { contains }\nobject box: Crate in hall',
+      ),
+    ];
+    const { bundle: carried, diagnostics } = compileBundle(world({ files }));
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(carried!.kinds.map((k) => [k.library, k.name, k.order])).toEqual([
+      ['printers_shop', 'Crate', ['printers_shop.Crate']],
+    ]);
+    expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container.text])).toEqual([
+      ['box', ['printers_shop.Crate', 'printers_shop.box'], 'hall'],
+    ]);
+  });
+
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
     // The union grows as the syntax lands; B27 fills the word set.
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
@@ -714,6 +760,34 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
         at: expect.anything(),
         consequence: 'every kind, enum, verb and message it holds reads as absent',
       },
+    ]);
+  });
+
+  it('runs a world with a kind in a composition that is not there, and its object is absent', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nobject box: Crate in hall\nobject tin: sprout.Ward in hall',
+      ),
+    ];
+    const loaded = compileBundle(world({ files }), load);
+    expect(refusals(loaded.diagnostics)).toEqual([]);
+    expect(loaded.bundle!.objects).toEqual([]);
+    expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
+      [
+        ['Crate', 'kind-in-composition', 'missing', 'world.sprout:2:13'],
+        ['sprout.Ward', 'kind-in-composition', 'missing', 'world.sprout:3:13'],
+      ],
+    );
+    expect(warnings(loaded.diagnostics)[0]!.message).toBe(
+      'Nothing here is a `Crate`. The object is absent: not in range, not listed, not addressable; what it holds is unreachable until the kind returns.',
+    );
+    // At publish the same is a refusal: a world is not published with a piece missing.
+    const published = compileBundle(world({ files }));
+    expect(published.bundle).toBeNull();
+    expect(refusals(published.diagnostics).map((d) => d.message)).toEqual([
+      'Nothing here is a `Crate`.',
+      'Nothing here is a `sprout.Ward`.',
     ]);
   });
 

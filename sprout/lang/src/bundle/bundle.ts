@@ -20,6 +20,8 @@
 
 import type { Absent } from './absent.js';
 import type { Declaration } from '../syntax/ast.js';
+import type { KindRef } from '../declare/kinds.js';
+import type { ResolvedObject } from '../declare/objects.js';
 import type { SourceFile } from '../source/source.js';
 import type { StaticCaps } from './limits.js';
 import { hashOfNamed } from '../source/sha256.js';
@@ -159,6 +161,13 @@ export interface Bundle {
    * declaration belongs to is recoverable from the file its span names.
    */
   readonly definitions: readonly Declaration[];
+  /** Every kind the bundle declares, composed, the world's and its libraries' alike. */
+  readonly kinds: readonly KindRef[];
+  /**
+   * The world's objects, each with its anonymous kind composed. One that
+   * composes a kind that is absent is absent too, and is not here.
+   */
+  readonly objects: readonly ResolvedObject[];
   readonly words: WordSet;
   /** The highest level of any part, library source included. */
   readonly level: number;
