@@ -319,7 +319,7 @@ function binaryType(
   if (!bothAre(integer(), operator, expr, left, right, context)) return null;
   if (
     (operator === '<' || operator === '<=' || operator === '>' || operator === '>=') &&
-    !literalOutsideRange(operator, expr, left, right, context)
+    refuseLiteralOutsideRange(operator, expr, left, right, context)
   ) {
     return null;
   }
@@ -424,9 +424,9 @@ function identityType(
     right.binds === 'value' &&
     sameType(leftType.type, right.type)
   ) {
-    return literalOutsideRange(expr.operator, expr, leftType, right, context)
-      ? valueOf(BOOLEAN)
-      : null;
+    return refuseLiteralOutsideRange(expr.operator, expr, leftType, right, context)
+      ? null
+      : valueOf(BOOLEAN);
   }
   context.diagnostics.refuse(
     expr.at,
@@ -446,25 +446,25 @@ function identityType(
  * The verdict is computed by evaluating the operator against the
  * range's ends rather than tabulated per operator: they agree exactly
  * when the literal sits outside the range, which is what makes the
- * comparison constant.
+ * comparison constant. Says whether it refused.
  */
-function literalOutsideRange(
+function refuseLiteralOutsideRange(
   operator: BinaryOperator,
   expr: Expr & { readonly kind: 'binary' },
   leftType: BindingType,
   rightType: BindingType,
   context: CheckContext,
 ): boolean {
-  if (leftType.binds !== 'value' || leftType.type.type !== 'integer') return true;
-  if (rightType.binds !== 'value' || rightType.type.type !== 'integer') return true;
+  if (leftType.binds !== 'value' || leftType.type.type !== 'integer') return false;
+  if (rightType.binds !== 'value' || rightType.type.type !== 'integer') return false;
   const leftWritten = writtenNumber(expr.left);
   const rightWritten = writtenNumber(expr.right);
-  if ((leftWritten === null) === (rightWritten === null)) return true;
+  if ((leftWritten === null) === (rightWritten === null)) return false;
 
   const literalOnLeft = leftWritten !== null;
   const literal = literalOnLeft ? leftWritten! : rightWritten!;
   const range = literalOnLeft ? rightType.type : leftType.type;
-  if (literal >= range.min && literal <= range.max) return true;
+  if (literal >= range.min && literal <= range.max) return false;
 
   const always = literalOnLeft
     ? decide(operator, literal, range.min)
@@ -474,7 +474,7 @@ function literalOutsideRange(
     `${literal} is outside ${range.min} to ${range.max}, so this is always ${always ? 'true' : 'false'}.`,
     `Write a whole number from ${range.min} to ${range.max}, or take the comparison out.`,
   );
-  return false;
+  return true;
 }
 
 /** What `a operator b` decides, for the two literal numbers `a` and `b`. */
