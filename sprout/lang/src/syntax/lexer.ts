@@ -147,7 +147,12 @@ export class Lexer {
     };
   }
 
-  /** Past spaces, newlines and `//` comments, to the next thing that is a token. */
+  /**
+   * Past spaces, newlines and comments, to the next thing that is a
+   * token. A comment is `//` to the end of its line or `/* … *\/` across
+   * lines (the spec's Lexical rules); block comments do not nest, so the
+   * first `*\/` closes one however many `/*` it holds.
+   */
   private skipBlanks(): void {
     const text = this.source.text;
     for (;;) {
@@ -155,6 +160,25 @@ export class Lexer {
       if (text[this.at] === '/' && text[this.at + 1] === '/') {
         while (this.at < text.length && text[this.at] !== '\n') this.at++;
         continue;
+      }
+      if (text[this.at] === '/' && text[this.at + 1] === '*') {
+        const start = this.at;
+        const close = text.indexOf('*/', start + 2);
+        if (close >= 0) {
+          this.at = close + 2;
+          continue;
+        }
+        // Never closed: the rest of the file is comment, and saying so
+        // at the opening keeps one missing `*\/` from being reported as
+        // a file that simply ended.
+        this.at = text.length;
+        this.pendingRefusal = true;
+        this.diagnostics.refuse(
+          this.span(start, start + 2),
+          'This comment is never closed.',
+          'Add */ where it ends. A comment that starts with /* runs until the next */.',
+        );
+        return;
       }
       return;
     }

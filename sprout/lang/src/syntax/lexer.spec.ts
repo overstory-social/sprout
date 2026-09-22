@@ -98,6 +98,32 @@ describe('the token surface the language is written in', () => {
     ]);
   });
 
+  it('skips a /* comment */ within a line and across lines', () => {
+    expect(shapes(':lit /* type from\n the literal */ false\n:wear 0')).toEqual([
+      'symbol:lit',
+      'name:false',
+      'symbol:wear',
+      'integer:0',
+    ]);
+  });
+
+  it('closes a block comment at the first */, however many /* it holds', () => {
+    const { tokens, diagnostics } = read('/* a /* b */ :wear 0');
+    expect(tokens.map((t) => `${t.kind}:${t.text}`)).toEqual(['symbol:wear', 'integer:0', 'end:']);
+    expect(diagnostics.all).toEqual([]);
+  });
+
+  it('refuses a block comment that is never closed, at its opening, and reads nothing after it', () => {
+    const { tokens, diagnostics } = read(':lit false\n/* the rest\n:wear 0');
+    expect(tokens.map((t) => t.kind)).toEqual(['symbol', 'name', 'end']);
+    expect(diagnostics.all).toHaveLength(1);
+    const [said] = diagnostics.all;
+    expect(said!.message).toBe('This comment is never closed.');
+    expect(locationOf(said!.at)).toBe('kiln.sprout:2:1');
+    expect(textOf(said!.at)).toBe('/*');
+    expect(tokens.at(-1)!.afterRefusal).toBe(true);
+  });
+
   it('ends with a zero-width end token, and stays there', () => {
     const lexer = new Lexer(new SourceFile('empty.sprout', ''), new Diagnostics());
     expect(lexer.next().kind).toBe('end');

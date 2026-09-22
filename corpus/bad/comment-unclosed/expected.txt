@@ -1,0 +1,4 @@
+kinds.sprout:3:1  This comment is never closed.
+                  Add */ where it ends. A comment that starts with /* runs until the next */.
+
+refused: 1 problem
