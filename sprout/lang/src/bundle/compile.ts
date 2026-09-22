@@ -100,6 +100,12 @@ function atValue(manifest: SourceFile, value: string, fallback: Span): Span {
 /** A world or library name: the namespace its declarations are unqualified in. */
 const NAMESPACE = /^[a-z][a-z0-9_]*$/;
 
+// The manifest's `version` row: "which version of this world this is, as
+// semver" (the spec's The world model › The manifest). The expression is
+// the one semver.org publishes for recognizing a semantic version.
+const SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+
 /**
  * The first tier: one file, checked alone for its shape. Today that is
  * its syntax, the nesting cap and the options cap; the rest of the caps
@@ -261,6 +267,13 @@ export function compileBundle(
           : `Write the ${key} in the manifest.`,
       );
     }
+  }
+  if (manifest.version.trim() !== '' && !SEMVER.test(manifest.version)) {
+    report.refuse(
+      atKey(manifestFile, 'version'),
+      `"${manifest.version}" is not a version.`,
+      'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.',
+    );
   }
   if (!Number.isInteger(manifest.level) || manifest.level < 1) {
     report.refuse(
