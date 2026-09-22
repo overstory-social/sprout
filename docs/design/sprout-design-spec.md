@@ -541,6 +541,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | an `each` variable | its kind filter — `each pot: Vessel in self` — or object without one |
 | a `{for}` variable | the same |
 | a `let` binding | the expression it names |
+| an optional tool | as its role declares, inside `if (bound x)` only |
 | a handler's sender | object |
 | a handler's value | the message's declaration |
 | a hook's previous value | the property that changed |
@@ -575,6 +576,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope |
 | `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` |
 | `x.is(K)` | `K` is a kind in scope; `x` an object binding |
+| `bound x` | `x` an optional tool; inside the branch it guards, `x` is bound |
 
 Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so a kind's own properties are readable there. That is how anything of object type is read.
 
@@ -657,7 +659,7 @@ verb unlock {
 }
 ```
 
-A verb names its **roles** and the **phrases** that fill them. A phrase need not fill every role: `"unlock [target]"` leaves `tool` empty, and the tool simply does not take part. A verb with no phrases cannot be typed and can only be performed with `act`.
+A verb names its **roles** and the **phrases** that fill them. The first role is the **target**, the thing the verb is done to, and every other role is a **tool**: whatever the sentence supplies besides the target, a thing (`with the brass key`) or a value (`about the press`, `to 7`). The word is a convenience — a topic of conversation is a tool only in this sense — and it is the word this document uses for every non-target role. Both lists may be short: `verb shove { role target  "shove [target]" }` takes no tool, and `verb look { "look" "l" }` has no roles at all, so only the actor plays it. A phrase need not fill every tool: `"unlock [target]"` leaves `tool` empty, which makes it optional, under Optional tools. A verb with no phrases cannot be typed and can only be performed with `act`.
 
 Verbs are declared by a world or exported by a library, never by an object. The standard library ships the common ones, so most worlds declare few of their own.
 
@@ -758,13 +760,44 @@ verb throw {
 }
 ```
 
-*Throw the clay using a sponge and a wooden rib* binds both tools. A set role holds up to a host-set number of objects, in the order typed, duplicates collapsed, and it exists for the turn only. A phrase that leaves it out — `"work [target]"` — binds it as the empty set, so `tools.count` is zero and a loop over it runs no times.
+*Throw the clay using a sponge and a wooden rib* binds both tools. A set role holds up to a host-set number of objects, in the order typed, duplicates collapsed, and it exists for the turn only. A phrase that leaves it out — `"work [target]"` — binds it as the empty set, so `tools.count` is zero and a loop over it runs no times; a set role is never optional in the sense below, because the empty set is already an answer.
 
 **Each filler permits and acts for itself.** The metal rib refuses on its own behalf, in its own words, and the first refusal halts everything. Inside any participant's body the whole set is bound by name, so the target can ask `tools.count(Rib) > 1` and decide that one rib is one too many.
 
 Operations on a set: `count`, `count(Kind)`, `includes(x)`, and `each … of`, which binds each member at the role's kind.
 
 A run is either several single slots or one set slot, never a mix. Parsing splits on `and` and commas literally and resolves each noun independently, so cost stays linear in the length of the command.
+
+### Optional tools
+
+A visitor does not fill every slot every time. *Shove the statue* is a reading of a verb that also takes *shove the statue with the pole*, and the body that plays `target` runs either way. What it sees is decided statically, from the verb's phrases.
+
+A tool that some phrase leaves out is **optional**; a tool that every phrase fills is not, and needs nothing. Inside a body, an optional tool may be read only under a test that narrows it, the same move `is()` makes for the object type:
+
+```sprout
+verb unlock {
+  role target: Lockable
+  role tool
+  "unlock [target] with [tool]"
+  "unlock [target]"                      // tool is optional: this phrase leaves it out
+}
+
+kind Warded: sprout.Lockable {
+  as target for unlock {
+    permit {
+      if (bound tool) {
+        if (!tool.is(Key)) { refuse "{tool} is not a key." }
+      } else {
+        refuse "You need something to turn the lock with."
+      }
+    }
+  }
+}
+```
+
+Inside `if (bound tool) { … }` the tool is bound and typed as its role declares; in the `else` branch, and anywhere outside the test, reading it is a compile error that names the phrase which leaves it out and says what to write. No value stands for an unbound tool, so nothing compares to one, stores one or renders one; the author is never asked to remember which slots a visitor might skip, because the compiler says so at the line.
+
+A verb with no phrases has nothing to infer from, so it says which tools may be missing: `role tool optional`. `act` may leave an optional tool unnamed, and may never leave out one that is not.
 
 ### Value roles
 
@@ -799,7 +832,7 @@ kind Guard {
 
 ### A role-player narrows its own options
 
-`topic from :knows` names a list property, and only the options in it match or are offered. Inside the body `topic` is typed by the list's element type, so `topic == :toll` checks against `Topic`. Without a `from`, a `symbol` role has no options at all and the phrase never matches — the role-player must say what it can hear.
+`topic from :knows` names a list property, and only the options in it match or are offered. Inside the body `topic` is typed by the list's element type, so `topic == :toll` checks against `Topic`. Without a `from`, a `symbol` tool has no options at all for this role-player: the phrases that name it never match, so it is never bound here, and the body may not read it — not even under `bound`, since the test could only ever be false. A phrase that leaves the tool out still matches, so *ask the statue* can run where *ask the statue about the press* cannot.
 
 A guard learns a topic by adding to the list, which is why list mutation earns its place here. An `integer` role narrows the same way, with `from` naming an integer property whose range bounds it; a `from` may also give a literal range, `topic from 1 to 12`.
 
@@ -821,7 +854,7 @@ object cat: Creature in composing_room {
 }
 ```
 
-`act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform. `act` is legal only in a body whose `self` composes the visitor kind, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
+`act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes the visitor kind, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
 
 Inside the reading, `actor` is the cat. Its `say` lines go nowhere, because nobody is behind it; its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat enters a room with `act go`, carries a toy with `act take`, and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
@@ -1470,7 +1503,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a composition is written with the space, `kind Creature: sprout.Actor`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `for`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `for`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### Two tiers
 
@@ -1511,7 +1544,8 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A message or a verb taking a reserved name; a `name` beginning with an article.
 - A world that does not compose `sprout.World`; anything but a world composing it.
 - A `describe` with no `text`.
-- `act` in a body whose kind does not compose the visitor kind.
+- `act` in a body whose kind does not compose the visitor kind; an `act` that leaves out a tool that is not optional.
+- An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` tool with no `from`.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place.
 - Any static cap exceeded.
