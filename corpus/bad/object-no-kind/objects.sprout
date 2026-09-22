@@ -1,0 +1,9 @@
+kind Room {
+  contains actors
+}
+
+object composing_room: Room in object_no_kind
+
+object bench in composing_room {
+  :worn 0
+}

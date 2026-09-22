@@ -1,0 +1,4 @@
+kinds.sprout:1:12  `Room` composes `sprout.World`, which only a world may.
+                   Take it out of what `Room` composes: it would make a thing into a world, and a bundle has one world, written `world <name>: sprout.World { … }`.
+
+refused: 1 problem

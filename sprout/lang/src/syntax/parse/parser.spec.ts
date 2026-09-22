@@ -70,7 +70,7 @@ describe('a character the lexer stepped over is not reported again as a missing 
 // with both readings side by side — the same shape, read the other way
 // — so neither can be changed without the other being looked at.
 
-describe('`enum` and `message` inside a body: a word in an option’s place, or a forgotten brace', () => {
+describe('a declaration’s word inside a body: a word in an option’s place, or a forgotten brace', () => {
   /** What the parser says about a reserved word standing where an option should. */
   const notAnOption = (word: string): string =>
     `\`${word}\` is a word of the language, so it cannot be an option of \`Ward\`.`;
@@ -80,6 +80,7 @@ describe('`enum` and `message` inside a body: a word in an option’s place, or 
     ['enum Ward { oak, message }', ['oak'], ['message']],
     ['enum Ward { enum, silver }', ['silver'], ['enum']],
     ['enum Ward { message }', [], ['message']],
+    ['enum Ward { oak, kind, object }', ['oak'], ['kind', 'object']],
   ];
   for (const [text, kept, refused] of asOption) {
     it(`reads it as a word in an option’s place in ${text}`, () => {
@@ -105,6 +106,8 @@ describe('`enum` and `message` inside a body: a word in an option’s place, or 
     'enum Ward {\n  oak\nenum Two { a, b }\n',
     'enum Ward {\n  oak\nmessage :stir\n',
     'enum Ward {\n  oak,\nenum Two { a }\n',
+    'enum Ward {\n  oak\nkind Crate { }\n',
+    'enum Ward {\n  oak\nobject bench: Bench in hall\n',
   ];
   for (const text of asForgottenBrace) {
     it(`reads it as a forgotten brace in ${JSON.stringify(text)}`, () => {
@@ -125,6 +128,16 @@ describe('`enum` and `message` inside a body: a word in an option’s place, or 
     const asDeclaration = read('enum Ward { message :stir }').refusals.map((d) => d.message);
     expect(asDeclaration).toContain('`Ward` is never closed.');
     expect(asDeclaration).not.toContain(notAnOption('message'));
+    // `object` is followed by its name and then `in` or a colon, and
+    // `kind` by a capitalised name and its brace or colon.
+    expect(read('enum Ward { object, a }').refusals.map((d) => d.message)).toEqual([
+      notAnOption('object'),
+    ]);
+    for (const text of ['enum Ward { object bench in hall }', 'enum Ward { kind Crate { } }']) {
+      const said = read(text).refusals.map((d) => d.message);
+      expect(said, text).toContain('`Ward` is never closed.');
+      expect(said, text).not.toContain(notAnOption(text.split(' ')[3]!));
+    }
   });
 });
 

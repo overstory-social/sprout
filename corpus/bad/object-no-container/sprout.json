@@ -1,0 +1,10 @@
+{
+  "name": "object_no_container",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [],
+  "files": ["world.sprout", "objects.sprout"]
+}

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Declaration, Literal, WorldMember } from '../ast.js';
+import type {
+  Declaration,
+  KindDeclaration,
+  Literal,
+  ObjectDeclaration,
+  WorldDeclaration,
+  WorldMember,
+} from '../ast.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { DEEPEST, parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
 import { SourceFile } from '../../source/source.js';
@@ -78,10 +85,45 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // A shape that is not a parse defect belongs in world.spec.ts.
     'world w: sprout.World { nonsense }',
     'world w: 4 { }',
+    'world',
     'world w',
     'world w: sprout.World { visitors }',
     'world w: sprout.World { visitors are 4 }',
+    // Kinds and objects: a name, a composition, a brace or a container
+    // missing or wrong, a member no kind holds, a list never closed, a
+    // declaration inside the body, and a world's own member in an
+    // object's.
+    'kind',
+    'kind K',
+    'kind K: 4 { }',
+    'kind K { nonsense }',
+    'kind K { :x [ }',
+    'kind K { enum Inner { oak } }',
+    'object',
+    'object o: K { }',
+    'object o: K in { }',
+    'object o: K in r { visitors are X }',
   ];
+
+  /**
+   * What holds a body of members, as each is opened. A world, a kind and
+   * an object read their bodies through one reader, and the net runs over
+   * each, so a change to it for one is tested for all three. `visitors …`
+   * is a world's alone, so in a kind or an object it is one more word that
+   * is not a member.
+   */
+  const OWNERS = [
+    { kind: 'world', name: 'w', open: 'world w: sprout.World {' },
+    { kind: 'kind', name: 'K', open: 'kind K {' },
+    { kind: 'object', name: 'o', open: 'object o: K in r {' },
+  ] as const;
+  type Owner = (typeof OWNERS)[number];
+
+  /** The declaration an owner opened, among what a file read. */
+  const ownedBy = (owner: Owner, declared: readonly Declaration[]) =>
+    declared.find(
+      (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration => d.kind === owner.kind,
+    );
 
   /**
    * Every well-formed thing is KEPT.
@@ -138,7 +180,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     expect(checked).toBe(ENTRY_DEFECTS.length * 3);
   });
 
-  it('over the members of a world, in every order', () => {
+  it('over the members of a world, a kind and an object, in every order', () => {
     // The member-shaped defects: a member word with nothing it can read
     // after it, a member word followed by one that is no member, and a
     // word that is no member at all. Then the tables above as a world
@@ -170,34 +212,35 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           ? `remembers:${member.properties.map((p) => p.name.text).join(',')}`
           : member.kind;
     let checked = 0;
-    for (const defect of MEMBER_DEFECTS) {
-      for (const order of [
-        [GOOD[0], defect, GOOD[1]],
-        [GOOD[0], GOOD[1], defect],
-        [defect, GOOD[0], GOOD[1]],
-        [GOOD[1], defect, GOOD[0]],
-        [GOOD[1], GOOD[0], defect],
-        [defect, GOOD[1], GOOD[0]],
-      ]) {
-        checked += 1;
-        const text = `world w: sprout.World {\n  ${order.join('\n  ')}\n}\n`;
-        const diagnostics = new Diagnostics();
-        const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
-        const world = declared.find((d) => d.kind === 'world');
-        // What the defect itself may leave standing: the `contains` a
-        // `contains 4` did read, and a `:remembers` whose entry was refused.
-        nothingVanishes(
-          text,
-          world?.members.map(nameOf) ?? [],
-          ['alpha', 'remembers:omega'],
-          ['alpha', 'remembers:omega', 'b', 'contains', 'remembers:', 'remembers:b'],
-        );
-        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
-          0,
-        );
+    for (const owner of OWNERS) {
+      for (const defect of MEMBER_DEFECTS) {
+        for (const order of [
+          [GOOD[0], defect, GOOD[1]],
+          [GOOD[0], GOOD[1], defect],
+          [defect, GOOD[0], GOOD[1]],
+          [GOOD[1], defect, GOOD[0]],
+          [GOOD[1], GOOD[0], defect],
+          [defect, GOOD[1], GOOD[0]],
+        ]) {
+          checked += 1;
+          const text = `${owner.open}\n  ${order.join('\n  ')}\n}\n`;
+          const diagnostics = new Diagnostics();
+          const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
+          // What the defect itself may leave standing: the `contains` a
+          // `contains 4` did read, and a `:remembers` whose entry was refused.
+          nothingVanishes(
+            text,
+            ownedBy(owner, declared)?.members.map(nameOf) ?? [],
+            ['alpha', 'remembers:omega'],
+            ['alpha', 'remembers:omega', 'b', 'contains', 'remembers:', 'remembers:b'],
+          );
+          expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+            0,
+          );
+        }
       }
     }
-    expect(checked).toBe(MEMBER_DEFECTS.length * 6);
+    expect(checked).toBe(OWNERS.length * MEMBER_DEFECTS.length * 6);
   });
 
   it('over a list literal', () => {
@@ -241,11 +284,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         // keeps the author's work rather than skipping to a brace and
         // losing it. So a name
         // WRITTEN inside the defect may surface at the top level; a
-        // name that was never written anywhere still may not. A world
-        // whose defect is in one member is kept, under its own name.
+        // name that was never written anywhere still may not. A world or
+        // an object whose defect is in one member is kept, under its own
+        // name.
         const inside = [
           ...(defect.match(/[A-Z][A-Za-z_]*/g) ?? []),
-          ...(defect.match(/^world (\w+)/)?.slice(1) ?? []),
+          ...(defect.match(/^(?:world|object) (\w+)/)?.slice(1) ?? []),
         ];
         nothingVanishes(
           text,
@@ -757,15 +801,19 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   const endsTheWorldEarly = (defect: Defect): boolean => defect.text === '}';
 
   /**
-   * What may follow a world that was never closed: declarations written
+   * What may follow a body that was never closed: declarations written
    * well, which are kept, and ones whose own header reads like the
    * entries of a `:remembers` — `, name: 1]` — which are kept or refused
-   * at their own text, and never taken for the world's.
+   * at their own text, and never taken for the body's.
    */
   const FOLLOWING = [
     { name: 'Omega', text: 'enum Omega { y }', wellFormed: true },
     { name: 'omega', text: 'message :omega', wellFormed: true },
     { name: 'omega', text: 'world omega: sprout.World {\n  visitors are P\n}', wellFormed: true },
+    { name: 'Omega', text: 'kind Omega: sprout.Container {\n  contains\n}', wellFormed: true },
+    { name: 'omega', text: 'object omega: Crate in yard', wellFormed: true },
+    { name: 'Omega', text: 'kind Omega: sprout.Container, name: 1] { }', wellFormed: false },
+    { name: 'omega', text: 'object omega: Crate, name: 1] in yard', wellFormed: false },
     {
       name: 'omega',
       text: 'world omega: sprout.World, name: 1] {\n  visitors are P\n}',
@@ -800,9 +848,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     ).toBe(true);
   }
 
-  it('over a generated world body, a defect in any member', () => {
-    const c = chooser(20_260_925);
-    const reached = tally();
+  it('over a generated body of a world, a kind and an object, a defect in any member', () => {
     const SYMBOL_LED = [
       { names: ['alpha'], text: (ch: Chooser) => wellFormed(ch, 'alpha', 'member') },
       { names: ['bravo'], text: (ch: Chooser) => wellFormed(ch, 'bravo', 'member') },
@@ -813,68 +859,76 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       },
     ];
     const WORD_LED = [
-      { names: ['visitors-are'], text: () => 'visitors are P' },
-      { names: ['visitors-arrive-at'], text: () => 'visitors arrive at y' },
-      { names: ['contains'], text: () => 'contains actors' },
+      { names: ['visitors-are'], text: () => 'visitors are P', worldOnly: true },
+      { names: ['visitors-arrive-at'], text: () => 'visitors arrive at y', worldOnly: true },
+      { names: ['contains'], text: () => 'contains actors', worldOnly: false },
     ];
-    for (let i = 0; i < 800; i++) {
-      const members = c.shuffled([
-        ...SYMBOL_LED.filter(() => c.below(3) !== 0),
-        ...WORD_LED.filter(() => c.below(2) === 0),
-      ]);
-      // A property whose value is missing reads the next word as its
-      // value, which is a reading and not a loss, so a member that
-      // starts with a word never comes straight after the defect.
-      let at = c.below(members.length + 1);
-      while (at < members.length && WORD_LED.includes(members[at] as (typeof WORD_LED)[number])) {
-        at += 1;
-      }
-      const made = defectiveMember(c);
-      const lines = members.map((member) => member.text(c));
-      lines.splice(at, 0, made.text);
-      // Now and then the world is never closed, and a declaration follows
-      // it, with a `:remembers` last in the body or not. Not after a brace
-      // in the defect, which would close it, nor an unclosed bracket,
-      // which takes what follows as far as a closer turns up.
-      const crossable = made.defect.sort !== 'unclosed' && !made.text.includes('}');
-      const following = crossable && c.below(4) === 0 ? c.one(FOLLOWING) : null;
-      if (following !== null) {
-        // Nor straight after the defect, and named rather than quietly
-        // left out: a property whose value is missing reads the word that
-        // starts the declaration as its value, and the declaration is lost,
-        // as `omega` is from `world w: sprout.World {\n  :faulty :wet\n
-        // message :omega`.
-        const last = at === members.length || c.below(2) === 0;
-        if (last) lines.push(':remembers [zulu: 0]');
-        const text = `world w: sprout.World {\n  ${lines.join('\n  ')}\n${following.text}\n`;
+    for (const [n, owner] of OWNERS.entries()) {
+      const c = chooser(20_260_925 + n);
+      const reached = tally();
+      const wordLed = WORD_LED.filter((member) => owner.kind === 'world' || !member.worldOnly);
+      for (let i = 0; i < 800; i++) {
+        const members = c.shuffled([
+          ...SYMBOL_LED.filter(() => c.below(3) !== 0),
+          ...wordLed.filter(() => c.below(2) === 0),
+        ]);
+        // A property whose value is missing reads the next word as its
+        // value, which is a reading and not a loss, so a member that
+        // starts with a word never comes straight after the defect.
+        let at = c.below(members.length + 1);
+        while (at < members.length && wordLed.includes(members[at] as (typeof WORD_LED)[number])) {
+          at += 1;
+        }
+        const made = defectiveMember(c);
+        const lines = members.map((member) => member.text(c));
+        lines.splice(at, 0, made.text);
+        // Now and then the world is never closed, and a declaration follows
+        // it, with a `:remembers` last in the body or not. Not after a brace
+        // in the defect, which would close it, nor an unclosed bracket,
+        // which takes what follows as far as a closer turns up.
+        const crossable = made.defect.sort !== 'unclosed' && !made.text.includes('}');
+        const following = crossable && c.below(4) === 0 ? c.one(FOLLOWING) : null;
+        if (following !== null) {
+          // Nor straight after the defect, and named rather than quietly
+          // left out: a property whose value is missing reads the word that
+          // starts the declaration as its value, and the declaration is lost,
+          // as `omega` is from `world w: sprout.World {\n  :faulty :wet\n
+          // message :omega`.
+          const last = at === members.length || c.below(2) === 0;
+          if (last) lines.push(':remembers [zulu: 0]');
+          const text = `${owner.open}\n  ${lines.join('\n  ')}\n${following.text}\n`;
+          const { result, said } = reading(text, parseDeclarations);
+          reached.add(last && !following.wellFormed ? 'across' : 'never closed');
+          closedByWhatFollows(text, owner.name, following, result, said);
+          continue;
+        }
+        const text = `${owner.open}\n  ${lines.join('\n  ')}\n}\n`;
         const { result, said } = reading(text, parseDeclarations);
-        reached.add(last && !following.wellFormed ? 'across' : 'unclosed world');
-        closedByWhatFollows(text, 'w', following, result, said);
-        continue;
+        const inRemembers = made.text.startsWith(':remembers');
+        if (
+          inRemembers ? walksIntoItsRest(made.defect, made.rest) : endsTheWorldEarly(made.defect)
+        ) {
+          reached.add('excluded');
+          continue;
+        }
+        reached.add(made.defect.sort);
+        const good = members.flatMap((member) => member.names);
+        if (inRemembers) good.push('remembers.echo');
+        explained(
+          text,
+          made.defect.sort,
+          ownedBy(owner, result)?.members.flatMap(memberNames) ?? [],
+          good,
+          // A symbol written where a value goes, `:wet` or `:stir`, is a
+          // member of its own: a reading, and not something that appeared.
+          [...good, 'faulty', 'remembers.faulty', 'remembers.echo', 'contains', 'wet', 'stir'],
+          said,
+        );
       }
-      const text = `world w: sprout.World {\n  ${lines.join('\n  ')}\n}\n`;
-      const { result, said } = reading(text, parseDeclarations);
-      const world = result.find((d) => d.kind === 'world');
-      const inRemembers = made.text.startsWith(':remembers');
-      if (inRemembers ? walksIntoItsRest(made.defect, made.rest) : endsTheWorldEarly(made.defect)) {
-        reached.add('excluded');
-        continue;
-      }
-      reached.add(made.defect.sort);
-      const good = members.flatMap((member) => member.names);
-      if (inRemembers) good.push('remembers.echo');
-      explained(
-        text,
-        made.defect.sort,
-        world?.members.flatMap(memberNames) ?? [],
-        good,
-        // A symbol written where a value goes, `:wet` or `:stir`, is a
-        // member of its own: a reading, and not something that appeared.
-        [...good, 'faulty', 'remembers.faulty', 'remembers.echo', 'contains', 'wet', 'stir'],
-        said,
+      expect(reached.keys(), owner.kind).toEqual(
+        [...SORTS, 'across', 'excluded', 'never closed'].sort(),
       );
     }
-    expect(reached.keys()).toEqual([...SORTS, 'across', 'excluded', 'unclosed world'].sort());
   });
 
   it('over a generated file, a defect in any part of any declaration', () => {
@@ -893,6 +947,16 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         name: 'india',
         text: () => 'world india: sprout.World {\n  visitors are P\n  visitors arrive at y\n}',
       },
+      {
+        name: 'Juliet',
+        text: () =>
+          option(['kind Juliet { }', 'kind Juliet: Crate, sprout.Container {\n  :open true\n}']),
+      },
+      {
+        name: 'kilo',
+        text: () =>
+          option(['object kilo: Juliet in yard', 'object kilo: Juliet in yard {\n  contains\n}']),
+      },
     ];
     // A world never closed, holding a `:remembers` or not; whatever
     // follows it, in the file or here, is a declaration of its own.
@@ -904,7 +968,20 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       () => 'enum Faulty oak, silver }',
       () => 'enum Faulty { oak, silver',
       () => {
-        const bad = option(['Zeta', 'enum', 'message', 'world', 'integer', '4', ':a', '%', '"x"']);
+        const bad = option([
+          'Zeta',
+          'enum',
+          'message',
+          'world',
+          'kind',
+          'object',
+          'in',
+          'integer',
+          '4',
+          ':a',
+          '%',
+          '"x"',
+        ]);
         return `enum Faulty { oak, ${bad}, silver }`;
       },
       () => `enum Faulty { oak${option([' ', ', ,'])} silver }`,
@@ -920,6 +997,29 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       () => option(['world faulty: 4 { }', 'world faulty', 'world: sprout.World']),
       unclosedWorld,
       () => `world faulty: sprout.World {\n  visitors are P\n  ${defectiveMember(c).text}\n}`,
+      // A kind: its name, what it composes, its braces, a member.
+      () =>
+        option([
+          'kind',
+          'kind faulty { }',
+          'kind: Crate { }',
+          'kind Faulty',
+          'kind Faulty: 4 { }',
+          'kind Faulty: Crate Fixture { }',
+        ]),
+      () => `kind Faulty: sprout.Container {\n  ${defectiveMember(c).text}\n}`,
+      // An object: its name, what it composes, its container, a member.
+      () =>
+        option([
+          'object',
+          'object Faulty: Crate in yard',
+          'object faulty: 4 in yard',
+          'object faulty: Crate',
+          'object faulty: Crate { }',
+          'object faulty: Crate in { }',
+          'object faulty: Crate in Yard',
+        ]),
+      () => `object faulty: Crate in yard {\n  ${defectiveMember(c).text}\n}`,
     ];
     const used = new Set<number>();
     for (let i = 0; i < 700; i++) {
@@ -929,7 +1029,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       const unclosed = DEFECTIVE[which] === unclosedWorld;
       // After a world never closed, now and then a declaration whose own
       // header reads like the entries of a `:remembers`.
-      const following = unclosed && c.below(2) === 0 ? c.one(FOLLOWING.slice(3)) : null;
+      const following =
+        unclosed && c.below(2) === 0 ? c.one(FOLLOWING.filter((f) => !f.wellFormed)) : null;
       const defect = `${DEFECTIVE[which]!()}${following === null ? '' : `\n${following.text}`}`;
       const blocks = declared.map((d) => d.text());
       blocks.splice(c.below(blocks.length + 1), 0, defect);

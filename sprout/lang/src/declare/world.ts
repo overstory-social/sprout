@@ -12,16 +12,10 @@
 
 import type { Ident, WorldDeclaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from './kinds.js';
-import { kindName } from './kinds.js';
+import { kindName, WORLD, writesWorld } from './kinds.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { SPROUT, type EnumTable } from './enums.js';
+import type { EnumTable } from './enums.js';
 import { resolveProperty, resolveRemembers, type ResolvedProperty } from './properties.js';
-
-/**
- * What every world composes, written with its library (the spec's The
- * world model). An unqualified `World` does not stand for it.
- */
-export const WORLD = `${SPROUT}.World`;
 
 /**
  * What a world's own pass rule answers where it writes none: nothing
@@ -73,10 +67,7 @@ export interface ResolvedWorld {
  * its own, so it is a shape-tier check.
  */
 export function checkWorldDeclaration(declared: WorldDeclaration, diagnostics: Diagnostics): void {
-  const wrote = declared.composes.some(
-    (one) => one.library !== null && one.library.text === SPROUT && one.name.text === 'World',
-  );
-  if (wrote) return;
+  if (declared.composes.some(writesWorld)) return;
   const bare = declared.composes.some((one) => one.library === null && one.name.text === 'World');
   diagnostics.refuse(
     declared.name.at,

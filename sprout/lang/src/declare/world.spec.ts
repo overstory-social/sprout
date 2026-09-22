@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WorldDeclaration } from '../syntax/ast.js';
-import { kindName, type KindLookup, type KindRef } from './kinds.js';
+import { kindName, WORLD, type KindLookup, type KindRef } from './kinds.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
-import { checkWorldDeclaration, resolveWorld, WORLD, WORLD_PASSES_ANYTHING } from './world.js';
+import { checkWorldDeclaration, resolveWorld, WORLD_PASSES_ANYTHING } from './world.js';
 
 const ENUMS = (() => {
   const table = new EnumTable();

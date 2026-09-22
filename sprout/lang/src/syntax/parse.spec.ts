@@ -17,7 +17,9 @@ import { read, optionsOf } from '../fixtures/parse.js';
  */
 const A_DECLARATION: Record<string, string> = {
   enum: 'enum Two { a }',
+  kind: 'kind Two: sprout.Container { :open true }',
   message: 'message :stir',
+  object: 'object two: Crate in yard { contains }',
   world: 'world two: sprout.World { visitors are P\n visitors arrive at y }',
 };
 
@@ -28,9 +30,12 @@ const A_DECLARATION: Record<string, string> = {
  * `world`'s brace-on-its-own form missing here, deleting the brace from
  * `world`'s row in `DECLARATION_SHAPES` passes the whole suite. A world
  * that leaves `sprout.World` out is refused a layer later, and the
- * parser has to read it as a world for that refusal to be reached.
+ * parser has to read it as a world for that refusal to be reached. A
+ * kind may compose nothing, and an object may leave its body out.
  */
 const ALSO_WRITTEN: Record<string, string[]> = {
+  kind: ['kind Two { }', 'kind Two: Crate, sprout.Container { contains actors }'],
+  object: ['object two: Crate in yard', 'object two: Crate, sprout.Fixture in yard { }'],
   world: [
     'world two: sprout.World, victorian.Voice { visitors are P\n visitors arrive at y }',
     'world two { visitors are P\n visitors arrive at y }',
@@ -81,7 +86,7 @@ describe('a forgotten brace does not eat the declaration after it', () => {
   });
 
   it('and ends the body before it even where the name was forgotten', () => {
-    // `enum {` and `world {` are a declaration the author started and
+    // `enum {`, `kind {` and `world {` are a declaration the author started and
     // did not finish naming — still a declaration, so the body before
     // it ends here. Reading the word as an option instead keeps the
     // mistake and loses everything after it. Recovery cannot stand in
@@ -90,6 +95,7 @@ describe('a forgotten brace does not eat the declaration after it', () => {
     for (const [nameless, said] of [
       ['enum { a }', 'An enum needs a name.'],
       ['world { }', 'A world needs a name.'],
+      ['kind { }', 'A kind needs a name.'],
     ] as const) {
       const { declarations, refusals } = read(`enum Ward {\n  oak\n${nameless}`);
       expect(optionsOf(declarations[0] as EnumDeclaration), nameless).toEqual(['oak']);

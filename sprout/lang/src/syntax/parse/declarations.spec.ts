@@ -236,11 +236,11 @@ describe('what the parser refuses, and where it says so', () => {
   });
 
   it('refuses a word it cannot read at the top of a file, and says what it can read', () => {
-    // `kind` is B19's, so this compiler does not read it yet.
-    const { refusals } = read('kind Vessel { }');
-    expect(refusals[0]!.message).toBe('Sprout does not know what to do with "kind" here.');
+    // `verb` is B23's, so this compiler does not read it yet.
+    const { refusals } = read('verb take { }');
+    expect(refusals[0]!.message).toBe('Sprout does not know what to do with "verb" here.');
     expect(refusals[0]!.remedy).toBe(
-      'A file holds declarations, and this compiler reads `enum`, `message` and `world`.',
+      'A file holds declarations, and this compiler reads `enum`, `kind`, `message`, `object` and `world`.',
     );
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:1');
   });
@@ -261,7 +261,7 @@ describe('a declaration it cannot read costs that declaration, not the file', ()
   });
 
   it('keeps reading after an unknown word at the top of a file', () => {
-    const { declarations, refusals } = read('kind Thing { }\nenum Ward { oak }');
+    const { declarations, refusals } = read('verb take { }\nenum Ward { oak }');
     expect(refusals).toHaveLength(1);
     expect(declarations.map((d) => (d as EnumDeclaration).name.text)).toEqual(['Ward']);
   });
