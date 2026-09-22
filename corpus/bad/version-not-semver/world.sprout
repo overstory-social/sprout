@@ -2,3 +2,10 @@ world not_semver: sprout.World {
   visitors are Creature
   visitors arrive at hall
 }
+
+// Where visitors arrive.
+kind Hall {
+  contains actors
+}
+
+object hall: Hall in not_semver

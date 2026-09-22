@@ -20,3 +20,7 @@ object lid: Thing in kiln.shelf.pot
 // the order it was written in.
 object glaze: Thing in kiln.shelf.jar
 object jar: Chest in kiln.shelf
+
+// A place may sit inside a place. Visitors arrive in this one, and the
+// world names it by its path, as it names any container.
+object back_room: Room in shop_floor

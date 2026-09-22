@@ -1,0 +1,4 @@
+world.sprout:6:22  `arrival_world_not_a_place` is not a place, and visitors arrive in one.
+                   Write `contains actors` in the world's body to make it a place, or name a place in it for visitors to arrive at.
+
+refused: 1 problem

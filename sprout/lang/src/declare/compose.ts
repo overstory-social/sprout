@@ -123,7 +123,7 @@ export function unknownKind(
 }
 
 /** A kind as the author wrote it: bare stays bare, qualified stays qualified. */
-function writtenKind(written: KindExpr): string {
+export function writtenKind(written: KindExpr): string {
   return written.library === null
     ? written.name.text
     : qualifiedName(written.library.text, written.name.text);

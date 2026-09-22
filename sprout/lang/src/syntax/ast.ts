@@ -280,7 +280,10 @@ export interface VisitorsAre extends Node {
   readonly visitor: KindExpr;
 }
 
-/** `visitors arrive at composing_room` — where a person begins. */
+/**
+ * `visitors arrive at composing_room` — where a person begins: a path
+ * read from inside the world, as an object's `in` is, naming a place.
+ */
 export interface VisitorsArriveAt extends Node {
   readonly kind: 'visitors-arrive-at';
   readonly place: ObjectPath;

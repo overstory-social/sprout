@@ -48,14 +48,15 @@ describe('somebody is told through the passage the spec names, where it names on
     expect(absenceRule('extension').told).toBe('missing');
   });
 
-  it('names no passage for a world that cannot admit anyone, because the spec names none', () => {
-    // The row says the world "says so" and, unlike the one above it,
-    // does not say through what. `displaced` would be the guess and it
-    // is the wrong one: nobody who was never admitted was standing
-    // anywhere. Recorded under Holes in the spec.
+  it('names no passage for a world that cannot admit anyone, because the host says so outside it', () => {
+    // Entry fails as a host matter, the way a crash does: nobody was
+    // admitted, so no passage of the world's has anyone to tell, and
+    // `displaced` in particular is not true of somebody who never stood
+    // anywhere.
     const rule = absenceRule('place-of-arrival');
     expect(rule.told).toBeNull();
-    expect(rule.consequence).toContain('says so');
+    expect(rule.consequence).toContain('entry fails as a host matter');
+    expect(rule.consequence).toContain('the host says so outside the world');
   });
 
   it('names no passage for a bundle with no `world` declaration, the same as no arrival place', () => {

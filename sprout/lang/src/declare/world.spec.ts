@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { writtenPath, type KindDeclaration, type WorldDeclaration } from '../syntax/ast.js';
+import {
+  writtenPath,
+  type KindDeclaration,
+  type ObjectDeclaration,
+  type WorldDeclaration,
+} from '../syntax/ast.js';
 import { kindName, KindTable } from './kinds.js';
 import type { KindSource } from './compose.js';
 import { WORLD } from './sprout-world.js';
@@ -8,7 +13,15 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile, textOf } from '../source/source.js';
-import { checkWorldDeclaration, resolveWorld, WORLD_PASSES_ANYTHING } from './world.js';
+import { resolveObjects } from './objects.js';
+import { placeObjects } from './tree.js';
+import {
+  arrivalOf,
+  checkWorldDeclaration,
+  resolveArrival,
+  resolveWorld,
+  WORLD_PASSES_ANYTHING,
+} from './world.js';
 
 const ENUMS = (() => {
   const table = new EnumTable();
@@ -78,7 +91,6 @@ describe('a world is the root of the one tree', () => {
     expect(said).toEqual([]);
     expect(resolved!.name).toBe('printers_shop');
     expect(kindName(resolved!.visitor)).toBe('printers_shop.Creature');
-    expect(writtenPath(resolved!.arriveAt)).toBe('composing_room');
     expect([...resolved!.kind.properties.keys()]).toEqual(['season']);
   });
 
@@ -307,21 +319,325 @@ describe('a world says what a person is, and where they begin', () => {
     const twiceAt = world(`world w: sprout.World { visitors are Creature
   visitors arrive at first
   visitors arrive at second }`);
-    expect(twiceAt.said.join(' ')).toContain('says twice where its visitors arrive');
-    expect(writtenPath(twiceAt.resolved!.arriveAt)).toBe('first');
+    expect(twiceAt.said).toEqual(['`w` says twice where its visitors arrive.']);
+    expect(twiceAt.resolved).not.toBeNull();
+  });
+});
+
+describe('`arrivalOf` reads where visitors arrive, and says once what is wrong with it', () => {
+  /** The world declaration in `text`, which must parse. */
+  function declared(text: string): WorldDeclaration {
+    const parsing = new Diagnostics();
+    const found = parseDeclarations(new SourceFile('w.sprout', text), parsing).find(
+      (d): d is WorldDeclaration => d.kind === 'world',
+    );
+    expect(parsing.refusals.map((d) => d.message)).toEqual([]);
+    return found!;
+  }
+
+  it('keeps the path written, with its span', () => {
+    const diagnostics = new Diagnostics();
+    const path = arrivalOf(declared(SHOP), diagnostics);
+    expect(diagnostics.all).toEqual([]);
+    expect(path!.kind).toBe('path');
+    expect(textOf(path!.at)).toBe('composing_room');
+    const deeper = arrivalOf(
+      declared('world w: sprout.World {\n  visitors arrive at house.bedroom.wardrobe\n}'),
+      diagnostics,
+    );
+    expect(writtenPath(deeper!)).toBe('house.bedroom.wardrobe');
   });
 
-  it('keeps where they arrive as the path written, with its span', () => {
-    // Resolving it in the tree, and asking whether it is a place, is
-    // not done here. What is kept is the path and where it was written.
-    const { resolved } = world(SHOP);
-    expect(resolved!.arriveAt.kind).toBe('path');
-    expect(resolved!.arriveAt.parts.map((part) => part.text)).toEqual(['composing_room']);
-    expect(textOf(resolved!.arriveAt.at)).toBe('composing_room');
-    const deeper = world(`world w: sprout.World { visitors are Creature
-  visitors arrive at house.bedroom.wardrobe }`);
-    expect(writtenPath(deeper.resolved!.arriveAt)).toBe('house.bedroom.wardrobe');
+  it('refuses a world that says nothing about it, at the world’s name', () => {
+    const diagnostics = new Diagnostics();
+    expect(arrivalOf(declared('world w: sprout.World { visitors are P }'), diagnostics)).toBeNull();
+    expect(diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`w` does not say where a visitor arrives.',
+        'Write `visitors arrive at <name>`, naming the place they begin in.',
+      ],
+    ]);
+    expect(textOf(diagnostics.refusals[0]!.at)).toBe('w');
   });
+
+  it('refuses saying it twice at the second, and keeps the first', () => {
+    const diagnostics = new Diagnostics();
+    const path = arrivalOf(
+      declared(
+        'world w: sprout.World {\n  visitors arrive at first\n  visitors arrive at second\n}',
+      ),
+      diagnostics,
+    );
+    expect(writtenPath(path!)).toBe('first');
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      '`w` says twice where its visitors arrive.',
+    ]);
+    expect(textOf(diagnostics.refusals[0]!.at)).toBe('visitors arrive at second');
+  });
+});
+
+describe('`resolveArrival` finds a place, read from inside the world', () => {
+  /** The world `shop` and its own files' kinds and objects, placed; the text must parse. */
+  function arriving(text: string, libraries: Readonly<Record<string, string>> = {}) {
+    const parsing = new Diagnostics();
+    const declarations = parseDeclarations(new SourceFile('shop.sprout', text), parsing);
+    expect(parsing.refusals.map((d) => d.message)).toEqual([]);
+    const diagnostics = new Diagnostics();
+    const kinds = new KindTable();
+    for (const [library, source] of Object.entries(libraries)) {
+      kinds.add(
+        library,
+        parseDeclarations(new SourceFile(`${library}.sprout`, source), parsing).filter(
+          (d): d is KindDeclaration => d.kind === 'kind',
+        ),
+        diagnostics,
+      );
+    }
+    kinds.add(
+      'shop',
+      declarations.filter((d): d is KindDeclaration => d.kind === 'kind'),
+      diagnostics,
+    );
+    kinds.resolve(ENUMS, diagnostics);
+    const objects = resolveObjects(
+      'shop',
+      declarations.filter((d): d is ObjectDeclaration => d.kind === 'object'),
+      { enums: ENUMS, kinds, diagnostics },
+    );
+    const tree = placeObjects(objects, { world: 'shop', diagnostics });
+    const before = diagnostics.all.length;
+    const found = resolveArrival(
+      declarations.find((d): d is WorldDeclaration => d.kind === 'world')!,
+      { tree, objects, kinds, from: 'shop', diagnostics },
+    );
+    const said = diagnostics.all.slice(before);
+    return {
+      found,
+      said: said.map((d) => d.message),
+      remedies: said.map((d) => d.remedy),
+      where: said.map((d) => textOf(d.at)),
+    };
+  }
+
+  const PLACES = `kind Room {
+  contains actors
+}
+kind Bench {
+  contains
+}
+`;
+
+  it('finds a place directly in the world, by its path', () => {
+    const { found, said } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at hall
+}
+object hall: Room in shop`);
+    expect(said).toEqual([]);
+    expect(found).toEqual({ found: 'place', path: ['hall'] });
+  });
+
+  it('finds a place deeper in the tree by its dotted path', () => {
+    const { found, said } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at hall.wardrobe
+}
+object hall: Room in shop
+object wardrobe: Room in hall`);
+    expect(said).toEqual([]);
+    expect(found).toEqual({ found: 'place', path: ['hall', 'wardrobe'] });
+  });
+
+  it('takes a place whose own body says `contains actors`', () => {
+    const { found, said } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at bench
+}
+object bench: Bench in shop {
+  contains actors
+}`);
+    expect(said).toEqual([]);
+    expect(found).toEqual({ found: 'place', path: ['bench'] });
+  });
+
+  it('refuses something that is not a place, at the last step, in either mode', () => {
+    const { found, said, remedies, where } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at hall.bench
+}
+object hall: Room in shop
+object bench: Bench in hall`);
+    expect(found).toEqual({ found: 'refused' });
+    expect(said).toEqual(['`bench` is not a place, and visitors arrive in one.']);
+    expect(remedies).toEqual([
+      'Name a place, or make `bench` one: compose `sprout.Place`, or write `contains actors` in its body.',
+    ]);
+    expect(where).toEqual(['bench']);
+  });
+
+  it('gives an unknown step to the caller as a gap, in the words an `in` gets', () => {
+    const { found, said } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at hal
+}
+object hall: Room in shop`);
+    // Nothing is said here: whether it refuses is the mode's.
+    expect(said).toEqual([]);
+    expect(found).toMatchObject({
+      found: 'absent',
+      message: 'Nothing here is called `hal`. Did you mean `hall`?',
+      remedy: 'Write `visitors arrive at hall`, or declare an object called `hal`.',
+      said: false,
+    });
+    if (found.found !== 'absent') return;
+    expect(textOf(found.at)).toBe('hal');
+    expect(writtenPath(found.path)).toBe('hal');
+  });
+
+  it('points at the deeper place of that name, written after `visitors arrive at`', () => {
+    const { found } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at wardrobe
+}
+object hall: Room in shop
+object wardrobe: Room in hall`);
+    expect(found).toMatchObject({
+      found: 'absent',
+      message: 'Nothing here is called `wardrobe`.',
+      remedy: '`wardrobe` is inside `hall`, so write `visitors arrive at hall.wardrobe`.',
+    });
+  });
+
+  it('calls a place absent, and already told, when its kind is absent', () => {
+    const { found, said } = arriving(`world shop: sprout.World {
+  visitors arrive at hall
+}
+object hall: Nope in shop`);
+    // What is said is the kind's, which is not `resolveArrival`'s to say.
+    expect(said).toEqual([]);
+    expect(found).toMatchObject({
+      found: 'absent',
+      message: '`hall` is absent, so visitors have nowhere to arrive.',
+      said: true,
+    });
+  });
+
+  it('calls a place absent, and already told, when it did not place', () => {
+    const { found } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at hall.nook
+}
+object hall: Room in yard
+object nook: Room in hall`);
+    expect(found).toMatchObject({
+      found: 'absent',
+      message: '`hall.nook` is absent, so visitors have nowhere to arrive.',
+      said: true,
+    });
+  });
+
+  it('refuses the world’s name as a step of the path, in the words an `in` gets', () => {
+    const { found, said, remedies } = arriving(`${PLACES}
+world shop: sprout.World {
+  visitors arrive at shop.hall
+}
+object hall: Room in shop`);
+    expect(found).toEqual({ found: 'refused' });
+    expect(said).toEqual([
+      '`shop` is the world, which is named on its own and never as a step of a path.',
+    ]);
+    expect(remedies).toEqual([
+      'A path starts from something directly in the world: write `visitors arrive at hall`.',
+    ]);
+  });
+
+  it('refuses what `arrivalOf` refuses, and says it once', () => {
+    const { found, said } = arriving('world shop: sprout.World {\n  visitors are P\n}');
+    expect(found).toEqual({ found: 'refused' });
+    expect(said).toEqual(['`shop` does not say where a visitor arrives.']);
+  });
+});
+
+describe('the world is where visitors arrive only when it is a place', () => {
+  it('is one where its own body says `contains actors`', () => {
+    const { found, said } = arrivingAtShop('contains actors');
+    expect(said).toEqual([]);
+    expect(found).toEqual({ found: 'place', path: [] });
+  });
+
+  it('is one where a kind it composes beside `sprout.World` holds actors', () => {
+    const { found, said } = arrivingAtShop('', ', victorian.Hall', {
+      victorian: 'kind Hall {\n  contains actors\n}',
+    });
+    expect(said).toEqual([]);
+    expect(found).toEqual({ found: 'place', path: [] });
+  });
+
+  it('is not one for holding things, and is refused at its name in the path', () => {
+    const { found, said, remedies, where } = arrivingAtShop('contains');
+    expect(found).toEqual({ found: 'refused' });
+    expect(said).toEqual(['`shop` is not a place, and visitors arrive in one.']);
+    expect(remedies).toEqual([
+      "Write `contains actors` in the world's body to make it a place, or name a place in it for visitors to arrive at.",
+    ]);
+    expect(where).toEqual(['shop']);
+  });
+
+  it('is not known to be one when a kind it composes is not there, which is a gap', () => {
+    const { found, said } = arrivingAtShop('', ', Hal', {
+      shop: 'kind Hall {\n  contains actors\n}',
+    });
+    expect(said).toEqual([]);
+    expect(found).toMatchObject({
+      found: 'absent',
+      message:
+        'Nothing here is a `Hal`. Did you mean `Hall`? `shop` is made of it, so it is not known to be a place for visitors to arrive in.',
+      said: false,
+    });
+  });
+
+  /** `visitors arrive at shop`, the world's body holding `line`. */
+  function arrivingAtShop(
+    line: string,
+    composes = '',
+    libraries: Readonly<Record<string, string>> = {},
+  ) {
+    const diagnostics = new Diagnostics();
+    const parsing = new Diagnostics();
+    const kinds = new KindTable();
+    for (const [library, source] of Object.entries(libraries)) {
+      kinds.add(
+        library,
+        parseDeclarations(new SourceFile(`${library}.sprout`, source), parsing).filter(
+          (d): d is KindDeclaration => d.kind === 'kind',
+        ),
+        diagnostics,
+      );
+    }
+    kinds.resolve(ENUMS, diagnostics);
+    const declaredWorld = parseDeclarations(
+      new SourceFile(
+        'shop.sprout',
+        `world shop: sprout.World${composes} {\n  ${line}\n  visitors arrive at shop\n}`,
+      ),
+      parsing,
+    ).find((d): d is WorldDeclaration => d.kind === 'world')!;
+    expect(parsing.refusals.map((d) => d.message)).toEqual([]);
+    const tree = placeObjects([], { world: 'shop', diagnostics });
+    const found = resolveArrival(declaredWorld, {
+      tree,
+      objects: [],
+      kinds,
+      from: 'shop',
+      diagnostics,
+    });
+    return {
+      found,
+      said: diagnostics.all.map((d) => d.message),
+      remedies: diagnostics.all.map((d) => d.remedy),
+      where: diagnostics.all.map((d) => textOf(d.at)),
+    };
+  }
 });
 
 describe('containment is a declaration, and a place is whatever holds actors', () => {

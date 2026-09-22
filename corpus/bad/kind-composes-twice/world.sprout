@@ -2,3 +2,10 @@ world kind_composes_twice: sprout.World {
   visitors are Creature
   visitors arrive at composing_room
 }
+
+// Where visitors arrive.
+kind Room {
+  contains actors
+}
+
+object composing_room: Room in kind_composes_twice

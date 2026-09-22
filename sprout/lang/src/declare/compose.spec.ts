@@ -6,7 +6,14 @@ import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
-import { composeKind, identityOf, unknownKind, type Found, type KindSource } from './compose.js';
+import {
+  composeKind,
+  identityOf,
+  unknownKind,
+  writtenKind,
+  type Found,
+  type KindSource,
+} from './compose.js';
 import { integer, showType } from './types.js';
 
 /** The standard library's part of every suite here: a container with a range to keep. */
@@ -146,6 +153,11 @@ describe('a written kind is read from the composer’s library, then the standar
     expect(identityOf(written('Container'), 'other', kinds)).toBe('sprout.Container');
     expect(identityOf(written('sprout.Container'), 'shop', kinds)).toBe('sprout.Container');
     expect(identityOf(written('Chest'), 'shop', kinds)).toBe('sprout.Chest');
+  });
+
+  it('is shown as it was written, bare or with its library, whatever it resolves to', () => {
+    expect(writtenKind(written('Container'))).toBe('Container');
+    expect(writtenKind(written('sprout.Container'))).toBe('sprout.Container');
   });
 
   it('composes the world’s own `Container` over the standard library’s', () => {

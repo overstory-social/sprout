@@ -1,0 +1,4 @@
+world.sprout:5:27  `bench` is not a place, and visitors arrive in one.
+                   Name a place, or make `bench` one: compose `sprout.Place`, or write `contains actors` in its body.
+
+refused: 1 problem

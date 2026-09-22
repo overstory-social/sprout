@@ -22,7 +22,7 @@ import type { Absent } from './absent.js';
 import type { Declaration } from '../syntax/ast.js';
 import type { KindRef } from '../declare/kinds.js';
 import type { ResolvedObject } from '../declare/objects.js';
-import type { ObjectTree } from '../declare/tree.js';
+import type { ObjectTree, TreePath } from '../declare/tree.js';
 import type { SourceFile } from '../source/source.js';
 import type { StaticCaps } from './limits.js';
 import { hashOfNamed } from '../source/sha256.js';
@@ -182,6 +182,13 @@ export interface Bundle {
    * what it holds keeps its place for when the kind returns.
    */
   readonly tree: ObjectTree;
+  /**
+   * Where visitors arrive: the path of a place in `tree`, the world's
+   * being the empty path. Null only in a loaded world that admits no
+   * one: its arrival place is absent, or it has no one `world`
+   * declaration to say where, and `absent` records which.
+   */
+  readonly arrival: TreePath | null;
   readonly words: WordSet;
   /** The highest level of any part, library source included. */
   readonly level: number;

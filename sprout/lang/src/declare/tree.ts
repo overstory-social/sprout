@@ -5,12 +5,12 @@
 // is absent included: what it holds still has somewhere to be.
 //
 // Two rules hold here. What a file writes at its top level, an object's
-// `in`, is read from inside the world: a first step names something
-// directly in the world, or the world itself, and anything deeper is
-// named by its path. And from anywhere else the nearest declaration
-// wins, walking outward one container at a time to the world
-// (`resolveFrom`). Both are loops rather than recursion, since nesting
-// has no cap.
+// `in` or a world's `visitors arrive at`, is read from inside the world:
+// a first step names something directly in the world, or the world
+// itself, and anything deeper is named by its path. And from anywhere
+// else the nearest declaration wins, walking outward one container at a
+// time to the world (`resolveFrom`). Both are loops rather than
+// recursion, since nesting has no cap.
 
 import type { Ident, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -184,16 +184,9 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
       );
       return;
     }
-    const inside = parts.length > 1 ? parts.find((part) => part.text === world) : undefined;
-    if (inside !== undefined) {
-      const rest = parts.filter((part) => part.text !== world).map((part) => part.text);
-      diagnostics.refuse(
-        inside.at,
-        `\`${world}\` is the world, which is named on its own and never as a step of a path.`,
-        rest.length === 0
-          ? `Write \`in ${world}\`.`
-          : `A path starts from something directly in the world: write \`in ${rest.join('.')}\`.`,
-      );
+    const inside = worldInPath(world, declaration.container, 'in');
+    if (inside !== null) {
+      diagnostics.refuse(inside.step.at, inside.message, inside.remedy);
       return;
     }
     const depth = parts.length === 1 && parts[0]!.text === world ? 0 : parts.length;
@@ -271,7 +264,11 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
 
   for (const miss of misses) {
     if (leadsTo(miss.index) !== undefined) continue;
-    unknownStep(tree, objects[miss.index]!.declaration.container, miss, context);
+    const container = objects[miss.index]!.declaration.container;
+    const step = container.parts[miss.step]!;
+    const { message, remedy } = unknownStep(tree, container, miss, 'in');
+    if (context.onUnknown !== undefined) context.onUnknown(container, step, message, remedy);
+    else diagnostics.refuse(step.at, message, remedy);
   }
 
   // Each declaration leads to at most one other, so a ring is found by
@@ -306,26 +303,61 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
   return tree;
 }
 
-/** Say that a step of a container's path names nothing in reach, with where it may be meant. */
-function unknownStep(
+/**
+ * What a path is written after: `in` for an object's container,
+ * `visitors arrive at` for a world's arrival. It is what a remedy writes
+ * the path after, so the author is shown the line they wrote, corrected.
+ */
+export type PathLead = 'in' | 'visitors arrive at';
+
+/** What to say about a path, and the step it is said at. */
+export interface PathWords {
+  readonly step: Ident;
+  readonly message: string;
+  readonly remedy: string;
+}
+
+/**
+ * The world's name as a step of a longer path, which is refused: the
+ * world is named only as a whole path. Null where the path does not.
+ */
+export function worldInPath(world: string, path: ObjectPath, lead: PathLead): PathWords | null {
+  const { parts } = path;
+  const inside = parts.length > 1 ? parts.find((part) => part.text === world) : undefined;
+  if (inside === undefined) return null;
+  const rest = parts.filter((part) => part.text !== world).map((part) => part.text);
+  return {
+    step: inside,
+    message: `\`${world}\` is the world, which is named on its own and never as a step of a path.`,
+    remedy:
+      rest.length === 0
+        ? `Write \`${lead} ${world}\`.`
+        : `A path starts from something directly in the world: write \`${lead} ${rest.join('.')}\`.`,
+  };
+}
+
+/**
+ * The words for a step of a path read from inside the world that names
+ * nothing in reach, with where it may be meant: a name close to it, or
+ * an object of that name deeper in the tree, whose path is what to write.
+ */
+export function unknownStep(
   tree: ObjectTree,
-  container: ObjectPath,
-  miss: Miss,
-  context: TreeContext,
-): void {
-  const steps = container.parts.map((part) => part.text);
-  const step = container.parts[miss.step]!;
+  path: ObjectPath,
+  miss: { readonly step: number; readonly within: TreePath | null },
+  lead: PathLead,
+): PathWords {
+  const steps = path.parts.map((part) => part.text);
+  const step = path.parts[miss.step]!;
   const within = miss.within;
   const reach = within === null ? inReach(tree, []) : contentsOf(tree, within);
   const meant = nearestOption(step.text, reach);
   const where = within === null ? 'here' : `in \`${pathKey(within)}\``;
   const message = `Nothing ${where} is called \`${step.text}\`.${meant === null ? '' : ` Did you mean \`${meant}\`?`}`;
 
-  // An object of that name deeper in the tree is most likely what was
-  // meant, and its path is what to write.
   const rest = steps.slice(miss.step + 1);
   const elsewhere = [...tree.placed.values()].filter((one) => one.path.at(-1) === step.text);
-  const written = (path: TreePath): string => `\`in ${[...path, ...rest].join('.')}\``;
+  const written = (at: TreePath): string => `\`${lead} ${[...at, ...rest].join('.')}\``;
   let remedy: string;
   if (elsewhere.length === 1) {
     const [only] = elsewhere as [Placement];
@@ -344,7 +376,5 @@ function unknownStep(
   } else {
     remedy = `\`${pathKey(within)}\` holds ${readable(reach)}.`;
   }
-
-  if (context.onUnknown !== undefined) context.onUnknown(container, step, message, remedy);
-  else context.diagnostics.refuse(step.at, message, remedy);
+  return { step, message, remedy };
 }
