@@ -187,126 +187,46 @@ Two kinds: things the spec uses without defining, and decisions genuinely still 
 
 ### Holes in the spec
 
-Each of these is referenced somewhere in the spec and defined nowhere. None is hard; all are load-bearing.
+Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in comments on the review page, and the spec now says what he decided; the entries below are what remains, then what changed under code already built, then what only confirmed it. A hole found from here on is recorded here and swept the same way, rather than accumulating.
 
-- **Which side of a verb knows the other.** The worked example's lock narrows `tool.is(Key)` and reads `:opens`, so the lock knows keys have wards. Pushing it to the key means reading `target.get(:ward)` instead: the coupling moves rather than going away, and nothing says which side should carry it by convention. The standard library will set the precedent either way.
-- **The register of the stock lines.** `sprout.World` and `sprout.Actor` now speak for the engine — "You take the brass key.", "Nothing much comes of that." — and every line is a `default` passage, so a world replaces one by writing it and replaces all of them by composing a library that supplies them. The standard library's own lines will evolve; they were written quickly and should be written well, and voice libraries are the way to offer alternatives without touching them.
+**Still open**
 
-Found while building the foundations (B01), all four lexical and all four decided the narrow way, which is the way that can be widened later:
+- **The colon does too much.** `:season` is a property, `kind Creature: sprout.Actor` a composition, `:remembers [visits: 0]` a key and value, `act nuzzle (target: p)` a label, and an option is `wet` in a declaration and `:wet` in an expression. Eric wants it disambiguated without string-quoting symbols. A proposal, not decided: keep `:name` for properties and messages, since that is the spelling authors read most; spell an option by its enum everywhere, `Ward.iron`, with the bare `:iron` kept only where the enum is already known from the other operand; write a `:remembers` entry exactly as a property is written, `:remembers [:visits 0 min 0 max 99]`, which removes one use of the colon outright; and compose with `is` rather than the colon — `kind Creature is sprout.Actor, Fragile`, `object brass_key is Key in shelf` — which reads as the same question `x.is(K)` asks. The label in `act` stays, since a space after the name already keeps `target: p` from lexing as a symbol.
+- **Roles.** What a `symbol` role binds to without `from`, what an `integer` role binds to without one, and whether a value role may be `many`. Held for an interactive design session on roles; B23, B24, B26 and B27 do not start until it has happened.
+- **Whether a withheld file changes the bundle's hash.** Deferred until the publish, share, repository and library-versioning story is settled.
+- **Pending wakes.** One per object is now stated as a rule of the language rather than a budget. Eric asked whether it could instead ride on a cap over methods or listeners; that is unanswered, and the rule stands until it is.
+- **The register of the stock lines.** Long-term, and not a blocker.
+- **Found by the 2026-09-21 review, undecided.** A symbol literal on the left of `==` is refused by the checker where the spec reads as symmetric. An integer literal outside the operand's range in a comparison is accepted, which is the false-forever defect the enum rule prevents. An exit's `when` guard may `get` through an identifier, a `get` through one out of range is a fault, and guards run on every poll, so a poll can fault through a guard; the unset-link rule (does not apply) is the likely answer.
 
-- **What a comment looks like.** The spec never says; its own examples use `//` to the end of the line, and that is what the lexer reads. The previous language also took `#`, which is gone.
-- **What `:` means when no lowercase letter follows it.** `:season` is a property and `kind Creature: sprout.Actor` is a composition, and they share a character. The lexer reads `:` plus a lowercase letter as a symbol and a bare `:` as punctuation, so `kind Creature:sprout.Actor` written without the space would read `:sprout` as a symbol. Every example in the spec writes the space.
-- **What a backslash means inside quoted text.** Prose has `{{` for a literal brace; a quoted string has nothing stated. `\"`, `\\` and `\n` are taken and anything else is refused, so an escape the language adds later is not already spelling something.
-- **The gutter of a printed diagnostic.** The spec's three examples are hand-set and their gutters disagree by a column. A group is aligned to its widest location plus two spaces, which is what two of the three do.
+**Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
-Found while building the limits (B02):
+- **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
+- **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
+- **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
+- Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it; `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
 
-- **What an unset host limit means.** Five static caps (places, objects, kinds, files, total source bytes) and the wall-clock backstop have no figure in the spec — "as the host says", "a backstop that should never fire" — and nothing says whether a host that sets none leaves a world unbounded or refuses to load it. Unset reads as unbounded, because a language library cannot invent a host's quota and the step budget is what actually bounds cost.
-- **Where the three world-scoped budgets are counted.** Spawns per world per hour, live instances per world and pending wakes per object sit in the runtime-budget table, whose preamble says the budgets are per turn. They are not: they are per world and per object, and outlive any turn. The turn meter names them and does not hold them.
+**Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
-Found while building the closed bundle (B03):
+- A comment is also `/* … */`.
+- The escapes are `\"`, `\\`, `\n` and `\{`, in quoted text and in a passage alike; `{{` is gone.
+- A world's `version` is semver.
+- An enum's options take an optional trailing comma, are capped at 100 by the host, and may not be reserved words; the reserved words are now listed under Lexical rules.
+- A default option may be written qualified, `:ward Ward.iron`, and bare in a restatement, where the type is already known.
+- A list's element type may be a list.
+- Two lists are not compared with `==`; set and ordered equality are a later level's, and the runtime's `equals` goes.
+- There is no nesting cap. The parser still has to bound its own recursion, and whatever it does about that is the compiler's own affair rather than a host limit.
+- `chance(n)` is one in n and `random(n)` is 0 to n − 1.
+- Writing `sprout.World` anywhere is a refusal, on a world included.
+- The manifest has an optional `namespace`, falling back to `name`, and the `world` declaration repeats `name`.
+- A static cap exceeded at load refuses the world, unless the host has recorded an exception for it.
+- Spawns per world per hour is gone; live instances per world is the host's storage decision, faulting a `spawn` when it is reached, rather than a figure in the table.
+- The claim that a `let` costs fewer steps than the reads it replaces is gone; a `let` is charged as a statement.
 
-- **Whether the file cap counts library files.** The exemption is stated for "the source and kind caps" and the file cap is not named. Blessed library files are exempt from it too, since "using the standard library costs an author nothing" is the point of the exemption; an unblessed copy counts, files and bytes alike.
-- **Where a part's language level comes from.** A bundle's level is the highest of any of its parts, and *where each part declares its own* is now in the spec: the manifest for the world, alongside the source for a library. What is still unsaid is how a declared level is checked against the syntax actually used — “added syntax raises it” describes a derivation nothing can perform until there is a parser that knows which syntax raised it, so today a part's level is taken on trust.
+**Confirmed as built**, with the spec now saying so where it did not: which side of a verb knows the other is the author's choice; an unset host limit is unbounded; blessed libraries are exempt from the file cap as well; a part's language level is declared, not derived; an author is text; a default is always written; `min` and `max` may be written in either order; `[]` is a fine default for a list that wrote its element type; `count` on a list; the list cap is a refusal when written and a fault when grown past; adding a held element to a full list does nothing; where a `let` may be written; `let x = spawn …` waits for B18; a world must say what its visitors are and where they arrive; `pass any (false)` is the language's default; what a world holds is a property like any other; a missing arrival place is the host's to refuse; the diagnostic gutter is the tool's; `$first` and `$last` are boolean, `$index` and `$count` integer; precedence is the conventional order, now written down; a `set` whose value is only known at run time faults rather than being refused.
 
-The bundle carries two things the spec's list does not name: the size its source came to, so that what was counted against a cap and what was exempt is legible rather than re-derived; and the bundle's own hash, which the log already records beside every publish.
+Two things worth keeping from the earlier sweeps, because they read like holes and are not: two object bindings of different kinds may be compared, since asking whether the mover is the actor is the point; and `chance` and `random` are not read until B33, whose reachability rules are the whole of what makes them safe.
 
-*Closed on 2026-09-21, by Eric, against B03:* **what a manifest holds.** It carries the world's name, its version, its author, its licence, the version and content hash of every library it vendored, and an enumeration of its own `.sprout` and `.prose` files — plus the language level it was written for and the extensions it pins. **The spec now says so**, in *The manifest*, under the world model, so none of this is a decision standing outside it any more.
-
-This makes two checks possible before a line has parsed, and both are now made: what travelled is exactly what the manifest enumerates, and every vendored library's source hashes to the `sha` the manifest recorded. A library whose source is not the recorded source is not used at all — running a world against a library it did not mean to vendor would be worse than running it without one.
-
-Still unsaid, and decided the narrow way: whether a version is semver or free text (free text, non-empty), and whether an author is a name or a structured record (a name). B12's `world` declaration will have to agree with the manifest's name, or replace it.
-
-Found while building enums and the declaration parser (B05):
-
-- **How an enum's options are separated.** The spec writes `enum Ward { oak, silver }` and never says whether the commas are required or whether a trailing one is allowed. They are required and a trailing one is refused: the narrow reading of the examples, and the easy one to loosen.
-- **What bounds an enum.** The static caps table has no cap on options per enum, where the previous language had twelve. The silence sits beside an explicit "there is no limit on statements in a body", so it reads as deliberate and none is enforced. A one-option enum is accepted as an ordinary type with one value; a zero-option one is refused, since nothing could ever hold one.
-
-Found while building property and message declarations (B06, B07):
-
-- **Which literal a type can be taken from.** "The type may be written or taken from the literal" holds for a boolean, an integer and a string, each of which names its own type. It cannot hold for a bare option: `:ward iron` says nothing about which enum `iron` belongs to, and every example in the spec that defaults to an option writes the enum first (`:state Drying default wet`). A bare option with no written type is refused, saying so. The worked example's `:ward iron` is a RESTATEMENT of a property `Warded` already declared, which keeps the type and changes only the default — that path is B19's, and it is the only way a bare option stands alone.
-- **Whether a default is optional.** "A property is a name, a type, and a default" reads as all three, and every example writes one. A written type with no `default` is refused: there is no null for a property to hold instead, so a type with no default would have nothing to start at.
-- **Whether a list may hold a list.** A list is "a bounded, ordered collection of one element type", and nothing says whether that element type may itself be a list. `[[Ward]]` is refused, which is the narrow reading.
-- **Where an integer's range may be written.** The spec shows only `:wear 0 min 0 max 99` — the literal form, min before max. Both bounds are accepted with a written type as well, each is optional on its own, and they may be written in either order, none of which the spec forbids.
-
-- **Whether an enum's options are reserved words.** *Reserved names* reserves engine message names, engine verb names and the member words, and says nothing about an enum's options — so `enum Setting { boolean, custom }` is legal. But `boolean`, `integer`, `string` and `object` are read as types wherever a type may be written, so `:x boolean` meant as "default to the option" is refused. Writing the type out (`:x Setting default boolean`) works, so nothing is unreachable; the four words are simply not usable in the type-from-the-literal shorthand. Left as is rather than reserving them, because reserving words the spec does not is the larger change.
-- **Whether a type can be taken from a list literal.** It cannot, for any list — not only an ambiguous one. `[]` says nothing about what it would hold, and a rule that infers from `[true, false]` and not from `[]` would be a rule an author has to remember the edge of. A list property writes its element type.
-
-- **What "expression and block nesting" counts.** The static caps table caps nesting at 8 and does not say whether a list type or a list value is a thing that nests. The parser has to bound its own recursion either way — without a bound, seven thousand opening brackets crash the compiler instead of refusing — and it counts brackets against the host's `nesting` cap rather than a number of its own, because a limit the language invented would be the one thing Limits says the language never does.
-
-One asymmetry worth writing down, since it is consistent in the spec and easy to get backwards: a symbol is written BARE in a declaration (`default wet`, `:ward iron`) and with a colon in an expression (`state == :wet`, `self.set(:cuff, :damp)`).
-
-Found while building typed bindings (B08):
-
-- **What a `symbol` role binds to where the role-player wrote no `from`.** "Without a `from`, a `symbol` role has no options at all and the phrase never matches — the role-player must say what it can hear." That describes a phrase that never matches, not a refusal; but the body still has to compile, and with no `from` there is no enum to type the binding by. Refused, naming what to write. If the intent is that such a body compiles and is simply unreachable, the binding needs a type the spec does not supply.
-- **What an `integer` role binds to where the role-player wrote no `from`.** The symbol case is stated and this one is not. Taken as the whole integer range, which is the reading that makes `from` a narrowing rather than a requirement — an integer role has values to offer without one, where a symbol role has none.
-- **Whether a value role may be marked `many`.** *Set roles* is written entirely about objects — "filled by every object the visitor names in one run", "each filler permits and acts for itself" — and *Value roles* is a separate section that never mentions `many`. A set role binds objects here, and a `many` on a `symbol` or an `integer` role has nowhere to go. B23 declares roles and is where it has to be settled.
-- **What the prose loop's `$first`, `$last`, `$index` and `$count` are typed as.** *Slots* names all four and the table in *Where types come from* holds none of them, though it opens by saying every binding is typed where it enters scope. Boolean, boolean, integer, integer is the only reading there is, but it is inferred rather than written. B29's to make good.
-
-Two rows of that table are narrower than the prose they summarise, and the prose is the one implemented:
-
-- **"a role narrowed by `from` | the element type of the property named"** is the symbol case. *A role-player narrows its own options* says an `integer` role's `from` names "an integer property whose range bounds it" — which is that property's RANGE, not an element type — and "a `from` may also give a literal range, `topic from 1 to 12`", which names no property at all. Three cases, one row.
-- **"a `{for}` variable | the same"** as an `each` variable holds for `{for x in <container>}` and `{for x: Kind in <container>}`. *Slots* also has `{for x of <list>}`, which binds the list's element type — a value, where every `each` binds an object, and the one loop `each` deliberately does not have.
-
-Found while building expression checking (B09):
-
-- **What binds tighter than what, and whether an expression may be bracketed.** The spec states no precedence and shows no grouping bracket; it never writes a `+` or a binary `-` at all. Every expression it does write assumes the conventional order — `p != self && chance(4)` reads one way and no other — so that is what is implemented (`||`, then `&&`, then `==`/`!=`, then the comparisons, then `+`/`-`, then the prefix operators, then the readings), left to right within a level, with `( … )` grouping. All of it is the conventional reading rather than a written one.
-- **Whether a list may be written inside an expression.** Every list the spec writes is a declaration's default or an object's restatement of one, and a list changes through `add` and `remove` rather than by being assigned. So a list literal is not read in an expression, which makes `self.set(:opens, [oak, silver])` unwritable and leaves nothing unreachable: `add` and `remove` do what it would have done. The narrow reading, and the easy one to widen.
-- **Whether `get` may read a remembered property, and `recall` an ordinary one.** *Per-actor memory* says memory is read with `recall`, written with `remember` and stepped with `adjust`, and says nothing about what `get` does when handed a remembered name. Each word reads its own kind here, and the refusal names the other one — `get` on a remembered property says to use `recall`, and `recall` on a held one says to use `get`.
-
-Two things the spec does settle, which are worth writing down because they read like holes and are not:
-
-- **Two object bindings of different kinds may be compared.** *Object identity* says `==` on two bindings tests whether they are the same object, and asking whether the mover is the actor is the point of it. No kind agreement is required, and none is demanded.
-- **A `set` whose value cannot be decided until the world runs is not refused.** The table says "within its range where the compiler can tell", and *What the compiler checks* adds that an out-of-range `set` at run time is a fault. So only a written number is range-checked; anything read is left alone, because reporting a problem that might not be one is the thing this compiler does not do.
-
-One thing to hand to B24, which is where it lands rather than where it was found: the moment `if`/`permit`/`do` exist, the spec's own worked example — `if (p != self && chance(4))` — becomes writable in a real world, and a compiler that does not read `chance` stops being incomplete and starts being wrong. B24 is a hard prerequisite of B33 by the backlog's own graph, so it will necessarily land first.
-
-`chance` and `random` are **not** read yet. Their types are two sentences of spec, but the rules about where they may appear — and the reachability check behind them — are B33's, and the backlog puts both words in that item. The parser reads the shape of a call with no receiver so the refusal can name the word, and the checker's table of such calls is empty until B33 fills it.
-
-Found while building lists (B10):
-
-- **`count` on a list is in one place and not the other.** *Lists* says a list has four operations — `includes(x)`, `count`, `add` and `remove` — and the checker's own table says `x.count` is for "a container or a set role", naming no list. The fuller sentence is implemented: a list answers `count`. `count(K)` is refused on one, since a list holds values and has no contents composing a kind. The table row is the one to widen.
-- **The `listElements` cap does two things, and the table names one.** The limits table has it as a cap whose breach is a *refusal*, which is what a written list too long for it gets. But *Lists* also says "adding a new one to a full list is a fault rather than a silent drop" — the same number, the other side of the compile/run line. Both are enforced: the parser refuses a literal past it, and the value faults. Nothing in the spec is wrong; the table just describes the compile half, and a reader could take it for the whole.
-- **How two lists are compared.** *Lists* gives a list four operations — `includes`, `count`, `add`, `remove` — and equality is not among them, yet `a == b` on two lists of the same type is legal by the checker's own table and the runtime will have to answer it. Nothing says HOW. Taken as: the same element type, the same things, in the same ORDER — because order is insertion order and `{for … of}` makes it visible in prose, so two lists that render differently are not the same list. The alternative (order-insensitive, as a set) would make `==` disagree with what an author can see. `equals` is a fifth thing a list can do, and it is here because something has to answer `==`; it is not offered to an author as an operation.
-- **Whether a list may hold what a full one was asked to hold.** Nothing says what happens when a full list is added to with something it ALREADY holds. Taken as: nothing, the same as any other `add` of a held element, because the list does not change and there is nothing to drop. The fault is for growing past the bound, not for touching a full list.
-
-Found while building `let` (B11):
-
-- **Whether a `let` may be annotated.** *"Its type is the expression's, exactly, so nothing is annotated"* says there is nothing to write, not that writing one is refused. `let n: integer = 1` is refused, saying that a `let` takes its type from what it names — the narrow reading, and the one that keeps a second way of spelling a type out of the language.
-- **What a `let` may be called.** Nothing says whether the name follows the same rule as every other binding. It does: a lower-case word, so `let Ward = …` is refused for the same reason a kind cannot be a binding. The alternative would make a name's case stop telling a reader what kind of thing it is.
-
-Three parts of this item have nowhere to land yet, and are recorded so that the items which build those places know they inherit them:
-
-- **Where a `let` may be written.** *"Allowed everywhere an expression is"* — a role's `permit` and `do`, handlers, hooks, consent guards and `describe` — and **not in a passage**. None of those exist: a body is B24's and a passage is B29's, and each has to enforce it where it reads one.
-- **`let x = spawn …`**, whose initializer is a statement rather than an expression, and which is allowed only where `spawn` is. B18 adds `spawn`; until then there is nothing to name that way, and `parseLet` reads an expression only.
-- **What a `let` costs.** *"One `let` costs fewer steps than the reads it replaces"* is a claim about the step budget, which B34 counts. Nothing here charges anything.
-
-Found while building the world root (B12):
-
-- **Whether a world must say what its visitors are and where they arrive.** Every example writes both, and the spec never says either is required. Both are refused when missing, on the reading that a world nobody can be made for, or nobody can be put anywhere in, is not a microworld — the host guarantees a nickname exists before the world ever sees a visitor, which presupposes there are visitors. Easy to loosen: a world with no `visitors are` would need a rule for what a person is made of instead, and one with no `visitors arrive at` would need `displaced` to cover a world that never said, which B42 currently reads as covering a place that has gone.
-- **Whether writing `sprout.World` explicitly is a collision.** Every world composes it whether it says so or not, and the spec does not say what happens when an author writes it anyway. It adds nothing and is not refused: composing a thing that is already composed is a statement of the truth, and refusing it would make the implicit rule visible in a way the author cannot act on.
-- **Whether the world's name and its namespace are the same word.** A world's own declarations are unqualified, and `enum Ward` inside `world printers_shop` resolves as `printers_shop.Ward` — but nothing states that the world's NAME is its library name. `resolveWorld` takes the library it is being read from as a parameter rather than deriving it from the declaration, so whichever way B21 settles it, this does not have to change.
-
-And two that are not holes, recorded because they read like them:
-
-- **`pass any (false)` is a default of the LANGUAGE, not of the host.** Every other default in this compiler is a number a host sets; this one is stated in the spec, so `WORLD_PASSES_ANYTHING` is a constant rather than a limit. It is what makes places out of range of one another, so B15 and B32 both read it rather than either of them deciding it.
-- **What a world holds is a property like any other.** `:season Season default autumn` on the world is resolved by B06's own resolver, and `:remembers` on the world is resolved by B06's, because the world is an object. Nothing about the root changes the rules for what it holds.
-
-Found while building containment (B13):
-
-- **Whether `contains actors` implies `contains`.** *Places* calls the second "a declared capability beside `contains`", which reads as two separate lines an author may write, and never says whether writing the second gives the first. The standard library's own `kind Place` declares only `contains actors`, and `composing_room` holds a bench, a shelf and a kettle — so it implies it, and `contains` is true wherever either was written. The alternative would make every place in every world write two lines, and would make `kind Place` as the spec writes it a place that cannot hold a bench.
-- **Whether writing either of them twice is worth saying anything.** *How members combine* calls `contains` and `contains actors` idempotent, which settles what happens when COMPOSITION brings two of them together and says nothing about one body writing the same line twice. Nothing is said about it here, on the reading that a line the table calls idempotent does not become a mistake for being written by one author rather than two — where a property declared twice in one body is refused, because the second one would have to win. A redundant one may be worth a warning, and the list of warnings is B50's.
-- **Whether a world may declare `contains actors`, and so be a place itself.** The world "holds what belongs to no single place", which reads as a thing that is not one — but nothing forbids the line, and *Places inside places* is happy for a place to sit inside another. It is accepted, so the world is a place if it says it is. Refusing it would be the larger change and would need a sentence in the spec to point at.
-
-And one that is not a hole, recorded because it reads like one:
-
-- **A world is not refused for holding nothing.** Every world in the spec writes `contains`, so a world without it looks like a world that forgot. It is not: `sprout.World` declares `contains` itself and every world composes it, so the capability arrives through composition. `ResolvedWorld.contains` is therefore what this declaration WROTE, not what the world will end up with, and B19 is what merges the two.
-
-Found while building strict publish and lenient load (B04):
-
-- **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)
-- **What a static cap exceeded at load means.** The lenient rule is stated for "a file that is missing, withheld or broken" and says nothing about a cap. Refusing would darken a world that was accepted at publish, so a cap is a warning at load and the host decides whether to run it — the same shape as "a world accepted at one level keeps loading when the language tightens", and the decision B43 makes explicit.
-- **Whether a withheld file changes the bundle's hash.** The log records a publish with the bundle's hash and a withholding as its own event. A load with a file withheld hashes what arrived, which is honestly not the published bundle; whether replay should read such a segment against the published hash or the loaded one is unstated. Withholding is also how the compiler learns a file is gone rather than never written: the source carries the withheld names, since a removed file and a withheld one differ only in whether the host still knows its name.
+One future thought recorded on the way, for the registry discussion in the backlog: a host may one day decline to store a vendored library whose hash matches one it already holds, and serve the shared copy instead.
 
 *Closed on 2026-09-20, against the five reviews:* an open role, a handler's sender and an unfiltered loop variable are of the bare object type and are read only through `is()`; `each` is defined; `:remembers` uses the property declaration syntax; NPCs compose the visitor kind, have a name, read nothing, act with `act`, and do not keep a place ticking.
 
