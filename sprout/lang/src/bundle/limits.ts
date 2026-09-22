@@ -29,6 +29,8 @@
 export interface StaticCaps {
   /** How deep an expression or a block may nest. */
   readonly nesting: number;
+  /** Options on one enum. */
+  readonly optionsPerEnum: number;
   /** Roles on one verb, counting a set role as one. */
   readonly rolesPerVerb: number;
   /** Phrases on one verb. */
@@ -116,6 +118,7 @@ export type LimitName = StaticCapName | RuntimeBudgetName;
 export const DEFAULT_LIMITS: Limits = {
   caps: {
     nesting: 8,
+    optionsPerEnum: 100,
     rolesPerVerb: 8,
     phrasesPerVerb: 8,
     phraseCharacters: 80,
@@ -153,6 +156,7 @@ export type WhenExceeded = 'refusal' | 'fault';
 /** What a limit is counted against. */
 export type LimitScope =
   | 'expression'
+  | 'enum'
   | 'verb'
   | 'phrase'
   | 'object'
@@ -189,6 +193,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     scope: 'expression',
     exceeded: 'refusal',
     bounds: 'how deep an expression or a block may nest',
+  },
+  {
+    name: 'optionsPerEnum',
+    kind: 'cap',
+    scope: 'enum',
+    exceeded: 'refusal',
+    bounds: 'options on one enum',
   },
   {
     name: 'rolesPerVerb',

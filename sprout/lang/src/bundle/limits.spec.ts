@@ -16,6 +16,7 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
   it('carries every static cap the spec gives a figure for', () => {
     expect(DEFAULT_LIMITS.caps).toMatchObject({
       nesting: 8,
+      optionsPerEnum: 100,
       rolesPerVerb: 8,
       phrasesPerVerb: 8,
       phraseCharacters: 80,
@@ -91,6 +92,16 @@ describe('every limit says what it is and what exceeding it means', () => {
     for (const name of described) expect(real.has(String(name))).toBe(true);
   });
 
+  it('counts the options cap against one enum, and refuses when it is passed', () => {
+    const row = LIMIT_TABLE.find((l) => l.name === 'optionsPerEnum');
+    expect(row).toMatchObject({
+      kind: 'cap',
+      scope: 'enum',
+      exceeded: 'refusal',
+      bounds: 'options on one enum',
+    });
+  });
+
   it('names each one once, and says what it bounds', () => {
     expect(described.size).toBe(LIMIT_TABLE.length);
     for (const row of LIMIT_TABLE) expect(row.bounds.length).toBeGreaterThan(8);
@@ -108,6 +119,11 @@ describe('the numbers are the host’s', () => {
     expect(limits.budgets.steps).toBe(30_000);
     expect(limits.budgets.events).toBe(DEFAULT_LIMITS.budgets.events);
     expect(limits.caps).toEqual(DEFAULT_LIMITS.caps);
+  });
+
+  it('takes the host’s figure for the options an enum may hold', () => {
+    expect(limitsFrom({ caps: { optionsPerEnum: 3 } }).caps.optionsPerEnum).toBe(3);
+    expect(limitsFrom().caps.optionsPerEnum).toBe(100);
   });
 
   it('lets a host set a limit the spec left to it', () => {
