@@ -240,9 +240,10 @@ export class Lexer {
   }
 
   /**
-   * `"…"`, with `\"`, `\\` and `\n` inside it. Text does not span lines:
-   * a newline before the closing quote ends the token there and is
-   * refused, which keeps one missing quote from swallowing the file.
+   * `"…"`, with `\"`, `\\`, `\n` and `\{` inside it. Text does not span
+   * lines: a newline before the closing quote ends the token there and is
+   * refused, which keeps one missing quote from swallowing the file. An
+   * unescaped `{` is an ordinary character here; only a passage reads it.
    */
   private readString(start: number): Token {
     const source = this.source.text;
@@ -257,12 +258,12 @@ export class Lexer {
       if (ch === '\n') break;
       if (ch === '\\') {
         const escape = source[i + 1] ?? '';
-        if (escape === '"' || escape === '\\') value += escape;
+        if (escape === '"' || escape === '\\' || escape === '{') value += escape;
         else if (escape === 'n') value += '\n';
         else {
           this.diagnostics.refuse(
             this.span(i, i + 2),
-            'A backslash inside text means one of \\" , \\\\ or \\n.',
+            'A backslash inside text means one of \\" , \\\\ , \\n or \\{.',
             'Write \\\\ if you meant a backslash of its own.',
           );
           value += escape;
