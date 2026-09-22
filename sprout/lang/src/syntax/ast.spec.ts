@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Declaration, EnumDeclaration, EnumOption, Ident } from './ast.js';
+import {
+  writtenMember,
+  type Declaration,
+  type EnumDeclaration,
+  type EnumOption,
+  type Ident,
+  type KindDeclaration,
+} from './ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { isNode, nodesOf, unspanned } from '../source/nodes.js';
 import { parseDeclarations } from './parse.js';
@@ -56,5 +63,24 @@ describe('the shapes the union is made of', () => {
     } else {
       expect.unreachable('the union has one member today and this is how it will grow');
     }
+  });
+});
+
+describe('a member named by `without` is shown as it was written', () => {
+  it('whatever the spacing it was written with', () => {
+    const text = `kind K {
+  without on   :stir from A
+  without changed\n :lit from A
+  without depart from A
+  without as  target  for unlock from A
+}`;
+    const diagnostics = new Diagnostics();
+    const [kind] = parseDeclarations(new SourceFile('k.sprout', text), diagnostics) as [
+      KindDeclaration,
+    ];
+    expect(diagnostics.refusals).toEqual([]);
+    expect(
+      kind.members.flatMap((m) => (m.kind === 'without' ? [writtenMember(m.member)] : [])),
+    ).toEqual(['on :stir', 'changed :lit', 'depart', 'as target for unlock']);
   });
 });

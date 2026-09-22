@@ -1,0 +1,10 @@
+{
+  "name": "without_nothing_to_leave_out",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [],
+  "files": ["world.sprout", "kinds.sprout"]
+}

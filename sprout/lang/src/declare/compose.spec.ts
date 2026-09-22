@@ -25,7 +25,7 @@ enum Ward { oak, silver }
  * above. What the composer's own composition says is all that is
  * reported.
  */
-function compose(text: string, options: { sprout?: string } = {}) {
+function compose(text: string, options: { sprout?: string; mayComposeWorld?: boolean } = {}) {
   const read = new Diagnostics();
   const sprout = parseDeclarations(
     new SourceFile('sprout.sprout', options.sprout ?? SPROUT_TEXT),
@@ -70,6 +70,7 @@ function compose(text: string, options: { sprout?: string } = {}) {
       name: composer.name.text,
       composes: composer.composes,
       members: composer.members,
+      mayComposeWorld: options.mayComposeWorld ?? false,
     },
     { enums, kinds, diagnostics, onUnknown: (written) => unknown.push(written) },
   );
@@ -523,5 +524,108 @@ describe('`sprout.World` is composed by a world and nothing else', () => {
     const { said, kind } = compose('kind World { }\nkind Hall: World { }');
     expect(said).toEqual([]);
     expect(kind!.order).toEqual(['shop.World', 'shop.Hall']);
+  });
+
+  it('is composed where the composer may, in the order written like any kind', () => {
+    const { said, kind } = compose('kind Voice { }\nkind Shop: Voice, sprout.World { }', {
+      mayComposeWorld: true,
+    });
+    expect(said).toEqual([]);
+    expect(kind!.order).toEqual(['shop.Voice', 'sprout.World', 'shop.Shop']);
+    // What it declares holds, as anything composed does.
+    expect(kind!.contains).toBe(true);
+  });
+
+  it('is said to be missing from the standard library where one may compose it and none did', () => {
+    const { kind, unknown } = compose('kind Shop: sprout.World { }', {
+      sprout: '',
+      mayComposeWorld: true,
+    });
+    expect(kind).toBeNull();
+    expect(unknown.map((written) => written.name.text)).toEqual(['World']);
+  });
+});
+
+describe('`without` leaves out one contribution, naming the member and the kind it comes from', () => {
+  /** A lamp two kinds deep, so its closure holds more than what it wrote. */
+  const LAMPS = 'kind Light { :lit false }\nkind Lantern: Light { }\n';
+
+  it('refuses a kind the composer does not compose, at the kind', () => {
+    const { kind, said } = compose(
+      `${LAMPS}kind Crate: sprout.Container {\n  without changed :lit from Light\n}`,
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:4:29',
+        '`Crate` does not compose `Light`, so there is nothing of its to leave out.',
+        'After `from`, name a kind `Crate` composes, or take this line out.',
+      ],
+    ]);
+    // Only the line is refused; the kind composes, having left nothing out.
+    expect(kind!.suppressed).toEqual([]);
+  });
+
+  it('refuses the composer itself, whose own members are dropped by taking them out', () => {
+    const { said } = compose(`${LAMPS}kind Safety: Lantern {\n  without depart from Safety\n}`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:4:23',
+        '`Safety` cannot leave out its own `depart`.',
+        '`without` leaves out what a kind `Safety` composes contributes. To drop its own, take `depart` out of `Safety`.',
+      ],
+    ]);
+  });
+
+  it('refuses a kind nothing declares, with the kind it most likely meant', () => {
+    const { said } = compose(`${LAMPS}kind Safety: Lantern {\n  without depart from Lantrn\n}`);
+    expect(said.map(([, message]) => message)).toEqual([
+      'Nothing here is a `Lantrn`. Did you mean `Lantern`?',
+    ]);
+  });
+
+  it('reaches any kind in the closure, and then asks whether that kind declares the member', () => {
+    // `Light` is reached through `Lantern`, so the only question left is
+    // the member, and no kind declares a handler, a hook, a guard or a
+    // role yet: every form is refused at the member, saying so.
+    for (const [member, column] of [
+      ['changed :lit', 11],
+      ['on :stir', 11],
+      ['depart', 11],
+      ['release', 11],
+      ['accept', 11],
+      ['as target for unlock', 11],
+    ] as const) {
+      const { kind, said } = compose(
+        `${LAMPS}message :stir\nkind Safety: Lantern {\n  without ${member} from Light\n}`,
+      );
+      expect(said, member).toEqual([
+        [
+          `shop.sprout:5:${column}`,
+          `\`Light\` has no \`${member}\` to leave out.`,
+          `\`without\` names a member the kind after \`from\` declares itself. Take this line out, or name the kind that declares \`${member}\`.`,
+        ],
+      ]);
+      expect(kind!.suppressed, member).toEqual([]);
+    }
+  });
+
+  it('is read on a world, where `sprout.World` is in the closure like any kind', () => {
+    const { said } = compose('kind Shop: sprout.World {\n  without depart from sprout.World\n}', {
+      mayComposeWorld: true,
+    });
+    expect(said.map(([, message]) => message)).toEqual([
+      '`sprout.World` has no `depart` to leave out.',
+    ]);
+  });
+
+  it('names `sprout.World` as not composed on anything that may not compose it', () => {
+    const { said } = compose('kind Hall {\n  without depart from sprout.World\n}');
+    expect(said.map(([, message]) => message)).toEqual([
+      '`Hall` does not compose `sprout.World`, so there is nothing of its to leave out.',
+    ]);
+  });
+
+  it('records nothing on a kind that writes none', () => {
+    expect(compose(`${LAMPS}kind Safety: Lantern { }`).kind!.suppressed).toEqual([]);
   });
 });

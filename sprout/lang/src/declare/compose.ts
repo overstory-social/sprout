@@ -1,7 +1,8 @@
 // Composing a kind (the spec's Kinds, composition and libraries › How
-// members combine, Properties merge; they never shadow). One function
-// composes a written composition list and a body into a `KindRef`, for a
-// kind and for an object's anonymous kind alike.
+// members combine, Suppressing a contribution, Properties merge; they
+// never shadow). One function composes a written composition list and a
+// body into a `KindRef`, for a kind, for an object's anonymous kind and
+// for the world, which composes like a kind (The world model).
 //
 // Three rules hold here. The closure is walked depth-first, left to
 // right, each kind at its first appearance and the composer last, and
@@ -11,10 +12,17 @@
 // keeps the type. `contains` and `contains actors` are idempotent, so
 // they are OR'd over the closure.
 
-import type { KindExpr, KindMember, PropertyDeclaration } from '../syntax/ast.js';
+import {
+  writtenMember,
+  type KindExpr,
+  type KindMember,
+  type MemberRef,
+  type PropertyDeclaration,
+  type WithoutDeclaration,
+} from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { nearestOption, qualifiedName, shownName, SPROUT, type EnumTable } from './enums.js';
-import type { KindRef } from './kinds.js';
+import type { KindRef, Suppression } from './kinds.js';
 import { refuseComposingWorld, WORLD, writesWorld } from './sprout-world.js';
 import {
   resolveProperty,
@@ -50,13 +58,15 @@ export interface KindSource {
  */
 export type OnUnknown = (written: KindExpr, message: string, remedy: string) => void;
 
-/** What is being composed: a kind, or an object's anonymous kind named for the object. */
+/** What is being composed: a kind, an object's anonymous kind named for the object, or the world. */
 export interface Composer {
   /** The library it is declared in, which is also where its written names are read from. */
   readonly library: string;
   readonly name: string;
   readonly composes: readonly KindExpr[];
   readonly members: readonly KindMember[];
+  /** Whether it may compose `sprout.World`, which only the world may. */
+  readonly mayComposeWorld?: boolean;
 }
 
 export interface ComposeContext {
@@ -199,6 +209,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   // anywhere in the closure holds, and `contains actors` implies `contains`.
   let contains = composed.some(({ kind }) => kind.contains);
   let containsActors = composed.some(({ kind }) => kind.containsActors);
+  const withouts: WithoutDeclaration[] = [];
   for (const member of composer.members) {
     switch (member.kind) {
       case 'contains':
@@ -208,8 +219,11 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
       case 'remembers':
         for (const entry of member.properties) hold(entry, true);
         break;
-      default:
+      case 'property':
         hold(member, false);
+        break;
+      case 'without':
+        withouts.push(member);
         break;
     }
   }
@@ -241,6 +255,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   for (const { kind } of composed) {
     for (const identity of kind.order) if (!order.includes(identity)) order.push(identity);
   }
+  const suppressed = leftOut(composer, withouts, order, context);
   order.push(own);
 
   return {
@@ -251,7 +266,75 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     properties: merged,
     contains: contains || containsActors,
     containsActors,
+    suppressed,
   };
+}
+
+/**
+ * What a composer's `without` lines leave out, each checked against its
+ * closure, `composed` (the composer not among them): the kind after
+ * `from` is one it composes and not itself, and declares the member
+ * itself. What fails a check is refused and left out of the answer.
+ */
+function leftOut(
+  composer: Composer,
+  withouts: readonly WithoutDeclaration[],
+  composed: readonly string[],
+  context: ComposeContext,
+): Suppression[] {
+  const { kinds, diagnostics } = context;
+  const own = qualifiedName(composer.library, composer.name);
+  const suppressed: Suppression[] = [];
+  for (const { member, source } of withouts) {
+    // A bare name is read from the composer's own library first, where
+    // the composer itself is declared.
+    const identity =
+      source.library === null && source.name.text === composer.name
+        ? own
+        : identityOf(source, composer.library, kinds);
+    const named = writtenKind(source);
+    const what = writtenMember(member);
+    if (identity === own) {
+      diagnostics.refuse(
+        source.at,
+        `\`${composer.name}\` cannot leave out its own \`${what}\`.`,
+        `\`without\` leaves out what a kind \`${composer.name}\` composes contributes. To drop its own, take \`${what}\` out of \`${composer.name}\`.`,
+      );
+      continue;
+    }
+    if (!composed.includes(identity)) {
+      if (identity !== WORLD && !kinds.declares(identity)) {
+        const { message, remedy } = unknownKind(source, composer.library, kinds);
+        diagnostics.refuse(source.at, message, remedy);
+        continue;
+      }
+      diagnostics.refuse(
+        source.at,
+        `\`${composer.name}\` does not compose \`${named}\`, so there is nothing of its to leave out.`,
+        `After \`from\`, name a kind \`${composer.name}\` composes, or take this line out.`,
+      );
+      continue;
+    }
+    if (!declaresMember(identity, member)) {
+      diagnostics.refuse(
+        member.at,
+        `\`${named}\` has no \`${what}\` to leave out.`,
+        `\`without\` names a member the kind after \`from\` declares itself. Take this line out, or name the kind that declares \`${what}\`.`,
+      );
+      continue;
+    }
+    suppressed.push({ member, source: identity });
+  }
+  return suppressed;
+}
+
+/**
+ * Whether the kind `identity` itself declares `member`. No body reads a
+ * handler, a hook, a guard or a role member yet (B22 reads guards, B24
+ * roles, B32 handlers and hooks), so no kind declares one.
+ */
+function declaresMember(_identity: string, _member: MemberRef): boolean {
+  return false;
 }
 
 /**
@@ -267,7 +350,7 @@ function composedKinds(composer: Composer, context: ComposeContext): Composed[] 
   let whole = true;
   for (const written of composer.composes) {
     const identity = identityOf(written, composer.library, kinds);
-    if (identity === WORLD) {
+    if (identity === WORLD && composer.mayComposeWorld !== true) {
       // Written out, the shape tier has refused it already; this catches
       // a bare `World` that means it.
       if (!writesWorld(written)) refuseComposingWorld(composer.name, written, diagnostics);
@@ -289,7 +372,13 @@ function composedKinds(composer: Composer, context: ComposeContext): Composed[] 
         break;
       case 'unknown': {
         whole = false;
-        const { message, remedy } = unknownKind(written, composer.library, kinds);
+        const { message, remedy } =
+          identity === WORLD
+            ? {
+                message: `The standard library is missing \`${WORLD}\`.`,
+                remedy: 'Every world composes it, for the words the engine speaks for itself.',
+              }
+            : unknownKind(written, composer.library, kinds);
         if (context.onUnknown !== undefined) context.onUnknown(written, message, remedy);
         else diagnostics.refuse(written.at, message, remedy);
         break;

@@ -289,11 +289,70 @@ export interface ContainsDeclaration extends Node {
   readonly actors: boolean;
 }
 
+/** `on :stir` — a handler, named by the message it answers. */
+export interface HandlerRef extends Node {
+  readonly kind: 'handler-ref';
+  readonly message: Ident;
+}
+
+/** `changed :lit` — a hook, named by the property it watches. */
+export interface HookRef extends Node {
+  readonly kind: 'hook-ref';
+  readonly property: Ident;
+}
+
+/** `depart`, `release`, `accept` — a consent guard, named by its role in a move. */
+export interface GuardRef extends Node {
+  readonly kind: 'guard-ref';
+  readonly guard: 'depart' | 'release' | 'accept';
+}
+
+/** `as target for unlock` — a role member, named by the role and the verb. */
+export interface RoleRef extends Node {
+  readonly kind: 'role-ref';
+  readonly role: Ident;
+  readonly verb: Ident;
+}
+
+/**
+ * A member named rather than declared, as `without` names one. Only the
+ * members whose several sources all run are here (the spec's How members
+ * combine): an exclusive member is replaced by writing one's own, so it
+ * is never left out.
+ */
+export type MemberRef = HandlerRef | HookRef | GuardRef | RoleRef;
+
+/** A member as the author wrote it: `on :stir`, `changed :lit`, `depart`, `as target for unlock`. */
+export function writtenMember(member: MemberRef): string {
+  switch (member.kind) {
+    case 'handler-ref':
+      return `on :${member.message.text}`;
+    case 'hook-ref':
+      return `changed :${member.property.text}`;
+    case 'guard-ref':
+      return member.guard;
+    case 'role-ref':
+      return `as ${member.role.text} for ${member.verb.text}`;
+  }
+}
+
+/**
+ * `without changed :lit from sprout.LightSource` — one contribution a
+ * composed kind makes, left out, naming both the member and the kind
+ * that declares it (the spec's Suppressing a contribution).
+ */
+export interface WithoutDeclaration extends Node {
+  readonly kind: 'without';
+  readonly member: MemberRef;
+  readonly source: KindExpr;
+}
+
 /**
  * What a kind's body, or an object's, may declare (the spec's Kinds ›
  * Declaring and composing). The union grows one item at a time.
  */
-export type KindMember = PropertyDeclaration | RemembersDeclaration | ContainsDeclaration;
+export type KindMember =
+  PropertyDeclaration | RemembersDeclaration | ContainsDeclaration | WithoutDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

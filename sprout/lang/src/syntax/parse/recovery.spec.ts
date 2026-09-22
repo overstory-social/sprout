@@ -194,6 +194,18 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       'contains 4',
       'nonsense',
       '4',
+      // A `without` with its member, its `from` or its kind missing or
+      // wrong, each a line that would otherwise take the next member.
+      'without',
+      'without accept',
+      'without accept from',
+      'without accept from 4',
+      'without nonsense from K',
+      'without :x from K',
+      'without changed',
+      'without on :stir',
+      'without as target',
+      'without as target for',
       ...ENTRY_DEFECTS.filter((entry) => entry.startsWith('b:')).map(
         (entry) => `:b${entry.slice(2)}`,
       ),
@@ -776,6 +788,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         'contains 4',
         'nonsense',
         '4',
+        'without',
+        'without accept',
+        'without accept from 4',
+        'without nonsense from K',
+        'without changed',
       ]);
       return { text, defect: contained(text), rest: '' };
     }
@@ -862,6 +879,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       { names: ['visitors-are'], text: () => 'visitors are P', worldOnly: true },
       { names: ['visitors-arrive-at'], text: () => 'visitors arrive at y', worldOnly: true },
       { names: ['contains'], text: () => 'contains actors', worldOnly: false },
+      { names: ['without'], text: () => 'without changed :lit from Lamp', worldOnly: false },
     ];
     for (const [n, owner] of OWNERS.entries()) {
       const c = chooser(20_260_925 + n);
@@ -976,6 +994,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           'kind',
           'object',
           'in',
+          'without',
+          'from',
           'integer',
           '4',
           ':a',

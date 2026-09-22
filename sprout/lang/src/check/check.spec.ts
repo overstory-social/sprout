@@ -90,6 +90,7 @@ function kind(
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,
     containsActors,
+    suppressed: [],
   };
 }
 
