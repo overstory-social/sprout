@@ -769,7 +769,12 @@ class Parser {
     // sign needs a number after it") and the one for `min 1.5`.
     if (token.kind === 'integer' || (token.kind === 'punct' && token.text === '-')) {
       const bound = this.literal();
-      return bound !== null && bound.kind === 'integer' ? bound : null;
+      if (bound !== null && bound.kind === 'integer') return bound;
+      // `literal()` has said what is wrong, but it does not step over
+      // what it could not read: `min -[1]` leaves the whole bracket
+      // behind after complaining about the sign.
+      this.skipWritten();
+      return null;
     }
     this.diagnostics.refuse(
       token.at,
@@ -781,20 +786,33 @@ class Parser {
   }
 
   /**
-   * Step over the one thing written where something else belonged.
+   * Step over what was written where something else belonged, so that
+   * the loop reading around this resumes after it rather than inside
+   * it. One rule, and each half of it was learnt by breaking the other:
    *
-   * A BRACKET IS STEPPED OVER WHOLE. Refusing without consuming leaves
-   * its closer in the stream, where the loop reading around this takes
-   * it for its own and ends early — so `:remembers [visits: 0 min
-   * [1, 2], walks: 1]` lost `walks`, which was written correctly, with
-   * nothing said about it. That is the same stray closer #62 was about,
-   * in a new place, and it arrived in the fix for the round before
-   * this one.
+   * IT STEPS OVER A BRACKET WHOLE. Leaving a closer in the stream hands
+   * it to the enclosing reader, which takes it for its own and ends
+   * early — `:remembers [visits: 0 min [1, 2], walks: 1]` lost `walks`,
+   * written correctly, with nothing said about it.
+   *
+   * IT STOPS AT WHAT IS NOT ITS OWN: a comma, any closing bracket, and
+   * the end of the file. Eating a closer makes the enclosing construct
+   * look as though it ran out, and everything already read is thrown
+   * away — `:remembers [handled: false, visits: 0 min ]` lost
+   * `handled` the same way, by the opposite mistake.
+   *
+   * Between those two it takes everything, so a bound written as
+   * several words is one complaint rather than one per word.
    */
   private skipWritten(): void {
-    const token = this.next();
-    const close = token.kind === 'punct' ? CLOSER_OF.get(token.text) : undefined;
-    if (close !== undefined) this.skipBracketed(close);
+    for (;;) {
+      const token = this.peek();
+      if (token.kind === 'end') return;
+      if (token.kind === 'punct' && (token.text === ',' || OPENER_OF.has(token.text))) return;
+      this.next();
+      const close = CLOSER_OF.get(token.text);
+      if (token.kind === 'punct' && close !== undefined) this.skipBracketed(close);
+    }
   }
 
   /** `:wear 0 min 0 max 99` — a property as a kind or an object writes one. */

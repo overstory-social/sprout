@@ -1192,7 +1192,30 @@ describe('a `min` and a `max` are whole numbers, whatever else was written', () 
     // early — dropping an entry that was written correctly, with
     // nothing said about it. The same stray closer as #62, in a new
     // place, and it arrived in the fix for the round before this one.
-    for (const bad of ['[1, 2]', '[[1]]', 'oak', '"9"', 'true', 'Ward', ':wet', '{', '}']) {
+    const SIGN = 'A minus sign needs a number after it.';
+    const BOUND = 'A min is a whole number.';
+    const shapes: [string, string][] = [
+      ['[1, 2]', BOUND],
+      ['[[1]]', BOUND],
+      ['[message foo]', BOUND],
+      ['oak', BOUND],
+      ['"9"', BOUND],
+      ['true', BOUND],
+      ['Ward', BOUND],
+      [':wet', BOUND],
+      ['{', BOUND],
+      // Several words are one bad bound, not one complaint per word.
+      ['max 9', BOUND],
+      ['self.count', BOUND],
+      // A minus sign means a number was meant, so `literal()` says its
+      // own better sentence — and does not step over what follows it,
+      // which is why this path has to reach the same skip.
+      ['-[1]', SIGN],
+      ['-[1, 2]', SIGN],
+      ['-oak', SIGN],
+      ['-', SIGN],
+    ];
+    for (const [bad, said] of shapes) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
         new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
@@ -1205,24 +1228,58 @@ describe('a `min` and a `max` are whole numbers, whatever else was written', () 
       expect(
         diagnostics.refusals.map((d) => d.message),
         bad,
-      ).toContain('A min is a whole number.');
+      ).toEqual([said]);
     }
   });
 
   it('says one true thing about it, not one per token it stepped over', () => {
-    const diagnostics = new Diagnostics();
-    parseRemembers(
-      new SourceFile('k.sprout', ':remembers [visits: 0 min [1, 2], walks: 1]'),
-      diagnostics,
-    );
-    expect(diagnostics.refusals.map((d) => d.message)).toEqual(['A min is a whole number.']);
+    for (const bad of ['[1, 2]', 'max 9', 'self.count']) {
+      const diagnostics = new Diagnostics();
+      parseRemembers(
+        new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
+        diagnostics,
+      );
+      expect(
+        diagnostics.refusals.map((d) => d.message),
+        bad,
+      ).toEqual(['A min is a whole number.']);
+    }
+  });
+
+  it('does not eat a closing bracket, which belongs to what is reading around it', () => {
+    // The opposite mistake to leaving one behind, and it loses more:
+    // eating the `:remembers`' own `]` makes it look as though the file
+    // ran out, and every property already read is thrown away. Here
+    // `handled` was written correctly and has nothing to do with the
+    // bound two entries later.
+    for (const which of ['min', 'max']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [handled: false, visits: 0 ${which} ]`),
+        diagnostics,
+      );
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        which,
+      ).toEqual(['handled']);
+      expect(
+        diagnostics.refusals.map((d) => d.message),
+        which,
+      ).toEqual([`A ${which} is a whole number.`]);
+    }
   });
 
   it('leaves a minus sign to the sentence that is about minus signs', () => {
     // `min -` and `min --3` are someone part-way through writing a
     // negative number, and "A min is a whole number" does not tell
     // them the digits are what is missing.
-    for (const text of [':x integer default 0 min -', ':x integer default 0 min --3']) {
+    for (const text of [
+      ':x integer default 0 min -',
+      ':x integer default 0 min --3',
+      ':x integer default 0 min - - 3',
+      ':x integer default 0 min -oak',
+      ':x integer default 0 min -[1]',
+    ]) {
       const said = readProperty(text).refusals;
       expect(
         said.map((d) => d.message),
