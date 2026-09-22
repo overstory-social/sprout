@@ -54,11 +54,24 @@ export interface KindRef {
   /** What it declares, by name, the remembered ones included. */
   readonly properties: ReadonlyMap<string, ResolvedProperty>;
   /**
-   * Whether it declares `contains`. Containment is a declaration, and
-   * what declares it is B13's; typing only asks, because `x.count` and
+   * Whether it may hold others — `contains`, or `contains actors`,
+   * which implies it. Containment is a declaration and never a kind the
+   * engine knows by name (B13); typing only asks, because `x.count` and
    * `x.holds(y)` are the two readings that need a container.
    */
   readonly contains: boolean;
+  /**
+   * Whether what it holds may be people. This is the whole of what
+   * makes a place a place — there are no rooms — so B15 walks range
+   * against it and B17 finds an actor's place by it, rather than either
+   * of them deciding what a place is.
+   *
+   * It implies `contains`, and whoever builds a `KindRef` keeps that
+   * true: the standard library's `kind Place` declares only this one
+   * and still holds a bench. B19 is what will build one from a kind as
+   * written; until then the only source is a world (`world.ts`).
+   */
+  readonly containsActors: boolean;
 }
 
 /** `sprout.Container` — a kind's full identity, which is its library and its name. */

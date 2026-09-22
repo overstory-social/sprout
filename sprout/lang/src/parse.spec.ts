@@ -1525,6 +1525,57 @@ describe('a world declaration', () => {
     expect(world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Kind']);
   });
 
+  it('reads `contains`, and `contains actors` (B13)', () => {
+    // Containment is a declaration, never a kind the engine knows by
+    // name. `contains` is the primitive; `contains actors` is the
+    // capability beside it, and declaring the second is the whole of
+    // what makes a place a place.
+    for (const [written, actors] of [
+      ['contains', false],
+      ['contains actors', true],
+    ] as const) {
+      const { world, refusals } = readWorld(
+        `world w {\n  ${written}\n  visitors are P\n  visitors arrive at y\n}`,
+      );
+      expect(refusals, written).toEqual([]);
+      const held = world!.members.filter((m) => m.kind === 'contains');
+      expect(
+        held.map((m) => m.actors),
+        written,
+      ).toEqual([actors]);
+      // And the span covers what was written, both words or one, so a
+      // problem about it underlines the declaration and not the verb.
+      expect(textOf(held[0]!.at), written).toBe(written);
+    }
+  });
+
+  it('does not take the member after `contains` for the word `actors`', () => {
+    const { world, refusals } = readWorld(
+      'world w {\n  contains\n  visitors are P\n  visitors arrive at y\n}',
+    );
+    expect(refusals).toEqual([]);
+    expect(world!.members.map((m) => m.kind)).toEqual([
+      'contains',
+      'visitors-are',
+      'visitors-arrive-at',
+    ]);
+  });
+
+  it('leaves a word after `contains` that is not `actors` where the author wrote it', () => {
+    // `contains actor`, singular. Swallowing the word would point the
+    // refusal at `contains`, which is the part they got right; leaving
+    // it goes back to the member table, which names the word itself.
+    const { refusals } = readWorld('world w {\n  contains actor\n}');
+    expect(refusals.map((d) => d.message)).toContain('A world is not made of `actor`.');
+  });
+
+  it('says `contains` is one of the things a world is made of', () => {
+    // Built from the member table, like the rest of that sentence, so
+    // it cannot go stale when a member is added.
+    const { refusals } = readWorld('world w { nonsense }');
+    expect(refusals[0]!.remedy).toContain('`contains`');
+  });
+
   it('is one of the words this compiler reads', () => {
     expect(DECLARATIONS).toContain('world');
     // And the message for a word it does not read names it, because
