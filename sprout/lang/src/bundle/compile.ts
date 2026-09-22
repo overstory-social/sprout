@@ -36,7 +36,10 @@ import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from '.
 import { Diagnostics, softenPolicy, type Diagnostic } from '../source/diagnostics.js';
 import { checkEnumDeclaration } from '../declare/enums.js';
 import { checkKindDeclaration } from '../declare/kinds.js';
-import { checkWorldDeclaration } from '../declare/world.js';
+import { checkWorldDeclaration, resolveArrival } from '../declare/world.js';
+import type { TreePath } from '../declare/tree.js';
+import { writtenPath } from '../syntax/ast.js';
+import { absenceRule } from './absent.js';
 import { resolveDeclarations } from './declarations.js';
 import { countWorld } from './counts.js';
 import { parseDeclarations } from '../syntax/parse.js';
@@ -651,6 +654,42 @@ export function compileBundle(
     report,
   );
 
+  // --- where visitors arrive ----------------------------------------------
+
+  // Read from the world's one declaration, without composing the world.
+  // A world missing, doubled or misnamed has been said, and nothing more
+  // is said about where its visitors arrive. As for the world itself, at
+  // publish a file the first tier refused may be where the place was
+  // declared, so its absence is not said until every file reads; and
+  // what left the place absent, where that has been told, is not told
+  // twice. At load the gap is recorded either way.
+  const theWorld =
+    ownWorlds.length === 1 && ownWorlds[0]!.name.text === manifest.name ? ownWorlds[0]! : null;
+  let arrival: TreePath | null = null;
+  if (theWorld !== null) {
+    const found = resolveArrival(theWorld, {
+      tree: tables.tree,
+      objects: tables.composed,
+      kinds: tables.kinds,
+      from: manifest.namespace,
+      diagnostics: report.diagnostics,
+    });
+    if (found.found === 'place') arrival = found.path;
+    else if (found.found === 'absent' && !(mode === 'publish' && (found.said || ownFileRefused))) {
+      report.gap(
+        {
+          what: writtenPath(found.path),
+          kind: 'place-of-arrival',
+          reason: 'missing',
+          at: found.at,
+          consequence: absenceRule('place-of-arrival').consequence,
+        },
+        found.message,
+        found.remedy,
+      );
+    }
+  }
+
   // The kinds, objects and places caps count what resolved, on the same
   // footing as the source and file caps above, and so refuse at load too.
   const own = byLibrary.get(manifest.namespace) ?? [];
@@ -687,6 +726,7 @@ export function compileBundle(
     kinds: tables.kinds.all(),
     objects: tables.objects,
     tree: tables.tree,
+    arrival,
     // B27 fills this from nouns, tokens, directions, articles,
     // connectors and phrase words, once there is a grammar to read.
     words: [],

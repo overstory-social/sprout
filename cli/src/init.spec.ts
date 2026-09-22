@@ -2,10 +2,11 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { checkShape, SourceFile } from '@overstory/sprout/lang';
+import { checkShape, compileBundle, SourceFile } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
+import { readWorld } from './world.js';
 
 describe('initWorld', () => {
   it('writes a manifest, a world and a README, named for the folder', () => {
@@ -34,6 +35,19 @@ describe('initWorld', () => {
     expect(written).toContain('world kiln_yard: sprout.World {');
     // What a beginner is handed is what the compiler takes.
     expect(checkShape(new SourceFile('world.sprout', written)).diagnostics).toEqual([]);
+  });
+
+  it('writes the place visitors arrive at, in the world, holding actors', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
+    initWorld(dir, 'marta');
+    const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
+    expect(written).toContain('  visitors arrive at hall\n');
+    expect(written).toContain('kind Hall {\n  contains actors\n}');
+    expect(written).toContain('object hall: Hall in kiln_yard');
+    const source = readWorld(dir).source!;
+    const { bundle, diagnostics } = compileBundle(source);
+    expect(diagnostics.filter((d) => d.severity === 'refusal')).toEqual([]);
+    expect(bundle!.arrival).toEqual(['hall']);
   });
 
   it('refuses a folder that already has something in it', () => {

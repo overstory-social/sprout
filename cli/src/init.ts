@@ -28,7 +28,20 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
     files: ['world.sprout'],
   };
   const { namespace: _namespace, ...written } = manifest;
-  const world = `world ${name}: sprout.World {\n  visitors are Visitor\n  visitors arrive at hall\n}\n`;
+  // Visitors arrive in a place, which is whatever holds actors.
+  const world = [
+    `world ${name}: sprout.World {`,
+    '  visitors are Visitor',
+    '  visitors arrive at hall',
+    '}',
+    '',
+    'kind Hall {',
+    '  contains actors',
+    '}',
+    '',
+    `object hall: Hall in ${name}`,
+    '',
+  ].join('\n');
   const readme = `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it.\n`;
   const files = [
     [MANIFEST_FILE, `${JSON.stringify(written, null, 2)}\n`],

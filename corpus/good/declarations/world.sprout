@@ -1,5 +1,5 @@
-// A printer's shop, as far as the compiler reads today: enums, messages
-// and the world root.
+// A printer's shop, as far as the compiler reads today: enums, messages,
+// the world root, and the place visitors arrive at.
 world shop: sprout.World {
   contains
   visitors are Creature
@@ -10,3 +10,9 @@ world shop: sprout.World {
   :grid [[Ward]] default [[iron], [brass, iron]]
   :remembers [visits: 0 min 0 max 99]
 }
+
+kind Room {
+  contains actors
+}
+
+object composing_room: Room in shop

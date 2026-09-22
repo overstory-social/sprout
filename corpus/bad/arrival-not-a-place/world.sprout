@@ -1,0 +1,18 @@
+// Visitors arrive in a place: something that holds actors. A bench
+// holds things, and not people.
+world arrival_not_a_place: sprout.World {
+  visitors are Creature
+  visitors arrive at hall.bench
+}
+
+kind Room {
+  contains actors
+}
+
+kind Bench {
+  contains
+}
+
+object hall: Room in arrival_not_a_place
+
+object bench: Bench in hall

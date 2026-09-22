@@ -8,16 +8,31 @@
 // are out of range of one another until the world says so; `visitors
 // are` names the visitor kind, so `item.is(sprout.Actor)` is an ordinary
 // nominal test; and `contains actors` is what makes a place a place, the
-// world included if it says so. `visitors arrive at` is kept as the
-// path written and is not yet resolved in the tree; B32 reads the pass
-// rules, and B42 handles arrival.
+// world included if it says so. `visitors arrive at` is a path read
+// from inside the world, as an object's `in` is, and what it reaches must
+// be a place (`resolveArrival`); B32 reads the pass rules, and B42 puts
+// a visitor there at run time.
 
-import type { KindMember, ObjectPath, WorldDeclaration } from '../syntax/ast.js';
+import {
+  writtenPath,
+  type KindMember,
+  type ObjectPath,
+  type WorldDeclaration,
+} from '../syntax/ast.js';
 import type { KindRef } from './kinds.js';
 import { WORLD, writesWorld } from './sprout-world.js';
 import type { Diagnostics } from '../source/diagnostics.js';
+import type { Span } from '../source/source.js';
 import type { EnumTable } from './enums.js';
-import { composeKind, identityOf, unknownKind, type KindSource } from './compose.js';
+import { composeKind, identityOf, unknownKind, writtenKind, type KindSource } from './compose.js';
+import {
+  resolveFrom,
+  unknownStep,
+  worldInPath,
+  type ObjectTree,
+  type Placeable,
+  type TreePath,
+} from './tree.js';
 
 /**
  * What a world's own pass rule answers where it writes none: nothing
@@ -38,8 +53,6 @@ export interface ResolvedWorld {
   readonly kind: KindRef;
   /** What a person is made of here. */
   readonly visitor: KindRef;
-  /** Where a person begins, as the path written. */
-  readonly arriveAt: ObjectPath;
   /** Whether anything crosses it. False until B32 reads a rule saying otherwise. */
   readonly passesAnything: boolean;
   readonly declaration: WorldDeclaration;
@@ -100,51 +113,32 @@ export function resolveWorld(
 
   // --- what it says about visitors --------------------------------------
   let visitor: KindRef | null = null;
-  let arriveAt: ObjectPath | null = null;
   let saidAre = false;
-  let saidArrive = false;
   /** Whether the visitor kind failed to compose, which has been said already. */
   let visitorFailed = false;
 
   for (const member of declared.members) {
-    switch (member.kind) {
-      case 'visitors-are': {
-        if (saidAre) {
-          diagnostics.refuse(
-            member.at,
-            `\`${declared.name.text}\` says twice what its visitors are.`,
-            'A world has one visitor kind. Say it once.',
-          );
-          break;
-        }
-        saidAre = true;
-        const written = member.visitor;
-        const found = kinds.find(identityOf(written, from, kinds));
-        if (found.found === 'kind') {
-          visitor = found.kind;
-        } else if (found.found === 'unknown') {
-          const { message, remedy } = unknownKind(written, from, kinds);
-          diagnostics.refuse(written.at, message, remedy);
-        } else {
-          visitorFailed = true;
-        }
-        break;
-      }
-      case 'visitors-arrive-at':
-        if (saidArrive) {
-          diagnostics.refuse(
-            member.at,
-            `\`${declared.name.text}\` says twice where its visitors arrive.`,
-            'A world has one place visitors begin in. Say it once.',
-          );
-          break;
-        }
-        saidArrive = true;
-        arriveAt = member.place;
-        break;
-      default:
-        // What any kind may hold, which composing it has read.
-        break;
+    // Where they arrive is `arrivalOf`'s; the rest is what any kind may
+    // hold, which composing it has read.
+    if (member.kind !== 'visitors-are') continue;
+    if (saidAre) {
+      diagnostics.refuse(
+        member.at,
+        `\`${declared.name.text}\` says twice what its visitors are.`,
+        'A world has one visitor kind. Say it once.',
+      );
+      continue;
+    }
+    saidAre = true;
+    const written = member.visitor;
+    const found = kinds.find(identityOf(written, from, kinds));
+    if (found.found === 'kind') {
+      visitor = found.kind;
+    } else if (found.found === 'unknown') {
+      const { message, remedy } = unknownKind(written, from, kinds);
+      diagnostics.refuse(written.at, message, remedy);
+    } else {
+      visitorFailed = true;
     }
   }
 
@@ -159,6 +153,37 @@ export function resolveWorld(
       'Write `visitors are <Kind>`, naming the kind a person is made of here.',
     );
   }
+  const arrival = arrivalOf(declared, diagnostics);
+  if (kind === null || visitor === null || arrival === null) return null;
+
+  return {
+    name: declared.name.text,
+    kind,
+    visitor,
+    passesAnything: WORLD_PASSES_ANYTHING,
+    declaration: declared,
+  };
+}
+
+/**
+ * Where a world says its visitors arrive, as the path written, or null
+ * having refused a world that does not say. Saying it twice is refused
+ * at the second, and the first is kept.
+ */
+export function arrivalOf(declared: WorldDeclaration, diagnostics: Diagnostics): ObjectPath | null {
+  let arriveAt: ObjectPath | null = null;
+  for (const member of declared.members) {
+    if (member.kind !== 'visitors-arrive-at') continue;
+    if (arriveAt !== null) {
+      diagnostics.refuse(
+        member.at,
+        `\`${declared.name.text}\` says twice where its visitors arrive.`,
+        'A world has one place visitors begin in. Say it once.',
+      );
+      continue;
+    }
+    arriveAt = member.place;
+  }
   if (arriveAt === null) {
     diagnostics.refuse(
       declared.name.at,
@@ -166,14 +191,158 @@ export function resolveWorld(
       'Write `visitors arrive at <name>`, naming the place they begin in.',
     );
   }
-  if (kind === null || visitor === null || arriveAt === null) return null;
+  return arriveAt;
+}
 
-  return {
-    name: declared.name.text,
-    kind,
-    visitor,
-    arriveAt,
-    passesAnything: WORLD_PASSES_ANYTHING,
-    declaration: declared,
+/** What `resolveArrival` reads: the tree the world's objects were placed in, and its kinds. */
+export interface ArrivalContext {
+  readonly tree: ObjectTree;
+  /** Every one of the world's objects, placed or not, with its kind where it composed. */
+  readonly objects: readonly Placeable[];
+  readonly kinds: KindSource;
+  /** The library the world is read from inside, for a kind written without one. */
+  readonly from: string;
+  readonly diagnostics: Diagnostics;
+}
+
+/** Where visitors arrive, as `resolveArrival` finds it. */
+export type Arrival =
+  /** A place, by its path; the world is the empty path. */
+  | { readonly found: 'place'; readonly path: TreePath }
+  /**
+   * Nothing is there to arrive in: the absent table's `place-of-arrival`
+   * row, which a compile refuses at publish and records at load. `said`
+   * is whether what left it absent has been told already.
+   */
+  | {
+      readonly found: 'absent';
+      readonly path: ObjectPath;
+      readonly at: Span;
+      readonly message: string;
+      readonly remedy: string;
+      readonly said: boolean;
+    }
+  /** Refused in either mode, having said why. */
+  | { readonly found: 'refused' };
+
+/**
+ * Resolve `visitors arrive at` from inside the world, as an object's
+ * `in` is read, and ask whether what it names is a place: something
+ * whose kind declares `contains actors` (the spec's Places). The world
+ * itself is one when its own body says so, or a kind it composes beside
+ * `sprout.World` does.
+ */
+export function resolveArrival(declared: WorldDeclaration, context: ArrivalContext): Arrival {
+  const { tree, diagnostics } = context;
+  const path = arrivalOf(declared, diagnostics);
+  if (path === null) return { found: 'refused' };
+  const inside = worldInPath(tree.world, path, 'visitors arrive at');
+  if (inside !== null) {
+    diagnostics.refuse(inside.step.at, inside.message, inside.remedy);
+    return { found: 'refused' };
+  }
+  const last = path.parts.at(-1)!;
+  const absent = (message: string, remedy: string, said: boolean, at: Span = last.at): Arrival => ({
+    found: 'absent',
+    path,
+    at,
+    message,
+    remedy,
+    said,
+  });
+  const notAPlace = (name: string, remedy: string): Arrival => {
+    diagnostics.refuse(last.at, `\`${name}\` is not a place, and visitors arrive in one.`, remedy);
+    return { found: 'refused' };
   };
+
+  const found = resolveFrom(
+    tree,
+    [],
+    path.parts.map((part) => part.text),
+  );
+  switch (found.found) {
+    case 'world':
+      return worldAsPlace(declared, context, absent, notAPlace);
+    case 'world-inside':
+      // `worldInPath` has answered every path the world's name is a step of.
+      return { found: 'refused' };
+    case 'missing': {
+      const step = path.parts[found.step]!;
+      // A step naming an object that did not place names something
+      // absent, whose own refusal or gap has been said.
+      const placed = new Set([...tree.placed.values()].map((one) => one.declaration));
+      const unplaced = context.objects.some(
+        ({ declaration }) => declaration.name.text === step.text && !placed.has(declaration),
+      );
+      if (unplaced) {
+        return absent(
+          `\`${writtenPath(path)}\` is absent, so visitors have nowhere to arrive.`,
+          `Bring \`${step.text}\` back, or name another place for visitors to arrive at.`,
+          true,
+          step.at,
+        );
+      }
+      const words = unknownStep(tree, path, found, 'visitors arrive at');
+      return absent(words.message, words.remedy, false, step.at);
+    }
+    case 'object': {
+      const { kind } = found.placement;
+      const name = writtenPath(path);
+      if (kind === null) {
+        return absent(
+          `\`${name}\` is absent, so visitors have nowhere to arrive.`,
+          `Bring back what \`${last.text}\` is made of, or name another place for visitors to arrive at.`,
+          true,
+        );
+      }
+      if (kind.containsActors) return { found: 'place', path: found.placement.path };
+      return notAPlace(
+        last.text,
+        `Name a place, or make \`${last.text}\` one: compose \`sprout.Place\`, or write \`contains actors\` in its body.`,
+      );
+    }
+  }
+}
+
+/**
+ * The world named as where visitors arrive: a place if its own body
+ * declares `contains actors` or a kind it composes beside `sprout.World`
+ * does. A kind it composes that nothing declares leaves that unknown,
+ * which is the `place-of-arrival` gap rather than a refusal.
+ */
+function worldAsPlace(
+  declared: WorldDeclaration,
+  context: ArrivalContext,
+  absent: (message: string, remedy: string, said: boolean, at: Span) => Arrival,
+  notAPlace: (name: string, remedy: string) => Arrival,
+): Arrival {
+  const name = declared.name.text;
+  const own = declared.members.some((member) => member.kind === 'contains' && member.actors);
+  if (own) return { found: 'place', path: [] };
+  let missing: Arrival | null = null;
+  for (const written of declared.composes) {
+    if (writesWorld(written)) continue;
+    const found = context.kinds.find(identityOf(written, context.from, context.kinds));
+    if (found.found === 'kind') {
+      if (found.kind.containsActors) return { found: 'place', path: [] };
+    } else if (missing === null) {
+      const kind = writtenKind(written);
+      const unknown =
+        found.found === 'unknown' ? unknownKind(written, context.from, context.kinds) : null;
+      missing = absent(
+        `${unknown?.message ?? `\`${kind}\` is absent.`} \`${name}\` is made of it, so it is not known to be a place for visitors to arrive in.`,
+        unknown?.remedy ??
+          `Bring \`${kind}\` back, or write \`contains actors\` in the world's body.`,
+        unknown === null,
+        written.at,
+      );
+    }
+  }
+  return (
+    missing ??
+    notAPlace(
+      name,
+      "Write `contains actors` in the world's body to make it a place, or name a place in it for visitors to arrive at.",
+    )
+  );
 }

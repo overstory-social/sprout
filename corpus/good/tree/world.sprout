@@ -1,4 +1,4 @@
 world tree: sprout.World {
   visitors are Creature
-  visitors arrive at shop_floor
+  visitors arrive at shop_floor.back_room
 }

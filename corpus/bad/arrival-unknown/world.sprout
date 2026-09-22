@@ -1,0 +1,11 @@
+// Visitors arrive at a place named as it was declared.
+world arrival_unknown: sprout.World {
+  visitors are Creature
+  visitors arrive at hal
+}
+
+kind Room {
+  contains actors
+}
+
+object hall: Room in arrival_unknown

@@ -45,7 +45,7 @@ describe('main', () => {
     });
     const check = captured();
     expect(main(['check', dir], check)).toBe(0);
-    expect(check.out()).toBe('ok: 1 declarations in 1 files\n');
+    expect(check.out()).toBe('ok: 3 declarations in 1 files\n');
   });
 
   it('check --json on a broken world fails and names the problem by file, line and column', () => {

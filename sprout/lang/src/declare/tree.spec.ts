@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Ident, KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
+import type { Ident, KindDeclaration, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
@@ -13,6 +13,8 @@ import {
   pathKey,
   placeObjects,
   resolveFrom,
+  unknownStep,
+  worldInPath,
   type ObjectTree,
   type Resolution,
 } from './tree.js';
@@ -548,5 +550,55 @@ describe('a well-formed object is never lost to a neighbour’s mistake', () => 
       );
     }
     expect(seen.size).toBe(DEFECTS.length);
+  });
+});
+
+describe('the words for a path are the same wherever a path is written', () => {
+  /** A path as written, for the word helpers, with nothing to point at but itself. */
+  function written(text: string): ObjectPath {
+    const file = new SourceFile('path.sprout', text);
+    let at = 0;
+    const parts = text.split('.').map((part) => {
+      const ident: Ident = { kind: 'ident', text: part, at: file.span(at, at + part.length) };
+      at += part.length + 1;
+      return ident;
+    });
+    return { kind: 'path', parts, at: file.span(0, text.length) };
+  }
+
+  it('writes the remedy after whatever the path was written after', () => {
+    const { tree } = place('object hall: Room in shop\nobject nook: Room in hall');
+    const path = written('hal');
+    const miss = { step: 0, within: null };
+    expect(unknownStep(tree, path, miss, 'in')).toMatchObject({
+      message: 'Nothing here is called `hal`. Did you mean `hall`?',
+      remedy: 'Write `in hall`, or declare an object called `hal`.',
+    });
+    expect(unknownStep(tree, path, miss, 'visitors arrive at')).toMatchObject({
+      message: 'Nothing here is called `hal`. Did you mean `hall`?',
+      remedy: 'Write `visitors arrive at hall`, or declare an object called `hal`.',
+    });
+    expect(unknownStep(tree, written('nook'), miss, 'visitors arrive at').remedy).toBe(
+      '`nook` is inside `hall`, so write `visitors arrive at hall.nook`.',
+    );
+    // And the step it is said at is the one that named nothing.
+    expect(
+      unknownStep(tree, written('hall.nok'), { step: 1, within: ['hall'] }, 'in'),
+    ).toMatchObject({
+      message: 'Nothing in `hall` is called `nok`. Did you mean `nook`?',
+      step: { text: 'nok' },
+    });
+  });
+
+  it('refuses the world’s name as a step, and not as the whole path', () => {
+    expect(worldInPath('shop', written('shop'), 'in')).toBeNull();
+    expect(worldInPath('shop', written('hall.nook'), 'in')).toBeNull();
+    expect(worldInPath('shop', written('shop.hall'), 'visitors arrive at')).toMatchObject({
+      step: { text: 'shop' },
+      message: '`shop` is the world, which is named on its own and never as a step of a path.',
+      remedy:
+        'A path starts from something directly in the world: write `visitors arrive at hall`.',
+    });
+    expect(worldInPath('shop', written('shop.shop'), 'in')!.remedy).toBe('Write `in shop`.');
   });
 });
