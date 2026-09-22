@@ -57,7 +57,7 @@ world printers_shop {
 
 The world is the only object with no container, the only one that cannot move, and the only one that can be neither spawned nor destroyed. It holds what belongs to no single place, and — because a broadcast travels outward as well as inward — it is the only route by which one place can hear another. Its pass rule is `pass any (false)` unless it says otherwise, so nothing crosses between places unless the world says it may.
 
-Every world composes `sprout.World`, which carries the words the engine speaks for itself, and it may compose more — `world printers_shop: victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed.
+Every world composes `sprout.World`, which carries the words the engine speaks for itself. It is never written: on a world it would say nothing new, and on anything else it would make a place into a world, so writing it anywhere is a refusal. A world may compose more — `world printers_shop: victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed.
 
 That is the whole shape. The containment tree is the one piece of state no object owns, which is why moving through it takes a protocol and nothing else does.
 
@@ -181,7 +181,7 @@ A place may be spawned like anything else. Nothing can *exit* to one, because an
 
 Because every spawn instantiates a kind declared in the bundle, and names are immutable declaration syntax, **no new noun can appear at runtime**. The world's complete vocabulary is known when it compiles.
 
-Spawning is bounded per turn and, over time, per world, by limits the host sets.
+Spawning is bounded per turn by a budget the host sets, and over time by how many live instances the host will hold.
 
 ### Destroying
 
@@ -203,9 +203,10 @@ The manifest is what a world says about itself before any of it is read.
 
 | field | what it holds |
 | --- | --- |
-| `name` | the world's own name, which is the namespace its declarations are unqualified in |
-| `version` | which version of this world this is |
-| `author` | who made it |
+| `name` | the world's own name, which its `world` declaration repeats |
+| `namespace` | the namespace its declarations are unqualified in; optional, and the world's name when unset |
+| `version` | which version of this world this is, as [semver](https://semver.org) |
+| `author` | who made it, as text: a name, an address, a profile |
 | `license` | the terms it is offered under |
 | `level` | the language level it was written for |
 | `extensions` | the extensions it pins, by name and major version |
@@ -338,7 +339,7 @@ A kind's identity is its library and its name. `sprout.Container` and `ericworld
 
 Libraries are **statically linked**. A published microworld carries the full source of every library it uses, and nothing is resolved, fetched or versioned at runtime. A world's behaviour is a function of its own bundle, so replay stays exact, a library author cannot change worlds that have already shipped, and a withdrawn library cannot take live worlds with it.
 
-Vendored library source is content-hashed. A copy matching a version the host knows is exempt from the world's source and kind caps and collapses in the moderation view; a modified copy is the author's own source and counts as it. Forking the standard library is legal and not free.
+Vendored library source is content-hashed. A copy matching a version the host knows is exempt from the world's source, kind and file caps and collapses in the moderation view; a modified copy is the author's own source and counts as it. Forking the standard library is legal and not free.
 
 A bundle's language level is the highest level of any of its parts, library source included.
 
@@ -391,6 +392,8 @@ kind Warded: sprout.Lockable {
 Both `permit` bodies run and either may refuse; both `do` bodies run. Neither kind mentions the other's types, and nothing needed a type parameter to say so. The `tool` role is open — filled by anything that plays it — so the world narrows it with `is()` before reading what only its own `Key` declares.
 
 The same split works wherever the pattern recurs. A vending kind carries the verb and the mechanism while the world carries its own denominations; a growing kind schedules the wake while the world advances its own stages. Where a library and a world must agree about a value, **the library supplies behaviour and the world supplies vocabulary.**
+
+Which side of a verb knows the other is the author's choice, not a convention of the language. A lock may know what keys look like, or a key may know what wards do; both are legal, and the standard library picks per verb.
 
 ## Names
 
@@ -485,7 +488,7 @@ The object type has no properties. It is the type of a binding whose kind the co
 :note     string default ""
 ```
 
-A property is a name, a type, and a default, and the type may be written or taken from the literal. Every instance of the kind starts at the default; an object's body may restate a property to change the default, keeping the type.
+A property is a name, a type, and a default. A default is always written: there is no null for a property to hold instead. The type may be written or taken from the literal — a boolean, an integer or a string names its own type, and an option names its enum, `:ward Ward default iron` or `:ward Ward.iron`. A list writes its element type, so `:cars [Car] default []` is unambiguous. Every instance of the kind starts at the default; a kind or an object's body may restate a property it composes to change the default, keeping the type, and there the type is already known, so `:ward iron` is enough.
 
 ### Enums
 
@@ -497,6 +500,8 @@ enum Glaze { none, shino, tenmoku }
 ```
 
 An enum's options are in scope wherever the enum is. A symbol literal is checked against the option set of whatever it is compared or assigned to, so `== :slver` is a compile error naming the options, not a comparison that is false forever.
+
+Options are separated by commas, and a comma after the last is allowed. An option may not be a reserved word. An enum holds at most as many options as the host allows.
 
 Enums are how two kinds from different libraries agree about a value. A property merging under composition merges only when both declarations name the same enum.
 
@@ -514,11 +519,11 @@ kind Key {
 object skeleton_key: Key in shelf { :opens [oak, silver] }
 ```
 
-A list holds no duplicates, and it may change. `self.add(:opens, silver)` on a list already holding `silver` does nothing, and `self.remove(:opens, iron)` on a list without `iron` does nothing. Order is insertion order and is preserved, because `{for … of}` makes it visible in prose.
+A list holds no duplicates, and it may change. Its element type may itself be a list, `[[Ward]]`, so long as every element is of that one type. `self.add(:opens, silver)` on a list already holding `silver` does nothing, and `self.remove(:opens, iron)` on a list without `iron` does nothing. Order is insertion order and is preserved, because `{for … of}` makes it visible in prose.
 
 A list holds at most as many elements as the host allows, and adding a new one to a full list is a fault rather than a silent drop. `adjust` clamps at a ceiling because reaching the ceiling is the meaning; dropping an element would lose something the author wrote.
 
-Four operations: `includes(x)`, `count`, `add` and `remove`. Only the object that declared the property may add or remove, as with any other write.
+Four operations: `includes(x)`, `count`, `add` and `remove`. Only the object that declared the property may add or remove, as with any other write. Two lists are not compared with `==`; whether equality is by set or by order is a later level's to add.
 
 ### Where types come from
 
@@ -540,6 +545,11 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | a handler's value | the message's declaration |
 | a hook's previous value | the property that changed |
 | `elapsed` | integer |
+| a guard's `to`, `item` or `from` | object |
+| `$first`, `$last` in a passage loop | boolean |
+| `$index`, `$count` in a passage loop | integer |
+| `thing` in the world's `unreachable` and `unremarkable` | object |
+| `candidates` in the world's `which` | a set of objects |
 
 A kind named in a role or an `each` matches **nominally**, and by composition rather than by exact kind: `role into: sprout.Container` admits anything that composes `sprout.Container`, whatever else it composes, and nothing that merely resembles one.
 
@@ -551,7 +561,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 
 | construct | rule |
 | --- | --- |
-| `a == b`, `a != b` | same type; a symbol literal must be one of the operand's options |
+| `a == b`, `a != b` | same type, and not a list; a symbol literal must be one of the operand's options |
 | `<` `<=` `>` `>=` | both integer |
 | `+` `-`, unary `-` | integer |
 | `&&` `\|\|` `!` | operands boolean; there is no truthiness and no coercion |
@@ -562,13 +572,17 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.get(:p)` | `p` is declared on `x`'s type; `x` is not of object type |
 | `x.recall(:p)`, `x.remember(:p, e)`, `x.adjust(:p, e)` on memory | `x` composes `sprout.Actor`; `p` is in `self`'s `:remembers` |
 | `x.includes(e)` | `x` a list or a set role; `e` its element type |
-| `x.count`, `x.count(K)` | `x` a container or a set role; `K` a kind in scope |
+| `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope |
 | `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` |
 | `x.is(K)` | `K` is a kind in scope; `x` an object binding |
 
 Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so a kind's own properties are readable there. That is how anything of object type is read.
 
 A `set` or `remember` whose value is out of range at run time is a fault; `adjust` clamps. The compiler catches the literal cases.
+
+### Precedence
+
+Operators bind in the conventional order, loosest first: `||`; `&&`; `==` and `!=`; `<`, `<=`, `>` and `>=`; `+` and `-`; the prefix `!` and `-`; then a reading such as `x.get(:p)`. Within a level, left to right. Parentheses group.
 
 ### Naming a value
 
@@ -594,7 +608,7 @@ Shadowing is a compile error. A `let` may not take the name of a role, an `each`
 
 Because an initializer is an expression, a `let` cannot write, send, move or narrate, which is why it is allowed everywhere an expression is: in a role's `permit` and `do`, in handlers and hooks, in consent guards, and in `describe`. The one exception is `let x = spawn …`, whose initializer is a statement, and which is therefore allowed only where `spawn` is. A `let` is not allowed in a passage — a passage has slots and blocks, not statements, and a passage that could bind values would be a program rather than prose.
 
-One `let` costs fewer steps than the reads it replaces, so naming a value you use three times is cheaper than fetching it three times as well as being easier to read.
+A `let` is a statement and is charged as one, and reading the name is charged as any expression is. It is there to be read, not to save steps.
 
 ### Object identity
 
@@ -925,7 +939,7 @@ Everything else a visitor can do by default — `take`, `drop`, `put`, `give`, `
 
 ### Reserved names
 
-An authored message may not take the name of an engine message: `:spawned`, `:woke`, `:tick`, `:moved`, `:left` or `:entered`. A world's verb may not take the name of an engine verb. `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` name members and are not available as message or verb names either.
+An authored message may not take the name of an engine message: `:spawned`, `:woke`, `:tick`, `:moved`, `:left` or `:entered`. A world's verb may not take the name of an engine verb. `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` name members and are not available as message or verb names either. A reserved word, listed under The compiler › Lexical rules, may not name an enum's option, a role, a `let` or any other binding.
 ## Events, messages and the bus
 
 Objects change their own state and tell each other about it. A message is **queued, never called**: the sending body runs to completion, then the queue drains, breadth-first, in insertion order. Within one body your own state holds still, which is the invariant everything below protects.
@@ -1112,7 +1126,7 @@ A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and ca
 
 ### Slots
 
-A slot is `{…}`; `{{` is a literal brace.
+A slot is `{…}`; `\{` is a literal brace, and a backslash escapes in a passage as it does in quoted text.
 
 | slot | renders |
 | --- | --- |
@@ -1292,7 +1306,7 @@ The cat is asleep, or doing a convincing impression of it.
 {/one of}
 ```
 
-`{one of}…{or}…{/one of}` picks one block, uniformly, in prose. In an expression, `chance(30)` is true thirty times in a hundred, and `random(6)` is an integer from 1 to 6. The bound of `random` and the argument of `chance` are positive integer literals, and `chance` of more than a hundred is a compile error.
+`{one of}…{or}…{/one of}` picks one block, uniformly, in prose. In an expression, `chance(3)` is true one time in three, and `random(6)` is an integer from 0 to 5. The bound of `random` and the argument of `chance` are positive integer literals.
 
 Random is the only kind of alternative. There is no form that runs through its entries in order, cycles them, or shows each once and then stops, and the reason is that all three need to remember where they got to.
 
@@ -1389,7 +1403,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 
 **Runtime budgets bound what a turn may cost.** They are counted while running, and exhausting one is a fault: the turn is abandoned, the world is left exactly as it was, and whoever acted is told plainly through the world's `fault` passage.
 
-**The numbers are the host's.** The language defines which limits exist and what exceeding each one means; the host running the world sets every value, and the figures below are the defaults a host starts from. A bundle records the static caps it was checked against at publish, and a host loading a bundle checked against larger caps than its own decides for itself whether to run it.
+**The numbers are the host's.** The language defines which limits exist and what exceeding each one means; the host running the world sets every value, and the figures below are the defaults a host starts from. A bundle records the static caps it was checked against at publish, and a host loading a bundle checked against larger caps than its own refuses to run it, unless the host has made an exception for that world; the exception is the host's to grant and to record. A limit the host leaves unset is unbounded: the language does not invent a figure for a host that set none, and what bounds the world then is the host process itself.
 
 **There is no limit on statements in a body.** A cap there would bound cost in the one place only review effort belongs, and would push authors toward chains of `if` instead of prose. The step budget does that work, at runtime, where cost actually lives.
 
@@ -1397,7 +1411,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 
 | cap | default |
 | --- | --- |
-| expression and block nesting | 8 |
+| options per enum | 100 |
 | roles per verb | 8, counting a set role as one |
 | phrases per verb | 8, each at most 80 characters |
 | nouns per object | 8, each word at most 40 characters |
@@ -1406,7 +1420,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 | a `say`, `tell` or `text` written as a literal | 600 characters |
 | places, objects, kinds, files, total source bytes | as the host says |
 
-Vendored library source is content-hashed and exempt from the source and kind caps, so using the standard library costs an author nothing. A modified copy is the author's own source and counts as it.
+Vendored library source is content-hashed and exempt from the source, kind and file caps, so using the standard library costs an author nothing. A modified copy is the author's own source and counts as it.
 
 A passage has no length cap of its own. It is bounded by total source bytes on one side and the turn's output budget on the other.
 
@@ -1421,14 +1435,13 @@ A passage has no length cap of its own. It is bounded by total source bytes on o
 | passage invocation depth | 8 |
 | objects bound by one set role | 8 |
 | spawns per turn | 8 |
-| spawns per world per hour | 200 |
-| live instances per world | 2,000 |
-| pending wakes | one per object |
 | shortest wake | 60 seconds |
 | steps per poll | 10,000 |
 | wall clock | a backstop that should never fire |
 
 A turn is a typed command, a tick, a wake, a maintenance turn, or a poll; the budgets are per turn. Parsing is charged to steps because typed slots make it real work, and a command that costs too much to read is a fault like any other.
+
+Two bounds are the world's rather than a turn's, and outlive any turn. How many live instances a world may hold is the host's storage decision, not a figure in this table: when the host will not hold another, a `spawn` faults. Pending wakes are one per object, a new request replacing the old, which is a rule of the language under Time rather than a budget, and it bounds pending wakes by live instances. There is no cap on spawns over time; what a world can accumulate is bounded by what the host will store.
 
 The step budget is the one that matters. Totality guarantees a body ends; it says nothing about when. An `each` nested inside an `each` is total and, over a large room, effectively endless — the event budget never notices, because iteration emits no events. Counting steps is five lines in the evaluator and is the only bound that actually holds.
 
@@ -1446,11 +1459,18 @@ Most limits bound what an author wrote. Three scale with how many people are pre
 
 When an object destroys itself, whatever it held falls to its container without any guard running. That is correct — nothing is proposing anything, and the container that would have answered is gone — but it is the one path where something moves without consent, and an object can use it to leave a container whose `release` would have refused.
 
-And a wake that reschedules itself at the shortest interval, on a kind with many instances, is a load the host must be able to see. Every such wake is a turn in the log with its object named, and the per-world spawn and instance caps bound what it can make; what they do not bound is the host's own time, which is why the wake floor is the host's to raise.
+And a wake that reschedules itself at the shortest interval, on a kind with many instances, is a load the host must be able to see. Every such wake is a turn in the log with its object named, and the instance bound is what limits what it can make; what they do not bound is the host's own time, which is why the wake floor is the host's to raise.
 
 ## The compiler
 
 Source is the truth. A definition is rebuilt from source every time a world loads and is never persisted, so there is no compiled artifact to drift from what an author wrote or a moderator reads. Printing a definition and compiling it again yields the same definition.
+
+### Lexical rules
+
+- A comment is `//` to the end of the line, or `/* … */` across lines.
+- Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
+- A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a composition is written with the space, `kind Creature: sprout.Actor`.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `at`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### Two tiers
 
@@ -1475,7 +1495,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | a passage or `.prose` file | the slot or statement renders nothing, and the description is refused at publish if that leaves it empty |
 | a place, in an exit or link | the exit does not apply |
 | a place a visitor stands in | the visitor is moved to the world's arrival place on their next turn and told through the world's `displaced` passage |
-| a place the world says visitors arrive at | the world does not admit anyone, and says so |
+| a place the world says visitors arrive at | the world does not admit anyone; entry fails as a host matter, the way a crash does, and the host says so outside the world |
 | an extension | its statements record nothing and its types hold their defaults |
 
 Stored state for absent objects is kept, untouched, so that a file restored brings its objects back as they were.
@@ -1516,13 +1536,15 @@ cat.sprout:12:5      `say` has nobody to speak to inside `on :stir`.
                      Use `tell` to speak to the room, or `tell p` to one person.
 ```
 
+How a page of them is laid out — the gutter, the wrapping — is the tool's business, and should follow the width it has.
+
 ### What compiling produces
 
 A bundle: the manifest it was compiled from, the definitions, the world's complete word set, the language level, the extensions it pins, the hash of every vendored library, the static caps it was checked against, and which of those the host blessed at publish.
 
 ### Language levels
 
-A level is how the language changes without breaking what already runs. Added syntax raises it, and a bundle's level is the highest of any of its parts, library source included: the manifest records the level the world itself was written for, and each vendored library carries its own. A world accepted at one level keeps loading when the language tightens: refusals introduced later apply as warnings to it, not as errors — and the level it was accepted at is the bundle's, not the one its manifest asked for.
+A level is how the language changes without breaking what already runs. Each part declares the level it needs — the manifest for the world, and each vendored library beside its source — and a declared level is a request, as a package asking for a version of its runtime is: nothing checks that a part uses what it asked for, and a world may ask for a level higher than it needs. A bundle's level is the highest of any of its parts, and a compiler refuses a bundle whose level it does not understand. A world accepted at one level keeps loading when the language tightens: refusals introduced later apply as warnings to it, not as errors — and the level it was accepted at is the bundle's, not the one its manifest asked for.
 
 The language starts at level 1, and nothing here is shaped by compatibility with anything built before it.
 
