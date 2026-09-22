@@ -1,5 +1,4 @@
-world no_default: sprout.World {
+world without_sprout_world {
   visitors are Creature
   visitors arrive at hall
-  :season Season
 }

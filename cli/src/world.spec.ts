@@ -28,7 +28,7 @@ describe('readWorld', () => {
   it('reads the manifest and every .sprout and .prose file, in name order, skipping dotted entries', () => {
     const dir = folder({
       'sprout.json': MANIFEST,
-      'world.sprout': 'world shop {}',
+      'world.sprout': 'world shop: sprout.World {}',
       'rooms/hall.prose': 'passage p { x }',
       'rooms/notes.txt': 'not a world file',
       '.sprout/state.db': 'never read',
@@ -42,7 +42,10 @@ describe('readWorld', () => {
   });
 
   it('reports a manifest that does not parse, and reads no files', () => {
-    const dir = folder({ 'sprout.json': '{ not json', 'world.sprout': 'world shop {}' });
+    const dir = folder({
+      'sprout.json': '{ not json',
+      'world.sprout': 'world shop: sprout.World {}',
+    });
     const world = readWorld(dir);
     expect(world.source).toBeNull();
     expect(world.diagnostics[0]!.message).toContain('is not JSON');
@@ -50,7 +53,7 @@ describe('readWorld', () => {
 
   it('throws for a missing folder, a file, and a folder with no manifest', () => {
     expect(() => readWorld('/nowhere/at/all')).toThrow('no such folder');
-    const dir = folder({ 'world.sprout': 'world shop {}' });
+    const dir = folder({ 'world.sprout': 'world shop: sprout.World {}' });
     expect(() => readWorld(join(dir, 'world.sprout'))).toThrow('not a folder');
     expect(() => readWorld(dir)).toThrow('no sprout.json here');
   });

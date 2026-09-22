@@ -1,4 +1,4 @@
-world default_dot_misplaced {
+world default_dot_misplaced: sprout.World {
   visitors are Creature
   visitors arrive at hall
   :wear integer.3

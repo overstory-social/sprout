@@ -37,18 +37,23 @@ const optionsOf = (declared: EnumDeclaration): string[] =>
 const A_DECLARATION: Record<string, string> = {
   enum: 'enum Two { a }',
   message: 'message :stir',
-  world: 'world two { visitors are P\n visitors arrive at y }',
+  world: 'world two: sprout.World { visitors are P\n visitors arrive at y }',
 };
 
 /**
  * Other ways the same declaration may open, where a word has more than
  * one. Recovery has to stop at every one of them, and a rule that only
  * ever sees the commonest spelling drops the others in silence — with
- * `world`'s composing form missing here, deleting its `:` from
- * `DECLARATION_SHAPES` passes the whole suite.
+ * `world`'s brace-on-its-own form missing here, deleting the brace from
+ * `world`'s row in `DECLARATION_SHAPES` passes the whole suite. A world
+ * that leaves `sprout.World` out is refused a layer later, and the
+ * parser has to read it as a world for that refusal to be reached.
  */
 const ALSO_WRITTEN: Record<string, string[]> = {
-  world: ['world two: victorian.Voice { visitors are P\n visitors arrive at y }'],
+  world: [
+    'world two: sprout.World, victorian.Voice { visitors are P\n visitors arrive at y }',
+    'world two { visitors are P\n visitors arrive at y }',
+  ],
 };
 
 /** Every spelling of one word's declaration, the commonest one first. */
@@ -1544,14 +1549,16 @@ const membersOf = (declared: { members: readonly { kind: string }[] }): string[]
 
 describe('a world declaration', () => {
   it('reads the spec’s own world', () => {
-    const { world, refusals } = readWorld(`world printers_shop {
+    const { world, refusals } = readWorld(`world printers_shop: sprout.World {
   visitors are Creature
   visitors arrive at composing_room
   :season Season default autumn
 }`);
     expect(refusals).toEqual([]);
     expect(world!.name.text).toBe('printers_shop');
-    expect(world!.composes).toEqual([]);
+    expect(world!.composes.map((c) => `${c.library?.text ?? ''}.${c.name.text}`)).toEqual([
+      'sprout.World',
+    ]);
     expect(membersOf(world!)).toEqual(['visitors-are', 'visitors-arrive-at', 'property']);
   });
 
@@ -1569,7 +1576,7 @@ describe('a world declaration', () => {
   });
 
   it('holds its own properties, and `:remembers` beside them', () => {
-    const { world, refusals } = readWorld(`world w {
+    const { world, refusals } = readWorld(`world w: sprout.World {
   :a false
   :remembers [seen: false]
   visitors are P
@@ -1585,8 +1592,8 @@ describe('a world declaration', () => {
   });
 
   it('spans from `world` to its closing brace', () => {
-    const { world } = readWorld('world w { visitors are P\n visitors arrive at y }');
-    expect(textOf(world!.at).startsWith('world w {')).toBe(true);
+    const { world } = readWorld('world w: sprout.World { visitors are P\n visitors arrive at y }');
+    expect(textOf(world!.at).startsWith('world w: sprout.World {')).toBe(true);
     expect(textOf(world!.at).endsWith('}')).toBe(true);
   });
 
@@ -1614,15 +1621,15 @@ describe('a world declaration', () => {
     const table: [string, string][] = [
       ['world { }', 'A world needs a name.'],
       ['world w', 'has nothing in it'],
-      ['world w { visitors are P', 'is never closed'],
+      ['world w: sprout.World { visitors are P', 'is never closed'],
       ['world w: 4 { }', 'is not the name of a kind'],
       ['world w: victorian. { }', 'is not followed by the name of a kind'],
-      ['world w { visitors }', 'A world says two things about visitors'],
-      ['world w { visitors arrive y }', 'A world says where visitors arrive AT.'],
-      ['world w { visitors are 4 }', 'is not the name of a kind'],
-      ['world w { visitors are creature }', 'is not the name of a kind'],
-      ['world w { nonsense }', 'A world is not made of'],
-      ['world w { 4 }', 'A world is not made of'],
+      ['world w: sprout.World { visitors }', 'A world says two things about visitors'],
+      ['world w: sprout.World { visitors arrive y }', 'A world says where visitors arrive AT.'],
+      ['world w: sprout.World { visitors are 4 }', 'is not the name of a kind'],
+      ['world w: sprout.World { visitors are creature }', 'is not the name of a kind'],
+      ['world w: sprout.World { nonsense }', 'A world is not made of'],
+      ['world w: sprout.World { 4 }', 'A world is not made of'],
     ];
     for (const [text, said] of table) {
       const { world, refusals } = readWorld(text);
@@ -1639,9 +1646,9 @@ describe('a world declaration', () => {
     // two questions. Answering them in one expression would report a
     // member that failed as a word nobody knows, and say both.
     for (const text of [
-      'world w { visitors }',
-      'world w { visitors arrive y }',
-      'world w { visitors are 4 }',
+      'world w: sprout.World { visitors }',
+      'world w: sprout.World { visitors arrive y }',
+      'world w: sprout.World { visitors are 4 }',
     ]) {
       expect(readWorld(text).refusals, text).toHaveLength(1);
     }
@@ -1651,9 +1658,9 @@ describe('a world declaration', () => {
     // A world that cannot be read costs that world and not the file.
     for (const broken of [
       'world { }',
-      'world w { nonsense }',
+      'world w: sprout.World { nonsense }',
       'world w: 4 { }',
-      'world w { visitors are 4 }',
+      'world w: sprout.World { visitors are 4 }',
       'world w',
       'world w nonsense here',
     ]) {
@@ -1674,12 +1681,12 @@ describe('a world declaration', () => {
   });
 
   it('treats a word that starts a declaration as the end of it, not as a member', () => {
-    // `world w { enum Ward { oak } }` is a world that was never closed,
+    // `world w: sprout.World { enum Ward { oak } }` is a world never closed,
     // and the enum is the file's. Saying "a world is not made of
     // `enum`" as well leaves its braces orphaned and says two things
     // about one mistake.
-    for (const inner of ['enum Inner { oak }', 'message :stir', 'world inner { }']) {
-      const { refusals, declarations } = readWorld(`world w {\n  ${inner}\n}\n`);
+    for (const inner of ['enum Inner { oak }', 'message :stir', 'world inner: sprout.World { }']) {
+      const { refusals, declarations } = readWorld(`world w: sprout.World {\n  ${inner}\n}\n`);
       expect(
         refusals.map((d) => d.message),
         inner,
@@ -1697,7 +1704,9 @@ describe('a world declaration', () => {
     // A list hunting for its `]` must not run to the end of the file:
     // `file()` is still reading behind a property inside a world.
     for (const member of [':x [', ':remembers [a: 0']) {
-      const { declarations, refusals } = readWorld(`world w { ${member}\n}\nenum Ward { oak }\n`);
+      const { declarations, refusals } = readWorld(
+        `world w: sprout.World { ${member}\n}\nenum Ward { oak }\n`,
+      );
       expect(
         declarations.map((d) => d.name.text),
         member,
@@ -1737,7 +1746,7 @@ describe('a world declaration', () => {
       ['contains actors', true],
     ] as const) {
       const { world, refusals } = readWorld(
-        `world w {\n  ${written}\n  visitors are P\n  visitors arrive at y\n}`,
+        `world w: sprout.World {\n  ${written}\n  visitors are P\n  visitors arrive at y\n}`,
       );
       expect(refusals, written).toEqual([]);
       const held = world!.members.filter((m) => m.kind === 'contains');
@@ -1753,7 +1762,7 @@ describe('a world declaration', () => {
 
   it('does not take the member after `contains` for the word `actors`', () => {
     const { world, refusals } = readWorld(
-      'world w {\n  contains\n  visitors are P\n  visitors arrive at y\n}',
+      'world w: sprout.World {\n  contains\n  visitors are P\n  visitors arrive at y\n}',
     );
     expect(refusals).toEqual([]);
     expect(world!.members.map((m) => m.kind)).toEqual([
@@ -1767,14 +1776,14 @@ describe('a world declaration', () => {
     // `contains actor`, singular. Swallowing the word would point the
     // refusal at `contains`, which is the part they got right; leaving
     // it goes back to the member table, which names the word itself.
-    const { refusals } = readWorld('world w {\n  contains actor\n}');
+    const { refusals } = readWorld('world w: sprout.World {\n  contains actor\n}');
     expect(refusals.map((d) => d.message)).toContain('A world is not made of `actor`.');
   });
 
   it('says `contains` is one of the things a world is made of', () => {
     // Built from the member table, like the rest of that sentence, so
     // it cannot go stale when a member is added.
-    const { refusals } = readWorld('world w { nonsense }');
+    const { refusals } = readWorld('world w: sprout.World { nonsense }');
     expect(refusals[0]!.remedy).toContain('`contains`');
   });
 
@@ -1812,7 +1821,9 @@ describe('recovery and reading ask the same word different questions', () => {
   });
 
   it('a world\u2019s members: the loose question would not say the word is not a member', () => {
-    const { declarations, refusals } = read('world w { message foo }\nenum Ward { oak }');
+    const { declarations, refusals } = read(
+      'world w: sprout.World { message foo }\nenum Ward { oak }',
+    );
     expect(refusals.map((d) => d.message)).toEqual([
       'A world is not made of `message`.',
       '`w` is never closed.',
@@ -1823,7 +1834,7 @@ describe('recovery and reading ask the same word different questions', () => {
 
   it('a list literal, past an element it could not read: it would lose the world', () => {
     const { declarations, refusals } = read(
-      'world w {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+      'world w: sprout.World {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
     expect(refusals.map((d) => d.message)).toEqual([
@@ -1834,7 +1845,7 @@ describe('recovery and reading ask the same word different questions', () => {
 
   it('a `:remembers`, past an entry it could not read: the same', () => {
     const { declarations, refusals } = read(
-      'world outer {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+      'world outer: sprout.World {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
     expect(refusals.map((d) => d.message)).toEqual([
@@ -1924,7 +1935,7 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
     // vanish and a stray "An enum needs a name." would name nothing.
     for (const word of DECLARATIONS) {
       const { declarations, refusals } = readWorld(
-        `world w {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
+        `world w: sprout.World {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
       );
       expect(
         refusals.map((d) => d.message),
@@ -1992,16 +2003,16 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // Worlds. The first two: a member word that also starts a
     // declaration, and a member whose value is a list that was never
     // closed. Either could take the declaration after it with it.
-    'world w { enum Inner { oak } }',
-    'world w { :x [ }',
-    // Not `world w { }`: it PARSES, and what is wrong with it — no
-    // visitor kind, nowhere to arrive — is `resolveWorld`'s to say.
+    'world w: sprout.World { enum Inner { oak } }',
+    'world w: sprout.World { :x [ }',
+    // Not `world w: sprout.World { }`: it PARSES, and what is wrong with
+    // it — no visitor kind, nowhere to arrive — is `resolveWorld`'s to say.
     // A shape that is not a parse defect belongs in world.spec.ts.
-    'world w { nonsense }',
+    'world w: sprout.World { nonsense }',
     'world w: 4 { }',
     'world w',
-    'world w { visitors }',
-    'world w { visitors are 4 }',
+    'world w: sprout.World { visitors }',
+    'world w: sprout.World { visitors are 4 }',
   ];
 
   /**
@@ -2095,7 +2106,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const diagnostics = new Diagnostics();
         const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
         // A construct that was never closed gives its contents to the
-        // file — `world w { enum Inner { oak } }` is a world that ran
+        // file — `world w: sprout.World { enum Inner { oak } }` is a world that ran
         // on, and `Inner` is the file's enum. That is the rule, and it
         // keeps the author's work rather than skipping to a brace and
         // losing it. So a name

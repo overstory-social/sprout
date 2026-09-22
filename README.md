@@ -8,7 +8,7 @@ world answers in prose. It is being built to
 which is the language whole and the authority where anything disagrees.
 
 ```sprout
-world printers_shop {
+world printers_shop: sprout.World {
   visitors are Creature
   visitors arrive at composing_room
   :season Season default autumn

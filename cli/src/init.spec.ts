@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { checkShape, SourceFile } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
@@ -21,7 +22,18 @@ describe('initWorld', () => {
       libraries: [],
       files: ['world.sprout'],
     });
-    expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain('world paper_store {');
+    expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain(
+      'world paper_store: sprout.World {',
+    );
+  });
+
+  it('writes a world that composes `sprout.World`, as every world does', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
+    initWorld(dir, 'marta');
+    const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
+    expect(written).toContain('world kiln_yard: sprout.World {');
+    // What a beginner is handed is what the compiler takes.
+    expect(checkShape(new SourceFile('world.sprout', written)).diagnostics).toEqual([]);
   });
 
   it('refuses a folder that already has something in it', () => {
