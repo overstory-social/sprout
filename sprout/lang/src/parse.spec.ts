@@ -1534,6 +1534,62 @@ describe('a world declaration', () => {
   });
 });
 
+describe('recovery and reading ask the same word different questions', () => {
+  // A loop reading what the author WROTE stops when the answer is yes,
+  // so a false yes loses their work; recovery is already skipping, so a
+  // false no loses their diagnostic. One predicate cannot be wrong in
+  // both directions at once, which is why there are two — and three
+  // rounds of review on this PR were each one of them being asked in
+  // the wrong place.
+  //
+  // The assignment was right at all eight call sites and nothing held
+  // it there: four of the six reading loops had no spec that could tell
+  // which question they asked, so a later change flipping one back
+  // would ship behind a green gate exactly as the other two did. One
+  // input per loop, each chosen so the two questions disagree about it:
+  // a word this compiler reads, followed by something that is neither
+  // that word's own opening nor a closer.
+
+  it('an enum\u2019s options: the loose question would lose the option after the word', () => {
+    const { declarations, refusals } = read('enum Ward { oak, message silver }');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message', 'silver']);
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` needs a comma between its options.']);
+  });
+
+  it('a world\u2019s members: the loose question would not say the word is not a member', () => {
+    const { declarations, refusals } = read('world w { message foo }\nenum Ward { oak }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A world is not made of `message`.',
+      '`w` is never closed.',
+      'A message needs a name.',
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+  });
+
+  it('a list literal, past an element it could not read: it would lose the world', () => {
+    const { declarations, refusals } = read(
+      'world w {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+    );
+    expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+      'A list needs a comma between its elements.',
+    ]);
+  });
+
+  it('a `:remembers`, past an entry it could not read: the same', () => {
+    const { declarations, refusals } = read(
+      'world outer {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+    );
+    expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+      '`message` needs a colon between its name and its value.',
+      '`foo` needs a colon between its name and its value.',
+    ]);
+  });
+});
+
 describe('#69 — a declaration\u2019s own word is an ordinary name wherever a name may stand', () => {
   // *Reserved names* reserves nothing for a property's name or an
   // option's, so `enum`, `message` and `world` are ordinary words
