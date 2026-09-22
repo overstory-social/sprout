@@ -184,8 +184,9 @@ export interface Bundle {
   readonly tree: ObjectTree;
   /**
    * Where visitors arrive: the path of a place in `tree`, the world's
-   * being the empty path. Null only in a loaded world whose arrival
-   * place is absent, which `absent` records; such a world admits no one.
+   * being the empty path. Null only in a loaded world that admits no
+   * one: its arrival place is absent, or it has no one `world`
+   * declaration to say where, and `absent` records which.
    */
   readonly arrival: TreePath | null;
   readonly words: WordSet;
