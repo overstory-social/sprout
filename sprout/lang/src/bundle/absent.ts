@@ -29,6 +29,7 @@ export type ReferenceKind =
   | 'place-in-exit'
   | 'place-underfoot'
   | 'place-of-arrival'
+  | 'world'
   | 'extension';
 
 export interface AbsenceRule {
@@ -83,6 +84,14 @@ export const ABSENT_TABLE: readonly AbsenceRule[] = [
     // gone" is not true of somebody who never stood anywhere. Left open,
     // and recorded in the working notes' Holes in the spec.
     consequence: 'the world does not admit anyone, and says so',
+    told: null,
+  },
+  {
+    reference: 'world',
+    // The spec's row reads "the same" as the one above it: a bundle with
+    // no world to admit anyone through fails entry the way a missing
+    // arrival place does, and is reported the same way.
+    consequence: 'the world does not admit anyone, and the host says so outside it',
     told: null,
   },
   {

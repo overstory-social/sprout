@@ -1,10 +1,10 @@
 {
-  "name": "enum_twice",
+  "name": "printers_shop",
   "version": "0.1.0",
   "author": "corpus",
   "license": "MIT",
   "level": 1,
   "extensions": [],
   "libraries": [],
-  "files": ["kinds.sprout", "more.sprout", "world.sprout"]
+  "files": ["world.sprout"]
 }

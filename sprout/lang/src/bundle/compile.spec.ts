@@ -33,7 +33,8 @@ const MANIFEST = [
   '',
 ].join('\n');
 
-const WORLD_TEXT = 'enum Season { spring, summer, autumn, winter }';
+const WORLD_TEXT =
+  'world printers_shop: sprout.World {}\nenum Season { spring, summer, autumn, winter }';
 /** Exactly the world's own source: blessed fits, unblessed does not. */
 const OWN_BYTES = WORLD_TEXT.length;
 
@@ -265,6 +266,157 @@ describe('the manifest enumerates the world’s own files', () => {
   });
 });
 
+describe('a bundle holds exactly one `world` declaration, named as the manifest', () => {
+  it('compiles the happy path: one world, named as the manifest, composing sprout.World', () => {
+    const { bundle, diagnostics } = compileBundle(world());
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(
+      bundle!.definitions.some((d) => d.kind === 'world' && d.name.text === 'printers_shop'),
+    ).toBe(true);
+  });
+
+  it('finds the world under the manifest’s namespace, which need not be its name', () => {
+    const { bundle, diagnostics } = compileBundle(world({ manifest: { namespace: 'ps' } }));
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(
+      bundle!.definitions.some((d) => d.kind === 'world' && d.name.text === 'printers_shop'),
+    ).toBe(true);
+  });
+
+  it('refuses no `world` declaration at publish, at the manifest’s `name` key', () => {
+    const files = [file('world.sprout', 'enum Season { spring }')];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    const problem = refusals(diagnostics)[0]!;
+    expect(problem.message).toBe('This world has no `world` declaration.');
+    expect(problem.remedy).toBe(
+      'Write one, in one of its files: `world printers_shop: sprout.World { … }`.',
+    );
+    expect(locationOf(problem.at)).toBe('sprout.json:2:3');
+  });
+
+  it('refuses two `world` declarations at publish, at the second’s name', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nworld printers_shop: sprout.World {}',
+      ),
+    ];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    const problem = refusals(diagnostics)[0]!;
+    expect(problem.message).toBe('There are two `world` declarations, and a world has one.');
+    expect(problem.remedy).toBe('Remove one, or move what it holds into the other.');
+    expect(locationOf(problem.at)).toBe('world.sprout:2:7');
+  });
+
+  it('refuses a `world` declaration named otherwise, with both names in the remedy', () => {
+    const files = [file('world.sprout', 'world shop: sprout.World {}')];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    const problem = refusals(diagnostics)[0]!;
+    expect(problem.message).toBe("`shop` is not this world's name.");
+    expect(problem.remedy).toBe(
+      'The manifest names it `printers_shop`; write `world printers_shop: sprout.World { … }`, ' +
+        'or change the manifest.',
+    );
+    expect(locationOf(problem.at)).toBe('world.sprout:1:7');
+  });
+
+  it('refuses a `world` declaration in a vendored library’s files', () => {
+    const withWorld: LibrarySource = {
+      ...SPROUT,
+      files: [...SPROUT.files, file('root.sprout', 'world sprout: sprout.World {}')],
+    };
+    const { bundle, diagnostics } = compileBundle(
+      world({
+        libraries: [withWorld],
+        manifest: {
+          libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(withWorld) }],
+        },
+      }),
+    );
+    expect(bundle).toBeNull();
+    const problem = refusals(diagnostics).find((d) => d.message.includes('does not declare'))!;
+    expect(problem).toBeDefined();
+    expect(problem.message).toContain('A library does not declare a world.');
+    expect(locationOf(problem.at)).toBe('root.sprout:1:7');
+  });
+
+  it('is a gap at load when there is no `world` declaration, and still produces a bundle', () => {
+    const files = [file('world.sprout', 'enum Season { spring }')];
+    const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
+    expect(bundle).not.toBeNull();
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.absent).toEqual([
+      {
+        what: 'printers_shop',
+        kind: 'world',
+        reason: 'missing',
+        at: expect.anything(),
+        consequence: 'the world admits no one until it has one',
+      },
+    ]);
+    expect(warnings(diagnostics)[0]!.message).toContain(
+      'The world admits no one until it has one.',
+    );
+  });
+
+  it('is a gap at load when there are two `world` declarations, and still produces a bundle', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nworld printers_shop: sprout.World {}',
+      ),
+    ];
+    const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
+    expect(bundle).not.toBeNull();
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.absent).toEqual([
+      {
+        what: 'printers_shop',
+        kind: 'world',
+        reason: 'missing',
+        at: expect.anything(),
+        consequence: 'the world admits no one until there is one',
+      },
+    ]);
+  });
+
+  it('still refuses a `world` declaration named otherwise at load, because it is never allowable', () => {
+    const files = [file('world.sprout', 'world shop: sprout.World {}')];
+    expect(compileBundle(world({ files }), { mode: 'load' }).bundle).toBeNull();
+  });
+
+  it('does not also say the world is missing when its only file is refused for its own defect', () => {
+    // `checkShape` still returns the `world` declaration it parsed
+    // alongside the refusal about the malformed list — a value inside a
+    // property recovers without discarding the world around it — and
+    // publish is about to refuse the bundle for that defect regardless.
+    // Saying the world also has none would be the same mistake said
+    // twice.
+    const files = [file('world.sprout', 'world printers_shop: sprout.World {\n  :x [-]\n}')];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics)).toHaveLength(1);
+    expect(refusals(diagnostics)[0]!.message).not.toContain('has no `world` declaration');
+  });
+
+  it('reads the same broken file as absent at load, and still gives the missing-world gap', () => {
+    // At load the broken file itself is a gap (its declarations, world
+    // included, are not in `byLibrary`), so the world genuinely has none
+    // among what is usable, and that gap stands beside the file's.
+    const files = [file('world.sprout', 'world printers_shop: sprout.World {\n  :x [-]\n}')];
+    const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
+    expect(bundle).not.toBeNull();
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.absent.map((a) => a.kind)).toEqual(['file', 'world']);
+    expect(
+      warnings(diagnostics).some((d) => d.message.includes('has no `world` declaration')),
+    ).toBe(true);
+  });
+});
+
 describe('the manifest records every library by version and by the hash of its source', () => {
   it('compiles when the source that travelled is the source recorded', () => {
     const { bundle } = compileBundle(world());
@@ -329,7 +481,7 @@ describe('the manifest records every library by version and by the hash of its s
   });
 
   it('lets a library and the world share a file name, since they are different source', () => {
-    const files = [file('ward.sprout', 'enum Mine { one }')];
+    const files = [file('ward.sprout', 'world printers_shop: sprout.World {}\nenum Mine { one }')];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 });
@@ -389,7 +541,8 @@ describe('blessed library source costs the author nothing, and a fork costs them
     // A .prose file, because a megabyte of source would be a megabyte
     // of parse errors and this test is about the cap, not the parser.
     const big = file('big.prose', 'x'.repeat(1_000_000));
-    expect(compileBundle(world({ files: [big] })).bundle).not.toBeNull();
+    const files = [big, file('world.sprout', 'world printers_shop: sprout.World {}')];
+    expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 });
 
@@ -426,9 +579,11 @@ describe('a bundle’s level is the highest of any of its parts', () => {
 
 describe('the whole bundle is read, the world’s files and its libraries alike', () => {
   it('refuses a syntax problem in the world’s own source, naming the file', () => {
-    const { bundle, diagnostics } = compileBundle(
-      world({ files: [file('world.sprout', 'enum Season { spring }\n%\n')] }),
-    );
+    const files = [
+      file('other.sprout', 'world printers_shop: sprout.World {}'),
+      file('world.sprout', 'enum Season { spring }\n%\n'),
+    ];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('world.sprout:2:1');
   });
@@ -449,7 +604,11 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
   });
 
   it('gives every problem in reading order, not the first', () => {
-    const files = [file('a.sprout', '% ; %'), file('b.sprout', '%')];
+    const files = [
+      file('a.sprout', '% ; %'),
+      file('b.sprout', '%'),
+      file('world.sprout', 'world printers_shop: sprout.World {}'),
+    ];
     const { diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toHaveLength(4);
     expect(refusals(diagnostics).map((d) => locationOf(d.at))).toEqual([
@@ -478,13 +637,20 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('hashes differently once anything about the world changes', () => {
-    const changed = world({ files: [file('world.sprout', 'enum Season { spring }')] });
+    const changed = world({
+      files: [file('world.sprout', 'world printers_shop: sprout.World {}\nenum Season { spring }')],
+    });
     expect(compileBundle(changed).bundle!.hash).not.toBe(bundle!.hash);
   });
 
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
     // The union grows as the syntax lands; B27 fills the word set.
-    expect(bundle!.definitions.map((d) => d.name.text)).toEqual(['Season', 'Ward', 'Glaze']);
+    expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
+      'printers_shop',
+      'Season',
+      'Ward',
+      'Glaze',
+    ]);
     expect(bundle!.words).toEqual([]);
   });
 });
@@ -496,7 +662,8 @@ describe('publishing is strict: any problem is a refusal', () => {
   });
 
   it('refuses a world with a file held back, because a world is not published in pieces', () => {
-    const { bundle, diagnostics } = compileBundle(world({ withheld: ['world.sprout'] }), {
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const { bundle, diagnostics } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), {
       mode: 'publish',
     });
     expect(bundle).toBeNull();
@@ -543,14 +710,16 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world with a file withheld, and keeps the objects’ state', () => {
-    const { bundle } = compileBundle(world({ withheld: ['world.sprout'] }), load);
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const { bundle } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), load);
     expect(bundle).not.toBeNull();
-    expect(bundle!.absent[0]).toMatchObject({ what: 'world.sprout', reason: 'withheld' });
+    expect(bundle!.absent[0]).toMatchObject({ what: 'kiln.sprout', reason: 'withheld' });
     expect(bundle!.absent[0]!.consequence).toContain('keep their state');
   });
 
   it('does not call a withheld file missing as well, since it is one gap and not two', () => {
-    const { bundle } = compileBundle(world({ withheld: ['world.sprout'] }), load);
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const { bundle } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), load);
     expect(bundle!.absent.map((a) => a.reason)).toEqual(['withheld']);
   });
 
@@ -574,22 +743,38 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('keeps what a broken file had to say, as warnings, so a moderator sees why', () => {
-    const { diagnostics } = compileBundle(world({ files: [file('b.sprout', '% ; %')] }), load);
+    const files = [
+      file('b.sprout', '% ; %'),
+      file('world.sprout', 'world printers_shop: sprout.World {}'),
+    ];
+    const { diagnostics } = compileBundle(world({ files }), load);
     expect(warnings(diagnostics)).toHaveLength(3);
     expect(diagnostics.every((d) => d.severity === 'warning')).toBe(true);
   });
 
   it('leaves the files that do compile alone', () => {
-    const files = [file('good.sprout', 'enum Good { yes }'), file('bad.sprout', '%')];
+    const files = [
+      file('good.sprout', 'world printers_shop: sprout.World {}\nenum Good { yes }'),
+      file('bad.sprout', '%'),
+    ];
     const { bundle } = compileBundle(world({ files }), load);
     expect(bundle!.absent.map((a) => a.what)).toEqual(['bad.sprout']);
   });
 
-  it('warns rather than refuses past a cap, since the world was accepted once', () => {
+  it('still refuses a world past the host’s source cap, since no exception is recorded for it', () => {
     const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
     const { bundle, diagnostics } = compileBundle(world(), { ...load, limits });
-    expect(bundle).not.toBeNull();
-    expect(warnings(diagnostics)[0]!.message).toContain('bytes of source');
+    expect(bundle).toBeNull();
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('sprout.json:2:3');
+    expect(refusals(diagnostics)[0]!.message).toContain('bytes of source');
+  });
+
+  it('still refuses a world past the host’s file cap, since no exception is recorded for it', () => {
+    const limits = limitsFrom({ caps: { files: 2 } });
+    const { bundle, diagnostics } = compileBundle(world(), { ...load, limits });
+    expect(bundle).toBeNull();
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('sprout.json:2:3');
+    expect(refusals(diagnostics)[0]!.message).toContain('files');
   });
 
   it('warns rather than refuses about a file the manifest does not name', () => {
@@ -612,8 +797,9 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('hashes the source that actually arrived, a withheld file not among it', () => {
-    const whole = compileBundle(world(), load).bundle!;
-    const held = compileBundle(world({ withheld: ['world.sprout'] }), load).bundle!;
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const whole = compileBundle(world({ files }), load).bundle!;
+    const held = compileBundle(world({ files, withheld: ['kiln.sprout'] }), load).bundle!;
     expect(held.hash).not.toBe(whole.hash);
   });
 
@@ -635,7 +821,10 @@ describe('a gap is said in whole sentences, and still says what to do about it',
   });
 
   it('keeps the remedy, which a moderator reading a withheld world still needs', () => {
-    const { diagnostics } = compileBundle(world({ withheld: ['world.sprout'] }), { mode: 'load' });
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const { diagnostics } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), {
+      mode: 'load',
+    });
     expect(diagnostics[0]!.remedy).toContain('Restore it');
   });
 });
