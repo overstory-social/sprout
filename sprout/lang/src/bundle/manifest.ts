@@ -26,6 +26,43 @@ const ManifestSchema = z.object({
   files: z.array(z.string()).default([]),
 });
 
+/** What to write for each field, in the manifest's own words. */
+const EXAMPLES: Readonly<Record<string, string>> = {
+  name: '"name": "printers_shop" — lower-case, with letters, digits and _',
+  namespace: '"namespace": "printers_shop", or leave it out to use the name',
+  version: '"version": "0.1.0"',
+  author: '"author": "Marta"',
+  license: '"license": "MIT"',
+  level: '"level": 1',
+  extensions: '"extensions": [{ "name": "media", "major": 1 }], or leave it out',
+  libraries: '"libraries": [{ "name": "sprout", "version": "1.0.0", "sha": "…" }], or leave it out',
+  files: '"files": ["world.sprout"]',
+};
+
+/** One sentence about what is wrong with a field, for someone who is not a programmer. */
+function sentenceFor(key: string | null, issue: z.core.$ZodIssue): string {
+  if (key === null) return 'The manifest is not a JSON object.';
+  const where = issue.path.length > 1 ? issue.path.map(String).join('.') : key;
+  if (issue.code === 'invalid_type') {
+    if (issue.message.endsWith('received undefined')) return `The manifest has no ${where}.`;
+    return `The manifest's ${where} is not ${withArticle(issue.expected)}.`;
+  }
+  return `The manifest's ${where} is not what a manifest holds there.`;
+}
+
+function withArticle(expected: string): string {
+  if (expected === 'array') return 'a list';
+  if (expected === 'object') return 'an object';
+  return `a ${expected}`;
+}
+
+function remedyFor(key: string | null): string {
+  const example = key === null ? null : EXAMPLES[key];
+  return example === undefined || example === null
+    ? 'A manifest is a JSON object with a name, a version, an author, a license, a level and a list of files.'
+    : `Write ${example}.`;
+}
+
 /** Where a key was written in the manifest's text, or the head of the file. */
 export function manifestKeySpan(file: SourceFile, key: string): Span {
   const at = file.text.indexOf(`"${key}"`);
@@ -53,13 +90,8 @@ export function parseManifest(file: SourceFile, diagnostics: Diagnostics): Manif
   if (!result.success) {
     for (const issue of result.error.issues) {
       const key = issue.path.length > 0 ? String(issue.path[0]) : null;
-      diagnostics.refuse(
-        key === null ? file.span(0, 0) : manifestKeySpan(file, key),
-        key === null
-          ? `The manifest is ${issue.message}.`
-          : `The manifest's ${key} is ${issue.message}.`,
-        'A manifest is a JSON object with a name, a version, an author, a license, a level and a list of files.',
-      );
+      const at = key === null ? file.span(0, 0) : manifestKeySpan(file, key);
+      diagnostics.refuse(at, sentenceFor(key, issue), remedyFor(key));
     }
     return null;
   }

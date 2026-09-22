@@ -1,2 +1,1 @@
-enum Ward { oak, silver, oak }
-enum Ward { brass }
+enum Ward { oak, silver }

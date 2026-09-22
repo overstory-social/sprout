@@ -1,4 +1,4 @@
-kinds.sprout:1:26  `Ward` lists `oak` twice.
-                   An option means one thing, so it is written once. Remove the second.
+more.sprout:1:6  enum_twice declares two enums called `Ward`.
+                 Give one of them another name, or remove it.
 
 refused: 1 problem

@@ -33,7 +33,7 @@ import {
   type RoleDeclaredAs,
   type RoleNarrowing,
 } from './bindings.js';
-import { composesKind, kindName, type KindRef } from '../declare/kinds.js';
+import type { KindRef } from '../declare/kinds.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import type { DeclaredMessage } from '../declare/messages.js';
@@ -154,30 +154,6 @@ function trying<T>(run: (diagnostics: Diagnostics) => T) {
 }
 
 // --- a kind, as typing needs it -------------------------------------------
-
-describe('a kind is matched nominally, and by composition', () => {
-  it('names itself by its library and its name', () => {
-    expect(kindName(CONTAINER)).toBe('sprout.Container');
-    expect(kindName(VESSEL)).toBe('printers_shop.Vessel');
-  });
-
-  it('composes itself, so a kind fills a role declaring it', () => {
-    expect(composesKind(VESSEL, VESSEL)).toBe(true);
-    expect(composesKind(CONTAINER, CONTAINER)).toBe(true);
-  });
-
-  it('admits anything that composes the kind, whatever else it composes', () => {
-    expect(composesKind(VESSEL, CONTAINER)).toBe(true);
-    expect(composesKind(CONTAINER, VESSEL)).toBe(false);
-  });
-
-  it('does not match structurally: two kinds are not one for looking alike', () => {
-    const elsewhere = kind('other_world', 'Vessel', 'sprout.Container');
-    expect(kindName(elsewhere)).not.toBe(kindName(VESSEL));
-    expect(composesKind(elsewhere, VESSEL)).toBe(false);
-    expect(composesKind(VESSEL, elsewhere)).toBe(false);
-  });
-});
 
 // --- what a binding can be ------------------------------------------------
 

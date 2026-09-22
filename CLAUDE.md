@@ -74,10 +74,12 @@ A comment says **what is true now** and, where it is not obvious, **why the
 spec or the design wants it that way**. It never says how the code got
 here. Concretely:
 
-- No issue or PR numbers, no "before B12", no "the previous language", no
-  "this used to", no anecdotes about a bug or a regression, no counts of
-  how many times something was reported. Git holds the history; the PR body
-  holds the argument.
+- No issue or PR numbers (`#59`), no "before B12", no "the previous
+  language", no "this used to", no anecdotes about a bug or a regression, no
+  counts of how many times something was reported. Git holds the history;
+  the PR body holds the argument. A backlog item named as the **owner of
+  work not yet done** is fine, because it is a fact about the plan: "B29
+  reads passage bodies" stays until B29 lands, and is removed then.
 - A file header is a short paragraph: what the module is, which spec
   section it implements, and the one or two invariants a reader must know.
   Not an essay.
