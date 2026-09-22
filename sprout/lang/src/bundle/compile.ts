@@ -500,19 +500,20 @@ export function compileBundle(
   const files =
     arrived.length + charged.reduce((count, library) => count + library.files.length, 0);
 
-  // A cap is checked at save and publish. At load it is a warning: the
-  // world was accepted once, and refusing to load it now would darken a
-  // room somebody already built. Which recorded caps a host will honour
-  // and which it will refuse is the host's own decision (B43).
+  // The spec's Limits says a host refuses a bundle checked against larger
+  // static caps than its own, unless it has recorded an exception for that
+  // world — and the host's way of recording one is B43's. Until B43 lands
+  // no exception exists to grant, so a cap over the host's own refuses at
+  // load exactly as it does at publish.
   if (limits.caps.sourceBytes !== null && sourceBytes > limits.caps.sourceBytes) {
-    report.strict(
+    report.refuse(
       atKey(manifestFile, 'name'),
       `This world is ${sourceBytes} bytes of source, and ${limits.caps.sourceBytes} is as much as it may be.`,
       'Take something out, or use a library the host has blessed, whose source costs nothing.',
     );
   }
   if (limits.caps.files !== null && files > limits.caps.files) {
-    report.strict(
+    report.refuse(
       atKey(manifestFile, 'name'),
       `This world is ${files} files, and ${limits.caps.files} is as many as it may have.`,
       'Put more in each file, or take something out.',

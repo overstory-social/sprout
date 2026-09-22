@@ -37,9 +37,6 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
       passageDepth: 8,
       setRoleObjects: 8,
       spawnsPerTurn: 8,
-      spawnsPerHour: 200,
-      liveInstances: 2_000,
-      wakesPerObject: 1,
       shortestWakeSeconds: 60,
     });
   });
@@ -68,6 +65,23 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
     expect(Object.keys(DEFAULT_LIMITS.caps)).not.toContain('nesting');
     expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('nesting');
     expect(() => limitsFrom({ caps: { nesting: 8 } as never })).toThrow(/is not a limit/);
+  });
+
+  it('has no budget for spawns per hour, live instances or wakes per object, which outlive a turn', () => {
+    // The spec's Limits › Runtime budgets: how many live instances a
+    // world may hold is the host's storage decision, and pending wakes
+    // are bounded by live instances as a rule of the language under
+    // Time, not a figure in this table.
+    const names = Object.keys(DEFAULT_LIMITS.budgets);
+    expect(names).not.toContain('spawnsPerHour');
+    expect(names).not.toContain('liveInstances');
+    expect(names).not.toContain('wakesPerObject');
+    expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('spawnsPerHour');
+    expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('liveInstances');
+    expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('wakesPerObject');
+    expect(() => limitsFrom({ budgets: { spawnsPerHour: 1 } as never })).toThrow(/is not a limit/);
+    expect(() => limitsFrom({ budgets: { liveInstances: 1 } as never })).toThrow(/is not a limit/);
+    expect(() => limitsFrom({ budgets: { wakesPerObject: 1 } as never })).toThrow(/is not a limit/);
   });
 });
 
