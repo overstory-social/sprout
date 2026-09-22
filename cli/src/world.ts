@@ -65,7 +65,8 @@ export function readWorld(dir: string): ReadWorld {
   if (manifest === null) return { path: root, source: null, diagnostics: diagnostics.all };
 
   const files = filesUnder(root).map(
-    (path) => new SourceFile(relative(root, path).split('\\').join('/'), readFileSync(path, 'utf8')),
+    (path) =>
+      new SourceFile(relative(root, path).split('\\').join('/'), readFileSync(path, 'utf8')),
   );
   return {
     path: root,

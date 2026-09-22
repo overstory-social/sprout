@@ -32,7 +32,11 @@ describe('checkWorld', () => {
     expect(page).toMatch(/refused: \d+ problems?\n$/);
     const json = JSON.parse(formatCheckJson(result));
     expect(json.ok).toBe(false);
-    expect(json.diagnostics[0]).toMatchObject({ file: 'world.sprout', line: 2, severity: 'refusal' });
+    expect(json.diagnostics[0]).toMatchObject({
+      file: 'world.sprout',
+      line: 2,
+      severity: 'refusal',
+    });
     expect(typeof json.diagnostics[0].column).toBe('number');
   });
 

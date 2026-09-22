@@ -20,10 +20,10 @@ message :stir
 
 Two packages, one version:
 
-| package                 | what                                                                                                                                                        |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| package                 | what                                                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@overstory/sprout`     | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records and memory store; `./conformance`) · `./store-sql` · `./store-document` |
-| `@overstory/sprout-cli` | `sprout init · check` on a microworld folder                                                                                                                |
+| `@overstory/sprout-cli` | `sprout init · check` on a microworld folder                                                                                                                   |
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root) and checks the expressions Phase 1

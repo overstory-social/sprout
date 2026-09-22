@@ -39,15 +39,15 @@ why). Older files under `docs/design/` are dated and superseded.
 that names what it does. A file in one layer imports from the layers above
 it and never from the ones below.
 
-| layer      | holds                                                          | may import from                         |
-| ---------- | -------------------------------------------------------------- | --------------------------------------- |
-| `source/`  | spans, the AST node rule, diagnostics, hashing                 | nothing                                 |
-| `syntax/`  | lexer, AST, parser                                             | `source/`, `bundle/limits`              |
-| `declare/` | what a declaration means: types, enums, kinds, properties, messages, the world | `source/`, `syntax/`     |
-| `check/`   | bindings, scope, the expression and statement checker          | `source/`, `syntax/`, `declare/`        |
-| `bundle/`  | limits, the manifest, the bundle, `compileBundle`, absence     | everything above                        |
-| `runtime/` | the budget meter, values, and (from B22 on) the engine         | everything above                        |
-| `prose/`   | (from B29) passages, slots, rendering                          | everything above                        |
+| layer      | holds                                                                          | may import from                  |
+| ---------- | ------------------------------------------------------------------------------ | -------------------------------- |
+| `source/`  | spans, the AST node rule, diagnostics, hashing                                 | nothing                          |
+| `syntax/`  | lexer, AST, parser                                                             | `source/`, `bundle/limits`       |
+| `declare/` | what a declaration means: types, enums, kinds, properties, messages, the world | `source/`, `syntax/`             |
+| `check/`   | bindings, scope, the expression and statement checker                          | `source/`, `syntax/`, `declare/` |
+| `bundle/`  | limits, the manifest, the bundle, `compileBundle`, absence                     | everything above                 |
+| `runtime/` | the budget meter, values, and (from B22 on) the engine                         | everything above                 |
+| `prose/`   | (from B29) passages, slots, rendering                                          | everything above                 |
 
 Rules that follow from the table:
 

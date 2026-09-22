@@ -35,7 +35,9 @@ describe('main', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-cli-')), 'shed');
     const init = captured();
     expect(main(['init', dir, '--author', 'marta'], init)).toBe(0);
-    expect(init.out()).toBe(`wrote ${dir}/sprout.json\nwrote ${dir}/world.sprout\nwrote ${dir}/README.md\n`);
+    expect(init.out()).toBe(
+      `wrote ${dir}/sprout.json\nwrote ${dir}/world.sprout\nwrote ${dir}/README.md\n`,
+    );
     expect(JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'))).toMatchObject({
       name: 'shed',
       author: 'marta',

@@ -268,7 +268,7 @@ export interface VisitorsArriveAt extends Node {
 
 /**
  * `contains`, or `contains actors` — whether a thing may hold others,
- * and whether the others may be people (B13; the spec's Containment is
+ * and whether the others may be people (the spec's Containment is
  * a declaration, Places).
  *
  * There are no rooms: a PLACE is any object that declares `contains

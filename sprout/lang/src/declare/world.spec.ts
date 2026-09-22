@@ -219,14 +219,14 @@ describe('a world says what a person is, and where they begin', () => {
 
   it('keeps where they arrive as written, for B14 to resolve', () => {
     // Identifier scope does not exist yet, and whether the thing named
-    // is a place is B13's. What is kept is the name and its span.
+    // is a place is B14's. What is kept is the name and its span.
     const { resolved } = world(SHOP);
     expect(resolved!.arriveAt.text).toBe('composing_room');
     expect(resolved!.arriveAt.kind).toBe('ident');
   });
 });
 
-describe('containment is a declaration, and a place is whatever holds actors (B13)', () => {
+describe('containment is a declaration, and a place is whatever holds actors', () => {
   /** A world writing exactly these lines, and the two things it may hold. */
   function holding(...lines: string[]) {
     const { resolved, said } = world(

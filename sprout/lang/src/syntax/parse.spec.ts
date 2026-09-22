@@ -1506,7 +1506,7 @@ describe('a world declaration', () => {
     expect(world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Kind']);
   });
 
-  it('reads `contains`, and `contains actors` (B13)', () => {
+  it('reads `contains`, and `contains actors`', () => {
     // Containment is a declaration, never a kind the engine knows by
     // name. `contains` is the primitive; `contains actors` is the
     // capability beside it, and declaring the second is the whole of

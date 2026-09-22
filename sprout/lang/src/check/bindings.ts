@@ -387,12 +387,7 @@ export function handlerParameters(
  * `changed :lit (was)` — a hook's previous value, typed by the property
  * that changed, captured at the moment the value changed.
  */
-export function wasBinding(
-  name: string,
-  property: ResolvedProperty,
-  at: Span,
-  diagnostics: Diagnostics,
-): Binding | null {
+export function wasBinding(name: string, property: ResolvedProperty, at: Span): Binding {
   return bind(name, valueOf(property.type), 'parameter', at);
 }
 

@@ -13,7 +13,9 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
     throw new Error(`${dir}: not empty — init wants an empty or new folder`);
   }
   mkdirSync(root, { recursive: true });
-  const name = basename(root).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+  const name = basename(root)
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_');
   const manifest: Manifest = {
     name,
     namespace: name,

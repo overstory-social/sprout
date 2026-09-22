@@ -1,44 +1,14 @@
-// The root of the one tree (the spec's The world model, Places).
-//
-// A microworld is one tree. At its root is the world; everything else is
-// an object inside it. The world is the only object with no container,
-// the only one that cannot move, and the only one that can be neither
-// spawned nor destroyed.
-//
-// Two things about it are load-bearing far beyond this file.
-//
-// IT REFUSES TO PASS. A container's pass rule decides what crosses it,
-// and the world's is `pass any (false)` unless it says otherwise — so
-// places are out of range of one another until the world says so, and
-// one place hearing another is a deliberate act rather than a
-// consequence of sharing a microworld. B15 walks range against this and
-// B32 reads the rules a world writes; what is here is the default, in
-// one place, so neither of them invents it.
-//
-// IT SAYS WHAT A PERSON IS MADE OF. `visitors are Creature` names the
-// visitor kind, and `item.is(sprout.Actor)` stays an ordinary nominal
-// test rather than a name the engine knows. Everything a world writes
-// about a visitor lives in that world's own store; the account behind
-// them supplies the nickname and nothing else.
-//
-// IT MAY HOLD THINGS, AND SAY SO (B13). `contains` is the primitive
-// and `contains actors` is the capability beside it, and a PLACE is
-// whatever declares the second — there are no rooms. Neither is a kind
-// the engine knows by name, which is what makes a library's container
-// and the standard library's equally real, and both are declarations
-// rather than guards because the engine has to know whether a thing
-// holds others in order to build the tree at all.
-//
-// A world that writes neither is not refused. `sprout.World` declares
-// `contains` itself, and every world composes it, so the capability
-// arrives through composition — which is B19's to merge. What is here
-// is only what this declaration WROTE.
-//
-// What is NOT here: resolving `visitors arrive at` to an object is
-// B14's, since identifier scope does not exist yet; whether that object
-// is a place is B14's too, now that this says what a place is; exits
-// living only on places is B28's, which is where exits arrive; the pass
-// rules themselves are B32's; and arrival is B42's.
+// The root of the one tree (the spec's The world model, Places). A
+// microworld is one tree; at its root is the world, the only object with
+// no container. Three things about it are load-bearing elsewhere: its
+// pass rule is `pass any (false)` unless it writes otherwise, so places
+// are out of range of one another until the world says so; `visitors
+// are` names the visitor kind, so `item.is(sprout.Actor)` is an ordinary
+// nominal test; and `contains actors` is what makes a place a place, the
+// world included if it says so. What is here is what the declaration
+// WROTE: `sprout.World` is composed implicitly and B19 merges what
+// composition brings, B14 resolves `visitors arrive at`, B32 reads the
+// pass rules, and B42 handles arrival.
 
 import type { Ident, WorldDeclaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from './kinds.js';

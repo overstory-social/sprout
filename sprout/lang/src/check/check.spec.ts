@@ -82,7 +82,7 @@ function kind(
     name,
     composes: new Set([`${library}.${name}`, ...composes]),
     properties: new Map(properties.map((p) => [p.name, p])),
-    // `contains actors` implies holding (B13), and a fixture that says
+    // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,
     containsActors,

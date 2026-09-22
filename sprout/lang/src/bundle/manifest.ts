@@ -55,7 +55,9 @@ export function parseManifest(file: SourceFile, diagnostics: Diagnostics): Manif
       const key = issue.path.length > 0 ? String(issue.path[0]) : null;
       diagnostics.refuse(
         key === null ? file.span(0, 0) : manifestKeySpan(file, key),
-        key === null ? `The manifest is ${issue.message}.` : `The manifest's ${key} is ${issue.message}.`,
+        key === null
+          ? `The manifest is ${issue.message}.`
+          : `The manifest's ${key} is ${issue.message}.`,
         'A manifest is a JSON object with a name, a version, an author, a license, a level and a list of files.',
       );
     }

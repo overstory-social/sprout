@@ -324,13 +324,11 @@ describe('where types come from — the table, row by row', () => {
   });
 
   it('a hook’s previous value — the property that changed', () => {
-    const { made, said } = trying((d) => wasBinding('was', SEALED, at('was'), d));
+    const { made, said } = trying(() => wasBinding('was', SEALED, at('was')));
     expect(said).toEqual([]);
     expect(made!.type).toEqual(valueOf(BOOLEAN));
-    expect(wasBinding('was', WEAR, at('was'), new Diagnostics())!.type).toEqual(
-      valueOf(integer(0, 99)),
-    );
-    expect(wasBinding('was', NOTE, at('was'), new Diagnostics())!.type).toEqual(valueOf(STRING));
+    expect(wasBinding('was', WEAR, at('was')).type).toEqual(valueOf(integer(0, 99)));
+    expect(wasBinding('was', NOTE, at('was')).type).toEqual(valueOf(STRING));
   });
 
   it('`elapsed` — integer', () => {
@@ -372,7 +370,7 @@ describe('only `self` writes `self`', () => {
       setMemberBinding('thing', null, at('thing')),
       letBinding('n', valueOf(BOOLEAN), at('n')),
       elapsedBinding('elapsed', at('elapsed')),
-      wasBinding('was', SEALED, at('was'), new Diagnostics())!,
+      wasBinding('was', SEALED, at('was')),
     ];
     for (const binding of every) expect(binding.writable, binding.name).toBe(false);
   });
@@ -525,9 +523,7 @@ describe('a handler binds the sender and the value it carries', () => {
   });
 
   it('binds a hook’s previous value at the property that changed', () => {
-    expect(wasBinding('was', KNOWS, at('was'), new Diagnostics())!.type).toEqual(
-      valueOf(KNOWS.type),
-    );
+    expect(wasBinding('was', KNOWS, at('was')).type).toEqual(valueOf(KNOWS.type));
   });
 });
 
