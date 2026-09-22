@@ -30,8 +30,6 @@ why). Older files under `docs/design/` are dated and superseded.
   in the PR and add a line under the notes' _Holes in the spec_ — never
   invent quietly. Do not edit the spec to match code; propose the change in
   the PR and let Eric decide.
-- **Some items are on hold.** The roles items (B23, B24, B26, B27) wait for
-  a design session Eric will run; the notes say so. Do not start them.
 
 ## Where code goes
 
