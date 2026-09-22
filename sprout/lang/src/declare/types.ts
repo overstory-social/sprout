@@ -94,16 +94,10 @@ export function resolveType(
   diagnostics: Diagnostics,
 ): ValueType | null {
   if (written.kind === 'list-type') {
+    // A list's element type may itself be a list, `[[Ward]]`, so long
+    // as every element is of that one type (the spec's Lists).
     const element = resolveType(written.element, enums, from, diagnostics);
     if (element === null) return null;
-    if (element.type === 'list') {
-      diagnostics.refuse(
-        written.at,
-        'A list holds values, not other lists.',
-        'A list has one element type, and that type is a boolean, an integer, a string or an enum.',
-      );
-      return null;
-    }
     return { type: 'list', element };
   }
 
@@ -116,7 +110,7 @@ export function resolveType(
       diagnostics.refuse(
         written.at,
         'The object type is never written.',
-        'A property holds a boolean, an integer, a string, an option of an enum, or a list of those.',
+        'A property holds a boolean, an integer, a string, an option of an enum, or a list, as in `[Ward]` or `[[Ward]]`.',
       );
       return null;
     }
@@ -132,7 +126,7 @@ export function resolveType(
   diagnostics.refuse(
     written.at,
     `\`${full}\` is not a type.`,
-    `Write \`boolean\`, \`integer\`, \`string\`, the name of an enum, or \`[…]\` for a list of those.`,
+    `Write \`boolean\`, \`integer\`, \`string\`, the name of an enum, or \`[…]\` for a list of those — and a list may hold lists, as in \`[[Ward]]\`.`,
   );
   return null;
 }

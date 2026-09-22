@@ -23,10 +23,13 @@
 // is `check.ts`'s to enforce and not something a value can know.
 //
 // The element type is carried so that a list can say what it holds when
-// it refuses something, and so that two lists are only ever compared
-// when they hold the same thing. What a VALUE is at run time belongs to
-// B16, which builds the state model; this is the one collection the
-// language has, written so that B16 has something to persist.
+// it refuses something. An element may itself be a list, and there the
+// no-duplicates rule is kept by taking two elements to be the same when
+// they hold the same element type and the same elements in the same
+// order — not an `==` an author can write (the spec's Lists). What a
+// VALUE is at run time belongs to B16, which builds the state model;
+// this is the one collection the language has, written so that B16 has
+// something to persist.
 
 import type { ValueType } from '../declare/types.js';
 import { DEFAULT_LIMITS, type StaticCaps } from '../bundle/limits.js';
@@ -35,9 +38,10 @@ import { sameType, showType } from '../declare/types.js';
 /**
  * What a list holds. An option is its own name — `oak`, not `:oak` —
  * because that is what a symbol IS once its enum is known, and the
- * enum is known from the list's element type.
+ * enum is known from the list's element type. An element may itself be
+ * a list, since a list's element type may be `[[Ward]]`.
  */
-export type Element = boolean | number | string;
+export type Element = boolean | number | string | SproutList;
 
 /**
  * A full list was added to. Thrown, and not returned, for the reason
@@ -82,7 +86,7 @@ export class SproutList {
   ): SproutList {
     const items: Element[] = [];
     for (const element of elements) {
-      if (items.includes(element)) continue;
+      if (items.some((held) => same(held, element))) continue;
       if (items.length >= caps.listElements) throw new ListFull(caps.listElements, holds);
       items.push(element);
     }
@@ -101,7 +105,7 @@ export class SproutList {
 
   /** Whether it holds this. One of the four. */
   includes(element: Element): boolean {
-    return this.items.includes(element);
+    return this.items.some((held) => same(held, element));
   }
 
   /** Whether another element would fit, which is what `add` faults about. */
@@ -125,7 +129,7 @@ export class SproutList {
     if (!this.includes(element)) return this;
     return new SproutList(
       this.holds,
-      this.items.filter((held) => held !== element),
+      this.items.filter((held) => !same(held, element)),
       this.allowed,
     );
   }
@@ -141,8 +145,25 @@ export class SproutList {
     return this.items.every((element, index) => element === other.items[index]);
   }
 
-  /** As a message names it: `[oak, silver]`. */
+  /** As a message names it: `[oak, silver]`, or `[[oak], [silver]]`. */
   toString(): string {
     return `[${this.items.map((element) => String(element)).join(', ')}]`;
   }
+}
+
+/**
+ * Whether two elements are the same element: a scalar by identity, and
+ * a list when it holds the same element type, as many elements, and
+ * elements that are the same in order. This is what keeps the
+ * no-duplicates rule inside a list of lists, and it is the only
+ * sameness there is for lists — the spec gives an author no `==` on one.
+ */
+function same(a: Element, b: Element): boolean {
+  if (a instanceof SproutList || b instanceof SproutList) {
+    if (!(a instanceof SproutList) || !(b instanceof SproutList)) return false;
+    if (!sameType(a.holds, b.holds)) return false;
+    if (a.count !== b.count) return false;
+    return a.elements.every((element, index) => same(element, b.elements[index]!));
+  }
+  return a === b;
 }

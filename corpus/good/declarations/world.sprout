@@ -6,5 +6,6 @@ world shop {
   visitors arrive at composing_room
   :season Season default autumn
   :sign string default "back \{soon}"
+  :grid [[Ward]] default [[iron], [brass, iron]]
   :remembers [visits: 0 min 0 max 99]
 }

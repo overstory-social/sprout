@@ -4,7 +4,7 @@ import type { PropertyDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations, parseProperty } from '../syntax/parse.js';
-import { SourceFile } from '../source/source.js';
+import { locationOf, SourceFile } from '../source/source.js';
 import {
   BOOLEAN,
   checkLiteral,
@@ -92,10 +92,15 @@ describe('a type resolves from what was written', () => {
     });
   });
 
-  it('refuses a list of lists, since a list holds values', () => {
-    const { type, diagnostics } = resolved(':a [[Ward]] default [[oak]]');
-    expect(type).toBeNull();
-    expect(diagnostics.refusals[0]!.message).toBe('A list holds values, not other lists.');
+  it('reads a list whose element type is itself a list', () => {
+    expect(resolved(':a [[Ward]] default [[oak]]').type).toEqual({
+      type: 'list',
+      element: { type: 'list', element: WARD },
+    });
+    expect(resolved(':a [[[Ward]]] default [[[oak]]]').type).toEqual({
+      type: 'list',
+      element: { type: 'list', element: { type: 'list', element: WARD } },
+    });
   });
 
   it('refuses the object type, which is never written', () => {
@@ -174,6 +179,7 @@ describe('a type says what it is, in words a message uses', () => {
     expect(showType(integer(0, 99))).toBe('integer 0 to 99');
     expect(showType(WARD)).toBe('Ward');
     expect(showType({ type: 'list', element: WARD })).toBe('[Ward]');
+    expect(showType({ type: 'list', element: { type: 'list', element: WARD } })).toBe('[[Ward]]');
   });
 });
 
@@ -231,6 +237,33 @@ describe('a literal is a value of a type, or it is refused at the literal', () =
     const { ok, diagnostics } = check({ type: 'list', element: WARD }, ':a [oak, 4]');
     expect(ok).toBe(false);
     expect(diagnostics.refusals[0]!.message).toContain('the number 4');
+  });
+
+  it('accepts a list of lists whose inner lists differ', () => {
+    const grid: ValueType = { type: 'list', element: { type: 'list', element: WARD } };
+    expect(check(grid, ':a [[oak], [silver]]').ok).toBe(true);
+    expect(check(grid, ':a [[oak, silver], [silver, oak]]').ok).toBe(true);
+  });
+
+  it('refuses a list of lists holding the same inner list twice', () => {
+    // Two inner lists are the same when they hold the same elements in
+    // the same order, which is how the no-duplicates rule is kept there.
+    const grid: ValueType = { type: 'list', element: { type: 'list', element: WARD } };
+    const { ok, diagnostics } = check(grid, ':a [[oak], [oak]]');
+    expect(ok).toBe(false);
+    expect(diagnostics.refusals[0]!.message).toBe('This list holds [oak] twice.');
+    // At the second element, not at the list.
+    expect(locationOf(diagnostics.refusals[0]!.at)).toBe('kiln.sprout:1:12');
+  });
+
+  it('refuses a bare option where a list of lists wants a list', () => {
+    const grid: ValueType = { type: 'list', element: { type: 'list', element: WARD } };
+    const { ok, diagnostics } = check(grid, ':a [[oak], oak]');
+    expect(ok).toBe(false);
+    expect(diagnostics.refusals[0]!.message).toBe('This holds [Ward], and `oak` is not one.');
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      'Write a list in brackets, as in `[…]`, holding Ward.',
+    );
   });
 });
 

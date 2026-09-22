@@ -98,6 +98,8 @@ const WARDED = kind('Warded', [
   property(':ward Ward default oak'),
   property(':state Drying default wet'),
   property(':note string default ""'),
+  property(':row [Ward] default [oak]'),
+  property(':grid [[Ward]] default [[oak]]'),
 ]);
 const RIB = kind('Rib', [property(':cracked false')]);
 const VESSEL = kind(
@@ -283,6 +285,17 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(notAList.diagnostics.refusals[0]!.message).toContain('changes a list');
   });
 
+  it('`self.add(:p, e)`, `self.remove(:p, e)` — a list of lists takes a whole list', () => {
+    // A list's element type may itself be a list, and the only
+    // expression of list type is a `get` of a list property.
+    expect(effect('self.add(:grid, self.get(:row))', warded())).toBe(true);
+    expect(effect('self.remove(:grid, self.get(:row))', warded())).toBe(true);
+
+    const wrong = warded();
+    expect(effect('self.add(:grid, self.get(:ward))', wrong)).toBe(false);
+    expect(wrong.diagnostics.refusals[0]!.message).toBe('This holds [Ward], and Ward is not one.');
+  });
+
   it('`x.get(:p)` — `p` declared on `x`’s type', () => {
     expect(shapeOf('self.get(:capacity)')).toBe('integer 0 to 9');
     expect(shapeOf('tool.get(:wear)', warded())).toBe('integer 0 to 99');
@@ -397,6 +410,14 @@ describe('what the compiler checks — the table, row by row', () => {
     const wrong = warded();
     expect(read('tool.get(:opens).includes(:wet)', wrong).type).toBeNull();
     expect(saidBy(wrong).join(' ')).toContain('`Ward` has no option `wet`');
+  });
+
+  it('`x.includes(e)` — a list of lists is asked after a whole list', () => {
+    expect(shapeOf('self.get(:grid).includes(self.get(:row))', warded())).toBe('boolean');
+
+    const wrong = warded();
+    expect(read('self.get(:grid).includes(self.get(:ward))', wrong).type).toBeNull();
+    expect(saidBy(wrong).join(' ')).toContain('This holds [Ward], and Ward is not one.');
   });
 
   it('`x.count`, `x.count(K)` — `x` a container or a set role', () => {
