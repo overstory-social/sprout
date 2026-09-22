@@ -15,7 +15,6 @@ import {
 describe('the defaults are the spec’s two tables and nothing else', () => {
   it('carries every static cap the spec gives a figure for', () => {
     expect(DEFAULT_LIMITS.caps).toMatchObject({
-      nesting: 8,
       optionsPerEnum: 100,
       rolesPerVerb: 8,
       phrasesPerVerb: 8,
@@ -60,6 +59,15 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
   it('has no cap on statements in a body, because the step budget does that work', () => {
     expect(Object.keys(DEFAULT_LIMITS.caps)).not.toContain('statementsPerBody');
     expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('statementsPerBody');
+  });
+
+  it('has no cap on nesting, because the compiler bounds its own recursion', () => {
+    // The spec's Limits: that bound is the compiler's, not a figure a
+    // host sets, so a host that offers one is offering something the
+    // language does not have.
+    expect(Object.keys(DEFAULT_LIMITS.caps)).not.toContain('nesting');
+    expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('nesting');
+    expect(() => limitsFrom({ caps: { nesting: 8 } as never })).toThrow(/is not a limit/);
   });
 });
 
@@ -133,7 +141,7 @@ describe('the numbers are the host’s', () => {
 
   it('lets a host raise a limit as readily as lower it: the language sets no ceiling', () => {
     expect(limitsFrom({ budgets: { steps: 10_000_000 } }).budgets.steps).toBe(10_000_000);
-    expect(limitsFrom({ caps: { nesting: 64 } }).caps.nesting).toBe(64);
+    expect(limitsFrom({ caps: { optionsPerEnum: 64 } }).caps.optionsPerEnum).toBe(64);
   });
 
   it('lets a host unset only what the spec gave no figure for', () => {
@@ -153,9 +161,9 @@ describe('the numbers are the host’s', () => {
 describe('a bad figure is the host’s mistake, and is loud at its boot', () => {
   const bad: [string, () => unknown][] = [
     ['a fraction', () => limitsFrom({ budgets: { steps: 1.5 } })],
-    ['zero', () => limitsFrom({ caps: { nesting: 0 } })],
+    ['zero', () => limitsFrom({ caps: { optionsPerEnum: 0 } })],
     ['a negative', () => limitsFrom({ budgets: { events: -1 } })],
-    ['not a number', () => limitsFrom({ caps: { nesting: '8' as unknown as number } })],
+    ['not a number', () => limitsFrom({ caps: { optionsPerEnum: '8' as unknown as number } })],
     ['a limit that does not exist', () => limitsFrom({ caps: { rooms: 4 } as never })],
   ];
   for (const [what, call] of bad) {
@@ -186,9 +194,11 @@ describe('a bundle records the caps it was checked against, and a host decides',
   });
 
   it('is not within when one is larger, and names which', () => {
-    const theirs = limitsFrom({ caps: { places: 500, sourceBytes: 1_000, nesting: 16 } }).caps;
+    const theirs = limitsFrom({
+      caps: { places: 500, sourceBytes: 1_000, exitsPerPlace: 16 },
+    }).caps;
     expect(capsWithin(theirs, ours)).toBe(false);
-    expect(capsExceeding(theirs, ours)).toEqual(['nesting', 'places']);
+    expect(capsExceeding(theirs, ours)).toEqual(['exitsPerPlace', 'places']);
   });
 
   it('counts a cap we bound and they did not as exceeding ours', () => {
@@ -200,7 +210,7 @@ describe('a bundle records the caps it was checked against, and a host decides',
   });
 
   it('never names a limit that is not a cap', () => {
-    const theirs = limitsFrom({ caps: { nesting: 16 } }).caps;
+    const theirs = limitsFrom({ caps: { exitsPerPlace: 16 } }).caps;
     const names: LimitName[] = capsExceeding(theirs, ours);
     for (const name of names) expect(Object.keys(DEFAULT_LIMITS.caps)).toContain(name);
   });

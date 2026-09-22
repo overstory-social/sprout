@@ -109,11 +109,14 @@ const SEMVER =
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
- * its syntax, the nesting cap, the options cap and a world writing
- * `sprout.World`; the rest of the caps that apply to a definition on
- * its own, its declarations agreeing with themselves and every write
- * going to `self` join it as the syntax that expresses them lands. The
- * caps are the host's, as every limit is.
+/**
+ * The first tier: one file, checked alone for its shape. Today that is
+ * its syntax, the options cap and a world writing `sprout.World`; the
+ * rest of the caps that apply to a definition on its own, its
+ * declarations agreeing with themselves and every write going to `self`
+ * join it as the syntax that expresses them lands. The caps are the
+ * host's, as every limit is.
+ */
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const diagnostics = new Diagnostics();

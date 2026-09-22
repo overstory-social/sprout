@@ -465,8 +465,11 @@ describe('what a compiled bundle carries', () => {
   const { bundle } = compileBundle(world());
 
   it('records the caps it was checked against, for a host that loads it later to decide', () => {
-    const limits = limitsFrom({ caps: { nesting: 12, places: 40 } });
+    const limits = limitsFrom({ caps: { optionsPerEnum: 12, places: 40 } });
     expect(compileBundle(world(), { limits }).bundle!.caps).toEqual(limits.caps);
+    // And nothing about nesting: the parser's bound is its own, and a
+    // host loading this has nothing to decide about it.
+    expect(bundle!.caps).not.toHaveProperty('nesting');
   });
 
   it('carries a hash, which is what the log records beside a publish', () => {
