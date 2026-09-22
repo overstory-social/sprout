@@ -564,8 +564,8 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 
 | construct | rule |
 | --- | --- |
-| `a == b`, `a != b` | same type, and not a list; a symbol literal, on either side, must be one of the other operand's options |
-| `<` `<=` `>` `>=` | both integer |
+| `a == b`, `a != b` | same type, and not a list; a symbol literal, on either side, must be one of the other operand's options; an integer literal, on either side, must be within the other operand's range, since outside it the comparison is decided before the world runs |
+| `<` `<=` `>` `>=` | both integer; an integer literal, on either side, must be within the other operand's range, for the same reason |
 | `+` `-`, unary `-` | integer |
 | `&&` `\|\|` `!` | operands boolean; there is no truthiness and no coercion |
 | `if (e)` | `e` boolean |
@@ -1550,7 +1550,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - `say`, `tell`, `text`, or any write, send, move, act, spawn or destroy in a guard or a `permit`; any of those but `text` in `describe`.
 - `say`, `actor` or `here` in a handler, a hook, a tick or a wake, or in a passage reachable from one.
 - `chance` in `describe`, in a `when` guard, in a consent guard or in a `permit` — including in any passage reachable from one.
-- A comparison between different types, a symbol that is not one of its enum's options, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
+- A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
 - A world that does not compose `sprout.World`, written as `sprout.World`; anything but a world composing it.
