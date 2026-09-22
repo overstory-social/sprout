@@ -21,9 +21,23 @@
 // about a visitor lives in that world's own store; the account behind
 // them supplies the nickname and nothing else.
 //
-// What is NOT here: `contains` and `contains actors` are B13's, which
-// is what makes a place a place; resolving `visitors arrive at` to an
-// object is B14's, since identifier scope does not exist yet; the pass
+// IT MAY HOLD THINGS, AND SAY SO (B13). `contains` is the primitive
+// and `contains actors` is the capability beside it, and a PLACE is
+// whatever declares the second — there are no rooms. Neither is a kind
+// the engine knows by name, which is what makes a library's container
+// and the standard library's equally real, and both are declarations
+// rather than guards because the engine has to know whether a thing
+// holds others in order to build the tree at all.
+//
+// A world that writes neither is not refused. `sprout.World` declares
+// `contains` itself, and every world composes it, so the capability
+// arrives through composition — which is B19's to merge. What is here
+// is only what this declaration WROTE.
+//
+// What is NOT here: resolving `visitors arrive at` to an object is
+// B14's, since identifier scope does not exist yet; whether that object
+// is a place is B14's too, now that this says what a place is; exits
+// living only on places is B28's, which is where exits arrive; the pass
 // rules themselves are B32's; and arrival is B42's.
 
 import type { Ident, WorldDeclaration } from './ast.js';
@@ -54,9 +68,24 @@ export interface ResolvedWorld {
   readonly visitor: KindRef;
   /**
    * Where a person begins, as written. Resolving an identifier to an
-   * object is B14's, and whether that object is a place is B13's.
+   * object is B14's, which now has `containsActors` to ask whether what
+   * it resolved to is a place.
    */
   readonly arriveAt: Ident;
+  /**
+   * Whether it may hold others at all, as this declaration WROTE it.
+   * `sprout.World` declares `contains` and every world composes it, so
+   * a world that writes nothing still holds things once B19 merges what
+   * it composes; false here means only that this text did not say so.
+   */
+  readonly contains: boolean;
+  /**
+   * Whether what it holds may be people — which is the whole of what
+   * makes a place a place, here and everywhere else. Implies `contains`:
+   * the standard library's `kind Place` declares only this one and still
+   * holds a bench.
+   */
+  readonly containsActors: boolean;
   /** What the world itself holds, the remembered ones included. */
   readonly properties: ReadonlyMap<string, ResolvedProperty>;
   /** Whether anything crosses it. False until B32 reads a rule saying otherwise. */
@@ -131,6 +160,8 @@ export function resolveWorld(
   let arriveAt: Ident | null = null;
   let saidAre = false;
   let saidArrive = false;
+  let wroteContains = false;
+  let wroteContainsActors = false;
 
   const properties = new Map<string, ResolvedProperty>();
   const hold = (property: ResolvedProperty, at: Ident): void => {
@@ -186,6 +217,16 @@ export function resolveWorld(
         saidArrive = true;
         arriveAt = member.place;
         break;
+      case 'contains':
+        // Idempotent, which is what *How members combine* says of these
+        // two where composition brings them together — so a world that
+        // writes `contains` beside `contains actors`, or either of them
+        // twice, is saying something already true rather than making a
+        // mistake. Nothing is said about it; whether a redundant one is
+        // worth a WARNING is B50's, which owns the list of them.
+        wroteContains = wroteContains || !member.actors;
+        wroteContainsActors = wroteContainsActors || member.actors;
+        break;
       case 'remembers':
         for (const remembered of resolveRemembers(member, enums, from, diagnostics)) {
           hold(remembered, remembered.declaration.name);
@@ -224,6 +265,14 @@ export function resolveWorld(
     composes: ordered,
     visitor,
     arriveAt,
+    // Each flag above is one line the author WROTE, and the implication
+    // between them is here, once: `contains actors` holds. The standard
+    // library's `kind Place` declares only the second and a place holds
+    // a bench, which is the whole of the evidence — the spec never says
+    // so outright, and the working notes' *Holes in the spec* records
+    // what the other reading would cost.
+    contains: wroteContains || wroteContainsActors,
+    containsActors: wroteContainsActors,
     properties,
     passesAnything: WORLD_PASSES_ANYTHING,
     declaration: declared,
