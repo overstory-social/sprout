@@ -1186,6 +1186,52 @@ describe('a `min` and a `max` are whole numbers, whatever else was written', () 
     }
   });
 
+  it('steps over what was written, so the entry after it survives', () => {
+    // Refusing without consuming leaves a bracket's closer in the
+    // stream, where `remembers()`'s loop takes it for its own and ends
+    // early — dropping an entry that was written correctly, with
+    // nothing said about it. The same stray closer as #62, in a new
+    // place, and it arrived in the fix for the round before this one.
+    for (const bad of ['[1, 2]', '[[1]]', 'oak', '"9"', 'true', 'Ward', ':wet', '{', '}']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
+        diagnostics,
+      );
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        bad,
+      ).toEqual(['walks']);
+      expect(
+        diagnostics.refusals.map((d) => d.message),
+        bad,
+      ).toContain('A min is a whole number.');
+    }
+  });
+
+  it('says one true thing about it, not one per token it stepped over', () => {
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [visits: 0 min [1, 2], walks: 1]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual(['A min is a whole number.']);
+  });
+
+  it('leaves a minus sign to the sentence that is about minus signs', () => {
+    // `min -` and `min --3` are someone part-way through writing a
+    // negative number, and "A min is a whole number" does not tell
+    // them the digits are what is missing.
+    for (const text of [':x integer default 0 min -', ':x integer default 0 min --3']) {
+      const said = readProperty(text).refusals;
+      expect(
+        said.map((d) => d.message),
+        text,
+      ).toEqual(['A minus sign needs a number after it.']);
+      expect(said[0]!.remedy, text).toContain('-3');
+    }
+  });
+
   it('still reads the bounds it should, including a negative one', () => {
     expect(readProperty(':x integer default 0 min -3 max 9').declared).toMatchObject({
       min: { value: -3 },

@@ -80,6 +80,11 @@ const OPENER_OF: ReadonlyMap<string, string> = new Map([
   ['}', '{'],
 ]);
 
+/** And the other way, for stepping over what was written in the wrong place. */
+const CLOSER_OF: ReadonlyMap<string, string> = new Map(
+  [...OPENER_OF].map(([close, open]) => [open, close]),
+);
+
 /**
  * How tightly each binary operator binds, loosest first. Nothing in the
  * spec states a precedence — see the notes' hole — so this is the
@@ -759,20 +764,37 @@ class Parser {
    */
   private integerBound(which: 'min' | 'max'): IntegerLiteral | null {
     const token = this.peek();
-    const written =
-      token.kind === 'integer' ||
-      (token.kind === 'punct' && token.text === '-' && this.peek(1).kind === 'integer');
-    if (!written) {
-      this.diagnostics.refuse(
-        token.at,
-        `A ${which} is a whole number.`,
-        `Write \`${which} 0\`, or leave it out.`,
-      );
-      return null;
+    // A digit or a minus sign means a number was meant, so `literal()`
+    // answers for it: it owns the better sentence for `min -` ("A minus
+    // sign needs a number after it") and the one for `min 1.5`.
+    if (token.kind === 'integer' || (token.kind === 'punct' && token.text === '-')) {
+      const bound = this.literal();
+      return bound !== null && bound.kind === 'integer' ? bound : null;
     }
-    // `literal()` has already said what is wrong with `min 1.5`.
-    const bound = this.literal();
-    return bound !== null && bound.kind === 'integer' ? bound : null;
+    this.diagnostics.refuse(
+      token.at,
+      `A ${which} is a whole number.`,
+      `Write \`${which} 0\`, or leave it out.`,
+    );
+    this.skipWritten();
+    return null;
+  }
+
+  /**
+   * Step over the one thing written where something else belonged.
+   *
+   * A BRACKET IS STEPPED OVER WHOLE. Refusing without consuming leaves
+   * its closer in the stream, where the loop reading around this takes
+   * it for its own and ends early — so `:remembers [visits: 0 min
+   * [1, 2], walks: 1]` lost `walks`, which was written correctly, with
+   * nothing said about it. That is the same stray closer #62 was about,
+   * in a new place, and it arrived in the fix for the round before
+   * this one.
+   */
+  private skipWritten(): void {
+    const token = this.next();
+    const close = token.kind === 'punct' ? CLOSER_OF.get(token.text) : undefined;
+    if (close !== undefined) this.skipBracketed(close);
   }
 
   /** `:wear 0 min 0 max 99` — a property as a kind or an object writes one. */
