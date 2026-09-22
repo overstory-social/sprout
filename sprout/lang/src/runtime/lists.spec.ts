@@ -7,7 +7,7 @@ import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
 import { ListFull, SproutList, type Element } from './lists.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
-import { BOOLEAN, integer, STRING } from '../declare/types.js';
+import { integer, STRING } from '../declare/types.js';
 
 const ALLOWED = DEFAULT_LIMITS.caps.listElements;
 
@@ -49,18 +49,6 @@ describe('a list is ordered, and its order is insertion order', () => {
   it('keeps the order of what is left after a removal', () => {
     const three = SproutList.of(WARD, ['oak', 'silver', 'brass']);
     expect(three.remove('silver').elements).toEqual(['oak', 'brass']);
-  });
-
-  it('is two different lists when the same things are in a different order', () => {
-    // Order is visible in prose, so two lists that render differently
-    // are not the same list.
-    expect(SproutList.of(integer(), [1, 2]).equals(SproutList.of(integer(), [1, 2]))).toBe(true);
-    expect(SproutList.of(integer(), [2, 1]).equals(SproutList.of(integer(), [1, 2]))).toBe(false);
-  });
-
-  it('is not equal to a list of something else holding the same-looking things', () => {
-    expect(SproutList.of(BOOLEAN, [true]).equals(SproutList.of(STRING, ['true']))).toBe(false);
-    expect(SproutList.of(WARD, ['oak']).equals(SproutList.of(STRING, ['oak']))).toBe(false);
   });
 });
 

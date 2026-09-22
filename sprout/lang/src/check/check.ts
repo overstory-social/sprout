@@ -333,10 +333,10 @@ function bothAre(
 }
 
 /**
- * `a == b`, `a != b` — same type, and a bare option is checked against
- * the enum of whatever it is being compared to. That last part is what
- * an enum exists for: `== :slver` names the options rather than being
- * false for ever.
+ * `a == b`, `a != b` — same type, and not a list, and a bare option is
+ * checked against the enum of whatever it is being compared to. That
+ * last part is what an enum exists for: `== :slver` names the options
+ * rather than being false for ever.
  */
 function identityType(
   expr: Expr & { readonly kind: 'binary' },
@@ -361,6 +361,21 @@ function identityType(
   if (right === null) return null;
   if (leftOption) {
     // The left was already refused by `leafType`; nothing more is owed.
+    return null;
+  }
+
+  if (
+    left.binds === 'value' &&
+    right.binds === 'value' &&
+    left.type.type === 'list' &&
+    right.type.type === 'list' &&
+    sameType(left.type, right.type)
+  ) {
+    context.diagnostics.refuse(
+      expr.left.at,
+      `Two lists are not compared with \`${expr.operator}\`.`,
+      'Ask what a list holds instead: `self.get(:opens).includes(:oak)`, or compare its `count`.',
+    );
     return null;
   }
 
