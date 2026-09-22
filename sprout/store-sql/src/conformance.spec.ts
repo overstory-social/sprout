@@ -7,12 +7,12 @@ import { SCHEMA_VERSION, migrations, runMigrations, schemaVersionOf } from './mi
 import { sqlStore, type Queryable } from './store.js';
 
 // The adapter against real Postgres — PGlite, in this process, no daemon
-// — running core's conformance suite (the split proposal §4.6): every
+// — running core's conformance suite: every
 // round-trip, atomicity, isolation by microworld, housekeeping. What one
 // backend cannot prove is what PGlite cannot do — one connection, one
 // queue: the two cases that need a transaction to WAIT on another would
 // deadlock here and are skipped by name; `cannotProve` names what is
-// proved once against a containerised Postgres in CI instead.
+// proved once against a real Postgres instead, in `contention.db.spec.ts`.
 
 const NEEDS_TWO_BACKENDS = new Set([
   'write turns on one microworld serialize; reads do not wait',
@@ -23,10 +23,9 @@ let db: PGlite;
 /** A second, EMPTY database — never migrated — for the missing-schema case. */
 let empty: PGlite;
 
-// Booting a PGlite instance is a WASM start: a second or two here, longer
-// on a CI runner — which is why both instances boot in beforeAll (its own
-// timeout) and never inside a test's 5 s (2026-09-18: the missing-schema
-// case created its instance inline and timed out in CI's gate).
+// Booting a PGlite instance is a WASM start: a second or two, longer on
+// a slow machine — which is why both instances boot in beforeAll (its
+// own timeout) and never inside a test's 5 s.
 beforeAll(async () => {
   [db, empty] = await Promise.all([PGlite.create(), PGlite.create()]);
   await runMigrations(db);

@@ -1,0 +1,3 @@
+enum Ward { oak, silver
+message :stir
+enum Drying { wet

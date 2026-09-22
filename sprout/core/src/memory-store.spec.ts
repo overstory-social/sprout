@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { cannotProve, cases, runConformance } from './conformance.js';
 import { memoryStore } from './memory-store.js';
 
-// The memory store proves the conformance suite first (§4.6) — the
+// The memory store proves the conformance suite first — the
 // three-line loop a host writes, here as vitest cases so a failing case
 // names itself.
 

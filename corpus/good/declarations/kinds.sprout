@@ -1,0 +1,7 @@
+enum Season { spring, summer, autumn, winter }
+enum Ward { brass, iron }
+enum Drying { wet, touch_dry, cured }
+
+message :stir
+message :illuminating with boolean
+message :ward_seen with Ward

@@ -1,69 +1,57 @@
 import {
-  LANGUAGE_LEVEL,
-  compileMicroworld,
-  type Archive,
-  type MicroworldProblem,
-  type Program,
+  compileBundle,
+  inReadingOrder,
+  positionOf,
+  renderDiagnostics,
+  type Bundle,
+  type Diagnostic,
 } from '@overstory/sprout/lang';
-import { MEDIA } from '@overstory/sprout/ext-media';
 
-// `sprout check` (the split proposal §6): `compileMicroworld` in strict
-// mode with the extensions the CLI installs — problems by file, line
-// and column, or as JSON (§3.3's `Problem`, exactly) for an editor or a
-// CI step; exit 1 on any. An archive that `use`s an extension the CLI
-// lacks fails here with the extension's name, as the compiler says it.
+import { readWorld } from './world.js';
 
-/** The extensions this CLI installs: pictures (`use media`). */
-export const EXTENSIONS = MEDIA;
+// `sprout check`: compile a folder strictly, as publishing would, and
+// report every diagnostic by file, line and column — as a page for a
+// person, or as JSON for an editor or a script. Exit 1 on any refusal.
 
 export interface CheckResult {
-  ok: boolean;
-  problems: MicroworldProblem[];
-  warnings: string[];
-  program: Program;
+  readonly ok: boolean;
+  readonly diagnostics: readonly Diagnostic[];
+  readonly bundle: Bundle | null;
 }
 
-export function checkArchive(archive: Archive): CheckResult {
-  const problems: MicroworldProblem[] = [];
-  if (archive.manifest && archive.manifest.language > LANGUAGE_LEVEL) {
-    problems.push({
-      file: 'sprout.json',
-      definition: null,
-      line: 1,
-      column: 1,
-      message: `This archive needs language level ${archive.manifest.language}; this sprout speaks ${LANGUAGE_LEVEL}.`,
-    });
+export function checkWorld(dir: string): CheckResult {
+  const world = readWorld(dir);
+  if (world.source === null) {
+    return { ok: false, diagnostics: inReadingOrder(world.diagnostics), bundle: null };
   }
-  const {
-    program,
-    problems: compiled,
-    warnings,
-  } = compileMicroworld(archive, {
-    strict: true,
-    ext: EXTENSIONS,
-  });
-  problems.push(...compiled);
-  return { ok: problems.length === 0, problems, warnings, program };
+  const { bundle, diagnostics } = compileBundle(world.source, { mode: 'publish' });
+  const all = inReadingOrder([...world.diagnostics, ...diagnostics]);
+  return { ok: bundle !== null, diagnostics: all, bundle };
 }
 
-/** `file:line:column message`, one per line, then the warnings; or "ok" with the counts. */
+/** The diagnostics as a page, then one line saying what was checked. */
 export function formatCheck(result: CheckResult): string {
-  const lines = result.problems.map((p) => `${p.file ?? '-'}:${p.line}:${p.column} ${p.message}`);
-  for (const w of result.warnings) lines.push(`warning: ${w}`);
-  if (result.ok) {
-    const { program } = result;
-    lines.push(
-      `ok: ${program.rooms.size} rooms, ${program.objects.size} objects, ${program.kinds.size} kinds${program.entry ? `, the door is ${program.entry}` : ', no door'}`,
-    );
-  }
-  return `${lines.join('\n')}\n`;
+  const page = renderDiagnostics(result.diagnostics);
+  const refusals = result.diagnostics.filter((d) => d.severity === 'refusal').length;
+  const warnings = result.diagnostics.length - refusals;
+  const summary = result.ok
+    ? `ok: ${result.bundle!.definitions.length} declarations in ${result.bundle!.manifest.files.length} files${warnings > 0 ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}`
+    : `refused: ${refusals} problem${refusals === 1 ? '' : 's'}`;
+  return page.length > 0 ? `${page}\n\n${summary}\n` : `${summary}\n`;
 }
 
-/** The same, as JSON: `{ ok, problems, warnings }`, each problem as the compiler gave it. */
+/** One JSON object per diagnostic, with the position worked out. */
 export function formatCheckJson(result: CheckResult): string {
-  return `${JSON.stringify(
-    { ok: result.ok, problems: result.problems, warnings: result.warnings },
-    null,
-    2,
-  )}\n`;
+  const diagnostics = result.diagnostics.map((d) => {
+    const { line, column } = positionOf(d.at);
+    return {
+      file: d.at.source.name,
+      line,
+      column,
+      severity: d.severity,
+      message: d.message,
+      ...(d.remedy === undefined ? {} : { remedy: d.remedy }),
+    };
+  });
+  return `${JSON.stringify({ ok: result.ok, diagnostics }, null, 2)}\n`;
 }

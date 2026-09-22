@@ -1,0 +1,4 @@
+more.sprout:1:6  enum_twice declares two enums called `Ward`.
+                 Give one of them another name, or remove it.
+
+refused: 1 problem

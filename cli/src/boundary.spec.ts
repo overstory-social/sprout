@@ -4,23 +4,15 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// The CLI imports the Sprout packages, PGlite and node:* — nothing from
-// `@overstory/schema`, the backend, or Firebase: it is the language and
-// the runtime on a folder of files, and nothing of the product.
+// The CLI imports the Sprout packages and node:* — nothing of any host.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
-const ALLOWED = [
-  '@overstory/sprout/lang',
-  '@overstory/sprout/core',
-  '@overstory/sprout/store-sql',
-  '@overstory/sprout/ext-media',
-  '@electric-sql/pglite',
-];
-const ALLOWED_IN_SPECS = ['vitest', '@overstory/sprout/examples'];
+const ALLOWED = ['@overstory/sprout/lang', '@overstory/sprout/core'];
+const ALLOWED_IN_SPECS = ['vitest'];
 
-describe('@overstory/sprout-cli imports the Sprout packages, PGlite and node:* only', () => {
+describe('@overstory/sprout-cli imports the Sprout packages and node:* only', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
-  it('has files to check', () => expect(files.length).toBeGreaterThan(8));
+  it('has files to check', () => expect(files.length).toBeGreaterThan(5));
   for (const file of files) {
     it(file, () => {
       const text = readFileSync(join(SRC, file), 'utf8');

@@ -1,0 +1,4 @@
+sprout.json:9:29  The manifest names the file "rooms.sprout", and it did not travel with the world.
+                  Add the file, or take its name out of the manifest.
+
+refused: 1 problem

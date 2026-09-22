@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { ActionRecord, ActorRecord, Limits, MicroworldRecord, ObjectRecord } from './records.js';
 
-// The record shapes an adapter carries (§4.6): defaults, what is required.
+// The record shapes an adapter carries: defaults, what is required.
 
 describe('the records', () => {
-  it('Limits has the §4.4 defaults', () => {
+  it('Limits has its defaults', () => {
     expect(Limits.parse({})).toEqual({
       rooms: 16,
       objects: 192,

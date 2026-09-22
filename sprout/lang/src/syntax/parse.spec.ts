@@ -1,0 +1,2236 @@
+import { describe, expect, it } from 'vitest';
+
+import type { EnumDeclaration, Expr } from './ast.js';
+import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
+import { unspanned } from '../source/nodes.js';
+import {
+  DECLARATIONS,
+  parseDeclarations,
+  parseExpression,
+  parseLet,
+  parseProperty,
+  parseRemembers,
+} from './parse.js';
+import { locationOf, SourceFile, textOf } from '../source/source.js';
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
+
+function read(text: string, name = 'ward.sprout') {
+  const diagnostics = new Diagnostics();
+  const declarations = parseDeclarations(new SourceFile(name, text), diagnostics);
+  return { declarations, diagnostics, refusals: diagnostics.refusals as readonly Diagnostic[] };
+}
+
+/** An enum's options as plain words, for a suite that is not about nodes. */
+const optionsOf = (declared: EnumDeclaration): string[] =>
+  declared.options.map((option) => option.name.text);
+
+/**
+ * One well-formed declaration for each word this compiler reads.
+ *
+ * A rule that holds for declarations in general needs a real one of
+ * each, and `${word} Two { a }` is not that: it is an enum's shape
+ * written out three times, and `message Two { a }` is not a message.
+ * The specs below assert this table covers `DECLARATIONS`, so a word
+ * added to the compiler is given a sample here rather than quietly
+ * skipping every rule that walks them.
+ */
+const A_DECLARATION: Record<string, string> = {
+  enum: 'enum Two { a }',
+  message: 'message :stir',
+  world: 'world two { visitors are P\n visitors arrive at y }',
+};
+
+/**
+ * Other ways the same declaration may open, where a word has more than
+ * one. Recovery has to stop at every one of them, and a rule that only
+ * ever sees the commonest spelling drops the others in silence — with
+ * `world`'s composing form missing here, deleting its `:` from
+ * `DECLARATION_SHAPES` passes the whole suite.
+ */
+const ALSO_WRITTEN: Record<string, string[]> = {
+  world: ['world two: victorian.Voice { visitors are P\n visitors arrive at y }'],
+};
+
+/** Every spelling of one word's declaration, the commonest one first. */
+function spellingsOf(word: string): string[] {
+  return [sampleOf(word), ...(ALSO_WRITTEN[word] ?? [])];
+}
+
+/** Every rule that walks `DECLARATIONS` checks the table has kept up. */
+function sampleOf(word: string): string {
+  expect(Object.keys(A_DECLARATION), `${word} has no sample in A_DECLARATION`).toContain(word);
+  return A_DECLARATION[word]!;
+}
+
+describe('an enum declaration', () => {
+  it('reads as its name and its options', () => {
+    const { declarations, refusals } = read('enum Ward { oak, silver }');
+    expect(refusals).toEqual([]);
+    expect(declarations).toHaveLength(1);
+    const [ward] = declarations as EnumDeclaration[];
+    expect(ward!.kind).toBe('enum');
+    expect(ward!.name.text).toBe('Ward');
+    expect(optionsOf(ward!)).toEqual(['oak', 'silver']);
+  });
+
+  it('reads the spec’s own enums', () => {
+    const { declarations, refusals } = read(
+      [
+        'enum Season { spring, summer, autumn, winter }',
+        'enum Ward   { brass, iron }',
+        'enum Drying { wet, touch_dry, cured }',
+        'enum Topic  { the_press, the_cat, the_cellar }',
+        'enum Cuff   { dry, damp }',
+      ].join('\n'),
+    );
+    expect(refusals).toEqual([]);
+    expect(declarations.map((d) => (d as EnumDeclaration).name.text)).toEqual([
+      'Season',
+      'Ward',
+      'Drying',
+      'Topic',
+      'Cuff',
+    ]);
+    expect(optionsOf(declarations[3] as EnumDeclaration)).toEqual([
+      'the_press',
+      'the_cat',
+      'the_cellar',
+    ]);
+  });
+
+  it('takes one option as readily as many', () => {
+    expect(optionsOf(read('enum Only { one }').declarations[0] as EnumDeclaration)).toEqual([
+      'one',
+    ]);
+  });
+
+  it('does not care how it is laid out', () => {
+    const spread = read('enum Ward\n{\n  oak,\n  silver\n}\n');
+    expect(spread.refusals).toEqual([]);
+    expect(optionsOf(spread.declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('ignores a comment between its options', () => {
+    const { declarations, refusals } = read('enum Ward { oak, // the cheap one\n silver }');
+    expect(refusals).toEqual([]);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('reads several declarations from one file', () => {
+    const { declarations, refusals } = read('enum A { a }\nenum B { b }\nenum C { c }');
+    expect(refusals).toEqual([]);
+    expect(declarations).toHaveLength(3);
+  });
+
+  it('reads an empty file as no declarations', () => {
+    expect(read('').declarations).toEqual([]);
+    expect(read('// nothing here yet\n').declarations).toEqual([]);
+  });
+});
+
+describe('every node carries the span of what it was built from', () => {
+  const source = new SourceFile('ward.sprout', 'enum Ward { oak, silver }\n');
+  const declarations = parseDeclarations(source, new Diagnostics());
+  const ward = declarations[0] as EnumDeclaration;
+
+  it('keeps the rule every node keeps', () => expect(unspanned(declarations)).toEqual([]));
+
+  it('spans the declaration from its keyword to its last option', () => {
+    expect(textOf(ward.at)).toBe('enum Ward { oak, silver');
+  });
+
+  it('spans the name as the name', () => {
+    expect(textOf(ward.name.at)).toBe('Ward');
+    expect(locationOf(ward.name.at)).toBe('ward.sprout:1:6');
+  });
+
+  it('spans each option as itself, so a problem with one names it', () => {
+    expect(ward.options.map((o) => textOf(o.at))).toEqual(['oak', 'silver']);
+    expect(locationOf(ward.options[1]!.at)).toBe('ward.sprout:1:18');
+  });
+
+  it('gives the option’s name its own span too', () => {
+    expect(textOf(ward.options[0]!.name.at)).toBe('oak');
+  });
+});
+
+describe('what the parser refuses, and where it says so', () => {
+  it('refuses an enum with no name, pointing where the name should be', () => {
+    const { declarations, refusals } = read('enum { oak }');
+    expect(declarations).toEqual([]);
+    expect(refusals[0]!.message).toBe('An enum needs a name.');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:6');
+    expect(refusals[0]!.remedy).toContain('starts with a capital');
+  });
+
+  it('refuses a name that does not start with a capital', () => {
+    const { refusals } = read('enum ward { oak }');
+    expect(refusals[0]!.message).toBe('An enum needs a name.');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:6');
+  });
+
+  it('refuses options that are not in braces, and shows what to write', () => {
+    const { refusals } = read('enum Ward oak, silver');
+    expect(refusals[0]!.message).toBe('The options of `Ward` go in braces.');
+    expect(refusals[0]!.remedy).toBe(
+      'Write `enum Ward { oak, silver }`, listing the values it can hold.',
+    );
+  });
+
+  it('refuses an enum with no options at all', () => {
+    const { declarations, refusals } = read('enum Ward { }');
+    expect(declarations).toEqual([]);
+    expect(refusals[0]!.message).toContain('no options');
+    expect(refusals[0]!.at).toBeDefined();
+  });
+
+  it('refuses an option that starts with a capital, and says what an option looks like', () => {
+    const { refusals } = read('enum Ward { Oak }');
+    expect(refusals[0]!.message).toBe('`Ward` cannot hold `Oak`, which starts with a capital.');
+    expect(refusals[0]!.remedy).toContain('lower-case word');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:13');
+  });
+
+  it('describes whatever wrong thing it found in words a person uses', () => {
+    expect(read('enum Ward { "oak" }').refusals[0]!.message).toContain('text in quotes');
+    expect(read('enum Ward { 4 }').refusals[0]!.message).toContain('the number 4');
+    expect(read('enum Ward { :oak }').refusals[0]!.message).toContain('a property or a message');
+  });
+
+  it('refuses a missing comma, pointing where it should go', () => {
+    const { refusals } = read('enum Ward { oak silver }');
+    expect(refusals[0]!.message).toBe('`Ward` needs a comma between its options.');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+  });
+
+  it('refuses a comma after the last option', () => {
+    const { refusals } = read('enum Ward { oak, silver, }');
+    expect(refusals[0]!.message).toBe('`Ward` has a comma after its last option.');
+    expect(refusals[0]!.remedy).toContain('separated by commas, not ended by them');
+  });
+
+  it('refuses an enum that is never closed, at the end of the file', () => {
+    const { refusals } = read('enum Ward { oak, silver');
+    expect(refusals[0]!.message).toBe('`Ward` is never closed.');
+    expect(refusals[0]!.remedy).toBe('Add a } after its options.');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:24');
+  });
+
+  it('refuses a word it cannot read at the top of a file, and says what it can read', () => {
+    // `kind` is B19's, so this compiler does not read it yet.
+    const { refusals } = read('kind Vessel { }');
+    expect(refusals[0]!.message).toBe('Sprout does not know what to do with "kind" here.');
+    expect(refusals[0]!.remedy).toBe(
+      'A file holds declarations, and this compiler reads `enum`, `message` and `world`.',
+    );
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:1');
+  });
+
+  it('names every declaration it reads, so the message grows with the compiler', () => {
+    for (const word of DECLARATIONS) {
+      expect(read('nonsense').refusals[0]!.remedy).toContain(`\`${word}\``);
+    }
+  });
+});
+
+describe('a declaration it cannot read costs that declaration, not the file', () => {
+  it('keeps reading after a bad one', () => {
+    const { declarations, refusals } = read('enum { oak }\nenum Ward { silver }');
+    expect(refusals).toHaveLength(1);
+    expect(declarations).toHaveLength(1);
+    expect((declarations[0] as EnumDeclaration).name.text).toBe('Ward');
+  });
+
+  it('keeps reading after an unknown word at the top of a file', () => {
+    const { declarations, refusals } = read('kind Thing { }\nenum Ward { oak }');
+    expect(refusals).toHaveLength(1);
+    expect(declarations.map((d) => (d as EnumDeclaration).name.text)).toEqual(['Ward']);
+  });
+
+  it('keeps reading after a bad option, and does not swallow the next declaration', () => {
+    const { declarations, refusals } = read('enum Ward { Oak, silver }\nenum Cuff { dry }');
+    expect(refusals).toHaveLength(1);
+    expect(declarations.map((d) => (d as EnumDeclaration).name.text)).toEqual(['Cuff']);
+  });
+
+  it('reports every bad declaration, not the first', () => {
+    const { refusals } = read('enum { a }\nenum { b }\nenum { c }');
+    expect(refusals).toHaveLength(3);
+  });
+
+  it('reports the second one even where its own word cannot say what it is', () => {
+    // Recovery asks a LOOSER question than a loop reading elements
+    // does, and this is why. `message` with the name forgotten has no
+    // opening to recognise, and a nameless `world: victorian.Voice {`
+    // has one that `world` deliberately does not claim — so the strict
+    // question walks past both as filler and the author is told about
+    // the first mistake only. An author owed two problems is owed both.
+    const bare = read('enum Ward oak silver\nmessage\nenum Glaze { none, shino }\n');
+    expect(bare.refusals.map((d) => d.message)).toEqual([
+      'The options of `Ward` go in braces.',
+      'A message needs a name.',
+    ]);
+    expect(bare.declarations.map((d) => d.name.text)).toEqual(['Glaze']);
+
+    // The same through `recoverInBraces`, which hunts for a `}`.
+    const nameless = read(
+      'enum Ward { oak,\n42\nworld: v.X {\n  contains\n}\nenum Glaze { none, shino }\n',
+    );
+    expect(nameless.refusals.map((d) => d.message)).toContain('A world needs a name.');
+    expect(nameless.declarations.map((d) => d.name.text)).toEqual(['Ward', 'Glaze']);
+  });
+
+  it('never throws, whatever it is given', () => {
+    for (const text of [
+      'enum',
+      'enum Ward',
+      'enum Ward {',
+      'enum Ward { ',
+      'enum Ward { ,',
+      'enum Ward { oak',
+      'enum Ward } oak {',
+      '{ } , :',
+      'enum enum enum',
+      '}',
+      ',,,',
+      'enum Ward { oak } }',
+    ]) {
+      expect(() => read(text), text).not.toThrow();
+    }
+  });
+
+  it('gives back only declarations it actually read', () => {
+    for (const text of ['enum', 'enum Ward', 'enum Ward {', 'enum Ward { }']) {
+      expect(read(text).declarations, text).toEqual([]);
+    }
+  });
+});
+
+describe('a lexical problem is reported once, and the parser reads around it', () => {
+  it('reports the bad character and still reads the enums either side of it', () => {
+    const { declarations, refusals } = read('enum Ward { oak, silver }\n% \nenum Cuff { dry }');
+    // The lexer steps over the character it refused, so the parser never
+    // sees one and does not report the same mistake a second time.
+    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+    expect(declarations).toHaveLength(2);
+  });
+
+  it('reads an enum whose own name is misspelt into the lexer’s hands', () => {
+    const { refusals } = read('enum Wa%rd { oak }');
+    expect(refusals.map((d) => d.message)).toContain('Sprout does not use the character "%".');
+  });
+});
+
+describe('a property declaration, as a kind or an object writes one', () => {
+  const declare = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(new SourceFile('kiln.sprout', text), diagnostics);
+    return { declared, diagnostics, refusals: diagnostics.refusals };
+  };
+
+  it('reads a literal with the type left out', () => {
+    const { declared, refusals } = declare(':lit false');
+    expect(refusals).toEqual([]);
+    expect(declared!.name.text).toBe('lit');
+    expect(declared!.type).toBeNull();
+    expect(declared!.default).toMatchObject({ kind: 'boolean', value: false });
+  });
+
+  it('reads a written type and a default', () => {
+    const { declared } = declare(':lit boolean default false');
+    expect(declared!.type).toMatchObject({ kind: 'named-type', name: { text: 'boolean' } });
+    expect(declared!.default).toMatchObject({ kind: 'boolean', value: false });
+  });
+
+  it('reads an integer with a range', () => {
+    const { declared } = declare(':wear 0 min 0 max 99');
+    expect(declared!.min).toMatchObject({ value: 0 });
+    expect(declared!.max).toMatchObject({ value: 99 });
+  });
+
+  it('reads an enum and a bare option as its default', () => {
+    const { declared } = declare(':state Drying default wet');
+    expect(declared!.type).toMatchObject({ name: { text: 'Drying' } });
+    expect(declared!.default).toMatchObject({ kind: 'option-literal', name: { text: 'wet' } });
+  });
+
+  it('reads a list type and a list default', () => {
+    const { declared } = declare(':opens [Ward] default [oak, silver]');
+    expect(declared!.type).toMatchObject({ kind: 'list-type' });
+    const value = declared!.default!;
+    expect(value.kind).toBe('list-literal');
+    if (value.kind !== 'list-literal') expect.unreachable('just asserted it is one');
+    else expect(value.elements.map((e) => e.kind)).toEqual(['option-literal', 'option-literal']);
+  });
+
+  it('reads an enum named with its library', () => {
+    const { declared, refusals } = declare(':ward sprout.Ward default oak');
+    expect(refusals).toEqual([]);
+    expect(declared!.type).toMatchObject({ library: { text: 'sprout' }, name: { text: 'Ward' } });
+  });
+
+  it('tells `[Ward]` the type from `[oak]` the value by the capital', () => {
+    expect(declare(':a [Ward] default [oak]').declared!.type!.kind).toBe('list-type');
+    expect(declare(':a [oak]').declared!.type).toBeNull();
+  });
+
+  it('reads a negative number', () => {
+    expect(declare(':below -5').declared!.default).toMatchObject({ kind: 'integer', value: -5 });
+  });
+
+  it('keeps a span on every node it built', () => {
+    expect(unspanned(declare(':opens [Ward] default [oak, silver]').declared)).toEqual([]);
+  });
+
+  it('refuses a written type with nothing to start at', () => {
+    const { declared, refusals } = declare(':lit boolean');
+    expect(declared).toBeNull();
+    expect(refusals[0]!.message).toBe('`:lit` has a type and no value to start at.');
+    expect(refusals[0]!.remedy).toContain('default');
+  });
+
+  it('refuses a name with no colon before it', () => {
+    const { refusals } = declare('lit false');
+    expect(refusals[0]!.message).toContain('A property starts with its name');
+  });
+
+  it('refuses a min that is not a whole number', () => {
+    expect(declare(':wear 0 min "x"').refusals[0]!.message).toBe('A min is a whole number.');
+  });
+
+  it('refuses the same bound twice', () => {
+    expect(declare(':wear 0 min 0 min 1').refusals[0]!.message).toBe('`:wear` says min twice.');
+  });
+
+  it('refuses a list that is never closed, and one missing a comma', () => {
+    expect(declare(':a [Ward] default [oak').refusals[0]!.message).toBe(
+      'This list is never closed.',
+    );
+    expect(declare(':a [Ward] default [oak silver]').refusals[0]!.message).toBe(
+      'A list needs a comma between its elements.',
+    );
+  });
+
+  it('refuses a minus sign with no number after it', () => {
+    expect(declare(':a -').refusals[0]!.message).toBe('A minus sign needs a number after it.');
+  });
+
+  it('never throws, whatever it is given', () => {
+    for (const text of [
+      ':a',
+      ':a default',
+      ':a [',
+      ':a [Ward',
+      ':a [] default',
+      ':a min',
+      ':',
+      ':a sprout.',
+      ':a boolean default',
+    ]) {
+      expect(() => declare(text), text).not.toThrow();
+    }
+  });
+});
+
+describe('a :remembers, as an object writes one', () => {
+  const remember = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(new SourceFile('kiln.sprout', text), diagnostics);
+    return { declared, refusals: diagnostics.refusals };
+  };
+
+  it('reads the spec’s own example', () => {
+    const { declared, refusals } = remember(
+      ':remembers [handled: false, ward_seen: Ward default oak, visits: 0 min 0 max 99]',
+    );
+    expect(refusals).toEqual([]);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual([
+      'handled',
+      'ward_seen',
+      'visits',
+    ]);
+    expect(declared!.properties[2]!.max).toMatchObject({ value: 99 });
+  });
+
+  it('reads one that remembers nothing', () => {
+    expect(remember(':remembers []').declared!.properties).toEqual([]);
+  });
+
+  it('keeps a span on every node it built', () => {
+    expect(unspanned(remember(':remembers [visits: 0]').declared)).toEqual([]);
+  });
+
+  it('refuses a name with a colon before it, which is the other syntax', () => {
+    expect(remember(':remembers [:visits 0]').refusals[0]!.message).toContain(
+      'A remembered property starts with its name',
+    );
+  });
+
+  it('refuses a missing colon between a name and its value', () => {
+    expect(remember(':remembers [visits 0]').refusals[0]!.message).toBe(
+      '`visits` needs a colon between its name and its value.',
+    );
+  });
+
+  it('refuses a missing comma, and one that is never closed', () => {
+    expect(remember(':remembers [a: 0 b: 1]').refusals[0]!.message).toContain('needs a comma');
+    expect(remember(':remembers [a: 0').refusals[0]!.message).toBe(
+      'This `:remembers` is never closed.',
+    );
+  });
+
+  it('refuses brackets left out altogether', () => {
+    expect(remember(':remembers visits: 0').refusals[0]!.message).toBe(
+      'What an object remembers goes in brackets.',
+    );
+  });
+
+  it('never throws, whatever it is given', () => {
+    for (const text of [':remembers', ':remembers [', ':remembers [a', ':remembers [a:', ':x []']) {
+      expect(() => remember(text), text).not.toThrow();
+    }
+  });
+});
+
+describe('a forgotten brace does not eat the declaration after it', () => {
+  it('names the unclosed enum and keeps the sibling that follows', () => {
+    const { declarations, refusals } = read('enum Ward {\n  oak\nenum Two { a, b }\n');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+    expect(declarations.map((d) => (d as EnumDeclaration).name.text)).toEqual(['Ward', 'Two']);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
+  });
+
+  it('does the same for a message after it', () => {
+    const { declarations, refusals } = read('enum Ward {\n  oak\nmessage :stir\n');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+    expect(declarations.map((d) => d.kind)).toEqual(['enum', 'message']);
+  });
+
+  it('reads a declaration keyword as one however that declaration is written', () => {
+    // Every spelling, not just the commonest: this is the loop that
+    // reads what the author WROTE, so it is the one `DECLARATION_SHAPES`
+    // governs, and a spelling missing from that table is a declaration
+    // swallowed as an option. Recovery cannot stand in for this — it
+    // asks a looser question that never consults the table at all.
+    for (const word of DECLARATIONS) {
+      for (const written of spellingsOf(word)) {
+        const { declarations } = read(`enum Ward {\n  oak\n${written}`);
+        expect(optionsOf(declarations[0] as EnumDeclaration), written).toEqual(['oak']);
+        expect(
+          declarations.map((d) => d.kind),
+          written,
+        ).toHaveLength(2);
+      }
+    }
+  });
+
+  it('and ends the body before it even where the name was forgotten', () => {
+    // `enum {` and `world {` are a declaration the author started and
+    // did not finish naming — still a declaration, so the body before
+    // it ends here. Reading the word as an option instead keeps the
+    // mistake and loses everything after it. Recovery cannot stand in
+    // for this test either: it asks the looser question, which never
+    // consults `DECLARATION_SHAPES`.
+    for (const [nameless, said] of [
+      ['enum { a }', 'An enum needs a name.'],
+      ['world { }', 'A world needs a name.'],
+    ] as const) {
+      const { declarations, refusals } = read(`enum Ward {\n  oak\n${nameless}`);
+      expect(optionsOf(declarations[0] as EnumDeclaration), nameless).toEqual(['oak']);
+      expect(
+        refusals.map((d) => d.message),
+        nameless,
+      ).toEqual(['`Ward` is never closed.', said]);
+    }
+  });
+
+  it('reads one at the very end of the file as an option, not as a declaration', () => {
+    // The file stops: the author's one mistake is the missing brace.
+    // Treating the word as a declaration they started would refuse them
+    // twice, once for the brace and once for a name they never wrote.
+    const { declarations, refusals } = read('enum Ward { oak, message');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message']);
+  });
+
+  it('points at the keyword, which is where the brace should have been', () => {
+    const { refusals } = read('enum Ward {\n  oak\nenum Two { a }\n');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:3:1');
+  });
+
+  it('says it once, not once per option it had already read', () => {
+    const { refusals } = read('enum Ward {\n  oak, silver, brass\nenum Two { a }\n');
+    expect(refusals).toHaveLength(1);
+  });
+});
+
+describe('a character the lexer stepped over is not reported again as a missing separator', () => {
+  it('says only what the lexer said, inside an enum', () => {
+    const { refusals } = read('enum Ward {\n  oak % silver\n}');
+    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+  });
+
+  it('says only what the lexer said, inside a list', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':a [Ward] default [oak % silver]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+  });
+
+  it('says only what the lexer said, inside a :remembers', () => {
+    const diagnostics = new Diagnostics();
+    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 % b: 1]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+  });
+
+  it('still reports a comma an author really did forget', () => {
+    const { refusals } = read('enum Ward { oak silver }');
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` needs a comma between its options.']);
+  });
+});
+
+describe('a type that failed to parse is not mistaken for no type at all', () => {
+  const declare = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(new SourceFile('kiln.sprout', text), diagnostics);
+    return { declared, refusals: diagnostics.refusals };
+  };
+
+  it('gives back nothing, having already said what was wrong', () => {
+    const { declared, refusals } = declare(':opens [Ward default oak');
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toEqual(['A list type is never closed.']);
+  });
+
+  it('does not swallow the `default` keyword as a value', () => {
+    const { declared, refusals } = declare(':x sprout.lower default true');
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toEqual(['`sprout.` is not followed by a name.']);
+  });
+
+  it('still reads a property whose type is genuinely left out', () => {
+    expect(declare(':lit false').declared!.type).toBeNull();
+  });
+});
+
+// The two describes below are paired on purpose: each case is a table
+// with both readings side by side — the same shape, read the other way
+// — so neither can be changed without the other being looked at.
+
+describe('`enum` and `message` inside a body: an option, or a forgotten brace', () => {
+  const asOption: [string, string[]][] = [
+    ['enum Ward { message, silver }', ['message', 'silver']],
+    ['enum Ward { oak, message }', ['oak', 'message']],
+    ['enum Ward { enum, silver }', ['enum', 'silver']],
+    ['enum Ward { message }', ['message']],
+  ];
+  for (const [text, options] of asOption) {
+    it(`reads it as an option in ${text}`, () => {
+      // Nothing reserves these words as option names: the spec's
+      // Reserved names covers message, verb and member names only.
+      const { declarations, refusals } = read(text);
+      expect(refusals).toEqual([]);
+      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(options);
+    });
+  }
+
+  const asForgottenBrace: string[] = [
+    'enum Ward {\n  oak\nenum Two { a, b }\n',
+    'enum Ward {\n  oak\nmessage :stir\n',
+    'enum Ward {\n  oak,\nenum Two { a }\n',
+  ];
+  for (const text of asForgottenBrace) {
+    it(`reads it as a forgotten brace in ${JSON.stringify(text)}`, () => {
+      const { declarations, refusals } = read(text);
+      expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
+      expect(declarations).toHaveLength(2);
+      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
+    });
+  }
+
+  it('is decided by what follows the word, not by the word', () => {
+    // A comma or a brace after it means an option; its own name after
+    // it means a declaration.
+    expect(read('enum Ward { message, a }').refusals).toEqual([]);
+    expect(read('enum Ward { message :stir }').refusals).not.toEqual([]);
+  });
+});
+
+describe('a stepped-over character beside a separator that is, or is not, there', () => {
+  const stillReported: [string, string][] = [
+    ['enum Ward { oak silver }', '`Ward` needs a comma between its options.'],
+  ];
+  for (const [text, message] of stillReported) {
+    it(`still reports the missing comma in ${text}`, () => {
+      expect(read(text).refusals.map((d) => d.message)).toEqual([message]);
+    });
+  }
+
+  const onlyTheLexer: string[] = [
+    'enum Ward {\n  oak % silver\n}', // no comma written: the gap explains it
+    'enum Ward { oak % , silver }', // a comma IS written, right after the character
+    'enum Ward { oak, % silver }',
+  ];
+  for (const text of onlyTheLexer) {
+    it(`says only what the lexer said for ${JSON.stringify(text)}`, () => {
+      const { declarations, refusals } = read(text);
+      expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+      // The comma the author did write is never blamed, and nothing
+      // after it is lost.
+      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+    });
+  }
+
+  it('keeps every element of a list whose separator sits beside the character', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(
+      new SourceFile('k.sprout', ':a [Ward] default [oak % , silver]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+    const value = declared!.default!;
+    expect(value.kind === 'list-literal' && value.elements).toHaveLength(2);
+  });
+
+  it('keeps every entry of a :remembers whose separator sits beside the character', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: 0 % , b: 1]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+    ]);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
+  });
+});
+
+// Each case below is an input where the parser must not say something
+// that is not the author's mistake, eat a declaration, or throw.
+
+describe('one mistake is said once, and said truly', () => {
+  const only = (text: string): string[] => read(text).refusals.map((d) => d.message);
+
+  it('does not stop recovery on a word that merely spells a keyword', () => {
+    // Nothing reserves an option's name, so recovery asks what follows
+    // the word rather than matching it by spelling.
+    expect(only('enum { message, silver }')).toEqual(['An enum needs a name.']);
+    expect(only('enum { enum, silver }')).toEqual(['An enum needs a name.']);
+  });
+
+  it('says a truncated enum is unclosed, and not that it has no options', () => {
+    expect(only('enum Ward {')).toEqual(['`Ward` is never closed.']);
+    expect(only('enum Ward {\n')).toEqual(['`Ward` is never closed.']);
+  });
+
+  it('does not charge a token that cannot be an option as a missing comma too', () => {
+    expect(only('enum Ward { oak 4 }')).toEqual(['`Ward` cannot hold the number 4.']);
+    expect(only('enum Ward { oak Silver }')).toEqual([
+      '`Ward` cannot hold `Silver`, which starts with a capital.',
+    ]);
+  });
+
+  it('says an enum is unclosed even when a bad option sent it into recovery', () => {
+    expect(only('enum Ward { oak, 4')).toEqual([
+      '`Ward` cannot hold the number 4.',
+      '`Ward` is never closed.',
+    ]);
+  });
+
+  it('does not read a built-in type word followed by a dot as a library', () => {
+    const { declarations, refusals } = read('message :n2 with boolean\n. message :n3 with boolean');
+    expect(refusals.map((d) => d.message)).toEqual([
+      'Sprout does not know what to do with "." here.',
+    ]);
+    expect(declarations.map((d) => (d as { name: { text: string } }).name.text)).toEqual([
+      'n2',
+      'n3',
+    ]);
+  });
+
+  it('does not promote what is nested inside an unmatched brace to the top of the file', () => {
+    const { declarations, refusals } = read('enum Ward { 4 { message :x } }');
+    expect(refusals).toHaveLength(1);
+    expect(declarations).toEqual([]);
+  });
+
+  it('says a list type names one element type, rather than blaming the bracket', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x [Ward, oak]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'A list type names one element type.',
+    ]);
+  });
+
+  it('says Sprout has no fractions, rather than blaming the comma after one', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: 1.5, b: 2]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual(['Sprout has no fractions.']);
+    // And the entry after the broken one is still read.
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
+  });
+
+  it('reads a list past an element it could not read, as the enum does', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x [Ward] default [oak silver brass]'), diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'A list needs a comma between its elements.',
+      'A list needs a comma between its elements.',
+    ]);
+  });
+
+  it('reads a property’s bounds in either order without its span going short', () => {
+    // The span ends at whichever bound was written last; a span that
+    // stopped short would suppress a real missing comma one level up.
+    // The two readings have to agree.
+    const read1 = new Diagnostics();
+    const read2 = new Diagnostics();
+    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 max 1 min % 2 b: 3]'), read1);
+    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 min 1 max % 2 b: 3]'), read2);
+    expect(read1.refusals.map((d) => d.message)).toEqual(read2.refusals.map((d) => d.message));
+    expect(read1.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "%".',
+      'A `:remembers` needs a comma between what it remembers.',
+    ]);
+  });
+
+  it('spans a property to its last bound, whichever order they came in', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseProperty(new SourceFile('k.sprout', ':x 0 max 1 min 2'), diagnostics);
+    expect(textOf(declared!.at)).toBe(':x 0 max 1 min 2');
+  });
+});
+
+describe('the parser refuses rather than throwing, at the host’s cap', () => {
+  const deep = (n: number) => `message :m with ${'['.repeat(n)}Ward`;
+
+  it('refuses nesting past the cap instead of running out of stack', () => {
+    const { refusals } = read(deep(7000));
+    expect(refusals[0]!.message).toBe('Nothing here may be nested more than 8 deep.');
+  });
+
+  it('takes the cap from the host, since every limit is the host’s', () => {
+    const diagnostics = new Diagnostics();
+    parseDeclarations(new SourceFile('t.sprout', deep(4)), diagnostics, {
+      ...DEFAULT_LIMITS.caps,
+      nesting: 2,
+    });
+    expect(diagnostics.refusals[0]!.message).toBe('Nothing here may be nested more than 2 deep.');
+  });
+
+  it('allows nesting up to the cap', () => {
+    expect(read(`message :m with ${'['.repeat(8)}Ward${']'.repeat(8)}`).refusals).toEqual([]);
+  });
+
+  it('never throws, however deep it is given', () => {
+    for (const n of [100, 1_000, 20_000]) {
+      expect(() => read(deep(n)), String(n)).not.toThrow();
+      expect(() => read(`:x ${'['.repeat(n)}`), String(n)).not.toThrow();
+    }
+  });
+});
+
+describe('every place that asks where a declaration starts reads one table', () => {
+  it('reads every word it says it reads', () => {
+    for (const word of DECLARATIONS) {
+      const { declarations, refusals } = read(sampleOf(word));
+      expect(refusals, word).toEqual([]);
+      expect(declarations, word).toHaveLength(1);
+    }
+  });
+
+  it('stops recovery at every word it reads, however that word is written', () => {
+    for (const word of DECLARATIONS) {
+      for (const written of spellingsOf(word)) {
+        const { declarations } = read(`nonsense\n${written}`);
+        expect(declarations, written).toHaveLength(1);
+      }
+    }
+  });
+
+  it('reads every spelling cleanly, so the rule above is not asserting a refusal', () => {
+    for (const word of DECLARATIONS) {
+      for (const written of spellingsOf(word)) {
+        const { declarations, refusals } = read(written);
+        expect(refusals, written).toEqual([]);
+        expect(declarations, written).toHaveLength(1);
+      }
+    }
+  });
+});
+
+describe('what recovery says, and what it keeps', () => {
+  it('names where recovery actually stopped, not the end of the file', () => {
+    // `recoverInBraces` gives up for two reasons, and only one of them
+    // is the end of the file.
+    const { refusals } = read('enum Ward { 4\nmessage :x\n}\n');
+    const unclosed = refusals.find((d) => d.message === '`Ward` is never closed.')!;
+    expect(locationOf(unclosed.at)).toBe('ward.sprout:2:1');
+  });
+
+  it('still names the end of the file when that is where it ran out', () => {
+    const { refusals } = read('enum Ward { oak, 4');
+    const unclosed = refusals.find((d) => d.message === '`Ward` is never closed.')!;
+    expect(locationOf(unclosed.at)).toBe('ward.sprout:1:19');
+  });
+
+  it('keeps a well-formed element that follows one it could not read', () => {
+    for (const text of [':x [oak, Zeta silver]', ':x [oak, Zeta, silver]']) {
+      const diagnostics = new Diagnostics();
+      const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+      expect(diagnostics.refusals, text).toHaveLength(1);
+      const value = declared!.default!;
+      expect(value.kind === 'list-literal' && value.elements.length, text).toBe(2);
+    }
+  });
+
+  it('keeps a well-formed :remembers entry that follows one it could not read', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: 0, b c: 1]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals).toHaveLength(1);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
+  });
+
+  it('never loops on an item it cannot read and cannot step over', () => {
+    for (const text of [':x [Zeta]', ':x [Zeta Zeta Zeta]', ':remembers [Zeta]', ':x [,,,]']) {
+      expect(() => {
+        const diagnostics = new Diagnostics();
+        parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        parseRemembers(new SourceFile('k.sprout', text), new Diagnostics());
+      }, text).not.toThrow();
+    }
+  });
+
+  it('names in its message exactly the declarations it reads, both ways round', () => {
+    // The message is built from the dispatch table, so a declaration
+    // added to one and not the other cannot ship, in either direction.
+    const { refusals } = read('nonsense');
+    const named = [...refusals[0]!.remedy!.matchAll(/`([a-z]+)`/g)].map((m) => m[1]!);
+    expect(named.sort()).toEqual([...DECLARATIONS].sort());
+  });
+});
+
+describe('a file that runs out is explained once, not once per bracket', () => {
+  const diagnose = (
+    text: string,
+    fn: (source: SourceFile, diagnostics: Diagnostics) => unknown = parseProperty,
+  ): string[] => {
+    const diagnostics = new Diagnostics();
+    fn(new SourceFile('k.sprout', text), diagnostics);
+    return diagnostics.all.map((d) => d.message);
+  };
+
+  it('says a nested unclosed list is unclosed once, however deep it is', () => {
+    for (const text of [':x [oak,[Zeta', ':x [oak, [oak2, [Zeta', ':x [a, [b, [c, [Zeta']) {
+      const said = diagnose(text);
+      expect(
+        said.filter((m) => m === 'This list is never closed.'),
+        text,
+      ).toHaveLength(1);
+    }
+  });
+
+  it('does not add the outer construct’s own complaint on top of the inner one', () => {
+    expect(diagnose(':remembers [a: [oak,[Zeta', parseRemembers)).toEqual([
+      '`Zeta`, which starts with a capital is not a value.',
+      'This list is never closed.',
+    ]);
+  });
+
+  it('still says so once where the list itself is the one that ran out', () => {
+    expect(diagnose(':x [oak')).toEqual(['This list is never closed.']);
+    expect(diagnose(':x [oak, Zeta')).toEqual([
+      '`Zeta`, which starts with a capital is not a value.',
+      'This list is never closed.',
+    ]);
+    expect(diagnose(':remembers [a: 0', parseRemembers)).toEqual([
+      'This `:remembers` is never closed.',
+    ]);
+  });
+});
+
+describe('invariants over generated input, brackets included', () => {
+  // A small, deterministic generator with brackets in its token pool,
+  // so that it generates nested lists — the shape recovery bugs turn on
+  // — checking invariants rather than any particular input.
+  const POOL = [
+    'enum',
+    'message',
+    'Ward',
+    'oak',
+    'boolean',
+    'default',
+    'min',
+    'true',
+    '4',
+    '1.5',
+    '"x"',
+    ':a',
+    '[',
+    ']',
+    '{',
+    '}',
+    ',',
+    ':',
+    '.',
+    '%',
+    '-',
+  ];
+
+  /** A fixed sequence, so a failure is reproducible and the suite is deterministic. */
+  function* generated(count: number, seed = 20_260_921): Generator<string> {
+    let state = seed;
+    const next = (): number => (state = (state * 1_103_515_245 + 12_345) % 2_147_483_648);
+    for (let i = 0; i < count; i++) {
+      const length = 1 + (next() % 12);
+      const words: string[] = [];
+      for (let w = 0; w < length; w++) words.push(POOL[next() % POOL.length]!);
+      yield words.join(' ');
+    }
+  }
+
+  const readers: [string, (s: SourceFile, d: Diagnostics) => unknown][] = [
+    ['parseDeclarations', parseDeclarations],
+    ['parseProperty', parseProperty],
+    ['parseRemembers', parseRemembers],
+  ];
+
+  for (const [name, read] of readers) {
+    it(`${name} never throws, and never says one thing twice in one place`, () => {
+      for (const text of generated(600)) {
+        const diagnostics = new Diagnostics();
+        const source = new SourceFile('fuzz.sprout', text);
+        expect(() => read(source, diagnostics), text).not.toThrow();
+        const seen = new Set<string>();
+        for (const problem of diagnostics.all) {
+          const key = `${problem.message}@${problem.at.start}-${problem.at.end}`;
+          expect(seen.has(key), `${text}\n  repeated: ${problem.message}`).toBe(false);
+          seen.add(key);
+        }
+      }
+    });
+  }
+
+  it('gives the same answer for the same source, every time', () => {
+    for (const text of generated(200, 7)) {
+      const source = new SourceFile('fuzz.sprout', text);
+      const once = new Diagnostics();
+      const twice = new Diagnostics();
+      parseDeclarations(source, once);
+      parseDeclarations(new SourceFile('fuzz.sprout', text), twice);
+      expect(
+        twice.all.map((d) => d.message),
+        text,
+      ).toEqual(once.all.map((d) => d.message));
+    }
+  });
+});
+
+describe('brackets inside brackets with something unreadable at the bottom, enumerated', () => {
+  // The random generator above reaches nesting depth two in about one
+  // input in forty, which is thin cover for the one shape recovery
+  // bugs turn on: brackets inside brackets, something unreadable at
+  // the bottom, closed or not. So that shape is enumerated rather than
+  // sampled.
+  //
+  // Every level opens with a lower-case element, which is not
+  // decoration. `atType()` skips past every leading `[` before deciding
+  // whether what is underneath looks like a type, so `:x [[[Zeta` is
+  // read as an attempted list TYPE and never reaches the recovery this
+  // suite is about. A lower-case element at the head of each level is
+  // what makes the brackets values: `:x [oak,[Zeta`, `:x [oak, [oak2,
+  // [Zeta`.
+  //
+  // `enum` is not among the unreadable tokens on purpose: nothing
+  // reserves an option's name, so `[enum]` is a legal list holding one
+  // option and says nothing.
+  const BAD = ['Zeta', '{', '}', ':a', '1.5', '%'];
+
+  /** The vocabulary of the type path, which these shapes must never reach. */
+  const TYPE_PATH = 'list type';
+
+  function* shapes(): Generator<{ text: string; what: string }> {
+    for (let depth = 1; depth <= 6; depth++) {
+      const open = Array.from({ length: depth }, (_, i) => `[oak${i}, `).join('');
+      const close = ']'.repeat(depth);
+      for (const bad of BAD) {
+        for (const [tail, what] of [
+          ['', 'unclosed'],
+          [close, 'closed'],
+          [`, last${close}`, 'closed with a good neighbour'],
+        ] as const) {
+          yield { text: `:x ${open}${bad}${tail}`, what: `depth ${depth}, ${bad}, ${what}` };
+          yield {
+            text: `:remembers [a: ${open}${bad}${tail}]`,
+            what: `remembers depth ${depth}, ${bad}, ${what}`,
+          };
+        }
+      }
+    }
+  }
+
+  const readings = (text: string): { property: string[]; remembers: string[] } => {
+    const property = new Diagnostics();
+    const remembers = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', text), property);
+    parseRemembers(new SourceFile('k.sprout', text), remembers);
+    return {
+      property: property.all.map((d) => d.message),
+      remembers: remembers.all.map((d) => d.message),
+    };
+  };
+
+  it('actually reaches the recovery it is about, for every shape in it', () => {
+    // The check that keeps this suite from passing while covering
+    // nothing.
+    let reached = 0;
+    for (const { text, what } of shapes()) {
+      const said = readings(text);
+      const both = [...said.property, ...said.remembers];
+      expect(
+        both.some((m) => m.includes(TYPE_PATH)),
+        `${what}: ${text} went to the type path`,
+      ).toBe(false);
+      expect(both.length, `${what}: ${text} said nothing`).toBeGreaterThan(0);
+      reached += 1;
+    }
+    expect(reached).toBe(6 * BAD.length * 3 * 2);
+  });
+
+  it('says nothing twice in one place, at any depth', () => {
+    for (const { text, what } of shapes()) {
+      for (const read of [parseProperty, parseRemembers]) {
+        const diagnostics = new Diagnostics();
+        read(new SourceFile('k.sprout', text), diagnostics);
+        const seen = new Set<string>();
+        for (const problem of diagnostics.all) {
+          const key = `${problem.message}@${problem.at.start}-${problem.at.end}`;
+          expect(seen.has(key), `${what}: ${text}\n  repeated: ${problem.message}`).toBe(false);
+          seen.add(key);
+        }
+      }
+    }
+  });
+
+  it('says "never closed" at most once, however deep the brackets go', () => {
+    for (const { text, what } of shapes()) {
+      const said = readings(text).property;
+      const unclosed = said.filter((m) => m.includes('never closed'));
+      expect(unclosed.length, `${what}: ${text}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('keeps the well-formed neighbour that follows the unreadable one', () => {
+    for (let depth = 1; depth <= 4; depth++) {
+      const open = Array.from({ length: depth }, (_, i) => `[oak${i}, `).join('');
+      for (const bad of BAD) {
+        const text = `:x ${open}${bad}, last${']'.repeat(depth)}`;
+        const diagnostics = new Diagnostics();
+        const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        expect(declared, `${text} gave back nothing`).not.toBeNull();
+      }
+    }
+  });
+});
+
+// --- expressions ----------------------------------------------------------
+
+/** An expression as a shape, brackets showing what bound to what. */
+function shape(expr: Expr | null): string {
+  if (expr === null) return 'null';
+  switch (expr.kind) {
+    case 'binary':
+      return `(${shape(expr.left)} ${expr.operator} ${shape(expr.right)})`;
+    case 'unary':
+      return `(${expr.operator}${shape(expr.operand)})`;
+    case 'member':
+      return `${shape(expr.receiver)}.${expr.member.text}`;
+    case 'call':
+      return `${shape(expr.receiver)}.${expr.method.text}(${expr.arguments.map(shape).join(', ')})`;
+    case 'free-call':
+      return `${expr.name.text}(${expr.arguments.map(shape).join(', ')})`;
+    case 'binding':
+      return expr.name.text;
+    case 'symbol-expr':
+      return `:${expr.name.text}`;
+    case 'kind-expr':
+      return expr.library === null ? expr.name.text : `${expr.library.text}.${expr.name.text}`;
+    case 'string':
+      return JSON.stringify(expr.value);
+    default:
+      return String(expr.value);
+  }
+}
+
+/** A property, for the specs about depth that are written as one. */
+function readExpressionOf(text: string) {
+  const diagnostics = new Diagnostics();
+  parseProperty(new SourceFile('k.sprout', text), diagnostics);
+  return { refusals: diagnostics.refusals };
+}
+
+/** One property declaration, with whatever caps the host set. */
+function readProperty(text: string, caps = DEFAULT_LIMITS.caps) {
+  const diagnostics = new Diagnostics();
+  const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics, caps);
+  return { declared, diagnostics, refusals: diagnostics.refusals };
+}
+
+function readExpression(text: string, caps = DEFAULT_LIMITS.caps) {
+  const diagnostics = new Diagnostics();
+  const expr = parseExpression(new SourceFile('body.sprout', text), diagnostics, caps);
+  return { expr, shape: shape(expr), diagnostics, refusals: diagnostics.refusals };
+}
+
+describe('a list is bounded by what the host allows', () => {
+  const allowed = DEFAULT_LIMITS.caps.listElements;
+  const list = (many: number) =>
+    `:x [Ward] default [${Array.from({ length: many }, (_, i) => `e${i}`).join(', ')}]`;
+
+  it('reads a list up to the cap, and refuses one past it', () => {
+    expect(readProperty(list(allowed)).declared).not.toBeNull();
+    expect(readProperty(list(allowed + 1)).declared).toBeNull();
+  });
+
+  it('refuses rather than keeping the first few, because a silent drop is the one thing it must not be', () => {
+    const { declared, refusals } = readProperty(list(allowed + 4));
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toContain(`A list holds at most ${allowed} things.`);
+  });
+
+  it('points at the element that breaks it, not at the list', () => {
+    // The span, not only the words: a report at the opening bracket
+    // would say the right thing about the wrong place.
+    const { refusals } = readProperty(list(allowed + 1));
+    const cap = refusals.find((d) => d.message.startsWith('A list holds at most'))!;
+    expect(textOf(cap.at)).toBe(`e${allowed}`);
+  });
+
+  it('is counted per list, so two over-cap lists are two reports', () => {
+    // `overCap` is a local, where the nesting cap two lines above it is
+    // a field reset once per declaration. Copying that shape here would
+    // report the first list and drop the second in silence, which is
+    // the one thing a full list must never do.
+    const caps = { ...DEFAULT_LIMITS.caps, listElements: 3 };
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: [1, 2, 3, 4], b: [5, 6, 7, 8]]'),
+      diagnostics,
+      caps,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('A list holds at most')),
+    ).toHaveLength(2);
+  });
+
+  it('says it once, and still says what else is wrong inside', () => {
+    const over = `:x [Ward] default [${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
+    const said = readProperty(over).refusals.map((d) => d.message);
+    expect(said.filter((m) => m.startsWith('A list holds at most'))).toHaveLength(1);
+    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
+  });
+
+  it('takes the bound from the host rather than a number of its own', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, listElements: 2 };
+    expect(readProperty(list(2), caps).declared).not.toBeNull();
+    const { declared, refusals } = readProperty(list(3), caps);
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toContain('A list holds at most 2 things.');
+  });
+});
+
+describe('a `min` and a `max` are whole numbers', () => {
+  it('says so for anything written there that is not one', () => {
+    for (const [text, said] of [
+      [':x integer default 0 min [1, 2]', 'A min is a whole number.'],
+      [':x integer default 0 max [1, 2]', 'A max is a whole number.'],
+      [':x integer default 0 min oak', 'A min is a whole number.'],
+      [':x integer default 0 max "9"', 'A max is a whole number.'],
+      [':x integer default 0 min true', 'A min is a whole number.'],
+    ] as const) {
+      const { declared, refusals } = readProperty(text);
+      expect(declared, text).toBeNull();
+      expect(
+        refusals.map((d) => d.message),
+        text,
+      ).toContain(said);
+    }
+  });
+
+  it('still reads the bounds it should, including a negative one', () => {
+    expect(readProperty(':x integer default 0 min -3 max 9').declared).toMatchObject({
+      min: { value: -3 },
+      max: { value: 9 },
+    });
+  });
+
+  it('leaves what is wrong INSIDE a bound to whatever knows about it', () => {
+    // A bound is read by reading a value and complaining about its
+    // shape. That means a bound whose own contents are wrong reports
+    // the contents rather than the bound — `min 1.5` says there are no
+    // fractions, and a list too long for the cap says so. The first is
+    // better than "a min is a whole number"; the second is worse.
+    //
+    // A reader that has not consumed anything cannot tell a stray
+    // closing bracket from the one its own caller is waiting for, so
+    // deciding this by looking before reading is not an option. This is
+    // the shape that loses nothing.
+    expect(readProperty(':x integer default 0 min 1.5').refusals.map((d) => d.message)).toEqual([
+      'Sprout has no fractions.',
+    ]);
+    expect(readProperty(':x integer default 0 min -').refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+    ]);
+  });
+
+  it('never loses the entry written after a bad bound in silence', () => {
+    // Every shape either keeps `walks` or names it; none drops it
+    // without saying so.
+    for (const bad of ['[1, 2]', '[[1]]', 'oak', '"9"', 'true', 'Ward', ':wet', 'max 9', '1.5']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
+        diagnostics,
+      );
+      const kept = remembered?.properties.map((p) => p.name.text) ?? [];
+      const said = diagnostics.refusals.map((d) => d.message).join(' ');
+      expect(kept.includes('walks') || said.includes('walks'), `${bad}: walks vanished`).toBe(true);
+      expect(diagnostics.refusals.length, bad).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps what was read before a bad bound, whatever the bound was', () => {
+    for (const bad of [']', 'oak', '[1, 2]', '}']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [handled: false, visits: 0 min ${bad}]`),
+        diagnostics,
+      );
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        bad,
+      ).toEqual(['handled']);
+    }
+  });
+});
+
+// --- the world ------------------------------------------------------------
+
+function readWorld(text: string) {
+  const diagnostics = new Diagnostics();
+  const declarations = parseDeclarations(new SourceFile('w.sprout', text), diagnostics);
+  return {
+    world: declarations.find((d) => d.kind === 'world'),
+    declarations,
+    refusals: diagnostics.refusals,
+  };
+}
+
+/** A world's members as plain words, for a suite that is not about nodes. */
+const membersOf = (declared: { members: readonly { kind: string }[] }): string[] =>
+  declared.members.map((m) => m.kind);
+
+describe('a world declaration', () => {
+  it('reads the spec’s own world', () => {
+    const { world, refusals } = readWorld(`world printers_shop {
+  visitors are Creature
+  visitors arrive at composing_room
+  :season Season default autumn
+}`);
+    expect(refusals).toEqual([]);
+    expect(world!.name.text).toBe('printers_shop');
+    expect(world!.composes).toEqual([]);
+    expect(membersOf(world!)).toEqual(['visitors-are', 'visitors-arrive-at', 'property']);
+  });
+
+  it('reads what it composes, qualified or not, one or several', () => {
+    const one = readWorld('world w: victorian.Voice { visitors are P\n visitors arrive at y }');
+    expect(one.world!.composes.map((c) => `${c.library?.text ?? ''}.${c.name.text}`)).toEqual([
+      'victorian.Voice',
+    ]);
+
+    const two = readWorld(
+      'world w: victorian.Voice, Other { visitors are P\n visitors arrive at y }',
+    );
+    expect(two.world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Other']);
+    expect(two.world!.composes[1]!.library).toBeNull();
+  });
+
+  it('holds its own properties, and `:remembers` beside them', () => {
+    const { world, refusals } = readWorld(`world w {
+  :a false
+  :remembers [seen: false]
+  visitors are P
+  visitors arrive at y
+}`);
+    expect(refusals).toEqual([]);
+    expect(membersOf(world!)).toEqual([
+      'property',
+      'remembers',
+      'visitors-are',
+      'visitors-arrive-at',
+    ]);
+  });
+
+  it('spans from `world` to its closing brace', () => {
+    const { world } = readWorld('world w { visitors are P\n visitors arrive at y }');
+    expect(textOf(world!.at).startsWith('world w {')).toBe(true);
+    expect(textOf(world!.at).endsWith('}')).toBe(true);
+  });
+
+  it('says what is wrong with one that is not written out', () => {
+    const table: [string, string][] = [
+      ['world { }', 'A world needs a name.'],
+      ['world w', 'has nothing in it'],
+      ['world w { visitors are P', 'is never closed'],
+      ['world w: 4 { }', 'is not the name of a kind'],
+      ['world w: victorian. { }', 'is not followed by the name of a kind'],
+      ['world w { visitors }', 'A world says two things about visitors'],
+      ['world w { visitors arrive y }', 'A world says where visitors arrive AT.'],
+      ['world w { visitors are 4 }', 'is not the name of a kind'],
+      ['world w { visitors are creature }', 'is not the name of a kind'],
+      ['world w { nonsense }', 'A world is not made of'],
+      ['world w { 4 }', 'A world is not made of'],
+    ];
+    for (const [text, said] of table) {
+      const { world, refusals } = readWorld(text);
+      expect(world, text).toBeUndefined();
+      expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of refusals) {
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+      }
+    }
+  });
+
+  it('says ONE thing about a member it could not read', () => {
+    // Whether a word is a member and whether reading it succeeded are
+    // two questions. Answering them in one expression would report a
+    // member that failed as a word nobody knows, and say both.
+    for (const text of [
+      'world w { visitors }',
+      'world w { visitors arrive y }',
+      'world w { visitors are 4 }',
+    ]) {
+      expect(readWorld(text).refusals, text).toHaveLength(1);
+    }
+  });
+
+  it('does not swallow the declaration written after a broken one', () => {
+    // A world that cannot be read costs that world and not the file.
+    for (const broken of [
+      'world { }',
+      'world w { nonsense }',
+      'world w: 4 { }',
+      'world w { visitors are 4 }',
+      'world w',
+      'world w nonsense here',
+    ]) {
+      const { declarations, refusals } = readWorld(`${broken}\nenum Ward { oak }\n`);
+      expect(
+        declarations.map((d) => d.name.text),
+        broken,
+      ).toContain('Ward');
+      // Exactly one, not merely at least one: a world that gives up
+      // steps to the next declaration itself, so the file does not then
+      // add "Sprout does not know what to do with X here" about the
+      // wreckage it was left standing in.
+      expect(
+        refusals.map((d) => d.message),
+        broken,
+      ).toHaveLength(1);
+    }
+  });
+
+  it('treats a word that starts a declaration as the end of it, not as a member', () => {
+    // `world w { enum Ward { oak } }` is a world that was never closed,
+    // and the enum is the file's. Saying "a world is not made of
+    // `enum`" as well leaves its braces orphaned and says two things
+    // about one mistake.
+    for (const inner of ['enum Inner { oak }', 'message :stir', 'world inner { }']) {
+      const { refusals, declarations } = readWorld(`world w {\n  ${inner}\n}\n`);
+      expect(
+        refusals.map((d) => d.message),
+        inner,
+      ).toContain('`w` is never closed.');
+      expect(
+        refusals.filter((d) => d.message.startsWith('A world is not made of')),
+        inner,
+      ).toHaveLength(0);
+      // And what was written inside it is kept, as the file's own.
+      expect(declarations.length, inner).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not let a member’s own recovery run past the declaration after it', () => {
+    // A list hunting for its `]` must not run to the end of the file:
+    // `file()` is still reading behind a property inside a world.
+    for (const member of [':x [', ':remembers [a: 0']) {
+      const { declarations, refusals } = readWorld(`world w { ${member}\n}\nenum Ward { oak }\n`);
+      expect(
+        declarations.map((d) => d.name.text),
+        member,
+      ).toContain('Ward');
+      expect(refusals.length, member).toBeGreaterThan(0);
+    }
+  });
+
+  it('still reads a word that only spells a declaration, where one may stand', () => {
+    // Nothing reserves an option's name, and what FOLLOWS the word is
+    // what decides: `[oak, enum]` is a list of two options.
+    for (const text of [':x [Ward] default [oak, enum]', ':x [Ward] default [oak, message]']) {
+      expect(readProperty(text).declared, text).not.toBeNull();
+      expect(readProperty(text).refusals, text).toEqual([]);
+    }
+  });
+
+  it('says when a comma is missing between the kinds it composes', () => {
+    // Every other comma-separated list in this file says so; letting
+    // the brace complain instead would name the wrong problem.
+    const { world, refusals } = readWorld(
+      'world w: victorian.Voice other.Kind { visitors are P\n visitors arrive at y }',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A world needs a comma between the kinds it composes.',
+    ]);
+    expect(world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Kind']);
+  });
+
+  it('reads `contains`, and `contains actors`', () => {
+    // Containment is a declaration, never a kind the engine knows by
+    // name. `contains` is the primitive; `contains actors` is the
+    // capability beside it, and declaring the second is the whole of
+    // what makes a place a place.
+    for (const [written, actors] of [
+      ['contains', false],
+      ['contains actors', true],
+    ] as const) {
+      const { world, refusals } = readWorld(
+        `world w {\n  ${written}\n  visitors are P\n  visitors arrive at y\n}`,
+      );
+      expect(refusals, written).toEqual([]);
+      const held = world!.members.filter((m) => m.kind === 'contains');
+      expect(
+        held.map((m) => m.actors),
+        written,
+      ).toEqual([actors]);
+      // And the span covers what was written, both words or one, so a
+      // problem about it underlines the declaration and not the verb.
+      expect(textOf(held[0]!.at), written).toBe(written);
+    }
+  });
+
+  it('does not take the member after `contains` for the word `actors`', () => {
+    const { world, refusals } = readWorld(
+      'world w {\n  contains\n  visitors are P\n  visitors arrive at y\n}',
+    );
+    expect(refusals).toEqual([]);
+    expect(world!.members.map((m) => m.kind)).toEqual([
+      'contains',
+      'visitors-are',
+      'visitors-arrive-at',
+    ]);
+  });
+
+  it('leaves a word after `contains` that is not `actors` where the author wrote it', () => {
+    // `contains actor`, singular. Swallowing the word would point the
+    // refusal at `contains`, which is the part they got right; leaving
+    // it goes back to the member table, which names the word itself.
+    const { refusals } = readWorld('world w {\n  contains actor\n}');
+    expect(refusals.map((d) => d.message)).toContain('A world is not made of `actor`.');
+  });
+
+  it('says `contains` is one of the things a world is made of', () => {
+    // Built from the member table, like the rest of that sentence, so
+    // it cannot go stale when a member is added.
+    const { refusals } = readWorld('world w { nonsense }');
+    expect(refusals[0]!.remedy).toContain('`contains`');
+  });
+
+  it('is one of the words this compiler reads', () => {
+    expect(DECLARATIONS).toContain('world');
+    // And the message for a word it does not read names it, because
+    // both come from the one table.
+    const { refusals } = readWorld('nonsense\n');
+    expect(refusals[0]!.remedy).toContain('world');
+  });
+});
+
+describe('recovery and reading ask the same word different questions', () => {
+  // A loop reading what the author WROTE stops when the answer is yes,
+  // so a false yes loses their work; recovery is already skipping, so a
+  // false no loses their diagnostic. One predicate cannot be wrong in
+  // both directions at once, which is why there are two.
+  //
+  // One input per reading loop, each chosen so the two questions
+  // disagree about it: a word this compiler reads, followed by
+  // something that is neither that word's own opening nor a closer. A
+  // change that asked the wrong question in one loop would otherwise
+  // ship behind a green gate.
+
+  it('an enum\u2019s options: the loose question would lose the option after the word', () => {
+    const { declarations, refusals } = read('enum Ward { oak, message silver }');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message', 'silver']);
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` needs a comma between its options.']);
+  });
+
+  it('a world\u2019s members: the loose question would not say the word is not a member', () => {
+    const { declarations, refusals } = read('world w { message foo }\nenum Ward { oak }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A world is not made of `message`.',
+      '`w` is never closed.',
+      'A message needs a name.',
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+  });
+
+  it('a list literal, past an element it could not read: it would lose the world', () => {
+    const { declarations, refusals } = read(
+      'world w {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+    );
+    expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+      'A list needs a comma between its elements.',
+    ]);
+  });
+
+  it('a `:remembers`, past an entry it could not read: the same', () => {
+    const { declarations, refusals } = read(
+      'world outer {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+    );
+    expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+      '`message` needs a colon between its name and its value.',
+      '`foo` needs a colon between its name and its value.',
+    ]);
+  });
+});
+
+describe('a declaration\u2019s own word is an ordinary name wherever a name may stand', () => {
+  // *Reserved names* reserves nothing for a property's name or an
+  // option's, so `enum`, `message` and `world` are ordinary words
+  // almost everywhere. Recovery has to tell a declaration from a word
+  // that merely spells one, and a remembered property's name is never
+  // followed by a closer, since its grammar is `name: value` \u2014 so a
+  // guard that asked only for a closer would read every `:remembers`
+  // holding an entry called `enum` as a declaration starting mid-list
+  // and throw it away whole, and inside a world would take the world
+  // with it.
+  //
+  // The suite below walks DEFECTIVE items and asks what survives beside
+  // them. This is the other half \u2014 nothing well formed is refused at
+  // all \u2014 and it is driven off DECLARATIONS so that `kind` and
+  // `object` are covered the day they are added.
+
+  it('as the name of a remembered property', () => {
+    for (const word of DECLARATIONS) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [${word}: 1, keep: 2]`),
+        diagnostics,
+      );
+      expect(diagnostics.refusals, word).toEqual([]);
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        word,
+      ).toEqual([word, 'keep']);
+    }
+  });
+
+  it('as an option in a list, wherever in it the word stands', () => {
+    for (const word of DECLARATIONS) {
+      for (const written of [
+        `[${word}]`,
+        `[oak, ${word}]`,
+        `[${word}, oak]`,
+        `[oak, ${word}, silver]`,
+      ]) {
+        const { declared, refusals } = readProperty(`:x [Ward] default ${written}`);
+        expect(refusals, `${word} in ${written}`).toEqual([]);
+        expect(
+          declared?.default?.kind === 'list-literal'
+            ? declared.default.elements.map((e) =>
+                e.kind === 'option-literal' ? e.name.text : e.kind,
+              )
+            : null,
+          `${word} in ${written}`,
+        ).toContain(word);
+      }
+    }
+  });
+
+  it('and a comma dropped after it is a missing comma, not the end of the list', () => {
+    // The word is followed by another option rather than by a closer.
+    for (const word of DECLARATIONS) {
+      const { declared, refusals } = readProperty(`:x [Ward] default [${word} silver]`);
+      expect(
+        refusals.map((d) => d.message),
+        word,
+      ).toEqual(['A list needs a comma between its elements.']);
+      expect(
+        declared?.default?.kind === 'list-literal'
+          ? declared.default.elements.map((e) =>
+              e.kind === 'option-literal' ? e.name.text : e.kind,
+            )
+          : null,
+        word,
+      ).toEqual([word, 'silver']);
+    }
+  });
+
+  it('inside a world, where losing it would cost the whole declaration', () => {
+    // The compound shape: an entry thrown away leaves `worldMembers` to
+    // fire on the same unconsumed word, and `file()` to read that
+    // leftover as a declaration the author never wrote \u2014 `w` would
+    // vanish and a stray "An enum needs a name." would name nothing.
+    for (const word of DECLARATIONS) {
+      const { declarations, refusals } = readWorld(
+        `world w {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
+      );
+      expect(
+        refusals.map((d) => d.message),
+        word,
+      ).toEqual([]);
+      expect(
+        declarations.map((d) => d.name.text),
+        word,
+      ).toEqual(['w', 'Ward']);
+    }
+  });
+});
+
+describe('a defect in one item never loses a well-formed neighbour in silence', () => {
+  // The generator above asserts no-throw, no-repeat and determinism,
+  // and a parser that drops an entry and says one true thing passes all
+  // three. This is the invariant that catches it, and it needs no
+  // knowledge of what the defect was: the shapes are built here, so
+  // what was well formed is known.
+  //
+  // Every defect is SELF-CONTAINED — balanced brackets, and not a bare
+  // closer. An unclosed bracket really does swallow what follows it,
+  // and a bare `]` really does end the construct; in both cases what
+  // comes after is not a sibling, and blaming the parser for it would
+  // be the suite lying rather than the parser.
+  const ENTRY_DEFECTS = [
+    'Zeta: 0',
+    '4: 0',
+    'b 1',
+    'b: Zeta',
+    'b: 1.5',
+    'b: %',
+    'b: :wet',
+    'b:',
+    ': 0',
+    'b: {}',
+    'b: [oak silver]',
+    'b: 0 min [1, 2]',
+    'b: 0 min oak',
+    'b: 0 min max 9',
+    'b: 0 min 0 min 1',
+    'b: 0 max 1.5',
+    'b: 0 min',
+    'b: [[[[[[[[[[oak]]]]]]]]]]',
+    `b: [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,
+    // NOT here, and named rather than quietly left out: `b: 0 min -[1]`
+    // loses the entry after it. It goes in when that is fixed.
+  ];
+
+  // Not `enum`: nothing reserves an option's name, so `[oak, enum]`
+  // is a list of two options and there is nothing wrong with it.
+  const ELEMENT_DEFECTS = ['Zeta', '1.5', '%', ':a', '{', '}', '[[[[[[[[[[oak]]]]]]]]]]'];
+  const DECLARATION_DEFECTS = [
+    'enum',
+    'enum {',
+    'message',
+    'enum Ward {',
+    'message :a with [[[[[[[[[[Ward]]]]]]]]]]',
+    '%',
+    'enum Ward { oak oak }',
+    // Worlds. The first two: a member word that also starts a
+    // declaration, and a member whose value is a list that was never
+    // closed. Either could take the declaration after it with it.
+    'world w { enum Inner { oak } }',
+    'world w { :x [ }',
+    // Not `world w { }`: it PARSES, and what is wrong with it — no
+    // visitor kind, nowhere to arrive — is `resolveWorld`'s to say.
+    // A shape that is not a parse defect belongs in world.spec.ts.
+    'world w { nonsense }',
+    'world w: 4 { }',
+    'world w',
+    'world w { visitors }',
+    'world w { visitors are 4 }',
+  ];
+
+  /**
+   * Every well-formed thing is KEPT.
+   *
+   * Kept, not merely "named in something said": a name is "named" by
+   * any refusal that happens to quote it, so a declaration that
+   * vanished entirely would pass if whatever swallowed it complained
+   * about its name on the way past. And kept HERE: a declaration
+   * written inside a world, reparsed as a sibling of the world that
+   * held it, is not kept.
+   *
+   * So: kept, and nothing else appears that was not written at this
+   * level. A defect that genuinely takes a neighbour with it is named
+   * in the table rather than covered by a weaker rule.
+   */
+  function nothingVanishes(
+    what: string,
+    kept: readonly string[],
+    good: string[],
+    written: string[] = good,
+  ) {
+    for (const name of good) {
+      expect(kept, `${what}: \`${name}\` vanished`).toContain(name);
+    }
+    for (const name of kept) {
+      expect(written, `${what}: \`${name}\` appeared where it was not written`).toContain(name);
+    }
+  }
+
+  it('over a `:remembers`, whichever side of the defect the good entries are', () => {
+    let checked = 0;
+    for (const defect of ENTRY_DEFECTS) {
+      for (const [text, good] of [
+        [`:remembers [alpha: 0, ${defect}]`, ['alpha']],
+        [`:remembers [${defect}, omega: 1]`, ['omega']],
+        [`:remembers [alpha: 0, ${defect}, omega: 1]`, ['alpha', 'omega']],
+      ] as const) {
+        checked += 1;
+        const diagnostics = new Diagnostics();
+        const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
+        nothingVanishes(
+          text,
+          remembered?.properties.map((p) => p.name.text) ?? [],
+          [...good],
+          [...good, 'b'],
+        );
+        // And it is a defect at all — the net is worth nothing if the
+        // shapes it walks are well formed.
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+    expect(checked).toBe(ENTRY_DEFECTS.length * 3);
+  });
+
+  it('over a list literal', () => {
+    for (const defect of ELEMENT_DEFECTS) {
+      for (const [text, good] of [
+        [`:x [Ward] default [oak, ${defect}]`, ['oak']],
+        [`:x [Ward] default [${defect}, silver]`, ['silver']],
+        [`:x [Ward] default [oak, ${defect}, silver]`, ['oak', 'silver']],
+      ] as const) {
+        const diagnostics = new Diagnostics();
+        const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        // Only the options: an element that is not one has no name to
+        // go missing, and rendering its kind would make this rule
+        // complain about shapes rather than about losses.
+        const written =
+          declared?.default?.kind === 'list-literal'
+            ? declared.default.elements.flatMap((e) =>
+                e.kind === 'option-literal' ? [e.name.text] : [],
+              )
+            : [];
+        nothingVanishes(text, written, [...good], [...good, 'oak', 'silver']);
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+  });
+
+  it('over the declarations of a whole file', () => {
+    for (const defect of DECLARATION_DEFECTS) {
+      for (const [text, good] of [
+        [`enum Alpha { x }\n${defect}\n`, ['Alpha']],
+        [`${defect}\nenum Omega { y }\n`, ['Omega']],
+        [`enum Alpha { x }\n${defect}\nenum Omega { y }\n`, ['Alpha', 'Omega']],
+      ] as const) {
+        const diagnostics = new Diagnostics();
+        const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
+        // A construct that was never closed gives its contents to the
+        // file — `world w { enum Inner { oak } }` is a world that ran
+        // on, and `Inner` is the file's enum. That is the rule, and it
+        // keeps the author's work rather than skipping to a brace and
+        // losing it. So a name
+        // WRITTEN inside the defect may surface at the top level; a
+        // name that was never written anywhere still may not.
+        const inside = defect.match(/[A-Z][A-Za-z_]*/g) ?? [];
+        nothingVanishes(
+          text,
+          declared.map((d) => d.name.text),
+          [...good],
+          [...good, 'Ward', ...inside],
+        );
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+  });
+});
+
+describe('an expression', () => {
+  it('reads every expression the spec writes', () => {
+    // Taken from the spec's own bodies, so the suite fails if the
+    // grammar drifts from what the language is written in.
+    const written: [string, string][] = [
+      ['self.get(:sealed)', 'self.get(:sealed)'],
+      ['self.get(:wear) >= 99', '(self.get(:wear) >= 99)'],
+      ['!self.get(:inked)', '(!self.get(:inked))'],
+      ['tools.count(Rib) > 1', '(tools.count(Rib) > 1)'],
+      ['self.get(:state) == :wet', '(self.get(:state) == :wet)'],
+      ['elapsed > 7200', '(elapsed > 7200)'],
+      ['p != self && chance(4)', '((p != self) && chance(4))'],
+      ['self.count >= self.get(:capacity)', '(self.count >= self.get(:capacity))'],
+      ['actor.recall(:visits) <= 1', '(actor.recall(:visits) <= 1)'],
+      ['item.is(Creature)', 'item.is(Creature)'],
+      ['from.get(:opens).includes(self.get(:ward))', 'from.get(:opens).includes(self.get(:ward))'],
+      ['self.holds(target)', 'self.holds(target)'],
+      ['self.adjust(:wear, 1)', 'self.adjust(:wear, 1)'],
+      ['random(6)', 'random(6)'],
+      ['to.is(sprout.Container)', 'to.is(sprout.Container)'],
+    ];
+    for (const [text, expected] of written) {
+      const read = readExpression(text);
+      expect(
+        read.refusals.map((d) => d.message),
+        text,
+      ).toEqual([]);
+      expect(read.shape, text).toBe(expected);
+    }
+  });
+
+  it('binds operators as the spec’s own expressions assume', () => {
+    const table: [string, string][] = [
+      ['a || b && c', '(a || (b && c))'],
+      ['a && b == c', '(a && (b == c))'],
+      ['a == b < c', '(a == (b < c))'],
+      ['a < b + c', '(a < (b + c))'],
+      ['-a + b', '((-a) + b)'],
+      ['!a && b', '((!a) && b)'],
+      ['a - b - c', '((a - b) - c)'],
+      ['(a || b) && c', '((a || b) && c)'],
+      ['a.b.c', 'a.b.c'],
+    ];
+    for (const [text, expected] of table) expect(readExpression(text).shape, text).toBe(expected);
+  });
+
+  it('tells a library’s kind from a reading, by what follows the dot', () => {
+    // `sprout.Container` is a kind and `actor.recall` is a reading, and
+    // the only difference is the capital letter after the dot.
+    expect(readExpression('sprout.Container').shape).toBe('sprout.Container');
+    expect(readExpression('sprout.recall').shape).toBe('sprout.recall');
+  });
+
+  it('says what it could not read, and where', () => {
+    const table: [string, string][] = [
+      ['', 'the end of the file is not something to read'],
+      ['&&', '`&&` is not something to read'],
+      ['a +', 'the end of the file is not something to read'],
+      ['(a + b', 'This bracket is never closed.'],
+      ['self.get(:p', 'This bracket is never closed.'],
+      ['self.', 'A dot needs the name of something to read after it.'],
+      ['1.5', 'Sprout has no fractions.'],
+    ];
+    for (const [text, said] of table) {
+      const read = readExpression(text);
+      expect(read.expr, text).toBeNull();
+      expect(read.refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of read.refusals) {
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+      }
+    }
+  });
+
+  it('keeps the well-formed neighbour of an argument it could not read', () => {
+    const read = readExpression('self.set(:wear % , 1)');
+    expect(read.shape).toBe('self.set(:wear, 1)');
+  });
+
+  it('asks for a comma only once the next thing reads', () => {
+    const read = readExpression('self.set(:wear 1)');
+    expect(read.refusals.map((d) => d.message)).toEqual([
+      'A reading needs a comma between what it is given.',
+    ]);
+    expect(read.shape).toBe('self.set(:wear, 1)');
+  });
+});
+
+describe('an expression counts against the host’s nesting cap', () => {
+  const nesting = DEFAULT_LIMITS.caps.nesting;
+
+  it('reads what is within it, and refuses what is past it', () => {
+    expect(readExpression('('.repeat(nesting) + 'a' + ')'.repeat(nesting)).expr).not.toBeNull();
+    expect(readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1)).expr).toBeNull();
+    expect(readExpression('!'.repeat(nesting) + 'a').expr).not.toBeNull();
+    expect(readExpression('!'.repeat(nesting + 1) + 'a').expr).toBeNull();
+  });
+
+  it('says so ONCE, however far past it goes', () => {
+    // Reading on past an item that could not be read is what an author
+    // owed three problems is owed all three for, but every item past
+    // the cap sits at the same depth and fails identically, so reading
+    // on would say one true thing once per level.
+    for (const text of [
+      '('.repeat(2000) + 'a' + ')'.repeat(2000),
+      'a' + '.f(a'.repeat(2000) + ')'.repeat(2000),
+      '!'.repeat(2000) + 'a',
+    ]) {
+      const said = readExpression(text).refusals.map((d) => d.message);
+      expect(said, text.slice(0, 20)).toEqual([
+        `Nothing here may be nested more than ${nesting} deep.`,
+      ]);
+    }
+  });
+
+  it('says so once for a list too', () => {
+    const diagnostics = new Diagnostics();
+    parseProperty(new SourceFile('k.sprout', ':x ' + '['.repeat(2000) + 'oak'), diagnostics);
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(1);
+  });
+
+  it('says so once for a `:remembers` too, which has the same loop', () => {
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: ' + '['.repeat(2000) + 'oak]'),
+      diagnostics,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(1);
+  });
+
+  it('says it once, and takes the whole construct with it rather than half', () => {
+    // Two things had to be told apart here. What is INSIDE a construct
+    // the cap abandoned goes with it — the same way an enum's options
+    // go with an enum that could not be read — and one message is the
+    // whole account of it. What comes AFTER it is a sibling the author
+    // is still owed, so stopping at the first too-deep item would say
+    // the depth once and drop everything else that was wrong.
+    const deep = '['.repeat(12);
+    const inside = readExpressionOf(`:x [${deep}oak, Zeta]`).refusals.map((d) => d.message);
+    expect(inside.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+
+    const diagnostics = new Diagnostics();
+    const after = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${deep}oak${']'.repeat(12)}, b c: 1]`),
+      diagnostics,
+    );
+    const said = diagnostics.refusals.map((d) => d.message);
+    expect(said.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+    expect(said.join(' ')).toContain('needs a colon between its name and its value');
+    expect(after).not.toBeNull();
+  });
+
+  it('gives each declaration its own account of being too deep', () => {
+    const diagnostics = new Diagnostics();
+    const deep = '[[[[[[[[[[';
+    parseDeclarations(
+      new SourceFile(
+        'k.sprout',
+        `message :a with ${deep}Ward
+message :b with ${deep}Ward
+`,
+      ),
+      diagnostics,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(2);
+  });
+
+  it('counts prefix signs against the same depth brackets do', () => {
+    // A counter of its own would give every bracketed level a fresh
+    // allowance of signs on top of the shared one: eight parentheses
+    // each holding eight `!` nested sixty-four deep under a cap of
+    // eight, with nothing said.
+    expect(readExpression('(' + '!'.repeat(nesting - 1) + 'a)').expr).not.toBeNull();
+    expect(readExpression('(' + '!'.repeat(nesting) + 'a)').expr).toBeNull();
+    const stacked = ('(' + '!'.repeat(nesting)).repeat(nesting) + 'a' + ')'.repeat(nesting);
+    expect(readExpression(stacked).refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+  });
+
+  it('steps over what it would not read, rather than leaving its closer behind', () => {
+    // A bracket the cap refuses is consumed and never opens a level;
+    // without the skip its CLOSER would be left in the stream, where
+    // the loop reading around it takes the closer for its own and ends
+    // early, dropping everything after it with nothing said.
+    const deep = '('.repeat(nesting) + 'a' + ')'.repeat(nesting);
+    const call = readExpression(`self.f(${deep}, b)`);
+    expect(call.shape).toBe('self.f(b)');
+    expect(call.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+
+    // The same shape in a `:remembers`.
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile(
+        'k.sprout',
+        ':remembers [a: ' + '['.repeat(nesting + 1) + 'oak' + ']'.repeat(nesting + 1) + ', b: 3]',
+      ),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
+  });
+
+  it('walks past a word that only looks like a declaration inside it', () => {
+    // Nothing reserves `message` or `enum`, so `[message foo]` is a
+    // list of two things. A skip that stopped at one would leave the
+    // real closers behind, which is what the skip exists to prevent.
+    const trap = '['.repeat(nesting + 1) + 'message foo' + ']'.repeat(nesting + 1);
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${trap}, c: 3]`),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+
+    // And at file scope it must not invent a declaration out of the
+    // trapped word: `A message needs a name.` about content the author
+    // never wrote as one is worse than saying nothing.
+    const atFile = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile('k.sprout', `message :first with ${trap}\nmessage :second\n`),
+      atFile,
+    );
+    expect(declared.map((d) => d.name.text)).toEqual(['second']);
+    expect(atFile.refusals.map((d) => d.message)).toEqual([
+      `Nothing here may be nested more than ${nesting} deep.`,
+    ]);
+  });
+
+  it('takes nothing at all where the closer was never written', () => {
+    // The skip looks for its closer before consuming anything, so a
+    // bracket that was never closed does not take the rest of the file
+    // with it.
+    const diagnostics = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile(
+        'k.sprout',
+        `message :a with ${'['.repeat(nesting + 2)}Ward\nmessage :b with ${'['.repeat(nesting + 2)}Ward\n`,
+      ),
+      diagnostics,
+    );
+    expect(declared).toHaveLength(0);
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
+    ).toHaveLength(2);
+  });
+
+  it('names what the author actually wrote too much of', () => {
+    const brackets = readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1));
+    expect(brackets.refusals[0]!.remedy).toContain('brackets');
+    // A wall of signs has no bracket in it.
+    const signs = readExpression('!'.repeat(nesting + 1) + 'a');
+    expect(signs.refusals[0]!.remedy).toContain('signs');
+  });
+
+  it('never throws, however deep or however long', () => {
+    // `parseExpression` directly, not `readExpression`: `shape()` above
+    // walks the tree by recursion, and a chain of fifty thousand terms
+    // would overflow the SPEC rather than the parser.
+    //
+    // This also guards SPEED, not only throwing, and the guard is the
+    // test timeout rather than an assertion. Stepping over a construct
+    // the cap refused looks ahead for its closing bracket, which fills
+    // the lexer's buffer; draining that buffer one `shift()` at a time
+    // would be quadratic and take this test from a millisecond to the
+    // better part of a minute. Do not raise the timeout to make this
+    // pass.
+    for (const text of [
+      '('.repeat(50_000) + 'a' + ')'.repeat(50_000),
+      Array(50_000).fill('a').join(' + '),
+      'a' + '.count'.repeat(50_000),
+      '!'.repeat(50_000) + 'a',
+      'a' + '.f(a'.repeat(50_000) + ')'.repeat(50_000),
+    ]) {
+      expect(
+        () => parseExpression(new SourceFile('body.sprout', text), new Diagnostics()),
+        text.slice(0, 16),
+      ).not.toThrow();
+    }
+  });
+});
+
+// --- `let` ----------------------------------------------------------------
+
+function readLet(text: string) {
+  const diagnostics = new Diagnostics();
+  const statement = parseLet(new SourceFile('body.sprout', text), diagnostics);
+  return { statement, diagnostics, refusals: diagnostics.refusals };
+}
+
+describe('`let` names the result of an expression', () => {
+  it('reads the spec’s own two', () => {
+    const ribs = readLet('let ribs  = tools.count(Rib)');
+    expect(ribs.refusals).toEqual([]);
+    expect(ribs.statement!.name.text).toBe('ribs');
+    expect(shape(ribs.statement!.value)).toBe('tools.count(Rib)');
+
+    const state = readLet('let state = self.get(:state)');
+    expect(state.statement!.name.text).toBe('state');
+    expect(shape(state.statement!.value)).toBe('self.get(:state)');
+  });
+
+  it('spans from the keyword to the end of what it names', () => {
+    const { statement } = readLet('let ribs = tools.count(Rib)');
+    expect(textOf(statement!.at)).toBe('let ribs = tools.count(Rib)');
+    expect(locationOf(statement!.name.at)).toBe('body.sprout:1:5');
+  });
+
+  it('names a whole expression, not only a simple one', () => {
+    expect(
+      shape(readLet('let ready = self.get(:wear) >= 99 && !self.get(:lit)').statement!.value),
+    ).toBe('((self.get(:wear) >= 99) && (!self.get(:lit)))');
+  });
+
+  it('takes no type, because it takes the expression’s exactly', () => {
+    const { statement, refusals } = readLet('let n: integer = 1');
+    expect(statement).toBeNull();
+    expect(refusals[0]!.message).toContain('takes its type from what it names');
+    expect(refusals[0]!.remedy).toContain('let n = ');
+  });
+
+  it('says what is wrong with one that is not written out', () => {
+    const table: [string, string][] = [
+      ['let', 'A `let` needs a name.'],
+      ['let =', 'A `let` needs a name.'],
+      ['let 4 = 1', 'A `let` needs a name.'],
+      ['let Ward = 1', 'starts with a capital'],
+      ['let x', 'is not given anything to name'],
+      ['let x = ', 'the end of the file is not something to read'],
+      ['ribs = 1', 'does not name a value'],
+    ];
+    for (const [text, said] of table) {
+      const { statement, refusals } = readLet(text);
+      expect(statement, text).toBeNull();
+      expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of refusals)
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+    }
+  });
+});

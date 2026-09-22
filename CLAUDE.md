@@ -1,20 +1,20 @@
 # Sprout — house rules
 
 Sprout is a language for small multiplayer interactive-fiction worlds, and
-the runtime that hosts them. It is **unreleased and mid-rewrite**: the code
-under `sprout/` and `cli/` implements the _previous_ language, and the
-design under `docs/design/` describes the one being built. Until the
-rewrite lands, the code is not the authority on what Sprout is.
+the runtime that hosts them. It is **unreleased and being built from the
+spec**: `docs/design/sprout-design-spec.md` is the language as it is to be
+built, and **where anything disagrees with it, the spec wins**. The code
+implements the spec one backlog item at a time; the previous
+implementation was deleted on 2026-09-22 (#71) and nothing of it is a
+constraint or a reference.
 
-Orientation: `README.md` (layout + commands);
-`docs/design/sprout-design-spec.md` (**the language as it is to be built —
-where anything disagrees with it, the spec wins**);
+Orientation: `README.md` (layout and commands);
 `docs/design/sprout-working-notes.md` (the reasoning behind the spec, its
-_Decisions_ and its _Holes_); `docs/design/sprout-build-backlog.md` (53
-numbered items, one GitHub issue each — item B*nn* is issue #_nn_; #54 is
-the tracking issue and the build order); `docs/design/2026-09-20-reviews/`
-(the five critiques the spec was revised against). Older files under
-`docs/design/` are dated and superseded.
+_Decisions_ and its _Holes in the spec_);
+`docs/design/sprout-build-backlog.md` (53 numbered items, one GitHub issue
+each — item B*nn* is issue #_nn_; #54 is the tracking issue and the build
+order); `docs/design/sprout-test-harness.md` (how this code is tested and
+why). Older files under `docs/design/` are dated and superseded.
 
 ## The work
 
@@ -27,54 +27,103 @@ the tracking issue and the build order); `docs/design/2026-09-20-reviews/`
 - **Read the spec sections the issue names before writing code**, and the
   matching _Decisions_ in the working notes. The issue paraphrases the spec;
   where they disagree the issue is wrong. Where the spec is silent, say so
-  in the PR and add a line to the notes' _Holes in the spec_ — never invent
-  quietly. Do not edit the spec to match code; propose the change in the
-  PR and let Eric decide.
-- **Replace, do not retrofit.** The old implementation is a source of
-  ideas and of test shapes, not a constraint. Where it disagrees with the
-  spec, delete it. Keep what still holds — the store conformance suites and
-  the extension boundary are largely language-agnostic.
-- **Every source file has a colocated spec** (`foo.ts` → `foo.spec.ts`) that
+  in the PR and add a line under the notes' _Holes in the spec_ — never
+  invent quietly. Do not edit the spec to match code; propose the change in
+  the PR and let Eric decide.
+- **Some items are on hold.** The roles items (B23, B24, B26, B27) wait for
+  a design session Eric will run; the notes say so. Do not start them.
+
+## Where code goes
+
+`sprout/lang/src` is laid out by layer, and a new file goes in the layer
+that names what it does. A file in one layer imports from the layers above
+it and never from the ones below.
+
+| layer      | holds                                                                          | may import from                  |
+| ---------- | ------------------------------------------------------------------------------ | -------------------------------- |
+| `source/`  | spans, the AST node rule, diagnostics, hashing                                 | nothing                          |
+| `syntax/`  | lexer, AST, parser                                                             | `source/`, `bundle/limits`       |
+| `declare/` | what a declaration means: types, enums, kinds, properties, messages, the world | `source/`, `syntax/`             |
+| `check/`   | bindings, scope, the expression and statement checker                          | `source/`, `syntax/`, `declare/` |
+| `bundle/`  | limits, the manifest, the bundle, `compileBundle`, absence                     | everything above                 |
+| `runtime/` | the budget meter, values, and (from B22 on) the engine                         | everything above                 |
+| `prose/`   | (from B29) passages, slots, rendering                                          | everything above                 |
+
+Rules that follow from the table:
+
+- **One file, one concern, and a file stays readable.** When a file passes
+  about 800 lines, split it on its section comments into a folder of
+  modules that take a context object; do not grow a class. `syntax/parse.ts`
+  is the file most likely to hit this first: its grammar areas (types,
+  expressions, the world, later kinds and bodies) become modules of
+  functions taking the parser.
+- **Functions over a context, not methods on a god object.** A class is
+  earned only by real mutable state every method needs (the parser's cursor,
+  the budget's counters, a scope). Evaluation, checking, rendering and
+  resolution are functions that take what they read.
+- **No old names, no shims.** Nothing is named around something that used
+  to exist. If a better name is taken, the thing holding it is renamed or
+  deleted in the same PR.
+- **A spec file beside every source file** (`foo.ts` → `foo.spec.ts`) that
   exercises it directly; coverage through another file's spec does not
-  count. Vitest strips types, so `typecheck:spec` in the gate is what
-  catches a type error in a spec.
+  count. Test-only entry points are not exported from `index.ts`.
 
-## The legacy fence
+## Comments
 
-Most of the existing suites, the corpus and the two example worlds
-describe the previous language, and they will fail — correctly — as the
-rewrite lands. The rule keeps the gate green without lying:
+A comment says **what is true now** and, where it is not obvious, **why the
+spec or the design wants it that way**. It never says how the code got
+here. Concretely:
 
-- A suite, corpus entry or example that fails **because your change makes
-  it describe a language that no longer exists** is moved, in the same PR,
-  under a `legacy/` directory beside it: `sprout/lang/src/legacy/`,
-  `corpus/legacy/good/…`, `sprout/examples/legacy/…`. `vitest` excludes
-  `**/legacy/**`; `check-corpus` reads only `corpus/good` and `corpus/bad`.
-  Say in the PR what you fenced and which issue deletes it.
-- A suite that fails **because your change is wrong** is fixed before
-  commit. The difference is yours to argue in the PR, and the reviewer's
-  to check.
-- **The issue that replaces a legacy thing deletes it.** `legacy/` is a
-  holding pen, not an archive; git remembers.
-- What must never be fenced: a spec for code you touched, the store
-  conformance suites, the boundary specs.
+- No issue or PR numbers (`#59`), no "before B12", no "the previous
+  language", no "this used to", no anecdotes about a bug or a regression, no
+  counts of how many times something was reported. Git holds the history;
+  the PR body holds the argument. A backlog item named as the **owner of
+  work not yet done** is fine, because it is a fact about the plan: "B29
+  reads passage bodies" stays until B29 lands, and is removed then.
+- A file header is a short paragraph: what the module is, which spec
+  section it implements, and the one or two invariants a reader must know.
+  Not an essay.
+- A function's doc comment is one to three sentences. If it needs more, the
+  function does too much.
+- Prefer a spec citation over a paraphrase: "the spec's Limits › Runtime
+  budgets" beats three sentences restating it.
+- When you touch a comment that breaks these rules, fix it in passing.
+
+## The harness
+
+`docs/design/sprout-test-harness.md` says what each layer of testing is
+for. The short form:
+
+- **Colocated specs** are the unit layer. Assert on the rule, not on the
+  fixture: a test that would pass for any output is not a test.
+- **The corpus** (`corpus/good`, `corpus/bad`) is the golden layer, run by
+  `npm run check`. Every construct that lands gets a `good/` world, and
+  every refusal worth pinning the words of gets a `bad/` world whose
+  `expected.txt` is the exact page. Regenerate with
+  `node scripts/check-corpus.mjs --write` and read the diff before
+  committing it: a golden that was rewritten to whatever the code now says,
+  with no judgement of whether it is right, is a finding in review.
+- **Invariants over generated input** live in the spec of the module they
+  guard (the parser's "a well-formed item never vanishes silently" is the
+  model). A recovery or resync change without such a test is not done.
+- **The boundary specs** pin what each package may import. They are never
+  fenced or loosened to make something build.
+- **The conformance suite** (`sprout/core/src/conformance.ts`) is what every
+  store adapter passes, under any test runner. It is never fenced.
 
 ## The gate, locally
 
-There is **no CI**. GitHub minutes are not spent on this repository until
-it is stable; every check runs on the machine of whoever is committing,
-and a PR carries the evidence.
+There is **no CI**. Every check runs on the machine of whoever is
+committing, and a PR carries the evidence.
 
 - **`npm run gate` before every commit** — lint, prettier, both builds,
-  every suite, the spec typechecks, `sprout check` over the corpus and the
-  examples. Green, or the commit does not happen. A red you believe is a
-  legacy failure is fenced (above), not ignored.
-- **`npm run e2e` before opening a PR** — packs both tarballs, installs
-  them into an empty folder, and checks and plays an example world from
-  the installed CLI. This is the end-to-end test until B49 (the worked
-  microworld as a fixture, with golden transcripts) replaces it; when the
-  example worlds are fenced, `scripts/e2e.sh` follows them and B49 is the
-  new e2e.
+  every suite, the spec typechecks, the corpus. Green, or the commit does
+  not happen. There is no "legacy" category of failure any more: a red gate
+  is a bug in the change.
+- **`npm run e2e` before opening a PR** — packs both tarballs, installs them
+  into an empty folder, and runs `sprout init` and `sprout check` from the
+  installed CLI over a fresh world and a corpus world. B49 (the worked
+  microworld as a fixture, with golden transcripts) extends it.
 - **The PR body carries the receipts**: the short sha the gate ran at, its
   last line, and the same for e2e. A reviewer re-runs the gate at the PR
   head in a worktree; a PR without receipts is not ready.
@@ -86,9 +135,9 @@ and a PR carries the evidence.
   Never commit to `main` directly. Push branches early (backup, not a
   gate).
 - **Open the PR with `gh pr create` against `main`**, body: what and why,
-  `Closes #nn`, the gate and e2e receipts, what was fenced, and any spec
-  gap you recorded. Commit messages and PR bodies end with the attribution
-  lines the session gives you.
+  `Closes #nn`, the gate and e2e receipts, and any spec gap you recorded.
+  Commit messages and PR bodies end with the attribution lines the session
+  gives you.
 - **Every PR gets reviewed by a second pair of eyes before it is called
   done.** Immediately after opening it, spawn the `pr-review` subagent
   (`.claude/agents/pr-review.md`) with the PR number. It reads the diff
@@ -100,6 +149,11 @@ and a PR carries the evidence.
   Then answer every comment in the thread: fix it and say so, or say why
   it is not a problem. A blocking finding is fixed or argued down before
   the PR is ready — never deferred to a follow-up unless Eric says so.
+- **Stop after two rounds on one finding.** If a fix for a review finding
+  has itself been found wrong twice, stop fixing it in the PR: revert to
+  the behaviour at `main`, open an issue that quotes the finding, and say so
+  in the thread. Three regressions on a non-blocking finding is how the
+  parser's recovery once cost more than the feature it was in.
 - **Merging.** This is high-speed development with no production impact
   until v1.0, so **the coding agent may merge its own PR** when all of
   these hold: the reviewer posted its summary; every blocking finding is
@@ -137,7 +191,9 @@ and a PR carries the evidence.
   turn's seed.
 - One write rule: only `self` writes `self`; the containment tree is the
   engine's and moves through consent.
-- A moved or fenced suite is named in the PR; a deleted suite is deleted by
-  the issue that replaced it, not by the one that broke it.
+- Layout and comments as above: a file in the wrong layer, an import
+  downward, a class where a context would do, or a comment that narrates
+  history is a non-blocking finding that is fixed before merge.
 - Diagnostics name a line and column and tell a non-programmer what to
-  write instead.
+  write instead, and a new refusal has a `corpus/bad` world pinning its
+  words.

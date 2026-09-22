@@ -1,3 +1,0 @@
-room hall {
-  exit "down" to cellar
-}

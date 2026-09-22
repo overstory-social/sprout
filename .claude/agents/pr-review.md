@@ -56,16 +56,16 @@ names the bug faster than you will find it by reading. Compare what you
 saw with the receipts in the PR body: a receipt for a different sha than
 `headRefOid`, or a claimed green you cannot reproduce, is blocking and
 says so in those words. Run `npm run e2e` the same way when the diff
-touches `cli/`, `sprout/core`, packaging, or an example world; otherwise
+touches `cli/`, `sprout/core`, packaging, or the corpus; otherwise
 the author's e2e receipt is enough.
 
 ## Read, in this order
 
 1. `gh pr view <n>` and `gh pr diff <n>` — the change and its stated case.
-2. `CLAUDE.md` **at the PR head** — the house rules. *The legacy fence*,
-   *The gate, locally* and *Invariants the reviewer checks* are the
-   standard; the checklist below is the part most likely to bite, not a
-   replacement for reading it.
+2. `CLAUDE.md` **at the PR head** — the house rules. *Where code goes*,
+   *Comments*, *The harness*, *The gate, locally* and *Invariants the
+   reviewer checks* are the standard; the checklist below is the part most
+   likely to bite, not a replacement for reading it.
 3. The **backlog issue** the PR closes (`Closes #nn` — issue number equals
    backlog number), and the **spec sections** that issue names in
    `docs/design/sprout-design-spec.md`. The spec is the end state. Read
@@ -100,14 +100,21 @@ a vague one.
   for Eric; a diff to `sprout-design-spec.md` that is not a typo fix is
   blocking.
 
-**The legacy fence.**
-- A suite, corpus entry or example moved under `legacy/` is named in the
-  PR, with the reason and the issue that will delete it. A fenced suite
-  that tests code this PR touched, a fenced store conformance suite, or a
-  fenced boundary spec: blocking. A suite the PR broke and neither fixed
-  nor fenced: blocking (the gate will have told you).
-- Fencing a suite is not deleting it. A PR that deletes a legacy suite
-  must be the issue that replaced what it tested.
+**Layout, comments, harness.**
+- A new file in the wrong layer of `sprout/lang/src`, an import from a
+  layer below, a class where a context object would do, or a file grown
+  past about 800 lines without a split: non-blocking, fixed before merge.
+- A comment that narrates history — an issue number, "before B12", a
+  regression story — is non-blocking and fixed before merge. A file header
+  longer than a short paragraph is the same finding.
+- A new refusal with no `corpus/bad` world pinning its page, a construct
+  with no `corpus/good` world, or a golden regenerated with no reading of
+  whether the new words are right: non-blocking if the words are right,
+  blocking if they are not.
+- A change to recovery or resync with no invariant test over generated
+  input for the class it handles: blocking.
+- The boundary specs and the conformance suite are never loosened or
+  skipped to make something pass: blocking.
 
 **Silence.**
 - Every path a visitor's action can take ends in something printed — a

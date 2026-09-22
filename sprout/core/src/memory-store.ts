@@ -9,12 +9,12 @@ import type {
 } from './records.js';
 import type { ReadTx, SproutStore, StoreTx } from './store.js';
 
-// The memory store (the split proposal §5.3): a Map and a promise chain
-// per microworld. What core's own specs run on, what the conformance
-// suite proves first, and what a host's unit tests use in place of a
-// database. A transaction reads a snapshot and BUFFERS its writes until
-// `fn` returns, so `fn` running twice (§4.5-2) commits once — the
-// conformance suite's re-entrancy wrapper relies on exactly that.
+// The memory store: a Map and a promise chain per microworld. What
+// core's own specs run on, what the conformance suite proves first, and
+// what a host's unit tests use in place of a database. A transaction
+// reads a snapshot and BUFFERS its writes until `fn` returns, so `fn`
+// running twice (the port's re-run rule) commits once — the conformance
+// suite's re-entrancy wrapper relies on exactly that.
 
 interface World {
   microworld: MicroworldRecord | null;

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { memoryBackend, type DocumentBackend } from './backend.js';
 import { documentStore, keys, parseKey } from './store.js';
 
-// The layout (the split proposal §5.2), pinned: which key holds what,
+// The layout, pinned: which key holds what,
 // the objects as one opaque string, one document per action and miss,
 // ids encoded so a microworld named `<zone>/draft` is not the zone's.
 
@@ -192,7 +192,7 @@ describe('the layout on the backend', () => {
     ]);
   });
 
-  it('forgetActor holds the actor’s keys, so a heartbeat racing it cannot bring the row back (review on #539)', async () => {
+  it('forgetActor holds the actor’s keys, so a heartbeat racing it cannot bring the row back', async () => {
     const backend = memoryBackend();
     const store = documentStore(backend);
     await store.transaction('w', async (tx) => {

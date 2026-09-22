@@ -1,0 +1,7 @@
+kinds.sprout:2:1  `Ward` is never closed.
+                  Add a } after its options.
+
+kinds.sprout:4:1  `Drying` is never closed.
+                  Add a } after its options.
+
+refused: 2 problems

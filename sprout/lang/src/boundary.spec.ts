@@ -25,7 +25,7 @@ describe('@overstory/sprout/lang imports nothing but zod and itself', () => {
     .filter((e) => e.isFile() && e.name.endsWith('.ts'))
     .map((e) => relative(SRC, join(e.parentPath, e.name)));
   it('has files to check', () => expect(files.length).toBeGreaterThan(5));
-  it('walks into subdirectories', () => expect(files).toContain('fixtures/media.ts'));
+  it('walks into subdirectories', () => expect(files).toContain('syntax/parse.ts'));
   for (const file of files) {
     it(file, () => {
       const text = readFileSync(join(SRC, file), 'utf8');

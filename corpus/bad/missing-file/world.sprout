@@ -1,0 +1,4 @@
+world missing {
+  visitors are Creature
+  visitors arrive at hall
+}

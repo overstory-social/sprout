@@ -1,0 +1,134 @@
+// What absent means (the spec's The compiler › Strict and lenient, What
+// absent means).
+//
+// Saving and publishing are STRICT: any problem is a refusal. Loading is
+// LENIENT: a file that is missing, withheld or broken reads as absent,
+// what referred to it keeps compiling, and the world runs with a visible
+// gap. That is what makes a takedown safe — load the world without the
+// file, and nothing goes dark that did not depend on it.
+//
+// Absence is not silence. Every gap is recorded in the bundle, so a
+// moderator reading a world sees what is missing and a host can say so.
+// And stored state for absent objects is KEPT, untouched, so that a file
+// restored brings its objects back as they were: absence is a world
+// running without something, never a world that forgot it.
+//
+// The table below is the spec's, as data, because nine different parts
+// of the language consult it and each should read the same row rather
+// than remember its own.
+
+import type { Span } from '../source/source.js';
+
+/** What a reference can point at, for the row that says what its absence does. */
+export type ReferenceKind =
+  | 'kind-in-composition'
+  | 'kind-in-role'
+  | 'verb'
+  | 'message'
+  | 'passage'
+  | 'place-in-exit'
+  | 'place-underfoot'
+  | 'place-of-arrival'
+  | 'extension';
+
+export interface AbsenceRule {
+  readonly reference: ReferenceKind;
+  /** What the language does when the target is absent, in the words a moderation view uses. */
+  readonly consequence: string;
+  /**
+   * The world passage somebody is told through, where the spec NAMES
+   * one. `null` does not mean nobody is told — the arrival row says the
+   * world "says so" and names no passage — only that the language does
+   * not yet know which passage says it.
+   */
+  readonly told: string | null;
+}
+
+/** The spec's table, in its order. */
+export const ABSENT_TABLE: readonly AbsenceRule[] = [
+  {
+    reference: 'kind-in-composition',
+    consequence:
+      'the object is absent: not in range, not listed, not addressable; what it holds is unreachable until the kind returns',
+    told: null,
+  },
+  {
+    reference: 'kind-in-role',
+    consequence: 'nothing fills the role; the verb’s phrases do not match',
+    told: null,
+  },
+  {
+    reference: 'verb',
+    consequence: 'its readings do not parse, and `act` of it does nothing',
+    told: null,
+  },
+  { reference: 'message', consequence: 'sends of it go nowhere', told: null },
+  {
+    reference: 'passage',
+    consequence:
+      'the slot or statement renders nothing, and the description is refused at publish if that leaves it empty',
+    told: null,
+  },
+  { reference: 'place-in-exit', consequence: 'the exit does not apply', told: null },
+  {
+    reference: 'place-underfoot',
+    consequence: 'the visitor is moved to the world’s arrival place on their next turn and told so',
+    told: 'displaced',
+  },
+  {
+    reference: 'place-of-arrival',
+    // The spec says the world "says so" and, unlike the row above it,
+    // names no passage to say it through. `displaced` would be the
+    // guess, and it is the wrong one — "The place you were standing is
+    // gone" is not true of somebody who never stood anywhere. Left open,
+    // and recorded in the working notes' Holes in the spec.
+    consequence: 'the world does not admit anyone, and says so',
+    told: null,
+  },
+  {
+    reference: 'extension',
+    consequence: 'its statements record nothing and its types hold their defaults',
+    told: 'missing',
+  },
+];
+
+/** The row for a kind of reference. Every kind has one; the table is the spec's and is complete. */
+export function absenceRule(reference: ReferenceKind): AbsenceRule {
+  const rule = ABSENT_TABLE.find((row) => row.reference === reference);
+  if (rule === undefined) throw new Error(`No absence rule for ${reference}.`);
+  return rule;
+}
+
+/** Why something is absent. */
+export type AbsenceReason =
+  /** It did not travel with the world. */
+  | 'missing'
+  /** The host is withholding it — a moderator's act, and reversible. */
+  | 'withheld'
+  /** It travelled, and it is not the source the manifest recorded. */
+  | 'mismatched'
+  /** It travelled and does not compile. */
+  | 'broken';
+
+/**
+ * One gap in a loaded world, recorded so that it is visible rather than
+ * fatal: the spec's "the world runs with a visible gap".
+ */
+export interface Absent {
+  /** What is missing: a file's name, a library's name, a kind's name. */
+  readonly what: string;
+  /** What sort of thing it is. A file stands outside the reference table: it holds the rest. */
+  readonly kind: 'file' | 'library' | ReferenceKind;
+  readonly reason: AbsenceReason;
+  /** Where the gap is, where there is anything to point at. */
+  readonly at: Span | null;
+  /** What the world does without it — the table's row, or the plain fact for a file. */
+  readonly consequence: string;
+}
+
+/** How a compile treats a problem. */
+export type CompileMode =
+  /** Saving and publishing: any problem is a refusal. */
+  | 'publish'
+  /** Loading: what is missing, withheld or broken reads as absent, and the rest runs. */
+  | 'load';

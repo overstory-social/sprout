@@ -7,8 +7,8 @@ import type {
 } from './records.js';
 import type { SproutStore, StoreTx } from './store.js';
 
-// The conformance suite (the split proposal §4.6): what every store
-// adapter must prove, importing NO test framework — a host runs it under
+// The conformance suite: what every store adapter must prove,
+// importing NO test framework — a host runs it under
 // vitest, jest, node:test or bun with a three-line loop, and a runtime
 // package never carries a test runner. A case throws on failure. Some
 // cases a backend cannot truly exercise (real contention on one
@@ -91,7 +91,7 @@ const action = (microworldId: string, at: Date, faulted = false): ActionRecord =
 /**
  * Runs `fn` twice, the way Firestore or Mongo would on contention: once
  * in a transaction that is then rolled back, then again for real. The
- * rule of §4.5-2 made mechanical: `fn` must have no effect outside the
+ * port's re-run rule made mechanical: `fn` must have no effect outside the
  * transaction it is handed, and every id it mints must derive from state
  * it read inside that invocation — so the second run sees what the
  * first saw, and commits once.

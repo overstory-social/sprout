@@ -1,23 +1,29 @@
 import { z } from 'zod';
 
-import { SproutManifest, SproutState } from '@overstory/sprout/lang';
-
-// What a store holds for one microworld (the split proposal §4.1, §4.6):
-// seven record types, every one a zod schema, because an adapter author
+// What a store holds for one microworld: seven record types, every one
+// a zod schema, because an adapter author
 // needs them and a document adapter validates what it reads back. Core
 // owns RUNTIME state only; nothing here is authored. Every key carries
 // the microworld: object ids are source identifiers, and `torch` in one
 // microworld must never share a row with `torch` in another.
 
+/**
+ * A property map as the store keeps it. B16 types this against the
+ * bundle's declarations; until then a stored value is whatever JSON
+ * holds.
+ */
+export const SproutState = z.record(z.string(), z.unknown());
+export type SproutState = z.infer<typeof SproutState>;
+
 /** An archive as the store keeps it: the files and the manifest, so a cold process can recompile without asking the host. */
 export const StoredArchive = z.object({
   files: z.array(z.object({ name: z.string(), source: z.string() })),
-  manifest: SproutManifest.nullable(),
+  manifest: z.record(z.string(), z.unknown()).nullable(),
 });
 export type StoredArchive = z.infer<typeof StoredArchive>;
 
 /**
- * The limits in force for a microworld (§4.4), with defaults. The
+ * The limits in force for a microworld, with defaults. The
  * language's own caps (definition bytes, node depth, cascade depth, the
  * event budget) are lang's constants and not here.
  */
@@ -77,7 +83,7 @@ export type ObjectRecord = z.infer<typeof ObjectRecord>;
 export const ActorRecord = z.object({
   microworldId: z.string().min(1),
   id: z.string().min(1),
-  /** The name the host last supplied — a stable, host-unique token (§4.3). */
+  /** The name the host last supplied — a stable, host-unique token. */
   name: z.string(),
   roomId: z.string().nullable(),
   lastSeen: z.date(),
@@ -106,7 +112,7 @@ export const EnvelopeRecord = z.object({
 });
 export type EnvelopeRecord = z.infer<typeof EnvelopeRecord>;
 
-/** Per write turn (§4.1, §4.7). The record carries NO actor. */
+/** Per write turn. The record carries NO actor. */
 export const ActionRecord = z.object({
   microworldId: z.string().min(1),
   at: z.date(),

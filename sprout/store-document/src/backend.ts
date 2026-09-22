@@ -1,4 +1,4 @@
-// The document backend (the split proposal §5.2): five methods over any
+// The document backend: five methods over any
 // key → document database — a Map, IndexedDB, Firestore, Mongo, a Durable
 // Object's storage. Keys are strings with `/` between segments; a
 // document is anything JSON can carry. `transact` is what the store's
@@ -8,15 +8,14 @@
 // hands `fn` land together or not at all when `fn` returns, and a
 // backend MAY run `fn` more than once (Firestore and Mongo do on
 // contention) — which is why core's port says a transaction body must
-// have no effect outside the tx it is handed (§4.5-2). Outside a
-// transaction `put` and `delete` are single atomic writes, which is all
-// a read's heartbeat needs.
+// have no effect outside the tx it is handed. Outside a transaction
+// `put` and `delete` are single atomic writes, which is all a read's
+// heartbeat needs.
 //
-// (§5.2 wrote `transact(keys, fn: () => Promise<T>)`; the tx handed to
-// `fn` is how a backend tells this transaction's writes from a
-// concurrent heartbeat's — Firestore's `runTransaction(fn(tx))` and an
-// IndexedDB transaction have exactly this shape, which is the point of
-// the port.)
+// The tx handed to `fn` is how a backend tells this transaction's writes
+// from a concurrent heartbeat's — Firestore's `runTransaction(fn(tx))`
+// and an IndexedDB transaction have exactly this shape, which is the
+// point of the port.
 
 export interface DocumentReader {
   get(key: string): Promise<unknown | null>;
