@@ -1,6 +1,7 @@
-// A file, and the declarations it holds: `enum`, `message` and `world`
-// (the spec's Properties › Enums, Events › Declaring a message, The world
-// model). `DECLARATION_READERS` is the one table of what a file holds.
+// A file, and the declarations it holds: `enum`, `kind`, `message`,
+// `object` and `world` (the spec's Properties › Enums, Kinds › Declaring
+// and composing, Events › Declaring a message, The world model).
+// `DECLARATION_READERS` is the one table of what a file holds.
 
 import type { Declaration, EnumDeclaration, EnumOption, MessageDeclaration } from '../ast.js';
 import { isReserved } from '../reserved.js';
@@ -8,6 +9,7 @@ import { spanning, type Span } from '../../source/source.js';
 import { readable, type DeclarationReader, type Parser } from './parser.js';
 import { recover, recoverInBraces, separator } from './recovery.js';
 import { typeExpr } from './types.js';
+import { kindDeclaration, objectDeclaration } from './kinds.js';
 import { worldDeclaration } from './world.js';
 
 /** Every declaration in the file, in the order they were written. */
@@ -185,6 +187,8 @@ export const DECLARATION_READERS: ReadonlyMap<string, DeclarationReader> = new M
   DeclarationReader
 >([
   ['enum', enumDeclaration],
+  ['kind', kindDeclaration],
   ['message', messageDeclaration],
+  ['object', objectDeclaration],
   ['world', worldDeclaration],
 ]);

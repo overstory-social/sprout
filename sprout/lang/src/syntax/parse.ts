@@ -53,7 +53,7 @@ export { DEEPEST } from './parse/parser.js';
  * spec holds that this list and that message name the same words, in
  * both directions.
  */
-export const DECLARATIONS = ['enum', 'message', 'world'] as const;
+export const DECLARATIONS = ['enum', 'kind', 'message', 'object', 'world'] as const;
 
 /** Every declaration in one file. Problems go to `diagnostics`; nothing is thrown. */
 export function parseDeclarations(
@@ -66,8 +66,8 @@ export function parseDeclarations(
 
 /**
  * One property declaration, read on its own, so the property reader can
- * be exercised directly; a kind or an object (B19 onward) reads one
- * through the same path.
+ * be exercised directly; a world, a kind and an object read one through
+ * the same path.
  */
 export function parseProperty(
   source: SourceFile,

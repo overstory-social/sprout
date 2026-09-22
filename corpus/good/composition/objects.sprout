@@ -1,0 +1,9 @@
+// An object names its kinds and its container, and a body may follow.
+object composing_room: Room in composition
+
+object type_case: Lidded, Heavy in composing_room
+
+object chest: Chest in composing_room {
+  :worn 3
+  :remembers [counted: 0 min 0 max 99]
+}

@@ -116,6 +116,30 @@ describe('the first tier reads one file alone, for its shape', () => {
     expect(declarations.map((d) => d.kind)).toEqual(['world']);
   });
 
+  it('refuses a kind or an object that writes `sprout.World`, and an object with no kind', () => {
+    // Anything but a world composing it is refused, and one declaration
+    // answers that on its own, as it does whether an object named a kind.
+    const { declarations, diagnostics } = checkShape(
+      file(
+        'kinds.sprout',
+        'kind Crate: sprout.World { }\nobject bench: sprout.World in hall\nobject lamp in hall\n',
+      ),
+    );
+    expect(declarations.map((d) => d.kind)).toEqual(['kind', 'object', 'object']);
+    expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['kinds.sprout:1:13', '`Crate` composes `sprout.World`, which only a world may.'],
+      ['kinds.sprout:2:15', '`bench` composes `sprout.World`, which only a world may.'],
+      ['kinds.sprout:3:8', '`lamp` does not say what kind of thing it is.'],
+    ]);
+  });
+
+  it('takes a kind and an object that compose what they may', () => {
+    const { diagnostics } = checkShape(
+      file('kinds.sprout', 'kind Crate: sprout.Container { }\nobject box: Crate in hall\n'),
+    );
+    expect(diagnostics).toEqual([]);
+  });
+
   it('leaves a .prose file to B29 rather than reading it as code', () => {
     const { declarations, diagnostics } = checkShape(
       file('mirror.prose', 'You see yourself, and % is not a problem here.'),

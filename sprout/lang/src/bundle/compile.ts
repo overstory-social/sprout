@@ -30,6 +30,7 @@ import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js'
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from '../source/diagnostics.js';
 import { checkEnumDeclaration, EnumTable } from '../declare/enums.js';
+import { checkKindDeclaration } from '../declare/kinds.js';
 import { checkWorldDeclaration } from '../declare/world.js';
 import { MessageTable } from '../declare/messages.js';
 import { parseDeclarations } from '../syntax/parse.js';
@@ -109,11 +110,11 @@ const SEMVER =
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
- * its syntax, the options cap and a world writing `sprout.World`; the
- * rest of the caps that apply to a definition on its own, its
- * declarations agreeing with themselves and every write going to `self`
- * join it as the syntax that expresses them lands. The caps are the
- * host's, as every limit is.
+ * its syntax, the options cap, `sprout.World` written on the world and
+ * nowhere else, and an object naming a kind; the rest of the caps that
+ * apply to a definition on its own, its declarations agreeing with
+ * themselves and every write going to `self` join it as the syntax that
+ * expresses them lands. The caps are the host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const diagnostics = new Diagnostics();
@@ -129,6 +130,11 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
     // is refused.
     if (declared.kind === 'world') {
       checkWorldDeclaration(declared, diagnostics);
+    }
+    // As it does whether a kind or an object wrote it, which anything
+    // but a world may not, and whether an object named a kind at all.
+    if (declared.kind === 'kind' || declared.kind === 'object') {
+      checkKindDeclaration(declared, diagnostics);
     }
   }
   return { declarations, diagnostics: diagnostics.all };

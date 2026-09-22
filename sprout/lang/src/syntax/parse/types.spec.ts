@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Diagnostics } from '../../source/diagnostics.js';
 import { parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
-import { SourceFile, textOf } from '../../source/source.js';
+import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import { read, readProperty } from '../../fixtures/parse.js';
 
@@ -113,7 +113,21 @@ describe('invariants over generated input, brackets included', () => {
   // that vanishes quietly. So the count is checked against the input
   // that produced it, over words an option may be and words it may not.
   it('reports one missing comma for every gap, whatever words the gaps are between', () => {
-    const WORDS = ['oak', 'silver', 'iron', 'default', 'enum', 'message', 'world', 'true', 'min'];
+    // Not `object` beside `in`: `object oak in` is where an object
+    // declaration starts, so a body written that way is an enum never
+    // closed and not a missing comma.
+    const WORDS = [
+      'oak',
+      'silver',
+      'iron',
+      'default',
+      'enum',
+      'message',
+      'world',
+      'kind',
+      'true',
+      'min',
+    ];
     const wanted = '`Ward` needs a comma between its options.';
     let state = 20_260_922;
     const next = (): number => (state = (state * 1_103_515_245 + 12_345) % 2_147_483_648);
@@ -309,5 +323,25 @@ describe('a list is bounded by what the host allows', () => {
     const { declared, refusals } = readProperty(list(3), caps);
     expect(declared).toBeNull();
     expect(refusals.map((d) => d.message)).toContain('A list holds at most 2 things.');
+  });
+});
+
+describe('a type is not taken from the next declaration', () => {
+  it('says the type is missing where `object` starts an object, though it names a type too', () => {
+    const { declarations, refusals } = read(
+      'message :m with\nobject bench: Bench in hall\nmessage :n with object\n',
+    );
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['ward.sprout:2:1', '`object` starts a declaration, so the type before it is missing.'],
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['bench', 'n']);
+  });
+
+  it('says the same where it is an enum that follows', () => {
+    const { declarations, refusals } = read('message :m with\nenum Ward { oak }\n');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`enum` starts a declaration, so the type before it is missing.',
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
   });
 });

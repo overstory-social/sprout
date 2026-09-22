@@ -289,9 +289,14 @@ export interface ContainsDeclaration extends Node {
   readonly actors: boolean;
 }
 
-/** What may be written inside a world. The union grows one item at a time. */
-export type WorldMember =
-  PropertyDeclaration | RemembersDeclaration | VisitorsAre | VisitorsArriveAt | ContainsDeclaration;
+/**
+ * What a kind's body, or an object's, may declare (the spec's Kinds ›
+ * Declaring and composing). The union grows one item at a time.
+ */
+export type KindMember = PropertyDeclaration | RemembersDeclaration | ContainsDeclaration;
+
+/** What may be written inside a world: what a kind may, and what it says about visitors. */
+export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;
 
 /**
  * `world printers_shop: sprout.World { … }` — the root of the one tree.
@@ -312,5 +317,38 @@ export interface WorldDeclaration extends Node {
   readonly members: readonly WorldMember[];
 }
 
+// --- kinds and objects ----------------------------------------------------
+
+/**
+ * `kind Crate: sprout.Container { … }` — a named bundle of properties and
+ * behaviour with no place in the world (the spec's Kinds, composition and
+ * libraries › Declaring and composing). Everything after the colon is
+ * composed, and a kind may compose any number of kinds, including none.
+ * `composes` is what was WRITTEN, library and all, as for a world.
+ */
+export interface KindDeclaration extends Node {
+  readonly kind: 'kind';
+  readonly name: Ident;
+  readonly composes: readonly KindExpr[];
+  readonly members: readonly KindMember[];
+}
+
+/**
+ * `object bench: Bench in composing_room { … }` — one thing in the tree,
+ * naming its kinds and its container (the spec's The world model ›
+ * Objects). A body may follow, which declares an anonymous kind for that
+ * object alone; one that writes none has no members. The container is
+ * the identifier as written: resolving it to an object is B14's, as for
+ * a world's `visitors arrive at`.
+ */
+export interface ObjectDeclaration extends Node {
+  readonly kind: 'object';
+  readonly name: Ident;
+  readonly composes: readonly KindExpr[];
+  readonly container: Ident;
+  readonly members: readonly KindMember[];
+}
+
 /** Everything that can be written at the top of a file. The union grows per item. */
-export type Declaration = EnumDeclaration | MessageDeclaration | WorldDeclaration;
+export type Declaration =
+  EnumDeclaration | MessageDeclaration | WorldDeclaration | KindDeclaration | ObjectDeclaration;

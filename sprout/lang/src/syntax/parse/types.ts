@@ -63,6 +63,17 @@ export function typeExpr(p: Parser): TypeExpr | null {
   }
 
   const first = p.peek();
+  // A word that starts a declaration is not a type, `object` included,
+  // which is both: in `message :m with` and then `object bench: Bench in
+  // hall`, the type was left out and the object is the file's.
+  if (p.atDeclarationStart()) {
+    p.diagnostics.refuse(
+      first.at,
+      `\`${first.text}\` starts a declaration, so the type before it is missing.`,
+      'Write `boolean`, `integer`, `string`, the name of an enum, or `[…]` for a list of those.',
+    );
+    return null;
+  }
   if (first.kind === 'kind') {
     p.next();
     return { kind: 'named-type', at: first.at, library: null, name: p.ident(first) };

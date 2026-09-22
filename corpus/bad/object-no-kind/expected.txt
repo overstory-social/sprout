@@ -1,0 +1,4 @@
+objects.sprout:7:8  `bench` does not say what kind of thing it is.
+                    An object names the kinds it is made of: `object bench: <Kind> in composing_room { … }`.
+
+refused: 1 problem

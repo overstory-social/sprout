@@ -62,6 +62,23 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
     (name: Token, after: Token) =>
       punct(name, '{') || (name.kind === 'name' && (punct(after, '{') || punct(after, ':'))),
   ],
+  // `kind Crate: sprout.Container { … }`, or `kind Crate { … }` composing
+  // nothing — a capitalised name, then its colon or its brace. Or the
+  // brace on its own, as for an enum.
+  [
+    'kind',
+    (name: Token, after: Token) =>
+      punct(name, '{') || (name.kind === 'kind' && (punct(after, '{') || punct(after, ':'))),
+  ],
+  // `object bench: Bench in composing_room { … }` — a lower-case name,
+  // then its colon, or the `in` or the brace of one that left its kinds
+  // out, which parses so that the refusal can name what is missing.
+  [
+    'object',
+    (name: Token, after: Token) =>
+      name.kind === 'name' &&
+      (punct(after, ':') || punct(after, '{') || (after.kind === 'name' && after.text === 'in')),
+  ],
 ]);
 
 /** Whether a token is one particular mark, which the shapes above ask a lot. */
@@ -171,8 +188,8 @@ export class Parser {
    * Whether a declaration begins here — asked by a loop that is reading
    * what the author WROTE, and so asked strictly.
    *
-   * The lexer hands `enum`, `message` and `world` over as plain names
-   * wherever they stand, so the word alone decides nothing and its own
+   * The lexer hands every declaration's word over as a plain name
+   * wherever it stands, so the word alone decides nothing and its own
    * opening must: `DECLARATION_SHAPES` is what says whether that
    * opening is here, and a word without it is a word.
    *
