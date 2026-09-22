@@ -58,11 +58,14 @@ export interface StaticCaps {
   readonly listElements: number;
   /** Characters in a `say`, `tell` or `text` written as a literal. */
   readonly literalCharacters: number;
-  /** Places in one world. The spec gives no figure: the host says, or nothing does. */
+  /**
+   * Places in one world: its objects that hold actors, the world itself
+   * not among them. The spec gives no figure: the host says, or nothing does.
+   */
   readonly places: number | null;
-  /** Objects in one world. As the host says. */
+  /** Objects in one world, the world itself not among them. As the host says. */
   readonly objects: number | null;
-  /** Kinds in one world. As the host says. */
+  /** Kinds in one world, its own and any library's the host has not blessed. As the host says. */
   readonly kinds: number | null;
   /** Files in one world. As the host says. */
   readonly files: number | null;

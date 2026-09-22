@@ -25,7 +25,12 @@
 // a check is not yet possible, this says so rather than pretending.
 
 import type { CompileMode, Absent } from './absent.js';
-import type { Declaration, WorldDeclaration } from '../syntax/ast.js';
+import type {
+  Declaration,
+  KindDeclaration,
+  ObjectDeclaration,
+  WorldDeclaration,
+} from '../syntax/ast.js';
 import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js';
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from '../source/diagnostics.js';
@@ -33,6 +38,7 @@ import { checkEnumDeclaration } from '../declare/enums.js';
 import { checkKindDeclaration } from '../declare/kinds.js';
 import { checkWorldDeclaration } from '../declare/world.js';
 import { resolveDeclarations } from './declarations.js';
+import { countWorld } from './counts.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { DEFAULT_LIMITS, type Limits, type StaticCaps } from './limits.js';
 import type { Span, SourceFile } from '../source/source.js';
@@ -525,9 +531,6 @@ export function compileBundle(
       'Put more in each file, or take something out.',
     );
   }
-  // The places, objects and kinds caps are B19's to count, with the
-  // world resolved.
-
   // The first tier, over every file in the closed bundle — the world's
   // own and every usable library's, because they compile together. A
   // file that does not compile refuses at publish; at load it reads as
@@ -644,6 +647,21 @@ export function compileBundle(
   // The second tier over what parsed.
   const tables = resolveDeclarations(byLibrary, manifest.namespace, report);
 
+  // The kinds, objects and places caps count what resolved, on the same
+  // footing as the source and file caps above, and so refuse at load too.
+  const own = byLibrary.get(manifest.namespace) ?? [];
+  const counts = countWorld(
+    {
+      kinds: [own, ...charged.map((library) => byLibrary.get(library.name) ?? [])].flatMap(
+        (declared) => declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
+      ),
+      objects: own.filter((d): d is ObjectDeclaration => d.kind === 'object'),
+      composed: tables.objects,
+    },
+    limits.caps,
+    report.diagnostics,
+  );
+
   // A world accepted at one level keeps loading when the language
   // tightens: a refusal introduced after that level applies to it as a
   // warning. The level it was ACCEPTED at is the bundle's — the highest
@@ -671,7 +689,7 @@ export function compileBundle(
     extensions: manifest.extensions,
     libraries: usable,
     caps: limits.caps,
-    size: { files, sourceBytes, exemptBytes },
+    size: { files, sourceBytes, exemptBytes, ...counts },
     absent: report.absent,
     hash: bundleHashOf(manifest, arrived, usable),
   };
