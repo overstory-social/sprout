@@ -1097,17 +1097,70 @@ class Parser {
         );
       }
       const member = read === null ? null : read();
-      if (member === null) {
-        if (!this.recoverInBraces()) {
-          this.diagnostics.refuse(
-            this.done ? this.source.endSpan : this.peek().at,
-            `\`${name.text}\` is never closed.`,
-            'Add a } after what the world is made of.',
-          );
-        }
+      if (member !== null) {
+        members.push(member);
+        continue;
+      }
+      // A member that could not be read costs that member, and the body
+      // reads on: an author owed three problems is owed all three. The
+      // world is still returned with what did read, since the refusal
+      // already keeps the file from being used.
+      //
+      // A word no reader took is stepped over, unless the next
+      // declaration may begin there: then it is the file's.
+      if (this.peek().at.start === token.at.start && !this.atRecoveryStop()) this.next();
+      if (!this.recoverToMember(readers)) {
+        this.diagnostics.refuse(
+          this.done ? this.source.endSpan : this.peek().at,
+          `\`${name.text}\` is never closed.`,
+          'Add a } after what the world is made of.',
+        );
         return null;
       }
-      members.push(member);
+    }
+  }
+
+  /**
+   * Step over the rest of a world member that could not be read, to the
+   * next member or the body's own `}`; false where the file ran out or a
+   * declaration starts first. Braces nest, and so does a `[` closed
+   * before any brace, so nothing inside a list is taken for a member,
+   * while a `[` never closed is one token and cannot take the members
+   * after it in silence.
+   */
+  private recoverToMember(readers: ReadonlyMap<string, () => WorldMember | null>): boolean {
+    let braces = 0;
+    while (!this.done) {
+      const token = this.peek();
+      if (punct(token, '{')) {
+        braces += 1;
+      } else if (punct(token, '}')) {
+        if (braces === 0) return true;
+        braces -= 1;
+      } else if (braces === 0) {
+        // As in `recoverInBraces`: below the body's own depth a keyword
+        // is no more trustworthy than anything else.
+        if (this.atRecoveryStop()) return false;
+        if (this.worldMemberReader(token, readers) !== null) return true;
+        const run = punct(token, '[') ? this.closedBracketRun() : 0;
+        for (let i = 1; i < run; i++) this.next();
+      }
+      this.next();
+    }
+    return false;
+  }
+
+  /**
+   * How many tokens the `[` here spans through its own `]`, or 0 where
+   * no `]` closes it before a brace or the end of the file.
+   */
+  private closedBracketRun(): number {
+    let depth = 0;
+    for (let ahead = 0; ; ahead++) {
+      const token = this.peek(ahead);
+      if (token.kind === 'end' || punct(token, '{') || punct(token, '}')) return 0;
+      if (punct(token, '[')) depth += 1;
+      else if (punct(token, ']') && --depth === 0) return ahead + 1;
     }
   }
 

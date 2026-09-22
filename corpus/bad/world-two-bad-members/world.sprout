@@ -1,0 +1,7 @@
+world w: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+  :wear 4 min "x"
+  :ward Ward.Iron
+  :opens [Ward].brass
+}
