@@ -531,19 +531,12 @@ export function compileBundle(
   ];
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
-  // Every `world` declaration `checkShape` parsed in one of the world's
-  // own files, whether or not that file also refused: a file refused for
-  // its own defect may still hold the world, and publish is about to
-  // refuse the bundle for that defect regardless.
-  const ownWorldsSeen: WorldDeclaration[] = [];
+  /** Whether one of the world's own files was refused by the first tier. */
+  let ownFileRefused = false;
   for (const { library, file } of readable) {
     const shape = checkShape(file, limits.caps);
-    if (library === manifest.namespace) {
-      ownWorldsSeen.push(
-        ...shape.declarations.filter((d): d is WorldDeclaration => d.kind === 'world'),
-      );
-    }
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
+    if (refused && library === manifest.namespace) ownFileRefused = true;
     if (!refused) {
       declarations.push(...shape.declarations);
       byLibrary.set(library, [...(byLibrary.get(library) ?? []), ...shape.declarations]);
@@ -579,14 +572,13 @@ export function compileBundle(
   const ownWorlds = (byLibrary.get(manifest.namespace) ?? []).filter(
     (d): d is WorldDeclaration => d.kind === 'world',
   );
-  // At publish, a file the shape tier refused for its own defect is
-  // still checked for a `world` declaration: the bundle is refused for
-  // that defect regardless, and saying the world also has none would be
-  // the same mistake said twice. At load that file is absent instead, so
-  // "none" is answered over what is actually usable, the same as every
-  // other gap.
-  const hasOwnWorld = mode === 'publish' ? ownWorldsSeen.length > 0 : ownWorlds.length > 0;
-  if (!hasOwnWorld) {
+  // At publish, a file the first tier refused may well be the one that
+  // holds the world, and the bundle is refused for that defect already,
+  // so "none" is not said until every file reads. At load that file is
+  // absent instead, and "none" is answered over what is usable, the same
+  // as every other gap.
+  const noneToRead = mode === 'publish' && ownFileRefused;
+  if (ownWorlds.length === 0 && !noneToRead) {
     report.gap(
       {
         what: manifest.name,

@@ -6,5 +6,5 @@
   "level": 1,
   "extensions": [],
   "libraries": [],
-  "files": ["root.sprout", "world.sprout"]
+  "files": ["world.sprout"]
 }
