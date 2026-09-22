@@ -646,6 +646,49 @@ describe('a :remembers, as an object writes one', () => {
     );
   });
 
+  it('names every entry written after a `]` that ended it too early', () => {
+    for (const [text, said] of [
+      [
+        ':remembers [handled: false, visits: 0 min ], walks: 1]',
+        '`walks` is written after the `]` that ends this `:remembers`.',
+      ],
+      [
+        ':remembers [handled: false], walks: 1, runs: [1, [2]], hops: 0 min 0]',
+        '`walks`, `runs` and `hops` are written after the `]` that ends this `:remembers`.',
+      ],
+    ] as const) {
+      const { declared, refusals } = remember(text);
+      expect(
+        declared!.properties.map((p) => p.name.text),
+        text,
+      ).toEqual(['handled']);
+      const named = refusals.find((d) => d.message === said);
+      expect(named?.at.start, text).toBe(text.indexOf('walks'));
+    }
+    // A comma after the `]` with no entry in it is not an entry to name.
+    expect(remember(':remembers [a: 0], 4]').refusals).toEqual([]);
+  });
+
+  it('steps over entries after an early `]` only through their own `]`', () => {
+    // Closed: the world reads on as if the `]` had not been there.
+    const closed = read('world w: sprout.World {\n  :remembers [a: 0 ], walks: 1]\n  :z 1\n}');
+    expect(closed.refusals.map((d) => d.message)).toEqual([
+      '`walks` is written after the `]` that ends this `:remembers`.',
+    ]);
+    // Not closed: nothing is taken past the next member, which is kept.
+    const open = read('world w: sprout.World {\n  :remembers [a: 0 ], walks: 1\n  :z 1\n}');
+    expect(open.refusals.map((d) => d.message)).toContain(
+      '`walks` is written after the `]` that ends this `:remembers`.',
+    );
+    for (const { declarations } of [closed, open]) {
+      const world = declarations.find((d) => d.kind === 'world');
+      expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+        'remembers',
+        'z',
+      ]);
+    }
+  });
+
   it('never throws, whatever it is given', () => {
     for (const text of [':remembers', ':remembers [', ':remembers [a', ':remembers [a:', ':x []']) {
       expect(() => remember(text), text).not.toThrow();
@@ -1528,29 +1571,66 @@ describe('a `min` and a `max` are whole numbers', () => {
     });
   });
 
-  it('leaves what is wrong INSIDE a bound to whatever knows about it', () => {
-    // A bound is read by reading a value and complaining about its
-    // shape. That means a bound whose own contents are wrong reports
-    // the contents rather than the bound — `min 1.5` says there are no
-    // fractions, and a list too long for the cap says so. The first is
-    // better than "a min is a whole number"; the second is worse.
-    //
-    // A reader that has not consumed anything cannot tell a stray
-    // closing bracket from the one its own caller is waiting for, so
-    // deciding this by looking before reading is not an option. This is
-    // the shape that loses nothing.
-    expect(readProperty(':x integer default 0 min 1.5').refusals.map((d) => d.message)).toEqual([
-      'Sprout has no fractions.',
-    ]);
-    expect(readProperty(':x integer default 0 min -').refusals.map((d) => d.message)).toEqual([
-      'A minus sign needs a number after it.',
-    ]);
+  it('says a bound is a whole number, whatever is wrong inside what was written', () => {
+    // Said at the token the bound starts with, once: a list too long for
+    // the cap is still a list where a number goes, and taking elements
+    // out of it would not help.
+    const overCap = `[${Array.from({ length: 17 }, (_, i) => i).join(', ')}]`;
+    for (const bad of ['[1]', '-[1]', '-oak', '-', '--3', overCap, `${'['.repeat(DEEPEST + 1)}1`]) {
+      const text = `:x integer default 0 min ${bad}`;
+      const { declared, refusals } = readProperty(text);
+      expect(declared, text).toBeNull();
+      expect(
+        refusals.map((d) => [d.message, d.remedy, d.at.start]),
+        text,
+      ).toEqual([
+        ['A min is a whole number.', 'Write `min 0`, or leave it out.', text.indexOf(bad)],
+      ]);
+    }
+  });
+
+  it('keeps the fraction sentence for a bound with a decimal point', () => {
+    for (const bad of ['1.5', '-1.5']) {
+      expect(
+        readProperty(`:x integer default 0 max ${bad}`).refusals.map((d) => d.message),
+        bad,
+      ).toEqual(['Sprout has no fractions.']);
+    }
+  });
+
+  it('steps over the rest of a property whose bound is refused, and says one thing', () => {
+    for (const bad of ['min max 9', 'min oak max 9', 'min 0 min 1 max 2', 'max [1] min 0']) {
+      const text = `:remembers [visits: 0 ${bad}, walks: 1]`;
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        text,
+      ).toEqual(['walks']);
+      expect(diagnostics.refusals, text).toHaveLength(1);
+    }
   });
 
   it('never loses the entry written after a bad bound in silence', () => {
     // Every shape either keeps `walks` or names it; none drops it
     // without saying so.
-    for (const bad of ['[1, 2]', '[[1]]', 'oak', '"9"', 'true', 'Ward', ':wet', 'max 9', '1.5']) {
+    for (const bad of [
+      '[1, 2]',
+      '[[1]]',
+      'oak',
+      '"9"',
+      'true',
+      'Ward',
+      ':wet',
+      'max 9',
+      '1.5',
+      '-[1]',
+      '-[1, 2]',
+      '-oak',
+      '-"9"',
+      '-',
+      '- -',
+    ]) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
         new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
@@ -1564,7 +1644,7 @@ describe('a `min` and a `max` are whole numbers', () => {
   });
 
   it('keeps what was read before a bad bound, whatever the bound was', () => {
-    for (const bad of [']', 'oak', '[1, 2]', '}']) {
+    for (const bad of [']', 'oak', '[1, 2]', '}', '-', '-[1]']) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
         new SourceFile('k.sprout', `:remembers [handled: false, visits: 0 min ${bad}]`),
@@ -1985,10 +2065,8 @@ describe('recovery and reading ask the same word different questions', () => {
       'world w: sprout.World {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
-    expect(refusals.map((d) => d.message)).toEqual([
-      'A minus sign needs a number after it.',
-      'A list needs a comma between its elements.',
-    ]);
+    // `message` is what the sign stood before, and goes with it.
+    expect(refusals.map((d) => d.message)).toEqual(['A minus sign needs a number after it.']);
   });
 
   it('a `:remembers`, past an entry it could not read: the same', () => {
@@ -1998,7 +2076,6 @@ describe('recovery and reading ask the same word different questions', () => {
     expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
     expect(refusals.map((d) => d.message)).toEqual([
       'A minus sign needs a number after it.',
-      '`message` needs a colon between its name and its value.',
       '`foo` needs a colon between its name and its value.',
     ]);
   });
@@ -2141,12 +2218,16 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     `b: ${tooDeep('oak')}`,
     `b: ${tooDeep('Ward')} default oak`,
     `b: [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,
-    // NOT here, and named rather than quietly left out: `b: 0 min -[1]`
-    // loses the entry after it. It goes in when that is fixed.
+    'b: 0 min -[1]',
+    'b: 0 max -[1, 2]',
+    'b: 0 min -oak',
+    'b: 0 min - max 9',
+    'b: -[1]',
   ];
 
-  // Not `enum`: nothing reserves an option's name, so `[oak, enum]`
-  // is a list of two options and there is nothing wrong with it.
+  // Not `enum`: it is a reserved word, but the parser reads `[oak, enum]`
+  // as a list of two words and leaves `enum` to be refused where options
+  // are checked against their enum, so there is no parse defect to find.
   const ELEMENT_DEFECTS = ['Zeta', '1.5', '%', ':a', '{', '}', tooDeep('oak')];
   const DECLARATION_DEFECTS = [
     'enum',

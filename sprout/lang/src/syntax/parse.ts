@@ -37,6 +37,7 @@ import type {
   EnumDeclaration,
   EnumOption,
   Ident,
+  IntegerLiteral,
   Literal,
   MessageDeclaration,
   NamedType,
@@ -693,6 +694,9 @@ class Parser {
           'A minus sign needs a number after it.',
           'Write a whole number, as in `-3`.',
         );
+        // What the sign stands before goes with it, as one value: left
+        // in the stream, a `]` inside `-[1]` would end the list around it.
+        this.skipValue();
         return null;
       }
       if (this.atFraction()) return null;
@@ -852,14 +856,17 @@ class Parser {
    * loop around this is waiting for it.
    */
   private skipValue(): void {
+    // A sign belongs to the value it stands before, whatever that is:
+    // `-[1]` is one value written wrong, and a sign is never the start
+    // of anything that could follow it.
+    while (this.at('punct', '-')) this.next();
     if (this.at('punct', '[')) {
       this.next();
       this.skipBracketed(']');
       return;
     }
-    // A written number, `-3` and `1.5` alike: Sprout has no fractions,
-    // but an author who wrote one wrote it as part of this property.
-    if (this.at('punct', '-') && this.peek(1).kind === 'integer') this.next();
+    // A written number, `1.5` too: Sprout has no fractions, but an
+    // author who wrote one wrote it as part of this property.
     if (this.peek().kind === 'integer') {
       this.next();
       if (this.at('punct', '.') && this.peek(1).kind === 'integer') {
@@ -873,10 +880,14 @@ class Parser {
       return;
     }
     // An option, unless a colon after it makes it the name of the next
-    // entry of a `:remembers`.
+    // entry of a `:remembers`, or it is the `min` or `max` that goes on
+    // with the property's tail.
+    const word = this.peek();
     if (
-      this.peek().kind === 'name' &&
-      !(this.peek(1).kind === 'punct' && this.peek(1).text === ':')
+      word.kind === 'name' &&
+      word.text !== 'min' &&
+      word.text !== 'max' &&
+      !punct(this.peek(1), ':')
     ) {
       this.next();
     }
@@ -962,18 +973,11 @@ class Parser {
       const which = this.at('name', 'min') ? 'min' : this.at('name', 'max') ? 'max' : null;
       if (which === null) break;
       const word = this.next();
-      // Read whatever was written and complain about its shape. A
-      // reader that has not consumed anything cannot tell a stray
-      // closing bracket from the one its own caller is waiting for, so
-      // peeking first and stepping over a bad bound is not an option.
-      const bound = this.literal();
-      if (bound === null) return null;
-      if (bound.kind !== 'integer') {
-        this.diagnostics.refuse(
-          bound.at,
-          `A ${which} is a whole number.`,
-          `Write \`${which} 0\`, or leave it out.`,
-        );
+      // A refused bound costs the property, and the bounds written
+      // after it are its own text, not a sibling to be read next.
+      const bound = this.integerBound(which);
+      if (bound === null) {
+        this.skipPropertyTail();
         return null;
       }
       if ((which === 'min' ? min : max) !== null) {
@@ -982,6 +986,7 @@ class Parser {
           `\`:${name.text}\` says ${which} twice.`,
           'Write it once.',
         );
+        this.skipPropertyTail();
         return null;
       }
       if (which === 'min') min = bound;
@@ -993,6 +998,37 @@ class Parser {
     const parts = [value, min, max].filter((part) => part !== null);
     const end = parts.reduce((latest, part) => (part.at.end >= latest.at.end ? part : latest));
     return { kind: 'property', at: spanning(from, end.at), name, type, default: value, min, max };
+  }
+
+  /**
+   * The whole number after a `min` or a `max`, sign and all; the spec's
+   * Properties › Declaring a property gives a range as integers. Anything
+   * else is refused at the token it starts with, whatever is wrong inside
+   * it, and stepped over as one value, so a closer after the bound is
+   * left for the loop that is waiting for it.
+   */
+  private integerBound(which: 'min' | 'max'): IntegerLiteral | null {
+    const start = this.peek();
+    const sign = punct(start, '-') && this.peek(1).kind === 'integer' ? this.next() : null;
+    const digits = this.take('integer');
+    if (digits === null) {
+      this.diagnostics.refuse(
+        start.at,
+        `A ${which} is a whole number.`,
+        `Write \`${which} 0\`, or leave it out.`,
+      );
+      this.skipValue();
+      return null;
+    }
+    // `min 1.5` is told there are no fractions, which says more than
+    // that a min is a whole number.
+    if (this.atFraction()) return null;
+    const value = Number(digits.text);
+    return {
+      kind: 'integer',
+      at: spanning((sign ?? digits).at, digits.at),
+      value: sign === null ? value : -value,
+    };
   }
 
   // --- the world ------------------------------------------------------
@@ -1336,6 +1372,7 @@ class Parser {
     for (;;) {
       const close = this.take('punct', ']');
       if (close !== null) {
+        this.entriesAfterClose();
         return { kind: 'remembers', at: spanning(symbol.at, close.at), properties };
       }
       if (this.done || this.atDeclarationStart()) {
@@ -1372,6 +1409,59 @@ class Parser {
       properties.push(declared);
       if (this.separator(']') === 'missing') missingComma = this.here();
     }
+  }
+
+  /**
+   * Entries written after the `]` that ends a `:remembers`, as a stray
+   * `]` leaves them: `[visits: 0 min ], walks: 1]`. The first `]` is
+   * taken as the end, since nothing before it can tell a stray closer
+   * from its own; every entry after it is named, so none is lost in
+   * silence, and where a `]` of their own closes them they are stepped
+   * over through it, so what reads next is not handed the same mistake.
+   */
+  private entriesAfterClose(): void {
+    const names: Token[] = [];
+    let depth = 0;
+    let closed = 0;
+    let before: Token | null = null;
+    for (let ahead = 0; ; ahead++) {
+      const token = this.peek(ahead);
+      // Where a member, a brace or the file's end comes first, the
+      // entries are not stepped over: what follows is someone else's.
+      if (
+        token.kind === 'end' ||
+        token.kind === 'symbol' ||
+        punct(token, '{') ||
+        punct(token, '}')
+      ) {
+        break;
+      }
+      if (punct(token, '[')) {
+        depth += 1;
+      } else if (punct(token, ']')) {
+        if (depth === 0) {
+          closed = ahead + 1;
+          break;
+        }
+        depth -= 1;
+      } else if (
+        depth === 0 &&
+        token.kind === 'name' &&
+        before !== null &&
+        punct(before, ',') &&
+        punct(this.peek(ahead + 1), ':')
+      ) {
+        names.push(token);
+      }
+      before = token;
+    }
+    if (names.length === 0) return;
+    this.diagnostics.refuse(
+      names[0]!.at,
+      `${readable(names.map((name) => name.text))} ${names.length === 1 ? 'is' : 'are'} written after the \`]\` that ends this \`:remembers\`.`,
+      'Everything it remembers goes inside its brackets. Take out the `]` that ends it too early.',
+    );
+    for (let i = 0; i < closed; i++) this.next();
   }
 
   /** `visits: 0 min 0 max 99` — one entry of a `:remembers`. */
