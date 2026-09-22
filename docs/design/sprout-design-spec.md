@@ -821,8 +821,12 @@ kind Guard {
   as target for ask {
     topic from :knows
     do {
-      if (topic == :toll) { say toll_speech }
-      else                { say bridge_speech }
+      if (bound topic) {
+        if (topic == :toll) { say toll_speech }
+        else                { say bridge_speech }
+      } else {
+        say "The guard has nothing to say about that."
+      }
     }
   }
 }
@@ -1545,7 +1549,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A world that does not compose `sprout.World`; anything but a world composing it.
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose the visitor kind; an `act` that leaves out a tool that is not optional.
-- An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` tool with no `from`.
+- An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place.
 - Any static cap exceeded.
@@ -2016,8 +2020,12 @@ object apprentice: Creature in composing_room {
   as target for ask {
     topic from :knows
     do {
-      if (topic == :the_press)    { say "Bar's stiff, he says. Mind your knuckles." }
-      else if (topic == :the_cat) { say "She's not ours, he says. She just decided." }
+      if (bound topic) {
+        if (topic == :the_press) { say "Bar's stiff, he says. Mind your knuckles." }
+        else                     { say "She's not ours, he says. She just decided." }
+      } else {
+        say "He shrugs. Not something he knows about."
+      }
     }
   }
 }
