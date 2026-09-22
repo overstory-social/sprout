@@ -228,6 +228,40 @@ describe('what the parser refuses, and where it says so', () => {
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
   });
 
+  it('still names a missing comma before a word of the language', () => {
+    const { declarations, refusals } = read('enum Ward { oak message }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`Ward` needs a comma between its options.',
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+    ]);
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+    // The word the author has to replace is not offered back to them.
+    expect(refusals[0]!.remedy).toBe('Write `enum Ward { oak, … }`.');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
+  });
+
+  it('names a missing comma at each gap, and a word of the language between them', () => {
+    const { declarations, refusals } = read('enum Ward { oak message silver }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`Ward` needs a comma between its options.',
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+      '`Ward` needs a comma between its options.',
+    ]);
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+    expect(locationOf(refusals[2]!.at)).toBe('ward.sprout:1:25');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('points the comma at the gap it is missing from, not at the next one', () => {
+    const { declarations, refusals } = read('enum Ward { oak message, silver }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`Ward` needs a comma between its options.',
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+    ]);
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
   it('refuses a word of the language as an option, at the word', () => {
     const { declarations, refusals } = read('enum Ward { oak, default, silver }');
     expect(refusals).toHaveLength(1);
@@ -1084,6 +1118,32 @@ describe('invariants over generated input, brackets included', () => {
       }
     });
   }
+
+  // A diagnostic that should appear can vanish as easily as one that
+  // should not can arrive, and a held-back one — the missing comma,
+  // which waits for the next word to prove it was wanted — is the kind
+  // that vanishes quietly. So the count is checked against the input
+  // that produced it, over words an option may be and words it may not.
+  it('reports one missing comma for every gap, whatever words the gaps are between', () => {
+    const WORDS = ['oak', 'silver', 'iron', 'default', 'enum', 'message', 'world', 'true', 'min'];
+    const wanted = '`Ward` needs a comma between its options.';
+    let state = 20_260_922;
+    const next = (): number => (state = (state * 1_103_515_245 + 12_345) % 2_147_483_648);
+    for (let i = 0; i < 400; i++) {
+      const words: string[] = [WORDS[next() % WORDS.length]!];
+      let body = words[0]!;
+      let gaps = 0;
+      for (let w = 1 + (next() % 6); w > 0; w--) {
+        const missing = next() % 2 === 0;
+        if (missing) gaps += 1;
+        const word = WORDS[next() % WORDS.length]!;
+        body += `${missing ? ' ' : ', '}${word}`;
+      }
+      const text = `enum Ward { ${body} }`;
+      const said = read(text).refusals.filter((d) => d.message === wanted).length;
+      expect(said, text).toBe(gaps);
+    }
+  });
 
   it('gives the same answer for the same source, every time', () => {
     for (const text of generated(200, 7)) {

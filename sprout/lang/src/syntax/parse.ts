@@ -484,6 +484,21 @@ class Parser {
         break;
       }
 
+      // A word read, so a separator really was wanted before it —
+      // whether or not that word may stand as an option. A word the
+      // author has to replace anyway is left out of what the remedy
+      // offers to write.
+      if (missingComma !== null) {
+        const written = options.map((option) => option.name.text);
+        if (!isReserved(word.text)) written.push(word.text);
+        this.diagnostics.refuse(
+          missingComma,
+          `\`${name.text}\` needs a comma between its options.`,
+          `Write \`enum ${name.text} { ${[...written, '…'].join(', ')} }\`.`,
+        );
+        missingComma = null;
+      }
+
       if (isReserved(word.text)) {
         // A word of the language is still READ here, so the enum keeps
         // its other options and the declarations after it survive; it
@@ -495,15 +510,6 @@ class Parser {
         );
         refused = true;
       } else {
-        // The option read, so a separator really was wanted before it.
-        if (missingComma !== null) {
-          this.diagnostics.refuse(
-            missingComma,
-            `\`${name.text}\` needs a comma between its options.`,
-            `Write \`enum ${name.text} { ${[...options.map((o) => o.name.text), word.text].join(', ')}, … }\`.`,
-          );
-          missingComma = null;
-        }
         options.push({ kind: 'option', at: word.at, name: this.ident(word) });
       }
 
