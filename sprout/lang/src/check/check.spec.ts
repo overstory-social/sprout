@@ -287,7 +287,7 @@ describe('what the compiler checks — the table, row by row', () => {
   });
 
   it('`a == b`, `a != b` — an integer literal outside the other operand’s range is always decided', () => {
-    // `:capacity` is declared `0 min 0 max 9`.
+    // `:capacity` is declared `4 min 0 max 9`.
     const eq = read('self.get(:capacity) == 12', vessel());
     expect(eq.type).toBeNull();
     expect(eq.said).toEqual([
