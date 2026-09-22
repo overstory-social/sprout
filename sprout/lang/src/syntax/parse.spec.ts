@@ -110,6 +110,21 @@ describe('an enum declaration', () => {
     expect(optionsOf(spread.declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
   });
 
+  it('takes a comma after the last option, which the spec allows', () => {
+    const { declarations, refusals } = read('enum Ward { oak, silver, }');
+    expect(refusals).toEqual([]);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('takes one after the only option, and one on a line of its own', () => {
+    expect(optionsOf(read('enum Only { one, }').declarations[0] as EnumDeclaration)).toEqual([
+      'one',
+    ]);
+    const spread = read('enum Ward {\n  oak,\n  silver,\n}\n');
+    expect(spread.refusals).toEqual([]);
+    expect(optionsOf(spread.declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
   it('ignores a comment between its options', () => {
     const { declarations, refusals } = read('enum Ward { oak, // the cheap one\n silver }');
     expect(refusals).toEqual([]);
@@ -197,16 +212,75 @@ describe('what the parser refuses, and where it says so', () => {
     expect(read('enum Ward { :oak }').refusals[0]!.message).toContain('a property or a message');
   });
 
+  it('refuses a comma with no option before it, and one with nothing between two', () => {
+    const empty = read('enum Ward { , }');
+    expect(empty.refusals[0]!.message).toBe('`Ward` cannot hold `,`.');
+    expect(empty.refusals[0]!.remedy).toContain('lower-case word');
+
+    const doubled = read('enum Ward { oak,, silver }');
+    expect(doubled.refusals[0]!.message).toBe('`Ward` cannot hold `,`.');
+    expect(locationOf(doubled.refusals[0]!.at)).toBe('ward.sprout:1:17');
+  });
+
   it('refuses a missing comma, pointing where it should go', () => {
     const { refusals } = read('enum Ward { oak silver }');
     expect(refusals[0]!.message).toBe('`Ward` needs a comma between its options.');
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
   });
 
-  it('refuses a comma after the last option', () => {
-    const { refusals } = read('enum Ward { oak, silver, }');
-    expect(refusals[0]!.message).toBe('`Ward` has a comma after its last option.');
-    expect(refusals[0]!.remedy).toContain('separated by commas, not ended by them');
+  it('still names a missing comma before a word of the language', () => {
+    const { declarations, refusals } = read('enum Ward { oak message }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`Ward` needs a comma between its options.',
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+    ]);
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+    // The word the author has to replace is not offered back to them.
+    expect(refusals[0]!.remedy).toBe('Write `enum Ward { oak, … }`.');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
+  });
+
+  it('names a missing comma at each gap, and a word of the language between them', () => {
+    const { declarations, refusals } = read('enum Ward { oak message silver }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`Ward` needs a comma between its options.',
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+      '`Ward` needs a comma between its options.',
+    ]);
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+    expect(locationOf(refusals[2]!.at)).toBe('ward.sprout:1:25');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('points the comma at the gap it is missing from, not at the next one', () => {
+    const { declarations, refusals } = read('enum Ward { oak message, silver }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`Ward` needs a comma between its options.',
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+    ]);
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:17');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('refuses a word of the language as an option, at the word', () => {
+    const { declarations, refusals } = read('enum Ward { oak, default, silver }');
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]!.message).toBe(
+      '`default` is a word of the language, so it cannot be an option of `Ward`.',
+    );
+    expect(refusals[0]!.remedy).toBe('Choose another word for it.');
+    expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:18');
+    // The enum keeps the options that are options: one bad word does
+    // not cost the declaration.
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+  });
+
+  it('refuses an enum whose only option is a word of the language, and says so once', () => {
+    const { declarations, refusals } = read('enum Ward { string }');
+    expect(declarations).toEqual([]);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`string` is a word of the language, so it cannot be an option of `Ward`.',
+    ]);
   });
 
   it('refuses an enum that is never closed, at the end of the file', () => {
@@ -622,13 +696,17 @@ describe('a forgotten brace does not eat the declaration after it', () => {
     }
   });
 
-  it('reads one at the very end of the file as an option, not as a declaration', () => {
-    // The file stops: the author's one mistake is the missing brace.
-    // Treating the word as a declaration they started would refuse them
-    // twice, once for the brace and once for a name they never wrote.
+  it('reads one at the very end of the file as a word, not as a declaration', () => {
+    // Both things said are true of what is written: `message` stands
+    // where an option should and may not, and the file stopped before
+    // the brace. Treating the word as a declaration the author started
+    // would instead invent a third, a name they never wrote.
     const { declarations, refusals } = read('enum Ward { oak, message');
-    expect(refusals.map((d) => d.message)).toEqual(['`Ward` is never closed.']);
-    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+      '`Ward` is never closed.',
+    ]);
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak']);
   });
 
   it('points at the keyword, which is where the brace should have been', () => {
@@ -698,22 +776,36 @@ describe('a type that failed to parse is not mistaken for no type at all', () =>
 // with both readings side by side — the same shape, read the other way
 // — so neither can be changed without the other being looked at.
 
-describe('`enum` and `message` inside a body: an option, or a forgotten brace', () => {
-  const asOption: [string, string[]][] = [
-    ['enum Ward { message, silver }', ['message', 'silver']],
-    ['enum Ward { oak, message }', ['oak', 'message']],
-    ['enum Ward { enum, silver }', ['enum', 'silver']],
-    ['enum Ward { message }', ['message']],
+describe('`enum` and `message` inside a body: a word in an option’s place, or a forgotten brace', () => {
+  /** What the parser says about a reserved word standing where an option should. */
+  const notAnOption = (word: string): string =>
+    `\`${word}\` is a word of the language, so it cannot be an option of \`Ward\`.`;
+
+  const asOption: [string, string[], string[]][] = [
+    ['enum Ward { message, silver }', ['silver'], ['message']],
+    ['enum Ward { oak, message }', ['oak'], ['message']],
+    ['enum Ward { enum, silver }', ['silver'], ['enum']],
+    ['enum Ward { message }', [], ['message']],
   ];
-  for (const [text, options] of asOption) {
-    it(`reads it as an option in ${text}`, () => {
-      // Nothing reserves these words as option names: the spec's
-      // Reserved names covers message, verb and member names only.
+  for (const [text, kept, refused] of asOption) {
+    it(`reads it as a word in an option’s place in ${text}`, () => {
+      // The word is READ here rather than taken for the start of a
+      // declaration, so the enum and everything after it survive. It is
+      // then refused as an option, which the spec forbids.
       const { declarations, refusals } = read(text);
-      expect(refusals).toEqual([]);
-      expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(options);
+      expect(refusals.map((d) => d.message)).toEqual(refused.map(notAnOption));
+      if (kept.length === 0) expect(declarations).toEqual([]);
+      else expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(kept);
     });
   }
+
+  it('does not swallow the declarations after it', () => {
+    const { declarations, refusals } = read(
+      'enum Ward { enum, silver }\nenum Glaze { none }\nmessage :stir\n',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([notAnOption('enum')]);
+    expect(declarations).toHaveLength(3);
+  });
 
   const asForgottenBrace: string[] = [
     'enum Ward {\n  oak\nenum Two { a, b }\n',
@@ -730,10 +822,15 @@ describe('`enum` and `message` inside a body: an option, or a forgotten brace', 
   }
 
   it('is decided by what follows the word, not by the word', () => {
-    // A comma or a brace after it means an option; its own name after
-    // it means a declaration.
-    expect(read('enum Ward { message, a }').refusals).toEqual([]);
-    expect(read('enum Ward { message :stir }').refusals).not.toEqual([]);
+    // A comma or a brace after it means a word in an option's place,
+    // refused as an option; its own name after it means a declaration,
+    // so the enum was never closed.
+    expect(read('enum Ward { message, a }').refusals.map((d) => d.message)).toEqual([
+      notAnOption('message'),
+    ]);
+    const asDeclaration = read('enum Ward { message :stir }').refusals.map((d) => d.message);
+    expect(asDeclaration).toContain('`Ward` is never closed.');
+    expect(asDeclaration).not.toContain(notAnOption('message'));
   });
 });
 
@@ -1099,6 +1196,32 @@ describe('invariants over generated input, brackets included', () => {
       }
     });
   }
+
+  // A diagnostic that should appear can vanish as easily as one that
+  // should not can arrive, and a held-back one — the missing comma,
+  // which waits for the next word to prove it was wanted — is the kind
+  // that vanishes quietly. So the count is checked against the input
+  // that produced it, over words an option may be and words it may not.
+  it('reports one missing comma for every gap, whatever words the gaps are between', () => {
+    const WORDS = ['oak', 'silver', 'iron', 'default', 'enum', 'message', 'world', 'true', 'min'];
+    const wanted = '`Ward` needs a comma between its options.';
+    let state = 20_260_922;
+    const next = (): number => (state = (state * 1_103_515_245 + 12_345) % 2_147_483_648);
+    for (let i = 0; i < 400; i++) {
+      const words: string[] = [WORDS[next() % WORDS.length]!];
+      let body = words[0]!;
+      let gaps = 0;
+      for (let w = 1 + (next() % 6); w > 0; w--) {
+        const missing = next() % 2 === 0;
+        if (missing) gaps += 1;
+        const word = WORDS[next() % WORDS.length]!;
+        body += `${missing ? ' ' : ', '}${word}`;
+      }
+      const text = `enum Ward { ${body} }`;
+      const said = read(text).refusals.filter((d) => d.message === wanted).length;
+      expect(said, text).toBe(gaps);
+    }
+  });
 
   it('gives the same answer for the same source, every time', () => {
     for (const text of generated(200, 7)) {
@@ -1467,6 +1590,26 @@ describe('a world declaration', () => {
     expect(textOf(world!.at).endsWith('}')).toBe(true);
   });
 
+  it('refuses a word of the language as the name, at the name', () => {
+    const { statement, refusals } = readLet('let default = 1');
+    expect(statement).toBeNull();
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]!.message).toBe(
+      '`default` is a word of the language, so it cannot name a value.',
+    );
+    expect(refusals[0]!.remedy).toContain('Choose another name');
+    expect(locationOf(refusals[0]!.at)).toBe('body.sprout:1:5');
+  });
+
+  it('refuses every reserved word there, and no ordinary word', () => {
+    for (const word of ['text', 'true', 'string', 'each', 'let']) {
+      const { statement, refusals } = readLet(`let ${word} = 1`);
+      expect(statement, word).toBeNull();
+      expect(refusals.map((d) => d.message).join(' '), word).toContain('word of the language');
+    }
+    expect(readLet('let textures = 1').refusals).toEqual([]);
+  });
+
   it('says what is wrong with one that is not written out', () => {
     const table: [string, string][] = [
       ['world { }', 'A world needs a name.'],
@@ -1658,8 +1801,14 @@ describe('recovery and reading ask the same word different questions', () => {
 
   it('an enum\u2019s options: the loose question would lose the option after the word', () => {
     const { declarations, refusals } = read('enum Ward { oak, message silver }');
-    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message', 'silver']);
-    expect(refusals.map((d) => d.message)).toEqual(['`Ward` needs a comma between its options.']);
+    // `silver` is what the loose question would have lost, so it is
+    // what this asserts; `message` is read and then refused as an
+    // option, which is the other half of the same rule.
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`message` is a word of the language, so it cannot be an option of `Ward`.',
+      '`Ward` needs a comma between its options.',
+    ]);
   });
 
   it('a world\u2019s members: the loose question would not say the word is not a member', () => {

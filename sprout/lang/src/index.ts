@@ -11,6 +11,7 @@ export * from './source/diagnostics.js';
 export * from './source/sha256.js';
 
 export * from './syntax/lexer.js';
+export * from './syntax/reserved.js';
 export * from './syntax/ast.js';
 export * from './syntax/parse.js';
 

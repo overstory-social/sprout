@@ -1,0 +1,4 @@
+kinds.sprout:12:3  `Many` has 101 options, and 100 is as many as it may have.
+                   Take some out, or split `Many` into two enums.
+
+refused: 1 problem
