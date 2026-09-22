@@ -5,6 +5,7 @@ world shop {
   visitors are Creature
   visitors arrive at composing_room
   :season Season default autumn
+  :ward Ward.iron
   :sign string default "back \{soon}"
   :remembers [visits: 0 min 0 max 99]
 }
