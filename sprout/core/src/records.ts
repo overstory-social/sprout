@@ -24,8 +24,8 @@ export type StoredArchive = z.infer<typeof StoredArchive>;
 
 /**
  * The limits in force for a microworld, with defaults. The
- * language's own caps (definition bytes, node depth, cascade depth, the
- * event budget) are lang's constants and not here.
+ * language's own caps (definition bytes, cascade depth, the event
+ * budget) are lang's constants and not here.
  */
 export const Limits = z.object({
   rooms: z.number().int().positive().default(16),

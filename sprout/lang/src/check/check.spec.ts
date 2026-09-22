@@ -571,8 +571,8 @@ describe('there is no truthiness and no coercion', () => {
 describe('it never guesses, and never dies', () => {
   it('types a chain with no bracket in it, however long', () => {
     // A tree is as deep as its longest chain of operators, and this one
-    // has nothing in it to count against the nesting cap. A recursive
-    // walk answers it with a stack overflow instead of a type.
+    // has nothing in it to count against the parser's depth bound. A
+    // recursive walk answers it with a stack overflow instead of a type.
     const context = bodyOf(VESSEL, letBinding('n', valueOf(integer()), at('n')));
     const long = Array(50_000).fill('n').join(' + ');
     expect(shapeOf(long, context)).toBe('integer');

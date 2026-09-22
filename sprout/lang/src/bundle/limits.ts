@@ -24,11 +24,14 @@
 // would bound cost in the one place only review effort belongs, and
 // would push authors toward chains of `if` instead of prose. The step
 // budget does that work, at run time, where cost actually lives.
+//
+// Nesting is not here either. The spec's Limits gives it no cap: the
+// compiler bounds its own recursion so that pathologically deep text is
+// refused rather than crashing it, and that bound is the parser's own,
+// not a figure a host sets and not something a bundle records.
 
 /** A cap checked when a world compiles. Exceeding one refuses the world, naming the line. */
 export interface StaticCaps {
-  /** How deep an expression or a block may nest. */
-  readonly nesting: number;
   /** Options on one enum. */
   readonly optionsPerEnum: number;
   /** Roles on one verb, counting a set role as one. */
@@ -117,7 +120,6 @@ export type LimitName = StaticCapName | RuntimeBudgetName;
 /** The figures a host starts from — the spec's two tables, and nothing else's. */
 export const DEFAULT_LIMITS: Limits = {
   caps: {
-    nesting: 8,
     optionsPerEnum: 100,
     rolesPerVerb: 8,
     phrasesPerVerb: 8,
@@ -155,7 +157,6 @@ export type WhenExceeded = 'refusal' | 'fault';
 
 /** What a limit is counted against. */
 export type LimitScope =
-  | 'expression'
   | 'enum'
   | 'verb'
   | 'phrase'
@@ -187,13 +188,6 @@ export interface LimitDescription {
  * cannot describe a limit the compiler does not enforce.
  */
 export const LIMIT_TABLE: readonly LimitDescription[] = [
-  {
-    name: 'nesting',
-    kind: 'cap',
-    scope: 'expression',
-    exceeded: 'refusal',
-    bounds: 'how deep an expression or a block may nest',
-  },
   {
     name: 'optionsPerEnum',
     kind: 'cap',

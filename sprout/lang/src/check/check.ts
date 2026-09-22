@@ -92,10 +92,10 @@ const READINGS = ['get', 'recall', 'count', 'holds', 'is', 'includes'] as const;
 export function typeOf(expr: Expr, context: CheckContext): BindingType | null {
   // Down the unbounded spines iteratively, then type upward. A tree is
   // as deep as its longest chain of operators, and `a + a + a + …` has
-  // no bracket in it to count against the host's nesting cap — so a
+  // no bracket in it to count against the parser's depth bound — so a
   // recursive walk would answer a long enough expression with a stack
   // overflow rather than with a diagnostic. Everything off a spine is
-  // bounded by that cap and is typed by an ordinary call.
+  // bounded by that depth and is typed by an ordinary call.
   const spine: Expr[] = [];
   for (let node: Expr = expr; ;) {
     spine.push(node);
