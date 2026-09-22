@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EnumDeclaration, Expr } from './ast.js';
+import type { EnumDeclaration, Expr, WorldMember } from './ast.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { unspanned } from '../source/nodes.js';
 import {
@@ -1665,27 +1665,127 @@ describe('a world declaration', () => {
   });
 
   it('says what is wrong with one that is not written out', () => {
-    const table: [string, string][] = [
-      ['world { }', 'A world needs a name.'],
-      ['world w', 'has nothing in it'],
-      ['world w: sprout.World { visitors are P', 'is never closed'],
-      ['world w: 4 { }', 'is not the name of a kind'],
-      ['world w: victorian. { }', 'is not followed by the name of a kind'],
-      ['world w: sprout.World { visitors }', 'A world says two things about visitors'],
-      ['world w: sprout.World { visitors arrive y }', 'A world says where visitors arrive AT.'],
-      ['world w: sprout.World { visitors are 4 }', 'is not the name of a kind'],
-      ['world w: sprout.World { visitors are creature }', 'is not the name of a kind'],
-      ['world w: sprout.World { nonsense }', 'A world is not made of'],
-      ['world w: sprout.World { 4 }', 'A world is not made of'],
+    // What is wrong with the world ITSELF costs the world. What is wrong
+    // with one member costs that member: the world is kept with the
+    // members that read, so the ones after it are read too.
+    const table: [string, string, 'lost' | 'kept'][] = [
+      ['world { }', 'A world needs a name.', 'lost'],
+      ['world w', 'has nothing in it', 'lost'],
+      ['world w: sprout.World { visitors are P', 'is never closed', 'lost'],
+      ['world w: 4 { }', 'is not the name of a kind', 'lost'],
+      ['world w: victorian. { }', 'is not followed by the name of a kind', 'lost'],
+      ['world w: sprout.World { visitors }', 'A world says two things about visitors', 'kept'],
+      [
+        'world w: sprout.World { visitors arrive y }',
+        'A world says where visitors arrive AT.',
+        'kept',
+      ],
+      ['world w: sprout.World { visitors are 4 }', 'is not the name of a kind', 'kept'],
+      ['world w: sprout.World { visitors are creature }', 'is not the name of a kind', 'kept'],
+      ['world w: sprout.World { nonsense }', 'A world is not made of', 'kept'],
+      ['world w: sprout.World { 4 }', 'A world is not made of', 'kept'],
     ];
-    for (const [text, said] of table) {
+    for (const [text, said, fate] of table) {
       const { world, refusals } = readWorld(text);
-      expect(world, text).toBeUndefined();
+      if (fate === 'lost') expect(world, text).toBeUndefined();
+      else expect(membersOf(world!), text).toEqual([]);
       expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
       for (const refusal of refusals) {
         expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
       }
     }
+  });
+
+  it('reads on past a member it could not read, and names every one that is wrong', () => {
+    const { world, refusals } = readWorld(`world w: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+  :wear 4 min "x"
+  :ward Ward.Iron
+  :opens [Ward].brass
+}`);
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['w.sprout:4:15', 'A min is a whole number.'],
+      ['w.sprout:5:14', '`Ward.` cannot name `Iron`, which starts with a capital.'],
+      ['w.sprout:6:16', '`:opens` writes a dot after a type that has no options.'],
+    ]);
+    expect(membersOf(world!)).toEqual(['visitors-are', 'visitors-arrive-at']);
+  });
+
+  it('steps over a stretch of stray `[` after a bad member once, not once per bracket', () => {
+    // Not a timing assertion — the test timeout is the guard, as it is
+    // for the lexer's long lookahead. The size is chosen so that it
+    // bites: probing each `[` afresh for its `]` took about 38 seconds
+    // on this body against a default timeout of five, where walking the
+    // stretch once took about 80 milliseconds. Thirty-two thousand
+    // brackets took 3.5 seconds rescanned, which does not bite. Do not
+    // lower the count, and do not raise the timeout.
+    const count = 100_000;
+    const { world, refusals } = readWorld(
+      `world w: sprout.World {\n  :ward Ward.Iron\n  ${'['.repeat(count)}\n  :y 1\n}\n`,
+    );
+    expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'y',
+    ]);
+    expect(refusals).toHaveLength(1);
+  });
+
+  it('remembers what one probe found across the members that follow it', () => {
+    // The same guard, where each stray `[` ends a bad member of its own
+    // and so each is met by a different recovery. Rescanning took about
+    // 22 seconds for this count and 5.6 for twenty thousand, which is
+    // too close to the timeout to bite; walking once took about 150
+    // milliseconds. Do not lower the count, and do not raise the timeout.
+    const count = 40_000;
+    const { world, refusals } = readWorld(
+      `world w: sprout.World {\n${':a Ward.Iron [\n'.repeat(count)}  :y 1\n}\n`,
+    );
+    expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'y',
+    ]);
+    expect(refusals).toHaveLength(count);
+  });
+
+  it('keeps the member written after one it could not read', () => {
+    /** A world's members by name, the way a reader of these tests would say them. */
+    const named = (text: string) => {
+      const { world, refusals } = readWorld(`world w: sprout.World {\n${text}\n}\n`);
+      const members = world!.members.map((m) =>
+        m.kind === 'property' ? m.name.text : m.kind === 'remembers' ? 'remembers' : m.kind,
+      );
+      return { members, said: refusals.map((d) => d.message) };
+    };
+    // A well-formed property, and a `:remembers`, after a bad property.
+    expect(named(':wear 4 min "x"\n:ward 0')).toEqual({
+      members: ['ward'],
+      said: ['A min is a whole number.'],
+    });
+    expect(named(':wear 4 min "x"\n:remembers [visits: 0]')).toEqual({
+      members: ['remembers'],
+      said: ['A min is a whole number.'],
+    });
+    // A list is stepped over whole: `:wet` inside it is not a member.
+    expect(named(':x Zeta [oak, :wet]\n:y 1')).toEqual({
+      members: ['y'],
+      said: ['`:x` has a type and no value to start at.'],
+    });
+    expect(named(':x [oak, Zeta silver]\n:y 1').members).toContain('y');
+    // A `[` that never closes is not allowed to take the rest of the body.
+    expect(named(':x Ward.Iron [\n:y 1').members).toEqual(['y']);
+    // And one that never closes says nothing about a list after it that does.
+    expect(named(':x Ward.Iron [ [:wet]\n:y 1')).toEqual({
+      members: ['y'],
+      said: ['`Ward.` cannot name `Iron`, which starts with a capital.'],
+    });
+    // Two bad members in a row are two problems, each said.
+    expect(named('visitors are 4\nvisitors arrive y\n:y 1')).toEqual({
+      members: ['y'],
+      said: ['the number 4 is not the name of a kind.', 'A world says where visitors arrive AT.'],
+    });
+    expect(named('nonsense\n:wear 4 min "x"\n:y 1')).toEqual({
+      members: ['y'],
+      said: ['A world is not made of `nonsense`.', 'A min is a whole number.'],
+    });
   });
 
   it('says ONE thing about a member it could not read', () => {
@@ -1702,7 +1802,8 @@ describe('a world declaration', () => {
   });
 
   it('does not swallow the declaration written after a broken one', () => {
-    // A world that cannot be read costs that world and not the file.
+    // A broken world, or a broken member of one, costs at most that
+    // world and never the file.
     for (const broken of [
       'world { }',
       'world w: sprout.World { nonsense }',
@@ -2125,6 +2226,68 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     expect(checked).toBe(ENTRY_DEFECTS.length * 3);
   });
 
+  it('over the members of a world, in every order', () => {
+    // The member-shaped defects: a member word with nothing it can read
+    // after it, a member word followed by one that is no member, and a
+    // word that is no member at all. Then the tables above as a world
+    // writes them: an entry defect as a property where it has the
+    // shape of one and inside a `:remembers` always, and an element
+    // defect inside a list default.
+    const MEMBER_DEFECTS = [
+      'visitors are 4',
+      'visitors arrive y',
+      'visitors',
+      'contains 4',
+      'nonsense',
+      '4',
+      ...ENTRY_DEFECTS.filter((entry) => entry.startsWith('b:')).map(
+        (entry) => `:b${entry.slice(2)}`,
+      ),
+      ...ENTRY_DEFECTS.map((entry) => `:remembers [${entry}]`),
+      ...ELEMENT_DEFECTS.map((element) => `:b [Ward] default [oak, ${element}]`),
+    ];
+    // Symbols, and not `visitors …`: a property whose value is missing
+    // reads the next word as its value, which is a reading and not a
+    // loss, and a symbol can never be a value.
+    const GOOD = [':alpha 0', ':remembers [omega: 1]'] as const;
+    /** A member by what it would be looked up as. */
+    const nameOf = (member: WorldMember): string =>
+      member.kind === 'property'
+        ? member.name.text
+        : member.kind === 'remembers'
+          ? `remembers:${member.properties.map((p) => p.name.text).join(',')}`
+          : member.kind;
+    let checked = 0;
+    for (const defect of MEMBER_DEFECTS) {
+      for (const order of [
+        [GOOD[0], defect, GOOD[1]],
+        [GOOD[0], GOOD[1], defect],
+        [defect, GOOD[0], GOOD[1]],
+        [GOOD[1], defect, GOOD[0]],
+        [GOOD[1], GOOD[0], defect],
+        [defect, GOOD[1], GOOD[0]],
+      ]) {
+        checked += 1;
+        const text = `world w: sprout.World {\n  ${order.join('\n  ')}\n}\n`;
+        const diagnostics = new Diagnostics();
+        const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
+        const world = declared.find((d) => d.kind === 'world');
+        // What the defect itself may leave standing: the `contains` a
+        // `contains 4` did read, and a `:remembers` whose entry was refused.
+        nothingVanishes(
+          text,
+          world?.members.map(nameOf) ?? [],
+          ['alpha', 'remembers:omega'],
+          ['alpha', 'remembers:omega', 'b', 'contains', 'remembers:', 'remembers:b'],
+        );
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+    expect(checked).toBe(MEMBER_DEFECTS.length * 6);
+  });
+
   it('over a list literal', () => {
     for (const defect of ELEMENT_DEFECTS) {
       for (const [text, good] of [
@@ -2166,8 +2329,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         // keeps the author's work rather than skipping to a brace and
         // losing it. So a name
         // WRITTEN inside the defect may surface at the top level; a
-        // name that was never written anywhere still may not.
-        const inside = defect.match(/[A-Z][A-Za-z_]*/g) ?? [];
+        // name that was never written anywhere still may not. A world
+        // whose defect is in one member is kept, under its own name.
+        const inside = [
+          ...(defect.match(/[A-Z][A-Za-z_]*/g) ?? []),
+          ...(defect.match(/^world (\w+)/)?.slice(1) ?? []),
+        ];
         nothingVanishes(
           text,
           declared.map((d) => d.name.text),
