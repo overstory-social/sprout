@@ -13,7 +13,7 @@ import {
 
 import { SCHEMA_VERSION, schemaVersionOf } from './migrations.js';
 
-// The SQL adapter (the split proposal §4.5, §4.6, §5.1): core's store port
+// The SQL adapter: core's store port
 // over the `sprout` schema, one record type per table, for node-postgres
 // and PGlite alike — it needs `query(text, params)` and detects neither.
 //
@@ -25,9 +25,9 @@ import { SCHEMA_VERSION, schemaVersionOf } from './migrations.js';
 //      writes land directly; the memory store proves the re-run rule.
 //   3. A throw inside `fn` rolls the transaction back — the host's, when
 //      the host supplied the client, so a host that wraps a turn with its
-//      own writes keeps or loses them together (§4.5-3).
+//      own writes keeps or loses them together.
 //   4. `SET LOCAL lock_timeout`: a stuck turn fails fast instead of
-//      pinning a connection to a function timeout (§4.5-4).
+//      pinning a connection to a function timeout.
 //   5. The host may supply the transaction: `sqlStore({ client })` only
 //      locks; `sqlStore({ transaction })` opens its own on a pooled client.
 //   6. Housekeeping is set-based statements, not turns.
@@ -42,7 +42,7 @@ export interface Queryable {
 }
 
 export interface SqlStoreOptions {
-  /** A client already inside the host's transaction (§4.5-5): the store only locks. */
+  /** A client already inside the host's transaction: the store only locks. */
   client?: Queryable;
   /** Otherwise: run `fn` inside a fresh transaction on a pooled client (BEGIN … COMMIT/ROLLBACK). */
   transaction?: <T>(fn: (client: Queryable) => Promise<T>) => Promise<T>;
@@ -53,11 +53,11 @@ export interface SqlStoreOptions {
    * Default: this package's own.
    */
   schemaVersion?: number;
-  /** How long a write waits for the microworld's lock before failing (§4.5-4). */
+  /** How long a write waits for the microworld's lock before failing. */
   lockTimeout?: string;
 }
 
-/** The default lock timeout (§4.5-4). */
+/** The default lock timeout. */
 export const LOCK_TIMEOUT = '5s';
 
 type Row = Record<string, unknown>;
@@ -256,7 +256,7 @@ function writer(c: Queryable, microworldId: string): StoreTx {
         );
       }
       if (upsert.length > 0) {
-        // One statement, one jsonb parameter, however many rows (§5.1).
+        // One statement, one jsonb parameter, however many rows.
         await c.query(
           `INSERT INTO sprout.object (microworld_id, id, spawned_from, container, home, state)
            SELECT $1, e->>'id', e->>'spawnedFrom', e->>'container', e->>'home',
@@ -396,7 +396,7 @@ export function sqlStore(options: SqlStoreOptions): SproutStore {
         return fn(reader(options.client, microworldId));
       }
       return options.transaction!(async (c) => {
-        // A consistent snapshot for the read (§4.5-1) — the transaction's
+        // A consistent snapshot for the read — the transaction's
         // FIRST statement, as Postgres requires; the heartbeat's write is
         // the actor's own row and never contended.
         await c.query(`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);

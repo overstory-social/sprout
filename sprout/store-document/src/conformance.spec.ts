@@ -8,8 +8,8 @@ import { memoryBackend } from './backend.js';
 import { indexedDbBackend } from './indexeddb.js';
 import { documentStore } from './store.js';
 
-// The document store runs core's conformance suite (the split proposal
-// §4.6) on BOTH backends: the memory backend, and IndexedDB under
+// The document store runs core's conformance suite on BOTH backends:
+// the memory backend, and IndexedDB under
 // fake-indexeddb — real multi-store transactions, one connection. Every
 // case runs, including the two a single Postgres connection cannot
 // (serialization and the read snapshot are the backend's locks and the

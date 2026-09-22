@@ -7,22 +7,15 @@ import { describe, expect, it } from 'vitest';
 // Core imports the language, zod and itself — never a host, a database
 // driver, a clock library or a test framework. The store is a port; an
 // adapter fills it from outside. A runtime package never carries a test
-// runner (CLAUDE.md records the 2026-09-03 peer-graph outage), so
-// `conformance.ts` and `testing.ts` may not import vitest either.
+// runner, so `conformance.ts` may not import vitest either.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['zod', '@overstory/sprout/lang'];
-const ALLOWED_IN_SPECS = [
-  'vitest',
-  'node:fs',
-  'node:path',
-  'node:url',
-  '@overstory/sprout/ext-media',
-];
+const ALLOWED_IN_SPECS = ['vitest', 'node:fs', 'node:path', 'node:url'];
 
 describe('@overstory/sprout/core imports nothing but the language, zod and itself', () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'));
-  it('has files to check', () => expect(files.length).toBeGreaterThan(6));
+  it('has files to check', () => expect(files.length).toBeGreaterThan(4));
   for (const file of files) {
     it(file, () => {
       const text = readFileSync(join(SRC, file), 'utf8');

@@ -8,8 +8,7 @@ import { sqlStore, type Queryable } from './store.js';
 // What PGlite cannot prove (`cannotProve`): real contention — one
 // connection blocking another until commit — and a lock timeout FIRING
 // rather than hanging. This runs against a real Postgres, a pool of
-// connections, only where `DATABASE_URL` is set: the gate's `contention`
-// job with a postgres:16 service container. It is the two conformance
+// connections, only where `DATABASE_URL` is set. It is the two conformance
 // cases `conformance.spec.ts` skips by name, plus the timeout, on a
 // store whose every transaction is its own connection.
 

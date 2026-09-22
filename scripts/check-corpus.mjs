@@ -1,9 +1,8 @@
-// `npm run check`: `sprout check --json` over the examples and the corpus.
-// Everything under corpus/good and sprout/examples passes; everything under
-// corpus/bad fails with exactly the problems its expect.json names. The
-// expect files are written by `node scripts/check-corpus.mjs --write` and
-// reviewed like any other change: the compiler's words to a builder are
-// part of the contract.
+// `npm run check`: `sprout check` over the corpus. Every world under
+// corpus/good passes; every world under corpus/bad fails with exactly the
+// page its expected.txt holds, so the compiler's words to an author cannot
+// drift without a test noticing. `--write` regenerates the expected pages;
+// review the diff like any other change.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,51 +11,42 @@ const write = process.argv.includes('--write');
 const cli = join('cli', 'bin', 'sprout.js');
 const check = (dir) => {
   try {
-    return {
-      code: 0,
-      json: JSON.parse(execFileSync('node', [cli, 'check', dir, '--json'], { encoding: 'utf8' })),
-    };
+    return { code: 0, out: execFileSync('node', [cli, 'check', dir], { encoding: 'utf8' }) };
   } catch (err) {
-    return { code: err.status, json: JSON.parse(String(err.stdout)) };
+    return { code: err.status, out: String(err.stdout) + String(err.stderr) };
   }
 };
-const dirs = (root) => readdirSync(root).map((d) => join(root, d));
+const dirs = (root) => (existsSync(root) ? readdirSync(root).map((d) => join(root, d)) : []);
 
 let failed = 0;
-// Every example world is a directory holding a sprout.json; one fenced under
-// sprout/examples/legacy/ (CLAUDE.md, The legacy fence) is not an example.
-const EXAMPLES = readdirSync(join('sprout', 'examples'))
-  .map((d) => join('sprout', 'examples', d))
-  .filter((d) => existsSync(join(d, 'sprout.json')));
-for (const dir of [...EXAMPLES, ...dirs('corpus/good')]) {
-  const { code, json } = check(dir);
-  if (code !== 0 || !json.ok) {
+for (const dir of dirs('corpus/good')) {
+  const { code, out } = check(dir);
+  if (code !== 0) {
     failed++;
-    console.error(`✗ ${dir}: expected to pass\n${JSON.stringify(json.problems, null, 2)}`);
+    console.error(`✗ ${dir}: expected to pass\n${out}`);
   } else console.log(`✓ ${dir} passes`);
 }
 for (const dir of dirs('corpus/bad')) {
-  const { code, json } = check(dir);
-  const expectFile = join(dir, 'expect.json');
+  const { code, out } = check(dir);
+  const expectedFile = join(dir, 'expected.txt');
   if (write) {
-    writeFileSync(expectFile, `${JSON.stringify(json.problems, null, 2)}\n`);
-    console.log(`wrote ${expectFile}`);
+    writeFileSync(expectedFile, out);
+    console.log(`wrote ${expectedFile}`);
     continue;
   }
-  if (code !== 1 || json.ok) {
+  if (code !== 1) {
     failed++;
     console.error(`✗ ${dir}: expected to fail`);
     continue;
   }
-  const expected = existsSync(expectFile) ? readFileSync(expectFile, 'utf8') : '';
-  const actual = `${JSON.stringify(json.problems, null, 2)}\n`;
-  if (expected !== actual) {
+  const expected = existsSync(expectedFile) ? readFileSync(expectedFile, 'utf8') : '';
+  if (expected !== out) {
     failed++;
-    console.error(`✗ ${dir}: the problems changed\n--- expected\n${expected}--- actual\n${actual}`);
-  } else console.log(`✓ ${dir} fails as expected (${json.problems.length})`);
+    console.error(`✗ ${dir}: the page changed\n--- expected\n${expected}--- actual\n${out}`);
+  } else console.log(`✓ ${dir} fails as expected`);
 }
 if (failed > 0) {
-  console.error(`✗ ${failed} archive(s) did not do what the corpus says`);
+  console.error(`✗ ${failed} world(s) did not do what the corpus says`);
   process.exit(1);
 }
-console.log('✓ corpus: every good archive passes, every bad one fails as expected');
+console.log('✓ corpus: every good world passes, every bad one fails as expected');

@@ -1,39 +1,38 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { userInfo } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
-import { LANGUAGE_LEVEL, type SproutManifest } from '@overstory/sprout/lang';
+import { LANGUAGE_LEVEL, MANIFEST_FILE, type Manifest } from '@overstory/sprout/lang';
 
-import { MANIFEST } from './archive.js';
+// `sprout init [dir]`: a folder with a manifest, a world and a README
+// line. What it writes passes `sprout check`.
 
-// `sprout init [dir]` (the split proposal §6): a folder with a manifest,
-// one room, and a README line — a host's literal first command.
-
-const HALL = `room hall {
-  :name "The Hall"
-  prose "A quiet hall. The door you came in by is behind you."
-}
-`;
-
-export function initArchive(dir: string): string[] {
+export function initWorld(dir: string, author = userInfo().username): string[] {
   const root = resolve(dir);
   if (existsSync(root) && readdirSync(root).length > 0) {
     throw new Error(`${dir}: not empty — init wants an empty or new folder`);
   }
-  mkdirSync(join(root, 'rooms'), { recursive: true });
-  const manifest: SproutManifest = {
-    format: 1,
-    language: LANGUAGE_LEVEL,
-    entry: 'hall',
+  mkdirSync(root, { recursive: true });
+  const name = basename(root).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+  const manifest: Manifest = {
+    name,
+    namespace: name,
+    version: '0.1.0',
+    author,
+    license: 'MIT',
+    level: LANGUAGE_LEVEL,
     extensions: [],
+    libraries: [],
+    files: ['world.sprout'],
   };
-  const written = [
-    [MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`],
-    ['rooms/hall.sprout', HALL],
-    [
-      'README.md',
-      `# ${basename(root)}\n\nA Sprout microworld. \`sprout check .\` to check it, \`sprout play .\` to walk it, \`sprout skill\` for the language.\n`,
-    ],
+  const { namespace: _namespace, ...written } = manifest;
+  const world = `world ${name} {\n  visitors are Visitor\n  visitors arrive at hall\n}\n`;
+  const readme = `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it.\n`;
+  const files = [
+    [MANIFEST_FILE, `${JSON.stringify(written, null, 2)}\n`],
+    ['world.sprout', world],
+    ['README.md', readme],
   ] as const;
-  for (const [name, text] of written) writeFileSync(join(root, name), text);
-  return written.map(([name]) => name);
+  for (const [file, text] of files) writeFileSync(join(root, file), text);
+  return files.map(([file]) => file);
 }

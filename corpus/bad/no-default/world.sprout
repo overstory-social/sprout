@@ -1,0 +1,5 @@
+world no_default {
+  visitors are Creature
+  visitors arrive at hall
+  :season Season
+}

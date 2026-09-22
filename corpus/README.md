@@ -1,8 +1,12 @@
 # The corpus
 
-Archives `sprout check` is run over in the gate (`npm run check`,
-`scripts/check-corpus.mjs`): everything under `good/` must pass with no
-problems, everything under `bad/` must fail, and each `bad/<name>/expect.json`
-names the problems it must fail WITH — file, line, column and message, exactly
-— so the compiler's words to a builder cannot drift without a test noticing.
-The two example studios under `sprout/examples` are checked as well.
+Worlds `sprout check` is run over in the gate (`npm run check`,
+`scripts/check-corpus.mjs`). Everything under `good/` passes with no
+problems; everything under `bad/` fails, and each `bad/<name>/expected.txt`
+is the exact page the compiler prints for it, so the compiler's words to an
+author cannot drift without a test noticing. `node scripts/check-corpus.mjs
+--write` regenerates the pages; the diff is reviewed like any other change.
+
+A world here is a folder with `sprout.json` and its files, the same shape
+`sprout init` writes. Add a `good/` world when a construct lands, and a
+`bad/` world for each refusal worth pinning the words of.

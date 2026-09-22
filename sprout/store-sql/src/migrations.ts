@@ -1,5 +1,5 @@
-// The `sprout` schema (the split proposal §5.1): one Postgres schema, one
-// table per record type of the store port (@overstory/sprout-core §4.6),
+// The `sprout` schema: one Postgres schema, one table per record type
+// of core's store port,
 // NO foreign key to anything of the host's — a namespace that makes that
 // visible rather than conventional, and the eventual drop auditable. Ids
 // are `text` (identifiers and spawn numbers); an actor id is whatever the

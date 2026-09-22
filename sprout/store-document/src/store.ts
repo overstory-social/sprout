@@ -15,7 +15,7 @@ import {
 
 import type { DocumentBackend, DocumentReader, DocumentWriter } from './backend.js';
 
-// The store port over a document backend (the split proposal §5.2). The
+// The store port over a document backend. The
 // layout is split along the WRITE-RATE seam, not the read seam: the
 // objects of a microworld are one document written only when a turn
 // changes something, holding the rows as an opaque serialized string (a
@@ -25,7 +25,7 @@ import type { DocumentBackend, DocumentReader, DocumentWriter } from './backend.
 // actions and misses are COLLECTIONS, one document per record, never a
 // dated document appended to. Serialization is `transact` on the objects
 // key; atomicity is the backend's single commit; re-entrancy is core's
-// §4.5-2 rule, which is why every number a turn mints (a spawn, a
+// re-run rule, which is why every number a turn mints (a spawn, a
 // record's sequence) is read from the `counters` document inside the
 // transaction.
 //
@@ -70,7 +70,7 @@ export function parseKey(
 //
 // JSON carries no dates: the four date fields travel as ISO strings and
 // come back through the record's own schema, so what an adapter reads is
-// validated (§4.6: "a document adapter validates what it reads back").
+// validated: a document adapter validates what it reads back.
 
 const Counters = z.object({
   spawn: z.number().int().nonnegative(),
@@ -280,7 +280,7 @@ export function documentStore(backend: DocumentBackend): SproutStore {
       backend.transact([keys.objects(w)], async (tx) => {
         for (const k of await tx.list(keys.microworld(w))) await tx.delete(k);
       }),
-    // Both hold the actor's keys for the duration (review on #539): a
+    // Both hold the actor's keys for the duration: a
     // heartbeat locks the actor's own key, so a forget that did not would
     // race it and the row could come back; an export that did not could
     // read one microworld before a write and the next after it.

@@ -1,7 +1,6 @@
-// One error class with codes (the split proposal §4.0), and one rule:
-// compile outcomes are always RETURNED as `problems`, never thrown;
-// everything else throws a SproutError. A fault is neither — it is a
-// turn's outcome (§4.5).
+// One error class with codes, and one rule: compile outcomes are always
+// RETURNED as `problems`, never thrown; everything else throws a
+// SproutError. A fault is neither — it is a turn's outcome.
 
 export type SproutErrorCode =
   | 'no-such-microworld'

@@ -8,11 +8,10 @@ import type {
   ObjectRecord,
 } from './records.js';
 
-// The store port (the split proposal §4.6): small on purpose — six
-// methods on the store, seventeen on a transaction, over seven record
-// types. No query language, no joins, no filters beyond the ones the
-// runtime needs (a room, a date, a limit). The contract every adapter
-// must meet is §4.5:
+// The store port: small on purpose — six methods on the store,
+// seventeen on a transaction, over seven record types. No query
+// language, no joins, no filters beyond the ones the runtime needs (a
+// room, a date, a limit). The contract every adapter must meet:
 //
 //   1. Write turns on one microworld are serialized; read turns are not.
 //   2. `fn` may be invoked more than once — it must have no effect
@@ -47,7 +46,7 @@ export interface ReadTx {
 
 export interface StoreTx extends ReadTx {
   putMicroworld(m: MicroworldRecord): Promise<void>;
-  /** A fresh spawn number, off the locked row (§4.5-4). */
+  /** A fresh spawn number, off the locked row. */
   nextSpawn(): Promise<number>;
   /** One call: what changed and what left (`destroy self` needs `remove`). */
   putObjects(change: { upsert: ObjectRecord[]; remove: string[] }): Promise<void>;
@@ -69,7 +68,7 @@ export interface SproutStore {
   ): Promise<T>;
   /** Run `fn` on a consistent snapshot with no lock — what `look` and `complete` use. */
   read<T>(microworldId: string, fn: (tx: ReadTx) => Promise<T>): Promise<T>;
-  // --- housekeeping, off the turn path (§4.5-6) ---
+  // --- housekeeping, off the turn path ---
   /** Drop action records older than `before`, and misses past the newest `keepMisses`, in every microworld. */
   trim(before: Date, keepMisses: number): Promise<void>;
   /** Everything of this microworld: archive, objects, actors, memory, actions, misses. */

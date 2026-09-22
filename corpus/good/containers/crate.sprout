@@ -1,4 +1,0 @@
-object crate: Container in shed {
-  :name "Crate"
-  prose "A slatted crate."
-}

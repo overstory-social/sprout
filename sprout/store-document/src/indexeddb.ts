@@ -1,6 +1,6 @@
 import { KeyLocks, Staging, type DocumentBackend, type DocumentReader } from './backend.js';
 
-// IndexedDB (the split proposal §5.2): a single-player microworld in a
+// IndexedDB: a single-player microworld in a
 // browser tab, no server at all. One object store of `{ key, doc }`
 // rows; `list` is a key range on the prefix. Serialization is the Web
 // Locks API where the page has it — held across every tab of the origin
