@@ -198,6 +198,13 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **The register of the stock lines.** Long-term, and not a blocker.
 - **Found by the 2026-09-21 review, undecided.** A symbol literal on the left of `==` is refused by the checker where the spec reads as symmetric. An integer literal outside the operand's range in a comparison is accepted, which is the false-forever defect the enum rule prevents. An exit's `when` guard may `get` through an identifier, a `get` through one out of range is a fault, and guards run on every poll, so a poll can fault through a guard; the unset-link rule (does not apply) is the likely answer.
 
+**Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
+
+- **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
+- **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
+- **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
+- Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it; `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.

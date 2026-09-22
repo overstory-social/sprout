@@ -30,6 +30,7 @@
 
 import type {
   BinaryOperator,
+  ContainsDeclaration,
   Declaration,
   Expr,
   KindExpr,
@@ -866,7 +867,10 @@ class Parser {
 
   /** What may be written inside a world, and what reads each one. */
   private worldMembers(): ReadonlyMap<string, () => WorldMember | null> {
-    return new Map<string, () => WorldMember | null>([['visitors', () => this.visitors()]]);
+    return new Map<string, () => WorldMember | null>([
+      ['visitors', () => this.visitors()],
+      ['contains', () => this.contains()],
+    ]);
   }
 
   private worldDeclaration(): WorldDeclaration | null {
@@ -990,6 +994,25 @@ class Parser {
       return token.text === 'remembers' ? () => this.remembers() : () => this.property();
     }
     return token.kind === 'name' ? (readers.get(token.text) ?? null) : null;
+  }
+
+  /**
+   * `contains`, or `contains actors` — the one line that makes a place.
+   *
+   * A word after it that is not `actors` is left where it is rather
+   * than being swallowed: it goes back to the member table, which says
+   * what a world is made of and names the word the author wrote. So
+   * `contains actor`, singular, points at `actor`, which is where the
+   * mistake is.
+   */
+  private contains(): ContainsDeclaration | null {
+    const keyword = this.next();
+    const actors = this.take('name', 'actors');
+    return {
+      kind: 'contains',
+      at: actors === null ? keyword.at : spanning(keyword.at, actors.at),
+      actors: actors !== null,
+    };
   }
 
   /** `visitors are Creature`, `visitors arrive at composing_room`. */
