@@ -1,0 +1,11 @@
+// Two things of one name may not share a container, however it is reached.
+object hall: Room in container_twice_named
+
+object chest: Chest in hall
+
+object key: Thing in hall.chest
+
+object key: Thing in hall.chest
+
+// Two keys in two different places are fine.
+object key: Thing in hall

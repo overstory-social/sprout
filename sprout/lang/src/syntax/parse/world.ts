@@ -7,6 +7,7 @@ import type { WorldDeclaration, WorldMember } from '../ast.js';
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import { body, composition, contains, kindName, without, type MemberReaders } from './bodies.js';
+import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
 
 export function worldDeclaration(p: Parser): WorldDeclaration | null {
@@ -77,8 +78,8 @@ function visitors(p: Parser): WorldMember | null {
       );
       return null;
     }
-    const place = p.take('name');
-    if (place === null) {
+    const head = p.take('name');
+    if (head === null) {
       p.diagnostics.refuse(
         p.peek().at,
         'A world says where visitors arrive.',
@@ -86,11 +87,9 @@ function visitors(p: Parser): WorldMember | null {
       );
       return null;
     }
-    return {
-      kind: 'visitors-arrive-at',
-      at: spanning(keyword.at, place.at),
-      place: p.ident(place),
-    };
+    const place = objectPath(p, head);
+    if (place === null) return null;
+    return { kind: 'visitors-arrive-at', at: spanning(keyword.at, place.at), place };
   }
   p.diagnostics.refuse(
     p.peek().at,

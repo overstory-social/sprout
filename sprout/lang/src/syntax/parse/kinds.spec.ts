@@ -78,10 +78,27 @@ describe('an object declaration', () => {
     expect(refusals).toEqual([]);
     expect(object!.name.text).toBe('brass_key');
     expect(composed(object!)).toEqual(['Key']);
-    expect(object!.container.text).toBe('shelf');
+    expect(object!.container.kind).toBe('path');
+    expect(object!.container.parts.map((part) => part.text)).toEqual(['shelf']);
     expect(object!.members).toEqual([]);
     expect(textOf(object!.at)).toBe('object brass_key: Key in shelf');
     expect(textOf(object!.container.at)).toBe('shelf');
+  });
+
+  it('names a container deeper than the world by its path, and spans all of it', () => {
+    const { object, declarations, refusals } = readObject(
+      'object key: Key in kiln.shelf.box {\n  :worn 0\n}',
+    );
+    expect(refusals).toEqual([]);
+    expect(object!.container.parts.map((part) => part.text)).toEqual(['kiln', 'shelf', 'box']);
+    expect(textOf(object!.container.at)).toBe('kiln.shelf.box');
+    expect(object!.container.parts.map((part) => locationOf(part.at))).toEqual([
+      'k.sprout:1:20',
+      'k.sprout:1:25',
+      'k.sprout:1:31',
+    ]);
+    expect(membersOf(object!)).toEqual([':worn']);
+    expect(unspanned(declarations)).toEqual([]);
   });
 
   it('holds a body, which is an anonymous kind for that object alone', () => {
@@ -227,6 +244,11 @@ describe('a broken kind or object costs that declaration, not the file', () => {
       'object bench: Bench { }',
       'object bench: Bench in { }',
       'object bench: Bench in hall { visitors are P }',
+      'object bench: Bench in hall.',
+      'object bench: Bench in hall..shelf',
+      'object bench: Bench in hall.4 { }',
+      'object bench: Bench in hall.Shelf',
+      'object bench: Bench in hall . shelf',
     ]) {
       const { declarations, refusals } = read(`${broken}\nenum Ward { oak }\n`);
       expect(names(declarations), broken).toContain('Ward');

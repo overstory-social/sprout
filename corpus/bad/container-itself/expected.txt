@@ -1,0 +1,4 @@
+objects.sprout:4:24  `crate` cannot be inside itself.
+                     `in` names what holds `crate`: name something else.
+
+refused: 1 problem

@@ -6,7 +6,8 @@ import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
-import { resolveObjects } from './objects.js';
+import { placedObjects, resolveObjects } from './objects.js';
+import { placeObjects } from './tree.js';
 
 /** Resolve the objects in `text` against the kinds in it, all in the library `shop`. */
 function objects(text: string) {
@@ -41,9 +42,10 @@ describe('an object is made of its kinds and its own body', () => {
     const { resolved, said } = objects(`${KINDS}object chest: Wooden in hall { :lid false }`);
     expect(said).toEqual([]);
     const [chest] = resolved;
-    expect([chest!.name, chest!.library, chest!.kind.name]).toEqual(['chest', 'shop', 'chest']);
-    expect(chest!.kind.order).toEqual(['shop.Wooden', 'shop.chest']);
-    expect([...chest!.kind.properties.values()].map((p) => [p.name, p.origin])).toEqual([
+    expect(chest!.declaration.name.text).toBe('chest');
+    expect([chest!.kind!.library, chest!.kind!.name]).toEqual(['shop', 'chest']);
+    expect(chest!.kind!.order).toEqual(['shop.Wooden', 'shop.chest']);
+    expect([...chest!.kind!.properties.values()].map((p) => [p.name, p.origin])).toEqual([
       ['worn', 'shop.Wooden'],
       ['lid', 'shop.chest'],
     ]);
@@ -52,49 +54,72 @@ describe('an object is made of its kinds and its own body', () => {
   it('restates what it composes in its body, keeping the type', () => {
     const { resolved, said } = objects(`${KINDS}object chest: Wooden in hall { :worn 3 }`);
     expect(said).toEqual([]);
-    const worn = resolved[0]!.kind.properties.get('worn')!;
+    const worn = resolved[0]!.kind!.properties.get('worn')!;
     expect([worn.origin, worn.type]).toEqual(['shop.chest', { type: 'integer', min: 0, max: 9 }]);
   });
 
   it('takes one with no body, which has nothing of its own', () => {
     const { resolved } = objects(`${KINDS}object hall: Room in shop`);
-    expect(resolved[0]!.kind.containsActors).toBe(true);
+    expect(resolved[0]!.kind!.containsActors).toBe(true);
     expect(resolved[0]!.declaration.members).toEqual([]);
   });
 
-  it('keeps its container as written, for B14 to resolve', () => {
-    const { resolved } = objects(`${KINDS}object hall: Room in shop\nobject bench: Wooden in hall`);
-    expect(resolved.map((o) => [o.name, o.container.text, locationOf(o.container.at)])).toEqual([
-      ['hall', 'shop', 'shop.sprout:3:22'],
-      ['bench', 'hall', 'shop.sprout:4:25'],
+  it('composes every declaration, in the order written, whatever it says holds it', () => {
+    // Where an object sits is the tree's to say, so two of one name in
+    // one container both compose here.
+    const { resolved, said } = objects(
+      `${KINDS}object key: Wooden in chest\nobject key: Wooden in chest\nobject lamp: Wooden in nowhere`,
+    );
+    expect(said).toEqual([]);
+    expect(resolved.map((o) => [o.declaration.name.text, o.kind?.name])).toEqual([
+      ['key', 'key'],
+      ['key', 'key'],
+      ['lamp', 'lamp'],
     ]);
   });
 });
 
-describe('what an object may not be', () => {
-  it('is absent when a kind it composes is: left out, and told of once', () => {
+describe('an object whose kind is absent', () => {
+  it('has no kind, is told of once, and is still there to be placed', () => {
     const { resolved, missing, said } = objects(
       `${KINDS}object chest: Wooden, Missing in hall\nobject bench: Wooden in hall`,
     );
-    expect(resolved.map((o) => o.name)).toEqual(['bench']);
+    expect(resolved.map((o) => [o.declaration.name.text, o.kind === null])).toEqual([
+      ['chest', true],
+      ['bench', false],
+    ]);
     expect(missing).toEqual(['Missing']);
     expect(said).toEqual([]);
   });
+});
 
-  it('refuses two of one name in one container, at the second', () => {
-    const { resolved, said } = objects(
-      `${KINDS}object key: Wooden in chest\nobject key: Wooden in chest`,
+describe('the objects the bundle holds', () => {
+  /** Compose `text`'s objects, place them in the world `shop`, and keep what is held. */
+  function held(text: string) {
+    const { resolved } = objects(text);
+    const diagnostics = new Diagnostics();
+    const tree = placeObjects(resolved, { world: 'shop', diagnostics });
+    return { held: placedObjects('shop', resolved, tree), diagnostics };
+  }
+
+  it('are those both composed and placed, in the order declared, each with its path', () => {
+    const { held: kept } = held(
+      `${KINDS}object chest: Wooden in hall\nobject hall: Room in shop\nobject lamp: Wooden in hall`,
     );
-    expect(said).toEqual([['shop.sprout:4:8', '`chest` holds two objects called `key`.']]);
-    expect(resolved).toHaveLength(1);
+    expect(kept.map((o) => [o.name, o.library, o.path, o.container])).toEqual([
+      ['chest', 'shop', ['hall', 'chest'], ['hall']],
+      ['hall', 'shop', ['hall'], []],
+      ['lamp', 'shop', ['hall', 'lamp'], ['hall']],
+    ]);
   });
 
-  it('leaves two of one name in two containers alone, since a name is scoped to its container', () => {
-    // The spec's Objects: "two chests may each hold a `key`".
-    const { resolved, said } = objects(
-      `${KINDS}object key: Wooden in red_chest\nobject key: Wooden in blue_chest`,
+  it('leave out one whose kind is absent, though it was placed, and one that was not placed', () => {
+    const { held: kept, diagnostics } = held(
+      `${KINDS}object hall: Room in shop\nobject chest: Missing in hall\nobject lamp: Wooden in hal`,
     );
-    expect(said).toEqual([]);
-    expect(resolved.map((o) => o.container.text)).toEqual(['red_chest', 'blue_chest']);
+    expect(kept.map((o) => o.name)).toEqual(['hall']);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Nothing here is called `hal`. Did you mean `hall`?',
+    ]);
   });
 });

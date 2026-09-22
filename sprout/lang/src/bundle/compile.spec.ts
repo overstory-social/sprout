@@ -780,11 +780,11 @@ describe('what a compiled bundle carries', () => {
     expect(compileBundle(changed).bundle!.hash).not.toBe(bundle!.hash);
   });
 
-  it('carries every kind composed and the world’s objects', () => {
+  it('carries every kind composed, the world’s objects and the tree they sit in', () => {
     const files = [
       file(
         'world.sprout',
-        'world printers_shop: sprout.World {}\nkind Crate { contains }\nobject box: Crate in hall',
+        'world printers_shop: sprout.World {}\nkind Crate { contains }\nobject hall: Crate in printers_shop\nobject box: Crate in hall',
       ),
     ];
     const { bundle: carried, diagnostics } = compileBundle(world({ files }));
@@ -792,9 +792,27 @@ describe('what a compiled bundle carries', () => {
     expect(carried!.kinds.map((k) => [k.library, k.name, k.order])).toEqual([
       ['printers_shop', 'Crate', ['printers_shop.Crate']],
     ]);
-    expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container.text])).toEqual([
-      ['box', ['printers_shop.Crate', 'printers_shop.box'], 'hall'],
+    expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container])).toEqual([
+      ['hall', ['printers_shop.Crate', 'printers_shop.hall'], []],
+      ['box', ['printers_shop.Crate', 'printers_shop.box'], ['hall']],
     ]);
+    expect(carried!.tree.world).toBe('printers_shop');
+    expect([...carried!.tree.placed.keys()]).toEqual(['hall', 'hall.box']);
+  });
+
+  it('roots the tree at the manifest’s name, not its namespace', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nkind Crate { contains }\nobject hall: Crate in printers_shop',
+      ),
+    ];
+    const { bundle: carried, diagnostics } = compileBundle(
+      world({ files, manifest: { namespace: 'ink' } }),
+    );
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(carried!.tree.world).toBe('printers_shop');
+    expect(carried!.objects.map((o) => [o.library, o.path])).toEqual([['ink', ['hall']]]);
   });
 
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
@@ -851,12 +869,14 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     const files = [
       file(
         'world.sprout',
-        'world printers_shop: sprout.World {}\nobject box: Crate in hall\nobject tin: sprout.Ward in hall',
+        'world printers_shop: sprout.World {}\nobject box: Crate in printers_shop\nobject tin: sprout.Ward in box',
       ),
     ];
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
     expect(loaded.bundle!.objects).toEqual([]);
+    // Absent, and still where it was written, so the tin is placed inside it.
+    expect([...loaded.bundle!.tree.placed.keys()]).toEqual(['box', 'box.tin']);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
       [
         ['Crate', 'kind-in-composition', 'missing', 'world.sprout:2:13'],
@@ -873,6 +893,46 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
       'Nothing here is a `Crate`.',
       'Nothing here is a `sprout.Ward`.',
     ]);
+  });
+
+  it('runs a world with an object whose container is not there, and that object is absent', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nkind Crate { contains }\nobject hall: Crate in printers_shop\nobject box: Crate in hal\nobject tin: Crate in hall.box',
+      ),
+    ];
+    const loaded = compileBundle(world({ files }), load);
+    expect(refusals(loaded.diagnostics)).toEqual([]);
+    expect(loaded.bundle!.objects.map((o) => o.name)).toEqual(['hall']);
+    expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
+      [['hal', 'container', 'missing', 'world.sprout:4:22']],
+    );
+    expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
+      'Nothing here is called `hal`. Did you mean `hall`? The object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns.',
+    ]);
+    const published = compileBundle(world({ files }));
+    expect(published.bundle).toBeNull();
+    expect(refusals(published.diagnostics).map((d) => d.message)).toEqual([
+      'Nothing here is called `hal`. Did you mean `hall`?',
+    ]);
+  });
+
+  it('refuses objects that hold each other at load as at publish, since nothing is missing', () => {
+    const files = [
+      file(
+        'world.sprout',
+        'world printers_shop: sprout.World {}\nkind Crate { contains }\nobject a: Crate in b\nobject b: Crate in a',
+      ),
+    ];
+    for (const mode of ['load', 'publish'] as const) {
+      const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
+      expect(bundle, mode).toBeNull();
+      expect(
+        refusals(diagnostics).map((d) => d.message),
+        mode,
+      ).toEqual(['`a` is in `b`, which is in `a`.']);
+    }
   });
 
   it('runs a world whose library is not the source recorded, and does not use that library', () => {

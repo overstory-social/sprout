@@ -223,13 +223,25 @@ Found while building composition (B19), each decided the narrow way and awaiting
 - **What counts as changing a property's type in a restatement.** A different integer range is a change, and so is remembered versus plain.
 - **Origins that disagree in type.** Cannot be merged by restating; the refusal says to compose only one of them.
 - **An object in a library.** Refused, as a world is: a library holds kinds for the world to make things of.
-- **Two objects of one name.** Refused only in the same container as written, since two chests may each hold a `key`; scoping a name to its container is B14's.
 - **An object's anonymous kind.** Named for the object, in the world's library, and the origin of what its body declares.
 - **A kind composing one that is absent at load.** It is not composed and its body is not read; the objects made of it are absent with no gap of their own beyond the `kind-in-composition` one.
 - **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. No kind declares any of those members yet, so every `without` is refused with "has no … to leave out" until B22 reads guards.
 - **A `without` in a kind that is itself composed.** Whether what `B` leaves out stays left out in `D: B`, and what happens when `D` also reaches the source another way, is unsaid; the suppression is recorded on the kind that wrote it, and whichever of B22, B24 and B32 first runs a composed member decides how it travels.
 - **What the kinds, objects and places caps count.** `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, not an object's anonymous kind; `objects` counts the world's `object` declarations, composed or not; `places` counts its objects whose composed kind holds actors. The world counts toward neither `objects` nor `places`. Each is refused at the first declaration past it, at load as at publish.
 - **Where a library lives on disk.** Unspecified, so nothing can vendor `sprout` yet (the CLI sends no libraries), and the world is not resolved in `compileBundle` until it can: resolving it would refuse every world for a `sprout.World` that cannot travel.
+
+Found while building identifier scope (B14), each decided the narrow way and awaiting Eric:
+
+- **Where an object's `in` is read from.** "Nearest wins, seen from the occupant" cannot resolve the occupant's own `in`: with two shelves, `in shelf` is self-consistent from inside either. So what a file writes at its top level is read from inside the world, where what is in reach is what the world holds directly and the world's own name, and anything deeper is named by its path: `object key: Key in kiln.shelf`. Nearest-wins is the rule for names inside bodies, where exits (B28) and `send` (B32) will use it. The alternative was to accept a bare name wherever it is unique in the whole tree, which makes adding a second `shelf` anywhere break a line that did not change.
+- **Paths in `in`.** The spec shows a dotted path only on an exit (`-> bedroom.wardrobe`); `in` and `visitors arrive at` take one too, written without spaces around the dots, as `sprout.Ward` is.
+- **An `in` naming something that does not hold things.** Refused, by analogy with a `move` whose destination is not a container; the world always holds things.
+- **An object inside itself, and objects inside each other.** Neither is in What it refuses. Both are refused in either mode: a ring is refused once, at the first of its declarations in source order, as a kind cycle is, and what sits inside a ring is said nothing more about.
+- **The world's name.** Named only as a whole path (`in shop`), never as a step of one (`in shop.kiln`), and no object may take it.
+- **Two objects of one name.** Refused only in one container as resolved, at the second; in different containers they are fine, and a nearer one hides an outer one with no warning (the spec's only shadowing warning is for a world declaration hiding a library name).
+- **An object whose container is not there.** The absent table has no row for it. This compiler adds `container`: refused at publish; at load the object is absent — not in range, not listed, not addressable — and what it holds is unreachable until its container returns. Proposed as a row of the spec's table. An object whose kind is absent is still placed, so what it holds keeps its place, which is what the `kind-in-composition` row's "unreachable until the kind returns" needs.
+- **What the caps count, once objects are placed.** An object that did not place still counts toward `objects`, and toward `places` if its composed kind holds actors, since the caps count what an author wrote.
+- **Identifiers in a named kind's body.** A kind has no place in the tree, so a name inside its body has no vantage until an instance does; B28 and B32 decide how exits and sends inside a kind resolve.
+- **A binding and an object of one name.** Whether `let key = …` hides an object called `key` in reach, or is refused, is B23's and B32's.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

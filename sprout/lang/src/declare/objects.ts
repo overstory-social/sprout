@@ -1,15 +1,16 @@
 // An object, with what it is made of worked out (the spec's The world
 // model › Objects). An object names its kinds and its container, and a
 // body that follows declares an anonymous kind for that object alone,
-// composed by the same rules as any kind and named for the object. The
-// container is kept as written: resolving it to an object, and scoping
-// an object's name to its container, are B14's.
+// composed by the same rules as any kind and named for the object. Where
+// it sits is `tree.ts`'s; an object the bundle holds is one that both
+// composed and was placed.
 
-import type { Ident, ObjectDeclaration } from '../syntax/ast.js';
+import type { ObjectDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { EnumTable } from './enums.js';
 import type { KindRef } from './kinds.js';
 import { composeKind, type KindSource, type OnUnknown } from './compose.js';
+import type { ObjectTree, Placeable } from './tree.js';
 
 /** An object as the bundle holds it. */
 export interface ResolvedObject {
@@ -18,9 +19,17 @@ export interface ResolvedObject {
   readonly library: string;
   /** Its anonymous kind: what it composes and what its own body declares. */
   readonly kind: KindRef;
-  /** What holds it, as written. */
-  readonly container: Ident;
+  /** The names from the world down to it, itself last: `kiln.shelf`. */
+  readonly path: readonly string[];
+  /** What holds it, the same way; the world is the empty path. */
+  readonly container: readonly string[];
   readonly declaration: ObjectDeclaration;
+}
+
+/** An object declaration and its anonymous kind, or null where that could not be composed. */
+export interface ComposedObject extends Placeable {
+  readonly declaration: ObjectDeclaration;
+  readonly kind: KindRef | null;
 }
 
 export interface ObjectContext {
@@ -32,37 +41,50 @@ export interface ObjectContext {
 }
 
 /**
- * Resolve one library's objects. One whose kinds could not be composed
- * is left out, having been said: it is absent. Two of one name in one
- * container as written are refused at the second; two of one name in
- * different containers wait for B14, which scopes a name to its
- * container.
+ * Compose one library's objects, in the order declared. One whose kinds
+ * could not be composed has a null kind, having been said: it is absent,
+ * and still has a place for what it holds to sit in.
  */
 export function resolveObjects(
   library: string,
   declarations: readonly ObjectDeclaration[],
   context: ObjectContext,
-): ResolvedObject[] {
-  const resolved: ResolvedObject[] = [];
-  const seen = new Set<string>();
-  for (const declared of declarations) {
-    const name = declared.name.text;
-    const key = `${declared.container.text} ${name}`;
-    if (seen.has(key)) {
-      context.diagnostics.refuse(
-        declared.name.at,
-        `\`${declared.container.text}\` holds two objects called \`${name}\`.`,
-        'Give one of them another name, or remove it.',
-      );
-      continue;
-    }
-    seen.add(key);
-    const kind = composeKind(
-      { library, name, composes: declared.composes, members: declared.members },
+): ComposedObject[] {
+  return declarations.map((declaration) => ({
+    declaration,
+    kind: composeKind(
+      {
+        library,
+        name: declaration.name.text,
+        composes: declaration.composes,
+        members: declaration.members,
+      },
       context,
-    );
-    if (kind === null) continue;
-    resolved.push({ name, library, kind, container: declared.container, declaration: declared });
-  }
-  return resolved;
+    ),
+  }));
+}
+
+/** The objects that composed and were placed, in the order declared. */
+export function placedObjects(
+  library: string,
+  composed: readonly ComposedObject[],
+  tree: ObjectTree,
+): ResolvedObject[] {
+  const byDeclaration = new Map(
+    [...tree.placed.values()].map((placement) => [placement.declaration, placement]),
+  );
+  return composed.flatMap(({ declaration, kind }) => {
+    const placement = byDeclaration.get(declaration);
+    if (kind === null || placement === undefined) return [];
+    return [
+      {
+        name: declaration.name.text,
+        library,
+        kind,
+        path: placement.path,
+        container: placement.container,
+        declaration,
+      },
+    ];
+  });
 }

@@ -1,0 +1,7 @@
+// A container is named as it was declared.
+object hall: Room in container_unknown
+
+object bench: Chest in hal
+
+// What the bench would have held is not said about again.
+object cushion: Thing in hall.bench

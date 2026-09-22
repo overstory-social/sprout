@@ -1,0 +1,22 @@
+// Two rooms directly in the world. Anything written at the top of a file
+// is read from inside the world, so these are named by their names alone.
+object shop_floor: Room in tree
+object kiln: Room in tree
+
+// A key in each of two chests, and one in the room beside them: a name
+// belongs to what holds it, so none of them is in another's way.
+object red_chest: Chest in shop_floor
+object blue_chest: Chest in shop_floor
+object key: Thing in shop_floor
+object key: Thing in shop_floor.red_chest
+object key: Thing in shop_floor.blue_chest
+
+// Deeper than what the world holds, a container is named by its path.
+object shelf: Chest in kiln
+object pot: Chest in kiln.shelf
+object lid: Thing in kiln.shelf.pot
+
+// Written before what holds it: where a thing sits does not depend on
+// the order it was written in.
+object glaze: Thing in kiln.shelf.jar
+object jar: Chest in kiln.shelf

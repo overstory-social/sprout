@@ -8,7 +8,7 @@
 // left unset bounds nothing.
 
 import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
-import type { ResolvedObject } from '../declare/objects.js';
+import type { ComposedObject } from '../declare/objects.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import type { StaticCaps } from './limits.js';
@@ -19,8 +19,12 @@ export interface Countable {
   readonly kinds: readonly KindDeclaration[];
   /** The world's own objects, whether or not they could be composed. */
   readonly objects: readonly ObjectDeclaration[];
-  /** The world's objects that were composed; those that hold actors are its places. */
-  readonly composed: readonly ResolvedObject[];
+  /**
+   * The world's objects with their kinds, null where one could not be
+   * composed; those whose kind holds actors are its places, wherever they
+   * were placed.
+   */
+  readonly composed: readonly ComposedObject[];
 }
 
 /** How many of each a world has, as the bundle records them. */
@@ -38,7 +42,7 @@ export function countWorld(
 ): WorldCounts {
   // A place is whatever may hold people (the spec's Places), however its
   // kind came to say so.
-  const places = countable.composed.filter((object) => object.kind.containsActors);
+  const places = countable.composed.filter((object) => object.kind?.containsActors === true);
   const past = (
     spans: readonly Span[],
     cap: number | null,

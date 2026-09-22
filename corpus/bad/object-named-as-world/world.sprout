@@ -1,0 +1,4 @@
+world object_named_as_world: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}

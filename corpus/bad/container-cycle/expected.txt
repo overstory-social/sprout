@@ -1,0 +1,4 @@
+objects.sprout:4:29  `crate` is in `box`, which is in `crate`.
+                     Something cannot hold what holds it. Put one of them somewhere else.
+
+refused: 1 problem

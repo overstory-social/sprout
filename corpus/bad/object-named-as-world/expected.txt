@@ -1,0 +1,4 @@
+objects.sprout:4:8  `object_named_as_world` is the world's name, so no object can take it.
+                    Give the object another name.
+
+refused: 1 problem

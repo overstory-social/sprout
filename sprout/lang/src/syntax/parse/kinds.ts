@@ -3,13 +3,15 @@
 // Declaring and composing, The world model › Objects). What each composes
 // and its body are read by `bodies.ts`, as a world's are; which kinds
 // those name is resolved a tier later. A kind writes its braces; an
-// object's body is optional, and its container is not.
+// object's body is optional, and its container is not, which is a path
+// (`paths.ts`).
 
-import type { Ident, KindDeclaration, KindExpr, ObjectDeclaration } from '../ast.js';
+import type { KindDeclaration, KindExpr, ObjectDeclaration, ObjectPath } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import { body, composition, kindMembers } from './bodies.js';
+import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
 
 /** `kind Crate: sprout.Container { … }`, or with no colon, composing nothing. */
@@ -108,8 +110,8 @@ export function objectDeclaration(p: Parser): ObjectDeclaration | null {
   };
 }
 
-/** `in composing_room` — what holds an object, which every object says. */
-function containerOf(p: Parser, name: Token): Ident | null {
+/** `in composing_room`, `in kiln.shelf` — what holds an object, which every object says. */
+function containerOf(p: Parser, name: Token): ObjectPath | null {
   if (p.take('name', 'in') === null) {
     p.diagnostics.refuse(
       p.here(),
@@ -127,7 +129,7 @@ function containerOf(p: Parser, name: Token): Ident | null {
     );
     return null;
   }
-  return p.ident(held);
+  return objectPath(p, held);
 }
 
 /** A composed kind as the author wrote it, for a remedy that repeats it. */

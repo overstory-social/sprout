@@ -8,10 +8,11 @@
 // are out of range of one another until the world says so; `visitors
 // are` names the visitor kind, so `item.is(sprout.Actor)` is an ordinary
 // nominal test; and `contains actors` is what makes a place a place, the
-// world included if it says so. B14 resolves `visitors arrive at`, B32
-// reads the pass rules, and B42 handles arrival.
+// world included if it says so. `visitors arrive at` is kept as the
+// path written and is not yet resolved in the tree; B32 reads the pass
+// rules, and B42 handles arrival.
 
-import type { Ident, KindMember, WorldDeclaration } from '../syntax/ast.js';
+import type { KindMember, ObjectPath, WorldDeclaration } from '../syntax/ast.js';
 import type { KindRef } from './kinds.js';
 import { WORLD, writesWorld } from './sprout-world.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -37,12 +38,8 @@ export interface ResolvedWorld {
   readonly kind: KindRef;
   /** What a person is made of here. */
   readonly visitor: KindRef;
-  /**
-   * Where a person begins, as written. Resolving an identifier to an
-   * object is B14's, which has `containsActors` to ask whether what it
-   * resolved to is a place.
-   */
-  readonly arriveAt: Ident;
+  /** Where a person begins, as the path written. */
+  readonly arriveAt: ObjectPath;
   /** Whether anything crosses it. False until B32 reads a rule saying otherwise. */
   readonly passesAnything: boolean;
   readonly declaration: WorldDeclaration;
@@ -103,7 +100,7 @@ export function resolveWorld(
 
   // --- what it says about visitors --------------------------------------
   let visitor: KindRef | null = null;
-  let arriveAt: Ident | null = null;
+  let arriveAt: ObjectPath | null = null;
   let saidAre = false;
   let saidArrive = false;
   /** Whether the visitor kind failed to compose, which has been said already. */

@@ -9,3 +9,10 @@ kind Greeted {
 }
 
 object bell: Watched, Greeted in composing_room
+
+// Where the objects above sit.
+kind Room {
+  contains actors
+}
+
+object composing_room: Room in remembers_two_origins

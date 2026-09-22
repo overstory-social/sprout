@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
+import { writtenPath, type KindDeclaration, type WorldDeclaration } from '../syntax/ast.js';
 import { kindName, KindTable } from './kinds.js';
 import type { KindSource } from './compose.js';
 import { WORLD } from './sprout-world.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';
-import { SourceFile } from '../source/source.js';
+import { SourceFile, textOf } from '../source/source.js';
 import { checkWorldDeclaration, resolveWorld, WORLD_PASSES_ANYTHING } from './world.js';
 
 const ENUMS = (() => {
@@ -78,7 +78,7 @@ describe('a world is the root of the one tree', () => {
     expect(said).toEqual([]);
     expect(resolved!.name).toBe('printers_shop');
     expect(kindName(resolved!.visitor)).toBe('printers_shop.Creature');
-    expect(resolved!.arriveAt.text).toBe('composing_room');
+    expect(writtenPath(resolved!.arriveAt)).toBe('composing_room');
     expect([...resolved!.kind.properties.keys()]).toEqual(['season']);
   });
 
@@ -308,15 +308,19 @@ describe('a world says what a person is, and where they begin', () => {
   visitors arrive at first
   visitors arrive at second }`);
     expect(twiceAt.said.join(' ')).toContain('says twice where its visitors arrive');
-    expect(twiceAt.resolved!.arriveAt.text).toBe('first');
+    expect(writtenPath(twiceAt.resolved!.arriveAt)).toBe('first');
   });
 
-  it('keeps where they arrive as written, for B14 to resolve', () => {
-    // Identifier scope does not exist yet, and whether the thing named
-    // is a place is B14's. What is kept is the name and its span.
+  it('keeps where they arrive as the path written, with its span', () => {
+    // Resolving it in the tree, and asking whether it is a place, is
+    // not done here. What is kept is the path and where it was written.
     const { resolved } = world(SHOP);
-    expect(resolved!.arriveAt.text).toBe('composing_room');
-    expect(resolved!.arriveAt.kind).toBe('ident');
+    expect(resolved!.arriveAt.kind).toBe('path');
+    expect(resolved!.arriveAt.parts.map((part) => part.text)).toEqual(['composing_room']);
+    expect(textOf(resolved!.arriveAt.at)).toBe('composing_room');
+    const deeper = world(`world w: sprout.World { visitors are Creature
+  visitors arrive at house.bedroom.wardrobe }`);
+    expect(writtenPath(deeper.resolved!.arriveAt)).toBe('house.bedroom.wardrobe');
   });
 });
 

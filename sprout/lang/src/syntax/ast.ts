@@ -253,6 +253,24 @@ export interface LetStatement extends Node {
 // --- the world ------------------------------------------------------------
 
 /**
+ * `composing_room`, `kiln.shelf` — an object named by where it sits: a
+ * name, then the name of something inside it after each dot, written
+ * without spaces (the spec's Places inside places: `-> bedroom.wardrobe`).
+ * The span covers the whole path, and each part keeps its own, so a
+ * problem with one step points at that step.
+ */
+export interface ObjectPath extends Node {
+  readonly kind: 'path';
+  /** At least one, outermost first. */
+  readonly parts: readonly Ident[];
+}
+
+/** A path as the author wrote it: `kiln.shelf`. */
+export function writtenPath(path: ObjectPath): string {
+  return path.parts.map((part) => part.text).join('.');
+}
+
+/**
  * `visitors are Creature` — what a person is made of in this world.
  * The visitor kind is an ordinary kind, and `item.is(sprout.Actor)` is
  * an ordinary nominal test rather than a name the engine knows.
@@ -265,7 +283,7 @@ export interface VisitorsAre extends Node {
 /** `visitors arrive at composing_room` — where a person begins. */
 export interface VisitorsArriveAt extends Node {
   readonly kind: 'visitors-arrive-at';
-  readonly place: Ident;
+  readonly place: ObjectPath;
 }
 
 /**
@@ -397,14 +415,15 @@ export interface KindDeclaration extends Node {
  * naming its kinds and its container (the spec's The world model ›
  * Objects). A body may follow, which declares an anonymous kind for that
  * object alone; one that writes none has no members. The container is
- * the identifier as written: resolving it to an object is B14's, as for
- * a world's `visitors arrive at`.
+ * the path as written, read from inside the world: `in kiln` names
+ * something directly in it and `in kiln.shelf` something deeper
+ * (`declare/tree.ts` resolves it).
  */
 export interface ObjectDeclaration extends Node {
   readonly kind: 'object';
   readonly name: Ident;
   readonly composes: readonly KindExpr[];
-  readonly container: Ident;
+  readonly container: ObjectPath;
   readonly members: readonly KindMember[];
 }
 

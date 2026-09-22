@@ -32,7 +32,12 @@ function count(text: string, caps: Partial<StaticCaps> = {}) {
   const table = new KindTable();
   table.add('shop', kinds, read);
   table.resolve(enums, read);
-  const composed = resolveObjects('shop', objects, { enums, kinds: table, diagnostics: read });
+  const composed = resolveObjects('shop', objects, {
+    enums,
+    kinds: table,
+    diagnostics: read,
+    onUnknown: () => {},
+  });
   expect(read.refusals, 'the fixture composes').toEqual([]);
 
   const diagnostics = new Diagnostics();
@@ -55,6 +60,14 @@ describe('a world’s kinds, objects and places are counted', () => {
       DEFAULT_LIMITS.caps.places,
     ]).toEqual([null, null, null]);
     expect(count(SHOP).said).toEqual([]);
+  });
+
+  it('counts a place by its composed kind, wherever it was put, and not one whose kind is absent', () => {
+    // `nook` is in nothing anyone declared, and still declares a place;
+    // `shed` is made of a kind nobody declared, and so holds nothing yet.
+    expect(
+      count(`${SHOP}object nook: Room in nowhere\nobject shed: Room, Missing in shop\n`).counts,
+    ).toEqual({ kinds: 2, objects: 5, places: 3 });
   });
 
   it('within a cap that is exactly met', () => {
