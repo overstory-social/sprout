@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WorldDeclaration } from '../syntax/ast.js';
-import { kindName, WORLD, type KindLookup, type KindRef } from './kinds.js';
+import { kindName, type KindLookup, type KindRef } from './kinds.js';
+import { WORLD } from './sprout-world.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';

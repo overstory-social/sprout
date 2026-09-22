@@ -435,6 +435,19 @@ describe('what a composition list may not name', () => {
     ]);
   });
 
+  it('names a kind written twice as it was written, bare or qualified', () => {
+    // A bare name nothing declares resolves to the standard library's
+    // spelling, which the author never wrote and must not be shown.
+    const unknown = compose('kind Crate: Wodden, Wodden { }');
+    expect(unknown.unknown).toHaveLength(1);
+    expect(unknown.said).toEqual([
+      ['shop.sprout:1:21', '`Crate` composes `Wodden` twice.', 'Compose it once.'],
+    ]);
+    expect(compose('kind Crate: sprout.Container, sprout.Container { }').said).toEqual([
+      ['shop.sprout:1:31', '`Crate` composes `sprout.Container` twice.', 'Compose it once.'],
+    ]);
+  });
+
   it('says nothing more of a kind that failed, which has been said already', () => {
     const failed: KindSource = {
       ...NOTHING,

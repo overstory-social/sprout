@@ -17,6 +17,7 @@ export * from './syntax/parse.js';
 
 export * from './declare/types.js';
 export * from './declare/enums.js';
+export * from './declare/sprout-world.js';
 export * from './declare/kinds.js';
 export * from './declare/compose.js';
 export * from './declare/objects.js';

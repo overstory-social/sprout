@@ -12,7 +12,8 @@
 
 import type { Ident, WorldDeclaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from './kinds.js';
-import { kindName, WORLD, writesWorld } from './kinds.js';
+import { kindName } from './kinds.js';
+import { WORLD, writesWorld } from './sprout-world.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, type EnumTable } from './enums.js';
 import { resolveProperty, resolveRemembers, type ResolvedProperty } from './properties.js';

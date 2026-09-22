@@ -10,8 +10,6 @@ import {
   composesKind,
   KindTable,
   kindName,
-  WORLD,
-  writesWorld,
   type KindLookup,
   type KindRef,
 } from './kinds.js';
@@ -131,20 +129,6 @@ describe('what one kind or object declaration is refused for on its own', () => 
     expect(shape('kind Crate { contains }')).toEqual([]);
     expect(shape('kind Crate: sprout.Container { }')).toEqual([]);
     expect(shape('object bench: Bench in hall')).toEqual([]);
-  });
-
-  it('knows `sprout.World` by its library and its name, both written', () => {
-    const composed = (text: string) =>
-      parseDeclarations(new SourceFile('k.sprout', text), new Diagnostics())
-        .flatMap((d) => (d.kind === 'kind' ? d.composes : []))
-        .map(writesWorld);
-    expect(composed('kind A: sprout.World, World, sprout.Worlds, other.World { }')).toEqual([
-      true,
-      false,
-      false,
-      false,
-    ]);
-    expect(WORLD).toBe('sprout.World');
   });
 });
 

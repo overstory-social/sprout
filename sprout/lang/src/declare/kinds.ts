@@ -6,22 +6,12 @@
 // library and its name. What composing one means is `compose.ts`'s; the
 // table only walks the kinds in the order composing them needs.
 
-import type { KindDeclaration, KindExpr, ObjectDeclaration } from '../syntax/ast.js';
+import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import { composeKind, type Found, type KindSource, type OnUnknown } from './compose.js';
-
-/**
- * What every world composes, written with its library (the spec's The
- * world model). An unqualified `World` does not stand for it.
- */
-export const WORLD = `${SPROUT}.World`;
-
-/** Whether a kind as written is `sprout.World`, library and all. */
-export function writesWorld(written: KindExpr): boolean {
-  return written.library?.text === SPROUT && written.name.text === 'World';
-}
+import { refuseComposingWorld, writesWorld } from './sprout-world.js';
 
 /**
  * Refuse what one kind or object declaration gets wrong on its own: an
@@ -45,19 +35,6 @@ export function checkKindDeclaration(
   for (const written of declared.composes.filter(writesWorld)) {
     refuseComposingWorld(name, written, diagnostics);
   }
-}
-
-/** Refuse `sprout.World` in what `name`, a kind or an object, composes. */
-export function refuseComposingWorld(
-  name: string,
-  written: KindExpr,
-  diagnostics: Diagnostics,
-): void {
-  diagnostics.refuse(
-    written.at,
-    `\`${name}\` composes \`${WORLD}\`, which only a world may.`,
-    `Take it out of what \`${name}\` composes: it would make a thing into a world, and a bundle has one world, written \`world <name>: ${WORLD} { … }\`.`,
-  );
 }
 
 export interface KindRef {

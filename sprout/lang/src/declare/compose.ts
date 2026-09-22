@@ -14,7 +14,8 @@
 import type { KindExpr, KindMember, PropertyDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { nearestOption, qualifiedName, shownName, SPROUT, type EnumTable } from './enums.js';
-import { refuseComposingWorld, WORLD, writesWorld, type KindRef } from './kinds.js';
+import type { KindRef } from './kinds.js';
+import { refuseComposingWorld, WORLD, writesWorld } from './sprout-world.js';
 import {
   resolveProperty,
   restatementOf,
@@ -92,7 +93,7 @@ export function unknownKind(
     library === null ? [...kinds.named(from), ...kinds.named(SPROUT)] : kinds.named(library);
   const meant = nearestOption(name, nearby);
   const as = (bare: string): string => (library === null ? bare : `${library}.${bare}`);
-  const message = `Nothing here is a \`${as(name)}\`.`;
+  const message = `Nothing here is a \`${writtenKind(written)}\`.`;
   if (meant !== null) {
     return {
       message: `${message} Did you mean \`${as(meant)}\`?`,
@@ -109,6 +110,13 @@ export function unknownKind(
         ? `Declare it with \`kind ${name} { … }\`, or check the spelling of a kind this world or a library it uses declares.`
         : `Check the spelling, and that the world uses the library \`${library}\` and it declares \`${name}\`.`,
   };
+}
+
+/** A kind as the author wrote it: bare stays bare, qualified stays qualified. */
+function writtenKind(written: KindExpr): string {
+  return written.library === null
+    ? written.name.text
+    : qualifiedName(written.library.text, written.name.text);
 }
 
 interface Composed {
@@ -268,7 +276,7 @@ function composedKinds(composer: Composer, context: ComposeContext): Composed[] 
     if (named.has(identity)) {
       diagnostics.refuse(
         written.at,
-        `\`${composer.name}\` composes \`${shown(identity)}\` twice.`,
+        `\`${composer.name}\` composes \`${writtenKind(written)}\` twice.`,
         'Compose it once.',
       );
       continue;
