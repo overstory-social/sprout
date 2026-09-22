@@ -364,11 +364,15 @@ function identityType(
     return null;
   }
 
-  const isList = (type: BindingType) => type.binds === 'value' && type.type.type === 'list';
-  const listSide = isList(left) ? expr.left : isList(right) ? expr.right : null;
-  if (listSide !== null) {
+  if (
+    left.binds === 'value' &&
+    right.binds === 'value' &&
+    left.type.type === 'list' &&
+    right.type.type === 'list' &&
+    sameType(left.type, right.type)
+  ) {
     context.diagnostics.refuse(
-      listSide.at,
+      expr.left.at,
       `Two lists are not compared with \`${expr.operator}\`.`,
       'Ask what a list holds instead: `self.get(:opens).includes(:oak)`, or compare its `count`.',
     );

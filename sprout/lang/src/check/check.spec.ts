@@ -217,6 +217,30 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(shapeOf('tool.get(:opens).includes(:oak)', warded())).toBe('boolean');
   });
 
+  it('`a == b` — a list against something else is a type mismatch, not the list refusal', () => {
+    // The list-specific refusal is only for two lists of the same type;
+    // a list against anything else falls through to the ordinary
+    // "compares X with Y" mismatch, at the whole comparison.
+    const withInteger = read('self.get(:row) == 4', warded());
+    expect(withInteger.type).toBeNull();
+    expect(withInteger.said.join(' ')).toContain('This compares [Ward] with integer.');
+    expect(locationOf(withInteger.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:1');
+
+    const withObject = read('self.get(:row) == tool', warded());
+    expect(withObject.type).toBeNull();
+    expect(withObject.said.join(' ')).toContain('This compares [Ward] with shop.Key.');
+
+    const withString = read('self.get(:row) == self.get(:note)', warded());
+    expect(withString.type).toBeNull();
+    expect(withString.said.join(' ')).toContain('This compares [Ward] with string.');
+
+    // Exactly one refusal per comparison, not the list message too.
+    for (const result of [withInteger, withObject, withString]) {
+      expect(result.diagnostics.refusals).toHaveLength(1);
+      expect(result.said.join(' ')).not.toContain('Two lists are not compared');
+    }
+  });
+
   it('`a == b` — a symbol literal must be one of the operand’s options', () => {
     expect(shapeOf('self.get(:state) == :wet', warded())).toBe('boolean');
     const wrong = read('self.get(:state) == :slver', warded());
