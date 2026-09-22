@@ -281,6 +281,17 @@ Three parts of this item have nowhere to land yet, and are recorded so that the 
 - **`let x = spawn …`**, whose initializer is a statement rather than an expression, and which is allowed only where `spawn` is. B18 adds `spawn`; until then there is nothing to name that way, and `parseLet` reads an expression only.
 - **What a `let` costs.** *"One `let` costs fewer steps than the reads it replaces"* is a claim about the step budget, which B34 counts. Nothing here charges anything.
 
+Found while building the world root (B12):
+
+- **Whether a world must say what its visitors are and where they arrive.** Every example writes both, and the spec never says either is required. Both are refused when missing, on the reading that a world nobody can be made for, or nobody can be put anywhere in, is not a microworld — the host guarantees a nickname exists before the world ever sees a visitor, which presupposes there are visitors. Easy to loosen: a world with no `visitors are` would need a rule for what a person is made of instead, and one with no `visitors arrive at` would need `displaced` to cover a world that never said, which B42 currently reads as covering a place that has gone.
+- **Whether writing `sprout.World` explicitly is a collision.** Every world composes it whether it says so or not, and the spec does not say what happens when an author writes it anyway. It adds nothing and is not refused: composing a thing that is already composed is a statement of the truth, and refusing it would make the implicit rule visible in a way the author cannot act on.
+- **Whether the world's name and its namespace are the same word.** A world's own declarations are unqualified, and `enum Ward` inside `world printers_shop` resolves as `printers_shop.Ward` — but nothing states that the world's NAME is its library name. `resolveWorld` takes the library it is being read from as a parameter rather than deriving it from the declaration, so whichever way B21 settles it, this does not have to change.
+
+And two that are not holes, recorded because they read like them:
+
+- **`pass any (false)` is a default of the LANGUAGE, not of the host.** Every other default in this compiler is a number a host sets; this one is stated in the spec, so `WORLD_PASSES_ANYTHING` is a constant rather than a limit. It is what makes places out of range of one another, so B15 and B32 both read it rather than either of them deciding it.
+- **What a world holds is a property like any other.** `:season Season default autumn` on the world is resolved by B06's own resolver, and `:remembers` on the world is resolved by B06's, because the world is an object. Nothing about the root changes the rules for what it holds.
+
 Found while building strict publish and lenient load (B04):
 
 - **Which passage tells a visitor a world cannot admit them.** The absent table's row for a missing arrival place says the world "does not admit anyone, and says so", and — unlike the row above it, which names `displaced` — does not say through what. `displaced` is the obvious guess and the wrong one: "The place you were standing is gone" is not true of somebody who never stood anywhere. The row names no passage until this is answered. (The other two rows that tell somebody name passages the standard library declares: `displaced` and `missing`.)

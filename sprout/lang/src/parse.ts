@@ -32,6 +32,7 @@ import type {
   BinaryOperator,
   Declaration,
   Expr,
+  KindExpr,
   LetStatement,
   EnumDeclaration,
   EnumOption,
@@ -42,6 +43,8 @@ import type {
   RemembersDeclaration,
   TypeExpr,
   UnaryOperator,
+  WorldDeclaration,
+  WorldMember,
 } from './ast.js';
 import type { Diagnostics } from './diagnostics.js';
 import { Lexer, type Token, type TokenKind } from './lexer.js';
@@ -58,7 +61,7 @@ import { spanning, type SourceFile, type Span } from './source.js';
  * spec holds that this list and that message name the same words, in
  * both directions.
  */
-export const DECLARATIONS = ['enum', 'message'] as const;
+export const DECLARATIONS = ['enum', 'message', 'world'] as const;
 
 /**
  * The type names that are the language's own. They are read as types
@@ -158,6 +161,7 @@ class Parser {
     this.readers = new Map<string, () => Declaration | null>([
       ['enum', () => this.enumDeclaration()],
       ['message', () => this.messageDeclaration()],
+      ['world', () => this.worldDeclaration()],
     ]);
   }
 
@@ -759,6 +763,191 @@ class Parser {
     const parts = [value, min, max].filter((part) => part !== null);
     const end = parts.reduce((latest, part) => (part.at.end >= latest.at.end ? part : latest));
     return { kind: 'property', at: spanning(from, end.at), name, type, default: value, min, max };
+  }
+
+  // --- the world ------------------------------------------------------
+  //
+  // `world printers_shop: victorian.Voice { … }`. Its members grow one
+  // backlog item at a time, the same way declarations do, and the
+  // message for a word it does not read is built from the same table
+  // that reads them, so the two cannot drift.
+
+  /** What may be written inside a world, and what reads each one. */
+  private worldMembers(): ReadonlyMap<string, () => WorldMember | null> {
+    return new Map<string, () => WorldMember | null>([['visitors', () => this.visitors()]]);
+  }
+
+  private worldDeclaration(): WorldDeclaration | null {
+    const keyword = this.next();
+    const name = this.take('name');
+    if (name === null) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        'A world needs a name.',
+        'Write `world <name> { … }`, as in `world printers_shop { … }`.',
+      );
+      this.recover();
+      return null;
+    }
+
+    const composes: KindExpr[] = [];
+    if (this.take('punct', ':') !== null) {
+      for (;;) {
+        const composed = this.kindName();
+        if (composed === null) {
+          this.recover();
+          return null;
+        }
+        composes.push(composed);
+        if (this.take('punct', ',') === null) break;
+      }
+    }
+
+    const open = this.take('punct', '{');
+    if (open === null) {
+      this.diagnostics.refuse(
+        this.here(),
+        `\`${name.text}\` has nothing in it.`,
+        'A world is written `world <name> { … }`, holding what it is made of.',
+      );
+      this.recover();
+      return null;
+    }
+
+    const members: WorldMember[] = [];
+    const readers = this.worldMembers();
+    for (;;) {
+      const close = this.take('punct', '}');
+      if (close !== null) {
+        return {
+          kind: 'world',
+          at: spanning(keyword.at, close.at),
+          name: this.ident(name),
+          composes,
+          members,
+        };
+      }
+      if (this.done) {
+        this.diagnostics.refuse(
+          this.source.endSpan,
+          `\`${name.text}\` is never closed.`,
+          'Add a } after what the world is made of.',
+        );
+        return null;
+      }
+
+      // Whether a word IS a member and whether reading it SUCCEEDED are
+      // two questions, and answering them in one expression is how a
+      // member that failed gets reported as a word nobody knows.
+      const token = this.peek();
+      const read = this.worldMemberReader(token, readers);
+      if (read === null) {
+        this.diagnostics.refuse(
+          token.at,
+          `A world is not made of ${this.describe(token)}.`,
+          `It holds its properties, and ${readable([...readers.keys()])}.`,
+        );
+      }
+      const member = read === null ? null : read();
+      if (member === null) {
+        if (!this.recoverInBraces()) {
+          this.diagnostics.refuse(
+            this.done ? this.source.endSpan : this.peek().at,
+            `\`${name.text}\` is never closed.`,
+            'Add a } after what the world is made of.',
+          );
+        }
+        return null;
+      }
+      members.push(member);
+    }
+  }
+
+  /** What reads the member a word begins, or null where it begins none. */
+  private worldMemberReader(
+    token: Token,
+    readers: ReadonlyMap<string, () => WorldMember | null>,
+  ): (() => WorldMember | null) | null {
+    // A property is written with its colon, and `:remembers` is the one
+    // symbol that is not one.
+    if (token.kind === 'symbol') {
+      return token.text === 'remembers' ? () => this.remembers() : () => this.property();
+    }
+    return token.kind === 'name' ? (readers.get(token.text) ?? null) : null;
+  }
+
+  /** `visitors are Creature`, `visitors arrive at composing_room`. */
+  private visitors(): WorldMember | null {
+    const keyword = this.next();
+    if (this.take('name', 'are') !== null) {
+      const visitor = this.kindName();
+      if (visitor === null) return null;
+      return { kind: 'visitors-are', at: spanning(keyword.at, visitor.at), visitor };
+    }
+    if (this.take('name', 'arrive') !== null) {
+      if (this.take('name', 'at') === null) {
+        this.diagnostics.refuse(
+          this.peek().at,
+          'A world says where visitors arrive AT.',
+          'Write `visitors arrive at <name>`, naming the place they begin in.',
+        );
+        return null;
+      }
+      const place = this.take('name');
+      if (place === null) {
+        this.diagnostics.refuse(
+          this.peek().at,
+          'A world says where visitors arrive.',
+          'Write `visitors arrive at <name>`, naming the place they begin in.',
+        );
+        return null;
+      }
+      return {
+        kind: 'visitors-arrive-at',
+        at: spanning(keyword.at, place.at),
+        place: this.ident(place),
+      };
+    }
+    this.diagnostics.refuse(
+      this.peek().at,
+      'A world says two things about visitors: what they are, and where they arrive.',
+      'Write `visitors are <Kind>` or `visitors arrive at <name>`.',
+    );
+    return null;
+  }
+
+  /** `Key` or `sprout.Container` — a kind as written, wherever one is written. */
+  private kindName(): KindExpr | null {
+    const first = this.peek();
+    if (first.kind === 'kind') {
+      this.next();
+      return { kind: 'kind-expr', at: first.at, library: null, name: this.ident(first) };
+    }
+    if (first.kind === 'name' && this.peek(1).kind === 'punct' && this.peek(1).text === '.') {
+      const library = this.next();
+      this.next();
+      const named = this.take('kind');
+      if (named !== null) {
+        return {
+          kind: 'kind-expr',
+          at: spanning(library.at, named.at),
+          library: this.ident(library),
+          name: this.ident(named),
+        };
+      }
+      this.diagnostics.refuse(
+        this.peek().at,
+        `\`${library.text}.\` is not followed by the name of a kind.`,
+        'A kind starts with a capital letter, as in `sprout.Container`.',
+      );
+      return null;
+    }
+    this.diagnostics.refuse(
+      first.at,
+      `${this.describe(first)} is not the name of a kind.`,
+      'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
+    );
+    return null;
   }
 
   /** `:wear 0 min 0 max 99` — a property as a kind or an object writes one. */

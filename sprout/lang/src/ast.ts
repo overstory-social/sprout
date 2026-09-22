@@ -169,7 +169,12 @@ export interface SymbolExpr extends Node {
   readonly name: Ident;
 }
 
-/** `Key`, `sprout.Container` — a kind, which `is()` and `count()` take. */
+/**
+ * `Key`, `sprout.Container` — a kind as written, wherever one is
+ * written: what `is()` and `count()` take, and what a world or an
+ * object composes. One node rather than one per place, because three
+ * spellings of a library and a name is three things to keep in step.
+ */
 export interface KindExpr extends Node {
   readonly kind: 'kind-expr';
   readonly library: Ident | null;
@@ -244,5 +249,46 @@ export interface LetStatement extends Node {
   readonly value: Expr;
 }
 
+// --- the world ------------------------------------------------------------
+
+/**
+ * `visitors are Creature` — what a person is made of in this world.
+ * The visitor kind is an ordinary kind, and `item.is(sprout.Actor)` is
+ * an ordinary nominal test rather than a name the engine knows.
+ */
+export interface VisitorsAre extends Node {
+  readonly kind: 'visitors-are';
+  readonly visitor: KindExpr;
+}
+
+/** `visitors arrive at composing_room` — where a person begins. */
+export interface VisitorsArriveAt extends Node {
+  readonly kind: 'visitors-arrive-at';
+  readonly place: Ident;
+}
+
+/** What may be written inside a world. The union grows one item at a time. */
+export type WorldMember =
+  PropertyDeclaration | RemembersDeclaration | VisitorsAre | VisitorsArriveAt;
+
+/**
+ * `world printers_shop { … }` — the root of the one tree. The only
+ * object with no container, the only one that cannot move, and the only
+ * one that can be neither spawned nor destroyed.
+ *
+ * Every world composes `sprout.World`, which carries the words the
+ * engine speaks for itself, and it may compose more:
+ * `world printers_shop: victorian.Voice { … }` is how a library of
+ * stock lines in another register is installed. The implicit one is not
+ * in `composes` — that is what was WRITTEN, and `world.ts` adds the
+ * rest, so a diagnostic about a written kind can point at it.
+ */
+export interface WorldDeclaration extends Node {
+  readonly kind: 'world';
+  readonly name: Ident;
+  readonly composes: readonly KindExpr[];
+  readonly members: readonly WorldMember[];
+}
+
 /** Everything that can be written at the top of a file. The union grows per item. */
-export type Declaration = EnumDeclaration | MessageDeclaration;
+export type Declaration = EnumDeclaration | MessageDeclaration | WorldDeclaration;
