@@ -1,4 +1,7 @@
+sprout.json:2:3   This world has no `world` declaration.
+                  Write one, in one of its files: `world <name>: sprout.World { … }`.
+
 world.sprout:5:1  `:season` has a type and no value to start at.
                   Every instance starts at a default: write `default` and the value.
 
-refused: 1 problem
+refused: 2 problems

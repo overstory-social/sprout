@@ -1,4 +1,7 @@
 kinds.sprout:7:146  This is nested too deep to read.
                     Take some of the brackets out.
 
-refused: 1 problem
+sprout.json:2:3     This world has no `world` declaration.
+                    Write one, in one of its files: `world <name>: sprout.World { … }`.
+
+refused: 2 problems

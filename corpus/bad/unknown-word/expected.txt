@@ -1,4 +1,7 @@
+sprout.json:2:3   This world has no `world` declaration.
+                  Write one, in one of its files: `world <name>: sprout.World { … }`.
+
 world.sprout:1:1  Sprout does not know what to do with "room" here.
                   A file holds declarations, and this compiler reads `enum`, `message` and `world`.
 
-refused: 1 problem
+refused: 2 problems

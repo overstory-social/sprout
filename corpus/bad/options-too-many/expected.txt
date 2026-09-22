@@ -1,4 +1,7 @@
 kinds.sprout:12:3  `Many` has 101 options, and 100 is as many as it may have.
                    Take some out, or split `Many` into two enums.
 
-refused: 1 problem
+sprout.json:2:3    This world has no `world` declaration.
+                   Write one, in one of its files: `world <name>: sprout.World { … }`.
+
+refused: 2 problems

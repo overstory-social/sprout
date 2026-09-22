@@ -23,7 +23,27 @@ describe('checkWorld', () => {
   });
 
   it('refuses a broken file by file, line and column, as a page and as JSON', () => {
-    const dir = worldWith({ 'world.sprout': 'world w {\n  visitors are 42\n}\n' });
+    // A second, clean file carries the `world` declaration the manifest
+    // needs, so the only refusal in this fixture is the broken one this
+    // test is about.
+    const dir = worldWith({
+      'world.sprout': 'world w {\n  visitors are 42\n}\n',
+      'root.sprout': 'world w: sprout.World {}\n',
+      'sprout.json': `${JSON.stringify(
+        {
+          name: 'w',
+          version: '0.1.0',
+          author: 'marta',
+          license: 'MIT',
+          level: 1,
+          extensions: [],
+          libraries: [],
+          files: ['world.sprout', 'root.sprout'],
+        },
+        null,
+        2,
+      )}\n`,
+    });
     const result = checkWorld(dir);
     expect(result.ok).toBe(false);
     expect(result.bundle).toBeNull();
