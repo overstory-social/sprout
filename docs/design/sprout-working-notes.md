@@ -203,6 +203,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
 - **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
+- **A block comment that is never closed, and one inside another.** Lexical rules say what a comment is and nothing about either. An unclosed `/*` is refused at its opening and the rest of the file is comment; block comments do not nest, so the first `*/` closes one whatever it holds.
 - Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.

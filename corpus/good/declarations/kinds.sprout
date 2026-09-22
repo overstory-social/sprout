@@ -5,3 +5,7 @@ enum Drying { wet, touch_dry, cured }
 message :stir
 message :illuminating with boolean
 message :ward_seen with Ward
+
+/* A comment may run
+   across lines, and sit between declarations. */
+message :ward_seen_again with Ward // and beside one

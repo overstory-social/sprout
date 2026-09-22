@@ -1,0 +1,4 @@
+/* The wards a key may open. */
+enum Ward { oak, silver }
+/* The drying stages, wet first
+enum Drying { wet, touch_dry, cured }
