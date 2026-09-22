@@ -47,7 +47,7 @@ And it is not the whole system. Accounts, moderation, storage, scheduling, prese
 A microworld is one tree. At its root is the **world**; everything else is an object inside it, and an object that declares `contains` may hold others.
 
 ```sprout
-world printers_shop {
+world printers_shop: sprout.World {
   contains
   visitors are Creature
   visitors arrive at composing_room
@@ -57,7 +57,7 @@ world printers_shop {
 
 The world is the only object with no container, the only one that cannot move, and the only one that can be neither spawned nor destroyed. It holds what belongs to no single place, and — because a broadcast travels outward as well as inward — it is the only route by which one place can hear another. Its pass rule is `pass any (false)` unless it says otherwise, so nothing crosses between places unless the world says it may.
 
-Every world composes `sprout.World`, which carries the words the engine speaks for itself. It is never written: on a world it would say nothing new, and on anything else it would make a place into a world, so writing it anywhere is a refusal. A world may compose more — `world printers_shop: victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed.
+Every world composes `sprout.World`, which carries the words the engine speaks for itself, and writes so: `world printers_shop: sprout.World { … }`. A world that leaves it out is refused, and anything but a world that composes it is refused, because it would make a place into a world. A world composes like a kind, so it may compose more beside it — `world printers_shop: sprout.World, victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed. Being explicit here is deliberate: a later level may make `sprout.World` implicit, and a level can relax a requirement it stated; it can never add one to worlds already accepted.
 
 That is the whole shape. The containment tree is the one piece of state no object owns, which is why moving through it takes a protocol and nothing else does.
 
@@ -123,7 +123,7 @@ Range is a walk. It is bounded by the pass rules that stop it and charged to the
 An **actor** is an object that can act: it holds things, it has a place, and it can perform verbs. A world says what its actors are made of:
 
 ```sprout
-world tag_yard {
+world tag_yard: sprout.World {
   contains
   visitors are Player
   visitors arrive at yard
@@ -1509,6 +1509,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A comparison between different types, a symbol that is not one of its enum's options, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
+- A world that does not compose `sprout.World`; anything but a world composing it.
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose the visitor kind.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
@@ -1546,7 +1547,7 @@ A bundle: the manifest it was compiled from, the definitions, the world's comple
 
 A level is how the language changes without breaking what already runs. Each part declares the level it needs — the manifest for the world, and each vendored library beside its source — and a declared level is a request, as a package asking for a version of its runtime is: nothing checks that a part uses what it asked for, and a world may ask for a level higher than it needs. A bundle's level is the highest of any of its parts, and a compiler refuses a bundle whose level it does not understand. A world accepted at one level keeps loading when the language tightens: refusals introduced later apply as warnings to it, not as errors — and the level it was accepted at is the bundle's, not the one its manifest asked for.
 
-The language starts at level 1, and nothing here is shaped by compatibility with anything built before it.
+The language starts at level 1, and nothing here is shaped by compatibility with anything built before it. Level 1 is explicit wherever it could have defaulted — `sprout.World` is written, a default is written, a type is written where a literal could not name it — because a later level can relax a requirement it stated and can never add one to worlds already accepted.
 
 ### The generated skill
 
@@ -1837,7 +1838,7 @@ That is the whole of it for this world. Things are carryable unless they say oth
 ### `world.sprout`
 
 ```sprout
-world printers_shop {
+world printers_shop: sprout.World {
   contains
   visitors are Creature
   visitors arrive at composing_room
