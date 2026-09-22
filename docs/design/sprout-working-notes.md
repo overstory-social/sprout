@@ -203,7 +203,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
 - **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
-- Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it; `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
+- Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
@@ -216,7 +216,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - Two lists are not compared with `==`; set and ordered equality are a later level's, and the runtime's `equals` goes.
 - There is no nesting cap. The parser still has to bound its own recursion, and whatever it does about that is the compiler's own affair rather than a host limit.
 - `chance(n)` is one in n and `random(n)` is 0 to n − 1.
-- Writing `sprout.World` anywhere is a refusal, on a world included.
+- `sprout.World` is written on every world (`world w: sprout.World { … }`), refused when missing, and refused on anything but a world. Eric restated this on 2026-09-22 after first deciding the opposite: level 1 is explicit wherever it could have defaulted, since a later level can relax a requirement and never add one.
 - The manifest has an optional `namespace`, falling back to `name`, and the `world` declaration repeats `name`.
 - A static cap exceeded at load refuses the world, unless the host has recorded an exception for it.
 - Spawns per world per hour is gone; live instances per world is the host's storage decision, faulting a `spawn` when it is reached, rather than a figure in the table.
