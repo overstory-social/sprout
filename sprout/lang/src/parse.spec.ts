@@ -7,6 +7,7 @@ import {
   DECLARATIONS,
   parseDeclarations,
   parseExpression,
+  parseLet,
   parseProperty,
   parseRemembers,
 } from './parse.js';
@@ -1090,11 +1091,293 @@ function readExpressionOf(text: string) {
   return { refusals: diagnostics.refusals };
 }
 
+/** One property declaration, with whatever caps the host set. */
+function readProperty(text: string, caps = DEFAULT_LIMITS.caps) {
+  const diagnostics = new Diagnostics();
+  const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics, caps);
+  return { declared, diagnostics, refusals: diagnostics.refusals };
+}
+
 function readExpression(text: string, caps = DEFAULT_LIMITS.caps) {
   const diagnostics = new Diagnostics();
   const expr = parseExpression(new SourceFile('body.sprout', text), diagnostics, caps);
   return { expr, shape: shape(expr), diagnostics, refusals: diagnostics.refusals };
 }
+
+describe('a list is bounded by what the host allows', () => {
+  const allowed = DEFAULT_LIMITS.caps.listElements;
+  const list = (many: number) =>
+    `:x [Ward] default [${Array.from({ length: many }, (_, i) => `e${i}`).join(', ')}]`;
+
+  it('reads a list up to the cap, and refuses one past it', () => {
+    expect(readProperty(list(allowed)).declared).not.toBeNull();
+    expect(readProperty(list(allowed + 1)).declared).toBeNull();
+  });
+
+  it('refuses rather than keeping the first few, because a silent drop is the one thing it must not be', () => {
+    const { declared, refusals } = readProperty(list(allowed + 4));
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toContain(`A list holds at most ${allowed} things.`);
+  });
+
+  it('points at the element that breaks it, not at the list', () => {
+    // The span, not only the words: a report that moved to the opening
+    // bracket used to pass every test here.
+    const { refusals } = readProperty(list(allowed + 1));
+    const cap = refusals.find((d) => d.message.startsWith('A list holds at most'))!;
+    expect(textOf(cap.at)).toBe(`e${allowed}`);
+  });
+
+  it('is counted per list, so two over-cap lists are two reports', () => {
+    // `overCap` is a local, where the nesting cap two lines above it is
+    // a field reset once per declaration. Copying that shape here would
+    // report the first list and drop the second in silence, which is
+    // the one thing a full list must never do.
+    const caps = { ...DEFAULT_LIMITS.caps, listElements: 3 };
+    const diagnostics = new Diagnostics();
+    parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: [1, 2, 3, 4], b: [5, 6, 7, 8]]'),
+      diagnostics,
+      caps,
+    );
+    expect(
+      diagnostics.refusals.filter((d) => d.message.startsWith('A list holds at most')),
+    ).toHaveLength(2);
+  });
+
+  it('says it once, and still says what else is wrong inside', () => {
+    const over = `:x [Ward] default [${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
+    const said = readProperty(over).refusals.map((d) => d.message);
+    expect(said.filter((m) => m.startsWith('A list holds at most'))).toHaveLength(1);
+    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
+  });
+
+  it('takes the bound from the host rather than a number of its own', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, listElements: 2 };
+    expect(readProperty(list(2), caps).declared).not.toBeNull();
+    const { declared, refusals } = readProperty(list(3), caps);
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toContain('A list holds at most 2 things.');
+  });
+});
+
+describe('a `min` and a `max` are whole numbers', () => {
+  it('says so for anything written there that is not one', () => {
+    for (const [text, said] of [
+      [':x integer default 0 min [1, 2]', 'A min is a whole number.'],
+      [':x integer default 0 max [1, 2]', 'A max is a whole number.'],
+      [':x integer default 0 min oak', 'A min is a whole number.'],
+      [':x integer default 0 max "9"', 'A max is a whole number.'],
+      [':x integer default 0 min true', 'A min is a whole number.'],
+    ] as const) {
+      const { declared, refusals } = readProperty(text);
+      expect(declared, text).toBeNull();
+      expect(
+        refusals.map((d) => d.message),
+        text,
+      ).toContain(said);
+    }
+  });
+
+  it('still reads the bounds it should, including a negative one', () => {
+    expect(readProperty(':x integer default 0 min -3 max 9').declared).toMatchObject({
+      min: { value: -3 },
+      max: { value: 9 },
+    });
+  });
+
+  it('leaves what is wrong INSIDE a bound to whatever knows about it', () => {
+    // A bound is read by reading a value and complaining about its
+    // shape. That means a bound whose own contents are wrong reports
+    // the contents rather than the bound — `min 1.5` says there are no
+    // fractions, and a list too long for the cap says so. The first is
+    // better than "a min is a whole number"; the second is worse, and
+    // #67 carries it.
+    //
+    // Three attempts at deciding this by looking before reading each
+    // broke an input beside the one they fixed, because a reader that
+    // has not consumed anything cannot tell a stray closing bracket
+    // from the one its own caller is waiting for. This is the shape
+    // that loses nothing.
+    expect(readProperty(':x integer default 0 min 1.5').refusals.map((d) => d.message)).toEqual([
+      'Sprout has no fractions.',
+    ]);
+    expect(readProperty(':x integer default 0 min -').refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+    ]);
+  });
+
+  it('never loses the entry written after a bad bound in silence', () => {
+    // The whole reason the machinery that used to sit here is gone.
+    // Every shape either keeps `walks` or names it; none drops it
+    // without saying so.
+    for (const bad of ['[1, 2]', '[[1]]', 'oak', '"9"', 'true', 'Ward', ':wet', 'max 9', '1.5']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
+        diagnostics,
+      );
+      const kept = remembered?.properties.map((p) => p.name.text) ?? [];
+      const said = diagnostics.refusals.map((d) => d.message).join(' ');
+      expect(kept.includes('walks') || said.includes('walks'), `${bad}: walks vanished`).toBe(true);
+      expect(diagnostics.refusals.length, bad).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps what was read before a bad bound, whatever the bound was', () => {
+    for (const bad of [']', 'oak', '[1, 2]', '}']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [handled: false, visits: 0 min ${bad}]`),
+        diagnostics,
+      );
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        bad,
+      ).toEqual(['handled']);
+    }
+  });
+});
+
+describe('#66 — a defect in one item never loses a well-formed neighbour in silence', () => {
+  // Eight times across #58, #59/#60, #62 and #65, a change to this
+  // parser lost an item the author wrote correctly, and said nothing
+  // about it. Every one was found by a reviewer running the parser;
+  // none by this suite, because none of its invariants was ABOUT that.
+  // The generator asserts no-throw, no-repeat and determinism, and a
+  // parser that drops an entry and says one true thing passes all
+  // three.
+  //
+  // This is the missing one. It needs no knowledge of what the defect
+  // was: the shapes are built here, so what was well formed is known.
+  //
+  // Every defect is SELF-CONTAINED — balanced brackets, and not a bare
+  // closer. An unclosed bracket really does swallow what follows it,
+  // and a bare `]` really does end the construct; in both cases what
+  // comes after is not a sibling, and blaming the parser for it would
+  // be the suite lying rather than the parser.
+  const ENTRY_DEFECTS = [
+    'Zeta: 0',
+    '4: 0',
+    'b 1',
+    'b: Zeta',
+    'b: 1.5',
+    'b: %',
+    'b: :wet',
+    'b:',
+    ': 0',
+    'b: {}',
+    'b: [oak silver]',
+    'b: 0 min [1, 2]',
+    'b: 0 min oak',
+    'b: 0 min max 9',
+    'b: 0 min 0 min 1',
+    'b: 0 max 1.5',
+    'b: 0 min',
+    'b: [[[[[[[[[[oak]]]]]]]]]]',
+    `b: [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,
+    // NOT here, and named rather than quietly left out: `b: 0 min -[1]`
+    // loses the entry after it. That is #67, it is the behaviour on
+    // main, and three attempts to fix it in #65 each broke something
+    // else. It goes in when #67 does.
+  ];
+
+  // Not `enum`: nothing reserves an option's name, so `[oak, enum]`
+  // is a list of two options and there is nothing wrong with it. The
+  // check that every shape here really is a defect caught that, which
+  // is the second time this suite has had to be told the same thing.
+  const ELEMENT_DEFECTS = ['Zeta', '1.5', '%', ':a', '{', '}', '[[[[[[[[[[oak]]]]]]]]]]'];
+  const DECLARATION_DEFECTS = [
+    'enum',
+    'enum {',
+    'message',
+    'enum Ward {',
+    'message :a with [[[[[[[[[[Ward]]]]]]]]]]',
+    '%',
+    'enum Ward { oak oak }',
+  ];
+
+  /** Every well-formed thing is kept, or named in something said. */
+  function nothingVanishes(what: string, kept: readonly string[], said: string, good: string[]) {
+    for (const name of good) {
+      expect(kept.includes(name) || said.includes(name), `${what}: \`${name}\` vanished`).toBe(
+        true,
+      );
+    }
+  }
+
+  it('over a `:remembers`, whichever side of the defect the good entries are', () => {
+    let checked = 0;
+    for (const defect of ENTRY_DEFECTS) {
+      for (const [text, good] of [
+        [`:remembers [alpha: 0, ${defect}]`, ['alpha']],
+        [`:remembers [${defect}, omega: 1]`, ['omega']],
+        [`:remembers [alpha: 0, ${defect}, omega: 1]`, ['alpha', 'omega']],
+      ] as const) {
+        checked += 1;
+        const diagnostics = new Diagnostics();
+        const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
+        const said = diagnostics.all.map((d) => d.message).join(' ');
+        nothingVanishes(text, remembered?.properties.map((p) => p.name.text) ?? [], said, [
+          ...good,
+        ]);
+        // And it is a defect at all — the net is worth nothing if the
+        // shapes it walks are well formed.
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+    expect(checked).toBe(ENTRY_DEFECTS.length * 3);
+  });
+
+  it('over a list literal', () => {
+    for (const defect of ELEMENT_DEFECTS) {
+      for (const [text, good] of [
+        [`:x [Ward] default [oak, ${defect}]`, ['oak']],
+        [`:x [Ward] default [${defect}, silver]`, ['silver']],
+        [`:x [Ward] default [oak, ${defect}, silver]`, ['oak', 'silver']],
+      ] as const) {
+        const diagnostics = new Diagnostics();
+        const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        const written =
+          declared?.default?.kind === 'list-literal'
+            ? declared.default.elements.map((e) =>
+                e.kind === 'option-literal' ? e.name.text : String(e.kind),
+              )
+            : [];
+        const said = diagnostics.all.map((d) => d.message).join(' ');
+        nothingVanishes(text, written, said, [...good]);
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+  });
+
+  it('over the declarations of a whole file', () => {
+    for (const defect of DECLARATION_DEFECTS) {
+      for (const [text, good] of [
+        [`enum Alpha { x }\n${defect}\n`, ['Alpha']],
+        [`${defect}\nenum Omega { y }\n`, ['Omega']],
+        [`enum Alpha { x }\n${defect}\nenum Omega { y }\n`, ['Alpha', 'Omega']],
+      ] as const) {
+        const diagnostics = new Diagnostics();
+        const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
+        const said = diagnostics.all.map((d) => d.message).join(' ');
+        nothingVanishes(
+          text,
+          declared.map((d) => d.name.text),
+          said,
+          [...good],
+        );
+        expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+  });
+});
 
 describe('an expression', () => {
   it('reads every expression the spec writes', () => {
@@ -1387,6 +1670,65 @@ message :b with ${deep}Ward
         () => parseExpression(new SourceFile('body.sprout', text), new Diagnostics()),
         text.slice(0, 16),
       ).not.toThrow();
+    }
+  });
+});
+
+// --- `let` (B11) ----------------------------------------------------------
+
+function readLet(text: string) {
+  const diagnostics = new Diagnostics();
+  const statement = parseLet(new SourceFile('body.sprout', text), diagnostics);
+  return { statement, diagnostics, refusals: diagnostics.refusals };
+}
+
+describe('`let` names the result of an expression', () => {
+  it('reads the spec’s own two', () => {
+    const ribs = readLet('let ribs  = tools.count(Rib)');
+    expect(ribs.refusals).toEqual([]);
+    expect(ribs.statement!.name.text).toBe('ribs');
+    expect(shape(ribs.statement!.value)).toBe('tools.count(Rib)');
+
+    const state = readLet('let state = self.get(:state)');
+    expect(state.statement!.name.text).toBe('state');
+    expect(shape(state.statement!.value)).toBe('self.get(:state)');
+  });
+
+  it('spans from the keyword to the end of what it names', () => {
+    const { statement } = readLet('let ribs = tools.count(Rib)');
+    expect(textOf(statement!.at)).toBe('let ribs = tools.count(Rib)');
+    expect(locationOf(statement!.name.at)).toBe('body.sprout:1:5');
+  });
+
+  it('names a whole expression, not only a simple one', () => {
+    expect(
+      shape(readLet('let ready = self.get(:wear) >= 99 && !self.get(:lit)').statement!.value),
+    ).toBe('((self.get(:wear) >= 99) && (!self.get(:lit)))');
+  });
+
+  it('takes no type, because it takes the expression’s exactly', () => {
+    const { statement, refusals } = readLet('let n: integer = 1');
+    expect(statement).toBeNull();
+    expect(refusals[0]!.message).toContain('takes its type from what it names');
+    expect(refusals[0]!.remedy).toContain('let n = ');
+  });
+
+  it('says what is wrong with one that is not written out', () => {
+    const table: [string, string][] = [
+      ['let', 'A `let` needs a name.'],
+      ['let =', 'A `let` needs a name.'],
+      ['let 4 = 1', 'A `let` needs a name.'],
+      ['let Ward = 1', 'starts with a capital'],
+      ['let x', 'is not given anything to name'],
+      ['let x = ', 'the end of the file is not something to read'],
+      ['ribs = 1', 'does not name a value'],
+    ];
+    for (const [text, said] of table) {
+      const { statement, refusals } = readLet(text);
+      expect(statement, text).toBeNull();
+      expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of refusals)
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
     }
   });
 });

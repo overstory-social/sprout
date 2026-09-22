@@ -32,6 +32,7 @@ import type {
   BinaryOperator,
   Declaration,
   Expr,
+  LetStatement,
   EnumDeclaration,
   EnumOption,
   Ident,
@@ -630,9 +631,16 @@ class Parser {
   private listLiteral(open: Token): Literal | null {
     const elements: Literal[] = [];
     let missingComma: Span | null = null;
+    // Said once, at the element that breaks it, and then read on: the
+    // cap is one fact about one list, and an author whose list is two
+    // too long is still owed whatever else is wrong inside it. The
+    // declaration is refused at the end rather than truncated, because
+    // a silent drop is the one thing a full list must never be.
+    let overCap = false;
     for (;;) {
       const close = this.take('punct', ']');
       if (close !== null) {
+        if (overCap) return null;
         return { kind: 'list-literal', at: spanning(open.at, close.at), elements };
       }
       if (this.done) {
@@ -670,7 +678,18 @@ class Parser {
         );
         missingComma = null;
       }
-      elements.push(element);
+      if (elements.length >= this.caps.listElements) {
+        if (!overCap) {
+          this.diagnostics.refuse(
+            element.at,
+            `A list holds at most ${this.caps.listElements} things.`,
+            'Take some out, or hold them somewhere that is not a list.',
+          );
+          overCap = true;
+        }
+      } else {
+        elements.push(element);
+      }
       if (this.separator(']') === 'missing') missingComma = this.here();
     }
   }
@@ -706,6 +725,13 @@ class Parser {
       const which = this.at('name', 'min') ? 'min' : this.at('name', 'max') ? 'max' : null;
       if (which === null) break;
       const word = this.next();
+      // Read whatever was written and complain about its shape, which
+      // is what this did before #65 tried to be cleverer. Three
+      // attempts at peeking first — refuse, then step over what was
+      // written — each broke an input beside the one it fixed, because
+      // a reader that has not consumed anything cannot tell a stray
+      // closing bracket from the one its own caller is waiting for.
+      // The message that suffers for it is recorded in #67.
       const bound = this.literal();
       if (bound === null) return null;
       if (bound.kind !== 'integer') {
@@ -1123,6 +1149,53 @@ class Parser {
     }
   }
 
+  /**
+   * `let ribs = tools.count(Rib)`. The name is lower-case like every
+   * other binding, and there is no type to write: a `let` takes its
+   * type from what it names, exactly.
+   */
+  letStatement(): LetStatement | null {
+    const keyword = this.take('name', 'let');
+    if (keyword === null) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        `${this.describe(this.peek())} does not name a value.`,
+        'Write `let <name> = <what it names>`.',
+      );
+      return null;
+    }
+    const name = this.take('name');
+    if (name === null) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        this.peek().kind === 'kind'
+          ? `A name for a value starts with a small letter, and \`${this.peek().text}\` starts with a capital.`
+          : 'A `let` needs a name.',
+        'Write `let <name> = <what it names>`, as in `let ribs = tools.count(Rib)`.',
+      );
+      return null;
+    }
+    if (this.at('punct', ':')) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        'A `let` takes its type from what it names, so there is none to write.',
+        `Write \`let ${name.text} = <what it names>\`.`,
+      );
+      return null;
+    }
+    if (this.take('punct', '=') === null) {
+      this.diagnostics.refuse(
+        this.here(),
+        `\`${name.text}\` is not given anything to name.`,
+        `Write \`let ${name.text} = <what it names>\`.`,
+      );
+      return null;
+    }
+    const value = this.expression();
+    if (value === null) return null;
+    return { kind: 'let', at: spanning(keyword.at, value.at), name: this.ident(name), value };
+  }
+
   private describe(token: Token): string {
     switch (token.kind) {
       case 'kind':
@@ -1161,6 +1234,19 @@ export function parseProperty(
   caps?: StaticCaps,
 ): PropertyDeclaration | null {
   return new Parser(source, diagnostics, caps).property();
+}
+
+/**
+ * One `let`, read on its own. A `let` is written inside a body, and no
+ * body exists yet (B24 onward), so this is how B11 is exercised and how
+ * those items will read one.
+ */
+export function parseLet(
+  source: SourceFile,
+  diagnostics: Diagnostics,
+  caps?: StaticCaps,
+): LetStatement | null {
+  return new Parser(source, diagnostics, caps).letStatement();
 }
 
 /**

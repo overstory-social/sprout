@@ -30,9 +30,10 @@
 // empty table B33 fills; the parser reads the shape so the refusal can
 // name the word rather than complain about a bracket.
 
-import type { BinaryOperator, Expr, Ident, KindExpr, SymbolExpr } from './ast.js';
+import type { BinaryOperator, Expr, Ident, KindExpr, LetStatement, SymbolExpr } from './ast.js';
 import {
   isObjectBinding,
+  letBinding,
   kindName,
   objectOf,
   OPEN_OBJECT,
@@ -148,6 +149,34 @@ export function narrowingOf(
   if (written.kind !== 'kind-expr') return null;
   const kind = resolveKind(written, context);
   return kind === null ? null : { binding, kind };
+}
+
+/**
+ * `let ribs = tools.count(Rib)` — a name for what an expression works
+ * out, brought into scope for the rest of its block.
+ *
+ * Its type is the expression's, EXACTLY: an integer 0 to 9 stays an
+ * integer 0 to 9, and a name for a thing in the world stays at the kind
+ * it was narrowed to. Nothing is widened on the way in, because nothing
+ * was annotated and there is nothing to widen towards.
+ *
+ * Written once and never again. There is no reassignment anywhere in
+ * the language, so the only way to write a name twice is to `let` it
+ * twice — which `Scope.introduce` refuses as shadowing, in the same
+ * words it refuses a `let` taking the name of a role or an `each`
+ * variable. Two things answering to one name is the opposite of what
+ * naming is for.
+ *
+ * WHERE a `let` may be written is not decided here, because none of
+ * those places exist yet: a body is B24's, a passage is B29's (and may
+ * not hold one), and `let x = spawn …` waits for B18 to have a `spawn`
+ * to name.
+ */
+export function checkLet(statement: LetStatement, context: CheckContext): Binding | null {
+  const type = typeOf(statement.value, context);
+  if (type === null) return null;
+  const binding = letBinding(statement.name.text, type, statement.name.at);
+  return context.scope.introduce(binding, context.diagnostics) ? binding : null;
 }
 
 /**
@@ -423,6 +452,17 @@ function callType(
     case 'count':
       if (!arity(method, args, 1, context)) return null;
       if (!countable(type, method.at, context)) return null;
+      // `count(K)` counts the contents that compose a kind, which a
+      // list has none of: a list holds values, and `[Ward]` is the
+      // whole of what it holds.
+      if (type.binds === 'value') {
+        context.diagnostics.refuse(
+          method.at,
+          `A list holds ${showType(type.type)}, not things of a kind.`,
+          'Write `count` on its own to ask how many it holds.',
+        );
+        return null;
+      }
       return resolveKind(args[0]!, context) === null ? null : valueOf(integer());
     default:
       context.diagnostics.refuse(
@@ -861,6 +901,11 @@ function declaredOn(kind: KindRef, named: Ident, context: CheckContext): Resolve
 /** `x.count` and `x.count(K)` — a container or a set role. */
 function countable(type: BindingType, at: Span, context: CheckContext): boolean {
   if (type.binds === 'set') return true;
+  // Lists names `count` as one of a list's four operations, where the
+  // checker's own table names only a container and a set role. The
+  // fuller sentence wins, and the narrower row is recorded in the
+  // notes as a row to widen.
+  if (type.binds === 'value' && type.type.type === 'list') return true;
   return container(type, at, context);
 }
 
