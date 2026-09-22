@@ -251,6 +251,33 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(wrong.said.join(' ')).toContain('wet, cured');
   });
 
+  it('`a == b` — a symbol literal on the left is checked against the right, the same as on the right', () => {
+    expect(shapeOf(':wet == self.get(:state)', warded())).toBe('boolean');
+    expect(shapeOf(':wet != self.get(:state)', warded())).toBe('boolean');
+
+    const leftWrong = read(':slver == self.get(:state)', warded());
+    const rightWrong = read('self.get(:state) == :slver', warded());
+    expect(leftWrong.type).toBeNull();
+    expect(leftWrong.said).toEqual(rightWrong.said);
+    expect(locationOf(leftWrong.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:1');
+
+    const leftWrongNeq = read(':slver != self.get(:state)', warded());
+    expect(leftWrongNeq.type).toBeNull();
+    expect(leftWrongNeq.said).toEqual(rightWrong.said);
+
+    const leftAgainstNonEnum = read(':wet == 4', warded());
+    const rightAgainstNonEnum = read('4 == :wet', warded());
+    expect(leftAgainstNonEnum.type).toBeNull();
+    expect(leftAgainstNonEnum.said).toEqual(rightAgainstNonEnum.said);
+
+    // Neither side names an enum on its own, whichever side it is on.
+    const bothLiterals = read(':wet == :dry', warded());
+    expect(bothLiterals.type).toBeNull();
+    expect(bothLiterals.said.join(' ')).toContain(
+      'Neither side of this says which enum its option belongs to.',
+    );
+  });
+
   it('`< <= > >=` — both integer', () => {
     expect(shapeOf('self.get(:capacity) > 1')).toBe('boolean');
     expect(shapeOf('1 <= self.get(:capacity)')).toBe('boolean');
