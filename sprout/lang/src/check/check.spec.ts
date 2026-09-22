@@ -286,6 +286,89 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(wrong.said.join(' ')).toContain('`<` reads integer, and this is boolean');
   });
 
+  it('`a == b`, `a != b` — an integer literal outside the other operand’s range is always decided', () => {
+    // `:capacity` is declared `0 min 0 max 9`.
+    const eq = read('self.get(:capacity) == 12', vessel());
+    expect(eq.type).toBeNull();
+    expect(eq.said).toEqual([
+      '12 is outside 0 to 9, so this is always false. Write a whole number from 0 to 9, or take the comparison out.',
+    ]);
+    expect(locationOf(eq.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:24');
+
+    // The literal on the left is refused the same way, at itself.
+    const eqLeft = read('12 == self.get(:capacity)', vessel());
+    expect(eqLeft.type).toBeNull();
+    expect(eqLeft.said).toEqual(eq.said);
+    expect(locationOf(eqLeft.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:1');
+
+    const neq = read('self.get(:capacity) != 12', vessel());
+    expect(neq.type).toBeNull();
+    expect(neq.said.join(' ')).toContain('12 is outside 0 to 9, so this is always true.');
+
+    // A negated literal is a written number too.
+    const negated = read('-1 == self.get(:capacity)', vessel());
+    expect(negated.type).toBeNull();
+    expect(negated.said.join(' ')).toContain('-1 is outside 0 to 9, so this is always false.');
+  });
+
+  it('`a == b` — a literal at either end of the range is untouched', () => {
+    expect(shapeOf('self.get(:capacity) == 9')).toBe('boolean');
+    expect(shapeOf('self.get(:capacity) == 0')).toBe('boolean');
+  });
+
+  it('`a == b` — a full-range integer against any literal is untouched', () => {
+    const withLet = bodyOf(VESSEL, letBinding('n', valueOf(integer()), at('n')));
+    expect(shapeOf('n == 1000000', withLet)).toBe('boolean');
+    expect(shapeOf('self.get(:row).count == 1000000', warded())).toBe('boolean');
+  });
+
+  it('`a == b` — two operands with no declared range are untouched', () => {
+    expect(shapeOf('self.get(:capacity) == self.get(:capacity)')).toBe('boolean');
+  });
+
+  it('`a == b` — a literal against a mismatched type keeps its one type-mismatch refusal', () => {
+    const mixed = read('"a" == 12', vessel());
+    expect(mixed.type).toBeNull();
+    expect(mixed.diagnostics.refusals).toHaveLength(1);
+    expect(mixed.said.join(' ')).toContain('This compares string with integer.');
+  });
+
+  it('`< <= > >=` — an integer literal outside the other operand’s range is always decided', () => {
+    const above = read('self.get(:capacity) < 12', vessel());
+    expect(above.type).toBeNull();
+    expect(above.said.join(' ')).toContain('12 is outside 0 to 9, so this is always true.');
+
+    const aboveLe = read('self.get(:capacity) <= 12', vessel());
+    expect(aboveLe.said.join(' ')).toContain('12 is outside 0 to 9, so this is always true.');
+
+    const aboveGt = read('self.get(:capacity) > 12', vessel());
+    expect(aboveGt.said.join(' ')).toContain('12 is outside 0 to 9, so this is always false.');
+
+    const aboveGe = read('self.get(:capacity) >= 12', vessel());
+    expect(aboveGe.said.join(' ')).toContain('12 is outside 0 to 9, so this is always false.');
+
+    const below = read('self.get(:capacity) < -1', vessel());
+    expect(below.said.join(' ')).toContain('-1 is outside 0 to 9, so this is always false.');
+
+    const belowLe = read('self.get(:capacity) <= -1', vessel());
+    expect(belowLe.said.join(' ')).toContain('-1 is outside 0 to 9, so this is always false.');
+
+    const belowGt = read('self.get(:capacity) > -1', vessel());
+    expect(belowGt.said.join(' ')).toContain('-1 is outside 0 to 9, so this is always true.');
+
+    const belowGe = read('self.get(:capacity) >= -1', vessel());
+    expect(belowGe.said.join(' ')).toContain('-1 is outside 0 to 9, so this is always true.');
+
+    // A literal on the left flips which end of the range decides it.
+    const literalLeft = read('12 < self.get(:capacity)', vessel());
+    expect(literalLeft.said.join(' ')).toContain('12 is outside 0 to 9, so this is always false.');
+  });
+
+  it('`< <= > >=` — a literal within the range is untouched', () => {
+    expect(shapeOf('self.get(:capacity) < 5')).toBe('boolean');
+    expect(shapeOf('5 <= self.get(:capacity)')).toBe('boolean');
+  });
+
   it('`+ -`, unary `-` — integer', () => {
     expect(shapeOf('self.get(:capacity) + 1')).toBe('integer');
     expect(shapeOf('self.get(:capacity) - 1')).toBe('integer');

@@ -317,6 +317,12 @@ function binaryType(
     return bothAre(BOOLEAN, operator, expr, left, right, context) ? valueOf(BOOLEAN) : null;
   }
   if (!bothAre(integer(), operator, expr, left, right, context)) return null;
+  if (
+    (operator === '<' || operator === '<=' || operator === '>' || operator === '>=') &&
+    !literalOutsideRange(operator, expr, left, right, context)
+  ) {
+    return null;
+  }
   const comparison = operator === '+' || operator === '-' ? integer() : BOOLEAN;
   return valueOf(comparison);
 }
@@ -349,8 +355,11 @@ function bothAre(
 /**
  * `a == b`, `a != b` — same type, and not a list; a symbol literal, on
  * either side, is checked against the enum of whatever it is compared
- * to. That is what an enum exists for: `:slver ==` or `== :slver` names
- * the options rather than being false for ever.
+ * to, and an integer literal against the other side's declared range.
+ * That is what an enum or a range exists for: `:slver ==` or `== :slver`
+ * names the options, and a literal outside a range is a comparison
+ * decided before the world runs, rather than either being false for
+ * ever.
  *
  * `left` is null exactly when `expr.left` is itself the symbol literal:
  * `leafType` hands it here unread rather than typing it alone, so this
@@ -415,7 +424,9 @@ function identityType(
     right.binds === 'value' &&
     sameType(leftType.type, right.type)
   ) {
-    return valueOf(BOOLEAN);
+    return literalOutsideRange(expr.operator, expr, leftType, right, context)
+      ? valueOf(BOOLEAN)
+      : null;
   }
   context.diagnostics.refuse(
     expr.at,
@@ -423,6 +434,67 @@ function identityType(
     'Two things are compared only where they are the same type.',
   );
   return null;
+}
+
+/**
+ * `a == b`, `a != b`, `<` `<=` `>` `>=` — an integer literal against the
+ * other operand's declared range (the spec's Properties › What the
+ * compiler checks). Outside it, the comparison's answer does not depend
+ * on the value the world supplies, so it is refused at the literal
+ * rather than left to decide nothing at every turn.
+ *
+ * The verdict is computed by evaluating the operator against the
+ * range's ends rather than tabulated per operator: they agree exactly
+ * when the literal sits outside the range, which is what makes the
+ * comparison constant.
+ */
+function literalOutsideRange(
+  operator: BinaryOperator,
+  expr: Expr & { readonly kind: 'binary' },
+  leftType: BindingType,
+  rightType: BindingType,
+  context: CheckContext,
+): boolean {
+  if (leftType.binds !== 'value' || leftType.type.type !== 'integer') return true;
+  if (rightType.binds !== 'value' || rightType.type.type !== 'integer') return true;
+  const leftWritten = writtenNumber(expr.left);
+  const rightWritten = writtenNumber(expr.right);
+  if ((leftWritten === null) === (rightWritten === null)) return true;
+
+  const literalOnLeft = leftWritten !== null;
+  const literal = literalOnLeft ? leftWritten! : rightWritten!;
+  const range = literalOnLeft ? rightType.type : leftType.type;
+  if (literal >= range.min && literal <= range.max) return true;
+
+  const always = literalOnLeft
+    ? decide(operator, literal, range.min)
+    : decide(operator, range.min, literal);
+  context.diagnostics.refuse(
+    (literalOnLeft ? expr.left : expr.right).at,
+    `${literal} is outside ${range.min} to ${range.max}, so this is always ${always ? 'true' : 'false'}.`,
+    `Write a whole number from ${range.min} to ${range.max}, or take the comparison out.`,
+  );
+  return false;
+}
+
+/** What `a operator b` decides, for the two literal numbers `a` and `b`. */
+function decide(operator: BinaryOperator, a: number, b: number): boolean {
+  switch (operator) {
+    case '==':
+      return a === b;
+    case '!=':
+      return a !== b;
+    case '<':
+      return a < b;
+    case '<=':
+      return a <= b;
+    case '>':
+      return a > b;
+    case '>=':
+      return a >= b;
+    default:
+      return false;
+  }
 }
 
 /** A bare option against the type it is being compared or given to. */
