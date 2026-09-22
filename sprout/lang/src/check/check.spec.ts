@@ -194,6 +194,29 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(mixed.said.join(' ')).toContain('compares boolean with integer');
   });
 
+  it('`a == b`, `a != b` — not a list, refused at the left list', () => {
+    const eq = read('self.get(:row) == self.get(:row)', warded());
+    expect(eq.type).toBeNull();
+    expect(eq.said).toEqual([
+      'Two lists are not compared with `==`. Ask what a list holds instead: `self.get(:opens).includes(:oak)`, or compare its `count`.',
+    ]);
+    expect(locationOf(eq.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:1');
+
+    const neq = read('self.get(:row) != self.get(:row)', warded());
+    expect(neq.type).toBeNull();
+    expect(neq.said.join(' ')).toContain('Two lists are not compared with `!=`.');
+    expect(locationOf(neq.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:1');
+
+    // A list of lists is still a list.
+    const grid = read('self.get(:grid) == self.get(:grid)', warded());
+    expect(grid.type).toBeNull();
+    expect(grid.said.join(' ')).toContain('Two lists are not compared with `==`.');
+
+    // What a list holds, and how many, are not lists themselves.
+    expect(shapeOf('self.get(:row).count == 2', warded())).toBe('boolean');
+    expect(shapeOf('tool.get(:opens).includes(:oak)', warded())).toBe('boolean');
+  });
+
   it('`a == b` — a symbol literal must be one of the operand’s options', () => {
     expect(shapeOf('self.get(:state) == :wet', warded())).toBe('boolean');
     const wrong = read('self.get(:state) == :slver', warded());
