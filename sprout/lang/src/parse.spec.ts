@@ -40,6 +40,22 @@ const A_DECLARATION: Record<string, string> = {
   world: 'world two { visitors are P\n visitors arrive at y }',
 };
 
+/**
+ * Other ways the same declaration may open, where a word has more than
+ * one. Recovery has to stop at every one of them, and a rule that only
+ * ever sees the commonest spelling drops the others in silence — with
+ * `world`'s composing form missing here, deleting its `:` from
+ * `DECLARATION_SHAPES` passes the whole suite.
+ */
+const ALSO_WRITTEN: Record<string, string[]> = {
+  world: ['world two: victorian.Voice { visitors are P\n visitors arrive at y }'],
+};
+
+/** Every spelling of one word's declaration, the commonest one first. */
+function spellingsOf(word: string): string[] {
+  return [sampleOf(word), ...(ALSO_WRITTEN[word] ?? [])];
+}
+
 /** Every rule that walks `DECLARATIONS` checks the table has kept up. */
 function sampleOf(word: string): string {
   expect(Object.keys(A_DECLARATION), `${word} has no sample in A_DECLARATION`).toContain(word);
@@ -242,6 +258,28 @@ describe('a declaration it cannot read costs that declaration, not the file', ()
   it('reports every bad declaration, not the first', () => {
     const { refusals } = read('enum { a }\nenum { b }\nenum { c }');
     expect(refusals).toHaveLength(3);
+  });
+
+  it('reports the second one even where its own word cannot say what it is', () => {
+    // Recovery asks a LOOSER question than a loop reading elements
+    // does, and this is why. `message` with the name forgotten has no
+    // opening to recognise, and a nameless `world: victorian.Voice {`
+    // has one that `world` deliberately does not claim — so the strict
+    // question walks past both as filler and the author is told about
+    // the first mistake only. An author owed two problems is owed both.
+    const bare = read('enum Ward oak silver\nmessage\nenum Glaze { none, shino }\n');
+    expect(bare.refusals.map((d) => d.message)).toEqual([
+      'The options of `Ward` go in braces.',
+      'A message needs a name.',
+    ]);
+    expect(bare.declarations.map((d) => d.name.text)).toEqual(['Glaze']);
+
+    // The same through `recoverInBraces`, which hunts for a `}`.
+    const nameless = read(
+      'enum Ward { oak,\n42\nworld: v.X {\n  contains\n}\nenum Glaze { none, shino }\n',
+    );
+    expect(nameless.refusals.map((d) => d.message)).toContain('A world needs a name.');
+    expect(nameless.declarations.map((d) => d.name.text)).toEqual(['Ward', 'Glaze']);
   });
 
   it('never throws, whatever it is given', () => {
@@ -470,10 +508,41 @@ describe('a forgotten brace does not eat the declaration after it', () => {
     expect(declarations.map((d) => d.kind)).toEqual(['enum', 'message']);
   });
 
-  it('reads a declaration keyword as one wherever its own opening follows it', () => {
+  it('reads a declaration keyword as one however that declaration is written', () => {
+    // Every spelling, not just the commonest: this is the loop that
+    // reads what the author WROTE, so it is the one `DECLARATION_SHAPES`
+    // governs, and a spelling missing from that table is a declaration
+    // swallowed as an option. Recovery cannot stand in for this — it
+    // asks a looser question that never consults the table at all.
     for (const word of DECLARATIONS) {
-      const { declarations } = read(`enum Ward {\n  oak\n${sampleOf(word)}`);
-      expect(optionsOf(declarations[0] as EnumDeclaration), word).toEqual(['oak']);
+      for (const written of spellingsOf(word)) {
+        const { declarations } = read(`enum Ward {\n  oak\n${written}`);
+        expect(optionsOf(declarations[0] as EnumDeclaration), written).toEqual(['oak']);
+        expect(
+          declarations.map((d) => d.kind),
+          written,
+        ).toHaveLength(2);
+      }
+    }
+  });
+
+  it('and ends the body before it even where the name was forgotten', () => {
+    // `enum {` and `world {` are a declaration the author started and
+    // did not finish naming — still a declaration, so the body before
+    // it ends here. Reading the word as an option instead keeps the
+    // mistake and loses everything after it. Recovery cannot stand in
+    // for this test either: it asks the looser question, which never
+    // consults `DECLARATION_SHAPES`.
+    for (const [nameless, said] of [
+      ['enum { a }', 'An enum needs a name.'],
+      ['world { }', 'A world needs a name.'],
+    ] as const) {
+      const { declarations, refusals } = read(`enum Ward {\n  oak\n${nameless}`);
+      expect(optionsOf(declarations[0] as EnumDeclaration), nameless).toEqual(['oak']);
+      expect(
+        refusals.map((d) => d.message),
+        nameless,
+      ).toEqual(['`Ward` is never closed.', said]);
     }
   });
 
@@ -785,10 +854,22 @@ describe('#59 — every place that asks where a declaration starts reads one tab
     }
   });
 
-  it('stops recovery at every word it reads, and at no other', () => {
+  it('stops recovery at every word it reads, however that word is written', () => {
     for (const word of DECLARATIONS) {
-      const { declarations } = read(`nonsense\n${sampleOf(word)}`);
-      expect(declarations, word).toHaveLength(1);
+      for (const written of spellingsOf(word)) {
+        const { declarations } = read(`nonsense\n${written}`);
+        expect(declarations, written).toHaveLength(1);
+      }
+    }
+  });
+
+  it('reads every spelling cleanly, so the rule above is not asserting a refusal', () => {
+    for (const word of DECLARATIONS) {
+      for (const written of spellingsOf(word)) {
+        const { declarations, refusals } = read(written);
+        expect(refusals, written).toEqual([]);
+        expect(declarations, written).toHaveLength(1);
+      }
     }
   });
 });

@@ -73,6 +73,13 @@ export const DECLARATIONS = ['enum', 'message', 'world'] as const;
 const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
 
 /**
+ * Punctuation that ends a list of things, so a word before it is the
+ * last one — and so a word before it is an element rather than the
+ * start of something, which is as much as recovery needs to know.
+ */
+const CLOSERS = new Set([',', '}', ']']);
+
+/**
  * What each declaration's opening looks like, past the word itself.
  *
  * Recovery has to tell `enum Ward { … }`, which starts a declaration,
@@ -243,27 +250,51 @@ class Parser {
   }
 
   /**
-   * Whether a declaration begins here, rather than a word that happens
-   * to spell one.
+   * Whether a declaration begins here — asked by a loop that is reading
+   * what the author WROTE, and so asked strictly.
    *
    * Nothing reserves `enum`, `message` or `world` anywhere a name may
-   * stand, so the word alone decides nothing and what FOLLOWS it must.
-   * The first cut of this asked only whether a closer followed, which
-   * is the wrong question: a remembered property is written `name:
-   * value`, so the token after a legal entry's name is always `:` and
-   * never a closer, and every `:remembers` holding an entry called
-   * `enum` was read as a declaration starting mid-list and thrown away
-   * whole. `[enum silver]` — two options, one missing comma — went the
-   * same way.
+   * stand, so the word alone decides nothing and its own opening must:
+   * `DECLARATION_SHAPES` is what says whether that opening is here, and
+   * a word without it is a word.
    *
-   * So the question is whether this word's own opening is here, which
-   * is what `DECLARATION_SHAPES` answers. A word without it is a word.
+   * Strictly, because of which way this one is allowed to be wrong. A
+   * loop reading elements or members stops when this says yes, so a
+   * false yes throws away something the author meant — which is how
+   * `:remembers [enum: 1]` came to lose its whole block, and
+   * `[enum silver]` its list. Recovery has the opposite exposure and
+   * therefore its own question, below.
    */
-  private atDeclarationKeyword(): boolean {
+  private atDeclarationStart(): boolean {
     const token = this.peek();
     if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
     const shape = DECLARATION_SHAPES.get(token.text);
     return shape !== undefined && shape(this.peek(1), this.peek(2));
+  }
+
+  /**
+   * Whether recovery should stop here — the same question asked by a
+   * loop that is skipping past what it could not read, and so asked
+   * loosely.
+   *
+   * A word this compiler reads is where an author's next declaration
+   * most likely begins, however badly they wrote it. `message` with the
+   * name forgotten has no opening for `atDeclarationStart` to find, and
+   * `world: victorian.Voice { … }` has one that word deliberately does
+   * not claim — so asking the strict question here walks past both as
+   * filler, and the author is never told about the second thing they
+   * got wrong. An author owed two problems is owed both.
+   *
+   * A false yes costs nothing here: the file's own reader takes the
+   * word next and says what is wrong with it. That asymmetry is the
+   * whole reason these are two questions and not one.
+   */
+  private atRecoveryStop(): boolean {
+    const token = this.peek();
+    if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
+    const after = this.peek(1);
+    if (after.kind === 'end') return false;
+    return !(after.kind === 'punct' && CLOSERS.has(after.text));
   }
 
   /** One deeper, or a refusal that the host's nesting cap is reached. */
@@ -332,7 +363,7 @@ class Parser {
   /** Step over everything up to the next thing that could start a declaration. */
   private recover(): void {
     while (!this.done) {
-      if (this.atDeclarationKeyword()) return;
+      if (this.atRecoveryStop()) return;
       this.next();
     }
   }
@@ -360,7 +391,7 @@ class Parser {
       // the brace structure is already lost, and a keyword down there is
       // no more trustworthy than anything else — reading it as a
       // declaration promotes nested text to the top of the file.
-      if (depth === 1 && this.atDeclarationKeyword()) return false;
+      if (depth === 1 && this.atRecoveryStop()) return false;
       this.next();
     }
     return false;
@@ -439,7 +470,7 @@ class Parser {
         this.next();
         break;
       }
-      if (this.atDeclarationKeyword()) {
+      if (this.atDeclarationStart()) {
         unclosed(this.peek().at);
         refused = true;
         break;
@@ -695,7 +726,7 @@ class Parser {
         if (overCap) return null;
         return { kind: 'list-literal', at: spanning(open.at, close.at), elements };
       }
-      if (this.done || this.atDeclarationKeyword()) {
+      if (this.done || this.atDeclarationStart()) {
         // A word that starts a declaration is not an element, however
         // it reads as one — `enum` is a perfectly good option name, so
         // `literal()` takes it and the hunt for a `]` walks on through
@@ -728,8 +759,8 @@ class Parser {
         // inside a world is the first time `file()` is still reading
         // behind it, and hunting for a `]` swallowed every declaration
         // after it. `[oak, enum]` is still a list of two options,
-        // because `atDeclarationKeyword` asks what FOLLOWS the word.
-        if (this.done || this.atDeclarationKeyword()) return null;
+        // because `atDeclarationStart` asks what FOLLOWS the word.
+        if (this.done || this.atDeclarationStart()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
@@ -912,7 +943,7 @@ class Parser {
       // is not made of `enum`" as well leaves its braces orphaned and
       // the enum reparsed as a sibling of the world that held it. The
       // enum's own option loop has guarded this since #58.
-      if (this.atDeclarationKeyword()) {
+      if (this.atDeclarationStart()) {
         this.diagnostics.refuse(
           this.peek().at,
           `\`${name.text}\` is never closed.`,
@@ -1088,7 +1119,7 @@ class Parser {
       if (close !== null) {
         return { kind: 'remembers', at: spanning(symbol.at, close.at), properties };
       }
-      if (this.done || this.atDeclarationKeyword()) {
+      if (this.done || this.atDeclarationStart()) {
         // As the list above: a word that starts a declaration ends the
         // hunt, because otherwise it runs to the end of the file.
         this.diagnostics.refuse(
@@ -1105,7 +1136,7 @@ class Parser {
         // As the list above, including that a file which ran out inside
         // the entry has already been explained by whatever read it, and
         // that a word starting a declaration ends the hunt.
-        if (this.done || this.atDeclarationKeyword()) return null;
+        if (this.done || this.atDeclarationStart()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
