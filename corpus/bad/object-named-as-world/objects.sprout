@@ -1,0 +1,4 @@
+// No object may take the world's name.
+object hall: Room in object_named_as_world
+
+object object_named_as_world: Chest in hall

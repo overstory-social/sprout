@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { ABSENT_TABLE, absenceRule, type ReferenceKind } from './absent.js';
 
-describe('the absent table is the spec’s, whole', () => {
+describe('the absent table is the spec’s, whole, with the one row proposed beside it', () => {
   const references: ReferenceKind[] = [
     'kind-in-composition',
+    'container',
     'kind-in-role',
     'verb',
     'message',
@@ -16,7 +17,7 @@ describe('the absent table is the spec’s, whole', () => {
     'extension',
   ];
 
-  it('has a row for every reference the spec names, in its order', () => {
+  it('has a row for every reference the spec names, in its order, and `container`', () => {
     expect(ABSENT_TABLE.map((row) => row.reference)).toEqual(references);
   });
 
@@ -66,6 +67,7 @@ describe('somebody is told through the passage the spec names, where it names on
   it('names no passage for the rest, because there is nobody there to tell', () => {
     for (const reference of [
       'kind-in-composition',
+      'container',
       'kind-in-role',
       'verb',
       'message',
@@ -81,6 +83,17 @@ describe('somebody is told through the passage the spec names, where it names on
     for (const row of ABSENT_TABLE) {
       if (row.told !== null) expect(declared.has(row.told), row.told).toBe(true);
     }
+  });
+});
+
+describe('an object whose container is not there', () => {
+  it('is absent as one whose kind is not there, and what it holds waits for its container', () => {
+    const container = absenceRule('container').consequence;
+    expect(container).toContain('the object is absent');
+    expect(container).toContain('until its container returns');
+    expect(container.replace('its container', 'the kind')).toBe(
+      absenceRule('kind-in-composition').consequence,
+    );
   });
 });
 

@@ -1,0 +1,4 @@
+world container_holds_nothing: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}

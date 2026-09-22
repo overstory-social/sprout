@@ -103,6 +103,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     'object o: K { }',
     'object o: K in { }',
     'object o: K in r { visitors are X }',
+    // A container's path: a dot left at its end, two in a row, a number
+    // or a capital for a step, spaces around a dot; and the same where a
+    // world says its visitors arrive.
+    'object o: K in r.',
+    'object o: K in r..s { }',
+    'object o: K in r.4 { }',
+    'object o: K in r.S',
+    'object o: K in r . s',
+    'world w: sprout.World { visitors arrive at y. }',
   ];
 
   /**
@@ -973,7 +982,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       {
         name: 'kilo',
         text: () =>
-          option(['object kilo: Juliet in yard', 'object kilo: Juliet in yard {\n  contains\n}']),
+          option([
+            'object kilo: Juliet in yard',
+            'object kilo: Juliet in yard {\n  contains\n}',
+            'object kilo: Juliet in yard.shed.shelf',
+          ]),
       },
     ];
     // A world never closed, holding a `:remembers` or not; whatever
@@ -1015,6 +1028,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       },
       // A world: its name, what it is composed from, a brace, a member.
       () => option(['world faulty: 4 { }', 'world faulty', 'world: sprout.World']),
+      () =>
+        `world faulty: sprout.World {\n  visitors arrive at ${option(['yard.', 'yard..shed', 'yard.4', 'yard . shed'])}\n}`,
       unclosedWorld,
       () => `world faulty: sprout.World {\n  visitors are P\n  ${defectiveMember(c).text}\n}`,
       // A kind: its name, what it composes, its braces, a member.
@@ -1038,6 +1053,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           'object faulty: Crate { }',
           'object faulty: Crate in { }',
           'object faulty: Crate in Yard',
+          'object faulty: Crate in yard.',
+          'object faulty: Crate in yard..shed',
+          'object faulty: Crate in yard.4 { }',
+          'object faulty: Crate in yard.Shed',
+          'object faulty: Crate in yard . shed { contains }',
         ]),
       () => `object faulty: Crate in yard {\n  ${defectiveMember(c).text}\n}`,
     ];

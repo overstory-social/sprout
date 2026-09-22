@@ -645,7 +645,11 @@ export function compileBundle(
   }
 
   // The second tier over what parsed.
-  const tables = resolveDeclarations(byLibrary, manifest.namespace, report);
+  const tables = resolveDeclarations(
+    byLibrary,
+    { namespace: manifest.namespace, name: manifest.name },
+    report,
+  );
 
   // The kinds, objects and places caps count what resolved, on the same
   // footing as the source and file caps above, and so refuse at load too.
@@ -656,7 +660,7 @@ export function compileBundle(
         (declared) => declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
       ),
       objects: own.filter((d): d is ObjectDeclaration => d.kind === 'object'),
-      composed: tables.objects,
+      composed: tables.composed,
     },
     limits.caps,
     report.diagnostics,
@@ -682,6 +686,7 @@ export function compileBundle(
     definitions: declarations,
     kinds: tables.kinds.all(),
     objects: tables.objects,
+    tree: tables.tree,
     // B27 fills this from nouns, tokens, directions, articles,
     // connectors and phrase words, once there is a grammar to read.
     words: [],

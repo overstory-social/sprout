@@ -21,6 +21,7 @@ export * from './declare/sprout-world.js';
 export * from './declare/kinds.js';
 export * from './declare/compose.js';
 export * from './declare/objects.js';
+export * from './declare/tree.js';
 export * from './declare/properties.js';
 export * from './declare/messages.js';
 export * from './declare/world.js';

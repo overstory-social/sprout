@@ -1,0 +1,6 @@
+// Something deeper than what the world holds is named by its path.
+object kiln: Room in container_nested_without_path
+
+object shelf: Chest in kiln
+
+object pot: Thing in shelf

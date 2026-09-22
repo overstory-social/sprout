@@ -8,6 +8,9 @@ import { kindName } from '../declare/kinds.js';
 import type { Absent } from './absent.js';
 import { resolveDeclarations, type DeclarationReport } from './declarations.js';
 
+/** The world these tables are built for: its namespace and its name. */
+const SHOP = { namespace: 'shop', name: 'shop' };
+
 /** Every library's text, parsed, as a compile holds it. */
 function byLibrary(libraries: Record<string, string>): Map<string, Declaration[]> {
   const parsing = new Diagnostics();
@@ -39,7 +42,7 @@ describe('every table is built over every library, in the order they depend on o
         sprout: 'enum Ward { oak, silver }\nkind Warded { :ward Ward default oak }',
         shop: 'kind Gate: sprout.Warded { :ward silver }\nmessage :opened with sprout.Ward',
       }),
-      'shop',
+      SHOP,
       report,
     );
     expect(report.diagnostics.all).toEqual([]);
@@ -51,25 +54,38 @@ describe('every table is built over every library, in the order they depend on o
     );
   });
 
-  it('resolves the world’s own objects against every library’s kinds', () => {
+  it('resolves the world’s own objects against every library’s kinds, and places them', () => {
     const report = loading();
-    const { objects } = resolveDeclarations(
+    const { objects, tree } = resolveDeclarations(
       byLibrary({
         sprout: 'kind Container { contains }',
-        shop: 'object box: sprout.Container in hall',
+        shop: 'object hall: sprout.Container in shop\nobject box: sprout.Container in hall',
       }),
-      'shop',
+      SHOP,
       report,
     );
-    expect(objects.map((o) => [o.name, o.kind.order])).toEqual([
-      ['box', ['sprout.Container', 'shop.box']],
+    expect(report.diagnostics.all).toEqual([]);
+    expect(objects.map((o) => [o.name, o.kind.order, o.path])).toEqual([
+      ['hall', ['sprout.Container', 'shop.hall'], ['hall']],
+      ['box', ['sprout.Container', 'shop.box'], ['hall', 'box']],
     ]);
+    expect([tree.world, [...tree.placed.keys()]]).toEqual(['shop', ['hall', 'hall.box']]);
+  });
+
+  it('roots the tree at the world’s name, which need not be its namespace', () => {
+    const { objects, tree } = resolveDeclarations(
+      byLibrary({ ink: 'kind Room { contains actors }\nobject hall: Room in printers_shop' }),
+      { namespace: 'ink', name: 'printers_shop' },
+      loading(),
+    );
+    expect(tree.world).toBe('printers_shop');
+    expect(objects.map((o) => [o.library, o.name, o.container])).toEqual([['ink', 'hall', []]]);
   });
 
   it('leaves a library’s objects to the refusal that says a library declares none', () => {
     const { objects } = resolveDeclarations(
       byLibrary({ sprout: 'kind Box { }\nobject box: Box in hall', shop: '' }),
-      'shop',
+      SHOP,
       loading(),
     );
     expect(objects).toEqual([]);
@@ -79,11 +95,11 @@ describe('every table is built over every library, in the order they depend on o
 describe('a kind nothing declares, named in a composition, is the absent table’s row', () => {
   it('is a gap under `kind-in-composition`, at the kind as written, and its object is absent', () => {
     const report = loading();
-    const { objects, kinds } = resolveDeclarations(
+    const { objects, kinds, tree } = resolveDeclarations(
       byLibrary({
-        shop: 'kind Crate: victorian.Box { }\nobject crate: Crate in hall\nobject tea: Tin in hall',
+        shop: 'kind Crate: victorian.Box { }\nobject crate: Crate in shop\nobject tea: Tin in crate',
       }),
-      'shop',
+      SHOP,
       report,
     );
     expect(
@@ -108,5 +124,55 @@ describe('a kind nothing declares, named in a composition, is the absent table�
     expect(objects).toEqual([]);
     expect(kinds.all()).toEqual([]);
     expect(report.diagnostics.all).toEqual([]);
+    // Still placed, so what it holds keeps its place for when the kind returns.
+    expect([...tree.placed.keys()]).toEqual(['crate', 'crate.tea']);
+  });
+});
+
+describe('a container nothing answers to is the absent table’s `container` row', () => {
+  it('is a gap at the step, the object is absent, and what it holds goes unsaid', () => {
+    const report = loading();
+    const { objects, tree } = resolveDeclarations(
+      byLibrary({
+        shop: 'kind Room { contains actors }\nobject hall: Room in shop\nobject bench: Room in hal\nobject leg: Room in hall.bench',
+      }),
+      SHOP,
+      report,
+    );
+    expect(
+      report.gaps.map(({ absent, message }) => [
+        absent.what,
+        absent.kind,
+        absent.reason,
+        locationOf(absent.at!),
+        absent.consequence,
+        message,
+      ]),
+    ).toEqual([
+      [
+        'hal',
+        'container',
+        'missing',
+        'shop.sprout:3:23',
+        'the object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns',
+        'Nothing here is called `hal`. Did you mean `hall`?',
+      ],
+    ]);
+    expect(objects.map((o) => o.name)).toEqual(['hall']);
+    expect([...tree.placed.keys()]).toEqual(['hall']);
+    expect(report.diagnostics.all).toEqual([]);
+  });
+
+  it('is not what a ring is: that is refused whatever the mode', () => {
+    const report = loading();
+    resolveDeclarations(
+      byLibrary({ shop: 'kind Box { contains }\nobject a: Box in b\nobject b: Box in a' }),
+      SHOP,
+      report,
+    );
+    expect(report.gaps).toEqual([]);
+    expect(report.diagnostics.refusals.map((d) => d.message)).toEqual([
+      '`a` is in `b`, which is in `a`.',
+    ]);
   });
 });

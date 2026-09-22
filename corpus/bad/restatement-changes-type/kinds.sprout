@@ -11,3 +11,10 @@ kind Chest: Wooden {
 object drawer: Wooden in composing_room {
   :seen true
 }
+
+// Where the objects above sit.
+kind Room {
+  contains actors
+}
+
+object composing_room: Room in restatement_changes_type

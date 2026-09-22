@@ -1,0 +1,4 @@
+objects.sprout:8:8  `hall.chest` holds two objects called `key`.
+                    Give one of them another name, or remove it.
+
+refused: 1 problem

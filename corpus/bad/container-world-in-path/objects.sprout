@@ -1,0 +1,4 @@
+// The world is named only on its own, never as a step of a path.
+object hall: Room in container_world_in_path
+
+object bench: Chest in container_world_in_path.hall

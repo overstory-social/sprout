@@ -1,0 +1,13 @@
+objects.sprout:4:27   Two dots in a row leave a name out.
+                      Write one name between each pair of dots, as in `kiln.shelf`.
+
+objects.sprout:6:32   This path ends in a dot.
+                      After a dot comes the name of what is inside the thing before it, as in `kiln.shelf`; or take the dot out.
+
+objects.sprout:8:27   `4` is a number, not the name of anything in `kiln`.
+                      After a dot comes the name of what is inside the thing before it, in lower case, as in `kiln.shelf`.
+
+objects.sprout:10:22  A path is written without spaces around its dots.
+                      Write `kiln.shelf`.
+
+refused: 4 problems

@@ -6,7 +6,12 @@
 // library and its name. What composing one means is `compose.ts`'s; the
 // table only walks the kinds in the order composing them needs.
 
-import type { KindDeclaration, MemberRef, ObjectDeclaration } from '../syntax/ast.js';
+import {
+  writtenPath,
+  type KindDeclaration,
+  type MemberRef,
+  type ObjectDeclaration,
+} from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
@@ -29,7 +34,7 @@ export function checkKindDeclaration(
     diagnostics.refuse(
       declared.name.at,
       `\`${name}\` does not say what kind of thing it is.`,
-      `An object names the kinds it is made of: \`object ${name}: <Kind> in ${declared.container.text} { … }\`.`,
+      `An object names the kinds it is made of: \`object ${name}: <Kind> in ${writtenPath(declared.container)} { … }\`.`,
     );
   }
   for (const written of declared.composes.filter(writesWorld)) {

@@ -1,0 +1,4 @@
+objects.sprout:6:31  `bench` holds nothing, so `cushion` cannot be in it.
+                     Put `cushion` in something that holds things, or let `bench` hold things by writing `contains` in its body.
+
+refused: 1 problem
