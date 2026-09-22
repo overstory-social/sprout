@@ -1,0 +1,4 @@
+world.sprout:1:7  `unqualified_world` does not compose `sprout.World`.
+                  `World` on its own is not `sprout.World`; write the library too: `world unqualified_world: sprout.World { … }`.
+
+refused: 1 problem

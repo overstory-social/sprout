@@ -40,7 +40,7 @@ const manifest: Manifest = {
   files: ['world.sprout'],
 };
 
-const own = [file('world.sprout', 'world printers_shop { contains }')];
+const own = [file('world.sprout', 'world printers_shop: sprout.World { contains }')];
 
 describe('the language level', () => {
   it('starts at 1, because nothing here is shaped by what came before it', () => {
@@ -109,7 +109,11 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
 
   it('changes when the world’s own source changes', () => {
     expect(
-      bundleHashOf(manifest, [file('world.sprout', 'world x { }')], [vendored(sprout)]),
+      bundleHashOf(
+        manifest,
+        [file('world.sprout', 'world x: sprout.World { }')],
+        [vendored(sprout)],
+      ),
     ).not.toBe(hash);
   });
 

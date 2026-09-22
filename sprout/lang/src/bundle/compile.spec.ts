@@ -95,6 +95,26 @@ describe('the first tier reads one file alone, for its shape', () => {
     expect(diagnostics[0]!.message).toContain('twice');
   });
 
+  it('refuses a world that does not write `sprout.World`', () => {
+    // One declaration answers this on its own — nothing has to be
+    // resolved — so it belongs to the tier an editor runs on each
+    // keystroke.
+    const { diagnostics } = checkShape(
+      file('world.sprout', 'world shop {\n  visitors are Creature\n}\n'),
+    );
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]!.message).toBe('`shop` does not compose `sprout.World`.');
+    expect(locationOf(diagnostics[0]!.at)).toBe('world.sprout:1:7');
+  });
+
+  it('takes the world that writes it', () => {
+    const { declarations, diagnostics } = checkShape(
+      file('world.sprout', 'world shop: sprout.World {\n  visitors are Creature\n}\n'),
+    );
+    expect(diagnostics).toEqual([]);
+    expect(declarations.map((d) => d.kind)).toEqual(['world']);
+  });
+
   it('leaves a .prose file to B29 rather than reading it as code', () => {
     const { declarations, diagnostics } = checkShape(
       file('mirror.prose', 'You see yourself, and % is not a problem here.'),

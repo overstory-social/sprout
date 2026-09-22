@@ -6,7 +6,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
-import { resolveWorld, WORLD, WORLD_PASSES_ANYTHING } from './world.js';
+import { checkWorldDeclaration, resolveWorld, WORLD, WORLD_PASSES_ANYTHING } from './world.js';
 
 const ENUMS = (() => {
   const table = new EnumTable();
@@ -60,7 +60,7 @@ function world(text: string, kinds: KindLookup = KINDS) {
   return { resolved, said: diagnostics.refusals.map((d) => d.message), diagnostics };
 }
 
-const SHOP = `world printers_shop {
+const SHOP = `world printers_shop: sprout.World {
   visitors are Creature
   visitors arrive at composing_room
   :season Season default autumn
@@ -83,7 +83,7 @@ describe('a world is the root of the one tree', () => {
   });
 
   it('remembers about each actor, in the same syntax as anything else', () => {
-    const { resolved, said } = world(`world w { :remembers [seen: false]
+    const { resolved, said } = world(`world w: sprout.World { :remembers [seen: false]
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual([]);
@@ -91,7 +91,7 @@ describe('a world is the root of the one tree', () => {
   });
 
   it('refuses to hold one property twice, and keeps the first', () => {
-    const { resolved, said } = world(`world w { :a false
+    const { resolved, said } = world(`world w: sprout.World { :a false
   :a true
   visitors are Creature
   visitors arrive at y }`);
@@ -100,28 +100,42 @@ describe('a world is the root of the one tree', () => {
   });
 });
 
-describe('every world composes `sprout.World`', () => {
-  it('whether it says so or not', () => {
-    const { resolved } = world(SHOP);
-    expect(resolved!.composes.map(kindName)).toEqual([WORLD]);
-  });
-
-  it('and writing it adds nothing rather than colliding', () => {
-    const { resolved, said } = world(`world w: sprout.World {
+describe('every world writes `sprout.World`', () => {
+  it('and is refused at its name where it does not', () => {
+    const { said, diagnostics } = world(`world w {
   visitors are Creature
   visitors arrive at y }`);
+    expect(said).toEqual(['`w` does not compose `sprout.World`.']);
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      'Every world writes it: `world w: sprout.World { … }`.',
+    );
+    // At the name, which is what the sentence is about — not at a
+    // composition list that is not there to point at.
+    expect(diagnostics.refusals[0]!.at.start).toBe('world '.length);
+  });
+
+  it('with the library named, because `World` on its own is another kind', () => {
+    const { said, diagnostics } = world(`world w: World {
+  visitors are Creature
+  visitors arrive at y }`);
+    expect(said).toEqual(['`w` does not compose `sprout.World`.']);
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      '`World` on its own is not `sprout.World`; write the library too: `world w: sprout.World { … }`.',
+    );
+  });
+
+  it('and composes exactly what it wrote', () => {
+    const { resolved, said } = world(SHOP);
     expect(said).toEqual([]);
     expect(resolved!.composes.map(kindName)).toEqual([WORLD]);
   });
 
   it('first, wherever it was written', () => {
     // Composition order sequences a composable member's contributions,
-    // so leaving a written `sprout.World` where the author put it would
-    // make the two spellings mean different things — and "writing it
-    // adds nothing" would stop being true the moment it has a member of
-    // its own to sequence.
+    // and the words the engine speaks for itself are the ones
+    // everything else is written over, so the two spellings mean one
+    // thing.
     for (const written of [
-      'world w: victorian.Voice { visitors are Creature\n visitors arrive at y }',
       'world w: victorian.Voice, sprout.World { visitors are Creature\n visitors arrive at y }',
       'world w: sprout.World, victorian.Voice { visitors are Creature\n visitors arrive at y }',
     ]) {
@@ -132,7 +146,7 @@ describe('every world composes `sprout.World`', () => {
   });
 
   it('beside whatever else it composes — a library of stock lines in another register', () => {
-    const { resolved, said } = world(`world printers_shop: victorian.Voice {
+    const { resolved, said } = world(`world printers_shop: sprout.World, victorian.Voice {
   visitors are Creature
   visitors arrive at composing_room }`);
     expect(said).toEqual([]);
@@ -140,7 +154,7 @@ describe('every world composes `sprout.World`', () => {
   });
 
   it('refuses a kind nothing declares, and carries on', () => {
-    const { resolved, said } = world(`world w: nope.Voice {
+    const { resolved, said } = world(`world w: sprout.World, nope.Voice {
   visitors are Creature
   visitors arrive at y }`);
     expect(said.join(' ')).toContain('Nothing here is a `nope.Voice`');
@@ -150,10 +164,17 @@ describe('every world composes `sprout.World`', () => {
   });
 
   it('refuses the same kind twice', () => {
-    const { said } = world(`world w: victorian.Voice, victorian.Voice {
+    const { said } = world(`world w: sprout.World, victorian.Voice, victorian.Voice {
   visitors are Creature
   visitors arrive at y }`);
     expect(said.join(' ')).toContain('composes `victorian.Voice` twice');
+  });
+
+  it('refuses `sprout.World` twice, like any other kind', () => {
+    const { said } = world(`world w: sprout.World, sprout.World {
+  visitors are Creature
+  visitors arrive at y }`);
+    expect(said.join(' ')).toContain('composes `sprout.World` twice');
   });
 
   it('says so plainly when the standard library has no `World` to compose', () => {
@@ -162,9 +183,38 @@ describe('every world composes `sprout.World`', () => {
         library === 'sprout' && name === 'World' ? null : KINDS.qualified(library, name),
       unqualified: (name, from) => KINDS.unqualified(name, from),
     };
-    const { resolved, said } = world(SHOP, without);
-    expect(resolved).toBeNull();
+    const { said } = world(SHOP, without);
+    // The author wrote the right thing, so the problem is the library
+    // rather than the sentence they typed.
     expect(said.join(' ')).toContain('missing `sprout.World`');
+  });
+});
+
+describe('a world that does not write `sprout.World` is refused on its own', () => {
+  /** What the shape tier says about one world, without resolving anything. */
+  function shape(text: string) {
+    const diagnostics = new Diagnostics();
+    const declared = parseDeclarations(new SourceFile('w.sprout', text), diagnostics).find(
+      (d): d is WorldDeclaration => d.kind === 'world',
+    );
+    expect(diagnostics.refusals, `\`${text}\` did not parse`).toEqual([]);
+    const said = new Diagnostics();
+    checkWorldDeclaration(declared!, said);
+    return said.refusals;
+  }
+
+  it('takes the world as written, with no kinds resolved', () => {
+    expect(shape('world w { visitors are Creature }').map((d) => d.message)).toEqual([
+      '`w` does not compose `sprout.World`.',
+    ]);
+  });
+
+  it('is satisfied by the written words alone', () => {
+    expect(shape('world w: sprout.World { visitors are Creature }')).toEqual([]);
+  });
+
+  it('is not satisfied by an unqualified `World`, whatever it would resolve to', () => {
+    expect(shape('world w: World { visitors are Creature }')).toHaveLength(1);
   });
 });
 
@@ -177,25 +227,25 @@ describe('a world says what a person is, and where they begin', () => {
   });
 
   it('refuses a world that does not say what a visitor is', () => {
-    const { resolved, said } = world('world w { visitors arrive at y }');
+    const { resolved, said } = world('world w: sprout.World { visitors arrive at y }');
     expect(resolved).toBeNull();
     expect(said).toEqual(['`w` does not say what a visitor is.']);
   });
 
   it('refuses a world that does not say where a visitor arrives', () => {
-    const { resolved, said } = world('world w { visitors are Creature }');
+    const { resolved, said } = world('world w: sprout.World { visitors are Creature }');
     expect(resolved).toBeNull();
     expect(said).toEqual(['`w` does not say where a visitor arrives.']);
   });
 
   it('owes both sentences to a world that says neither', () => {
-    const { resolved, said } = world('world w { :a false }');
+    const { resolved, said } = world('world w: sprout.World { :a false }');
     expect(resolved).toBeNull();
     expect(said).toHaveLength(2);
   });
 
   it('refuses a visitor kind nothing declares, and says which sentence is missing', () => {
-    const { resolved, said } = world(`world w { visitors are Nope
+    const { resolved, said } = world(`world w: sprout.World { visitors are Nope
   visitors arrive at y }`);
     expect(resolved).toBeNull();
     expect(said[0]).toContain('Nothing here is a `Nope`');
@@ -205,12 +255,12 @@ describe('a world says what a person is, and where they begin', () => {
   });
 
   it('refuses saying either of them twice, and keeps the first', () => {
-    const twiceAre = world(`world w { visitors are Creature
+    const twiceAre = world(`world w: sprout.World { visitors are Creature
   visitors are Creature
   visitors arrive at y }`);
     expect(twiceAre.said.join(' ')).toContain('says twice what its visitors are');
 
-    const twiceAt = world(`world w { visitors are Creature
+    const twiceAt = world(`world w: sprout.World { visitors are Creature
   visitors arrive at first
   visitors arrive at second }`);
     expect(twiceAt.said.join(' ')).toContain('says twice where its visitors arrive');
@@ -230,7 +280,7 @@ describe('containment is a declaration, and a place is whatever holds actors', (
   /** A world writing exactly these lines, and the two things it may hold. */
   function holding(...lines: string[]) {
     const { resolved, said } = world(
-      `world printers_shop {\n${lines.map((l) => `  ${l}`).join('\n')}\n` +
+      `world printers_shop: sprout.World {\n${lines.map((l) => `  ${l}`).join('\n')}\n` +
         '  visitors are Creature\n  visitors arrive at composing_room\n}',
     );
     return { said, contains: resolved?.contains, containsActors: resolved?.containsActors };
