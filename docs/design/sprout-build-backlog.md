@@ -23,7 +23,7 @@ Every item names the sections of the design spec it implements. The spec is the 
 | # | item | depends on | spec | size |
 | --- | --- | --- | --- | --- |
 | B01 | Position spans on every AST node, so every diagnostic names a line and column | — | The compiler › Diagnostics | M |
-| B02 | Runtime budgets as host configuration with the spec's defaults: steps (parsing, range walks and `each` charged), output per recipient, events, cascade depth, passage depth, spawns per turn, live instances, wake floor, poll steps, wall-clock backstop | — | Limits | M |
+| B02 | Runtime budgets as host configuration with the spec's defaults: steps (parsing, range walks and `each` charged), output per recipient, events, cascade depth, passage depth, spawns per turn, wake floor, poll steps, wall-clock backstop | — | Limits | M |
 | B03 | Closed-bundle compile: vendored libraries, content hashing, whole-bundle checking, and the bundle artifact carrying the word set, level, pinned extensions, library hashes and the caps checked against | B01 | Kinds › Libraries and namespaces; The compiler › Two tiers, What compiling produces | L |
 | B04 | Strict publish and lenient load: any problem refuses at publish; at load a broken or withheld file reads as absent with exactly the behaviour in the absent table, and stored state for absent objects is kept | B03 | The compiler › Strict and lenient, What absent means | M |
 
@@ -43,13 +43,13 @@ Every item names the sections of the design spec it implements. The spec is the 
 
 | # | item | depends on | spec | size |
 | --- | --- | --- | --- | --- |
-| B12 | The world root: one tree, world properties, `pass any (false)` unless written, `visitors are`, `visitors arrive at`, the world composing kinds with `sprout.World` implicit | B03 | The world model; Places | M |
+| B12 | The world root: one tree, world properties, `pass any (false)` unless written, `visitors are`, `visitors arrive at`, the world composing kinds, `sprout.World` written on every one | B03 | The world model; Places | M |
 | B13 | `contains` and `contains actors` as declared capabilities; a place is whatever declares the latter; exits only on places | B12 | The world model › Places; Containment is a declaration | S |
 | B14 | Identifier scope: an identifier belongs to its container and is visible from inside it at any depth, nearest wins; dotted paths for exits; compile-time resolution with run-time range | B12 | Names › Identifiers and scope | M |
 | B15 | Range: self, own contents, the surface of the own container, then outward through pass rules crossing into sub-containers that pass; charged to steps | B13 B02 | The world model › Range | M |
 | B16 | Instance ids and the persisted state model: declared-path ids, minted ids for spawns, container, link destinations, pending wake, per-actor memory, last tick per place, visitor records; a stored value that no longer fits its type falls to the default | B12 | The runtime › State | M |
 | B17 | Actors: `sprout.Actor` with its guards (`mover == self`) and `pass any (false)`; the visitor kind; NPCs as objects composing it; the per-world visitor store; per-actor memory keyed by actor id | B13 B16 | The world model › Actors and visitors, What a world may know | L |
-| B18 | Spawning and destroying: `spawn` as statement and binding, `:spawned`, no consent but `:entered`; `destroy self` at body end with contents falling, bindings readable to turn end, queued messages dropped, place-with-visitor fault; spawn caps per turn and per world per hour | B17 | The world model › Spawning, Destroying | M |
+| B18 | Spawning and destroying: `spawn` as statement and binding, `:spawned`, no consent but `:entered`; `destroy self` at body end with contents falling, bindings readable to turn end, queued messages dropped, place-with-visitor fault; the spawn cap per turn; a `spawn` faults when the host will not hold another instance | B17 | The world model › Spawning, Destroying | M |
 
 ### 3 — Kinds and composition
 
@@ -70,7 +70,7 @@ Every item names the sections of the design spec it implements. The spec is the 
 | B26 | `act <verb> (role: binding, …)`: a reading run inline with `self` as actor, legal only where `self` composes the visitor kind, counted against cascade depth | B24 | Verbs › Acting | M |
 | B27 | The parser: grammar blocks (`name`, `article`, `nouns`, defaults, no leading article), optional articles and determiners, longest-first nouns and nicknames, positional slots, set-role runs on `and` and commas, value-role options per target, engine verbs with library phrases, directions with abbreviations and labels as aliases, disambiguation by kind and name then `which` with a re-submitted command, parse charged to steps, `unknown` and `unreachable` answers | B23 B15 | Names › Addressing and display, Articles, Nicknames; Verbs › Slots, Set roles, Engine verbs | L |
 | B28 | Exits, conditional exits with `when`, `link` and `connect`, dotted destinations, unset and absent links not applying, `go` as an engine verb proposing a move | B27 B22 | Verbs › Exits, An exit may be conditional, Places inside places, Links | M |
-| B29 | Passages and `.prose` files: the slot table, `{for}` over contents, kind-filtered contents, lists and set roles, `{if}` conditions, reflow and paragraphs, `{{`, strings as one-line passages, a passage using the invoking body's bindings checked by reachability, second-person rendering of the recipient, line capitalisation | B09 | Prose › Passages, Slots, Conditionals and loops, Bounds | L |
+| B29 | Passages and `.prose` files: the slot table, `{for}` over contents, kind-filtered contents, lists and set roles, `{if}` conditions, reflow and paragraphs, the escapes of quoted text with `\{` as the literal brace, strings as one-line passages, a passage using the invoking body's bindings checked by reachability, second-person rendering of the recipient, line capitalisation | B09 | Prose › Passages, Slots, Conditionals and loops, Bounds | L |
 | B30 | The three audiences: `say`, `tell`, `tell <x>`, `text`; where `actor` and `here` are bound; participants excluded from bystanders; the refusals in the compiler's list; the no-`say` warning | B29 B24 | Prose; Other people › Who hears it | M |
 | B31 | `describe` and the engine verbs `look`, `examine`, `inventory`, `wait`, `help`; `unremarkable` for an object with no description; a `describe` with no `text` refused | B29 | Prose; Verbs › Engine verbs | M |
 | B32 | Events: `send` to an identifier or binding, the broadcast algorithm, `pass :m` and `pass any`, breadth-first drain after the effect pass, `changed` hooks queued once per change, event and cascade budgets, the unsent/unhandled warnings | B15 B07 | Events, messages and the bus | M |
