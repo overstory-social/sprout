@@ -29,10 +29,10 @@ import type { Declaration, WorldDeclaration } from '../syntax/ast.js';
 import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js';
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from '../source/diagnostics.js';
-import { checkEnumDeclaration, EnumTable } from '../declare/enums.js';
+import { checkEnumDeclaration } from '../declare/enums.js';
 import { checkKindDeclaration } from '../declare/kinds.js';
 import { checkWorldDeclaration } from '../declare/world.js';
-import { MessageTable } from '../declare/messages.js';
+import { resolveDeclarations } from './declarations.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { DEFAULT_LIMITS, type Limits, type StaticCaps } from './limits.js';
 import type { Span, SourceFile } from '../source/source.js';
@@ -525,8 +525,8 @@ export function compileBundle(
       'Put more in each file, or take something out.',
     );
   }
-  // The places, objects and kinds caps are counted once there are
-  // declarations to count.
+  // The places, objects and kinds caps are B19's to count, with the
+  // world resolved.
 
   // The first tier, over every file in the closed bundle — the world's
   // own and every usable library's, because they compile together. A
@@ -624,41 +624,25 @@ export function compileBundle(
   }
 
   // A library is vendored source, not the world: only the world's own
-  // files may declare it.
+  // files may declare it, or anything in its tree.
   for (const [library, declared] of byLibrary) {
     if (library === manifest.namespace) continue;
-    for (const stray of declared.filter((d): d is WorldDeclaration => d.kind === 'world')) {
+    for (const stray of declared) {
+      if (stray.kind !== 'world' && stray.kind !== 'object') continue;
       report.refuse(
         stray.name.at,
-        'A library does not declare a world.',
-        "The world's own files do; move it there, or remove it from the library.",
+        stray.kind === 'world'
+          ? 'A library does not declare a world.'
+          : `A library does not declare an object, and \`${stray.name.text}\` is one.`,
+        stray.kind === 'world'
+          ? "The world's own files do; move it there, or remove it from the library."
+          : "The world's own files do; move it there, or declare a kind here for the world to make it of.",
       );
     }
   }
 
-  // The second tier over what parsed: an enum's identity is its library
-  // and its name, so two of one name in one library collide and two in
-  // different libraries do not.
-  const enums = new EnumTable();
-  for (const [library, declared] of byLibrary) {
-    enums.add(
-      library,
-      declared.filter((d) => d.kind === 'enum'),
-      report.diagnostics,
-    );
-  }
-
-  // Messages after enums, because what a message carries may be an
-  // enum's option and the enum has to be known before it can be named.
-  const messages = new MessageTable();
-  for (const [library, declared] of byLibrary) {
-    messages.add(
-      library,
-      declared.filter((d) => d.kind === 'message'),
-      enums,
-      report.diagnostics,
-    );
-  }
+  // The second tier over what parsed.
+  const tables = resolveDeclarations(byLibrary, manifest.namespace, report);
 
   // A world accepted at one level keeps loading when the language
   // tightens: a refusal introduced after that level applies to it as a
@@ -678,6 +662,8 @@ export function compileBundle(
   const bundle: Bundle = {
     manifest,
     definitions: declarations,
+    kinds: tables.kinds.all(),
+    objects: tables.objects,
     // B27 fills this from nouns, tokens, directions, articles,
     // connectors and phrase words, once there is a grammar to read.
     words: [],

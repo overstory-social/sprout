@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WorldDeclaration } from '../syntax/ast.js';
-import { kindName, WORLD, type KindLookup, type KindRef } from './kinds.js';
+import { kindName, type KindLookup, type KindRef } from './kinds.js';
+import { WORLD } from './sprout-world.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';
@@ -24,10 +25,12 @@ const ENUMS = (() => {
 })();
 
 function kind(library: string, name: string, ...composes: string[]): KindRef {
+  const order = [...composes, `${library}.${name}`];
   return {
     library,
     name,
-    composes: new Set([`${library}.${name}`, ...composes]),
+    order,
+    composes: new Set(order),
     properties: new Map(),
     contains: false,
     containsActors: false,
@@ -80,6 +83,8 @@ describe('a world is the root of the one tree', () => {
     const { resolved } = world(SHOP);
     expect(resolved!.properties.get('season')!.type).toMatchObject({ type: 'symbol' });
     expect(resolved!.properties.get('season')!.remembered).toBe(false);
+    // The world's own body is the origin of what it declares.
+    expect(resolved!.properties.get('season')!.origin).toBe('printers_shop.printers_shop');
   });
 
   it('remembers about each actor, in the same syntax as anything else', () => {

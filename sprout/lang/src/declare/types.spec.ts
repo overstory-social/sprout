@@ -9,6 +9,7 @@ import {
   BOOLEAN,
   checkLiteral,
   describeLiteral,
+  identicalType,
   INTEGER_MAX,
   INTEGER_MIN,
   integer,
@@ -169,6 +170,26 @@ describe('two types are the same one, or they are not', () => {
     expect(sameType({ type: 'list', element: WARD }, { type: 'list', element: DRYING })).toBe(
       false,
     );
+  });
+});
+
+describe('a restatement keeps the type, range and all', () => {
+  it('holds an integer to its range, which `sameType` does not', () => {
+    expect(identicalType(integer(0, 99), integer(0, 99))).toBe(true);
+    expect(identicalType(integer(0, 99), integer(0, 9))).toBe(false);
+    expect(identicalType(integer(0, 99), integer())).toBe(false);
+  });
+
+  it('holds a list of integers to its element’s range', () => {
+    const list = (element: ValueType): ValueType => ({ type: 'list', element });
+    expect(identicalType(list(integer(0, 9)), list(integer(0, 9)))).toBe(true);
+    expect(identicalType(list(integer(0, 9)), list(integer()))).toBe(false);
+  });
+
+  it('is `sameType` for everything with no range', () => {
+    expect(identicalType(WARD, WARD)).toBe(true);
+    expect(identicalType(WARD, DRYING)).toBe(false);
+    expect(identicalType(BOOLEAN, STRING)).toBe(false);
   });
 });
 

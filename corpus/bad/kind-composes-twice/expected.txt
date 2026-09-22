@@ -1,0 +1,4 @@
+kinds.sprout:7:21  `Chest` composes `Wooden` twice.
+                   Compose it once.
+
+refused: 1 problem
