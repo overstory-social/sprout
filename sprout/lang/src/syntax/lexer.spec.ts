@@ -51,8 +51,12 @@ describe('the token surface the language is written in', () => {
     expect(shapes('"work [target] with [tools]"')).toEqual(['string:work [target] with [tools]']);
   });
 
-  it('knows the three escapes text has', () => {
-    expect(read('"a \\"b\\" \\\\ c\\nd"').tokens[0]!.text).toBe('a "b" \\ c\nd');
+  it('knows the four escapes text has', () => {
+    expect(read('"a \\"b\\" \\\\ c\\nd \\{e"').tokens[0]!.text).toBe('a "b" \\ c\nd {e');
+  });
+
+  it('reads an unescaped { inside quotes as itself', () => {
+    expect(shapes('"back {soon}"')).toEqual(['string:back {soon}']);
   });
 
   it('reads every operator the checker names', () => {
