@@ -97,11 +97,29 @@ export function nearestOption(word: string, options: readonly string[]): string 
 }
 
 /**
- * One file's enum declarations, checked against themselves: the first
- * tier, where a declaration has to agree with itself and nothing else is
- * in scope yet.
+ * One enum, checked against itself: the first tier, where a declaration
+ * has to agree with itself and nothing else is in scope yet.
+ *
+ * `optionsPerEnum` is the host's figure for the spec's Limits › Static
+ * caps. It is passed in because the number is never this layer's.
  */
-export function checkEnumDeclaration(declared: EnumDeclaration, diagnostics: Diagnostics): void {
+export function checkEnumDeclaration(
+  declared: EnumDeclaration,
+  optionsPerEnum: number,
+  diagnostics: Diagnostics,
+): void {
+  // Said once, at the first option past the cap: how many an enum holds
+  // is one fact about one enum, and repeating it at every option past
+  // the line buries whatever else is wrong inside it.
+  const over = declared.options[optionsPerEnum];
+  if (over !== undefined) {
+    diagnostics.refuse(
+      over.at,
+      `\`${declared.name.text}\` has ${declared.options.length} options, and ${optionsPerEnum} is as many as it may have.`,
+      `Take some out, or split \`${declared.name.text}\` into two enums.`,
+    );
+  }
+
   const seen = new Map<string, Span>();
   for (const option of declared.options) {
     const before = seen.get(option.name.text);

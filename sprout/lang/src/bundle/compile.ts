@@ -102,17 +102,20 @@ const NAMESPACE = /^[a-z][a-z0-9_]*$/;
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
- * its syntax and the nesting cap; the rest of the caps that apply to a
- * definition on its own, its declarations agreeing with themselves and
- * every write going to `self` join it as the syntax that expresses them
- * lands. The caps are the host's, as every limit is.
+ * its syntax, the nesting cap and the options cap; the rest of the caps
+ * that apply to a definition on its own, its declarations agreeing with
+ * themselves and every write going to `self` join it as the syntax that
+ * expresses them lands. The caps are the host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const diagnostics = new Diagnostics();
   if (!isCode(file)) return { declarations: [], diagnostics: [] };
-  const declarations = parseDeclarations(file, diagnostics, caps);
+  const using = caps ?? DEFAULT_LIMITS.caps;
+  const declarations = parseDeclarations(file, diagnostics, using);
   for (const declared of declarations) {
-    if (declared.kind === 'enum') checkEnumDeclaration(declared, diagnostics);
+    if (declared.kind === 'enum') {
+      checkEnumDeclaration(declared, using.optionsPerEnum, diagnostics);
+    }
   }
   return { declarations, diagnostics: diagnostics.all };
 }

@@ -1,0 +1,10 @@
+{
+  "name": "option_reserved",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [],
+  "files": ["kinds.sprout"]
+}
