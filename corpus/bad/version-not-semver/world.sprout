@@ -1,0 +1,4 @@
+world not_semver {
+  visitors are Creature
+  visitors arrive at hall
+}

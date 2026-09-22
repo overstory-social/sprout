@@ -142,6 +142,35 @@ describe('what a manifest says about the world', () => {
     }
   });
 
+  it('accepts a semver version with a pre-release and build tag', () => {
+    const { bundle, diagnostics } = compileBundle(
+      world({ manifest: { version: '1.2.3-beta.1+build.5' } }),
+    );
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.manifest.version).toBe('1.2.3-beta.1+build.5');
+  });
+
+  it('refuses a version that is not semver, and points at the key', () => {
+    for (const version of ['1.0', 'v1.0.0', '1.0.0.0', 'latest']) {
+      const { bundle, diagnostics } = compileBundle(world({ manifest: { version } }));
+      expect(bundle, version).toBeNull();
+      const problem = refusals(diagnostics).find((d) => d.message.includes('is not a version'))!;
+      expect(problem, version).toBeDefined();
+      expect(problem.message).toBe(`"${version}" is not a version.`);
+      expect(problem.remedy).toBe(
+        'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.',
+      );
+      expect(locationOf(problem.at)).toBe('sprout.json:3:3');
+    }
+  });
+
+  it('says a version is empty rather than not-semver when it is empty', () => {
+    const { diagnostics } = compileBundle(world({ manifest: { version: '   ' } }));
+    const problems = refusals(diagnostics).filter((d) => d.message.includes('version'));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]!.message).toBe("This world's version is empty.");
+  });
+
   it('says what to write for a licence, which is the one a person will not guess', () => {
     const { diagnostics } = compileBundle(world({ manifest: { license: '' } }));
     expect(refusals(diagnostics).find((d) => d.message.includes('license'))!.remedy).toContain(
