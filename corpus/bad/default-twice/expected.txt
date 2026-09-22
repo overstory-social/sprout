@@ -1,7 +1,4 @@
-sprout.json:2:3    This world has no `world` declaration.
-                   Write one, in one of its files: `world <name>: sprout.World { … }`.
-
 world.sprout:4:19  `:ward` says its default twice.
                    `Ward.iron` already says what it starts at. Remove the `default` after it.
 
-refused: 2 problems
+refused: 1 problem

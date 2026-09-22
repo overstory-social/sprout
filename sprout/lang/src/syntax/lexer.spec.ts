@@ -248,7 +248,7 @@ describe('the lexer is pulled, so the parser can change how the next thing is re
 describe('the spec worked example reads as tokens', () => {
   // The spec's A worked microworld › world.sprout, as written there.
   const WORLD = [
-    'world printers_shop {',
+    'world printers_shop: sprout.World {',
     '  contains',
     '  visitors are Creature',
     '  visitors arrive at composing_room',
@@ -274,10 +274,14 @@ describe('the spec worked example reads as tokens', () => {
 
   it('reads with nothing to refuse', () => expect(diagnostics.all).toEqual([]));
 
-  it('reads the world head as its four tokens', () => {
-    expect(tokens.slice(0, 3).map((t) => `${t.kind}:${t.text}`)).toEqual([
+  it('reads the world head, the library it composes and all', () => {
+    expect(tokens.slice(0, 7).map((t) => `${t.kind}:${t.text}`)).toEqual([
       'name:world',
       'name:printers_shop',
+      'punct::',
+      'name:sprout',
+      'punct:.',
+      'kind:World',
       'punct:{',
     ]);
   });

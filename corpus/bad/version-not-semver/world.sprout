@@ -1,4 +1,4 @@
-world not_semver {
+world not_semver: sprout.World {
   visitors are Creature
   visitors arrive at hall
 }

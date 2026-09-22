@@ -1,4 +1,4 @@
-world missing {
+world missing: sprout.World {
   visitors are Creature
   visitors arrive at hall
 }

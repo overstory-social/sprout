@@ -30,6 +30,7 @@ import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js'
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from '../source/diagnostics.js';
 import { checkEnumDeclaration, EnumTable } from '../declare/enums.js';
+import { checkWorldDeclaration } from '../declare/world.js';
 import { MessageTable } from '../declare/messages.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { DEFAULT_LIMITS, type Limits, type StaticCaps } from './limits.js';
@@ -108,10 +109,11 @@ const SEMVER =
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
- * its syntax and the options cap; the rest of the caps
- * that apply to a definition on its own, its declarations agreeing with
- * themselves and every write going to `self` join it as the syntax that
- * expresses them lands. The caps are the host's, as every limit is.
+ * its syntax, the options cap and a world writing `sprout.World`; the
+ * rest of the caps that apply to a definition on its own, its
+ * declarations agreeing with themselves and every write going to `self`
+ * join it as the syntax that expresses them lands. The caps are the
+ * host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const diagnostics = new Diagnostics();
@@ -121,6 +123,12 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   for (const declared of declarations) {
     if (declared.kind === 'enum') {
       checkEnumDeclaration(declared, using.optionsPerEnum, diagnostics);
+    }
+    // One declaration answers on its own whether it wrote
+    // `sprout.World`, so the first tier is where a world that did not
+    // is refused.
+    if (declared.kind === 'world') {
+      checkWorldDeclaration(declared, diagnostics);
     }
   }
   return { declarations, diagnostics: diagnostics.all };
@@ -523,8 +531,18 @@ export function compileBundle(
   ];
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
+  // Every `world` declaration `checkShape` parsed in one of the world's
+  // own files, whether or not that file also refused: a file refused for
+  // its own defect may still hold the world, and publish is about to
+  // refuse the bundle for that defect regardless.
+  const ownWorldsSeen: WorldDeclaration[] = [];
   for (const { library, file } of readable) {
     const shape = checkShape(file, limits.caps);
+    if (library === manifest.namespace) {
+      ownWorldsSeen.push(
+        ...shape.declarations.filter((d): d is WorldDeclaration => d.kind === 'world'),
+      );
+    }
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
     if (!refused) {
       declarations.push(...shape.declarations);
@@ -557,14 +575,18 @@ export function compileBundle(
   // The world model › The manifest: "A bundle holds exactly one `world`
   // declaration, and its name is the manifest's `name`: none, more than
   // one, or one under another name is refused." Only the world's OWN
-  // declarations are read for this — a file the shape tier refused is
-  // already out of `byLibrary`, so a world written in a broken file
-  // counts as missing here too, which is consistent with every other use
-  // of that map.
+  // declarations are read for this, never a library's.
   const ownWorlds = (byLibrary.get(manifest.namespace) ?? []).filter(
     (d): d is WorldDeclaration => d.kind === 'world',
   );
-  if (ownWorlds.length === 0) {
+  // At publish, a file the shape tier refused for its own defect is
+  // still checked for a `world` declaration: the bundle is refused for
+  // that defect regardless, and saying the world also has none would be
+  // the same mistake said twice. At load that file is absent instead, so
+  // "none" is answered over what is actually usable, the same as every
+  // other gap.
+  const hasOwnWorld = mode === 'publish' ? ownWorldsSeen.length > 0 : ownWorlds.length > 0;
+  if (!hasOwnWorld) {
     report.gap(
       {
         what: manifest.name,
@@ -574,7 +596,7 @@ export function compileBundle(
         consequence: 'the world admits no one until it has one',
       },
       'This world has no `world` declaration.',
-      'Write one, in one of its files: `world <name>: sprout.World { … }`.',
+      `Write one, in one of its files: \`world ${manifest.name}: sprout.World { … }\`.`,
     );
   } else if (ownWorlds.length > 1) {
     // There is no principled way to choose among several, so every one
@@ -593,7 +615,7 @@ export function compileBundle(
         'Remove one, or move what it holds into the other.',
       );
     }
-  } else if (ownWorlds[0]!.name.text !== manifest.name) {
+  } else if (ownWorlds.length === 1 && ownWorlds[0]!.name.text !== manifest.name) {
     const named = ownWorlds[0]!;
     report.refuse(
       named.name.at,

@@ -6,9 +6,9 @@
 // are` names the visitor kind, so `item.is(sprout.Actor)` is an ordinary
 // nominal test; and `contains actors` is what makes a place a place, the
 // world included if it says so. What is here is what the declaration
-// WROTE: `sprout.World` is composed implicitly and B19 merges what
-// composition brings, B14 resolves `visitors arrive at`, B32 reads the
-// pass rules, and B42 handles arrival.
+// WROTE: every world writes `sprout.World` in its composition and B19
+// merges what composition brings, B14 resolves `visitors arrive at`,
+// B32 reads the pass rules, and B42 handles arrival.
 
 import type { Ident, WorldDeclaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from './kinds.js';
@@ -17,7 +17,10 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import { SPROUT, type EnumTable } from './enums.js';
 import { resolveProperty, resolveRemembers, type ResolvedProperty } from './properties.js';
 
-/** Every world composes this, whether it says so or not. */
+/**
+ * What every world composes, written with its library (the spec's The
+ * world model). An unqualified `World` does not stand for it.
+ */
 export const WORLD = `${SPROUT}.World`;
 
 /**
@@ -31,7 +34,7 @@ export const WORLD_PASSES_ANYTHING = false;
 /** A world, with what it is made of worked out. */
 export interface ResolvedWorld {
   readonly name: string;
-  /** Everything it composes, `sprout.World` included whether written or not. */
+  /** Everything it composes, as it wrote them, with `sprout.World` first. */
   readonly composes: readonly KindRef[];
   /** What a person is made of here. */
   readonly visitor: KindRef;
@@ -63,6 +66,28 @@ export interface ResolvedWorld {
 }
 
 /**
+ * Refuse a world that does not write `sprout.World`. It carries the
+ * words the engine speaks for itself, and the library is part of its
+ * name: an unqualified `World` is some other kind and does not stand
+ * for it (the spec's The world model). One declaration answers this on
+ * its own, so it is a shape-tier check.
+ */
+export function checkWorldDeclaration(declared: WorldDeclaration, diagnostics: Diagnostics): void {
+  const wrote = declared.composes.some(
+    (one) => one.library !== null && one.library.text === SPROUT && one.name.text === 'World',
+  );
+  if (wrote) return;
+  const bare = declared.composes.some((one) => one.library === null && one.name.text === 'World');
+  diagnostics.refuse(
+    declared.name.at,
+    `\`${declared.name.text}\` does not compose \`${WORLD}\`.`,
+    bare
+      ? `\`World\` on its own is not \`${WORLD}\`; write the library too: \`world ${declared.name.text}: ${WORLD} { … }\`.`
+      : `Every world writes it: \`world ${declared.name.text}: ${WORLD} { … }\`.`,
+  );
+}
+
+/**
  * Work out what a world declares, or refuse it. Returns null having
  * said why, because a world nobody can enter is not a microworld and
  * everything after this reads its answer.
@@ -76,6 +101,12 @@ export function resolveWorld(
   diagnostics: Diagnostics,
 ): ResolvedWorld | null {
   // --- what it composes -------------------------------------------------
+  // A world WRITES `sprout.World`, so nothing is composed here that the
+  // declaration did not say. The shape tier has already refused a world
+  // that left it out; asking again keeps the resolver from quietly
+  // making a world of something that is not one.
+  checkWorldDeclaration(declared, diagnostics);
+
   const composes: KindRef[] = [];
   const named = new Set<string>();
   for (const written of declared.composes) {
@@ -84,11 +115,20 @@ export function resolveWorld(
         ? kinds.unqualified(written.name.text, from)
         : kinds.qualified(written.library.text, written.name.text);
     if (found === null) {
-      diagnostics.refuse(
-        written.at,
-        `Nothing here is a \`${writtenKind(written.library, written.name)}\`.`,
-        'A world composes kinds this world declares, or ones a library it uses exports.',
-      );
+      const name = writtenKind(written.library, written.name);
+      if (name === WORLD) {
+        diagnostics.refuse(
+          written.at,
+          `The standard library is missing \`${WORLD}\`.`,
+          'Every world composes it, for the words the engine speaks for itself.',
+        );
+      } else {
+        diagnostics.refuse(
+          written.at,
+          `Nothing here is a \`${name}\`.`,
+          'A world composes kinds this world declares, or ones a library it uses exports.',
+        );
+      }
       continue;
     }
     if (named.has(kindName(found))) {
@@ -103,26 +143,14 @@ export function resolveWorld(
     composes.push(found);
   }
 
-  // `sprout.World` is composed whether it was written or not: it
-  // carries the words the engine speaks for itself, and a world without
-  // them could not answer a visitor at all. Writing it adds nothing,
-  // which is why it is not a collision.
-  //
-  // It goes FIRST either way. Composition order sequences a composable
-  // member's contributions, so leaving a written `sprout.World` where
-  // the author put it would make the two spellings mean different
-  // things — and "writing it adds nothing" would stop being true the
-  // moment it has a member of its own to sequence.
-  const world = kinds.qualified(SPROUT, 'World');
-  if (world === null) {
-    diagnostics.refuse(
-      declared.name.at,
-      `The standard library is missing \`${WORLD}\`.`,
-      'Every world composes it, for the words the engine speaks for itself.',
-    );
-    return null;
-  }
-  const ordered = [world, ...composes.filter((one) => kindName(one) !== WORLD)];
+  // `sprout.World` goes FIRST, wherever the author wrote it among the
+  // rest. Composition order sequences a composable member's
+  // contributions, and the words the engine speaks for itself are the
+  // ones everything else is written over.
+  const ordered = [
+    ...composes.filter((one) => kindName(one) === WORLD),
+    ...composes.filter((one) => kindName(one) !== WORLD),
+  ];
 
   // --- what it says about visitors --------------------------------------
   let visitor: KindRef | null = null;

@@ -294,16 +294,16 @@ export type WorldMember =
   PropertyDeclaration | RemembersDeclaration | VisitorsAre | VisitorsArriveAt | ContainsDeclaration;
 
 /**
- * `world printers_shop { … }` — the root of the one tree. The only
- * object with no container, the only one that cannot move, and the only
- * one that can be neither spawned nor destroyed.
+ * `world printers_shop: sprout.World { … }` — the root of the one tree.
+ * The only object with no container, the only one that cannot move, and
+ * the only one that can be neither spawned nor destroyed.
  *
- * Every world composes `sprout.World`, which carries the words the
- * engine speaks for itself, and it may compose more:
- * `world printers_shop: victorian.Voice { … }` is how a library of
- * stock lines in another register is installed. The implicit one is not
- * in `composes` — that is what was WRITTEN, and `world.ts` adds the
- * rest, so a diagnostic about a written kind can point at it.
+ * Every world writes `sprout.World`, which carries the words the engine
+ * speaks for itself, and it may compose more beside it:
+ * `world printers_shop: sprout.World, victorian.Voice { … }` is how a
+ * library of stock lines in another register is installed. `composes`
+ * is what was WRITTEN, library and all, so a diagnostic about a
+ * composed kind can point at the words the author typed.
  */
 export interface WorldDeclaration extends Node {
   readonly kind: 'world';

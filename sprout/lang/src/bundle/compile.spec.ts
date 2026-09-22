@@ -96,6 +96,26 @@ describe('the first tier reads one file alone, for its shape', () => {
     expect(diagnostics[0]!.message).toContain('twice');
   });
 
+  it('refuses a world that does not write `sprout.World`', () => {
+    // One declaration answers this on its own — nothing has to be
+    // resolved — so it belongs to the tier an editor runs on each
+    // keystroke.
+    const { diagnostics } = checkShape(
+      file('world.sprout', 'world shop {\n  visitors are Creature\n}\n'),
+    );
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]!.message).toBe('`shop` does not compose `sprout.World`.');
+    expect(locationOf(diagnostics[0]!.at)).toBe('world.sprout:1:7');
+  });
+
+  it('takes the world that writes it', () => {
+    const { declarations, diagnostics } = checkShape(
+      file('world.sprout', 'world shop: sprout.World {\n  visitors are Creature\n}\n'),
+    );
+    expect(diagnostics).toEqual([]);
+    expect(declarations.map((d) => d.kind)).toEqual(['world']);
+  });
+
   it('leaves a .prose file to B29 rather than reading it as code', () => {
     const { declarations, diagnostics } = checkShape(
       file('mirror.prose', 'You see yourself, and % is not a problem here.'),
@@ -262,7 +282,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     const problem = refusals(diagnostics)[0]!;
     expect(problem.message).toBe('This world has no `world` declaration.');
     expect(problem.remedy).toBe(
-      'Write one, in one of its files: `world <name>: sprout.World { … }`.',
+      'Write one, in one of its files: `world printers_shop: sprout.World { … }`.',
     );
     expect(locationOf(problem.at)).toBe('sprout.json:2:3');
   });
@@ -358,6 +378,34 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   it('still refuses a `world` declaration named otherwise at load, because it is never allowable', () => {
     const files = [file('world.sprout', 'world shop: sprout.World {}')];
     expect(compileBundle(world({ files }), { mode: 'load' }).bundle).toBeNull();
+  });
+
+  it('does not also say the world is missing when its only file is refused for its own defect', () => {
+    // `checkShape` still returns the `world` declaration it parsed
+    // alongside the refusal about the malformed list — a value inside a
+    // property recovers without discarding the world around it — and
+    // publish is about to refuse the bundle for that defect regardless.
+    // Saying the world also has none would be the same mistake said
+    // twice.
+    const files = [file('world.sprout', 'world printers_shop: sprout.World {\n  :x [-]\n}')];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics)).toHaveLength(1);
+    expect(refusals(diagnostics)[0]!.message).not.toContain('has no `world` declaration');
+  });
+
+  it('reads the same broken file as absent at load, and still gives the missing-world gap', () => {
+    // At load the broken file itself is a gap (its declarations, world
+    // included, are not in `byLibrary`), so the world genuinely has none
+    // among what is usable, and that gap stands beside the file's.
+    const files = [file('world.sprout', 'world printers_shop: sprout.World {\n  :x [-]\n}')];
+    const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
+    expect(bundle).not.toBeNull();
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.absent.map((a) => a.kind)).toEqual(['file', 'world']);
+    expect(
+      warnings(diagnostics).some((d) => d.message.includes('has no `world` declaration')),
+    ).toBe(true);
   });
 });
 

@@ -1,4 +1,4 @@
-world default_twice {
+world default_twice: sprout.World {
   visitors are Creature
   visitors arrive at hall
   :ward Ward.iron default brass

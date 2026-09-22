@@ -113,7 +113,8 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
   // `message :stir` — the colon before the name is the whole of it, and
   // there is no brace to fall back on.
   ['message', (name: Token) => name.kind === 'symbol'],
-  // `world printers_shop { … }`, or `world printers_shop: victorian.Voice { … }`.
+  // `world printers_shop: sprout.World { … }` — and the same with the
+  // composition left out, which parses so that the refusal can name it.
   //
   // The brace on its own, as for an enum — but NOT a bare `:`, though a
   // nameless `world: victorian.Voice { … }` is written that way.
@@ -1008,7 +1009,7 @@ class Parser {
       this.diagnostics.refuse(
         this.peek().at,
         'A world needs a name.',
-        'Write `world <name> { … }`, as in `world printers_shop { … }`.',
+        'Write `world <name>: sprout.World { … }`, as in `world printers_shop: sprout.World { … }`.',
       );
       this.recover();
       return null;
@@ -1041,7 +1042,7 @@ class Parser {
       this.diagnostics.refuse(
         this.here(),
         `\`${name.text}\` has nothing in it.`,
-        'A world is written `world <name> { … }`, holding what it is made of.',
+        'A world is written `world <name>: sprout.World { … }`, holding what it is made of.',
       );
       this.recover();
       return null;
