@@ -1,0 +1,5 @@
+world default_option_capitalised {
+  visitors are Creature
+  visitors arrive at hall
+  :ward Ward.Iron
+}

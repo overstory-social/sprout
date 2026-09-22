@@ -134,7 +134,8 @@ describe('a type taken from the literal', () => {
     const { type, diagnostics } = infer(':ward iron');
     expect(type).toBeNull();
     expect(diagnostics.refusals[0]!.message).toBe('`iron` does not say which enum it belongs to.');
-    expect(diagnostics.refusals[0]!.remedy).toContain(':state Drying default');
+    expect(diagnostics.refusals[0]!.remedy).toContain(':state Drying.iron');
+    expect(diagnostics.refusals[0]!.remedy).toContain(':state Drying default iron');
   });
 
   it('cannot be taken from a list, which does not say what it holds', () => {

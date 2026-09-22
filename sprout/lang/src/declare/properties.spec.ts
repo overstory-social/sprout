@@ -65,6 +65,54 @@ describe('a property is a name, a type and a default', () => {
   });
 });
 
+describe('an enum and the option to start at, written as one', () => {
+  it('means exactly what the two written apart mean', () => {
+    const qualified = declare(':ward Ward.oak');
+    expect(qualified.refusals).toEqual([]);
+    const apart = declare(':ward Ward default oak').resolved!;
+    expect(qualified.resolved!.type).toEqual(apart.type);
+    expect(showType(qualified.resolved!.type)).toBe('Ward');
+    expect(qualified.resolved!.declaration.default).toMatchObject({
+      kind: 'option-literal',
+      name: { text: 'oak' },
+    });
+  });
+
+  it('resolves the enum through the library it names', () => {
+    const enums = new EnumTable();
+    const diagnostics = new Diagnostics();
+    const declared = parseDeclarations(
+      new SourceFile('sprout.sprout', 'enum Ward { oak, silver }\n'),
+      diagnostics,
+    ).filter((d) => d.kind === 'enum');
+    enums.add('sprout', declared, diagnostics);
+    const written = parseProperty(
+      new SourceFile('kiln.sprout', ':ward sprout.Ward.oak'),
+      diagnostics,
+    );
+    const resolved = resolveProperty(written!, enums, 'printers_shop', diagnostics);
+    expect(diagnostics.refusals).toEqual([]);
+    expect(resolved!.type).toMatchObject({
+      type: 'symbol',
+      of: { library: 'sprout', name: 'Ward' },
+    });
+  });
+
+  it('is checked against the enum like any other option, at the option', () => {
+    const { resolved, refusals } = declare(':ward Ward.slver');
+    expect(resolved).toBeNull();
+    expect(refusals[0]!.message).toBe('`Ward` has no option `slver`. Did you mean `silver`?');
+    expect(refusals[0]!.remedy).toBe('Options: oak, silver.');
+    expect(locationOf(refusals[0]!.at)).toBe('kiln.sprout:1:12');
+  });
+
+  it('takes no range, because what it holds is a symbol', () => {
+    const { resolved, refusals } = declare(':ward Ward.oak min 0');
+    expect(resolved).toBeNull();
+    expect(refusals[0]!.message).toBe('`:ward` holds Ward, which has no range.');
+  });
+});
+
 describe('an integer’s range narrows its type, so the default is checked against it', () => {
   it('takes both bounds', () => {
     expect(declare(':wear 0 min 0 max 99').resolved!.type).toEqual(integer(0, 99));

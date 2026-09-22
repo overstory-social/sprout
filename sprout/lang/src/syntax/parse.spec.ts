@@ -443,6 +443,84 @@ describe('a property declaration, as a kind or an object writes one', () => {
     expect(declared!.type).toMatchObject({ library: { text: 'sprout' }, name: { text: 'Ward' } });
   });
 
+  it('reads an enum and the option it starts at written as one', () => {
+    const { declared, refusals } = declare(':ward Ward.iron');
+    expect(refusals).toEqual([]);
+    expect(declared!.type).toMatchObject({
+      kind: 'named-type',
+      library: null,
+      name: { text: 'Ward' },
+    });
+    expect(textOf(declared!.type!.at)).toBe('Ward');
+    expect(declared!.default).toMatchObject({ kind: 'option-literal', name: { text: 'iron' } });
+    // The option keeps its own span, so a problem with it points at the
+    // word and not at the enum in front of it.
+    expect(locationOf(declared!.default!.at)).toBe('kiln.sprout:1:12');
+    expect(unspanned(declared)).toEqual([]);
+  });
+
+  it('reads the same form with the enum\u2019s library', () => {
+    const { declared, refusals } = declare(':ward sprout.Ward.iron');
+    expect(refusals).toEqual([]);
+    expect(declared!.type).toMatchObject({ library: { text: 'sprout' }, name: { text: 'Ward' } });
+    expect(declared!.default).toMatchObject({ kind: 'option-literal', name: { text: 'iron' } });
+    expect(locationOf(declared!.default!.at)).toBe('kiln.sprout:1:19');
+  });
+
+  it('reads it the same way where an object remembers it', () => {
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('kiln.sprout', ':remembers [ward: Ward.iron]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals).toEqual([]);
+    expect(declared!.properties[0]!.type).toMatchObject({ name: { text: 'Ward' } });
+    expect(declared!.properties[0]!.default).toMatchObject({ name: { text: 'iron' } });
+  });
+
+  it('refuses a `default` after that form, which would say the default twice', () => {
+    const { declared, refusals } = declare(':ward Ward.iron default oak');
+    expect(declared).toBeNull();
+    expect(refusals[0]!.message).toBe('`:ward` says its default twice.');
+    expect(refusals[0]!.remedy).toBe(
+      '`Ward.iron` already says what it starts at. Remove the `default` after it.',
+    );
+    expect(locationOf(refusals[0]!.at)).toBe('kiln.sprout:1:17');
+  });
+
+  it('refuses a dot after a type that has no options, at the dot', () => {
+    for (const [text, message, at] of [
+      [':n integer.3', '`:n` writes a dot after a type that has no options.', 'kiln.sprout:1:11'],
+      [
+        ':opens [Ward].oak',
+        '`:opens` writes a dot after a type that has no options.',
+        'kiln.sprout:1:14',
+      ],
+    ] as const) {
+      const { declared, refusals } = declare(text);
+      expect(declared, text).toBeNull();
+      expect(refusals[0]!.message, text).toBe(message);
+      expect(refusals[0]!.remedy, text).toContain('Write `default` and the value instead.');
+      expect(locationOf(refusals[0]!.at), text).toBe(at);
+    }
+  });
+
+  it('refuses a dot with no option after it, and says what an option looks like', () => {
+    for (const [text, message] of [
+      [':ward Ward.', '`Ward.` cannot name the end of the file.'],
+      [':ward Ward.Iron', '`Ward.` cannot name `Iron`, which starts with a capital.'],
+      [':ward sprout.Ward.4', '`sprout.Ward.` cannot name the number 4.'],
+    ] as const) {
+      const { declared, refusals } = declare(text);
+      expect(declared, text).toBeNull();
+      expect(refusals[0]!.message, text).toBe(message);
+      expect(refusals[0]!.remedy, text).toBe(
+        'An option is a lower-case word, as in `:ward Ward.iron`.',
+      );
+    }
+    expect(locationOf(declare(':ward Ward.Iron').refusals[0]!.at)).toBe('kiln.sprout:1:12');
+  });
+
   it('tells `[Ward]` the type from `[oak]` the value by the capital', () => {
     expect(declare(':a [Ward] default [oak]').declared!.type!.kind).toBe('list-type');
     expect(declare(':a [oak]').declared!.type).toBeNull();
@@ -1889,6 +1967,10 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     'b: 0 min max 9',
     'b: 0 min 0 min 1',
     'b: 0 max 1.5',
+    'b: Ward.',
+    'b: Ward.Iron',
+    'b: integer.3',
+    'b: Ward.oak default silver',
     'b: 0 min',
     'b: [[[[[[[[[[oak]]]]]]]]]]',
     `b: [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,

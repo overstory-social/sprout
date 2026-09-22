@@ -148,7 +148,7 @@ export function typeOfLiteral(literal: Literal, diagnostics: Diagnostics): Value
       diagnostics.refuse(
         literal.at,
         `\`${literal.name.text}\` does not say which enum it belongs to.`,
-        `Write the enum before the default, as in \`:state Drying default ${literal.name.text}\`.`,
+        `Write the enum with it, as in \`:state Drying.${literal.name.text}\` or \`:state Drying default ${literal.name.text}\`.`,
       );
       return null;
     case 'list-literal':
