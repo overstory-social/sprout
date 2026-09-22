@@ -75,13 +75,17 @@ function kind(
   composes: string[] = [],
   contains = false,
   library = 'shop',
+  containsActors = false,
 ): KindRef {
   return {
     library,
     name,
     composes: new Set([`${library}.${name}`, ...composes]),
     properties: new Map(properties.map((p) => [p.name, p])),
-    contains,
+    // `contains actors` implies holding (B13), and a fixture that says
+    // otherwise would be typing against a kind that cannot exist.
+    contains: contains || containsActors,
+    containsActors,
   };
 }
 

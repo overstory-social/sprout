@@ -99,6 +99,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     composes: new Set([`${library}.${name}`, ...composes]),
     properties: new Map(),
     contains: false,
+    containsActors: false,
   };
 }
 

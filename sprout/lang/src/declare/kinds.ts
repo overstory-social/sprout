@@ -16,8 +16,14 @@ export interface KindRef {
   readonly composes: ReadonlySet<string>;
   /** What it declares, by name, the remembered ones included. */
   readonly properties: ReadonlyMap<string, ResolvedProperty>;
-  /** Whether it declares `contains`. */
+  /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
+  /**
+   * Whether what it holds may be people, which is the whole of what
+   * makes a place a place. It implies `contains`, and whoever builds a
+   * `KindRef` keeps that true.
+   */
+  readonly containsActors: boolean;
 }
 
 /** `sprout.Container` — a kind's full identity is its library and its name. */

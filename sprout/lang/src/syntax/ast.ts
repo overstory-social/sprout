@@ -266,9 +266,30 @@ export interface VisitorsArriveAt extends Node {
   readonly place: Ident;
 }
 
+/**
+ * `contains`, or `contains actors` — whether a thing may hold others,
+ * and whether the others may be people (B13; the spec's Containment is
+ * a declaration, Places).
+ *
+ * There are no rooms: a PLACE is any object that declares `contains
+ * actors`, so a wardrobe that declares it can be entered, and
+ * everything that follows from being somewhere follows from that one
+ * line. Neither is a kind the engine knows by name, which is what makes
+ * a library's container and the standard library's equally real.
+ *
+ * Structural rather than policy, and that is why it is a declaration
+ * and not a guard: the engine must know whether a thing holds others in
+ * order to build the tree at all, and no guard can answer that.
+ */
+export interface ContainsDeclaration extends Node {
+  readonly kind: 'contains';
+  /** Whether `actors` was written after it — what makes a place a place. */
+  readonly actors: boolean;
+}
+
 /** What may be written inside a world. The union grows one item at a time. */
 export type WorldMember =
-  PropertyDeclaration | RemembersDeclaration | VisitorsAre | VisitorsArriveAt;
+  PropertyDeclaration | RemembersDeclaration | VisitorsAre | VisitorsArriveAt | ContainsDeclaration;
 
 /**
  * `world printers_shop { … }` — the root of the one tree. The only
