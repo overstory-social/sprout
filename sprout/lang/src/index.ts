@@ -29,6 +29,7 @@ export * from './messages.js';
 export * from './bindings.js';
 export * from './check.js';
 export * from './lists.js';
+export * from './world.js';
 export * from './definitions.js';
 export * from './extensions.js';
 export * from './sprout.js';

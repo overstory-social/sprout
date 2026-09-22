@@ -24,6 +24,44 @@ function read(text: string, name = 'ward.sprout') {
 const optionsOf = (declared: EnumDeclaration): string[] =>
   declared.options.map((option) => option.name.text);
 
+/**
+ * One well-formed declaration for each word this compiler reads.
+ *
+ * A rule that holds for declarations in general needs a real one of
+ * each, and `${word} Two { a }` is not that: it is an enum's shape
+ * written out three times, and `message Two { a }` is not a message.
+ * The specs below assert this table covers `DECLARATIONS`, so a word
+ * added to the compiler is given a sample here rather than quietly
+ * skipping every rule that walks them.
+ */
+const A_DECLARATION: Record<string, string> = {
+  enum: 'enum Two { a }',
+  message: 'message :stir',
+  world: 'world two { visitors are P\n visitors arrive at y }',
+};
+
+/**
+ * Other ways the same declaration may open, where a word has more than
+ * one. Recovery has to stop at every one of them, and a rule that only
+ * ever sees the commonest spelling drops the others in silence — with
+ * `world`'s composing form missing here, deleting its `:` from
+ * `DECLARATION_SHAPES` passes the whole suite.
+ */
+const ALSO_WRITTEN: Record<string, string[]> = {
+  world: ['world two: victorian.Voice { visitors are P\n visitors arrive at y }'],
+};
+
+/** Every spelling of one word's declaration, the commonest one first. */
+function spellingsOf(word: string): string[] {
+  return [sampleOf(word), ...(ALSO_WRITTEN[word] ?? [])];
+}
+
+/** Every rule that walks `DECLARATIONS` checks the table has kept up. */
+function sampleOf(word: string): string {
+  expect(Object.keys(A_DECLARATION), `${word} has no sample in A_DECLARATION`).toContain(word);
+  return A_DECLARATION[word]!;
+}
+
 describe('an enum declaration', () => {
   it('reads as its name and its options', () => {
     const { declarations, refusals } = read('enum Ward { oak, silver }');
@@ -179,10 +217,13 @@ describe('what the parser refuses, and where it says so', () => {
   });
 
   it('refuses a word it cannot read at the top of a file, and says what it can read', () => {
-    const { refusals } = read('world printers_shop { }');
-    expect(refusals[0]!.message).toBe('Sprout does not know what to do with "world" here.');
+    // `kind` is B19's. This example was `world` until B12 read one,
+    // which is the point of the message being built from the table
+    // rather than written out: the sentence grew and this had to move.
+    const { refusals } = read('kind Vessel { }');
+    expect(refusals[0]!.message).toBe('Sprout does not know what to do with "kind" here.');
     expect(refusals[0]!.remedy).toBe(
-      'A file holds declarations, and this compiler reads `enum` and `message`.',
+      'A file holds declarations, and this compiler reads `enum`, `message` and `world`.',
     );
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:1');
   });
@@ -217,6 +258,28 @@ describe('a declaration it cannot read costs that declaration, not the file', ()
   it('reports every bad declaration, not the first', () => {
     const { refusals } = read('enum { a }\nenum { b }\nenum { c }');
     expect(refusals).toHaveLength(3);
+  });
+
+  it('reports the second one even where its own word cannot say what it is', () => {
+    // Recovery asks a LOOSER question than a loop reading elements
+    // does, and this is why. `message` with the name forgotten has no
+    // opening to recognise, and a nameless `world: victorian.Voice {`
+    // has one that `world` deliberately does not claim — so the strict
+    // question walks past both as filler and the author is told about
+    // the first mistake only. An author owed two problems is owed both.
+    const bare = read('enum Ward oak silver\nmessage\nenum Glaze { none, shino }\n');
+    expect(bare.refusals.map((d) => d.message)).toEqual([
+      'The options of `Ward` go in braces.',
+      'A message needs a name.',
+    ]);
+    expect(bare.declarations.map((d) => d.name.text)).toEqual(['Glaze']);
+
+    // The same through `recoverInBraces`, which hunts for a `}`.
+    const nameless = read(
+      'enum Ward { oak,\n42\nworld: v.X {\n  contains\n}\nenum Glaze { none, shino }\n',
+    );
+    expect(nameless.refusals.map((d) => d.message)).toContain('A world needs a name.');
+    expect(nameless.declarations.map((d) => d.name.text)).toEqual(['Ward', 'Glaze']);
   });
 
   it('never throws, whatever it is given', () => {
@@ -445,10 +508,41 @@ describe('a forgotten brace does not eat the declaration after it', () => {
     expect(declarations.map((d) => d.kind)).toEqual(['enum', 'message']);
   });
 
-  it('reads a declaration keyword as one wherever its own name follows it', () => {
+  it('reads a declaration keyword as one however that declaration is written', () => {
+    // Every spelling, not just the commonest: this is the loop that
+    // reads what the author WROTE, so it is the one `DECLARATION_SHAPES`
+    // governs, and a spelling missing from that table is a declaration
+    // swallowed as an option. Recovery cannot stand in for this — it
+    // asks a looser question that never consults the table at all.
     for (const word of DECLARATIONS) {
-      const { declarations } = read(`enum Ward {\n  oak\n${word} Two { a }`);
-      expect(optionsOf(declarations[0] as EnumDeclaration), word).toEqual(['oak']);
+      for (const written of spellingsOf(word)) {
+        const { declarations } = read(`enum Ward {\n  oak\n${written}`);
+        expect(optionsOf(declarations[0] as EnumDeclaration), written).toEqual(['oak']);
+        expect(
+          declarations.map((d) => d.kind),
+          written,
+        ).toHaveLength(2);
+      }
+    }
+  });
+
+  it('and ends the body before it even where the name was forgotten', () => {
+    // `enum {` and `world {` are a declaration the author started and
+    // did not finish naming — still a declaration, so the body before
+    // it ends here. Reading the word as an option instead keeps the
+    // mistake and loses everything after it. Recovery cannot stand in
+    // for this test either: it asks the looser question, which never
+    // consults `DECLARATION_SHAPES`.
+    for (const [nameless, said] of [
+      ['enum { a }', 'An enum needs a name.'],
+      ['world { }', 'A world needs a name.'],
+    ] as const) {
+      const { declarations, refusals } = read(`enum Ward {\n  oak\n${nameless}`);
+      expect(optionsOf(declarations[0] as EnumDeclaration), nameless).toEqual(['oak']);
+      expect(
+        refusals.map((d) => d.message),
+        nameless,
+      ).toEqual(['`Ward` is never closed.', said]);
     }
   });
 
@@ -753,22 +847,29 @@ describe('#59 — the parser refuses rather than throwing, at the host’s cap',
 
 describe('#59 — every place that asks where a declaration starts reads one table', () => {
   it('reads every word it says it reads', () => {
-    const minimal: Record<string, string> = {
-      enum: 'enum Ward { oak }',
-      message: 'message :stir',
-    };
     for (const word of DECLARATIONS) {
-      expect(Object.keys(minimal), `${word} has no sample here`).toContain(word);
-      const { declarations, refusals } = read(minimal[word]!);
+      const { declarations, refusals } = read(sampleOf(word));
       expect(refusals, word).toEqual([]);
       expect(declarations, word).toHaveLength(1);
     }
   });
 
-  it('stops recovery at every word it reads, and at no other', () => {
+  it('stops recovery at every word it reads, however that word is written', () => {
     for (const word of DECLARATIONS) {
-      const { declarations } = read(`nonsense\n${word === 'enum' ? 'enum A { a }' : 'message :a'}`);
-      expect(declarations, word).toHaveLength(1);
+      for (const written of spellingsOf(word)) {
+        const { declarations } = read(`nonsense\n${written}`);
+        expect(declarations, written).toHaveLength(1);
+      }
+    }
+  });
+
+  it('reads every spelling cleanly, so the rule above is not asserting a refusal', () => {
+    for (const word of DECLARATIONS) {
+      for (const written of spellingsOf(word)) {
+        const { declarations, refusals } = read(written);
+        expect(refusals, written).toEqual([]);
+        expect(declarations, written).toHaveLength(1);
+      }
     }
   });
 });
@@ -1239,6 +1340,351 @@ describe('a `min` and a `max` are whole numbers', () => {
   });
 });
 
+// --- the world (B12) ------------------------------------------------------
+
+function readWorld(text: string) {
+  const diagnostics = new Diagnostics();
+  const declarations = parseDeclarations(new SourceFile('w.sprout', text), diagnostics);
+  return {
+    world: declarations.find((d) => d.kind === 'world'),
+    declarations,
+    refusals: diagnostics.refusals,
+  };
+}
+
+/** A world's members as plain words, for a suite that is not about nodes. */
+const membersOf = (declared: { members: readonly { kind: string }[] }): string[] =>
+  declared.members.map((m) => m.kind);
+
+describe('a world declaration', () => {
+  it('reads the spec’s own world', () => {
+    const { world, refusals } = readWorld(`world printers_shop {
+  visitors are Creature
+  visitors arrive at composing_room
+  :season Season default autumn
+}`);
+    expect(refusals).toEqual([]);
+    expect(world!.name.text).toBe('printers_shop');
+    expect(world!.composes).toEqual([]);
+    expect(membersOf(world!)).toEqual(['visitors-are', 'visitors-arrive-at', 'property']);
+  });
+
+  it('reads what it composes, qualified or not, one or several', () => {
+    const one = readWorld('world w: victorian.Voice { visitors are P\n visitors arrive at y }');
+    expect(one.world!.composes.map((c) => `${c.library?.text ?? ''}.${c.name.text}`)).toEqual([
+      'victorian.Voice',
+    ]);
+
+    const two = readWorld(
+      'world w: victorian.Voice, Other { visitors are P\n visitors arrive at y }',
+    );
+    expect(two.world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Other']);
+    expect(two.world!.composes[1]!.library).toBeNull();
+  });
+
+  it('holds its own properties, and `:remembers` beside them', () => {
+    const { world, refusals } = readWorld(`world w {
+  :a false
+  :remembers [seen: false]
+  visitors are P
+  visitors arrive at y
+}`);
+    expect(refusals).toEqual([]);
+    expect(membersOf(world!)).toEqual([
+      'property',
+      'remembers',
+      'visitors-are',
+      'visitors-arrive-at',
+    ]);
+  });
+
+  it('spans from `world` to its closing brace', () => {
+    const { world } = readWorld('world w { visitors are P\n visitors arrive at y }');
+    expect(textOf(world!.at).startsWith('world w {')).toBe(true);
+    expect(textOf(world!.at).endsWith('}')).toBe(true);
+  });
+
+  it('says what is wrong with one that is not written out', () => {
+    const table: [string, string][] = [
+      ['world { }', 'A world needs a name.'],
+      ['world w', 'has nothing in it'],
+      ['world w { visitors are P', 'is never closed'],
+      ['world w: 4 { }', 'is not the name of a kind'],
+      ['world w: victorian. { }', 'is not followed by the name of a kind'],
+      ['world w { visitors }', 'A world says two things about visitors'],
+      ['world w { visitors arrive y }', 'A world says where visitors arrive AT.'],
+      ['world w { visitors are 4 }', 'is not the name of a kind'],
+      ['world w { visitors are creature }', 'is not the name of a kind'],
+      ['world w { nonsense }', 'A world is not made of'],
+      ['world w { 4 }', 'A world is not made of'],
+    ];
+    for (const [text, said] of table) {
+      const { world, refusals } = readWorld(text);
+      expect(world, text).toBeUndefined();
+      expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
+      for (const refusal of refusals) {
+        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+      }
+    }
+  });
+
+  it('says ONE thing about a member it could not read', () => {
+    // Whether a word is a member and whether reading it succeeded are
+    // two questions. Answering them in one expression reported a member
+    // that failed as a word nobody knows, and said both.
+    for (const text of [
+      'world w { visitors }',
+      'world w { visitors arrive y }',
+      'world w { visitors are 4 }',
+    ]) {
+      expect(readWorld(text).refusals, text).toHaveLength(1);
+    }
+  });
+
+  it('does not swallow the declaration written after a broken one', () => {
+    // The rule this parser has broken nine times. A world that cannot
+    // be read costs that world and not the file.
+    for (const broken of [
+      'world { }',
+      'world w { nonsense }',
+      'world w: 4 { }',
+      'world w { visitors are 4 }',
+      'world w',
+      'world w nonsense here',
+    ]) {
+      const { declarations, refusals } = readWorld(`${broken}\nenum Ward { oak }\n`);
+      expect(
+        declarations.map((d) => d.name.text),
+        broken,
+      ).toContain('Ward');
+      // Exactly one, not merely at least one: a world that gives up
+      // steps to the next declaration itself, so the file does not then
+      // add "Sprout does not know what to do with X here" about the
+      // wreckage it was left standing in.
+      expect(
+        refusals.map((d) => d.message),
+        broken,
+      ).toHaveLength(1);
+    }
+  });
+
+  it('treats a word that starts a declaration as the end of it, not as a member', () => {
+    // `world w { enum Ward { oak } }` is a world that was never closed,
+    // and the enum is the file's. Saying "a world is not made of
+    // `enum`" as well leaves its braces orphaned and says two things
+    // about one mistake. The enum's own option loop has guarded this
+    // since #58.
+    for (const inner of ['enum Inner { oak }', 'message :stir', 'world inner { }']) {
+      const { refusals, declarations } = readWorld(`world w {\n  ${inner}\n}\n`);
+      expect(
+        refusals.map((d) => d.message),
+        inner,
+      ).toContain('`w` is never closed.');
+      expect(
+        refusals.filter((d) => d.message.startsWith('A world is not made of')),
+        inner,
+      ).toHaveLength(0);
+      // And what was written inside it is kept, as the file's own.
+      expect(declarations.length, inner).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not let a member’s own recovery run past the declaration after it', () => {
+    // A list hunting for its `]` used to run to the end of the file.
+    // Before B12 that cost nothing — nothing was reading behind it —
+    // and a property inside a world is the first time `file()` is.
+    for (const member of [':x [', ':remembers [a: 0']) {
+      const { declarations, refusals } = readWorld(`world w { ${member}\n}\nenum Ward { oak }\n`);
+      expect(
+        declarations.map((d) => d.name.text),
+        member,
+      ).toContain('Ward');
+      expect(refusals.length, member).toBeGreaterThan(0);
+    }
+  });
+
+  it('still reads a word that only spells a declaration, where one may stand', () => {
+    // Nothing reserves an option's name, and what FOLLOWS the word is
+    // what decides: `[oak, enum]` is a list of two options.
+    for (const text of [':x [Ward] default [oak, enum]', ':x [Ward] default [oak, message]']) {
+      expect(readProperty(text).declared, text).not.toBeNull();
+      expect(readProperty(text).refusals, text).toEqual([]);
+    }
+  });
+
+  it('says when a comma is missing between the kinds it composes', () => {
+    // Every other comma-separated list in this file says so; this one
+    // used to stop reading and let the brace complain instead, which
+    // names the wrong problem.
+    const { world, refusals } = readWorld(
+      'world w: victorian.Voice other.Kind { visitors are P\n visitors arrive at y }',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A world needs a comma between the kinds it composes.',
+    ]);
+    expect(world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Kind']);
+  });
+
+  it('is one of the words this compiler reads', () => {
+    expect(DECLARATIONS).toContain('world');
+    // And the message for a word it does not read names it, because
+    // both come from the one table.
+    const { refusals } = readWorld('nonsense\n');
+    expect(refusals[0]!.remedy).toContain('world');
+  });
+});
+
+describe('recovery and reading ask the same word different questions', () => {
+  // A loop reading what the author WROTE stops when the answer is yes,
+  // so a false yes loses their work; recovery is already skipping, so a
+  // false no loses their diagnostic. One predicate cannot be wrong in
+  // both directions at once, which is why there are two — and three
+  // rounds of review on this PR were each one of them being asked in
+  // the wrong place.
+  //
+  // The assignment was right at all eight call sites and nothing held
+  // it there: four of the six reading loops had no spec that could tell
+  // which question they asked, so a later change flipping one back
+  // would ship behind a green gate exactly as the other two did. One
+  // input per loop, each chosen so the two questions disagree about it:
+  // a word this compiler reads, followed by something that is neither
+  // that word's own opening nor a closer.
+
+  it('an enum\u2019s options: the loose question would lose the option after the word', () => {
+    const { declarations, refusals } = read('enum Ward { oak, message silver }');
+    expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'message', 'silver']);
+    expect(refusals.map((d) => d.message)).toEqual(['`Ward` needs a comma between its options.']);
+  });
+
+  it('a world\u2019s members: the loose question would not say the word is not a member', () => {
+    const { declarations, refusals } = read('world w { message foo }\nenum Ward { oak }');
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A world is not made of `message`.',
+      '`w` is never closed.',
+      'A message needs a name.',
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+  });
+
+  it('a list literal, past an element it could not read: it would lose the world', () => {
+    const { declarations, refusals } = read(
+      'world w {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+    );
+    expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+      'A list needs a comma between its elements.',
+    ]);
+  });
+
+  it('a `:remembers`, past an entry it could not read: the same', () => {
+    const { declarations, refusals } = read(
+      'world outer {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+    );
+    expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A minus sign needs a number after it.',
+      '`message` needs a colon between its name and its value.',
+      '`foo` needs a colon between its name and its value.',
+    ]);
+  });
+});
+
+describe('#69 — a declaration\u2019s own word is an ordinary name wherever a name may stand', () => {
+  // *Reserved names* reserves nothing for a property's name or an
+  // option's, so `enum`, `message` and `world` are ordinary words
+  // almost everywhere. Recovery has to tell a declaration from a word
+  // that merely spells one, and the first guard written for that asked
+  // only whether a closer followed \u2014 which a remembered property's
+  // name never has, since its grammar is `name: value`. So every
+  // `:remembers` holding an entry called `enum` was read as a
+  // declaration starting mid-list and thrown away whole, and inside a
+  // world it took the world with it.
+  //
+  // #66 could not see this: it walks DEFECTIVE items and asks what
+  // survives beside them, and there was nothing wrong with any of these.
+  // This is the other half \u2014 nothing well formed is refused at all
+  // \u2014 and it is driven off DECLARATIONS so that `kind` and `object`
+  // are covered the day they are added.
+
+  it('as the name of a remembered property', () => {
+    for (const word of DECLARATIONS) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [${word}: 1, keep: 2]`),
+        diagnostics,
+      );
+      expect(diagnostics.refusals, word).toEqual([]);
+      expect(
+        remembered?.properties.map((p) => p.name.text),
+        word,
+      ).toEqual([word, 'keep']);
+    }
+  });
+
+  it('as an option in a list, wherever in it the word stands', () => {
+    for (const word of DECLARATIONS) {
+      for (const written of [
+        `[${word}]`,
+        `[oak, ${word}]`,
+        `[${word}, oak]`,
+        `[oak, ${word}, silver]`,
+      ]) {
+        const { declared, refusals } = readProperty(`:x [Ward] default ${written}`);
+        expect(refusals, `${word} in ${written}`).toEqual([]);
+        expect(
+          declared?.default?.kind === 'list-literal'
+            ? declared.default.elements.map((e) =>
+                e.kind === 'option-literal' ? e.name.text : e.kind,
+              )
+            : null,
+          `${word} in ${written}`,
+        ).toContain(word);
+      }
+    }
+  });
+
+  it('and a comma dropped after it is a missing comma, not the end of the list', () => {
+    // The shape that made the too-blunt guard visible in a list: the
+    // word is followed by another option rather than by a closer.
+    for (const word of DECLARATIONS) {
+      const { declared, refusals } = readProperty(`:x [Ward] default [${word} silver]`);
+      expect(
+        refusals.map((d) => d.message),
+        word,
+      ).toEqual(['A list needs a comma between its elements.']);
+      expect(
+        declared?.default?.kind === 'list-literal'
+          ? declared.default.elements.map((e) =>
+              e.kind === 'option-literal' ? e.name.text : e.kind,
+            )
+          : null,
+        word,
+      ).toEqual([word, 'silver']);
+    }
+  });
+
+  it('inside a world, where losing it cost the whole declaration', () => {
+    // The compound shape: the entry was thrown away, `worldMembers`
+    // fired on the same unconsumed word, and `file()` then read that
+    // leftover as a declaration the author never wrote \u2014 so `w`
+    // vanished and a stray "An enum needs a name." named nothing.
+    for (const word of DECLARATIONS) {
+      const { declarations, refusals } = readWorld(
+        `world w {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
+      );
+      expect(
+        refusals.map((d) => d.message),
+        word,
+      ).toEqual([]);
+      expect(
+        declarations.map((d) => d.name.text),
+        word,
+      ).toEqual(['w', 'Ward']);
+    }
+  });
+});
+
 describe('#66 — a defect in one item never loses a well-formed neighbour in silence', () => {
   // Eight times across #58, #59/#60, #62 and #65, a change to this
   // parser lost an item the author wrote correctly, and said nothing
@@ -1295,14 +1741,48 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
     'message :a with [[[[[[[[[[Ward]]]]]]]]]]',
     '%',
     'enum Ward { oak oak }',
+    // Worlds (B12). The first two are the shapes the review of that
+    // item found: a member word that also starts a declaration, and a
+    // member whose value is a list that was never closed. Both used to
+    // take the declaration after them with them.
+    'world w { enum Inner { oak } }',
+    'world w { :x [ }',
+    // Not `world w { }`: it PARSES, and what is wrong with it — no
+    // visitor kind, nowhere to arrive — is `resolveWorld`'s to say.
+    // A shape that is not a parse defect belongs in world.spec.ts.
+    'world w { nonsense }',
+    'world w: 4 { }',
+    'world w',
+    'world w { visitors }',
+    'world w { visitors are 4 }',
   ];
 
-  /** Every well-formed thing is kept, or named in something said. */
-  function nothingVanishes(what: string, kept: readonly string[], said: string, good: string[]) {
+  /**
+   * Every well-formed thing is KEPT.
+   *
+   * The first cut of this said "kept, or named in something said", and
+   * the review of B12 found two bugs it could not see. A name is
+   * "named" by any refusal that happens to quote it — so a declaration
+   * that vanished entirely passed, because the thing that swallowed it
+   * complained about its name on the way past. And "kept" said nothing
+   * about WHERE: a declaration written inside a world, reparsed as a
+   * sibling of the world that held it, counted as kept.
+   *
+   * So: kept, and nothing else appears that was not written at this
+   * level. A defect that genuinely takes a neighbour with it is named
+   * in the table rather than covered by a weaker rule.
+   */
+  function nothingVanishes(
+    what: string,
+    kept: readonly string[],
+    good: string[],
+    written: string[] = good,
+  ) {
     for (const name of good) {
-      expect(kept.includes(name) || said.includes(name), `${what}: \`${name}\` vanished`).toBe(
-        true,
-      );
+      expect(kept, `${what}: \`${name}\` vanished`).toContain(name);
+    }
+    for (const name of kept) {
+      expect(written, `${what}: \`${name}\` appeared where it was not written`).toContain(name);
     }
   }
 
@@ -1317,10 +1797,12 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
         checked += 1;
         const diagnostics = new Diagnostics();
         const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
-        const said = diagnostics.all.map((d) => d.message).join(' ');
-        nothingVanishes(text, remembered?.properties.map((p) => p.name.text) ?? [], said, [
-          ...good,
-        ]);
+        nothingVanishes(
+          text,
+          remembered?.properties.map((p) => p.name.text) ?? [],
+          [...good],
+          [...good, 'b'],
+        );
         // And it is a defect at all — the net is worth nothing if the
         // shapes it walks are well formed.
         expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
@@ -1340,14 +1822,16 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
       ] as const) {
         const diagnostics = new Diagnostics();
         const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        // Only the options: an element that is not one has no name to
+        // go missing, and rendering its kind would make this rule
+        // complain about shapes rather than about losses.
         const written =
           declared?.default?.kind === 'list-literal'
-            ? declared.default.elements.map((e) =>
-                e.kind === 'option-literal' ? e.name.text : String(e.kind),
+            ? declared.default.elements.flatMap((e) =>
+                e.kind === 'option-literal' ? [e.name.text] : [],
               )
             : [];
-        const said = diagnostics.all.map((d) => d.message).join(' ');
-        nothingVanishes(text, written, said, [...good]);
+        nothingVanishes(text, written, [...good], [...good, 'oak', 'silver']);
         expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
           0,
         );
@@ -1364,12 +1848,19 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
       ] as const) {
         const diagnostics = new Diagnostics();
         const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
-        const said = diagnostics.all.map((d) => d.message).join(' ');
+        // A construct that was never closed gives its contents to the
+        // file — `world w { enum Inner { oak } }` is a world that ran
+        // on, and `Inner` is the file's enum. That is the rule enums
+        // have followed since #58, and it keeps the author's work
+        // rather than skipping to a brace and losing it. So a name
+        // WRITTEN inside the defect may surface at the top level; a
+        // name that was never written anywhere still may not.
+        const inside = defect.match(/[A-Z][A-Za-z_]*/g) ?? [];
         nothingVanishes(
           text,
           declared.map((d) => d.name.text),
-          said,
           [...good],
+          [...good, 'Ward', ...inside],
         );
         expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
           0,

@@ -32,6 +32,7 @@ import type {
   BinaryOperator,
   Declaration,
   Expr,
+  KindExpr,
   LetStatement,
   EnumDeclaration,
   EnumOption,
@@ -42,6 +43,8 @@ import type {
   RemembersDeclaration,
   TypeExpr,
   UnaryOperator,
+  WorldDeclaration,
+  WorldMember,
 } from './ast.js';
 import type { Diagnostics } from './diagnostics.js';
 import { Lexer, type Token, type TokenKind } from './lexer.js';
@@ -58,7 +61,7 @@ import { spanning, type SourceFile, type Span } from './source.js';
  * spec holds that this list and that message name the same words, in
  * both directions.
  */
-export const DECLARATIONS = ['enum', 'message'] as const;
+export const DECLARATIONS = ['enum', 'message', 'world'] as const;
 
 /**
  * The type names that are the language's own. They are read as types
@@ -69,8 +72,57 @@ export const DECLARATIONS = ['enum', 'message'] as const;
  */
 const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
 
-/** Punctuation that ends a list of things, so a word before it is the last one. */
+/**
+ * Punctuation that ends a list of things, so a word before it is the
+ * last one — and so a word before it is an element rather than the
+ * start of something, which is as much as recovery needs to know.
+ */
 const CLOSERS = new Set([',', '}', ']']);
+
+/**
+ * What each declaration's opening looks like, past the word itself.
+ *
+ * Recovery has to tell `enum Ward { … }`, which starts a declaration,
+ * from `enum` used as an ordinary name — a remembered property called
+ * `enum`, an option called `enum` — because nothing reserves these
+ * words anywhere a name may stand. Only the word that starts a
+ * declaration knows what its own opening looks like, so each says, and
+ * a spec holds that every word in the readers table has an entry here.
+ *
+ * Two tokens is as far as this looks, and it is deliberately the least
+ * that separates the two readings: a guard that asks for more starts
+ * refusing declarations an author really did write.
+ */
+const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boolean> = new Map([
+  // `enum Ward { oak, silver }` — a name that starts with a capital,
+  // then the brace its options go in. Or the brace on its own: an
+  // author who forgot the name still started an enum, and three
+  // nameless ones in a row are three problems, not one.
+  [
+    'enum',
+    (name: Token, after: Token) => punct(name, '{') || (name.kind === 'kind' && punct(after, '{')),
+  ],
+  // `message :stir` — the colon before the name is the whole of it, and
+  // there is no brace to fall back on.
+  ['message', (name: Token) => name.kind === 'symbol'],
+  // `world printers_shop { … }`, or `world printers_shop: victorian.Voice { … }`.
+  //
+  // The brace on its own, as for an enum — but NOT a bare `:`, though a
+  // nameless `world: victorian.Voice { … }` is written that way.
+  // `world` is an ordinary name too, and `[world: 1]` remembers a
+  // property called `world`; that is input an author meant, where a
+  // world with no name is input they did not.
+  [
+    'world',
+    (name: Token, after: Token) =>
+      punct(name, '{') || (name.kind === 'name' && (punct(after, '{') || punct(after, ':'))),
+  ],
+]);
+
+/** Whether a token is one particular mark, which the shapes above ask a lot. */
+function punct(token: Token, text: string): boolean {
+  return token.kind === 'punct' && token.text === text;
+}
 
 /** Which bracket opens which, for stepping over what the cap refused. */
 const OPENER_OF: ReadonlyMap<string, string> = new Map([
@@ -158,6 +210,7 @@ class Parser {
     this.readers = new Map<string, () => Declaration | null>([
       ['enum', () => this.enumDeclaration()],
       ['message', () => this.messageDeclaration()],
+      ['world', () => this.worldDeclaration()],
     ]);
   }
 
@@ -197,16 +250,46 @@ class Parser {
   }
 
   /**
-   * Whether the next token begins a declaration rather than being a word
-   * that happens to spell one.
+   * Whether a declaration begins here — asked by a loop that is reading
+   * what the author WROTE, and so asked strictly.
    *
-   * Nothing reserves `enum` or `message` as an option name, so the word
-   * alone decides nothing. What decides is what FOLLOWS: a declaration
-   * is followed by its own name, where an option is followed by a
-   * separator, by the thing that closes its list, or by the end of the
-   * file.
+   * Nothing reserves `enum`, `message` or `world` anywhere a name may
+   * stand, so the word alone decides nothing and its own opening must:
+   * `DECLARATION_SHAPES` is what says whether that opening is here, and
+   * a word without it is a word.
+   *
+   * Strictly, because of which way this one is allowed to be wrong. A
+   * loop reading elements or members stops when this says yes, so a
+   * false yes throws away something the author meant — which is how
+   * `:remembers [enum: 1]` came to lose its whole block, and
+   * `[enum silver]` its list. Recovery has the opposite exposure and
+   * therefore its own question, below.
    */
-  private atDeclarationKeyword(): boolean {
+  private atDeclarationStart(): boolean {
+    const token = this.peek();
+    if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
+    const shape = DECLARATION_SHAPES.get(token.text);
+    return shape !== undefined && shape(this.peek(1), this.peek(2));
+  }
+
+  /**
+   * Whether recovery should stop here — the same question asked by a
+   * loop that is skipping past what it could not read, and so asked
+   * loosely.
+   *
+   * A word this compiler reads is where an author's next declaration
+   * most likely begins, however badly they wrote it. `message` with the
+   * name forgotten has no opening for `atDeclarationStart` to find, and
+   * `world: victorian.Voice { … }` has one that word deliberately does
+   * not claim — so asking the strict question here walks past both as
+   * filler, and the author is never told about the second thing they
+   * got wrong. An author owed two problems is owed both.
+   *
+   * A false yes costs nothing here: the file's own reader takes the
+   * word next and says what is wrong with it. That asymmetry is the
+   * whole reason these are two questions and not one.
+   */
+  private atRecoveryStop(): boolean {
     const token = this.peek();
     if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
     const after = this.peek(1);
@@ -280,7 +363,7 @@ class Parser {
   /** Step over everything up to the next thing that could start a declaration. */
   private recover(): void {
     while (!this.done) {
-      if (this.atDeclarationKeyword()) return;
+      if (this.atRecoveryStop()) return;
       this.next();
     }
   }
@@ -308,7 +391,7 @@ class Parser {
       // the brace structure is already lost, and a keyword down there is
       // no more trustworthy than anything else — reading it as a
       // declaration promotes nested text to the top of the file.
-      if (depth === 1 && this.atDeclarationKeyword()) return false;
+      if (depth === 1 && this.atRecoveryStop()) return false;
       this.next();
     }
     return false;
@@ -387,7 +470,7 @@ class Parser {
         this.next();
         break;
       }
-      if (this.atDeclarationKeyword()) {
+      if (this.atDeclarationStart()) {
         unclosed(this.peek().at);
         refused = true;
         break;
@@ -643,9 +726,14 @@ class Parser {
         if (overCap) return null;
         return { kind: 'list-literal', at: spanning(open.at, close.at), elements };
       }
-      if (this.done) {
+      if (this.done || this.atDeclarationStart()) {
+        // A word that starts a declaration is not an element, however
+        // it reads as one — `enum` is a perfectly good option name, so
+        // `literal()` takes it and the hunt for a `]` walks on through
+        // the rest of the file. What FOLLOWS the word decides:
+        // `[oak, enum]` is still a list of two options.
         this.diagnostics.refuse(
-          this.source.endSpan,
+          this.done ? this.source.endSpan : this.peek().at,
           'This list is never closed.',
           'Add a ] after its elements.',
         );
@@ -664,7 +752,15 @@ class Parser {
         // Looping back to the top would have every list enclosing this
         // one say "never closed" about the same exhausted file, once
         // per level of nesting.
-        if (this.done) return null;
+        //
+        // Nor past a word that starts a DECLARATION. Before B12 this
+        // loop was only reached from the standalone entry points, where
+        // running to the end of the file cost nothing; a property
+        // inside a world is the first time `file()` is still reading
+        // behind it, and hunting for a `]` swallowed every declaration
+        // after it. `[oak, enum]` is still a list of two options,
+        // because `atDeclarationStart` asks what FOLLOWS the word.
+        if (this.done || this.atDeclarationStart()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
@@ -761,6 +857,227 @@ class Parser {
     return { kind: 'property', at: spanning(from, end.at), name, type, default: value, min, max };
   }
 
+  // --- the world ------------------------------------------------------
+  //
+  // `world printers_shop: victorian.Voice { … }`. Its members grow one
+  // backlog item at a time, the same way declarations do, and the
+  // message for a word it does not read is built from the same table
+  // that reads them, so the two cannot drift.
+
+  /** What may be written inside a world, and what reads each one. */
+  private worldMembers(): ReadonlyMap<string, () => WorldMember | null> {
+    return new Map<string, () => WorldMember | null>([['visitors', () => this.visitors()]]);
+  }
+
+  private worldDeclaration(): WorldDeclaration | null {
+    const keyword = this.next();
+    const name = this.take('name');
+    if (name === null) {
+      this.diagnostics.refuse(
+        this.peek().at,
+        'A world needs a name.',
+        'Write `world <name> { … }`, as in `world printers_shop { … }`.',
+      );
+      this.recover();
+      return null;
+    }
+
+    const composes: KindExpr[] = [];
+    if (this.take('punct', ':') !== null) {
+      for (;;) {
+        const composed = this.kindName();
+        if (composed === null) {
+          this.recover();
+          return null;
+        }
+        composes.push(composed);
+        if (this.take('punct', ',') !== null) continue;
+        // Every other comma-separated list in this file says so when
+        // the comma is missing; this one used to stop reading and let
+        // the brace complain instead, which names the wrong problem.
+        if (!this.atKindName()) break;
+        this.diagnostics.refuse(
+          this.here(),
+          'A world needs a comma between the kinds it composes.',
+          'Write `world <name>: one.Kind, Another { … }`.',
+        );
+      }
+    }
+
+    const open = this.take('punct', '{');
+    if (open === null) {
+      this.diagnostics.refuse(
+        this.here(),
+        `\`${name.text}\` has nothing in it.`,
+        'A world is written `world <name> { … }`, holding what it is made of.',
+      );
+      this.recover();
+      return null;
+    }
+
+    const members: WorldMember[] = [];
+    const readers = this.worldMembers();
+    for (;;) {
+      const close = this.take('punct', '}');
+      if (close !== null) {
+        return {
+          kind: 'world',
+          at: spanning(keyword.at, close.at),
+          name: this.ident(name),
+          composes,
+          members,
+        };
+      }
+      if (this.done) {
+        this.diagnostics.refuse(
+          this.source.endSpan,
+          `\`${name.text}\` is never closed.`,
+          'Add a } after what the world is made of.',
+        );
+        return null;
+      }
+
+      // A word that starts a DECLARATION is not a member, however it
+      // reads as one. `world w { enum Ward { oak } }` is a world that
+      // was never closed, and the enum is the file's; saying "a world
+      // is not made of `enum`" as well leaves its braces orphaned and
+      // the enum reparsed as a sibling of the world that held it. The
+      // enum's own option loop has guarded this since #58.
+      if (this.atDeclarationStart()) {
+        this.diagnostics.refuse(
+          this.peek().at,
+          `\`${name.text}\` is never closed.`,
+          'Add a } after what the world is made of.',
+        );
+        return null;
+      }
+
+      // Whether a word IS a member and whether reading it SUCCEEDED are
+      // two questions, and answering them in one expression is how a
+      // member that failed gets reported as a word nobody knows.
+      const token = this.peek();
+      const read = this.worldMemberReader(token, readers);
+      if (read === null) {
+        this.diagnostics.refuse(
+          token.at,
+          `A world is not made of ${this.describe(token)}.`,
+          `It holds its properties, and ${readable([...readers.keys()])}.`,
+        );
+      }
+      const member = read === null ? null : read();
+      if (member === null) {
+        if (!this.recoverInBraces()) {
+          this.diagnostics.refuse(
+            this.done ? this.source.endSpan : this.peek().at,
+            `\`${name.text}\` is never closed.`,
+            'Add a } after what the world is made of.',
+          );
+        }
+        return null;
+      }
+      members.push(member);
+    }
+  }
+
+  /** What reads the member a word begins, or null where it begins none. */
+  private worldMemberReader(
+    token: Token,
+    readers: ReadonlyMap<string, () => WorldMember | null>,
+  ): (() => WorldMember | null) | null {
+    // A property is written with its colon, and `:remembers` is the one
+    // symbol that is not one.
+    if (token.kind === 'symbol') {
+      return token.text === 'remembers' ? () => this.remembers() : () => this.property();
+    }
+    return token.kind === 'name' ? (readers.get(token.text) ?? null) : null;
+  }
+
+  /** `visitors are Creature`, `visitors arrive at composing_room`. */
+  private visitors(): WorldMember | null {
+    const keyword = this.next();
+    if (this.take('name', 'are') !== null) {
+      const visitor = this.kindName();
+      if (visitor === null) return null;
+      return { kind: 'visitors-are', at: spanning(keyword.at, visitor.at), visitor };
+    }
+    if (this.take('name', 'arrive') !== null) {
+      if (this.take('name', 'at') === null) {
+        this.diagnostics.refuse(
+          this.peek().at,
+          'A world says where visitors arrive AT.',
+          'Write `visitors arrive at <name>`, naming the place they begin in.',
+        );
+        return null;
+      }
+      const place = this.take('name');
+      if (place === null) {
+        this.diagnostics.refuse(
+          this.peek().at,
+          'A world says where visitors arrive.',
+          'Write `visitors arrive at <name>`, naming the place they begin in.',
+        );
+        return null;
+      }
+      return {
+        kind: 'visitors-arrive-at',
+        at: spanning(keyword.at, place.at),
+        place: this.ident(place),
+      };
+    }
+    this.diagnostics.refuse(
+      this.peek().at,
+      'A world says two things about visitors: what they are, and where they arrive.',
+      'Write `visitors are <Kind>` or `visitors arrive at <name>`.',
+    );
+    return null;
+  }
+
+  /** Whether a kind's name starts here, which is how a missing comma is told from an end. */
+  private atKindName(): boolean {
+    const first = this.peek();
+    if (first.kind === 'kind') return true;
+    return (
+      first.kind === 'name' &&
+      this.peek(1).kind === 'punct' &&
+      this.peek(1).text === '.' &&
+      this.peek(2).kind === 'kind'
+    );
+  }
+
+  /** `Key` or `sprout.Container` — a kind as written, wherever one is written. */
+  private kindName(): KindExpr | null {
+    const first = this.peek();
+    if (first.kind === 'kind') {
+      this.next();
+      return { kind: 'kind-expr', at: first.at, library: null, name: this.ident(first) };
+    }
+    if (first.kind === 'name' && this.peek(1).kind === 'punct' && this.peek(1).text === '.') {
+      const library = this.next();
+      this.next();
+      const named = this.take('kind');
+      if (named !== null) {
+        return {
+          kind: 'kind-expr',
+          at: spanning(library.at, named.at),
+          library: this.ident(library),
+          name: this.ident(named),
+        };
+      }
+      this.diagnostics.refuse(
+        this.peek().at,
+        `\`${library.text}.\` is not followed by the name of a kind.`,
+        'A kind starts with a capital letter, as in `sprout.Container`.',
+      );
+      return null;
+    }
+    this.diagnostics.refuse(
+      first.at,
+      `${this.describe(first)} is not the name of a kind.`,
+      'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
+    );
+    return null;
+  }
+
   /** `:wear 0 min 0 max 99` — a property as a kind or an object writes one. */
   property(): PropertyDeclaration | null {
     const symbol = this.take('symbol');
@@ -802,9 +1119,11 @@ class Parser {
       if (close !== null) {
         return { kind: 'remembers', at: spanning(symbol.at, close.at), properties };
       }
-      if (this.done) {
+      if (this.done || this.atDeclarationStart()) {
+        // As the list above: a word that starts a declaration ends the
+        // hunt, because otherwise it runs to the end of the file.
         this.diagnostics.refuse(
-          this.source.endSpan,
+          this.done ? this.source.endSpan : this.peek().at,
           'This `:remembers` is never closed.',
           'Add a ] after what it remembers.',
         );
@@ -815,8 +1134,9 @@ class Parser {
       const declared = this.rememberedProperty();
       if (declared === null) {
         // As the list above, including that a file which ran out inside
-        // the entry has already been explained by whatever read it.
-        if (this.done) return null;
+        // the entry has already been explained by whatever read it, and
+        // that a word starting a declaration ends the hunt.
+        if (this.done || this.atDeclarationStart()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
