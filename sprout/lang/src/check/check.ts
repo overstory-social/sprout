@@ -96,11 +96,19 @@ export function typeOf(expr: Expr, context: CheckContext): BindingType | null {
   // recursive walk would answer a long enough expression with a stack
   // overflow rather than with a diagnostic. Everything off a spine is
   // bounded by that depth and is typed by an ordinary call.
+  //
+  // The walk stops one node early for `sym == x` / `sym != x`: a bare
+  // option names no enum on its own, so its left is never handed to
+  // `leafType` alone — `identityType` types it against the right instead.
   const spine: Expr[] = [];
   for (let node: Expr = expr; ;) {
     spine.push(node);
-    if (node.kind === 'binary') node = node.left;
-    else if (node.kind === 'unary') node = node.operand;
+    if (node.kind === 'binary') {
+      const identityWithLiteralLeft =
+        (node.operator === '==' || node.operator === '!=') && node.left.kind === 'symbol-expr';
+      if (identityWithLiteralLeft) break;
+      node = node.left;
+    } else if (node.kind === 'unary') node = node.operand;
     else if (node.kind === 'member' || node.kind === 'call') node = node.receiver;
     else break;
   }
@@ -211,6 +219,11 @@ function leafType(expr: Expr, context: CheckContext): BindingType | null {
         'An option is compared with something typed, as in `self.get(:state) == :wet`.',
       );
       return null;
+    case 'binary':
+      // The one binary the spine hands to a leaf: `sym == x` / `sym !=
+      // x`, whose left is a symbol literal. `identityType` checks it
+      // against the right instead of typing it alone.
+      return identityType(expr, null, context);
     case 'kind-expr':
       context.diagnostics.refuse(
         expr.at,
@@ -226,8 +239,9 @@ function leafType(expr: Expr, context: CheckContext): BindingType | null {
       );
       return null;
     default:
-      // A binary, unary, member or call never reaches here: the spine
-      // walk stops above it and `aboveType` types it.
+      // A unary, member or call never reaches here: the spine walk
+      // stops above it and `aboveType` types it. A binary reaches here
+      // only through the `'binary'` case above.
       context.diagnostics.refuse(
         expr.at,
         'Sprout cannot work out what this reads.',
@@ -333,14 +347,19 @@ function bothAre(
 }
 
 /**
- * `a == b`, `a != b` — same type, and not a list, and a bare option is
- * checked against the enum of whatever it is being compared to. That
- * last part is what an enum exists for: `== :slver` names the options
- * rather than being false for ever.
+ * `a == b`, `a != b` — same type, and not a list; a symbol literal, on
+ * either side, is checked against the enum of whatever it is compared
+ * to. That is what an enum exists for: `:slver ==` or `== :slver` names
+ * the options rather than being false for ever.
+ *
+ * `left` is null exactly when `expr.left` is itself the symbol literal:
+ * `leafType` hands it here unread rather than typing it alone, so this
+ * checks it against the right the same way it checks a literal right
+ * against the (already-typed) left.
  */
 function identityType(
   expr: Expr & { readonly kind: 'binary' },
-  left: BindingType,
+  left: BindingType | null,
   context: CheckContext,
 ): BindingType | null {
   const leftOption = expr.left.kind === 'symbol-expr';
@@ -354,22 +373,28 @@ function identityType(
     return null;
   }
 
+  if (leftOption) {
+    const right = typeOf(expr.right, context);
+    return right !== null && option(expr.left as SymbolExpr, right, context)
+      ? valueOf(BOOLEAN)
+      : null;
+  }
+  // Only the leftOption case above is ever handed a null: every other
+  // branch below runs with `expr.left` already typed by the spine.
+  const leftType = left!;
+
   if (rightOption) {
-    return option(expr.right as SymbolExpr, left, context) ? valueOf(BOOLEAN) : null;
+    return option(expr.right as SymbolExpr, leftType, context) ? valueOf(BOOLEAN) : null;
   }
   const right = typeOf(expr.right, context);
   if (right === null) return null;
-  if (leftOption) {
-    // The left was already refused by `leafType`; nothing more is owed.
-    return null;
-  }
 
   if (
-    left.binds === 'value' &&
+    leftType.binds === 'value' &&
     right.binds === 'value' &&
-    left.type.type === 'list' &&
+    leftType.type.type === 'list' &&
     right.type.type === 'list' &&
-    sameType(left.type, right.type)
+    sameType(leftType.type, right.type)
   ) {
     context.diagnostics.refuse(
       expr.left.at,
@@ -379,18 +404,22 @@ function identityType(
     return null;
   }
 
-  if (left.binds === 'object' && right.binds === 'object') {
+  if (leftType.binds === 'object' && right.binds === 'object') {
     // Two bindings in scope, compared for being the same thing. Kinds
     // need not agree: asking whether the mover is the actor is the
     // point, and they may be different kinds.
     return valueOf(BOOLEAN);
   }
-  if (left.binds === 'value' && right.binds === 'value' && sameType(left.type, right.type)) {
+  if (
+    leftType.binds === 'value' &&
+    right.binds === 'value' &&
+    sameType(leftType.type, right.type)
+  ) {
     return valueOf(BOOLEAN);
   }
   context.diagnostics.refuse(
     expr.at,
-    `This compares ${showBindingType(left)} with ${showBindingType(right)}.`,
+    `This compares ${showBindingType(leftType)} with ${showBindingType(right)}.`,
     'Two things are compared only where they are the same type.',
   );
   return null;
