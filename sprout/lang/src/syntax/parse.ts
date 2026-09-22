@@ -224,6 +224,13 @@ class Parser {
    * declarations, so two deep ones are two reports.
    */
   private tooDeepReported = false;
+  /**
+   * Where a `[` stands, by source offset, that `closedBracketRun` has
+   * found no `]` for. One failed probe answers for every `[` it walked
+   * past, so a stretch of stray brackets is walked once and not once
+   * per bracket.
+   */
+  private readonly unclosedBrackets = new Set<number>();
 
   constructor(
     private readonly source: SourceFile,
@@ -1155,12 +1162,20 @@ class Parser {
    * no `]` closes it before a brace or the end of the file.
    */
   private closedBracketRun(): number {
-    let depth = 0;
+    if (this.unclosedBrackets.has(this.peek().at.start)) return 0;
+    // The brackets still open at each point, innermost last: the `[`
+    // here is closed exactly when its own entry is popped.
+    const open: number[] = [];
     for (let ahead = 0; ; ahead++) {
       const token = this.peek(ahead);
-      if (token.kind === 'end' || punct(token, '{') || punct(token, '}')) return 0;
-      if (punct(token, '[')) depth += 1;
-      else if (punct(token, ']') && --depth === 0) return ahead + 1;
+      if (token.kind === 'end' || punct(token, '{') || punct(token, '}')) {
+        for (const start of open) this.unclosedBrackets.add(start);
+        return 0;
+      }
+      if (punct(token, '[')) open.push(token.at.start);
+      else if (punct(token, ']') && open.pop() !== undefined && open.length === 0) {
+        return ahead + 1;
+      }
     }
   }
 

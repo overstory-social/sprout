@@ -1712,6 +1712,40 @@ describe('a world declaration', () => {
     expect(membersOf(world!)).toEqual(['visitors-are', 'visitors-arrive-at']);
   });
 
+  it('steps over a stretch of stray `[` after a bad member once, not once per bracket', () => {
+    // Not a timing assertion — the test timeout is the guard, as it is
+    // for the lexer's long lookahead. The size is chosen so that it
+    // bites: probing each `[` afresh for its `]` took about 38 seconds
+    // on this body against a default timeout of five, where walking the
+    // stretch once took about 80 milliseconds. Thirty-two thousand
+    // brackets took 3.5 seconds rescanned, which does not bite. Do not
+    // lower the count, and do not raise the timeout.
+    const count = 100_000;
+    const { world, refusals } = readWorld(
+      `world w: sprout.World {\n  :ward Ward.Iron\n  ${'['.repeat(count)}\n  :y 1\n}\n`,
+    );
+    expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'y',
+    ]);
+    expect(refusals).toHaveLength(1);
+  });
+
+  it('remembers what one probe found across the members that follow it', () => {
+    // The same guard, where each stray `[` ends a bad member of its own
+    // and so each is met by a different recovery. Rescanning took about
+    // 22 seconds for this count and 5.6 for twenty thousand, which is
+    // too close to the timeout to bite; walking once took about 150
+    // milliseconds. Do not lower the count, and do not raise the timeout.
+    const count = 40_000;
+    const { world, refusals } = readWorld(
+      `world w: sprout.World {\n${':a Ward.Iron [\n'.repeat(count)}  :y 1\n}\n`,
+    );
+    expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'y',
+    ]);
+    expect(refusals).toHaveLength(count);
+  });
+
   it('keeps the member written after one it could not read', () => {
     /** A world's members by name, the way a reader of these tests would say them. */
     const named = (text: string) => {
@@ -1738,6 +1772,11 @@ describe('a world declaration', () => {
     expect(named(':x [oak, Zeta silver]\n:y 1').members).toContain('y');
     // A `[` that never closes is not allowed to take the rest of the body.
     expect(named(':x Ward.Iron [\n:y 1').members).toEqual(['y']);
+    // And one that never closes says nothing about a list after it that does.
+    expect(named(':x Ward.Iron [ [:wet]\n:y 1')).toEqual({
+      members: ['y'],
+      said: ['`Ward.` cannot name `Iron`, which starts with a capital.'],
+    });
     // Two bad members in a row are two problems, each said.
     expect(named('visitors are 4\nvisitors arrive y\n:y 1')).toEqual({
       members: ['y'],
