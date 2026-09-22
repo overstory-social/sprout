@@ -1,0 +1,4 @@
+world.sprout:1:7  There are two `world` declarations, and a world has one.
+                  Remove one, or move what it holds into the other.
+
+refused: 1 problem

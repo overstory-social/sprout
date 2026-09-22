@@ -12,6 +12,7 @@ describe('the absent table is the spec’s, whole', () => {
     'place-in-exit',
     'place-underfoot',
     'place-of-arrival',
+    'world',
     'extension',
   ];
 
@@ -54,6 +55,12 @@ describe('somebody is told through the passage the spec names, where it names on
     const rule = absenceRule('place-of-arrival');
     expect(rule.told).toBeNull();
     expect(rule.consequence).toContain('says so');
+  });
+
+  it('names no passage for a bundle with no `world` declaration, the same as no arrival place', () => {
+    const rule = absenceRule('world');
+    expect(rule.told).toBeNull();
+    expect(rule.consequence).toContain('does not admit anyone');
   });
 
   it('names no passage for the rest, because there is nobody there to tell', () => {

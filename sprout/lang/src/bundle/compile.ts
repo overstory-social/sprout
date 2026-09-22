@@ -25,7 +25,7 @@
 // a check is not yet possible, this says so rather than pretending.
 
 import type { CompileMode, Absent } from './absent.js';
-import type { Declaration } from '../syntax/ast.js';
+import type { Declaration, WorldDeclaration } from '../syntax/ast.js';
 import { bundleHashOf, bytesOf, libraryHash, LANGUAGE_LEVEL } from './bundle.js';
 import type { Bundle, LibrarySource, MicroworldSource, VendoredLibrary } from './bundle.js';
 import { Diagnostics, softenPolicy, type Diagnostic } from '../source/diagnostics.js';
@@ -532,9 +532,12 @@ export function compileBundle(
   ];
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
+  /** Whether one of the world's own files was refused by the first tier. */
+  let ownFileRefused = false;
   for (const { library, file } of readable) {
     const shape = checkShape(file, limits.caps);
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
+    if (refused && library === manifest.namespace) ownFileRefused = true;
     if (!refused) {
       declarations.push(...shape.declarations);
       byLibrary.set(library, [...(byLibrary.get(library) ?? []), ...shape.declarations]);
@@ -557,6 +560,72 @@ export function compileBundle(
     for (const diagnostic of shape.diagnostics) {
       report.diagnostics.add(
         diagnostic.severity === 'refusal' ? { ...diagnostic, severity: 'warning' } : diagnostic,
+      );
+    }
+  }
+
+  // --- the one `world` declaration, named as the manifest -----------------
+
+  // The world model › The manifest: "A bundle holds exactly one `world`
+  // declaration, and its name is the manifest's `name`: none, more than
+  // one, or one under another name is refused." Only the world's OWN
+  // declarations are read for this, never a library's.
+  const ownWorlds = (byLibrary.get(manifest.namespace) ?? []).filter(
+    (d): d is WorldDeclaration => d.kind === 'world',
+  );
+  // At publish, a file the first tier refused may well be the one that
+  // holds the world, and the bundle is refused for that defect already,
+  // so "none" is not said until every file reads. At load that file is
+  // absent instead, and "none" is answered over what is usable, the same
+  // as every other gap.
+  const noneToRead = mode === 'publish' && ownFileRefused;
+  if (ownWorlds.length === 0 && !noneToRead) {
+    report.gap(
+      {
+        what: manifest.name,
+        kind: 'world',
+        reason: 'missing',
+        at: atKey(manifestFile, 'name'),
+        consequence: 'the world admits no one until it has one',
+      },
+      'This world has no `world` declaration.',
+      `Write one, in one of its files: \`world ${manifest.name}: sprout.World { … }\`.`,
+    );
+  } else if (ownWorlds.length > 1) {
+    // There is no principled way to choose among several, so every one
+    // after the first is the same gap: the world does not have the one
+    // declaration the manifest needs.
+    for (const extra of ownWorlds.slice(1)) {
+      report.gap(
+        {
+          what: extra.name.text,
+          kind: 'world',
+          reason: 'missing',
+          at: extra.name.at,
+          consequence: 'the world admits no one until there is one',
+        },
+        'There are two `world` declarations, and a world has one.',
+        'Remove one, or move what it holds into the other.',
+      );
+    }
+  } else if (ownWorlds.length === 1 && ownWorlds[0]!.name.text !== manifest.name) {
+    const named = ownWorlds[0]!;
+    report.refuse(
+      named.name.at,
+      `\`${named.name.text}\` is not this world's name.`,
+      `The manifest names it \`${manifest.name}\`; write \`world ${manifest.name}: sprout.World { … }\`, or change the manifest.`,
+    );
+  }
+
+  // A library is vendored source, not the world: only the world's own
+  // files may declare it.
+  for (const [library, declared] of byLibrary) {
+    if (library === manifest.namespace) continue;
+    for (const stray of declared.filter((d): d is WorldDeclaration => d.kind === 'world')) {
+      report.refuse(
+        stray.name.at,
+        'A library does not declare a world.',
+        "The world's own files do; move it there, or remove it from the library.",
       );
     }
   }
