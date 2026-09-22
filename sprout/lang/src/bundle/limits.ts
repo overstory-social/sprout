@@ -29,6 +29,14 @@
 // compiler bounds its own recursion so that pathologically deep text is
 // refused rather than crashing it, and that bound is the parser's own,
 // not a figure a host sets and not something a bundle records.
+//
+// Two bounds outlive a turn and are not here either, per the spec's
+// Limits › Runtime budgets. How many live instances a world may hold is
+// the host's storage decision, not a figure in this table: a `spawn`
+// faults when the host will not hold another. One pending wake per
+// object is a rule of the language under Time, not a budget, and it
+// bounds pending wakes by live instances. There is no cap on spawns over
+// time.
 
 /** A cap checked when a world compiles. Exceeding one refuses the world, naming the line. */
 export interface StaticCaps {
@@ -90,12 +98,6 @@ export interface RuntimeBudgets {
   readonly setRoleObjects: number;
   /** Spawns in one turn. */
   readonly spawnsPerTurn: number;
-  /** Spawns in one world in one hour. */
-  readonly spawnsPerHour: number;
-  /** Live instances in one world. */
-  readonly liveInstances: number;
-  /** Pending wakes one object may hold. */
-  readonly wakesPerObject: number;
   /** The shortest wake a world may ask for, in seconds — the host's floor to raise. */
   readonly shortestWakeSeconds: number;
   /**
@@ -144,9 +146,6 @@ export const DEFAULT_LIMITS: Limits = {
     passageDepth: 8,
     setRoleObjects: 8,
     spawnsPerTurn: 8,
-    spawnsPerHour: 200,
-    liveInstances: 2_000,
-    wakesPerObject: 1,
     shortestWakeSeconds: 60,
     wallClockMs: null,
   },
@@ -169,8 +168,7 @@ export type LimitScope =
   | 'turn'
   | 'poll'
   | 'recipient'
-  | 'role'
-  | 'hour';
+  | 'role';
 
 export interface LimitDescription {
   readonly name: LimitName;
@@ -324,27 +322,6 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     scope: 'turn',
     exceeded: 'fault',
     bounds: 'spawns in one turn',
-  },
-  {
-    name: 'spawnsPerHour',
-    kind: 'budget',
-    scope: 'hour',
-    exceeded: 'fault',
-    bounds: 'spawns in one world in one hour',
-  },
-  {
-    name: 'liveInstances',
-    kind: 'budget',
-    scope: 'world',
-    exceeded: 'fault',
-    bounds: 'live instances in one world',
-  },
-  {
-    name: 'wakesPerObject',
-    kind: 'budget',
-    scope: 'object',
-    exceeded: 'fault',
-    bounds: 'pending wakes one object may hold',
   },
   {
     name: 'shortestWakeSeconds',
