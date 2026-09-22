@@ -1,0 +1,4 @@
+kinds.sprout:1:18  `default` is a word of the language, so it cannot be an option of `Ward`.
+                   Choose another word for it.
+
+refused: 1 problem

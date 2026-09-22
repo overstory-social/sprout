@@ -15,6 +15,10 @@ import {
 } from './enums.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
+import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
+
+/** The host’s figure, so no suite here writes the number itself. */
+const OPTIONS_PER_ENUM = DEFAULT_LIMITS.caps.optionsPerEnum;
 
 /** An enum as the parser builds it, so the suite tests the real node. */
 function declared(text: string): EnumDeclaration {
@@ -168,7 +172,7 @@ describe('a declaration has to agree with itself', () => {
   it('refuses an option listed twice, at the second one', () => {
     const diagnostics = new Diagnostics();
     const twice = declared('enum Ward { oak, silver, oak }');
-    checkEnumDeclaration(twice, diagnostics);
+    checkEnumDeclaration(twice, OPTIONS_PER_ENUM, diagnostics);
     expect(diagnostics.refusals).toHaveLength(1);
     expect(diagnostics.refusals[0]!.message).toContain('twice');
     expect(diagnostics.refusals[0]!.at).toBe(twice.options[2]!.at);
@@ -176,7 +180,52 @@ describe('a declaration has to agree with itself', () => {
 
   it('says nothing about a declaration that does', () => {
     const diagnostics = new Diagnostics();
-    checkEnumDeclaration(WARD, diagnostics);
+    checkEnumDeclaration(WARD, OPTIONS_PER_ENUM, diagnostics);
     expect(diagnostics.all).toEqual([]);
+  });
+});
+
+describe('an enum holds at most as many options as the host allows', () => {
+  /** A host with a small cap, so the suite reads as the rule and not as a wall of options. */
+  const small = limitsFrom({ caps: { optionsPerEnum: 3 } }).caps.optionsPerEnum;
+  const three = declared('enum Ward { oak, silver, iron }');
+  const four = declared('enum Ward { oak, silver, iron, ash }');
+
+  it('says nothing about an enum that holds exactly as many as it may', () => {
+    const diagnostics = new Diagnostics();
+    checkEnumDeclaration(three, small, diagnostics);
+    expect(diagnostics.all).toEqual([]);
+  });
+
+  it('refuses the option past the cap, at that option and once', () => {
+    const diagnostics = new Diagnostics();
+    checkEnumDeclaration(four, small, diagnostics);
+    expect(diagnostics.refusals).toHaveLength(1);
+    expect(diagnostics.refusals[0]!.at).toBe(four.options[3]!.at);
+    expect(locationOf(diagnostics.refusals[0]!.at)).toBe('ward.sprout:1:32');
+  });
+
+  it('names the count and the cap, and says what to do about it', () => {
+    const diagnostics = new Diagnostics();
+    checkEnumDeclaration(four, small, diagnostics);
+    expect(diagnostics.refusals[0]!.message).toBe(
+      '`Ward` has 4 options, and 3 is as many as it may have.',
+    );
+    expect(diagnostics.refusals[0]!.remedy).toBe('Take some out, or split `Ward` into two enums.');
+  });
+
+  it('counts against the host’s figure, not one of its own', () => {
+    const diagnostics = new Diagnostics();
+    checkEnumDeclaration(four, OPTIONS_PER_ENUM, diagnostics);
+    expect(diagnostics.all).toEqual([]);
+  });
+
+  it('still names the duplicate as well, because both are true of the enum', () => {
+    const diagnostics = new Diagnostics();
+    checkEnumDeclaration(declared('enum Ward { oak, silver, iron, oak }'), small, diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      '`Ward` has 4 options, and 3 is as many as it may have.',
+      '`Ward` lists `oak` twice.',
+    ]);
   });
 });

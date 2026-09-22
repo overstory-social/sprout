@@ -22,8 +22,10 @@
 //     on the author. The token after it says so itself (`afterRefusal`),
 //     so no offset is carried and none can go stale.
 //   - A word that starts a declaration is one only where a declaration
-//     could start. `enum Ward { message, silver }` is a well-formed
-//     enum, because nothing reserves an option's name.
+//     could start. `enum Ward { message, silver }` is an enum with
+//     `silver` in it: a reserved word is READ as the word it is, and
+//     then refused as an option, so neither the enum nor anything after
+//     it is lost to a word standing where it may not.
 
 import type {
   BinaryOperator,
@@ -46,6 +48,7 @@ import type {
 } from './ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { Lexer, type Token, type TokenKind } from './lexer.js';
+import { isReserved } from './reserved.js';
 import { DEFAULT_LIMITS, type StaticCaps } from '../bundle/limits.js';
 import { spanning, type SourceFile, type Span } from '../source/source.js';
 
@@ -63,10 +66,8 @@ export const DECLARATIONS = ['enum', 'message', 'world'] as const;
 
 /**
  * The type names that are the language's own. They are read as types
- * wherever a type may be written. An enum may still declare an option
- * called `string` — *Reserved names* does not cover options — it simply
- * cannot be reached through the shorthand that takes a property's type
- * from its default.
+ * wherever a type may be written. They are reserved words too, so
+ * nothing else — an option, a binding — may be called by one.
  */
 const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
 
@@ -81,11 +82,13 @@ const CLOSERS = new Set([',', '}', ']']);
  * What each declaration's opening looks like, past the word itself.
  *
  * Recovery has to tell `enum Ward { … }`, which starts a declaration,
- * from `enum` used as an ordinary name — a remembered property called
- * `enum`, an option called `enum` — because nothing reserves these
- * words anywhere a name may stand. Only the word that starts a
- * declaration knows what its own opening looks like, so each says, and
- * a spec holds that every word in the readers table has an entry here.
+ * from `enum` standing where a word stands — a remembered property
+ * called `enum`, an option written as `enum` — because the lexer reads
+ * every one of them as a plain name. Where such a word may not be given
+ * as a name is the reader's to refuse, at the word; what is here only
+ * decides whether a DECLARATION starts. Only the word that starts one
+ * knows what its own opening looks like, so each says, and a spec holds
+ * that every word in the readers table has an entry here.
  *
  * Two tokens is as far as this looks, and it is deliberately the least
  * that separates the two readings: a guard that asks for more starts
@@ -250,10 +253,10 @@ class Parser {
    * Whether a declaration begins here — asked by a loop that is reading
    * what the author WROTE, and so asked strictly.
    *
-   * Nothing reserves `enum`, `message` or `world` anywhere a name may
-   * stand, so the word alone decides nothing and its own opening must:
-   * `DECLARATION_SHAPES` is what says whether that opening is here, and
-   * a word without it is a word.
+   * The lexer hands `enum`, `message` and `world` over as plain names
+   * wherever they stand, so the word alone decides nothing and its own
+   * opening must: `DECLARATION_SHAPES` is what says whether that
+   * opening is here, and a word without it is a word.
    *
    * Strictly, because of which way this one is allowed to be wrong. A
    * loop reading elements or members stops when this says yes, so a
@@ -310,8 +313,8 @@ class Parser {
     // Find the closer BEFORE taking anything, so a bracket that was
     // never closed takes nothing rather than the rest of the file. And
     // nothing stops the skip early, not even a declaration keyword:
-    // nothing reserves `message` as a word, so `[message foo]` is a
-    // list of two things and the skip walks straight past it.
+    // the lexer reads `message` as a plain name, so `[message foo]` is
+    // a list of two things and the skip walks straight past it.
     let depth = 1;
     let ahead = 0;
     for (;;) {
@@ -481,26 +484,38 @@ class Parser {
         break;
       }
 
-      // The option read, so a separator really was wanted before it.
+      // A word read, so a separator really was wanted before it —
+      // whether or not that word may stand as an option. A word the
+      // author has to replace anyway is left out of what the remedy
+      // offers to write.
       if (missingComma !== null) {
+        const written = options.map((option) => option.name.text);
+        if (!isReserved(word.text)) written.push(word.text);
         this.diagnostics.refuse(
           missingComma,
           `\`${name.text}\` needs a comma between its options.`,
-          `Write \`enum ${name.text} { ${[...options.map((o) => o.name.text), word.text].join(', ')}, … }\`.`,
+          `Write \`enum ${name.text} { ${[...written, '…'].join(', ')} }\`.`,
         );
         missingComma = null;
       }
-      options.push({ kind: 'option', at: word.at, name: this.ident(word) });
 
-      const after = this.separator('}');
-      if (after === 'missing') missingComma = this.here();
-      if (after === 'comma' && this.at('punct', '}')) {
+      if (isReserved(word.text)) {
+        // A word of the language is still READ here, so the enum keeps
+        // its other options and the declarations after it survive; it
+        // is refused at the word and left out of the option set.
         this.diagnostics.refuse(
-          this.peek().at,
-          `\`${name.text}\` has a comma after its last option.`,
-          'Remove it: options are separated by commas, not ended by them.',
+          word.at,
+          `\`${word.text}\` is a word of the language, so it cannot be an option of \`${name.text}\`.`,
+          'Choose another word for it.',
         );
+        refused = true;
+      } else {
+        options.push({ kind: 'option', at: word.at, name: this.ident(word) });
       }
+
+      // A comma after the LAST option is allowed, so the loop simply
+      // reads on and finds the brace.
+      if (this.separator('}') === 'missing') missingComma = this.here();
     }
 
     if (options.length === 0) {
@@ -714,10 +729,11 @@ class Parser {
       }
       if (this.done || this.atDeclarationStart()) {
         // A word that starts a declaration is not an element, however
-        // it reads as one — `enum` is a perfectly good option name, so
-        // `literal()` takes it and the hunt for a `]` walks on through
-        // the rest of the file. What FOLLOWS the word decides:
-        // `[oak, enum]` is still a list of two options.
+        // it reads as one — the lexer hands `enum` over as a plain
+        // name, so `literal()` takes it and the hunt for a `]` walks on
+        // through the rest of the file. What FOLLOWS the word decides:
+        // `[oak, enum]` is still read as a list of two words here, and
+        // `enum` is answered for where the option set is checked.
         this.diagnostics.refuse(
           this.done ? this.source.endSpan : this.peek().at,
           'This list is never closed.',
@@ -742,8 +758,8 @@ class Parser {
         // Nor past a word that starts a DECLARATION: `file()` is still
         // reading behind a property inside a world, and hunting for a
         // `]` would swallow every declaration after it. `[oak, enum]`
-        // is still a list of two options, because `atDeclarationStart`
-        // asks what FOLLOWS the word.
+        // is still read as a list of two words, because
+        // `atDeclarationStart` asks what FOLLOWS the word.
         if (this.done || this.atDeclarationStart()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
@@ -1492,6 +1508,14 @@ class Parser {
           ? `A name for a value starts with a small letter, and \`${this.peek().text}\` starts with a capital.`
           : 'A `let` needs a name.',
         'Write `let <name> = <what it names>`, as in `let ribs = tools.count(Rib)`.',
+      );
+      return null;
+    }
+    if (isReserved(name.text)) {
+      this.diagnostics.refuse(
+        name.at,
+        `\`${name.text}\` is a word of the language, so it cannot name a value.`,
+        'Choose another name for it, as in `let ribs = <what it names>`.',
       );
       return null;
     }
