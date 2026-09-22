@@ -275,6 +275,14 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     ).toBe(true);
   });
 
+  it('finds the world under the manifest’s namespace, which need not be its name', () => {
+    const { bundle, diagnostics } = compileBundle(world({ manifest: { namespace: 'ps' } }));
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(
+      bundle!.definitions.some((d) => d.kind === 'world' && d.name.text === 'printers_shop'),
+    ).toBe(true);
+  });
+
   it('refuses no `world` declaration at publish, at the manifest’s `name` key', () => {
     const files = [file('world.sprout', 'enum Season { spring }')];
     const { bundle, diagnostics } = compileBundle(world({ files }));
