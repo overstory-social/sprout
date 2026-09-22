@@ -1,0 +1,9 @@
+// `without` names a handler, a hook, a guard or a role; a property is
+// not one of them.
+kind LightSource {
+  :lit false
+}
+
+kind SafetyLamp: LightSource {
+  without :lit from LightSource
+}

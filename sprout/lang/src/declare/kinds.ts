@@ -6,7 +6,7 @@
 // library and its name. What composing one means is `compose.ts`'s; the
 // table only walks the kinds in the order composing them needs.
 
-import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
+import type { KindDeclaration, MemberRef, ObjectDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
@@ -60,6 +60,18 @@ export interface KindRef {
    * `KindRef` keeps that true.
    */
   readonly containsActors: boolean;
+  /**
+   * The contributions it leaves out with `without`, each a member and the
+   * kind in its closure that declares it (the spec's Suppressing a
+   * contribution). B22, B24 and B32, which run composed members, skip these.
+   */
+  readonly suppressed: readonly Suppression[];
+}
+
+/** One contribution left out: a member, and the qualified name of the kind that declares it. */
+export interface Suppression {
+  readonly member: MemberRef;
+  readonly source: string;
 }
 
 /** `sprout.Container` — a kind's full identity is its library and its name. */

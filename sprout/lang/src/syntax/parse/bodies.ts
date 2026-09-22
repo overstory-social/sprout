@@ -1,19 +1,23 @@
 // What a world, a kind and an object share: the kinds written after the
-// colon, and a body of members in braces (the spec's Kinds, composition
-// and libraries › Declaring and composing, The world model). Each owner
+// colon, a body of members in braces, and the members any of them may
+// write (the spec's Kinds, composition and libraries › Declaring and
+// composing, Suppressing a contribution; The world model). Each owner
 // reads its body through one table of the words its members begin with,
 // and the message for a word it does not read is built from that same
 // table, so the two cannot drift.
 
-import type {
-  ContainsDeclaration,
-  KindExpr,
-  KindMember,
-  PropertyDeclaration,
-  RemembersDeclaration,
+import {
+  writtenMember,
+  type ContainsDeclaration,
+  type KindExpr,
+  type KindMember,
+  type MemberRef,
+  type PropertyDeclaration,
+  type RemembersDeclaration,
+  type WithoutDeclaration,
 } from '../ast.js';
 import type { Token } from '../lexer.js';
-import { spanning } from '../../source/source.js';
+import { spanning, type Span } from '../../source/source.js';
 import { punct, readable, type Parser } from './parser.js';
 import { property, remembers } from './properties.js';
 import { closedBracketRun } from './recovery.js';
@@ -73,7 +77,9 @@ export function composition(p: Parser, owner: Owner): KindExpr[] | null {
 
 /** What a kind's body or an object's may hold, past its properties. */
 export function kindMembers(p: Parser): MemberReaders<KindMember> {
-  return new Map<string, () => KindMember | null>([['contains', () => contains(p)]]);
+  const readers = new Map<string, () => KindMember | null>([['contains', () => contains(p)]]);
+  readers.set('without', () => without(p, readers));
+  return readers;
 }
 
 /**
@@ -119,7 +125,7 @@ export function body<M>(
       p.diagnostics.refuse(
         token.at,
         `${ARTICLE[owner]} is not made of ${p.describe(token)}.`,
-        `It holds its properties, and ${readable([...readers.keys()])}.`,
+        `It holds its properties, ${readable([...readers.keys()])}.`,
       );
     }
     const member = read === null ? null : read();
@@ -196,6 +202,174 @@ export function contains(p: Parser): ContainsDeclaration | null {
     at: actors === null ? keyword.at : spanning(keyword.at, actors.at),
     actors: actors !== null,
   };
+}
+
+/** How a `without` is written, for a remedy to show. */
+const WITHOUT_EXAMPLE = '`without changed :lit from sprout.LightSource`';
+
+/**
+ * `without changed :lit from sprout.LightSource` — a member a composed
+ * kind contributes, left out (the spec's Suppressing a contribution).
+ * `readers` is the body's own table, so that a member written after a
+ * `without` with nothing in it is left for the body to read.
+ */
+export function without<M>(p: Parser, readers: MemberReaders<M>): WithoutDeclaration | null {
+  const keyword = p.next();
+  const member = memberNamed(p, keyword.at, readers);
+  if (member === null) return null;
+  const written = `without ${writtenMember(member)}`;
+
+  const from = p.take('name', 'from');
+  if (from === null) {
+    p.diagnostics.refuse(
+      endOf(p, member.at),
+      `\`${written}\` does not say which kind it comes from.`,
+      `Write \`from\` and the kind that declares it: \`${written} from <Kind>\`, as in ${WITHOUT_EXAMPLE}.`,
+    );
+    return null;
+  }
+  const first = p.peek();
+  if (first.kind !== 'kind' && !(first.kind === 'name' && punct(p.peek(1), '.'))) {
+    p.diagnostics.refuse(
+      endsHere(p, readers) ? endOf(p, from.at) : first.at,
+      `After \`from\` comes the kind that declares \`${writtenMember(member)}\`.`,
+      `Name it as it is composed, with its capital: ${WITHOUT_EXAMPLE}.`,
+    );
+    return null;
+  }
+  const source = kindName(p);
+  if (source === null) return null;
+  return { kind: 'without', at: spanning(keyword.at, source.at), member, source };
+}
+
+const GUARDS: ReadonlySet<string> = new Set(['depart', 'release', 'accept']);
+
+/**
+ * The member a `without` names: `on :m`, `changed :p`, a guard, or `as
+ * <role> for <verb>`. Null having said why.
+ */
+function memberNamed<M>(p: Parser, keyword: Span, readers: MemberReaders<M>): MemberRef | null {
+  const token = p.peek();
+  if (token.kind === 'name' && (token.text === 'on' || token.text === 'changed')) {
+    p.next();
+    const named = namePart(p, 'symbol', readers);
+    if (named === null) {
+      const handler = token.text === 'on';
+      p.diagnostics.refuse(
+        endsHere(p, readers) ? endOf(p, token.at) : p.peek().at,
+        handler
+          ? '`on` names the message a handler answers, with its colon.'
+          : '`changed` names the property a hook watches, with its colon.',
+        handler
+          ? 'Write `without on :<message> from <Kind>`, as in `without on :stir from Bellows`.'
+          : `Write \`without changed :<property> from <Kind>\`, as in ${WITHOUT_EXAMPLE}.`,
+      );
+      return null;
+    }
+    const at = spanning(token.at, named.at);
+    return token.text === 'on'
+      ? { kind: 'handler-ref', at, message: p.ident(named) }
+      : { kind: 'hook-ref', at, property: p.ident(named) };
+  }
+  if (token.kind === 'name' && GUARDS.has(token.text)) {
+    p.next();
+    return {
+      kind: 'guard-ref',
+      at: token.at,
+      guard: token.text as 'depart' | 'release' | 'accept',
+    };
+  }
+  if (token.kind === 'name' && token.text === 'as') {
+    p.next();
+    const role = namePart(p, 'name', readers);
+    const said = role === null ? null : p.take('name', 'for');
+    const verb = said === null ? null : namePart(p, 'name', readers);
+    if (role === null || verb === null) {
+      p.diagnostics.refuse(
+        endsHere(p, readers) ? endOf(p, (said ?? role ?? token).at) : p.peek().at,
+        '`as` names a role and the verb it plays it for.',
+        'Write `without as <role> for <verb> from <Kind>`, as in `without as target for unlock from Lock`.',
+      );
+      return null;
+    }
+    return {
+      kind: 'role-ref',
+      at: spanning(token.at, verb.at),
+      role: p.ident(role),
+      verb: p.ident(verb),
+    };
+  }
+
+  // Nothing where the member goes: the body's next member, its brace, or
+  // `from` straight after the word.
+  const beforeFrom = p.peek(1).kind === 'name' && p.peek(1).text === 'from';
+  if ((token.kind === 'name' && token.text === 'from') || (endsHere(p, readers) && !beforeFrom)) {
+    p.diagnostics.refuse(
+      keyword,
+      '`without` does not say what to leave out.',
+      `Name a handler, a hook, a guard or a role, and the kind it comes from: ${WITHOUT_EXAMPLE}.`,
+    );
+    return null;
+  }
+  p.diagnostics.refuse(
+    token.at,
+    `\`without\` names a handler, a hook, a guard or a role, not ${p.describe(token)}.`,
+    token.kind === 'symbol'
+      ? `A handler is written \`on :${token.text}\` and a hook \`changed :${token.text}\`, as in ${WITHOUT_EXAMPLE}.`
+      : `Write one as it is declared: \`on :<message>\`, \`changed :<property>\`, \`depart\`, \`release\`, \`accept\` or \`as <role> for <verb>\`, as in ${WITHOUT_EXAMPLE}.`,
+  );
+  // A member word written in its place is part of this line, not the
+  // next member, so the body does not read it again.
+  if (memberReader(p, token, readers) !== null) p.next();
+  return null;
+}
+
+/**
+ * The name a member form writes next, `:lit` after `changed` or `target`
+ * after `as`, or null. A word that begins the body's next member is taken
+ * only where `from` follows it, so a `without` left unfinished does not
+ * take the line after it: `without changed` over `:open true` leaves the
+ * property to be read.
+ */
+function namePart<M>(p: Parser, kind: 'symbol' | 'name', readers: MemberReaders<M>): Token | null {
+  const token = p.peek();
+  if (token.kind !== kind || (kind === 'name' && (token.text === 'from' || token.text === 'for'))) {
+    return null;
+  }
+  const next = p.peek(1);
+  const fromFollows = next.kind === 'name' && next.text === 'from';
+  if (memberReader(p, token, readers) !== null && !fromFollows && !endsAfter(p, readers)) {
+    return null;
+  }
+  return p.next();
+}
+
+/**
+ * Whether the token after the next one ends a member: the body's brace,
+ * the end of the file, or the start of another member.
+ */
+function endsAfter<M>(p: Parser, readers: MemberReaders<M>): boolean {
+  const after = p.peek(1);
+  return punct(after, '}') || after.kind === 'end' || memberReader(p, after, readers) !== null;
+}
+
+/**
+ * Whether what comes next is not part of this member: the body's brace,
+ * the end of the file, a declaration, or the next member.
+ */
+function endsHere<M>(p: Parser, readers: MemberReaders<M>): boolean {
+  const token = p.peek();
+  return (
+    punct(token, '}') ||
+    p.done ||
+    p.atDeclarationStart() ||
+    memberReader(p, token, readers) !== null
+  );
+}
+
+/** The zero-width span just after something, where what should follow it is missing. */
+function endOf(p: Parser, at: Span): Span {
+  return p.source.span(at.end, at.end);
 }
 
 /** Whether a kind's name starts here, which is how a missing comma is told from an end. */

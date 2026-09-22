@@ -207,7 +207,29 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether a library's `version` is semver.** The manifest's `libraries` row says only "by version", and a vendored library declares one beside its source. Not decided; #75 checks the world's `version` alone.
 - **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
 - **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.
-- Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
+- Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); a world composes like a kind, so it holds whatever anything it composes holds.
+
+Found while building composition (B19), each decided the narrow way and awaiting Eric:
+
+- **`object` is both a type name and a declaration word.** A type position that meets the start of a declaration (`object bench: …`) says the type is missing rather than reading the object as the type.
+- **An object with no kinds, or no body.** One that names no kind is refused ("An object names its kinds and its container"); one with no body is allowed and has nothing of its own.
+- **A kind's braces.** Required, even when empty: `kind Marker { }`.
+- **An object's own name.** Any lower-case word; the reserved-word rule is read as covering options and bindings only.
+- **A bare `World`.** Resolves as any bare kind name does, to the world's own `World` if it declares one and else to `sprout.World`, so on a kind or an object it is refused as `sprout.World` is; on a world it still does not count as writing `sprout.World`.
+- **The closure's order.** Depth-first, left to right, each kind at its first appearance, the composer last (post-order): `D: B, C` with `B: A` and `C: A` runs `A, B, C, D`.
+- **A kind that composes itself.** Refused once, at the kind as written that closes the loop, naming the kinds it runs through; the other kinds in the loop are said nothing more about.
+- **The same kind twice in one composition list.** Refused at the second, rather than read as one path.
+- **Who a restatement's origin is.** The restating kind becomes the property's origin, so composing `Crate: sprout.Container { :capacity 40 }` beside `sprout.Container` collides on `:capacity` again.
+- **What counts as changing a property's type in a restatement.** A different integer range is a change, and so is remembered versus plain.
+- **Origins that disagree in type.** Cannot be merged by restating; the refusal says to compose only one of them.
+- **An object in a library.** Refused, as a world is: a library holds kinds for the world to make things of.
+- **Two objects of one name.** Refused only in the same container as written, since two chests may each hold a `key`; scoping a name to its container is B14's.
+- **An object's anonymous kind.** Named for the object, in the world's library, and the origin of what its body declares.
+- **A kind composing one that is absent at load.** It is not composed and its body is not read; the objects made of it are absent with no gap of their own beyond the `kind-in-composition` one.
+- **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. No kind declares any of those members yet, so every `without` is refused with "has no … to leave out" until B22 reads guards.
+- **A `without` in a kind that is itself composed.** Whether what `B` leaves out stays left out in `D: B`, and what happens when `D` also reaches the source another way, is unsaid; the suppression is recorded on the kind that wrote it, and whichever of B22, B24 and B32 first runs a composed member decides how it travels.
+- **What the kinds, objects and places caps count.** `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, not an object's anonymous kind; `objects` counts the world's `object` declarations, composed or not; `places` counts its objects whose composed kind holds actors. The world counts toward neither `objects` nor `places`. Each is refused at the first declaration past it, at load as at publish.
+- **Where a library lives on disk.** Unspecified, so nothing can vendor `sprout` yet (the CLI sends no libraries), and the world is not resolved in `compileBundle` until it can: resolving it would refuse every world for a `sprout.World` that cannot travel.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

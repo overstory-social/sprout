@@ -14,12 +14,13 @@
 // the kind when the compiler knows it and null when it does not — which
 // is the whole of what the object type means.
 //
-// What a KIND is belongs to B19. What typing needs of one is
-// here, as `KindRef`: its identity, everything it composes, and what it
-// declares. Matching is NOMINAL and by composition, never structural —
-// two kinds declaring `:open` are already a collision when they compose,
-// and a slot that accepted anything shaped like a container would
-// readmit exactly that confusion at the argument boundary.
+// What a kind is, and composing one, are `declare/kinds.ts` and
+// `declare/compose.ts`'s. Typing reads the `KindRef` they build: its
+// identity, everything it composes, and what it declares. Matching is
+// NOMINAL and by composition, never structural — two kinds declaring
+// `:open` are already a collision when they compose, and a slot that
+// accepted anything shaped like a container would readmit exactly that
+// confusion at the argument boundary.
 //
 // Checking an expression against these bindings is `check.ts`'s, and
 // its `let` calls `letBinding` below; verbs and their roles are B23's,

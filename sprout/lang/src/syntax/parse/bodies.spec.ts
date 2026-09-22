@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Declaration, KindDeclaration, ObjectDeclaration, WorldDeclaration } from '../ast.js';
+import {
+  writtenMember,
+  type Declaration,
+  type KindDeclaration,
+  type ObjectDeclaration,
+  type WorldDeclaration,
+} from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
-import { SourceFile, textOf } from '../../source/source.js';
+import { unspanned } from '../../source/nodes.js';
+import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { read } from '../../fixtures/parse.js';
 import { body, composition, kindMembers } from './bodies.js';
 import { DECLARATION_READERS } from './declarations.js';
@@ -112,9 +119,12 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
 
     it(`${owner.noun}: names itself and what it holds when a word is no member`, () => {
       const { declarations, refusals } = opened('nonsense\n  :a 1');
-      const holds = owner.holds === null ? '`contains`' : `\`${owner.holds}\` and \`contains\``;
+      const holds =
+        owner.holds === null
+          ? '`contains` and `without`'
+          : `\`${owner.holds}\`, \`contains\` and \`without\``;
       expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
-        [`${owner.article} is not made of \`nonsense\`.`, `It holds its properties, and ${holds}.`],
+        [`${owner.article} is not made of \`nonsense\`.`, `It holds its properties, ${holds}.`],
       ]);
       expect(owned(declarations)!.members.map((m) => m.kind)).toEqual(['property']);
     });
@@ -144,4 +154,117 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       expect(declarations.map((d) => d.name.text)).toContain('Inner');
     });
   }
+});
+
+describe('`without` names a member and the kind it comes from, in any body', () => {
+  /** The `without` lines a body read, each as the member and kind it names. */
+  const withouts = (declarations: readonly Declaration[]) =>
+    owned(declarations)!.members.flatMap((m) =>
+      m.kind === 'without' ? [`${writtenMember(m.member)} from ${textOf(m.source.at)}`] : [],
+    );
+
+  for (const owner of OWNERS) {
+    it(`${owner.noun}: reads each member form the spec's table says every source of runs`, () => {
+      const lines = [
+        'without changed :lit from sprout.LightSource',
+        'without on :stir from Bellows',
+        'without depart from sprout.Fixture',
+        'without release from Crate',
+        'without accept from Crate',
+        'without as target for unlock from Lock',
+      ];
+      const { declarations, refusals } = read(`${owner.open} {\n  ${lines.join('\n  ')}\n}\n`);
+      expect(refusals).toEqual([]);
+      expect(withouts(declarations)).toEqual(lines.map((line) => line.slice('without '.length)));
+      const first = owned(declarations)!.members[0]!;
+      expect(textOf(first.at)).toBe(lines[0]);
+      expect(unspanned(declarations)).toEqual([]);
+    });
+  }
+
+  /** Each refusal as its place, its words and its remedy, in a kind's body. */
+  const said = (line: string) =>
+    read(`kind K {\n  ${line}\n  :a 1\n}\n`, 'k.sprout').refusals.map((d) => [
+      locationOf(d.at),
+      d.message,
+      d.remedy,
+    ]);
+  const EXAMPLE = '`without changed :lit from sprout.LightSource`';
+
+  it('refuses one that names nothing, at the word, and reads the member after it', () => {
+    const missing = [
+      'k.sprout:2:3',
+      '`without` does not say what to leave out.',
+      `Name a handler, a hook, a guard or a role, and the kind it comes from: ${EXAMPLE}.`,
+    ];
+    expect(said('without')).toEqual([missing]);
+    expect(said('without from Crate')).toEqual([missing]);
+    const { declarations } = read('kind K {\n  without\n  :a 1\n}\n');
+    expect(owned(declarations)!.members.map((m) => m.kind)).toEqual(['property']);
+  });
+
+  it('refuses a member that is none of the forms, at it, and does not read it as a member', () => {
+    expect(said('without :x from Crate')).toEqual([
+      [
+        'k.sprout:2:11',
+        '`without` names a handler, a hook, a guard or a role, not `:x`, which is a property or a message.',
+        `A handler is written \`on :x\` and a hook \`changed :x\`, as in ${EXAMPLE}.`,
+      ],
+    ]);
+    expect(said('without nonsense from Crate')).toEqual([
+      [
+        'k.sprout:2:11',
+        '`without` names a handler, a hook, a guard or a role, not `nonsense`.',
+        `Write one as it is declared: \`on :<message>\`, \`changed :<property>\`, \`depart\`, \`release\`, \`accept\` or \`as <role> for <verb>\`, as in ${EXAMPLE}.`,
+      ],
+    ]);
+    const { declarations } = read('kind K {\n  without :x from Crate\n  :a 1\n}\n');
+    expect(
+      owned(declarations)!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind)),
+    ).toEqual(['a']);
+  });
+
+  it('refuses a handler or a hook with no name, and a role with half of one', () => {
+    expect(said('without on from Bellows')).toEqual([
+      [
+        'k.sprout:2:14',
+        '`on` names the message a handler answers, with its colon.',
+        'Write `without on :<message> from <Kind>`, as in `without on :stir from Bellows`.',
+      ],
+    ]);
+    expect(said('without changed')).toEqual([
+      [
+        'k.sprout:2:18',
+        '`changed` names the property a hook watches, with its colon.',
+        `Write \`without changed :<property> from <Kind>\`, as in ${EXAMPLE}.`,
+      ],
+    ]);
+    expect(said('without as target unlock from Lock')).toEqual([
+      [
+        'k.sprout:2:21',
+        '`as` names a role and the verb it plays it for.',
+        'Write `without as <role> for <verb> from <Kind>`, as in `without as target for unlock from Lock`.',
+      ],
+    ]);
+  });
+
+  it('refuses a member with no `from`, just after the member', () => {
+    expect(said('without accept')).toEqual([
+      [
+        'k.sprout:2:17',
+        '`without accept` does not say which kind it comes from.',
+        `Write \`from\` and the kind that declares it: \`without accept from <Kind>\`, as in ${EXAMPLE}.`,
+      ],
+    ]);
+  });
+
+  it('refuses a `from` that names no kind, at what it names or just after it', () => {
+    const remedy = `Name it as it is composed, with its capital: ${EXAMPLE}.`;
+    expect(said('without accept from 4')).toEqual([
+      ['k.sprout:2:23', 'After `from` comes the kind that declares `accept`.', remedy],
+    ]);
+    expect(said('without accept from')).toEqual([
+      ['k.sprout:2:22', 'After `from` comes the kind that declares `accept`.', remedy],
+    ]);
+  });
 });

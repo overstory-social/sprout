@@ -6,7 +6,7 @@
 import type { WorldDeclaration, WorldMember } from '../ast.js';
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
-import { body, composition, contains, kindName, type MemberReaders } from './bodies.js';
+import { body, composition, contains, kindName, without, type MemberReaders } from './bodies.js';
 import { recover } from './recovery.js';
 
 export function worldDeclaration(p: Parser): WorldDeclaration | null {
@@ -52,10 +52,12 @@ export function worldDeclaration(p: Parser): WorldDeclaration | null {
 
 /** What may be written inside a world past its properties, and what reads each one. */
 function worldMembers(p: Parser): MemberReaders<WorldMember> {
-  return new Map<string, () => WorldMember | null>([
+  const readers = new Map<string, () => WorldMember | null>([
     ['visitors', () => visitors(p)],
     ['contains', () => contains(p)],
   ]);
+  readers.set('without', () => without(p, readers));
+  return readers;
 }
 
 /** `visitors are Creature`, `visitors arrive at composing_room`. */

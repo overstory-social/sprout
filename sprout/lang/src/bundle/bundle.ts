@@ -148,6 +148,12 @@ export interface BundleSize {
   readonly sourceBytes: number;
   /** UTF-8 bytes of blessed library source, which cost the author nothing. */
   readonly exemptBytes: number;
+  /** Kinds counted against the kind cap: the world's own, and any library's the host has not blessed. */
+  readonly kinds: number;
+  /** The world's own `object` declarations, counted against the object cap. */
+  readonly objects: number;
+  /** The world's objects that hold actors, counted against the place cap. */
+  readonly places: number;
 }
 
 /** What compiling a closed bundle produces. */
