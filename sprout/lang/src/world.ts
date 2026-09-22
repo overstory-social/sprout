@@ -105,22 +105,26 @@ export function resolveWorld(
     composes.push(found);
   }
 
-  // `sprout.World` is composed whether it was written or not: it carries
-  // the words the engine speaks for itself, and a world without them
-  // could not answer a visitor at all. Writing it is allowed and adds
-  // nothing, which is why it is not a collision.
-  if (!named.has(WORLD)) {
-    const world = kinds.qualified(SPROUT, 'World');
-    if (world === null) {
-      diagnostics.refuse(
-        declared.name.at,
-        `The standard library is missing \`${WORLD}\`.`,
-        'Every world composes it, for the words the engine speaks for itself.',
-      );
-      return null;
-    }
-    composes.unshift(world);
+  // `sprout.World` is composed whether it was written or not: it
+  // carries the words the engine speaks for itself, and a world without
+  // them could not answer a visitor at all. Writing it adds nothing,
+  // which is why it is not a collision.
+  //
+  // It goes FIRST either way. Composition order sequences a composable
+  // member's contributions, so leaving a written `sprout.World` where
+  // the author put it would make the two spellings mean different
+  // things — and "writing it adds nothing" would stop being true the
+  // moment it has a member of its own to sequence.
+  const world = kinds.qualified(SPROUT, 'World');
+  if (world === null) {
+    diagnostics.refuse(
+      declared.name.at,
+      `The standard library is missing \`${WORLD}\`.`,
+      'Every world composes it, for the words the engine speaks for itself.',
+    );
+    return null;
   }
+  const ordered = [world, ...composes.filter((one) => kindName(one) !== WORLD)];
 
   // --- what it says about visitors --------------------------------------
   let visitor: KindRef | null = null;
@@ -217,7 +221,7 @@ export function resolveWorld(
 
   return {
     name: declared.name.text,
-    composes,
+    composes: ordered,
     visitor,
     arriveAt,
     properties,

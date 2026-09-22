@@ -114,6 +114,23 @@ describe('every world composes `sprout.World`', () => {
     expect(resolved!.composes.map(kindName)).toEqual([WORLD]);
   });
 
+  it('first, wherever it was written', () => {
+    // Composition order sequences a composable member's contributions,
+    // so leaving a written `sprout.World` where the author put it would
+    // make the two spellings mean different things — and "writing it
+    // adds nothing" would stop being true the moment it has a member of
+    // its own to sequence.
+    for (const written of [
+      'world w: victorian.Voice { visitors are Creature\n visitors arrive at y }',
+      'world w: victorian.Voice, sprout.World { visitors are Creature\n visitors arrive at y }',
+      'world w: sprout.World, victorian.Voice { visitors are Creature\n visitors arrive at y }',
+    ]) {
+      const { resolved, said } = world(written);
+      expect(said, written).toEqual([]);
+      expect(resolved!.composes.map(kindName), written).toEqual([WORLD, 'victorian.Voice']);
+    }
+  });
+
   it('beside whatever else it composes — a library of stock lines in another register', () => {
     const { resolved, said } = world(`world printers_shop: victorian.Voice {
   visitors are Creature

@@ -647,9 +647,14 @@ class Parser {
         if (overCap) return null;
         return { kind: 'list-literal', at: spanning(open.at, close.at), elements };
       }
-      if (this.done) {
+      if (this.done || this.atDeclarationKeyword()) {
+        // A word that starts a declaration is not an element, however
+        // it reads as one — `enum` is a perfectly good option name, so
+        // `literal()` takes it and the hunt for a `]` walks on through
+        // the rest of the file. What FOLLOWS the word decides:
+        // `[oak, enum]` is still a list of two options.
         this.diagnostics.refuse(
-          this.source.endSpan,
+          this.done ? this.source.endSpan : this.peek().at,
           'This list is never closed.',
           'Add a ] after its elements.',
         );
@@ -668,7 +673,15 @@ class Parser {
         // Looping back to the top would have every list enclosing this
         // one say "never closed" about the same exhausted file, once
         // per level of nesting.
-        if (this.done) return null;
+        //
+        // Nor past a word that starts a DECLARATION. Before B12 this
+        // loop was only reached from the standalone entry points, where
+        // running to the end of the file cost nothing; a property
+        // inside a world is the first time `file()` is still reading
+        // behind it, and hunting for a `]` swallowed every declaration
+        // after it. `[oak, enum]` is still a list of two options,
+        // because `atDeclarationKeyword` asks what FOLLOWS the word.
+        if (this.done || this.atDeclarationKeyword()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
@@ -799,7 +812,16 @@ class Parser {
           return null;
         }
         composes.push(composed);
-        if (this.take('punct', ',') === null) break;
+        if (this.take('punct', ',') !== null) continue;
+        // Every other comma-separated list in this file says so when
+        // the comma is missing; this one used to stop reading and let
+        // the brace complain instead, which names the wrong problem.
+        if (!this.atKindName()) break;
+        this.diagnostics.refuse(
+          this.here(),
+          'A world needs a comma between the kinds it composes.',
+          'Write `world <name>: one.Kind, Another { … }`.',
+        );
       }
     }
 
@@ -830,6 +852,21 @@ class Parser {
       if (this.done) {
         this.diagnostics.refuse(
           this.source.endSpan,
+          `\`${name.text}\` is never closed.`,
+          'Add a } after what the world is made of.',
+        );
+        return null;
+      }
+
+      // A word that starts a DECLARATION is not a member, however it
+      // reads as one. `world w { enum Ward { oak } }` is a world that
+      // was never closed, and the enum is the file's; saying "a world
+      // is not made of `enum`" as well leaves its braces orphaned and
+      // the enum reparsed as a sibling of the world that held it. The
+      // enum's own option loop has guarded this since #58.
+      if (this.atDeclarationKeyword()) {
+        this.diagnostics.refuse(
+          this.peek().at,
           `\`${name.text}\` is never closed.`,
           'Add a } after what the world is made of.',
         );
@@ -916,6 +953,18 @@ class Parser {
     return null;
   }
 
+  /** Whether a kind's name starts here, which is how a missing comma is told from an end. */
+  private atKindName(): boolean {
+    const first = this.peek();
+    if (first.kind === 'kind') return true;
+    return (
+      first.kind === 'name' &&
+      this.peek(1).kind === 'punct' &&
+      this.peek(1).text === '.' &&
+      this.peek(2).kind === 'kind'
+    );
+  }
+
   /** `Key` or `sprout.Container` — a kind as written, wherever one is written. */
   private kindName(): KindExpr | null {
     const first = this.peek();
@@ -991,9 +1040,11 @@ class Parser {
       if (close !== null) {
         return { kind: 'remembers', at: spanning(symbol.at, close.at), properties };
       }
-      if (this.done) {
+      if (this.done || this.atDeclarationKeyword()) {
+        // As the list above: a word that starts a declaration ends the
+        // hunt, because otherwise it runs to the end of the file.
         this.diagnostics.refuse(
-          this.source.endSpan,
+          this.done ? this.source.endSpan : this.peek().at,
           'This `:remembers` is never closed.',
           'Add a ] after what it remembers.',
         );
@@ -1004,8 +1055,9 @@ class Parser {
       const declared = this.rememberedProperty();
       if (declared === null) {
         // As the list above, including that a file which ran out inside
-        // the entry has already been explained by whatever read it.
-        if (this.done) return null;
+        // the entry has already been explained by whatever read it, and
+        // that a word starting a declaration ends the hunt.
+        if (this.done || this.atDeclarationKeyword()) return null;
         if (this.peek().at.start === before.at.start) this.next();
         this.separator(']');
         missingComma = null;
@@ -1316,7 +1368,7 @@ class Parser {
         const before = this.peek();
         const argument = this.expression();
         if (argument === null) {
-          if (this.done) return null;
+          if (this.done || this.atDeclarationKeyword()) return null;
           if (this.peek().at.start === before.at.start) this.next();
           this.separator(')');
           missingComma = null;

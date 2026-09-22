@@ -1376,6 +1376,63 @@ describe('a world declaration', () => {
     }
   });
 
+  it('treats a word that starts a declaration as the end of it, not as a member', () => {
+    // `world w { enum Ward { oak } }` is a world that was never closed,
+    // and the enum is the file's. Saying "a world is not made of
+    // `enum`" as well leaves its braces orphaned and says two things
+    // about one mistake. The enum's own option loop has guarded this
+    // since #58.
+    for (const inner of ['enum Inner { oak }', 'message :stir', 'world inner { }']) {
+      const { refusals, declarations } = readWorld(`world w {\n  ${inner}\n}\n`);
+      expect(
+        refusals.map((d) => d.message),
+        inner,
+      ).toContain('`w` is never closed.');
+      expect(
+        refusals.filter((d) => d.message.startsWith('A world is not made of')),
+        inner,
+      ).toHaveLength(0);
+      // And what was written inside it is kept, as the file's own.
+      expect(declarations.length, inner).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not let a member’s own recovery run past the declaration after it', () => {
+    // A list hunting for its `]` used to run to the end of the file.
+    // Before B12 that cost nothing — nothing was reading behind it —
+    // and a property inside a world is the first time `file()` is.
+    for (const member of [':x [', ':remembers [a: 0']) {
+      const { declarations, refusals } = readWorld(`world w { ${member}\n}\nenum Ward { oak }\n`);
+      expect(
+        declarations.map((d) => d.name.text),
+        member,
+      ).toContain('Ward');
+      expect(refusals.length, member).toBeGreaterThan(0);
+    }
+  });
+
+  it('still reads a word that only spells a declaration, where one may stand', () => {
+    // Nothing reserves an option's name, and what FOLLOWS the word is
+    // what decides: `[oak, enum]` is a list of two options.
+    for (const text of [':x [Ward] default [oak, enum]', ':x [Ward] default [oak, message]']) {
+      expect(readProperty(text).declared, text).not.toBeNull();
+      expect(readProperty(text).refusals, text).toEqual([]);
+    }
+  });
+
+  it('says when a comma is missing between the kinds it composes', () => {
+    // Every other comma-separated list in this file says so; this one
+    // used to stop reading and let the brace complain instead, which
+    // names the wrong problem.
+    const { world, refusals } = readWorld(
+      'world w: victorian.Voice other.Kind { visitors are P\n visitors arrive at y }',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([
+      'A world needs a comma between the kinds it composes.',
+    ]);
+    expect(world!.composes.map((c) => c.name.text)).toEqual(['Voice', 'Kind']);
+  });
+
   it('is one of the words this compiler reads', () => {
     expect(DECLARATIONS).toContain('world');
     // And the message for a word it does not read names it, because
@@ -1441,14 +1498,48 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
     'message :a with [[[[[[[[[[Ward]]]]]]]]]]',
     '%',
     'enum Ward { oak oak }',
+    // Worlds (B12). The first two are the shapes the review of that
+    // item found: a member word that also starts a declaration, and a
+    // member whose value is a list that was never closed. Both used to
+    // take the declaration after them with them.
+    'world w { enum Inner { oak } }',
+    'world w { :x [ }',
+    // Not `world w { }`: it PARSES, and what is wrong with it — no
+    // visitor kind, nowhere to arrive — is `resolveWorld`'s to say.
+    // A shape that is not a parse defect belongs in world.spec.ts.
+    'world w { nonsense }',
+    'world w: 4 { }',
+    'world w',
+    'world w { visitors }',
+    'world w { visitors are 4 }',
   ];
 
-  /** Every well-formed thing is kept, or named in something said. */
-  function nothingVanishes(what: string, kept: readonly string[], said: string, good: string[]) {
+  /**
+   * Every well-formed thing is KEPT.
+   *
+   * The first cut of this said "kept, or named in something said", and
+   * the review of B12 found two bugs it could not see. A name is
+   * "named" by any refusal that happens to quote it — so a declaration
+   * that vanished entirely passed, because the thing that swallowed it
+   * complained about its name on the way past. And "kept" said nothing
+   * about WHERE: a declaration written inside a world, reparsed as a
+   * sibling of the world that held it, counted as kept.
+   *
+   * So: kept, and nothing else appears that was not written at this
+   * level. A defect that genuinely takes a neighbour with it is named
+   * in the table rather than covered by a weaker rule.
+   */
+  function nothingVanishes(
+    what: string,
+    kept: readonly string[],
+    good: string[],
+    written: string[] = good,
+  ) {
     for (const name of good) {
-      expect(kept.includes(name) || said.includes(name), `${what}: \`${name}\` vanished`).toBe(
-        true,
-      );
+      expect(kept, `${what}: \`${name}\` vanished`).toContain(name);
+    }
+    for (const name of kept) {
+      expect(written, `${what}: \`${name}\` appeared where it was not written`).toContain(name);
     }
   }
 
@@ -1463,10 +1554,12 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
         checked += 1;
         const diagnostics = new Diagnostics();
         const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
-        const said = diagnostics.all.map((d) => d.message).join(' ');
-        nothingVanishes(text, remembered?.properties.map((p) => p.name.text) ?? [], said, [
-          ...good,
-        ]);
+        nothingVanishes(
+          text,
+          remembered?.properties.map((p) => p.name.text) ?? [],
+          [...good],
+          [...good, 'b'],
+        );
         // And it is a defect at all — the net is worth nothing if the
         // shapes it walks are well formed.
         expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
@@ -1486,14 +1579,16 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
       ] as const) {
         const diagnostics = new Diagnostics();
         const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
+        // Only the options: an element that is not one has no name to
+        // go missing, and rendering its kind would make this rule
+        // complain about shapes rather than about losses.
         const written =
           declared?.default?.kind === 'list-literal'
-            ? declared.default.elements.map((e) =>
-                e.kind === 'option-literal' ? e.name.text : String(e.kind),
+            ? declared.default.elements.flatMap((e) =>
+                e.kind === 'option-literal' ? [e.name.text] : [],
               )
             : [];
-        const said = diagnostics.all.map((d) => d.message).join(' ');
-        nothingVanishes(text, written, said, [...good]);
+        nothingVanishes(text, written, [...good], [...good, 'oak', 'silver']);
         expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
           0,
         );
@@ -1510,12 +1605,19 @@ describe('#66 — a defect in one item never loses a well-formed neighbour in si
       ] as const) {
         const diagnostics = new Diagnostics();
         const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
-        const said = diagnostics.all.map((d) => d.message).join(' ');
+        // A construct that was never closed gives its contents to the
+        // file — `world w { enum Inner { oak } }` is a world that ran
+        // on, and `Inner` is the file's enum. That is the rule enums
+        // have followed since #58, and it keeps the author's work
+        // rather than skipping to a brace and losing it. So a name
+        // WRITTEN inside the defect may surface at the top level; a
+        // name that was never written anywhere still may not.
+        const inside = defect.match(/[A-Z][A-Za-z_]*/g) ?? [];
         nothingVanishes(
           text,
           declared.map((d) => d.name.text),
-          said,
           [...good],
+          [...good, 'Ward', ...inside],
         );
         expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(
           0,
