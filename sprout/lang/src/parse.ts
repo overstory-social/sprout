@@ -996,7 +996,6 @@ class Parser {
     return token.kind === 'name' ? (readers.get(token.text) ?? null) : null;
   }
 
-  /** `visitors are Creature`, `visitors arrive at composing_room`. */
   /**
    * `contains`, or `contains actors` — the one line that makes a place.
    *
@@ -1016,6 +1015,7 @@ class Parser {
     };
   }
 
+  /** `visitors are Creature`, `visitors arrive at composing_room`. */
   private visitors(): WorldMember | null {
     const keyword = this.next();
     if (this.take('name', 'are') !== null) {
