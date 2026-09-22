@@ -32,7 +32,6 @@ import type {
   BinaryOperator,
   Declaration,
   Expr,
-  IntegerLiteral,
   LetStatement,
   EnumDeclaration,
   EnumOption,
@@ -79,11 +78,6 @@ const OPENER_OF: ReadonlyMap<string, string> = new Map([
   [')', '('],
   ['}', '{'],
 ]);
-
-/** And the other way, for stepping over what was written in the wrong place. */
-const CLOSER_OF: ReadonlyMap<string, string> = new Map(
-  [...OPENER_OF].map(([close, open]) => [open, close]),
-);
 
 /**
  * How tightly each binary operator binds, loosest first. Nothing in the
@@ -731,8 +725,23 @@ class Parser {
       const which = this.at('name', 'min') ? 'min' : this.at('name', 'max') ? 'max' : null;
       if (which === null) break;
       const word = this.next();
-      const bound = this.integerBound(which);
+      // Read whatever was written and complain about its shape, which
+      // is what this did before #65 tried to be cleverer. Three
+      // attempts at peeking first — refuse, then step over what was
+      // written — each broke an input beside the one it fixed, because
+      // a reader that has not consumed anything cannot tell a stray
+      // closing bracket from the one its own caller is waiting for.
+      // The message that suffers for it is recorded in #67.
+      const bound = this.literal();
       if (bound === null) return null;
+      if (bound.kind !== 'integer') {
+        this.diagnostics.refuse(
+          bound.at,
+          `A ${which} is a whole number.`,
+          `Write \`${which} 0\`, or leave it out.`,
+        );
+        return null;
+      }
       if ((which === 'min' ? min : max) !== null) {
         this.diagnostics.refuse(
           word.at,
@@ -750,69 +759,6 @@ class Parser {
     const parts = [value, min, max].filter((part) => part !== null);
     const end = parts.reduce((latest, part) => (part.at.end >= latest.at.end ? part : latest));
     return { kind: 'property', at: spanning(from, end.at), name, type, default: value, min, max };
-  }
-
-  /**
-   * A `min` or a `max`, which is a whole number and nothing else.
-   *
-   * It asks what is written BEFORE reading it, rather than reading any
-   * literal and complaining about the shape afterwards. Reading first
-   * meant that whatever went wrong INSIDE the literal answered for the
-   * bound: `min [… seventeen things …]` said "A list holds at most 16
-   * things", whose remedy is no use to an author who should not have
-   * written a list there at all.
-   */
-  private integerBound(which: 'min' | 'max'): IntegerLiteral | null {
-    const token = this.peek();
-    // A digit or a minus sign means a number was meant, so `literal()`
-    // answers for it: it owns the better sentence for `min -` ("A minus
-    // sign needs a number after it") and the one for `min 1.5`.
-    if (token.kind === 'integer' || (token.kind === 'punct' && token.text === '-')) {
-      const bound = this.literal();
-      if (bound !== null && bound.kind === 'integer') return bound;
-      // `literal()` has said what is wrong, but it does not step over
-      // what it could not read: `min -[1]` leaves the whole bracket
-      // behind after complaining about the sign.
-      this.skipWritten();
-      return null;
-    }
-    this.diagnostics.refuse(
-      token.at,
-      `A ${which} is a whole number.`,
-      `Write \`${which} 0\`, or leave it out.`,
-    );
-    this.skipWritten();
-    return null;
-  }
-
-  /**
-   * Step over what was written where something else belonged, so that
-   * the loop reading around this resumes after it rather than inside
-   * it. One rule, and each half of it was learnt by breaking the other:
-   *
-   * IT STEPS OVER A BRACKET WHOLE. Leaving a closer in the stream hands
-   * it to the enclosing reader, which takes it for its own and ends
-   * early — `:remembers [visits: 0 min [1, 2], walks: 1]` lost `walks`,
-   * written correctly, with nothing said about it.
-   *
-   * IT STOPS AT WHAT IS NOT ITS OWN: a comma, any closing bracket, and
-   * the end of the file. Eating a closer makes the enclosing construct
-   * look as though it ran out, and everything already read is thrown
-   * away — `:remembers [handled: false, visits: 0 min ]` lost
-   * `handled` the same way, by the opposite mistake.
-   *
-   * Between those two it takes everything, so a bound written as
-   * several words is one complaint rather than one per word.
-   */
-  private skipWritten(): void {
-    for (;;) {
-      const token = this.peek();
-      if (token.kind === 'end') return;
-      if (token.kind === 'punct' && (token.text === ',' || OPENER_OF.has(token.text))) return;
-      this.next();
-      const close = CLOSER_OF.get(token.text);
-      if (token.kind === 'punct' && close !== undefined) this.skipBracketed(close);
-    }
   }
 
   /** `:wear 0 min 0 max 99` — a property as a kind or an object writes one. */
