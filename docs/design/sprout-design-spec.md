@@ -844,6 +844,8 @@ This is also the oldest problem in parser interactive fiction, which is that a v
 
 A value role binds a value, so `topic` is compared with `==` and never sent to, moved or read from. It is a symbol like any other, which is the whole reason the type is closed.
 
+A value tool is single: `many` on a `symbol` or an `integer` tool is a refusal at this level. Several values are several tools, or a set of objects that stand for them. A later level may add a set of values, bound as a list and all or nothing; nothing accepted now would change if it did.
+
 ### Acting
 
 An object that composes the visitor kind may perform a verb itself:
@@ -1550,6 +1552,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose the visitor kind; an `act` that leaves out a tool that is not optional.
 - An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
+- `many` on a `symbol` or `integer` tool.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place.
 - Any static cap exceeded.
