@@ -5,6 +5,7 @@ import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { unspanned } from '../source/nodes.js';
 import {
   DECLARATIONS,
+  DEEPEST,
   parseDeclarations,
   parseExpression,
   parseLet,
@@ -19,6 +20,9 @@ function read(text: string, name = 'ward.sprout') {
   const declarations = parseDeclarations(new SourceFile(name, text), diagnostics);
   return { declarations, diagnostics, refusals: diagnostics.refusals as readonly Diagnostic[] };
 }
+
+/** The parser's own depth bound, refused in the same words wherever it is met. */
+const TOO_DEEP = 'This is nested too deep to read.';
 
 /** An enum's options as plain words, for a suite that is not about nodes. */
 const optionsOf = (declared: EnumDeclaration): string[] =>
@@ -942,6 +946,50 @@ describe('one mistake is said once, and said truly', () => {
     ]);
   });
 
+  it('keeps the entry after one whose type it could not read, and says nothing else', () => {
+    // A refused type takes the whole property with it: its brackets, so
+    // no closer is left for the `:remembers` to end early on, and its
+    // default, so `default` and `oak` are not read as entries of their
+    // own and answered for as if the author had written them that way.
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: [Ward, oak] default silver, b: 3]'),
+      diagnostics,
+    );
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'A list type names one element type.',
+    ]);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
+  });
+
+  it('steps over however the default of such a property was written', () => {
+    const tails = ['default oak', 'default -3', 'default 1.5', 'default "x"', 'default [oak]'];
+    for (const tail of tails) {
+      const diagnostics = new Diagnostics();
+      const declared = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [a: [Ward, oak] ${tail}, b: 3]`),
+        diagnostics,
+      );
+      expect(
+        diagnostics.refusals.map((d) => d.message),
+        tail,
+      ).toEqual(['A list type names one element type.']);
+      expect(
+        declared!.properties.map((p) => p.name.text),
+        tail,
+      ).toEqual(['b']);
+    }
+
+    // And a property that ends where its default should have been takes
+    // nothing with it: `b` is the next entry, not the missing value.
+    const diagnostics = new Diagnostics();
+    const declared = parseRemembers(
+      new SourceFile('k.sprout', ':remembers [a: [Ward, oak] default, b: 3]'),
+      diagnostics,
+    );
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
+  });
+
   it('says Sprout has no fractions, rather than blaming the comma after one', () => {
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
@@ -984,25 +1032,24 @@ describe('one mistake is said once, and said truly', () => {
   });
 });
 
-describe('the parser refuses rather than throwing, at the host’s cap', () => {
+describe('the parser refuses rather than throwing, at its own bound', () => {
   const deep = (n: number) => `message :m with ${'['.repeat(n)}Ward`;
 
-  it('refuses nesting past the cap instead of running out of stack', () => {
+  it('refuses text past the bound instead of running out of stack', () => {
     const { refusals } = read(deep(7000));
-    expect(refusals[0]!.message).toBe('Nothing here may be nested more than 8 deep.');
+    expect(refusals[0]!.message).toBe(TOO_DEEP);
   });
 
-  it('takes the cap from the host, since every limit is the host’s', () => {
-    const diagnostics = new Diagnostics();
-    parseDeclarations(new SourceFile('t.sprout', deep(4)), diagnostics, {
-      ...DEFAULT_LIMITS.caps,
-      nesting: 2,
-    });
-    expect(diagnostics.refusals[0]!.message).toBe('Nothing here may be nested more than 2 deep.');
+  it('names no number, because the bound is the parser’s and not a figure to write up to', () => {
+    const { refusals } = read(deep(7000));
+    expect(refusals[0]!.message, 'the refusal quotes a figure').not.toMatch(/\d/);
+    expect(refusals[0]!.remedy).toBe('Take some of the brackets out.');
   });
 
-  it('allows nesting up to the cap', () => {
-    expect(read(`message :m with ${'['.repeat(8)}Ward${']'.repeat(8)}`).refusals).toEqual([]);
+  it('reads a type nested exactly to the bound', () => {
+    expect(
+      read(`message :m with ${'['.repeat(DEEPEST)}Ward${']'.repeat(DEEPEST)}`).refusals,
+    ).toEqual([]);
   });
 
   it('never throws, however deep it is given', () => {
@@ -1239,7 +1286,7 @@ describe('invariants over generated input, brackets included', () => {
 });
 
 describe('brackets inside brackets with something unreadable at the bottom, enumerated', () => {
-  // The random generator above reaches nesting depth two in about one
+  // The random generator above reaches bracket depth two in about one
   // input in forty, which is thin cover for the one shape recovery
   // bugs turn on: brackets inside brackets, something unreadable at
   // the bottom, closed or not. So that shape is enumerated rather than
@@ -1419,10 +1466,10 @@ describe('a list is bounded by what the host allows', () => {
   });
 
   it('is counted per list, so two over-cap lists are two reports', () => {
-    // `overCap` is a local, where the nesting cap two lines above it is
-    // a field reset once per declaration. Copying that shape here would
-    // report the first list and drop the second in silence, which is
-    // the one thing a full list must never do.
+    // `overCap` is a local, where the depth bound's report is a field
+    // reset once per declaration. Copying that shape here would report
+    // the first list and drop the second in silence, which is the one
+    // thing a full list must never do.
     const caps = { ...DEFAULT_LIMITS.caps, listElements: 3 };
     const diagnostics = new Diagnostics();
     parseRemembers(
@@ -1950,6 +1997,13 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   // and a bare `]` really does end the construct; in both cases what
   // comes after is not a sibling, and blaming the parser for it would
   // be the suite lying rather than the parser.
+  //
+  // A construct past the parser's depth bound is one of the defects,
+  // written as a value and as a TYPE: the two go down different paths,
+  // and only the type path reads a bracket it may then have to step
+  // back over.
+  const tooDeep = (inner: string) => '['.repeat(DEEPEST + 1) + inner + ']'.repeat(DEEPEST + 1);
+
   const ENTRY_DEFECTS = [
     'Zeta: 0',
     '4: 0',
@@ -1972,7 +2026,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     'b: integer.3',
     'b: Ward.oak default silver',
     'b: 0 min',
-    'b: [[[[[[[[[[oak]]]]]]]]]]',
+    `b: ${tooDeep('oak')}`,
+    `b: ${tooDeep('Ward')} default oak`,
     `b: [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,
     // NOT here, and named rather than quietly left out: `b: 0 min -[1]`
     // loses the entry after it. It goes in when that is fixed.
@@ -1980,13 +2035,13 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
 
   // Not `enum`: nothing reserves an option's name, so `[oak, enum]`
   // is a list of two options and there is nothing wrong with it.
-  const ELEMENT_DEFECTS = ['Zeta', '1.5', '%', ':a', '{', '}', '[[[[[[[[[[oak]]]]]]]]]]'];
+  const ELEMENT_DEFECTS = ['Zeta', '1.5', '%', ':a', '{', '}', tooDeep('oak')];
   const DECLARATION_DEFECTS = [
     'enum',
     'enum {',
     'message',
     'enum Ward {',
-    'message :a with [[[[[[[[[[Ward]]]]]]]]]]',
+    `message :a with ${tooDeep('Ward')}`,
     '%',
     'enum Ward { oak oak }',
     // Worlds. The first two: a member word that also starts a
@@ -2203,14 +2258,12 @@ describe('an expression', () => {
   });
 });
 
-describe('an expression counts against the host’s nesting cap', () => {
-  const nesting = DEFAULT_LIMITS.caps.nesting;
-
-  it('reads what is within it, and refuses what is past it', () => {
-    expect(readExpression('('.repeat(nesting) + 'a' + ')'.repeat(nesting)).expr).not.toBeNull();
-    expect(readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1)).expr).toBeNull();
-    expect(readExpression('!'.repeat(nesting) + 'a').expr).not.toBeNull();
-    expect(readExpression('!'.repeat(nesting + 1) + 'a').expr).toBeNull();
+describe('the parser bounds its own recursion, and nothing else does', () => {
+  it('reads what is within its bound, and refuses what is past it', () => {
+    expect(readExpression('('.repeat(DEEPEST) + 'a' + ')'.repeat(DEEPEST)).expr).not.toBeNull();
+    expect(readExpression('('.repeat(DEEPEST + 1) + 'a' + ')'.repeat(DEEPEST + 1)).expr).toBeNull();
+    expect(readExpression('!'.repeat(DEEPEST) + 'a').expr).not.toBeNull();
+    expect(readExpression('!'.repeat(DEEPEST + 1) + 'a').expr).toBeNull();
   });
 
   it('says so ONCE, however far past it goes', () => {
@@ -2224,18 +2277,14 @@ describe('an expression counts against the host’s nesting cap', () => {
       '!'.repeat(2000) + 'a',
     ]) {
       const said = readExpression(text).refusals.map((d) => d.message);
-      expect(said, text.slice(0, 20)).toEqual([
-        `Nothing here may be nested more than ${nesting} deep.`,
-      ]);
+      expect(said, text.slice(0, 20)).toEqual(['This is nested too deep to read.']);
     }
   });
 
   it('says so once for a list too', () => {
     const diagnostics = new Diagnostics();
     parseProperty(new SourceFile('k.sprout', ':x ' + '['.repeat(2000) + 'oak'), diagnostics);
-    expect(
-      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
-    ).toHaveLength(1);
+    expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(1);
   });
 
   it('says so once for a `:remembers` too, which has the same loop', () => {
@@ -2244,9 +2293,7 @@ describe('an expression counts against the host’s nesting cap', () => {
       new SourceFile('k.sprout', ':remembers [a: ' + '['.repeat(2000) + 'oak]'),
       diagnostics,
     );
-    expect(
-      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
-    ).toHaveLength(1);
+    expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(1);
   });
 
   it('says it once, and takes the whole construct with it rather than half', () => {
@@ -2256,24 +2303,24 @@ describe('an expression counts against the host’s nesting cap', () => {
     // whole account of it. What comes AFTER it is a sibling the author
     // is still owed, so stopping at the first too-deep item would say
     // the depth once and drop everything else that was wrong.
-    const deep = '['.repeat(12);
+    const deep = '['.repeat(DEEPEST + 1);
     const inside = readExpressionOf(`:x [${deep}oak, Zeta]`).refusals.map((d) => d.message);
-    expect(inside.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+    expect(inside.filter((m) => m === TOO_DEEP)).toHaveLength(1);
 
     const diagnostics = new Diagnostics();
     const after = parseRemembers(
-      new SourceFile('k.sprout', `:remembers [a: ${deep}oak${']'.repeat(12)}, b c: 1]`),
+      new SourceFile('k.sprout', `:remembers [a: ${deep}oak${']'.repeat(DEEPEST + 1)}, b c: 1]`),
       diagnostics,
     );
     const said = diagnostics.refusals.map((d) => d.message);
-    expect(said.filter((m) => m.startsWith('Nothing here may be nested'))).toHaveLength(1);
+    expect(said.filter((m) => m === TOO_DEEP)).toHaveLength(1);
     expect(said.join(' ')).toContain('needs a colon between its name and its value');
     expect(after).not.toBeNull();
   });
 
   it('gives each declaration its own account of being too deep', () => {
     const diagnostics = new Diagnostics();
-    const deep = '[[[[[[[[[[';
+    const deep = '['.repeat(DEEPEST + 1);
     parseDeclarations(
       new SourceFile(
         'k.sprout',
@@ -2283,22 +2330,18 @@ message :b with ${deep}Ward
       ),
       diagnostics,
     );
-    expect(
-      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
-    ).toHaveLength(2);
+    expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(2);
   });
 
   it('counts prefix signs against the same depth brackets do', () => {
     // A counter of its own would give every bracketed level a fresh
-    // allowance of signs on top of the shared one: eight parentheses
-    // each holding eight `!` nested sixty-four deep under a cap of
-    // eight, with nothing said.
-    expect(readExpression('(' + '!'.repeat(nesting - 1) + 'a)').expr).not.toBeNull();
-    expect(readExpression('(' + '!'.repeat(nesting) + 'a)').expr).toBeNull();
-    const stacked = ('(' + '!'.repeat(nesting)).repeat(nesting) + 'a' + ')'.repeat(nesting);
-    expect(readExpression(stacked).refusals.map((d) => d.message)).toEqual([
-      `Nothing here may be nested more than ${nesting} deep.`,
-    ]);
+    // allowance of signs on top of the shared one, so a bracket at the
+    // bound could still hold a wall of signs and read twice as deep,
+    // with nothing said.
+    expect(readExpression('(' + '!'.repeat(DEEPEST - 1) + 'a)').expr).not.toBeNull();
+    expect(readExpression('(' + '!'.repeat(DEEPEST) + 'a)').expr).toBeNull();
+    const stacked = ('(' + '!'.repeat(DEEPEST)).repeat(DEEPEST) + 'a' + ')'.repeat(DEEPEST);
+    expect(readExpression(stacked).refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
   });
 
   it('steps over what it would not read, rather than leaving its closer behind', () => {
@@ -2306,39 +2349,92 @@ message :b with ${deep}Ward
     // without the skip its CLOSER would be left in the stream, where
     // the loop reading around it takes the closer for its own and ends
     // early, dropping everything after it with nothing said.
-    const deep = '('.repeat(nesting) + 'a' + ')'.repeat(nesting);
+    const deep = '('.repeat(DEEPEST) + 'a' + ')'.repeat(DEEPEST);
     const call = readExpression(`self.f(${deep}, b)`);
     expect(call.shape).toBe('self.f(b)');
-    expect(call.refusals.map((d) => d.message)).toEqual([
-      `Nothing here may be nested more than ${nesting} deep.`,
-    ]);
+    expect(call.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
 
     // The same shape in a `:remembers`.
     const diagnostics = new Diagnostics();
     const remembered = parseRemembers(
       new SourceFile(
         'k.sprout',
-        ':remembers [a: ' + '['.repeat(nesting + 1) + 'oak' + ']'.repeat(nesting + 1) + ', b: 3]',
+        ':remembers [a: ' + '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1) + ', b: 3]',
       ),
       diagnostics,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
   });
 
+  it('steps over a TYPE it would not read, keeping the entry after it', () => {
+    // The type path opens its own bracket before it discovers it may
+    // not read what is inside, so it is the one that has to step back
+    // over it. Left behind, that `]` ends the `:remembers` around it
+    // and `b` goes with nothing said.
+    const type = '['.repeat(DEEPEST + 1) + 'Ward' + ']'.repeat(DEEPEST + 1);
+    const diagnostics = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${type} default oak, b: 3]`),
+      diagnostics,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['b']);
+    // And exactly one thing said: nothing about `oak`, `default` or a
+    // missing colon, which are pieces of the entry it gave up on and
+    // not mistakes the author made.
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
+  });
+
+  it('steps over the default of a property whose type it would not read', () => {
+    // The default and the bounds are the refused property's own text.
+    // Read as anything else they become entries of their own, and the
+    // author is told about mistakes they did not make.
+    const type = '['.repeat(DEEPEST + 1) + 'Ward' + ']'.repeat(DEEPEST + 1);
+    for (const tail of ['default oak', 'default [oak, silver]', 'default 0 min 0 max 9']) {
+      const diagnostics = new Diagnostics();
+      const remembered = parseRemembers(
+        new SourceFile('k.sprout', `:remembers [a: ${type} ${tail}, b: 3]`),
+        diagnostics,
+      );
+      expect(
+        remembered!.properties.map((p) => p.name.text),
+        tail,
+      ).toEqual(['b']);
+      expect(
+        diagnostics.refusals.map((d) => d.message),
+        tail,
+      ).toEqual([TOO_DEEP]);
+    }
+  });
+
+  it('steps over a VALUE and a bracketed expression the same way', () => {
+    const value = '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1);
+    const list = new Diagnostics();
+    const remembered = parseRemembers(
+      new SourceFile('k.sprout', `:remembers [a: ${value}, b: 3]`),
+      list,
+    );
+    expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
+    expect(list.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
+
+    const bracketed = readExpression(
+      'self.f(' + '('.repeat(DEEPEST + 1) + 'a' + ')'.repeat(DEEPEST + 1) + ', b)',
+    );
+    expect(bracketed.shape).toBe('self.f(b)');
+    expect(bracketed.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
+  });
+
   it('walks past a word that only looks like a declaration inside it', () => {
     // Nothing reserves `message` or `enum`, so `[message foo]` is a
     // list of two things. A skip that stopped at one would leave the
     // real closers behind, which is what the skip exists to prevent.
-    const trap = '['.repeat(nesting + 1) + 'message foo' + ']'.repeat(nesting + 1);
+    const trap = '['.repeat(DEEPEST + 1) + 'message foo' + ']'.repeat(DEEPEST + 1);
     const diagnostics = new Diagnostics();
     const remembered = parseRemembers(
       new SourceFile('k.sprout', `:remembers [a: ${trap}, c: 3]`),
       diagnostics,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
-    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      `Nothing here may be nested more than ${nesting} deep.`,
-    ]);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
 
     // And at file scope it must not invent a declaration out of the
     // trapped word: `A message needs a name.` about content the author
@@ -2349,9 +2445,7 @@ message :b with ${deep}Ward
       atFile,
     );
     expect(declared.map((d) => d.name.text)).toEqual(['second']);
-    expect(atFile.refusals.map((d) => d.message)).toEqual([
-      `Nothing here may be nested more than ${nesting} deep.`,
-    ]);
+    expect(atFile.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
   });
 
   it('takes nothing at all where the closer was never written', () => {
@@ -2362,22 +2456,58 @@ message :b with ${deep}Ward
     const declared = parseDeclarations(
       new SourceFile(
         'k.sprout',
-        `message :a with ${'['.repeat(nesting + 2)}Ward\nmessage :b with ${'['.repeat(nesting + 2)}Ward\n`,
+        `message :a with ${'['.repeat(DEEPEST + 2)}Ward\nmessage :b with ${'['.repeat(DEEPEST + 2)}Ward\n`,
       ),
       diagnostics,
     );
     expect(declared).toHaveLength(0);
-    expect(
-      diagnostics.refusals.filter((d) => d.message.startsWith('Nothing here may be nested')),
-    ).toHaveLength(2);
+    expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(2);
   });
 
   it('names what the author actually wrote too much of', () => {
-    const brackets = readExpression('('.repeat(nesting + 1) + 'a' + ')'.repeat(nesting + 1));
+    const brackets = readExpression('('.repeat(DEEPEST + 1) + 'a' + ')'.repeat(DEEPEST + 1));
     expect(brackets.refusals[0]!.remedy).toContain('brackets');
     // A wall of signs has no bracket in it.
-    const signs = readExpression('!'.repeat(nesting + 1) + 'a');
+    const signs = readExpression('!'.repeat(DEEPEST + 1) + 'a');
     expect(signs.refusals[0]!.remedy).toContain('signs');
+  });
+
+  it('reads each kind of stack exactly at the bound, and refuses one past it', () => {
+    // The bound is set by the STACK, so what the parser accepts it must
+    // also survive: at the bound every kind of nesting parses, and one
+    // deeper is a refusal rather than a `RangeError`.
+    const at: [string, string][] = [
+      ['parentheses', '('.repeat(DEEPEST) + 'a' + ')'.repeat(DEEPEST)],
+      ['call arguments', 'a' + '.f(a'.repeat(DEEPEST) + ')'.repeat(DEEPEST)],
+      ['prefix signs', '!'.repeat(DEEPEST) + 'a'],
+    ];
+    for (const [what, text] of at) {
+      expect(readExpression(text).refusals, what).toEqual([]);
+    }
+
+    const past: [string, string][] = [
+      ['parentheses', '('.repeat(DEEPEST + 1) + 'a' + ')'.repeat(DEEPEST + 1)],
+      ['call arguments', 'a' + '.f(a'.repeat(DEEPEST + 1) + ')'.repeat(DEEPEST + 1)],
+      ['prefix signs', '!'.repeat(DEEPEST + 1) + 'a'],
+    ];
+    for (const [what, text] of past) {
+      // The refusal, not a null tree: a call whose argument was refused
+      // reads on to its closing bracket and comes back with no
+      // arguments, which is the same recovery an unreadable argument
+      // gets anywhere else.
+      expect(
+        readExpression(text).refusals.map((d) => d.message),
+        what,
+      ).toEqual([TOO_DEEP]);
+    }
+
+    // The same, written as the types and values a property takes.
+    const type = (n: number) => `:x ${'['.repeat(n)}Ward${']'.repeat(n)} default []`;
+    const value = (n: number) => `:x ${'['.repeat(n)}${']'.repeat(n)}`;
+    expect(readProperty(type(DEEPEST)).refusals).toEqual([]);
+    expect(readProperty(value(DEEPEST)).refusals).toEqual([]);
+    expect(readProperty(type(DEEPEST + 1)).refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
+    expect(readProperty(value(DEEPEST + 1)).refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
   });
 
   it('never throws, however deep or however long', () => {
@@ -2401,6 +2531,19 @@ message :b with ${deep}Ward
     ]) {
       expect(
         () => parseExpression(new SourceFile('body.sprout', text), new Diagnostics()),
+        text.slice(0, 16),
+      ).not.toThrow();
+    }
+
+    // And the bracket kinds a property is written with, which reach the
+    // same bound down a different path.
+    for (const text of [
+      `:x ${'['.repeat(20_000)}Ward${']'.repeat(20_000)} default []`,
+      `:x ${'['.repeat(20_000)}${']'.repeat(20_000)}`,
+      `:x ${'['.repeat(20_000)}Ward`,
+    ]) {
+      expect(
+        () => parseProperty(new SourceFile('k.sprout', text), new Diagnostics()),
         text.slice(0, 16),
       ).not.toThrow();
     }

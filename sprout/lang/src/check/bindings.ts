@@ -485,8 +485,8 @@ export class Scope {
    * Iterative, and so is `names()`. Both read outward from `this.parent`
    * rather than recursing, because a scope chain is as deep as the
    * blocks a body nests and a `RangeError` is not a diagnostic. The
-   * parser bounds its recursion against the host's `nesting` cap; a
-   * scope has nothing to count and simply does not recurse.
+   * parser bounds its own recursion; a scope has nothing to count and
+   * simply does not recurse.
    */
   lookup(name: string): Binding | null {
     const own = this.bindings.get(name);

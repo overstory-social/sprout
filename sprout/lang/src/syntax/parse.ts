@@ -132,7 +132,23 @@ function punct(token: Token, text: string): boolean {
   return token.kind === 'punct' && token.text === text;
 }
 
-/** Which bracket opens which, for stepping over what the cap refused. */
+/**
+ * How deep brackets and prefix signs may go before this parser refuses
+ * to read further. The spec's Limits gives nesting no cap: this bound
+ * is the parser's own, it is not a figure a host sets, and no bundle
+ * records it.
+ *
+ * It is set by the STACK rather than by what is readable, since text
+ * this parser accepts it must also survive. Reading one bracket costs
+ * about nine JS frames, and the costliest shape — parentheses inside
+ * call arguments — exhausts Node's default stack near depth seven
+ * hundred, so this leaves a margin of more than five times over. It is
+ * far above anything written on purpose; nothing in the spec's own
+ * worlds nests past a handful.
+ */
+export const DEEPEST = 128;
+
+/** Which bracket opens which, for stepping over what was refused. */
 const OPENER_OF: ReadonlyMap<string, string> = new Map([
   [']', '['],
   [')', '('],
@@ -191,10 +207,10 @@ class Parser {
   private readonly lexer: Lexer;
   /** Each declaration this compiler reads, and what reads it. */
   private readonly readers: ReadonlyMap<string, () => Declaration | null>;
-  /** How deep the brackets currently are, against the host's nesting cap. */
+  /** How deep the brackets currently are, against `DEEPEST`. */
   private depth = 0;
   /**
-   * Whether the host's nesting cap has already been reported for the
+   * Whether the depth bound has already been reported for the
    * declaration being read. Too many brackets is ONE fact about one
    * piece of writing, and reading on past what could not be read —
    * which is how an author owed three problems is owed all three —
@@ -206,7 +222,7 @@ class Parser {
    * the author the missing colon in its third. Cleared between
    * declarations, so two deep ones are two reports.
    */
-  private capReported = false;
+  private tooDeepReported = false;
 
   constructor(
     private readonly source: SourceFile,
@@ -299,10 +315,10 @@ class Parser {
     return !(after.kind === 'punct' && CLOSERS.has(after.text));
   }
 
-  /** One deeper, or a refusal that the host's nesting cap is reached. */
+  /** One deeper, or a refusal that the parser's own bound is reached. */
   private deeper(at: Span, remedy = 'Take some of the brackets out.'): boolean {
-    if (this.depth + 1 > this.caps.nesting) {
-      this.reportCap(at, remedy);
+    if (this.depth + 1 > DEEPEST) {
+      this.reportTooDeep(at, remedy);
       return false;
     }
     this.depth += 1;
@@ -310,7 +326,7 @@ class Parser {
   }
 
   /**
-   * Step over what the cap would not let us read, the opening bracket
+   * Step over a construct being abandoned, its opening bracket
    * already taken. Counting matched pairs leaves the reader exactly
    * past the construct, so its CLOSER is never left in the stream for
    * the enclosing loop to take as its own and end early on.
@@ -336,15 +352,16 @@ class Parser {
     for (let i = 0; i <= ahead; i++) this.next();
   }
 
-  /** The nesting cap, said once per declaration and refused in silence after. */
-  private reportCap(at: Span, remedy: string): void {
-    if (this.capReported) return;
-    this.capReported = true;
-    this.diagnostics.refuse(
-      at,
-      `Nothing here may be nested more than ${this.caps.nesting} deep.`,
-      remedy,
-    );
+  /**
+   * Too deep to read, said once per declaration and refused in silence
+   * after. It names no number: the bound is the parser's own and an
+   * author who is told a figure will read it as something they may
+   * write up to.
+   */
+  private reportTooDeep(at: Span, remedy: string): void {
+    if (this.tooDeepReported) return;
+    this.tooDeepReported = true;
+    this.diagnostics.refuse(at, 'This is nested too deep to read.', remedy);
   }
 
   /** What the text after an item means. A comma, where there is one, is consumed. */
@@ -401,7 +418,7 @@ class Parser {
       const read = token.kind === 'name' ? this.readers.get(token.text) : undefined;
       if (read !== undefined) {
         // Each declaration is owed its own account of being too deep.
-        this.capReported = false;
+        this.tooDeepReported = false;
         const declared = read();
         if (declared !== null) declarations.push(declared);
         continue;
@@ -552,8 +569,15 @@ class Parser {
         return null;
       }
       try {
+        // Every way out of here but the good one gives up on the whole
+        // list type, so it steps over the rest of it: leaving the
+        // closer behind hands it to whatever is reading around this,
+        // which takes it for its own and ends early.
         const element = this.typeExpr();
-        if (element === null) return null;
+        if (element === null) {
+          this.skipBracketed(']');
+          return null;
+        }
         const close = this.take('punct', ']');
         if (close !== null) {
           return { kind: 'list-type', at: spanning(open.at, close.at), element };
@@ -568,6 +592,7 @@ class Parser {
             'A list type names one element type.',
             'Write `[Ward]` for a list of wards. A list of values is written with its values: `[oak, silver]`.',
           );
+          this.skipBracketed(']');
           return null;
         }
         this.diagnostics.refuse(
@@ -575,6 +600,7 @@ class Parser {
           'A list type is never closed.',
           'Write the element type in brackets, as in `[Ward]`.',
         );
+        this.skipBracketed(']');
         return null;
       } finally {
         this.depth -= 1;
@@ -798,6 +824,57 @@ class Parser {
   }
 
   /**
+   * Step over the rest of a property whose type could not be read: its
+   * default and its bounds, which are the abandoned property's own text
+   * and not a sibling. Left in the stream they are read as something
+   * else, and the author is told about a mistake they did not make.
+   */
+  private skipPropertyTail(): void {
+    if (this.take('name', 'default') !== null) this.skipValue();
+    while (this.at('name', 'min') || this.at('name', 'max')) {
+      this.next();
+      this.skipValue();
+    }
+  }
+
+  /**
+   * Step over one written value without reading it. Only what can begin
+   * a value is taken, so a property that ends where its default should
+   * have been takes nothing and the separator after it stays where the
+   * loop around this is waiting for it.
+   */
+  private skipValue(): void {
+    if (this.at('punct', '[')) {
+      this.next();
+      this.skipBracketed(']');
+      return;
+    }
+    // A written number, `-3` and `1.5` alike: Sprout has no fractions,
+    // but an author who wrote one wrote it as part of this property.
+    if (this.at('punct', '-') && this.peek(1).kind === 'integer') this.next();
+    if (this.peek().kind === 'integer') {
+      this.next();
+      if (this.at('punct', '.') && this.peek(1).kind === 'integer') {
+        this.next();
+        this.next();
+      }
+      return;
+    }
+    if (this.peek().kind === 'string') {
+      this.next();
+      return;
+    }
+    // An option, unless a colon after it makes it the name of the next
+    // entry of a `:remembers`.
+    if (
+      this.peek().kind === 'name' &&
+      !(this.peek(1).kind === 'punct' && this.peek(1).text === ':')
+    ) {
+      this.next();
+    }
+  }
+
+  /**
    * The option in `:ward Ward.iron`, the dot already read: the enum and
    * the option the property starts at, written as one. That spelling IS
    * the default, so no `default` may follow it.
@@ -836,7 +913,10 @@ class Parser {
   private propertyBody(name: Ident, from: Span): PropertyDeclaration | null {
     const wantedType = this.atType();
     const type = wantedType ? this.typeExpr() : null;
-    if (wantedType && type === null) return null;
+    if (wantedType && type === null) {
+      this.skipPropertyTail();
+      return null;
+    }
 
     let value: Literal | null = null;
     if (type !== null && this.at('punct', '.')) {
@@ -1279,9 +1359,9 @@ class Parser {
   // its own operators left to right, so `a - b - c` is `(a - b) - c`.
   //
   // Nothing here recurses without a bound. Parentheses, call arguments
-  // and stacked prefix operators all count against the host's nesting
-  // cap; a chain of operators at one level is read by the loop rather
-  // than by recursion.
+  // and stacked prefix operators all count against `DEEPEST`; a chain
+  // of operators at one level is read by the loop rather than by
+  // recursion.
 
   /** An expression, or null having said why it is not one. */
   expression(level: number = LOOSEST): Expr | null {
@@ -1307,7 +1387,7 @@ class Parser {
   /**
    * `!x`, `-x`, and the stacks of them. Read into a list and applied
    * afterwards rather than by recursing, so that a wall of `!` is
-   * refused by the nesting cap instead of exhausting the stack.
+   * refused by the depth bound instead of exhausting the stack.
    */
   private unary(): Expr | null {
     const operators: Token[] = [];
@@ -1317,8 +1397,8 @@ class Parser {
       // Against `this.depth`, which parentheses, lists and call
       // arguments all share. A counter of its own would give every
       // bracketed level a fresh allowance of signs on top of the
-      // shared one, so eight parentheses each holding eight `!` would
-      // nest sixty-four deep under a cap of eight.
+      // shared one, so a bracket at the bound could still hold a wall
+      // of signs and reach twice as deep.
       // Its own remedy: a wall of signs has no bracket in it, and
       // telling the author to take some brackets out names something
       // they did not write.
