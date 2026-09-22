@@ -72,8 +72,50 @@ export const DECLARATIONS = ['enum', 'message', 'world'] as const;
  */
 const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
 
-/** Punctuation that ends a list of things, so a word before it is the last one. */
-const CLOSERS = new Set([',', '}', ']']);
+/**
+ * What each declaration's opening looks like, past the word itself.
+ *
+ * Recovery has to tell `enum Ward { … }`, which starts a declaration,
+ * from `enum` used as an ordinary name — a remembered property called
+ * `enum`, an option called `enum` — because nothing reserves these
+ * words anywhere a name may stand. Only the word that starts a
+ * declaration knows what its own opening looks like, so each says, and
+ * a spec holds that every word in the readers table has an entry here.
+ *
+ * Two tokens is as far as this looks, and it is deliberately the least
+ * that separates the two readings: a guard that asks for more starts
+ * refusing declarations an author really did write.
+ */
+const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boolean> = new Map([
+  // `enum Ward { oak, silver }` — a name that starts with a capital,
+  // then the brace its options go in. Or the brace on its own: an
+  // author who forgot the name still started an enum, and three
+  // nameless ones in a row are three problems, not one.
+  [
+    'enum',
+    (name: Token, after: Token) => punct(name, '{') || (name.kind === 'kind' && punct(after, '{')),
+  ],
+  // `message :stir` — the colon before the name is the whole of it, and
+  // there is no brace to fall back on.
+  ['message', (name: Token) => name.kind === 'symbol'],
+  // `world printers_shop { … }`, or `world printers_shop: victorian.Voice { … }`.
+  //
+  // The brace on its own, as for an enum — but NOT a bare `:`, though a
+  // nameless `world: victorian.Voice { … }` is written that way.
+  // `world` is an ordinary name too, and `[world: 1]` remembers a
+  // property called `world`; that is input an author meant, where a
+  // world with no name is input they did not.
+  [
+    'world',
+    (name: Token, after: Token) =>
+      punct(name, '{') || (name.kind === 'name' && (punct(after, '{') || punct(after, ':'))),
+  ],
+]);
+
+/** Whether a token is one particular mark, which the shapes above ask a lot. */
+function punct(token: Token, text: string): boolean {
+  return token.kind === 'punct' && token.text === text;
+}
 
 /** Which bracket opens which, for stepping over what the cap refused. */
 const OPENER_OF: ReadonlyMap<string, string> = new Map([
@@ -201,21 +243,27 @@ class Parser {
   }
 
   /**
-   * Whether the next token begins a declaration rather than being a word
-   * that happens to spell one.
+   * Whether a declaration begins here, rather than a word that happens
+   * to spell one.
    *
-   * Nothing reserves `enum` or `message` as an option name, so the word
-   * alone decides nothing. What decides is what FOLLOWS: a declaration
-   * is followed by its own name, where an option is followed by a
-   * separator, by the thing that closes its list, or by the end of the
-   * file.
+   * Nothing reserves `enum`, `message` or `world` anywhere a name may
+   * stand, so the word alone decides nothing and what FOLLOWS it must.
+   * The first cut of this asked only whether a closer followed, which
+   * is the wrong question: a remembered property is written `name:
+   * value`, so the token after a legal entry's name is always `:` and
+   * never a closer, and every `:remembers` holding an entry called
+   * `enum` was read as a declaration starting mid-list and thrown away
+   * whole. `[enum silver]` — two options, one missing comma — went the
+   * same way.
+   *
+   * So the question is whether this word's own opening is here, which
+   * is what `DECLARATION_SHAPES` answers. A word without it is a word.
    */
   private atDeclarationKeyword(): boolean {
     const token = this.peek();
     if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
-    const after = this.peek(1);
-    if (after.kind === 'end') return false;
-    return !(after.kind === 'punct' && CLOSERS.has(after.text));
+    const shape = DECLARATION_SHAPES.get(token.text);
+    return shape !== undefined && shape(this.peek(1), this.peek(2));
   }
 
   /** One deeper, or a refusal that the host's nesting cap is reached. */
@@ -1368,7 +1416,7 @@ class Parser {
         const before = this.peek();
         const argument = this.expression();
         if (argument === null) {
-          if (this.done || this.atDeclarationKeyword()) return null;
+          if (this.done) return null;
           if (this.peek().at.start === before.at.start) this.next();
           this.separator(')');
           missingComma = null;
