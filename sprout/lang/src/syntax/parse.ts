@@ -37,6 +37,8 @@ import type {
   Ident,
   Literal,
   MessageDeclaration,
+  NamedType,
+  OptionLiteral,
   PropertyDeclaration,
   RemembersDeclaration,
   TypeExpr,
@@ -69,6 +71,11 @@ export const DECLARATIONS = ['enum', 'message', 'world'] as const;
  * from its default.
  */
 const BUILT_IN_TYPE_WORDS = new Set(['boolean', 'integer', 'string', 'object']);
+
+/** `Ward`, `sprout.Ward` — a named type as it was written. */
+function spellNamedType(type: NamedType): string {
+  return type.library === null ? type.name.text : `${type.library.text}.${type.name.text}`;
+}
 
 /**
  * Punctuation that ends a list of things, so a word before it is the
@@ -775,8 +782,40 @@ class Parser {
   }
 
   /**
+   * The option in `:ward Ward.iron`, the dot already read: the enum and
+   * the option the property starts at, written as one. That spelling IS
+   * the default, so no `default` may follow it.
+   */
+  private qualifiedDefault(name: Ident, type: NamedType): OptionLiteral | null {
+    const word = this.take('name');
+    if (word === null) {
+      const wrong = this.peek();
+      this.diagnostics.refuse(
+        wrong.at,
+        `\`${spellNamedType(type)}.\` cannot name ${this.describe(wrong)}.`,
+        'An option is a lower-case word, as in `:ward Ward.iron`.',
+      );
+      return null;
+    }
+    const option: OptionLiteral = { kind: 'option-literal', at: word.at, name: this.ident(word) };
+    const again = this.take('name', 'default');
+    if (again !== null) {
+      this.diagnostics.refuse(
+        again.at,
+        `\`:${name.text}\` says its default twice.`,
+        `\`${spellNamedType(type)}.${option.name.text}\` already says what it starts at. Remove the \`default\` after it.`,
+      );
+      return null;
+    }
+    return option;
+  }
+
+  /**
    * What follows a property's name, in either place it can be written:
    * an optional type, then a default, then an optional integer range.
+   * An enum and the option a property starts at may be written as one
+   * instead — `:ward Ward.iron`, or `:ward sprout.Ward.iron` with the
+   * enum's library (the spec's Properties › Declaring a property).
    */
   private propertyBody(name: Ident, from: Span): PropertyDeclaration | null {
     const wantedType = this.atType();
@@ -784,7 +823,21 @@ class Parser {
     if (wantedType && type === null) return null;
 
     let value: Literal | null = null;
-    if (type === null) {
+    if (type !== null && this.at('punct', '.')) {
+      const dot = this.next();
+      // Only an enum has options, so a dot after anything else is a
+      // default written the wrong way round.
+      if (type.kind !== 'named-type' || BUILT_IN_TYPE_WORDS.has(type.name.text)) {
+        this.diagnostics.refuse(
+          dot.at,
+          `\`:${name.text}\` writes a dot after a type that has no options.`,
+          'Only an enum names its option after a dot, as in `:ward Ward.iron`. Write `default` and the value instead.',
+        );
+        return null;
+      }
+      value = this.qualifiedDefault(name, type);
+      if (value === null) return null;
+    } else if (type === null) {
       value = this.literal();
       if (value === null) return null;
     } else if (this.take('name', 'default') !== null) {

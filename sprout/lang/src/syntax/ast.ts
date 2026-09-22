@@ -99,8 +99,10 @@ export type Literal = BooleanLiteral | IntegerLiteral | StringLiteral | OptionLi
 
 /**
  * `:wear 0 min 0 max 99` — a name, a type and a default, where the type
- * may be written or taken from the literal. Every instance of the kind
- * starts at the default.
+ * may be written or taken from the literal. An enum and the option to
+ * start at may be written as one, `:ward Ward.iron` or
+ * `:ward sprout.Ward.iron`, which fills both fields from that one form.
+ * Every instance of the kind starts at the default.
  */
 export interface PropertyDeclaration extends Node {
   readonly kind: 'property';
