@@ -196,13 +196,17 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether a withheld file changes the bundle's hash.** Deferred until the publish, share, repository and library-versioning story is settled.
 - **Pending wakes.** One per object is now stated as a rule of the language rather than a budget. Eric asked whether it could instead ride on a cap over methods or listeners; that is unanswered, and the rule stands until it is.
 - **The register of the stock lines.** Long-term, and not a blocker.
-- **Found by the 2026-09-21 review, undecided.** A symbol literal on the left of `==` is refused by the checker where the spec reads as symmetric. An integer literal outside the operand's range in a comparison is accepted, which is the false-forever defect the enum rule prevents. An exit's `when` guard may `get` through an identifier, a `get` through one out of range is a fault, and guards run on every poll, so a poll can fault through a guard; the unset-link rule (does not apply) is the likely answer.
+- **Found by the 2026-09-21 review.** A symbol literal on the left of `==` is refused by the checker; the spec now says either side, and #86 brings the code to it. *Still undecided:* an integer literal outside the other operand's range in a comparison is accepted, which is the false-forever defect the enum rule prevents; the checker table refuses an out-of-range literal only for `set` and `remember`. An exit's `when` guard may `get` through an identifier, a `get` through one out of range is a fault, and guards run on every poll, so a poll can fault through a guard; the unset-link rule (does not apply) is the likely answer.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
 - **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
 - **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
+- **A block comment never closed, or inside another.** Decided 2026-09-22 and now under Lexical rules: refused at its opening; no nesting.
+- **Whether a library's `version` is semver.** The manifest's `libraries` row says only "by version", and a vendored library declares one beside its source. Not decided; #75 checks the world's `version` alone.
+- **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
+- **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.
 - Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); `ResolvedWorld.contains` is what the declaration wrote, and B19 merges the rest.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
@@ -211,13 +215,13 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - The escapes are `\"`, `\\`, `\n` and `\{`, in quoted text and in a passage alike; `{{` is gone.
 - A world's `version` is semver.
 - An enum's options take an optional trailing comma, are capped at 100 by the host, and may not be reserved words; the reserved words are now listed under Lexical rules.
-- A default option may be written qualified, `:ward Ward.iron`, and bare in a restatement, where the type is already known.
+- A default option may be written qualified, `:ward Ward.iron` or `:ward sprout.Ward.iron`, and bare in a restatement, where the type is already known.
 - A list's element type may be a list.
 - Two lists are not compared with `==`; set and ordered equality are a later level's, and the runtime's `equals` goes.
 - There is no nesting cap. The parser still has to bound its own recursion, and whatever it does about that is the compiler's own affair rather than a host limit.
 - `chance(n)` is one in n and `random(n)` is 0 to n − 1.
-- `sprout.World` is written on every world (`world w: sprout.World { … }`), refused when missing, and refused on anything but a world. Eric restated this on 2026-09-22 after first deciding the opposite: level 1 is explicit wherever it could have defaulted, since a later level can relax a requirement and never add one.
-- The manifest has an optional `namespace`, falling back to `name`, and the `world` declaration repeats `name`.
+- `sprout.World` is written on every world (`world w: sprout.World { … }`), as that literal and not an unqualified `World`, refused when missing, and refused on anything but a world. Eric restated this on 2026-09-22 after first deciding the opposite: level 1 is explicit wherever it could have defaulted, since a later level can relax a requirement and never add one.
+- The manifest has an optional `namespace`, falling back to `name`, and the one `world` declaration repeats `name`; none, two, or another name is refused.
 - A static cap exceeded at load refuses the world, unless the host has recorded an exception for it.
 - Spawns per world per hour is gone; live instances per world is the host's storage decision, faulting a `spawn` when it is reached, rather than a figure in the table.
 - The claim that a `let` costs fewer steps than the reads it replaces is gone; a `let` is charged as a statement.

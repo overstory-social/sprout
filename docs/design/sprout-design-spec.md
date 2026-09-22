@@ -57,7 +57,7 @@ world printers_shop: sprout.World {
 
 The world is the only object with no container, the only one that cannot move, and the only one that can be neither spawned nor destroyed. It holds what belongs to no single place, and — because a broadcast travels outward as well as inward — it is the only route by which one place can hear another. Its pass rule is `pass any (false)` unless it says otherwise, so nothing crosses between places unless the world says it may.
 
-Every world composes `sprout.World`, which carries the words the engine speaks for itself, and writes so: `world printers_shop: sprout.World { … }`. A world that leaves it out is refused, and anything but a world that composes it is refused, because it would make a place into a world. A world composes like a kind, so it may compose more beside it — `world printers_shop: sprout.World, victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed. Being explicit here is deliberate: a later level may make `sprout.World` implicit, and a level can relax a requirement it stated; it can never add one to worlds already accepted.
+Every world composes `sprout.World`, which carries the words the engine speaks for itself, and writes so: `world printers_shop: sprout.World { … }`, with the library named; an unqualified `World` does not stand for it. A world that leaves it out is refused, and anything but a world that composes it is refused, because it would make a place into a world. A world composes like a kind, so it may compose more beside it — `world printers_shop: sprout.World, victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed. Being explicit here is deliberate: a later level may make `sprout.World` implicit, and a level can relax a requirement it stated; it can never add one to worlds already accepted.
 
 That is the whole shape. The containment tree is the one piece of state no object owns, which is why moving through it takes a protocol and nothing else does.
 
@@ -203,7 +203,7 @@ The manifest is what a world says about itself before any of it is read.
 
 | field | what it holds |
 | --- | --- |
-| `name` | the world's own name, which its `world` declaration repeats |
+| `name` | the world's own name, which its one `world` declaration repeats |
 | `namespace` | the namespace its declarations are unqualified in; optional, and the world's name when unset |
 | `version` | which version of this world this is, as [semver](https://semver.org) |
 | `author` | who made it, as text: a name, an address, a profile |
@@ -214,6 +214,8 @@ The manifest is what a world says about itself before any of it is read.
 | `files` | its own `.sprout` and `.prose` files, by name |
 
 None of it needs a parser, and that is the point: whether a bundle is closed and whether it is complete are both settled before a line of the language has been read.
+
+A bundle holds exactly one `world` declaration, and its name is the manifest's `name`: none, more than one, or one under another name is refused.
 
 `files` is what makes a file that did not arrive *missing* rather than merely absent — without it there is nothing for a file to be missing from. What travelled must be exactly what the manifest names; publishing refuses otherwise, and loading says so and runs.
 
@@ -488,7 +490,7 @@ The object type has no properties. It is the type of a binding whose kind the co
 :note     string default ""
 ```
 
-A property is a name, a type, and a default. A default is always written: there is no null for a property to hold instead. The type may be written or taken from the literal — a boolean, an integer or a string names its own type, and an option names its enum, `:ward Ward default iron` or `:ward Ward.iron`. A list writes its element type, so `:cars [Car] default []` is unambiguous. Every instance of the kind starts at the default; a kind or an object's body may restate a property it composes to change the default, keeping the type, and there the type is already known, so `:ward iron` is enough.
+A property is a name, a type, and a default. A default is always written: there is no null for a property to hold instead. The type may be written or taken from the literal — a boolean, an integer or a string names its own type, and an option names its enum, `:ward Ward default iron` or `:ward Ward.iron`, or with the enum's library, `:ward sprout.Ward.iron`. A list writes its element type, so `:cars [Car] default []` is unambiguous. Every instance of the kind starts at the default; a kind or an object's body may restate a property it composes to change the default, keeping the type, and there the type is already known, so `:ward iron` is enough.
 
 ### Enums
 
@@ -523,7 +525,7 @@ A list holds no duplicates, and it may change. Its element type may itself be a 
 
 A list holds at most as many elements as the host allows, and adding a new one to a full list is a fault rather than a silent drop. `adjust` clamps at a ceiling because reaching the ceiling is the meaning; dropping an element would lose something the author wrote.
 
-Four operations: `includes(x)`, `count`, `add` and `remove`. Only the object that declared the property may add or remove, as with any other write. Two lists are not compared with `==`; whether equality is by set or by order is a later level's to add.
+Four operations: `includes(x)`, `count`, `add` and `remove`. Only the object that declared the property may add or remove, as with any other write. Two lists are not compared with `==`; whether equality is by set or by order is a later level's to add. Inside a list of lists, `add`, `remove` and `includes` take two elements to be the same when they hold the same elements in the same order, which is how the no-duplicates rule is kept there; it is not an `==` an author can write.
 
 ### Where types come from
 
@@ -562,7 +564,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 
 | construct | rule |
 | --- | --- |
-| `a == b`, `a != b` | same type, and not a list; a symbol literal must be one of the operand's options |
+| `a == b`, `a != b` | same type, and not a list; a symbol literal, on either side, must be one of the other operand's options |
 | `<` `<=` `>` `>=` | both integer |
 | `+` `-`, unary `-` | integer |
 | `&&` `\|\|` `!` | operands boolean; there is no truthiness and no coercion |
@@ -1463,6 +1465,8 @@ Vendored library source is content-hashed and exempt from the source, kind and f
 
 A passage has no length cap of its own. It is bounded by total source bytes on one side and the turn's output budget on the other.
 
+Nesting has no cap. The compiler bounds its own recursion so that pathologically deep text is refused rather than crashing it; that bound is the compiler's, not a limit the host sets, and it is not recorded in the bundle.
+
 ### Runtime budgets
 
 | budget | default |
@@ -1506,7 +1510,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 
 ### Lexical rules
 
-- A comment is `//` to the end of the line, or `/* … */` across lines.
+- A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a composition is written with the space, `kind Creature: sprout.Actor`.
 - The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `for`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
@@ -1535,6 +1539,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | a place, in an exit or link | the exit does not apply |
 | a place a visitor stands in | the visitor is moved to the world's arrival place on their next turn and told through the world's `displaced` passage |
 | a place the world says visitors arrive at | the world does not admit anyone; entry fails as a host matter, the way a crash does, and the host says so outside the world |
+| the `world` declaration | the same: the world does not admit anyone, and the host says so outside it |
 | an extension | its statements record nothing and its types hold their defaults |
 
 Stored state for absent objects is kept, untouched, so that a file restored brings its objects back as they were.
@@ -1548,7 +1553,8 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A comparison between different types, a symbol that is not one of its enum's options, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
-- A world that does not compose `sprout.World`; anything but a world composing it.
+- A world that does not compose `sprout.World`, written as `sprout.World`; anything but a world composing it.
+- A bundle with no `world` declaration or with more than one; a `world` declaration whose name is not the manifest's `name`.
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose the visitor kind; an `act` that leaves out a tool that is not optional.
 - An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
