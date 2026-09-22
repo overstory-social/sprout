@@ -7,5 +7,6 @@ world shop {
   :season Season default autumn
   :ward Ward.iron
   :sign string default "back \{soon}"
+  :grid [[Ward]] default [[iron], [brass, iron]]
   :remembers [visits: 0 min 0 max 99]
 }

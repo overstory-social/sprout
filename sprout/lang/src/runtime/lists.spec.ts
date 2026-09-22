@@ -164,3 +164,57 @@ describe('a list is bounded, and a full one faults rather than dropping', () => 
     expect(held.remove(0).add(ALLOWED + 1).count).toBe(ALLOWED);
   });
 });
+
+describe('a list of lists keeps the no-duplicates rule by order', () => {
+  const ROW: ValueType = { type: 'list', element: WARD };
+  const row = (...wards: string[]) => SproutList.of(ROW, wards);
+  const grid = (...rows: SproutList[]) => SproutList.of({ type: 'list', element: ROW }, rows);
+
+  it('drops a later inner list holding the same wards in the same order', () => {
+    // Not identity: two inner lists built separately are still the
+    // same element, which is what keeps the rule here.
+    expect(grid(row('oak'), row('oak')).count).toBe(1);
+    expect(grid(row('oak', 'silver'), row('oak', 'silver')).count).toBe(1);
+  });
+
+  it('keeps an inner list holding the same wards in a different order', () => {
+    const kept = grid(row('oak', 'silver'), row('silver', 'oak'));
+    expect(kept.count).toBe(2);
+    expect(kept.elements.map(String)).toEqual(['[oak, silver]', '[silver, oak]']);
+  });
+
+  it('is not the same element as an inner list of another element type', () => {
+    const wards = grid(row('oak'));
+    expect(wards.includes(SproutList.of(STRING, ['oak']))).toBe(false);
+  });
+
+  it('`includes`, `add` and `remove` take a whole inner list', () => {
+    const held = grid(row('oak'), row('silver'));
+    expect(held.includes(row('silver'))).toBe(true);
+    expect(held.includes(row('brass'))).toBe(false);
+
+    // `add` of one it already holds does nothing at all, and `remove`
+    // of one it does not hold does nothing at all.
+    expect(held.add(row('oak'))).toBe(held);
+    expect(held.remove(row('brass'))).toBe(held);
+
+    expect(held.add(row('brass')).elements.map(String)).toEqual(['[oak]', '[silver]', '[brass]']);
+    expect(held.remove(row('oak')).elements.map(String)).toEqual(['[silver]']);
+  });
+
+  it('names itself with its inner lists spelled out', () => {
+    expect(String(grid(row('oak'), row('silver')))).toBe('[[oak], [silver]]');
+    expect(String(grid())).toBe('[]');
+  });
+
+  it('bounds each list on its own, the inner ones included', () => {
+    const smaller = limitsFrom({ caps: { listElements: 2 } });
+    const two = SproutList.of(ROW, ['oak', 'silver'], smaller.caps);
+    expect(two.full).toBe(true);
+    expect(() => two.add('brass')).toThrow(ListFull);
+    // The outer list has room for a third row even though this one is
+    // full, because the cap is a cap on each list.
+    const rows = SproutList.of({ type: 'list', element: ROW }, [two], smaller.caps);
+    expect(rows.add(SproutList.of(ROW, ['brass'], smaller.caps)).count).toBe(2);
+  });
+});
