@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EnumDeclaration, Expr, Literal, WorldMember } from './ast.js';
+import type { Declaration, EnumDeclaration, Expr, Literal, WorldMember } from './ast.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { unspanned } from '../source/nodes.js';
 import {
@@ -687,6 +687,28 @@ describe('a :remembers, as an object writes one', () => {
         'z',
       ]);
     }
+  });
+
+  it('never looks past a declaration for entries after its `]`', () => {
+    // The world is never closed, so the next line is a declaration, and
+    // its header is not entries of the `:remembers` above it, however
+    // it reads.
+    const text =
+      'world w: sprout.World {\n  :remembers [a: 0]\nworld bar: sprout.World, name: 1] {\n  visitors are P\n  visitors arrive at y\n}\n';
+    const { declarations, refusals } = read(text);
+    expect(declarations).toEqual([]);
+    expect(refusals.map((d) => [d.message, d.at.start])).toEqual([
+      ['`w` is never closed.', text.indexOf('world bar')],
+      ['`name` is not the name of a kind.', text.indexOf('name:')],
+    ]);
+  });
+
+  it('still names an entry after its `]` that is spelled like a declaration', () => {
+    const { declared, refusals } = remember(':remembers [a: 0], world: 1, enum: 2]');
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`world` and `enum` are written after the `]` that ends this `:remembers`.',
+    ]);
   });
 
   it('never throws, whatever it is given', () => {
@@ -2925,6 +2947,50 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
    */
   const endsTheWorldEarly = (defect: Defect): boolean => defect.text === '}';
 
+  /**
+   * What may follow a world that was never closed: declarations written
+   * well, which are kept, and ones whose own header reads like the
+   * entries of a `:remembers` — `, name: 1]` — which are kept or refused
+   * at their own text, and never taken for the world's.
+   */
+  const FOLLOWING = [
+    { name: 'Omega', text: 'enum Omega { y }', wellFormed: true },
+    { name: 'omega', text: 'message :omega', wellFormed: true },
+    { name: 'omega', text: 'world omega: sprout.World {\n  visitors are P\n}', wellFormed: true },
+    {
+      name: 'omega',
+      text: 'world omega: sprout.World, name: 1] {\n  visitors are P\n}',
+      wellFormed: false,
+    },
+    { name: 'Omega', text: 'enum Omega, name: [1]] { y }', wellFormed: false },
+  ] as const;
+
+  /**
+   * A world never closed says so, and the declaration after it is its
+   * own: kept, or refused somewhere in its own text by something other
+   * than the world's refusal.
+   */
+  function closedByWhatFollows(
+    text: string,
+    world: string,
+    following: (typeof FOLLOWING)[number],
+    declared: readonly Declaration[],
+    said: readonly Diagnostic[],
+  ) {
+    const unclosed = `\`${world}\` is never closed.`;
+    expect(
+      said.some((d) => d.message === unclosed),
+      `${text}\n  nothing says \`${world}\` is never closed`,
+    ).toBe(true);
+    const kept = declared.some((d) => d.name.text === following.name);
+    const from = text.lastIndexOf(following.text);
+    const refused = said.some((d) => d.at.start >= from && d.message !== unclosed);
+    expect(
+      kept || (!following.wellFormed && refused),
+      `${text}\n  \`${following.name}\` vanished, and nothing in it was refused`,
+    ).toBe(true);
+  }
+
   it('over a generated world body, a defect in any member', () => {
     const c = chooser(20_260_925);
     const reached = tally();
@@ -2957,6 +3023,26 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       const made = defectiveMember(c);
       const lines = members.map((member) => member.text(c));
       lines.splice(at, 0, made.text);
+      // Now and then the world is never closed, and a declaration follows
+      // it, with a `:remembers` last in the body or not. Not after a brace
+      // in the defect, which would close it, nor an unclosed bracket,
+      // which takes what follows as far as a closer turns up.
+      const crossable = made.defect.sort !== 'unclosed' && !made.text.includes('}');
+      const following = crossable && c.below(4) === 0 ? c.one(FOLLOWING) : null;
+      if (following !== null) {
+        // Nor straight after the defect, and named rather than quietly
+        // left out: a property whose value is missing reads the word that
+        // starts the declaration as its value, and the declaration is lost,
+        // as `omega` is from `world w: sprout.World {\n  :faulty :wet\n
+        // message :omega`.
+        const last = at === members.length || c.below(2) === 0;
+        if (last) lines.push(':remembers [zulu: 0]');
+        const text = `world w: sprout.World {\n  ${lines.join('\n  ')}\n${following.text}\n`;
+        const { result, said } = reading(text, parseDeclarations);
+        reached.add(last && !following.wellFormed ? 'across' : 'unclosed world');
+        closedByWhatFollows(text, 'w', following, result, said);
+        continue;
+      }
       const text = `world w: sprout.World {\n  ${lines.join('\n  ')}\n}\n`;
       const { result, said } = reading(text, parseDeclarations);
       const world = result.find((d) => d.kind === 'world');
@@ -2979,7 +3065,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         said,
       );
     }
-    expect(reached.keys()).toEqual([...SORTS, 'excluded'].sort());
+    expect(reached.keys()).toEqual([...SORTS, 'across', 'excluded', 'unclosed world'].sort());
   });
 
   it('over a generated file, a defect in any part of any declaration', () => {
@@ -2988,6 +3074,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // declaration is where recovery stops, whatever bracket is open.
     const c = chooser(20_260_926);
     const option = c.one;
+    const reached = tally();
     const DECLARED = [
       { name: 'Alpha', text: () => 'enum Alpha { oak, silver }' },
       { name: 'Bravo', text: () => 'enum Bravo { iron }' },
@@ -2998,6 +3085,10 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         text: () => 'world india: sprout.World {\n  visitors are P\n  visitors arrive at y\n}',
       },
     ];
+    // A world never closed, holding a `:remembers` or not; whatever
+    // follows it, in the file or here, is a declaration of its own.
+    const unclosedWorld = (): string =>
+      `world faulty: sprout.World {\n  ${option(['visitors are P', 'visitors are P\n  :remembers [a: 0]', ':remembers [a: 0]'])}`;
     const DEFECTIVE: readonly (() => string)[] = [
       // An enum: its name, its braces, one option, or a comma.
       () => `enum ${option(['faulty', '', '4', 'Faulty.'])} { oak }`,
@@ -3018,7 +3109,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       },
       // A world: its name, what it is composed from, a brace, a member.
       () => option(['world faulty: 4 { }', 'world faulty', 'world: sprout.World']),
-      () => 'world faulty: sprout.World {\n  visitors are P',
+      unclosedWorld,
       () => `world faulty: sprout.World {\n  visitors are P\n  ${defectiveMember(c).text}\n}`,
     ];
     const used = new Set<number>();
@@ -3026,7 +3117,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       const declared = c.shuffled(DECLARED).slice(0, c.below(DECLARED.length + 1));
       const which = c.below(DEFECTIVE.length);
       used.add(which);
-      const defect = DEFECTIVE[which]!();
+      const unclosed = DEFECTIVE[which] === unclosedWorld;
+      // After a world never closed, now and then a declaration whose own
+      // header reads like the entries of a `:remembers`.
+      const following = unclosed && c.below(2) === 0 ? c.one(FOLLOWING.slice(3)) : null;
+      const defect = `${DEFECTIVE[which]!()}${following === null ? '' : `\n${following.text}`}`;
       const blocks = declared.map((d) => d.text());
       blocks.splice(c.below(blocks.length + 1), 0, defect);
       const text = `${blocks.join('\n')}\n`;
@@ -3047,8 +3142,19 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         [...good, 'faulty', 'Faulty', ...inside],
         said,
       );
+      if (unclosed) {
+        reached.add(
+          following !== null && defect.includes(':remembers') ? 'across' : 'unclosed world',
+        );
+        expect(
+          said.some((d) => d.message === '`faulty` is never closed.'),
+          `${text}\n  nothing says \`faulty\` is never closed`,
+        ).toBe(true);
+      }
+      if (following !== null) closedByWhatFollows(text, 'faulty', following, result, said);
     }
     expect(used.size).toBe(DEFECTIVE.length);
+    expect(reached.keys()).toEqual(['across', 'unclosed world']);
   });
 });
 

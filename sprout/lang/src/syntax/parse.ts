@@ -316,10 +316,10 @@ class Parser {
    * says what is wrong with it; that asymmetry is why these are two
    * questions and not one.
    */
-  private atRecoveryStop(): boolean {
-    const token = this.peek();
+  private atRecoveryStop(ahead = 0): boolean {
+    const token = this.peek(ahead);
     if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
-    const after = this.peek(1);
+    const after = this.peek(ahead + 1);
     if (after.kind === 'end') return false;
     return !(after.kind === 'punct' && CLOSERS.has(after.text));
   }
@@ -1426,13 +1426,20 @@ class Parser {
     let before: Token | null = null;
     for (let ahead = 0; ; ahead++) {
       const token = this.peek(ahead);
-      // Where a member, a brace or the file's end comes first, the
-      // entries are not stepped over: what follows is someone else's.
+      // Where a member, a brace, the file's end or a declaration comes
+      // first, the entries are not stepped over: what follows is someone
+      // else's. A declaration is asked about loosely, as recovery asks,
+      // because a false yes costs only the naming while a false no takes
+      // a declaration's header for entries and swallows it; the one word
+      // spared is an entry's own name, after a comma and before a colon,
+      // as in `], world: 1]`.
+      const entryName = before !== null && punct(before, ',') && punct(this.peek(ahead + 1), ':');
       if (
         token.kind === 'end' ||
         token.kind === 'symbol' ||
         punct(token, '{') ||
-        punct(token, '}')
+        punct(token, '}') ||
+        (!entryName && this.atRecoveryStop(ahead))
       ) {
         break;
       }
@@ -1444,13 +1451,7 @@ class Parser {
           break;
         }
         depth -= 1;
-      } else if (
-        depth === 0 &&
-        token.kind === 'name' &&
-        before !== null &&
-        punct(before, ',') &&
-        punct(this.peek(ahead + 1), ':')
-      ) {
+      } else if (depth === 0 && token.kind === 'name' && entryName) {
         names.push(token);
       }
       before = token;
