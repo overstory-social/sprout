@@ -1,7 +1,7 @@
 // What the runtime's specs load a world from: a real bundle, compiled
 // through `compileBundle` from the files given, under a manifest naming
 // exactly them and pinning the standard library, which travels with it
-// blessed as the CLI sends it. Spec support: the package build leaves it out.
+// blessed, as a host starts from. Spec support: the package build leaves it out.
 
 import { libraryHash, type Bundle, type Manifest } from '../bundle/bundle.js';
 import { compileBundle } from '../bundle/compile/compile.js';
@@ -50,7 +50,6 @@ export function compiledWorld(
     {
       mode: options.mode ?? 'publish',
       limits: options.limits ?? DEFAULT_LIMITS,
-      blessed: new Set([sha]),
     },
   );
   if (bundle === null) {

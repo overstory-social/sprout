@@ -38,6 +38,7 @@ export * from './bundle/limits.js';
 export * from './bundle/absent.js';
 export * from './bundle/bundle.js';
 export * from './bundle/standard-library.js';
+export * from './bundle/blessed.js';
 export * from './bundle/manifest.js';
 export * from './bundle/declarations.js';
 export { checkShape, type ShapeResult } from './bundle/compile/first-tier.js';

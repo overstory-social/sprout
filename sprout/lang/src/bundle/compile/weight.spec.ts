@@ -129,7 +129,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
   });
 
   it('counts an unblessed library as the author’s own source', () => {
-    const { bundle } = compileBundle(world());
+    const { bundle } = compileBundle(world(), { blessed: new Set() });
     expect(bundle!.size.exemptBytes).toBe(0);
     expect(bundle!.size.sourceBytes).toBe(WORLD_TEXT.length + libraryBytes);
     expect(bundle!.size.files).toBe(1 + STANDARD_LIBRARY.files.length);
@@ -137,7 +137,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
 
   it('refuses a world past the host’s source cap, and says what to do', () => {
     const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
-    const { bundle, diagnostics } = compileBundle(world(), { limits });
+    const { bundle, diagnostics } = compileBundle(world(), { limits, blessed: new Set() });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toContain('bytes of source');
     expect(refusals(diagnostics)[0]!.remedy).toContain('blessed');
@@ -152,7 +152,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
 
   it('refuses a world past the host’s file cap', () => {
     const limits = limitsFrom({ caps: { files: 2 } });
-    expect(compileBundle(world(), { limits }).bundle).toBeNull();
+    expect(compileBundle(world(), { limits, blessed: new Set() }).bundle).toBeNull();
     expect(
       compileBundle(world(), { limits, blessed: new Set([SPROUT_SHA]) }).bundle,
     ).not.toBeNull();

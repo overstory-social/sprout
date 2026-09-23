@@ -54,6 +54,9 @@ export const RecordedCaps = z.object({
 }) satisfies z.ZodType<StaticCaps>;
 export type RecordedCaps = z.infer<typeof RecordedCaps>;
 
+/** A library content hash as the language writes it: SHA-256, in lower-case hex. */
+const libraryHash = z.string().regex(/^[0-9a-f]{64}$/);
+
 export const MicroworldRecord = z.object({
   id: z.string().min(1),
   archive: StoredArchive,
@@ -67,6 +70,11 @@ export const MicroworldRecord = z.object({
   caps: RecordedCaps,
   /** Whether the host has made an exception for it, to load it under `caps` where they exceed its own. */
   excepted: z.boolean(),
+  /**
+   * The library hashes the host blessed at publish, which stay exempt from
+   * the caps at every later load whatever the host blesses then.
+   */
+  blessed: z.array(libraryHash),
   loadedAt: z.date(),
 });
 export type MicroworldRecord = z.infer<typeof MicroworldRecord>;

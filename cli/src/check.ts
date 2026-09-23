@@ -1,10 +1,9 @@
 import {
   compileBundle,
+  DEFAULT_BLESSED,
   inReadingOrder,
-  libraryHash,
   positionOf,
   renderDiagnostics,
-  STANDARD_LIBRARY,
   type Bundle,
   type Diagnostic,
 } from '@overstory/sprout/lang';
@@ -14,8 +13,9 @@ import { readWorld } from './world.js';
 // `sprout check`: compile a folder strictly, as publishing would, and
 // report every diagnostic by file, line and column — as a page for a
 // person, or as JSON for an editor or a script. Exit 1 on any refusal.
-// The standard library's hash is blessed, since "using the standard
-// library costs an author nothing" (the spec's Limits › Static caps).
+// It blesses what a host starts from, the standard library's hash, since
+// "using the standard library costs an author nothing" (the spec's
+// Limits › Static caps).
 
 export interface CheckResult {
   readonly ok: boolean;
@@ -30,7 +30,7 @@ export function checkWorld(dir: string): CheckResult {
   }
   const { bundle, diagnostics } = compileBundle(world.source, {
     mode: 'publish',
-    blessed: new Set([libraryHash(STANDARD_LIBRARY)]),
+    blessed: DEFAULT_BLESSED,
   });
   const all = inReadingOrder([...world.diagnostics, ...diagnostics]);
   return { ok: bundle !== null, diagnostics: all, bundle };
