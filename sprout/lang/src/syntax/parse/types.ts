@@ -334,24 +334,21 @@ function elementsAfterClose(p: Parser): void {
     // A colon never follows a list element of its own, so what stands
     // before one is spared whether it is a well-formed name or not.
     const entryName = depth === 0 && punct(p.peek(ahead + 1), ':');
-    // A bare word with another value standing right after it, at this
-    // scan's own depth and with no comma between them, is never two
+    // Two bare words in a row, at this scan's own depth, are never two
     // elements missing a comma — a list tolerates at most one such gap,
-    // refused where it is read — but is exactly how a body's own next
-    // member starts unpunctuated (`visitors are`, `contains actors`,
-    // `without changed`) or how a `:remembers` entry starts when its
-    // colon is missing (`faulty "x"`, the value standing where the
-    // colon should). Either way it belongs to whatever reads next, not
-    // to this list.
+    // refused where it is read — but are exactly how a body's own next
+    // member starts unpunctuated: `visitors are`, `contains actors`,
+    // `without changed`. Among a `:remembers`'s entries a bare word with
+    // any value straight after it is likewise an entry that lost its
+    // colon, `faulty "x"`. Either belongs to whatever reads next.
     const next = p.peek(ahead + 1);
-    const wordLed =
-      depth === 0 &&
-      bareWord(token) &&
-      (bareWord(next) ||
-        next.kind === 'string' ||
+    const valueLed =
+      p.withinEntries &&
+      (next.kind === 'string' ||
         next.kind === 'integer' ||
         punct(next, '[') ||
         (punct(next, '-') && p.peek(ahead + 2).kind === 'integer'));
+    const wordLed = depth === 0 && bareWord(token) && (bareWord(next) || valueLed);
     if (
       token.kind === 'end' ||
       token.kind === 'symbol' ||

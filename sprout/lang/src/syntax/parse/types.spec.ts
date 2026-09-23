@@ -458,6 +458,17 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
       '`faulty` needs a colon between its name and its value.',
     ]);
   });
+
+  it('names a bare word and the value after it as elements outside a `:remembers`', () => {
+    // Only among a `:remembers`'s entries is `silver "extra"` an entry
+    // that lost its colon. After a property's own list, no member starts
+    // that way, so both are more of the list, written after its `]`.
+    const text = ':tags [Ward] default [oak, ], silver "extra"]';
+    const { refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`silver` and `"extra"` are written after the `]` that ends this list.',
+    ]);
+  });
 });
 
 function parseRemembersInto(text: string) {
