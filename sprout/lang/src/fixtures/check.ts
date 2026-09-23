@@ -81,6 +81,7 @@ export function kind(
     order,
     composes: new Set(order),
     properties: new Map(properties.map((p) => [p.name, p])),
+    passages: new Map(),
     // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,

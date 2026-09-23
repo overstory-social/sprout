@@ -641,3 +641,93 @@ describe('`without` leaves out one contribution, naming the member and the kind 
     expect(compose(`${LAMPS}kind Safety: Lantern { }`).kind!.suppressed).toEqual([]);
   });
 });
+
+describe('a passage is one per name: the composer’s own, else the one that is not `default`', () => {
+  /** A standard library whose world and place carry stock lines, as `sprout` does. */
+  const VOICED = `kind World {
+  contains
+  passage nothing_happens default { Nothing much comes of that. }
+}
+kind Place {
+  contains actors
+  passage arrives default { {item} arrives. }
+  passage leaves default { {item} leaves. }
+}
+`;
+  const origins = (kind: { passages: ReadonlyMap<string, { origin: string }> }) =>
+    Object.fromEntries([...kind.passages].map(([name, passage]) => [name, passage.origin]));
+
+  it('gives a kind what it composes, and its own line over a composed default', () => {
+    const { kind, said } = compose(
+      'kind Plain { passage taken default { You take it. } passage dropped default { Down. } }\nkind Bold: Plain { passage taken { You seize it. } }',
+    );
+    expect(said).toEqual([]);
+    expect(origins(kind!)).toEqual({ taken: 'shop.Bold', dropped: 'shop.Plain' });
+  });
+
+  it('lets an object write its own over a kind’s line, with the object as its origin', () => {
+    const { kind, said } = compose(
+      'kind Mirror { passage greeting { Old glass. } }\nobject mirror: Mirror in hall { passage greeting { Clouded. } }',
+    );
+    expect(said).toEqual([]);
+    expect(origins(kind!)).toEqual({ greeting: 'shop.mirror' });
+  });
+
+  it('lets the world write its own `nothing_happens` over `sprout.World`’s', () => {
+    const { kind, said } = compose(
+      'kind Shop: sprout.World { passage nothing_happens { The shop does not notice. } }',
+      { sprout: VOICED, mayComposeWorld: true },
+    );
+    expect(said).toEqual([]);
+    expect(kind!.passages.get('nothing_happens')).toMatchObject({
+      origin: 'shop.Shop',
+      yields: false,
+    });
+  });
+
+  it('takes a register’s line that is not a default over `sprout.Place`’s, and the rest from the library', () => {
+    const { kind, said } = compose(
+      'kind Hushed { passage arrives { {item} slips in. } }\nobject hall: sprout.Place, Hushed in shop { }',
+      { sprout: VOICED },
+    );
+    expect(said).toEqual([]);
+    expect(origins(kind!)).toEqual({ arrives: 'shop.Hushed', leaves: 'sprout.Place' });
+  });
+
+  it('refuses two defaults at the kind as written, naming a library’s kind with its library', () => {
+    const { kind, said } = compose(
+      'kind Quiet { passage arrives default { {item} is here. } }\nobject hall: sprout.Place, Quiet in shop { }',
+      { sprout: VOICED },
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:2:28',
+        '`hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.',
+        'Write its own `passage arrives { … }` in `hall`, which is then the one that applies, or compose only one of them.',
+      ],
+    ]);
+    // A collision is refused and the kind still composes, so nothing further is said of it.
+    expect(kind).not.toBeNull();
+  });
+
+  it('refuses two sources that are not defaults, and not the composer’s own line written once', () => {
+    const { said } = compose(
+      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Plain, Terse {\n  passage greeting { Hello. }\n}',
+    );
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      [
+        'shop.sprout:3:21',
+        '`Porter` gets the passage `taken` from both `Plain` and `Terse`, and a thing speaks each line in one voice.',
+      ],
+    ]);
+  });
+
+  it('refuses a passage written twice in the composer’s own body', () => {
+    const { said } = compose(
+      'kind Mirror { }\nobject mirror: Mirror in hall {\n  passage greeting { A. }\n  passage greeting { B. }\n}',
+    );
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      ['shop.sprout:4:11', '`mirror` writes the passage `greeting` twice.'],
+    ]);
+  });
+});
