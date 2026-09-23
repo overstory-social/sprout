@@ -205,7 +205,9 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
       if (found.length === before) found.push({ at: token.at, text: ':remembers' });
       continue;
     }
-    found.push({ at: token.at, text: token.text });
+    // A property is named as it was written, colon and all, so the author
+    // can find the line; a word-led member by its first word.
+    found.push({ at: token.at, text: token.kind === 'symbol' ? `:${token.text}` : token.text });
     ahead += 1;
   }
   if (found.length === 0) return;

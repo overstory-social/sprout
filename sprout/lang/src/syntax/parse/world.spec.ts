@@ -293,7 +293,7 @@ describe('a world declaration', () => {
     ]);
     expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
       [
-        '`bravo` and `visitors` are written after the `}` that ends `w`.',
+        '`:bravo` and `visitors` are written after the `}` that ends `w`.',
         'Everything `w` is made of goes inside its braces. Take out the `}` that ends it too early.',
       ],
     ]);

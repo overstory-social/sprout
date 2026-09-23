@@ -564,9 +564,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     }
     if (sort === 'stray') {
       for (const name of good) {
-        // As said: `remembers.walks` is said as `walks`.
+        // As said: `remembers.walks` is said as `walks`, and a property
+        // as it was written, `:bravo`.
         const word = name.split('.').at(-1)!;
-        const named = said.some((d) => d.message.includes(`\`${word}\``));
+        const named = said.some(
+          (d) => d.message.includes(`\`${word}\``) || d.message.includes(`\`:${word}\``),
+        );
         expect(
           kept.includes(name) || named,
           `${text}\n  \`${name}\` vanished, and nothing said names it`,
