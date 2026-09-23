@@ -1,0 +1,7 @@
+kinds.sprout:5:33  A backslash inside a passage means one of \" , \\ , \n or \{.
+                   Write \\ if you meant a backslash of its own.
+
+kinds.sprout:5:39  A backslash inside a passage means one of \" , \\ , \n or \{.
+                   Write \\ if you meant a backslash of its own.
+
+refused: 2 problems

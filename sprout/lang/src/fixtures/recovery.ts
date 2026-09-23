@@ -326,6 +326,11 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
       'without accept from 4',
       'without nonsense from K',
       'without changed',
+      'passage',
+      'passage Hello { Hi. }',
+      'passage hello extra { Hi. }',
+      'passage hello',
+      'without passage hello',
     ]);
     return { text, defect: contained(text) };
   }
@@ -410,9 +415,14 @@ export function explained(
   }
   if (sort === 'stray') {
     for (const name of good) {
-      // As said: `remembers.walks` is said as `walks`, and a property as
-      // it was written, `:bravo`.
-      const word = name.split('.').at(-1)!;
+      // As said: `remembers.walks` is said as `walks`, a property as it
+      // was written, `:bravo`, and a word-led member by its first word,
+      // `visitors-arrive-at` as `visitors`.
+      const word = name.includes('.')
+        ? name.split('.').at(-1)!
+        : /^[a-z]+(?:-[a-z]+)+$/.test(name)
+          ? name.split('-')[0]!
+          : name;
       const named = said.some(
         (d) => d.message.includes(`\`${word}\``) || d.message.includes(`\`:${word}\``),
       );

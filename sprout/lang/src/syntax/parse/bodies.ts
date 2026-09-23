@@ -17,8 +17,10 @@ import {
   type WithoutDeclaration,
 } from '../ast.js';
 import type { Token } from '../lexer.js';
+import type { Node } from '../../source/nodes.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, readable, type Parser } from './parser.js';
+import { isPassage, passage } from './passages.js';
 import { property, remembers } from './properties.js';
 import { stepPast } from './recovery.js';
 
@@ -78,6 +80,7 @@ export function composition(p: Parser, owner: Owner): KindExpr[] | null {
 /** What a kind's body or an object's may hold, past its properties. */
 export function kindMembers(p: Parser): MemberReaders<KindMember> {
   const readers = new Map<string, () => KindMember | null>([['contains', () => contains(p)]]);
+  readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
   return readers;
 }
@@ -88,22 +91,29 @@ export function kindMembers(p: Parser): MemberReaders<KindMember> {
  * since an author owed three problems is owed all three; null where the
  * body is never closed, having said so.
  */
-export function body<M>(
+export function body<M extends Node>(
   p: Parser,
   owner: Owner,
   name: Token,
   readers: MemberReaders<M>,
 ): Body<M> | null {
+  const members: Member<M>[] = [];
   const unclosed = (): null => {
+    if (p.done && p.swallowedRest) return null;
+    // A passage closes at the first `}` it holds no `{` for, so one slot
+    // left open inside it takes the body's own closer as the passage's.
+    const last = members.at(-1);
+    const passage = last !== undefined && isPassage(last) ? last : null;
     p.diagnostics.refuse(
       p.done ? p.source.endSpan : p.peek().at,
       `\`${name.text}\` is never closed.`,
-      `Add a } after what the ${owner} is made of.`,
+      passage === null
+        ? `Add a } after what the ${owner} is made of.`
+        : `Add a } after what the ${owner} is made of. If there is one, a { inside the passage \`${passage.name.text}\` has no } of its own, and took it.`,
     );
     return null;
   };
 
-  const members: Member<M>[] = [];
   for (;;) {
     const close = p.take('punct', '}');
     if (close !== null) {
@@ -404,6 +414,23 @@ function memberNamed<M>(p: Parser, keyword: Span, readers: MemberReaders<M>): Me
       role: p.ident(role),
       verb: p.ident(verb),
     };
+  }
+
+  // An exclusive member is replaced by writing one's own (How members
+  // combine), so there is nothing for `without` to do with a passage.
+  if (token.kind === 'name' && token.text === 'passage') {
+    const after = p.peek(1);
+    const named =
+      after.kind === 'name' && after.text !== 'default' && after.text !== 'from'
+        ? after.text
+        : '<name>';
+    p.diagnostics.refuse(
+      token.at,
+      '`without` does not leave out a passage.',
+      `Write your own \`passage ${named} { … }\` in this body instead: a body's own passage is the one that applies.`,
+    );
+    p.next();
+    return null;
   }
 
   // Nothing where the member goes: the body's next member, its brace, or

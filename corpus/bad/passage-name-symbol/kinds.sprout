@@ -1,0 +1,5 @@
+// A passage's name has no colon: that is how a property is named.
+kind Mirror {
+  passage :greeting { The glass is older than the frame. }
+  :mood 0
+}

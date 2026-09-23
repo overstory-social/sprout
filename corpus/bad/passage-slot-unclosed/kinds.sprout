@@ -1,0 +1,12 @@
+// A slot opened inside a passage and never closed takes the passage's
+// own closing brace, and the passage then closes at its kind's.
+kind Mirror {
+  :mood 0
+  passage greeting {
+    The glass is older than {self.get(:mood) the frame.
+  }
+}
+
+kind Lamp {
+  :lit false
+}

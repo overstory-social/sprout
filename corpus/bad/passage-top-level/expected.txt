@@ -1,0 +1,4 @@
+kinds.sprout:3:1  A passage belongs to a kind, an object or the world, and is written inside its braces.
+                  Move it into the body of the one whose words these are, as in `kind Mirror { passage greeting { … } }`.
+
+refused: 1 problem

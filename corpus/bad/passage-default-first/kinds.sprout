@@ -1,0 +1,5 @@
+// `default` follows the passage's name.
+kind Mirror {
+  passage default greeting { The glass is older than the frame. }
+  :mood 0
+}

@@ -1,0 +1,10 @@
+// `without` leaves out a contribution that would otherwise run beside
+// the others. A passage is replaced by writing one's own instead.
+kind Fixture {
+  passage immovable default { It will not move. }
+}
+
+kind Anvil: Fixture {
+  without passage immovable from Fixture
+  :weight 90
+}

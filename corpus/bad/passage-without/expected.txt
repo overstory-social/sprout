@@ -1,0 +1,4 @@
+kinds.sprout:8:11  `without` does not leave out a passage.
+                   Write your own `passage immovable { … }` in this body instead: a body's own passage is the one that applies.
+
+refused: 1 problem
