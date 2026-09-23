@@ -13,6 +13,7 @@
 // the host's cap. A visitor whose place is gone keeps its record; B42
 // applies the absent table's rows when they next arrive.
 
+import { contentAt } from '../declare/contents.js';
 import type { KindRef } from '../declare/kinds.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { StaticCaps } from '../bundle/limits.js';
@@ -156,8 +157,9 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
 /**
  * What a stored instance is decoded as now, or null to keep it dormant:
  * the world against the world kind, a declared object against its
- * placement's kind, a spawn against the kind it names, a visitor against
- * the visitor kind.
+ * placement's kind, a spawn against the kind it names, a spawned
+ * instance's content against what the kind's body writes there now, a
+ * visitor against the visitor kind.
  */
 function kindOf(record: StoredInstance, catalogue: Catalogue): KindRef | null {
   switch (record.made.from) {
@@ -169,6 +171,8 @@ function kindOf(record: StoredInstance, catalogue: Catalogue): KindRef | null {
       return catalogue.visitorKind;
     case 'spawned':
       return catalogue.kinds.get(record.made.kind) ?? null;
+    case 'given':
+      return contentAt(catalogue.contents, record.made.kind, record.made.path)?.kind ?? null;
   }
 }
 

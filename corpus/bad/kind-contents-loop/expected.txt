@@ -1,0 +1,7 @@
+world.sprout:16:10  `inner` is made of `Box`, which it is already inside, so every `Box` would hold another without end.
+                    Take `inner` out of `Box`'s body, or make it of kinds that do not compose `Box`.
+
+world.sprout:27:10  `spare` is made of `Lantern`, which it is already inside, so every `Lantern` would hold another without end.
+                    Take `spare` out of `Wick`'s body, or make it of kinds that do not compose `Lantern`.
+
+refused: 2 problems

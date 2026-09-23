@@ -12,7 +12,7 @@ import { KindTable } from '../kinds.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { parseDeclarations } from '../../syntax/parse.js';
 import { SourceFile, textOf } from '../../source/source.js';
-import { objectsIn, resolveObjects } from '../objects.js';
+import { resolveObjects } from '../objects.js';
 import { placeObjects } from '../tree.js';
 import { resolveArrival } from '../world.js';
 import { ENUMS } from '../../fixtures/world.js';
@@ -112,11 +112,16 @@ describe('the world itself is never where visitors arrive', () => {
     );
     kinds.resolve('shop', ENUMS, diagnostics);
     const world = declarations.find((d): d is WorldDeclaration => d.kind === 'world')!;
-    const objects = resolveObjects('shop', objectsIn(world), {
-      enums: ENUMS,
-      kinds,
-      diagnostics,
-    });
+    const objects = resolveObjects(
+      'shop',
+      world,
+      {
+        enums: ENUMS,
+        kinds,
+        diagnostics,
+      },
+      new Map(),
+    );
     const tree = placeObjects(objects, { world: 'shop', diagnostics });
     const before = diagnostics.all.length;
     const found = resolveArrival(world, { tree, objects, kinds, from: 'shop', diagnostics });

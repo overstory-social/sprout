@@ -1,0 +1,10 @@
+world.sprout:9:14   `composing_room.lantern` holds two objects called `wick`.
+                    Give one of them another name, or remove it.
+
+world.sprout:29:10  `composing_room.storm` holds two objects called `wick`.
+                    Give one of them another name, or remove it.
+
+world.sprout:39:10  `Candle` holds two objects called `wick`.
+                    Give one of them another name, or remove it.
+
+refused: 3 problems

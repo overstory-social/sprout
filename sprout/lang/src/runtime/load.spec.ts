@@ -337,6 +337,52 @@ describe('what cannot be decoded now is kept dormant, untouched', () => {
     expect(loaded.state.children.get(id('hall'))).toEqual([id('hall', 'shelf'), minted(2)]);
   });
 
+  it('decodes a spawned instance’s content against what its kind’s body writes there now', () => {
+    const lanterns = catalogueOf(
+      compiledWorld('printers_shop', {
+        ...SHOP,
+        'kiln.sprout': `${SHOP['kiln.sprout']!}kind Lantern { contains object wick is Jar }\n`,
+      }),
+      CAPS,
+    );
+    const store = storing(
+      fresh(),
+      [
+        record({
+          id: 'printers_shop#1',
+          made: { from: 'spawned', kind: 'printers_shop.Lantern' },
+          container: 'printers_shop.hall',
+          arrival: 1,
+        }),
+        record({
+          id: 'printers_shop#2',
+          made: { from: 'given', kind: 'printers_shop.Lantern', path: ['wick'] },
+          container: 'printers_shop#1',
+          arrival: 2,
+          properties: { fill: { type: 'integer', value: 6 } },
+        }),
+        record({
+          id: 'printers_shop#3',
+          made: { from: 'given', kind: 'printers_shop.Lantern', path: ['flame'] },
+          container: 'printers_shop#1',
+          arrival: 3,
+        }),
+      ],
+      3,
+    );
+    const loaded = loadWorld(store, lanterns);
+    const wick = loaded.state.instances.get(minted(2))!;
+    expect(wick.kind).toBe(lanterns.contents.get('printers_shop.Lantern')![0]!.kind);
+    expect(wick.properties.get('fill')).toBe(6);
+    expect(loaded.state.children.get(minted(1))).toEqual([minted(2)]);
+    // Nothing is written at `flame` now, so what was stored there is kept as it was.
+    expect(loaded.dormant).toEqual([minted(3)]);
+    // With the kind's file withheld, the lantern and its wick are both kept.
+    expect(loadWorld(store, withheld).dormant).toEqual(
+      expect.arrayContaining([minted(1), minted(2), minted(3)]),
+    );
+  });
+
   it('keeps a stored spawn of `sprout.World` dormant, since the world is never spawned', () => {
     const spawnedWorld = record({
       id: 'printers_shop#1',

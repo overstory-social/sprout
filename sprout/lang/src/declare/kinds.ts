@@ -20,10 +20,9 @@ import { refuseComposingWorld, writesWorld } from './sprout-world.js';
 /**
  * Refuse what one kind or object declaration gets wrong on its own: an
  * object that names no kind (the spec's Objects: "An object names its
- * kinds after `is`"), `sprout.World` written anywhere but on the world,
- * since it would make a thing into a world (The compiler › What it
- * refuses), and an object in a kind's body, which this compiler does not
- * read yet. Which kinds the names resolve to is the second tier's.
+ * kinds after `is`"), and `sprout.World` written anywhere but on the
+ * world, since it would make a thing into a world (The compiler › What
+ * it refuses). Which kinds the names resolve to is the second tier's.
  */
 export function checkKindDeclaration(
   declared: KindDeclaration | ObjectDeclaration,
@@ -39,14 +38,6 @@ export function checkKindDeclaration(
   }
   for (const written of declared.composes.filter(writesWorld)) {
     refuseComposingWorld(name, written, diagnostics);
-  }
-  if (declared.kind !== 'kind') return;
-  for (const object of declared.objects) {
-    diagnostics.refuse(
-      object.name.at,
-      `\`${object.name.text}\` is written in the body of the kind \`${name}\`, and this compiler does not read objects in a kind's body yet.`,
-      `For now, write \`object ${object.name.text} …\` inside the braces of each object made of \`${name}\`.`,
-    );
   }
 }
 

@@ -92,15 +92,16 @@ describe('the first tier reads one file alone, for its shape', () => {
     ]);
   });
 
-  it('refuses an object a kind’s body holds, which is not read there yet', () => {
+  it('asks each object a kind’s body holds, at any depth, what it asks one in the world', () => {
     const { diagnostics } = checkShape(
-      file('kinds.sprout', 'kind Lantern {\n  contains\n  object wick is Wick\n}\n'),
+      file(
+        'kinds.sprout',
+        'kind Lantern {\n  contains\n  object wick is Wick\n  object case is Case {\n    object glass\n    object lamp is sprout.World\n  }\n}\n',
+      ),
     );
     expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
-      [
-        'kinds.sprout:3:10',
-        "`wick` is written in the body of the kind `Lantern`, and this compiler does not read objects in a kind's body yet.",
-      ],
+      ['kinds.sprout:5:12', '`glass` does not say what kind of thing it is.'],
+      ['kinds.sprout:6:20', '`lamp` composes `sprout.World`, which only a world may.'],
     ]);
   });
 

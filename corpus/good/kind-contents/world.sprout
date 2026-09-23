@@ -1,0 +1,20 @@
+// A kind's body may hold objects, and every instance of the kind starts
+// with its own copy of each, inside it. Both lanterns here hold a wick,
+// `hall.shelf.brass.wick` and `hall.shelf.tin.wick`, and the brass one
+// holds a spare beside it, written in its own body. A lantern the
+// cupboard makes comes with its wick too.
+world kind_contents is sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object shelf is Shelf {
+      object brass is Lantern {
+        object spare is Wick
+      }
+      object tin is Lantern
+    }
+
+    object cupboard is Cupboard
+  }
+}

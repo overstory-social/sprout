@@ -189,6 +189,35 @@ export class Diagnostics {
   }
 }
 
+/** Somewhere to refuse and warn, as `Diagnostics` is. */
+export interface Sayer {
+  refuse(at: Span, message: string, remedy?: string): void;
+  warn(at: Span, message: string, remedy?: string): void;
+}
+
+/**
+ * Say through `diagnostics` each refusal or warning once per place and
+ * words: for what reads one declaration in several places, as every
+ * instance of a kind reads what the kind's body holds.
+ */
+export function onceEach(diagnostics: Diagnostics): Sayer {
+  const said = new Set<string>();
+  const first = (at: Span, message: string): boolean => {
+    const key = `${at.source.name}:${at.start}:${message}`;
+    if (said.has(key)) return false;
+    said.add(key);
+    return true;
+  };
+  return {
+    refuse: (at, message, remedy) => {
+      if (first(at, message)) diagnostics.refuse(at, message, remedy);
+    },
+    warn: (at, message, remedy) => {
+      if (first(at, message)) diagnostics.warn(at, message, remedy);
+    },
+  };
+}
+
 /** `23:9` — a span's line and column without its file, for a message about one file. */
 export function lineAndColumn(at: Span): string {
   const { line, column } = positionOf(at);

@@ -8,7 +8,7 @@
 // actor has a place; where one may be moved is `runtime/move.ts`'s.
 
 import type { KindExpr } from '../syntax/ast.js';
-import type { Diagnostics } from '../source/diagnostics.js';
+import { onceEach, type Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, SPROUT } from './enums.js';
 import { composesKind, kindName, type KindRef } from './kinds.js';
 import { writtenKind } from './compose.js';
@@ -90,13 +90,15 @@ export interface ActorSetting {
 /**
  * Refuse every declared actor that is not an NPC, and every NPC declared
  * directly inside something that does not hold actors (the spec's Actors
- * and visitors). Each object is told at most one of the two, and nothing
- * is said where what decides it is absent.
+ * and visitors), a kind's content in each instance included. Each object
+ * is told at most one of the two, and nothing is said where what decides
+ * it is absent.
  */
 export function checkActors(setting: ActorSetting): void {
-  const { tree, world, visitor, diagnostics } = setting;
-  const placed = new Map([...tree.placed.values()].map((one) => [one.declaration, one]));
-  for (const { declaration, kind } of setting.objects) {
+  const { tree, world, visitor } = setting;
+  const diagnostics = onceEach(setting.diagnostics);
+  for (const object of setting.objects) {
+    const { declaration, kind } = object;
     if (kind === null || !isActor(kind)) continue;
     const name = declaration.name.text;
     if (visitor !== null && !isNpc(kind, visitor)) {
@@ -107,7 +109,7 @@ export function checkActors(setting: ActorSetting): void {
       );
       continue;
     }
-    const placement = placed.get(declaration);
+    const placement = tree.placements.get(object);
     if (placement === undefined) continue;
     const holder =
       placement.container.length === 0

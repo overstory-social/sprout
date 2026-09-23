@@ -6,7 +6,8 @@ import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
-import { objectsIn, placedObjects, resolveObjects } from './objects.js';
+import { resolveContents } from './contents.js';
+import { objectsIn, placedObjects, resolveObjects, type ComposedObject } from './objects.js';
 import { placeObjects } from './tree.js';
 
 /** The world `shop` whose body is `body`, beside the kinds in `KINDS`, parsed. */
@@ -34,12 +35,18 @@ function objects(body: string) {
   );
   kinds.resolve('shop', enums, diagnostics);
   const missing: string[] = [];
-  const resolved = resolveObjects('shop', objectsIn(world), {
+  const context = {
     enums,
     kinds,
     diagnostics,
-    onUnknown: (written) => missing.push(written.name.text),
-  });
+    onUnknown: (written: { readonly name: { readonly text: string } }) =>
+      missing.push(written.name.text),
+  };
+  const contents = resolveContents(
+    new Map([['shop', declared.filter((d): d is KindDeclaration => d.kind === 'kind')]]),
+    { ...context, world: 'shop' },
+  );
+  const resolved = resolveObjects('shop', world, context, contents);
   return {
     resolved,
     missing,
@@ -47,7 +54,14 @@ function objects(body: string) {
   };
 }
 
-const KINDS = 'kind Wooden { :worn 0 min 0 max 9 }\nkind Room { contains actors }\n';
+const KINDS = [
+  'kind Wooden { :worn 0 min 0 max 9 }',
+  'kind Room { contains actors }',
+  'kind Lantern { contains object wick is Wooden { contains object flame is Wooden } }',
+  'kind Case { contains object glass is Wooden }',
+  'kind Storm is Case, Lantern { contains object vent is Wooden }',
+  '',
+].join('\n');
 
 describe('every object written in the world’s body', () => {
   it('is listed after what holds it, a body’s objects in order and each followed by its own', () => {
@@ -65,6 +79,17 @@ describe('every object written in the world’s body', () => {
       ['key', 'chest'],
       ['lamp', 'hall'],
       ['yard', null],
+    ]);
+  });
+
+  it('is listed the same way from a kind’s body', () => {
+    const { declared } = parsed('');
+    const lantern = declared.find(
+      (d): d is KindDeclaration => d.kind === 'kind' && d.name.text === 'Lantern',
+    )!;
+    expect(objectsIn(lantern).map(({ declaration }) => declaration.name.text)).toEqual([
+      'wick',
+      'flame',
     ]);
   });
 
@@ -125,6 +150,44 @@ describe('an object is made of its kinds and its own body', () => {
   });
 });
 
+describe('an object holds what its kinds give, before what its own body holds', () => {
+  const shape = (resolved: readonly ComposedObject[]) =>
+    resolved.map((o) => [
+      o.declaration.name.text,
+      o.within?.declaration.name.text ?? null,
+      o.giver,
+    ]);
+
+  it('in closure order, each kind’s in the order written, and each copy what its own kinds give', () => {
+    const { resolved, said } = objects('object storm is Storm { object spare is Wooden }');
+    expect(said).toEqual([]);
+    expect(shape(resolved)).toEqual([
+      ['storm', null, null],
+      ['glass', 'storm', 'shop.Case'],
+      ['wick', 'storm', 'shop.Lantern'],
+      ['flame', 'wick', 'shop.Lantern'],
+      ['vent', 'storm', 'shop.Storm'],
+      ['spare', 'storm', null],
+    ]);
+  });
+
+  it('gives every instance its own copy, of one composed kind', () => {
+    const { resolved } = objects('object brass is Lantern\nobject tin is Lantern');
+    const wicks = resolved.filter((o) => o.declaration.name.text === 'wick');
+    expect(wicks.map((o) => o.within?.declaration.name.text)).toEqual(['brass', 'tin']);
+    expect(wicks[0]).not.toBe(wicks[1]);
+    expect(wicks[0]!.kind).toBe(wicks[1]!.kind);
+  });
+
+  it('gives nothing to one whose kind is absent', () => {
+    const { resolved } = objects('object brass is Lantern, Missing { object spare is Wooden }');
+    expect(shape(resolved)).toEqual([
+      ['brass', null, null],
+      ['spare', 'brass', null],
+    ]);
+  });
+});
+
 describe('an object whose kind is absent', () => {
   it('has no kind, is told of once, and is still there to be placed', () => {
     const { resolved, missing, said } = objects(
@@ -157,6 +220,11 @@ describe('the objects the bundle holds', () => {
       ['chest', 'shop', ['hall', 'chest'], ['hall']],
       ['lamp', 'shop', ['hall', 'lamp'], ['hall']],
     ]);
+  });
+
+  it('leave out what a kind gave, which the tree holds', () => {
+    const { held: kept } = held('object hall is Room {\n  object brass is Lantern\n}');
+    expect(kept.map((o) => o.name)).toEqual(['hall', 'brass']);
   });
 
   it('leave out one whose kind is absent, though it was placed, and one that was not placed', () => {

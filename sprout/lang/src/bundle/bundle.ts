@@ -21,6 +21,7 @@
 import type { Absent } from './absent.js';
 import type { Declaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import type { KindContents } from '../declare/contents.js';
 import type { ResolvedObject } from '../declare/objects.js';
 import type { VerbLookup } from '../declare/verbs.js';
 import type { ObjectTree, TreePath } from '../declare/tree.js';
@@ -152,7 +153,7 @@ export interface BundleSize {
   readonly exemptBytes: number;
   /** Kinds counted against the kind cap: the world's own, and any library's the host has not blessed. */
   readonly kinds: number;
-  /** The world's own `object` declarations, counted against the object cap. */
+  /** The world's objects, what their kinds give them included, counted against the object cap. */
   readonly objects: number;
   /** The world's objects that hold actors, counted against the place cap. */
   readonly places: number;
@@ -184,6 +185,12 @@ export interface Bundle {
    */
   readonly verbs: VerbLookup;
   /**
+   * What each kind's body gives every instance of it, by the kind's
+   * qualified name: what a spawn makes with the instance, and what a
+   * spawned instance's contents are read back as.
+   */
+  readonly contents: KindContents;
+  /**
    * What the world is made of: `sprout.World` and whatever else it
    * composes, with its own body last, named for the world. Null only in
    * a loaded world that admits no one, with the `world` gap in `absent`.
@@ -196,14 +203,16 @@ export interface Bundle {
    */
   readonly visitor: KindRef | null;
   /**
-   * The world's objects, each with its anonymous kind composed and its
-   * place in the tree. One whose kind or container is absent is absent
-   * too, and is not here.
+   * The objects written in the world's body, each with its anonymous kind
+   * composed and its place in the tree. One whose kind or container is
+   * absent is absent too, and is not here; what a kind gives an object is
+   * in `tree`, and not here.
    */
   readonly objects: readonly ResolvedObject[];
   /**
    * The containment tree as declared: the world at its root and every
-   * object that was placed, one whose kind is absent included, so that
+   * object that was placed, what each one's kinds gave it and one whose
+   * kind is absent included, so that
    * what it holds keeps its place for when the kind returns.
    */
   readonly tree: ObjectTree;
