@@ -61,6 +61,16 @@ describe('where a manifest problem was written', () => {
     const fallback = atKey(FILE, 'extensions');
     expect(atValue(FILE, 'nowhere', fallback)).toBe(fallback);
   });
+
+  it('looks from the fallback on, so a name the manifest writes earlier is not the one found', () => {
+    const twice = new SourceFile(
+      'sprout.json',
+      '{\n  "namespace": "sprout",\n  "libraries": [{ "name": "sprout" }]\n}',
+    );
+    const libraries = atKey(twice, 'libraries');
+    expect(locationOf(atValue(twice, 'sprout', libraries))).toBe('sprout.json:3:27');
+    expect(locationOf(atValue(twice, 'sprout', libraries, 0))).toBe('sprout.json:2:16');
+  });
 });
 
 describe('the manifest’s own fields', () => {
