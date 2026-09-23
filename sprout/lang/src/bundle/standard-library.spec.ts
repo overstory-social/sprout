@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { libraryHash, type LibrarySource, type Manifest } from './bundle.js';
-import { checkShape, compileBundle } from './compile.js';
+import { compileBundle } from './compile/compile.js';
+import { checkShape } from './compile/first-tier.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
 import { locationOf, SourceFile } from '../source/source.js';
 
 /**
- * A world with nothing of its own but a place to arrive at, vendoring the
- * library (or a copy of it) pinned at its hash, and blessing that hash.
+ * A world with nothing of its own but a place to arrive at and a kind
+ * for visitors to be made of, vendoring the library (or a copy of it)
+ * pinned at its hash, and blessing that hash.
  */
 function compiled(library: LibrarySource = STANDARD_LIBRARY) {
   const sha = libraryHash(library);
@@ -29,7 +31,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
       files: [
         new SourceFile(
           'world.sprout',
-          'world shed: sprout.World { contains actors visitors arrive at shed }',
+          'world shed: sprout.World { contains actors visitors are Visitor visitors arrive at shed }\nkind Visitor: sprout.Actor { }\n',
         ),
       ],
       libraries: [library],
@@ -67,21 +69,24 @@ describe('the standard library', () => {
   });
 
   it('names its own file in a refusal, never one the world’s files could be', () => {
-    const [world, place] = STANDARD_LIBRARY.files;
+    const [world, , actor] = STANDARD_LIBRARY.files;
     const fork: LibrarySource = {
       ...STANDARD_LIBRARY,
-      files: [world!, place!, new SourceFile('sprout/actor.sprout', 'kind Actor {\n  %\n}\n')],
+      files: [world!, new SourceFile('sprout/place.sprout', 'kind Place {\n  %\n}\n'), actor!],
     };
     const { bundle, diagnostics } = compiled(fork);
     expect(bundle).toBeNull();
-    expect(diagnostics.map((d) => locationOf(d.at))).toEqual(['sprout/actor.sprout:2:3']);
+    expect(diagnostics.map((d) => locationOf(d.at))).toEqual(['sprout/place.sprout:2:3']);
   });
 
   it('compiles whole beside a world, the world composing `sprout.World`', () => {
     const { bundle, diagnostics } = compiled();
     expect(diagnostics).toEqual([]);
     expect(bundle!.libraries.map((l) => [l.name, l.blessed])).toEqual([['sprout', true]]);
-    expect(bundle!.size.kinds).toBe(0);
+    // Only the world's own `Visitor` counts; the blessed library's three cost nothing.
+    expect(bundle!.size.kinds).toBe(1);
+    expect(bundle!.world!.composes.has('sprout.World')).toBe(true);
+    expect(bundle!.visitor!.composes.has('sprout.Actor')).toBe(true);
   });
 
   it('makes `sprout.Place` hold actors, and `sprout.World` hold things and not people', () => {

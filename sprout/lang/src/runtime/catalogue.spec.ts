@@ -72,9 +72,13 @@ describe('a catalogue says what one bundle holds as instances', () => {
     for (const [name, kind] of catalogue.kinds) expect(kindName(kind)).toBe(name);
   });
 
-  it('has no world kind and no visitor kind while the bundle carries neither', () => {
-    expect(catalogue.worldKind).toBeNull();
-    expect(catalogue.visitorKind).toBeNull();
+  it('takes the world’s kind and the visitor kind from the bundle', () => {
+    const bundle = shop();
+    const from = catalogueOf(bundle, DEFAULT_LIMITS.caps);
+    expect(from.worldKind).toBe(bundle.world);
+    expect(from.visitorKind).toBe(bundle.visitor);
+    expect(kindName(from.worldKind!)).toBe('printers_shop.printers_shop');
+    expect(kindName(from.visitorKind!)).toBe('printers_shop.Person');
   });
 
   it('reads stored values under the host’s caps now, not the ones the bundle was checked against', () => {
@@ -98,6 +102,24 @@ describe('a catalogue of a world loaded with a gap', () => {
   it('holds nothing for an object whose file is withheld, and no kind it declared', () => {
     expect(catalogue.declared.has(id('yard', 'kiln'))).toBe(false);
     expect(catalogue.kinds.has('printers_shop.Crate')).toBe(false);
+  });
+
+  it('has no visitor kind where the one `visitors are` names is absent', () => {
+    const bundle = compiledWorld('printers_shop', SHOP, {
+      mode: 'load',
+      withheld: ['kiln.sprout'],
+    });
+    expect(catalogueOf(bundle, DEFAULT_LIMITS.caps).visitorKind).not.toBeNull();
+    const elsewhere = {
+      'world.sprout': SHOP['world.sprout']!.replace('kind Person: sprout.Actor { :score 0 }', ''),
+      'kiln.sprout': `${SHOP['kiln.sprout']!}kind Person: sprout.Actor { :score 0 }\n`,
+    };
+    const gone = compiledWorld('printers_shop', elsewhere, {
+      mode: 'load',
+      withheld: ['kiln.sprout'],
+    });
+    expect(catalogueOf(gone, DEFAULT_LIMITS.caps).visitorKind).toBeNull();
+    expect(gone.absent.map((a) => [a.what, a.kind])).toContainEqual(['Person', 'world']);
   });
 
   it('has no arrival for a world that admits no one', () => {

@@ -65,8 +65,13 @@ describe('checkWorld', () => {
     writeFileSync(join(dir, 'sprout.json'), JSON.stringify(manifest, null, 2));
     const result = checkWorld(dir);
     expect(result.ok).toBe(false);
+    // Said at the manifest, and then at each thing that could not be made
+    // without it: the world, what visitors are made of, and the hall.
     expect(result.diagnostics.map((d) => d.message)).toEqual([
       'The library "sprout" that travelled is not the source the manifest recorded.',
+      '`sprout.World` is not here, because the library `sprout` is not.',
+      'Nothing here is a `sprout.Actor`.',
+      'Nothing here is a `sprout.Place`.',
     ]);
   });
 

@@ -9,3 +9,5 @@ kind Room {
 }
 
 object composing_room: Room in kind_cycle
+
+kind Creature: sprout.Actor { }

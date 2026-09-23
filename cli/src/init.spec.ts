@@ -48,12 +48,25 @@ describe('initWorld', () => {
     initWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
     expect(written).toContain('  visitors arrive at hall\n');
-    expect(written).toContain('kind Hall {\n  contains actors\n}');
-    expect(written).toContain('object hall: Hall in kiln_yard');
+    expect(written).toContain('object hall: sprout.Place in kiln_yard');
     const source = readWorld(dir).source!;
     const { bundle, diagnostics } = compileBundle(source);
     expect(diagnostics.filter((d) => d.severity === 'refusal')).toEqual([]);
     expect(bundle!.arrival).toEqual(['hall']);
+    expect(bundle!.size.places).toBe(1);
+  });
+
+  it('writes the kind visitors are made of: the world’s own, composing `sprout.Actor`', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
+    initWorld(dir, 'marta');
+    const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
+    expect(written).toContain('  visitors are Visitor\n');
+    expect(written).toContain('kind Visitor: sprout.Actor { }');
+    const { bundle } = compileBundle(readWorld(dir).source!);
+    expect(bundle!.visitor!.library).toBe('kiln_yard');
+    expect(bundle!.visitor!.name).toBe('Visitor');
+    expect(bundle!.visitor!.composes.has('sprout.Actor')).toBe(true);
+    expect(bundle!.world!.composes.has('sprout.World')).toBe(true);
   });
 
   it('refuses a folder that already has something in it', () => {

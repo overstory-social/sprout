@@ -1,20 +1,22 @@
-// The root of the one tree (the spec's The world model, Places). A
-// microworld is one tree; at its root is the world, the only object with
-// no container. A world composes like a kind, so what it writes after
-// its colon and in its body is composed by `compose.ts`, `sprout.World`
-// among the rest in the order written; what is its own is what it says
-// about visitors. Three things about it are load-bearing elsewhere: its
-// pass rule is `pass any (false)` unless it writes otherwise, so places
-// are out of range of one another until the world says so; `visitors
-// are` names the visitor kind, so `item.is(sprout.Actor)` is an ordinary
-// nominal test; and `contains actors` is what makes a place a place, the
-// world included if it says so. `visitors arrive at` is a path read
-// from inside the world, as an object's `in` is, and what it reaches must
-// be a place (`resolveArrival`); B32 reads the pass rules, and B42 puts
-// a visitor there at run time.
+// The root of the one tree (the spec's The world model, Places, Actors
+// and visitors). A microworld is one tree; at its root is the world, the
+// only object with no container. A world composes like a kind, so what
+// it writes after its colon and in its body is composed by `compose.ts`,
+// `sprout.World` among the rest in the order written (`composeWorld`);
+// what is its own is what it says about visitors. Three things about it
+// are load-bearing elsewhere: its pass rule is `pass any (false)` unless
+// it writes otherwise, so places are out of range of one another until
+// the world says so; `visitors are` names the visitor kind, the world's
+// own kind composing `sprout.Actor` (`resolveVisitors`); and `contains
+// actors` is what makes a place a place, the world included if it says
+// so. `visitors arrive at` is a path read from inside the world, as an
+// object's `in` is, and what it reaches must be a place
+// (`resolveArrival`); B32 reads the pass rules, and B42 puts a visitor
+// there at run time.
 
 import {
   writtenPath,
+  type KindExpr,
   type KindMember,
   type ObjectPath,
   type WorldDeclaration,
@@ -24,7 +26,15 @@ import { WORLD, writesWorld } from './sprout-world.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import type { EnumTable } from './enums.js';
-import { composeKind, identityOf, unknownKind, writtenKind, type KindSource } from './compose.js';
+import {
+  composeKind,
+  identityOf,
+  unknownKind,
+  writtenKind,
+  type KindSource,
+  type OnUnknown,
+} from './compose.js';
+import { ACTOR, checkVisitorKind } from './actors.js';
 import {
   resolveFrom,
   unknownStep,
@@ -41,22 +51,6 @@ import {
  * value, so it is not a limit anybody configures.
  */
 export const WORLD_PASSES_ANYTHING = false;
-
-/** A world, with what it is made of worked out. */
-export interface ResolvedWorld {
-  readonly name: string;
-  /**
-   * What it is made of, composed as a kind is and named for the world:
-   * its closure in run order, itself last, with its properties merged
-   * and `contains` held wherever anything it composes holds.
-   */
-  readonly kind: KindRef;
-  /** What a person is made of here. */
-  readonly visitor: KindRef;
-  /** Whether anything crosses it. False until B32 reads a rule saying otherwise. */
-  readonly passesAnything: boolean;
-  readonly declaration: WorldDeclaration;
-}
 
 /**
  * Refuse a world that does not write `sprout.World`. It carries the
@@ -77,29 +71,41 @@ export function checkWorldDeclaration(declared: WorldDeclaration, diagnostics: D
   );
 }
 
-/**
- * Work out what a world declares, or refuse it. Returns null having
- * said why, because a world nobody can enter is not a microworld and
- * everything after this reads its answer. What it says about visitors is
- * read whether or not it composed, so an author is told all of it.
- */
-export function resolveWorld(
-  declared: WorldDeclaration,
-  enums: EnumTable,
-  kinds: KindSource,
-  /** The library this is being read from inside, for a name written without one. */
-  from: string,
-  diagnostics: Diagnostics,
-): ResolvedWorld | null {
-  // A world WRITES `sprout.World`, so nothing is composed here that the
-  // declaration did not say. The shape tier has already refused a world
-  // that left it out; asking again keeps the resolver from quietly
-  // making a world of something that is not one.
-  checkWorldDeclaration(declared, diagnostics);
+/** What composing a world, and reading what its visitors are made of, read. */
+export interface WorldContext {
+  readonly enums: EnumTable;
+  readonly kinds: KindSource;
+  /** The library the world is read from inside: its own kinds are in it. */
+  readonly from: string;
+  readonly diagnostics: Diagnostics;
+  /**
+   * Told of a kind the world composes that nothing declares. A compile
+   * at load makes it the absent table's `world` row; with none it is
+   * refused.
+   */
+  readonly onUnknown?: OnUnknown;
+}
 
-  const kind = composeKind(
+/**
+ * What a world is made of, composed as a kind is and named for the
+ * world: its closure in run order, itself last, with its properties
+ * merged and `contains` held wherever anything it composes holds. Null
+ * having said why, or told `onUnknown`, when it cannot be composed; a
+ * world that does not write `sprout.World` is not composed at all.
+ */
+export function composeWorld(declared: WorldDeclaration, context: WorldContext): KindRef | null {
+  // A world WRITES `sprout.World`, so nothing is composed here that the
+  // declaration did not say. The shape tier refuses a world that left it
+  // out; asking again keeps this from quietly making a world of
+  // something that is not one.
+  if (!declared.composes.some(writesWorld)) {
+    checkWorldDeclaration(declared, context.diagnostics);
+    return null;
+  }
+  const { enums, kinds, diagnostics, onUnknown } = context;
+  return composeKind(
     {
-      library: from,
+      library: context.from,
       name: declared.name.text,
       composes: declared.composes,
       members: declared.members.filter(
@@ -108,20 +114,45 @@ export function resolveWorld(
       ),
       mayComposeWorld: true,
     },
-    { enums, kinds, diagnostics },
+    { enums, kinds, diagnostics, ...(onUnknown === undefined ? {} : { onUnknown }) },
   );
+}
 
-  // --- what it says about visitors --------------------------------------
-  let visitor: KindRef | null = null;
-  let saidAre = false;
-  /** Whether the visitor kind failed to compose, which has been said already. */
-  let visitorFailed = false;
+/** What `visitors are` names, as `resolveVisitors` finds it. */
+export type Visitors =
+  /** The world's own kind, composing `sprout.Actor`. */
+  | { readonly found: 'kind'; readonly kind: KindRef }
+  /**
+   * Nothing is there to make a visitor of. The absent table has no row
+   * for it; a compile treats it as the `world` row, refused at publish
+   * and recorded at load, the world admitting no one. `said` is whether
+   * what left it absent has been told already.
+   */
+  | {
+      readonly found: 'absent';
+      readonly what: string;
+      readonly at: Span;
+      readonly message: string;
+      readonly remedy: string;
+      readonly said: boolean;
+    }
+  /** Refused in either mode, having said why. */
+  | { readonly found: 'refused' };
 
+/**
+ * Read `visitors are`: said once, naming a kind of the world's own that
+ * composes `sprout.Actor` (the spec's Actors and visitors). Saying it
+ * twice is refused at the second, and the first is read.
+ */
+export function resolveVisitors(
+  declared: WorldDeclaration,
+  context: Pick<WorldContext, 'kinds' | 'from' | 'diagnostics'>,
+): Visitors {
+  const { kinds, from, diagnostics } = context;
+  let written: KindExpr | null = null;
   for (const member of declared.members) {
-    // Where they arrive is `arrivalOf`'s; the rest is what any kind may
-    // hold, which composing it has read.
     if (member.kind !== 'visitors-are') continue;
-    if (saidAre) {
+    if (written !== null) {
       diagnostics.refuse(
         member.at,
         `\`${declared.name.text}\` says twice what its visitors are.`,
@@ -129,40 +160,40 @@ export function resolveWorld(
       );
       continue;
     }
-    saidAre = true;
-    const written = member.visitor;
-    const found = kinds.find(identityOf(written, from, kinds));
-    if (found.found === 'kind') {
-      visitor = found.kind;
-    } else if (found.found === 'unknown') {
-      const { message, remedy } = unknownKind(written, from, kinds);
-      diagnostics.refuse(written.at, message, remedy);
-    } else {
-      visitorFailed = true;
-    }
+    written = member.visitor;
   }
-
-  // A world that says neither is owed both sentences, not the first one
-  // twice over: an author who forgot the block forgot all of it.
-  if (visitor === null && !visitorFailed) {
+  if (written === null) {
     diagnostics.refuse(
       declared.name.at,
-      saidAre
-        ? `\`${declared.name.text}\` does not say what its visitors are made of.`
-        : `\`${declared.name.text}\` does not say what a visitor is.`,
-      'Write `visitors are <Kind>`, naming the kind a person is made of here.',
+      `\`${declared.name.text}\` does not say what a visitor is.`,
+      `Write \`visitors are <Kind>\`, naming a kind of the world's own that composes \`${ACTOR}\`.`,
     );
+    return { found: 'refused' };
   }
-  const arrival = arrivalOf(declared, diagnostics);
-  if (kind === null || visitor === null || arrival === null) return null;
 
-  return {
-    name: declared.name.text,
-    kind,
-    visitor,
-    passesAnything: WORLD_PASSES_ANYTHING,
-    declaration: declared,
-  };
+  const name = writtenKind(written);
+  const found = kinds.find(identityOf(written, from, kinds));
+  switch (found.found) {
+    case 'kind':
+      return checkVisitorKind(written, found.kind, from, diagnostics)
+        ? { found: 'kind', kind: found.kind }
+        : { found: 'refused' };
+    case 'unknown': {
+      const { message, remedy } = unknownKind(written, from, kinds, `: ${ACTOR}`);
+      return { found: 'absent', what: name, at: written.at, message, remedy, said: false };
+    }
+    case 'failed':
+    case 'cycle':
+      // Declared, and not composed: what is wrong with it has been said.
+      return {
+        found: 'absent',
+        what: name,
+        at: written.at,
+        message: `\`${name}\` is absent, so there is nothing for a visitor to be made of.`,
+        remedy: `Bring back what \`${name}\` is made of, or name another kind for visitors to be made of.`,
+        said: true,
+      };
+  }
 }
 
 /**

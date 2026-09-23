@@ -1,0 +1,31 @@
+// A world's people are made of its own kind, which composes `sprout.Actor`:
+// an actor has hands, and here they hold four things rather than eight.
+world actors: sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+}
+
+kind Creature: sprout.Actor {
+  :capacity 4
+}
+
+kind Basket {
+  contains
+}
+
+// A place is made of `sprout.Place`, which holds actors. The composing
+// room keeps a note about each actor: how often they have come in.
+object composing_room: sprout.Place in actors {
+  :remembers [visits: 0 min 0 max 99]
+}
+
+object press_yard: sprout.Place in actors
+
+object basket: Basket in composing_room
+
+// An NPC is an object made of the visitor kind, with nobody behind it.
+// The cat sleeps in a basket, which holds things and not people: where
+// an actor may be put is a matter for moving it, not for declaring it.
+object cat: Creature in composing_room.basket
+
+object apprentice: Creature in press_yard

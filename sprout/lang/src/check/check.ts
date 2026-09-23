@@ -51,14 +51,12 @@ import {
   type Scope,
 } from './bindings.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
+import { ACTOR, isActor } from '../declare/actors.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { checkOption, nearestOption, SPROUT } from '../declare/enums.js';
+import { checkOption, nearestOption } from '../declare/enums.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
 import { BOOLEAN, integer, sameType, showType, STRING, type ValueType } from '../declare/types.js';
-
-/** `sprout.Actor` — what a binding must compose before it remembers anything. */
-export const ACTOR = `${SPROUT}.Actor`;
 
 /** What a body is being read inside. */
 export interface CheckContext {
@@ -928,7 +926,7 @@ function describe(binding: Binding | null, type: BindingType): string {
 /** Whether a receiver may be asked about memory: it composes `sprout.Actor`. */
 function remembers(type: BindingType, at: Span, context: CheckContext): boolean {
   if (type.binds === 'object' && type.kind !== null) {
-    if (type.kind.composes.has(ACTOR)) return true;
+    if (isActor(type.kind)) return true;
     context.diagnostics.refuse(
       at,
       `\`${kindName(type.kind)}\` is not someone a thing is remembered about.`,

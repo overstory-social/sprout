@@ -9,3 +9,5 @@ kind Room {
 }
 
 object composing_room: Room in without_nothing_to_leave_out
+
+kind Creature: sprout.Actor { }

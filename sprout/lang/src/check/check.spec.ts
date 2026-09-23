@@ -14,8 +14,8 @@ import {
   type Binding,
 } from './bindings.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import { ACTOR } from '../declare/actors.js';
 import {
-  ACTOR,
   checkCondition,
   checkEffect,
   checkLet,
