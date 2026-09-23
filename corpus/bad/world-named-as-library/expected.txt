@@ -1,0 +1,7 @@
+sprout.json:3:3   This world's namespace, `sprout`, is also the name of a library it uses.
+                  Give the manifest a `namespace` that names no library.
+
+sprout.json:3:16  The library "sprout" that travelled is not the source the manifest recorded.
+                  Vendor the library again, so that what travels and what the manifest records are one thing.
+
+refused: 2 problems

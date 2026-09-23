@@ -1,0 +1,17 @@
+{
+  "name": "world_named_as_library",
+  "namespace": "sprout",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "f000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "files": ["world.sprout"]
+}

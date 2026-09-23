@@ -56,7 +56,9 @@ the same idea.
 
 `node scripts/check-corpus.mjs --write` regenerates the pages. The diff is
 read, not accepted: a changed page is either a deliberate change to the
-compiler's words, which the PR explains, or a regression.
+compiler's words, which the PR explains, or a regression. A `good/` world
+may also carry an `expected.txt`, pinning its warnings the same way; a
+`good/` world without one only has to pass.
 
 ### 3. Invariants over generated input
 

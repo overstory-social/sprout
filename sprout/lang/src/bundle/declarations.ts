@@ -15,11 +15,13 @@
 import {
   writtenPath,
   type Declaration,
+  type EnumDeclaration,
   type KindDeclaration,
+  type MessageDeclaration,
   type ObjectDeclaration,
 } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { EnumTable } from '../declare/enums.js';
+import { EnumTable, SPROUT } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
 import { KindTable } from '../declare/kinds.js';
 import {
@@ -119,6 +121,15 @@ export function resolveDeclarations(
   }
   kinds.resolve(enums, diagnostics, onUnknown);
 
+  warnShadows(
+    world.namespace,
+    byLibrary.get(world.namespace) ?? [],
+    enums,
+    messages,
+    kinds,
+    diagnostics,
+  );
+
   const composed = resolveObjects(
     world.namespace,
     (byLibrary.get(world.namespace) ?? []).filter(
@@ -154,4 +165,55 @@ export function resolveDeclarations(
     tree,
     composed,
   };
+}
+
+/**
+ * Warn, once per name, where the world's own declarations take a name the
+ * standard library also declares (the spec's Kinds, composition and
+ * libraries › Libraries and namespaces: "A world's own declaration taking
+ * a standard library name shadows the unqualified form, with a
+ * warning."). Only `sprout` counts: a name shared with another pinned
+ * library is reachable only qualified and shadows nothing. A world
+ * namespaced `sprout` is refused at the manifest before this runs; here
+ * it would only mean the standard library's own declarations of
+ * themselves, so it warns of nothing.
+ */
+function warnShadows(
+  namespace: string,
+  own: readonly Declaration[],
+  enums: EnumTable,
+  messages: MessageTable,
+  kinds: KindTable,
+  diagnostics: Diagnostics,
+): void {
+  if (namespace === SPROUT) return;
+  const warned = new Set<string>();
+  const shadow = (
+    category: 'enum' | 'message' | 'kind',
+    declared: EnumDeclaration | MessageDeclaration | KindDeclaration,
+    declaresInStandard: boolean,
+  ): void => {
+    const name = declared.name.text;
+    const key = `${category}:${name}`;
+    if (warned.has(key) || !declaresInStandard) return;
+    warned.add(key);
+    diagnostics.warn(
+      declared.name.at,
+      `\`${name}\` hides \`${SPROUT}.${name}\`: a bare \`${name}\` in this world is now yours.`,
+      `Write \`${SPROUT}.${name}\` where the library's is meant, or give yours another name.`,
+    );
+  };
+  for (const declared of own) {
+    switch (declared.kind) {
+      case 'enum':
+        shadow('enum', declared, enums.qualified(SPROUT, declared.name.text) !== null);
+        break;
+      case 'message':
+        shadow('message', declared, messages.qualified(SPROUT, declared.name.text) !== null);
+        break;
+      case 'kind':
+        shadow('kind', declared, kinds.qualified(SPROUT, declared.name.text) !== null);
+        break;
+    }
+  }
 }
