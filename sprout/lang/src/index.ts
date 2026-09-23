@@ -1,7 +1,7 @@
 // @overstory/sprout/lang — the Sprout language: where a thing was written
 // and what the compiler says about it, the syntax and its parser, the
 // declarations and their types, the checker, the closed bundle a
-// microworld compiles to, and the runtime's meter and values. It imports
+// microworld compiles to, and the runtime's meter, values and range. It imports
 // zod and nothing else (boundary.spec.ts holds that line), so a host plugs
 // it in and the language never learns whose world it is running in.
 
@@ -38,3 +38,4 @@ export * from './bundle/compile.js';
 
 export * from './runtime/budget.js';
 export * from './runtime/lists.js';
+export * from './runtime/range.js';

@@ -246,6 +246,18 @@ Found while building identifier scope (B14), each decided the narrow way and awa
 - **Identifiers in a named kind's body.** A kind has no place in the tree, so a name inside its body has no vantage until an instance does; B28 and B32 decide how exits and sends inside a kind resolve.
 - **A binding and an object of one name.** Whether `let key = …` hides an object called `key` in reach, or is refused, is B23's and B32's.
 
+Found while building range (B15), each decided the narrow way and awaiting Eric:
+
+- **Which containers out are in range.** Decided 2026-09-23: the path rule. A target is in range when nothing strictly between refuses; a refusing container is reached from inside as a surface and is a wall beyond, in both directions, so a bench in a relaying room reaches the house and can read its `:season`.
+- **The order of range and of broadcast delivery.** The spec gives none. Nearest first: the asker, its own contents breadth-first, then each container outward followed by its other contents breadth-first, each container's contents in its order.
+- **Crossing into the asker's own contents.** The spec says a container's other contents are crossed into where they pass, and says only that the asker reaches its own contents. Built uniformly: the asker's own contents are always reached, and what they hold only through their own rules, so a pouch in a visitor's hands keeps its gem out of range while it is shut.
+- **What `get`, `each` and a command's nouns ask of a pass rule.** They carry no message, so they consult `pass any`.
+- **What a broadcast leaves out of "the same walk".** Events, messages and the bus › Sending delivers to neither the sender nor a container outward that refuses, which the walk reaches only as a surface, so a reached node records how it was reached (`self`, `held`, `surface`, `passed`) and B32 drops the first and the third.
+- **A visitor standing directly in a world that declares `contains actors`.** The world's rule refuses, so it reaches the world as a surface only, and nothing else in it.
+- **"The container's order" for a moved or spawned object.** Declared objects keep their declared order; where a moved or spawned one goes in its container's order is B16's.
+- **What a membership test costs.** Whether one object is in range of another is answered by the path between them, one step per node climbed, not by a whole walk.
+- **`each` over a container that is in range but refuses, seen from outside.** Its contents are out of range, so it visits nothing.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.
