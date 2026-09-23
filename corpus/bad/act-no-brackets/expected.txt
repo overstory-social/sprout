@@ -1,4 +1,4 @@
-kinds.sprout:5:17  `act nuzzle` names its roles in brackets.
-                   Write `act nuzzle (target: p)`, or `act nuzzle ()` where it has no roles to fill.
+cat.sprout:5:17  `act nuzzle` names its roles in brackets.
+                 Write `act nuzzle (target: p)`, or `act nuzzle ()` where it has no roles to fill.
 
 refused: 1 problem

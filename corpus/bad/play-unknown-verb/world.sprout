@@ -5,8 +5,6 @@ world play_unknown_verb is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb unlock {
   role target
   role tool

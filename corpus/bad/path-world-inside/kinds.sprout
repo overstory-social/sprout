@@ -1,10 +1,2 @@
 // The world's name may be a path's first step, and no other.
 message :rang
-
-kind Bell {
-  on :spawned (from) { send hall.path_world_inside.jar :rang }
-}
-
-kind Jar {
-  on :rang { }
-}

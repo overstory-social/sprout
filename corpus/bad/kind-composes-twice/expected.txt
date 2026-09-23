@@ -1,4 +1,4 @@
-kinds.sprout:7:23  `Chest` composes `Wooden` twice.
+chest.sprout:3:23  `Chest` composes `Wooden` twice.
                    Compose it once.
 
 refused: 1 problem

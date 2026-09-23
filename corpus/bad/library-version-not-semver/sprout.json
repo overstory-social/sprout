@@ -17,5 +17,5 @@
       "sha": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
-  "files": ["world.sprout"]
+  "files": ["world.sprout", "hall.sprout", "creature.sprout"]
 }

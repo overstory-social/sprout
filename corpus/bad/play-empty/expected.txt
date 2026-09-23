@@ -1,4 +1,4 @@
-kinds.sprout:3:3  `as target for pull` says nothing: write a `permit { … }`, a `do { … }`, or both.
+lever.sprout:3:3  `as target for pull` says nothing: write a `permit { … }`, a `do { … }`, or both.
                   A `permit` decides whether it may happen and a `do` says what happens, as in `as target for unlock { permit { … } do { … } }`.
 
 refused: 1 problem

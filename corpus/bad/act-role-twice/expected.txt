@@ -1,4 +1,4 @@
-kinds.sprout:5:34  `target` is named twice in `act nuzzle (…)`.
-                   Name each role once.
+cat.sprout:5:34  `target` is named twice in `act nuzzle (…)`.
+                 Name each role once.
 
 refused: 1 problem

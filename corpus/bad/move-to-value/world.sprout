@@ -6,6 +6,4 @@ world move_to_value is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb bump { role target  "bump [target]" }

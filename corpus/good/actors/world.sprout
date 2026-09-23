@@ -30,19 +30,3 @@ world actors is sprout.World {
     object porter is Porter
   }
 }
-
-kind Creature is sprout.Actor {
-  :capacity 4
-}
-
-// `Creature`'s `:capacity` and the one `sprout.Visitor` brings from
-// `sprout.Actor` are two claims on one slot, so a person restates it.
-kind Person is Creature, sprout.Visitor {
-  :capacity 4
-}
-
-kind Porter is sprout.Actor { }
-
-kind Basket {
-  contains
-}

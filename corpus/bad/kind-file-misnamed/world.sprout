@@ -1,0 +1,11 @@
+// Each kind is declared in the file named for it: its name in lower case,
+// with `_` between its words, compared exactly.
+world kind_file_misnamed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object proof is PrintedSheet
+    object lamp is Lamp
+  }
+}

@@ -6,5 +6,3 @@ world remembers_two_origins is sprout.World {
     object bell is Watched, Greeted
   }
 }
-
-kind Creature is sprout.Visitor { }

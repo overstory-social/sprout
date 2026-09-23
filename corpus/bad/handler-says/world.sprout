@@ -4,5 +4,3 @@ world handler_says is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Person is sprout.Visitor { }

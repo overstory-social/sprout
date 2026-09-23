@@ -6,8 +6,6 @@ world move_value is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 enum Topic { bridge, toll }
 
 verb enquire { role target  role topic: symbol  "enquire of [target] about [topic]" }

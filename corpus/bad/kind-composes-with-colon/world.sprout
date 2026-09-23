@@ -7,7 +7,3 @@ world kind_composes_with_colon: sprout.World {
 
   object composing_room: sprout.Place
 }
-
-kind Creature: sprout.Visitor, Fragile { }
-
-kind Fragile { }

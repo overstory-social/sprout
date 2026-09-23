@@ -27,5 +27,3 @@ world sending is sprout.World {
     }
   }
 }
-
-kind Person is sprout.Visitor { }

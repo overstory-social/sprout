@@ -1,0 +1,3 @@
+// A kind is composed once: writing it twice in one list is refused at
+// the second, named as it was written.
+kind Chest is Wooden, Wooden { }

@@ -8,6 +8,7 @@
 
 import { libraryHash, type LibrarySource, type Manifest } from '../bundle/bundle.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
+import { kindFileName } from '../declare/kind-files.js';
 import { SourceFile } from '../source/source.js';
 import type { Diagnostic } from '../source/diagnostics.js';
 
@@ -25,13 +26,15 @@ export const MANIFEST = [
   '  "level": 1,',
   '  "extensions": [{ "name": "media", "major": 2 }],',
   `  "libraries": [{ "name": "sprout", "version": "0.1.0", "sha": "${SPROUT_SHA}" }],`,
-  '  "files": ["world.sprout"]',
+  '  "files": ["world.sprout", "person.sprout"]',
   '}',
   '',
 ].join('\n');
 
 /** What visitors are made of: the world's own kind, composing `sprout.Actor`. */
 export const VISITOR = 'kind Person is sprout.Visitor { }';
+/** The kind visitors are made of, in the file named for it. */
+export const PERSON = file('person.sprout', `${VISITOR}\n`);
 /** The place visitors arrive at, written in the world's body. */
 export const HALL = 'object hall is sprout.Place';
 /**
@@ -42,13 +45,21 @@ export const worldLine = (inside = ''): string =>
   `world printers_shop is sprout.World { visitors are Person visitors arrive at hall ${HALL}${inside === '' ? '' : ` ${inside}`} }`;
 /** The world's own declaration, holding the hall and nothing else. */
 export const WORLD_LINE = worldLine();
-/** The world holding `inside` beside the hall, and the kind its visitors are made of, on one line. */
-export const rootWith = (inside: string): string => `${worldLine(inside)} ${VISITOR}`;
-/** The world, the place visitors arrive at, and the kind they are made of, on one line. */
-export const ROOT = rootWith('');
-export const WORLD_TEXT = `${ROOT}\nenum Season { spring, summer, autumn, winter }`;
-/** Exactly the world's own source: blessed fits, unblessed does not. */
-export const OWN_BYTES = WORLD_TEXT.length;
+export const WORLD_TEXT = `${WORLD_LINE}\nenum Season { spring, summer, autumn, winter }`;
+/** Exactly the world's own source, its two files: blessed fits, unblessed does not. */
+export const OWN_BYTES = WORLD_TEXT.length + PERSON.text.length;
+
+/**
+ * `world.sprout` holding `text`, `person.sprout`, and each of `kinds` in
+ * the file named for it, as every kind is declared.
+ */
+export function worldFiles(text: string, ...kinds: string[]): SourceFile[] {
+  return [
+    file('world.sprout', text),
+    PERSON,
+    ...kinds.map((kind) => file(kindFileName(/kind (\w+)/.exec(kind)![1]!), kind)),
+  ];
+}
 
 /** A world as it arrives, with whatever a case wants to move about it. */
 export function world(
@@ -69,13 +80,13 @@ export function world(
     level: 1,
     extensions: [{ name: 'media', major: 2 }],
     libraries: [{ name: 'sprout', version: '0.1.0', sha: SPROUT_SHA }],
-    files: overrides.files?.map((f) => f.name) ?? ['world.sprout'],
+    files: (overrides.files ?? worldFiles(WORLD_TEXT)).map((f) => f.name),
     ...overrides.manifest,
   };
   return {
     manifestFile: file('sprout.json', overrides.manifestText ?? MANIFEST),
     manifest,
-    files: overrides.files ?? [file('world.sprout', WORLD_TEXT)],
+    files: overrides.files ?? worldFiles(WORLD_TEXT),
     libraries: overrides.libraries ?? [STANDARD_LIBRARY],
     ...(overrides.withheld === undefined ? {} : { withheld: overrides.withheld }),
   };

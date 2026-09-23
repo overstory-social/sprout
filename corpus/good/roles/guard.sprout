@@ -1,0 +1,20 @@
+// The standard library's `ask`, whose topic this guard narrows to what it
+// knows; anything else a visitor names arrives unbound.
+kind Guard {
+  :knows [Topic] default [bridge, toll]
+
+  passage toll_speech   { Two coppers to cross, and no haggling. }
+  passage bridge_speech { The bridge was here before the town was. }
+
+  as target for ask {
+    topic from :knows
+    do {
+      if (bound topic) {
+        if (topic == :toll) { say toll_speech }
+        else                { say bridge_speech }
+      } else {
+        say "The guard has nothing to say about that."
+      }
+    }
+  }
+}

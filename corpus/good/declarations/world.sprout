@@ -17,9 +17,3 @@ world shop is sprout.World {
 
   object composing_room is Room
 }
-
-kind Room {
-  contains actors
-}
-
-kind Creature is sprout.Visitor { }

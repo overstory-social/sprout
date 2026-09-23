@@ -1,0 +1,4 @@
+kind Lidded is Wooden {
+  contains
+  :open true
+}

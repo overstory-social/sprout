@@ -1,4 +1,4 @@
-kinds.sprout:9:20  The passage `greeting` opens here and is never closed.
+kinds.sprout:3:20  The passage `greeting` opens here and is never closed.
                    Add a } where its words end. Every { inside a passage opens a slot that needs its own }; write \{ for a brace that is only a character.
 
 refused: 1 problem

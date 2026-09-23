@@ -6,9 +6,3 @@ world library_sprout_unnamed is sprout.World {
 
   object hall is Room
 }
-
-kind Creature is sprout.Visitor { }
-
-kind Room {
-  contains actors
-}

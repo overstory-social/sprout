@@ -36,16 +36,16 @@ describe('main', () => {
     const init = captured();
     expect(main(['init', dir, '--author', 'marta'], init)).toBe(0);
     expect(init.out()).toBe(
-      `wrote ${dir}/sprout.json\nwrote ${dir}/world.sprout\nwrote ${dir}/README.md\n`,
+      `wrote ${dir}/sprout.json\nwrote ${dir}/world.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/README.md\n`,
     );
     expect(JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'))).toMatchObject({
       name: 'shed',
       author: 'marta',
-      files: ['world.sprout'],
+      files: ['world.sprout', 'person.sprout'],
     });
     const check = captured();
     expect(main(['check', dir], check)).toBe(0);
-    expect(check.out()).toBe('ok: 3 declarations in 1 files\n');
+    expect(check.out()).toBe('ok: 3 declarations in 2 files\n');
   });
 
   it('check --json on a broken world fails and names the problem by file, line and column', () => {

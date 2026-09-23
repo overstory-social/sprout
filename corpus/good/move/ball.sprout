@@ -1,0 +1,4 @@
+// A ball rolls to wherever the kicker stands.
+kind Ball {
+  as target for kick { do { move self to here  say "It rolls away across the floor." } }
+}

@@ -1,7 +1,7 @@
-world.sprout:25:10  `hutch` holds no actors, so `rabbit` cannot stand in it.
-                    Write `rabbit` inside the braces of a place, or make `hutch` one: compose `sprout.Place`, or write `contains actors` in its body.
+chest.sprout:3:10  `key` hides `composing_room.key`: inside `composing_room.chest`, a bare `key` now means this one.
+                   Write `composing_room.key` where the outer one is meant, or give this one another name.
 
-world.sprout:30:10  `key` hides `composing_room.key`: inside `composing_room.chest`, a bare `key` now means this one.
-                    Write `composing_room.key` where the outer one is meant, or give this one another name.
+hutch.sprout:3:10  `hutch` holds no actors, so `rabbit` cannot stand in it.
+                   Write `rabbit` inside the braces of a place, or make `hutch` one: compose `sprout.Place`, or write `contains actors` in its body.
 
 refused: 1 problem

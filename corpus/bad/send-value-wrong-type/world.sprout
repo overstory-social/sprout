@@ -4,5 +4,3 @@ world send_value_wrong_type is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Person is sprout.Visitor { }

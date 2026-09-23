@@ -1,4 +1,4 @@
-kinds.sprout:7:11  `move` does not say what to move.
+lever.sprout:7:11  `move` does not say what to move.
                    Write the thing and where it goes, as in `move target to self`.
 
 refused: 1 problem

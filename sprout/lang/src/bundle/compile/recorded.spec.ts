@@ -15,7 +15,15 @@ import { locationOf } from '../../source/source.js';
 import { compileBundle } from './compile.js';
 import { blessedToHonour, capsToCheck, type RecordedCaps } from './recorded.js';
 import { Report } from './report.js';
-import { file, OWN_BYTES, refusals, ROOT, SPROUT_SHA, world } from '../../fixtures/compile.js';
+import {
+  file,
+  OWN_BYTES,
+  refusals,
+  SPROUT_SHA,
+  world,
+  WORLD_LINE,
+  worldFiles,
+} from '../../fixtures/compile.js';
 
 const MANIFEST = file('sprout.json', '{\n  "name": "printers_shop"\n}\n');
 const REMEDY =
@@ -121,8 +129,7 @@ describe('a load compares the caps a world recorded with the host’s', () => {
 describe('compileBundle loads a world under the caps it recorded, or refuses it', () => {
   // Five options on one enum: past a host that allows three, within a
   // publish that allowed eight.
-  const five = () =>
-    world({ files: [file('world.sprout', `${ROOT}\nenum Season { a, b, c, d, e }`)] });
+  const five = () => world({ files: worldFiles(`${WORLD_LINE}\nenum Season { a, b, c, d, e }`) });
   const limits = limitsFrom({ caps: { optionsPerEnum: 3 } });
   const published = caps({ optionsPerEnum: 8 });
 

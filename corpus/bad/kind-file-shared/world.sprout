@@ -1,0 +1,12 @@
+// A kind's file holds that kind and no other; enums, verbs and messages
+// may sit beside it.
+world kind_file_shared is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is Chest {
+      object lid is Lid
+    }
+  }
+}

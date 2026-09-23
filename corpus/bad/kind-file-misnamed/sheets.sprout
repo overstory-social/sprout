@@ -1,0 +1,5 @@
+enum Ink { black, red }
+
+kind PrintedSheet {
+  :ink Ink default black
+}

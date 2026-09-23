@@ -3,5 +3,3 @@ world no_default is sprout.World {
   visitors arrive at hall
   :season Season
 }
-
-kind Creature is sprout.Visitor { }

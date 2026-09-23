@@ -1,9 +1,0 @@
-// Containment is a declaration: a button that does not write `contains`
-// holds nothing, so nothing can go into it.
-kind Button { }
-
-kind Panel {
-  as target for press {
-    do { move self to tool }
-  }
-}

@@ -1,0 +1,2 @@
+// Composing a kind in the loop says nothing more about it.
+kind Coffer is Chest { }

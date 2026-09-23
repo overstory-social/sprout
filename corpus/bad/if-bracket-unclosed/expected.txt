@@ -1,4 +1,4 @@
-kinds.sprout:6:25  The `if`'s condition ends here, and its bracket is never closed.
+crate.sprout:6:25  The `if`'s condition ends here, and its bracket is never closed.
                    Add a ) after the condition, before its `{`.
 
 refused: 1 problem

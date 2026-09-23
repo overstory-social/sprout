@@ -1,0 +1,9 @@
+// A person is made of `Creature`, and so of `sprout.Actor`, whose guards
+// make their things their own: nobody else carries them off
+// (`held_fast`), nobody else takes from their hands (`not_yours`), and
+// they hold only what fits (`hands_full`). The world keeps the library's
+// first two lines and says the third in its own words.
+kind Creature is sprout.Actor {
+  :capacity 2
+  passage hands_full { {self} has both hands full already. }
+}

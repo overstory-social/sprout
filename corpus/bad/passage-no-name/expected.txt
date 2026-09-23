@@ -1,4 +1,4 @@
-kinds.sprout:3:11  A passage needs a name.
-                   A passage's name is a lower-case word before its braces: `passage greeting { … }`.
+mirror.sprout:3:11  A passage needs a name.
+                    A passage's name is a lower-case word before its braces: `passage greeting { … }`.
 
 refused: 1 problem

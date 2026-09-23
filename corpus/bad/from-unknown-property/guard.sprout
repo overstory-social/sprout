@@ -1,0 +1,8 @@
+kind Guard {
+  :knows [Topic] default [bridge, toll]
+
+  as target for ask {
+    topic from :knws
+    do { }
+  }
+}

@@ -1,0 +1,3 @@
+kind Person is sprout.Visitor {
+  :oil 3 min 0 max 9
+}

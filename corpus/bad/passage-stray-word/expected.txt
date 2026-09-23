@@ -1,4 +1,4 @@
-kinds.sprout:3:28  Only `default` may stand between a passage's name and its braces, not `please`.
-                   A passage is written `passage greeting { … }`, with `default` after the name where any other passage of that name should replace it: `passage greeting default { … }`.
+mirror.sprout:3:28  Only `default` may stand between a passage's name and its braces, not `please`.
+                    A passage is written `passage greeting { … }`, with `default` after the name where any other passage of that name should replace it: `passage greeting default { … }`.
 
 refused: 1 problem

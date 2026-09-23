@@ -1,0 +1,9 @@
+// The lamp writes its own light, and answers whoever lit it.
+kind Lamp {
+  :lit false
+  on :lit (from, value) {
+    self.set(:lit, value)
+    send from :answered with 1
+  }
+  on :rang { }
+}

@@ -1,4 +1,4 @@
-kinds.sprout:10:3  `accept` is never closed.
+crate.sprout:10:3  `accept` is never closed.
                    Add a } where what `accept` decides ends. Every { inside it, after an `if` or an `else`, needs its own }.
 
 refused: 1 problem

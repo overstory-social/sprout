@@ -1,0 +1,4 @@
+kind Lamp {
+  :lit false
+  on :illumnating (from, value) { self.set(:lit, value) }
+}

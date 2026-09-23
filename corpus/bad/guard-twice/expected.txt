@@ -1,4 +1,4 @@
-kinds.sprout:10:3  `Crate` writes `accept` twice.
+crate.sprout:10:3  `Crate` writes `accept` twice.
                    A kind answers once for each part of a move. Keep one `accept`, and write what both decide in it with `if` and `else if`.
 
 refused: 1 problem

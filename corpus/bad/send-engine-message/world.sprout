@@ -4,5 +4,3 @@ world send_engine_message is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Person is sprout.Visitor { }

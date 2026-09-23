@@ -6,5 +6,3 @@ world visitor_not_an_actor is sprout.World {
 
   object hall is Hall
 }
-
-kind Hall is sprout.Place { }

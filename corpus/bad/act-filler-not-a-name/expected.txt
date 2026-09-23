@@ -1,4 +1,4 @@
-kinds.sprout:6:39  `topic` is filled by the name of something in reach, and `:toll` is not one.
-                   Name something in reach in lower case, as in `topic: p`, where `p` is a binding or a role.
+cat.sprout:6:39  `topic` is filled by the name of something in reach, and `:toll` is not one.
+                 Name something in reach in lower case, as in `topic: p`, where `p` is a binding or a role.
 
 refused: 1 problem

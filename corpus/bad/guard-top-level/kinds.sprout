@@ -3,7 +3,3 @@
 accept (item, from) {
   if (item.is(Crate)) { refuse "Not another crate." }
 }
-
-kind Crate {
-  contains
-}

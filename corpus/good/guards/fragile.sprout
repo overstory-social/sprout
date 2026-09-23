@@ -1,0 +1,4 @@
+// Nobody but the thing itself moves it.
+kind Fragile {
+  depart (to) { if (mover != self) { refuse "Careful: it would break." } }
+}

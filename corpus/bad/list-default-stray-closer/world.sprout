@@ -7,5 +7,3 @@ world list_default_stray_closer is sprout.World {
   visitors arrive at hall
   :grid [[Ward]] default [[oak, silver, ]], [brass, tin]]
 }
-
-kind Creature is sprout.Visitor { }

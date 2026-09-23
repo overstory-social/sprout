@@ -3,8 +3,6 @@ world bound_before_declaration is sprout.World {
   visitors arrive at hall
 }
 
-kind Creature is sprout.Visitor { }
-
 kind K {
   :faulty Ward.oak max - -
 enum Omega, name: [1]] { y }

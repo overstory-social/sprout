@@ -6,8 +6,5 @@ world act_roles_no_comma is sprout.World {
   object hall is sprout.Place
 }
 
-kind Creature is sprout.Actor { }
-kind Person is Creature, sprout.Visitor { }
-
 verb pet    { role target  "pet [target]" }
 verb unlock { role target  role tool  "unlock [target] with [tool]" }

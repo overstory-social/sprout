@@ -1,4 +1,4 @@
-kinds.sprout:3:11  A passage's name has no colon before it.
-                   Write `passage greeting { … }`; a colon is how a property or a message is named.
+mirror.sprout:3:11  A passage's name has no colon before it.
+                    Write `passage greeting { … }`; a colon is how a property or a message is named.
 
 refused: 1 problem

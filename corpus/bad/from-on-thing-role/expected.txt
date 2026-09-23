@@ -1,4 +1,4 @@
-kinds.sprout:9:5  `target` is filled by a thing, so there is nothing for `from` to narrow.
-                  `from` narrows a `symbol` or an `integer` role to the options this object hears.
+key.sprout:5:5  `target` is filled by a thing, so there is nothing for `from` to narrow.
+                `from` narrows a `symbol` or an `integer` role to the options this object hears.
 
 refused: 1 problem

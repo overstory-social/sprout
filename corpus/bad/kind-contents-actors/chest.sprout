@@ -1,0 +1,4 @@
+kind Chest {
+  contains
+  object key is Thing
+}

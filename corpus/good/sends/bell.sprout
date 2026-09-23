@@ -1,0 +1,4 @@
+kind Bell {
+  :answers 0 min 0 max 99
+  on :answered (_, n) { self.adjust(:answers, n) }
+}

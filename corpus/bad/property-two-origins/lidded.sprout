@@ -1,0 +1,4 @@
+kind Lidded {
+  contains
+  :open true
+}

@@ -1,0 +1,4 @@
+kind Hutch {
+  contains
+  object rabbit is Creature
+}

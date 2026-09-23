@@ -1,4 +1,4 @@
-kinds.sprout:3:6  Only an actor acts, and `Bench` does not compose `sprout.Actor`.
+bench.sprout:3:6  Only an actor acts, and `Bench` does not compose `sprout.Actor`.
                   Compose `sprout.Actor` into `Bench`, or play one of `sit`'s roles instead: `target`.
 
 refused: 1 problem

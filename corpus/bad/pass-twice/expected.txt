@@ -1,4 +1,4 @@
-kinds.sprout:5:3  `Crate` writes `pass any` twice.
+crate.sprout:5:3  `Crate` writes `pass any` twice.
                   A container answers once for each message. Keep one `pass any`, and write what both say as one condition.
 
 refused: 1 problem

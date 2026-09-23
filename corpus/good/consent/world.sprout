@@ -21,21 +21,3 @@ world consent is sprout.World {
     passage arrives { {item} ducks in under the lintel. }
   }
 }
-
-// A person is made of `Creature`, and so of `sprout.Actor`, whose guards
-// make their things their own: nobody else carries them off
-// (`held_fast`), nobody else takes from their hands (`not_yours`), and
-// they hold only what fits (`hands_full`). The world keeps the library's
-// first two lines and says the third in its own words.
-kind Creature is sprout.Actor {
-  :capacity 2
-  passage hands_full { {self} has both hands full already. }
-}
-
-// `Creature`'s `:capacity` and the one `sprout.Visitor` brings from
-// `sprout.Actor` are two claims on one slot, so a person restates it.
-kind Person is Creature, sprout.Visitor {
-  :capacity 2
-}
-
-kind Tool { }

@@ -14,27 +14,3 @@ world kind_contents_same_name is sprout.World {
     object storm is StormLantern
   }
 }
-
-kind Creature is sprout.Visitor { }
-
-kind Wick { }
-
-kind Lantern {
-  contains
-  object wick is Wick
-}
-
-kind Case {
-  contains
-  object wick is Wick
-}
-
-kind StormLantern is Lantern, Case { }
-
-// Two written in one kind's body are two of one name there, whether or
-// not anything is made of the kind.
-kind Candle {
-  contains
-  object wick is Wick
-  object wick is Wick
-}

@@ -4,5 +4,3 @@ world if_no_brackets is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

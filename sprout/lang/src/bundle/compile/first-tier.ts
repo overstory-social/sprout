@@ -4,12 +4,15 @@
 // world's own and every usable library's, since they compile together.
 // A file that does not compile refuses at publish; at load it reads as
 // absent, what it declared is not in the world, and what referred to it
-// keeps compiling.
+// keeps compiling. A kind in the wrong file is not a file that does not
+// compile: it refuses at publish and is warned about at load, and what
+// the file declares stands either way.
 
 import type { Declaration } from '../../syntax/ast.js';
 import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration } from '../../declare/enums.js';
+import { checkKindFiles } from '../../declare/kind-files.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';
@@ -29,14 +32,24 @@ export interface ShapeResult {
 /**
  * The first tier: one file, checked alone for its shape. Today that is
  * its syntax, the options cap, a verb's roles and phrases and its caps,
- * `sprout.World` written on the world and nowhere else, and an object
- * naming a kind; the rest of the caps that apply to a definition on its
- * own, its declarations agreeing with themselves and every write going
- * to `self` join it as the syntax that expresses them lands. The caps are the host's, as every limit is.
+ * `sprout.World` written on the world and nowhere else, an object
+ * naming a kind, and each kind in the file named for it; the rest of the
+ * caps that apply to a definition on its own, its declarations agreeing
+ * with themselves and every write going to `self` join it as the syntax
+ * that expresses them lands. The caps are the host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
+  const { declarations, diagnostics, layout } = readShape(file, caps);
+  return { declarations, diagnostics: [...diagnostics, ...layout] };
+}
+
+/** One file's shape, with what is said of where its kinds are written kept apart. */
+function readShape(
+  file: SourceFile,
+  caps?: StaticCaps,
+): ShapeResult & { readonly layout: readonly Diagnostic[] } {
   const diagnostics = new Diagnostics();
-  if (!isCode(file)) return { declarations: [], diagnostics: [] };
+  if (!isCode(file)) return { declarations: [], diagnostics: [], layout: [] };
   const using = caps ?? DEFAULT_LIMITS.caps;
   const declarations = parseDeclarations(file, diagnostics, using);
   for (const declared of declarations) {
@@ -66,7 +79,9 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
       }
     }
   }
-  return { declarations, diagnostics: diagnostics.all };
+  const layout = new Diagnostics();
+  checkKindFiles(file.name, declarations, layout);
+  return { declarations, diagnostics: diagnostics.all, layout: layout.all };
 }
 
 /** What the first tier makes of a whole bundle. */
@@ -99,7 +114,8 @@ export function readFirstTier(
   /** Whether one of the world's own files was refused by the first tier. */
   let ownFileRefused = false;
   for (const { library, file } of readable) {
-    const shape = checkShape(file, caps);
+    const shape = readShape(file, caps);
+    for (const { at, message, remedy } of shape.layout) report.strict(at, message, remedy);
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
     if (refused && library === namespace) ownFileRefused = true;
     if (!refused) {

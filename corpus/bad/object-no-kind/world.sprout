@@ -8,5 +8,3 @@ world object_no_kind is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Visitor { }

@@ -1,0 +1,8 @@
+enum Wood { oak, pine }
+
+kind Chest {
+  contains
+  :wood Wood default oak
+}
+
+kind Lid { }

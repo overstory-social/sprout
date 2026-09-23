@@ -1,4 +1,4 @@
-kinds.sprout:5:11  Nothing declares a verb `nuzle`. Did you mean `nuzzle`?
-                   Write `act nuzzle (…)`, or declare `verb nuzle { … }`.
+cat.sprout:5:11  Nothing declares a verb `nuzle`. Did you mean `nuzzle`?
+                 Write `act nuzzle (…)`, or declare `verb nuzle { … }`.
 
 refused: 1 problem

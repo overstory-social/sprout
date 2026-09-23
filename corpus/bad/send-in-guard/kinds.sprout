@@ -1,8 +1,2 @@
 // A guard reads and decides, and sending is doing.
 message :creak
-
-kind Door {
-  contains
-  accept (item, from) { send item :creak }
-  on :creak { }
-}

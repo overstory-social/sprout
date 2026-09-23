@@ -5,6 +5,4 @@ world do_refuses is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb pull { role target  "pull [target]" }

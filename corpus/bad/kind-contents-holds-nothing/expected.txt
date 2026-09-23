@@ -1,7 +1,7 @@
-world.sprout:19:10  `Lantern` holds nothing, so `wick` cannot be in it.
-                    Move `wick` out of `Lantern`'s braces into something that holds things, or let `Lantern` hold things by writing `contains` in its body.
+candle.sprout:6:12   `wick` holds nothing, so `flame` cannot be in it.
+                     Move `flame` out of `wick`'s braces into something that holds things, or let `wick` hold things by writing `contains` in its body.
 
-world.sprout:27:12  `wick` holds nothing, so `flame` cannot be in it.
-                    Move `flame` out of `wick`'s braces into something that holds things, or let `wick` hold things by writing `contains` in its body.
+lantern.sprout:5:10  `Lantern` holds nothing, so `wick` cannot be in it.
+                     Move `wick` out of `Lantern`'s braces into something that holds things, or let `Lantern` hold things by writing `contains` in its body.
 
 refused: 2 problems

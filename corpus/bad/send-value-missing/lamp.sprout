@@ -1,0 +1,4 @@
+kind Lamp {
+  on :spawned (from) { broadcast :illuminating }
+  on :illuminating (_, value) { }
+}

@@ -9,10 +9,3 @@ world actor_in_what_holds_no_actors is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Actor { }
-kind Person is Creature, sprout.Visitor { }
-
-kind Basket {
-  contains
-}

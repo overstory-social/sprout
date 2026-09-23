@@ -3,7 +3,3 @@
 passage greeting {
   The glass is older than the frame.
 }
-
-kind Mirror {
-  :mood 0
-}

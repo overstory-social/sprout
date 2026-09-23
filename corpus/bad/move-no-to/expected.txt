@@ -1,4 +1,4 @@
-kinds.sprout:7:17  `move actor` does not say where it goes.
+lever.sprout:7:17  `move actor` does not say where it goes.
                    Write `to` and what it goes into: `move actor to self`.
 
 refused: 1 problem

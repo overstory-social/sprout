@@ -4,5 +4,3 @@ world refuse_unknown_passage is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

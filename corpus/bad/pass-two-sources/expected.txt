@@ -1,4 +1,4 @@
-kinds.sprout:6:24  `Cabinet` gets `pass any` from both `Glass` and `Oak`, and a container has one rule for each message.
-                   Write `pass any (…)` in `Cabinet` to say which applies.
+cabinet.sprout:3:24  `Cabinet` gets `pass any` from both `Glass` and `Oak`, and a container has one rule for each message.
+                     Write `pass any (…)` in `Cabinet` to say which applies.
 
 refused: 1 problem

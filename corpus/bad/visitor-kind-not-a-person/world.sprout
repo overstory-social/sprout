@@ -9,5 +9,3 @@ world visitor_kind_not_a_person is sprout.World {
     object cat is Creature
   }
 }
-
-kind Creature is sprout.Actor { }

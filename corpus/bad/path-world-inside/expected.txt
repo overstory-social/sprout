@@ -1,4 +1,4 @@
-kinds.sprout:5:34  `path_world_inside` is the world, whose name may be a path's first step and no other.
-                   Leave the world's name out of the middle: write `hall.jar`.
+bell.sprout:2:34  `path_world_inside` is the world, whose name may be a path's first step and no other.
+                  Leave the world's name out of the middle: write `hall.jar`.
 
 refused: 1 problem

@@ -14,5 +14,3 @@ world path_malformed is sprout.World {
     object shelf is Room
   }
 }
-
-kind Creature is sprout.Visitor { }

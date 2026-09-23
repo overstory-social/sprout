@@ -1,0 +1,2 @@
+// A kind cannot be made of itself, however far round the loop is.
+kind Lidded is Chest { }

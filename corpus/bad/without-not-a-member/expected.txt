@@ -1,4 +1,4 @@
-kinds.sprout:8:11  `without` names a handler, a hook, a guard or a role, not `:lit`, which is a property or a message.
-                   A handler is written `on :lit` and a hook `changed :lit`, as in `without changed :lit from sprout.LightSource`.
+safety_lamp.sprout:4:11  `without` names a handler, a hook, a guard or a role, not `:lit`, which is a property or a message.
+                         A handler is written `on :lit` and a hook `changed :lit`, as in `without changed :lit from sprout.LightSource`.
 
 refused: 1 problem

@@ -1,8 +1,0 @@
-// A role that names a kind is filled by something known to be one.
-kind Lockable { }
-
-kind Cat is Creature {
-  as target for pet {
-    do { act unlock (target: actor) }
-  }
-}

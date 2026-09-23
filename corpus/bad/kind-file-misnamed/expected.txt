@@ -1,0 +1,7 @@
+Lamp.sprout:1:6    `Lamp` is declared in `Lamp.sprout`, and a kind is declared in the file named for it.
+                   Move `kind Lamp` to a file of its own called `lamp.sprout`.
+
+sheets.sprout:3:6  `PrintedSheet` is declared in `sheets.sprout`, and a kind is declared in the file named for it.
+                   Move `kind PrintedSheet` to a file of its own called `printed_sheet.sprout`.
+
+refused: 2 problems

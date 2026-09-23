@@ -1,7 +1,7 @@
-kinds.sprout:6:11  `act shove` leaves out `pole`, which is not optional: every phrase of `shove` fills it.
-                   Name it: `act shove (target: actor, pole: <what fills it>)`.
+cat.sprout:6:11  `act shove` leaves out `pole`, which is not optional: every phrase of `shove` fills it.
+                 Name it: `act shove (target: actor, pole: <what fills it>)`.
 
-kinds.sprout:7:11  `act poke` leaves out `tool`, which is not optional: `poke` does not mark it `optional`.
-                   Name it: `act poke (target: actor, tool: <what fills it>)`.
+cat.sprout:7:11  `act poke` leaves out `tool`, which is not optional: `poke` does not mark it `optional`.
+                 Name it: `act poke (target: actor, tool: <what fills it>)`.
 
 refused: 2 problems

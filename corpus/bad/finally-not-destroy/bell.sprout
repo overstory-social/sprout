@@ -1,0 +1,3 @@
+kind Bell {
+  on :spawned (from) { broadcast :rang }
+}

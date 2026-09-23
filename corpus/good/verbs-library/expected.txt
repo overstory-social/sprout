@@ -1,4 +1,4 @@
 verbs.sprout:4:6  `take` hides `sprout.take`: a bare `take` in this world is now yours.
                   Where the library's `take` is still meant, give yours another name.
 
-ok: 6 declarations in 2 files, 1 warning
+ok: 6 declarations in 3 files, 1 warning

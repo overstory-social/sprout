@@ -1,0 +1,5 @@
+kind Panel {
+  as target for press {
+    do { move self to tool }
+  }
+}

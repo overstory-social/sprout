@@ -1,8 +1,8 @@
 // The standard library, `sprout`, as it travels with a world that names
 // it (the spec's Kinds › Libraries and namespaces, The standard library
 // is written in Sprout; A worked microworld › The standard library it
-// needs). It is ordinary Sprout source, a kind at most to a file beside
-// the verbs it plays, vendored and hashed like any library. The compiler
+// needs). It is ordinary Sprout source, each kind in the file named for it
+// beside the verbs it plays, vendored and hashed like any library. The compiler
 // gives it one privilege: only it declares the engine verbs, and only its
 // `go` has a role an exit fills (Reserved names, Exits). A world that
 // pins another hash runs against that copy or none. Its files are named

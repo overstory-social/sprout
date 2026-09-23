@@ -1,4 +1,4 @@
-kinds.sprout:5:11  `:heard` is remembered about each actor, and `changed` watches what `Bell` holds itself.
-                   Do what the change means where the memory is written, or watch a property of its own.
+bell.sprout:5:11  `:heard` is remembered about each actor, and `changed` watches what `Bell` holds itself.
+                  Do what the change means where the memory is written, or watch a property of its own.
 
 refused: 1 problem

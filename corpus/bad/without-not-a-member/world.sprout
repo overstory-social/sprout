@@ -4,5 +4,3 @@ world without_not_a_member is sprout.World {
 
   object composing_room is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

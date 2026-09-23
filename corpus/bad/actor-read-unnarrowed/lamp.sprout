@@ -1,0 +1,10 @@
+kind Lamp {
+  as target for light {
+    permit { if (actor.get(:oil) == 0) { refuse "You have no oil." } }
+    do {
+      if (actor.is(Person)) {
+        if (actor.get(:oil) > 5) { say "The lamp burns bright." }
+      }
+    }
+  }
+}

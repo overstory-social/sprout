@@ -15,18 +15,3 @@ world passages is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Visitor { }
-
-kind Mirror {
-  :mood 0 min 0 max 2
-
-  passage greeting {
-    The glass is older than the frame, and older than the house.
-
-    {if self.get(:mood) == 0}Nothing in it looks back.{else}Something in it
-    is paying attention.{/if} Its maker's mark reads "1809 // London".
-  }
-
-  passage shrug default { {self} gives nothing away. }
-}

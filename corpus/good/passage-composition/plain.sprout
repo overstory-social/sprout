@@ -1,0 +1,4 @@
+// A default, and a kind that composes it and writes its own line over it.
+kind Plain {
+  passage taken default { You take it. }
+}

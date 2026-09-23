@@ -1,0 +1,4 @@
+kind Cat {
+  on :stir { }
+  on :spawned (from) { send from :creak }
+}

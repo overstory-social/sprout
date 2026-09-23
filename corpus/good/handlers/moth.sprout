@@ -1,0 +1,5 @@
+// `_` leaves the sender unnamed where only the value matters.
+kind Moth {
+  :drawn false
+  on :illuminating (_, value) { self.set(:drawn, value) }
+}

@@ -1,0 +1,5 @@
+kind Door {
+  contains
+  accept (item, from) { send item :creak }
+  on :creak { }
+}

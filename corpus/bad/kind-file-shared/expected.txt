@@ -1,0 +1,4 @@
+chest.sprout:8:6  `Lid` shares `chest.sprout` with `Chest`, and each kind is declared in a file of its own.
+                  Move `kind Lid` to a file of its own called `lid.sprout`.
+
+refused: 1 problem

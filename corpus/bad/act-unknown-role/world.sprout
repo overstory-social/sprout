@@ -6,8 +6,5 @@ world act_unknown_role is sprout.World {
   object hall is sprout.Place
 }
 
-kind Creature is sprout.Actor { }
-kind Person is Creature, sprout.Visitor { }
-
 verb pet    { role target  "pet [target]" }
 verb nuzzle { role target  "nuzzle [target]" }

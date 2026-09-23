@@ -1,0 +1,8 @@
+kind Lighter {
+  as target for strike {
+    do {
+      broadcast :illuminating with true
+      say "The lighter catches."
+    }
+  }
+}

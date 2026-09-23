@@ -22,24 +22,5 @@ world destroy_declared is sprout.World {
   }
 }
 
-kind Person is sprout.Visitor { }
-
-kind Paper { }
-
-kind Candle {
-  as target for burn { do { say "The candle gutters out."  destroy self } }
-}
-
-kind Taper is Candle { }
-
-kind Spark {
-  as target for burn { do { destroy self  say "The spark winks out." } }
-}
-
-kind Flint {
-  contains
-  as target for strike { do { spawn Spark in self  say "A spark leaps from the flint." } }
-}
-
 verb burn { role target  "burn [target]" }
 verb strike { role target  "strike [target]" }

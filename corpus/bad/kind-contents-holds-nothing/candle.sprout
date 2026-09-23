@@ -1,0 +1,8 @@
+// The same holds for what a kind's content holds: the wick written here
+// holds nothing, so nothing may be written inside it.
+kind Candle {
+  contains
+  object wick is Wick {
+    object flame is Wick
+  }
+}

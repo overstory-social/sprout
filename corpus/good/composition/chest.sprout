@@ -1,0 +1,6 @@
+// A diamond: `Wooden` is reached through both `Lidded` and `Heavy`.
+// `:open` is restated, which keeps its type and changes its default.
+kind Chest is Lidded, Heavy {
+  :open false
+  remembers { :opened false }
+}

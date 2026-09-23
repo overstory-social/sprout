@@ -1,0 +1,3 @@
+kind Creature is sprout.Actor {
+  :capacity 4
+}

@@ -1,4 +1,4 @@
-kinds.sprout:4:11  `Lamp` holds no `:lt`, so `changed :lt` has nothing to watch. Did you mean `:lit`?
-                   Name a property `Lamp` holds, as in `changed :lit (was) { … }`.
+lamp.sprout:4:11  `Lamp` holds no `:lt`, so `changed :lt` has nothing to watch. Did you mean `:lit`?
+                  Name a property `Lamp` holds, as in `changed :lit (was) { … }`.
 
 refused: 1 problem

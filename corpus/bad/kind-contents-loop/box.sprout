@@ -1,0 +1,5 @@
+// A box that holds a box would hold another inside that, without end.
+kind Box {
+  contains
+  object inner is Box
+}

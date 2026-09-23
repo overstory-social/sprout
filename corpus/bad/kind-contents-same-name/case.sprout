@@ -1,0 +1,4 @@
+kind Case {
+  contains
+  object wick is Wick
+}

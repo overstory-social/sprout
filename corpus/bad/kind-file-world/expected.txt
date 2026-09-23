@@ -1,0 +1,4 @@
+person.sprout:4:7  The world `kind_file_world` shares `person.sprout` with `Person`, and a kind's file holds no world.
+                   Move the world to a file with no kind in it, such as `world.sprout`.
+
+refused: 1 problem

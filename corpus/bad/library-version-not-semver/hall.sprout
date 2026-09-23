@@ -1,0 +1,3 @@
+kind Hall {
+  contains actors
+}

@@ -11,7 +11,14 @@ import { locationOf, SourceFile } from '../../source/source.js';
 import { checkShape, readFirstTier } from './first-tier.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
-import { refusals, ROOT, world } from '../../fixtures/compile.js';
+import {
+  PERSON,
+  refusals,
+  world,
+  WORLD_LINE,
+  worldFiles,
+  worldLine,
+} from '../../fixtures/compile.js';
 
 const file = (name: string, text: string): SourceFile => new SourceFile(name, text);
 
@@ -78,41 +85,44 @@ describe('the first tier reads one file alone, for its shape', () => {
     // Anything but a world composing it is refused, and one declaration
     // answers that on its own, as it does whether an object named a kind,
     // at any depth in the world's body.
+    const crate = checkShape(file('crate.sprout', 'kind Crate is sprout.World { }\n'));
+    expect(crate.diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['crate.sprout:1:15', '`Crate` composes `sprout.World`, which only a world may.'],
+    ]);
     const { declarations, diagnostics } = checkShape(
       file(
-        'kinds.sprout',
-        'kind Crate is sprout.World { }\nworld shop is sprout.World {\n  object bench is sprout.World\n  object hall is Room {\n    object lamp { }\n  }\n}\n',
+        'world.sprout',
+        'world shop is sprout.World {\n  object bench is sprout.World\n  object hall is Room {\n    object lamp { }\n  }\n}\n',
       ),
     );
-    expect(declarations.map((d) => d.kind)).toEqual(['kind', 'world']);
+    expect(declarations.map((d) => d.kind)).toEqual(['world']);
     expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['kinds.sprout:1:15', '`Crate` composes `sprout.World`, which only a world may.'],
-      ['kinds.sprout:3:19', '`bench` composes `sprout.World`, which only a world may.'],
-      ['kinds.sprout:5:12', '`lamp` does not say what kind of thing it is.'],
+      ['world.sprout:2:19', '`bench` composes `sprout.World`, which only a world may.'],
+      ['world.sprout:4:12', '`lamp` does not say what kind of thing it is.'],
     ]);
   });
 
   it('asks each object a kind’s body holds, at any depth, what it asks one in the world', () => {
     const { diagnostics } = checkShape(
       file(
-        'kinds.sprout',
+        'lantern.sprout',
         'kind Lantern {\n  contains\n  object wick is Wick\n  object case is Case {\n    object glass\n    object lamp is sprout.World\n  }\n}\n',
       ),
     );
     expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['kinds.sprout:5:12', '`glass` does not say what kind of thing it is.'],
-      ['kinds.sprout:6:20', '`lamp` composes `sprout.World`, which only a world may.'],
+      ['lantern.sprout:5:12', '`glass` does not say what kind of thing it is.'],
+      ['lantern.sprout:6:20', '`lamp` composes `sprout.World`, which only a world may.'],
     ]);
   });
 
   it('takes a kind and an object that compose what they may', () => {
-    const { diagnostics } = checkShape(
-      file(
-        'kinds.sprout',
-        'kind Crate is sprout.Container { }\nworld shop is sprout.World { object box is Crate }\n',
-      ),
-    );
-    expect(diagnostics).toEqual([]);
+    expect(
+      checkShape(file('crate.sprout', 'kind Crate is sprout.Container { }\n')).diagnostics,
+    ).toEqual([]);
+    expect(
+      checkShape(file('world.sprout', 'world shop is sprout.World { object box is Crate }\n'))
+        .diagnostics,
+    ).toEqual([]);
   });
 
   it('leaves a .prose file to B29 rather than reading it as code', () => {
@@ -191,7 +201,11 @@ describe('the first tier reads every file in the bundle', () => {
 
 describe('the whole bundle is read, the world’s files and its libraries alike', () => {
   it('refuses a syntax problem in the world’s own source, naming the file', () => {
-    const files = [file('other.sprout', ROOT), file('world.sprout', 'enum Season { spring }\n%\n')];
+    const files = [
+      file('other.sprout', WORLD_LINE),
+      PERSON,
+      file('world.sprout', 'enum Season { spring }\n%\n'),
+    ];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('world.sprout:2:1');
@@ -209,11 +223,11 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
       }),
     );
     expect(bundle).toBeNull();
-    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('ward.sprout:2:1');
+    expect(refusals(diagnostics).map((d) => locationOf(d.at))).toContain('ward.sprout:2:1');
   });
 
   it('gives every problem in reading order, not the first', () => {
-    const files = [file('a.sprout', '% ; %'), file('b.sprout', '%'), file('world.sprout', ROOT)];
+    const files = [file('a.sprout', '% ; %'), file('b.sprout', '%'), ...worldFiles(WORLD_LINE)];
     const { diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toHaveLength(4);
     expect(refusals(diagnostics).map((d) => locationOf(d.at))).toEqual([
@@ -221,6 +235,57 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
       'a.sprout:1:3',
       'a.sprout:1:5',
       'b.sprout:1:1',
+    ]);
+  });
+});
+
+describe('each kind in the file named for it, in the world’s files and a library’s alike', () => {
+  it('refuses a kind in a world file not named for it, naming the file it goes in', () => {
+    const files = [...worldFiles(WORLD_LINE), file('kinds.sprout', 'kind Crate { contains }')];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.remedy])).toEqual([
+      ['kinds.sprout:1:6', 'Move `kind Crate` to a file of its own called `crate.sprout`.'],
+    ]);
+  });
+
+  it('keeps what the file declares, so nothing that names the kind is refused as well', () => {
+    const files = [
+      ...worldFiles(worldLine('object crate is Crate')),
+      file('kinds.sprout', 'kind Crate { contains }'),
+    ];
+    const published = compileBundle(world({ files }));
+    expect(published.bundle).toBeNull();
+    expect(refusals(published.diagnostics).map((d) => d.message)).toEqual([
+      '`Crate` is declared in `kinds.sprout`, and a kind is declared in the file named for it.',
+    ]);
+    // At load it is said and not refused, and the file is not absent.
+    const loaded = compileBundle(world({ files }), { mode: 'load' });
+    expect(refusals(loaded.diagnostics)).toEqual([]);
+    expect(loaded.bundle!.absent).toEqual([]);
+    expect(loaded.bundle!.objects.map((o) => o.name)).toEqual(['hall', 'crate']);
+    expect(loaded.diagnostics.map((d) => [d.severity, locationOf(d.at)])).toEqual([
+      ['warning', 'kinds.sprout:1:6'],
+    ]);
+  });
+
+  it('holds a vendored library to the same rule', () => {
+    const library: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [...STANDARD_LIBRARY.files, file('sprout/kinds.sprout', 'kind Lantern { }')],
+    };
+    const { bundle, diagnostics } = compileBundle(
+      world({
+        libraries: [library],
+        manifest: { libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(library) }] },
+      }),
+    );
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'sprout/kinds.sprout:1:6',
+        '`Lantern` is declared in `kinds.sprout`, and a kind is declared in the file named for it.',
+      ],
     ]);
   });
 });

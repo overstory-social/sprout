@@ -4,10 +4,3 @@ world property_two_origins is sprout.World {
 
   object composing_room is Room
 }
-
-// Where visitors arrive.
-kind Room {
-  contains actors
-}
-
-kind Creature is sprout.Visitor { }

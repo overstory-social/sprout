@@ -11,6 +11,4 @@ world move_world is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb shake { role target  role tool  "shake [target] with [tool]" }

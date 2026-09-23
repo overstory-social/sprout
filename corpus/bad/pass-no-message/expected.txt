@@ -1,4 +1,4 @@
-kinds.sprout:4:8  `pass` names a message, with its colon, or `any` for every message it does not name.
+crate.sprout:4:8  `pass` names a message, with its colon, or `any` for every message it does not name.
                   Write `pass :open (…)` or `pass any (…)`, as in `pass any (self.get(:open))`.
 
 refused: 1 problem

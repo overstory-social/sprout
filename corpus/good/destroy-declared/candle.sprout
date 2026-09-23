@@ -1,0 +1,3 @@
+kind Candle {
+  as target for burn { do { say "The candle gutters out."  destroy self } }
+}

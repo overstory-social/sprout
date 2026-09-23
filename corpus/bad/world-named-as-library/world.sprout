@@ -7,5 +7,3 @@ world world_named_as_library is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

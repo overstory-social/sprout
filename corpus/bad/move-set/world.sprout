@@ -6,6 +6,4 @@ world move_set is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb sort { role target  role pieces many  "sort [pieces] into [target]" }

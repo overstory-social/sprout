@@ -7,5 +7,3 @@ world remembers_unclosed_before_member is sprout.World {
   object hall is sprout.Place
   :greeting "hello"
 }
-
-kind Creature is sprout.Visitor { }

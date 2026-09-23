@@ -1,0 +1,4 @@
+kind Door {
+  on :spawned (from) { send from creak }
+  on :creak { }
+}

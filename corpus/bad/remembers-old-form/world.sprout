@@ -8,5 +8,3 @@ world remembers_old_form is sprout.World {
     :remembers [handled: false, visits: 0 min 0 max 99]
   }
 }
-
-kind Creature is sprout.Visitor { }

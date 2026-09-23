@@ -1,7 +1,7 @@
-kinds.sprout:5:11  `act nuzzle` leaves out `target`, the role it is done to, which every reading fills.
-                   Name it: `act nuzzle (target: <what fills it>)`.
+cat.sprout:5:11  `act nuzzle` leaves out `target`, the role it is done to, which every reading fills.
+                 Name it: `act nuzzle (target: <what fills it>)`.
 
-kinds.sprout:5:19  `nuzzle` has no role `tagret`. Its role is `target`.
-                   Name one of them, as in `act nuzzle (target: actor)`.
+cat.sprout:5:19  `nuzzle` has no role `tagret`. Its role is `target`.
+                 Name one of them, as in `act nuzzle (target: actor)`.
 
 refused: 2 problems

@@ -1,4 +1,4 @@
-kinds.sprout:6:8  `if` needs a condition in brackets.
+crate.sprout:6:8  `if` needs a condition in brackets.
                   Write `if (<condition>) { … }`, as in `if (self.count >= 8) { … }`.
 
 refused: 1 problem

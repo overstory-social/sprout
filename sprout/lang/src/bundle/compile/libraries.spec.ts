@@ -20,11 +20,12 @@ import { Report } from './report.js';
 import {
   file,
   MANIFEST,
+  PERSON,
   refusals,
-  ROOT,
   SPROUT_SHA,
   warnings,
   world,
+  WORLD_LINE,
 } from '../../fixtures/compile.js';
 
 const SHA = libraryHash(STANDARD_LIBRARY);
@@ -264,7 +265,7 @@ describe('the manifest records every library by version and by the hash of its s
   });
 
   it('lets a library and the world share a file name, since they are different source', () => {
-    const files = [file('ward.sprout', `${ROOT}\nenum Mine { one }`)];
+    const files = [file('ward.sprout', `${WORLD_LINE}\nenum Mine { one }`), PERSON];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 });

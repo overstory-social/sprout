@@ -6,5 +6,3 @@ world path_world_inside is sprout.World {
     object jar is Jar
   }
 }
-
-kind Person is sprout.Visitor { }

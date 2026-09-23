@@ -3,5 +3,3 @@ world default_dot_misplaced is sprout.World {
   visitors arrive at hall
   :wear integer.3
 }
-
-kind Creature is sprout.Visitor { }

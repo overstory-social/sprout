@@ -1,0 +1,5 @@
+// A lock rusted open at the plate: `Lockable`'s refusal and bolt are left
+// out, and `Warded`'s ward still runs.
+kind Rusted is Warded {
+  without as target for unlock from Lockable
+}

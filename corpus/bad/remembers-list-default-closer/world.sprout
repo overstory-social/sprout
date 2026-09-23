@@ -8,5 +8,3 @@ world remembers_list_default_closer is sprout.World {
   remembers { :echo [oak] faulty "x" }
   :greeting "hello"
 }
-
-kind Creature is sprout.Visitor { }

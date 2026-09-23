@@ -1,10 +1,10 @@
-world.sprout:4:31   A world composes its kinds with `is`, not a colon.
-                    Write `world kind_composes_with_colon is sprout.World { … }`.
+creature.sprout:1:14  A kind composes its kinds with `is`, not a colon.
+                      Write `kind Creature is sprout.Visitor, Fragile { … }`.
 
-world.sprout:8:24   An object composes its kinds with `is`, not a colon.
-                    Write `object composing_room is sprout.Place { … }`.
+world.sprout:4:31     A world composes its kinds with `is`, not a colon.
+                      Write `world kind_composes_with_colon is sprout.World { … }`.
 
-world.sprout:11:14  A kind composes its kinds with `is`, not a colon.
-                    Write `kind Creature is sprout.Visitor, Fragile { … }`.
+world.sprout:8:24     An object composes its kinds with `is`, not a colon.
+                      Write `object composing_room is sprout.Place { … }`.
 
 refused: 3 problems

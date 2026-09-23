@@ -26,10 +26,15 @@ import {
 
 describe('the corpus world `good/roles`', () => {
   const folder = join(dirname(fileURLToPath(import.meta.url)), '../../../../../corpus/good/roles');
-  const ROLES = compiledWorld('roles', {
-    'world.sprout': readFileSync(join(folder, 'world.sprout'), 'utf8'),
-    'kinds.sprout': readFileSync(join(folder, 'kinds.sprout'), 'utf8'),
-  });
+  const manifest = JSON.parse(readFileSync(join(folder, 'sprout.json'), 'utf8')) as {
+    files: string[];
+  };
+  const ROLES = compiledWorld(
+    'roles',
+    Object.fromEntries(
+      manifest.files.map((name) => [name, readFileSync(join(folder, name), 'utf8')]),
+    ),
+  );
   const ROLES_HALL = declaredId('roles', ['hall']);
   const thing = (name: string): InstanceId => declaredId('roles', ['hall', name]);
   const [LEVER, DOOR, GATE, CORPUS_KEY, CORPUS_GUARD] = [

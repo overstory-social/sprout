@@ -1,0 +1,8 @@
+kind Key {
+  :opens [Ward] default [oak]
+
+  as tool for unlock {
+    target from :opens
+    do { }
+  }
+}

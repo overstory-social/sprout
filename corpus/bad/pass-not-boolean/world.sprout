@@ -4,5 +4,3 @@ world pass_not_boolean is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Person is sprout.Visitor { }

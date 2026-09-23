@@ -9,5 +9,3 @@ world arrival_world_in_path is sprout.World {
     object nook is Room
   }
 }
-
-kind Creature is sprout.Visitor { }

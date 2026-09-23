@@ -21,7 +21,15 @@ import { locationOf, SourceFile } from '../../source/source.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import { oneWorld, worldKinds } from './world.js';
-import { file, HALL, refusals, ROOT, warnings, WORLD_LINE, world } from '../../fixtures/compile.js';
+import {
+  file,
+  HALL,
+  refusals,
+  warnings,
+  WORLD_LINE,
+  world,
+  worldFiles,
+} from '../../fixtures/compile.js';
 
 const MANIFEST = new SourceFile('sprout.json', '{\n  "name": "shop"\n}\n');
 
@@ -228,7 +236,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   });
 
   it('refuses two `world` declarations at publish, at the second’s name', () => {
-    const files = [file('world.sprout', `${ROOT}\n${WORLD_LINE}`)];
+    const files = worldFiles(`${WORLD_LINE}\n${WORLD_LINE}`);
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     const problem = refusals(diagnostics)[0]!;
@@ -321,7 +329,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   });
 
   it('is a gap at load when there are two `world` declarations, and still produces a bundle', () => {
-    const files = [file('world.sprout', `${ROOT}\n${WORLD_LINE}`)];
+    const files = worldFiles(`${WORLD_LINE}\n${WORLD_LINE}`);
     const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
     expect(bundle).not.toBeNull();
     expect(refusals(diagnostics)).toEqual([]);
@@ -384,11 +392,11 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
           '    object ghost is Creature',
           '  }',
           '}',
-          'kind Creature is sprout.Actor { }',
-          'kind Person is Creature, sprout.Visitor { }',
-          'kind Cat is Creature { }',
         ].join('\n'),
       ),
+      file('creature.sprout', 'kind Creature is sprout.Actor { }'),
+      file('person.sprout', 'kind Person is Creature, sprout.Visitor { }'),
+      file('cat.sprout', 'kind Cat is Creature { }'),
     ];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(diagnostics).toEqual([]);
@@ -409,8 +417,9 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
     const files = [
       file(
         'world.sprout',
-        `world printers_shop is sprout.World { visitors are Basket visitors arrive at hall ${HALL} }\nkind Basket { contains }`,
+        `world printers_shop is sprout.World { visitors are Basket visitors arrive at hall ${HALL} }`,
       ),
+      file('basket.sprout', 'kind Basket { contains }'),
     ];
     for (const mode of ['publish', 'load'] as const) {
       const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
@@ -425,15 +434,15 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
   });
 
   it('runs a world whose visitor kind is absent at load, admitting no one', () => {
-    const files = [file('world.sprout', WORLD_LINE), file('people.sprout', VISITOR)];
-    const { bundle, diagnostics } = compileBundle(world({ files, withheld: ['people.sprout'] }), {
+    const files = worldFiles(WORLD_LINE);
+    const { bundle, diagnostics } = compileBundle(world({ files, withheld: ['person.sprout'] }), {
       mode: 'load',
     });
     expect(refusals(diagnostics)).toEqual([]);
     expect(bundle!.visitor).toBeNull();
     expect(bundle!.world).not.toBeNull();
     expect(bundle!.absent.map((a) => [a.what, a.kind])).toEqual([
-      ['people.sprout', 'file'],
+      ['person.sprout', 'file'],
       ['Person', 'visitor-kind'],
     ]);
   });

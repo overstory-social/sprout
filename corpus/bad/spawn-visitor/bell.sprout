@@ -1,0 +1,10 @@
+// Nothing spawns a visitor either: a porter the bell summons is an NPC,
+// made of `Creature`, which the people here share with it.
+kind Bell {
+  as target for ring {
+    do {
+      spawn Creature in here
+      spawn Person in here
+    }
+  }
+}

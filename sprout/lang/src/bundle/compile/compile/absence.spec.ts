@@ -16,12 +16,14 @@ import { locationOf } from '../../../source/source.js';
 import {
   file,
   OWN_BYTES,
+  PERSON,
   refusals,
-  ROOT,
-  rootWith,
   warnings,
+  WORLD_LINE,
   WORLD_TEXT,
   world,
+  worldFiles,
+  worldLine,
 } from '../../../fixtures/compile.js';
 
 describe('loading is lenient: what is missing reads as absent and the rest runs', () => {
@@ -52,9 +54,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world with a kind in a composition that is not there, and its object is absent', () => {
-    const files = [
-      file('world.sprout', `${rootWith('object box is Crate {\n  object tin is sprout.Ward\n}')}`),
-    ];
+    const files = worldFiles(worldLine('object box is Crate {\n  object tin is sprout.Ward\n}'));
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
     expect(loaded.bundle!.objects.map((o) => o.name)).toEqual(['hall']);
@@ -79,9 +79,9 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world with a kind in a role that is not there, and the role fills nothing', () => {
-    const files = [
-      file('world.sprout', `${ROOT}\nverb unlock { role target: Lockabel  "unlock [target]" }`),
-    ];
+    const files = worldFiles(
+      `${WORLD_LINE}\nverb unlock { role target: Lockabel  "unlock [target]" }`,
+    );
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
@@ -102,12 +102,9 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('says a role’s kind is absent only once where its library did not travel', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `${ROOT}\nverb give { role item  role recipient: sprout.Actor  "give [item] to [recipient]" }`,
-      ),
-    ];
+    const files = worldFiles(
+      `${WORLD_LINE}\nverb give { role item  role recipient: sprout.Actor  "give [item] to [recipient]" }`,
+    );
     // At publish the library's absence is the one problem, said at the manifest.
     const published = compileBundle(world({ files, libraries: [] }));
     expect(published.bundle).toBeNull();
@@ -122,12 +119,10 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('refuses an object in what holds nothing at load as at publish, since nothing is missing', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `${rootWith('object a is Plank { object b is Plank }')}\nkind Plank { }`,
-      ),
-    ];
+    const files = worldFiles(
+      worldLine('object a is Plank { object b is Plank }'),
+      'kind Plank { }',
+    );
     for (const mode of ['load', 'publish'] as const) {
       const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
       expect(bundle, mode).toBeNull();
@@ -147,7 +142,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect(bundle).not.toBeNull();
     expect(bundle!.absent[0]).toMatchObject({ what: 'sprout', reason: 'mismatched' });
     expect(bundle!.libraries).toEqual([]);
-    expect(bundle!.size.sourceBytes).toBe(WORLD_TEXT.length);
+    expect(bundle!.size.sourceBytes).toBe(OWN_BYTES);
   });
 
   it('says so, so the gap is visible rather than swallowed', () => {
@@ -161,7 +156,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world with a file withheld, and keeps the objects’ state', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const { bundle } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), load);
     expect(bundle).not.toBeNull();
     expect(bundle!.absent[0]).toMatchObject({ what: 'kiln.sprout', reason: 'withheld' });
@@ -169,7 +164,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('does not call a withheld file missing as well, since it is one gap and not two', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const { bundle } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), load);
     expect(bundle!.absent.map((a) => a.reason)).toEqual(['withheld']);
   });
@@ -184,7 +179,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world one of whose files does not compile, and names the file', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('b.sprout', '%')];
+    const files = [...worldFiles(WORLD_TEXT), file('b.sprout', '%')];
     const { bundle, diagnostics } = compileBundle(world({ files }), load);
     expect(bundle).not.toBeNull();
     expect(bundle!.absent).toHaveLength(1);
@@ -194,14 +189,18 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('keeps what a broken file had to say, as warnings, so a moderator sees why', () => {
-    const files = [file('b.sprout', '% ; %'), file('world.sprout', ROOT)];
+    const files = [file('b.sprout', '% ; %'), ...worldFiles(WORLD_LINE)];
     const { diagnostics } = compileBundle(world({ files }), load);
     expect(warnings(diagnostics)).toHaveLength(3);
     expect(diagnostics.every((d) => d.severity === 'warning')).toBe(true);
   });
 
   it('leaves the files that do compile alone', () => {
-    const files = [file('good.sprout', `${ROOT}\nenum Good { yes }`), file('bad.sprout', '%')];
+    const files = [
+      file('good.sprout', `${WORLD_LINE}\nenum Good { yes }`),
+      PERSON,
+      file('bad.sprout', '%'),
+    ];
     const { bundle } = compileBundle(world({ files }), load);
     expect(bundle!.absent.map((a) => a.what)).toEqual(['bad.sprout']);
   });
@@ -231,8 +230,11 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('warns rather than refuses about a file the manifest does not name', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
-    const { bundle } = compileBundle(world({ files, manifest: { files: ['world.sprout'] } }), load);
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const { bundle } = compileBundle(
+      world({ files, manifest: { files: ['world.sprout', 'person.sprout'] } }),
+      load,
+    );
     expect(bundle).not.toBeNull();
   });
 
@@ -250,7 +252,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('hashes the source that actually arrived, a withheld file not among it', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const whole = compileBundle(world({ files }), load).bundle!;
     const held = compileBundle(world({ files, withheld: ['kiln.sprout'] }), load).bundle!;
     expect(held.hash).not.toBe(whole.hash);
@@ -267,14 +269,15 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
 describe('a gap is said in whole sentences, and still says what to do about it', () => {
   it('starts the consequence with a capital, since it is a sentence and not a table cell', () => {
     const { diagnostics } = compileBundle(world({ libraries: [] }), { mode: 'load' });
-    expect(diagnostics[0]!.message).toBe(
+    const atManifest = diagnostics.find((d) => d.at.source.name === 'sprout.json')!;
+    expect(atManifest.message).toBe(
       'This world uses the library "sprout", and its source did not travel with it. ' +
         'Every kind, enum, verb and message it holds reads as absent.',
     );
   });
 
   it('keeps the remedy, which a moderator reading a withheld world still needs', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const { diagnostics } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), {
       mode: 'load',
     });
