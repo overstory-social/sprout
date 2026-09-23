@@ -1,3 +1,7 @@
+// The manifest's own fields and the shapes they take (the spec's Bundles ›
+// The manifest): a name, a version, what it says about the world, and
+// where a problem in it is said to be.
+
 import { describe, expect, it } from 'vitest';
 
 import type { Manifest, MicroworldSource } from '../bundle.js';

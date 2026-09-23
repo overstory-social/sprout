@@ -1,3 +1,7 @@
+// A world's files are the ones its manifest names, and every one of them
+// is read (the spec's Bundles › Files): a file the manifest leaves out is
+// not the world's, and one it names that did not travel reads as absent.
+
 import { describe, expect, it } from 'vitest';
 
 import type { Manifest, MicroworldSource } from '../bundle.js';

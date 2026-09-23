@@ -1,3 +1,7 @@
+// Where visitors arrive, as `compileBundle` records it from the world's one
+// declaration (the spec's The world model › Visitors), and what is said when
+// the place is missing, unknown or not a place.
+
 import { describe, expect, it } from 'vitest';
 
 import type { Declaration, WorldDeclaration } from '../../syntax/ast.js';

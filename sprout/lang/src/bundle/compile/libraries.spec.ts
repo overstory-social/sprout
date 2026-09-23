@@ -1,3 +1,8 @@
+// Libraries as the manifest records them, by version and by the hash of
+// their source (the spec's Kinds › Libraries and namespaces): a library is
+// used when what travelled is what was recorded, and the bundle notes
+// whether the host blessed each hash.
+
 import { describe, expect, it } from 'vitest';
 
 import {

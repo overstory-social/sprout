@@ -1,3 +1,7 @@
+// The one `world` declaration a bundle holds, named as the manifest, and
+// what the world and its visitors are made of (the spec's The world model,
+// Actors and visitors).
+
 import { describe, expect, it } from 'vitest';
 
 import type { Declaration, WorldDeclaration } from '../../syntax/ast.js';

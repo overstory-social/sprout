@@ -1,3 +1,8 @@
+// What a bundle weighs against the host's limits and which level it is
+// accepted at (the spec's Limits): blessed library source costs the author
+// nothing, a fork costs them everything, and the level is the highest of
+// any part's.
+
 import { describe, expect, it } from 'vitest';
 
 import {

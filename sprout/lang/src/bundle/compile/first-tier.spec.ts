@@ -1,3 +1,7 @@
+// The first tier, which reads each file alone for its shape before the
+// bundle is closed (the spec's Two tiers), over the world's files and its
+// libraries alike; a library file that will not compile reads as absent.
+
 import { describe, expect, it } from 'vitest';
 
 import { STANDARD_LIBRARY } from '../standard-library.js';
