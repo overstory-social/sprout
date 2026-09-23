@@ -1,0 +1,4 @@
+kinds.sprout:7:5  `say` has nobody to speak to inside `accept`.
+                  It belongs in a role's `do`.
+
+refused: 1 problem

@@ -7,13 +7,14 @@
 // returns a list of findings (empty means the rule held) and the calling
 // spec `expect`s it.
 
-import type {
-  Declaration,
-  KindDeclaration,
-  ObjectDeclaration,
-  VerbDeclaration,
-  WorldDeclaration,
-  WorldMember,
+import {
+  writtenMember,
+  type Declaration,
+  type KindDeclaration,
+  type ObjectDeclaration,
+  type VerbDeclaration,
+  type WorldDeclaration,
+  type WorldMember,
 } from '../syntax/ast.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { DEEPEST } from '../syntax/parse.js';
@@ -41,7 +42,10 @@ export const ownedBy = (owner: Owner, declared: readonly Declaration[]) =>
     (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration => d.kind === owner.kind,
   );
 
-/** A world member by what it would be looked up as, a `:remembers` by each entry, a guard by its word. */
+/**
+ * A world member by what it would be looked up as, a `:remembers` by each
+ * entry, a guard by its word, a play by its head.
+ */
 export const memberNames = (member: WorldMember): string[] =>
   member.kind === 'property'
     ? [member.name.text]
@@ -49,7 +53,9 @@ export const memberNames = (member: WorldMember): string[] =>
       ? member.properties.map((p) => `remembers.${p.name.text}`)
       : member.kind === 'guard'
         ? [member.guard]
-        : [member.kind];
+        : member.kind === 'play'
+          ? [writtenMember(member.head)]
+          : [member.kind];
 
 /**
  * The three guards, written well, each with a block that holds a block:
@@ -88,7 +94,7 @@ export const GUARD_DEFECTS: readonly string[] = [
   'depart (to) { if (a) allow }',
   'depart (to) { else { allow } }',
   'depart (to) { if (a) { allow } else }',
-  'accept (item, from) { say "Hello." }',
+  'accept (item, from) { tell "Hello." }',
   'accept (item, from) { if (a) { allow } %% allow }',
 ];
 

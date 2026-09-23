@@ -51,8 +51,9 @@ describe('where types come from — the table, row by row', () => {
     expect(self.origin).toBe('self');
   });
 
-  it('`actor` — the world’s visitor kind', () => {
+  it('`actor` — the world’s visitor kind, or an object where the world names none', () => {
     expect(actorBinding(VISITOR, at('actor')).type).toEqual(objectOf(VISITOR));
+    expect(actorBinding(null, at('actor')).type).toEqual(OPEN_OBJECT);
   });
 
   it('`here` — object; the actor’s place', () => {

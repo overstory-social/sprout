@@ -12,9 +12,10 @@
 // keeps the type. `contains` and `contains actors` are idempotent, so
 // they are OR'd over the closure. A passage is one per name, which
 // `passages.ts` resolves: the composer's own, else the one source that
-// is not `default`, else the one default. Guards all run, in closure
-// order less what `without` leaves out, which `guards.ts` resolves; a
-// suppression travels to every kind that composes the one that wrote it.
+// is not `default`, else the one default. Guards and plays all run, in
+// closure order less what `without` leaves out, which `guards.ts` and
+// `roles.ts` resolve; a suppression travels to every kind that composes
+// the one that wrote it.
 
 import {
   writtenMember,
@@ -37,6 +38,14 @@ import {
 import { identicalType, showType } from './types.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
 import { composeGuards, ownGuards, writesGuard } from './guards.js';
+import {
+  composePlays,
+  ownPlays,
+  VerbNames,
+  writesPlay,
+  type OnUnknownVerb,
+  type VerbIdentity,
+} from './roles.js';
 
 /** What looking up a composed kind finds. */
 export type Found =
@@ -80,6 +89,9 @@ export interface ComposeContext {
   readonly kinds: KindSource;
   readonly diagnostics: Diagnostics;
   readonly onUnknown?: OnUnknown;
+  /** The verbs a play may name; with none, every play names a verb nothing declares. */
+  readonly verbs?: VerbNames;
+  readonly onUnknownVerb?: OnUnknownVerb;
 }
 
 /**
@@ -277,8 +289,13 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   // through it is gone and the same contribution reaching here by another
   // path is not: a `without` removes the copy that came through the kind
   // that wrote it.
+  const verbs = context.verbs ?? new VerbNames();
+  const reach = (verb: string): VerbIdentity | null => {
+    const found = verbs.unqualified(verb, composer.library);
+    return found === null ? null : { library: found.library, name: found.declaration.name.text };
+  };
   const suppressed: Suppression[] = [];
-  for (const one of leftOut(composer, withouts, order, context)) {
+  for (const one of leftOut(composer, withouts, order, reach, context)) {
     if (!suppressed.some((other) => sameSuppression(one, other))) suppressed.push(one);
   }
 
@@ -288,6 +305,19 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     order,
     suppressed,
     ownGuards(composer.name, composer.members, own, diagnostics),
+  );
+
+  // --- plays, every one of each role, in closure order ------------------
+  const plays = composePlays(
+    composed.map(({ kind }) => kind.plays),
+    order,
+    suppressed,
+    ownPlays(composer, composer.members, own, merged, {
+      verbs,
+      diagnostics,
+      ...(context.onUnknownVerb === undefined ? {} : { onUnknownVerb: context.onUnknownVerb }),
+    }),
+    reach,
   );
   order.push(own);
 
@@ -299,6 +329,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     properties: merged,
     passages,
     guards,
+    plays,
     contains: contains || containsActors,
     containsActors,
     suppressed,
@@ -315,6 +346,7 @@ function leftOut(
   composer: Composer,
   withouts: readonly WithoutDeclaration[],
   composed: readonly string[],
+  reach: (verb: string) => VerbIdentity | null,
   context: ComposeContext,
 ): Suppression[] {
   const { kinds, diagnostics } = context;
@@ -350,7 +382,7 @@ function leftOut(
       );
       continue;
     }
-    if (!declaresMember(identity, member, kinds)) {
+    if (!declaresMember(identity, member, kinds, reach)) {
       diagnostics.refuse(
         member.at,
         `\`${named}\` has no \`${what}\` to leave out.`,
@@ -365,13 +397,22 @@ function leftOut(
 
 /**
  * Whether the kind `identity`, composed already, itself declares
- * `member`. Guards are the only such member read yet: B24 reads roles,
- * and B32 handlers and hooks.
+ * `member`, a play's verb read as `reach` reads it. Guards and plays are
+ * the members read yet; B32 reads handlers and hooks.
  */
-function declaresMember(identity: string, member: MemberRef, kinds: KindSource): boolean {
-  if (member.kind !== 'guard-ref') return false;
+function declaresMember(
+  identity: string,
+  member: MemberRef,
+  kinds: KindSource,
+  reach: (verb: string) => VerbIdentity | null,
+): boolean {
   const found = kinds.find(identity);
-  return found.found === 'kind' && writesGuard(found.kind.guards, member.guard, identity);
+  if (found.found !== 'kind') return false;
+  if (member.kind === 'guard-ref') return writesGuard(found.kind.guards, member.guard, identity);
+  if (member.kind !== 'role-ref') return false;
+  const verb = reach(member.verb.text);
+  if (verb === null) return false;
+  return writesPlay(found.kind.plays, verb.library, verb.name, member.role.text, identity);
 }
 
 /** Whether two suppressions leave out the same member of the same kind. */

@@ -28,6 +28,8 @@ export interface CheckContext {
    */
   readonly self: KindRef | null;
   readonly diagnostics: Diagnostics;
+  /** The verb a body plays a role in, by name, where it plays one: what `bound` asks about. */
+  readonly verb?: string;
 }
 
 /** A context that can type an expression it meets on the way, by the walk it was made with. */
@@ -46,6 +48,7 @@ export function checkerOf(
     from: context.from,
     self: context.self,
     diagnostics: context.diagnostics,
+    ...(context.verb === undefined ? {} : { verb: context.verb }),
     typeOf: (expr) => walk(expr, checker),
   };
   return checker;

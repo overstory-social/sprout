@@ -282,6 +282,52 @@ describe('a kind nothing declares, named in a role, is the absent table’s `kin
   });
 });
 
+describe('a verb nothing declares, named in a play, is the absent table’s `verb` row', () => {
+  it('is a gap at the verb as written, in a kind and an object alike, and the play is dropped', () => {
+    const report = loading();
+    const { kinds, composed, verbNames } = resolveDeclarations(
+      byLibrary({
+        sprout: 'verb take { role target  "take [target]" }',
+        shop: `verb pull { role target  "pull [target]" }
+kind Lever { as target for pul { do { } }  as target for pull { do { } } }
+object handle: Lever in shop { as target for tug { do { } } }`,
+      }),
+      SHOP,
+      report,
+    );
+    expect(
+      report.gaps.map(({ absent, message }) => [
+        absent.what,
+        absent.kind,
+        locationOf(absent.at!),
+        absent.consequence,
+        message,
+      ]),
+    ).toEqual([
+      [
+        'pul',
+        'verb',
+        'shop.sprout:2:28',
+        'its readings do not parse, and `act` of it does nothing',
+        '`Lever` plays `target` for `pul`, and nothing declares that verb. Did you mean `pull`?',
+      ],
+      [
+        'tug',
+        'verb',
+        'shop.sprout:3:46',
+        'its readings do not parse, and `act` of it does nothing',
+        '`handle` plays `target` for `tug`, and nothing declares that verb.',
+      ],
+    ]);
+    expect(report.diagnostics.all).toEqual([]);
+    expect([...kinds.qualified('shop', 'Lever')!.plays.keys()]).toEqual([
+      'as target for shop.pull',
+    ]);
+    expect([...composed[0]!.kind!.plays.keys()]).toEqual(['as target for shop.pull']);
+    expect(verbNames.unqualified('take', 'shop')!.library).toBe('sprout');
+  });
+});
+
 describe('a container nothing answers to is the absent table’s `container` row', () => {
   it('is a gap at the step, the object is absent, and what it holds goes unsaid', () => {
     const report = loading();

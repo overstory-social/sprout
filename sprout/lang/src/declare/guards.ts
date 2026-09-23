@@ -3,16 +3,14 @@
 // "`depart` / `release` / `accept`: all run; any refusal decides";
 // Consent under composition; Suppressing a contribution).
 //
-// Guards compose conjunctively: every contribution runs, in the order its
-// source appears in the closure, the composer's own last. One origin
-// reached by several paths contributes once. A `without` leaves one
-// origin's guard out of the kind that wrote it and so out of every kind
-// that reaches that origin through it; the same guard reaching a composer
-// by another path still runs.
+// Guards compose conjunctively, as `contributions.ts` combines every
+// composable member: each origin's runs once, in closure order, the
+// composer's own last, less what a `without` leaves out.
 
 import type { GuardDeclaration, GuardName, KindMember } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Suppression } from './kinds.js';
+import { composeContributions } from './contributions.js';
 
 /** One kind's guard, as a composed kind runs it. */
 export interface ResolvedGuard {
@@ -70,19 +68,14 @@ export function composeGuards(
   suppressed: readonly Suppression[],
   own: ReadonlyMap<GuardName, ResolvedGuard>,
 ): Guards {
-  const runs = (name: GuardName): ResolvedGuard[] => {
-    const arrived = new Map<string, ResolvedGuard>();
-    for (const guards of composed) {
-      for (const guard of guards[name]) {
-        if (!arrived.has(guard.origin)) arrived.set(guard.origin, guard);
-      }
-    }
-    const left = [...arrived.values()]
-      .filter((guard) => !suppressed.some((one) => leavesOut(one, name, guard.origin)))
-      .sort((a, b) => order.indexOf(a.origin) - order.indexOf(b.origin));
-    const mine = own.get(name);
-    return mine === undefined ? left : [...left, mine];
-  };
+  const runs = (name: GuardName): ResolvedGuard[] =>
+    composeContributions(
+      composed.map((guards) => guards[name]),
+      order,
+      suppressed,
+      own.get(name),
+      (suppression, guard) => leavesOut(suppression, name, guard.origin),
+    );
   return { depart: runs('depart'), release: runs('release'), accept: runs('accept') };
 }
 

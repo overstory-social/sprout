@@ -1,0 +1,7 @@
+world say_in_guard: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at say_in_guard
+}
+
+kind Visitor: sprout.Actor { }

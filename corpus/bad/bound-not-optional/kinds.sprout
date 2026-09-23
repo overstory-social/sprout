@@ -1,0 +1,9 @@
+// Every phrase of `unlock` fills its target, so there is nothing for
+// `bound` to ask about it.
+kind Key {
+  as tool for unlock {
+    permit {
+      if (bound target) { allow }
+    }
+  }
+}

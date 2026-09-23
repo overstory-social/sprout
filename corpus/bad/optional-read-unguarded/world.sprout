@@ -1,0 +1,14 @@
+world optional_read_unguarded: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at optional_read_unguarded
+}
+
+kind Visitor: sprout.Actor { }
+
+verb unlock {
+  role target
+  role tool
+  "unlock [target] with [tool]"
+  "unlock [target]"
+}

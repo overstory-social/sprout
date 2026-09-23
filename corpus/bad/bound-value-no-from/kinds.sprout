@@ -1,0 +1,9 @@
+// A topic is bound only to the options this guard hears, and with no
+// `from` it hears none.
+kind Guard {
+  as target for ask {
+    do {
+      if (bound topic) { say "Ah, that." }
+    }
+  }
+}

@@ -129,8 +129,7 @@ export function compileBundle(
       ...tables.composed.flatMap(({ kind }) => (kind === null ? [] : [kind])),
       ...(world === null ? [] : [world]),
     ],
-    tables.kinds,
-    report.diagnostics,
+    { kinds: tables.kinds, verbs: tables.verbs, visitor, diagnostics: report.diagnostics },
   );
 
   // The kinds, objects and places caps count what resolved, on the same

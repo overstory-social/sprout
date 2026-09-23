@@ -24,9 +24,10 @@
 //
 // Checking an expression against these bindings is `check.ts`'s, and
 // its `let` calls `letBinding` below, and a guard's body
-// `moverBinding` and `guardParameterBinding`; a body playing a role is
-// B24's, and calls `roleBinding` with the filler `declare/verbs.ts`
-// resolved; handlers and hooks are B32's, and call `handlerParameters`.
+// `moverBinding` and `guardParameterBinding`; a body playing a role calls
+// `roleBinding` with the filler `declare/verbs.ts` resolved, and
+// withholds the tools that may be missing (`Withheld`); handlers and
+// hooks are B32's, and call `handlerParameters`.
 
 import type { Ident } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -34,6 +35,7 @@ import type { KindRef } from '../declare/kinds.js';
 import { kindName } from '../declare/kinds.js';
 import type { DeclaredMessage } from '../declare/messages.js';
 import type { RoleFiller } from '../declare/verbs.js';
+import type { RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
 import { integer, showType, type ValueType } from '../declare/types.js';
@@ -163,9 +165,12 @@ export function selfBinding(kind: KindRef, at: Span): Binding {
   return bind('self', objectOf(kind), 'self', at, true);
 }
 
-/** `actor` — the world's visitor kind. */
-export function actorBinding(visitor: KindRef, at: Span): Binding {
-  return bind('actor', objectOf(visitor), 'actor', at);
+/**
+ * `actor` — the world's visitor kind, or an object where the world has
+ * none to name, which has been said where the world is declared.
+ */
+export function actorBinding(visitor: KindRef | null, at: Span): Binding {
+  return bind('actor', visitor === null ? OPEN_OBJECT : objectOf(visitor), 'actor', at);
 }
 
 /** `here` — object; the actor's place. */
@@ -225,19 +230,6 @@ export function letBinding(name: string, type: BindingType, at: Span): Binding {
 }
 
 // --- roles ----------------------------------------------------------------
-
-/**
- * What a role-player's `from` narrows a value role by: a property it
- * declares, or a literal range.
- */
-export type RoleNarrowing =
-  | { readonly narrows: 'property'; readonly property: ResolvedProperty; readonly at: Span }
-  | {
-      readonly narrows: 'range';
-      readonly min: number;
-      readonly max: number;
-      readonly at: Span;
-    };
 
 /**
  * A role's binding inside a body that plays it, or null having said why.
@@ -432,6 +424,34 @@ export function engineParameters(message: EngineMessage, at: Span): Binding[] {
   );
 }
 
+// --- what a body may not read where it stands ------------------------------
+
+/** What is said about a name, as a refusal says it. */
+export interface Words {
+  readonly message: string;
+  readonly remedy: string;
+}
+
+/**
+ * A name a body has in scope and may not read where it stands (the
+ * spec's Optional tools; A role-player narrows its own options): a tool
+ * some reading leaves unbound, a value tool this role-player hears
+ * nothing for, or the role the body plays, which is `self`.
+ */
+export interface Withheld {
+  readonly name: string;
+  readonly at: Span;
+  /** What a read of it here is told. */
+  readonly unread: Words;
+  /**
+   * What `bound` asking about it finds: the binding it has inside
+   * `if (bound …)`, or, where it can never be bound, what asking is told.
+   */
+  readonly bound:
+    | { readonly bindable: true; readonly binding: Binding }
+    | { readonly bindable: false; readonly words: Words };
+}
+
 // --- scope ----------------------------------------------------------------
 
 /**
@@ -445,6 +465,7 @@ export function engineParameters(message: EngineMessage, at: Span): Binding[] {
  */
 export class Scope {
   private readonly bindings = new Map<string, Binding>();
+  private readonly withholding = new Map<string, Withheld>();
 
   private constructor(private readonly parent: Scope | null) {}
 
@@ -464,17 +485,47 @@ export class Scope {
    * carries on knows which name means what.
    */
   introduce(binding: Binding, diagnostics: Diagnostics): boolean {
-    const before = this.lookup(binding.name);
-    if (before !== null) {
-      diagnostics.refuse(
-        binding.at,
-        `\`${binding.name}\` already names ${describeOrigin(before.origin)} here.`,
-        'Two things answering to one name is the opposite of what naming is for. Give this one another name.',
-      );
-      return false;
-    }
+    if (this.taken(binding.name, binding.at, diagnostics)) return false;
     this.bindings.set(binding.name, binding);
     return true;
+  }
+
+  /**
+   * Bring a name into scope that may not be read where it stands, or
+   * refuse it as shadowing, as `introduce` does.
+   */
+  withhold(withheld: Withheld, diagnostics: Diagnostics): boolean {
+    if (this.taken(withheld.name, withheld.at, diagnostics)) return false;
+    this.withholding.set(withheld.name, withheld);
+    return true;
+  }
+
+  /** Whether something here already answers to `name`, said at `at` where it does. */
+  private taken(name: string, at: Span, diagnostics: Diagnostics): boolean {
+    const before = this.lookup(name);
+    const origin = before?.origin ?? (this.withheld(name) === null ? null : 'role');
+    if (origin === null) return false;
+    diagnostics.refuse(
+      at,
+      `\`${name}\` already names ${describeOrigin(origin)} here.`,
+      'Two things answering to one name is the opposite of what naming is for. Give this one another name.',
+    );
+    return true;
+  }
+
+  /**
+   * What a name that may not be read here is, looking outward, or null
+   * where it is not one. A branch `bounding` opened reads it through
+   * `lookup` instead.
+   */
+  withheld(name: string): Withheld | null {
+    const own = this.withholding.get(name);
+    if (own !== undefined) return own;
+    for (let scope = this.parent; scope !== null; scope = scope.parent) {
+      const found = scope.withholding.get(name);
+      if (found !== undefined) return found;
+    }
+    return null;
   }
 
   /**
@@ -521,6 +572,17 @@ export class Scope {
   narrowing(binding: ObjectBinding, kind: KindRef): Scope {
     const branch = this.inner();
     branch.bindings.set(binding.name, { ...binding, type: objectOf(kind) });
+    return branch;
+  }
+
+  /**
+   * `if (bound tool) { … }` — the branch, where a tool some reading
+   * leaves unbound is known to be bound and is read as its role declares.
+   * Like `narrowing`, it says more about a name already here.
+   */
+  bounding(binding: Binding): Scope {
+    const branch = this.inner();
+    branch.bindings.set(binding.name, binding);
     return branch;
   }
 }

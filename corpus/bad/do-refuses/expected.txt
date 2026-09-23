@@ -1,0 +1,4 @@
+kinds.sprout:8:32  `refuse` decides, and a `do` acts.
+                   Move it to `permit`, where the deciding is done.
+
+refused: 1 problem

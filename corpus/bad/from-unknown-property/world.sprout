@@ -1,0 +1,7 @@
+world from_unknown_property: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at from_unknown_property
+}
+
+kind Visitor: sprout.Actor { }

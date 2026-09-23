@@ -1,0 +1,12 @@
+// One kind plays one role once: two `permit`s go in one play.
+kind Warded {
+  :sealed false
+
+  as target for unlock {
+    permit { if (self.get(:sealed)) { refuse "A ward shimmers across the plate." } }
+  }
+
+  as target for unlock {
+    do { self.set(:sealed, true) }
+  }
+}

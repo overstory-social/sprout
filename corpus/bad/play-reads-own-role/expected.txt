@@ -1,0 +1,4 @@
+kinds.sprout:8:11  `target` is `self` in `as target for pull`.
+                   Write `self`.
+
+refused: 1 problem

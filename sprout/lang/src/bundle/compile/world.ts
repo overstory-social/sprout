@@ -15,7 +15,7 @@ import { writtenKind } from '../../declare/compose.js';
 import { composeWorld, resolveVisitors } from '../../declare/world.js';
 import type { Span } from '../../source/source.js';
 import { absenceRule } from '../absent.js';
-import type { DeclarationTables } from '../declarations.js';
+import { unknownVerbGap, type DeclarationTables } from '../declarations.js';
 import { atKey } from './manifest-fields.js';
 import type { Report } from './report.js';
 
@@ -142,6 +142,8 @@ export function worldKinds(
   let told = false;
   const world = composeWorld(declared, {
     ...context,
+    verbs: tables.verbNames,
+    onUnknownVerb: unknownVerbGap(report),
     onUnknown: (written, message, remedy) => {
       told = true;
       gap('world', writtenKind(written), written.at, message, remedy);

@@ -8,14 +8,10 @@
 // package build leaves it out.
 
 import type { Ident } from '../syntax/ast.js';
-import {
-  isObjectBinding,
-  type Binding,
-  type ObjectBinding,
-  type RoleNarrowing,
-} from '../check/bindings.js';
+import { isObjectBinding, type Binding, type ObjectBinding } from '../check/bindings.js';
 import type { KindRef } from '../declare/kinds.js';
 import { NO_GUARDS } from '../declare/guards.js';
+import { NO_PLAYS, type RoleNarrowing } from '../declare/roles.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import type { DeclaredMessage } from '../declare/messages.js';
@@ -84,6 +80,7 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
     properties: new Map(),
     passages: new Map(),
     guards: NO_GUARDS,
+    plays: NO_PLAYS,
     contains: false,
     containsActors: false,
     suppressed: [],

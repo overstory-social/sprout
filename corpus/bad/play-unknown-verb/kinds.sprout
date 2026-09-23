@@ -1,0 +1,7 @@
+// A play names a verb the world or a library declares; this one is
+// misspelt.
+kind Warded {
+  as target for unlokc {
+    do { }
+  }
+}

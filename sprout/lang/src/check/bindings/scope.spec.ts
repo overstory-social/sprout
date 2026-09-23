@@ -307,3 +307,51 @@ describe('nothing ends without saying something', () => {
     }
   });
 });
+
+describe('a name withheld where it stands', () => {
+  const words = { message: '`tool` may be missing here.', remedy: 'Ask `bound tool` first.' };
+  const tool = () => roleBinding('tool', { fills: 'open' }, null, at('tool'), new Diagnostics())!;
+  const withheld = () => ({
+    name: 'tool',
+    at: at('tool'),
+    unread: words,
+    bound: { bindable: true as const, binding: tool() },
+  });
+
+  it('is not what `lookup` finds, and is found outward by `withheld`', () => {
+    const scope = Scope.root();
+    expect(scope.withhold(withheld(), new Diagnostics())).toBe(true);
+    const inner = scope.inner().inner();
+    expect(inner.lookup('tool')).toBeNull();
+    expect(inner.withheld('tool')!.unread).toBe(words);
+    expect(inner.names()).not.toContain('tool');
+  });
+
+  it('is bound in a branch `bounding` opens, and nowhere else', () => {
+    const scope = Scope.root();
+    scope.withhold(withheld(), new Diagnostics());
+    const branch = scope.bounding(tool());
+    expect(branch.lookup('tool')!.type).toEqual(OPEN_OBJECT);
+    expect(scope.lookup('tool')).toBeNull();
+  });
+
+  it('takes a name as a binding does: a second thing answering to it is refused, either way round', () => {
+    const scope = Scope.root();
+    scope.withhold(withheld(), new Diagnostics());
+    const said = new Diagnostics();
+    expect(scope.inner().introduce(letBinding('tool', valueOf(BOOLEAN), at('tool')), said)).toBe(
+      false,
+    );
+    expect(said.refusals.map((d) => d.message)).toEqual([
+      "`tool` already names this verb's role here.",
+    ]);
+
+    const other = Scope.root();
+    other.introduce(hereBinding(at('here')), new Diagnostics());
+    const again = new Diagnostics();
+    expect(other.withhold({ ...withheld(), name: 'here' }, again)).toBe(false);
+    expect(again.refusals.map((d) => d.message)).toEqual([
+      "`here` already names the actor's place here.",
+    ]);
+  });
+});
