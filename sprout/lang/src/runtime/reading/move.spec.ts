@@ -1,7 +1,8 @@
 // A `move` in a `do`: the messages and notices it hands on, a guard's
-// refusal and the engine's own said to the actor while the body goes on,
-// the order a body's effects keep, and the fault the compiler could not
-// foresee. The depot below is this file's own world.
+// refusal and the engine's own said to the actor, each ending the body
+// that ran the `move` and not the pass, the order a body's effects keep,
+// and the fault the compiler could not foresee. The depot below is this
+// file's own world.
 
 import { describe, expect, it } from 'vitest';
 
@@ -27,7 +28,9 @@ import {
  * `depart` refuses since the mover is the cart, and folds into itself,
  * which the engine refuses; the crate packs a new sheet into the actor's
  * hands, and scraps itself after moving to where the actor stands; a
- * pin moves itself into whatever it pins, which holds nothing.
+ * pin moves itself into whatever it pins, which holds nothing; a walker
+ * takes as the standard library's `take` does, and an anvil will not
+ * depart, though it clangs when anyone tries.
  */
 const DEPOT = compiledWorld('depot', {
   'world.sprout': [
@@ -38,6 +41,8 @@ const DEPOT = compiledWorld('depot', {
     '    object pin is Pin',
     '    object plain is Plain',
     '    object cat is Walker',
+    '    object anvil is Anvil',
+    '    object sheet is Sheet',
     '  }',
     '}',
     'verb board { role target  "board [target]" }',
@@ -46,7 +51,16 @@ const DEPOT = compiledWorld('depot', {
     'verb pack  { role target  "pack [target]" }',
     'verb scrap { role target  "scrap [target]" }',
     'verb fix   { role target  role tool  "fix [target] with [tool]" }',
-    'kind Walker is sprout.Actor { as actor for board { do { move self to target } } }',
+    'verb take  { role target  "take [target]" }',
+    'kind Walker is sprout.Actor {',
+    '  passage taken { Taken. }',
+    '  as actor for board { do { move self to target } }',
+    '  as actor for take  { do { move target to self  say taken } }',
+    '}',
+    'kind Anvil {',
+    '  depart (to) { refuse "It is far too heavy." }',
+    '  as target for take { do { say "clang" } }',
+    '}',
     'kind Cart is sprout.Place {',
     '  as target for grab { do { move actor to self  say "after" } }',
     '  as target for fold { do { move self to self } }',
@@ -66,9 +80,15 @@ const DEPOT = compiledWorld('depot', {
 describe('a `move` in a `do`', () => {
   const at = (...path: string[]): InstanceId => declaredId('depot', path);
   const YARD_ID = at();
-  const [CART, CRATE, PIN, PLAIN, CAT_ID] = ['cart', 'crate', 'pin', 'plain', 'cat'].map((name) =>
-    at('yard', name),
-  );
+  const [CART, CRATE, PIN, PLAIN, CAT_ID, ANVIL, SHEET] = [
+    'cart',
+    'crate',
+    'pin',
+    'plain',
+    'cat',
+    'anvil',
+    'sheet',
+  ].map((name) => at('yard', name));
   const run = (one: Turn, verb: string, actor: InstanceId, bindings: Record<string, Bound>) =>
     acted(runReading(reading(DEPOT, verb, actor, bindings), contextOf(one)));
 
@@ -94,14 +114,13 @@ describe('a `move` in a `do`', () => {
     expect(lines(done)).toEqual([[YARD_ID, NOTHING]]);
   });
 
-  it('says a guard’s refusal to the actor, from the refusing party, and the body goes on', () => {
+  it('says a guard’s refusal to the actor, from the refusing party, and ends the body there', () => {
     const one = turn(DEPOT, [at('yard')]);
     const [visitor] = one.people;
     const done = run(one, 'grab', visitor!, { target: { object: CART! } });
     expect(one.draft.instance(visitor!)!.container).toBe(at('yard'));
     expect(done.said.map((line) => [line.effect, line.by, words(line.said)])).toEqual([
       ['refused', visitor, 'sprout.Actor held_fast: {self} is not something you can carry off.'],
-      ['said', CART, 'after'],
     ]);
     // The mover is the object whose body ran the `move`, not the actor.
     expect(done.said[0]!.bindings).toEqual(
@@ -112,6 +131,25 @@ describe('a `move` in a `do`', () => {
     );
     expect(done.said[0]!.to).toEqual([visitor]);
     expect(done.sends).toEqual([]);
+  });
+
+  it('says only the refusal of a `take`-shaped `move`, never that it took what it could not', () => {
+    const one = turn(DEPOT, [at('yard')]);
+    const [visitor] = one.people;
+    const done = run(one, 'take', visitor!, { target: { object: ANVIL! } });
+    expect(one.draft.instance(ANVIL!)!.container).toBe(at('yard'));
+    // The walker's `do` ends at its refused `move`; the anvil's, another
+    // participant's, still runs, and the refusal answers the command.
+    expect(lines(done)).toEqual([
+      [ANVIL, 'It is far too heavy.'],
+      [ANVIL, 'clang'],
+    ]);
+    expect(done.said.map((line) => [line.effect, line.to])).toEqual([
+      ['refused', [visitor]],
+      ['said', [visitor]],
+    ]);
+    const taken = run(one, 'take', visitor!, { target: { object: SHEET! } });
+    expect(lines(taken)).toEqual([[visitor, 'depot.Walker taken: Taken.']]);
   });
 
   it('says the engine’s own refusal from the world, and counts it as said to the actor', () => {

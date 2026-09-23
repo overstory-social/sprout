@@ -6,7 +6,7 @@ import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import type { Block } from '../syntax/ast.js';
 import type { Performed } from './act.js';
-import { runBody, ValueOutOfRange, type ActSink, type Spoken } from './body.js';
+import { runBody, ValueOutOfRange, type ActSink, type Proposed, type Spoken } from './body.js';
 import { Budget } from './budget.js';
 import { catalogueOf, type Catalogue } from './catalogue.js';
 import { Draft } from './draft.js';
@@ -34,6 +34,8 @@ const VERBS = [
   'haul',
   'poke',
   'shove',
+  'lug',
+  'sink',
 ];
 
 /**
@@ -73,6 +75,8 @@ const bundle = compiledWorld('shop', {
     '  as target for spill  { do { self.set(:n, 7)  self.set(:n, self.get(:n) + 20) } }',
     '  as target for weigh  { permit { if (self.get(:n) > 5) { refuse "Too full." } allow } }',
     '  as target for haul   { do { move actor to self  move self to here  say "Hauled." } }',
+    '  as target for lug    { do { self.set(:n, 4)  if (self.get(:n) > 0) { move actor to self  say "Inside." }  say "After." } }',
+    '  as target for sink   { do { destroy self  move actor to self  say "Sunk." } }',
     '}',
     'kind Loud is Counter { passage done { Done, loudly. } }',
     'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
@@ -151,14 +155,20 @@ function frameOf(turn: Turn, self: InstanceId, budget: Budget): Frame {
   };
 }
 
-/** Run `verb`'s `do` for `self` in act mode; what the sink heard, and the budget charged. */
+/**
+ * Run `verb`'s `do` for `self` in act mode; what the sink heard, and the
+ * budget charged. `answer` says what came of the nth `move` or `act`
+ * proposed, counting both from 0.
+ */
 function act(
   turn: Turn,
   self: InstanceId,
   verb: string,
   budget = new Budget(DEFAULT_LIMITS.budgets),
   performing: (actor: InstanceId) => void = () => {},
+  answer: (nth: number) => Proposed = () => 'done',
 ): Heard {
+  let proposed = 0;
   const heard: Heard = { spoken: [], sends: [], destroyed: [], moves: [], acts: [] };
   const sink: ActSink = {
     lifecycle: {
@@ -171,10 +181,14 @@ function act(
     say: (spoken) => heard.spoken.push(spoken),
     sent: (sends) => heard.sends.push(...sends),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
-    move: (mover, item, to) => heard.moves.push([mover, item, to]),
+    move: (mover, item, to) => {
+      heard.moves.push([mover, item, to]);
+      return answer(proposed++);
+    },
     act: (actor, performed) => {
       heard.acts.push([actor, performed]);
       performing(actor);
+      return answer(proposed++);
     },
   };
   expect(runBody(body(turn.draft, self, verb), frameOf(turn, self, budget), 'act', sink)).toBe(
@@ -297,7 +311,7 @@ describe('what a `do` says, spawns and destroys', () => {
 });
 
 describe('what a `do` moves', () => {
-  it('proposes each `move` with `self` as the mover, the names as bound, and goes on after it', () => {
+  it('proposes each `move` with `self` as the mover, the names as bound, and goes on after one made', () => {
     const one = turn();
     const heard = act(one, COUNTER, 'haul');
     expect(heard.moves).toEqual([
@@ -308,10 +322,41 @@ describe('what a `do` moves', () => {
     // The sink makes the move; the body writes nothing of it itself.
     expect(one.draft.instance(one.visitor)!.container).toBe(HALL);
   });
+
+  it('ends the body at the first refused `move`: nothing after it runs', () => {
+    const one = turn();
+    const first = act(one, COUNTER, 'haul', undefined, undefined, () => 'refused');
+    expect(first.moves).toEqual([[COUNTER, one.visitor, COUNTER]]);
+    expect(first.spoken).toEqual([]);
+    const second = act(turn(), COUNTER, 'haul', undefined, undefined, (nth) =>
+      nth === 1 ? 'refused' : 'done',
+    );
+    expect(second.moves).toHaveLength(2);
+    expect(second.spoken).toEqual([]);
+  });
+
+  it('ends the whole body, not just the block, where the refused `move` is inside an `if`', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'lug', undefined, undefined, () => 'refused');
+    expect(heard.moves).toHaveLength(1);
+    expect(heard.spoken).toEqual([]);
+    // What ran before the refusal stands.
+    expect(property(one, COUNTER, 'n')).toBe(4);
+    const made = act(turn(), COUNTER, 'lug');
+    expect(made.spoken.map(words)).toEqual(['Inside.', 'After.']);
+  });
+
+  it('still destroys `self` as a body that asked to be destroyed ends at a refusal', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'sink', undefined, undefined, () => 'refused');
+    expect(heard.spoken).toEqual([]);
+    expect(heard.destroyed).toHaveLength(1);
+    expect(one.draft.instance(COUNTER)).toBeUndefined();
+  });
 });
 
 describe('what a `do` performs', () => {
-  it('hands each `act` to the sink with `self` as the actor and each role as evaluated, and goes on', () => {
+  it('hands each `act` to the sink with `self` as the actor and each role as evaluated, and goes on after one done', () => {
     const one = turn();
     const heard = act(one, CAT, 'poke');
     expect(heard.acts).toEqual([
@@ -328,6 +373,12 @@ describe('what a `do` performs', () => {
       ],
     ]);
     expect(heard.spoken.map(words)).toEqual(['After.']);
+  });
+
+  it('ends the body where the `act` is refused: nothing after it runs', () => {
+    const heard = act(turn(), CAT, 'poke', undefined, undefined, () => 'refused');
+    expect(heard.acts).toHaveLength(1);
+    expect(heard.spoken).toEqual([]);
   });
 
   it('ends the body where the reading it performed destroyed `self`', () => {
