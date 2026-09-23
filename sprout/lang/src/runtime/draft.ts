@@ -10,7 +10,8 @@
 // transaction body run twice must (core's conformance suite); and a
 // serial is issued once, so a destroyed instance's id is never minted
 // again. A destroyed instance stays readable through `destroyed` for the
-// rest of the turn, holding the state it had.
+// rest of the turn, holding the state it had; what it held, dormant
+// records included, is removed with it (the spec's Destroying).
 
 import { mintedId, type InstanceId, type VisitKey } from './ids.js';
 import { encodeInstance, encodeVisitor } from './load.js';
@@ -41,6 +42,7 @@ export class Draft implements StateReader {
   private serial: number;
   private readonly written = new Map<InstanceId, Instance>();
   private readonly gone = new Map<InstanceId, Instance>();
+  private readonly goneDormant = new Set<InstanceId>();
   private readonly contents = new Map<InstanceId, readonly InstanceId[]>();
   private stored: number;
   private readonly visitors = new Map<VisitKey, VisitorRecord>();
@@ -73,6 +75,32 @@ export class Draft implements StateReader {
 
   visitor(visit: VisitKey): VisitorRecord | undefined {
     return this.visitors.get(visit) ?? this.base.visitors.get(visit);
+  }
+
+  /** A dormant record, kept untouched, that this turn has not removed. */
+  dormant(id: InstanceId): StoredInstance | undefined {
+    return this.goneDormant.has(id) ? undefined : this.base.dormant.get(id);
+  }
+
+  /**
+   * `id` and everything inside it, all the way down, decoded and dormant
+   * alike: pre-order, each container's decoded contents in contents order
+   * and then its dormant records by id. Stored records that hold each
+   * other are each visited once.
+   */
+  subtree(id: InstanceId): readonly InstanceId[] {
+    const found: InstanceId[] = [];
+    const seen = new Set<InstanceId>();
+    const dormantIn = this.dormantByContainer();
+    const visit = (at: InstanceId): void => {
+      if (seen.has(at)) return;
+      seen.add(at);
+      found.push(at);
+      for (const child of this.children(at)) visit(child);
+      for (const record of dormantIn.get(at) ?? []) visit(record);
+    };
+    visit(id);
+    return found;
   }
 
   /** An instance this turn removed, as it was when removed. */
@@ -152,20 +180,26 @@ export class Draft implements StateReader {
   }
 
   /**
-   * Remove an instance that holds nothing; what it held falls first
-   * (the spec's Destroying). The world is never removed.
+   * Remove `id` and everything inside it, dormant records included, as
+   * `subtree` orders them, and return what was removed. The world is
+   * never removed.
    */
-  remove(id: InstanceId): void {
+  remove(id: InstanceId): readonly InstanceId[] {
     this.open();
     if (id === this.world) throw new Error('the world cannot be destroyed.');
-    const current = this.existing(id);
-    if (this.children(id).length > 0) {
-      throw new Error(`\`${id}\` still holds something, which falls to its container first.`);
+    this.detach(this.existing(id));
+    const removed = this.subtree(id);
+    for (const one of removed) {
+      const decoded = this.instance(one);
+      if (decoded === undefined) this.goneDormant.add(one);
+      else {
+        this.written.delete(one);
+        this.gone.set(one, decoded);
+      }
+      if (this.children(one).length > 0) this.contents.set(one, []);
+      this.stored -= 1;
     }
-    this.detach(current);
-    this.written.delete(id);
-    this.gone.set(id, current);
-    this.stored -= 1;
+    return removed;
   }
 
   putVisitor(record: VisitorRecord): void {
@@ -187,11 +221,13 @@ export class Draft implements StateReader {
     }
     const visitors = new Map(this.base.visitors);
     for (const [visit, record] of this.visitors) visitors.set(visit, record);
+    const dormant = new Map(this.base.dormant);
+    for (const id of this.goneDormant) dormant.delete(id);
     const state: WorldState = {
       world: this.world,
       serial: this.serial,
       instances,
-      dormant: this.base.dormant,
+      dormant,
       visitors,
       children,
     };
@@ -201,7 +237,10 @@ export class Draft implements StateReader {
       changes: {
         serial: this.serial,
         written: sorted(this.written.keys()),
-        removed: sorted([...this.gone.keys()].filter((id) => this.base.instances.has(id))),
+        removed: sorted([
+          ...[...this.gone.keys()].filter((id) => this.base.instances.has(id)),
+          ...this.goneDormant,
+        ]),
         visitors: sorted(this.visitors.keys()),
       },
     };
@@ -215,6 +254,18 @@ export class Draft implements StateReader {
     const instance = this.instance(id);
     if (instance === undefined) throw new Error(`\`${id}\` is not an instance in this world.`);
     return instance;
+  }
+
+  /** Each container's dormant records not yet removed, by id. */
+  private dormantByContainer(): ReadonlyMap<InstanceId, readonly InstanceId[]> {
+    const held = new Map<InstanceId, InstanceId[]>();
+    for (const [id, record] of this.base.dormant) {
+      if (this.goneDormant.has(id) || record.container === null) continue;
+      const container = record.container as InstanceId;
+      held.set(container, [...(held.get(container) ?? []), id]);
+    }
+    for (const ids of held.values()) ids.sort(compare);
+    return held;
   }
 
   private detach(instance: Instance): void {

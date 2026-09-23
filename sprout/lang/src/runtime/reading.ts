@@ -105,11 +105,11 @@ export interface Said {
 /** What the effect pass did, in order. */
 export interface Acted {
   readonly said: readonly Said[];
-  /** What the engine tells the world of each spawn, move and destroy, for B32's queue. */
+  /** What the engine tells the world of each spawn and move, for B32's queue. */
   readonly sends: readonly EngineSend[];
   /** What the places speak of each move an actor made between two, for B29 to render. */
   readonly notices: readonly Notice[];
-  /** What destroyed itself; the queue drops every message to or from each. */
+  /** What destroyed itself, and everything it held; the queue drops everything pending on each. */
   readonly destroyed: readonly InstanceId[];
 }
 
@@ -207,10 +207,7 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
     lifecycle: context,
     say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
     sent: (more) => sends.push(...more),
-    destroyed: (gone) => {
-      destroyed.push(gone.id);
-      sends.push(...gone.sends);
-    },
+    destroyed: (gone) => destroyed.push(...gone.removed),
     move: (mover, item, to) => {
       const outcome = moveInstance(context, mover, item, to);
       if ('refusal' in outcome) {
