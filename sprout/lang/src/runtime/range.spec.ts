@@ -546,6 +546,7 @@ describe('over generated trees, the walk, the membership test and the path agree
   }
 
   it('holds for every asker and target in two hundred generated worlds', () => {
+    const budgets = budgetOf().limits;
     for (let seed = 1; seed <= 200; seed++) {
       const { size, parent, tree, passes } = generated(seed);
       const asking = askings[seed % askings.length]!;
@@ -565,14 +566,16 @@ describe('over generated trees, the walk, the membership test and the path agree
         expect(new Set(asked).size, `${where}: each rule once`).toBe(asked.length);
         expect(asked, `${where}: never its own`).not.toContain(asker);
         for (const wall of walk.walls) expect(passes(wall, asking), where).toBe(false);
-        for (let target = 0; target < size; target++) {
-          const expected = oracle(parent, passes, asker, target, asking);
-          expect(walk.within.has(target), `${where}, target ${target}`).toBe(expected);
-          expect(
-            reaches({ tree, passes, budget: budgetOf() }, asker, target, asking),
-            `${where}, target ${target}`,
-          ).toBe(expected);
-        }
+        // One row per asker, indexed by target: a failure's diff names the target, and one
+        // `expect` per row rather than per target keeps the assertions cheaper than the walks.
+        const targets = parent.map((_, target) => target);
+        const expected = targets.map((target) => oracle(parent, passes, asker, target, asking));
+        const byWalk = targets.map((target) => walk.within.has(target));
+        const byPath = targets.map((target) =>
+          reaches({ tree, passes, budget: new Budget(budgets) }, asker, target, asking),
+        );
+        expect(byWalk, `${where}: the walk, by target`).toEqual(expected);
+        expect(byPath, `${where}: reaches, by target`).toEqual(expected);
       }
     }
   });

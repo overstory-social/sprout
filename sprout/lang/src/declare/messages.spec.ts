@@ -6,6 +6,7 @@ import { ENGINE_MESSAGES } from './engine-messages.js';
 import { EnumTable } from './enums.js';
 import { MessageTable } from './messages.js';
 import { parseDeclarations } from '../syntax/parse.js';
+import { MEMBER_WORDS } from '../syntax/reserved.js';
 import { SourceFile } from '../source/source.js';
 import { BOOLEAN, integer, showType, STRING } from './types.js';
 
@@ -165,6 +166,43 @@ describe('an authored message may not take an engine message’s name', () => {
 
   it('leaves a name that only begins like one alone', () => {
     expect(declare('message :ticked\nmessage :arrived_late').refusals).toEqual([]);
+  });
+});
+
+describe('a message may not take a member’s word as its name', () => {
+  it('refuses each of the eight, at the name, in the words a verb is refused in', () => {
+    expect(MEMBER_WORDS.size).toBe(8);
+    for (const word of MEMBER_WORDS) {
+      const { table, refusals } = declare(`message :${word}`);
+      expect(
+        refusals.map((r) => r.message),
+        word,
+      ).toEqual([`\`:${word}\` names a member of a kind, so it cannot name a message.`]);
+      expect(refusals[0]!.at.start, word).toBe('message '.length);
+      expect(refusals[0]!.remedy).toBe('Choose another word, as in `:rang`.');
+      expect(table.all()).toEqual([]);
+    }
+  });
+
+  it('refuses one whatever it carries, and a library’s as well as a world’s', () => {
+    expect(declare('message :describe with boolean').refusals).toHaveLength(1);
+    expect(declare('message :permit', 'sprout').refusals).toHaveLength(1);
+    expect(declare('message :do', 'a_library').refusals).toHaveLength(1);
+  });
+
+  it('refuses two of one such name each in its own words, and keeps the rest', () => {
+    const { table, refusals } = declare('message :prose\nmessage :rang\nmessage :prose');
+    expect(refusals.map((r) => r.message)).toEqual([
+      '`:prose` names a member of a kind, so it cannot name a message.',
+      '`:prose` names a member of a kind, so it cannot name a message.',
+    ]);
+    expect(table.all().map((m) => m.name)).toEqual(['rang']);
+  });
+
+  it('leaves a name that only begins like one alone', () => {
+    expect(
+      declare('message :described\nmessage :do_over\nmessage :departed_late').refusals,
+    ).toEqual([]);
   });
 });
 

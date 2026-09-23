@@ -1,0 +1,7 @@
+events.sprout:2:9  `:describe` names a member of a kind, so it cannot name a message.
+                   Choose another word, as in `:rang`.
+
+events.sprout:3:9  `:permit` names a member of a kind, so it cannot name a message.
+                   Choose another word, as in `:rang`.
+
+refused: 2 problems

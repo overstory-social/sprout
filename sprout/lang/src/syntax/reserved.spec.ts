@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { isReserved, RESERVED_WORDS } from './reserved.js';
+import { isMemberWord, isReserved, MEMBER_WORDS, RESERVED_WORDS } from './reserved.js';
 
 const SPEC = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -61,5 +61,36 @@ describe('asking whether a word is the language’s own', () => {
   it('is about the whole word, not a word that starts with one', () => {
     expect(isReserved('default_glaze')).toBe(false);
     expect(isReserved('Default')).toBe(false);
+  });
+});
+
+/**
+ * The spec's sentence under Names › Reserved names that keeps the member
+ * words from naming a message or a verb, read as the words it puts in
+ * code marks.
+ */
+function memberWordsInSpec(): string[] {
+  const line = readFileSync(SPEC, 'utf8')
+    .split('\n')
+    .find((l) => l.includes('name members and are not available as message or verb names'));
+  if (line === undefined) throw new Error('the spec no longer states the member words');
+  const sentence = line.slice(line.indexOf('engine verb.'), line.indexOf('name members'));
+  return [...sentence.matchAll(/`([a-z]+)`/g)].map((m) => m[1]!);
+}
+
+describe('the member words are the spec’s, exactly', () => {
+  it('holds the words of the spec’s sentence, in its order', () => {
+    expect([...MEMBER_WORDS]).toEqual(memberWordsInSpec());
+  });
+
+  it('holds only reserved words', () => {
+    expect([...MEMBER_WORDS].filter((word) => !RESERVED_WORDS.has(word))).toEqual([]);
+  });
+
+  it('says so for a member’s word, and not for one that only begins like it', () => {
+    expect(isMemberWord('describe')).toBe(true);
+    expect(isMemberWord('passage')).toBe(true);
+    expect(isMemberWord('described')).toBe(false);
+    expect(isMemberWord('move')).toBe(false);
   });
 });
