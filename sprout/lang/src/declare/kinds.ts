@@ -156,10 +156,12 @@ export class KindTable implements KindLookup, KindSource {
   }
 
   /**
-   * Compose every kind added. A kind reached while it is still being
-   * composed closes a cycle, which `composeKind` refuses; `onUnknown` is
-   * told of a composed kind nothing declares. `plays` are the verbs a
-   * kind's plays may name, and what is told of one nothing declares.
+   * Compose every kind added, `world` being the world's namespace, whose
+   * kinds are its own and not a library's. A kind reached while it is
+   * still being composed closes a cycle, which `composeKind` refuses;
+   * `onUnknown` is told of a composed kind nothing declares. `plays` are
+   * the verbs a kind's plays may name, and what is told of one nothing
+   * declares.
    */
   resolve(
     world: string,
