@@ -633,6 +633,31 @@ describe('an actor moved between places', () => {
     expect(sends.find((send) => send.message === 'arrived')!.recipient).toBe(CELLAR);
   });
 
+  it('sends the message to the visitors of a place that writes no notice, so nobody there is told nothing', () => {
+    const { draft, visitor } = turn();
+    const below = visitorIn(draft, CELLAR);
+    const { notices, sends } = moved(moveInstance(context(draft), visitor, visitor, CELLAR));
+    // The cellar relays, so `below` is in the hall's range and reads its leave;
+    // the cellar writes no `arrives`, so of the arrival it is sent the message.
+    expect(
+      notices.filter((notice) => notice.audience.includes(below)).map((n) => n.notice),
+    ).toEqual(['leaves']);
+    expect(sends).toContainEqual({
+      message: 'arrived',
+      recipient: below,
+      actor: visitor,
+      from: HALL,
+    });
+    // Leaving it is the same.
+    const back = moved(moveInstance(context(draft), visitor, visitor, HALL));
+    expect(back.sends).toContainEqual({
+      message: 'departed',
+      recipient: below,
+      actor: visitor,
+      to: HALL,
+    });
+  });
+
   it('is moved by another the same way, the mover hearing as anyone there would', () => {
     // Marta walks herself: the visitor beside her reads her leave, and
     // she is sent nothing of her own move.
@@ -643,7 +668,17 @@ describe('an actor moved between places', () => {
       .filter((send) => send.message === 'departed' || send.message === 'arrived')
       .map((send) => send.recipient);
     expect(told).not.toContain(MARTA);
-    expect(told).not.toContain(visitor);
+    // The cellar writes no `arrives`, so the visitor in its range is sent the
+    // message instead of reading nothing; of the leave it read the words.
+    expect(sends).toContainEqual({
+      message: 'arrived',
+      recipient: visitor,
+      actor: MARTA,
+      from: HALL,
+    });
+    expect(
+      sends.filter((send) => send.message === 'departed').map((send) => send.recipient),
+    ).not.toContain(visitor);
   });
 });
 

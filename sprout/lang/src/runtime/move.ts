@@ -238,19 +238,32 @@ export function moveInstance(
   const notices: Notice[] = [];
   // An actor is only ever in a place, so it has moved between two.
   if (actor) {
-    const left = told(draft, range, from, item);
-    const entered = told(draft, range, to, item);
+    const notice = (name: 'leaves' | 'arrives', place: InstanceId) =>
+      draft.instance(place)?.kind.passages.get(name);
+    const leaves = notice('leaves', from);
+    const arrives = notice('arrives', to);
+    const left = told(draft, range, from, item, leaves !== undefined);
+    const entered = told(draft, range, to, item, arrives !== undefined);
     for (const recipient of left.sent)
       sends.push({ message: 'departed', recipient, actor: item, to });
     for (const recipient of entered.sent)
       sends.push({ message: 'arrived', recipient, actor: item, from });
-    const spoken = (notice: 'leaves' | 'arrives', place: InstanceId, audience: InstanceId[]) => {
-      const passage = draft.instance(place)?.kind.passages.get(notice);
-      if (passage !== undefined)
-        notices.push({ notice, place, passage, bindings: { item }, audience });
-    };
-    spoken('leaves', from, left.read);
-    spoken('arrives', to, entered.read);
+    if (leaves !== undefined)
+      notices.push({
+        notice: 'leaves',
+        place: from,
+        passage: leaves,
+        bindings: { item },
+        audience: left.read,
+      });
+    if (arrives !== undefined)
+      notices.push({
+        notice: 'arrives',
+        place: to,
+        passage: arrives,
+        bindings: { item },
+        audience: entered.read,
+      });
     notices.push({ notice: 'described', place: to, audience: [item] });
   }
   return { item, from, to, sends, notices };
@@ -259,20 +272,23 @@ export function moveInstance(
 /**
  * Who is told that `actor` left or entered `place`, walking the place's
  * range as it stands after the move, nearest first, the actor left out:
- * the visitors, who read the place's notice, and everything else, the
- * place itself, NPCs and a surface included, which is sent the message.
+ * the visitors, who read the place's notice where it writes one, and
+ * everything else, the place itself, NPCs and a surface included, which is
+ * sent the message; where the place writes no notice its visitors are sent
+ * the message too, so nobody in range is told nothing.
  */
 function told(
   draft: Draft,
   range: RangeContext<InstanceId>,
   place: InstanceId,
   actor: InstanceId,
+  hasText: boolean,
 ): { readonly read: InstanceId[]; readonly sent: InstanceId[] } {
   const read: InstanceId[] = [];
   const sent: InstanceId[] = [];
   for (const { node } of rangeOf(range, place, 'any').reached) {
     if (node === actor) continue;
-    if (draft.instance(node)?.made.from === 'visitor') read.push(node);
+    if (hasText && draft.instance(node)?.made.from === 'visitor') read.push(node);
     else sent.push(node);
   }
   return { read, sent };
