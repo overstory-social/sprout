@@ -1,0 +1,4 @@
+world.sprout:8:35  `faulty` needs a colon between its name and its value.
+                   Write `faulty: 0`.
+
+refused: 1 problem

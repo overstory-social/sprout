@@ -57,6 +57,16 @@ export function remembers(p: Parser): RemembersDeclaration | null {
     return null;
   }
 
+  p.withinEntries = true;
+  try {
+    return entries(p, symbol);
+  } finally {
+    p.withinEntries = false;
+  }
+}
+
+/** The entries of a `:remembers`, its `[` already taken, through the `]` that closes it. */
+function entries(p: Parser, symbol: Token): RemembersDeclaration | null {
   const properties: PropertyDeclaration[] = [];
   let missingComma: Span | null = null;
   for (;;) {
