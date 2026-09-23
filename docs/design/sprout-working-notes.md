@@ -596,6 +596,7 @@ Found while ending a body at its first refusal, each decided the narrow way and 
 
 Found while keeping a destroyed declared object gone, each decided the narrow way and awaiting Eric:
 
+- **Stored state written before tombstones.** `tombstones` is a required field, so a stored world without it is unreadable; nothing is released, so no store holds one.
 - **The stored mark.** A `tombstones` list on the stored world, one declared id each, in code-unit order, kept for good: nothing removes one. The schema refuses a tombstone that is not a declared id, one written twice, and any instance stored under one or inside one; a link or a visitor's last place may still name one, since the absent rules read those. A turn's change set carries the tombstones it adds beside what it upserts and removes.
 - **What is tombstoned.** Every declared object a destroy removes: the one destroyed and each declared object inside it, a copy a kind gave it and a dormant declared record included, so a file restored does not bring one back. What was spawned inside it, and what a kind gave a spawn, is removed and leaves no tombstone, since a minted id is never made again anyway.
 - **What source adds inside it later.** Load does not make a declared object inside one tombstoned, however it came to be declared there, since what would hold it is gone; only a destroy writes a tombstone, so nothing is written for it.
