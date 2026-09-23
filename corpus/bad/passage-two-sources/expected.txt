@@ -1,0 +1,4 @@
+kinds.sprout:12:21  `Porter` gets the passage `taken` from both `Plain` and `Terse`, and a thing speaks each line in one voice.
+                    Write its own `passage taken { … }` in `Porter`, which is then the one that applies, or compose only one of them.
+
+refused: 1 problem

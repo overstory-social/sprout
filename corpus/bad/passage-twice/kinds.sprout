@@ -1,0 +1,5 @@
+// One kind writes the same passage twice.
+kind Mirror {
+  passage greeting { The glass is older than the frame. }
+  passage greeting { Something in it is paying attention. }
+}

@@ -22,6 +22,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     order,
     composes: new Set(order),
     properties: new Map(),
+    passages: new Map(),
     contains: false,
     containsActors: false,
     suppressed: [],

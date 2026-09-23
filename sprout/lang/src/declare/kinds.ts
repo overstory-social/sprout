@@ -14,6 +14,7 @@ import {
 } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
+import type { ResolvedPassage } from './passages.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import { composeKind, type Found, type KindSource, type OnUnknown } from './compose.js';
 import { refuseComposingWorld, writesWorld } from './sprout-world.js';
@@ -57,6 +58,12 @@ export interface KindRef {
   readonly composes: ReadonlySet<string>;
   /** What it declares, by name, the remembered ones included. */
   readonly properties: ReadonlyMap<string, ResolvedProperty>;
+  /**
+   * The passage that applies for each name, its own or a composed one's
+   * (the spec's How members combine: one per name, a default yielding
+   * to any other source's).
+   */
+  readonly passages: ReadonlyMap<string, ResolvedPassage>;
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**

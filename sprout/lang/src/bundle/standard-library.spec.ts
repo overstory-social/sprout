@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { ABSENT_TABLE } from './absent.js';
 import { libraryHash, type LibrarySource, type Manifest } from './bundle.js';
 import { compileBundle } from './compile/compile.js';
 import { checkShape } from './compile/first-tier.js';
@@ -107,11 +108,55 @@ describe('the standard library', () => {
     expect(capacity.declaration.default).toMatchObject({ kind: 'integer', value: 8 });
   });
 
+  it('gives `sprout.World` a default line for every passage the engine speaks through', () => {
+    const world = compiled().bundle!.kinds.find(
+      (k) => k.library === 'sprout' && k.name === 'World',
+    )!;
+    // The absent table's rows name who is told, and through what.
+    const told = ABSENT_TABLE.flatMap((row) => (row.told === null ? [] : [row.told]));
+    // The Runtime's Faults, and the turn's own answers: a command nothing
+    // reads, a thing out of reach, a noun that could be several things, a
+    // reading that says nothing, a thing with nothing to say.
+    const engine = [
+      'fault',
+      'unseen',
+      'unknown',
+      'unreachable',
+      'which',
+      'nothing_happens',
+      'unremarkable',
+    ];
+    const spoken = [...new Set([...told, ...engine])];
+    expect(told.length).toBeGreaterThan(0);
+    expect([...world.passages.keys()].sort()).toEqual(spoken.sort());
+    for (const passage of world.passages.values()) {
+      expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
+    }
+  });
+
+  it('gives `sprout.Place` its arrives and leaves notices, both default', () => {
+    const place = compiled().bundle!.kinds.find(
+      (k) => k.library === 'sprout' && k.name === 'Place',
+    )!;
+    expect([...place.passages.keys()]).toEqual(['arrives', 'leaves']);
+    for (const passage of place.passages.values()) {
+      expect(passage, passage.name).toMatchObject({ origin: 'sprout.Place', yields: true });
+    }
+  });
+
+  it('lets a world that writes none of them take every stock line, still yielding', () => {
+    const world = compiled().bundle!.world!;
+    expect(world.passages.size).toBe(9);
+    for (const passage of world.passages.values()) {
+      expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
+    }
+  });
+
   it('hashes to the value every manifest pins, so a change to it is read, not absorbed', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '18a55de7837b8a60ef4f5ff6f2980e644c31b1f4712178b02bccb6199350fd40',
+      'e656a51a91784771b2605278f7a7594dd359ef5f3910cd018a2f3b59960626e0',
     );
   });
 });
