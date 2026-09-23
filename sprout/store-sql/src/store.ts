@@ -1,21 +1,29 @@
 import {
   MicroworldRecord,
+  StoredInstanceSchema,
+  StoredVisitorSchema,
+  codeUnitOrder,
+  emptyState,
+  forgetting,
+  visitorIn,
   type ActionRecord,
-  type ActorExport,
-  type ActorRecord,
-  type MemoryRecord,
   type MissRecord,
-  type ObjectRecord,
   type ReadTx,
   type SproutStore,
+  type StoredInstance,
+  type StoredState,
   type StoreTx,
+  type VisitorExport,
 } from '@overstory/sprout/core';
 
 import { SCHEMA_VERSION, schemaVersionOf } from './migrations.js';
 
-// The SQL adapter: core's store port
-// over the `sprout` schema, one record type per table, for node-postgres
-// and PGlite alike — it needs `query(text, params)` and detects neither.
+// The SQL adapter: core's store port over the `sprout` schema, for
+// node-postgres and PGlite alike — it needs `query(text, params)` and
+// detects neither. A world's state is a table per part of the stored
+// form, an instance's memory a row per actor; what is read back is
+// checked by the language's schema for its record, and handed back in
+// code-unit order, which a collation does not promise.
 //
 // The contract, as this adapter meets it:
 //   1. A write transaction takes `pg_advisory_xact_lock(hashtext(id))` —
@@ -30,7 +38,8 @@ import { SCHEMA_VERSION, schemaVersionOf } from './migrations.js';
 //      pinning a connection to a function timeout.
 //   5. The host may supply the transaction: `sqlStore({ client })` only
 //      locks; `sqlStore({ transaction })` opens its own on a pooled client.
-//   6. Housekeeping is set-based statements, not turns.
+//   6. Housekeeping is set-based statements, not turns; forgetting a
+//      visitor takes each world's lock, as a write turn does.
 //
 // Ids are text; the host's are whatever they are. Never join this schema
 // to a host table in SQL (the natural spelling casts the host's column
@@ -62,44 +71,33 @@ export const LOCK_TIMEOUT = '5s';
 
 type Row = Record<string, unknown>;
 
-const str = (v: unknown): string | null => (v == null ? null : String(v));
 const date = (v: unknown): Date => (v instanceof Date ? v : new Date(String(v)));
 const strings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 const blob = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 const rowsOf = (res: { rows: unknown[] }): Row[] => res.rows as Row[];
+/** A bigint column as a number; node-postgres hands one back as text. */
+const whole = (v: unknown): number | null => (v == null ? null : Number(v));
+const byId = (a: { id: string }, b: { id: string }) => codeUnitOrder(a.id, b.id);
 
-function objectOf(r: Row): ObjectRecord {
-  return {
-    microworldId: String(r.microworld_id),
-    id: String(r.id),
-    spawnedFrom: str(r.spawned_from),
-    container: str(r.container),
-    home: str(r.home),
-    state: blob(r.state) as ObjectRecord['state'],
-  };
-}
-
-function actorOf(r: Row): ActorRecord {
-  return {
-    microworldId: String(r.microworld_id),
-    id: String(r.id),
-    name: String(r.name),
-    roomId: str(r.room_id),
-    lastSeen: date(r.last_seen),
-    narration: strings(r.narration),
-    lastNoun: str(r.last_noun),
-    pending: strings(r.pending),
-  };
-}
-
-function memoryOf(r: Row): MemoryRecord {
-  return {
-    microworldId: String(r.microworld_id),
-    actorId: String(r.actor_id),
-    byObject: blob(r.by_object) as MemoryRecord['byObject'],
-  };
+/** One instance row and its memory rows, checked as the language's record. */
+function instanceOf(r: Row, memory: Row[]): StoredInstance {
+  return StoredInstanceSchema.parse({
+    id: r.id,
+    made: r.made,
+    container: r.container ?? null,
+    arrival: whole(r.arrival),
+    properties: r.properties,
+    links: r.links,
+    wakes: r.wakes,
+    memory: Object.fromEntries(
+      memory
+        .map((m) => [String(m.actor_id), m.properties] as const)
+        .sort(([a], [b]) => codeUnitOrder(a, b)),
+    ),
+    lastTick: whole(r.last_tick),
+  });
 }
 
 function actionOf(r: Row): ActionRecord {
@@ -120,6 +118,7 @@ function actionOf(r: Row): ActionRecord {
 }
 
 function missOf(r: Row): MissRecord {
+  const state = blob(r.state);
   return {
     microworldId: String(r.microworld_id),
     at: date(r.at),
@@ -127,7 +126,64 @@ function missOf(r: Row): MissRecord {
     input: String(r.input),
     couldSay: strings(r.could_say),
     couldName: strings(r.could_name),
-    state: r.state as MissRecord['state'],
+    state: {
+      room: StoredInstanceSchema.parse(state.room),
+      items: Array.isArray(state.items)
+        ? state.items.map((i) => StoredInstanceSchema.parse(i))
+        : [],
+    },
+  };
+}
+
+/** A world's whole stored state over `c`: its serial, every instance with its memory, its visitors and tombstones. */
+async function stateOf(c: Queryable, microworldId: string): Promise<StoredState> {
+  const serial = rowsOf(
+    await c.query(`SELECT serial FROM sprout.serial WHERE microworld_id = $1`, [microworldId]),
+  )[0];
+  const instances = rowsOf(
+    await c.query(
+      `SELECT id, made, container, arrival, properties, links, wakes, last_tick
+       FROM sprout.instance WHERE microworld_id = $1`,
+      [microworldId],
+    ),
+  );
+  const memory = rowsOf(
+    await c.query(
+      `SELECT instance_id, actor_id, properties FROM sprout.memory WHERE microworld_id = $1`,
+      [microworldId],
+    ),
+  );
+  const visitors = rowsOf(
+    await c.query(
+      `SELECT visit, nickname, instance, last_place FROM sprout.visitor WHERE microworld_id = $1`,
+      [microworldId],
+    ),
+  );
+  const tombstones = rowsOf(
+    await c.query(`SELECT id FROM sprout.tombstone WHERE microworld_id = $1`, [microworldId]),
+  );
+  if (!serial && instances.length === 0 && visitors.length === 0 && tombstones.length === 0) {
+    return emptyState();
+  }
+  const remembered = new Map<string, Row[]>();
+  for (const m of memory) {
+    const id = String(m.instance_id);
+    remembered.set(id, [...(remembered.get(id) ?? []), m]);
+  }
+  return {
+    serial: whole(serial?.serial) ?? 0,
+    instances: instances.map((r) => instanceOf(r, remembered.get(String(r.id)) ?? [])).sort(byId),
+    visitors: visitors
+      .map((r) =>
+        StoredVisitorSchema.parse({
+          visit: r.visit,
+          nickname: r.nickname,
+          instance: r.instance,
+          lastPlace: r.last_place ?? null,
+        }),
+      )
+      .sort((a, b) => codeUnitOrder(a.visit, b.visit)),
+    tombstones: tombstones.map((r) => String(r.id)).sort(codeUnitOrder),
   };
 }
 
@@ -141,7 +197,7 @@ function rowId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-/** The reads over `c`, and the heartbeat — the one write a read may make. */
+/** The reads over `c`. */
 function reader(c: Queryable, microworldId: string): ReadTx {
   return {
     async microworld() {
@@ -156,50 +212,7 @@ function reader(c: Queryable, microworldId: string): ReadTx {
         loadedAt: date(row.loaded_at),
       });
     },
-    async objects() {
-      const res = await c.query(
-        `SELECT microworld_id, id, spawned_from, container, home, state
-         FROM sprout.object WHERE microworld_id = $1 ORDER BY id ASC`,
-        [microworldId],
-      );
-      return rowsOf(res).map(objectOf);
-    },
-    async actor(id) {
-      const res = await c.query(
-        `SELECT microworld_id, id, name, room_id, last_seen, narration, last_noun, pending
-         FROM sprout.actor WHERE microworld_id = $1 AND id = $2`,
-        [microworldId, id],
-      );
-      const row = rowsOf(res)[0];
-      return row ? actorOf(row) : null;
-    },
-    async actorsIn(room, since) {
-      const res = await c.query(
-        `SELECT microworld_id, id, name, room_id, last_seen, narration, last_noun, pending
-         FROM sprout.actor
-         WHERE microworld_id = $1 AND room_id = $2 AND last_seen >= $3
-         ORDER BY name ASC, id ASC`,
-        [microworldId, room, since],
-      );
-      return rowsOf(res).map(actorOf);
-    },
-    async touchActor(id, lastSeen, drained) {
-      await c.query(
-        `UPDATE sprout.actor
-         SET last_seen = $3, pending = CASE WHEN $4 THEN '[]'::jsonb ELSE pending END
-         WHERE microworld_id = $1 AND id = $2`,
-        [microworldId, id, lastSeen, drained],
-      );
-    },
-    async memory(actorId) {
-      const res = await c.query(
-        `SELECT microworld_id, actor_id, by_object FROM sprout.memory
-         WHERE microworld_id = $1 AND actor_id = $2`,
-        [microworldId, actorId],
-      );
-      const row = rowsOf(res)[0];
-      return row ? memoryOf(row) : { microworldId, actorId, byObject: {} };
-    },
+    state: () => stateOf(c, microworldId),
     async actions({ since, limit, faultedOnly }) {
       const res = await c.query(
         `SELECT microworld_id, at, room_id, command, events, depth, spawned, faulted, fault,
@@ -239,72 +252,67 @@ function writer(c: Queryable, microworldId: string): StoreTx {
         [microworldId, JSON.stringify(record), loadedAt],
       );
     },
-    async nextSpawn() {
-      const res = await c.query(
-        `INSERT INTO sprout.spawn_counter (microworld_id, n) VALUES ($1, 1)
-         ON CONFLICT (microworld_id) DO UPDATE SET n = sprout.spawn_counter.n + 1
-         RETURNING n`,
-        [microworldId],
+    async putState({ serial, upsert, remove, tombstones, visitors }) {
+      await c.query(
+        `INSERT INTO sprout.serial (microworld_id, serial) VALUES ($1, $2)
+         ON CONFLICT (microworld_id) DO UPDATE SET serial = EXCLUDED.serial`,
+        [microworldId, serial],
       );
-      return Number(rowsOf(res)[0]!.n);
-    },
-    async putObjects({ upsert, remove }) {
+      // An upserted record is written whole, so its memory rows go with
+      // the removed ones' and come back from the record.
+      const replaced = [...remove, ...upsert.map((i) => i.id)];
+      if (replaced.length > 0) {
+        await c.query(
+          `DELETE FROM sprout.memory WHERE microworld_id = $1 AND instance_id = ANY($2::text[])`,
+          [microworldId, replaced],
+        );
+      }
       if (remove.length > 0) {
         await c.query(
-          `DELETE FROM sprout.object WHERE microworld_id = $1 AND id = ANY($2::text[])`,
+          `DELETE FROM sprout.instance WHERE microworld_id = $1 AND id = ANY($2::text[])`,
           [microworldId, remove],
         );
       }
       if (upsert.length > 0) {
-        // One statement, one jsonb parameter, however many rows.
+        // One statement, one jsonb parameter, however many records.
         await c.query(
-          `INSERT INTO sprout.object (microworld_id, id, spawned_from, container, home, state)
-           SELECT $1, e->>'id', e->>'spawnedFrom', e->>'container', e->>'home',
-                  coalesce(e->'state', '{}'::jsonb)
+          `INSERT INTO sprout.instance
+             (microworld_id, id, made, container, arrival, properties, links, wakes, last_tick)
+           SELECT $1, e->>'id', e->'made', e->>'container', (e->>'arrival')::bigint,
+                  e->'properties', e->'links', e->'wakes', (e->>'lastTick')::bigint
            FROM jsonb_array_elements($2::jsonb) AS e
            ON CONFLICT (microworld_id, id) DO UPDATE
-             SET spawned_from = EXCLUDED.spawned_from, container = EXCLUDED.container,
-                 home = EXCLUDED.home, state = EXCLUDED.state`,
+             SET made = EXCLUDED.made, container = EXCLUDED.container,
+                 arrival = EXCLUDED.arrival, properties = EXCLUDED.properties,
+                 links = EXCLUDED.links, wakes = EXCLUDED.wakes, last_tick = EXCLUDED.last_tick`,
+          [microworldId, JSON.stringify(upsert)],
+        );
+        await c.query(
+          `INSERT INTO sprout.memory (microworld_id, instance_id, actor_id, properties)
+           SELECT $1, e->>'id', m.key, m.value
+           FROM jsonb_array_elements($2::jsonb) AS e, jsonb_each(e->'memory') AS m`,
           [microworldId, JSON.stringify(upsert)],
         );
       }
-    },
-    async clearObjects() {
-      await c.query(`DELETE FROM sprout.object WHERE microworld_id = $1`, [microworldId]);
-    },
-    async putActor(a) {
-      await c.query(
-        `INSERT INTO sprout.actor
-           (microworld_id, id, name, room_id, last_seen, narration, last_noun, pending)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (microworld_id, id) DO UPDATE
-           SET name = EXCLUDED.name, room_id = EXCLUDED.room_id, last_seen = EXCLUDED.last_seen,
-               narration = EXCLUDED.narration, last_noun = EXCLUDED.last_noun,
-               pending = EXCLUDED.pending`,
-        [
-          microworldId,
-          a.id,
-          a.name,
-          a.roomId,
-          a.lastSeen,
-          JSON.stringify(a.narration),
-          a.lastNoun,
-          JSON.stringify(a.pending),
-        ],
-      );
-    },
-    async putMemory(m) {
-      await c.query(
-        `INSERT INTO sprout.memory (microworld_id, actor_id, by_object) VALUES ($1, $2, $3)
-         ON CONFLICT (microworld_id, actor_id) DO UPDATE SET by_object = EXCLUDED.by_object`,
-        [microworldId, m.actorId, JSON.stringify(m.byObject)],
-      );
-    },
-    async clearMemory(actorId) {
-      await c.query(`DELETE FROM sprout.memory WHERE microworld_id = $1 AND actor_id = $2`, [
-        microworldId,
-        actorId,
-      ]);
+      if (tombstones.length > 0) {
+        await c.query(
+          `INSERT INTO sprout.tombstone (microworld_id, id)
+           SELECT $1, t FROM unnest($2::text[]) AS t
+           ON CONFLICT (microworld_id, id) DO NOTHING`,
+          [microworldId, tombstones],
+        );
+      }
+      if (visitors.length > 0) {
+        await c.query(
+          `INSERT INTO sprout.visitor (microworld_id, visit, nickname, instance, last_place)
+           SELECT $1, e->>'visit', e->>'nickname', e->>'instance', e->>'lastPlace'
+           FROM jsonb_array_elements($2::jsonb) AS e
+           ON CONFLICT (microworld_id, visit) DO UPDATE
+             SET nickname = EXCLUDED.nickname, instance = EXCLUDED.instance,
+                 last_place = EXCLUDED.last_place`,
+          [microworldId, JSON.stringify(visitors)],
+        );
+      }
     },
     async appendAction(a) {
       await c.query(
@@ -351,13 +359,22 @@ function writer(c: Queryable, microworldId: string): StoreTx {
 /** Every table of a microworld, with the column that names it. */
 const TABLES: readonly [table: string, column: string][] = [
   ['sprout.microworld', 'id'],
-  ['sprout.spawn_counter', 'microworld_id'],
-  ['sprout.object', 'microworld_id'],
-  ['sprout.actor', 'microworld_id'],
+  ['sprout.serial', 'microworld_id'],
+  ['sprout.instance', 'microworld_id'],
   ['sprout.memory', 'microworld_id'],
+  ['sprout.visitor', 'microworld_id'],
+  ['sprout.tombstone', 'microworld_id'],
   ['sprout.action', 'microworld_id'],
   ['sprout.miss', 'microworld_id'],
 ];
+
+/** Every microworld holding `visit`, in code-unit order. */
+async function worldsHolding(c: Queryable, visit: string): Promise<string[]> {
+  const res = await c.query(`SELECT microworld_id FROM sprout.visitor WHERE visit = $1`, [visit]);
+  return rowsOf(res)
+    .map((r) => String(r.microworld_id))
+    .sort(codeUnitOrder);
+}
 
 export function sqlStore(options: SqlStoreOptions): SproutStore {
   if (!options.client && !options.transaction) {
@@ -397,8 +414,7 @@ export function sqlStore(options: SqlStoreOptions): SproutStore {
       }
       return options.transaction!(async (c) => {
         // A consistent snapshot for the read — the transaction's
-        // FIRST statement, as Postgres requires; the heartbeat's write is
-        // the actor's own row and never contended.
+        // FIRST statement, as Postgres requires.
         await c.query(`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);
         await check(c);
         return fn(reader(c, microworldId));
@@ -422,36 +438,51 @@ export function sqlStore(options: SqlStoreOptions): SproutStore {
     async destroyMicroworld(microworldId) {
       await inTransaction(async (c) => {
         await check(c);
+        await c.query(`SET LOCAL lock_timeout = '${lockTimeout}'`);
+        await c.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [microworldId]);
         for (const [table, column] of TABLES) {
           await c.query(`DELETE FROM ${table} WHERE ${column} = $1`, [microworldId]);
         }
       });
     },
-    async forgetActor(actorId) {
+    async forgetVisitor(visit) {
       await inTransaction(async (c) => {
         await check(c);
-        await c.query(`DELETE FROM sprout.actor WHERE id = $1`, [actorId]);
-        await c.query(`DELETE FROM sprout.memory WHERE actor_id = $1`, [actorId]);
+        const worlds = await worldsHolding(c, visit);
+        await c.query(`SET LOCAL lock_timeout = '${lockTimeout}'`);
+        // Each world's write lock, in one order, so a forget and a turn
+        // never deadlock and a turn cannot write back what this takes.
+        for (const microworldId of worlds) {
+          await c.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [microworldId]);
+        }
+        for (const microworldId of worlds) {
+          const change = forgetting(await stateOf(c, microworldId), visit);
+          if (change === null) continue;
+          await c.query(
+            `DELETE FROM sprout.memory WHERE microworld_id = $1
+               AND (actor_id = $2 OR instance_id = ANY($3::text[]))`,
+            [microworldId, change.visitor.instance, change.remove],
+          );
+          await c.query(
+            `DELETE FROM sprout.instance WHERE microworld_id = $1 AND id = ANY($2::text[])`,
+            [microworldId, change.remove],
+          );
+          await c.query(`DELETE FROM sprout.visitor WHERE microworld_id = $1 AND visit = $2`, [
+            microworldId,
+            visit,
+          ]);
+        }
       });
     },
-    async exportActor(actorId) {
-      return inTransaction(async (c): Promise<ActorExport> => {
+    async exportVisitor(visit) {
+      return inTransaction(async (c): Promise<VisitorExport> => {
         await check(c);
-        const actors = await c.query(
-          `SELECT microworld_id, id, name, room_id, last_seen, narration, last_noun, pending
-           FROM sprout.actor WHERE id = $1 ORDER BY microworld_id ASC`,
-          [actorId],
-        );
-        const memory = await c.query(
-          `SELECT microworld_id, actor_id, by_object FROM sprout.memory
-           WHERE actor_id = $1 ORDER BY microworld_id ASC`,
-          [actorId],
-        );
-        return {
-          actorId,
-          actors: rowsOf(actors).map(actorOf),
-          memory: rowsOf(memory).map(memoryOf),
-        };
+        const out: VisitorExport = { visit, worlds: [] };
+        for (const microworldId of await worldsHolding(c, visit)) {
+          const found = visitorIn(microworldId, await stateOf(c, microworldId), visit);
+          if (found) out.worlds.push(found);
+        }
+        return out;
       });
     },
   };

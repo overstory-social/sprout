@@ -6,5 +6,7 @@
 
 export * from './errors.js';
 export * from './records.js';
+export * from './state.js';
+export * from './visitors.js';
 export * from './store.js';
 export * from './memory-store.js';

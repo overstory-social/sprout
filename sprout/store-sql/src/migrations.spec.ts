@@ -7,9 +7,27 @@ import { SCHEMA_VERSION, migrations, runMigrations, schemaVersionOf } from './mi
 
 describe('the exported migrations', () => {
   it('are an ordered list under namespaced names, and the last one sets the schema version they claim', () => {
-    expect(migrations.map((m) => m.name)).toEqual(['sprout/001_sprout.sql']);
-    expect(migrations.at(-1)!.sql).toContain(`('schema_version', '${SCHEMA_VERSION}')`);
+    expect(migrations.map((m) => m.name)).toEqual([
+      'sprout/001_sprout.sql',
+      'sprout/002_stored_state.sql',
+    ]);
+    expect(migrations.at(-1)!.sql).toContain(
+      `SET value = '${SCHEMA_VERSION}' WHERE key = 'schema_version'`,
+    );
     for (const m of migrations) expect(m.sql).toMatch(/^-- @overstory\/sprout-store-sql/);
+  });
+
+  it('keeps a world’s state in the stored form, and nothing of the state model before it', () => {
+    const last = migrations.at(-1)!.sql;
+    for (const table of ['serial', 'instance', 'memory', 'visitor', 'tombstone']) {
+      expect(last).toContain(`CREATE TABLE sprout.${table} (`);
+    }
+    for (const table of ['object', 'actor', 'memory', 'spawn_counter']) {
+      expect(last).toContain(`DROP TABLE sprout.${table};`);
+    }
+    // Host seconds and serials pass a 32-bit integer.
+    expect(last).toMatch(/last_tick bigint/);
+    expect(last).toMatch(/serial bigint NOT NULL/);
   });
 
   it('the runner records each applied migration in sprout.meta and rolls a failure back by name', async () => {
@@ -25,7 +43,7 @@ describe('the exported migrations', () => {
       },
     };
     expect(await runMigrations(client)).toEqual({
-      applied: ['sprout/001_sprout.sql'],
+      applied: ['sprout/001_sprout.sql', 'sprout/002_stored_state.sql'],
       skipped: [],
     });
     expect(calls).toContain('BEGIN');

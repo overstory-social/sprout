@@ -1,13 +1,15 @@
-import type {
-  ActionRecord,
-  ActorExport,
-  ActorRecord,
-  MemoryRecord,
-  MicroworldRecord,
-  MissRecord,
-  ObjectRecord,
+import {
+  codeUnitOrder,
+  emptyState,
+  type ActionRecord,
+  type MicroworldRecord,
+  type MissRecord,
+  type StoredState,
+  type VisitorExport,
 } from './records.js';
+import { applyChanges } from './state.js';
 import type { ReadTx, SproutStore, StoreTx } from './store.js';
+import { applyForgetting, forgetting, visitorIn } from './visitors.js';
 
 // The memory store: a Map and a promise chain per microworld. What
 // core's own specs run on, what the conformance suite proves first, and
@@ -18,10 +20,7 @@ import type { ReadTx, SproutStore, StoreTx } from './store.js';
 
 interface World {
   microworld: MicroworldRecord | null;
-  spawn: number;
-  objects: Map<string, ObjectRecord>;
-  actors: Map<string, ActorRecord>;
-  memory: Map<string, MemoryRecord>;
+  state: StoredState;
   actions: ActionRecord[];
   misses: MissRecord[];
 }
@@ -29,52 +28,23 @@ interface World {
 const clone = <T>(v: T): T => structuredClone(v);
 
 function emptyWorld(): World {
-  return {
-    microworld: null,
-    spawn: 0,
-    objects: new Map(),
-    actors: new Map(),
-    memory: new Map(),
-    actions: [],
-    misses: [],
-  };
+  return { microworld: null, state: emptyState(), actions: [], misses: [] };
 }
 
 function snapshotOf(live: World): World {
   return {
     microworld: live.microworld ? clone(live.microworld) : null,
-    spawn: live.spawn,
-    objects: new Map([...live.objects].map(([k, v]) => [k, clone(v)])),
-    actors: new Map([...live.actors].map(([k, v]) => [k, clone(v)])),
-    memory: new Map([...live.memory].map(([k, v]) => [k, clone(v)])),
+    state: clone(live.state),
     actions: live.actions.map(clone),
     misses: live.misses.map(clone),
   };
 }
 
-/** Reads over `w`; `touchActor` — the one write a read may make — lands on `live` (the same world for a transaction). */
-function reader(microworldId: string, w: World, live: World = w): ReadTx {
+/** The reads over `w`. */
+function reader(w: World): ReadTx {
   return {
     microworld: async () => (w.microworld ? clone(w.microworld) : null),
-    objects: async () => [...w.objects.values()].map(clone),
-    actor: async (id) => {
-      const a = w.actors.get(id);
-      return a ? clone(a) : null;
-    },
-    actorsIn: async (room, since) =>
-      [...w.actors.values()]
-        .filter((a) => a.roomId === room && a.lastSeen.getTime() >= since.getTime())
-        .map(clone),
-    touchActor: async (id, lastSeen, drained) => {
-      for (const target of live === w ? [w] : [w, live]) {
-        const a = target.actors.get(id);
-        if (!a) continue;
-        a.lastSeen = lastSeen;
-        if (drained) a.pending = [];
-      }
-    },
-    memory: async (actorId) =>
-      clone(w.memory.get(actorId) ?? { microworldId, actorId, byObject: {} }),
+    state: async () => clone(w.state),
     actions: async ({ since, limit, faultedOnly }) =>
       w.actions
         .filter((a) => (!since || a.at.getTime() >= since.getTime()) && (!faultedOnly || a.faulted))
@@ -86,29 +56,15 @@ function reader(microworldId: string, w: World, live: World = w): ReadTx {
 }
 
 /** A transaction over a snapshot: reads see the snapshot plus this tx's own writes; writes land on commit. */
-function writer(microworldId: string, live: World): { tx: StoreTx; commit: () => void } {
+function writer(live: World): { tx: StoreTx; commit: () => void } {
   const snap = snapshotOf(live);
   const tx: StoreTx = {
-    ...reader(microworldId, snap),
+    ...reader(snap),
     putMicroworld: async (m) => {
       snap.microworld = clone(m);
     },
-    nextSpawn: async () => ++snap.spawn,
-    putObjects: async ({ upsert, remove }) => {
-      for (const id of remove) snap.objects.delete(id);
-      for (const o of upsert) snap.objects.set(o.id, clone(o));
-    },
-    clearObjects: async () => {
-      snap.objects.clear();
-    },
-    putActor: async (a) => {
-      snap.actors.set(a.id, clone(a));
-    },
-    putMemory: async (m) => {
-      snap.memory.set(m.actorId, clone(m));
-    },
-    clearMemory: async (actorId) => {
-      snap.memory.delete(actorId);
+    putState: async (changes) => {
+      snap.state = applyChanges(snap.state, clone(changes));
     },
     appendAction: async (a) => {
       snap.actions.push(clone(a));
@@ -121,10 +77,7 @@ function writer(microworldId: string, live: World): { tx: StoreTx; commit: () =>
     tx,
     commit: () => {
       live.microworld = snap.microworld;
-      live.spawn = snap.spawn;
-      live.objects = snap.objects;
-      live.actors = snap.actors;
-      live.memory = snap.memory;
+      live.state = snap.state;
       live.actions = snap.actions;
       live.misses = snap.misses;
     },
@@ -142,30 +95,29 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
     }
     return w;
   };
+  /** Run `fn` after every write queued on `microworldId`, holding its place in the queue. */
+  const queued = async <T>(microworldId: string, fn: () => Promise<T>): Promise<T> => {
+    const previous = chains.get(microworldId) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(fn);
+    chains.set(microworldId, run);
+    try {
+      return await run;
+    } finally {
+      if (chains.get(microworldId) === run) chains.delete(microworldId);
+    }
+  };
   return {
     worlds,
-    async transaction(microworldId, fn) {
-      const previous = chains.get(microworldId) ?? Promise.resolve();
-      const run = previous
-        .catch(() => undefined)
-        .then(async () => {
-          const w = world(microworldId);
-          const { tx, commit } = writer(microworldId, w);
-          const result = await fn(tx);
-          commit();
-          return result;
-        });
-      chains.set(microworldId, run);
-      try {
-        return await run;
-      } finally {
-        if (chains.get(microworldId) === run) chains.delete(microworldId);
-      }
-    },
+    transaction: (microworldId, fn) =>
+      queued(microworldId, async () => {
+        const { tx, commit } = writer(world(microworldId));
+        const result = await fn(tx);
+        commit();
+        return result;
+      }),
     async read(microworldId, fn) {
       // A consistent snapshot at entry: a commit that lands while `fn` awaits is not seen mid-read.
-      const live = world(microworldId);
-      return fn(reader(microworldId, snapshotOf(live), live));
+      return fn(reader(snapshotOf(world(microworldId))));
     },
     async trim(before, keepMisses) {
       for (const w of worlds.values()) {
@@ -174,21 +126,24 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
       }
     },
     async destroyMicroworld(microworldId) {
-      worlds.delete(microworldId);
+      await queued(microworldId, async () => {
+        worlds.delete(microworldId);
+      });
     },
-    async forgetActor(actorId) {
-      for (const w of worlds.values()) {
-        w.actors.delete(actorId);
-        w.memory.delete(actorId);
+    async forgetVisitor(visit) {
+      for (const id of [...worlds.keys()]) {
+        await queued(id, async () => {
+          const w = worlds.get(id);
+          const change = w ? forgetting(w.state, visit) : null;
+          if (w && change) w.state = applyForgetting(w.state, change);
+        });
       }
     },
-    async exportActor(actorId) {
-      const out: ActorExport = { actorId, actors: [], memory: [] };
-      for (const w of worlds.values()) {
-        const a = w.actors.get(actorId);
-        if (a) out.actors.push(clone(a));
-        const m = w.memory.get(actorId);
-        if (m) out.memory.push(clone(m));
+    async exportVisitor(visit) {
+      const out: VisitorExport = { visit, worlds: [] };
+      for (const id of [...worlds.keys()].sort(codeUnitOrder)) {
+        const found = visitorIn(id, worlds.get(id)!.state, visit);
+        if (found) out.worlds.push(clone(found));
       }
       return out;
     },

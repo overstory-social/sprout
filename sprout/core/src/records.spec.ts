@@ -3,16 +3,22 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_BLESSED,
   DEFAULT_LIMITS,
+  emptyWorld,
   limitsFrom,
+  type InstanceId,
   type StaticCaps,
 } from '@overstory/sprout/lang';
 
 import {
   ActionRecord,
-  ActorRecord,
   MicroworldRecord,
-  ObjectRecord,
+  MissRecord,
   RecordedCaps,
+  StoredInstanceSchema,
+  StoredState,
+  VisitorExport,
+  VisitorInWorld,
+  emptyState,
 } from './records.js';
 
 // The record shapes an adapter carries: defaults, what is required.
@@ -50,30 +56,91 @@ describe('the records', () => {
   });
 
   it('every record is keyed by its microworld; an action carries no actor', () => {
-    for (const schema of [ObjectRecord, ActorRecord, ActionRecord, MicroworldRecord]) {
-      const keys = Object.keys(schema.shape);
-      expect(keys.includes('microworldId') || keys.includes('id')).toBe(true);
+    for (const schema of [ActionRecord, MissRecord, VisitorInWorld]) {
+      expect(Object.keys(schema.shape)).toContain('microworldId');
     }
+    expect(Object.keys(MicroworldRecord.shape)).toContain('id');
     expect(Object.keys(ActionRecord.shape)).not.toContain('actorId');
+  });
+
+  it('keeps a world’s state in the language’s stored form, and refuses what the language would', () => {
+    const lamp = {
+      id: 'shop.lamp',
+      made: { from: 'declared' },
+      container: 'shop',
+      arrival: null,
+      properties: { lit: { type: 'boolean', value: true } },
+      links: {},
+      wakes: [],
+      memory: { 'shop#1': { seen: { type: 'boolean', value: true } } },
+      lastTick: null,
+    };
+    const state = { serial: 1, instances: [lamp], visitors: [], tombstones: [] };
+    expect(StoredState.parse(state)).toEqual(state);
+    expect(Object.keys(StoredState.shape)).toEqual(
+      Object.keys(emptyWorld('shop' as InstanceId)).filter((k) => k !== 'world'),
+    );
+    expect(StoredState.safeParse({ ...state, serial: -1 }).success).toBe(false);
     expect(
-      ObjectRecord.safeParse({
-        microworldId: 'w',
-        id: 'x',
-        spawnedFrom: null,
-        container: 'hall',
-        home: 'hall',
-        state: { lit: 'a' },
-      }).success,
-    ).toBe(true);
+      StoredState.safeParse({ ...state, instances: [{ ...lamp, made: { from: 'spawned' } }] })
+        .success,
+    ).toBe(false);
     expect(
-      ObjectRecord.safeParse({
-        microworldId: 'w',
-        id: '',
-        spawnedFrom: null,
-        container: null,
-        home: null,
-        state: {},
-      }).success,
+      StoredState.safeParse({ ...state, instances: [{ ...lamp, properties: { lit: true } }] })
+        .success,
     ).toBe(false);
   });
+
+  it('holds nothing where no turn has written, as a fresh value each time', () => {
+    const first = emptyState();
+    expect(first).toEqual({ serial: 0, instances: [], visitors: [], tombstones: [] });
+    first.instances.push(StoredInstanceSchema.parse({ ...emptyWorldInstance() }));
+    expect(emptyState().instances).toEqual([]);
+  });
+
+  it('a miss keeps the room and what was in it as stored instances', () => {
+    const room = emptyWorldInstance();
+    const miss = {
+      microworldId: 'w',
+      at: new Date('2026-09-18T12:00:00Z'),
+      roomId: 'shop',
+      input: 'juggle',
+      couldSay: [],
+      couldName: [],
+      state: { room, items: [] },
+    };
+    expect(MissRecord.parse(miss)).toEqual(miss);
+    expect(MissRecord.safeParse({ ...miss, state: { room: {}, items: {} } }).success).toBe(false);
+  });
+
+  it('exports a visitor by visit, a world at a time, with memory by the instance remembering', () => {
+    const exported = {
+      visit: 'v-marta',
+      worlds: [
+        {
+          microworldId: 'w',
+          visitor: { visit: 'v-marta', nickname: 'Marta', instance: 'shop#1', lastPlace: null },
+          instance: null,
+          memory: { 'shop.lamp': { seen: { type: 'boolean', value: true } } },
+        },
+      ],
+    };
+    expect(VisitorExport.parse(exported)).toEqual(exported);
+    expect(VisitorExport.safeParse({ ...exported, visit: '' }).success).toBe(false);
+  });
 });
+
+/** The world's own instance, as a store holds it. */
+function emptyWorldInstance() {
+  return {
+    id: 'shop',
+    made: { from: 'world' as const },
+    container: null,
+    arrival: null,
+    properties: {},
+    links: {},
+    wakes: [],
+    memory: {},
+    lastTick: null,
+  };
+}

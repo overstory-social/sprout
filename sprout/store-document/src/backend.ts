@@ -9,13 +9,11 @@
 // backend MAY run `fn` more than once (Firestore and Mongo do on
 // contention) — which is why core's port says a transaction body must
 // have no effect outside the tx it is handed. Outside a transaction
-// `put` and `delete` are single atomic writes, which is all a read's
-// heartbeat needs.
+// `put` and `delete` are single atomic writes.
 //
 // The tx handed to `fn` is how a backend tells this transaction's writes
-// from a concurrent heartbeat's — Firestore's `runTransaction(fn(tx))`
-// and an IndexedDB transaction have exactly this shape, which is the
-// point of the port.
+// from another's — Firestore's `runTransaction(fn(tx))` and an IndexedDB
+// transaction have exactly this shape, which is the point of the port.
 
 export interface DocumentReader {
   get(key: string): Promise<unknown | null>;

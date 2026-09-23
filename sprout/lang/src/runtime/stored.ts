@@ -97,12 +97,21 @@ const StoredValueSchema: z.ZodType<StoredValue> = z.lazy(() =>
   z.union([z.boolean(), z.number(), z.string(), z.array(StoredValueSchema)]),
 );
 
-const StoredPropertySchema = z.object({ type: z.string().min(1), value: StoredValueSchema });
+/** A stored property, checked: a type key and a value of any stored shape. */
+export const StoredPropertySchema: z.ZodType<StoredProperty> = z.object({
+  type: z.string().min(1),
+  value: StoredValueSchema,
+});
 
 const serial = z.number().int().min(1);
 const seconds = z.number().int().min(0);
 
-const StoredInstanceSchema = z.object({
+/**
+ * One stored instance, checked on its own: which ids it names is checked
+ * only by `StoredWorldSchema`, against the world it is stored in. What a
+ * store adapter validates each record it reads back with.
+ */
+export const StoredInstanceSchema: z.ZodType<StoredInstance> = z.object({
   id: z.string(),
   made: z.discriminatedUnion('from', [
     z.object({ from: z.literal('world') }),
@@ -124,7 +133,8 @@ const StoredInstanceSchema = z.object({
   lastTick: seconds.nullable(),
 });
 
-const StoredVisitorSchema = z.object({
+/** One stored visitor, checked on its own, as `StoredInstanceSchema` is. */
+export const StoredVisitorSchema: z.ZodType<StoredVisitor> = z.object({
   visit: z.string().min(1),
   nickname: z.string().min(1),
   instance: z.string(),
