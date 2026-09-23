@@ -18,7 +18,7 @@ import {
   reading,
   tally,
   tooDeep,
-} from './invariant.js';
+} from '../../../fixtures/recovery.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   it('over a generated file, a defect in any part of any declaration', () => {

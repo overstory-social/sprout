@@ -21,7 +21,7 @@ import {
   wellFormed,
   OWNERS,
   SORTS,
-} from './invariant.js';
+} from '../../../fixtures/recovery.js';
 
 /** A world member by what it would be looked up as, a `:remembers` by each entry. */
 const memberNames = (member: WorldMember): string[] =>

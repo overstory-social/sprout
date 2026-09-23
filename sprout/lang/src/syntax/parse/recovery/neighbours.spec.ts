@@ -12,7 +12,7 @@ import type { WorldMember } from '../../ast.js';
 import { Diagnostics } from '../../../source/diagnostics.js';
 import { parseDeclarations, parseProperty, parseRemembers } from '../../parse.js';
 import { SourceFile } from '../../../source/source.js';
-import { nothingVanishes, ownedBy, tooDeep, OWNERS } from './invariant.js';
+import { nothingVanishes, ownedBy, tooDeep, OWNERS } from '../../../fixtures/recovery.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   const ENTRY_DEFECTS = [

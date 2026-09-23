@@ -7,7 +7,14 @@ import { describe, expect, it } from 'vitest';
 
 import { parseRemembers } from '../../parse.js';
 import { chooser } from '../../../fixtures/parse.js';
-import { explained, generatedRemembers, reading, stoppedShort, tally, SORTS } from './invariant.js';
+import {
+  explained,
+  generatedRemembers,
+  reading,
+  stoppedShort,
+  tally,
+  SORTS,
+} from '../../../fixtures/recovery.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   it('over generated `:remembers`, a defect in any part of any entry', () => {

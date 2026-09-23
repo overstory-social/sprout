@@ -23,7 +23,7 @@ import {
   unclosed,
   SORTS,
   type Defect,
-} from './invariant.js';
+} from '../../../fixtures/recovery.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   it('over a generated property on its own, a defect in any part', () => {

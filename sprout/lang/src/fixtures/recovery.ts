@@ -1,10 +1,11 @@
 // Shared machinery behind the parser's recovery invariant — "a defect in
-// one item never loses a well-formed neighbour in silence" — that the
-// specs beside this file run over `:remembers`, properties, list
-// defaults, bodies and whole files. This is spec support, not a spec: it
-// holds no `describe`, and, per `boundary.spec.ts`, a non-spec file under
-// `parse/` may not import vitest, so every check here returns a list of
-// findings (empty means the rule held) and the calling spec `expect`s it.
+// one item never loses a well-formed neighbour in silence" — that
+// syntax/parse/recovery/*.spec.ts runs over `:remembers`, properties,
+// list defaults, bodies and whole files. Spec support: the package build
+// leaves it out. It holds no `describe`, and, per boundary.spec.ts, a
+// non-spec file under src/ may not import vitest, so every check here
+// returns a list of findings (empty means the rule held) and the calling
+// spec `expect`s it.
 
 import type {
   Declaration,
@@ -12,21 +13,11 @@ import type {
   ObjectDeclaration,
   WorldDeclaration,
   WorldMember,
-} from '../../ast.js';
-import { Diagnostics, type Diagnostic } from '../../../source/diagnostics.js';
-import { DEEPEST } from '../../parse.js';
-import { SourceFile } from '../../../source/source.js';
-
-/**
- * The seeded chooser's own shape, structurally — not imported from
- * `fixtures/parse.ts`, which the package build leaves out, so a file the
- * build keeps may not reference it even by type.
- */
-export interface Chooser {
-  below(n: number): number;
-  one<T>(items: readonly T[]): T;
-  shuffled<T>(items: readonly T[]): T[];
-}
+} from '../syntax/ast.js';
+import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
+import { DEEPEST } from '../syntax/parse.js';
+import { SourceFile } from '../source/source.js';
+import type { Chooser } from './parse.js';
 
 /** A construct nested one level past the parser's own depth bound, `DEEPEST`. */
 export const tooDeep = (inner: string) => '['.repeat(DEEPEST + 1) + inner + ']'.repeat(DEEPEST + 1);
