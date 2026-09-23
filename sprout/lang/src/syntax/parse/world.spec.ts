@@ -277,6 +277,45 @@ describe('a world declaration', () => {
     }
   });
 
+  it('names every member written after a stray `}` that ends it too early', () => {
+    // A brace count alone cannot tell a stray `}` from the world's own,
+    // so what follows it — however member-shaped — is named rather
+    // than lost the way stepping straight to the next declaration
+    // would lose it.
+    const { world, refusals } = readWorld(`world w: sprout.World {
+  :alpha 0
+  }
+  :bravo 1
+  visitors are P
+}`);
+    expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'alpha',
+    ]);
+    expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`:bravo` and `visitors` are written after the `}` that ends `w`.',
+        'Everything `w` is made of goes inside its braces. Take out the `}` that ends it too early.',
+      ],
+    ]);
+  });
+
+  it('reads the declaration that follows a stray `}` straight away, naming nothing', () => {
+    // Nothing member-shaped stands between the stray `}` and the next
+    // declaration, so there is nothing to name: the world simply ends
+    // early, as it always has, and `Next` is the file's.
+    const { declarations, refusals } = readWorld(`world w: sprout.World {
+  :alpha 0
+  }
+enum Next { x }
+`);
+    const world = declarations.find((d) => d.kind === 'world');
+    expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'alpha',
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Next']);
+    expect(refusals).toEqual([]);
+  });
+
   it('still reads a word that only spells a declaration, where one may stand', () => {
     // Nothing reserves an option's name, and what FOLLOWS the word is
     // what decides: `[oak, enum]` is a list of two options.
