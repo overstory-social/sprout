@@ -177,6 +177,27 @@ describe('the stored form of a world', () => {
     const stored = world();
     expect(issues({ ...stored, visitors: [...stored.visitors, stored.visitors[0]] })).toEqual([
       'visitors.1.visit: visit `v-8f2c` is stored twice.',
+      'visitors.1.instance: `printers_shop#1` is named by two visitors.',
+    ]);
+  });
+
+  it('pairs each visitor record with one instance made for a visitor, and each such instance with one record', () => {
+    const stored = world();
+    const marta = stored.visitors[0]!;
+    // Another visit naming the same instance: two people in one body.
+    expect(issues({ ...stored, visitors: [marta, { ...marta, visit: 'v-9a01' }] })).toEqual([
+      'visitors.1.instance: `printers_shop#1` is named by two visitors.',
+    ]);
+    // A record naming nothing stored, or something not made for a visitor.
+    expect(issues({ ...stored, visitors: [{ ...marta, instance: 'printers_shop#2' }] })).toContain(
+      'visitors.0.instance: `printers_shop#2` is not a stored instance.',
+    );
+    expect(issues({ ...stored, visitors: [{ ...marta, instance: 'printers_shop#3' }] })).toContain(
+      "visitors.0.instance: `printers_shop#3` is made from spawned, and a visitor's instance is made from visitor.",
+    );
+    // An instance made for a visitor with no record of whose it is.
+    expect(issues({ ...stored, visitors: [] })).toEqual([
+      'instances.3.made: `printers_shop#1` is made from visitor, and no visitor is stored for it.',
     ]);
   });
 

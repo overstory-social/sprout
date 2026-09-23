@@ -81,7 +81,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     'world w: sprout.World { enum Inner { oak } }',
     'world w: sprout.World { :x [ }',
     // Not `world w: sprout.World { }`: it PARSES, and what is wrong with
-    // it — no visitor kind, nowhere to arrive — is `resolveWorld`'s to say.
+    // it — no visitor kind, nowhere to arrive — is `resolveVisitors`' and
+    // `arrivalOf`'s to say.
     // A shape that is not a parse defect belongs in world.spec.ts.
     'world w: sprout.World { nonsense }',
     'world w: 4 { }',

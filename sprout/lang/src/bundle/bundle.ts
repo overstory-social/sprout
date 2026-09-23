@@ -171,6 +171,18 @@ export interface Bundle {
   /** Every kind the bundle declares, composed, the world's and its libraries' alike. */
   readonly kinds: readonly KindRef[];
   /**
+   * What the world is made of: `sprout.World` and whatever else it
+   * composes, with its own body last, named for the world. Null only in
+   * a loaded world that admits no one, with the `world` gap in `absent`.
+   */
+  readonly world: KindRef | null;
+  /**
+   * What a visitor is made of: the world's own kind composing
+   * `sprout.Actor`, which `visitors are` names. Null only in a loaded
+   * world that admits no one, with the gap in `absent`.
+   */
+  readonly visitor: KindRef | null;
+  /**
    * The world's objects, each with its anonymous kind composed and its
    * place in the tree. One whose kind or container is absent is absent
    * too, and is not here.

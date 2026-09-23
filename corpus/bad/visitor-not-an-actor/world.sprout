@@ -1,0 +1,10 @@
+// A world's visitors are made of an actor: a kind composing
+// `sprout.Actor`. A hall holds actors, and is not one.
+world visitor_not_an_actor: sprout.World {
+  visitors are Hall
+  visitors arrive at hall
+}
+
+kind Hall: sprout.Place { }
+
+object hall: Hall in visitor_not_an_actor

@@ -5,3 +5,5 @@ world arrival_world_not_a_place: sprout.World {
   visitors are Creature
   visitors arrive at arrival_world_not_a_place
 }
+
+kind Creature: sprout.Actor { }
