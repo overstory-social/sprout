@@ -7,13 +7,18 @@ import { SourceFile, textOf } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { KindTable, type KindRef } from './kinds.js';
 import { ACTOR, checkActors, checkVisitorKind, isActor, isNpc, notAnNpc } from './actors.js';
-import { objectsIn, resolveObjects } from './objects.js';
+import { resolveContents } from './contents.js';
+import { resolveObjects } from './objects.js';
 import { placeObjects } from './tree.js';
 
-/** Every kind here, composed: the standard library's, the shop's own, and another library's. */
-const KINDS = (() => {
+/**
+ * Every kind here, composed: the standard library's, the shop's own, and
+ * another library's; and what their bodies give.
+ */
+const { KINDS, CONTENTS } = (() => {
   const diagnostics = new Diagnostics();
   const table = new KindTable();
+  const byLibrary = new Map<string, KindDeclaration[]>();
   for (const [library, text] of Object.entries({
     sprout:
       'kind World { contains }\nkind Actor { contains :capacity 8 }\nkind Place { contains actors }',
@@ -23,20 +28,20 @@ const KINDS = (() => {
       'kind Porter is sprout.Actor { }',
       'kind Hall is sprout.Place { }',
       'kind Basket { contains }',
+      'kind Hutch { contains object rabbit is Creature object porter is Porter }',
     ].join('\n'),
     victorian: 'kind Gent is sprout.Actor { }\nkind Voice { }',
   })) {
-    table.add(
-      library,
-      parseDeclarations(new SourceFile(`${library}.sprout`, text), diagnostics).filter(
-        (d): d is KindDeclaration => d.kind === 'kind',
-      ),
-      diagnostics,
-    );
+    const declared = parseDeclarations(new SourceFile(`${library}.sprout`, text), diagnostics);
+    const kinds = declared.filter((d): d is KindDeclaration => d.kind === 'kind');
+    byLibrary.set(library, kinds);
+    table.add(library, kinds, diagnostics);
   }
-  table.resolve('shop', new EnumTable(), diagnostics);
+  const enums = new EnumTable();
+  table.resolve('shop', enums, diagnostics);
+  const contents = resolveContents(byLibrary, { enums, kinds: table, world: 'shop', diagnostics });
   expect(diagnostics.all.map((d) => d.message)).toEqual([]);
-  return table;
+  return { KINDS: table, CONTENTS: contents };
 })();
 
 const kind = (library: string, name: string): KindRef => KINDS.qualified(library, name)!;
@@ -149,11 +154,12 @@ function actorsIn(
     new SourceFile('o.sprout', `world shop is sprout.World {\n${body}\n}`),
     placing,
   ).find((d): d is WorldDeclaration => d.kind === 'world')!;
-  const objects = resolveObjects('shop', objectsIn(root), {
-    enums: new EnumTable(),
-    kinds: KINDS,
-    diagnostics: placing,
-  });
+  const objects = resolveObjects(
+    'shop',
+    root,
+    { enums: new EnumTable(), kinds: KINDS, diagnostics: placing },
+    CONTENTS,
+  );
   const tree = placeObjects(objects, { world: 'shop', diagnostics: placing });
   expect(placing.all.map((d) => d.message)).toEqual([]);
   const diagnostics = new Diagnostics();
@@ -224,6 +230,32 @@ describe('the only actors are visitors and NPCs, and each stands in a place', ()
     expect(actorsIn('object cat is Cat')[0]![2]).toBe(
       'Declare a place in the world, an object that composes `sprout.Place` or writes `contains actors` in its body, and write `cat` inside its braces.',
     );
+  });
+
+  it('refuses what a kind gives each instance as it would one written there, at the kind, once', () => {
+    const body = ['object hall is Hall {', '  object hutch is Hutch', '  object pen is Hutch', '}'];
+    expect(actorsIn(body.join('\n'))).toEqual([
+      [
+        'rabbit',
+        '`hutch` holds no actors, so `rabbit` cannot stand in it.',
+        'Write `rabbit` inside the braces of a place, or make `hutch` one: compose `sprout.Place`, or write `contains actors` in its body.',
+      ],
+      [
+        'porter',
+        '`porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.',
+        "Compose `Creature`, what this world's visitors are made of, to make `porter` an NPC, or make it of kinds that do not compose `sprout.Actor`.",
+      ],
+      [
+        'rabbit',
+        '`pen` holds no actors, so `rabbit` cannot stand in it.',
+        'Write `rabbit` inside the braces of a place, or make `pen` one: compose `sprout.Place`, or write `contains actors` in its body.',
+      ],
+    ]);
+  });
+
+  it('accepts what a kind gives an instance whose own body holds actors', () => {
+    const body = ['object hall is Hall {', '  object hutch is Hutch { contains actors }', '}'];
+    expect(actorsIn(body.join('\n')).map(([at]) => at)).toEqual(['porter']);
   });
 
   it('says nothing that the absent world kind or visitor kind would decide', () => {

@@ -22,7 +22,7 @@ import type { InstanceId, VisitKey } from './ids.js';
 import type { StoredInstance, StoredMade } from './stored.js';
 import { defaultOf, type Value } from './values.js';
 
-/** How an instance came to be: the world, a declared object, a visitor, or a spawn of a kind by qualified name. */
+/** How an instance came to be: the world, a declared object, a visitor, a spawn, or what a spawn's kinds gave it. */
 export type Made = StoredMade;
 
 /** One pending wake: the serial it was asked under, and when it was asked and is due, in host seconds. */

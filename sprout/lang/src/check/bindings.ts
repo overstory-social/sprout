@@ -34,6 +34,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindRef } from '../declare/kinds.js';
 import { kindName } from '../declare/kinds.js';
 import type { DeclaredMessage } from '../declare/messages.js';
+import type { EngineMessage } from '../declare/engine-messages.js';
 import type { RoleFiller } from '../declare/verbs.js';
 import type { RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedProperty } from '../declare/properties.js';
@@ -388,36 +389,9 @@ export function elapsedBinding(name: string, at: Span): Binding {
 }
 
 /**
- * The engine's own messages bind what they name rather than a sender and
- * a value. An authored message may not take one of these names.
+ * What an engine message binds, under the names it passes them by: what
+ * it names rather than a sender and a value.
  */
-export interface EngineMessage {
-  readonly name: string;
-  /** In the order the engine passes them. `integer` is `elapsed`; the rest are objects. */
-  readonly parameters: readonly { readonly name: string; readonly binds: 'object' | 'integer' }[];
-}
-
-export const ENGINE_MESSAGES: readonly EngineMessage[] = [
-  { name: 'entered', parameters: [object_('item'), object_('from')] },
-  { name: 'left', parameters: [object_('item'), object_('to')] },
-  { name: 'moved', parameters: [object_('from'), object_('to')] },
-  { name: 'arrived', parameters: [object_('actor'), object_('from')] },
-  { name: 'departed', parameters: [object_('actor'), object_('to')] },
-  { name: 'spawned', parameters: [object_('from')] },
-  { name: 'tick', parameters: [{ name: 'elapsed', binds: 'integer' }] },
-  { name: 'woke', parameters: [{ name: 'elapsed', binds: 'integer' }] },
-];
-
-function object_(name: string): { readonly name: string; readonly binds: 'object' } {
-  return { name, binds: 'object' };
-}
-
-/** One of the engine's messages by name, or null for an authored one. */
-export function engineMessage(name: string): EngineMessage | null {
-  return ENGINE_MESSAGES.find((message) => message.name === name) ?? null;
-}
-
-/** What an engine message binds, under the names it passes them by. */
 export function engineParameters(message: EngineMessage, at: Span): Binding[] {
   return message.parameters.map((parameter) =>
     parameter.binds === 'integer'

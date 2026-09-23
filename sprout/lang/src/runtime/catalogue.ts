@@ -1,17 +1,19 @@
 // What one bundle says about the instances a world may hold (the spec's
 // The runtime › State): every declared object by its id, what the world
-// and a visitor are made of, the kinds a spawn may name, every kind as a
-// body finds it by name, every verb, where visitors arrive, and the host's caps that
-// stored values are read under. Built once per load, and read by every
+// and a visitor are made of, the kinds a spawn may name and what each
+// gives its instances, every kind as a body finds it by name, every verb,
+// where visitors arrive, and the host's caps that stored values are read
+// under. Built once per load, and read by every
 // rule that reconciles stored state with source.
 //
-// Every placement in the declared tree is here, one whose kind is absent
-// included, so that what it holds keeps its declared container and its
-// rank. A declared object's rank is its position in one walk of the
+// Every placement in the declared tree is here, what a kind gave a
+// declared object and one whose kind is absent included, so that what it
+// holds keeps its declared container and its rank. A declared object's rank is its position in one walk of the
 // tree, which keeps siblings in the order they were declared.
 
 import type { Bundle } from '../bundle/bundle.js';
 import type { StaticCaps } from '../bundle/limits.js';
+import type { KindContents } from '../declare/contents.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { WORLD } from '../declare/sprout-world.js';
 import type { Placement, TreePath } from '../declare/tree.js';
@@ -45,6 +47,8 @@ export interface Catalogue {
    * spawned (the spec's The world model). A stored spawn of one stays dormant.
    */
   readonly kinds: ReadonlyMap<string, KindRef>;
+  /** What each kind's body gives every instance of it, which a spawn makes with the instance. */
+  readonly contents: KindContents;
   /**
    * Every kind the bundle declares, the world's among them, found by name
    * as a body names one: what an `is(K)` or a `count(K)` reads.
@@ -86,6 +90,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
         .filter((kind) => !kind.composes.has(WORLD))
         .map((kind) => [kindName(kind), kind]),
     ),
+    contents: bundle.contents,
     lookup: bundle.kindLookup,
     verbs: bundle.verbs,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),

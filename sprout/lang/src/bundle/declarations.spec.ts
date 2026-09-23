@@ -72,6 +72,30 @@ describe('every table is built over every library, in the order they depend on o
     expect([tree.world, [...tree.placed.keys()]]).toEqual(['shop', ['hall', 'hall.box']]);
   });
 
+  it('gives each object what every library’s kinds hold, in the tree and not among the objects', () => {
+    const report = loading();
+    const { contents, objects, tree, composed } = resolveDeclarations(
+      byLibrary({
+        sprout: 'kind Thing { }\nkind Lamp { contains object wick is Thing }',
+        shop: 'world shop is sprout.World {\n  object hall is sprout.Lamp\n}',
+      }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.all).toEqual([]);
+    const [wick] = contents.get('sprout.Lamp')!;
+    expect([wick!.kind!.library, wick!.kind!.order]).toEqual([
+      'sprout',
+      ['sprout.Thing', 'sprout.wick'],
+    ]);
+    expect([...tree.placed.keys()]).toEqual(['hall', 'hall.wick']);
+    expect(objects.map((o) => o.name)).toEqual(['hall']);
+    expect(composed.map((o) => [o.declaration.name.text, o.giver])).toEqual([
+      ['hall', null],
+      ['wick', 'sprout.Lamp'],
+    ]);
+  });
+
   it('roots the tree at the world’s name, which need not be its namespace', () => {
     const { objects, tree } = resolveDeclarations(
       byLibrary({

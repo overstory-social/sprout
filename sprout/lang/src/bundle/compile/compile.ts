@@ -39,6 +39,7 @@ import type { Bundle, MicroworldSource } from '../bundle.js';
 import { softenPolicy, type Diagnostic } from '../../source/diagnostics.js';
 import { resolveDeclarations } from '../declarations.js';
 import { checkActors } from '../../declare/actors.js';
+import { everyContent } from '../../declare/contents.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
@@ -129,11 +130,15 @@ export function compileBundle(
     diagnostics: report.diagnostics,
   });
 
-  // Every body, against the kind that wrote it.
+  // Every body, against the kind that wrote it: a kind's content once,
+  // however many instances hold a copy.
   checkBodies(
     [
       ...tables.kinds.all(),
-      ...tables.composed.flatMap(({ kind }) => (kind === null ? [] : [kind])),
+      ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
+      ...tables.composed.flatMap(({ kind, giver }) =>
+        kind === null || giver !== null ? [] : [kind],
+      ),
       ...(world === null ? [] : [world]),
     ],
     { kinds: tables.kinds, verbs: tables.verbs, visitor, diagnostics: report.diagnostics },
@@ -175,6 +180,7 @@ export function compileBundle(
     kinds: tables.kinds.all(),
     kindLookup: tables.kinds,
     verbs: tables.verbs,
+    contents: tables.contents,
     world,
     visitor,
     objects: tables.objects,

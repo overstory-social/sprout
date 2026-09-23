@@ -4,6 +4,7 @@ import {
   Diagnostics,
   inReadingOrder,
   lineAndColumn,
+  onceEach,
   refusal,
   renderDiagnostic,
   renderDiagnostics,
@@ -167,6 +168,27 @@ describe('Diagnostics collects what a compile has to say', () => {
     diagnostics.refuse(stateValue, 'late');
     diagnostics.refuse(doorValue, 'early');
     expect(diagnostics.render().split('\n\n')[0]).toContain('early');
+  });
+});
+
+describe('saying each thing once, where one declaration is read in several places', () => {
+  it('passes on the first of each place and words, and drops the rest', () => {
+    const diagnostics = new Diagnostics();
+    const once = onceEach(diagnostics);
+    once.refuse(doorValue, 'Twice.', 'Once is enough.');
+    once.refuse(doorValue, 'Twice.', 'Once is enough.');
+    once.warn(doorValue, 'Twice.');
+    once.refuse(doorValue, 'Other words.');
+    once.refuse(stateValue, 'Twice.');
+    once.warn(stateValue, 'A warning.');
+    once.warn(stateValue, 'A warning.');
+    expect(diagnostics.all.map((d) => [d.severity, d.at.source.name, d.message])).toEqual([
+      ['refusal', 'kiln.sprout', 'Twice.'],
+      ['refusal', 'kiln.sprout', 'Other words.'],
+      ['refusal', 'vessel.sprout', 'Twice.'],
+      ['warning', 'vessel.sprout', 'A warning.'],
+    ]);
+    expect(diagnostics.all[0]!.remedy).toBe('Once is enough.');
   });
 });
 

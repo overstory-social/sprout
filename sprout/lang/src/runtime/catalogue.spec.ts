@@ -58,6 +58,24 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(rank('cup')).toBeLessThan(rank('jar'));
   });
 
+  it('holds what a kind gives each declared instance under the instance’s path, and the contents a spawn makes', () => {
+    const lanterns = catalogueOf(
+      compiledWorld('printers_shop', {
+        ...SHOP,
+        'world.sprout': SHOP['world.sprout']!.replace(
+          'object jar is Jar',
+          'object jar is Jar object lantern is Lantern',
+        ),
+        'kiln.sprout': `${SHOP['kiln.sprout']!}kind Lantern { contains object wick is Jar }\n`,
+      }),
+      DEFAULT_LIMITS.caps,
+    );
+    const wick = lanterns.declared.get(id('hall', 'shelf', 'lantern', 'wick'))!;
+    expect(wick.container).toBe(id('hall', 'shelf', 'lantern'));
+    expect(wick.kind).toBe(lanterns.contents.get('printers_shop.Lantern')![0]!.kind);
+    expect(wick.rank).toBeGreaterThan(lanterns.declared.get(id('hall', 'shelf', 'lantern'))!.rank);
+  });
+
   it('holds the kinds a spawn may name, by qualified name, and never one composing `sprout.World`', () => {
     expect([...catalogue.kinds.keys()].sort()).toEqual([
       'printers_shop.Crate',

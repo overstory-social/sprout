@@ -1,11 +1,14 @@
 // Making and unmaking instances while a world runs (the spec's The world
 // model › Spawning, Destroying; Limits › Runtime budgets). A spawn makes
 // an instance of a declared kind at its defaults, under a minted id, last
-// in a container in range; a destroy removes an instance and everything
-// inside it, all the way down, dormant records included, and tells no one.
+// in a container in range, and with it a copy of everything its kinds'
+// bodies give it, all the way down, each under a minted id of its own; a
+// destroy removes an instance and everything inside it, all the way down,
+// dormant records included, and tells no one.
 //
 // Two invariants. Nothing is written until every check has passed, so a
-// fault leaves the draft as it was. And what the engine tells the world
+// fault leaves the draft as it was, and a spawn makes all of what it
+// would make or none of it. And what the engine tells the world
 // of a spawn is returned as `EngineSend`s rather than queued here, as a
 // destroy returns every instance it removed, so B32's queue holds the one
 // rule for what is dropped with a destroyed object (the spec's Destroying).
@@ -16,8 +19,10 @@ import type { Draft } from './draft.js';
 import type { InstanceId } from './ids.js';
 import { isLive, liveTree } from './live.js';
 import { reaches, type PassRule } from './range.js';
-import { newInstance } from './state.js';
+import { newInstance, type Made } from './state.js';
 import { isActor } from '../declare/actors.js';
+import { givenBy, type KindContent, type KindContents } from '../declare/contents.js';
+import type { KindRef } from '../declare/kinds.js';
 
 /** Why a spawn or a destroy could not be made. */
 export type LifecycleFaultReason =
@@ -93,8 +98,18 @@ export interface LifecycleContext {
 
 export interface Spawned {
   readonly id: InstanceId;
-  /** `:entered` to the container, then `:spawned` to the new instance. */
+  /** What its kinds gave it, each after what holds it, all the way down. */
+  readonly contents: readonly InstanceId[];
+  /** `:entered` to the container, then `:spawned` to the new instance; nothing for its contents. */
   readonly sends: readonly EngineSend[];
+}
+
+/** One instance a spawn makes: its kind, how it was made, and which of the others holds it. */
+interface Making {
+  readonly kind: KindRef;
+  readonly made: Made;
+  /** The index in the list of the one that holds it; null for the instance spawned. */
+  readonly holder: number | null;
 }
 
 export interface Destroyed {
@@ -109,10 +124,11 @@ export interface Destroyed {
 
 /**
  * Spawn an instance of `kind`, by qualified name, into `container` at the
- * kind's defaults; `spawner` is the object whose body ran the `spawn`.
- * Faults, writing nothing, when the kind is absent, the container is out
- * of range, holds nothing, or holds no actors where the kind is an actor,
- * or the turn's cap or the host's bound is reached.
+ * kind's defaults, with its contents; `spawner` is the object whose body
+ * ran the `spawn`. Faults, writing nothing, when the kind is absent, the
+ * container is out of range, holds nothing, or holds no actors where
+ * anything made is an actor, or the turn's cap or the host's bound is
+ * reached by any of what it would make.
  */
 export function spawnInstance(
   context: LifecycleContext,
@@ -154,25 +170,65 @@ export function spawnInstance(
       `\`${container}\` holds no actors, so ${shown}, an actor, could not be spawned in it.`,
     );
   }
-  budget.spawn();
-  if (mayHold !== null && draft.held + 1 > mayHold) {
+  const making = madeWith(made, kind, catalogue.contents);
+  for (const one of making) {
+    const holder = one.holder === null ? null : making[one.holder]!;
+    if (holder !== null && isActor(one.kind) && !holder.kind.containsActors) {
+      throw new LifecycleFault(
+        'holds-no-actors',
+        container,
+        `\`${one.kind.name}\`, an actor, would be inside \`${holder.kind.name}\`, which holds no actors, so ${shown} could not be spawned.`,
+      );
+    }
+  }
+  for (let n = 0; n < making.length; n++) budget.spawn();
+  if (mayHold !== null && draft.held + making.length > mayHold) {
     throw new LifecycleFault(
       'instances',
       container,
       `the host will hold no more instances in this world, so ${shown} could not be spawned.`,
     );
   }
-  const id = draft.mint();
-  draft.add(
-    newInstance(id, { from: 'spawned', kind }, made, container, draft.nextSerial(), catalogue.caps),
-  );
+  const ids: InstanceId[] = [];
+  for (const one of making) {
+    const id = draft.mint();
+    const into = one.holder === null ? container : ids[one.holder]!;
+    draft.add(newInstance(id, one.made, one.kind, into, draft.nextSerial(), catalogue.caps));
+    ids.push(id);
+  }
+  const [id] = ids as [InstanceId, ...InstanceId[]];
   return {
     id,
+    contents: ids.slice(1),
     sends: [
       { message: 'entered', recipient: container, item: id, from: spawner },
       { message: 'spawned', recipient: id, from: spawner },
     ],
   };
+}
+
+/**
+ * Everything a spawn of `made`, by qualified name `kind`, makes: the
+ * instance first, then each content after what holds it, what a holder's
+ * kinds give before what its own body holds. A content whose kind is
+ * absent is not made, and nor is what it holds.
+ */
+function madeWith(made: KindRef, kind: string, contents: KindContents): Making[] {
+  const making: Making[] = [{ kind: made, made: { from: 'spawned', kind }, holder: null }];
+  const inside = (holder: number, own: readonly KindContent[]): [KindContent, number][] =>
+    [...givenBy(contents, making[holder]!.kind), ...own].map((content) => [content, holder]);
+  const pending = inside(0, []).reverse();
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const [content, holder] = next;
+    if (content.kind === null) continue;
+    making.push({
+      kind: content.kind,
+      made: { from: 'given', kind: content.giver, path: content.path },
+      holder,
+    });
+    pending.push(...inside(making.length - 1, content.holds).reverse());
+  }
+  return making;
 }
 
 /**

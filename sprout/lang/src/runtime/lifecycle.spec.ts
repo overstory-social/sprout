@@ -30,7 +30,12 @@ const CAPS = DEFAULT_LIMITS.caps;
 const catalogueSource = `${SHOP['world.sprout']!.replace(
   'object kiln is Crate',
   'object kiln is Kiln { object cat is Person }',
-)}kind Cup { :full false }\n`;
+)}kind Cup { :full false }\n${[
+  'kind Lantern { contains object wick is Jar { contains object flame is Cup } }',
+  'kind Storm is Lantern { object vent is Cup }',
+  'kind Hutch { contains object rabbit is Person }',
+  '',
+].join('\n')}`;
 const KILN_SOURCE = 'kind Crate { contains :lid false }\nkind Kiln { contains actors }\n';
 const catalogue = catalogueOf(
   compiledWorld('printers_shop', {
@@ -323,6 +328,105 @@ describe('a spawn', () => {
   });
 });
 
+describe('a spawn of a kind whose body holds objects', () => {
+  const LANTERN = 'printers_shop.Lantern';
+
+  it('makes each with the instance, under a minted id of its own, inside what holds it', () => {
+    const draft = new Draft(initialState(catalogue));
+    const spawned = spawnInstance(context(draft), JAR, LANTERN, SHELF);
+    expect([spawned.id, ...spawned.contents]).toEqual([minted(1), minted(3), minted(5)]);
+    const [wick, flame] = spawned.contents.map((one) => draft.instance(one)!);
+    expect(wick!.made).toEqual({ from: 'given', kind: LANTERN, path: ['wick'] });
+    expect(wick!.container).toBe(spawned.id);
+    expect(wick!.properties.get('fill')).toBe(3);
+    expect(flame!.made).toEqual({ from: 'given', kind: LANTERN, path: ['wick', 'flame'] });
+    expect(flame!.container).toBe(wick!.id);
+    expect(draft.children(spawned.id)).toEqual([wick!.id]);
+    expect(draft.children(SHELF).at(-1)).toBe(spawned.id);
+  });
+
+  it('gives what each kind in the closure writes, in closure order', () => {
+    const draft = new Draft(initialState(catalogue));
+    const spawned = spawnInstance(context(draft), JAR, 'printers_shop.Storm', SHELF);
+    expect(
+      draft.children(spawned.id).map((one) => {
+        const made = draft.instance(one)!.made;
+        return made.from === 'given' ? [made.kind, made.path.join('.')] : made.from;
+      }),
+    ).toEqual([
+      [LANTERN, 'wick'],
+      ['printers_shop.Storm', 'vent'],
+    ]);
+  });
+
+  it('tells the container of the instance only, and nothing to what it holds', () => {
+    const draft = new Draft(initialState(catalogue));
+    const spawned = spawnInstance(context(draft), JAR, LANTERN, SHELF);
+    expect(spawned.sends).toEqual([
+      { message: 'entered', recipient: SHELF, item: spawned.id, from: JAR },
+      { message: 'spawned', recipient: spawned.id, from: JAR },
+    ]);
+  });
+
+  it('charges each against the turn’s cap, and makes none of them past it', () => {
+    const budget = new Budget(limitsFrom({ budgets: { spawnsPerTurn: 2 } }).budgets);
+    const draft = new Draft(initialState(catalogue));
+    const held = draft.held;
+    expect(() => spawnInstance(context(draft, { budget }), JAR, LANTERN, SHELF)).toThrow(
+      BudgetExhausted,
+    );
+    expect(draft.held).toBe(held);
+    const room = new Budget(limitsFrom({ budgets: { spawnsPerTurn: 3 } }).budgets);
+    spawnInstance(
+      context(new Draft(initialState(catalogue)), { budget: room }),
+      JAR,
+      LANTERN,
+      SHELF,
+    );
+    expect(room.spentSpawns).toBe(3);
+  });
+
+  it('faults, making nothing, where the host will not hold them all', () => {
+    const base = initialState(catalogue);
+    const fault = faultsWritingNothing(
+      base,
+      (draft) => spawnInstance(context(draft, { mayHold: draft.held + 2 }), JAR, LANTERN, SHELF),
+      'instances',
+    );
+    expect(fault.message).toBe(
+      'the host will hold no more instances in this world, so `Lantern` could not be spawned.',
+    );
+    const draft = new Draft(base);
+    spawnInstance(context(draft, { mayHold: draft.held + 3 }), JAR, LANTERN, SHELF);
+  });
+
+  it('faults, making nothing, where an actor it holds would stand in what holds no actors', () => {
+    const fault = faultsWritingNothing(
+      initialState(catalogue),
+      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Hutch', HALL),
+      'holds-no-actors',
+    );
+    expect(fault.object).toBe(HALL);
+    expect(fault.message).toBe(
+      '`rabbit`, an actor, would be inside `Hutch`, which holds no actors, so `Hutch` could not be spawned.',
+    );
+  });
+
+  it('destroys what it holds with it', () => {
+    const draft = new Draft(initialState(catalogue));
+    const spawned = spawnInstance(context(draft), JAR, LANTERN, SHELF);
+    expect(destroyInstance(draft, spawned.id).removed).toEqual([spawned.id, ...spawned.contents]);
+  });
+
+  it('reads back what it made, saved and loaded', () => {
+    const draft = new Draft(initialState(catalogue));
+    const spawned = spawnInstance(context(draft), JAR, LANTERN, SHELF);
+    const loaded = loadWorld(saveWorld(draft.commit().state), catalogue);
+    expect(loaded.dormant).toEqual([]);
+    expect(loaded.state.children.get(spawned.contents[0]!)).toEqual([spawned.contents[1]]);
+  });
+});
+
 describe('a destroy', () => {
   it('destroys what it held with it, all the way down, and sends nothing', () => {
     const base = initialState(catalogue);
@@ -520,6 +624,9 @@ describe('any run of spawns, destroys and moves', () => {
             choose.one(anywhere),
           );
           known.add(spawned.id);
+          for (const one of spawned.contents) known.add(one);
+          // What it made is the instance and all its kinds give, and nothing else.
+          expect(draft.held - heldBefore).toBe(1 + spawned.contents.length);
         } else if (action === 1) {
           const target = choose.one(anywhere);
           const inside = anywhere.filter((one) => {

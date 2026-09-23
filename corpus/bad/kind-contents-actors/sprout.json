@@ -1,0 +1,16 @@
+{
+  "name": "kind_contents_actors",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "24dd45a23d8ef40ecf983b6a121a34a338c264b45e1f824e4aeebfa10f90871b"
+    }
+  ],
+  "files": ["world.sprout"]
+}

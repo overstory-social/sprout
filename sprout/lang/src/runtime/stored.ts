@@ -32,12 +32,18 @@ export interface StoredProperty {
   readonly value: StoredValue;
 }
 
-/** How an instance came to be: the world itself, a declared object, a visitor, or a spawn of a kind named by its qualified name. */
+/**
+ * How an instance came to be: the world itself, a declared object, a
+ * visitor, a spawn of a kind named by its qualified name, or a kind's
+ * content made with a spawned instance, named by the kind whose body
+ * writes it and its path in that body.
+ */
 export type StoredMade =
   | { readonly from: 'world' }
   | { readonly from: 'declared' }
   | { readonly from: 'visitor' }
-  | { readonly from: 'spawned'; readonly kind: string };
+  | { readonly from: 'spawned'; readonly kind: string }
+  | { readonly from: 'given'; readonly kind: string; readonly path: readonly string[] };
 
 /** One pending wake: the serial it was asked under, and when it was asked and is due, in host seconds. */
 export interface StoredWake {
@@ -99,6 +105,11 @@ const StoredInstanceSchema = z.object({
     z.object({ from: z.literal('declared') }),
     z.object({ from: z.literal('visitor') }),
     z.object({ from: z.literal('spawned'), kind: z.string().min(1) }),
+    z.object({
+      from: z.literal('given'),
+      kind: z.string().min(1),
+      path: z.array(z.string().regex(/^[a-z][a-z0-9_]*$/)).min(1),
+    }),
   ]),
   container: z.string().nullable(),
   arrival: serial.nullable(),
@@ -122,6 +133,7 @@ const FORM_OF: Readonly<Record<StoredMade['from'], 'world' | 'declared' | 'minte
   declared: 'declared',
   visitor: 'minted',
   spawned: 'minted',
+  given: 'minted',
 };
 
 /**

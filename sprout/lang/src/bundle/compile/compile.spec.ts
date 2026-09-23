@@ -198,6 +198,34 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
     ]);
   });
 
+  it('checks what a kind’s body holds once, however many instances are given it', () => {
+    const text = [
+      rootWith('object red is Chest object blue is Chest'),
+      'kind Chest { contains object lid is Lid { accept (item, from) { refuse gone } } }',
+      'kind Lid { contains }',
+      'kind Unused { contains object latch is Lid { accept (item, from) { refuse stuck } } }',
+    ].join('\n');
+    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => d.message)).toEqual([
+      '`lid` has no passage `gone`.',
+      '`latch` has no passage `stuck`.',
+    ]);
+  });
+
+  it('carries what each kind’s body gives, and places a copy in every declared instance', () => {
+    const text = [
+      rootWith('object red is Chest'),
+      'kind Chest { contains object lid is Lid }',
+      'kind Lid { }',
+    ].join('\n');
+    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.contents.get('printers_shop.Chest')!.map((one) => one.path)).toEqual([['lid']]);
+    expect(bundle!.tree.placed.has('red.lid')).toBe(true);
+    expect(bundle!.objects.map((object) => object.name)).toEqual(['hall', 'red']);
+  });
+
   it('compiles a world whose guards read and decide', () => {
     const text = [
       rootWith(

@@ -1,4 +1,0 @@
-world.sprout:18:10  `wick` is written in the body of the kind `Lantern`, and this compiler does not read objects in a kind's body yet.
-                    For now, write `object wick …` inside the braces of each object made of `Lantern`.
-
-refused: 1 problem
