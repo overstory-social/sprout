@@ -549,7 +549,12 @@ Found while telling a place's range who came and went, each decided the narrow w
 - **A place that writes no `leaves` or `arrives`.** There are no words for that side, so its visitors are sent the message with everything else in its range, and nobody in range is told nothing.
 - **What the walks cost.** One step for each node each walk reaches, as every range walk is charged.
 - **The engine's two refusals.** `inside_itself` renders with `item`, the thing moved, and `self` the world. The refusal of an actor where actors cannot stand keeps its fixed words, "{item} cannot stand in {to}.", since the spec gives it no line.
-- **An authored message named `:arrived` or `:departed`.** Not refused yet, and no more is `:spawned` or any other engine message's name: Reserved names lists them, and nothing reads the list against a `message` declaration. It needs an issue of its own, which adds the refusal for all eight and a `corpus/bad` world pinning its words.
+
+Found while reserving the engine's message names, each decided the narrow way and awaiting Eric:
+
+- **Whose messages.** Reserved names says "an authored message"; every library's declaration is refused, the standard library's included, since the engine's messages are the engine's and no library declares them.
+- **By name alone.** A declaration is refused whatever it carries, with or without `with`; a handler for one of the eight still binds what the engine passes, since nothing needs declaring for it.
+- **The member words.** `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` are refused as a verb's name and not yet as a message's, though the same sentence of Reserved names keeps them from both. It needs an issue of its own, with a `corpus/bad` world pinning its words.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

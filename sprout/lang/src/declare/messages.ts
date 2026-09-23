@@ -13,9 +13,13 @@
 
 import type { MessageDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
+import { readable } from '../source/words.js';
+import { ENGINE_MESSAGES, engineMessage } from './engine-messages.js';
 import type { EnumTable } from './enums.js';
 import { qualifiedName, SPROUT } from './enums.js';
 import { resolveType, type ValueType } from './types.js';
+
+const ENGINE_NAMES = ENGINE_MESSAGES.map((message) => `:${message.name}`);
 
 /** A message as the whole bundle sees it: whose it is, what it is called, what it carries. */
 export interface DeclaredMessage {
@@ -33,7 +37,8 @@ export class MessageTable {
   /**
    * Add a library's declarations, resolving what each carries. Two
    * messages of one name in one library collide; two in different
-   * libraries do not, because libraries namespace messages.
+   * libraries do not, because libraries namespace messages. No library
+   * may take an engine message's name (the spec's Reserved names).
    */
   add(
     library: string,
@@ -42,6 +47,14 @@ export class MessageTable {
     diagnostics: Diagnostics,
   ): void {
     for (const declared of declarations) {
+      if (engineMessage(declared.name.text) !== null) {
+        diagnostics.refuse(
+          declared.name.at,
+          `\`:${declared.name.text}\` is one of the engine's messages, and the engine sends those itself.`,
+          `The engine's messages are ${readable(ENGINE_NAMES)}. Name yours for what it means to your world, as in \`:rang\`.`,
+        );
+        continue;
+      }
       const key = qualifiedName(library, declared.name.text);
       if (this.byQualified.has(key)) {
         diagnostics.refuse(
