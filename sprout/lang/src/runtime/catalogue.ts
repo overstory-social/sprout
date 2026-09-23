@@ -13,6 +13,7 @@
 import type { Bundle } from '../bundle/bundle.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import { kindName, type KindRef } from '../declare/kinds.js';
+import { WORLD } from '../declare/sprout-world.js';
 import type { Placement, TreePath } from '../declare/tree.js';
 import { declaredId, type InstanceId } from './ids.js';
 
@@ -37,7 +38,11 @@ export interface Catalogue {
   readonly visitorKind: KindRef | null;
   /** Every placement in the declared tree, by id, absent kinds included. */
   readonly declared: ReadonlyMap<InstanceId, DeclaredEntry>;
-  /** Every kind the bundle declares, by qualified name: what a spawn records it was made from. */
+  /**
+   * The kinds a spawn may name, by qualified name: every kind the bundle
+   * declares but those composing `sprout.World`, since the world is never
+   * spawned (the spec's The world model). A stored spawn of one stays dormant.
+   */
   readonly kinds: ReadonlyMap<string, KindRef>;
   /** Where visitors arrive, or null for a world that admits no one. */
   readonly arrival: InstanceId | null;
@@ -68,7 +73,11 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     worldKind: bundle.world,
     visitorKind: bundle.visitor,
     declared,
-    kinds: new Map(bundle.kinds.map((kind) => [kindName(kind), kind])),
+    kinds: new Map(
+      bundle.kinds
+        .filter((kind) => !kind.composes.has(WORLD))
+        .map((kind) => [kindName(kind), kind]),
+    ),
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
     caps,
   };

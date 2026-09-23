@@ -53,3 +53,4 @@ export * from './runtime/load.js';
 export * from './runtime/memory.js';
 export * from './runtime/draft.js';
 export * from './runtime/live.js';
+export * from './runtime/lifecycle.js';

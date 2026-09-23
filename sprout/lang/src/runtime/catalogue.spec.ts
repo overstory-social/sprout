@@ -58,7 +58,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(rank('cup')).toBeLessThan(rank('jar'));
   });
 
-  it('holds the kinds a spawn may name, by qualified name', () => {
+  it('holds the kinds a spawn may name, by qualified name, and never one composing `sprout.World`', () => {
     expect([...catalogue.kinds.keys()].sort()).toEqual([
       'printers_shop.Crate',
       'printers_shop.Jar',
@@ -67,9 +67,12 @@ describe('a catalogue says what one bundle holds as instances', () => {
       'printers_shop.Shelf',
       'sprout.Actor',
       'sprout.Place',
-      'sprout.World',
     ]);
-    for (const [name, kind] of catalogue.kinds) expect(kindName(kind)).toBe(name);
+    for (const [name, kind] of catalogue.kinds) {
+      expect(kindName(kind)).toBe(name);
+      expect(kind.composes.has('sprout.World')).toBe(false);
+    }
+    expect(shop().kinds.some((kind) => kindName(kind) === 'sprout.World')).toBe(true);
   });
 
   it('takes the world’s kind and the visitor kind from the bundle', () => {
