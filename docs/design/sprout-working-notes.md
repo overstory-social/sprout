@@ -580,7 +580,7 @@ Two things worth keeping from the earlier sweeps, because they read like holes a
 
 One future thought recorded on the way, for the registry discussion in the backlog: a host may one day decline to store a vendored library whose hash matches one it already holds, and serve the shared copy instead.
 
-*Closed on 2026-09-20, against the five reviews:* an open role, a handler's sender and an unfiltered loop variable are of the bare object type and are read only through `is()`; `each` is defined; `:remembers` uses the property declaration syntax; NPCs compose the visitor kind, have a name, read nothing, act with `act`, and do not keep a place ticking.
+*Closed on 2026-09-20, against the five reviews:* an open role, a handler's sender and an unfiltered loop variable are of the bare object type and are read only through `is()`; `each` is defined; `:remembers` uses the property declaration syntax; NPCs compose the visitor kind, have a name, read nothing, act with `act`, and do not keep a place ticking. *Decided 2026-09-23 (73), the other way on the first point:* an NPC composes `sprout.Actor` and not `sprout.Visitor`, which only the visitor kind composes.
 
 *Closed: range and visitors are in the world model; `let` is specified; type parameters, stateful alternatives and stored references were all decided against; listing contents needs no convention, since `{thing}` renders an object's name; `look` and `examine` render a `describe`, and `text` is the statement that writes inside one.*
 

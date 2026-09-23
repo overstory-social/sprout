@@ -1149,7 +1149,7 @@ accept (item, from) {
 }
 ```
 
-`sprout.Actor` writes the guards that make a person's things their own: it departs only when the mover is itself, so nobody is carried off; it releases only to its own hand, so nobody is picked; and it accepts what fits, so a gift arrives if there is room for it. A world's visitor kind composes those and may add its own.
+`sprout.Actor` writes the guards that make a person's things their own: it departs only when the mover is itself, so nobody is carried off; it releases only to its own hand, so nobody is picked; and it accepts what fits, so a gift arrives if there is room for it. A world's visitor kind composes those, and a world that wants more of a person's guards writes them on a kind its visitor kind composes.
 
 ### Guards are read-only
 
@@ -2253,7 +2253,7 @@ object press is sprout.Fixture {
 
 Overriding the prose rather than the guard sidesteps the ordering trap. A composing kind's own member is simply the one that applies — collisions arise only between two *sources*, neither of which is the composer — so the author's line replaces the library's with nothing suppressed and no `without` needed. Had `Fixture` refused with a literal instead, the library's words would have spoken first and the author's would never have been read. Capabilities stay structural; policies stay guards.
 
-**The visitor's guards are the visitor kind's.** Once `sprout.Actor` writes `depart`, `release` and `accept` like any other kind, nobody can be carried off or picked, and giving works within capacity — and a world that wants a gift to need a handshake, or a pocket to be searchable, writes one guard on a kind its visitor kind composes. Nothing about a person is a special case in the engine; the special cases are three lines of Sprout.
+**A person's guards are written in the language.** Once `sprout.Actor` writes `depart`, `release` and `accept` like any other kind, nobody can be carried off or picked, and giving works within capacity — and a world that wants a gift to need a handshake, or a pocket to be searchable, writes one guard on a kind its visitor kind composes. Nothing about a person is a special case in the engine; the special cases are three lines of Sprout.
 
 **`take` is a verb.** Making the actor a participant — `as actor for take` — let every built-in be written in the language: one `move` and two passages. The words a visitor reads for the commonest things they do are therefore the library's, replaceable, and translatable: an author who wants "Got it." instead of "You take the brass key." writes a two-word passage on their visitor kind, and one who wants every line in another register composes a library that supplies them, because the standard library's are all `default` and yield.
 
