@@ -114,6 +114,8 @@ export function composesKind(kind: KindRef, target: KindRef): boolean {
 export interface KindLookup {
   qualified(library: string, name: string): KindRef | null;
   unqualified(name: string, from: string): KindRef | null;
+  /** Every kind, in the order declared. */
+  all(): readonly KindRef[];
 }
 
 /**

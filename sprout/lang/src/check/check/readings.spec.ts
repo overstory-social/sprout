@@ -199,10 +199,16 @@ describe('the readings, asked directly', () => {
     const context = vessel();
     const written = call('tool.get(:wear)');
     expect(
-      showBindingType(getCall(objectOf(KEY), written.method, written.arguments, context)!),
+      showBindingType(
+        getCall(written.receiver, objectOf(KEY), written.method, written.arguments, context)!,
+      ),
     ).toBe('integer 0 to 99');
-    expect(getCall(OPEN_OBJECT, written.method, written.arguments, context)).toBeNull();
-    expect(getCall(valueOf(integer()), written.method, written.arguments, context)).toBeNull();
+    expect(
+      getCall(written.receiver, OPEN_OBJECT, written.method, written.arguments, context),
+    ).toBeNull();
+    expect(
+      getCall(written.receiver, valueOf(integer()), written.method, written.arguments, context),
+    ).toBeNull();
     expect(saidBy(context)).toEqual([
       'Sprout does not know what this is, so it cannot read a property from it. Narrow it first, as in `if (thing.is(Key)) { … }`.',
       'Only a thing in the world has properties, and this is integer. Name a binding that holds a thing in the world.',

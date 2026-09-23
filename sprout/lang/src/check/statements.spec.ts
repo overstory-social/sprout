@@ -297,6 +297,7 @@ describe('`spawn` makes a kind in something that holds things', () => {
       qualified: (library, name) =>
         library === 'shop' && name === 'Cat' ? cat : KINDS.qualified(library, name),
       unqualified: (name, from) => (name === 'Cat' ? cat : KINDS.unqualified(name, from)),
+      all: () => [...KINDS.all(), cat],
     };
     expect(spawned('spawn Cat in self', { ...vessel(), kinds })).toEqual({
       kind: 'shop.Cat',

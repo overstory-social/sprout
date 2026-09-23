@@ -138,6 +138,7 @@ export const ALL = [KEY, WARDED, RIB, VESSEL, PRINTER, CONTAINER, SPROUT_WORLD, 
 export const KINDS: KindLookup = {
   qualified: (library, name) => ALL.find((k) => k.library === library && k.name === name) ?? null,
   unqualified: (name, from) => KINDS.qualified(from, name) ?? KINDS.qualified('sprout', name),
+  all: () => ALL,
 };
 
 /** A body of `selfKind`, with the bindings a role-player has. */

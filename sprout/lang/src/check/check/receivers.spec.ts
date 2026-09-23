@@ -10,8 +10,10 @@ import {
   at,
   bodyOf,
   call,
+  CONTAINER,
   expression,
   KEY,
+  kind,
   PRINTER,
   saidBy,
   VESSEL,
@@ -49,6 +51,24 @@ describe('a receiver’s kind', () => {
     expect(declaredOn(KEY, word(':waer'), context)).toBeNull();
     expect(saidBy(context)).toEqual([
       '`shop.Key` has no `:waer`. Did you mean `:wear`? It has `:wear` and `:opens`.',
+    ]);
+  });
+
+  it('narrows a read to the world’s own kind that declares it, and only a read', () => {
+    const context = vessel();
+    // `Vessel` composes `sprout.Container` and declares `:inked`.
+    expect(declaredOn(CONTAINER, word(':inked'), context, 'target')).toBeNull();
+    // Nothing of the world's declares `:lid`, and a write names no receiver.
+    expect(declaredOn(CONTAINER, word(':lid'), context, 'target')).toBeNull();
+    expect(declaredOn(CONTAINER, word(':inked'), context)).toBeNull();
+    // `Printer` remembers `:handled`, which `get` never reads.
+    const actor = kind('Actor', [], [], true, 'sprout');
+    expect(declaredOn(actor, word(':handled'), context, 'actor')).toBeNull();
+    expect(saidBy(context)).toEqual([
+      "`sprout.Container` has no `:inked`. `:inked` is a `Vessel`'s. Read it as one first: `if (target.is(Vessel)) { … target.get(:inked) … }`.",
+      '`sprout.Container` has no `:lid`. It has nothing.',
+      '`sprout.Container` has no `:inked`. It has nothing.',
+      '`sprout.Actor` has no `:handled`. It has nothing.',
     ]);
   });
 });

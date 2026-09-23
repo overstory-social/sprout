@@ -115,7 +115,16 @@ kind Warded {
     ).toEqual([]);
     expect(
       checked(read('actor.get(:score) > 3')).map(([, message, remedy]) => [message, remedy]),
-    ).toEqual([['`sprout.Actor` has no `:score`.', 'It has `:capacity`.']]);
+    ).toEqual([
+      [
+        '`sprout.Actor` has no `:score`.',
+        "`:score` is a `Visitor`'s. Read it as one first: `if (actor.is(Visitor)) { … actor.get(:score) … }`.",
+      ],
+    ]);
+    // What nothing of the world's declares keeps the list of what it has.
+    expect(checked(read('actor.get(:scroe) > 3')).map(([, , remedy]) => remedy)).toEqual([
+      'It has `:capacity`.',
+    ]);
   });
 
   it('binds `here`, and the other roles by name, typed by what fills them', () => {
