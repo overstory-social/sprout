@@ -1,5 +1,5 @@
 {
-  "name": "container_twice_named",
+  "name": "consent",
   "version": "0.1.0",
   "author": "corpus",
   "license": "MIT",
@@ -12,5 +12,5 @@
       "sha": "7a4dd31cf82d17beb59c4fa287ab5b15f567e6d591c77ef6e238a68bf102f9cf"
     }
   ],
-  "files": ["world.sprout", "kinds.sprout", "objects.sprout"]
+  "files": ["world.sprout"]
 }

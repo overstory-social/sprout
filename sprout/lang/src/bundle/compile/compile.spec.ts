@@ -60,6 +60,19 @@ describe('what a compiled bundle carries', () => {
     expect([...carried!.tree.placed.keys()]).toEqual(['hall', 'hall.box']);
   });
 
+  it('carries the kinds by name as the checker found them, a failed kind of its own included', () => {
+    const files = [file('world.sprout', `${ROOT}\nkind Place: Nowhere { contains actors }`)];
+    const { bundle: loaded } = compileBundle(world({ files }), { mode: 'load' });
+    const found = (name: string) => loaded!.kindLookup.unqualified(name, 'printers_shop');
+    expect([found('Visitor')!.library, found('Actor')!.library]).toEqual([
+      'printers_shop',
+      'sprout',
+    ]);
+    // Its own `Place` did not compose, and is not read as the library's.
+    expect(found('Place')).toBeNull();
+    expect(loaded!.kindLookup.qualified('sprout', 'Place')!.name).toBe('Place');
+  });
+
   it('carries the world composed, named for itself, and the kind its visitors are made of', () => {
     expect(bundle!.world!.order).toEqual(['sprout.World', 'printers_shop.printers_shop']);
     expect(bundle!.world!.containsActors).toBe(true);

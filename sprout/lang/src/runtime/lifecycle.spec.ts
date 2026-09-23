@@ -126,8 +126,8 @@ describe('a spawn', () => {
     const draft = new Draft(initialState(catalogue));
     const spawned = spawnInstance(context(draft), JAR, CUP, SHELF);
     expect(spawned.sends).toEqual([
-      { message: 'entered', to: SHELF, item: spawned.id, from: JAR },
-      { message: 'spawned', to: spawned.id, from: JAR },
+      { message: 'entered', recipient: SHELF, item: spawned.id, from: JAR },
+      { message: 'spawned', recipient: spawned.id, from: JAR },
     ]);
   });
 
@@ -279,7 +279,12 @@ describe('a destroy', () => {
     expect(draft.instance(SHELF)).toBeUndefined();
     for (const item of destroyed.fell) expect(draft.instance(item)!.container).toBe(HALL);
     expect(destroyed.sends).toEqual(
-      [JAR, CUP_ID, spawned].map((item) => ({ message: 'entered', to: HALL, item, from: SHELF })),
+      [JAR, CUP_ID, spawned].map((item) => ({
+        message: 'entered',
+        recipient: HALL,
+        item,
+        from: SHELF,
+      })),
     );
   });
 
@@ -366,6 +371,21 @@ describe('a destroy', () => {
     const later = spawnInstance(context(new Draft(state)), JAR, CUP, SHELF).id;
     expect(new Set([first, second, later]).size).toBe(3);
     expect(later).toBe(minted(state.serial + 1));
+  });
+});
+
+describe('what the engine sends', () => {
+  it('names the recipient apart from the bindings its handler receives, as the spec names them', () => {
+    const draft = new Draft(initialState(catalogue));
+    const spawned = spawnInstance(context(draft), JAR, CUP, SHELF);
+    const destroyed = destroyInstance(draft, SHELF);
+    const shapes = [...spawned.sends, ...destroyed.sends].map((send) =>
+      Object.keys(send).join(' '),
+    );
+    // `:entered (item, from)` and `:spawned (from)`.
+    expect(new Set(shapes)).toEqual(
+      new Set(['message recipient item from', 'message recipient from']),
+    );
   });
 });
 
