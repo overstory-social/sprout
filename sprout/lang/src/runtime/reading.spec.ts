@@ -102,6 +102,7 @@ const YARD = compiledWorld('yard', {
     '  as target for pop { do { destroy self  say "pop" } }',
     '  as tool for pop   { do { say "tool pop" } }',
     '}',
+    'kind Glued: Bubble { :n 0 min 0 max 9  as target for pop { do { self.adjust(:n, 1)  say "glued" } } }',
     'object hall: Room in yard',
     'object both: Both in hall',
     'object tool: Tool in hall',
@@ -116,6 +117,7 @@ const YARD = compiledWorld('yard', {
     'object key: Key in hall',
     'object bubble: Bubble in hall',
     'object bead: Plain in hall.bubble',
+    'object glass: Glued in hall',
     'object cat: Person in hall',
     'object dog: Person in hall',
     'object basket: Basket in hall',
@@ -143,6 +145,7 @@ const LOCK = at('hall', 'lock');
 const KEY = at('hall', 'key');
 const BUBBLE = at('hall', 'bubble');
 const BEAD = at('hall', 'bubble', 'bead');
+const GLASS = at('hall', 'glass');
 const CAT = at('hall', 'cat');
 const DOG = at('hall', 'dog');
 const KIT = at('hall', 'basket', 'kit');
@@ -491,6 +494,18 @@ describe('the effect pass', () => {
     expect(lines(said)).toEqual([[BUBBLE, 'pop']]);
     expect(said.destroyed).toEqual([BUBBLE]);
     expect(said.sends).toEqual([{ message: 'entered', recipient: HALL, item: BEAD, from: BUBBLE }]);
+  });
+
+  it('runs none of a participant’s later composed plays once one of them destroyed it', () => {
+    const one = turn(YARD, [HALL]);
+    const [visitor] = one.people;
+    const said = acted(
+      runReading(reading(YARD, 'pop', visitor!, { target: { object: GLASS } }), contextOf(one)),
+    );
+    // `Bubble`'s play runs first and destroys the glass; `Glued`'s own, which
+    // would write to it, does not run, so nothing is said of glue.
+    expect(lines(said)).toEqual([[GLASS, 'pop']]);
+    expect(said.destroyed).toEqual([GLASS]);
   });
 });
 

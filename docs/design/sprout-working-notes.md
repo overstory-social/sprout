@@ -394,7 +394,7 @@ Found while resolving verbs across libraries (B23), each decided the narrow way 
 
 Asked ahead of building the two passes (B24), 2026-09-23:
 
-- **Declared order.** The actor first, then the verb's roles as declared (the target, then the tools; a set role's fillers in typed order), and within one participant its kind's contributions in closure order, the composer's own last. Decided 2026-09-23, as The two passes, Set roles and How members combine already say it, and built so.
+- **Declared order.** The actor first, then the verb's roles as declared (the target, then the tools; a set role's fillers in typed order), and within one participant its kind's contributions in closure order, the composer's own last. Proposed; awaiting Eric, and built so, as The two passes, Set roles and How members combine read.
 - **`allow` in a `permit`, `refuse` in a `do`.** Proposed: the first accepted, since a `permit` has a guard's shape; the second refused. Awaiting Eric.
 - **An NPC actor's `say`.** Decided 2026-09-23, now under Acting: it comes from the NPC, heard by whoever would hear its `tell`, as *the cat says "miaow"*. How the line is framed (a stock passage on `sprout.World`, or fixed words), and whether `nothing_happens` is told the same way for an NPC's reading that said nothing, are open; B30 carries who hears it.
 - **The warning for a verb no object plays a role for.** Waits for B48, which brings the library's role bodies, so it does not fire for `take`, `drop` and `give` in every world. Decided 2026-09-23.
@@ -426,7 +426,7 @@ Found while running a reading through the two passes (B24), each decided the nar
 - **Who hears an NPC.** The actors directly in its place, NPCs among them, less the NPC and every participant, in contents order. What reaches an NPC and what reaches an occupant of something inside the place is B30's.
 - **`here`.** The actor's nearest container that holds actors, so a wardrobe declaring `contains actors` is `here` for whoever stands in it. An actor with no such container, as an NPC in a crate in a world that holds only things, has the world as `here`; the spec does not say.
 - **`allow` in a `permit`.** Ends that `permit`, consenting; every other `permit` is still asked, as a guard's `allow` leaves the other parties to be asked.
-- **A participant destroyed earlier in the effect pass.** Only an object filling two roles can be one, since `destroy self` takes effect when the `do` that ran it ends. Its later `do`s do not run.
+- **A participant destroyed earlier in the effect pass.** `destroy self` takes effect when the `do` that ran it ends, so one is an object filling two roles, or one whose composed play destroyed it before its own ran. Its later `do`s, composed or own, do not run.
 - **What a `do` does at this level.** `let`, `if`, `spawn`, `destroy self`, the four writes, `remember` and `say`. `tell`, `move`, `send` and `act` are not yet statements the parser reads; B30, B25, B32 and B26 bring them.
 - **A world composing no `nothing_happens`.** An engine error, which B34 turns into a fault, as for the other engine passages a forked standard library leaves out.
 

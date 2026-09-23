@@ -152,9 +152,9 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
 
 /**
  * Every `do` of every participant, in the consent pass's order. A
- * participant destroyed by an earlier `do` in the pass does nothing
- * more. When nothing was said to the actor, the world's `nothing_happens`
- * is.
+ * participant destroyed by an earlier `do` in the pass, one of its own
+ * composed plays included, does nothing more. When nothing was said to
+ * the actor, the world's `nothing_happens` is.
  */
 export function effectPass(reading: Reading, context: ReadingContext): Acted {
   const { draft } = context;
@@ -188,6 +188,9 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
     if (self === undefined) continue;
     for (const play of playsFor(reading, participant, self)) {
       if (play.declaration.do === null) continue;
+      // `destroy self` takes effect as the `do` that ran it ends, so a
+      // composed play after it has no `self` to run for.
+      if (draft.instance(participant.id) === undefined) break;
       runBody(
         play.declaration.do,
         frameFor(reading, participant, play, state, context),
