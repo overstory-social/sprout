@@ -191,12 +191,29 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 
 **Still open**
 
-- **The colon does too much.** `:season` is a property, `kind Creature: sprout.Actor` a composition, `:remembers [visits: 0]` a key and value, `act nuzzle (target: p)` a label, and an option is `wet` in a declaration and `:wet` in an expression. Eric wants it disambiguated without string-quoting symbols. A proposal, not decided: keep `:name` for properties and messages, since that is the spelling authors read most; spell an option by its enum everywhere, `Ward.iron`, with the bare `:iron` kept only where the enum is already known from the other operand; write a `:remembers` entry exactly as a property is written, `:remembers [:visits 0 min 0 max 99]`, which removes one use of the colon outright; and compose with `is` rather than the colon — `kind Creature is sprout.Actor, Fragile`, `object brass_key is Key in shelf` — which reads as the same question `x.is(K)` asks. The label in `act` stays, since a space after the name already keeps `target: p` from lexing as a symbol.
+- **The colon does too much.** `:season` is a property, `:remembers [visits: 0]` a key and value, `act nuzzle (target: p)` a label, and an option is `wet` in a declaration and `:wet` in an expression. Composition is decided, below: it is written with `is`. The rest of the proposal is not decided: keep `:name` for properties and messages, since that is the spelling authors read most; spell an option by its enum everywhere, `Ward.iron`, with the bare `:iron` kept only where the enum is already known from the other operand; and write a `:remembers` entry exactly as a property is written, `:remembers [:visits 0 min 0 max 99]`, which removes one use of the colon outright. The label in `act` stays, since a space after the name already keeps `target: p` from lexing as a symbol.
 - **Roles.** Being settled one question at a time with Eric, 2026-09-22 onward. *Settled so far:* the word for a non-target role is a tool; a verb may have no tools or no roles; a tool some phrase leaves out is optional and is read only under `if (bound x)`, with no value standing for an unbound one (the spec's Optional tools); a `symbol` tool with no `from` is never bound for that role-player and may not be read at all; every value tool is optional, since a typed value outside the offered options (*ask the guard about potatoes*) or an integer outside its range, or any value tool with no `from`, arrives unbound — which closes the first two of the three questions. *Closed 2026-09-22:* `many` on a value tool is refused at level 1; a later level may add a set of values bound as a list, all or nothing, and the four points that shape (no per-value participant, no `each` over a list, partial runs, the run-splitting rule) are the page to write then. The roles hold is lifted: B23, B24, B26 and B27 may start.
 - **Whether a withheld file changes the bundle's hash.** Deferred until the publish, share, repository and library-versioning story is settled.
-- **Pending wakes.** One per object is now stated as a rule of the language rather than a budget. Eric asked whether it could instead ride on a cap over methods or listeners; that is unanswered, and the rule stands until it is.
 - **The register of the stock lines.** Long-term, and not a blocker.
+- **Where an object is declared.** Eric floated declaring an object inside its container's body instead of `object … in …`; not decided.
 - **Found by the 2026-09-21 review.** A symbol literal on the left of `==` is refused by the checker; the spec now says either side, and #86 brings the code to it. *Decided 2026-09-22, now in the checker table:* an integer literal outside the other operand's range in a comparison is refused, on either side and for every comparison operator, because the answer is known before the world runs; #86 brings the code to it. An exit's `when` guard may `get` through an identifier, a `get` through one out of range is a fault, and guards run on every poll, so a poll can fault through a guard; the unset-link rule (does not apply) is the likely answer.
+
+**Decided 2026-09-23**, now in the spec:
+
+- Range reads the path rule: an object reaches a target when nothing strictly between them on the tree refuses.
+- Range goes nearest first, a ring at a time, breadth-first within a ring and each container's contents in its order; a broadcast delivers in that order.
+- What a kind leaves out with `without` stays left out in every kind composing it; a copy of the member reaching the composer through another kind still runs.
+- `visitors arrive at` never names the world, even one that declares `contains actors`.
+- An object hiding one of its name further out is warned about at the inner declaration, naming the outer one's path; objects in sibling containers hide nothing.
+- Composition is written with `is`, `kind Creature is sprout.Actor, Fragile`; the colon form is refused with the `is` form as the remedy.
+- Pending wakes per object is a host cap, 1 by default, and a `wake` past it faults as a `spawn` past live instances does.
+- A library's `version` is semver.
+- The absent table has a row for a container named in an object's `in`.
+- An object's `in` and the world's `visitors arrive at` are read from inside the world, with dotted paths for anything deeper; nearest-wins is the rule inside bodies.
+- Refused: an object inside itself or a ring of them; an `in` naming what holds nothing; the world's name as a step of a path or as an object's name; two objects of one name in one container.
+- What `objects`, `places` and `kinds` count, under Static caps.
+
+Composing with `is`, refusing arrival at the world, the shadowing warning and range's path rule differ from what is built or being built, and the code catches up.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
@@ -204,45 +221,33 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
 - **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
 - **A block comment never closed, or inside another.** Decided 2026-09-22 and now under Lexical rules: refused at its opening; no nesting.
-- **Whether a library's `version` is semver.** The manifest's `libraries` row says only "by version", and a vendored library declares one beside its source. Not decided; #75 checks the world's `version` alone.
 - **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
 - **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.
 - Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); a world composes like a kind, so it holds whatever anything it composes holds.
 
 Found while building composition (B19), each decided the narrow way and awaiting Eric:
 
-- **`object` is both a type name and a declaration word.** A type position that meets the start of a declaration (`object bench: …`) says the type is missing rather than reading the object as the type.
+- **`object` is both a type name and a declaration word.** A type position that meets the start of a declaration (`object bench is …`) says the type is missing rather than reading the object as the type.
 - **An object with no kinds, or no body.** One that names no kind is refused ("An object names its kinds and its container"); one with no body is allowed and has nothing of its own.
 - **A kind's braces.** Required, even when empty: `kind Marker { }`.
 - **An object's own name.** Any lower-case word; the reserved-word rule is read as covering options and bindings only.
 - **A bare `World`.** Resolves as any bare kind name does, to the world's own `World` if it declares one and else to `sprout.World`, so on a kind or an object it is refused as `sprout.World` is; on a world it still does not count as writing `sprout.World`.
-- **The closure's order.** Depth-first, left to right, each kind at its first appearance, the composer last (post-order): `D: B, C` with `B: A` and `C: A` runs `A, B, C, D`.
+- **The closure's order.** Depth-first, left to right, each kind at its first appearance, the composer last (post-order): `D is B, C` with `B is A` and `C is A` runs `A, B, C, D`.
 - **A kind that composes itself.** Refused once, at the kind as written that closes the loop, naming the kinds it runs through; the other kinds in the loop are said nothing more about.
 - **The same kind twice in one composition list.** Refused at the second, rather than read as one path.
-- **Who a restatement's origin is.** The restating kind becomes the property's origin, so composing `Crate: sprout.Container { :capacity 40 }` beside `sprout.Container` collides on `:capacity` again.
+- **Who a restatement's origin is.** The restating kind becomes the property's origin, so composing `Crate is sprout.Container { :capacity 40 }` beside `sprout.Container` collides on `:capacity` again.
 - **What counts as changing a property's type in a restatement.** A different integer range is a change, and so is remembered versus plain.
 - **Origins that disagree in type.** Cannot be merged by restating; the refusal says to compose only one of them.
 - **An object in a library.** Refused, as a world is: a library holds kinds for the world to make things of.
 - **An object's anonymous kind.** Named for the object, in the world's library, and the origin of what its body declares.
 - **A kind composing one that is absent at load.** It is not composed and its body is not read; the objects made of it are absent with no gap of their own beyond the `kind-in-composition` one.
 - **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. No kind declares any of those members yet, so every `without` is refused with "has no … to leave out" until B22 reads guards.
-- **A `without` in a kind that is itself composed.** Whether what `B` leaves out stays left out in `D: B`, and what happens when `D` also reaches the source another way, is unsaid; the suppression is recorded on the kind that wrote it, and whichever of B22, B24 and B32 first runs a composed member decides how it travels.
-- **What the kinds, objects and places caps count.** `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, not an object's anonymous kind; `objects` counts the world's `object` declarations, composed or not; `places` counts its objects whose composed kind holds actors. The world counts toward neither `objects` nor `places`. Each is refused at the first declaration past it, at load as at publish.
 - **Where a library lives on disk.** Unspecified, so nothing can vendor `sprout` yet (the CLI sends no libraries), and the world is not resolved in `compileBundle` until it can: resolving it would refuse every world for a `sprout.World` that cannot travel.
 
 Found while building identifier scope (B14), each decided the narrow way and awaiting Eric:
 
-- **Where an object's `in` is read from.** "Nearest wins, seen from the occupant" cannot resolve the occupant's own `in`: with two shelves, `in shelf` is self-consistent from inside either. So what a file writes at its top level is read from inside the world, where what is in reach is what the world holds directly and the world's own name, and anything deeper is named by its path: `object key: Key in kiln.shelf`. Nearest-wins is the rule for names inside bodies, where exits (B28) and `send` (B32) will use it. The alternative was to accept a bare name wherever it is unique in the whole tree, which makes adding a second `shelf` anywhere break a line that did not change.
-- **Paths in `in` and `visitors arrive at`.** The spec shows a dotted path only on an exit (`-> bedroom.wardrobe`); `in` and `visitors arrive at` take one too, written without spaces around the dots, as `sprout.Ward` is, and both are read from inside the world: `visitors arrive at kiln.back_room`.
-- **An `in` naming something that does not hold things.** Refused, by analogy with a `move` whose destination is not a container; the world always holds things.
-- **An object inside itself, and objects inside each other.** Neither is in What it refuses. Both are refused in either mode: a ring is refused once, at the first of its declarations in source order, as a kind cycle is, and what sits inside a ring is said nothing more about.
-- **The world's name.** Named only as a whole path (`in shop`), never as a step of one (`in shop.kiln`), and no object may take it.
-- **Two objects of one name.** Refused only in one container as resolved, at the second; in different containers they are fine, and a nearer one hides an outer one with no warning (the spec's only shadowing warning is for a world declaration hiding a library name).
 - **Arriving somewhere that is not a place.** What it refuses does not list it. `visitors arrive at` naming an object whose kind does not hold actors is refused in either mode, at the path's last step, since nothing is missing: the spec's Places makes a place whatever declares `contains actors`, and visitors have to be somewhere they can stand.
-- **Arriving at the world.** `visitors arrive at shop`, naming the world itself, is accepted where the world is a place: its own body declares `contains actors`, or a kind it composes beside `sprout.World` does. Places makes a place whatever declares `contains actors`, and a world composes like a kind, so it may declare it; the spec never says whether visitors may arrive at the world itself, and refusing it would add a rule the spec does not state. A world that does not hold actors is refused as any non-place is.
-- **An arrival place whose kind or container is absent.** It is the `place-of-arrival` row, the same as a name nothing answers to: refused at publish, and at load recorded, with the world admitting no one. At publish, where what left it absent has been refused already (its kind, or where it was put), that refusal is all that is said, as the tree says nothing more about what an absent object holds. A world named as its own arrival place, not holding actors itself and composing a kind nothing declares, is not known to be a place, and is the same gap.
-- **An object whose container is not there.** The absent table has no row for it. This compiler adds `container`: refused at publish; at load the object is absent — not in range, not listed, not addressable — and what it holds is unreachable until its container returns. Proposed as a row of the spec's table. An object whose kind is absent is still placed, so what it holds keeps its place, which is what the `kind-in-composition` row's "unreachable until the kind returns" needs.
-- **What the caps count, once objects are placed.** An object that did not place still counts toward `objects`, and toward `places` if its composed kind holds actors, since the caps count what an author wrote.
+- **An arrival place whose kind or container is absent.** It is the `place-of-arrival` row, the same as a name nothing answers to: refused at publish, and at load recorded, with the world admitting no one. At publish, where what left it absent has been refused already (its kind, or where it was put), that refusal is all that is said, as the tree says nothing more about what an absent object holds.
 - **Identifiers in a named kind's body.** A kind has no place in the tree, so a name inside its body has no vantage until an instance does; B28 and B32 decide how exits and sends inside a kind resolve.
 - **A binding and an object of one name.** Whether `let key = …` hides an object called `key` in reach, or is refused, is B23's and B32's.
 
@@ -257,7 +262,7 @@ Found while building identifier scope (B14), each decided the narrow way and awa
 - Two lists are not compared with `==`; set and ordered equality are a later level's, and the runtime's `equals` goes.
 - There is no nesting cap. The parser still has to bound its own recursion, and whatever it does about that is the compiler's own affair rather than a host limit.
 - `chance(n)` is one in n and `random(n)` is 0 to n − 1.
-- `sprout.World` is written on every world (`world w: sprout.World { … }`), as that literal and not an unqualified `World`, refused when missing, and refused on anything but a world. Eric restated this on 2026-09-22 after first deciding the opposite: level 1 is explicit wherever it could have defaulted, since a later level can relax a requirement and never add one.
+- `sprout.World` is written on every world (`world w is sprout.World { … }`), as that literal and not an unqualified `World`, refused when missing, and refused on anything but a world. Eric restated this on 2026-09-22 after first deciding the opposite: level 1 is explicit wherever it could have defaulted, since a later level can relax a requirement and never add one.
 - The manifest has an optional `namespace`, falling back to `name`, and the one `world` declaration repeats `name`; none, two, or another name is refused.
 - A static cap exceeded at load refuses the world, unless the host has recorded an exception for it.
 - Spawns per world per hour is gone; live instances per world is the host's storage decision, faulting a `spawn` when it is reached, rather than a figure in the table.
