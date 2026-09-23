@@ -12,10 +12,10 @@
 // `now` the host passes in, so a turn stays deterministic and a suite
 // can prove the backstop fires without waiting for it.
 //
-// What is charged — parsing, range walks, `each`, the objects a set role
-// binds — belongs to the code doing each of those (B15, B23, B27, B34).
-// What is here is the meter they all charge against, so that none of
-// them invents a second one.
+// What is charged belongs to the code doing it: range walks are
+// `range.ts`'s, and parsing, `each` and the objects a set role binds
+// belong to B23, B27 and B34. What is here is the meter they all charge
+// against, so that none of them invents a second one.
 
 import type { RuntimeBudgetName, RuntimeBudgets } from '../bundle/limits.js';
 
