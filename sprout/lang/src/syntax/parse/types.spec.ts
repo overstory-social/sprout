@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Literal } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import { read, readProperty } from '../../fixtures/parse.js';
+
+/** The option names a list default holds, gathered at any depth. */
+function optionsOf(literal: Literal | null | undefined): string[] {
+  if (literal?.kind === 'option-literal') return [literal.name.text];
+  if (literal?.kind === 'list-literal') return literal.elements.flatMap(optionsOf);
+  return [];
+}
+
+/** The leaf values — integers, strings, booleans — a list default holds, at any depth. */
+function leavesOf(literal: Literal | null | undefined): (number | string | boolean)[] {
+  if (literal?.kind === 'list-literal') return literal.elements.flatMap(leavesOf);
+  if (literal?.kind === 'integer' || literal?.kind === 'string' || literal?.kind === 'boolean') {
+    return [literal.value];
+  }
+  return [];
+}
 
 describe('a file that runs out is explained once, not once per bracket', () => {
   const diagnose = (
@@ -345,3 +362,77 @@ describe('a type is not taken from the next declaration', () => {
     expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
   });
 });
+
+describe('a stray `]` inside a list default does not lose what it closed too early', () => {
+  it('names what is written after it rather than dropping it in silence', () => {
+    // The stray closer ends the inner list at `silver`, as it must —
+    // nothing before a `]` can tell a stray one from its own — but the
+    // second `]` right after it is the mistake: `brass` and `tin` are
+    // named rather than left for whatever reads next to lose.
+    const text = ':x [[Ward]] default [[oak, silver, ]], [brass, tin]]';
+    const { declared, refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`brass` and `tin` are written after the `]` that ends this list.',
+    ]);
+    expect(refusals[0]!.remedy).toBe(
+      'Everything the list holds goes inside its brackets. Take out the `]` that ends it too early.',
+    );
+    expect(textOf(refusals[0]!.at)).toBe('brass');
+    expect(optionsOf(declared?.default)).toEqual(['oak', 'silver']);
+  });
+
+  it('says nothing else about the property once it has named them', () => {
+    const text = ':x [[Ward]] default [[oak, silver, ]], [brass, tin]] min 0';
+    const { refusals } = readProperty(text);
+    expect(refusals).toHaveLength(1);
+  });
+
+  it('does the same for a single-level list, one `]` early', () => {
+    const text = ':x [Ward] default [oak, ], silver]';
+    const { declared, refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`silver` is written after the `]` that ends this list.',
+    ]);
+    expect(optionsOf(declared?.default)).toEqual(['oak']);
+  });
+
+  it('names integers, signed ones included, the same way for an integer list of lists', () => {
+    const text = ':x [[integer]] default [[1, 2, ]], [-3, 4]]';
+    const { declared, refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`-3` and `4` are written after the `]` that ends this list.',
+    ]);
+    expect(leavesOf(declared?.default)).toEqual([1, 2]);
+  });
+
+  it('names strings and true/false the same way', () => {
+    const text = ':x [[string]] default [["a", "b", ]], ["c", "d"]]';
+    const { declared, refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`"c"` and `"d"` are written after the `]` that ends this list.',
+    ]);
+    expect(leavesOf(declared?.default)).toEqual(['a', 'b']);
+
+    const bools = ':x [[boolean]] default [[true, false, ]], [true]]';
+    const said = readProperty(bools).refusals.map((d) => d.message);
+    expect(said).toEqual(['`true` is written after the `]` that ends this list.']);
+  });
+
+  it('leaves a `:remembers` entry after it for the entry reader, not itself', () => {
+    // `visits`, not the list's own: a `:remembers` entry's name after a
+    // comma and before a colon is its neighbour's to read, however this
+    // list closed.
+    const text = ':remembers [tags: [oak, ], silver], visits: 0]';
+    const { declared, refusals } = parseRemembersInto(text);
+    expect(declared?.properties.map((p) => p.name.text)).toEqual(['tags', 'visits']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`silver` is written after the `]` that ends this list.',
+    ]);
+  });
+});
+
+function parseRemembersInto(text: string) {
+  const diagnostics = new Diagnostics();
+  const declared = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
+  return { declared, refusals: diagnostics.refusals };
+}
