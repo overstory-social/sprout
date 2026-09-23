@@ -207,9 +207,18 @@ export class KindTable implements KindLookup, KindSource {
     return this.composed.get(qualifiedName(library, name)) ?? null;
   }
 
-  /** A kind written without a library, from inside `from`: its own first, then the standard library's. */
+  /**
+   * A kind written without a library, from inside `from`: its own when
+   * `from` declares it, composed or not, else the standard library's.
+   * `identityOf` in `compose.ts` decides identity the same way, so a
+   * world's `Container` that fails to compose is never quietly read as
+   * `sprout.Container` — it is null, the same absence `qualified` gives
+   * any other failed kind.
+   */
   unqualified(name: string, from: string): KindRef | null {
-    return this.qualified(from, name) ?? this.qualified(SPROUT, name);
+    return this.declares(qualifiedName(from, name))
+      ? this.qualified(from, name)
+      : this.qualified(SPROUT, name);
   }
 
   /** Every kind that composed, in the order it was declared. */

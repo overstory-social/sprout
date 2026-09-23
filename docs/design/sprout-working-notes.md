@@ -324,6 +324,12 @@ Found while building passages (B20), each decided the narrow way and awaiting Er
 - **`{item}` in `arrives` and `leaves`.** Untyped by the binding table until B29 and B42 say what a place's notices bind.
 - **A world whose composed kinds lack an engine passage.** A forked standard library without `fault` or `displaced`: what the engine says then is B34's and B48's.
 
+Found while building library namespacing (B21), each decided the narrow way and awaiting Eric:
+
+- **A world namespaced as a library it pins.** Its own bare names and the library's could not be told apart, so the manifest is refused. The spec says only that a world's own declarations are unqualified.
+- **A library's message written qualified.** Libraries namespace messages, but no syntax writes one qualified (`send x sprout.:m`?): a message name is a bare symbol wherever it is written, so a library's message is reachable only unqualified, and only when the world declares none of that name. Open until B32 reads sends.
+- **What the shadowing warning covers.** Kinds, enums and messages, being what libraries namespace today; verbs join when B23 declares them.
+
 Found while reading, checking and composing the consent guards (B22), each decided the narrow way and awaiting Eric:
 
 - **A guard's parameters.** Positional, named as the author chooses: one for `depart`, two for `release` and `accept`, and any other count is refused. `to` and `from` are reserved words, and the spec's own guards name parameters with them, so those two may name one and no other reserved word may. `_` for a parameter left unnamed waits for the lexer to read it, as a handler's does (B32); until then every parameter is named.

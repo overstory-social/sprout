@@ -15,7 +15,8 @@
 // What is here is the table and the checks that can be made without
 // expressions. Checking a symbol where it is USED is `check/check.ts`'s,
 // which calls `checkOption` below; the warning for a world declaration
-// shadowing a library one is B21's.
+// shadowing a library one is `bundle/declarations.ts`'s, once every
+// table is built.
 
 import type { EnumDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -182,8 +183,8 @@ export class EnumTable {
    * An enum written without a library, as read from inside `from`: the
    * asking world's own first, then the standard library's, because
    * `sprout` is in scope in every microworld and a world's own
-   * declarations are unqualified. The WARNING for a world declaration
-   * shadowing a library one is B21's; this is only the order.
+   * declarations are unqualified. The warning for a shadowed name is
+   * `bundle/declarations.ts`'s; this is only the order.
    */
   unqualified(name: string, from: string): DeclaredEnum | null {
     return this.qualified(from, name) ?? this.qualified(SPROUT, name);

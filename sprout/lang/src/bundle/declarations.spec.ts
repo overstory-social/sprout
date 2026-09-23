@@ -92,6 +92,61 @@ describe('every table is built over every library, in the order they depend on o
   });
 });
 
+describe('a world declaration shadowing a standard library name warns once, at its own name', () => {
+  it('warns for a kind, an enum and a message the standard library also declares', () => {
+    const report = loading();
+    const tables = resolveDeclarations(
+      byLibrary({
+        sprout: 'kind Container { contains }\nenum Ward { oak, silver }\nmessage :opened',
+        shop: 'kind Container { }\nenum Ward { brass }\nmessage :opened',
+      }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual(
+      [
+        [
+          'shop.sprout:1:6',
+          '`Container` hides `sprout.Container`: a bare `Container` in this world is now yours.',
+          "Write `sprout.Container` where the library's is meant, or give yours another name.",
+        ],
+        [
+          'shop.sprout:2:6',
+          '`Ward` hides `sprout.Ward`: a bare `Ward` in this world is now yours.',
+          "Write `sprout.Ward` where the library's is meant, or give yours another name.",
+        ],
+        [
+          'shop.sprout:3:9',
+          '`opened` hides `sprout.opened`: a bare `opened` in this world is now yours.',
+          "Write `sprout.opened` where the library's is meant, or give yours another name.",
+        ],
+      ],
+    );
+    // The qualified name still reaches the library's kind after the shadow.
+    expect(tables.kinds.qualified('sprout', 'Container')!.library).toBe('sprout');
+  });
+
+  it('does not warn for a name only a second library declares: it is reachable only qualified', () => {
+    const report = loading();
+    resolveDeclarations(
+      byLibrary({ textiles: 'kind Bolt { }', shop: 'kind Bolt { }' }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.warnings).toEqual([]);
+  });
+
+  it('does not warn on the standard library’s own declarations of themselves', () => {
+    const report = loading();
+    resolveDeclarations(
+      byLibrary({ sprout: 'kind Container { contains }' }),
+      { namespace: 'sprout', name: 'sprout' },
+      report,
+    );
+    expect(report.diagnostics.warnings).toEqual([]);
+  });
+});
+
 describe('a kind nothing declares, named in a composition, is the absent table’s row', () => {
   it('is a gap under `kind-in-composition`, at the kind as written, and its object is absent', () => {
     const report = loading();

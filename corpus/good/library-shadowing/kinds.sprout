@@ -1,0 +1,8 @@
+// This world's own `Place`, beside `sprout.Place`: a bare `Place` in this
+// world's own files now means this one, and the warning says so once,
+// at the declaration; `sprout.Place` still reaches the library's.
+kind Place {
+  contains actors
+}
+
+kind Creature: sprout.Actor { }

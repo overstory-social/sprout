@@ -23,11 +23,17 @@ export function atKey(manifest: SourceFile, key: string): Span {
 /**
  * Where a value was written inside the manifest, for a problem about one
  * entry of a list. It finds the first place the value is written at or
- * after `from`, which is the right one for a name that appears once —
- * scaffolding until the manifest is read with spans of its own rather
- * than arriving parsed.
+ * after `from`, which is the list's own key unless a caller says
+ * otherwise, so a library named as the world is found in the pins and
+ * not in the namespace above them — scaffolding until the manifest is
+ * read with spans of its own rather than arriving parsed.
  */
-export function atValue(manifest: SourceFile, value: string, fallback: Span, from = 0): Span {
+export function atValue(
+  manifest: SourceFile,
+  value: string,
+  fallback: Span,
+  from = fallback.start,
+): Span {
   const at = manifest.text.indexOf(`"${value}"`, from);
   return at < 0 ? fallback : manifest.span(at, at + value.length + 2);
 }
@@ -62,6 +68,16 @@ export function checkManifest(source: MicroworldSource, report: Report): void {
       atKey(manifestFile, 'namespace'),
       `"${manifest.namespace}" cannot be a world's namespace.`,
       'A namespace starts with a lower-case letter and holds letters, digits and _.',
+    );
+  }
+  // A world's own declarations are unqualified in its namespace, so a
+  // namespace equal to a pinned library's name would make every one of
+  // the world's own declarations indistinguishable from that library's.
+  if (manifest.libraries.some((pin) => pin.name === manifest.namespace)) {
+    report.refuse(
+      atKey(manifestFile, 'namespace'),
+      `This world's namespace, \`${manifest.namespace}\`, is also the name of a library it uses.`,
+      'Give the manifest a `namespace` that names no library.',
     );
   }
   for (const [key, value] of [

@@ -181,6 +181,15 @@ describe('the kind table composes every kind the bundle declares', () => {
     expect(kinds.unqualified('Actor', 'shop')!.library).toBe('sprout');
   });
 
+  it('leaves an unqualified name null when the asker’s own of that name failed to compose, never falling through to the library’s', () => {
+    const { kinds } = table({
+      sprout: 'kind Container { contains }',
+      shop: 'kind Container: Missing { }',
+    });
+    expect(kinds.qualified('shop', 'Container')).toBeNull();
+    expect(kinds.unqualified('Container', 'shop')).toBeNull();
+  });
+
   it('refuses two kinds of one name in one library at the second, and keeps two in two libraries', () => {
     const { said, kinds } = table({
       sprout: 'kind Box { }',
