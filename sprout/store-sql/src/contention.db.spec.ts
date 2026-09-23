@@ -12,6 +12,24 @@ import { sqlStore, type Queryable } from './store.js';
 // cases `conformance.spec.ts` skips by name, plus the timeout, on a
 // store whose every transaction is its own connection.
 
+/** The spec's default caps, as a publish under a host that set none of its own records them. */
+const CAPS = {
+  optionsPerEnum: 100,
+  rolesPerVerb: 8,
+  phrasesPerVerb: 8,
+  phraseCharacters: 80,
+  nounsPerObject: 8,
+  nounCharacters: 40,
+  exitsPerPlace: 8,
+  listElements: 16,
+  literalCharacters: 600,
+  places: null,
+  objects: null,
+  kinds: null,
+  files: null,
+  sourceBytes: null,
+};
+
 const url = process.env['DATABASE_URL'];
 
 interface Pool {
@@ -85,16 +103,8 @@ describe.skipIf(!url)('sqlStore on a real Postgres (contention)', () => {
         stamp: 's',
         level: 1,
         extensions: [],
-        limits: {
-          rooms: 16,
-          objects: 192,
-          kinds: 32,
-          files: 256,
-          sourceBytes: 262144,
-          instances: 2000,
-          actionDays: 30,
-          misses: 500,
-        },
+        caps: CAPS,
+        excepted: false,
         loadedAt: new Date('2026-09-18T12:00:00Z'),
       }),
     );

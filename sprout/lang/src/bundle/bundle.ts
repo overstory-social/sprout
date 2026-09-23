@@ -229,9 +229,9 @@ export interface Bundle {
   readonly extensions: readonly ExtensionPin[];
   readonly libraries: readonly VendoredLibrary[];
   /**
-   * The static caps it was checked against, recorded at publish. A host
-   * loading a bundle checked against larger caps than its own decides
-   * for itself whether to run it.
+   * The static caps it was checked against: the host's, or at a load
+   * under an exception the larger of the host's and those recorded at
+   * publish. What a host keeps of a publish, to compare at the next load.
    */
   readonly caps: StaticCaps;
   readonly size: BundleSize;

@@ -60,7 +60,11 @@ export interface Catalogue {
   readonly verbs: VerbLookup;
   /** Where visitors arrive, or null for a world that admits no one. */
   readonly arrival: InstanceId | null;
-  /** The host's caps now, which stored values are read under; not the ones the bundle was checked against. */
+  /**
+   * The caps the host runs the world under now, which stored values are
+   * read under: its own, or for a world it made an exception for, those
+   * the exception granted, which that load's bundle records.
+   */
   readonly caps: StaticCaps;
 }
 
