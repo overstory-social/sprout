@@ -15,6 +15,7 @@ import {
   KEY,
   kind,
   PRINTER,
+  property,
   saidBy,
   VESSEL,
   vessel,
@@ -69,6 +70,19 @@ describe('a receiver’s kind', () => {
       '`sprout.Container` has no `:lid`. It has nothing.',
       '`sprout.Container` has no `:inked`. It has nothing.',
       '`sprout.Actor` has no `:handled`. It has nothing.',
+    ]);
+  });
+
+  it('names every one of the world’s kinds that declares it, where no person’s kind does', () => {
+    const base = vessel();
+    const robot = kind('Robot', [property(':oil 0 min 0 max 9')], [ACTOR]);
+    const golem = kind('Golem', [property(':oil 0 min 0 max 9')], [ACTOR]);
+    const kinds = { ...base.kinds, all: () => [...base.kinds.all(), robot, golem] };
+    const context = { ...base, kinds };
+    const actor = kind('Actor', [], [], true, 'sprout');
+    expect(declaredOn(actor, word(':oil'), context, 'actor')).toBeNull();
+    expect(saidBy(context)).toEqual([
+      "`sprout.Actor` has no `:oil`. `:oil` is a `Robot`'s or a `Golem`'s. Read it as one of them first: `if (actor.is(Robot)) { … actor.get(:oil) … }`.",
     ]);
   });
 });

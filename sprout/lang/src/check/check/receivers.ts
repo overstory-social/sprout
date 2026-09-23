@@ -121,23 +121,25 @@ export function declaredOn(
   const property = kind.properties.get(named.text);
   if (property !== undefined) return property;
   const meant = nearestOption(named.text, [...kind.properties.keys()]);
-  const holder = receiver === undefined ? null : holderOf(kind, named.text, context);
-  const shown = holder === null ? '' : shownName(kindName(holder), context.from);
+  const holders = receiver === undefined ? [] : holdersOf(kind, named.text, context);
+  const shown = holders.map((holder) => shownName(kindName(holder), context.from));
+  const whose = shown.map((name) => `a \`${name}\`'s`).join(' or ');
   context.diagnostics.refuse(
     named.at,
     `\`${kindName(kind)}\` has no \`:${named.text}\`.${meant === null ? '' : ` Did you mean \`:${meant}\`?`}`,
-    holder === null
+    shown.length === 0
       ? `It has ${readable([...kind.properties.keys()].map((name) => `:${name}`))}.`
-      : `\`:${named.text}\` is a \`${shown}\`'s. Read it as one first: \`if (${receiver}.is(${shown})) { … ${receiver}.get(:${named.text}) … }\`.`,
+      : `\`:${named.text}\` is ${whose}. Read it as ${shown.length === 1 ? 'one' : 'one of them'} first: \`if (${receiver}.is(${shown[0]})) { … ${receiver}.get(:${named.text}) … }\`.`,
   );
   return null;
 }
 
 /**
- * The world's own kind composing `kind` that declares `name`, a person's
- * kind before any other, since `actor` is most often a person.
+ * The world's own kinds composing `kind` that declare `name`, in the order
+ * declared; a person's kind alone where it is one of them, since `actor`
+ * is most often a person.
  */
-function holderOf(kind: KindRef, name: string, context: CheckContext): KindRef | null {
+function holdersOf(kind: KindRef, name: string, context: CheckContext): KindRef[] {
   const holders = context.kinds
     .all()
     .filter(
@@ -147,7 +149,8 @@ function holderOf(kind: KindRef, name: string, context: CheckContext): KindRef |
         composesKind(one, kind) &&
         one.properties.get(name)?.remembered === false,
     );
-  return holders.find(isVisitorKind) ?? holders[0] ?? null;
+  const person = holders.find(isVisitorKind);
+  return person === undefined ? holders : [person];
 }
 
 /** `x.count` and `x.count(K)` — a container or a set role. */
