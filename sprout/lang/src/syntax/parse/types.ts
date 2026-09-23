@@ -335,11 +335,20 @@ function elementsAfterClose(p: Parser): void {
     // before one is spared whether it is a well-formed name or not.
     const entryName = depth === 0 && punct(p.peek(ahead + 1), ':');
     // Two bare words in a row, at this scan's own depth, are never two
-    // elements missing a comma between them — a list tolerates at most
-    // one such gap, refused where it is read — but are exactly how a
-    // body's own next member starts unpunctuated: `visitors are`,
-    // `contains actors`, `without changed`. Left for that to read.
-    const wordLed = depth === 0 && bareWord(token) && bareWord(p.peek(ahead + 1));
+    // elements missing a comma — a list tolerates at most one such gap,
+    // refused where it is read — but are exactly how a body's own next
+    // member starts unpunctuated: `visitors are`, `contains actors`,
+    // `without changed`. Among a `:remembers`'s entries a bare word with
+    // any value straight after it is likewise an entry that lost its
+    // colon, `faulty "x"`. Either belongs to whatever reads next.
+    const next = p.peek(ahead + 1);
+    const valueLed =
+      p.withinEntries &&
+      (next.kind === 'string' ||
+        next.kind === 'integer' ||
+        punct(next, '[') ||
+        (punct(next, '-') && p.peek(ahead + 2).kind === 'integer'));
+    const wordLed = depth === 0 && bareWord(token) && (bareWord(next) || valueLed);
     if (
       token.kind === 'end' ||
       token.kind === 'symbol' ||

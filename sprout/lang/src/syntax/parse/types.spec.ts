@@ -443,6 +443,32 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
       '`silver` is written after the `]` that ends this list.',
     ]);
   });
+
+  it('leaves a colonless `:remembers` entry after it too, rather than reading it as elements', () => {
+    // `faulty "x"` has no colon, so nothing here can call it an entry's
+    // name for certain — but a bare word with another value standing
+    // right after it, no comma between them, is never two elements of
+    // THIS list either. The list's own close is genuine, not stray, and
+    // the `]` that ends `:remembers` stays `:remembers`'s to read.
+    const text = ':remembers [echo: [oak], faulty "x"]';
+    const { declared, refusals } = parseRemembersInto(text);
+    expect(declared?.properties.map((p) => p.name.text)).toEqual(['echo']);
+    expect(optionsOf(declared?.properties[0]?.default)).toEqual(['oak']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`faulty` needs a colon between its name and its value.',
+    ]);
+  });
+
+  it('names a bare word and the value after it as elements outside a `:remembers`', () => {
+    // Only among a `:remembers`'s entries is `silver "extra"` an entry
+    // that lost its colon. After a property's own list, no member starts
+    // that way, so both are more of the list, written after its `]`.
+    const text = ':tags [Ward] default [oak, ], silver "extra"]';
+    const { refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`silver` and `"extra"` are written after the `]` that ends this list.',
+    ]);
+  });
 });
 
 function parseRemembersInto(text: string) {
