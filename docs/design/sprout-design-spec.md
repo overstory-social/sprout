@@ -93,7 +93,7 @@ object composing_room is sprout.Place {
 
 `contains actors` is a declared capability beside `contains`, not a kind the engine knows by name. An actor's **place** is the nearest ancestor declaring it: that is what `tell` reaches, what a visitor leaves when they go, and what a description describes. A wardrobe that declares it can be entered, and everything that follows from being somewhere follows from that one line.
 
-A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads its `arrives` passage, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: `leaves` and `:departed (actor, to)`, across the range of the place left.
+A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads its `arrives` passage, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: `leaves` and `:departed (actor, to)`, across the range of the place left. (The two message names await Eric's confirmation: the notes' Open 69.)
 
 Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads.
 
@@ -231,7 +231,7 @@ kind Match {
 }
 ```
 
-The destroy then happens exactly as `destroy self` would, at the end of the turn's cascade, with nothing further delivered to the object. Only `destroy self` may follow `finally`. Written twice, or beside a `destroy self`, it is once; a fault abandons the turn and the mark with it.
+The destroy then happens exactly as `destroy self` would, at the end of the turn's cascade, with nothing further delivered to the object. Only `destroy self` may follow `finally`. Written twice, or beside a `destroy self`, it is once; a fault abandons the turn and the mark with it. (These details await Eric's confirmation: the notes' Open 66.)
 
 There is no sweep primitive. An object that should not outlive its usefulness asks to be woken and destroys itself, which puts the policy in the world that cares about it.
 
@@ -2266,6 +2266,6 @@ Overriding the prose rather than the guard sidesteps the ordering trap. A compos
 
 **Listing contents needed no convention after all.** An earlier draft invoked `{thing.short}` on everything a place held and had to assume every object supplied that passage. An object already has a name and an article, so `{thing}` renders "a brass key" and the loop is the whole of it — with one `{if thing != actor}`, because the person reading the room is standing in it.
 
-**The world file is the floor plan.** With every object declared in the body of what holds it, `world.sprout` reads as the shop does: the ladder in the paper store, the paper store and the key-holding cabinet in the composing room, the ribs and the press in the yard. What those things are made of sits in files of its own, because a kind holds no objects.
+**The world file is the floor plan.** With every object declared in the body of what holds it, `world.sprout` reads as the shop does: the ladder in the paper store, the paper store and the key-holding cabinet in the composing room, the ribs and the press in the yard. What those things are made of sits in files of its own, and what every instance of a kind starts with, a lantern's wick, is written once in the kind.
 
 **Not exercised:** `link` and `connect`, because nothing in a printer's shop wants space that does not exist yet; `changed` hooks and `without`; `destroy self`; authored `move`; `release`; `random` and integer value roles; `{for … of}` over a list; and `send` with a value. Inventing a maze or a vending machine to reach them would have tested the example rather than the language.
