@@ -7,5 +7,7 @@ object key: Thing in hall.chest
 
 object key: Thing in hall.chest
 
-// Two keys in two different places are fine.
-object key: Thing in hall
+// A key in another chest beside it is fine: neither hides the other.
+object box: Chest in hall
+
+object key: Thing in hall.box

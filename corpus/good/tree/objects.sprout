@@ -3,11 +3,11 @@
 object shop_floor: Room in tree
 object kiln: Room in tree
 
-// A key in each of two chests, and one in the room beside them: a name
-// belongs to what holds it, so none of them is in another's way.
+// A key in each of two chests: a name belongs to what holds it, and
+// neither chest is further out than the other, so neither key is in the
+// other's way.
 object red_chest: Chest in shop_floor
 object blue_chest: Chest in shop_floor
-object key: Thing in shop_floor
 object key: Thing in shop_floor.red_chest
 object key: Thing in shop_floor.blue_chest
 

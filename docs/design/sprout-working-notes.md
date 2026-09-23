@@ -223,7 +223,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - The absent table has a row for a kind named in a `spawn`: the `spawn` faults when it runs.
 - The host's live-instance bound counts every instance it stores, dormant ones included.
 
-Composing with `is`, the shadowing warning, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
+Composing with `is`, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
@@ -437,6 +437,13 @@ Found while running a reading through the two passes (B24), each decided the nar
 - **A participant destroyed earlier in the effect pass.** `destroy self` takes effect when the `do` that ran it ends, so one is an object filling two roles, or one whose composed play destroyed it before its own ran. Its later `do`s, composed or own, do not run.
 - **What a `do` does at this level.** `let`, `if`, `spawn`, `destroy self`, the four writes, `remember` and `say`. `tell`, `move`, `send` and `act` are not yet statements the parser reads; B30, B25, B32 and B26 bring them.
 - **A world composing no `nothing_happens`.** An engine error, which B34 turns into a fault, as for the other engine passages a forked standard library leaves out.
+
+Found while refusing arrival at the world and warning on a hidden name, each decided the narrow way and awaiting Eric:
+
+- **Which place the arrival refusal names.** The first place in the tree, shallowest first and in the order declared within a depth, by its path (`visitors arrive at kiln.back_room`). A world with no place in it is told to declare one.
+- **Which hidden object the warning names.** Only the nearest one further out, since that is what the name meant there before; an object that hides several is warned about once.
+- **A hidden object directly in the world.** No path reaches it from inside the hiding container, since the world's name is never a step of a path, so the warning says so instead of naming a path, and says to rename one if both are meant there.
+- **An object whose kind is absent.** It is still placed, so it still hides one of its name further out and can be hidden itself, and the warning is said in either mode.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

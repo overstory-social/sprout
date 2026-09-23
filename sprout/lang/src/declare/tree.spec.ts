@@ -70,6 +70,7 @@ function place(text: string, options: { callback?: boolean } = {}) {
     tree,
     gaps,
     said: diagnostics.sorted().map((d) => [locationOf(d.at), d.message, d.remedy] as const),
+    severities: diagnostics.sorted().map((d) => d.severity),
   };
 }
 
@@ -102,10 +103,24 @@ object box: Chest in hall.red_chest
 object pin: Thing in hall.red_chest.box
 `;
 
+/** What placing `SHOP` says: each chest's key hides the room's. */
+const HIDDEN_IN_SHOP = [
+  [
+    'shop.sprout:9:8',
+    '`key` hides `hall.key`: inside `hall.red_chest`, a bare `key` now means this one.',
+    'Write `hall.key` where the outer one is meant, or give this one another name.',
+  ],
+  [
+    'shop.sprout:10:8',
+    '`key` hides `hall.key`: inside `hall.blue_chest`, a bare `key` now means this one.',
+    'Write `hall.key` where the outer one is meant, or give this one another name.',
+  ],
+] as const;
+
 describe('placing every object under the world', () => {
   it('reads each `in` from inside the world, a deeper container by its path', () => {
     const { tree, said, gaps } = place(SHOP);
-    expect([said, gaps]).toEqual([[], []]);
+    expect([said, gaps]).toEqual([HIDDEN_IN_SHOP, []]);
     expect(tree.world).toBe('shop');
     expect(paths(tree).sort()).toEqual(
       [
@@ -139,7 +154,11 @@ describe('placing every object under the world', () => {
   it('places whatever order the declarations are written in', () => {
     const reversed = SHOP.trim().split('\n').reverse().join('\n');
     const { tree, said, gaps } = place(reversed);
-    expect([said, gaps]).toEqual([[], []]);
+    // The same keys hide the room's, said at the same declarations, now further up.
+    expect(gaps).toEqual([]);
+    expect(said.map(([, message, remedy]) => [message, remedy])).toEqual(
+      HIDDEN_IN_SHOP.map(([, message, remedy]) => [message, remedy]).reverse(),
+    );
     expect(paths(tree).sort()).toEqual(paths(place(SHOP).tree).sort());
     // Still in the order declared within each node.
     expect(contentsOf(tree, ['hall'])).toEqual(['key', 'blue_chest', 'red_chest']);
@@ -242,6 +261,85 @@ describe('resolving a name from somewhere in the tree, the nearest winning', () 
       'shop',
     ]);
     expect(inReach(tree, [])).toEqual(['hall', 'yard', 'shop']);
+  });
+});
+
+describe('an object hiding one of its name further out', () => {
+  it('is warned about at the inner declaration, naming the path the outer one is reached by', () => {
+    // Written before what it hides: the tree is whole when this is asked.
+    const { said, severities, tree } = place(
+      'object key: Thing in hall.chest\nobject hall: Room in shop\nobject chest: Chest in hall\nobject key: Thing in hall',
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:4:8',
+        '`key` hides `hall.key`: inside `hall.chest`, a bare `key` now means this one.',
+        'Write `hall.key` where the outer one is meant, or give this one another name.',
+      ],
+    ]);
+    expect(severities).toEqual(['warning']);
+    expect(paths(tree).sort()).toEqual(['hall', 'hall.chest', 'hall.chest.key', 'hall.key']);
+  });
+
+  it('hides one any number of containers further out', () => {
+    const { said } = place(
+      'object hall: Room in shop\nobject key: Thing in hall\nobject chest: Chest in hall\nobject box: Chest in hall.chest\nobject key: Thing in hall.chest.box',
+    );
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      [
+        'shop.sprout:8:8',
+        '`key` hides `hall.key`: inside `hall.chest.box`, a bare `key` now means this one.',
+      ],
+    ]);
+  });
+
+  it('names only the nearest one it hides, each hider warned about once', () => {
+    const { said } = place(
+      'object hall: Room in shop\nobject key: Thing in hall\nobject chest: Chest in hall\nobject key: Thing in hall.chest\nobject box: Chest in hall.chest\nobject key: Thing in hall.chest.box',
+    );
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      [
+        'shop.sprout:7:8',
+        '`key` hides `hall.key`: inside `hall.chest`, a bare `key` now means this one.',
+      ],
+      [
+        'shop.sprout:9:8',
+        '`key` hides `hall.chest.key`: inside `hall.chest.box`, a bare `key` now means this one.',
+      ],
+    ]);
+  });
+
+  it('says so where the one hidden is directly in the world, which no path reaches from inside', () => {
+    const { said, severities } = place(
+      'object key: Thing in shop\nobject hall: Room in shop\nobject key: Thing in hall',
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:6:8',
+        '`key` hides the `key` directly in the world: inside `hall`, a bare `key` now means this one.',
+        "No path reaches the world's `key` from inside `hall`, since the world's name is never a step of one. Give one of them another name if both are meant there.",
+      ],
+    ]);
+    expect(severities).toEqual(['warning']);
+  });
+
+  it('says nothing of two of one name in sibling containers, which hide nothing', () => {
+    const { said } = place(
+      'object hall: Room in shop\nobject red: Chest in hall\nobject blue: Chest in hall\nobject key: Thing in hall.red\nobject key: Thing in hall.blue\nobject yard: Room in shop\nobject key: Thing in yard',
+    );
+    expect(said).toEqual([]);
+  });
+
+  it('hides its own container where it takes that name, since the container is held further out', () => {
+    const { said } = place(
+      'object hall: Room in shop\nobject box: Chest in hall\nobject box: Thing in hall.box',
+    );
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      [
+        'shop.sprout:6:8',
+        '`box` hides `hall.box`: inside `hall.box`, a bare `box` now means this one.',
+      ],
+    ]);
   });
 });
 
@@ -392,7 +490,7 @@ describe('what an `in` may not say', () => {
 
   it('puts two of one name in one container: refused at the second', () => {
     const { said, tree } = place(
-      'object hall: Room in shop\nobject key: Thing in hall\nobject key: Thing in hall\nobject key: Thing in shop\nobject key: Thing in shop',
+      'object hall: Room in shop\nobject key: Thing in hall\nobject key: Thing in hall\nobject pin: Thing in shop\nobject pin: Thing in shop',
     );
     expect(said).toEqual([
       [
@@ -402,11 +500,11 @@ describe('what an `in` may not say', () => {
       ],
       [
         'shop.sprout:8:8',
-        '`shop` holds two objects called `key`.',
+        '`shop` holds two objects called `pin`.',
         'Give one of them another name, or remove it.',
       ],
     ]);
-    expect(paths(tree)).toEqual(['hall', 'key', 'hall.key']);
+    expect(paths(tree)).toEqual(['hall', 'pin', 'hall.key']);
   });
 
   it('names an object as the world is named', () => {
