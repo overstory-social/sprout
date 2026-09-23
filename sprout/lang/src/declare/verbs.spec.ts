@@ -379,6 +379,11 @@ describe('whether a role is optional is decided here, from the verb’s phrases'
     ]);
   });
 
+  it('makes a value role optional in the target’s place too', () => {
+    const verb = shopVerb('verb ask { role target: symbol  "ask about [target]" }');
+    expect(optionality(verb)).toEqual(['target? (every phrase fills it)']);
+  });
+
   it('takes `optional` as written on a verb with no phrases, which has nothing to infer from', () => {
     const verb = shopVerb(
       'verb nudge { role target  role tool optional  role gift  role topic: symbol }',
