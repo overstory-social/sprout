@@ -21,7 +21,7 @@ import type { DeclaredMessage } from '../declare/messages.js';
  */
 export type Asking = 'any' | DeclaredMessage;
 
-/** The containment tree as it stands this turn. B16's state model is one. */
+/** The containment tree as it stands this turn: `liveTree` reads one from a world's state. */
 export interface LiveTree<Id> {
   /** What a node holds, in the container's order, leaving out anything absent. */
   contents(node: Id): readonly Id[];

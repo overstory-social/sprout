@@ -1,10 +1,11 @@
 // What the range specs read a declared world through: a `LiveTree` over
-// the tree as declared, ids in the spec's State format
-// (`shop.kiln.shelf`), and a pass rule standing where B32's evaluated
-// ones will. Spec support: the package build leaves it out.
+// the tree as declared, ids built by `declaredId` as stored state builds
+// them (`shop.kiln.shelf`), and a pass rule standing where B32's
+// evaluated ones will. Spec support: the package build leaves it out.
 
 import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
 import type { LiveTree, PassRule } from '../runtime/range.js';
+import { declaredId } from '../runtime/ids.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable } from '../declare/kinds.js';
@@ -54,7 +55,7 @@ export function liveTreeOf(tree: ObjectTree): LiveTree<string> {
     const [holder, holds] = queue[head]!;
     for (const placement of holds.values()) {
       if (placement.kind === null) continue;
-      const id = [tree.world, ...placement.path].join('.');
+      const id = declaredId(tree.world, placement.path);
       contents.get(holder)!.push(id);
       contents.set(id, []);
       containers.set(id, holder);

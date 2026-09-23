@@ -266,6 +266,15 @@ Found while building the state model (B16), each decided the narrow way and awai
 - **A list that no longer fits.** Falls to the default whole, when any element misfits or it holds more than the host's current cap, rather than keeping the elements that still fit.
 - **Times in stored state.** Whole host seconds, as `elapsed` is.
 - **Pending wakes are stored as a list.** Decided 2026-09-23: how many an object may have pending is a cap of the host's, 1 by default, rather than one per object as a rule of the language; the stored form is a list bounded by that cap. `lastTick` is kept on every instance's record and stays null for anything that is not a place.
+- **The container's order.** Declared objects still where they were declared come first, in declared order; then everything that arrived, in arrival order, each arrival drawing the world's next serial. So a declared key taken and put back goes last, and a spawn goes after what was there.
+- **"Its kinds."** Stored as what the instance was made from: the world, a declared object, a visitor, or a spawn of a kind named by its qualified name. The closure is re-derived from the bundle at every load, never stored, so a kind that composes something new applies to instances already made.
+- **A property no longer declared.** Dropped at load, and said so; it is not kept beside the declared ones.
+- **A default changed in source.** Does not change existing instances: every instance holds every property it declares, so there is no unset value for a new default to show through. Only instances made after the change start at it.
+- **A declared object moved at run time into something now absent.** It is unreachable with its container, and is not returned to its declared container; it comes back where it was when the container does.
+- **A visitor's instance after `visitors are` changes.** Decoded against the world's current visitor kind, whatever it was made under, since a visitor records that it is a visitor and not which kind it was.
+- **An instance whose container no longer declares `contains`.** Stays where it is; nothing is moved at load.
+- **Whether dormant instances count toward the host's live-instance limit.** B18's, with `spawn`.
+- **Which item puts the composed world and the visitor kind into the bundle.** Open. Until one does, the world instance has no properties (its record is kept dormant, empty at first) and visitors' instances are dormant.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
