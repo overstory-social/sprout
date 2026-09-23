@@ -1,0 +1,12 @@
+// The manifest pins `sprout` at a hash the source that travelled does not
+// hash to. That is said once, at the manifest: the world, what visitors
+// are made of, and the hall are all made of `sprout`, and their kinds
+// being unknown are consequences of the one problem rather than three more.
+world library_mismatched: sprout.World {
+  visitors are Visitor
+  visitors arrive at hall
+}
+
+kind Visitor: sprout.Actor { }
+
+object hall: sprout.Place in library_mismatched

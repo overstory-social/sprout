@@ -82,6 +82,7 @@ export function checkLibraries(
     const library = byName.get(pin.name);
     if (library === undefined) {
       unusable.add(pin.name);
+      report.libraryRefused(pin.name);
       report.gap(
         { what: pin.name, kind: 'library', reason: 'missing', at, consequence: LIBRARY_GONE },
         `This world uses the library "${pin.name}", and its source did not travel with it.`,
@@ -91,6 +92,7 @@ export function checkLibraries(
     }
     if (library.hash !== pin.sha) {
       unusable.add(pin.name);
+      report.libraryRefused(pin.name);
       report.gap(
         { what: pin.name, kind: 'library', reason: 'mismatched', at, consequence: LIBRARY_GONE },
         `The library "${pin.name}" that travelled is not the source the manifest recorded.`,
