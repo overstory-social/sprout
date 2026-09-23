@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { locationOf, textOf } from '../../source/source.js';
-import { shape, readExpression, readLet } from '../../fixtures/parse.js';
+import { locationOf } from '../../source/source.js';
+import { readExpression } from '../../fixtures/parse.js';
 
 describe('an expression', () => {
   it('reads every expression the spec writes', () => {
@@ -90,53 +90,40 @@ describe('an expression', () => {
   });
 });
 
-describe('`let` names the result of an expression', () => {
-  it('reads the spec’s own two', () => {
-    const ribs = readLet('let ribs  = tools.count(Rib)');
-    expect(ribs.refusals).toEqual([]);
-    expect(ribs.statement!.name.text).toBe('ribs');
-    expect(shape(ribs.statement!.value)).toBe('tools.count(Rib)');
-
-    const state = readLet('let state = self.get(:state)');
-    expect(state.statement!.name.text).toBe('state');
-    expect(shape(state.statement!.value)).toBe('self.get(:state)');
-  });
-
-  it('spans from the keyword to the end of what it names', () => {
-    const { statement } = readLet('let ribs = tools.count(Rib)');
-    expect(textOf(statement!.at)).toBe('let ribs = tools.count(Rib)');
-    expect(locationOf(statement!.name.at)).toBe('body.sprout:1:5');
-  });
-
-  it('names a whole expression, not only a simple one', () => {
-    expect(
-      shape(readLet('let ready = self.get(:wear) >= 99 && !self.get(:lit)').statement!.value),
-    ).toBe('((self.get(:wear) >= 99) && (!self.get(:lit)))');
-  });
-
-  it('takes no type, because it takes the expression’s exactly', () => {
-    const { statement, refusals } = readLet('let n: integer = 1');
-    expect(statement).toBeNull();
-    expect(refusals[0]!.message).toContain('takes its type from what it names');
-    expect(refusals[0]!.remedy).toContain('let n = ');
-  });
-
-  it('says what is wrong with one that is not written out', () => {
-    const table: [string, string][] = [
-      ['let', 'A `let` needs a name.'],
-      ['let =', 'A `let` needs a name.'],
-      ['let 4 = 1', 'A `let` needs a name.'],
-      ['let Ward = 1', 'starts with a capital'],
-      ['let x', 'is not given anything to name'],
-      ['let x = ', 'the end of the file is not something to read'],
-      ['ribs = 1', 'does not name a value'],
-    ];
-    for (const [text, said] of table) {
-      const { statement, refusals } = readLet(text);
-      expect(statement, text).toBeNull();
-      expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
-      for (const refusal of refusals)
-        expect(refusal.remedy ?? '', `${text}: no remedy`).not.toBe('');
+describe('a statement is not something to read', () => {
+  it('refuses `spawn` where a value is wanted, once, and says how to name what it makes', () => {
+    for (const text of [
+      'spawn Cup in self',
+      'self.holds(spawn Cup in self)',
+      'spawn sprout.Container in kiln.shelf == self',
+    ]) {
+      const read = readExpression(text);
+      expect(
+        read.refusals.map((d) => d.message),
+        text,
+      ).toEqual(['`spawn` makes a new thing, and is not something to read.']);
+      expect(read.refusals[0]!.remedy).toContain('let cup = spawn Cup in self');
     }
+  });
+
+  it('refuses `destroy` where a value is wanted, once, and says to write it on its own', () => {
+    for (const text of ['destroy self', '!destroy self', 'self.holds(destroy self)']) {
+      const read = readExpression(text);
+      expect(
+        read.refusals.map((d) => d.message),
+        text,
+      ).toEqual(['`destroy self` removes something, and is not something to read.']);
+      expect(read.refusals[0]!.remedy).toBe('Write it on its own line, as `destroy self`.');
+    }
+  });
+
+  it('reads nothing where it stood', () => {
+    expect(readExpression('spawn Cup in self').expr).toBeNull();
+    expect(readExpression('destroy self').expr).toBeNull();
+  });
+
+  it('points at the statement where it was written', () => {
+    const read = readExpression('self.count + spawn Cup in self');
+    expect(locationOf(read.refusals[0]!.at)).toBe('body.sprout:1:14');
   });
 });

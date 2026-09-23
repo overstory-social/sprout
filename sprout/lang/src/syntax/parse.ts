@@ -29,17 +29,18 @@
 import type {
   Declaration,
   Expr,
-  LetStatement,
   PropertyDeclaration,
   RemembersDeclaration,
+  Statement,
 } from './ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import type { SourceFile } from '../source/source.js';
 import { DECLARATION_READERS, file } from './parse/declarations.js';
-import { expression, letStatement } from './parse/expressions.js';
+import { expression } from './parse/expressions.js';
 import { Parser } from './parse/parser.js';
 import { property, remembers } from './parse/properties.js';
+import { notAStatement, statement } from './parse/statements.js';
 
 export { DEEPEST } from './parse/parser.js';
 
@@ -78,15 +79,20 @@ export function parseProperty(
 }
 
 /**
- * One `let`, read on its own. A `let` is written inside a body, and no
- * body exists yet (B24 onward), so this is how one is exercised.
+ * One statement, read on its own: `let`, `spawn` or `destroy`. A
+ * statement is written inside a body, and no body holds one yet (B24
+ * onward), so this is how one is exercised. Anything written after a
+ * statement that read is refused as the next statement would be.
  */
-export function parseLet(
+export function parseStatement(
   source: SourceFile,
   diagnostics: Diagnostics,
   caps?: StaticCaps,
-): LetStatement | null {
-  return letStatement(new Parser(source, diagnostics, DECLARATION_READERS, caps));
+): Statement | null {
+  const p = new Parser(source, diagnostics, DECLARATION_READERS, caps);
+  const read = statement(p);
+  if (read !== null && !p.done) notAStatement(p, p.peek());
+  return read;
 }
 
 /**

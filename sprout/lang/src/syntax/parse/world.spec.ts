@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DECLARATIONS } from '../parse.js';
 import { locationOf, textOf } from '../../source/source.js';
-import { readProperty, readWorld, readLet } from '../../fixtures/parse.js';
+import { readProperty, readWorld } from '../../fixtures/parse.js';
 
 /** A world's members as plain words, for a suite that is not about nodes. */
 const membersOf = (declared: { members: readonly { kind: string }[] }): string[] =>
@@ -56,26 +56,6 @@ describe('a world declaration', () => {
     const { world } = readWorld('world w: sprout.World { visitors are P\n visitors arrive at y }');
     expect(textOf(world!.at).startsWith('world w: sprout.World {')).toBe(true);
     expect(textOf(world!.at).endsWith('}')).toBe(true);
-  });
-
-  it('refuses a word of the language as the name, at the name', () => {
-    const { statement, refusals } = readLet('let default = 1');
-    expect(statement).toBeNull();
-    expect(refusals).toHaveLength(1);
-    expect(refusals[0]!.message).toBe(
-      '`default` is a word of the language, so it cannot name a value.',
-    );
-    expect(refusals[0]!.remedy).toContain('Choose another name');
-    expect(locationOf(refusals[0]!.at)).toBe('body.sprout:1:5');
-  });
-
-  it('refuses every reserved word there, and no ordinary word', () => {
-    for (const word of ['text', 'true', 'string', 'each', 'let']) {
-      const { statement, refusals } = readLet(`let ${word} = 1`);
-      expect(statement, word).toBeNull();
-      expect(refusals.map((d) => d.message).join(' '), word).toContain('word of the language');
-    }
-    expect(readLet('let textures = 1').refusals).toEqual([]);
   });
 
   it('says what is wrong with one that is not written out', () => {
