@@ -110,6 +110,31 @@ export function stepPast(p: Parser): void {
 }
 
 /**
+ * Whether a `]` closes the bracket just entered, scanned ahead without
+ * consuming and without stopping early: a `:symbol` or a `}` may be
+ * exactly the bad token a hunt for that `]` is refusing on its way, the
+ * way any other wrong token is, so only the file running out rules the
+ * close out. A nested `[`…`]` is stepped over whole, so an inner list's
+ * own close is never mistaken for the one being asked about.
+ *
+ * Read where a hunt that has met a `:symbol` or a `}` decides whether
+ * to keep reading it as a bad element (this list's own `]` is still out
+ * there) or to stop there and say the list is never closed (it is not).
+ */
+export function closesAhead(p: Parser): boolean {
+  let depth = 0;
+  for (let ahead = 0; ; ahead++) {
+    const token = p.peek(ahead);
+    if (token.kind === 'end') return false;
+    if (punct(token, '[')) depth += 1;
+    else if (punct(token, ']')) {
+      if (depth === 0) return true;
+      depth -= 1;
+    }
+  }
+}
+
+/**
  * How many tokens the `[` here spans through its own `]`, or 0 where
  * no `]` closes it before a brace or the end of the file.
  */

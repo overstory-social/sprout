@@ -87,6 +87,16 @@ export function punct(token: Token, text: string): boolean {
 }
 
 /**
+ * Whether the next token can only belong to whatever encloses a list or a
+ * `:remembers`: the next member's own name (a `symbol`) or the body's own
+ * close (`}`). Neither is ever a list element or a remembered entry, so
+ * the hunt for a `]` stops here rather than reading past it.
+ */
+export function atMemberOrClose(p: Parser): boolean {
+  return p.at('symbol') || p.at('punct', '}');
+}
+
+/**
  * How deep brackets and prefix signs may go before this parser refuses
  * to read further. The spec's Limits gives nesting no cap: this bound
  * is the parser's own, it is not a figure a host sets, and no bundle

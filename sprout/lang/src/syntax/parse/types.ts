@@ -5,8 +5,8 @@
 import type { Literal, TypeExpr } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
-import { punct, readable, type Parser } from './parser.js';
-import { separator, skipBracketed } from './recovery.js';
+import { atMemberOrClose, punct, readable, type Parser } from './parser.js';
+import { closesAhead, separator, skipBracketed } from './recovery.js';
 
 /**
  * The type names that are the language's own. They are read as types
@@ -217,6 +217,12 @@ export function atFraction(p: Parser): boolean {
 function listLiteral(p: Parser, open: Token): Literal | null {
   const elements: Literal[] = [];
   let missingComma: Span | null = null;
+  // Asked once, of the tokens right after `[`: whether this list's own
+  // `]` is out there at all. Where it is, a `:symbol` or a `}` met on
+  // the way to it is a bad element like any other, read and refused in
+  // its place, because the list truly does go on to close. Where it is
+  // not, the hunt stops at the first of either instead of past it.
+  const closes = closesAhead(p);
   // Said once, at the element that breaks it, and then read on: the
   // cap is one fact about one list, and an author whose list is two
   // too long is still owed whatever else is wrong inside it. The
@@ -235,13 +241,19 @@ function listLiteral(p: Parser, open: Token): Literal | null {
       if (p.depth === 1) elementsAfterClose(p);
       return { kind: 'list-literal', at: spanning(open.at, close.at), elements };
     }
-    if (p.done || p.atDeclarationStart()) {
+    if (p.done || p.atDeclarationStart() || (!closes && atMemberOrClose(p))) {
       // A word that starts a declaration is not an element, however
       // it reads as one — the lexer hands `enum` over as a plain
       // name, so `literal()` takes it and the hunt for a `]` walks on
       // through the rest of the file. What FOLLOWS the word decides:
       // `[oak, enum]` is still read as a list of two words here, and
       // `enum` is answered for where the option set is checked.
+      //
+      // A `:symbol` is the next member's own name and a `}` is the
+      // body's own close: neither can be an element, but only where
+      // `closes` is false — this list's own `]` is nowhere ahead — does
+      // meeting one end the hunt here rather than reading it as a bad
+      // element like any other.
       p.diagnostics.refuse(
         p.done ? p.source.endSpan : p.peek().at,
         'This list is never closed.',
@@ -267,8 +279,11 @@ function listLiteral(p: Parser, open: Token): Literal | null {
       // reading behind a property inside a world, and hunting for a
       // `]` would swallow every declaration after it. `[oak, enum]`
       // is still read as a list of two words, because
-      // `atDeclarationStart` asks what FOLLOWS the word.
-      if (p.done || p.atDeclarationStart()) return null;
+      // `atDeclarationStart` asks what FOLLOWS the word. Nor, where
+      // `closes` is false, past the next member's own `:symbol` or the
+      // body's own `}` — the enclosing list already refused itself at
+      // it, so nothing more is said.
+      if (p.done || p.atDeclarationStart() || (!closes && atMemberOrClose(p))) return null;
       if (p.peek().at.start === before.at.start) p.next();
       separator(p, ']');
       missingComma = null;
