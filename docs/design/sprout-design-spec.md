@@ -467,10 +467,6 @@ Something deeper than a body can see is named by its dotted path, written withou
 
 An object hides anything of its name written further out: in the body of the container around its own, or of any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
 
-Nearest-wins is the rule for identifiers inside a body. What a file declares at its top level is read from inside the world instead: in an object's `in` and the world's `visitors arrive at`, a bare name is something directly in the world, and anything deeper is named by its dotted path, written without spaces around the dots — `object key is Key in kiln.shelf`, `visitors arrive at kiln.back_room`. An `in` may also name the world itself, whole. The world's name is never a step of a path, and no object may take it.
-
-An object hides anything of its name held further out: by the container around its own, or any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
-
 An identifier resolves at compile time and is a target at run time only if it is in range; a `send` to an identifier out of range does nothing, and a `get` through one is a fault.
 
 ### Addressing and display
@@ -1591,7 +1587,6 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | reference | when its target is absent |
 | --- | --- |
 | a kind, in an object's composition | the object is absent: not in range, not listed, not addressable; what it holds is unreachable until the kind returns |
-| a container, in an object's `in` | the object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns |
 | a kind, in a role's declaration | nothing fills the role; the verb's phrases do not match |
 | a kind, in a `spawn` | the `spawn` faults when it runs, and the actor, if there is one, reads the world's `fault` passage |
 | a verb | its readings do not parse, and `act` of it does nothing |
