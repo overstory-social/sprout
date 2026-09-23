@@ -56,11 +56,15 @@ export interface StoredInstance {
   readonly properties: Readonly<Record<string, StoredProperty>>;
   /** Each link's name, and the id of the place it leads to. */
   readonly links: Readonly<Record<string, string>>;
-  /** A list, because how many may be pending is the host's. */
+  /** A list, because how many may be pending is a cap of the host's (the spec's Limits), not a rule of the language. */
   readonly wakes: readonly StoredWake[];
   /** Actor id, then property, then value. */
   readonly memory: Readonly<Record<string, Readonly<Record<string, StoredProperty>>>>;
-  /** When it last ticked, in host seconds; null if it never has. */
+  /**
+   * When it last ticked, in host seconds; null if it never has. The spec
+   * keeps this for every place; one record shape serves every instance,
+   * and it stays null for anything that is not a place.
+   */
   readonly lastTick: number | null;
 }
 
