@@ -777,19 +777,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   }
 
   /**
-   * NOT held, and named: a stray `}` in a world body ends the world, and
-   * the file's reader then steps over everything up to the next
-   * declaration, naming only the first thing it cannot read.
-   *
-   *     world w: sprout.World {
-   *       :faulty } [[62, -50], [24, 54]]
-   *       :bravo [[-52], [8, 54, -64]]
-   *       visitors are P
-   *     }                                     bravo, visitors are P lost
-   */
-  const endsTheWorldEarly = (defect: Defect): boolean => defect.text === '}';
-
-  /**
    * What may follow a body that was never closed: declarations written
    * well, which are kept, and ones whose own header reads like the
    * entries of a `:remembers` — `, name: 1]` — which are kept or refused
@@ -895,10 +882,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const text = `${owner.open}\n  ${lines.join('\n  ')}\n}\n`;
         const { result, said } = reading(text, parseDeclarations);
         const inRemembers = made.text.startsWith(':remembers');
-        if (!inRemembers && endsTheWorldEarly(made.defect)) {
-          reached.add('excluded');
-          continue;
-        }
         reached.add(made.defect.sort);
         const good = members.flatMap((member) => member.names);
         if (inRemembers) good.push('remembers.echo');
@@ -913,9 +896,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           said,
         );
       }
-      expect(reached.keys(), owner.kind).toEqual(
-        [...SORTS, 'across', 'excluded', 'never closed'].sort(),
-      );
+      expect(reached.keys(), owner.kind).toEqual([...SORTS, 'across', 'never closed'].sort());
     }
   });
 
