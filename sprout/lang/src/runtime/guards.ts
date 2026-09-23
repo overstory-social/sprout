@@ -34,6 +34,8 @@ export interface Refusal {
   readonly origin: string;
   /** The passage named, as it applies on the refusing instance's kind, or the words quoted. */
   readonly said: Speech;
+  /** `mover` and the guard's parameters, which the refusal's slots may render. */
+  readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
 /** What a guard is asked about, and what it reads while it decides. */
@@ -73,7 +75,13 @@ export function runGuard(guard: ResolvedGuard, context: GuardContext): 'allow' |
   };
   const ended = runBody(declaration.body, frame, 'decide', null);
   if (ended === 'end' || ended === 'allow') return 'allow';
-  return { guard: declaration.guard, by: context.self, origin: guard.origin, said: ended.refused };
+  return {
+    guard: declaration.guard,
+    by: context.self,
+    origin: guard.origin,
+    said: ended.refused,
+    bindings,
+  };
 }
 
 function count(parameters: number): string {

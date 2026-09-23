@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DestroyStatement, SpawnStatement, Statement } from '../syntax/ast.js';
+import type { DestroyStatement, MoveStatement, SpawnStatement, Statement } from '../syntax/ast.js';
 import { letBinding, showBindingType, valueOf } from './bindings.js';
 import { narrowingOf, type CheckContext } from './check.js';
-import { checkDestroy, checkEffect, checkLet, checkSpawn } from './statements.js';
+import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { kindName } from '../declare/kinds.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseExpression, parseStatement } from '../syntax/parse.js';
@@ -43,6 +43,15 @@ function spawned(text: string, context: CheckContext) {
   const kind = checkSpawn(parsed(text) as SpawnStatement, context);
   return {
     kind: kind === null ? null : kindName(kind),
+    said: context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+  };
+}
+
+/** Check a `move`: whether it passed, and everything said, where it was said. */
+function moved(text: string, context: CheckContext) {
+  const passed = checkMove(parsed(text) as MoveStatement, context);
+  return {
+    passed,
     said: context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
   };
 }
@@ -310,5 +319,95 @@ describe('`destroy self` removes the object whose body runs it', () => {
   it('is accepted where no kind is known for `self`', () => {
     const context: CheckContext = { ...vessel(), self: null };
     expect(checkDestroy(destroy, context)).toBe(true);
+  });
+});
+
+describe('`move` moves one thing into something that holds things', () => {
+  it('moves what the body names into a container it names', () => {
+    for (const text of [
+      'move target to self',
+      'move actor to self',
+      'move self to actor',
+      'move target to here',
+    ]) {
+      expect(moved(text, vessel()), text).toEqual({ passed: true, said: [] });
+    }
+    // An object of a kind that holds nothing may itself move.
+    expect(moved('move self to actor', warded())).toEqual({ passed: true, said: [] });
+  });
+
+  it('accepts a destination of the bare object type, which the engine checks when it runs', () => {
+    expect(moved('move self to target', vessel())).toEqual({ passed: true, said: [] });
+  });
+
+  it('refuses a value or a set as what moves, naming what it is', () => {
+    const numbered = bodyOf(VESSEL, letBinding('n', valueOf(integer(0, 9)), at('n')));
+    expect(moved('move n to self', numbered).said).toEqual([
+      [
+        'b.sprout:1:6',
+        '`move` moves one thing, and `n` is integer 0 to 9.',
+        'Name a thing in the world, as in `move target to self`; a value goes nowhere.',
+      ],
+    ]);
+    expect(moved('move tools to self', vessel()).said).toEqual([
+      [
+        'b.sprout:1:6',
+        '`move` moves one thing, and `tools` is a set of shop.Rib.',
+        'Name one thing, as in `move target to self`; a set is moved one of its things at a time.',
+      ],
+    ]);
+  });
+
+  it('refuses to move the world, which goes nowhere', () => {
+    expect(moved('move self to actor', bodyOf(SHOP))).toEqual({
+      passed: false,
+      said: [
+        [
+          'b.sprout:1:6',
+          '`move self` here would move the world, and the world goes nowhere.',
+          'Write it in the body of the thing that should move.',
+        ],
+      ],
+    });
+  });
+
+  it('refuses a destination that is a value or a set, or whose kind holds nothing', () => {
+    const numbered = bodyOf(VESSEL, letBinding('n', valueOf(integer(0, 9)), at('n')));
+    expect(moved('move self to n', numbered).said).toEqual([
+      [
+        'b.sprout:1:14',
+        '`self` goes into something that holds things, and `n` is integer 0 to 9.',
+        'Name a container, as in `move self to actor`.',
+      ],
+    ]);
+    expect(moved('move target to tools', vessel()).said).toEqual([
+      [
+        'b.sprout:1:16',
+        '`target` goes into something that holds things, and `tools` is a set of shop.Rib.',
+        'Name a container, as in `move target to self`.',
+      ],
+    ]);
+    expect(moved('move actor to self', warded()).said).toEqual([
+      [
+        'b.sprout:1:15',
+        '`shop.Warded` holds nothing, so nothing can be moved into it.',
+        'Containment is a declaration: a kind that holds things writes `contains`.',
+      ],
+    ]);
+  });
+
+  it('refuses a name nothing here answers to on either side, dotted ones included', () => {
+    expect(
+      moved('move cup to kiln.shelf', vessel()).said.map(([where, message]) => [where, message]),
+    ).toEqual([
+      ['b.sprout:1:6', 'Nothing here is called `cup`.'],
+      ['b.sprout:1:13', 'Nothing here is called `kiln.shelf`.'],
+    ]);
+  });
+
+  it('says both when both sides are wrong', () => {
+    const { passed, said } = moved('move tools to tool', warded());
+    expect(passed).toBe(false);
+    expect(said.map(([where]) => where)).toEqual(['b.sprout:1:6', 'b.sprout:1:15']);
   });
 });

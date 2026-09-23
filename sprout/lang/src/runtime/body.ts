@@ -1,18 +1,18 @@
-// Running a body's block (the spec's Verbs › The two passes; Movement and
-// consent › Guards are read-only; Properties › What the compiler checks,
-// Lists, Per-actor memory; The world model › Spawning, Destroying; Prose;
-// Limits › Runtime budgets).
+// Running a body's block (the spec's Verbs › The two passes, Moving
+// something; Movement and consent › Guards are read-only; Properties ›
+// What the compiler checks, Lists, Per-actor memory; The world model ›
+// Spawning, Destroying; Prose; Limits › Runtime budgets).
 //
 // One runner, in two modes. A guard and a `permit` decide: they read, and
 // end in `allow`, in `refuse`, or by reaching their end. A `do` acts: it
-// writes `self` through the turn's draft, spawns, destroys and says. Each
-// mode holds exactly what `check/blocks.ts` lets its bodies hold, so
-// anything else reaching it is the engine's defect, thrown as a plain
-// `Error`. Every statement executed is one step and every expression node
-// one more. A `set` or `remember` of a value its property cannot hold
-// faults, an `adjust` clamps, and adding a new element to a full list
-// faults. Nothing is rendered: B29 renders what is said. B30 brings
-// `tell`, B25 `move`, B26 `act` and B32 `send`.
+// writes `self` through the turn's draft, spawns, destroys, moves and
+// says. Each mode holds exactly what `check/blocks.ts` lets its bodies
+// hold, so anything else reaching it is the engine's defect, thrown as a
+// plain `Error`. Every statement executed is one step and every
+// expression node one more. A `set` or `remember` of a value its property
+// cannot hold faults, an `adjust` clamps, and adding a new element to a
+// full list faults. Nothing is rendered: B29 renders what is said. B30
+// brings `tell`, B26 `act` and B32 `send`.
 
 import type {
   Block,
@@ -76,6 +76,12 @@ export interface ActSink {
   sent(sends: readonly EngineSend[]): void;
   /** `self` removed, at the end of the body that ran `destroy self`. */
   destroyed(destroyed: Destroyed): void;
+  /**
+   * `move item to to`, proposed by `mover`, the object whose body ran it:
+   * asked through consent, and what came of it said or sent. The body
+   * goes on after it, whether the move was made or refused.
+   */
+  move(mover: InstanceId, item: InstanceId, to: InstanceId): void;
 }
 
 /**
@@ -161,6 +167,13 @@ function runStatement(
       acting(run, '`destroy`');
       run.destroying = true;
       return 'end';
+    case 'move': {
+      const sink = acting(run, '`move`');
+      const item = asObject(evaluate(named(statement.thing), frame));
+      const to = asObject(evaluate(named(statement.destination), frame));
+      sink.move(frame.self, item, to);
+      return 'end';
+    }
     case 'say':
       acting(run, '`say`').say({
         by: frame.self,
@@ -215,17 +228,20 @@ function spawn(statement: SpawnStatement, frame: Frame, sink: ActSink): Instance
     found === null
       ? qualifiedName(written.library?.text ?? frame.library, written.name.text)
       : kindName(found);
-  const container = asObject(evaluate(containerOf(statement.container), frame));
+  const container = asObject(evaluate(named(statement.container), frame));
   const spawned = spawnInstance(sink.lifecycle, frame.self, kind, container);
   sink.sent(spawned.sends);
   return spawned.id;
 }
 
-/** A spawn's container is a name in scope; a dotted path is refused until a body resolves identifiers. */
-function containerOf(path: ObjectPath): Expr {
+/**
+ * A spawn's container, or either side of a move: a name in scope, since
+ * a dotted path is refused until a body resolves identifiers.
+ */
+function named(path: ObjectPath): Expr {
   const [only, ...rest] = path.parts;
   if (only === undefined || rest.length > 0) {
-    throw new Error('a spawn into a dotted path reached the runtime; the checker refuses it.');
+    throw new Error('a dotted path reached the runtime in a body; the checker refuses it.');
   }
   return { kind: 'binding', name: only, at: only.at };
 }

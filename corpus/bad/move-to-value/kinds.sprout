@@ -1,0 +1,11 @@
+// What a thing goes into is a thing that holds things, never a number.
+kind Counter {
+  :n 0 min 0 max 9
+
+  as target for bump {
+    do {
+      let count = self.get(:n)
+      move actor to count
+    }
+  }
+}

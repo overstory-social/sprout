@@ -1,0 +1,9 @@
+// A `permit` is asked before anything happens, so it may only read and
+// decide. Moving the actor belongs in `do`.
+kind Chute {
+  contains actors
+
+  as target for pull {
+    permit { move actor to self }
+  }
+}

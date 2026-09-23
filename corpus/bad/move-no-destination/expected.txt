@@ -1,0 +1,4 @@
+kinds.sprout:7:20  After `to` comes the thing `actor` goes into.
+                   Name it in lower case, as in `move actor to self` or `move actor to here`.
+
+refused: 1 problem

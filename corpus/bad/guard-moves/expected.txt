@@ -1,0 +1,4 @@
+kinds.sprout:7:5  `move` moves something, and a guard only reads and decides.
+                  Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
+
+refused: 1 problem

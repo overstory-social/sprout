@@ -1,0 +1,11 @@
+// `move` names what moves before `to`.
+kind Lever {
+  contains
+
+  as target for pull {
+    do {
+      move to self
+      say "Clunk."
+    }
+  }
+}
