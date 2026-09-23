@@ -320,6 +320,21 @@ Found while building spawning and destroying (B18), each decided the narrow way 
 - **`destroy self` twice.** Is once: it takes effect when the body ends, and a second in the same body changes nothing.
 - **Memory keyed by a destroyed NPC.** Kept: what an object remembers about an actor is its own, and a destroyed actor's id is never minted again, so the entry can name no one else.
 
+Found while building passages (B20), each decided the narrow way and awaiting Eric:
+
+- **A composer's own `default` beside a composed non-default of the same name.** How members combine says a composer's own exclusive member always replaces what it composes, and that a default yields to any passage of the same name from any other source; for this case they disagree. Built: the composer's own applies, and stays a default, so it still yields further up.
+- **A default rewritten over a default.** `W: K, A` where `K: A` wrote its own default over `A`'s: two defaults from two origins reach `W`, and they collide, as a restated property from two origins does.
+- **Where a library's replacement lines go.** A register library composed onto the world replaces `sprout.World`'s lines but not `sprout.Place`'s or `sprout.Actor`'s, since a passage is the kind's; the spec's "a second library supplying the lines the first left out" says nothing about which kind it is composed onto. And a register that writes its lines as `default` collides with the standard library on every shared name, so under the rule as written a register replaces stock lines only by writing non-defaults.
+- **A typo in an override.** `passage nothing_happen` in the world overrides nothing and is not refused; no warning is listed. A warning for a passage nothing invokes would be B50's.
+- **After a refused collision.** The first contender in list order is kept, as the property collision keeps its first, so a kind composing the refused one hears nothing more about that line; and when non-defaults collide the refusal names only them, not the defaults that gave way.
+- **`default` on an object's or the world's own passage.** Accepted and recorded, though nothing can compose it.
+- **A passage's name.** Any lower-case word, as an object's name may be; only `default` in the name position is read as the keyword. A reserved word as a passage's name is not refused, as it is not for a verb, a message or a kind today.
+- **A lone `}` in prose.** There is no way to write one: only `\{` is an escape, so an unmatched `}` closes the passage and `\}` is refused, stepped over with the character after it as a bad escape in quoted text is.
+- **Quoted text in a slot.** Ends at its line with no refusal until B29 reads slots; in prose a quote is a character.
+- **Where a passage's header may sit.** Its words on the `passage` line, the brace on that line or the next; a header left without braces then never takes the next member for its own.
+- **`{item}` in `arrives` and `leaves`.** Untyped by the binding table until B29 and B42 say what a place's notices bind.
+- **A world whose composed kinds lack an engine passage.** A forked standard library without `fault` or `displaced`: what the engine says then is B34's and B48's.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.
