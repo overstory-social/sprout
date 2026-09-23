@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { StaticCaps } from '@overstory/sprout/lang';
+
 // What a store holds for one microworld: seven record types, every one
 // a zod schema, because an adapter author
 // needs them and a document adapter validates what it reads back. Core
@@ -23,31 +25,34 @@ export const StoredArchive = z.object({
 });
 export type StoredArchive = z.infer<typeof StoredArchive>;
 
+/** A cap as a store keeps it: a whole number from 1. */
+const cap = z.number().int().positive();
+/** A cap the spec leaves to the host, which may have set none. */
+const hostCap = cap.nullable();
+
 /**
- * The limits in force for a microworld, with defaults. The
- * language's own caps (definition bytes, cascade depth, the event
- * budget) are lang's constants and not here.
+ * The static caps a microworld's bundle was checked against when it was
+ * published (the spec's Limits), kept so the next load can compare them
+ * with the host's caps then. Every cap is named, since a record says what
+ * it was checked against rather than falling back to a figure.
  */
-export const Limits = z.object({
-  rooms: z.number().int().positive().default(16),
-  /** Objects placed, across the microworld (12 per room × 16 rooms today). */
-  objects: z.number().int().positive().default(192),
-  kinds: z.number().int().positive().default(32),
-  files: z.number().int().positive().default(256),
-  /** Bytes of source across the archive; bounds the worst compile. */
-  sourceBytes: z
-    .number()
-    .int()
-    .positive()
-    .default(256 * 1024),
-  /** Live instances, placed and spawned; the engine's SPROUT_MAX_INSTANCES is the ceiling it can enforce. */
-  instances: z.number().int().positive().default(2000),
-  /** Days an action record is kept; `trim` drops older ones. */
-  actionDays: z.number().int().positive().default(30),
-  /** Donated misses kept, newest first. */
-  misses: z.number().int().nonnegative().default(500),
-});
-export type Limits = z.infer<typeof Limits>;
+export const RecordedCaps = z.object({
+  optionsPerEnum: cap,
+  rolesPerVerb: cap,
+  phrasesPerVerb: cap,
+  phraseCharacters: cap,
+  nounsPerObject: cap,
+  nounCharacters: cap,
+  exitsPerPlace: cap,
+  listElements: cap,
+  literalCharacters: cap,
+  places: hostCap,
+  objects: hostCap,
+  kinds: hostCap,
+  files: hostCap,
+  sourceBytes: hostCap,
+}) satisfies z.ZodType<StaticCaps>;
+export type RecordedCaps = z.infer<typeof RecordedCaps>;
 
 export const MicroworldRecord = z.object({
   id: z.string().min(1),
@@ -58,7 +63,10 @@ export const MicroworldRecord = z.object({
   level: z.number().int(),
   /** The extensions the archive uses. */
   extensions: z.array(z.string()),
-  limits: Limits,
+  /** The static caps its bundle was checked against at publish. */
+  caps: RecordedCaps,
+  /** Whether the host has made an exception for it, to load it under `caps` where they exceed its own. */
+  excepted: z.boolean(),
   loadedAt: z.date(),
 });
 export type MicroworldRecord = z.infer<typeof MicroworldRecord>;

@@ -194,6 +194,7 @@ How this section works, for the agents that read it. **Open** comes first and ho
 - **10. Whether a withheld file changes the bundle's hash.** Deferred until the publish, share, repository and library-versioning story is settled.
 - **35. Which kind a register library is composed onto.** A register composed onto the world replaces `sprout.World`'s lines and not `sprout.Place`'s or `sprout.Actor`'s, since a passage is the kind's. Left for the library work (#127).
 - **54. The register of the stock lines.** Long-term, not a blocker.
+- **81. Whether a host may unset a limit the spec gives a figure for.** The spec's Limits says a limit the host leaves unset is unbounded, and its tables give most limits a figure a host starts from. Built so a host may unset only the limits whose default is the host's to say and the wall clock, and a `null` for the step budget or any other figured limit is refused at boot; the other reading would let a host run turns with no step budget at all.
 
 **Decided 2026-09-23, night**, now in the spec:
 
@@ -592,6 +593,18 @@ Found while ending a body at its first refusal, each decided the narrow way and 
 - **What ending leaves standing.** Everything the body did before the refusal stands, writes, spawns, sends and lines alike, and a `destroy self` it already ran still takes effect as the body ends. Only the body that ran the statement ends: the reading's other participants' `do`s, and the composed plays after it on the same participant, still run.
 - **Which refusals end it.** A guard's refusal and the engine's own (`inside_itself`, an actor where actors cannot stand) end the body alike, since each is a refusal said to the actor. For `act`, only its consent pass's refusal ends the body; a reading that acted, even one whose own `do` ended at a refused `move`, is done, and the body that performed it goes on.
 - **A refused `act` said only to others.** An NPC's `act` refused in a person's command is heard by whoever would hear the NPC's `tell`, not the person, so where nothing else in the command reached the person the world's `nothing_happens` answers them.
+
+Found while giving the host its limits (B43), each decided the narrow way and awaiting Eric:
+
+- **Unsetting a limit that has a figure.** A host that names no figure for a limit gets the spec's default; `null` leaves unbounded only the limits whose default is the host's to say (places, objects, kinds, files, source bytes) and the wall clock, and a `null` for any other is refused at the host's boot. "A limit the host leaves unset is unbounded" is read as a limit with no default, since the tables give the rest a figure a host starts from (Open 81).
+- **What an exception covers.** One exception is for the world, every cap at once, and the world then loads under the larger of each cap it recorded and the host's own, unset being the largest. The host keeps whether it made one beside the caps the world recorded (core's `MicroworldRecord`, `caps` and `excepted`), and the language keys it by nothing.
+- **Caps compared, not contents.** A world recorded against a cap larger than the host's is refused at load even when what it holds would fit the host's cap, as the spec says; its remedy names republishing, which checks it against the host's caps and records those.
+- **Only at load.** What a world recorded is read only at load; a publish, an excepted world's included, is checked against the host's own caps and records them.
+- **Its words.** Once per cap, at the manifest's `name` as the other world-wide caps are: "This world was published allowing 12 exits on one place. This host allows 8, 4 fewer.", or "…with no limit on places in a world. This host allows 40." where it recorded none; the remedy is "Publish it again under this host's limits, or ask the host to make an exception for this world." `sprout check` publishes and never loads, so the words are pinned by `bundle/compile/recorded.spec.ts` rather than a `corpus/bad` world.
+- **Under an exception, past even that.** A file past the caps the exception granted reads as absent at load, as any broken file does; a world-wide cap past them refuses, as without one.
+- **What the runtime reads under.** An excepted world's stored values are read, and its lists grown, under the caps the exception granted, which that load's bundle records, rather than the host's own.
+- **Pending wakes per object.** A runtime budget in the table, 1 by default, counted against one object across turns; what a load does with a stored wake list longer than a lowered figure is B36's.
+- **Budgets are not recorded.** A bundle records its static caps and nothing of the runtime budgets, which apply as the host sets them on the day a turn runs.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

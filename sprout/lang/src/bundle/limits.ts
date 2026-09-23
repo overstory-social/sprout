@@ -30,13 +30,17 @@
 // refused rather than crashing it, and that bound is the parser's own,
 // not a figure a host sets and not something a bundle records.
 //
-// Two bounds outlive a turn and are not here either, per the spec's
-// Limits › Runtime budgets. How many live instances a world may hold is
-// the host's storage decision, not a figure in this table: a `spawn`
-// faults when the host will not hold another. One pending wake per
-// object is a rule of the language under Time, not a budget, and it
-// bounds pending wakes by live instances. There is no cap on spawns over
-// time.
+// Two bounds outlive a turn, per the spec's Limits › Runtime budgets.
+// How many live instances a world may hold is the host's storage
+// decision, not a figure in this table: a `spawn` faults when the host
+// will not hold another. How many wakes one object may have pending is
+// the table's, held across turns rather than spent in one. There is no
+// cap on spawns over time.
+//
+// A bundle records the static caps it was checked against, and a load
+// compares them with the host's own (`capsExceeding`): a world checked
+// against larger caps is refused unless the host has made an exception
+// for it, and then runs under the larger of the two (`capsGranted`).
 
 /** A cap checked when a world compiles. Exceeding one refuses the world, naming the line. */
 export interface StaticCaps {
@@ -103,6 +107,8 @@ export interface RuntimeBudgets {
   readonly spawnsPerTurn: number;
   /** The shortest wake a world may ask for, in seconds — the host's floor to raise. */
   readonly shortestWakeSeconds: number;
+  /** Wakes one object may have pending, held across turns; a `wake` past it faults, which B36 enforces. */
+  readonly pendingWakesPerObject: number;
   /**
    * The wall-clock backstop, in milliseconds. The spec gives no figure:
    * it is a backstop against something the step budget failed to catch,
@@ -150,6 +156,7 @@ export const DEFAULT_LIMITS: Limits = {
     setRoleObjects: 8,
     spawnsPerTurn: 8,
     shortestWakeSeconds: 60,
+    pendingWakesPerObject: 1,
     wallClockMs: null,
   },
 };
@@ -334,6 +341,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     bounds: 'the shortest wake a world may ask for, the host floor',
   },
   {
+    name: 'pendingWakesPerObject',
+    kind: 'budget',
+    scope: 'object',
+    exceeded: 'fault',
+    bounds: 'wakes one object may have pending, held across turns',
+  },
+  {
     name: 'wallClockMs',
     kind: 'budget',
     scope: 'turn',
@@ -342,7 +356,11 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
   },
 ];
 
-/** A host's limits: any of them, and the spec's figure for the rest. */
+/**
+ * The host's limit configuration: its figure for any limit it names, the
+ * spec's default for every other. `null` leaves unbounded a limit whose
+ * default the spec gives as the host's to say, and no other.
+ */
 export interface LimitOverrides {
   readonly caps?: Partial<StaticCaps>;
   readonly budgets?: Partial<RuntimeBudgets>;
@@ -412,27 +430,42 @@ export function limitsFrom(overrides: LimitOverrides = {}): Limits {
   return { caps: caps as unknown as StaticCaps, budgets: budgets as unknown as RuntimeBudgets };
 }
 
-/** Whether a world checked against `theirs` stays inside `ours`. */
-export function capsWithin(theirs: StaticCaps, ours: StaticCaps): boolean {
-  return (Object.keys(ours) as StaticCapName[]).every((name) => {
-    const mine = ours[name];
-    if (mine === null) return true;
-    const yours = theirs[name];
-    return yours !== null && yours <= mine;
-  });
+/** One cap a world was checked against that is larger than the host's, and the two figures. */
+export interface CapExceeded {
+  readonly name: StaticCapName;
+  /** What the world was checked against; `null` when that was no cap at all. */
+  readonly recorded: number | null;
+  /** What this host allows. */
+  readonly allowed: number;
 }
 
 /**
- * The caps a world was checked against that are larger than ours. A
- * bundle records the caps it was checked against at publish, and a host
- * loading one checked against larger caps than its own decides for
- * itself whether to run it — so this names what it is deciding about.
+ * The caps a world was checked against that are larger than `ours`, in
+ * the table's order. A cap `ours` leaves unset is never exceeded; one
+ * the world was checked without is exceeded by any figure of ours.
  */
-export function capsExceeding(theirs: StaticCaps, ours: StaticCaps): StaticCapName[] {
-  return (Object.keys(ours) as StaticCapName[]).filter((name) => {
-    const mine = ours[name];
-    if (mine === null) return false;
-    const yours = theirs[name];
-    return yours === null || yours > mine;
-  });
+export function capsExceeding(recorded: StaticCaps, ours: StaticCaps): CapExceeded[] {
+  const over: CapExceeded[] = [];
+  for (const name of Object.keys(DEFAULT_LIMITS.caps) as StaticCapName[]) {
+    const allowed = ours[name];
+    if (allowed === null) continue;
+    const theirs = recorded[name];
+    if (theirs === null || theirs > allowed) over.push({ name, recorded: theirs, allowed });
+  }
+  return over;
+}
+
+/**
+ * The caps a world runs under when the host has made an exception for
+ * it: for each, the larger of what it was checked against and the
+ * host's own, unset being the largest.
+ */
+export function capsGranted(recorded: StaticCaps, ours: StaticCaps): StaticCaps {
+  const granted: Record<string, number | null> = {};
+  for (const name of Object.keys(DEFAULT_LIMITS.caps) as StaticCapName[]) {
+    const theirs = recorded[name];
+    const allowed = ours[name];
+    granted[name] = theirs === null || allowed === null ? null : Math.max(theirs, allowed);
+  }
+  return granted as unknown as StaticCaps;
 }

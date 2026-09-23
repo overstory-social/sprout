@@ -32,7 +32,7 @@
 
 import type { ValueType } from '../declare/types.js';
 import type { Value } from './values.js';
-import { DEFAULT_LIMITS, type StaticCaps } from '../bundle/limits.js';
+import type { StaticCaps } from '../bundle/limits.js';
 import { sameType, showType } from '../declare/types.js';
 
 /**
@@ -70,11 +70,7 @@ export class SproutList {
    * from source has already had them refused by `checkLiteral`, and
    * `decodeValue` refuses a stored list holding one before it gets here.
    */
-  static of(
-    holds: ValueType,
-    elements: readonly Value[] = [],
-    caps: StaticCaps = DEFAULT_LIMITS.caps,
-  ): SproutList {
+  static of(holds: ValueType, elements: readonly Value[], caps: StaticCaps): SproutList {
     const items: Value[] = [];
     for (const element of elements) {
       if (items.some((held) => same(held, element))) continue;

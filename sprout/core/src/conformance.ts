@@ -1,3 +1,5 @@
+import { DEFAULT_LIMITS } from '@overstory/sprout/lang';
+
 import type {
   ActionRecord,
   ActorRecord,
@@ -39,16 +41,8 @@ const microworld = (id: string): MicroworldRecord => ({
   stamp: 'stamp-1',
   level: 1,
   extensions: [],
-  limits: {
-    rooms: 16,
-    objects: 192,
-    kinds: 32,
-    files: 256,
-    sourceBytes: 262144,
-    instances: 2000,
-    actionDays: 30,
-    misses: 500,
-  },
+  caps: DEFAULT_LIMITS.caps,
+  excepted: false,
   loadedAt: NOW,
 });
 const object = (

@@ -2,12 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   capsExceeding,
-  capsWithin,
+  capsGranted,
   DEFAULT_LIMITS,
   LIMIT_TABLE,
   LimitsError,
   limitsFrom,
-  type LimitName,
   type RuntimeBudgetName,
   type StaticCapName,
 } from './limits.js';
@@ -38,6 +37,7 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
       setRoleObjects: 8,
       spawnsPerTurn: 8,
       shortestWakeSeconds: 60,
+      pendingWakesPerObject: 1,
     });
   });
 
@@ -67,21 +67,26 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
     expect(() => limitsFrom({ caps: { nesting: 8 } as never })).toThrow(/is not a limit/);
   });
 
-  it('has no budget for spawns per hour, live instances or wakes per object, which outlive a turn', () => {
+  it('has no budget for spawns per hour or live instances, and one for wakes an object holds', () => {
     // The spec's Limits › Runtime budgets: how many live instances a
-    // world may hold is the host's storage decision, and pending wakes
-    // are bounded by live instances as a rule of the language under
-    // Time, not a figure in this table.
+    // world may hold is the host's storage decision, there is no cap on
+    // spawns over time, and how many wakes an object may have pending is
+    // the table's, 1 by default.
     const names = Object.keys(DEFAULT_LIMITS.budgets);
     expect(names).not.toContain('spawnsPerHour');
     expect(names).not.toContain('liveInstances');
-    expect(names).not.toContain('wakesPerObject');
     expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('spawnsPerHour');
     expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('liveInstances');
-    expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('wakesPerObject');
     expect(() => limitsFrom({ budgets: { spawnsPerHour: 1 } as never })).toThrow(/is not a limit/);
     expect(() => limitsFrom({ budgets: { liveInstances: 1 } as never })).toThrow(/is not a limit/);
-    expect(() => limitsFrom({ budgets: { wakesPerObject: 1 } as never })).toThrow(/is not a limit/);
+    expect(LIMIT_TABLE.find((l) => l.name === 'pendingWakesPerObject')).toMatchObject({
+      kind: 'budget',
+      scope: 'object',
+      exceeded: 'fault',
+    });
+    expect(
+      limitsFrom({ budgets: { pendingWakesPerObject: 3 } }).budgets.pendingWakesPerObject,
+    ).toBe(3);
   });
 });
 
@@ -158,6 +163,21 @@ describe('the numbers are the host’s', () => {
     expect(limitsFrom({ caps: { optionsPerEnum: 64 } }).caps.optionsPerEnum).toBe(64);
   });
 
+  it('lets a host set every limit the spec lists, each one alone', () => {
+    for (const name of Object.keys(DEFAULT_LIMITS.caps) as StaticCapName[]) {
+      const limits = limitsFrom({ caps: { [name]: 7 } });
+      expect(limits.caps[name], name).toBe(7);
+      expect({ ...limits.caps, [name]: DEFAULT_LIMITS.caps[name] }).toEqual(DEFAULT_LIMITS.caps);
+    }
+    for (const name of Object.keys(DEFAULT_LIMITS.budgets) as RuntimeBudgetName[]) {
+      const limits = limitsFrom({ budgets: { [name]: 7 } });
+      expect(limits.budgets[name], name).toBe(7);
+      expect({ ...limits.budgets, [name]: DEFAULT_LIMITS.budgets[name] }).toEqual(
+        DEFAULT_LIMITS.budgets,
+      );
+    }
+  });
+
   it('lets a host unset only what the spec gave no figure for', () => {
     expect(limitsFrom({ caps: { places: null } }).caps.places).toBeNull();
     expect(() => limitsFrom({ budgets: { steps: null as unknown as number } })).toThrow(
@@ -197,35 +217,60 @@ describe('a bad figure is the host’s mistake, and is loud at its boot', () => 
   });
 });
 
-describe('a bundle records the caps it was checked against, and a host decides', () => {
+describe('a bundle records the caps it was checked against, and a load compares them', () => {
   const ours = limitsFrom({ caps: { places: 100, sourceBytes: 65_536 } }).caps;
 
-  it('is within when every recorded cap is no larger than ours', () => {
-    expect(capsWithin(ours, ours)).toBe(true);
-    expect(capsWithin(limitsFrom({ caps: { places: 50, sourceBytes: 1_000 } }).caps, ours)).toBe(
-      true,
-    );
+  it('names nothing when every recorded cap is no larger than ours', () => {
+    expect(capsExceeding(ours, ours)).toEqual([]);
+    expect(
+      capsExceeding(limitsFrom({ caps: { places: 50, sourceBytes: 1_000 } }).caps, ours),
+    ).toEqual([]);
   });
 
-  it('is not within when one is larger, and names which', () => {
-    const theirs = limitsFrom({
+  it('names each larger one, in the table’s order, with both figures', () => {
+    const recorded = limitsFrom({
       caps: { places: 500, sourceBytes: 1_000, exitsPerPlace: 16 },
     }).caps;
-    expect(capsWithin(theirs, ours)).toBe(false);
-    expect(capsExceeding(theirs, ours)).toEqual(['exitsPerPlace', 'places']);
+    expect(capsExceeding(recorded, ours)).toEqual([
+      { name: 'exitsPerPlace', recorded: 16, allowed: 8 },
+      { name: 'places', recorded: 500, allowed: 100 },
+    ]);
   });
 
   it('counts a cap we bound and they did not as exceeding ours', () => {
-    expect(capsExceeding(DEFAULT_LIMITS.caps, ours)).toContain('places');
+    expect(capsExceeding(DEFAULT_LIMITS.caps, ours)).toEqual([
+      { name: 'places', recorded: null, allowed: 100 },
+      { name: 'sourceBytes', recorded: null, allowed: 65_536 },
+    ]);
   });
 
-  it('is content with a cap neither of us bounds', () => {
+  it('is content with a cap we leave unset, however large theirs', () => {
+    expect(capsExceeding(ours, DEFAULT_LIMITS.caps)).toEqual([]);
     expect(capsExceeding(DEFAULT_LIMITS.caps, DEFAULT_LIMITS.caps)).toEqual([]);
   });
 
   it('never names a limit that is not a cap', () => {
-    const theirs = limitsFrom({ caps: { exitsPerPlace: 16 } }).caps;
-    const names: LimitName[] = capsExceeding(theirs, ours);
-    for (const name of names) expect(Object.keys(DEFAULT_LIMITS.caps)).toContain(name);
+    const recorded = limitsFrom({ budgets: { steps: 1_000_000 } }).caps;
+    expect(capsExceeding(recorded, ours).map((over) => over.name)).toEqual([
+      'places',
+      'sourceBytes',
+    ]);
+    for (const over of capsExceeding(limitsFrom({ caps: { exitsPerPlace: 16 } }).caps, ours)) {
+      expect(Object.keys(DEFAULT_LIMITS.caps)).toContain(over.name);
+    }
+  });
+
+  it('grants the larger of each under an exception, unset being the largest', () => {
+    const recorded = limitsFrom({ caps: { exitsPerPlace: 16, places: 50, kinds: 12 } }).caps;
+    const granted = capsGranted(recorded, ours);
+    expect(granted).toMatchObject({
+      exitsPerPlace: 16,
+      places: 100,
+      kinds: null,
+      sourceBytes: null,
+      optionsPerEnum: 100,
+    });
+    expect(capsExceeding(recorded, granted)).toEqual([]);
+    expect(capsExceeding(ours, granted)).toEqual([]);
   });
 });
