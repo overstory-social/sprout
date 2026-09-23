@@ -154,7 +154,7 @@ describe('what the world and its visitors are made of', () => {
     const loaded = kinds(text, 'load');
     expect(loaded.visitor).toBeNull();
     expect(loaded.world).not.toBeNull();
-    expect(loaded.absent).toEqual([['Visitor', 'world']]);
+    expect(loaded.absent).toEqual([['Visitor', 'visitor-kind']]);
   });
 
   it('does not say the visitor kind is missing at publish while an own file was refused', () => {
@@ -407,7 +407,7 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
     expect(bundle!.world).not.toBeNull();
     expect(bundle!.absent.map((a) => [a.what, a.kind])).toEqual([
       ['people.sprout', 'file'],
-      ['Visitor', 'world'],
+      ['Visitor', 'visitor-kind'],
     ]);
   });
 });

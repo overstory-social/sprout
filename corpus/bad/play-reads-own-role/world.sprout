@@ -1,0 +1,9 @@
+world play_reads_own_role: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at play_reads_own_role
+}
+
+kind Visitor: sprout.Actor { }
+
+verb pull { role target  "pull [target]" }

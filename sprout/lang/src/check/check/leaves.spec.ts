@@ -88,3 +88,45 @@ describe('the bottom of a spine, asked directly', () => {
     ]);
   });
 });
+
+describe('a name withheld, and `bound`', () => {
+  const withholding = (bindable: boolean) => {
+    const context = bodyOf(VESSEL);
+    const words = { message: '`topic` has no options here.', remedy: 'Write `topic from :knows`.' };
+    const binding = loopBinding('topic', null, at('topic'));
+    context.scope.withhold(
+      {
+        name: 'topic',
+        at: at('topic'),
+        unread: words,
+        bound: bindable ? { bindable: true, binding } : { bindable: false, words },
+      },
+      context.diagnostics,
+    );
+    return context;
+  };
+
+  it('refuses a read of a withheld name in its own words', () => {
+    const context = withholding(true);
+    expect(read('topic', context).said).toEqual([
+      '`topic` has no options here. Write `topic from :knows`.',
+    ]);
+  });
+
+  it('types `bound` of a tool that may be bound as boolean, and refuses one that never is', () => {
+    expect(read('bound topic', withholding(true)).type).toEqual(valueOf(BOOLEAN));
+    const never = withholding(false);
+    expect(read('bound topic', never).type).toBeNull();
+    expect(saidBy(never)).toEqual(['`topic` has no options here. Write `topic from :knows`.']);
+  });
+
+  it('refuses `bound` outside a role, on what is not a tool, and on a name nothing answers to', () => {
+    const outside = bodyOf(VESSEL);
+    expect(read('bound self', outside).said).toEqual([
+      "`bound` asks whether a verb's tool was given, and `self` is the role-player. Ask it inside a role's `permit` or `do`, of a tool some phrase leaves out.",
+    ]);
+    expect(read('bound shelf', bodyOf(VESSEL)).said.join(' ')).toContain(
+      'Nothing here is called `shelf`.',
+    );
+  });
+});

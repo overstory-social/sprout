@@ -1,0 +1,9 @@
+// A guard answers the engine in the middle of a move, and has nobody to
+// speak to.
+kind Crate {
+  contains
+
+  accept (item, from) {
+    say "In it goes."
+  }
+}

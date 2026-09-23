@@ -127,3 +127,33 @@ describe('a statement is not something to read', () => {
     expect(locationOf(read.refusals[0]!.at)).toBe('body.sprout:1:14');
   });
 });
+
+describe('`bound` asks whether a tool was given', () => {
+  it('reads the word and a name, as tightly as a name', () => {
+    expect(readExpression('bound tool').shape).toBe('bound tool');
+    expect(readExpression('!bound tool').shape).toBe('(!bound tool)');
+    expect(readExpression('bound tool && tool.is(Key)').shape).toBe('(bound tool && tool.is(Key))');
+  });
+
+  it('refuses anything but a name after it, at what stands there', () => {
+    for (const [text, at] of [
+      ['bound', 'body.sprout:1:6'],
+      ['bound 3', 'body.sprout:1:6'],
+      ['bound Key', 'body.sprout:1:7'],
+      ['bound tool.count', 'body.sprout:1:7'],
+    ] as const) {
+      const { expr, refusals } = readExpression(text);
+      expect(expr, text).toBeNull();
+      expect(
+        refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+        text,
+      ).toEqual([
+        [
+          at,
+          '`bound` asks whether a tool was given, by its name alone.',
+          'Write `bound` and the name of the tool, as in `if (bound tool) { … }`.',
+        ],
+      ]);
+    }
+  });
+});

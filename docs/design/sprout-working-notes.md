@@ -215,7 +215,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - Objects are declared inside the body of what holds them; the parse tree is the containment tree; `in` and its refusals and the `container` absent row go.
 - An identifier belongs to the body it is written in and is seen from inside it at any depth, nearest wins; a dotted path names anything deeper, and the world's `visitors arrive at`, written in the world's body, names a nested place by one.
 - Kinds stay at a file's top level and hold no objects: an `object` inside a kind's body, or at a file's top level, is refused. The world's body is one block in one file, and a file holding only kinds and enums needs no world.
-- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path; two objects of one name in one body.
+- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one body.
 - What `objects`, `places` and `kinds` count, under Static caps.
 - A `spawn` of `sprout.World`, or of a kind that composes it, is refused; so is `destroy self` in the world's own body.
 - A destroyed object has no effects: messages queued to it, messages it sent that have not been delivered, engine messages naming it as their `from`, and its pending wakes are all dropped. Its contents still fall to its container, and a visitor standing directly in a destroyed place still faults the destroy.
@@ -290,13 +290,13 @@ Found while building the state model (B16), each decided the narrow way and awai
 
 Found while building actors (B17), each decided the narrow way and awaiting Eric:
 
-- **How the standard library travels.** From the CLI as one known copy, blessed, and pinned by `sprout init`; every manifest names it, and one that does not is refused for a missing `sprout.World`, with a remedy that names the library.
-- **What visitors are made of.** The visitor kind must compose `sprout.Actor` and be the world's own kind. `visitors are Hall`, where `Hall` is not an actor, is refused at the kind; so are `visitors are sprout.Actor` and any other library's kind, since the world's own kind is where "whatever this story needs a person to have" is written.
-- **A visitor kind absent at load.** The absent table has no row for it. It is treated as the `world` row's consequence: the world admits no one, and the gap is recorded under `world`. At publish it is refused, and not said while one of the world's own files was refused at the first tier, as for the arrival place. So is a kind the world composes that nothing declares. Proposed as a row, or as part of the `world` row's wording.
-- **Where an NPC may be declared.** An NPC needs no place among its ancestors, and an actor may be declared inside something that does not hold actors (a cat in a basket); both are accepted, since where an actor may be moved is B22's and B42's.
-- **Erasing what the world remembers about a visitor.** Not built: the spec gives only the memory panel, which lists everything every object remembers about an actor, dormant objects included, and only what was written, a remembered property never written about them reading as its default. Whether a visitor may erase it, and how, is open.
-- **An actor that is not an NPC.** Whether an object composing `sprout.Actor` but not the visitor kind is an actor that cannot `act` is open; `isNpc` answers only whether an object composes the visitor kind.
-- **`sprout.Actor` has no pass rule yet.** It writes its three guards, and until B32 lands it declares no `pass any (false)`, so a pocket is visible: what a visitor carries is in range of the people beside them.
+- **How the standard library travels.** From the CLI as one known copy, blessed, and pinned by `sprout init`; every manifest names it, and one that does not is refused for a missing `sprout.World`, with a remedy that names the library. Decided 2026-09-23.
+- **What visitors are made of.** The visitor kind must compose `sprout.Actor` and be the world's own kind. `visitors are Hall`, where `Hall` is not an actor, is refused at the kind; so are `visitors are sprout.Actor` and any other library's kind, since the world's own kind is where "whatever this story needs a person to have" is written. Decided 2026-09-23, now under What it refuses.
+- **A visitor kind absent at load.** The absent table has no row for it. It is treated as the `world` row's consequence: the world admits no one, and the gap is recorded under `world`. At publish it is refused, and not said while one of the world's own files was refused at the first tier, as for the arrival place. So is a kind the world composes that nothing declares. Decided 2026-09-23: the world admits no one, as for the arrival place, now a row of What absent means.
+- **Where an NPC may be declared.** An NPC needs no place among its ancestors, and an actor may be declared inside something that does not hold actors (a cat in a basket); both are accepted, since where an actor may be moved is B22's and B42's. Decided 2026-09-23.
+- **Erasing what the world remembers about a visitor.** Not built: the spec gives only the memory panel, which lists everything every object remembers about an actor, dormant objects included, and only what was written, a remembered property never written about them reading as its default. Whether a visitor may erase it, and how, is open; Eric asked for more on the question, 2026-09-23.
+- **An actor that is not an NPC.** Whether an object composing `sprout.Actor` but not the visitor kind is an actor that cannot `act` is open; `isNpc` answers only whether an object composes the visitor kind. Eric leans to yes and asked for more on the question, 2026-09-23.
+- **`sprout.Actor` has no pass rule yet.** It writes its three guards, and until B32 lands it declares no `pass any (false)`, so a pocket is visible: what a visitor carries is in range of the people beside them. Accepted for now, 2026-09-23.
 
 Found while building spawning and destroying (B18), each decided the narrow way and awaiting Eric:
 
@@ -322,10 +322,10 @@ Found while building spawning and destroying (B18), each decided the narrow way 
 
 Found while building passages (B20), each decided the narrow way and awaiting Eric:
 
-- **A composer's own `default` beside a composed non-default of the same name.** How members combine says a composer's own exclusive member always replaces what it composes, and that a default yields to any passage of the same name from any other source; for this case they disagree. Built: the composer's own applies, and stays a default, so it still yields further up.
-- **A default rewritten over a default.** `W: K, A` where `K: A` wrote its own default over `A`'s: two defaults from two origins reach `W`, and they collide, as a restated property from two origins does.
-- **Where a library's replacement lines go.** A register library composed onto the world replaces `sprout.World`'s lines but not `sprout.Place`'s or `sprout.Actor`'s, since a passage is the kind's; the spec's "a second library supplying the lines the first left out" says nothing about which kind it is composed onto. And a register that writes its lines as `default` collides with the standard library on every shared name, so under the rule as written a register replaces stock lines only by writing non-defaults.
-- **A typo in an override.** `passage nothing_happen` in the world overrides nothing and is not refused; no warning is listed. A warning for a passage nothing invokes would be B50's.
+- **A composer's own `default` beside a composed non-default of the same name.** How members combine says a composer's own exclusive member always replaces what it composes, and that a default yields to any passage of the same name from any other source; for this case they disagree. Built: the composer's own applies, and stays a default, so it still yields further up. Decided 2026-09-23, now under How members combine.
+- **A default rewritten over a default.** `W: K, A` where `K: A` wrote its own default over `A`'s: two defaults from two origins reach `W`, and they collide, as a restated property from two origins does. Decided 2026-09-23. Where `A` is the standard library, the rule below lets `K`'s default win instead, reading the world's own kinds as another library; Eric to confirm that reading.
+- **Where a library's replacement lines go.** A register library composed onto the world replaces `sprout.World`'s lines but not `sprout.Place`'s or `sprout.Actor`'s, since a passage is the kind's; the spec's "a second library supplying the lines the first left out" says nothing about which kind it is composed onto. And a register that writes its lines as `default` collides with the standard library on every shared name, so under the rule as written a register replaces stock lines only by writing non-defaults. *Decided 2026-09-23, now under How members combine:* the standard library's default yields to another library's, so a register's defaults replace the stock lines and still yield to the world's. Which kind a register is composed onto stays open until the library work.
+- **A typo in an override.** `passage nothing_happen` in the world overrides nothing and is not refused; no warning is listed. Decided 2026-09-23: a warning, B50's, now under What it warns about.
 - **After a refused collision.** The first contender in list order is kept, as the property collision keeps its first, so a kind composing the refused one hears nothing more about that line; and when non-defaults collide the refusal names only them, not the defaults that gave way.
 - **`default` on an object's or the world's own passage.** Accepted and recorded, though nothing can compose it.
 - **A passage's name.** Any lower-case word, as an object's name may be; only `default` in the name position is read as the keyword. A reserved word as a passage's name is not refused, as it is not for a message or a kind today; a verb's is.
@@ -333,6 +333,7 @@ Found while building passages (B20), each decided the narrow way and awaiting Er
 - **Quoted text in a slot.** Ends at its line with no refusal until B29 reads slots; in prose a quote is a character.
 - **Where a passage's header may sit.** Its words on the `passage` line, the brace on that line or the next; a header left without braces then never takes the next member for its own.
 - **`{item}` in `arrives` and `leaves`.** Untyped by the binding table until B29 and B42 say what a place's notices bind.
+- **The standard library's `0.1.0`.** Stays `0.1.0` while its source changes before release. Decided 2026-09-23.
 - **A world whose composed kinds lack an engine passage.** A forked standard library without `fault` or `displaced`: what the engine says then is B34's and B48's.
 
 Found while building library namespacing (B21), each decided the narrow way and awaiting Eric:
@@ -377,10 +378,10 @@ Found while moving a thing through consent (B22), each decided the narrow way an
 Found while reading a verb and checking it against itself (B23), each decided the narrow way and awaiting Eric:
 
 - **`many` beside a kind.** `role tools: Rib many` is accepted, a set of things of one kind; `many` and `optional` follow the filler, in either order.
-- **`optional` on a verb that has phrases.** Refused: the phrases decide which tools are optional, and `optional` is written only on a verb with none.
-- **A phrase that leaves out the target.** Refused: every phrase names the first role. Declaring a verb says a phrase "need not fill every tool", which is read as tools only.
-- **`many` on the target.** Accepted, as in `verb sort { role targets many  "sort [targets]" }`; the spec restricts `many` on value roles only.
-- **`optional` on the target of a verb with no phrases.** Refused: the target is never optional, which is what the rule above means for a verb with phrases. `optional` on a value tool of such a verb is accepted, though every value tool is optional already.
+- **`optional` on a verb that has phrases.** Refused: the phrases decide which tools are optional, and `optional` is written only on a verb with none. Decided 2026-09-23, now under What it refuses.
+- **A phrase that leaves out the target.** Refused: every phrase names the first role. Declaring a verb says a phrase "need not fill every tool", which is read as tools only. Decided 2026-09-23, now under Declaring a verb and What it refuses.
+- **`many` on the target.** Accepted, as in `verb sort { role targets many  "sort [targets]" }`; the spec restricts `many` on value roles only. Decided 2026-09-23, now under Set roles.
+- **`optional` on the target of a verb with no phrases.** Refused: the target is never optional, which is what the rule above means for a verb with phrases. `optional` on a value tool of such a verb is accepted, though every value tool is optional already. Decided 2026-09-23, now under Optional tools.
 - **Two phrases that mean the same, and an empty phrase.** Refused. Two are the same when their words and slots are, however they are spaced: a run of words between slots is trimmed and its spaces made single.
 - **What a slot holds.** Exactly one role's name in lower case: `[ target ]`, `[the target]` and `[Target]` are refused, and so is a `]` that closes no slot. A slot next to a slot, `"[a][b]"`, is accepted; which noun fills which is B27's.
 - **The phrase cap.** Counts the phrase as it means, after escapes, in characters, since that is what a visitor types.
@@ -398,6 +399,32 @@ Found while resolving verbs across libraries (B23), each decided the narrow way 
 - **An `exit` role.** Optional only where a phrase leaves it out, as a thing role is, which the standard library's `go` never does: the directions and labels are a closed set.
 - **A role whose kind was declared and could not be composed.** Nothing more is said of it, since the composition's refusal already has; the role fills nothing, as an absent kind's does.
 - **`put` in the standard library.** It names `Container`, which no library file declares yet, so it waits for `sprout/container.sprout` (B48). `take`, `drop`, `give` and the engine verbs' phrases are there now, with nothing yet playing them; `ask` is in `sprout/talk.sprout`.
+
+Asked ahead of building the two passes (B24), 2026-09-23:
+
+- **Declared order.** The actor first, then the verb's roles as declared (the target, then the tools; a set role's fillers in typed order), and within one participant its kind's contributions in closure order, the composer's own last. Proposed; awaiting Eric.
+- **`allow` in a `permit`, `refuse` in a `do`.** Proposed: the first accepted, since a `permit` has a guard's shape; the second refused. Awaiting Eric.
+- **An NPC actor's `say`.** Decided 2026-09-23, now under Acting: it comes from the NPC, heard by whoever would hear its `tell`, as *the cat says "miaow"*. How the line is framed (a stock passage on `sprout.World`, or fixed words), and whether `nothing_happens` is told the same way for an NPC's reading that said nothing, are open; B30 carries who hears it.
+- **The warning for a verb no object plays a role for.** Waits for B48, which brings the library's role bodies, so it does not fire for `take`, `drop` and `give` in every world. Decided 2026-09-23.
+
+Found while reading, checking and composing the roles a kind plays (B24), each decided the narrow way and awaiting Eric:
+
+- **Where a verb is known before kinds compose.** A kind's play resolves its verb as it composes, and what fills a verb's role is a composed kind, so the two cannot wait on each other. Which verbs exist, and the roles each declares, are read from the declarations before any kind composes (`VerbNames`, keeping what the verb table keeps); fillers are still the verb table's, built after the kinds.
+- **Which verb a bare name in a play reaches.** The play's own library's, then the standard library's, as for a kind. `as target for sprout.take` is still not a form.
+- **`allow` in a `permit`, and `refuse` or `allow` in a `do`.** The Two passes calls a `permit` the same shape as a guard, so `allow` is accepted there. A `do` runs once every `permit` has allowed, so both `refuse` and `allow` are refused in one.
+- **The role played, by its own name.** Not bound: inside `as target for unlock`, `target` is `self`, and a read of it says to write `self`. A set role is the exception, since Set roles binds the whole set in every participant's body, its own fillers' included.
+- **A value tool with no `from`.** Unbound, and refused at a read or at `bound`, not at the play. An integer tool with no `from` is the same, as A role-player narrows its own options says.
+- **What `from` may name.** A property of the role-player's, composed ones included, and not a remembered one, which is held about each actor rather than by the role-player. A `from` naming a role the verb lacks, or a role twice, is refused.
+- **What may be played.** A role the verb declares, or `actor`. A value role or an exit is named by the visitor and played by nothing, so `as topic for ask` is refused. A play of an engine verb is accepted; what the engine does with one is B34's.
+- **A kind playing a role its verb's filler does not name.** Accepted: the spec's own `sprout.Lockable` plays `target` for `open`, whose target is a `Container`, and composes no container, so its play contributes wherever a composer composes both. `self` in such a play is the kind that wrote it.
+- **`as actor` on a kind that does not compose `sprout.Actor`.** Refused, from The actor's own part ("A kind composing `sprout.Actor` may play it"). By the `Lockable` reading above, a library kind adding to what every actor does would want the same latitude; this is the question to answer if it does.
+- **`actor` where the world names no visitor kind.** Of the object type, since that failure has been said where the world is declared.
+- **`permit` or `do` twice in one play.** Refused at the second. A play with neither is refused at its head.
+- **A play on the world's own body.** Accepted, though nothing fills a role with the world.
+- **`bound`.** Read as a primary, the word and a name, so it binds tighter than any operator; Precedence does not list it. It narrows only as a whole condition, as `is()` does, so `bound tool && tool.is(Key)` reads `tool` unbound on the right.
+- **An exit role inside a play.** Not bound; only the engine's `go` has one, and what an exit binds is B28's.
+- **The two warnings.** A verb with phrases no participant `say`s for waits for B30, which reads what a body says to whom. A verb no object plays a role for waits for B48: it would fire for `take`, `drop` and `give` in every world until the library writes their plays.
+- **A verb nothing declares, at load.** The absent table's `verb` row: a gap at the verb as written, and the play dropped.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

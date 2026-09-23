@@ -2,17 +2,17 @@
 // world's and its libraries' alike, resolved against the rest (the
 // spec's The compiler › Two tiers). Each table is built for every
 // library before the next, in the order they depend on one another:
-// enums, then messages, which may carry an option; kinds, whose
-// properties may hold one; then the world's objects, made of kinds, and
-// the tree they are placed in (`declare/tree.ts`); and verbs, whose
-// roles may name a kind.
+// enums, then messages, which may carry an option; the names of the
+// verbs, which a kind's plays name; kinds, whose properties may hold an
+// option; verbs, whose roles may name a kind; then the world's objects,
+// made of kinds, and the tree they are placed in (`declare/tree.ts`).
 //
-// Three references here may name nothing, and each is a row of the
+// Four references here may name nothing, and each is a row of the
 // absent table: refused at publish, a gap at load. A kind in a
 // composition (`kind-in-composition`) leaves its object absent; a step
 // of an object's `in` (`container`) leaves the object absent, and what it
 // holds with it; a kind in a role (`kind-in-role`) leaves the role with
-// nothing to fill it.
+// nothing to fill it; a verb a play names (`verb`) leaves the play out.
 
 import {
   writtenPath,
@@ -35,6 +35,7 @@ import {
   type ResolvedObject,
 } from '../declare/objects.js';
 import type { OnUnknown } from '../declare/compose.js';
+import { VerbNames, type OnUnknownVerb } from '../declare/roles.js';
 import { placeObjects, type ObjectTree, type OnUnknownContainer } from '../declare/tree.js';
 import { absenceRule, type Absent, type ReferenceKind } from './absent.js';
 
@@ -49,6 +50,8 @@ export interface DeclarationTables {
   readonly enums: EnumTable;
   readonly messages: MessageTable;
   readonly kinds: KindTable;
+  /** Which verbs are declared, by name, which is what composing a play reads. */
+  readonly verbNames: VerbNames;
   readonly verbs: VerbTable;
   /** The world's own objects that could be composed and placed, in the order declared. */
   readonly objects: readonly ResolvedObject[];
@@ -99,6 +102,18 @@ export function resolveDeclarations(
     );
   }
 
+  // Which verbs exist needs nothing but their names, and composing a
+  // kind's plays needs to know it; what fills a role needs the kinds.
+  const verbNames = new VerbNames();
+  for (const [library, declared] of byLibrary) {
+    verbNames.add(
+      library,
+      declared.filter((d): d is VerbDeclaration => d.kind === 'verb'),
+    );
+  }
+  const onUnknownVerb = unknownVerbGap(report);
+  const plays = { verbs: verbNames, onUnknownVerb };
+
   const onUnknown = unknownKindGap('kind-in-composition', report);
 
   const kinds = new KindTable();
@@ -109,7 +124,7 @@ export function resolveDeclarations(
       diagnostics,
     );
   }
-  kinds.resolve(enums, diagnostics, onUnknown);
+  kinds.resolve(enums, diagnostics, onUnknown, plays);
 
   const verbs = new VerbTable();
   const onUnknownKind = unknownKindGap('kind-in-role', report);
@@ -134,7 +149,7 @@ export function resolveDeclarations(
     (byLibrary.get(world.namespace) ?? []).filter(
       (d): d is ObjectDeclaration => d.kind === 'object',
     ),
-    { enums, kinds, diagnostics, onUnknown },
+    { enums, kinds, diagnostics, onUnknown, ...plays },
   );
 
   const container = absenceRule('container').consequence;
@@ -160,6 +175,7 @@ export function resolveDeclarations(
     enums,
     messages,
     kinds,
+    verbNames,
     verbs,
     objects: placedObjects(world.namespace, composed, tree),
     tree,
@@ -183,6 +199,23 @@ function unknownKindGap(
         kind: reference,
         reason: 'missing',
         at: written.at,
+        consequence,
+      },
+      message,
+      remedy,
+    );
+}
+
+/** A verb a play names that nothing declares, as the absent table's `verb` row. */
+export function unknownVerbGap(report: DeclarationReport): OnUnknownVerb {
+  const { consequence } = absenceRule('verb');
+  return (play, message, remedy) =>
+    report.gap(
+      {
+        what: play.head.verb.text,
+        kind: 'verb',
+        reason: 'missing',
+        at: play.head.verb.at,
         consequence,
       },
       message,

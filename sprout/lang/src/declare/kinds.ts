@@ -16,8 +16,10 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
 import type { ResolvedPassage } from './passages.js';
 import type { Guards } from './guards.js';
+import type { Plays } from './roles.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import { composeKind, type Found, type KindSource, type OnUnknown } from './compose.js';
+import type { OnUnknownVerb, VerbNames } from './roles.js';
 import { refuseComposingWorld, writesWorld } from './sprout-world.js';
 
 /**
@@ -71,6 +73,12 @@ export interface KindRef {
    * spec's How members combine; Suppressing a contribution).
    */
   readonly guards: Guards;
+  /**
+   * The roles it plays, for each role of each verb: every composed kind's
+   * play in closure order, its own last, less what is left out (the
+   * spec's Roles compose; Suppressing a contribution).
+   */
+  readonly plays: Plays;
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**
@@ -85,8 +93,8 @@ export interface KindRef {
    * Suppressing a contribution). A composed kind's are not repeated
    * here: they shaped that kind's own members, which is how a `without`
    * removes only the copy that came through the kind that wrote it.
-   * `guards` already has them removed; B24 and B32, which run composed
-   * roles, handlers and hooks, skip these the same way.
+   * `guards` and `plays` already have them removed; B32, which runs
+   * composed handlers and hooks, skips these the same way.
    */
   readonly suppressed: readonly Suppression[];
 }
@@ -150,9 +158,15 @@ export class KindTable implements KindLookup, KindSource {
   /**
    * Compose every kind added. A kind reached while it is still being
    * composed closes a cycle, which `composeKind` refuses; `onUnknown` is
-   * told of a composed kind nothing declares.
+   * told of a composed kind nothing declares. `plays` are the verbs a
+   * kind's plays may name, and what is told of one nothing declares.
    */
-  resolve(enums: EnumTable, diagnostics: Diagnostics, onUnknown?: OnUnknown): void {
+  resolve(
+    enums: EnumTable,
+    diagnostics: Diagnostics,
+    onUnknown?: OnUnknown,
+    plays?: { readonly verbs: VerbNames; readonly onUnknownVerb?: OnUnknownVerb },
+  ): void {
     const composing: string[] = [];
     const source: KindSource = {
       declares: (identity) => this.declares(identity),
@@ -176,7 +190,13 @@ export class KindTable implements KindLookup, KindSource {
           composes: declaration.composes,
           members: declaration.members,
         },
-        { enums, kinds: source, diagnostics, ...(onUnknown === undefined ? {} : { onUnknown }) },
+        {
+          enums,
+          kinds: source,
+          diagnostics,
+          ...(onUnknown === undefined ? {} : { onUnknown }),
+          ...plays,
+        },
       );
       composing.pop();
       if (kind === null) this.failed.add(identity);

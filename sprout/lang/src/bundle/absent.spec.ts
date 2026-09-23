@@ -14,6 +14,7 @@ describe('the absent table is the spec’s, whole, with the one row proposed bes
     'place-underfoot',
     'place-of-arrival',
     'world',
+    'visitor-kind',
     'extension',
   ];
 
@@ -63,6 +64,12 @@ describe('somebody is told through the passage the spec names, where it names on
     const rule = absenceRule('world');
     expect(rule.told).toBeNull();
     expect(rule.consequence).toContain('does not admit anyone');
+  });
+
+  it('names no passage for an absent visitor kind, the same as no `world` declaration', () => {
+    const rule = absenceRule('visitor-kind');
+    expect(rule.told).toBeNull();
+    expect(rule.consequence).toBe(absenceRule('world').consequence);
   });
 
   it('names no passage for the rest, because there is nobody there to tell', () => {

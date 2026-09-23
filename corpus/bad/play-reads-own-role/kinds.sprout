@@ -1,0 +1,11 @@
+// Inside `as target for pull`, the target is the lever itself, and is
+// written `self`.
+kind Lever {
+  :pulled false
+
+  as target for pull {
+    permit {
+      if (target.is(Lever)) { allow }
+    }
+  }
+}

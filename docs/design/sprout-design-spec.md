@@ -295,7 +295,7 @@ Four rules cover the table.
 
 A composer's own exclusive member always replaces what it composes — a collision is only ever between two *sources*, neither of which is the composer — so an object that writes its own `immovable` passage over `sprout.Fixture`'s has suppressed nothing and needs no `without`.
 
-A passage may be declared `default`. A default passage yields to any passage of the same name from any other source, without collision; two defaults of one name collide as any two sources do. The standard library's stock lines are all defaults, which is what lets a world compose `victorian.Voice` beside `sprout.Actor` and take the library's `taken` without writing anything, and lets a second library supply the lines the first left out.
+A passage may be declared `default`. A default passage yields to any passage of the same name from any other source, without collision; two defaults of one name collide as any two sources do, except that the standard library's default yields to another library's. The standard library's stock lines are all defaults, which is what lets a world compose `victorian.Voice` beside `sprout.Actor` and take the library's `taken` without writing anything, lets a second library supply the lines the first left out, and lets a register library write its own lines as defaults that still yield to the world's. A composer's own default replaces a composed passage of the same name, default or not, as any exclusive member of its own does, and stays a default, so it still yields to a source further up.
 
 Order in the composition list sequences effects. It never decides which effect applies. `A, B` and `B, A` may narrate in a different order and can never differ in what happened, and no composed kind's member silently shadows another composed kind's at any depth.
 
@@ -448,6 +448,10 @@ One rule covers objects at every depth: an identifier belongs to the body it is 
 Something deeper than a body can see is named by its dotted path, written without spaces around the dots: the first step is a name visible where the path is written, and each step after it is declared in the body of the one before. An exit names a wardrobe in another room as `-> bedroom.wardrobe`, and the world's `visitors arrive at`, written in the world's body, names a nested place the same way: `visitors arrive at composing_room.paper_store`. The world's name is never a step of a path.
 
 An object hides anything of its name written further out: in the body of the container around its own, or of any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
+
+Nearest-wins is the rule for identifiers inside a body. What a file declares at its top level is read from inside the world instead: in an object's `in` and the world's `visitors arrive at`, a bare name is something directly in the world, and anything deeper is named by its dotted path, written without spaces around the dots — `object key is Key in kiln.shelf`, `visitors arrive at kiln.back_room`. An `in` may also name the world itself, whole. The world's name is never a step of a path, and no object may take it.
+
+An object hides anything of its name held further out: by the container around its own, or any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
 
 An identifier resolves at compile time and is a target at run time only if it is in range; a `send` to an identifier out of range does nothing, and a `get` through one is a fault.
 
@@ -697,7 +701,7 @@ verb unlock {
 }
 ```
 
-A verb names its **roles** and the **phrases** that fill them. The first role is the **target**, the thing the verb is done to, and every other role is a **tool**: whatever the sentence supplies besides the target, a thing (`with the brass key`) or a value (`about the press`, `to 7`). The word is a convenience — a topic of conversation is a tool only in this sense — and it is the word this document uses for every non-target role. Both lists may be short: `verb shove { role target  "shove [target]" }` takes no tool, and `verb look { "look" "l" }` has no roles at all, so only the actor plays it. A phrase need not fill every tool: `"unlock [target]"` leaves `tool` empty, which makes it optional, under Optional tools. A verb with no phrases cannot be typed and can only be performed with `act`.
+A verb names its **roles** and the **phrases** that fill them. The first role is the **target**, the thing the verb is done to, and every other role is a **tool**: whatever the sentence supplies besides the target, a thing (`with the brass key`) or a value (`about the press`, `to 7`). The word is a convenience — a topic of conversation is a tool only in this sense — and it is the word this document uses for every non-target role. Both lists may be short: `verb shove { role target  "shove [target]" }` takes no tool, and `verb look { "look" "l" }` has no roles at all, so only the actor plays it. A phrase always names the target and need not fill every tool: `"unlock [target]"` leaves `tool` empty, which makes it optional, under Optional tools. A verb with no phrases cannot be typed and can only be performed with `act`.
 
 Verbs are declared by a world or exported by a library, never by an object. The standard library ships the common ones, so most worlds declare few of their own.
 
@@ -788,7 +792,7 @@ Position decides which slot a noun fills. The literal words already do most of t
 
 ### Set roles
 
-A role marked `many` is filled by every object the visitor names in one run.
+A role marked `many`, the target included, is filled by every object the visitor names in one run.
 
 ```sprout
 verb throw {
@@ -835,7 +839,7 @@ kind Warded is sprout.Lockable {
 
 Inside `if (bound tool) { … }` the tool is bound and typed as its role declares; in the `else` branch, and anywhere outside the test, reading it is a compile error that names the phrase which leaves it out and says what to write. No value stands for an unbound tool, so nothing compares to one, stores one or renders one; the author is never asked to remember which slots a visitor might skip, because the compiler says so at the line.
 
-A verb with no phrases has nothing to infer from, so it says which tools may be missing: `role tool optional`. `act` may leave an optional tool unnamed, and may never leave out one that is not.
+A verb with no phrases has nothing to infer from, so it says which tools may be missing: `role tool optional`. Only such a verb writes `optional`, and only on a tool, since the target is never optional; on a verb with phrases the phrases decide. `act` may leave an optional tool unnamed, and may never leave out one that is not.
 
 ### Value roles
 
@@ -900,7 +904,7 @@ object cat is Creature {
 
 `act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes the visitor kind, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
 
-Inside the reading, `actor` is the cat. Its `say` lines go nowhere, because nobody is behind it; its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat enters a room with `act go`, carries a toy with `act take`, and licks a hand with a verb the world declared, and every rule that governs a person governs it.
+Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat enters a room with `act go`, carries a toy with `act take`, and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
 ### Moving something
 
@@ -1571,6 +1575,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | reference | when its target is absent |
 | --- | --- |
 | a kind, in an object's composition | the object is absent: not in range, not listed, not addressable; what it holds is unreachable until the kind returns |
+| a container, in an object's `in` | the object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns |
 | a kind, in a role's declaration | nothing fills the role; the verb's phrases do not match |
 | a kind, in a `spawn` | the `spawn` faults when it runs, and the actor, if there is one, reads the world's `fault` passage |
 | a verb | its readings do not parse, and `act` of it does nothing |
@@ -1580,6 +1585,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | a place a visitor stands in | the visitor is moved to the world's arrival place on their next turn and told through the world's `displaced` passage |
 | a place the world says visitors arrive at | the world does not admit anyone; entry fails as a host matter, the way a crash does, and the host says so outside the world |
 | the `world` declaration | the same: the world does not admit anyone, and the host says so outside it |
+| the world's visitor kind | the same: the world does not admit anyone, and the host says so outside it |
 | an extension | its statements record nothing and its types hold their defaults |
 
 Stored state for absent objects is kept, untouched, so that a file restored brings its objects back as they were.
@@ -1598,18 +1604,20 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A bundle with no `world` declaration or with more than one; a `world` declaration whose name is not the manifest's `name`.
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose the visitor kind; an `act` that leaves out a tool that is not optional.
+- A visitor kind that does not compose `sprout.Actor`, or that is not one of the world's own kinds: `visitors are sprout.Actor` included.
+- `optional` on any role of a verb that has phrases, or on the target of one that has none; a phrase that does not name the verb's target.
 - An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
 - `many` on a `symbol` or `integer` tool.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place.
-- An `object` at a file's top level, or inside a kind's body; an object inside something whose kind does not hold things; the world's name as a step of a path; two objects of one name in one body.
+- An `object` at a file's top level, or inside a kind's body; an object inside something whose kind does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one body.
 - `visitors arrive at` naming the world itself.
 - A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
 - Any static cap exceeded.
 
 ### What it warns about
 
-A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, and a role in a verb nothing fills. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`. An exit guard that is the literal `false`. A `.prose` file no kind points at.
+A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, and a role in a verb nothing fills. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`. A passage on an object or the world that nothing invokes and nothing it composes declares, which is most often a misspelt override. An exit guard that is the literal `false`. A `.prose` file no kind points at.
 
 ### Diagnostics
 

@@ -2,27 +2,37 @@
 // to (the spec's The compiler › Two tiers: everything typed needs the
 // whole bundle). Every composed kind is checked for what it wrote itself —
 // a named kind, an object's anonymous kind, the world — and nothing is
-// checked twice for being composed: a kind's guard is checked once,
-// against the kind that wrote it. Today a body is a consent guard; roles,
-// handlers and hooks join as the items that read them land.
+// checked twice for being composed: a kind's guard or play is checked
+// once, against the kind that wrote it. Today a body is a consent guard or
+// a role's `permit` and `do`; handlers and hooks join as B32 reads them.
 
 import { GUARD_NAMES } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { kindName, type KindLookup, type KindRef } from '../../declare/kinds.js';
+import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
+import { checkPlay } from '../../check/roles.js';
 
-/** Check every guard each of `composed` wrote itself, against it. */
-export function checkBodies(
-  composed: readonly KindRef[],
-  kinds: KindLookup,
-  diagnostics: Diagnostics,
-): void {
+/** What every body is checked against: the kinds and verbs, and what visitors are made of. */
+export interface BodySetting {
+  readonly kinds: KindLookup;
+  readonly verbs: VerbTable;
+  /** The world's visitor kind, or null where the world has none to name. */
+  readonly visitor: KindRef | null;
+  readonly diagnostics: Diagnostics;
+}
+
+/** Check every guard and play each of `composed` wrote itself, against it. */
+export function checkBodies(composed: readonly KindRef[], setting: BodySetting): void {
   for (const kind of composed) {
     const own = kindName(kind);
     for (const name of GUARD_NAMES) {
       for (const guard of kind.guards[name]) {
-        if (guard.origin === own) checkGuard(guard.declaration, kind, { kinds, diagnostics });
+        if (guard.origin === own) checkGuard(guard.declaration, kind, setting);
       }
+    }
+    for (const plays of kind.plays.values()) {
+      for (const play of plays) if (play.origin === own) checkPlay(play, kind, setting);
     }
   }
 }

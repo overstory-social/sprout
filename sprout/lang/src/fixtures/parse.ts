@@ -39,6 +39,8 @@ export function shape(expr: Expr | null): string {
       return `${expr.name.text}(${expr.arguments.map(shape).join(', ')})`;
     case 'binding':
       return expr.name.text;
+    case 'bound':
+      return `bound ${expr.name.text}`;
     case 'symbol-expr':
       return `:${expr.name.text}`;
     case 'kind-expr':

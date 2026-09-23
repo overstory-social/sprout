@@ -1,0 +1,9 @@
+// A `permit` is asked before anything happens, so it may only read and
+// decide. Moving the lever belongs in `do`.
+kind Lever {
+  :pulled false
+
+  as target for pull {
+    permit { self.set(:pulled, true) }
+  }
+}

@@ -6,6 +6,7 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { NO_GUARDS } from './guards.js';
+import { NO_PLAYS } from './roles.js';
 import {
   checkKindDeclaration,
   composesKind,
@@ -25,6 +26,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     properties: new Map(),
     passages: new Map(),
     guards: NO_GUARDS,
+    plays: NO_PLAYS,
     contains: false,
     containsActors: false,
     suppressed: [],

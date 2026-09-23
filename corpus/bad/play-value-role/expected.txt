@@ -1,0 +1,4 @@
+kinds.sprout:8:6  `topic` is filled by a value the visitor names, so nothing plays it.
+                  Play `actor` or another role of `ask`, and narrow `topic` in its body with `topic from :<property>`.
+
+refused: 1 problem

@@ -33,6 +33,7 @@ export type ReferenceKind =
   | 'place-underfoot'
   | 'place-of-arrival'
   | 'world'
+  | 'visitor-kind'
   | 'extension';
 
 export interface AbsenceRule {
@@ -97,6 +98,13 @@ export const ABSENT_TABLE: readonly AbsenceRule[] = [
     // The spec's row reads "the same" as the one above it: a bundle with
     // no world to admit anyone through fails entry the way a missing
     // arrival place does, and is reported the same way.
+    consequence: 'the world does not admit anyone, and the host says so outside it',
+    told: null,
+  },
+  {
+    reference: 'visitor-kind',
+    // The spec's row reads "the same" again: with nothing for a visitor
+    // to be made of, the world admits no one.
     consequence: 'the world does not admit anyone, and the host says so outside it',
     told: null,
   },

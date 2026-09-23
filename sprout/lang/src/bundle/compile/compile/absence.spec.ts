@@ -42,7 +42,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect(bundle!.absent.slice(1).map((a) => [a.what, a.kind])).toEqual([
       ['sprout.Actor', 'kind-in-composition'],
       ['sprout.World', 'world'],
-      ['Visitor', 'world'],
+      ['Visitor', 'visitor-kind'],
     ]);
     expect(bundle!.world).toBeNull();
     expect(bundle!.visitor).toBeNull();

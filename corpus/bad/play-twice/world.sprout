@@ -1,0 +1,14 @@
+world play_twice: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at play_twice
+}
+
+kind Visitor: sprout.Actor { }
+
+verb unlock {
+  role target
+  role tool
+  "unlock [target] with [tool]"
+  "unlock [target]"
+}

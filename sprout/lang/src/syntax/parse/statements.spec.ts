@@ -436,7 +436,7 @@ describe('a statement', () => {
   });
 
   it('refuses a word that starts none, naming the ones it reads', () => {
-    for (const text of ['say taken', '4 + 1', 'Cup in self', '"text"']) {
+    for (const text of ['tell takes', '4 + 1', 'Cup in self', '"text"']) {
       const { statement, refusals } = readStatement(text);
       expect(statement, text).toBeNull();
       expect(refusals, text).toHaveLength(1);
@@ -444,7 +444,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `let`, `spawn` and `destroy`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `let`, `spawn` and `destroy`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -583,5 +583,40 @@ describe('a statement never vanishes silently', () => {
       'refuse',
       'spawn',
     ]);
+  });
+});
+
+describe('`say` speaks to the actor, in quotes or in a passage', () => {
+  it('reads the words in quotes, or a passage’s name', () => {
+    const quoted = readStatement('say "The bolt slides back."');
+    expect(quoted.refusals).toEqual([]);
+    expect(quoted.statement).toMatchObject({
+      kind: 'say',
+      said: { kind: 'string', value: 'The bolt slides back.' },
+    });
+    expect(unspanned(quoted.statement!)).toEqual([]);
+    const named = readStatement('say taken');
+    expect(named.statement).toMatchObject({ kind: 'say', said: { kind: 'ident', text: 'taken' } });
+  });
+
+  it('refuses a `say` with nothing to say, or a reading where the words go', () => {
+    for (const [text, at] of [
+      ['say', 'body.sprout:1:4'],
+      ['say self.get(:x)', 'body.sprout:1:4'],
+      ['say 4', 'body.sprout:1:5'],
+    ] as const) {
+      const { statement, refusals } = readStatement(text);
+      expect(statement, text).toBeNull();
+      expect(
+        refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+        text,
+      ).toEqual([
+        [
+          at,
+          '`say` says something.',
+          'Write the words in quotes, as in `say "The bolt slides back."`, or name a passage, as in `say taken`.',
+        ],
+      ]);
+    }
   });
 });
