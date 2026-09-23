@@ -351,6 +351,14 @@ Found while reading, checking and composing the consent guards (B22), each decid
 - **Where `refuse <name>` looks.** At the passages of the kind that wrote the guard, composed ones included; the evaluator looks the passage up on the refusing instance's kind at run time, so a composer's own line replaces a library default.
 - **What a guard may say as a statement.** A call that writes or remembers is refused as a write, and any other expression standing as a statement is refused as reading without doing, as everywhere. `say`, `tell`, `send`, `move` and `act` are not read as statements yet; in a guard they are refused as statements this compiler does not read, until the items that read them refuse them there by name.
 
+Found while evaluating expressions and running a guard's body (B22), each decided the narrow way and awaiting Eric:
+
+- **Whether `&&` and `||` short-circuit.** They do: a left side that decides leaves the right unevaluated and uncharged. An expression only reads, so the only difference an author can see is the steps a turn is charged.
+- **`+` or `-` past the integer range.** The types give every integer the range −2,147,483,648 to 2,147,483,647 and say nothing of a sum outside it. It is a fault, as a `set` out of range is, rather than wrapped or clamped, since either would make a comparison quietly wrong.
+- **An integer literal past that range.** Neither the parser nor the checker refuses one standing alone, as in `let n = 3000000000`; it evaluates to what it writes, and faults only when `+` or `-` is applied to it. Refusing it at compile is the checker's to add.
+- **What one step is.** Every statement executed, every `else if` tested, and every expression node, which includes the `:p` a `get` or `recall` names and the kind an `is` or `count` names. `count(K)` looks through a container's contents without a step for each thing it looks at, since Runtime budgets lists no such charge.
+- **A `get` through a binding out of `self`'s range.** Range is what an object may read with `get`, and a guard's `item`, `to`, `from` and `mover` may be out of range of the party asked. The evaluator reads through any binding without asking; whether such a read faults, as the exit's `when` question above has it for an identifier, is open.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.
