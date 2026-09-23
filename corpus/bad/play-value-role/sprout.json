@@ -12,8 +12,5 @@
       "sha": "cfccc61655d3d5e94faa08d19767331d2333bcd4339dd1b5c598238ce96e9139"
     }
   ],
-  "files": [
-    "world.sprout",
-    "kinds.sprout"
-  ]
+  "files": ["world.sprout", "kinds.sprout"]
 }
