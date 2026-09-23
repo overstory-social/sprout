@@ -5,7 +5,17 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
-import { checkVerbDeclaration, type VerbCaps } from './verbs.js';
+import type { OnUnknown } from './compose.js';
+import { EnumTable } from './enums.js';
+import { KindTable, kindName } from './kinds.js';
+import {
+  checkVerbDeclaration,
+  ENGINE_VERBS,
+  VerbTable,
+  type ResolvedRole,
+  type ResolvedVerb,
+  type VerbCaps,
+} from './verbs.js';
 
 /** The host's figures, so no suite here writes a number of its own. */
 const CAPS: VerbCaps = DEFAULT_LIMITS.caps;
@@ -187,5 +197,304 @@ describe('the caps that bound a verb are the host’s', () => {
       'v.sprout:1:27 `v` has 2 phrases, and 1 is as many as a verb may have.',
       'v.sprout:1:27 This phrase is 6 characters long, and 5 is as long as a phrase may be.',
     ]);
+  });
+});
+
+// --- the second tier ----------------------------------------------------------
+
+/**
+ * Every library's text, read into the tables a verb resolves against, in
+ * the order the second tier builds them: enums, kinds, then verbs.
+ */
+function resolved(libraries: Record<string, string>, onUnknownKind?: OnUnknown) {
+  const parsing = new Diagnostics();
+  const byLibrary = Object.entries(libraries).map(
+    ([library, text]) =>
+      [library, parseDeclarations(new SourceFile(`${library}.sprout`, text), parsing)] as const,
+  );
+  expect(parsing.refusals, 'the fixture parses').toEqual([]);
+  const diagnostics = new Diagnostics();
+  const enums = new EnumTable();
+  const kinds = new KindTable();
+  for (const [library, declared] of byLibrary) {
+    enums.add(
+      library,
+      declared.filter((d) => d.kind === 'enum'),
+      diagnostics,
+    );
+    kinds.add(
+      library,
+      declared.filter((d) => d.kind === 'kind'),
+      diagnostics,
+    );
+  }
+  kinds.resolve(enums, diagnostics);
+  const verbs = new VerbTable();
+  for (const [library, declared] of byLibrary) {
+    verbs.add(
+      library,
+      declared.filter((d) => d.kind === 'verb'),
+      { kinds, enums, diagnostics, ...(onUnknownKind === undefined ? {} : { onUnknownKind }) },
+    );
+  }
+  return {
+    verbs,
+    diagnostics,
+    said: diagnostics.refusals.map((d) => `${locationOf(d.at)} ${d.message}`),
+  };
+}
+
+/** One verb the world `shop` declares, resolved with nothing refused. */
+function shopVerb(text: string, sprout = ''): ResolvedVerb {
+  const { verbs, said } = resolved({ sprout, shop: text });
+  expect(said, text).toEqual([]);
+  return verbs.all().find((verb) => verb.library === 'shop')!;
+}
+
+/** A role by name. */
+function role(verb: ResolvedVerb, name: string): ResolvedRole {
+  return verb.roles.find((r) => r.name === name)!;
+}
+
+describe('the verb table holds every library’s verbs, each by its library and its name', () => {
+  it('finds a verb qualified, and unqualified as the world’s own first, then the standard library’s', () => {
+    const { verbs, said } = resolved({
+      sprout:
+        'verb take { role target  "take [target]" }\nverb drop { role target  "drop [target]" }',
+      shop: 'verb take { role target  "take [target]"  "nab [target]" }',
+      textiles: 'verb weave { role target  "weave [target]" }',
+    });
+    expect(said).toEqual([]);
+    expect(verbs.all().map((v) => `${v.library}.${v.name}`)).toEqual([
+      'sprout.take',
+      'sprout.drop',
+      'shop.take',
+      'textiles.weave',
+    ]);
+    expect(verbs.unqualified('take', 'shop')!.library).toBe('shop');
+    expect(verbs.unqualified('drop', 'shop')!.library).toBe('sprout');
+    // The qualified name still reaches the library's.
+    expect(verbs.qualified('sprout', 'take')!.phrases).toHaveLength(1);
+    // Another library's verb is reachable only by its library, never bare.
+    expect(verbs.unqualified('weave', 'shop')).toBeNull();
+    expect(verbs.qualified('textiles', 'weave')).not.toBeNull();
+    expect(verbs.qualified('shop', 'drop')).toBeNull();
+  });
+
+  it('resolves what fills each role, the first being the target', () => {
+    const verb = shopVerb(
+      'kind Key { }\nverb fiddle { role target: Lockable  role tool: Key  role pick: sprout.Key  role topic: symbol  role dial: integer  role other  "fiddle [target] with [tool] [pick] [topic] [dial] [other]" }',
+      'kind Lockable { }\nkind Key { }',
+    );
+    const fills = verb.roles.map((r) => {
+      const filler = r.filler!;
+      return [r.name, filler.fills === 'kind' ? kindName(filler.kind) : filler.fills];
+    });
+    expect(fills).toEqual([
+      // Bare, it is the world's own where it declares one, else the standard library's.
+      ['target', 'sprout.Lockable'],
+      ['tool', 'shop.Key'],
+      ['pick', 'sprout.Key'],
+      ['topic', 'symbol'],
+      ['dial', 'integer'],
+      ['other', 'open'],
+    ]);
+  });
+
+  it('reads a role’s kind from the library that declared the verb', () => {
+    const { verbs, said } = resolved({
+      sprout:
+        'kind Actor { }\nverb give { role item  role recipient: Actor  "give [item] to [recipient]" }',
+      shop: 'kind Actor { }',
+    });
+    expect(said).toEqual([]);
+    const recipient = role(verbs.qualified('sprout', 'give')!, 'recipient').filler!;
+    expect(recipient.fills === 'kind' && kindName(recipient.kind)).toBe('sprout.Actor');
+  });
+
+  it('gives each phrase its words and its slots, a slot by the index of the role it fills', () => {
+    const verb = shopVerb(
+      'verb unlock { role target  role tool  "use [tool] on [target]"  "unlock [target]" }',
+    );
+    expect(verb.phrases.map((p) => [p.text, p.parts])).toEqual([
+      [
+        'use [tool] on [target]',
+        [
+          { part: 'words', text: 'use' },
+          { part: 'slot', role: 1 },
+          { part: 'words', text: 'on' },
+          { part: 'slot', role: 0 },
+        ],
+      ],
+      [
+        'unlock [target]',
+        [
+          { part: 'words', text: 'unlock' },
+          { part: 'slot', role: 0 },
+        ],
+      ],
+    ]);
+  });
+});
+
+describe('whether a role is optional is decided here, from the verb’s phrases', () => {
+  /** Each role as `name` or `name?`, with the phrase that leaves out an optional one. */
+  const optionality = (verb: ResolvedVerb): string[] =>
+    verb.roles.map((r) =>
+      r.optional
+        ? `${r.name}? ${r.omittedBy === null ? '(every phrase fills it)' : `(left out by "${r.omittedBy.text}")`}`
+        : r.name,
+    );
+
+  it('makes a thing some phrase leaves out optional, naming the first phrase that does', () => {
+    const verb = shopVerb(
+      'verb unlock { role target  role tool  role hand  "unlock [target] with [tool] by [hand]"  "unlock [target] by [hand]"  "open [target] by [hand]" }',
+    );
+    expect(optionality(verb)).toEqual([
+      'target',
+      'tool? (left out by "unlock [target] by [hand]")',
+      // Every phrase fills it, so it needs nothing.
+      'hand',
+    ]);
+    // The same phrase object, so a refusal can point at where it was written.
+    expect(role(verb, 'tool').omittedBy).toBe(verb.phrases[1]);
+  });
+
+  it('never makes a set role optional, since the empty set is already an answer', () => {
+    const verb = shopVerb(
+      'verb work { role target  role tools many  "work [target]"  "work [target] with [tools]" }',
+    );
+    expect(optionality(verb)).toEqual(['target', 'tools']);
+    expect(role(verb, 'tools')).toMatchObject({ many: true, optional: false, omittedBy: null });
+  });
+
+  it('makes every value role optional, whatever the phrases say', () => {
+    const verb = shopVerb(
+      'verb ask { role target  role topic: symbol  role n: integer  "ask [target] about [topic] [n]"  "ask [target] [n]" }',
+    );
+    expect(optionality(verb)).toEqual([
+      'target',
+      'topic? (left out by "ask [target] [n]")',
+      'n? (every phrase fills it)',
+    ]);
+  });
+
+  it('takes `optional` as written on a verb with no phrases, which has nothing to infer from', () => {
+    const verb = shopVerb(
+      'verb nudge { role target  role tool optional  role gift  role topic: symbol }',
+    );
+    expect(optionality(verb)).toEqual([
+      'target',
+      'tool? (every phrase fills it)',
+      'gift',
+      'topic? (every phrase fills it)',
+    ]);
+  });
+
+  it('does not make the engine’s `go` way optional, since every phrase fills it', () => {
+    const { verbs } = resolved({ sprout: 'verb go { role way: exit  "go [way]"  "[way]" }' });
+    expect(verbs.qualified('sprout', 'go')!.roles[0]).toMatchObject({
+      filler: { fills: 'exit' },
+      optional: false,
+      omittedBy: null,
+    });
+  });
+});
+
+describe('what the table refuses, at the thing', () => {
+  it('two verbs of one name in one library, at the second, keeping the first', () => {
+    const { verbs, said, diagnostics } = resolved({
+      shop: 'verb take { role target  "take [target]" }\nverb take { role item  "nab [item]" }',
+    });
+    expect(said).toEqual(['shop.sprout:2:6 shop declares two verbs called `take`.']);
+    expect(diagnostics.refusals[0]!.remedy).toBe('Give one of them another name, or remove it.');
+    expect(verbs.qualified('shop', 'take')!.roles[0]!.name).toBe('target');
+  });
+
+  it('an engine verb’s name in any library but the standard one', () => {
+    for (const name of ENGINE_VERBS) {
+      const { verbs, said } = resolved({
+        sprout: `verb ${name} { }`,
+        shop: `verb ${name} { }`,
+        textiles: `verb ${name} { }`,
+      });
+      expect(said, name).toEqual([
+        `shop.sprout:1:6 \`${name}\` is one of the engine's verbs, and only the standard library declares those.`,
+        `textiles.sprout:1:6 \`${name}\` is one of the engine's verbs, and only the standard library declares those.`,
+      ]);
+      // The standard library's stands, and a bare name reaches it.
+      expect(verbs.unqualified(name, 'shop')!.library).toBe('sprout');
+    }
+    const { diagnostics } = resolved({ shop: 'verb look { "peer" }' });
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      'The engine answers `go`, `look`, `examine`, `inventory`, `wait` and `help` itself. Give yours another name.',
+    );
+  });
+
+  it('`exit` on any role but the standard library’s `go`’s, at `exit`', () => {
+    const { said, diagnostics } = resolved({
+      sprout:
+        'verb go { role way: exit  "go [way]" }\nverb climb { role way: exit  "climb [way]" }',
+      shop: 'verb leave { role target  role way: exit  "leave [target] by [way]" }',
+    });
+    expect(said).toEqual([
+      "sprout.sprout:2:24 `exit` fills a role only on the engine's `go`.",
+      "shop.sprout:1:37 `exit` fills a role only on the engine's `go`.",
+    ]);
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      'A role is filled by a kind (`role target: Container`), by `symbol` or `integer` for a value the visitor names, or by nothing.',
+    );
+  });
+
+  it('a role naming an enum, the world’s, the standard library’s or one qualified', () => {
+    const { verbs, said, diagnostics } = resolved({
+      sprout: 'enum Mood { calm, cross }',
+      shop: 'enum Topic { bridge, toll }\nverb ask { role target  role topic: Topic  role mood: Mood  role also: sprout.Mood }',
+    });
+    expect(said).toEqual([
+      'shop.sprout:2:37 `Topic` is an enum, and a role is not filled by one.',
+      'shop.sprout:2:55 `Mood` is an enum, and a role is not filled by one.',
+      'shop.sprout:2:72 `sprout.Mood` is an enum, and a role is not filled by one.',
+    ]);
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      'Write `role topic: symbol`. The object that plays the role says which options it hears with `topic from :<property>`, a property holding a list of `Topic`.',
+    );
+    // Nothing fills the role, and the verb is still there.
+    expect(role(verbs.qualified('shop', 'ask')!, 'topic').filler).toBeNull();
+  });
+
+  it('a kind nothing declares, with the kind it most likely meant, refused where nothing is told', () => {
+    const { verbs, said, diagnostics } = resolved({
+      sprout: 'kind Lockable { }',
+      shop: 'verb unlock { role target: Lockabel  role tool: victorian.Key  "unlock [target] with [tool]" }',
+    });
+    expect(said).toEqual([
+      'shop.sprout:1:28 Nothing here is a `Lockabel`. Did you mean `Lockable`?',
+      'shop.sprout:1:49 Nothing here is a `victorian.Key`.',
+    ]);
+    expect(diagnostics.refusals[0]!.remedy).toBe(
+      'Write `Lockable`, or declare `Lockabel` with `kind Lockabel { … }`.',
+    );
+    expect(verbs.qualified('shop', 'unlock')!.roles.map((r) => r.filler)).toEqual([null, null]);
+  });
+
+  it('a kind nothing declares is told to `onUnknownKind` instead, and the role fills nothing', () => {
+    const told: string[] = [];
+    const { verbs, diagnostics } = resolved(
+      { shop: 'verb unlock { role target: Lockabel  "unlock [target]" }' },
+      (written, message) => told.push(`${locationOf(written.at)} ${message}`),
+    );
+    expect(diagnostics.all).toEqual([]);
+    expect(told).toEqual(['shop.sprout:1:28 Nothing here is a `Lockabel`.']);
+    expect(verbs.qualified('shop', 'unlock')!.roles[0]!.filler).toBeNull();
+  });
+
+  it('says nothing more of a kind that was declared and could not be composed', () => {
+    const { verbs, diagnostics } = resolved({
+      shop: 'kind Crate: victorian.Box { }\nverb pack { role target: Crate  "pack [target]" }',
+    });
+    // Only the composition's own refusal, where the kind was declared.
+    expect(diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:13']);
+    expect(verbs.qualified('shop', 'pack')!.roles[0]!.filler).toBeNull();
   });
 });

@@ -1,0 +1,4 @@
+verbs.sprout:3:13  `exit` fills a role only on the engine's `go`.
+                   A role is filled by a kind (`role target: Container`), by `symbol` or `integer` for a value the visitor names, or by nothing.
+
+refused: 1 problem

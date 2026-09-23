@@ -8,6 +8,13 @@ import type { CompileMode, Absent } from '../absent.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import type { Span } from '../../source/source.js';
 
+/** The rows whose `what` is a kind as written, which names its library when it has one. */
+const KINDS_NAMED: ReadonlySet<Absent['kind']> = new Set([
+  'kind-in-composition',
+  'kind-in-role',
+  'world',
+]);
+
 /** A table cell, written as a sentence: the rows read as `the object is absent`, lower-case. */
 function sentence(cell: string): string {
   return `${cell.charAt(0).toUpperCase()}${cell.slice(1)}.`;
@@ -84,12 +91,13 @@ export class Report {
   /**
    * Whether a gap is a kind, or the world, written with a library the
    * manifest's refusal already named — `library.Name`, only for the
-   * `kind-in-composition` and `world` rows, where a written kind names
-   * the library it comes from. A kind written without one is unaffected:
-   * it resolves to nothing for its own reason, and is still refused.
+   * `kind-in-composition`, `kind-in-role` and `world` rows, where a
+   * written kind names the library it comes from. A kind written without
+   * one is unaffected: it resolves to nothing for its own reason, and is
+   * still refused.
    */
   private saidOfALibrary(absent: Absent): boolean {
-    if (absent.kind !== 'kind-in-composition' && absent.kind !== 'world') return false;
+    if (!KINDS_NAMED.has(absent.kind)) return false;
     const dot = absent.what.indexOf('.');
     if (dot === -1) return false;
     return this.refusedLibraries.has(absent.what.slice(0, dot));

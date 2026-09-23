@@ -82,6 +82,27 @@ describe('every table is built over every library, in the order they depend on o
     expect(objects.map((o) => [o.library, o.name, o.container])).toEqual([['ink', 'hall', []]]);
   });
 
+  it('resolves every library’s verbs after the kinds their roles name', () => {
+    const report = loading();
+    const { verbs } = resolveDeclarations(
+      byLibrary({
+        sprout:
+          'verb give { role item  role recipient: Actor  "give [item] to [recipient]" }\nkind Actor { contains }',
+        shop: 'verb unlock { role target: Lock  "unlock [target]" }\nkind Lock: sprout.Actor { }',
+      }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.all).toEqual([]);
+    const kindOf = (library: string, verb: string): string | null => {
+      const filler = verbs.qualified(library, verb)!.roles.at(-1)!.filler;
+      return filler?.fills === 'kind' ? kindName(filler.kind) : null;
+    };
+    expect(kindOf('sprout', 'give')).toBe('sprout.Actor');
+    expect(kindOf('shop', 'unlock')).toBe('shop.Lock');
+    expect(verbs.unqualified('give', 'shop')!.library).toBe('sprout');
+  });
+
   it('leaves a library’s objects to the refusal that says a library declares none', () => {
     const { objects } = resolveDeclarations(
       byLibrary({ sprout: 'kind Box { }\nobject box: Box in hall', shop: '' }),
@@ -124,6 +145,40 @@ describe('a world declaration shadowing a standard library name warns once, at i
     );
     // The qualified name still reaches the library's kind after the shadow.
     expect(tables.kinds.qualified('sprout', 'Container')!.library).toBe('sprout');
+  });
+
+  it('warns for a verb the standard library also declares, and says how the library’s is kept', () => {
+    const report = loading();
+    const { verbs } = resolveDeclarations(
+      byLibrary({
+        sprout: 'verb take { role target  "take [target]" }',
+        shop: 'verb take { role target  "nab [target]" }',
+      }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual(
+      [
+        [
+          'shop.sprout:1:6',
+          '`take` hides `sprout.take`: a bare `take` in this world is now yours.',
+          "Where the library's `take` is still meant, give yours another name.",
+        ],
+      ],
+    );
+    expect(verbs.unqualified('take', 'shop')!.library).toBe('shop');
+    expect(verbs.qualified('sprout', 'take')).not.toBeNull();
+  });
+
+  it('does not warn for an engine verb’s name, which is refused and hides nothing', () => {
+    const report = loading();
+    resolveDeclarations(
+      byLibrary({ sprout: 'verb look { "look" }', shop: 'verb look { "peer" }' }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.warnings).toEqual([]);
+    expect(report.diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:6']);
   });
 
   it('does not warn for a name only a second library declares: it is reachable only qualified', () => {
@@ -181,6 +236,49 @@ describe('a kind nothing declares, named in a composition, is the absent table�
     expect(report.diagnostics.all).toEqual([]);
     // Still placed, so what it holds keeps its place for when the kind returns.
     expect([...tree.placed.keys()]).toEqual(['crate', 'crate.tea']);
+  });
+});
+
+describe('a kind nothing declares, named in a role, is the absent table’s `kind-in-role` row', () => {
+  it('is a gap at the kind as written, and the role fills nothing', () => {
+    const report = loading();
+    const { verbs } = resolveDeclarations(
+      byLibrary({
+        sprout: 'kind Lockable { }',
+        shop: 'verb unlock { role target: Lockabel  role tool: victorian.Key  "unlock [target] with [tool]" }',
+      }),
+      SHOP,
+      report,
+    );
+    expect(
+      report.gaps.map(({ absent, message }) => [
+        absent.what,
+        absent.kind,
+        absent.reason,
+        locationOf(absent.at!),
+        absent.consequence,
+        message,
+      ]),
+    ).toEqual([
+      [
+        'Lockabel',
+        'kind-in-role',
+        'missing',
+        'shop.sprout:1:28',
+        'nothing fills the role; the verb’s phrases do not match',
+        'Nothing here is a `Lockabel`. Did you mean `Lockable`?',
+      ],
+      [
+        'victorian.Key',
+        'kind-in-role',
+        'missing',
+        'shop.sprout:1:49',
+        'nothing fills the role; the verb’s phrases do not match',
+        'Nothing here is a `victorian.Key`.',
+      ],
+    ]);
+    expect(report.diagnostics.all).toEqual([]);
+    expect(verbs.qualified('shop', 'unlock')!.roles.map((r) => r.filler)).toEqual([null, null]);
   });
 });
 

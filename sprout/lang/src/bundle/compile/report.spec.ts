@@ -65,13 +65,14 @@ describe('a kind made of a library already refused at the manifest is not asked 
     consequence: 'the object is absent',
   });
 
-  it('says nothing at publish for a kind-in-composition or a world gap naming that library', () => {
+  it('says nothing at publish for a kind-in-composition, kind-in-role or world gap naming that library', () => {
     const report = new Report('publish', HEAD);
     report.libraryRefused('sprout');
     report.gap(
       composed('sprout.Actor', 'kind-in-composition'),
       'Nothing here is a `sprout.Actor`.',
     );
+    report.gap(composed('sprout.Actor', 'kind-in-role'), 'Nothing here is a `sprout.Actor`.');
     report.gap(composed('sprout.World', 'world'), '`sprout.World` is not here.');
     expect(report.diagnostics.all).toEqual([]);
   });

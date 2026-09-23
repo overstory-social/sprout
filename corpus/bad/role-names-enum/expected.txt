@@ -1,0 +1,4 @@
+verbs.sprout:7:15  `Topic` is an enum, and a role is not filled by one.
+                   Write `role topic: symbol`. The object that plays the role says which options it hears with `topic from :<property>`, a property holding a list of `Topic`.
+
+refused: 1 problem

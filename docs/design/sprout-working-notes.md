@@ -328,7 +328,7 @@ Found while building library namespacing (B21), each decided the narrow way and 
 
 - **A world namespaced as a library it pins.** Its own bare names and the library's could not be told apart, so the manifest is refused. The spec says only that a world's own declarations are unqualified.
 - **A library's message written qualified.** Libraries namespace messages, but no syntax writes one qualified (`send x sprout.:m`?): a message name is a bare symbol wherever it is written, so a library's message is reachable only unqualified, and only when the world declares none of that name. Open until B32 reads sends.
-- **What the shadowing warning covers.** Kinds, enums and messages, being what libraries namespace today; verbs join when B23 declares them.
+- **What the shadowing warning covers.** Kinds, enums, messages and verbs, which is everything libraries namespace.
 
 Found while reading, checking and composing the consent guards (B22), each decided the narrow way and awaiting Eric:
 
@@ -374,7 +374,19 @@ Found while reading a verb and checking it against itself (B23), each decided th
 - **What a slot holds.** Exactly one role's name in lower case: `[ target ]`, `[the target]` and `[Target]` are refused, and so is a `]` that closes no slot. A slot next to a slot, `"[a][b]"`, is accepted; which noun fills which is B27's.
 - **The phrase cap.** Counts the phrase as it means, after escapes, in characters, since that is what a visitor types.
 - **A verb with neither roles nor phrases.** `verb dance { }` is accepted: only `act` performs it, and only the actor plays it.
-- **`exit` as a filler.** Read on any verb here; that only the standard library's `go` may use it is the second half of B23's.
+- **`exit` as a filler.** Read on any verb by the parser, and refused past the first tier on any verb but the standard library's `go`, at `exit`, in any library, the standard one included.
+
+Found while resolving verbs across libraries (B23), each decided the narrow way and awaiting Eric:
+
+- **Whose verb may take an engine verb's name.** Reserved names says a world's may not; built so that no library but `sprout` may either, since a pinned library's `look` would reach the world only qualified and would read as the engine's. Adding to or translating an engine verb's words is then only by forking the standard library.
+- **A world's verb of a standard library verb's name.** A shadow, warned, as for kinds, enums and messages; not a refusal, since The engine verbs says a world that wants `take` to do something else writes its own. Which of the two a typed phrase then reaches, and whether both are offered, is B27's.
+- **Writing a verb with its library.** Libraries and namespaces says the qualified name always reaches the library's, and no syntax writes one: `as target for` and `act` take a bare name. The shadow warning's remedy says to rename the world's verb rather than to write `sprout.take`, until B24 or B26 decides whether `as target for sprout.take` is a form.
+- **Two verbs of one name in one library.** Refused at the second, the first kept, as for kinds, enums and messages; the words name the library as theirs do.
+- **A role naming an enum.** Refused, with `symbol` and `from` as the remedy: Value roles says `symbol` says only that the role is filled by an option, and which enum is the role-player's to say.
+- **A value role in the target's place.** Optional, as a value tool is: Value roles gives the reason for tools, that what a visitor types is never one of a closed set until checked, and it holds for the target as well. The first tier's rule that the target is never optional is about `optional` as written.
+- **An `exit` role.** Optional only where a phrase leaves it out, as a thing role is, which the standard library's `go` never does: the directions and labels are a closed set.
+- **A role whose kind was declared and could not be composed.** Nothing more is said of it, since the composition's refusal already has; the role fills nothing, as an absent kind's does.
+- **`put` in the standard library.** It names `Container`, which no library file declares yet, so it waits for `sprout/container.sprout` (B48). `take`, `drop`, `give` and the engine verbs' phrases are there now, with nothing yet playing them; `ask` is in `sprout/talk.sprout`.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

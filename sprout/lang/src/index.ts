@@ -27,6 +27,7 @@ export * from './declare/objects.js';
 export * from './declare/tree.js';
 export * from './declare/properties.js';
 export * from './declare/messages.js';
+export * from './declare/verbs.js';
 export * from './declare/world.js';
 
 export * from './check/bindings.js';

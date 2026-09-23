@@ -162,13 +162,13 @@ export function saidBy(context: CheckContext): string[] {
 export const warded = () =>
   bodyOf(
     WARDED,
-    roleBinding('tool', { role: 'kind', kind: KEY }, null, at('tool'), new Diagnostics())!,
+    roleBinding('tool', { fills: 'kind', kind: KEY }, null, at('tool'), new Diagnostics())!,
   );
 export const vessel = () =>
   bodyOf(
     VESSEL,
     setRoleBinding('tools', RIB, at('tools')),
-    roleBinding('target', { role: 'open' }, null, at('target'), new Diagnostics())!,
+    roleBinding('target', { fills: 'open' }, null, at('target'), new Diagnostics())!,
   );
 
 /** A checker over `context`, wired to the real walk, for a spec that calls a module's functions directly. */

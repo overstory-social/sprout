@@ -27,9 +27,9 @@ Two packages, one version:
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
-of, kinds and objects with their composition, and verbs checked against
-themselves) and checks the expressions Phase 1 defined. Everything else —
-verbs across libraries, prose, turns — lands one backlog item at a time; see the build order in
+of, kinds and objects with their composition, and verbs with their roles
+resolved across libraries) and checks the expressions Phase 1 defined.
+Everything else — playing a role, prose, turns — lands one backlog item at a time; see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.
 

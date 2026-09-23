@@ -1,0 +1,5 @@
+// A role an exit fills is the engine's `go`'s alone.
+verb climb {
+  role way: exit
+  "climb [way]"
+}

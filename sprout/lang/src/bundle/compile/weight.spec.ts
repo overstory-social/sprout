@@ -132,7 +132,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
     const { bundle } = compileBundle(world());
     expect(bundle!.size.exemptBytes).toBe(0);
     expect(bundle!.size.sourceBytes).toBe(WORLD_TEXT.length + libraryBytes);
-    expect(bundle!.size.files).toBe(4);
+    expect(bundle!.size.files).toBe(1 + STANDARD_LIBRARY.files.length);
   });
 
   it('refuses a world past the host’s source cap, and says what to do', () => {

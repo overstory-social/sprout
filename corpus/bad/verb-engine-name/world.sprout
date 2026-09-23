@@ -1,0 +1,7 @@
+world verb_engine_name: sprout.World {
+  contains actors
+  visitors are Creature
+  visitors arrive at verb_engine_name
+}
+
+kind Creature: sprout.Actor { }
