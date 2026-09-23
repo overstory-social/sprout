@@ -287,7 +287,7 @@ Found while building actors (B17), each decided the narrow way and awaiting Eric
 - **Where an NPC may be declared.** An NPC needs no place among its ancestors, and an actor may be declared inside something that does not hold actors (a cat in a basket); both are accepted, since where an actor may be moved is B22's and B42's.
 - **Erasing what the world remembers about a visitor.** Not built: the spec gives only the memory panel, which lists everything every object remembers about an actor, dormant objects included, and only what was written, a remembered property never written about them reading as its default. Whether a visitor may erase it, and how, is open.
 - **An actor that is not an NPC.** Whether an object composing `sprout.Actor` but not the visitor kind is an actor that cannot `act` is open; `isNpc` answers only whether an object composes the visitor kind.
-- **`sprout.Actor` has no guards or relays yet.** Until B22 and B32 land, it declares no `depart`, `release` or `accept` and no `pass any (false)`, so a pocket is visible: what a visitor carries is in range of the people beside them.
+- **`sprout.Actor` has no pass rule yet.** It writes its three guards, and until B32 lands it declares no `pass any (false)`, so a pocket is visible: what a visitor carries is in range of the people beside them.
 
 Found while building spawning and destroying (B18), each decided the narrow way and awaiting Eric:
 
@@ -350,6 +350,21 @@ Found while evaluating expressions and running a guard's body (B22), each decide
 - **An integer literal past that range.** Neither the parser nor the checker refuses one standing alone, as in `let n = 3000000000`; it evaluates to what it writes, and faults only when `+` or `-` is applied to it. Refusing it at compile is the checker's to add.
 - **What one step is.** Every statement executed, every `else if` tested, and every expression node, which includes the `:p` a `get` or `recall` names and the kind an `is` or `count` names. `count(K)` looks through a container's contents without a step for each thing it looks at, since Runtime budgets lists no such charge.
 - **A `get` through a binding out of `self`'s range.** Range is what an object may read with `get`, and a guard's `item`, `to`, `from` and `mover` may be out of range of the party asked. The evaluator reads through any binding without asking; whether such a read faults, as the exit's `when` question above has it for an identifier, is open.
+
+Found while moving a thing through consent (B22), each decided the narrow way and awaiting Eric:
+
+- **Whether composed guards run past a refusal.** Consent under composition and One rule for many opinions say every contribution runs and the first refusal speaks; The three roles says the engine stops at the first refusal. A guard only reads, so the two differ only in the steps a turn is charged and in a fault a later guard would raise. Built: the first refusal stops the poll, within one kind's list as between the three roles.
+- **The engine's cycle refusal has no stock line.** After the move says a move that would make a container hold itself is refused before any guard, and gives no words. Built with fixed text, "{item} cannot go inside itself."; an `inside_itself` default on `sprout.World` is proposed, so a world can say it in its own voice.
+- **An actor moved into something that does not hold actors.** Refused by the engine before any guard, as structural, with fixed text, "{item} cannot stand in {to}.", so a person is never carried in a hand or put in a basket. The world holds actors only where it writes `contains actors`. The alternative, allowing it and leaving it to a guard, is Eric's to choose.
+- **What the engine's refusals name an object by.** Until B29 renders names: a declared object by its identifier, the world by its name, and anything made while the world runs, a visitor's instance included, by its kind's name.
+- **A move that cannot be asked about.** A fault, writing nothing, as a spawn's is: the thing is the world, or a visitor who is away; the thing or the destination is not live or out of the mover's range; the destination holds nothing.
+- **A move to the container the thing is already in.** A move like any other: the guards run, it goes last in that container under a new arrival, and all three messages are sent.
+- **A place whose kind has no `leaves` or `arrives`.** One that holds actors without composing `sprout.Place` and writes neither: no notice for that side. The description is still sent.
+- **When a place speaks.** Only when the thing is an actor and both the container it left and the one it entered hold actors. An actor moved out of a basket onto the floor of a room, or into a wardrobe from a box, is told nothing and nobody hears it, though After the move and Places each say only what happens between two places.
+- **The description to the one who moved.** A `described` notice naming the new place and carrying no text until B31 describes.
+- **Who hears `leaves` and `arrives`.** The actors directly in the place, not those inside something in it; the one who moved left out; NPCs included, though prose addressed to one goes nowhere; and a mover other than the thing hears as anyone there would.
+- **A destination out of range across places.** A move's destination must be in the mover's range, and while the world refuses one place is out of range of another, so a `move` from one place to another faults. How `go` crosses an exit to another place is B42's.
+- **Where `refuse <name>` looks when it runs.** As recorded above, on the refusing instance's kind, so `good/consent`'s visitor kind says `hands_full` in its own words over `sprout.Actor`'s.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

@@ -84,6 +84,15 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(kindName(from.visitorKind!)).toBe('printers_shop.Person');
   });
 
+  it('finds a kind by name as a body does: the world’s own first, then the standard library’s', () => {
+    const { lookup } = catalogue;
+    expect(kindName(lookup.unqualified('Room', 'printers_shop')!)).toBe('printers_shop.Room');
+    expect(kindName(lookup.unqualified('Place', 'printers_shop')!)).toBe('sprout.Place');
+    expect(kindName(lookup.unqualified('World', 'sprout')!)).toBe('sprout.World');
+    expect(kindName(lookup.qualified('sprout', 'Actor')!)).toBe('sprout.Actor');
+    expect(lookup.unqualified('Teapot', 'printers_shop')).toBeNull();
+  });
+
   it('reads stored values under the host’s caps now, not the ones the bundle was checked against', () => {
     const now = limitsFrom({ caps: { listElements: 4 } }).caps;
     const bundle = shop();
@@ -123,6 +132,20 @@ describe('a catalogue of a world loaded with a gap', () => {
     });
     expect(catalogueOf(gone, DEFAULT_LIMITS.caps).visitorKind).toBeNull();
     expect(gone.absent.map((a) => [a.what, a.kind])).toContainEqual(['Person', 'world']);
+  });
+
+  it('finds nothing for a world’s own kind that failed to compose, never the library’s of that name', () => {
+    // The world's own `Place` composes a kind nothing declares: at load
+    // that is a gap, and `Place` fails to compose.
+    const broken = {
+      ...SHOP,
+      'world.sprout': `${SHOP['world.sprout']!}kind Place: Nowhere { contains actors }\n`,
+    };
+    const bundle = compiledWorld('printers_shop', broken, { mode: 'load' });
+    expect(bundle.absent.map((a) => a.what)).toContain('Nowhere');
+    const { lookup } = catalogueOf(bundle, DEFAULT_LIMITS.caps);
+    expect(lookup.unqualified('Place', 'printers_shop')).toBeNull();
+    expect(kindName(lookup.qualified('sprout', 'Place')!)).toBe('sprout.Place');
   });
 
   it('has no arrival for a world that admits no one', () => {

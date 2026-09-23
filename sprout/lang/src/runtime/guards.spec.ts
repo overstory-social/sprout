@@ -71,11 +71,7 @@ const bundle = compiledWorld('keep', {
 });
 const catalogue = catalogueOf(bundle, CAPS);
 
-const KINDS: KindLookup = {
-  qualified: (library, name) =>
-    bundle.kinds.find((kind) => kind.library === library && kind.name === name) ?? null,
-  unqualified: (name, from) => KINDS.qualified(from, name) ?? KINDS.qualified('sprout', name),
-};
+const KINDS: KindLookup = catalogue.lookup;
 
 const id = (...path: string[]): InstanceId => declaredId('keep', path);
 const HALL = id('hall');
