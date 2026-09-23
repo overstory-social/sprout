@@ -1,0 +1,12 @@
+// A body names things by the names in scope: `self`, `actor`, `here`, the
+// roles, and its `let`s. A declared object is not a name inside a body
+// yet, so `cellar` is a name nothing here answers to.
+kind Trapdoor {
+  as target for pull {
+    do { move actor to cellar }
+  }
+}
+
+kind Cellar { contains actors }
+
+object cellar: Cellar in move_unknown_name

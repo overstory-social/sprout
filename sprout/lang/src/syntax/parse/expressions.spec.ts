@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { locationOf } from '../../source/source.js';
+import { locationOf, textOf } from '../../source/source.js';
 import { readExpression } from '../../fixtures/parse.js';
 
 describe('an expression', () => {
@@ -117,9 +117,29 @@ describe('a statement is not something to read', () => {
     }
   });
 
+  it('refuses `move` where a value is wanted, once, stepping over both of its sides', () => {
+    for (const [text, span] of [
+      ['move target to self', 'move target to self'],
+      ['!move kiln.cup to kiln.shelf', 'move kiln.cup to kiln.shelf'],
+      ['self.holds(move target to self)', 'move target to self'],
+      ['move target', 'move target'],
+      ['move', 'move'],
+    ] as const) {
+      const read = readExpression(text);
+      expect(
+        read.refusals.map((d) => [textOf(d.at), d.message]),
+        text,
+      ).toEqual([[span, '`move` moves something, and is not something to read.']]);
+      expect(read.refusals[0]!.remedy).toBe(
+        'Write it on its own line, as in `move target to self`.',
+      );
+    }
+  });
+
   it('reads nothing where it stood', () => {
     expect(readExpression('spawn Cup in self').expr).toBeNull();
     expect(readExpression('destroy self').expr).toBeNull();
+    expect(readExpression('move target to self').expr).toBeNull();
   });
 
   it('points at the statement where it was written', () => {

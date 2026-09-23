@@ -1,0 +1,8 @@
+// A set role binds every thing the visitor named, and `move` moves one.
+kind Tray {
+  contains
+
+  as target for sort {
+    do { move pieces to self }
+  }
+}

@@ -9,7 +9,7 @@ import { catalogueOf, type Catalogue } from './catalogue.js';
 import { Draft } from './draft.js';
 import type { Refusal } from './guards.js';
 import { declaredId, type InstanceId } from './ids.js';
-import { IntegerOverflow } from './evaluate.js';
+import { boundObject, IntegerOverflow } from './evaluate.js';
 import { destroyInstance } from './lifecycle.js';
 import { initialState, saveWorld } from './load.js';
 import {
@@ -237,7 +237,7 @@ describe('a move asks the thing, then where it is, then where it goes', () => {
     expect(refusal).toMatchObject({ guard: 'accept', by: visitor, origin: 'sprout.Actor' });
   });
 
-  it('allows where no party writes a guard, and charges one step beyond finding both in range', () => {
+  it('allows where no party writes a guard, and charges nothing beyond finding both in range', () => {
     const { draft, visitor } = turn();
     const budget = new Budget(DEFAULT_LIMITS.budgets);
     moved(moveInstance(context(draft, { budget }), visitor, STONE, TRAY));
@@ -246,7 +246,8 @@ describe('a move asks the thing, then where it is, then where it goes', () => {
     const walk = { tree: liveTree(fresh.draft), passes: passing(), budget: ranged };
     reaches(walk, fresh.visitor, STONE, 'any');
     reaches(walk, fresh.visitor, TRAY, 'any');
-    expect(budget.spentSteps).toBe(ranged.spentSteps + 1);
+    // The statement that proposed it is its body's step, not the move's.
+    expect(budget.spentSteps).toBe(ranged.spentSteps);
   });
 });
 
@@ -259,6 +260,10 @@ describe('guards composed into one kind', () => {
       by: URN,
       origin: 'keep.Heavy',
       said: { text: 'It is too heavy.' },
+      bindings: new Map([
+        ['mover', boundObject(visitor)],
+        ['to', boundObject(TRAY)],
+      ]),
     });
   });
 

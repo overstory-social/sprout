@@ -1,0 +1,9 @@
+world move_to_value: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at move_to_value
+}
+
+kind Visitor: sprout.Actor { }
+
+verb bump { role target  "bump [target]" }

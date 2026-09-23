@@ -30,6 +30,7 @@ const VERBS = [
   'vanish',
   'spill',
   'weigh',
+  'haul',
 ];
 
 /**
@@ -61,6 +62,7 @@ const bundle = compiledWorld('shop', {
     '  as target for vanish { do { destroy self  self.set(:n, 5)  say "Gone." } }',
     '  as target for spill  { do { self.set(:n, 7)  self.set(:n, self.get(:n) + 20) } }',
     '  as target for weigh  { permit { if (self.get(:n) > 5) { refuse "Too full." } allow } }',
+    '  as target for haul   { do { move actor to self  move self to here  say "Hauled." } }',
     '}',
     'kind Loud: Counter { passage done { Done, loudly. } }',
     'object hall: Room in shop',
@@ -83,6 +85,8 @@ interface Heard {
   readonly spoken: Spoken[];
   readonly sends: EngineSend[];
   readonly destroyed: Destroyed[];
+  /** Each `move` proposed: the mover, the thing and where it is to go. */
+  readonly moves: [InstanceId, InstanceId, InstanceId][];
 }
 
 interface Turn {
@@ -140,7 +144,7 @@ function act(
   verb: string,
   budget = new Budget(DEFAULT_LIMITS.budgets),
 ): Heard {
-  const heard: Heard = { spoken: [], sends: [], destroyed: [] };
+  const heard: Heard = { spoken: [], sends: [], destroyed: [], moves: [] };
   const sink: ActSink = {
     lifecycle: {
       draft: turn.draft,
@@ -152,6 +156,7 @@ function act(
     say: (spoken) => heard.spoken.push(spoken),
     sent: (sends) => heard.sends.push(...sends),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
+    move: (mover, item, to) => heard.moves.push([mover, item, to]),
   };
   expect(runBody(body(turn.draft, self, verb), frameOf(turn, self, budget), 'act', sink)).toBe(
     'end',
@@ -270,6 +275,20 @@ describe('what a `do` says, spawns and destroys', () => {
   });
 });
 
+describe('what a `do` moves', () => {
+  it('proposes each `move` with `self` as the mover, the names as bound, and goes on after it', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'haul');
+    expect(heard.moves).toEqual([
+      [COUNTER, one.visitor, COUNTER],
+      [COUNTER, COUNTER, HALL],
+    ]);
+    expect(heard.spoken.map(words)).toEqual(['Hauled.']);
+    // The sink makes the move; the body writes nothing of it itself.
+    expect(one.draft.instance(one.visitor)!.container).toBe(HALL);
+  });
+});
+
 describe('the two modes', () => {
   it('decides in a `permit`: a refusal with its words, or `allow`', () => {
     const one = turn();
@@ -289,7 +308,7 @@ describe('the two modes', () => {
   it('throws an engine error, not a fault, for an effect in a body that decides', () => {
     const one = turn();
     const budget = new Budget(DEFAULT_LIMITS.budgets);
-    for (const verb of ['fill', 'speak', 'craft', 'vanish']) {
+    for (const verb of ['fill', 'speak', 'craft', 'vanish', 'haul']) {
       expect(() =>
         runBody(body(one.draft, COUNTER, verb), frameOf(one, COUNTER, budget), 'decide', null),
       ).toThrow(/reached a body that decides/);
@@ -327,5 +346,13 @@ describe('what a `do` is charged', () => {
     act(one, COUNTER, 'speak', budget);
     // Two `say`s and a `let` with its literal.
     expect(budget.spentSteps).toBe(4);
+  });
+
+  it('charges a `move` as the statement and its two names; the move itself is the sink’s', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    act(one, COUNTER, 'haul', budget);
+    // Two `move`s of three each, and a `say`.
+    expect(budget.spentSteps).toBe(7);
   });
 });

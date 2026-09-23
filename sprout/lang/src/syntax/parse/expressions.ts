@@ -1,7 +1,7 @@
 // Expressions (the spec's Properties › Precedence, and `bound` from
 // Verbs › Optional tools, read as a primary). A statement is not
-// one: `spawn` and `destroy` in an expression are refused here, and a
-// `let` is read in `statements.ts`.
+// one: `spawn`, `destroy` and `move` in an expression are refused
+// here, and a `let` is read in `statements.ts`.
 //
 // Precedence climbing over one table. Every operand of a given level
 // is read at the level above it, and the loop at each level consumes
@@ -206,7 +206,9 @@ function primary(p: Parser): Expr | null {
     return { kind: 'kind-expr', at: token.at, library: null, name: p.ident(token) };
   }
   if (token.kind === 'name') {
-    if (token.text === 'spawn' || token.text === 'destroy') return statementRead(p);
+    if (token.text === 'spawn' || token.text === 'destroy' || token.text === 'move') {
+      return statementRead(p);
+    }
     if (token.text === 'bound') return boundTest(p);
     if (token.text === 'true' || token.text === 'false') {
       p.next();
@@ -270,13 +272,29 @@ function boundTest(p: Parser): Expr | null {
   return null;
 }
 
+/** What `statementRead` says of each statement it steps over, and what to write instead. */
+const STATEMENT_READ = {
+  spawn: [
+    '`spawn` makes a new thing, and is not something to read.',
+    'Write it on its own, or name what it makes with `let cup = spawn Cup in self` and read `cup`.',
+  ],
+  destroy: [
+    '`destroy self` removes something, and is not something to read.',
+    'Write it on its own line, as `destroy self`.',
+  ],
+  move: [
+    '`move` moves something, and is not something to read.',
+    'Write it on its own line, as in `move target to self`.',
+  ],
+} as const;
+
 /**
- * `spawn` or `destroy` where a value is wanted, refused once. What the
- * statement is made of is stepped over with it, so that its kind and its
- * target are not read as values of their own and refused again. The
- * shape it steps over is the one `statements.ts` reads (a kind, then
- * `in` and a path; or `self`), and the two are kept in step: a form the
- * statement grammar gains is stepped over here too.
+ * `spawn`, `destroy` or `move` where a value is wanted, refused once.
+ * What the statement is made of is stepped over with it, so that its
+ * parts are not read as values of their own and refused again. The shape
+ * it steps over is the one `statements.ts` reads (a kind, then `in` and a
+ * path; `self`; or a path, then `to` and a path), and the two are kept in
+ * step: a form the statement grammar gains is stepped over here too.
  */
 function statementRead(p: Parser): null {
   const keyword = p.next();
@@ -284,8 +302,21 @@ function statementRead(p: Parser): null {
   const step = (): void => {
     last = p.next();
   };
+  const path = (): void => {
+    step();
+    while (p.at('punct', '.') && p.peek(1).kind === 'name') {
+      step();
+      step();
+    }
+  };
   if (keyword.text === 'destroy') {
     if (p.at('name', 'self')) step();
+  } else if (keyword.text === 'move') {
+    if (p.at('name') && !p.at('name', 'to')) path();
+    if (p.at('name', 'to') && p.peek(1).kind === 'name') {
+      step();
+      path();
+    }
   } else {
     if (p.at('kind')) step();
     else if (p.at('name') && punct(p.peek(1), '.') && p.peek(2).kind === 'kind') {
@@ -295,22 +326,11 @@ function statementRead(p: Parser): null {
     }
     if (p.at('name', 'in') && p.peek(1).kind === 'name') {
       step();
-      step();
-      while (p.at('punct', '.') && p.peek(1).kind === 'name') {
-        step();
-        step();
-      }
+      path();
     }
   }
-  p.diagnostics.refuse(
-    spanning(keyword.at, last.at),
-    keyword.text === 'spawn'
-      ? '`spawn` makes a new thing, and is not something to read.'
-      : '`destroy self` removes something, and is not something to read.',
-    keyword.text === 'spawn'
-      ? 'Write it on its own, or name what it makes with `let cup = spawn Cup in self` and read `cup`.'
-      : 'Write it on its own line, as `destroy self`.',
-  );
+  const [message, remedy] = STATEMENT_READ[keyword.text as keyof typeof STATEMENT_READ];
+  p.diagnostics.refuse(spanning(keyword.at, last.at), message, remedy);
   return null;
 }
 

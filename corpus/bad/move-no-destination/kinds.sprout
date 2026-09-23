@@ -1,0 +1,11 @@
+// After `to` comes what the thing goes into.
+kind Lever {
+  contains
+
+  as target for pull {
+    do {
+      move actor to
+      say "Clunk."
+    }
+  }
+}

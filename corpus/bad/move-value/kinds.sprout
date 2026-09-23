@@ -1,0 +1,11 @@
+// A value role holds a word the visitor typed, not a thing in the world,
+// so there is nothing to move.
+kind Guard {
+  contains
+  :knows [Topic] default [bridge, toll]
+
+  as target for enquire {
+    topic from :knows
+    do { if (bound topic) { move topic to self } }
+  }
+}

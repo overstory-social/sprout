@@ -49,7 +49,7 @@ Every item names the sections of the design spec it implements. The spec is the 
 | B15 | Range: in range when nothing strictly between refuses; self and own contents always, a refusing container out reached as a surface, crossing into sub-containers that pass; nearest first; charged to steps | B13 B02 | The world model › Range | M |
 | B16 | Instance ids and the persisted state model: declared-path ids, minted ids for spawns, container, link destinations, pending wake, per-actor memory, last tick per place, visitor records; a stored value that no longer fits its type falls to the default | B12 | The runtime › State | M |
 | B17 | Actors: `sprout.Actor` with its guards (`mover == self`) and `pass any (false)`; the visitor kind; NPCs as objects composing it; the per-world visitor store; per-actor memory keyed by actor id | B13 B16 | The world model › Actors and visitors, What a world may know | L |
-| B18 | Spawning and destroying: `spawn` as statement and binding, `:spawned`, no consent but `:entered`; `destroy self` at body end with contents falling, bindings readable to turn end, queued messages dropped, place-with-visitor fault; the spawn cap per turn; a `spawn` faults when the host will not hold another instance | B17 | The world model › Spawning, Destroying | M |
+| B18 | Spawning and destroying: `spawn` as statement and binding, `:spawned`, no consent but `:entered`; `destroy self` at body end with contents destroyed with it, bindings readable to turn end, queued messages dropped, place-with-visitor fault; the spawn cap per turn; a `spawn` faults when the host will not hold another instance | B17 | The world model › Spawning, Destroying | M |
 
 ### 3 — Kinds and composition
 

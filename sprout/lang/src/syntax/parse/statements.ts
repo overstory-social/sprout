@@ -1,9 +1,10 @@
 // Statements: blocks, `if`, `refuse` and `allow`; `say`; `let`; the two
-// that change what exists, `spawn` and `destroy`; and a call written as a
-// statement (the spec's Movement and consent; Prose; Properties › Naming
-// a value; The world model › Spawning, Destroying). A `let` is here rather
-// than with expressions because its value may be a statement: `spawn` is
-// the one statement that also yields a binding.
+// that change what exists, `spawn` and `destroy`; `move`; and a call
+// written as a statement (the spec's Movement and consent; Prose;
+// Properties › Naming a value; The world model › Spawning, Destroying;
+// Verbs › Moving something). A `let` is here rather than with
+// expressions because its value may be a statement: `spawn` is the one
+// statement that also yields a binding.
 //
 // Each reader takes its statement or refuses it once, having said what to
 // write instead; nothing is guessed. A statement that could not be read
@@ -18,11 +19,14 @@ import type {
   IfStatement,
   KindExpr,
   LetStatement,
+  MoveStatement,
+  ObjectPath,
   RefuseStatement,
   SayStatement,
   SpawnStatement,
   Statement,
 } from '../ast.js';
+import { writtenPath } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
@@ -77,6 +81,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['let', (p) => letStatement(p)],
   ['spawn', (p) => spawnStatement(p)],
   ['destroy', (p) => destroyStatement(p)],
+  ['move', moveStatement],
 ]);
 
 /** One statement, or null having said why it is not one. */
@@ -535,6 +540,102 @@ export function destroyStatement(p: Parser): DestroyStatement | null {
     '`destroy` removes only the object whose body runs it.',
     'Write `destroy self`. To be rid of something else, send it a message and let it destroy itself.',
   );
+  return null;
+}
+
+/**
+ * `move target to self`: what moves, then `to` and what it goes into,
+ * each a binding or an identifier, or a dotted path to one. A word the
+ * next statement or member starts with is never taken for either, so a
+ * `move` left unfinished never swallows the statement after it.
+ */
+export function moveStatement(p: Parser, within: Enclosing = onItsOwn()): MoveStatement | null {
+  const keyword = p.take('name', 'move');
+  if (keyword === null) {
+    notAStatement(p, p.peek());
+    return null;
+  }
+  const thing = movePart(p, within, keyword.at, (at, wrote) => {
+    if (wrote?.kind === 'kind') {
+      p.diagnostics.refuse(
+        at,
+        `\`${wrote.text}\` starts with a capital, so it is not the name of anything here.`,
+        'Name what moves in lower case, as in `move target to self`.',
+      );
+      return;
+    }
+    p.diagnostics.refuse(
+      at,
+      '`move` does not say what to move.',
+      'Write the thing and where it goes, as in `move target to self`.',
+    );
+  });
+  if (thing === null) return null;
+  const moved = writtenPath(thing);
+  const into = moved === 'self' || moved === 'actor' ? INTO[moved] : INTO.other;
+
+  const to = p.take('name', 'to');
+  if (to === null) {
+    p.diagnostics.refuse(
+      p.source.span(thing.at.end),
+      `\`move ${moved}\` does not say where it goes.`,
+      `Write \`to\` and what it goes into: \`move ${moved} to ${into[0]}\`.`,
+    );
+    return null;
+  }
+
+  const destination = movePart(p, within, to.at, (at) => {
+    p.diagnostics.refuse(
+      at,
+      `After \`to\` comes the thing \`${moved}\` goes into.`,
+      `Name it in lower case, as in \`move ${moved} to ${into[0]}\` or \`move ${moved} to ${into[1]}\`.`,
+    );
+  });
+  if (destination === null) return null;
+  return { kind: 'move', at: spanning(keyword.at, destination.at), thing, destination };
+}
+
+/** Where a `move` remedy's examples send a thing, by what it is, so that nothing goes into itself. */
+const INTO = {
+  self: ['actor', 'here'],
+  actor: ['self', 'here'],
+  other: ['self', 'actor'],
+} as const;
+
+/**
+ * One side of a `move`: a path, or null having said why through `missing`,
+ * which is given the token written in its place, taken with the refusal,
+ * or null where nothing is there or a word starts what comes next.
+ */
+function movePart(
+  p: Parser,
+  within: Enclosing,
+  after: Span,
+  missing: (at: Span, wrote: Token | null) => void,
+): ObjectPath | null {
+  const head = p.peek();
+  const ahead =
+    head.kind === 'name' &&
+    (STARTS.has(head.text) ||
+      head.text === 'else' ||
+      head.text === 'to' ||
+      within.startsMember(head));
+  if (head.kind === 'name' && !ahead && !p.atDeclarationStart()) {
+    p.next();
+    return objectPath(p, head);
+  }
+  const gap =
+    ahead ||
+    head.kind === 'end' ||
+    punct(head, '}') ||
+    p.atDeclarationStart() ||
+    (head.kind === 'symbol' && firstOnItsLine(p, head) && within.startsMember(head));
+  if (gap) {
+    missing(p.source.span(after.end), null);
+    return null;
+  }
+  if (head.kind !== 'punct') p.next();
+  missing(head.at, head);
   return null;
 }
 

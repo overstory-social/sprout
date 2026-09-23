@@ -4,10 +4,10 @@
 // Verbs › The two passes; Prose; The compiler › What it refuses).
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
-// `refuse`, and a write, a `spawn`, a `destroy` or a `say` in one is
-// refused, since the engine asks it before anything happens and it must
-// not change the world underneath the decision it is part of. A `do`
-// acts: it writes, spawns, destroys and speaks, and `refuse` and `allow`
+// `refuse`, and a write, a `spawn`, a `destroy`, a `move` or a `say` in
+// one is refused, since the engine asks it before anything happens and it
+// must not change the world underneath the decision it is part of. A `do`
+// acts: it writes, spawns, destroys, moves and speaks, and `refuse` and `allow`
 // are refused there, since the deciding was done. `if (x.is(K))` narrows
 // `x`, and `if (bound tool)` binds `tool`, for the branch each guards.
 // Statements after an `allow` or a `refuse` are accepted and never run.
@@ -26,7 +26,7 @@ import type { Span } from '../source/source.js';
 import { nearestOption } from '../declare/enums.js';
 import type { Binding, Scope } from './bindings.js';
 import { checkCondition, isEffect, narrowingOf, type CheckContext } from './check.js';
-import { checkDestroy, checkEffect, checkLet, checkSpawn } from './statements.js';
+import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
 export type BodyKind =
@@ -69,6 +69,10 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'destroy':
       if (decides) readOnly('destroy', statement.at, context, kind);
       else checkDestroy(statement, context);
+      return;
+    case 'move':
+      if (decides) readOnly('move', statement.at, context, kind);
+      else checkMove(statement, context);
       return;
     case 'expression-statement':
       if (decides && isEffect(statement.expression)) {
@@ -146,18 +150,23 @@ function decider(kind: BodyKind): string {
   return kind.body === 'guard' ? 'a guard' : 'a `permit`';
 }
 
-/** `spawn` or `destroy self` where a guard or a `permit` decides. */
+/** What each statement that changes the world does, as a refusal in a deciding body says it. */
+const CHANGES = {
+  spawn: '`spawn` makes a new thing',
+  destroy: '`destroy self` removes something',
+  move: '`move` moves something',
+} as const;
+
+/** `spawn`, `destroy self` or `move` where a guard or a `permit` decides. */
 function readOnly(
-  what: 'spawn' | 'destroy',
+  what: keyof typeof CHANGES,
   at: Span,
   context: CheckContext,
   kind: BodyKind,
 ): void {
   context.diagnostics.refuse(
     at,
-    what === 'spawn'
-      ? `\`spawn\` makes a new thing, and ${decider(kind)} only reads and decides.`
-      : `\`destroy self\` removes something, and ${decider(kind)} only reads and decides.`,
+    `${CHANGES[what]}, and ${decider(kind)} only reads and decides.`,
     readOnlyRemedy(kind),
   );
 }
