@@ -5,7 +5,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { integer } from '../declare/types.js';
-import { bodyOf, KEY, VESSEL, at } from '../fixtures/check.js';
+import { bodyOf, KEY, PRINTER, VESSEL, at } from '../fixtures/check.js';
 import { roleBinding, valueOf } from './bindings.js';
 import { checkBlock, type BodyKind } from './blocks.js';
 
@@ -28,7 +28,10 @@ function blockOf(statements: string): Block {
   return play.permit;
 }
 
-/** Check `statements` as the body `kind` allows, in a vessel's body, with a withheld tool. */
+/**
+ * Check `statements` as the body `kind` allows, in a vessel's body, with a
+ * withheld tool, no verbs to act, and printers for visitors.
+ */
 function check(statements: string, kind: BodyKind) {
   const context = bodyOf(VESSEL);
   const tool = roleBinding(
@@ -47,7 +50,8 @@ function check(statements: string, kind: BodyKind) {
     },
     context.diagnostics,
   );
-  checkBlock(blockOf(statements), context, kind);
+  const acting = { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } };
+  checkBlock(blockOf(statements), { ...context, acting: { ...acting, visitor: PRINTER } }, kind);
   return context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message]);
 }
 
@@ -57,7 +61,7 @@ const DO: BodyKind = { body: 'do' };
 
 describe('a deciding body only reads and decides', () => {
   const doing =
-    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self';
+    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()';
 
   it('names a guard in what it refuses, and the guard in a `say`', () => {
     expect(check(doing, GUARD).map(([, message]) => message)).toEqual([
@@ -66,6 +70,7 @@ describe('a deciding body only reads and decides', () => {
       '`spawn` makes a new thing, and a guard only reads and decides.',
       '`destroy self` removes something, and a guard only reads and decides.',
       '`move` moves something, and a guard only reads and decides.',
+      '`act` performs a verb, and a guard only reads and decides.',
     ]);
   });
 
@@ -76,6 +81,7 @@ describe('a deciding body only reads and decides', () => {
       ['b.sprout:5:5', '`spawn` makes a new thing, and a `permit` only reads and decides.'],
       ['b.sprout:6:5', '`destroy self` removes something, and a `permit` only reads and decides.'],
       ['b.sprout:7:5', '`move` moves something, and a `permit` only reads and decides.'],
+      ['b.sprout:8:5', '`act` performs a verb, and a `permit` only reads and decides.'],
     ]);
   });
 
@@ -99,6 +105,14 @@ describe('a `do` acts', () => {
       ['b.sprout:3:10', '`tool` may be missing here.'],
     ]);
     expect(check('if (bound tool) { move tool to self }', DO)).toEqual([]);
+  });
+
+  it('checks an `act` as a statement, against the verbs and visitor kind it is given', () => {
+    // No verbs, and a vessel is no printer: both are said, of the one `act`.
+    expect(check('act purr ()', DO)).toEqual([
+      ['b.sprout:3:5', 'Only something made of `Printer` acts, and `Vessel` does not compose it.'],
+      ['b.sprout:3:9', 'Nothing declares a verb `purr`.'],
+    ]);
   });
 
   it('refuses `refuse` and `allow`, where the deciding is done', () => {

@@ -10,16 +10,20 @@
 // reading, and the first refusal is the reading's whole outcome; the
 // effect pass then runs every `do` in the same order. What a `do` says,
 // and the refusal of a `move` it proposes, reach the actor, or, where the
-// actor is an NPC, whoever would hear its `tell`, from it; a reading that
-// said nothing to the actor is answered with the world's
-// `nothing_happens`. What the effect pass says and sends is kept in body
-// order. Nothing is rendered: B29 renders what is said, B30 brings
-// `tell`, B32 drains the queue, and B37 polls the consent pass alone.
+// actor is an NPC, whoever would hear its `tell`, from it; a person's
+// command that said nothing to them is answered with the world's
+// `nothing_happens`, and an NPC's reading is not. An `act` in a `do` runs
+// its own reading there, one deeper against the cascade depth, and what
+// that says, refusal included, joins this one's. What the effect pass
+// says and sends is kept in body order. Nothing is rendered: B29 renders
+// what is said, B30 brings `tell`, B32 drains the queue, and B37 polls
+// the consent pass alone.
 
 import { isActor } from '../declare/actors.js';
 import { libraryOf } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
+import { readingOfAct } from './act.js';
 import { runBody, type ActSink, type Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
@@ -64,13 +68,19 @@ export interface PermitRefusal {
   readonly origin: string;
   /** The passage named, as it applies on the refusing participant's kind, or the words quoted. */
   readonly said: Speech;
+  /**
+   * `actor`, `here` and the roles as the refusing play saw them, which its
+   * slots may render; a `let` inside the `permit` is not carried.
+   */
+  readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
 /** A line said in the effect pass, unrendered. */
 export interface Said {
   /**
-   * What the line is: said by a body, or a `move` refused, whose words
-   * are said to the actor as a refusal (the spec's Verbs › Moving something).
+   * What the line is: said by a body, or a `move` or an `act`'s reading
+   * refused, whose words are said to its actor as a refusal (the spec's
+   * Verbs › Moving something, Acting).
    */
   readonly effect: 'said' | 'refused';
   /** Who reads it: the actor, where a person acts; where an NPC acts, those who would hear its `tell`. */
@@ -162,6 +172,7 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
         role: participant.role,
         origin: play.origin,
         said: ended.refused,
+        bindings: frame.bindings,
       };
     }
   }
@@ -174,7 +185,7 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
  * composed plays included, does nothing more. When nothing was said to
  * the actor, a refused move included, the world's `nothing_happens` is.
  */
-export function effectPass(reading: Reading, context: ReadingContext): Acted {
+export function effectPass(reading: Reading, context: ReadingContext, depth = 0): Acted {
   const { draft } = context;
   // A destroyed object stays readable for the rest of the turn (the spec's Destroying).
   const state: StateReader = {
@@ -184,9 +195,8 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
     visitor: (visit) => draft.visitor(visit),
   };
   const participants = participantsOf(reading);
-  const person = instanceIn(state, reading.actor).made.from === 'visitor';
-  const heardBy = (): readonly InstanceId[] =>
-    person ? [reading.actor] : audienceOf(state, reading.actor, participants);
+  const person = isPerson(state, reading.actor);
+  const heardBy = (): readonly InstanceId[] => hearersOf(state, reading.actor, participants).to;
   const speaker = person ? null : reading.actor;
 
   const said: Said[] = [];
@@ -217,6 +227,22 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
         notices.push(...outcome.notices);
       }
     },
+    act: (actor, performed) => {
+      // An `act` inside a reading is one deeper, as a message sent from a handler is.
+      context.budget.cascadeTo(depth + 1);
+      const performing = readingOfAct(performed, actor, context);
+      const outcome = runReading(performing, context, depth + 1);
+      if ('refused' in outcome) {
+        const { by, said: words, bindings } = outcome.refused;
+        const heard = hearersOf(state, actor, participantsOf(performing));
+        said.push({ effect: 'refused', ...heard, by, said: words, bindings });
+        return;
+      }
+      said.push(...outcome.said);
+      sends.push(...outcome.sends);
+      notices.push(...outcome.notices);
+      destroyed.push(...outcome.destroyed);
+    },
   };
   for (const participant of participants) {
     const self = draft.instance(participant.id);
@@ -235,8 +261,10 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
     }
   }
 
-  // An NPC reads nothing, so its reading is answered where its lines went.
-  const answered = person ? said.some((line) => line.to.includes(reading.actor)) : said.length > 0;
+  // Only a person's own command is answered: an NPC's reading that says
+  // nothing has no output, and a reading performed by `act` is answered,
+  // if at all, as part of the reading it stands in.
+  const answered = !person || depth > 0 || said.some((line) => line.to.includes(reading.actor));
   if (!answered) {
     const world = instanceIn(state, state.world);
     const passage = world.kind.passages.get(NOTHING_HAPPENS);
@@ -260,11 +288,34 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
   return { said, sends, notices, destroyed };
 }
 
-/** The consent pass, then, where nobody refused, the effect pass. */
-export function runReading(reading: Reading, context: ReadingContext): ReadingOutcome {
+/**
+ * The consent pass, then, where nobody refused, the effect pass. `depth`
+ * is how many `act`s deep the reading runs: a typed command's is 0.
+ */
+export function runReading(reading: Reading, context: ReadingContext, depth = 0): ReadingOutcome {
   const { draft, catalogue, budget } = context;
   const refused = consentPass(reading, { state: draft, catalogue, budget });
-  return refused === null ? effectPass(reading, context) : { refused };
+  return refused === null ? effectPass(reading, context, depth) : { refused };
+}
+
+/** Whether a person is behind an actor, rather than nobody, as behind an NPC. */
+function isPerson(state: StateReader, actor: InstanceId): boolean {
+  return instanceIn(state, actor).made.from === 'visitor';
+}
+
+/**
+ * Who reads what a reading says, and whom it is heard from: the actor
+ * where a person acts; where an NPC acts, whoever would hear its `tell`,
+ * from it (the spec's Acting).
+ */
+function hearersOf(
+  state: StateReader,
+  actor: InstanceId,
+  participants: readonly Participant[],
+): { readonly to: readonly InstanceId[]; readonly speaker: InstanceId | null } {
+  return isPerson(state, actor)
+    ? { to: [actor], speaker: null }
+    : { to: audienceOf(state, actor, participants), speaker: actor };
 }
 
 /** What a participant's kind runs for the role it plays in this verb, in composition order. */

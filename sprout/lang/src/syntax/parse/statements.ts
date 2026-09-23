@@ -2,7 +2,8 @@
 // that change what exists, `spawn` and `destroy`; `move`; and a call
 // written as a statement (the spec's Movement and consent; Prose;
 // Properties › Naming a value; The world model › Spawning, Destroying;
-// Verbs › Moving something). A `let` is here rather than with
+// Verbs › Moving something). `act` is read in `act.ts`, and registered
+// here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
 // statement that also yields a binding.
 //
@@ -35,6 +36,7 @@ import { expression } from './expressions.js';
 import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
 import { objectPath } from './paths.js';
+import { actStatement } from './act.js';
 import { skipBracketed } from './recovery.js';
 
 /**
@@ -82,6 +84,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['spawn', (p) => spawnStatement(p)],
   ['destroy', (p) => destroyStatement(p)],
   ['move', moveStatement],
+  ['act', actStatement],
 ]);
 
 /** One statement, or null having said why it is not one. */
@@ -210,8 +213,20 @@ function recoverToStatement(p: Parser, within: Enclosing): void {
   }
 }
 
+/**
+ * Whether a token starts what follows a statement rather than belonging
+ * to it: the next statement, an `else`, or the enclosing body's next
+ * member, a property's name counting only where it starts a line.
+ */
+export function startsNext(p: Parser, within: Enclosing, token: Token): boolean {
+  if (token.kind === 'name') {
+    return STARTS.has(token.text) || token.text === 'else' || within.startsMember(token);
+  }
+  return token.kind === 'symbol' && firstOnItsLine(p, token) && within.startsMember(token);
+}
+
 /** Whether nothing but blanks stands before a token on its line. */
-function firstOnItsLine(p: Parser, token: Token): boolean {
+export function firstOnItsLine(p: Parser, token: Token): boolean {
   const text = p.source.text;
   const lineStart = text.lastIndexOf('\n', token.at.start - 1) + 1;
   return text.slice(lineStart, token.at.start).trim() === '';
@@ -367,10 +382,7 @@ function wordsOrPassage(
   // name on a line of its own, is not this one's: it is left to be
   // read. Anything else standing where the words go is the words,
   // written wrong, and is taken with it.
-  const ahead =
-    token.kind === 'name'
-      ? STARTS.has(token.text) || token.text === 'else' || within.startsMember(token)
-      : token.kind === 'symbol' && firstOnItsLine(p, token) && within.startsMember(token);
+  const ahead = startsNext(p, within, token);
   const read = token.kind === 'name' && !punct(p.peek(1), '.') && !punct(p.peek(1), '(');
   if (read && !ahead) {
     p.next();

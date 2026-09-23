@@ -42,7 +42,7 @@ import { leafType } from './check/leaves.js';
 import { aboveType } from './check/operators.js';
 import { EFFECTS, effectCall } from './check/writes.js';
 
-export type { CheckContext } from './check/checker.js';
+export type { ActSetting, CheckContext } from './check/checker.js';
 export { bindingType } from './check/leaves.js';
 export { resolveKind } from './check/arguments.js';
 

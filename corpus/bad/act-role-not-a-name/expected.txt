@@ -1,0 +1,4 @@
+kinds.sprout:5:19  Inside `act nuzzle (…)` each role is named before what fills it, and the number 7 is not a role's name.
+                   Write `<role>: <what fills it>`, as in `act nuzzle (target: p)`.
+
+refused: 1 problem

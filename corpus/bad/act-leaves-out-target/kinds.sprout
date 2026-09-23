@@ -1,0 +1,9 @@
+// Every reading fills the target.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act nuzzle ()
+      say "The cat settles."
+    }
+  }
+}

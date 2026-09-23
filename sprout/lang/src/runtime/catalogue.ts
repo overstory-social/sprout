@@ -1,7 +1,7 @@
 // What one bundle says about the instances a world may hold (the spec's
 // The runtime › State): every declared object by its id, what the world
 // and a visitor are made of, the kinds a spawn may name, every kind as a
-// body finds it by name, where visitors arrive, and the host's caps that
+// body finds it by name, every verb, where visitors arrive, and the host's caps that
 // stored values are read under. Built once per load, and read by every
 // rule that reconciles stored state with source.
 //
@@ -15,6 +15,7 @@ import type { StaticCaps } from '../bundle/limits.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { WORLD } from '../declare/sprout-world.js';
 import type { Placement, TreePath } from '../declare/tree.js';
+import type { VerbLookup } from '../declare/verbs.js';
 import { declaredId, type InstanceId } from './ids.js';
 
 /** One object the tree places. */
@@ -49,6 +50,8 @@ export interface Catalogue {
    * as a body names one: what an `is(K)` or a `count(K)` reads.
    */
   readonly lookup: KindLookup;
+  /** Every verb the bundle declares, which an `act` reaches by name. */
+  readonly verbs: VerbLookup;
   /** Where visitors arrive, or null for a world that admits no one. */
   readonly arrival: InstanceId | null;
   /** The host's caps now, which stored values are read under; not the ones the bundle was checked against. */
@@ -84,6 +87,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
         .map((kind) => [kindName(kind), kind]),
     ),
     lookup: bundle.kindLookup,
+    verbs: bundle.verbs,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
     caps,
   };

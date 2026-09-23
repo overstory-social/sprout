@@ -1,0 +1,9 @@
+// `act` names the verb it performs, then its roles.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act (target: actor)
+      say "The cat settles."
+    }
+  }
+}
