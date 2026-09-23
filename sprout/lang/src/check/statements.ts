@@ -6,7 +6,9 @@
 // Two rules from the world model are kept here. The world is the one
 // object that can be neither spawned, destroyed nor moved, so a spawn of
 // a kind composing `sprout.World`, and a `destroy self` or a `move` of
-// something known to be the world, are refused. And a spawn's container
+// something known to be the world, are refused. A spawned actor is an
+// NPC, so a spawn of a kind composing `sprout.Actor` but not the visitor
+// kind is refused (the spec's Actors and visitors). And a spawn's container
 // and a move's destination must hold things where the compiler can tell:
 // a binding of the bare object type is accepted, and the engine checks it
 // when the statement runs.
@@ -31,6 +33,7 @@ import {
 import { kindName, type KindRef } from '../declare/kinds.js';
 import { WORLD } from '../declare/sprout-world.js';
 import { writtenKind } from '../declare/compose.js';
+import { isActor, isNpc, notAnNpc } from '../declare/actors.js';
 import {
   bindingType,
   checkEffectCall,
@@ -124,11 +127,24 @@ export function checkDestroy(statement: DestroyStatement, context: CheckContext)
   return false;
 }
 
-/** The kind a spawn makes, refused where it is unknown or is what the world is made of. */
+/**
+ * The kind a spawn makes, refused where it is unknown, is what the world
+ * is made of, or is an actor that is not an NPC.
+ */
 function spawnedKind(statement: SpawnStatement, context: CheckContext): KindRef | null {
   const kind = resolveKind(statement.spawned, context);
-  if (kind === null || !kind.composes.has(WORLD)) return kind;
+  if (kind === null) return null;
   const written = writtenKind(statement.spawned);
+  const visitor = context.acting?.visitor ?? null;
+  if (visitor !== null && isActor(kind) && !isNpc(kind, visitor)) {
+    context.diagnostics.refuse(
+      statement.spawned.at,
+      notAnNpc(written, visitor),
+      `Spawn \`${visitor.name}\`, what this world's visitors are made of, or a kind that composes it, to make an NPC; or spawn a kind that is not an actor.`,
+    );
+    return null;
+  }
+  if (!kind.composes.has(WORLD)) return kind;
   context.diagnostics.refuse(
     statement.spawned.at,
     kindName(kind) === WORLD

@@ -1,0 +1,12 @@
+world actor_directly_in_world: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in actor_directly_in_world
+
+// This world holds things and not people, so an actor stands in a place
+// inside it rather than in the world itself.
+object ghost: Creature in actor_directly_in_world

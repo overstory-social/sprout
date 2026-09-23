@@ -355,6 +355,15 @@ describe('a `permit` decides and a `do` acts', () => {
     ]);
   });
 
+  it('refuses a spawn of an actor that is not made of what visitors are', () => {
+    const text = `kind Porter: sprout.Actor { }
+kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in here } } }`;
+    expect(messages(checked(text))).toEqual([
+      '`Porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
+    ]);
+    expect(checked(text, { visitor: false })).toEqual([]);
+  });
+
   it('says a passage a `say` names must be the kind’s', () => {
     expect(checked('kind Lever { as target for pull { do { say clunck } } }')).toEqual([
       [

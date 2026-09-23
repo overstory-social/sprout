@@ -1,0 +1,17 @@
+world actor_in_what_holds_no_actors: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+kind Basket {
+  contains
+}
+
+object hall: sprout.Place in actor_in_what_holds_no_actors
+
+object basket: Basket in hall
+
+// An actor stands only in a place, and a basket holds things, not people.
+object cat: Creature in hall.basket

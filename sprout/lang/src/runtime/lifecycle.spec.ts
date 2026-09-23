@@ -22,10 +22,19 @@ import { newInstance, type Instance, type WorldState } from './state.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
 
-/** The shop, with a `Cup` to spawn and a cat, an NPC, asleep in the kiln. */
+/**
+ * The shop, with a `Cup` to spawn and a cat, an NPC, asleep in the kiln,
+ * which here holds actors; the kiln is still absent with its file withheld.
+ */
 const catalogueSource = `${SHOP['world.sprout']!}kind Cup { :full false }\nobject cat: Person in yard.kiln\n`;
+const KILN_SOURCE =
+  'kind Crate { contains :lid false }\nkind Kiln { contains actors }\nobject kiln: Kiln in yard\n';
 const catalogue = catalogueOf(
-  compiledWorld('printers_shop', { ...SHOP, 'world.sprout': catalogueSource }),
+  compiledWorld('printers_shop', {
+    ...SHOP,
+    'world.sprout': catalogueSource,
+    'kiln.sprout': KILN_SOURCE,
+  }),
   CAPS,
 );
 const PERSON = catalogue.kinds.get('printers_shop.Person')!;
@@ -52,7 +61,7 @@ const withheld = (): WorldState =>
     catalogueOf(
       compiledWorld(
         'printers_shop',
-        { ...SHOP, 'world.sprout': catalogueSource },
+        { ...SHOP, 'world.sprout': catalogueSource, 'kiln.sprout': KILN_SOURCE },
         {
           mode: 'load',
           withheld: ['kiln.sprout'],
@@ -240,6 +249,33 @@ describe('a spawn', () => {
     );
     expect(fault.message).toBe(
       '`printers_shop.hall.shelf.cup` holds nothing, so `Cup` could not be spawned in it.',
+    );
+  });
+
+  it('faults for an actor into something that holds no actors, the world included, writing nothing', () => {
+    const base = initialState(catalogue);
+    const box = faultsWritingNothing(
+      base,
+      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Person', BOX),
+      'holds-no-actors',
+    );
+    expect(box.object).toBe(BOX);
+    expect(box.message).toBe(
+      '`printers_shop.hall.box` holds no actors, so `Person`, an actor, could not be spawned in it.',
+    );
+    faultsWritingNothing(
+      base,
+      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Person', WORLD_ID),
+      'holds-no-actors',
+    );
+    // The same kind spawns into a place, and a thing into what holds no actors.
+    const draft = new Draft(base);
+    expect(
+      draft.instance(spawnInstance(context(draft), JAR, 'printers_shop.Person', HALL).id)!
+        .container,
+    ).toBe(HALL);
+    expect(draft.instance(spawnInstance(context(draft), JAR, CUP, WORLD_ID).id)!.container).toBe(
+      WORLD_ID,
     );
   });
 

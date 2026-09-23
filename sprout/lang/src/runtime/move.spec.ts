@@ -58,7 +58,6 @@ const KEEP = {
     'object yard: sprout.Place in keep',
     'object marta: Creature in hall',
     'object basket: Basket in hall',
-    'object cat: Creature in hall.basket',
     'object tray: Basket in hall',
     'object stone: Plain in hall',
     'object twig: Plain in hall',
@@ -88,8 +87,6 @@ const ALCOVE = id('hall', 'alcove');
 const CELLAR = id('hall', 'cellar');
 const YARD = id('yard');
 const MARTA = id('hall', 'marta');
-const BASKET = id('hall', 'basket');
-const CAT = id('hall', 'basket', 'cat');
 const TRAY = id('hall', 'tray');
 const STONE = id('hall', 'stone');
 const TWIG = id('hall', 'twig');
@@ -443,14 +440,6 @@ describe('a move made', () => {
     const { draft, visitor } = turn();
     expect(moved(moveInstance(context(draft), visitor, STONE, ALCOVE)).notices).toEqual([]);
   });
-
-  it('speaks nothing for an actor moved out of something that is not a place', () => {
-    const { draft } = turn();
-    const cat = moved(moveInstance(context(draft), CAT, CAT, HALL));
-    expect([cat.from, cat.to]).toEqual([BASKET, HALL]);
-    expect(cat.notices).toEqual([]);
-    expect(cat.sends).toHaveLength(3);
-  });
 });
 
 describe('an actor moved between places', () => {
@@ -458,7 +447,7 @@ describe('an actor moved between places', () => {
     const { draft, visitor } = turn();
     const { notices } = moved(moveInstance(context(draft), visitor, visitor, ALCOVE));
     const leaves = notices.find((notice) => notice.notice === 'leaves')!;
-    // Directly in the hall: Marta, not the cat in its basket, nor any thing.
+    // Directly in the hall: Marta, and not any thing.
     expect(leaves).toMatchObject({ place: HALL, bindings: { item: visitor }, audience: [MARTA] });
     expect('passage' in leaves && [leaves.passage.origin, leaves.passage.name]).toEqual([
       'sprout.Place',

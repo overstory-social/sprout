@@ -1,0 +1,4 @@
+world.sprout:17:30  `basket` holds no actors, so `cat` cannot stand in it.
+                    Put `cat` in a place, or make `basket` one: compose `sprout.Place`, or write `contains actors` in its body.
+
+refused: 1 problem

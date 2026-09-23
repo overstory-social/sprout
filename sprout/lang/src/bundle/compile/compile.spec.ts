@@ -211,3 +211,56 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
     expect(crate.kind.guards.depart.map((guard) => guard.origin)).toEqual(['printers_shop.crate']);
   });
 });
+
+describe('a compile refuses actors where the spec has none', () => {
+  const text = [
+    ROOT,
+    'kind Porter: sprout.Actor { }',
+    'kind Basket { contains }',
+    'object basket: Basket in hall',
+    'object porter: Porter in hall',
+    'object cat: Visitor in hall.basket',
+    'object ghost: Visitor in printers_shop',
+  ].join('\n');
+
+  it('refuses, in either mode, an actor that is not an NPC and an NPC where no actors stand', () => {
+    for (const mode of ['publish', 'load'] as const) {
+      const { bundle, diagnostics } = compileBundle(
+        world({ files: [file('world.sprout', text)] }),
+        { mode },
+      );
+      expect(bundle, mode).toBeNull();
+      expect(
+        refusals(diagnostics).map((d) => [locationOf(d.at), d.message]),
+        mode,
+      ).toEqual([
+        [
+          'world.sprout:5:8',
+          '`porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
+        ],
+        ['world.sprout:6:29', '`basket` holds no actors, so `cat` cannot stand in it.'],
+        [
+          'world.sprout:7:26',
+          '`printers_shop` is the world, which holds no actors, so `ghost` cannot stand directly in it.',
+        ],
+      ]);
+    }
+  });
+
+  it('refuses a spawn of an actor that would not be an NPC, and takes one that would', () => {
+    const verbs = [
+      ROOT,
+      'kind Porter: sprout.Actor { }',
+      'verb whistle { role target  "whistle at [target]" }',
+      'kind Horn { as target for whistle { do { spawn Porter in here  spawn Visitor in here } } }',
+      'object horn: Horn in hall',
+    ].join('\n');
+    const { diagnostics } = compileBundle(world({ files: [file('world.sprout', verbs)] }));
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'world.sprout:4:48',
+        '`Porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
+      ],
+    ]);
+  });
+});
