@@ -1,11 +1,17 @@
+// The first tier, which reads each file alone for its shape before the
+// bundle is closed (the spec's Two tiers), over the world's files and its
+// libraries alike; a library file that will not compile reads as absent.
+
 import { describe, expect, it } from 'vitest';
 
 import { STANDARD_LIBRARY } from '../standard-library.js';
-import { libraryHash } from '../bundle.js';
+import { libraryHash, type LibrarySource } from '../bundle.js';
 import { DEFAULT_LIMITS } from '../limits.js';
 import { locationOf, SourceFile } from '../../source/source.js';
 import { checkShape, readFirstTier } from './first-tier.js';
+import { compileBundle } from './compile.js';
 import { Report } from './report.js';
+import { refusals, ROOT, world } from '../../fixtures/compile.js';
 
 const file = (name: string, text: string): SourceFile => new SourceFile(name, text);
 
@@ -132,5 +138,76 @@ describe('the first tier reads every file in the bundle', () => {
     ]);
     expect(report.diagnostics.refusals).toEqual([]);
     expect(report.diagnostics.all.map((d) => d.severity)).toEqual(['warning']);
+  });
+});
+
+// The same tier through a whole compile, the world's own files and a
+// vendored library's read together.
+
+describe('the whole bundle is read, the world’s files and its libraries alike', () => {
+  it('refuses a syntax problem in the world’s own source, naming the file', () => {
+    const files = [file('other.sprout', ROOT), file('world.sprout', 'enum Season { spring }\n%\n')];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(bundle).toBeNull();
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('world.sprout:2:1');
+  });
+
+  it('refuses a syntax problem in a vendored library too, because they compile together', () => {
+    const broken: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [file('ward.sprout', 'enum Ward { oak }\n%\n')],
+    };
+    const { bundle, diagnostics } = compileBundle(
+      world({
+        libraries: [broken],
+        manifest: { libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(broken) }] },
+      }),
+    );
+    expect(bundle).toBeNull();
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('ward.sprout:2:1');
+  });
+
+  it('gives every problem in reading order, not the first', () => {
+    const files = [file('a.sprout', '% ; %'), file('b.sprout', '%'), file('world.sprout', ROOT)];
+    const { diagnostics } = compileBundle(world({ files }));
+    expect(refusals(diagnostics)).toHaveLength(4);
+    expect(refusals(diagnostics).map((d) => locationOf(d.at))).toEqual([
+      'a.sprout:1:1',
+      'a.sprout:1:3',
+      'a.sprout:1:5',
+      'b.sprout:1:1',
+    ]);
+  });
+});
+
+describe('a library’s own file reads as absent when it will not compile', () => {
+  // The tier-one pass walks the world's files and every usable library's
+  // alike, with no branch between them; this is the library half of the
+  // world-file case above, kept because the two are only obviously the
+  // same path if you have read the loop.
+  const broken: LibrarySource = {
+    ...STANDARD_LIBRARY,
+    files: [...STANDARD_LIBRARY.files, file('ward.sprout', 'enum Ward { oak }\n%\n')],
+  };
+  const withBroken = () =>
+    world({
+      libraries: [broken],
+      manifest: { libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(broken) }] },
+    });
+
+  it('refuses it at publish', () => {
+    expect(compileBundle(withBroken()).bundle).toBeNull();
+  });
+
+  it('reads it as absent at load, and keeps the rest of the world running', () => {
+    const { bundle, diagnostics } = compileBundle(withBroken(), { mode: 'load' });
+    expect(bundle).not.toBeNull();
+    expect(bundle!.absent).toHaveLength(1);
+    expect(bundle!.absent[0]).toMatchObject({
+      what: 'ward.sprout',
+      kind: 'file',
+      reason: 'broken',
+    });
+    expect(refusals(diagnostics)).toEqual([]);
   });
 });
