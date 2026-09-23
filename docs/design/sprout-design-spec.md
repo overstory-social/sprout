@@ -49,7 +49,7 @@ A microworld is one tree. At its root is the **world**; everything else is an ob
 ```sprout
 world printers_shop is sprout.World {
   contains
-  visitors are Creature
+  visitors are Visitor
   visitors arrive at composing_room
   :season Season default autumn
 
@@ -103,7 +103,7 @@ Exits live in the grammar block, because an exit is surface: a direction, a labe
 kind Chest is sprout.Container { }
 
 world printers_shop is sprout.World {
-  visitors are Creature
+  visitors are Visitor
   visitors arrive at composing_room
 
   object composing_room is sprout.Place {
@@ -153,8 +153,11 @@ world tag_yard is sprout.World {
   visitors arrive at yard
 }
 
-kind Player is sprout.Actor {
+kind Player is Tagged, sprout.Visitor {
   :capacity 4
+}
+
+kind Tagged is sprout.Actor {
   :team Team default hider
 
   as target for tag {
@@ -169,13 +172,13 @@ kind Player is sprout.Actor {
 }
 ```
 
-`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. A world's own kind — the **visitor kind** — adds whatever this story needs a person to have, and `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
+`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing (what counts as behaviour is the notes' Open 80). `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
 A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
-The only actors are visitors and NPCs: an object that composes `sprout.Actor` composes the visitor kind, and one that does not is refused. An actor is only ever inside something that declares `contains actors`, so every actor has a place: declaring one elsewhere is refused, and moving or spawning one elsewhere is refused or faults.
+The only actors are visitors and NPCs: an instance of the visitor kind is a visitor, and every other object composing `sprout.Actor` is an NPC. Nothing declares or spawns a visitor, so an object or a `spawn` of a kind composing `sprout.Visitor` is refused. An actor is only ever inside something that declares `contains actors`, so every actor has a place: declaring one elsewhere is refused, and moving or spawning one elsewhere is refused or faults.
 
-An **NPC** is an object composing the visitor kind with nobody behind it. It is declared like any object, has a name rather than a nickname, acts on `:tick` or on a message rather than on typing, performs verbs with `act`, and reads nothing: prose addressed to it goes nowhere. Its presence does not keep a place ticking; only a person's does.
+An **NPC** is an object composing `sprout.Actor`, and not `sprout.Visitor`, with nobody behind it. It is declared like any object, has a name rather than a nickname, acts on `:tick` or on a message rather than on typing, performs verbs with `act`, and reads nothing: prose addressed to it goes nowhere. Its presence does not keep a place ticking; only a person's does.
 
 ### What a world may know about a visitor
 
@@ -215,7 +218,7 @@ Spawning is bounded per turn by a budget the host sets, and over time by how man
 
 `destroy self` is the only form: an object removes itself, as it is the only thing it may write. It takes effect when the body that ran it ends; statements after it still run. Whatever it held is destroyed with it, all the way down, dormant instances included: a container and its contents are one thing to the author who destroys it, and nothing is moved without anyone proposing it.
 
-A binding to a destroyed object stays readable for the rest of the turn, holding the state the object had. A destroyed object has no effects. Everything pending on it is dropped: messages queued to it, messages it sent that have not yet been delivered, engine messages that name it as their `from`, and its pending wakes. Destroying anything with a visitor anywhere inside it is a fault, because a person is never destroyed.
+A binding to a destroyed object stays readable for the rest of the turn, holding the state the object had. A declared object that is destroyed is gone for good: its id is never made again, at load or after, and an identifier or path that names it is a fault when it is read at run time, as a dangling reference is. Destroying is meant for what was spawned, so the compiler warns about `destroy self` in a declared object's body or in a kind a declared object is made of. A destroyed object has no effects. Everything pending on it is dropped: messages queued to it, messages it sent that have not yet been delivered, engine messages that name it as their `from`, and its pending wakes. Destroying anything with a visitor anywhere inside it is a fault, because a person is never destroyed.
 
 `finally destroy self` is the one-shot form. It may stand wherever `destroy self` may, and marks the object to be destroyed once every message the turn has queued has been delivered and handled, so what the body sent still arrives:
 
@@ -463,7 +466,7 @@ An identifier names something in source. Its scope is the smallest one that work
 
 One rule covers objects at every depth: an identifier belongs to the body it is written in and is visible from inside that body at any depth, the nearest declaration winning. From inside the cat, `cabinet` is the cabinet beside it and `composing_room` is the room around it; from inside a chest, `key` is the chest's own key even if the room has another. Places sitting directly in the world are written in the world's body, and every other object is inside it, so they are visible from every object's body and an exit can name one from anywhere. Two places may each hold a `shelf`, and two chests may each hold a `key`, and nobody writes `kiln_shelf` again.
 
-Something deeper than a body can see is named by its dotted path, written without spaces around the dots: the first step is a name visible where the path is written, and each step after it is declared in the body of the one before. An exit names a wardrobe in another room as `-> bedroom.wardrobe`, and the world's `visitors arrive at`, written in the world's body, names a nested place the same way: `visitors arrive at composing_room.paper_store`. The world's name is never a step of a path.
+Something deeper than a body can see is named by its dotted path, written without spaces around the dots: the first step is a name visible where the path is written, and each step after it is declared in the body of the one before. An exit names a wardrobe in another room as `-> bedroom.wardrobe`, and the world's `visitors arrive at`, written in the world's body, names a nested place the same way: `visitors arrive at composing_room.paper_store`. The world's name may be a path's first step, and no other: `printers_shop.lamp` names the lamp directly in the world from anywhere, even where something nearer is called `lamp`.
 
 An object hides anything of its name written further out: in the body of the container around its own, or of any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
 
@@ -555,7 +558,7 @@ enum Ward  { oak, silver }
 enum Glaze { none, shino, tenmoku }
 ```
 
-An enum's options are in scope wherever the enum is. A symbol literal is checked against the option set of whatever it is compared or assigned to, so `== :slver` is a compile error naming the options, not a comparison that is false forever.
+An enum's options are in scope wherever the enum is. An option may always be written qualified, `Ward.iron` or `sprout.Ward.iron`, and bare as `:iron` wherever the enum is known from the other side (a typed property, the other operand, a restatement); which to write is the author's choice where both apply, and the qualified form is how an ambiguous one is disambiguated. A symbol literal is checked against the option set of whatever it is compared or assigned to, so `== :slver` is a compile error naming the options, not a comparison that is false forever.
 
 Options are separated by commas, and a comma after the last is allowed. An option may not be a reserved word. An enum holds at most as many options as the host allows.
 
@@ -904,7 +907,7 @@ A value tool is single: `many` on a `symbol` or an `integer` tool is a refusal a
 
 ### Acting
 
-An object that composes the visitor kind may perform a verb itself:
+An object that composes `sprout.Actor` may perform a verb itself:
 
 ```sprout
 object cat is Creature {
@@ -916,7 +919,7 @@ object cat is Creature {
 }
 ```
 
-`act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes the visitor kind, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
+`act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done; a refused `act` ends the body it stands in, as a refused `move` does. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes `sprout.Actor`, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
 
 Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, in fixed words the engine supplies rather than a passage. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat enters a room with `act go`, carries a toy with `act take`, and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
@@ -927,7 +930,7 @@ move target to self
 move item to cellar
 ```
 
-`move <object> to <container>` proposes a move exactly as a typed `take` does: the three guards under Movement and consent run, with `mover` bound to the object whose body ran the statement, and on a refusal nothing moves and the refusal text is said to the actor if there is one. On success the engine performs the write and sends the three messages. `move` is a statement for a `do`, a handler, a hook, a tick or a wake; never a guard, a `permit` or a `describe`. It is how every standard library verb that moves anything is written, and it is available to a trapdoor, a conveyor or a tide on the same terms.
+`move <object> to <container>` proposes a move exactly as a typed `take` does: the three guards under Movement and consent run, with `mover` bound to the object whose body ran the statement, and on a refusal nothing moves, the refusal text is said to the actor if there is one, and the body that ran the `move` ends there: the first refusal ends the work, so `take` never says it took what it could not carry. On success the engine performs the write and sends the three messages. `move` is a statement for a `do`, a handler, a hook, a tick or a wake; never a guard, a `permit` or a `describe`. It is how every standard library verb that moves anything is written, and it is available to a trapdoor, a conveyor or a tide on the same terms.
 
 ### Exits
 
@@ -1614,21 +1617,21 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A world that does not compose `sprout.World`, written as `sprout.World`; anything but a world composing it.
 - A bundle with no `world` declaration or with more than one; a `world` declaration whose name is not the manifest's `name`.
 - A `describe` with no `text`.
-- `act` in a body whose kind does not compose the visitor kind; an `act` that leaves out a tool that is not optional.
-- A visitor kind that does not compose `sprout.Actor`, or that is not one of the world's own kinds: `visitors are sprout.Actor` included.
+- `act` in a body whose kind does not compose `sprout.Actor`; an `act` that leaves out a tool that is not optional.
+- A visitor kind that does not compose `sprout.Visitor`, or that is not one of the world's own kinds: `visitors are sprout.Visitor` included.
 - `optional` on any role of a verb that has phrases, or on the target of one that has none; a phrase that does not name the verb's target.
 - An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
 - `many` on a `symbol` or `integer` tool.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place, or leading to something that does not hold actors.
-- An `object` at a file's top level; an object inside something whose kind does not hold things; an actor declared inside something that does not hold actors; an object composing `sprout.Actor` that does not compose the visitor kind, and a `spawn` of such a kind; the world's name as a step of a path, or as an object's name; two objects of one name in one body.
+- An `object` at a file's top level; an object inside something whose kind does not hold things; an actor declared inside something that does not hold actors; an object composing `sprout.Visitor`, and a `spawn` of such a kind; the world's name as a step of a path other than the first, or as an object's name; two objects of one name in one body.
 - `visitors arrive at` naming the world itself.
 - A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
 - Any static cap exceeded.
 
 ### What it warns about
 
-A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, and a role in a verb nothing fills. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`. A passage on an object or the world that nothing invokes and nothing it composes declares, which is most often a misspelt override. An exit guard that is the literal `false`. A `.prose` file no kind points at.
+A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, and a role in a verb nothing fills. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`. A passage on an object or the world that nothing invokes and nothing it composes declares, which is most often a misspelt override. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at.
 
 ### Diagnostics
 
@@ -1708,7 +1711,7 @@ The engine keeps, for every instance: a stable **id**; its kinds; its property m
 
 A declared object's id is its declared path — `printers_shop.composing_room.cabinet`. Names never change while a world runs; changing one in source, the world's own included, changes every id under it. Moving or renaming it in source is therefore a new object with the declared defaults; the old one's state is kept as for an absent object, in case the move was a mistake. A spawned object's id is minted at spawn and never reused.
 
-Where stored state no longer fits a declared type, the value is dropped and the declared default stands.
+Where stored state no longer fits a declared type, the value is dropped and the declared default stands. An actor found at load inside something that no longer holds actors, because the source changed under it, is an engine error the host reports loudly: nothing the language can do puts one there, since `contains actors` is fixed when the world compiles.
 
 ### The log
 
@@ -1871,6 +1874,9 @@ kind Actor {
   }
 }
 
+// sprout/visitor.sprout — what a person is made of: an actor, marked as one with somebody behind it
+kind Visitor is Actor { }
+
 // sprout/fixture.sprout
 kind Fixture {
   depart (to) { if (to.is(Actor)) { refuse immovable } }
@@ -1951,7 +1957,7 @@ That is the whole of it for this world. Things are carryable unless they say oth
 ```sprout
 world printers_shop is sprout.World {
   contains
-  visitors are Creature
+  visitors are Visitor
   visitors arrive at composing_room
   :season Season default autumn
 
@@ -2140,6 +2146,8 @@ kind Creature is sprout.Actor {
     }
   }
 }
+
+kind Visitor is Creature, sprout.Visitor { }
 ```
 
 ### `locks.sprout`
@@ -2245,7 +2253,7 @@ object press is sprout.Fixture {
 
 Overriding the prose rather than the guard sidesteps the ordering trap. A composing kind's own member is simply the one that applies — collisions arise only between two *sources*, neither of which is the composer — so the author's line replaces the library's with nothing suppressed and no `without` needed. Had `Fixture` refused with a literal instead, the library's words would have spoken first and the author's would never have been read. Capabilities stay structural; policies stay guards.
 
-**The visitor's guards are the visitor kind's.** Once `sprout.Actor` writes `depart`, `release` and `accept` like any other kind, nobody can be carried off or picked, and giving works within capacity — and a world that wants a gift to need a handshake, or a pocket to be searchable, writes one guard on its own visitor kind. Nothing about a person is a special case in the engine; the special cases are three lines of Sprout.
+**The visitor's guards are the visitor kind's.** Once `sprout.Actor` writes `depart`, `release` and `accept` like any other kind, nobody can be carried off or picked, and giving works within capacity — and a world that wants a gift to need a handshake, or a pocket to be searchable, writes one guard on a kind its visitor kind composes. Nothing about a person is a special case in the engine; the special cases are three lines of Sprout.
 
 **`take` is a verb.** Making the actor a participant — `as actor for take` — let every built-in be written in the language: one `move` and two passages. The words a visitor reads for the commonest things they do are therefore the library's, replaceable, and translatable: an author who wants "Got it." instead of "You take the brass key." writes a two-word passage on their visitor kind, and one who wants every line in another register composes a library that supplies them, because the standard library's are all `default` and yield.
 
