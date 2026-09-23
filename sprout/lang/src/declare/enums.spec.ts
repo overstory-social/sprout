@@ -87,7 +87,7 @@ describe('an unqualified enum is the world’s own, then the standard library’
   });
 
   it('prefers the world’s own where both declare the name', () => {
-    // The WARNING for shadowing a library name is B21's; this is the order.
+    // The warning for shadowing a library name is `bundle/declarations.ts`'s; this is only the order.
     table.add('printers_shop', [declared('enum Ward { brass }')], new Diagnostics());
     expect(table.unqualified('Ward', 'printers_shop')!.library).toBe('printers_shop');
     expect(table.qualified(SPROUT, 'Ward')!.options).toEqual(['oak', 'silver']);

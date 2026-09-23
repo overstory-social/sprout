@@ -75,6 +75,26 @@ describe('the manifest’s own fields', () => {
     ]);
   });
 
+  it('refuses a namespace equal to the name of a library the manifest pins', () => {
+    expect(
+      refused({
+        namespace: 'sprout',
+        libraries: [{ name: 'sprout', version: '0.1.0', sha: 'x' }],
+      }),
+    ).toEqual([
+      "sprout.json:1:1 This world's namespace, `sprout`, is also the name of a library it uses.",
+    ]);
+  });
+
+  it('says nothing of a namespace that names no pinned library', () => {
+    expect(
+      refused({
+        namespace: 'printers_shop',
+        libraries: [{ name: 'sprout', version: '0.1.0', sha: 'x' }],
+      }),
+    ).toEqual([]);
+  });
+
   it('refuse an empty author or licence, and a version that is not semver', () => {
     expect(refused({ author: ' ', license: '' })).toEqual([
       "sprout.json:1:1 This world's author is empty.",
