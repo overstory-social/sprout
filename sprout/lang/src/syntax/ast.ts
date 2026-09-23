@@ -273,9 +273,15 @@ export interface SpawnStatement extends Node {
   readonly container: ObjectPath;
 }
 
-/** `destroy self` — the only form (the spec's Destroying). */
+/**
+ * `destroy self`, the only form, or `finally destroy self`, which waits
+ * until every message the turn has queued has been handled (the spec's
+ * Destroying).
+ */
 export interface DestroyStatement extends Node {
   readonly kind: 'destroy';
+  /** Whether it was written `finally destroy self`. */
+  readonly finally: boolean;
 }
 
 /**

@@ -112,6 +112,7 @@ interface Heard {
   readonly spoken: Spoken[];
   readonly sends: Sent[];
   readonly destroyed: Destroyed[];
+  readonly marked: InstanceId[];
   /** Each `move` proposed: the mover, the thing and where it is to go. */
   readonly moves: [InstanceId, InstanceId, InstanceId][];
   /** Each `act` performed: the actor, and the reading as the body evaluated it. */
@@ -182,7 +183,7 @@ function act(
   answer: (nth: number) => Proposed = () => 'done',
 ): Heard {
   let proposed = 0;
-  const heard: Heard = { spoken: [], sends: [], destroyed: [], moves: [], acts: [] };
+  const heard: Heard = { spoken: [], sends: [], destroyed: [], marked: [], moves: [], acts: [] };
   const sink: ActSink = {
     lifecycle: {
       draft: turn.draft,
@@ -194,6 +195,7 @@ function act(
     say: (spoken) => heard.spoken.push(spoken),
     sent: (sends) => heard.sends.push(...sends),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
+    marked: (marked) => heard.marked.push(marked),
     move: (mover, item, to) => {
       heard.moves.push([mover, item, to]);
       return answer(proposed++);

@@ -4,7 +4,7 @@ import type { ValueType } from '../declare/types.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
-import { ListFull, SproutList } from './lists.js';
+import { ListFull, sameValue, SproutList } from './lists.js';
 import type { Value } from './values.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
@@ -207,5 +207,18 @@ describe('a list of lists keeps the no-duplicates rule by order', () => {
     // full, because the cap is a cap on each list.
     const rows = SproutList.of({ type: 'list', element: ROW }, [two], smaller.caps);
     expect(rows.add(SproutList.of(ROW, ['brass'], smaller.caps)).count).toBe(2);
+  });
+});
+
+describe('whether two values are the same', () => {
+  it('is identity for a scalar, and same elements in the same order for a list', () => {
+    const caps = DEFAULT_LIMITS.caps;
+    expect(sameValue(3, 3)).toBe(true);
+    expect(sameValue('oak', 'iron')).toBe(false);
+    const words = SproutList.of(STRING, ['a', 'b'], caps);
+    expect(sameValue(words, SproutList.of(STRING, ['a', 'b'], caps))).toBe(true);
+    expect(sameValue(words, SproutList.of(STRING, ['b', 'a'], caps))).toBe(false);
+    expect(sameValue(words, words.add('a'))).toBe(true);
+    expect(sameValue(words, 'a')).toBe(false);
   });
 });

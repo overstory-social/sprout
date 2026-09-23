@@ -11,7 +11,6 @@ import { DECLARATION_READERS } from './declarations.js';
 import { DEEPEST, Parser } from './parser.js';
 import {
   block,
-  destroyStatement,
   letStatement,
   moveStatement,
   onItsOwn,
@@ -245,51 +244,6 @@ describe('`spawn` makes a new instance of a kind, in a container', () => {
     expect(refusals).toHaveLength(1);
     expect(refusals[0]!.at.start).toBe(refusals[0]!.at.end);
     expect(locationOf(refusals[0]!.at)).toBe('body.sprout:1:10');
-  });
-});
-
-describe('`destroy self` is the only form', () => {
-  it('reads it, spanning both words', () => {
-    const { read, refusals } = readWith(destroyStatement, 'destroy   self');
-    expect(refusals).toEqual([]);
-    expect(read!.kind).toBe('destroy');
-    expect(textOf(read!.at)).toBe('destroy   self');
-  });
-
-  it('says what is missing when nothing follows', () => {
-    const { statement, refusals } = readStatement('destroy');
-    expect(statement).toBeNull();
-    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
-      [
-        'body.sprout:1:8',
-        '`destroy` does not say what to remove.',
-        'Write `destroy self`: an object removes only itself.',
-      ],
-    ]);
-  });
-
-  it('refuses anything but `self`, once, at what was written', () => {
-    for (const [text, at] of [
-      ['destroy cup', 'cup'],
-      ['destroy actor', 'actor'],
-      ['destroy self.shelf', 'self.shelf'],
-      ['destroy kiln.shelf.cup', 'kiln.shelf.cup'],
-      ['destroy Cup', 'Cup'],
-      ['destroy 3', '3'],
-    ] as const) {
-      const { statement, refusals } = readStatement(text);
-      expect(statement, text).toBeNull();
-      expect(
-        refusals.map((d) => [textOf(d.at), d.message, d.remedy]),
-        text,
-      ).toEqual([
-        [
-          at,
-          '`destroy` removes only the object whose body runs it.',
-          'Write `destroy self`. To be rid of something else, send it a message and let it destroy itself.',
-        ],
-      ]);
-    }
   });
 });
 
@@ -586,7 +540,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `say`, `let`, `spawn`, `destroy`, `move`, `act`, `send` and `broadcast`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `let`, `spawn`, `destroy`, `finally`, `move`, `act`, `send` and `broadcast`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }

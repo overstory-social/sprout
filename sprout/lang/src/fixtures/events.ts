@@ -2,7 +2,9 @@
 // a hall holding a lamp that answers being lit and watches its own light,
 // a shut chest and a glass case each with something inside, a lantern
 // whose kind gives it a wick, a bell that counts answers, and a dog, an
-// NPC that acts; a yard beside it that the world keeps apart. A fresh turn
+// NPC that acts; a bubble that bursts, a match that goes once the queue
+// is empty, and a tidier whose move is refused; a yard beside it that the
+// world keeps apart. A fresh turn
 // over it reads its containers' own pass rules. `runtime/sends.spec.ts`,
 // `runtime/passes.spec.ts`, `runtime/named.spec.ts` and `runtime/bus.spec.ts`
 // share it. Spec support: the package build leaves it out.
@@ -37,6 +39,10 @@ export const BUS: Bundle = compiledWorld('bus', {
     object lantern is Lantern
     object bell is Bell
     object dog is Dog
+    object bubble is Bubble
+    object match is Match
+    object fussy is Fussy
+    object tidier is Tidier
   }
   object yard is sprout.Place {
     object stray is Gem
@@ -118,6 +124,36 @@ kind Bell {
   as target for ring { do { send self :chain with 1  broadcast :rang  say "The bell rings." } }
 }
 
+// A bubble bursts at a bell, taking with it what it sent before it went.
+kind Bubble {
+  on :rang {
+    send hall.bell :answered with 5
+    destroy self
+  }
+}
+
+// A match lights the lamp and goes once everything has been handled.
+kind Match {
+  on :rang {
+    send hall.lamp :lit with true
+    finally destroy self
+  }
+}
+
+// What goes into the fussy box is refused, and the tidier tries anyway.
+kind Fussy {
+  contains
+  accept (item, from) { refuse "Not in here." }
+}
+
+kind Tidier {
+  :tried false
+  on :stir {
+    move hall.lamp to hall.fussy
+    self.set(:tried, true)
+  }
+}
+
 // The dog answers a stir by sniffing the lamp, a reading of its own.
 kind Dog is sprout.Actor {
   :sniffed 0 min 0 max 99
@@ -139,6 +175,10 @@ export const LANTERN = at('hall', 'lantern');
 export const WICK = at('hall', 'lantern', 'wick');
 export const BELL = at('hall', 'bell');
 export const DOG = at('hall', 'dog');
+export const BUBBLE = at('hall', 'bubble');
+export const MATCH = at('hall', 'match');
+export const FUSSY = at('hall', 'fussy');
+export const TIDIER = at('hall', 'tidier');
 export const YARD = at('yard');
 export const STRAY = at('yard', 'stray');
 

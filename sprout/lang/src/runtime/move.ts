@@ -9,7 +9,7 @@
 // fault or a refusal leaves the draft as it was, and the one write is
 // `Draft.place`, which puts the thing last in its new container. And what
 // the engine then tells the world is returned rather than queued or said:
-// the messages for B32's queue, and the notices a place speaks for B29 to
+// the messages for the queue (`bus.ts`), and the notices a place speaks for B29 to
 // render (B31 describes the place to the one who moved). A move is
 // charged for what it runs, its range walks and its guards' bodies, and
 // nothing for itself: the statement that proposed it is its body's step.

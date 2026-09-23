@@ -32,8 +32,19 @@ export interface AuthoredSend {
   readonly value: Value | null;
 }
 
-/** Everything queued: what the engine sends for itself, and what bodies send. */
-export type Sent = EngineSend | PlaceSend | AuthoredSend;
+/**
+ * A hook queued to `recipient` by a write of its own that changed
+ * `property`, with the value it held before (the spec's Events › Receiving).
+ */
+export interface ChangedSend {
+  readonly message: 'changed';
+  readonly recipient: InstanceId;
+  readonly property: string;
+  readonly was: Value;
+}
+
+/** Everything queued: what the engine sends for itself, what bodies send, and hooks. */
+export type Sent = EngineSend | PlaceSend | AuthoredSend | ChangedSend;
 
 /** What a send reads: the turn's state, the pass rules, and the meter its walk is charged to. */
 export interface SendContext {

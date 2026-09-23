@@ -17,7 +17,7 @@
 // its own reading there, one deeper against the cascade depth, and what
 // that says, refusal included, joins this one's. What the effect pass
 // says and sends is kept in body order. Nothing is rendered: B29 renders
-// what is said, B30 brings `tell`, B32 drains the queue, and B37 polls
+// what is said, B30 brings `tell`, `bus.ts` drains the queue after, and B37 polls
 // the consent pass alone.
 
 import { isActor } from '../declare/actors.js';
@@ -114,6 +114,8 @@ export interface Acted {
   readonly notices: readonly Notice[];
   /** What destroyed itself, and everything it held; the queue drops everything pending on each. */
   readonly destroyed: readonly InstanceId[];
+  /** What ran `finally destroy self`, in the order it did, to be destroyed once the queue is empty. */
+  readonly marked: readonly InstanceId[];
 }
 
 /** A reading's outcome: refused in the consent pass, or acted. */
@@ -191,69 +193,13 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
  */
 export function effectPass(reading: Reading, context: ReadingContext, depth = 0): Acted {
   const { draft } = context;
-  // A destroyed object stays readable for the rest of the turn (the spec's Destroying).
-  const state: StateReader = {
-    world: draft.world,
-    instance: (id) => draft.instance(id) ?? draft.destroyed(id),
-    children: (id) => draft.children(id),
-    visitor: (visit) => draft.visitor(visit),
-    tombstoned: (id) => draft.tombstoned(id),
-  };
+  const state = turnState(draft);
   const participants = participantsOf(reading);
   const person = isPerson(state, reading.actor);
   const heardBy = (): readonly InstanceId[] => hearersOf(state, reading.actor, participants).to;
   const speaker = person ? null : reading.actor;
-
-  const said: Said[] = [];
-  const sends: Sent[] = [];
-  const notices: Notice[] = [];
-  const destroyed: InstanceId[] = [];
-  const sink: ActSink = {
-    lifecycle: context,
-    say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
-    sent: (more) => sends.push(...more),
-    destroyed: (gone) => destroyed.push(...gone.removed),
-    move: (mover, item, to) => {
-      const outcome = moveInstance(context, mover, item, to);
-      if ('refusal' in outcome) {
-        const { by, said: words, bindings } = outcome.refusal;
-        said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
-        return 'refused';
-      }
-      if ('engine' in outcome) {
-        const { said: words, bindings } = outcome;
-        said.push({
-          effect: 'refused',
-          to: heardBy(),
-          by: draft.world,
-          speaker,
-          said: words,
-          bindings,
-        });
-        return 'refused';
-      }
-      sends.push(...outcome.sends);
-      notices.push(...outcome.notices);
-      return 'done';
-    },
-    act: (actor, performed) => {
-      // An `act` inside a reading is one deeper, as a message sent from a handler is.
-      context.budget.cascadeTo(depth + 1);
-      const performing = readingOfAct(performed, actor, context);
-      const outcome = runReading(performing, context, depth + 1);
-      if ('refused' in outcome) {
-        const { by, said: words, bindings } = outcome.refused;
-        const heard = hearersOf(state, actor, participantsOf(performing));
-        said.push({ effect: 'refused', ...heard, by, said: words, bindings });
-        return 'refused';
-      }
-      said.push(...outcome.said);
-      sends.push(...outcome.sends);
-      notices.push(...outcome.notices);
-      destroyed.push(...outcome.destroyed);
-      return 'done';
-    },
-  };
+  const { sink, acted } = actingSink(context, depth, heardBy, speaker);
+  const { said } = acted;
   for (const participant of participants) {
     const self = draft.instance(participant.id);
     if (self === undefined) continue;
@@ -295,7 +241,100 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
       ]),
     });
   }
-  return { said, sends, notices, destroyed };
+  return acted;
+}
+
+/** What acting bodies have done so far, growing as they run: an `Acted` still being written. */
+export interface Acting {
+  readonly said: Said[];
+  readonly sends: Sent[];
+  readonly notices: Notice[];
+  readonly destroyed: InstanceId[];
+  readonly marked: InstanceId[];
+}
+
+/**
+ * The turn's state as a body reads it: the draft, where a destroyed
+ * object stays readable for the rest of the turn (the spec's Destroying).
+ */
+export function turnState(draft: ReadingContext['draft']): StateReader {
+  return {
+    world: draft.world,
+    instance: (id) => draft.instance(id) ?? draft.destroyed(id),
+    children: (id) => draft.children(id),
+    visitor: (visit) => draft.visitor(visit),
+    tombstoned: (id) => draft.tombstoned(id),
+  };
+}
+
+/**
+ * Where an acting body's effects go, `depth` `act`s or events deep, and
+ * what they add up to, in body order: what it says reaches `heardBy`, from
+ * `speaker` where an NPC acts; a refused `move` is said the same way; an
+ * `act` runs its reading one deeper, heard as that reading's own actor is.
+ */
+export function actingSink(
+  context: ReadingContext,
+  depth: number,
+  heardBy: () => readonly InstanceId[],
+  speaker: InstanceId | null,
+): { readonly sink: ActSink; readonly acted: Acting } {
+  const { draft } = context;
+  const state = turnState(draft);
+  const said: Said[] = [];
+  const sends: Sent[] = [];
+  const notices: Notice[] = [];
+  const destroyed: InstanceId[] = [];
+  const marked: InstanceId[] = [];
+  const sink: ActSink = {
+    lifecycle: context,
+    say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
+    sent: (more) => sends.push(...more),
+    destroyed: (gone) => destroyed.push(...gone.removed),
+    marked: (id) => marked.push(id),
+    move: (mover, item, to) => {
+      const outcome = moveInstance(context, mover, item, to);
+      if ('refusal' in outcome) {
+        const { by, said: words, bindings } = outcome.refusal;
+        said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
+        return 'refused';
+      }
+      if ('engine' in outcome) {
+        const { said: words, bindings } = outcome;
+        said.push({
+          effect: 'refused',
+          to: heardBy(),
+          by: draft.world,
+          speaker,
+          said: words,
+          bindings,
+        });
+        return 'refused';
+      }
+      sends.push(...outcome.sends);
+      notices.push(...outcome.notices);
+      return 'done';
+    },
+    act: (actor, performed) => {
+      // An `act` runs one deeper than the reading or the event it stands in.
+      context.budget.cascadeTo(depth + 1);
+      const performing = readingOfAct(performed, actor, context);
+      const outcome = runReading(performing, context, depth + 1);
+      if ('refused' in outcome) {
+        const { by, said: words, bindings } = outcome.refused;
+        const heard = hearersOf(state, actor, participantsOf(performing));
+        said.push({ effect: 'refused', ...heard, by, said: words, bindings });
+        return 'refused';
+      }
+      said.push(...outcome.said);
+      sends.push(...outcome.sends);
+      notices.push(...outcome.notices);
+      destroyed.push(...outcome.destroyed);
+      marked.push(...outcome.marked);
+      return 'done';
+    },
+  };
+  return { sink, acted: { said, sends, notices, destroyed, marked } };
 }
 
 /**

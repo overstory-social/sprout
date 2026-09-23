@@ -16,6 +16,10 @@ import {
   WORLD,
   BELL,
   DOG,
+  BUBBLE,
+  MATCH,
+  FUSSY,
+  TIDIER,
   type EventTurn,
 } from '../fixtures/events.js';
 import type { DeclaredMessage } from '../declare/messages.js';
@@ -60,7 +64,21 @@ describe('a broadcast', () => {
     const to = broadcastFrom(context(one), LAMP, message('lit'), true).map(
       (sent) => sent.recipient,
     );
-    expect(to).toEqual([HALL, CHEST, CASE, LANTERN, BELL, DOG, one.visitor, MOTH, WICK]);
+    expect(to).toEqual([
+      HALL,
+      CHEST,
+      CASE,
+      LANTERN,
+      BELL,
+      DOG,
+      BUBBLE,
+      MATCH,
+      FUSSY,
+      TIDIER,
+      one.visitor,
+      MOTH,
+      WICK,
+    ]);
     expect(to).not.toContain(LAMP);
     expect(to).not.toContain(WORLD);
   });

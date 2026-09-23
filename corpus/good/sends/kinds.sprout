@@ -34,6 +34,15 @@ kind Wick {
 
 kind Cupboard { contains }
 
+// A spark lights the lamp it is spawned beside, then goes once every
+// message the turn has sent has been handled.
+kind Spark {
+  on :spawned (from) {
+    send sending.hall.lamp :lit with true
+    finally destroy self
+  }
+}
+
 kind Jar {
   :rung false
   on :rang { self.set(:rung, true) }

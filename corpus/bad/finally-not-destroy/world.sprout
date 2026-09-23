@@ -1,0 +1,8 @@
+world finally_not_destroy is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+kind Person is sprout.Visitor { }

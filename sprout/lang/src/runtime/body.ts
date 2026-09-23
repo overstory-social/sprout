@@ -11,7 +11,8 @@
 // reaching it is the engine's defect, thrown as a plain `Error`. Every statement executed is one step and every
 // expression node one more. A `set` or `remember` of a value its property
 // cannot hold faults, an `adjust` clamps, and adding a new element to a
-// full list faults. A `send` or a `broadcast` queues what it sends, which
+// full list faults. A `send` or a `broadcast` queues what it sends, and
+// a write that changes a property its kind watches queues the hook, which
 // the bus delivers once the body has ended. Nothing is rendered: B29
 // renders what is said, and B30 brings `tell`.
 
@@ -45,7 +46,7 @@ import {
   type Destroyed,
   type LifecycleContext,
 } from './lifecycle.js';
-import { SproutList } from './lists.js';
+import { sameValue, SproutList } from './lists.js';
 import type { Performed } from './act.js';
 import { objectNamed, reachedByName } from './named.js';
 import { broadcastFrom, sendTo, type Sent } from './sends.js';
@@ -84,6 +85,8 @@ export interface ActSink {
   sent(sends: readonly Sent[]): void;
   /** `self` removed with everything it held, at the end of the body that ran `destroy self`. */
   destroyed(destroyed: Destroyed): void;
+  /** `self` marked by `finally destroy self`, to be destroyed once the turn's queue is empty. */
+  marked(id: InstanceId): void;
   /**
    * `move item to to`, proposed by `mover`, the object whose body ran it:
    * asked through consent, and what came of it said or sent. A refusal
@@ -125,6 +128,8 @@ interface Run {
   readonly mode: BodyMode;
   readonly sink: ActSink | null;
   destroying: boolean;
+  /** Whether it ran `finally destroy self`, which waits for the turn's queue to empty. */
+  finally: boolean;
   stopped: 'gone' | 'refused' | null;
 }
 
@@ -138,10 +143,11 @@ export function runBody(block: Block, frame: Frame, mode: BodyMode, sink: ActSin
   if (mode === 'act' && sink === null) {
     throw new Error('a body that acts has somewhere to put what it does.');
   }
-  const run: Run = { mode, sink, destroying: false, stopped: null };
+  const run: Run = { mode, sink, destroying: false, finally: false, stopped: null };
   const ended = runBlock(block, frame, run);
   if (run.destroying && run.stopped !== 'gone')
     sink!.destroyed(destroyInstance(sink!.lifecycle.draft, frame.self));
+  else if (run.finally && run.stopped !== 'gone') sink!.marked(frame.self);
   return ended;
 }
 
@@ -187,7 +193,8 @@ function runStatement(
       return 'end';
     case 'destroy':
       acting(run, '`destroy`');
-      run.destroying = true;
+      if (statement.finally) run.finally = true;
+      else run.destroying = true;
       return 'end';
     case 'move': {
       const sink = acting(run, '`move`');
@@ -408,6 +415,10 @@ function write(expr: Expr, frame: Frame, sink: ActSink): void {
       throw new Error(`\`${method}\`, which does not write, reached the runtime as a statement.`);
   }
   draft.write({ ...self, properties: new Map(self.properties).set(name, next) });
+  // A hook is queued once per change, with the value it had then.
+  if (!sameValue(held, next) && self.kind.hooks.has(name)) {
+    sink.sent([{ message: 'changed', recipient: self.id, property: name, was: held }]);
+  }
 }
 
 /** `x.adjust(…)` through a name other than `self` is memory's, as the checker reads it. */

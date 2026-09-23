@@ -2,8 +2,9 @@
 // that change what exists, `spawn` and `destroy`; `move`; and a call
 // written as a statement (the spec's Movement and consent; Prose;
 // Properties › Naming a value; The world model › Spawning, Destroying;
-// Verbs › Moving something). `act` is read in `act.ts`, and `send` and
-// `broadcast` in `sends.ts`, and registered here with the rest. A `let` is here rather than with
+// Verbs › Moving something). `act` is read in `act.ts`, `send` and
+// `broadcast` in `sends.ts`, and `destroy self` and `finally destroy
+// self` in `destroy.ts`, and each is registered here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
 // statement that also yields a binding.
 //
@@ -15,7 +16,6 @@
 
 import type {
   Block,
-  DestroyStatement,
   Expr,
   IfStatement,
   KindExpr,
@@ -38,6 +38,7 @@ import { readable } from '../../source/words.js';
 import { objectPath } from './paths.js';
 import { actStatement } from './act.js';
 import { broadcastStatement, sendStatement } from './sends.js';
+import { destroyStatement, finallyStatement } from './destroy.js';
 import { skipBracketed } from './recovery.js';
 
 /**
@@ -84,6 +85,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['let', (p) => letStatement(p)],
   ['spawn', (p) => spawnStatement(p)],
   ['destroy', (p) => destroyStatement(p)],
+  ['finally', (p) => finallyStatement(p)],
   ['move', moveStatement],
   ['act', actStatement],
   ['send', sendStatement],
@@ -527,38 +529,6 @@ export function spawnStatement(p: Parser): SpawnStatement | null {
 }
 
 /**
- * `destroy self`, the only form: an object removes only itself, since
- * itself is the only thing it may write. Anything else written after
- * `destroy` is refused once, and stepped over with its dots.
- */
-export function destroyStatement(p: Parser): DestroyStatement | null {
-  const keyword = p.take('name', 'destroy');
-  if (keyword === null) {
-    notAStatement(p, p.peek());
-    return null;
-  }
-  const target = p.peek();
-  if (target.kind === 'name' && target.text === 'self' && !punct(p.peek(1), '.')) {
-    p.next();
-    return { kind: 'destroy', at: spanning(keyword.at, target.at) };
-  }
-  if (target.kind === 'end' || punct(target, '}')) {
-    p.diagnostics.refuse(
-      p.source.span(keyword.at.end),
-      '`destroy` does not say what to remove.',
-      'Write `destroy self`: an object removes only itself.',
-    );
-    return null;
-  }
-  p.diagnostics.refuse(
-    stepOverTarget(p),
-    '`destroy` removes only the object whose body runs it.',
-    'Write `destroy self`. To be rid of something else, send it a message and let it destroy itself.',
-  );
-  return null;
-}
-
-/**
  * `move target to self`: what moves, then `to` and what it goes into,
  * each a binding or an identifier, or a dotted path to one. A word the
  * next statement or member starts with is never taken for either, so a
@@ -652,25 +622,6 @@ function movePart(
   if (head.kind !== 'punct') p.next();
   missing(head.at, head);
   return null;
-}
-
-/**
- * What an author wrote after `destroy` in place of `self`: a word and the
- * dotted steps after it, or one token that is no word. Taken whole, so
- * one wrong target is one refusal.
- */
-function stepOverTarget(p: Parser): Span {
-  const first = p.peek();
-  if (first.kind !== 'name' && first.kind !== 'kind') {
-    if (first.kind !== 'punct') p.next();
-    return first.at;
-  }
-  let last = p.next();
-  while (punct(p.peek(), '.') && (p.peek(1).kind === 'name' || p.peek(1).kind === 'kind')) {
-    p.next();
-    last = p.next();
-  }
-  return spanning(first.at, last.at);
 }
 
 /** A kind as the author wrote it: `Cup`, `sprout.Container`. */
