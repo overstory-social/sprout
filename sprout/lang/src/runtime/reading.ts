@@ -194,6 +194,7 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
     instance: (id) => draft.instance(id) ?? draft.destroyed(id),
     children: (id) => draft.children(id),
     visitor: (visit) => draft.visitor(visit),
+    tombstoned: (id) => draft.tombstoned(id),
   };
   const participants = participantsOf(reading);
   const person = isPerson(state, reading.actor);

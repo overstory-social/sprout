@@ -12,6 +12,10 @@
 // are kept as stored: B28 reconciles link names, and B36 wakes against
 // the host's cap. A visitor whose place is gone keeps its record; B42
 // applies the absent table's rows when they next arrive.
+//
+// A tombstone is kept as stored, and a declared object with one is never
+// made again, nor anything declared inside it, what a kind gives it and
+// what source has added since included (the spec's Destroying).
 
 import { contentAt } from '../declare/contents.js';
 import type { KindRef } from '../declare/kinds.js';
@@ -51,7 +55,7 @@ export interface Dropped {
 /** What a load made of stored state. */
 export interface Loaded {
   readonly state: WorldState;
-  /** Declared objects nothing was stored for, now at their defaults, in declared order. */
+  /** Declared objects nothing was stored for and none destroyed, now at their defaults, in declared order. */
   readonly created: readonly InstanceId[];
   /** What is kept untouched because it cannot be decoded now, by id. */
   readonly dormant: readonly InstanceId[];
@@ -60,7 +64,7 @@ export interface Loaded {
 
 /** A world with nothing stored: serial 0, no instances, no visitors. */
 export function emptyWorld(world: InstanceId): StoredWorld {
-  return { world, serial: 0, instances: [], visitors: [] };
+  return { world, serial: 0, instances: [], visitors: [], tombstones: [] };
 }
 
 /** A new world's state: an empty store, loaded. */
@@ -111,8 +115,15 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
       created.push(catalogue.world);
     }
   }
+  const tombstones = new Set(read.tombstones as readonly InstanceId[]);
+  // Rank walks the tree outside in, so a container is settled before what it holds.
+  const gone = new Set<InstanceId>();
   const declared = [...catalogue.declared.values()].sort((a, b) => a.rank - b.rank);
   for (const entry of declared) {
+    if (tombstones.has(entry.id) || gone.has(entry.container)) {
+      gone.add(entry.id);
+      continue;
+    }
     if (entry.kind === null || !unstored(entry.id)) continue;
     instances.set(
       entry.id,
@@ -146,6 +157,7 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
       instances,
       dormant,
       visitors,
+      tombstones,
       children: childrenOf(instances.values(), rank),
     },
     created,
@@ -264,7 +276,7 @@ function keep(
   return decodeValue(property.type, stored, caps);
 }
 
-/** State as a store keeps it: decoded instances encoded, dormant ones verbatim, everything by id. */
+/** State as a store keeps it: decoded instances encoded, dormant ones verbatim, everything by id, tombstones included. */
 export function saveWorld(state: WorldState): StoredWorld {
   const instances: StoredInstance[] = [
     ...[...state.instances.values()].map(encodeInstance),
@@ -273,7 +285,8 @@ export function saveWorld(state: WorldState): StoredWorld {
   const visitors = [...state.visitors.values()]
     .map(encodeVisitor)
     .sort((a, b) => compare(a.visit, b.visit));
-  return { world: state.world, serial: state.serial, instances, visitors };
+  const tombstones = [...state.tombstones].sort(compare);
+  return { world: state.world, serial: state.serial, instances, visitors, tombstones };
 }
 
 /** One instance as a store keeps it, every map written in key order. */

@@ -4,7 +4,9 @@
 // The engine keeps, per instance, its id, how it was made, its container,
 // its properties, its links, its pending wakes, its memory of each actor
 // and when it last ticked; per visitor, the visit, the nickname, the
-// instance and where they last stood. `StoredWorldSchema` is what a host
+// instance and where they last stood; and a tombstone for every declared
+// object destroyed, which is gone for good (the spec's Destroying), so
+// its id is never made again. `StoredWorldSchema` is what a host
 // hands back; a store that fails it is a host defect, not the world's,
 // and is thrown as `StoredStateUnreadable`.
 //
@@ -87,6 +89,8 @@ export interface StoredWorld {
   readonly serial: number;
   readonly instances: readonly StoredInstance[];
   readonly visitors: readonly StoredVisitor[];
+  /** The id of every declared object ever destroyed, in code-unit order: load never makes one again. */
+  readonly tombstones: readonly string[];
 }
 
 const StoredValueSchema: z.ZodType<StoredValue> = z.lazy(() =>
@@ -139,8 +143,9 @@ const FORM_OF: Readonly<Record<StoredMade['from'], 'world' | 'declared' | 'minte
 /**
  * A stored world, checked: every id is one of this world's forms and
  * agrees with how its instance was made, no serial is past the world's,
- * no id or visit is stored twice, and visitor records and the instances
- * made for visitors pair one to one.
+ * no id or visit is stored twice, visitor records and the instances
+ * made for visitors pair one to one, and a tombstone is a declared id
+ * that no instance is stored under or inside.
  */
 export const StoredWorldSchema: z.ZodType<StoredWorld> = z
   .object({
@@ -148,6 +153,7 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
     serial: z.number().int().min(0),
     instances: z.array(StoredInstanceSchema),
     visitors: z.array(StoredVisitorSchema),
+    tombstones: z.array(z.string()),
   })
   .superRefine((stored, context) => {
     const issue = (path: (string | number)[], message: string) =>
@@ -214,6 +220,29 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
       }
       named.add(visitor.instance);
       if (visitor.lastPlace !== null) anId([...at, 'lastPlace'], visitor.lastPlace);
+    });
+    // A tombstone is a declared object destroyed, and what it held went
+    // with it, so nothing is stored under its id or inside it. A link or
+    // a visitor's last place may still name it: the absent rules read those.
+    const tombstones = new Set<string>();
+    stored.tombstones.forEach((id, t) => {
+      const at = ['tombstones', t];
+      if (idForm(stored.world, id) !== 'declared') {
+        issue(at, `\`${id}\` is not a declared object's id in ${stored.world}.`);
+      }
+      if (tombstones.has(id)) issue(at, `\`${id}\` is a tombstone twice.`);
+      tombstones.add(id);
+    });
+    stored.instances.forEach((instance, i) => {
+      if (tombstones.has(instance.id)) {
+        issue(['instances', i, 'id'], `\`${instance.id}\` was destroyed, and is stored again.`);
+      }
+      if (instance.container !== null && tombstones.has(instance.container)) {
+        issue(
+          ['instances', i, 'container'],
+          `\`${instance.id}\` is inside \`${instance.container}\`, which was destroyed.`,
+        );
+      }
     });
     stored.instances.forEach((instance, i) => {
       if (instance.made.from === 'visitor' && !named.has(instance.id)) {

@@ -6,7 +6,8 @@ import { catalogueOf, type Catalogue } from './catalogue.js';
 import { declaredId, mintedId, visitKey, type InstanceId } from './ids.js';
 import { isLive } from './live.js';
 import { emptyWorld, initialState, loadWorld, saveWorld, type Loaded } from './load.js';
-import { readerOf } from './state.js';
+import { Draft } from './draft.js';
+import { newInstance, readerOf } from './state.js';
 import { StoredStateUnreadable, type StoredInstance, type StoredWorld } from './stored.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
@@ -58,6 +59,7 @@ describe('a new world is an empty store, loaded', () => {
       serial: 0,
       instances: [],
       visitors: [],
+      tombstones: [],
     });
   });
 
@@ -251,6 +253,95 @@ describe('a declared object is read against its kind now', () => {
     );
     const loaded = loadWorld(saveWorld(initialState(before)), published);
     expect(loaded.created).toEqual([id('hall', 'shelf', 'cup')]);
+  });
+});
+
+describe('a declared object destroyed is gone for good', () => {
+  /** The shop saved after a turn that destroyed `path`. */
+  function destroyed(catalogue: Catalogue, ...path: string[]): StoredWorld {
+    const draft = new Draft(initialState(catalogue));
+    draft.remove(id(...path));
+    return saveWorld(draft.commit().state);
+  }
+
+  it('is never made again at load, nor anything declared inside it', () => {
+    const saved = destroyed(published, 'hall', 'shelf');
+    expect(saved.tombstones).toEqual([
+      id('hall', 'shelf'),
+      id('hall', 'shelf', 'cup'),
+      id('hall', 'shelf', 'jar'),
+    ]);
+    const loaded = loadWorld(saved, published);
+    expect(loaded.created).toEqual([]);
+    for (const one of saved.tombstones) {
+      expect(loaded.state.instances.has(one as InstanceId)).toBe(false);
+      expect(loaded.state.tombstones.has(one as InstanceId)).toBe(true);
+    }
+    expect(loaded.state.children.get(id('hall'))).toEqual([id('hall', 'box')]);
+    expect(saveWorld(loaded.state)).toEqual(saved);
+  });
+
+  it('is not made from a new store either: the tombstone is what a store keeps', () => {
+    const saved = destroyed(published, 'yard');
+    const reloaded = loadWorld({ ...saved, instances: [] }, published);
+    expect(reloaded.created).not.toContain(id('yard'));
+    expect(reloaded.created).not.toContain(id('yard', 'kiln'));
+    expect(reloaded.created).toContain(id('hall'));
+  });
+
+  it('holds nothing source adds inside it later, which has nowhere to be', () => {
+    const later = catalogueOf(
+      compiledWorld('printers_shop', {
+        ...SHOP,
+        'world.sprout': SHOP['world.sprout']!.replace(
+          '      object cup is Jar\n',
+          '      object cup is Jar\n      object bowl is Jar\n',
+        ),
+      }),
+      CAPS,
+    );
+    const loaded = loadWorld(destroyed(published, 'hall', 'shelf'), later);
+    expect(loaded.created).toEqual([]);
+    expect(loaded.state.instances.has(id('hall', 'shelf', 'bowl'))).toBe(false);
+    // Only a destroy writes a tombstone.
+    expect(loaded.state.tombstones.has(id('hall', 'shelf', 'bowl'))).toBe(false);
+  });
+
+  it('takes what a kind gave it with it, the copies being declared too', () => {
+    const lantern = catalogueOf(
+      compiledWorld('printers_shop', {
+        ...SHOP,
+        'world.sprout': SHOP['world.sprout']!.replace(
+          '    object kiln is Crate\n',
+          '    object kiln is Crate\n    object lamp is Lantern\n',
+        ).concat('kind Lantern { contains object wick is Jar }\n'),
+      }),
+      CAPS,
+    );
+    expect(lantern.declared.has(id('yard', 'lamp', 'wick'))).toBe(true);
+    const saved = destroyed(lantern, 'yard', 'lamp');
+    expect(saved.tombstones).toEqual([id('yard', 'lamp'), id('yard', 'lamp', 'wick')]);
+    const loaded = loadWorld(saved, lantern);
+    expect(loaded.created).toEqual([]);
+    expect(loaded.state.instances.has(id('yard', 'lamp', 'wick'))).toBe(false);
+  });
+
+  it('writes no tombstone for what was spawned inside it, which is simply removed', () => {
+    const draft = new Draft(initialState(published));
+    const jar = published.kinds.get('printers_shop.Jar')!;
+    const spawned = newInstance(
+      draft.mint(),
+      { from: 'spawned', kind: 'printers_shop.Jar' },
+      jar,
+      id('yard'),
+      draft.nextSerial(),
+      CAPS,
+    );
+    draft.add(spawned);
+    draft.remove(id('yard'));
+    const saved = saveWorld(draft.commit().state);
+    expect(saved.tombstones).toEqual([id('yard'), id('yard', 'kiln')]);
+    expect(saved.instances.map((one) => one.id)).not.toContain(spawned.id);
   });
 });
 

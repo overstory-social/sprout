@@ -213,6 +213,8 @@ describe('writing, placing, adding and removing', () => {
     expect(draft.subtree(id('yard'))).toEqual([id('yard'), id('yard', 'kiln')]);
     const { state, changes } = draft.commit();
     expect(changes.removed).toEqual([HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN].sort());
+    // The dormant box was declared, so it is gone for good with the rest.
+    expect(changes.tombstoned).toEqual([HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN].sort());
     expect(state.dormant.has(BOX)).toBe(false);
     expect(state.dormant.has(id('yard', 'kiln'))).toBe(true);
     expect(state.children.has(BOX)).toBe(false);
@@ -220,6 +222,28 @@ describe('writing, placing, adding and removing', () => {
     // A reload finds none of it stored, dormant or otherwise.
     const saved = saveWorld(state).instances.map((one) => one.id);
     for (const one of [BOX, TIN, SHELF]) expect(saved).not.toContain(one);
+  });
+
+  it('tombstones every declared object it removes, and nothing that was spawned', () => {
+    const base = initialState(catalogue);
+    const draft = new Draft(base);
+    const inner = spawnJar(draft, SHELF);
+    draft.remove(HALL);
+    for (const one of [HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN]) {
+      expect(draft.tombstoned(one)).toBe(true);
+    }
+    expect(draft.tombstoned(inner.id)).toBe(false);
+    expect(draft.tombstoned(id('yard'))).toBe(false);
+    // The committed state knows nothing of it until the turn commits.
+    expect(readerOf(base).tombstoned(HALL)).toBe(false);
+    const { state, changes } = draft.commit();
+    expect(changes.tombstoned).toEqual([HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN].sort());
+    expect([...state.tombstones].sort()).toEqual(changes.tombstoned);
+    // A later turn still knows, and nothing may take the id again.
+    const next = new Draft(state);
+    expect(next.tombstoned(JAR_ID)).toBe(true);
+    const again = newInstance(JAR_ID, { from: 'declared' }, JAR, id('yard'), 1, CAPS);
+    expect(() => next.add(again)).toThrow(/never reused/);
   });
 
   it('counts what the world stores, dormant included, up for an add and down for a remove', () => {
@@ -287,6 +311,7 @@ describe('committing', () => {
       serial: 5,
       written: [CUP_ID, kept.id].sort(),
       removed: [JAR_ID],
+      tombstoned: [JAR_ID],
       visitors: ['v-1'],
     });
   });
@@ -320,6 +345,8 @@ describe('committing', () => {
       saved.instances.filter((one) => changes.written.includes(one.id as InstanceId)),
     );
     expect(written.remove).toEqual([JAR_ID]);
+    expect(written.tombstones).toEqual([JAR_ID]);
+    expect([...saveWorld(base).tombstones, ...written.tombstones]).toEqual(saved.tombstones);
     expect(written.visitors).toEqual(saved.visitors);
     // Applying the change set to the base's save gives the new state's save.
     const before = saveWorld(base);

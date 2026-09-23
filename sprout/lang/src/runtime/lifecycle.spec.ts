@@ -136,7 +136,13 @@ function faultsWritingNothing(
   expect(fault.reason).toBe(reason);
   expect(draft.held).toBe(held);
   const { state, changes } = draft.commit();
-  expect(changes).toEqual({ serial: base.serial, written: [], removed: [], visitors: [] });
+  expect(changes).toEqual({
+    serial: base.serial,
+    written: [],
+    removed: [],
+    tombstoned: [],
+    visitors: [],
+  });
   expect(JSON.stringify(saveWorld(state))).toBe(JSON.stringify(saveWorld(base)));
   return fault;
 }
@@ -443,6 +449,8 @@ describe('a destroy', () => {
     const { changes } = draft.commit();
     expect(changes.removed).toEqual(all.filter((one) => one !== spawned).sort());
     expect(changes.written).toEqual([]);
+    // Every declared object among them is gone for good; the spawn is simply gone.
+    expect(changes.tombstoned).toEqual(all.filter((one) => one !== spawned).sort());
   });
 
   it('takes the pending wakes of everything inside it with their records', () => {

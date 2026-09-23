@@ -1,0 +1,45 @@
+// Destroying is meant for what was spawned: a declared object destroyed
+// is gone for good. The world compiles, and the compiler warns at each
+// `destroy self` a declared object runs, in its own body or in a kind it
+// is made of, and says nothing of one only spawns run.
+world destroy_declared is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    // Its own body destroys it.
+    object note is Paper {
+      as target for burn { do { destroy self  say "The note curls into ash." } }
+    }
+
+    // Made of `Candle`, through `Taper`: the warning is at `Candle`'s
+    // `destroy`, naming the first declared object made of it.
+    object taper is Taper
+    object stub is Candle
+
+    // Spawns sparks, which may go as they came.
+    object flint is Flint
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+kind Paper { }
+
+kind Candle {
+  as target for burn { do { say "The candle gutters out."  destroy self } }
+}
+
+kind Taper is Candle { }
+
+kind Spark {
+  as target for burn { do { destroy self  say "The spark winks out." } }
+}
+
+kind Flint {
+  contains
+  as target for strike { do { spawn Spark in self  say "A spark leaps from the flint." } }
+}
+
+verb burn { role target  "burn [target]" }
+verb strike { role target  "strike [target]" }

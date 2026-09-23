@@ -99,6 +99,7 @@ describe('what is live', () => {
       instance: (one) => ring.get(one),
       children: (one) => (one === a ? [b] : one === b ? [a] : []),
       visitor: () => undefined,
+      tombstoned: () => false,
     };
     expect(isLive(reader, a)).toBe(false);
     expect(liveTree(reader).contents(a)).toEqual([]);

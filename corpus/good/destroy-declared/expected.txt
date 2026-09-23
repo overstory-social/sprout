@@ -1,0 +1,7 @@
+world.sprout:12:33  `kitchen.note` is declared in the world, so once it is destroyed it never comes back.
+                    Destroying is meant for what was spawned. To have something come and go, `spawn` it when it should appear; to keep this one, change one of its properties instead.
+
+world.sprout:30:60  `kitchen.taper` is made of `Candle` and is declared in the world, so once it is destroyed it never comes back.
+                    Destroying is meant for what was spawned. To have something come and go, `spawn` it when it should appear; to keep this one, change one of its properties instead.
+
+ok: 14 declarations in 1 files, 2 warnings
