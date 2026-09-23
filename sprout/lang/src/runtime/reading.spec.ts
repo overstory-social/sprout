@@ -612,13 +612,16 @@ describe('a `move` in a `do`', () => {
     const [visitor] = one.people;
     const done = run(one, 'board', visitor!, { target: { object: CART! } });
     expect(one.draft.instance(visitor!)!.container).toBe(CART);
-    expect(done.sends).toEqual([
+    expect(done.sends.slice(0, 3)).toEqual([
       { message: 'left', recipient: at('yard'), item: visitor, to: CART },
       { message: 'entered', recipient: CART, item: visitor, from: at('yard') },
       { message: 'moved', recipient: visitor, from: at('yard'), to: CART },
     ]);
+    // The cat, an NPC, is sent the places' messages and reads neither notice.
+    const toCat = done.sends.filter((send) => send.recipient === CAT_ID);
+    expect(toCat.map((send) => send.message)).toEqual(['departed', 'arrived']);
     expect(done.notices.map((notice) => [notice.notice, notice.place, notice.audience])).toEqual([
-      ['leaves', at('yard'), [CAT_ID]],
+      ['leaves', at('yard'), []],
       ['arrives', CART, []],
       ['described', CART, [visitor]],
     ]);
@@ -650,14 +653,15 @@ describe('a `move` in a `do`', () => {
     const one = turn(DEPOT, [at('yard')]);
     const [visitor] = one.people;
     const done = run(one, 'fold', visitor!, { target: { object: CART! } });
+    const world = one.draft.instance(YARD_ID)!.kind;
     expect(done.said).toEqual([
       {
         effect: 'refused',
         to: [visitor],
         by: YARD_ID,
         speaker: null,
-        said: { text: 'cart cannot go inside itself.' },
-        bindings: new Map(),
+        said: { passage: world.passages.get('inside_itself') },
+        bindings: new Map([['item', boundObject(CART!)]]),
       },
     ]);
   });

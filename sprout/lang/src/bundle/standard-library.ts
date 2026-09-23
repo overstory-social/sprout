@@ -31,6 +31,7 @@ kind World {
   passage fault default           { Something in this world has gone wrong, and nothing has changed. }
   passage missing default         { This world uses something this host does not provide, and will be missing some of itself. }
   passage displaced default       { The place you were standing is gone. }
+  passage inside_itself default   { {item} cannot go inside itself. }
 }
 `;
 

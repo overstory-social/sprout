@@ -31,7 +31,7 @@ import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.
 import type { InstanceId } from './ids.js';
 import type { EngineSend, LifecycleContext } from './lifecycle.js';
 import { SproutList } from './lists.js';
-import { moveInstance, type Notice } from './move.js';
+import { moveInstance, type Notice, type PlaceSend } from './move.js';
 import type { Instance, StateReader } from './state.js';
 import type { Value } from './values.js';
 
@@ -96,8 +96,8 @@ export interface Said {
   readonly said: Speech;
   /**
    * Every name in scope where it was said, which its slots may render;
-   * for a guard's refusal, `mover` and the guard's parameters; none for
-   * the engine's own.
+   * for a guard's refusal, `mover` and the guard's parameters; for the
+   * engine's own, what its line names.
    */
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
@@ -106,7 +106,7 @@ export interface Said {
 export interface Acted {
   readonly said: readonly Said[];
   /** What the engine tells the world of each spawn and move, for B32's queue. */
-  readonly sends: readonly EngineSend[];
+  readonly sends: readonly (EngineSend | PlaceSend)[];
   /** What the places speak of each move an actor made between two, for B29 to render. */
   readonly notices: readonly Notice[];
   /** What destroyed itself, and everything it held; the queue drops everything pending on each. */
@@ -200,7 +200,7 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   const speaker = person ? null : reading.actor;
 
   const said: Said[] = [];
-  const sends: EngineSend[] = [];
+  const sends: (EngineSend | PlaceSend)[] = [];
   const notices: Notice[] = [];
   const destroyed: InstanceId[] = [];
   const sink: ActSink = {
@@ -214,13 +214,14 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
         const { by, said: words, bindings } = outcome.refusal;
         said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
       } else if ('engine' in outcome) {
+        const { said: words, bindings } = outcome;
         said.push({
           effect: 'refused',
           to: heardBy(),
           by: draft.world,
           speaker,
-          said: { text: outcome.text },
-          bindings: new Map(),
+          said: words,
+          bindings,
         });
       } else {
         sends.push(...outcome.sends);

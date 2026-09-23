@@ -222,7 +222,8 @@ describe('the standard library', () => {
     const told = ABSENT_TABLE.flatMap((row) => (row.told === null ? [] : [row.told]));
     // The Runtime's Faults, and the turn's own answers: a command nothing
     // reads, a thing out of reach, a noun that could be several things, a
-    // reading that says nothing, a thing with nothing to say.
+    // reading that says nothing, a thing with nothing to say; and a move
+    // the engine refuses because a container would hold itself.
     const engine = [
       'fault',
       'unseen',
@@ -231,6 +232,7 @@ describe('the standard library', () => {
       'which',
       'nothing_happens',
       'unremarkable',
+      'inside_itself',
     ];
     const spoken = [...new Set([...told, ...engine])];
     expect(told.length).toBeGreaterThan(0);
@@ -252,7 +254,7 @@ describe('the standard library', () => {
 
   it('lets a world that writes none of them take every stock line, still yielding', () => {
     const world = compiled().bundle!.world!;
-    expect(world.passages.size).toBe(9);
+    expect(world.passages.size).toBe(10);
     for (const passage of world.passages.values()) {
       expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
     }
@@ -262,7 +264,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'cfccc61655d3d5e94faa08d19767331d2333bcd4339dd1b5c598238ce96e9139',
+      '24dd45a23d8ef40ecf983b6a121a34a338c264b45e1f824e4aeebfa10f90871b',
     );
   });
 });
