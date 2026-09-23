@@ -10,7 +10,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "cfccc61655d3d5e94faa08d19767331d2333bcd4339dd1b5c598238ce96e9139"
+      "sha": "24dd45a23d8ef40ecf983b6a121a34a338c264b45e1f824e4aeebfa10f90871b"
     }
   ],
   "files": ["world.sprout"]

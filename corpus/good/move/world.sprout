@@ -6,6 +6,10 @@ world moving is sprout.World {
   visitors are Visitor
   visitors arrive at hall
 
+  // The engine refuses a move that would put a thing inside itself, in
+  // the world's words where it writes them.
+  passage inside_itself { {item} will not fit inside itself. }
+
   object cart is Cart
   object shelf is Shelf
   object press is Press

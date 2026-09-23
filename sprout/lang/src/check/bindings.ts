@@ -401,6 +401,8 @@ export const ENGINE_MESSAGES: readonly EngineMessage[] = [
   { name: 'entered', parameters: [object_('item'), object_('from')] },
   { name: 'left', parameters: [object_('item'), object_('to')] },
   { name: 'moved', parameters: [object_('from'), object_('to')] },
+  { name: 'arrived', parameters: [object_('actor'), object_('from')] },
+  { name: 'departed', parameters: [object_('actor'), object_('to')] },
   { name: 'spawned', parameters: [object_('from')] },
   { name: 'tick', parameters: [{ name: 'elapsed', binds: 'integer' }] },
   { name: 'woke', parameters: [{ name: 'elapsed', binds: 'integer' }] },
