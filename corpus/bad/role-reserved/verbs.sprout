@@ -1,0 +1,5 @@
+// A word of the language cannot name a role.
+verb leave {
+  role exit
+  "leave by [exit]"
+}

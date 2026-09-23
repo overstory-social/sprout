@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { STANDARD_LIBRARY } from '../standard-library.js';
 import { libraryHash, type LibrarySource } from '../bundle.js';
-import { DEFAULT_LIMITS } from '../limits.js';
+import { DEFAULT_LIMITS, limitsFrom } from '../limits.js';
 import { locationOf, SourceFile } from '../../source/source.js';
 import { checkShape, readFirstTier } from './first-tier.js';
 import { compileBundle } from './compile.js';
@@ -35,6 +35,23 @@ describe('the first tier reads one file alone, for its shape', () => {
     const { diagnostics } = checkShape(file('ward.sprout', 'enum Ward { oak, oak }'));
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]!.message).toContain('twice');
+  });
+
+  it('checks a verb’s roles and phrases against each other, under the host’s caps', () => {
+    const text = 'verb take { role target  "take [thing]"  "get [target]" }\n';
+    expect(
+      checkShape(file('verbs.sprout', text)).diagnostics.map((d) => [locationOf(d.at), d.message]),
+    ).toEqual([
+      ['verbs.sprout:1:32', '`"take [thing]"` names `thing`, and `take` has no such role.'],
+    ]);
+    const caps = limitsFrom({ caps: { phrasesPerVerb: 1 } }).caps;
+    const fits = 'verb take { role target  "take [target]" }\n';
+    expect(checkShape(file('verbs.sprout', fits), caps).diagnostics).toEqual([]);
+    expect(
+      checkShape(file('verbs.sprout', text.replace('[thing]', '[target]')), caps).diagnostics.map(
+        (d) => d.message,
+      ),
+    ).toEqual(['`take` has 2 phrases, and 1 is as many as a verb may have.']);
   });
 
   it('refuses a world that does not write `sprout.World`', () => {

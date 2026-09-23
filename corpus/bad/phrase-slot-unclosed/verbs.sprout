@@ -1,0 +1,5 @@
+// A slot opened with `[` closes with `]`.
+verb take {
+  role target
+  "take [target"
+}

@@ -1,0 +1,5 @@
+// A slot names a role in lower case.
+verb take {
+  role target
+  "take [Target]"
+}

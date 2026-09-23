@@ -1,0 +1,5 @@
+// A set is never optional.
+verb throw {
+  role target
+  role tools many optional
+}

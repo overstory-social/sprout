@@ -1,0 +1,4 @@
+verbs.sprout:2:6  `verb` needs a name.
+                  A verb's name is a lower-case word: `verb take { role target  "take [target]" }`.
+
+refused: 1 problem

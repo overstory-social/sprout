@@ -1,0 +1,4 @@
+verbs.sprout:4:14  `boolean` cannot fill a role.
+                   A role is filled by a kind (`role target: Container`), by `symbol` or `integer` for a value the visitor names, or by nothing.
+
+refused: 1 problem

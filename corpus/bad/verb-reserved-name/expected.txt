@@ -1,0 +1,4 @@
+verbs.sprout:2:6  `move` is a word of the language, so it cannot name a verb.
+                  Choose another word.
+
+refused: 1 problem

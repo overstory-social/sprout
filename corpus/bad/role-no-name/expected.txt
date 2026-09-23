@@ -1,0 +1,4 @@
+verbs.sprout:3:7  `role` needs a name.
+                  A role's name is a lower-case word: `role target`, `role tool: Key`.
+
+refused: 1 problem

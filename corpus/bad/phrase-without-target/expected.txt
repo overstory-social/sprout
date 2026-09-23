@@ -1,0 +1,4 @@
+verbs.sprout:6:3  `"shove"` leaves out `target`, the role `shove` is done to.
+                  Every phrase names the first role, as `"shove [target]"` does.
+
+refused: 1 problem

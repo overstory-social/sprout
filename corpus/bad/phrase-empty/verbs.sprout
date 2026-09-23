@@ -1,0 +1,6 @@
+// A phrase has words in it.
+verb take {
+  role target
+  "take [target]"
+  ""
+}
