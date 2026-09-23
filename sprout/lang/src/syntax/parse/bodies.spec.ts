@@ -195,6 +195,47 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       '`visits` and `greeted` are written after the `}` that ends `K`.',
     ]);
   });
+
+  it("reads the members after a `}` that was already refused as a property's value", () => {
+    // The `}` right after `:faulty` was already refused as its value:
+    // that refusal, and not a brace count, is what tells the reader this
+    // `}` is not `w`'s own, so the members before the real one are read
+    // rather than merely named as displaced.
+    const { declarations, refusals } = read(`world w: sprout.World {
+  :faulty }
+  visitors are P
+  visitors arrive at y
+}
+`);
+    const world = owned(declarations)!;
+    expect(world.members.map((m) => m.kind)).toEqual(['visitors-are', 'visitors-arrive-at']);
+    expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`}` is not a value.',
+        'Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.',
+      ],
+    ]);
+  });
+
+  it('names two members after a stray `}` once, where both read the same way', () => {
+    // `visitors are` and `visitors arrive at` are both looked up by
+    // `visitors`, the only word the member table itself knows; naming
+    // each occurrence again would read as if the same word had been
+    // written twice.
+    const { declarations, refusals } = read(`world w: sprout.World {
+  :alpha 0
+  }
+  visitors are P
+  visitors arrive at y
+}
+`);
+    expect(
+      owned(declarations)!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind)),
+    ).toEqual(['alpha']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`visitors` is written after the `}` that ends `w`.',
+    ]);
+  });
 });
 
 describe('`without` names a member and the kind it comes from, in any body', () => {
