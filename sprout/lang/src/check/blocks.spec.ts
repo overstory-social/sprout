@@ -56,7 +56,8 @@ const PERMIT: BodyKind = { body: 'permit' };
 const DO: BodyKind = { body: 'do' };
 
 describe('a deciding body only reads and decides', () => {
-  const doing = 'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self';
+  const doing =
+    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self';
 
   it('names a guard in what it refuses, and the guard in a `say`', () => {
     expect(check(doing, GUARD).map(([, message]) => message)).toEqual([
@@ -64,6 +65,7 @@ describe('a deciding body only reads and decides', () => {
       '`say` has nobody to speak to inside `depart`.',
       '`spawn` makes a new thing, and a guard only reads and decides.',
       '`destroy self` removes something, and a guard only reads and decides.',
+      '`move` moves something, and a guard only reads and decides.',
     ]);
   });
 
@@ -73,6 +75,7 @@ describe('a deciding body only reads and decides', () => {
       ['b.sprout:4:5', '`say` speaks, and a `permit` only decides.'],
       ['b.sprout:5:5', '`spawn` makes a new thing, and a `permit` only reads and decides.'],
       ['b.sprout:6:5', '`destroy self` removes something, and a `permit` only reads and decides.'],
+      ['b.sprout:7:5', '`move` moves something, and a `permit` only reads and decides.'],
     ]);
   });
 
@@ -82,13 +85,20 @@ describe('a deciding body only reads and decides', () => {
 });
 
 describe('a `do` acts', () => {
-  it('takes the writes, `say`, `spawn`, `destroy` and a `let` naming a spawn', () => {
+  it('takes the writes, `say`, `spawn`, `destroy`, `move` and a `let` naming a spawn', () => {
     expect(
       check(
-        'self.set(:inked, true)\n    say "Hi."\n    let v = spawn Vessel in self\n    if (v != self) { destroy self }',
+        'self.set(:inked, true)\n    say "Hi."\n    let v = spawn Vessel in self\n    move v to actor\n    if (v != self) { destroy self }',
         DO,
       ),
     ).toEqual([]);
+  });
+
+  it('checks a `move` as a statement, which reads a withheld tool only once it is bound', () => {
+    expect(check('move tool to self', DO)).toEqual([
+      ['b.sprout:3:10', '`tool` may be missing here.'],
+    ]);
+    expect(check('if (bound tool) { move tool to self }', DO)).toEqual([]);
   });
 
   it('refuses `refuse` and `allow`, where the deciding is done', () => {

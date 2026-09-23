@@ -1,0 +1,4 @@
+kinds.sprout:7:23  `move_to_holds_nothing.Button` holds nothing, so nothing can be moved into it.
+                   Containment is a declaration: a kind that holds things writes `contains`.
+
+refused: 1 problem

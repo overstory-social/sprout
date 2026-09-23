@@ -1,0 +1,14 @@
+world move_world: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at move_world
+
+  // The world is the root of the tree, and goes nowhere.
+  as tool for shake {
+    do { move self to target }
+  }
+}
+
+kind Visitor: sprout.Actor { }
+
+verb shake { role target  role tool  "shake [target] with [tool]" }

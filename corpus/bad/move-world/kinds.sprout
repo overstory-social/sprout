@@ -1,0 +1,4 @@
+// Something to shake the world into, if the world could go anywhere.
+kind Snowglobe {
+  contains
+}

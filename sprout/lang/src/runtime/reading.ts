@@ -8,12 +8,13 @@
 // declares its roles, and each runs every play its kind composes for that
 // role, in composition order. The consent pass runs every `permit`, only
 // reading, and the first refusal is the reading's whole outcome; the
-// effect pass then runs every `do` in the same order. What a `do` says
-// reaches the actor, or, where the actor is an NPC, whoever would hear its
-// `tell`, from it; a reading that said nothing to the actor is answered
-// with the world's `nothing_happens`. Nothing is rendered: B29 renders
-// what is said, B30 brings `tell`, B32 drains the queue, and B37 polls the
-// consent pass alone.
+// effect pass then runs every `do` in the same order. What a `do` says,
+// and the refusal of a `move` it proposes, reach the actor, or, where the
+// actor is an NPC, whoever would hear its `tell`, from it; a reading that
+// said nothing to the actor is answered with the world's
+// `nothing_happens`. What the effect pass says and sends is kept in body
+// order. Nothing is rendered: B29 renders what is said, B30 brings
+// `tell`, B32 drains the queue, and B37 polls the consent pass alone.
 
 import { isActor } from '../declare/actors.js';
 import { libraryOf } from '../declare/enums.js';
@@ -26,6 +27,7 @@ import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.
 import type { InstanceId } from './ids.js';
 import type { EngineSend, LifecycleContext } from './lifecycle.js';
 import { SproutList } from './lists.js';
+import { moveInstance, type Notice } from './move.js';
 import type { Instance, StateReader } from './state.js';
 import type { Value } from './values.js';
 
@@ -66,22 +68,37 @@ export interface PermitRefusal {
 
 /** A line said in the effect pass, unrendered. */
 export interface Said {
+  /**
+   * What the line is: said by a body, or a `move` refused, whose words
+   * are said to the actor as a refusal (the spec's Verbs › Moving something).
+   */
+  readonly effect: 'said' | 'refused';
   /** Who reads it: the actor, where a person acts; where an NPC acts, those who would hear its `tell`. */
   readonly to: readonly InstanceId[];
-  /** Whose body said it, which is `self` when it renders; the world, for `nothing_happens`. */
+  /**
+   * Whose body said it, which is `self` when it renders: for a refused
+   * move, the party whose guard refused; the world, for `nothing_happens`
+   * and for the engine's own refusal of a move.
+   */
   readonly by: InstanceId;
   /** The NPC it is heard from, where the actor is one (the spec's Acting); null where it is said to the actor. */
   readonly speaker: InstanceId | null;
   readonly said: Speech;
-  /** Every name in scope where it was said, which its slots may render. */
+  /**
+   * Every name in scope where it was said, which its slots may render;
+   * for a guard's refusal, `mover` and the guard's parameters; none for
+   * the engine's own.
+   */
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
 /** What the effect pass did, in order. */
 export interface Acted {
   readonly said: readonly Said[];
-  /** What the engine tells the world of each spawn and destroy, for B32's queue. */
+  /** What the engine tells the world of each spawn, move and destroy, for B32's queue. */
   readonly sends: readonly EngineSend[];
+  /** What the places speak of each move an actor made between two, for B29 to render. */
+  readonly notices: readonly Notice[];
   /** What destroyed itself; the queue drops every message to or from each. */
   readonly destroyed: readonly InstanceId[];
 }
@@ -155,7 +172,7 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
  * Every `do` of every participant, in the consent pass's order. A
  * participant destroyed by an earlier `do` in the pass, one of its own
  * composed plays included, does nothing more. When nothing was said to
- * the actor, the world's `nothing_happens` is.
+ * the actor, a refused move included, the world's `nothing_happens` is.
  */
 export function effectPass(reading: Reading, context: ReadingContext): Acted {
   const { draft } = context;
@@ -174,14 +191,34 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
 
   const said: Said[] = [];
   const sends: EngineSend[] = [];
+  const notices: Notice[] = [];
   const destroyed: InstanceId[] = [];
   const sink: ActSink = {
     lifecycle: context,
-    say: (spoken) => said.push({ ...spoken, to: heardBy(), speaker }),
+    say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
     sent: (more) => sends.push(...more),
     destroyed: (gone) => {
       destroyed.push(gone.id);
       sends.push(...gone.sends);
+    },
+    move: (mover, item, to) => {
+      const outcome = moveInstance(context, mover, item, to);
+      if ('refusal' in outcome) {
+        const { by, said: words, bindings } = outcome.refusal;
+        said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
+      } else if ('engine' in outcome) {
+        said.push({
+          effect: 'refused',
+          to: heardBy(),
+          by: draft.world,
+          speaker,
+          said: { text: outcome.text },
+          bindings: new Map(),
+        });
+      } else {
+        sends.push(...outcome.sends);
+        notices.push(...outcome.notices);
+      }
     },
   };
   for (const participant of participants) {
@@ -212,6 +249,7 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
       );
     }
     said.push({
+      effect: 'said',
       to: heardBy(),
       by: world.id,
       speaker,
@@ -222,7 +260,7 @@ export function effectPass(reading: Reading, context: ReadingContext): Acted {
       ]),
     });
   }
-  return { said, sends, destroyed };
+  return { said, sends, notices, destroyed };
 }
 
 /** The consent pass, then, where nobody refused, the effect pass. */

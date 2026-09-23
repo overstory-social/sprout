@@ -1,0 +1,11 @@
+world move_value: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at move_value
+}
+
+kind Visitor: sprout.Actor { }
+
+enum Topic { bridge, toll }
+
+verb enquire { role target  role topic: symbol  "enquire of [target] about [topic]" }

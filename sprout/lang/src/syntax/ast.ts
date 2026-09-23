@@ -278,6 +278,19 @@ export interface DestroyStatement extends Node {
 }
 
 /**
+ * `move target to self` — a proposal that the engine move a thing into a
+ * container, through consent, with the object whose body runs it as the
+ * mover (the spec's Verbs › Moving something).
+ */
+export interface MoveStatement extends Node {
+  readonly kind: 'move';
+  /** A binding or an identifier, or a dotted path to one: what moves. */
+  readonly thing: ObjectPath;
+  /** The same: what it goes into. */
+  readonly destination: ObjectPath;
+}
+
+/**
  * `{ … }` — statements in the order written, which run in that order and
  * are a scope of their own: a `let` in a block lives to its `}`.
  */
@@ -338,6 +351,7 @@ export type Statement =
   | LetStatement
   | SpawnStatement
   | DestroyStatement
+  | MoveStatement
   | IfStatement
   | RefuseStatement
   | AllowStatement

@@ -10,7 +10,9 @@
 // `Draft.place`, which puts the thing last in its new container. And what
 // the engine then tells the world is returned rather than queued or said:
 // the three messages for B32's queue, and the notices a place speaks for
-// B29 to render (B31 describes the place to the one who moved).
+// B29 to render (B31 describes the place to the one who moved). A move is
+// charged for what it runs, its range walks and its guards' bodies, and
+// nothing for itself: the statement that proposed it is its body's step.
 
 import { isActor } from '../declare/actors.js';
 import type { GuardName } from '../syntax/ast.js';
@@ -111,7 +113,6 @@ export function moveInstance(
   to: InstanceId,
 ): Moved | Refused {
   const { draft, catalogue, passes, budget } = context;
-  budget.spend();
 
   if (item === draft.world) {
     throw new MoveFault('world', item, 'the world is the root of the tree, and goes nowhere.');

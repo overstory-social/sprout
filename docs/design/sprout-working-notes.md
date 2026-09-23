@@ -460,6 +460,24 @@ Found while running a reading through the two passes (B24), each decided the nar
 - **What a `do` does at this level.** `let`, `if`, `spawn`, `destroy self`, the four writes, `remember` and `say`. `tell`, `move`, `send` and `act` are not yet statements the parser reads; B30, B25, B32 and B26 bring them.
 - **A world composing no `nothing_happens`.** An engine error, which B34 turns into a fault, as for the other engine passages a forked standard library leaves out.
 
+Found while building `move` (B25), each decided the narrow way and awaiting Eric:
+
+- **Whether a refused `move` ends the body.** Moving something says what happens on a refusal (nothing moves, the text is said) and not whether the body goes on. Built: it goes on, as it does after `destroy self`. This is the one most likely to need Eric: the standard library's own `take`, written as `move target to actor` then `say taken`, would say "You cannot carry any more." and then still say it was taken. The alternatives are that a refused `move` ends the `do` it stands in, or that a `move` yields whether it was made, for an `if` to read.
+- **A refusal and `nothing_happens`.** A refused move's words count as said to the actor, so a reading whose only line is a refusal is not also answered with `nothing_happens`.
+- **What effect a refusal is.** Said to the actor, marked as a refusal rather than a line a body said, in the one ordered list of what the effect pass says; B38 decides the effect's final shape.
+- **Who hears a refusal when the actor is an NPC.** Whoever would hear its `tell`, from the NPC, as its `say` lines are.
+- **What a refusal renders with.** A guard's: the refusing party as `self`, with `mover` and the guard's parameters bound; a `let` inside the guard is not carried. The engine's own ("{item} cannot go inside itself.") is fixed text from the world, with nothing bound.
+- **What a `move` costs.** One step for the statement and one for each name it evaluates, then the range walks and the guards' own statements; the move charges nothing for itself.
+- **A set or a value as the thing.** Both refused at compile, since a value is never moved and a `move` moves one thing; a set is moved one of its things at a time.
+- **An identifier on either side.** `move item to cellar` is refused as a name nothing here answers to, as a spawn's dotted container is, until identifiers inside bodies resolve (B32).
+- **`move x to x`.** The engine's refusal that a container may not hold itself, before any guard.
+- **The world as the thing.** Refused at compile where the thing is known to be the world, as `self` in the world's own body; a `MoveFault` where it is found only at run time, as `here` in a world that holds no places.
+- **A thing no longer live.** A `MoveFault`. `move self to c` before `destroy self` in one body moves, since the destroy takes effect when the body ends.
+- **"The actor if there is one."** A `move` in a handler, a tick or a wake has no actor to say a refusal to. Only a `do` reads `move` today; B32 decides.
+- **Order among a body's effects.** What its spawns, moves and destroys send, and what it says and has refused, keep the order the body did them in.
+- **`move` where a value is wanted.** `let x = move a to b` is refused once, as `spawn` and `destroy` are, with both sides stepped over.
+- **A move whose mover is not the actor.** `sprout.Actor`'s `depart` refuses when the mover is not itself, so `move actor to self` in a cart's `do` is refused by the actor; a person boards by moving themselves, in the actor's own part, as `good/move` does.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.

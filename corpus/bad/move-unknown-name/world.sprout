@@ -1,0 +1,9 @@
+world move_unknown_name: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at move_unknown_name
+}
+
+kind Visitor: sprout.Actor { }
+
+verb pull { role target  "pull [target]" }

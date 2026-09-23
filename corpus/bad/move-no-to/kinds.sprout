@@ -1,0 +1,11 @@
+// `move` says where the thing goes, after `to`.
+kind Lever {
+  contains
+
+  as target for pull {
+    do {
+      move actor into self
+      say "Clunk."
+    }
+  }
+}

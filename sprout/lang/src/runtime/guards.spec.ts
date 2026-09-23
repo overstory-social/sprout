@@ -8,6 +8,7 @@ import { compiledWorld } from '../fixtures/bundle.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { catalogueOf } from './catalogue.js';
 import { Draft } from './draft.js';
+import { boundObject } from './evaluate.js';
 import { declaredId, type InstanceId } from './ids.js';
 import { initialState } from './load.js';
 import { runGuard, type GuardContext, type Refusal } from './guards.js';
@@ -168,6 +169,11 @@ describe('how a guard ends', () => {
       by: BIN,
       origin: 'keep.Crate',
       said: { text: 'No climbing in.' },
+      bindings: new Map([
+        ['mover', boundObject(visitor)],
+        ['item', boundObject(visitor)],
+        ['from', boundObject(HALL)],
+      ]),
     });
   });
 
