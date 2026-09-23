@@ -195,7 +195,11 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Roles.** Being settled one question at a time with Eric, 2026-09-22 onward. *Settled so far:* the word for a non-target role is a tool; a verb may have no tools or no roles; a tool some phrase leaves out is optional and is read only under `if (bound x)`, with no value standing for an unbound one (the spec's Optional tools); a `symbol` tool with no `from` is never bound for that role-player and may not be read at all; every value tool is optional, since a typed value outside the offered options (*ask the guard about potatoes*) or an integer outside its range, or any value tool with no `from`, arrives unbound — which closes the first two of the three questions. *Closed 2026-09-22:* `many` on a value tool is refused at level 1; a later level may add a set of values bound as a list, all or nothing, and the four points that shape (no per-value participant, no `each` over a list, partial runs, the run-splitting rule) are the page to write then. The roles hold is lifted: B23, B24, B26 and B27 may start.
 - **Whether a withheld file changes the bundle's hash.** Deferred until the publish, share, repository and library-versioning story is settled.
 - **The register of the stock lines.** Long-term, and not a blocker.
-- **Where an object is declared.** Eric floated declaring an object inside its container's body instead of `object … in …`; not decided.
+- **Whether a world's body may be continued across files.** The world's body is one block in one file, so every object is declared in the file that declares the world, and a file holding only kinds, enums, verbs and messages needs no world. Whether a large world may split its body across files, and how, is open; so is what lenient loading makes of a world file that fails to compile, since every object is in it and the world then admits no one.
+- **Whether a kind may declare initial contents for every instance.** Not now: a kind has no instance of its own to hold objects, so an `object` in a kind's body is refused and what a thing starts holding is written in its own declaration.
+- **Contents of a destroyed object:** fall (as written) or destroyed with it; Eric prefers destroyed, pending the visitor rule (a visitor anywhere inside would then fault the destroy).
+- **`finally destroy self`**, a one-shot form whose cleanup runs after the body's sends resolve: proposed, #141.
+- **The `:entered` for what falls out of a destroyed object.** Destroying says the container receives `:entered` for each thing that fell, and that message names the destroyed object as its `from`; the same section drops every engine message that names the destroyed object as its `from`. The spec states both until Eric says which gives way.
 - **Found by the 2026-09-21 review.** A symbol literal on the left of `==` is refused by the checker; the spec now says either side, and #86 brings the code to it. *Decided 2026-09-22, now in the checker table:* an integer literal outside the other operand's range in a comparison is refused, on either side and for every comparison operator, because the answer is known before the world runs; #86 brings the code to it. An exit's `when` guard may `get` through an identifier, a `get` through one out of range is a fault, and guards run on every poll, so a poll can fault through a guard; the unset-link rule (does not apply) is the likely answer.
 
 **Decided 2026-09-23**, now in the spec:
@@ -208,12 +212,18 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - Composition is written with `is`, `kind Creature is sprout.Actor, Fragile`; the colon form is refused with the `is` form as the remedy.
 - Pending wakes per object is a host cap, 1 by default, and a `wake` past it faults as a `spawn` past live instances does.
 - A library's `version` is semver.
-- The absent table has a row for a container named in an object's `in`.
-- An object's `in` and the world's `visitors arrive at` are read from inside the world, with dotted paths for anything deeper; nearest-wins is the rule inside bodies.
-- Refused: an object inside itself or a ring of them; an `in` naming what holds nothing; the world's name as a step of a path or as an object's name; two objects of one name in one container.
+- Objects are declared inside the body of what holds them; the parse tree is the containment tree; `in` and its refusals and the `container` absent row go.
+- An identifier belongs to the body it is written in and is seen from inside it at any depth, nearest wins; a dotted path names anything deeper, and the world's `visitors arrive at`, written in the world's body, names a nested place by one.
+- Kinds stay at a file's top level and hold no objects: an `object` inside a kind's body, or at a file's top level, is refused. The world's body is one block in one file, and a file holding only kinds and enums needs no world.
+- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one body.
 - What `objects`, `places` and `kinds` count, under Static caps.
+- A `spawn` of `sprout.World`, or of a kind that composes it, is refused; so is `destroy self` in the world's own body.
+- A destroyed object has no effects: messages queued to it, messages it sent that have not been delivered, engine messages naming it as their `from`, and its pending wakes are all dropped. Its contents still fall to its container, and a visitor standing directly in a destroyed place still faults the destroy.
+- A `spawn` whose target is out of range or does not hold things when it runs is a fault, never nothing, since there is no null to bind; a spawn into the world is allowed where the world is in range.
+- The absent table has a row for a kind named in a `spawn`: the `spawn` faults when it runs.
+- The host's live-instance bound counts every instance it stores, dormant ones included.
 
-Composing with `is`, refusing arrival at the world, the shadowing warning and range's path rule differ from what is built or being built, and the code catches up.
+Composing with `is`, refusing arrival at the world, the shadowing warning, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
@@ -276,7 +286,6 @@ Found while building the state model (B16), each decided the narrow way and awai
 - **A declared object moved at run time into something now absent.** It is unreachable with its container, and is not returned to its declared container; it comes back where it was when the container does.
 - **A visitor's instance after `visitors are` changes.** Decoded against the world's current visitor kind, whatever it was made under, since a visitor records that it is a visitor and not which kind it was.
 - **An instance whose container no longer declares `contains`.** Stays where it is; nothing is moved at load.
-- **Whether dormant instances count toward the host's live-instance limit.** *Answered by B18:* they count. Decided 2026-09-23: the host's bound counts everything a world stores — the world, declared objects, spawns, visitors and dormant instances alike — since a dormant record is kept and stored like any other.
 - **Which item puts the composed world and the visitor kind into the bundle.** *Answered by B17:* `compileBundle` composes the world and resolves `visitors are`, and the bundle carries both, so the world's instance holds its composed properties and a visitor's instance decodes; each is dormant only where a loaded world admits no one for want of it.
 
 Found while building actors (B17), each decided the narrow way and awaiting Eric:
@@ -291,11 +300,10 @@ Found while building actors (B17), each decided the narrow way and awaiting Eric
 
 Found while building spawning and destroying (B18), each decided the narrow way and awaiting Eric:
 
-- **Spawning the world, and the world destroying itself.** The world model says the world can be neither spawned nor destroyed, and What it refuses does not list either. A `spawn` of a kind composing `sprout.World` is refused, at the kind, named as written (a bare `World` resolving to `sprout.World` included); so is `destroy self` in a body whose `self` composes it. Decided 2026-09-23, going into What it refuses.
 - **A spawn target of the bare object type.** Accepted at compile and checked when the spawn runs, since the worked microworld writes `spawn Sheet in here` and `here` is the object type. A target known to be a value or a set is refused, and so is one whose kind does not write `contains`.
 - **Spawning an actor.** An actor kind, or the world's visitor kind, may be spawned; the spec's Spawning names no exception.
 - **Where `spawn` and `destroy` are refused.** What it refuses forbids both in a guard, a `permit` and `describe`; the items that read those bodies (B22, B24, B31) refuse them there, with a `let` naming a spawn.
-- **The target's grammar.** `in` takes a binding or an identifier, or a dotted path to one, written without spaces around its dots as an object's `in` is — not an expression. `destroy` takes only `self`, and anything else after it is refused once.
+- **The target's grammar.** `in` takes a binding or an identifier, or a dotted path to one, written without spaces around its dots as a dotted path elsewhere is. `destroy` takes only `self`, and anything else after it is refused once.
 - **A dotted target.** Refused, as a name nothing in the body answers to, until identifiers inside bodies resolve (B32).
 - **A message naming a destroyed object as `from`.** Dropped. Decided 2026-09-23: a destroyed object takes everything pending on it with it — messages queued to or from it, engine sends naming it as `from`, and its pending wakes.
 - **The destroying body's own sends.** Dropped. Decided 2026-09-23: a destroyed object has no effects, so what it sent in the body that destroyed it goes with it.
