@@ -8,13 +8,16 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Literal } from '../../ast.js';
-import { parseProperty } from '../../parse.js';
+import { parseDeclarations, parseProperty } from '../../parse.js';
 import { chooser } from '../../../fixtures/parse.js';
 import {
   contained,
   defectiveProperty,
   explained,
+  memberNames,
   OVER_CAP,
+  ownedBy,
+  OWNERS,
   reading,
   stoppedShort,
   stray,
@@ -41,6 +44,21 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       }
     }
     expect(reached.keys()).toEqual(SORTS);
+  });
+
+  it('an unclosed list default, directly before a well-formed member, keeps that member', () => {
+    // No `]` anywhere: the hunt for one stops at the next member's own
+    // `:symbol` rather than reading past it, so `bravo` survives and the
+    // body still closes at its own `}`.
+    for (const owner of OWNERS) {
+      const text = `${owner.open}\n  :faulty [oak\n  :bravo 1\n}\n`;
+      const { result, said } = reading(text, parseDeclarations);
+      expect(ownedBy(owner, result)?.members.flatMap(memberNames), text).toEqual(['bravo']);
+      expect(
+        said.map((d) => d.message),
+        text,
+      ).toEqual(['This list is never closed.']);
+    }
   });
 
   /**

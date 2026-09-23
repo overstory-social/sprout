@@ -1,0 +1,11 @@
+// An unclosed `:remembers` must not swallow the member written after it,
+// or the body's own closing brace.
+world remembers_unclosed_before_member: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+  :remembers [echo: 0
+  :greeting "hello"
+}
+
+kind Creature: sprout.Actor { }
+object hall: sprout.Place in remembers_unclosed_before_member

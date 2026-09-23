@@ -375,7 +375,7 @@ export function generatedRemembers(c: Chooser, names: readonly string[]) {
 
 /** One defective world member, of any kind a world holds, or text between two members. */
 export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
-  const roll = c.below(10);
+  const roll = c.below(12);
   if (roll <= 3) return defectiveProperty(c, 'member');
   if (roll <= 5) return generatedRemembers(c, ['echo']);
   if (roll === 6) {
@@ -409,6 +409,20 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
     return { text, defect: contained(text) };
   }
   if (roll === 8) return boundLeavingNothingAfter(c);
+  if (roll === 9) {
+    // A list default with no `]` anywhere, immediately before the body's
+    // own `}` or the next member: the hunt for its close stops at
+    // either rather than reading past them, so the neighbour that
+    // follows is always kept (`bodies.spec.ts` checks this directly,
+    // beyond what `unclosed`'s own weaker rule requires).
+    const text = ':faulty [oak';
+    return { text, defect: unclosed(text) };
+  }
+  if (roll === 10) {
+    // The same for a `:remembers` with no `]` anywhere.
+    const text = ':remembers [faulty: 0';
+    return { text, defect: unclosed(text) };
+  }
   // A word that starts a declaration ends the world as never closed, and
   // what follows is the file's: see `FOLLOWING` and `closedByWhatFollows`.
   if (c.below(4) === 0) return { text: 'enum', defect: unclosed('enum') };
