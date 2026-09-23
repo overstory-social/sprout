@@ -3,3 +3,5 @@ world default_option_capitalised: sprout.World {
   visitors arrive at hall
   :ward Ward.Iron
 }
+
+kind Creature: sprout.Actor { }

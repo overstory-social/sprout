@@ -18,8 +18,9 @@ import { placeObjects } from './tree.js';
 import {
   arrivalOf,
   checkWorldDeclaration,
+  composeWorld,
   resolveArrival,
-  resolveWorld,
+  resolveVisitors,
   WORLD_PASSES_ANYTHING,
 } from './world.js';
 
@@ -41,8 +42,8 @@ const ENUMS = (() => {
 /** The kinds a world here may compose, by library, which must compose cleanly. */
 const LIBRARIES: Readonly<Record<string, string>> = {
   sprout: 'kind World { }\nkind Actor { }\nkind Container { :open true }',
-  printers_shop: 'kind Creature: sprout.Actor { }',
-  victorian: 'kind Voice { :formal true }\nkind Lamp { :open true }',
+  printers_shop: 'kind Creature: sprout.Actor { }\nkind Hall { contains actors }',
+  victorian: 'kind Voice { :formal true }\nkind Lamp { :open true }\nkind Gent: sprout.Actor { }',
 };
 
 /** Every kind in `libraries`, composed. */
@@ -64,7 +65,10 @@ function kindsOf(libraries: Readonly<Record<string, string>> = LIBRARIES): KindS
 }
 const KINDS = kindsOf();
 
-/** Read a world and work out what it declares. The parse must succeed. */
+/**
+ * Read a world, compose it and read what its visitors are made of. The
+ * parse must succeed.
+ */
 function world(text: string, kinds: KindSource = KINDS) {
   const parsing = new Diagnostics();
   const declared = parseDeclarations(new SourceFile('w.sprout', text), parsing).find(
@@ -75,8 +79,17 @@ function world(text: string, kinds: KindSource = KINDS) {
     `\`${text}\` did not parse`,
   ).toEqual([]);
   const diagnostics = new Diagnostics();
-  const resolved = resolveWorld(declared!, ENUMS, kinds, 'printers_shop', diagnostics);
-  return { resolved, said: diagnostics.refusals.map((d) => d.message), diagnostics };
+  const context = { enums: ENUMS, kinds, from: 'printers_shop', diagnostics };
+  const kind = composeWorld(declared!, context);
+  const visitors = resolveVisitors(declared!, context);
+  return {
+    kind,
+    visitors,
+    visitor: visitors.found === 'kind' ? visitors.kind : null,
+    said: diagnostics.refusals.map((d) => d.message),
+    diagnostics,
+    declared: declared!,
+  };
 }
 
 const SHOP = `world printers_shop: sprout.World {
@@ -87,42 +100,42 @@ const SHOP = `world printers_shop: sprout.World {
 
 describe('a world is the root of the one tree', () => {
   it('reads the spec’s own world', () => {
-    const { resolved, said } = world(SHOP);
+    const { kind, visitor, said } = world(SHOP);
     expect(said).toEqual([]);
-    expect(resolved!.name).toBe('printers_shop');
-    expect(kindName(resolved!.visitor)).toBe('printers_shop.Creature');
-    expect([...resolved!.kind.properties.keys()]).toEqual(['season']);
+    expect(kind!.name).toBe('printers_shop');
+    expect(kindName(visitor!)).toBe('printers_shop.Creature');
+    expect([...kind!.properties.keys()]).toEqual(['season']);
   });
 
   it('holds what belongs to no single place, by the ordinary property rules', () => {
-    const { resolved } = world(SHOP);
-    expect(resolved!.kind.properties.get('season')!.type).toMatchObject({ type: 'symbol' });
-    expect(resolved!.kind.properties.get('season')!.remembered).toBe(false);
+    const { kind } = world(SHOP);
+    expect(kind!.properties.get('season')!.type).toMatchObject({ type: 'symbol' });
+    expect(kind!.properties.get('season')!.remembered).toBe(false);
     // The world's own body is the origin of what it declares.
-    expect(resolved!.kind.properties.get('season')!.origin).toBe('printers_shop.printers_shop');
+    expect(kind!.properties.get('season')!.origin).toBe('printers_shop.printers_shop');
   });
 
   it('remembers about each actor, in the same syntax as anything else', () => {
-    const { resolved, said } = world(`world w: sprout.World { :remembers [seen: false]
+    const { kind, said } = world(`world w: sprout.World { :remembers [seen: false]
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual([]);
-    expect(resolved!.kind.properties.get('seen')!.remembered).toBe(true);
+    expect(kind!.properties.get('seen')!.remembered).toBe(true);
   });
 
   it('refuses to hold one property twice, and keeps the first', () => {
-    const { resolved, said } = world(`world w: sprout.World { :a false
+    const { kind, said } = world(`world w: sprout.World { :a false
   :a true
   visitors are Creature
   visitors arrive at y }`);
     expect(said.join(' ')).toContain('holds `:a` twice');
-    expect(resolved!.kind.properties.get('a')!.declaration.default).toMatchObject({ value: false });
+    expect(kind!.properties.get('a')!.declaration.default).toMatchObject({ value: false });
   });
 });
 
 describe('every world writes `sprout.World`', () => {
-  it('and is refused at its name where it does not', () => {
-    const { said, diagnostics } = world(`world w {
+  it('and is refused at its name where it does not, and not composed', () => {
+    const { kind, said, diagnostics } = world(`world w {
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual(['`w` does not compose `sprout.World`.']);
@@ -132,6 +145,7 @@ describe('every world writes `sprout.World`', () => {
     // At the name, which is what the sentence is about — not at a
     // composition list that is not there to point at.
     expect(diagnostics.refusals[0]!.at.start).toBe('world '.length);
+    expect(kind).toBeNull();
   });
 
   it('with the library named, because `World` on its own is another kind', () => {
@@ -145,9 +159,9 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('and composes exactly what it wrote, itself last', () => {
-    const { resolved, said } = world(SHOP);
+    const { kind, said } = world(SHOP);
     expect(said).toEqual([]);
-    expect(resolved!.kind.order).toEqual([WORLD, 'printers_shop.printers_shop']);
+    expect(kind!.order).toEqual([WORLD, 'printers_shop.printers_shop']);
   });
 
   it('in the order written, `sprout.World` among the rest', () => {
@@ -164,30 +178,50 @@ describe('every world writes `sprout.World`', () => {
         [WORLD, 'victorian.Voice', 'printers_shop.w'],
       ],
     ] as const) {
-      const { resolved, said } = world(written);
+      const { kind, said } = world(written);
       expect(said, written).toEqual([]);
-      expect(resolved!.kind.order, written).toEqual(order);
+      expect(kind!.order, written).toEqual(order);
     }
   });
 
   it('beside whatever else it composes — a library of stock lines in another register', () => {
-    const { resolved, said } = world(`world printers_shop: sprout.World, victorian.Voice {
+    const { kind, said } = world(`world printers_shop: sprout.World, victorian.Voice {
   visitors are Creature
   visitors arrive at composing_room }`);
     expect(said).toEqual([]);
-    expect(resolved!.kind.composes.has('victorian.Voice')).toBe(true);
+    expect(kind!.composes.has('victorian.Voice')).toBe(true);
     // What it composes brings its properties, from their own origin.
-    expect(resolved!.kind.properties.get('formal')!.origin).toBe('victorian.Voice');
+    expect(kind!.properties.get('formal')!.origin).toBe('victorian.Voice');
   });
 
   it('refuses a kind nothing declares, and still says what else is wrong', () => {
-    const { resolved, said } = world(`world w: sprout.World, nope.Voice {
+    const { kind, said } = world(`world w: sprout.World, nope.Voice {
   visitors arrive at y }`);
     expect(said[0]).toContain('Nothing here is a `nope.Voice`');
-    // An author owed three problems is owed all three. The world itself
-    // cannot be made of a kind that is not there, as no kind can.
+    // An author owed two problems is owed both. The world itself cannot
+    // be made of a kind that is not there, as no kind can.
     expect(said[1]).toBe('`w` does not say what a visitor is.');
-    expect(resolved).toBeNull();
+    expect(kind).toBeNull();
+  });
+
+  it('tells a compile of a kind nothing declares, rather than refusing it', () => {
+    const parsing = new Diagnostics();
+    const [declared] = parseDeclarations(
+      new SourceFile('w.sprout', 'world w: sprout.World, Nope { visitors are Creature }'),
+      parsing,
+    ) as WorldDeclaration[];
+    const diagnostics = new Diagnostics();
+    const told: string[] = [];
+    const kind = composeWorld(declared!, {
+      enums: ENUMS,
+      kinds: KINDS,
+      from: 'printers_shop',
+      diagnostics,
+      onUnknown: (written, message) => told.push(`${textOf(written.at)}: ${message}`),
+    });
+    expect(kind).toBeNull();
+    expect(diagnostics.all).toEqual([]);
+    expect(told).toEqual(['Nope: Nothing here is a `Nope`.']);
   });
 
   it('refuses the same kind twice', () => {
@@ -205,11 +239,21 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('says so plainly when the standard library has no `World` to compose', () => {
-    const without = kindsOf({ ...LIBRARIES, sprout: 'kind Actor { }' });
+    const without = kindsOf({ ...LIBRARIES, sprout: 'kind Actor { }\nkind Container { }' });
     const { said } = world(SHOP, without);
     // The author wrote the right thing, so the problem is the library
     // rather than the sentence they typed.
-    expect(said.join(' ')).toContain('missing `sprout.World`');
+    expect(said.join(' ')).toContain('The standard library is missing `sprout.World`.');
+  });
+
+  it('names the library where the world does not use `sprout` at all', () => {
+    const without = kindsOf({ printers_shop: 'kind Creature { }' });
+    const { diagnostics } = world(SHOP, without);
+    expect(diagnostics.refusals.map((d) => [textOf(d.at), d.message, d.remedy])[0]).toEqual([
+      'sprout.World',
+      '`sprout.World` is not here, because the library `sprout` is not.',
+      "Every world composes `sprout.World` from the library `sprout`: name it among the manifest's libraries and vendor it with the world, as `sprout init` does.",
+    ]);
   });
 });
 
@@ -248,20 +292,17 @@ describe('a world composes like a kind', () => {
     );
 
   it('refuses a property from two origins, as a kind is refused', () => {
-    const { resolved, said } = opened('sprout.World, sprout.Container, victorian.Lamp');
+    const { kind, said } = opened('sprout.World, sprout.Container, victorian.Lamp');
     expect(said).toEqual([
       '`w` gets `:open` from both `sprout.Container` and `victorian.Lamp`, which are two claims on one slot.',
     ]);
-    expect(resolved).not.toBeNull();
+    expect(kind).not.toBeNull();
   });
 
   it('takes its own restatement as the one property, with the world as its origin', () => {
-    const { resolved, said } = opened(
-      'sprout.World, sprout.Container, victorian.Lamp',
-      ':open false',
-    );
+    const { kind, said } = opened('sprout.World, sprout.Container, victorian.Lamp', ':open false');
     expect(said).toEqual([]);
-    expect(resolved!.kind.properties.get('open')!.origin).toBe('printers_shop.w');
+    expect(kind!.properties.get('open')!.origin).toBe('printers_shop.w');
   });
 
   it('reads `without` by the same rules, `sprout.World` among what it composes', () => {
@@ -274,53 +315,133 @@ describe('a world composes like a kind', () => {
   });
 });
 
-describe('a world says what a person is, and where they begin', () => {
+describe('a world says what its visitors are made of: a kind of its own that is an actor', () => {
+  /** What `visitors are <written>` finds, and everything said about it, with where. */
+  const naming = (written: string, kinds: KindSource = KINDS) => {
+    const found = world(
+      `world w: sprout.World {\n  visitors are ${written}\n  visitors arrive at y\n}`,
+      kinds,
+    );
+    return {
+      ...found,
+      told: found.diagnostics.refusals.map((d) => [textOf(d.at), d.message, d.remedy]),
+    };
+  };
+
   it('names the visitor kind, which is an ordinary kind', () => {
-    const { resolved } = world(SHOP);
+    const { visitor, said } = world(SHOP);
+    expect(said).toEqual([]);
     // `item.is(sprout.Actor)` stays a nominal test rather than a name
     // the engine knows, so the visitor kind composes it like anything.
-    expect(resolved!.visitor.composes.has('sprout.Actor')).toBe(true);
+    expect(visitor!.composes.has('sprout.Actor')).toBe(true);
   });
 
-  it('refuses a world that does not say what a visitor is', () => {
-    const { resolved, said } = world('world w: sprout.World { visitors arrive at y }');
-    expect(resolved).toBeNull();
-    expect(said).toEqual(['`w` does not say what a visitor is.']);
+  it('refuses a world that does not say what a visitor is, at its name', () => {
+    const { visitors, diagnostics } = world('world w: sprout.World { visitors arrive at y }');
+    expect(visitors).toEqual({ found: 'refused' });
+    expect(diagnostics.refusals.map((d) => [textOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'w',
+        '`w` does not say what a visitor is.',
+        "Write `visitors are <Kind>`, naming a kind of the world's own that composes `sprout.Actor`.",
+      ],
+    ]);
   });
 
-  it('refuses a world that does not say where a visitor arrives', () => {
-    const { resolved, said } = world('world w: sprout.World { visitors are Creature }');
-    expect(resolved).toBeNull();
-    expect(said).toEqual(['`w` does not say where a visitor arrives.']);
+  it('says nothing about where visitors arrive, which is `arrivalOf`’s', () => {
+    expect(world('world w: sprout.World { visitors are Creature }').said).toEqual([]);
   });
 
-  it('owes both sentences to a world that says neither', () => {
-    const { resolved, said } = world('world w: sprout.World { :a false }');
-    expect(resolved).toBeNull();
-    expect(said).toHaveLength(2);
-  });
-
-  it('refuses a visitor kind nothing declares, and says which sentence is missing', () => {
-    const { resolved, said } = world(`world w: sprout.World { visitors are Nope
+  it('refuses saying it twice at the second, and reads the first', () => {
+    const { visitor, said } = world(`world w: sprout.World { visitors are Creature
+  visitors are Hall
   visitors arrive at y }`);
-    expect(resolved).toBeNull();
-    expect(said[0]).toBe('Nothing here is a `Nope`.');
-    // Not "does not say what a visitor is" — it said, and the kind is
-    // what is missing.
-    expect(said[1]).toContain('does not say what its visitors are made of');
+    expect(said).toEqual(['`w` says twice what its visitors are.']);
+    expect(kindName(visitor!)).toBe('printers_shop.Creature');
   });
 
-  it('refuses saying either of them twice, and keeps the first', () => {
-    const twiceAre = world(`world w: sprout.World { visitors are Creature
-  visitors are Creature
-  visitors arrive at y }`);
-    expect(twiceAre.said.join(' ')).toContain('says twice what its visitors are');
+  it('refuses a kind that is not an actor, at the kind written', () => {
+    const { visitors, told } = naming('Hall');
+    expect(visitors).toEqual({ found: 'refused' });
+    expect(told).toEqual([
+      [
+        'Hall',
+        "`Hall` is not an actor, and a world's visitors are made of one.",
+        'Write `kind Visitor: sprout.Actor { … }` and `visitors are Visitor`, or name a kind that composes `sprout.Actor`.',
+      ],
+    ]);
+  });
 
-    const twiceAt = world(`world w: sprout.World { visitors are Creature
-  visitors arrive at first
-  visitors arrive at second }`);
-    expect(twiceAt.said).toEqual(['`w` says twice where its visitors arrive.']);
-    expect(twiceAt.resolved).not.toBeNull();
+  it('refuses `sprout.Actor` itself, and any library’s kind, as not the world’s own', () => {
+    expect(naming('sprout.Actor').told).toEqual([
+      [
+        'sprout.Actor',
+        "`sprout.Actor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.",
+        'Declare one that composes `sprout.Actor`, as `kind Visitor: sprout.Actor { … }`, and write `visitors are Visitor`.',
+      ],
+    ]);
+    // A library's actor is composed into the world's own kind, not named.
+    expect(naming('victorian.Gent').told).toEqual([
+      [
+        'victorian.Gent',
+        "`victorian.Gent` belongs to the library `victorian`. A world's visitors are made of a kind of its own.",
+        'Declare one that composes `victorian.Gent`, as `kind Visitor: victorian.Gent { … }`, and write `visitors are Visitor`.',
+      ],
+    ]);
+    // One that is not an actor either is told the one thing that fixes both.
+    expect(naming('victorian.Voice').told[0]![2]).toBe(
+      'Declare one that composes `sprout.Actor`, as `kind Visitor: sprout.Actor { … }`, and write `visitors are Visitor`.',
+    );
+  });
+
+  it('gives a kind nothing declares to the caller as a gap, saying nothing itself', () => {
+    const { visitors, said } = naming('Nope');
+    expect(said).toEqual([]);
+    expect(visitors).toMatchObject({
+      found: 'absent',
+      what: 'Nope',
+      message: 'Nothing here is a `Nope`.',
+      remedy:
+        'Declare it with `kind Nope: sprout.Actor { … }`, or check the spelling of a kind this world or a library it uses declares.',
+      said: false,
+    });
+    if (visitors.found === 'absent') expect(textOf(visitors.at)).toBe('Nope');
+  });
+
+  it('guesses at a misspelling, and suggests declaring an actor', () => {
+    expect(naming('Creture').visitors).toMatchObject({
+      found: 'absent',
+      message: 'Nothing here is a `Creture`. Did you mean `Creature`?',
+      remedy: 'Write `Creature`, or declare `Creture` with `kind Creture: sprout.Actor { … }`.',
+    });
+  });
+
+  it('calls a kind that could not be composed absent, and already told', () => {
+    const parsing = new Diagnostics();
+    const table = new KindTable();
+    table.add(
+      'printers_shop',
+      parseDeclarations(
+        new SourceFile('k.sprout', 'kind Creature: sprout.Actor, Nope { }'),
+        parsing,
+      ).filter((d): d is KindDeclaration => d.kind === 'kind'),
+      parsing,
+    );
+    table.add(
+      'sprout',
+      parseDeclarations(
+        new SourceFile('s.sprout', 'kind World { }\nkind Actor { }'),
+        parsing,
+      ).filter((d): d is KindDeclaration => d.kind === 'kind'),
+      parsing,
+    );
+    table.resolve(ENUMS, new Diagnostics(), () => {});
+    expect(naming('Creature', table).visitors).toMatchObject({
+      found: 'absent',
+      what: 'Creature',
+      message: '`Creature` is absent, so there is nothing for a visitor to be made of.',
+      said: true,
+    });
   });
 });
 
@@ -646,15 +767,11 @@ describe('containment is a declaration, and a place is whatever holds actors', (
    * composing a `sprout.World` that here declares nothing of its own.
    */
   function holding(...lines: string[]) {
-    const { resolved, said } = world(
+    const { kind, said } = world(
       `world printers_shop: sprout.World {\n${lines.map((l) => `  ${l}`).join('\n')}\n` +
         '  visitors are Creature\n  visitors arrive at composing_room\n}',
     );
-    return {
-      said,
-      contains: resolved?.kind.contains,
-      containsActors: resolved?.kind.containsActors,
-    };
+    return { said, contains: kind?.contains, containsActors: kind?.containsActors };
   }
 
   it('holds nothing unless it or something it composes says so', () => {
@@ -667,11 +784,14 @@ describe('containment is a declaration, and a place is whatever holds actors', (
   });
 
   it('holds what `sprout.World` holds, which is how every world holds its places', () => {
-    const kinds = kindsOf({ ...LIBRARIES, sprout: 'kind World { contains }\nkind Actor { }' });
-    const { resolved, said } = world(SHOP, kinds);
+    const kinds = kindsOf({
+      ...LIBRARIES,
+      sprout: 'kind World { contains }\nkind Actor { }\nkind Container { :open true }',
+    });
+    const { kind, said } = world(SHOP, kinds);
     expect(said).toEqual([]);
-    expect(resolved!.kind.contains).toBe(true);
-    expect(resolved!.kind.containsActors).toBe(false);
+    expect(kind!.contains).toBe(true);
+    expect(kind!.containsActors).toBe(false);
   });
 
   it('holds others where it declares `contains`', () => {
@@ -726,7 +846,6 @@ describe('containment is a declaration, and a place is whatever holds actors', (
 describe('the world refuses to pass, which is why places cannot reach one another', () => {
   it('passes nothing unless it says otherwise', () => {
     expect(WORLD_PASSES_ANYTHING).toBe(false);
-    expect(world(SHOP).resolved!.passesAnything).toBe(false);
   });
 
   it('is a default of the language, not a number a host sets', () => {

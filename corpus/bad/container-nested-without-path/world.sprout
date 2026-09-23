@@ -2,3 +2,5 @@ world container_nested_without_path: sprout.World {
   visitors are Creature
   visitors arrive at kiln
 }
+
+kind Creature: sprout.Actor { }

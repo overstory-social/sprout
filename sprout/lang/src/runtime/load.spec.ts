@@ -61,8 +61,9 @@ describe('a new world is an empty store, loaded', () => {
     });
   });
 
-  it('creates every declared object whose kind composed, at its defaults, in declared order', () => {
+  it('creates the world and every declared object whose kind composed, at its defaults, in declared order', () => {
     expect(loaded.created).toEqual([
+      published.world,
       id('hall'),
       id('yard'),
       id('hall', 'shelf'),
@@ -79,10 +80,19 @@ describe('a new world is an empty store, loaded', () => {
     expect(jar.made).toEqual({ from: 'declared' });
   });
 
-  it('keeps the world as an empty record while the bundle carries no world kind', () => {
-    expect(loaded.state.instances.has(published.world)).toBe(false);
-    expect(loaded.dormant).toEqual([published.world]);
-    expect(loaded.state.dormant.get(published.world)).toEqual(
+  it('makes the world an instance of what it composes, holding its properties at the root', () => {
+    const world = loaded.state.instances.get(published.world)!;
+    expect(world.kind).toBe(published.worldKind);
+    expect(Object.fromEntries(world.properties)).toEqual({ open: true });
+    expect(world.container).toBeNull();
+    expect(loaded.dormant).toEqual([]);
+  });
+
+  it('keeps the world as an empty record where the bundle has no world kind', () => {
+    const closed = loadWorld(emptyWorld(published.world), { ...published, worldKind: null });
+    expect(closed.state.instances.has(published.world)).toBe(false);
+    expect(closed.dormant).toEqual([published.world]);
+    expect(closed.state.dormant.get(published.world)).toEqual(
       record({ id: 'printers_shop', made: { from: 'world' }, container: null }),
     );
   });
@@ -372,8 +382,8 @@ describe('visitors and the world', () => {
   ];
   const store: StoredWorld = { ...storing(fresh(), [marta], 1), visitors };
 
-  it('keeps a visitor’s instance dormant while the bundle carries no visitor kind, and their record', () => {
-    const loaded = loadWorld(store, published);
+  it('keeps a visitor’s instance dormant where the bundle has no visitor kind, and their record', () => {
+    const loaded = loadWorld(store, { ...published, visitorKind: null });
     expect(loaded.dormant).toContain(minted(1));
     expect(loaded.state.visitors.get(visitKey('v-1'))).toEqual({
       visit: 'v-1',
@@ -384,13 +394,13 @@ describe('visitors and the world', () => {
   });
 
   it('decodes a visitor’s instance against the visitor kind', () => {
-    const catalogue: Catalogue = {
-      ...published,
-      visitorKind: published.kinds.get('printers_shop.Person')!,
-    };
-    const instance = loadWorld(store, catalogue).state.instances.get(minted(1))!;
-    expect(instance.kind).toBe(catalogue.visitorKind);
+    const loaded = loadWorld(store, published);
+    const instance = loaded.state.instances.get(minted(1))!;
+    expect(instance.kind).toBe(published.visitorKind);
     expect(instance.properties.get('score')).toBe(4);
+    // What `sprout.Actor` declares arrives with it, at its default.
+    expect(instance.properties.get('capacity')).toBe(8);
+    expect(loaded.dormant).toEqual([]);
   });
 
   it('keeps a visitor whose place and last place are gone', () => {
@@ -403,7 +413,7 @@ describe('visitors and the world', () => {
     expect(loaded.state.visitors.get(visitKey('v-1'))!.lastPlace).toBe(id('yard', 'kiln'));
   });
 
-  it('makes the world an instance of the world kind when there is one, at the tree’s root', () => {
+  it('makes the world an instance of whatever world kind the catalogue has, at the tree’s root', () => {
     const catalogue: Catalogue = {
       ...published,
       worldKind: published.kinds.get('printers_shop.Room')!,
@@ -419,10 +429,7 @@ describe('visitors and the world', () => {
   });
 
   it('keeps the world at the root whatever its record says', () => {
-    const catalogue: Catalogue = {
-      ...published,
-      worldKind: published.kinds.get('printers_shop.Room')!,
-    };
+    const catalogue = published;
     const misplaced = record({ id: 'printers_shop', made: { from: 'world' }, arrival: 1 });
     const world = loadWorld(storing(fresh(), [misplaced], 1), catalogue).state.instances.get(
       catalogue.world,
@@ -438,7 +445,8 @@ describe('visitors and the world', () => {
       container: null,
       lastTick: 5,
     });
-    const loaded = loadWorld(storing(fresh(), [world]), published);
+    const closed: Catalogue = { ...published, worldKind: null };
+    const loaded = loadWorld(storing(fresh(), [world]), closed);
     expect(stored(saveWorld(loaded.state), 'printers_shop')).toEqual(world);
   });
 });
@@ -460,6 +468,7 @@ describe('what a store holds, and in what order, never changes what loads', () =
             memory: { 'printers_shop#1': { seen: { type: 'boolean', value: true } } },
           }),
           record({ id: 'printers_shop#1', made: { from: 'visitor' }, arrival: 1 }),
+          record({ id: 'printers_shop#3', made: { from: 'visitor' }, arrival: 2 }),
           record({
             id: 'printers_shop#2',
             made: { from: 'spawned', kind: 'printers_shop.Jar' },
@@ -475,7 +484,7 @@ describe('what a store holds, and in what order, never changes what loads', () =
         4,
       ),
       visitors: [
-        { visit: 'v-2', nickname: 'Ann', instance: 'printers_shop#1', lastPlace: null },
+        { visit: 'v-2', nickname: 'Ann', instance: 'printers_shop#3', lastPlace: null },
         { visit: 'v-1', nickname: 'Marta', instance: 'printers_shop#1', lastPlace: null },
       ],
     }) satisfies StoredWorld;

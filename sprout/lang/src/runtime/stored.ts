@@ -127,7 +127,8 @@ const FORM_OF: Readonly<Record<StoredMade['from'], 'world' | 'declared' | 'minte
 /**
  * A stored world, checked: every id is one of this world's forms and
  * agrees with how its instance was made, no serial is past the world's,
- * and no id or visit is stored twice.
+ * no id or visit is stored twice, and visitor records and the instances
+ * made for visitors pair one to one.
  */
 export const StoredWorldSchema: z.ZodType<StoredWorld> = z
   .object({
@@ -175,14 +176,40 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
       for (const actor of Object.keys(instance.memory)) anId([...at, 'memory', actor], actor);
     });
 
+    // A visitor is one person and one instance: each record names an
+    // instance made for a visitor, no two name the same one, and no such
+    // instance is kept without the record that says whose it is.
+    const made = new Map(stored.instances.map((instance) => [instance.id, instance.made.from]));
     const visits = new Set<string>();
+    const named = new Set<string>();
     stored.visitors.forEach((visitor, v) => {
       const at = ['visitors', v];
       if (visits.has(visitor.visit))
         issue([...at, 'visit'], `visit \`${visitor.visit}\` is stored twice.`);
       visits.add(visitor.visit);
       anId([...at, 'instance'], visitor.instance);
+      const from = made.get(visitor.instance);
+      if (from === undefined) {
+        issue([...at, 'instance'], `\`${visitor.instance}\` is not a stored instance.`);
+      } else if (from !== 'visitor') {
+        issue(
+          [...at, 'instance'],
+          `\`${visitor.instance}\` is made from ${from}, and a visitor's instance is made from visitor.`,
+        );
+      }
+      if (named.has(visitor.instance)) {
+        issue([...at, 'instance'], `\`${visitor.instance}\` is named by two visitors.`);
+      }
+      named.add(visitor.instance);
       if (visitor.lastPlace !== null) anId([...at, 'lastPlace'], visitor.lastPlace);
+    });
+    stored.instances.forEach((instance, i) => {
+      if (instance.made.from === 'visitor' && !named.has(instance.id)) {
+        issue(
+          ['instances', i, 'made'],
+          `\`${instance.id}\` is made from visitor, and no visitor is stored for it.`,
+        );
+      }
     });
   });
 

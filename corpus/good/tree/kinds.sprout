@@ -8,6 +8,4 @@ kind Chest {
 
 kind Thing { }
 
-kind Creature {
-  contains
-}
+kind Creature: sprout.Actor { }

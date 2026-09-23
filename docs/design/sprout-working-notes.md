@@ -242,7 +242,7 @@ Found while building composition (B19), each decided the narrow way and awaiting
 - **An object's anonymous kind.** Named for the object, in the world's library, and the origin of what its body declares.
 - **A kind composing one that is absent at load.** It is not composed and its body is not read; the objects made of it are absent with no gap of their own beyond the `kind-in-composition` one.
 - **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. No kind declares any of those members yet, so every `without` is refused with "has no … to leave out" until B22 reads guards.
-- **Where a library lives on disk.** Still unspecified for any library's vendored copy in a world folder, so the CLI reads none from one. The CLI carries the standard library itself and sends it whenever the manifest names `sprout`, and `sprout init` pins it; the world is not yet resolved in `compileBundle`, and B17 resolves it next.
+- **Where a library lives on disk.** Still unspecified for any library's vendored copy in a world folder, so the CLI reads none from one. The CLI carries the standard library itself and sends it whenever the manifest names `sprout`, and `sprout init` pins it.
 
 Found while building identifier scope (B14), each decided the narrow way and awaiting Eric:
 
@@ -277,11 +277,17 @@ Found while building the state model (B16), each decided the narrow way and awai
 - **A visitor's instance after `visitors are` changes.** Decoded against the world's current visitor kind, whatever it was made under, since a visitor records that it is a visitor and not which kind it was.
 - **An instance whose container no longer declares `contains`.** Stays where it is; nothing is moved at load.
 - **Whether dormant instances count toward the host's live-instance limit.** B18's, with `spawn`.
-- **Which item puts the composed world and the visitor kind into the bundle.** Open. Until one does, the world instance has no properties (its record is kept dormant, empty at first) and visitors' instances are dormant.
+- **Which item puts the composed world and the visitor kind into the bundle.** *Answered by B17:* `compileBundle` composes the world and resolves `visitors are`, and the bundle carries both, so the world's instance holds its composed properties and a visitor's instance decodes; each is dormant only where a loaded world admits no one for want of it.
 
 Found while building actors (B17), each decided the narrow way and awaiting Eric:
 
-- **How the standard library travels.** From the CLI as one known copy, blessed, and pinned by `sprout init`; every manifest names it, and one that does not will be refused for a missing `sprout.World` once `compileBundle` composes the world.
+- **How the standard library travels.** From the CLI as one known copy, blessed, and pinned by `sprout init`; every manifest names it, and one that does not is refused for a missing `sprout.World`, with a remedy that names the library.
+- **What visitors are made of.** The visitor kind must compose `sprout.Actor` and be the world's own kind. `visitors are Hall`, where `Hall` is not an actor, is refused at the kind; so are `visitors are sprout.Actor` and any other library's kind, since the world's own kind is where "whatever this story needs a person to have" is written.
+- **A visitor kind absent at load.** The absent table has no row for it. It is treated as the `world` row's consequence: the world admits no one, and the gap is recorded under `world`. At publish it is refused, and not said while one of the world's own files was refused at the first tier, as for the arrival place. So is a kind the world composes that nothing declares. Proposed as a row, or as part of the `world` row's wording.
+- **Where an NPC may be declared.** An NPC needs no place among its ancestors, and an actor may be declared inside something that does not hold actors (a cat in a basket); both are accepted, since where an actor may be moved is B22's and B42's.
+- **Erasing what the world remembers about a visitor.** Not built: the spec gives only the memory panel, which lists everything every object remembers about an actor, dormant objects included, and only what was written, a remembered property never written about them reading as its default. Whether a visitor may erase it, and how, is open.
+- **An actor that is not an NPC.** Whether an object composing `sprout.Actor` but not the visitor kind is an actor that cannot `act` is open; `isNpc` answers only whether an object composes the visitor kind.
+- **`sprout.Actor` has no guards or relays yet.** Until B22 and B32 land, it declares no `depart`, `release` or `accept` and no `pass any (false)`, so a pocket is visible: what a visitor carries is in range of the people beside them.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

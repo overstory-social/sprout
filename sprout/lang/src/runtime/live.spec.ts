@@ -55,9 +55,12 @@ describe('what is live', () => {
   const PERSON = catalogue.kinds.get('printers_shop.Person')!;
 
   it('is always the world, which is the root whether or not it is decoded', () => {
-    const reader = readerOf(initialState(catalogue));
-    expect(reader.instance(reader.world)).toBeUndefined();
-    expect(isLive(reader, reader.world)).toBe(true);
+    const decoded = readerOf(initialState(catalogue));
+    expect(decoded.instance(decoded.world)).toBeDefined();
+    expect(isLive(decoded, decoded.world)).toBe(true);
+    const dormant = readerOf(initialState({ ...catalogue, worldKind: null }));
+    expect(dormant.instance(dormant.world)).toBeUndefined();
+    expect(isLive(dormant, dormant.world)).toBe(true);
   });
 
   it('is nothing that is not there', () => {

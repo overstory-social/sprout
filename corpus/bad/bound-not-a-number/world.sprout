@@ -3,3 +3,5 @@ world bound_not_a_number: sprout.World {
   visitors arrive at hall
   :wear 0 min [1]
 }
+
+kind Creature: sprout.Actor { }

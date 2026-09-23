@@ -5,3 +5,5 @@ world w: sprout.World {
   :ward Ward.Iron
   :opens [Ward].brass
 }
+
+kind Creature: sprout.Actor { }

@@ -16,3 +16,5 @@ kind Bench {
 object hall: Room in arrival_not_a_place
 
 object bench: Bench in hall
+
+kind Creature: sprout.Actor { }

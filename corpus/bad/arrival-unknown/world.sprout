@@ -9,3 +9,5 @@ kind Room {
 }
 
 object hall: Room in arrival_unknown
+
+kind Creature: sprout.Actor { }

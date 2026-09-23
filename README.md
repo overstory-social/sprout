@@ -26,8 +26,8 @@ Two packages, one version:
 | `@overstory/sprout-cli` | `sprout init · check` on a microworld folder                                                                                                                   |
 
 The compiler reads the declarations the backlog has reached (enums,
-messages, properties, the world root, and kinds and objects with their
-composition) and checks the expressions Phase 1 defined. Everything else —
+messages, properties, the world root and the kind its visitors are made
+of, and kinds and objects with their composition) and checks the expressions Phase 1 defined. Everything else —
 verbs, prose, turns — lands one backlog item at a time; see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.
@@ -38,10 +38,10 @@ and the tracking issue #54.
 sprout/lang/src
   source/    where a thing was written: spans, the AST node rule, diagnostics, hashing
   syntax/    the lexer, the AST, the parser
-  declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, the world
+  declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, the world, actors
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
-  runtime/   the turn's meter, the list value, and range
+  runtime/   the turn's meter, values, range, ids, stored and live state, and what is remembered about an actor
 sprout/core/src   the store port, its records, the memory store, the conformance suite
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check

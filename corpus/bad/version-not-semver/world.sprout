@@ -9,3 +9,5 @@ kind Hall {
 }
 
 object hall: Hall in not_semver
+
+kind Creature: sprout.Actor { }

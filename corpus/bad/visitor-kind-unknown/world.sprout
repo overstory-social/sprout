@@ -1,0 +1,9 @@
+// `visitors are` names a kind the world declares.
+world visitor_kind_unknown: sprout.World {
+  visitors are Creture
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in visitor_kind_unknown
