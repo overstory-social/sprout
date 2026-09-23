@@ -7,6 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { Budget } from './budget.js';
 import { IntegerOverflow } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import { consentPass, participantsOf, runReading } from './reading.js';
@@ -177,5 +179,23 @@ describe('the consent pass', () => {
     const stone = refused(unlock(STONE));
     expect(words(stone.said)).toBe('{tool} is not a key.');
     expect(lines(acted(unlock(KEY)))).toEqual([[LOCK, 'unlocked']]);
+  });
+
+  it('faults before either pass where a set role binds more than the host allows one to', () => {
+    const budgets = { ...DEFAULT_LIMITS.budgets, setRoleObjects: 1 };
+    const one = turn(YARD, [HALL], new Budget(budgets));
+    const [visitor] = one.people;
+    const order = (weights: InstanceId[]) =>
+      runReading(
+        reading(YARD, 'order', visitor!, { target: { object: BOTH }, weights: { set: weights } }),
+        contextOf(one),
+      );
+    expect(lines(acted(order([W1])))[0]).toEqual([visitor, 'actor']);
+    const log = one.draft.instance(visitor!)!.properties.get('log');
+    expect(() => order([W1, W2])).toThrow(
+      expect.objectContaining({ name: 'BudgetExhausted', limit: 'setRoleObjects', allowed: 1 }),
+    );
+    // Not even the actor's own part ran.
+    expect(one.draft.instance(visitor!)!.properties.get('log')).toBe(log);
   });
 });
