@@ -2,7 +2,7 @@
 // (the spec's The world model, Actors and visitors; The manifest; The
 // compiler › What absent means). A bundle holds exactly one `world`
 // declaration, named as the manifest; it composes as a kind does, and
-// `visitors are` names the world's own kind composing `sprout.Actor`.
+// `visitors are` names the world's own kind composing `sprout.Visitor`.
 // None, or two, is the absent table's `world` row, and so is a kind the
 // world is made of that is not there; a visitor kind that is not there is
 // its `visitor-kind` row. Each is refused at publish, and at load the

@@ -1,0 +1,4 @@
+world.sprout:21:28  `sprout.Actor` has no `:oil`.
+                    `:oil` is a `Person`'s. Read it as one first: `if (actor.is(Person)) { … actor.get(:oil) … }`.
+
+refused: 1 problem

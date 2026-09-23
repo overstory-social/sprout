@@ -58,15 +58,18 @@ describe('initWorld', () => {
     expect(bundle!.size.places).toBe(1);
   });
 
-  it('writes the kind visitors are made of: the world’s own, composing `sprout.Actor`', () => {
+  it('writes the kind visitors are made of: the world’s own, composing `sprout.Visitor`', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
-    expect(written).toContain('  visitors are Visitor\n');
-    expect(written).toContain('kind Visitor is sprout.Actor { }');
-    const { bundle } = compileBundle(readWorld(dir).source!);
+    expect(written).toContain('  visitors are Person\n');
+    expect(written).toContain('kind Person is sprout.Visitor { }');
+    const { bundle, diagnostics } = compileBundle(readWorld(dir).source!);
+    // Not even a warning: a `Visitor` of the world's own would hide `sprout.Visitor`.
+    expect(diagnostics).toEqual([]);
     expect(bundle!.visitor!.library).toBe('kiln_yard');
-    expect(bundle!.visitor!.name).toBe('Visitor');
+    expect(bundle!.visitor!.name).toBe('Person');
+    expect(bundle!.visitor!.composes.has('sprout.Visitor')).toBe(true);
     expect(bundle!.visitor!.composes.has('sprout.Actor')).toBe(true);
     expect(bundle!.world!.composes.has('sprout.World')).toBe(true);
   });

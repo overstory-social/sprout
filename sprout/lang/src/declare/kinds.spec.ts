@@ -65,6 +65,7 @@ describe('a lookup answers by full identity, and unqualified from a namespace fi
   const kinds: KindLookup = {
     qualified: (library, name) => all.find((k) => k.library === library && k.name === name) ?? null,
     unqualified: (name, from) => kinds.qualified(from, name) ?? kinds.qualified('sprout', name),
+    all: () => all,
   };
 
   it('keeps two kinds of one name in two libraries apart', () => {

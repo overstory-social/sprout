@@ -4,4 +4,4 @@ world no_default is sprout.World {
   :season Season
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

@@ -13,12 +13,10 @@ import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
 
-/** What every body is checked against: the kinds and verbs, and what visitors are made of. */
+/** What every body is checked against: the kinds and verbs. */
 export interface BodySetting {
   readonly kinds: KindLookup;
   readonly verbs: VerbTable;
-  /** The world's visitor kind, or null where the world has none to name. */
-  readonly visitor: KindRef | null;
   readonly diagnostics: Diagnostics;
 }
 

@@ -9,6 +9,7 @@ import type { Expr, Ident } from '../../syntax/ast.js';
 import { objectOf, OPEN_OBJECT, showBindingType, valueOf, type BindingType } from '../bindings.js';
 import { BOOLEAN, integer, showType } from '../../declare/types.js';
 import { readable } from '../../source/words.js';
+import { textOf } from '../../source/source.js';
 import { arity, propertyName, resolveKind } from './arguments.js';
 import type { CheckContext, Checker } from './checker.js';
 import {
@@ -64,7 +65,7 @@ export function callType(
 
   switch (method.text) {
     case 'get':
-      return getCall(type, method, args, context);
+      return getCall(receiver, type, method, args, context);
     case 'recall':
       return recallCall(type, method, args, context);
     case 'is':
@@ -100,6 +101,7 @@ export function callType(
 
 /** `x.get(:p)` — `p` declared on `x`'s type, and `x` not of object type. */
 export function getCall(
+  receiver: Expr,
   type: BindingType,
   method: Ident,
   args: readonly Expr[],
@@ -110,7 +112,7 @@ export function getCall(
   if (kind === null) return null;
   const named = propertyName(args[0]!, context);
   if (named === null) return null;
-  const property = declaredOn(kind, named, context);
+  const property = declaredOn(kind, named, context, textOf(receiver.at));
   if (property === null) return null;
   if (property.remembered) {
     context.diagnostics.refuse(

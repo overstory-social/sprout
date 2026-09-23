@@ -10,8 +10,8 @@ import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkPlay } from './roles.js';
 
-/** The standard library's part: what an actor is. */
-const SPROUT_TEXT = 'kind Actor { contains }\n';
+/** The standard library's part: what an actor is, and a person. */
+const SPROUT_TEXT = 'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\n';
 
 /** The verbs every case here may play. */
 const VERBS = `enum Topic { bridge, toll, weather }
@@ -22,15 +22,14 @@ verb dial { role target  role number: integer  "dial [number] on [target]" }
 verb throw { role target  role tools many  "throw [target] using [tools]" }
 verb nudge { role target  role tool optional }
 verb sit { role target }
-kind Visitor is sprout.Actor { :score 0 }
+kind Visitor is sprout.Visitor { :score 0 }
 `;
 
 /**
  * Every play in `text` checked against the kind that wrote it, after the
- * verbs above, with `Visitor` as what visitors are made of unless a case
- * says the world has none. What was said, as location, message and remedy.
+ * verbs above. What was said, as location, message and remedy.
  */
-function checked(text: string, options: { visitor?: boolean } = {}): string[][] {
+function checked(text: string): string[][] {
   const setup = new Diagnostics();
   const sprout = parseDeclarations(new SourceFile('sprout.sprout', SPROUT_TEXT), setup);
   const shop = parseDeclarations(new SourceFile('shop.sprout', `${VERBS}${text}`), setup);
@@ -63,12 +62,11 @@ function checked(text: string, options: { visitor?: boolean } = {}): string[][] 
   ).toEqual([]);
 
   const diagnostics = new Diagnostics();
-  const visitor = options.visitor === false ? null : kinds.qualified('shop', 'Visitor');
   for (const kind of kinds.all()) {
     for (const plays of kind.plays.values()) {
       for (const play of plays) {
         if (play.origin === `${kind.library}.${kind.name}`) {
-          checkPlay(play, kind, { kinds, verbs, visitor, diagnostics });
+          checkPlay(play, kind, { kinds, verbs, diagnostics });
         }
       }
     }
@@ -105,12 +103,27 @@ kind Warded {
     ).toEqual([]);
   });
 
-  it('types `actor` by what visitors are made of, and as an object where the world names none', () => {
-    const text =
-      'kind Lever { as target for pull { permit { if (actor.get(:score) > 3) { allow } } } }';
-    expect(checked(text)).toEqual([]);
-    expect(messages(checked(text, { visitor: false }))).toEqual([
-      'Sprout does not know what this is, so it cannot read a property from it.',
+  it('types `actor` as `sprout.Actor`, since a person or an NPC may be acting', () => {
+    const read = (condition: string) =>
+      `kind Lever { as target for pull { permit { if (${condition}) { allow } } } }`;
+    expect(checked(read('actor.get(:capacity) > 3'))).toEqual([]);
+    // What only the visitor kind declares is read once `is()` has narrowed it.
+    expect(
+      checked(
+        'kind Lever { as target for pull { permit { if (actor.is(Visitor)) { if (actor.get(:score) > 3) { allow } } } } }',
+      ),
+    ).toEqual([]);
+    expect(
+      checked(read('actor.get(:score) > 3')).map(([, message, remedy]) => [message, remedy]),
+    ).toEqual([
+      [
+        '`sprout.Actor` has no `:score`.',
+        "`:score` is a `Visitor`'s. Read it as one first: `if (actor.is(Visitor)) { … actor.get(:score) … }`.",
+      ],
+    ]);
+    // What nothing of the world's declares keeps the list of what it has.
+    expect(checked(read('actor.get(:scroe) > 3')).map(([, , remedy]) => remedy)).toEqual([
+      'It has `:capacity`.',
     ]);
   });
 
@@ -355,13 +368,13 @@ describe('a `permit` decides and a `do` acts', () => {
     ]);
   });
 
-  it('refuses a spawn of an actor that is not made of what visitors are', () => {
+  it('refuses a spawn of what visitors are made of, and takes an NPC’s kind', () => {
     const text = `kind Porter is sprout.Actor { }
 kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in here } } }`;
-    expect(messages(checked(text))).toEqual([
-      '`Porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
-    ]);
-    expect(checked(text, { visitor: false })).toEqual([]);
+    const refused = [
+      '`Visitor` composes `sprout.Visitor`, what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
+    ];
+    expect(messages(checked(text))).toEqual(refused);
   });
 
   it('says a passage a `say` names must be the kind’s', () => {
@@ -376,19 +389,19 @@ kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in her
 });
 
 describe('a `do` performs verbs with `act`', () => {
-  it('checks each `act` against the bundle’s verbs and what visitors are made of', () => {
-    expect(
-      checked('kind Cat is Visitor { as actor for sit { do { act pull (target: self) } } }'),
-    ).toEqual([]);
+  it('checks each `act` against the bundle’s verbs and whether its kind is an actor', () => {
+    for (const cat of ['sprout.Actor', 'Visitor']) {
+      expect(
+        checked(`kind Cat is ${cat} { as actor for sit { do { act pull (target: self) } } }`),
+        cat,
+      ).toEqual([]);
+    }
     expect(
       checked('kind Lever { as target for pull { do { act sit (target: self) } } }').map(
         ([at, message]) => [at, message],
       ),
     ).toEqual([
-      [
-        'shop.sprout:10:40',
-        'Only something made of `Visitor` acts, and `Lever` does not compose it.',
-      ],
+      ['shop.sprout:10:40', 'Only an actor acts, and `Lever` does not compose `sprout.Actor`.'],
     ]);
   });
 });

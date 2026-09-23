@@ -3,7 +3,7 @@
 // `bound`, a value tool narrowed with `from`, two kinds playing one role
 // and composing, a play left out with `without`, and the actor's own part.
 world roles is sprout.World {
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place {
@@ -16,7 +16,7 @@ world roles is sprout.World {
 }
 
 // The one acting plays its part too: a full pair of hands pulls nothing.
-kind Visitor is sprout.Actor {
+kind Person is sprout.Visitor {
   as actor for pull {
     permit { if (self.count >= self.get(:capacity)) { refuse "Your hands are full." } }
   }

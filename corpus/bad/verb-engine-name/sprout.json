@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "24dd45a23d8ef40ecf983b6a121a34a338c264b45e1f824e4aeebfa10f90871b"
+      "sha": "5bd019792ad4a23dfe754560ee81494d1e69064a6b5ab3ef9a9247c15a2fc276"
     }
   ],
   "files": ["world.sprout", "verbs.sprout"]

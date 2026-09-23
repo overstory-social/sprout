@@ -32,7 +32,7 @@ function checked(text: string): string[][] {
     'the fixture composes',
   ).toEqual([]);
   const diagnostics = new Diagnostics();
-  checkBodies(kinds.all(), { kinds, verbs, visitor: null, diagnostics });
+  checkBodies(kinds.all(), { kinds, verbs, diagnostics });
   return diagnostics.refusals.map((d) => [locationOf(d.at), d.message]);
 }
 

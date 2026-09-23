@@ -19,7 +19,7 @@ import type { CallExpr, Expr, Ident } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import { NO_GUARDS } from '../declare/guards.js';
 import { NO_PLAYS } from '../declare/roles.js';
-import { ACTOR } from '../declare/actors.js';
+import { ACTOR, VISITOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { parseDeclarations, parseExpression, parseProperty } from '../syntax/parse.js';
@@ -124,7 +124,7 @@ export const PRINTER = kind(
     property(':handled false', true),
     property(':seen [Ward] default [oak]', true),
   ],
-  [ACTOR],
+  [ACTOR, VISITOR],
   true,
 );
 export const CONTAINER = kind('Container', [], [], true, 'sprout');
@@ -138,6 +138,7 @@ export const ALL = [KEY, WARDED, RIB, VESSEL, PRINTER, CONTAINER, SPROUT_WORLD, 
 export const KINDS: KindLookup = {
   qualified: (library, name) => ALL.find((k) => k.library === library && k.name === name) ?? null,
   unqualified: (name, from) => KINDS.qualified(from, name) ?? KINDS.qualified('sprout', name),
+  all: () => ALL,
 };
 
 /** A body of `selfKind`, with the bindings a role-player has. */

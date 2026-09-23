@@ -80,6 +80,12 @@ kind Actor {
 }
 `;
 
+const VISITOR = `// sprout.Visitor: what a person is made of, an actor with somebody
+// behind it (the spec's Actors and visitors). A world's visitor kind
+// composes it, and no object or spawn is made of it.
+kind Visitor is Actor { }
+`;
+
 const TALK = `// \`ask\`, whose topic is a value the visitor names (the spec's Value
 // roles). The library plays no part in it: a world's own object is asked,
 // and says with \`from\` which topics it hears.
@@ -101,6 +107,7 @@ export const STANDARD_LIBRARY: LibrarySource = {
     new SourceFile('sprout/engine.sprout', ENGINE),
     new SourceFile('sprout/place.sprout', PLACE),
     new SourceFile('sprout/actor.sprout', ACTOR),
+    new SourceFile('sprout/visitor.sprout', VISITOR),
     new SourceFile('sprout/talk.sprout', TALK),
   ],
 };

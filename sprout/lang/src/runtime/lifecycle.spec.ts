@@ -29,11 +29,11 @@ const CAPS = DEFAULT_LIMITS.caps;
  */
 const catalogueSource = `${SHOP['world.sprout']!.replace(
   'object kiln is Crate',
-  'object kiln is Kiln { object cat is Person }',
+  'object kiln is Kiln { object cat is Creature }',
 )}kind Cup { :full false }\n${[
   'kind Lantern { contains object wick is Jar { contains object flame is Cup } }',
   'kind Storm is Lantern { object vent is Cup }',
-  'kind Hutch { contains object rabbit is Person }',
+  'kind Hutch { contains object rabbit is Creature }',
   '',
 ].join('\n')}`;
 const KILN_SOURCE = 'kind Crate { contains :lid false }\nkind Kiln { contains actors }\n';
@@ -45,7 +45,7 @@ const catalogue = catalogueOf(
   }),
   CAPS,
 );
-const PERSON = catalogue.kinds.get('printers_shop.Person')!;
+const PERSON = catalogue.visitorKind!;
 const CUP = 'printers_shop.Cup';
 const CRATE = 'printers_shop.Crate';
 
@@ -270,22 +270,22 @@ describe('a spawn', () => {
     const base = initialState(catalogue);
     const box = faultsWritingNothing(
       base,
-      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Person', BOX),
+      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Creature', BOX),
       'holds-no-actors',
     );
     expect(box.object).toBe(BOX);
     expect(box.message).toBe(
-      '`printers_shop.hall.box` holds no actors, so `Person`, an actor, could not be spawned in it.',
+      '`printers_shop.hall.box` holds no actors, so `Creature`, an actor, could not be spawned in it.',
     );
     faultsWritingNothing(
       base,
-      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Person', WORLD_ID),
+      (draft) => spawnInstance(context(draft), JAR, 'printers_shop.Creature', WORLD_ID),
       'holds-no-actors',
     );
     // The same kind spawns into a place, and a thing into what holds no actors.
     const draft = new Draft(base);
     expect(
-      draft.instance(spawnInstance(context(draft), JAR, 'printers_shop.Person', HALL).id)!
+      draft.instance(spawnInstance(context(draft), JAR, 'printers_shop.Creature', HALL).id)!
         .container,
     ).toBe(HALL);
     expect(draft.instance(spawnInstance(context(draft), JAR, CUP, WORLD_ID).id)!.container).toBe(

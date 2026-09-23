@@ -198,7 +198,7 @@ export interface Bundle {
   readonly world: KindRef | null;
   /**
    * What a visitor is made of: the world's own kind composing
-   * `sprout.Actor`, which `visitors are` names. Null only in a loaded
+   * `sprout.Visitor`, which `visitors are` names. Null only in a loaded
    * world that admits no one, with the gap in `absent`.
    */
   readonly visitor: KindRef | null;

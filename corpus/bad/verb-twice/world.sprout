@@ -5,4 +5,4 @@ world verb_twice is sprout.World {
   object hall is sprout.Place
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

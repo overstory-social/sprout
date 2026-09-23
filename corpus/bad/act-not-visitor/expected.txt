@@ -1,4 +1,0 @@
-kinds.sprout:5:10  Only something made of `Visitor` acts, and `Kettle` does not compose it.
-                   Compose `Visitor` into `Kettle`, or write the `act` in a kind that composes `Visitor`, as an NPC's kind does.
-
-refused: 1 problem

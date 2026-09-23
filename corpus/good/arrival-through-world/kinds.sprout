@@ -8,4 +8,4 @@ kind Chest {
 
 kind Thing { }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

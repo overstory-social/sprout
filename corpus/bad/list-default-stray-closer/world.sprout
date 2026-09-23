@@ -8,4 +8,4 @@ world list_default_stray_closer is sprout.World {
   :grid [[Ward]] default [[oak, silver, ]], [brass, tin]]
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

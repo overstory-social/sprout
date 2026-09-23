@@ -1,0 +1,9 @@
+// A world's visitors are made of a kind of its own, which says whatever
+// this story needs a person to have; the library's `sprout.Visitor` is
+// composed into it, not named in its place.
+world visitor_kind_sprout_visitor is sprout.World {
+  visitors are sprout.Visitor
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

@@ -10,4 +10,4 @@ kind Room {
   contains actors
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

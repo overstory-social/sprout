@@ -35,7 +35,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  */
 const KEEP = {
   'world.sprout': [
-    'world keep is sprout.World { contains visitors are Creature visitors arrive at hall',
+    'world keep is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is sprout.Place {',
     '    object alcove is sprout.Place { passage arrives { {item} squeezes in. } }',
     '    object cellar is Room',
@@ -76,6 +76,9 @@ const KEEP = {
     '  :capacity 2',
     '  passage hands_full { {self} has no hand free. }',
     '}',
+    // Restated, since `Creature`'s `:capacity` and the one `sprout.Visitor`
+    // brings from `sprout.Actor` are two origins.
+    'kind Person is Creature, sprout.Visitor { :capacity 2 }',
     'kind Room { contains actors }',
     'kind Plain { }',
     'kind Basket { contains }',
@@ -342,7 +345,7 @@ describe('the engine’s own refusals', () => {
           '    object sack is Sack',
           '  }',
           '}',
-          'kind Pup is sprout.Actor { }',
+          'kind Pup is sprout.Visitor { }',
           'kind Sack { contains }',
           '',
         ].join('\n'),
@@ -373,7 +376,7 @@ describe('the engine’s own refusals', () => {
     );
     // Nor does another actor: a person is not carried.
     expect(said(moveInstance(context(draft), visitor, MARTA, visitor))).toBe(
-      'engine not-a-place: "marta cannot stand in Creature."',
+      'engine not-a-place: "marta cannot stand in Person."',
     );
     expect(snapshot(draft)).toBe(before);
   });

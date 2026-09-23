@@ -3,8 +3,9 @@
 // two passes, Optional tools, Value roles, A role-player narrows its own
 // options; Prose; The compiler › What it refuses).
 //
-// Inside, `self` is the role-player, `actor` whoever is acting, typed by
-// the world's visitor kind, `here` their place, and the verb's other roles
+// Inside, `self` is the role-player, `actor` whoever is acting, typed as
+// `sprout.Actor` since a person or an NPC may be acting, `here` their
+// place, and the verb's other roles
 // are bound by name, typed by what fills them. The role played is `self`
 // and is not bound by its own name, except a set role, whose whole set
 // every participant sees. A tool some reading leaves unbound, and every
@@ -16,6 +17,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import { textOf, type Span } from '../source/source.js';
 import { readable } from '../source/words.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import { SPROUT } from '../declare/enums.js';
 import { ACTOR, isActor } from '../declare/actors.js';
 import { ACTOR_ROLE, type ResolvedPlay } from '../declare/roles.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
@@ -32,12 +34,10 @@ import {
 import type { ActSetting, CheckContext } from './check.js';
 import { checkBlock } from './blocks.js';
 
-/** Where a play is read: the kinds and verbs in scope, what visitors are made of, and somewhere to say what is wrong. */
+/** Where a play is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
 export interface PlaySetting {
   readonly kinds: KindLookup;
   readonly verbs: ActSetting['verbs'];
-  /** The world's visitor kind; null where the world has none to name, which has been said. */
-  readonly visitor: KindRef | null;
   readonly diagnostics: Diagnostics;
 }
 
@@ -66,7 +66,8 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
 
   const scope = Scope.root();
   scope.introduce(selfBinding(self, head.at), diagnostics);
-  scope.introduce(actorBinding(setting.visitor, head.at), diagnostics);
+  const actor = setting.kinds.qualified(SPROUT, 'Actor');
+  scope.introduce(actorBinding(actor, head.at), diagnostics);
   scope.introduce(hereBinding(head.at), diagnostics);
   for (const role of verb.roles) bindRole(role, play, verb, self, scope, diagnostics);
 
@@ -77,7 +78,7 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     self,
     diagnostics,
     verb: verb.name,
-    acting: { verbs: setting.verbs, visitor: setting.visitor },
+    acting: { verbs: setting.verbs },
   };
   const declaration = play.declaration;
   if (declaration.permit !== null) checkBlock(declaration.permit, context, { body: 'permit' });

@@ -15,4 +15,4 @@ world path_malformed is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

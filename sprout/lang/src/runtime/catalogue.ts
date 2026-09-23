@@ -13,6 +13,7 @@
 
 import type { Bundle } from '../bundle/bundle.js';
 import type { StaticCaps } from '../bundle/limits.js';
+import { isVisitorKind } from '../declare/actors.js';
 import type { KindContents } from '../declare/contents.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { WORLD } from '../declare/sprout-world.js';
@@ -43,8 +44,9 @@ export interface Catalogue {
   readonly declared: ReadonlyMap<InstanceId, DeclaredEntry>;
   /**
    * The kinds a spawn may name, by qualified name: every kind the bundle
-   * declares but those composing `sprout.World`, since the world is never
-   * spawned (the spec's The world model). A stored spawn of one stays dormant.
+   * declares but those composing `sprout.World` or `sprout.Visitor`, since
+   * the world and a visitor are never spawned (the spec's The world model;
+   * Actors and visitors). A stored spawn of one stays dormant.
    */
   readonly kinds: ReadonlyMap<string, KindRef>;
   /** What each kind's body gives every instance of it, which a spawn makes with the instance. */
@@ -91,7 +93,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     declared,
     kinds: new Map(
       bundle.kinds
-        .filter((kind) => !kind.composes.has(WORLD))
+        .filter((kind) => !kind.composes.has(WORLD) && !isVisitorKind(kind))
         .map((kind) => [kindName(kind), kind]),
     ),
     contents: bundle.contents,

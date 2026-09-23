@@ -3,7 +3,7 @@
 // `destroy self` a declared object runs, in its own body or in a kind it
 // is made of, and says nothing of one only spawns run.
 world destroy_declared is sprout.World {
-  visitors are Creature
+  visitors are Person
   visitors arrive at kitchen
 
   object kitchen is sprout.Place {
@@ -22,7 +22,7 @@ world destroy_declared is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Person is sprout.Visitor { }
 
 kind Paper { }
 

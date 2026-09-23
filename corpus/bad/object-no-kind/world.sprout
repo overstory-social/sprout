@@ -9,4 +9,4 @@ world object_no_kind is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

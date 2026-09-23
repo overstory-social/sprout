@@ -5,4 +5,4 @@ world kind_composes_sprout_world is sprout.World {
   object composing_room is sprout.Place
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

@@ -1,0 +1,24 @@
+world spawn_visitor is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object bell is Bell
+  }
+}
+
+kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }
+
+verb ring { role target  "ring [target]" }
+
+// Nothing spawns a visitor either: a porter the bell summons is an NPC,
+// made of `Creature`, which the people here share with it.
+kind Bell {
+  as target for ring {
+    do {
+      spawn Creature in here
+      spawn Person in here
+    }
+  }
+}

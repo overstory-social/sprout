@@ -10,9 +10,12 @@ import {
   at,
   bodyOf,
   call,
+  CONTAINER,
   expression,
   KEY,
+  kind,
   PRINTER,
+  property,
   saidBy,
   VESSEL,
   vessel,
@@ -49,6 +52,37 @@ describe('a receiver’s kind', () => {
     expect(declaredOn(KEY, word(':waer'), context)).toBeNull();
     expect(saidBy(context)).toEqual([
       '`shop.Key` has no `:waer`. Did you mean `:wear`? It has `:wear` and `:opens`.',
+    ]);
+  });
+
+  it('narrows a read to the world’s own kind that declares it, and only a read', () => {
+    const context = vessel();
+    // `Vessel` composes `sprout.Container` and declares `:inked`.
+    expect(declaredOn(CONTAINER, word(':inked'), context, 'target')).toBeNull();
+    // Nothing of the world's declares `:lid`, and a write names no receiver.
+    expect(declaredOn(CONTAINER, word(':lid'), context, 'target')).toBeNull();
+    expect(declaredOn(CONTAINER, word(':inked'), context)).toBeNull();
+    // `Printer` remembers `:handled`, which `get` never reads.
+    const actor = kind('Actor', [], [], true, 'sprout');
+    expect(declaredOn(actor, word(':handled'), context, 'actor')).toBeNull();
+    expect(saidBy(context)).toEqual([
+      "`sprout.Container` has no `:inked`. `:inked` is a `Vessel`'s. Read it as one first: `if (target.is(Vessel)) { … target.get(:inked) … }`.",
+      '`sprout.Container` has no `:lid`. It has nothing.',
+      '`sprout.Container` has no `:inked`. It has nothing.',
+      '`sprout.Actor` has no `:handled`. It has nothing.',
+    ]);
+  });
+
+  it('names every one of the world’s kinds that declares it, where no person’s kind does', () => {
+    const base = vessel();
+    const robot = kind('Robot', [property(':oil 0 min 0 max 9')], [ACTOR]);
+    const golem = kind('Golem', [property(':oil 0 min 0 max 9')], [ACTOR]);
+    const kinds = { ...base.kinds, all: () => [...base.kinds.all(), robot, golem] };
+    const context = { ...base, kinds };
+    const actor = kind('Actor', [], [], true, 'sprout');
+    expect(declaredOn(actor, word(':oil'), context, 'actor')).toBeNull();
+    expect(saidBy(context)).toEqual([
+      "`sprout.Actor` has no `:oil`. `:oil` is a `Robot`'s or a `Golem`'s. Read it as one of them first: `if (actor.is(Robot)) { … actor.get(:oil) … }`.",
     ]);
   });
 });

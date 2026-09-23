@@ -7,9 +7,9 @@
 
 import type { Expr, Ident } from '../../syntax/ast.js';
 import { showBindingType, type Binding, type BindingType } from '../bindings.js';
-import { kindName, type KindRef } from '../../declare/kinds.js';
-import { ACTOR, isActor } from '../../declare/actors.js';
-import { nearestOption } from '../../declare/enums.js';
+import { composesKind, kindName, type KindRef } from '../../declare/kinds.js';
+import { ACTOR, isActor, isVisitorKind } from '../../declare/actors.js';
+import { nearestOption, shownName } from '../../declare/enums.js';
 import type { ResolvedProperty } from '../../declare/properties.js';
 import type { Span } from '../../source/source.js';
 import { readable } from '../../source/words.js';
@@ -107,21 +107,50 @@ export function ownMemory(named: Ident, context: CheckContext): ResolvedProperty
   return null;
 }
 
-/** The property a kind declares under a name, or a refusal suggesting the nearest it has. */
+/**
+ * The property a kind declares under a name, or a refusal suggesting the
+ * nearest it has. Where `receiver`, as written, is read and a world's own
+ * kind composing `kind` declares the property, the remedy narrows to it.
+ */
 export function declaredOn(
   kind: KindRef,
   named: Ident,
   context: CheckContext,
+  receiver?: string,
 ): ResolvedProperty | null {
   const property = kind.properties.get(named.text);
   if (property !== undefined) return property;
   const meant = nearestOption(named.text, [...kind.properties.keys()]);
+  const holders = receiver === undefined ? [] : holdersOf(kind, named.text, context);
+  const shown = holders.map((holder) => shownName(kindName(holder), context.from));
+  const whose = shown.map((name) => `a \`${name}\`'s`).join(' or ');
   context.diagnostics.refuse(
     named.at,
     `\`${kindName(kind)}\` has no \`:${named.text}\`.${meant === null ? '' : ` Did you mean \`:${meant}\`?`}`,
-    `It has ${readable([...kind.properties.keys()].map((name) => `:${name}`))}.`,
+    shown.length === 0
+      ? `It has ${readable([...kind.properties.keys()].map((name) => `:${name}`))}.`
+      : `\`:${named.text}\` is ${whose}. Read it as ${shown.length === 1 ? 'one' : 'one of them'} first: \`if (${receiver}.is(${shown[0]})) { … ${receiver}.get(:${named.text}) … }\`.`,
   );
   return null;
+}
+
+/**
+ * The world's own kinds composing `kind` that declare `name`, in the order
+ * declared; a person's kind alone where it is one of them, since `actor`
+ * is most often a person.
+ */
+function holdersOf(kind: KindRef, name: string, context: CheckContext): KindRef[] {
+  const holders = context.kinds
+    .all()
+    .filter(
+      (one) =>
+        one.library === context.from &&
+        one !== kind &&
+        composesKind(one, kind) &&
+        one.properties.get(name)?.remembered === false,
+    );
+  const person = holders.find(isVisitorKind);
+  return person === undefined ? holders : [person];
 }
 
 /** `x.count` and `x.count(K)` — a container or a set role. */

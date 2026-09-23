@@ -167,11 +167,12 @@ export function selfBinding(kind: KindRef, at: Span): Binding {
 }
 
 /**
- * `actor` — the world's visitor kind, or an object where the world has
- * none to name, which has been said where the world is declared.
+ * `actor` — `sprout.Actor`, since a person or an NPC may be the one
+ * acting, so anything more is read through `is()`; an object where the
+ * standard library's kind is absent, which has been said.
  */
-export function actorBinding(visitor: KindRef | null, at: Span): Binding {
-  return bind('actor', visitor === null ? OPEN_OBJECT : objectOf(visitor), 'actor', at);
+export function actorBinding(actor: KindRef | null, at: Span): Binding {
+  return bind('actor', actor === null ? OPEN_OBJECT : objectOf(actor), 'actor', at);
 }
 
 /** `here` — object; the actor's place. */

@@ -156,7 +156,10 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('says so plainly when the standard library has no `World` to compose', () => {
-    const without = kindsOf({ ...LIBRARIES, sprout: 'kind Actor { }\nkind Container { }' });
+    const without = kindsOf({
+      ...LIBRARIES,
+      sprout: 'kind Actor { }\nkind Visitor is Actor { }\nkind Container { }',
+    });
     const { said } = world(SHOP, without);
     // The author wrote the right thing, so the problem is the library
     // rather than the sentence they typed.

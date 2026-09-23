@@ -33,7 +33,8 @@ describe('containment is a declaration, and a place is whatever holds actors', (
   it('holds what `sprout.World` holds, which is how every world holds its places', () => {
     const kinds = kindsOf({
       ...LIBRARIES,
-      sprout: 'kind World { contains }\nkind Actor { }\nkind Container { :open true }',
+      sprout:
+        'kind World { contains }\nkind Actor { }\nkind Visitor is Actor { }\nkind Container { :open true }',
     });
     const { kind, said } = world(SHOP, kinds);
     expect(said).toEqual([]);

@@ -52,7 +52,7 @@ describe('a new world’s state tree is the tree as declared', () => {
 
 describe('what is live', () => {
   const catalogue = catalogueOf(shop(), CAPS);
-  const PERSON = catalogue.kinds.get('printers_shop.Person')!;
+  const PERSON = catalogue.visitorKind!;
 
   it('is always the world, which is the root whether or not it is decoded', () => {
     const decoded = readerOf(initialState(catalogue));

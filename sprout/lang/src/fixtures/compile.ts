@@ -31,7 +31,7 @@ export const MANIFEST = [
 ].join('\n');
 
 /** What visitors are made of: the world's own kind, composing `sprout.Actor`. */
-export const VISITOR = 'kind Visitor is sprout.Actor { }';
+export const VISITOR = 'kind Person is sprout.Visitor { }';
 /** The place visitors arrive at, written in the world's body. */
 export const HALL = 'object hall is sprout.Place';
 /**
@@ -39,7 +39,7 @@ export const HALL = 'object hall is sprout.Place';
  * `hall`, and `inside` is written in its body after the hall.
  */
 export const worldLine = (inside = ''): string =>
-  `world printers_shop is sprout.World { visitors are Visitor visitors arrive at hall ${HALL}${inside === '' ? '' : ` ${inside}`} }`;
+  `world printers_shop is sprout.World { visitors are Person visitors arrive at hall ${HALL}${inside === '' ? '' : ` ${inside}`} }`;
 /** The world's own declaration, holding the hall and nothing else. */
 export const WORLD_LINE = worldLine();
 /** The world holding `inside` beside the hall, and the kind its visitors are made of, on one line. */

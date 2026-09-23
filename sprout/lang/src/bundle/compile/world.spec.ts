@@ -14,7 +14,7 @@ import {
 import { resolveDeclarations } from '../declarations.js';
 import { STANDARD_LIBRARY } from '../standard-library.js';
 import { Diagnostics } from '../../source/diagnostics.js';
-import { isNpc } from '../../declare/actors.js';
+import { isActor, isVisitorKind } from '../../declare/actors.js';
 import { parseDeclarations } from '../../syntax/parse.js';
 import { kindName } from '../../declare/kinds.js';
 import { locationOf, SourceFile } from '../../source/source.js';
@@ -71,8 +71,8 @@ function kinds(own: string, mode: 'publish' | 'load' = 'publish', refused = fals
   };
 }
 
-const WORLD = 'world shop is sprout.World { visitors are Visitor visitors arrive at shop }';
-const VISITOR = 'kind Visitor is sprout.Actor { }';
+const WORLD = 'world shop is sprout.World { visitors are Person visitors arrive at shop }';
+const VISITOR = 'kind Person is sprout.Visitor { }';
 
 describe('a bundle holds one world, named as the manifest', () => {
   it('gives back the one there is', () => {
@@ -118,11 +118,11 @@ describe('what the world and its visitors are made of', () => {
     const { world, visitor, said } = kinds(`${WORLD}\n${VISITOR}`);
     expect(said).toEqual([]);
     expect(world!.order).toEqual(['sprout.World', 'shop.shop']);
-    expect(kindName(visitor!)).toBe('shop.Visitor');
+    expect(kindName(visitor!)).toBe('shop.Person');
   });
 
   it('refuses a kind the world composes that nothing declares at publish, and at load admits no one', () => {
-    const text = `world shop is sprout.World, Voice { visitors are Visitor }\n${VISITOR}`;
+    const text = `world shop is sprout.World, Voice { visitors are Person }\n${VISITOR}`;
     expect(kinds(text).said).toEqual(['world.sprout:1:29 Nothing here is a `Voice`.']);
     const loaded = kinds(text, 'load');
     expect(loaded.world).toBeNull();
@@ -131,7 +131,7 @@ describe('what the world and its visitors are made of', () => {
   });
 
   it('records the world absent at load when a kind it composes could not be made', () => {
-    const text = `world shop is sprout.World, Lamp { visitors are Visitor }\nkind Lamp is Nope { }\n${VISITOR}`;
+    const text = `world shop is sprout.World, Lamp { visitors are Person }\nkind Lamp is Nope { }\n${VISITOR}`;
     const loaded = kinds(text, 'load');
     expect(loaded.world).toBeNull();
     expect(loaded.absent).toEqual([
@@ -146,21 +146,21 @@ describe('what the world and its visitors are made of', () => {
   });
 
   it('refuses a visitor kind nothing declares at publish, and at load admits no one', () => {
-    const text = 'world shop is sprout.World { visitors are Visitor }';
-    expect(kinds(text).said).toEqual(['world.sprout:1:43 Nothing here is a `Visitor`.']);
+    const text = 'world shop is sprout.World { visitors are Person }';
+    expect(kinds(text).said).toEqual(['world.sprout:1:43 Nothing here is a `Person`.']);
     const loaded = kinds(text, 'load');
     expect(loaded.visitor).toBeNull();
     expect(loaded.world).not.toBeNull();
-    expect(loaded.absent).toEqual([['Visitor', 'visitor-kind']]);
+    expect(loaded.absent).toEqual([['Person', 'visitor-kind']]);
   });
 
   it('does not say the visitor kind is missing at publish while an own file was refused', () => {
     expect(
-      kinds('world shop is sprout.World { visitors are Visitor }', 'publish', true).said,
+      kinds('world shop is sprout.World { visitors are Person }', 'publish', true).said,
     ).toEqual([]);
   });
 
-  it('refuses a visitor kind that is not an actor in either mode, since nothing is missing', () => {
+  it('refuses a visitor kind that is not for a person in either mode, since nothing is missing', () => {
     for (const mode of ['publish', 'load'] as const) {
       const found = kinds(
         'world shop is sprout.World { visitors are Hall }\nkind Hall is sprout.Place { }',
@@ -169,7 +169,7 @@ describe('what the world and its visitors are made of', () => {
       expect(found.visitor, mode).toBeNull();
       expect(found.absent, mode).toEqual([]);
       expect(found.said, mode).toEqual([
-        "world.sprout:1:43 `Hall` is not an actor, and a world's visitors are made of one.",
+        "world.sprout:1:43 `Hall` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.",
       ]);
     }
   });
@@ -351,34 +351,41 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
 });
 
 describe('a world’s actors: what its visitors are made of, and its NPCs', () => {
-  it('accepts an NPC in a place, and one in a place inside a place', () => {
+  it('accepts an NPC in a place, and one in a place inside a place, sharing a kind with the visitors', () => {
     const files = [
       file(
         'world.sprout',
         [
           'world printers_shop is sprout.World {',
-          '  visitors are Visitor',
+          '  visitors are Person',
           '  visitors arrive at hall',
           '  object hall is sprout.Place {',
           '    object nook is sprout.Place { object cat is Cat }',
-          '    object ghost is Visitor',
+          '    object ghost is Creature',
           '  }',
           '}',
-          VISITOR,
-          'kind Cat is Visitor { }',
+          'kind Creature is sprout.Actor { }',
+          'kind Person is Creature, sprout.Visitor { }',
+          'kind Cat is Creature { }',
         ].join('\n'),
       ),
     ];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(diagnostics).toEqual([]);
-    const npcs = bundle!.objects.filter((o) => isNpc(o.kind, bundle!.visitor!));
-    expect(npcs.map((o) => o.path)).toEqual([
+    // Every actor declared is an NPC, and composes what the visitor kind shares with it.
+    const actors = bundle!.objects.filter((o) => isActor(o.kind));
+    expect(actors.map((o) => o.path)).toEqual([
       ['hall', 'nook', 'cat'],
       ['hall', 'ghost'],
     ]);
+    for (const actor of actors) {
+      expect(isVisitorKind(actor.kind)).toBe(false);
+      expect(actor.kind.composes.has('printers_shop.Creature')).toBe(true);
+    }
+    expect(bundle!.visitor!.composes.has('printers_shop.Creature')).toBe(true);
   });
 
-  it('refuses a visitor kind that is not an actor in either mode, since nothing is missing', () => {
+  it('refuses a visitor kind that is not for a person in either mode, since nothing is missing', () => {
     const files = [
       file(
         'world.sprout',
@@ -391,7 +398,9 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
       expect(
         refusals(diagnostics).map((d) => d.message),
         mode,
-      ).toEqual(["`Basket` is not an actor, and a world's visitors are made of one."]);
+      ).toEqual([
+        "`Basket` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.",
+      ]);
     }
   });
 
@@ -405,7 +414,7 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
     expect(bundle!.world).not.toBeNull();
     expect(bundle!.absent.map((a) => [a.what, a.kind])).toEqual([
       ['people.sprout', 'file'],
-      ['Visitor', 'visitor-kind'],
+      ['Person', 'visitor-kind'],
     ]);
   });
 });

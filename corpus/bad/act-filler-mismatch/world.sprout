@@ -1,12 +1,13 @@
 world act_filler_mismatch is sprout.World {
   contains actors
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }
 
 verb play   { role target  role toys many  "play with [target] using [toys]" }
 verb nuzzle { role target  "nuzzle [target]" }

@@ -35,11 +35,9 @@ export interface CheckContext {
   readonly acting?: ActSetting;
 }
 
-/** The verbs an `act` may name, and the kind that decides who may act (the spec's Verbs › Acting). */
+/** The verbs an `act` may name (the spec's Verbs › Acting). */
 export interface ActSetting {
   readonly verbs: VerbLookup & { all(): readonly ResolvedVerb[] };
-  /** The world's visitor kind; null where the world has none to name, which has been said. */
-  readonly visitor: KindRef | null;
 }
 
 /** A context that can type an expression it meets on the way, by the walk it was made with. */

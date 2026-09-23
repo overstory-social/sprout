@@ -1,8 +1,8 @@
 world say_in_guard is sprout.World {
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Person is sprout.Visitor { }

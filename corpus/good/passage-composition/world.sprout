@@ -23,4 +23,4 @@ world passage_composition is sprout.World, Terse {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

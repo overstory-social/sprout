@@ -4,4 +4,4 @@ world default_twice is sprout.World {
   :ward Ward.iron default brass
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

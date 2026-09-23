@@ -1,0 +1,4 @@
+kinds.sprout:5:10  Only an actor acts, and `Kettle` does not compose `sprout.Actor`.
+                   Compose `sprout.Actor` into `Kettle`, or write the `act` in a kind that composes it, as an NPC's kind does.
+
+refused: 1 problem

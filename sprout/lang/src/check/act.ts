@@ -1,8 +1,8 @@
 // What the compiler checks of an `act` (the spec's Verbs › Acting,
 // Optional tools, Set roles, Value roles; The compiler › What it refuses).
 //
-// `act` stands only in a body whose own kind composes the visitor kind,
-// since `self` becomes the reading's actor and only such a thing acts. The
+// `act` stands only in a body whose own kind composes `sprout.Actor`,
+// since `self` becomes the reading's actor and every actor may act. The
 // verb is reached as a play reaches one, the body's own library first and
 // then the standard library's. Each role named must be one the verb
 // declares, named once, and filled by a binding its filler takes; every
@@ -12,6 +12,7 @@
 import type { ActRole, ActStatement } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
 import { readable } from '../source/words.js';
+import { ACTOR, isActor } from '../declare/actors.js';
 import { nearestOption, shownName, SPROUT } from '../declare/enums.js';
 import { composesKind, kindName, type KindRef } from '../declare/kinds.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
@@ -67,18 +68,15 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
   return passed;
 }
 
-/** Whether `self` may be the actor: its kind composes the visitor kind. */
+/** Whether `self` may be the actor: its kind composes `sprout.Actor`. */
 function mayAct(statement: ActStatement, context: CheckContext): boolean {
   const { self } = context;
-  const visitor = context.acting!.visitor;
-  // A world with no visitor kind has been told so where it says what visitors are.
-  if (self === null || visitor === null || composesKind(self, visitor)) return true;
-  const person = shownName(kindName(visitor), context.from);
+  if (self === null || isActor(self)) return true;
   const at = statement.at.source.span(statement.at.start, statement.at.start + 'act'.length);
   context.diagnostics.refuse(
     at,
-    `Only something made of \`${person}\` acts, and \`${self.name}\` does not compose it.`,
-    `Compose \`${person}\` into \`${self.name}\`, or write the \`act\` in a kind that composes \`${person}\`, as an NPC's kind does.`,
+    `Only an actor acts, and \`${self.name}\` does not compose \`${ACTOR}\`.`,
+    `Compose \`${ACTOR}\` into \`${self.name}\`, or write the \`act\` in a kind that composes it, as an NPC's kind does.`,
   );
   return false;
 }

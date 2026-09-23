@@ -6,7 +6,15 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile, textOf } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { KindTable, type KindRef } from './kinds.js';
-import { ACTOR, checkActors, checkVisitorKind, isActor, isNpc, notAnNpc } from './actors.js';
+import {
+  ACTOR,
+  aVisitorMade,
+  checkActors,
+  checkVisitorKind,
+  isActor,
+  isVisitorKind,
+  VISITOR,
+} from './actors.js';
 import { resolveContents } from './contents.js';
 import { resolveObjects } from './objects.js';
 import { placeObjects } from './tree.js';
@@ -20,17 +28,22 @@ const { KINDS, CONTENTS } = (() => {
   const table = new KindTable();
   const byLibrary = new Map<string, KindDeclaration[]>();
   for (const [library, text] of Object.entries({
-    sprout:
-      'kind World { contains }\nkind Actor { contains :capacity 8 }\nkind Place { contains actors }',
+    sprout: [
+      'kind World { contains }',
+      'kind Actor { contains :capacity 8 }',
+      'kind Visitor is Actor { }',
+      'kind Place { contains actors }',
+    ].join('\n'),
     shop: [
-      'kind Creature is sprout.Actor { :capacity 4 }',
+      'kind Creature is sprout.Actor { }',
       'kind Cat is Creature { }',
+      'kind Person is Creature, sprout.Visitor { }',
       'kind Porter is sprout.Actor { }',
       'kind Hall is sprout.Place { }',
       'kind Basket { contains }',
-      'kind Hutch { contains object rabbit is Creature object porter is Porter }',
+      'kind Hutch { contains object rabbit is Creature object guest is Person }',
     ].join('\n'),
-    victorian: 'kind Gent is sprout.Actor { }\nkind Voice { }',
+    victorian: 'kind Gent is sprout.Visitor { }\nkind Butler is sprout.Actor { }\nkind Voice { }',
   })) {
     const declared = parseDeclarations(new SourceFile(`${library}.sprout`, text), diagnostics);
     const kinds = declared.filter((d): d is KindDeclaration => d.kind === 'kind');
@@ -69,8 +82,10 @@ describe('an actor is whatever composes `sprout.Actor`', () => {
 
   it('is `sprout.Actor` itself, and anything composing it however far down', () => {
     expect(isActor(kind('sprout', 'Actor'))).toBe(true);
+    expect(isActor(kind('sprout', 'Visitor'))).toBe(true);
     expect(isActor(kind('shop', 'Creature'))).toBe(true);
     expect(isActor(kind('shop', 'Cat'))).toBe(true);
+    expect(isActor(kind('shop', 'Person'))).toBe(true);
     expect(isActor(kind('victorian', 'Gent'))).toBe(true);
   });
 
@@ -81,28 +96,26 @@ describe('an actor is whatever composes `sprout.Actor`', () => {
   });
 });
 
-describe('an NPC is an object composing the visitor kind', () => {
-  const creature = kind('shop', 'Creature');
+describe('a kind for a person is whatever composes `sprout.Visitor`', () => {
+  it('is named with its library', () => expect(VISITOR).toBe('sprout.Visitor'));
 
-  it('is made of the visitor kind, or of a kind that composes it', () => {
-    expect(isNpc(creature, creature)).toBe(true);
-    expect(isNpc(kind('shop', 'Cat'), creature)).toBe(true);
+  it('is `sprout.Visitor` itself, and anything composing it', () => {
+    expect(isVisitorKind(kind('sprout', 'Visitor'))).toBe(true);
+    expect(isVisitorKind(kind('shop', 'Person'))).toBe(true);
+    expect(isVisitorKind(kind('victorian', 'Gent'))).toBe(true);
   });
 
-  it('is not every actor: one composing `sprout.Actor` beside the visitor kind is not', () => {
-    expect(isNpc(kind('shop', 'Porter'), creature)).toBe(false);
-    expect(isActor(kind('shop', 'Porter'))).toBe(true);
-  });
-
-  it('is not what the visitor kind composes', () => {
-    expect(isNpc(kind('sprout', 'Actor'), creature)).toBe(false);
+  it('is not every actor: what an NPC is made of, or what a person shares with one, is not', () => {
+    expect(isVisitorKind(kind('sprout', 'Actor'))).toBe(false);
+    expect(isVisitorKind(kind('shop', 'Creature'))).toBe(false);
+    expect(isVisitorKind(kind('shop', 'Porter'))).toBe(false);
+    expect(isVisitorKind(kind('shop', 'Hall'))).toBe(false);
   });
 });
 
-describe('the visitor kind is the world’s own, and an actor', () => {
-  it('takes a kind of the world’s own composing `sprout.Actor`, saying nothing', () => {
-    expect(checked('Creature', kind('shop', 'Creature'))).toEqual({ ok: true, told: [] });
-    expect(checked('Cat', kind('shop', 'Cat'))).toEqual({ ok: true, told: [] });
+describe('the visitor kind is the world’s own, composing `sprout.Visitor`', () => {
+  it('takes a kind of the world’s own composing `sprout.Visitor`, saying nothing', () => {
+    expect(checked('Person', kind('shop', 'Person'))).toEqual({ ok: true, told: [] });
   });
 
   it('refuses one that is not an actor, at the kind as written', () => {
@@ -111,31 +124,56 @@ describe('the visitor kind is the world’s own, and an actor', () => {
       told: [
         [
           'Hall',
-          "`Hall` is not an actor, and a world's visitors are made of one.",
-          'Write `kind Visitor is sprout.Actor { … }` and `visitors are Visitor`, or name a kind that composes `sprout.Actor`.',
+          "`Hall` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.",
+          'Write `kind Person is sprout.Visitor { … }` and `visitors are Person`, or name a kind that composes `sprout.Visitor`.',
         ],
       ],
     });
   });
 
-  it('refuses `sprout.Actor` itself, since the world’s own kind is where a person is written', () => {
-    expect(checked('sprout.Actor', kind('sprout', 'Actor'))).toEqual({
-      ok: false,
-      told: [
-        [
-          'sprout.Actor',
-          "`sprout.Actor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.",
-          'Declare one that composes `sprout.Actor`, as `kind Visitor is sprout.Actor { … }`, and write `visitors are Visitor`.',
+  it('refuses an actor that is not for a person, suggesting a kind for people that shares it', () => {
+    for (const name of ['Creature', 'Porter']) {
+      expect(checked(name, kind('shop', name))).toEqual({
+        ok: false,
+        told: [
+          [
+            name,
+            `\`${name}\` does not compose \`sprout.Visitor\`, and a world's visitors are made of a kind that does.`,
+            `Write \`kind Person is ${name}, sprout.Visitor { }\` and \`visitors are Person\`, so a person has what \`${name}\` gives.`,
+          ],
         ],
-      ],
-    });
-  });
-
-  it('refuses another library’s kind, suggesting it be composed when it is an actor', () => {
-    expect(checked('victorian.Gent', kind('victorian', 'Gent')).told[0]![2]).toBe(
-      'Declare one that composes `victorian.Gent`, as `kind Visitor is victorian.Gent { … }`, and write `visitors are Visitor`.',
+      });
+    }
+    // An actor kind already called `Person` is told of a kind by another name.
+    expect(checked('Person', kind('shop', 'Porter')).told[0]![2]).toBe(
+      'Write `kind Guest is Person, sprout.Visitor { }` and `visitors are Guest`, so a person has what `Person` gives.',
     );
-    expect(checked('victorian.Voice', kind('victorian', 'Voice')).told).toHaveLength(1);
+  });
+
+  it('refuses `sprout.Visitor` itself, and `sprout.Actor`, since the world’s own kind is where a person is written', () => {
+    for (const name of ['Visitor', 'Actor']) {
+      expect(checked(`sprout.${name}`, kind('sprout', name))).toEqual({
+        ok: false,
+        told: [
+          [
+            `sprout.${name}`,
+            `\`sprout.${name}\` belongs to the library \`sprout\`. A world's visitors are made of a kind of its own.`,
+            'Declare one that composes `sprout.Visitor`, as `kind Person is sprout.Visitor { … }`, and write `visitors are Person`.',
+          ],
+        ],
+      });
+    }
+  });
+
+  it('refuses another library’s kind, suggesting it be composed when it is for a person', () => {
+    expect(checked('victorian.Gent', kind('victorian', 'Gent')).told[0]![2]).toBe(
+      'Declare one that composes `victorian.Gent`, as `kind Person is victorian.Gent { … }`, and write `visitors are Person`.',
+    );
+    for (const name of ['Butler', 'Voice']) {
+      expect(checked(`victorian.${name}`, kind('victorian', name)).told[0]![2]).toBe(
+        'Declare one that composes `sprout.Visitor`, as `kind Person is sprout.Visitor { … }`, and write `visitors are Person`.',
+      );
+    }
   });
 });
 
@@ -144,11 +182,7 @@ describe('the visitor kind is the world’s own, and an actor', () => {
  * world made of `world`, as [where, message, remedy]. The objects must
  * place.
  */
-function actorsIn(
-  body: string,
-  world: KindRef | null = kind('shop', 'Basket'),
-  visitor: KindRef | null = kind('shop', 'Creature'),
-) {
+function actorsIn(body: string, world: KindRef | null = kind('shop', 'Basket')) {
   const placing = new Diagnostics();
   const root = parseDeclarations(
     new SourceFile('o.sprout', `world shop is sprout.World {\n${body}\n}`),
@@ -163,47 +197,58 @@ function actorsIn(
   const tree = placeObjects(objects, { world: 'shop', diagnostics: placing });
   expect(placing.all.map((d) => d.message)).toEqual([]);
   const diagnostics = new Diagnostics();
-  checkActors({ tree, objects, world, visitor, diagnostics });
+  checkActors({ tree, objects, world, diagnostics });
   return diagnostics.all.map((d) => [textOf(d.at), d.message, d.remedy]);
 }
 
-describe('the only actors are visitors and NPCs, and each stands in a place', () => {
-  it('names why an actor kind that is not the visitor kind may not be one', () => {
-    expect(notAnNpc('porter', kind('shop', 'Creature'))).toBe(
-      '`porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.',
+/** The remedy for a declared or spawned visitor, which names no kind of the world's. */
+const FOR_AN_NPC =
+  'For an NPC, use a kind that composes `sprout.Actor` and not `sprout.Visitor`; to share it with the visitors, write `kind Creature is sprout.Actor { … }` and `kind Person is Creature, sprout.Visitor { }`.';
+
+/** What is said of an object named `name` that is made for a person. */
+const declaredVisitor = (name: string): string =>
+  `\`${name}\` composes \`sprout.Visitor\`, what a person is made of, and nothing declares a visitor: each one is a person who arrives.`;
+
+describe('nothing declares a visitor, and every NPC stands in a place', () => {
+  it('names why something made for a person may not be declared or spawned', () => {
+    expect(aVisitorMade('guest', 'declares')).toEqual({
+      message: declaredVisitor('guest'),
+      remedy: FOR_AN_NPC,
+    });
+    expect(aVisitorMade('Person', 'spawns')).toEqual({
+      message:
+        '`Person` composes `sprout.Visitor`, what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
+      remedy: FOR_AN_NPC,
+    });
+    expect(aVisitorMade('sprout.Visitor', 'spawns').message).toBe(
+      '`sprout.Visitor` is what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
     );
   });
 
-  it('accepts NPCs in a place, in a place inside a place, and directly in a world holding actors', () => {
+  it('accepts every actor not made for a person as an NPC, wherever actors stand', () => {
     const body = [
       'object hall is Hall {',
       '  object nook is Hall { object dog is Creature }',
       '  object basket is Basket { object ball is Basket }',
       '  object cat is Cat',
+      '  object porter is Porter',
+      '  object butler is victorian.Butler',
       '}',
       'object mouse is Creature',
     ].join('\n');
     expect(actorsIn(body, kind('shop', 'Hall'))).toEqual([]);
   });
 
-  it('refuses an actor that is not an NPC at its name, and says nothing more of it', () => {
+  it('refuses an object made for a person at its name, and says nothing more of it', () => {
     const body = [
       'object hall is Hall {',
-      '  object basket is Basket { object porter is Porter }',
+      '  object basket is Basket { object guest is Person }',
       '  object gent is victorian.Gent',
       '}',
     ].join('\n');
     expect(actorsIn(body)).toEqual([
-      [
-        'porter',
-        '`porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.',
-        "Compose `Creature`, what this world's visitors are made of, to make `porter` an NPC, or make it of kinds that do not compose `sprout.Actor`.",
-      ],
-      [
-        'gent',
-        '`gent` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.',
-        "Compose `Creature`, what this world's visitors are made of, to make `gent` an NPC, or make it of kinds that do not compose `sprout.Actor`.",
-      ],
+      ['guest', declaredVisitor('guest'), FOR_AN_NPC],
+      ['gent', declaredVisitor('gent'), FOR_AN_NPC],
     ]);
   });
 
@@ -240,11 +285,7 @@ describe('the only actors are visitors and NPCs, and each stands in a place', ()
         '`hutch` holds no actors, so `rabbit` cannot stand in it.',
         'Write `rabbit` inside the braces of a place, or make `hutch` one: compose `sprout.Place`, or write `contains actors` in its body.',
       ],
-      [
-        'porter',
-        '`porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.',
-        "Compose `Creature`, what this world's visitors are made of, to make `porter` an NPC, or make it of kinds that do not compose `sprout.Actor`.",
-      ],
+      ['guest', declaredVisitor('guest'), FOR_AN_NPC],
       [
         'rabbit',
         '`pen` holds no actors, so `rabbit` cannot stand in it.',
@@ -255,12 +296,12 @@ describe('the only actors are visitors and NPCs, and each stands in a place', ()
 
   it('accepts what a kind gives an instance whose own body holds actors', () => {
     const body = ['object hall is Hall {', '  object hutch is Hutch { contains actors }', '}'];
-    expect(actorsIn(body.join('\n')).map(([at]) => at)).toEqual(['porter']);
+    expect(actorsIn(body.join('\n')).map(([at]) => at)).toEqual(['guest']);
   });
 
-  it('says nothing that the absent world kind or visitor kind would decide', () => {
-    expect(actorsIn('object porter is Porter', null, null)).toEqual([]);
-    // With no visitor kind to be made of, an actor is still refused where it cannot stand.
-    expect(actorsIn('object porter is Porter', kind('shop', 'Basket'), null)).toHaveLength(1);
+  it('says nothing of where an NPC stands that an absent world kind would decide', () => {
+    expect(actorsIn('object porter is Porter', null)).toEqual([]);
+    // With no world kind to stand in, something made for a person is still refused.
+    expect(actorsIn('object guest is Person', null).map(([at]) => at)).toEqual(['guest']);
   });
 });

@@ -9,4 +9,4 @@ world remembers_list_default_closer is sprout.World {
   :greeting "hello"
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

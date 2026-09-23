@@ -55,11 +55,12 @@ describe('what a compiled bundle carries', () => {
     const { bundle: carried, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     expect(carried!.kinds.map((k) => [k.library, k.name, k.order])).toEqual([
-      ['printers_shop', 'Visitor', ['sprout.Actor', 'printers_shop.Visitor']],
+      ['printers_shop', 'Person', ['sprout.Actor', 'sprout.Visitor', 'printers_shop.Person']],
       ['printers_shop', 'Crate', ['printers_shop.Crate']],
       ['sprout', 'World', ['sprout.World']],
       ['sprout', 'Place', ['sprout.Place']],
       ['sprout', 'Actor', ['sprout.Actor']],
+      ['sprout', 'Visitor', ['sprout.Actor', 'sprout.Visitor']],
     ]);
     expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container])).toEqual([
       ['hall', ['sprout.Place', 'printers_shop.hall'], []],
@@ -74,7 +75,7 @@ describe('what a compiled bundle carries', () => {
     const files = [file('world.sprout', `${ROOT}\nkind Place is Nowhere { contains actors }`)];
     const { bundle: loaded } = compileBundle(world({ files }), { mode: 'load' });
     const found = (name: string) => loaded!.kindLookup.unqualified(name, 'printers_shop');
-    expect([found('Visitor')!.library, found('Actor')!.library]).toEqual([
+    expect([found('Person')!.library, found('Actor')!.library]).toEqual([
       'printers_shop',
       'sprout',
     ]);
@@ -109,7 +110,11 @@ describe('what a compiled bundle carries', () => {
     expect(bundle!.world!.order).toEqual(['sprout.World', 'printers_shop.printers_shop']);
     // `sprout.World` holds things and not people; visitors arrive in `hall`.
     expect([bundle!.world!.contains, bundle!.world!.containsActors]).toEqual([true, false]);
-    expect(bundle!.visitor!.order).toEqual(['sprout.Actor', 'printers_shop.Visitor']);
+    expect(bundle!.visitor!.order).toEqual([
+      'sprout.Actor',
+      'sprout.Visitor',
+      'printers_shop.Person',
+    ]);
     // `sprout.Actor`'s hands arrive with it, by the ordinary property rules.
     expect([...bundle!.visitor!.properties.keys()]).toEqual(['capacity']);
   });
@@ -134,7 +139,7 @@ describe('what a compiled bundle carries', () => {
     // object is not among them: it is in the world's body.
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
       'printers_shop',
-      'Visitor',
+      'Person',
       'Season',
       'World',
       'go',
@@ -148,6 +153,7 @@ describe('what a compiled bundle carries', () => {
       'drop',
       'give',
       'Actor',
+      'Visitor',
       'ask',
     ]);
     expect(bundle!.words).toEqual([]);
@@ -178,13 +184,13 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
   it('refuses what an object’s and the world’s own guards get wrong', () => {
     const text = [
       'world printers_shop is sprout.World {',
-      '  visitors are Visitor',
+      '  visitors are Person',
       '  visitors arrive at hall',
       '  depart (to) { destroy self }',
       `  ${HALL}`,
       '  object crate is Crate { accept (item, from) { refuse gone } }',
       '}',
-      'kind Visitor is sprout.Actor { }',
+      'kind Person is sprout.Visitor { }',
       'kind Crate { contains }',
     ].join('\n');
     const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
@@ -244,20 +250,21 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
 describe('a compile refuses actors where the spec has none', () => {
   const text = [
     'world printers_shop is sprout.World {',
-    '  visitors are Visitor',
+    '  visitors are Person',
     '  visitors arrive at hall',
     '  object hall is sprout.Place {',
-    '    object basket is Basket { object cat is Visitor }',
+    '    object basket is Basket { object cat is Porter }',
+    '    object guest is Person',
     '    object porter is Porter',
     '  }',
-    '  object ghost is Visitor',
+    '  object ghost is Porter',
     '}',
     VISITOR,
     'kind Porter is sprout.Actor { }',
     'kind Basket { contains }',
   ].join('\n');
 
-  it('refuses, in either mode, an actor that is not an NPC and an NPC where no actors stand', () => {
+  it('refuses, in either mode, a declared visitor and an NPC where no actors stand', () => {
     for (const mode of ['publish', 'load'] as const) {
       const { bundle, diagnostics } = compileBundle(
         world({ files: [file('world.sprout', text)] }),
@@ -271,28 +278,28 @@ describe('a compile refuses actors where the spec has none', () => {
         ['world.sprout:5:38', '`basket` holds no actors, so `cat` cannot stand in it.'],
         [
           'world.sprout:6:12',
-          '`porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
+          '`guest` composes `sprout.Visitor`, what a person is made of, and nothing declares a visitor: each one is a person who arrives.',
         ],
         [
-          'world.sprout:8:10',
+          'world.sprout:9:10',
           '`printers_shop` is the world, which holds no actors, so `ghost` cannot stand directly in it.',
         ],
       ]);
     }
   });
 
-  it('refuses a spawn of an actor that would not be an NPC, and takes one that would', () => {
+  it('refuses a spawn of what visitors are made of, and takes an NPC’s kind', () => {
     const verbs = [
       rootWith('object horn is Horn'),
       'kind Porter is sprout.Actor { }',
       'verb whistle { role target  "whistle at [target]" }',
-      'kind Horn { as target for whistle { do { spawn Porter in here  spawn Visitor in here } } }',
+      'kind Horn { as target for whistle { do { spawn Porter in here  spawn Person in here } } }',
     ].join('\n');
     const { diagnostics } = compileBundle(world({ files: [file('world.sprout', verbs)] }));
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
       [
-        'world.sprout:4:48',
-        '`Porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
+        'world.sprout:4:70',
+        '`Person` composes `sprout.Visitor`, what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
       ],
     ]);
   });

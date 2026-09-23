@@ -1,5 +1,5 @@
 // A verb with no roles is performed with empty brackets.
-kind Cat is Visitor {
+kind Cat is Creature {
   as target for pet {
     do {
       act purr (target: actor)

@@ -6,4 +6,4 @@ world w is sprout.World {
   :opens [Ward].brass
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

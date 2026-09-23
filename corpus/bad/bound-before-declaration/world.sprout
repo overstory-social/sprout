@@ -3,7 +3,7 @@ world bound_before_declaration is sprout.World {
   visitors arrive at hall
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 
 kind K {
   :faulty Ward.oak max - -

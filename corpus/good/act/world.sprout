@@ -1,9 +1,9 @@
-// `act`, as far as the compiler reads it today: something made of what
-// visitors are made of performs a verb itself, from a `do`, with its roles
-// named rather than typed.
+// `act`, as far as the compiler reads it today: an actor, a kind composing
+// `sprout.Actor`, performs a verb itself, from a `do`, with its roles named
+// rather than typed.
 world acting is sprout.World {
   contains actors
-  visitors are Creature
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place {
@@ -18,6 +18,8 @@ enum Mood { calm, cross, sleepy }
 kind Creature is sprout.Actor {
   as actor for nuzzle { do { say "You nuzzle {target}." } }
 }
+
+kind Person is Creature, sprout.Visitor { }
 
 verb pet    { role target  "pet [target]" }
 verb nuzzle { role target  "nuzzle [target]" }

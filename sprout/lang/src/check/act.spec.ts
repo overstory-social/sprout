@@ -23,7 +23,7 @@ import {
 import type { CheckContext } from './check.js';
 import { checkAct } from './act.js';
 
-/** The verbs and kinds every case acts among; `Cat` is an NPC's kind and `Kettle` is not. */
+/** The verbs and kinds every case acts among; `Cat` is an NPC's kind, `Visitor` a person's, and `Kettle` no actor's. */
 const WORLD = `enum Topic { bridge, toll }
 verb nuzzle { role target  "nuzzle [target]" }
 verb unlock { role target: Lockable  role tool  "unlock [target] with [tool]"  "unlock [target]" }
@@ -36,15 +36,16 @@ verb throw  { role target  role tools many  "throw [target] using [tools]" }
 verb purr   { "purr" }
 kind Lockable { }
 kind Rib { }
-kind Visitor is sprout.Actor { }
-kind Cat is Visitor { }
+kind Creature is sprout.Actor { }
+kind Visitor is Creature, sprout.Visitor { }
+kind Cat is Creature { }
 kind Kettle { }
 `;
 
 const TABLES = (() => {
   const setup = new Diagnostics();
   const sprout = parseDeclarations(
-    new SourceFile('sprout.sprout', 'kind Actor { contains }\n'),
+    new SourceFile('sprout.sprout', 'kind Actor { contains }\nkind Visitor is Actor { }\n'),
     setup,
   );
   const shop = parseDeclarations(new SourceFile('shop.sprout', WORLD), setup);
@@ -88,13 +89,13 @@ const spanOf = (word: string) => {
  * A `do` of `self`'s kind, with `door` a `Lockable`, `stone` of no known
  * kind, `ribs` a set of `Rib`, `t` a `Topic` and `n` a number in scope.
  */
-function bodyOf(self: KindRef, visitor: KindRef | null = kind('Visitor')): CheckContext {
+function bodyOf(self: KindRef): CheckContext {
   const scope = Scope.root();
   const setting = new Diagnostics();
   const topic = TABLES.enums.qualified('shop', 'Topic')!;
   for (const binding of [
     selfBinding(self, spanOf('self')),
-    actorBinding(visitor, spanOf('actor')),
+    actorBinding(kind('Visitor'), spanOf('actor')),
     hereBinding(spanOf('here')),
     letBinding('door', objectOf(kind('Lockable')), spanOf('door')),
     letBinding('stone', OPEN_OBJECT, spanOf('stone')),
@@ -110,19 +111,19 @@ function bodyOf(self: KindRef, visitor: KindRef | null = kind('Visitor')): Check
     from: 'shop',
     self,
     diagnostics: new Diagnostics(),
-    acting: { verbs: TABLES.verbs, visitor },
+    acting: { verbs: TABLES.verbs },
   };
 }
 
 /** Check `text` in a body of `self`: whether it passed, and what was said, where. */
-function checked(text: string, self = kind('Cat'), visitor?: KindRef | null) {
+function checked(text: string, self = kind('Cat')) {
   const parsing = new Diagnostics();
   const statement = parseStatement(new SourceFile('b.sprout', text), parsing) as ActStatement;
   expect(
     parsing.refusals.map((d) => d.message),
     text,
   ).toEqual([]);
-  const context = bodyOf(self, visitor);
+  const context = bodyOf(self);
   const passed = checkAct(statement, context);
   return {
     passed,
@@ -130,7 +131,7 @@ function checked(text: string, self = kind('Cat'), visitor?: KindRef | null) {
   };
 }
 
-describe('`act` in a body whose kind composes the visitor kind', () => {
+describe('`act` in a body whose kind composes `sprout.Actor`', () => {
   it('takes each role filled by what it takes, and leaves out an optional tool or a set', () => {
     for (const text of [
       'act nuzzle (target: stone)',
@@ -150,19 +151,26 @@ describe('`act` in a body whose kind composes the visitor kind', () => {
     }
   });
 
-  it('refuses a body whose own kind does not compose the visitor kind, at the word', () => {
+  it('takes it in the body of any actor: an NPC’s kind, what it shares with a person, a person’s', () => {
+    for (const self of ['Cat', 'Creature', 'Visitor']) {
+      expect(checked('act nuzzle (target: stone)', kind(self)), self).toEqual({
+        passed: true,
+        said: [],
+      });
+    }
+  });
+
+  it('refuses a body whose own kind does not compose `sprout.Actor`, at the word', () => {
     expect(checked('act nuzzle (target: stone)', kind('Kettle'))).toEqual({
       passed: false,
       said: [
         [
           'b.sprout:1:1',
-          'Only something made of `Visitor` acts, and `Kettle` does not compose it.',
-          "Compose `Visitor` into `Kettle`, or write the `act` in a kind that composes `Visitor`, as an NPC's kind does.",
+          'Only an actor acts, and `Kettle` does not compose `sprout.Actor`.',
+          "Compose `sprout.Actor` into `Kettle`, or write the `act` in a kind that composes it, as an NPC's kind does.",
         ],
       ],
     });
-    // A world that names no visitor kind has been told so already.
-    expect(checked('act nuzzle (target: stone)', kind('Kettle'), null).said).toEqual([]);
   });
 
   it('refuses a verb nothing declares, with the one most likely meant, and still reads its roles', () => {

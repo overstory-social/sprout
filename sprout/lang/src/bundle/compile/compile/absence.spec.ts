@@ -41,10 +41,10 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     // Without it the world, its visitors and the place they arrive at have
     // nothing to be made of, so it admits no one, and says why.
     expect(bundle!.absent.slice(1).map((a) => [a.what, a.kind])).toEqual([
-      ['sprout.Actor', 'kind-in-composition'],
+      ['sprout.Visitor', 'kind-in-composition'],
       ['sprout.Place', 'kind-in-composition'],
       ['sprout.World', 'world'],
-      ['Visitor', 'visitor-kind'],
+      ['Person', 'visitor-kind'],
       ['hall', 'place-of-arrival'],
     ]);
     expect(bundle!.world).toBeNull();
@@ -62,7 +62,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect([...loaded.bundle!.tree.placed.keys()]).toEqual(['hall', 'box', 'box.tin']);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
       [
-        ['Crate', 'kind-in-composition', 'missing', 'world.sprout:1:126'],
+        ['Crate', 'kind-in-composition', 'missing', 'world.sprout:1:125'],
         ['sprout.Ward', 'kind-in-composition', 'missing', 'world.sprout:2:17'],
       ],
     );

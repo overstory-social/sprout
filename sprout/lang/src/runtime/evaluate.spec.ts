@@ -64,7 +64,7 @@ const bundle = compiledWorld('printers_shop', {
     '  :remembers [seen: false, visits: 2 min 0 max 9]',
     '}',
     'kind Lidded is Jar { :lid true }',
-    'kind Person is sprout.Actor { :score 0 }',
+    'kind Person is sprout.Visitor { :score 0 }',
     '',
   ].join('\n'),
 });

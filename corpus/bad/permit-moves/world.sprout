@@ -1,11 +1,11 @@
 world permit_moves is sprout.World {
   contains actors
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Person is sprout.Visitor { }
 
 verb pull { role target  "pull [target]" }

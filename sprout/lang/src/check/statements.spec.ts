@@ -4,7 +4,7 @@ import type { DestroyStatement, MoveStatement, SpawnStatement, Statement } from 
 import { letBinding, showBindingType, valueOf } from './bindings.js';
 import { narrowingOf, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
-import { kindName, type KindRef } from '../declare/kinds.js';
+import { kindName, type KindLookup } from '../declare/kinds.js';
 import { ACTOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseExpression, parseStatement } from '../syntax/parse.js';
@@ -24,10 +24,6 @@ import {
 } from '../fixtures/check.js';
 
 /** A statement as written. The parse must succeed first. */
-/** An `act` setting naming only the visitor kind, which is all a spawn reads of it. */
-function actingAs(visitor: KindRef) {
-  return { verbs: { qualified: () => null, unqualified: () => null, all: () => [] }, visitor };
-}
 
 function parsed(text: string): Statement {
   const parsing = new Diagnostics();
@@ -196,10 +192,6 @@ describe('`spawn` makes a kind in something that holds things', () => {
     expect(spawned('spawn Rib in target', vessel())).toEqual({ kind: 'shop.Rib', said: [] });
   });
 
-  it('may make an actor, and the visitor kind', () => {
-    expect(spawned('spawn Printer in self', vessel())).toEqual({ kind: 'shop.Printer', said: [] });
-  });
-
   it('refuses a kind nothing declares', () => {
     expect(spawned('spawn Kiln in self', vessel()).said).toEqual([
       [
@@ -298,24 +290,29 @@ describe('`spawn` makes a kind in something that holds things', () => {
     expect(spawned('spawn Key in self', vessel()).said).toEqual([]);
   });
 
-  it('refuses an actor that would not be an NPC, and takes one that would', () => {
-    const npc = { ...vessel(), acting: actingAs(PRINTER) };
-    expect(spawned('spawn Printer in self', npc)).toEqual({ kind: 'shop.Printer', said: [] });
-    const visitor = kind('Visitor', [], [ACTOR]);
-    expect(spawned('spawn Printer in self', { ...vessel(), acting: actingAs(visitor) })).toEqual({
+  it('refuses a spawn of what a person is made of, and takes an NPC’s kind', () => {
+    // `Printer` composes `sprout.Visitor`; `Cat` composes only `sprout.Actor`.
+    const cat = kind('Cat', [], [ACTOR], true);
+    const kinds: KindLookup = {
+      qualified: (library, name) =>
+        library === 'shop' && name === 'Cat' ? cat : KINDS.qualified(library, name),
+      unqualified: (name, from) => (name === 'Cat' ? cat : KINDS.unqualified(name, from)),
+      all: () => [...KINDS.all(), cat],
+    };
+    expect(spawned('spawn Cat in self', { ...vessel(), kinds })).toEqual({
+      kind: 'shop.Cat',
+      said: [],
+    });
+    expect(spawned('spawn Printer in self', vessel())).toEqual({
       kind: null,
       said: [
         [
           'b.sprout:1:7',
-          '`Printer` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
-          "Spawn `Visitor`, what this world's visitors are made of, or a kind that composes it, to make an NPC; or spawn a kind that is not an actor.",
+          '`Printer` composes `sprout.Visitor`, what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
+          'For an NPC, use a kind that composes `sprout.Actor` and not `sprout.Visitor`; to share it with the visitors, write `kind Creature is sprout.Actor { … }` and `kind Person is Creature, sprout.Visitor { }`.',
         ],
       ],
     });
-    // A thing is spawned whatever the visitor kind is.
-    expect(spawned('spawn Rib in self', { ...vessel(), acting: actingAs(visitor) }).said).toEqual(
-      [],
-    );
   });
 });
 

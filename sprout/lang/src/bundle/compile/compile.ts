@@ -137,7 +137,6 @@ export function compileBundle(
     tree: tables.tree,
     objects: tables.composed,
     world,
-    visitor,
     diagnostics: report.diagnostics,
   });
 
@@ -152,7 +151,7 @@ export function compileBundle(
       ),
       ...(world === null ? [] : [world]),
     ],
-    { kinds: tables.kinds, verbs: tables.verbs, visitor, diagnostics: report.diagnostics },
+    { kinds: tables.kinds, verbs: tables.verbs, diagnostics: report.diagnostics },
   );
   warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
 
