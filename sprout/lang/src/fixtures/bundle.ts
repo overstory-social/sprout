@@ -4,7 +4,7 @@
 // blessed as the CLI sends it. Spec support: the package build leaves it out.
 
 import { libraryHash, type Bundle, type Manifest } from '../bundle/bundle.js';
-import { compileBundle } from '../bundle/compile.js';
+import { compileBundle } from '../bundle/compile/compile.js';
 import { DEFAULT_LIMITS, type Limits } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { SourceFile } from '../source/source.js';
@@ -60,19 +60,20 @@ export function compiledWorld(
 }
 
 /**
- * A small shop, in two files: two rooms, a shelf holding a jar and a
- * cup, a `Person` kind for a case to make visitors of, and a box whose
- * kind `Crate` lives in `kiln.sprout` with an object of its own. Withhold that file at load and the box is absent
- * while the tin it holds still composes, and the kiln is not placed.
+ * A small shop, in two files: a world that is open, two rooms, a shelf
+ * holding a jar and a cup, `Person` for visitors to be made of, and a
+ * box whose kind `Crate` lives in `kiln.sprout` with an object of its
+ * own. Withhold that file at load and the box is absent while the tin it
+ * holds still composes, and the kiln is not placed.
  */
 export const SHOP: Readonly<Record<string, string>> = {
   'world.sprout': [
-    'world printers_shop: sprout.World { contains visitors arrive at hall }',
+    'world printers_shop: sprout.World { contains visitors are Person visitors arrive at hall :open true }',
     'enum Glaze { none, shino, tenmoku }',
     'kind Room { contains actors :lit true }',
     'kind Shelf { contains }',
     'kind Jar { :glaze Glaze default none :fill 3 min 0 max 9 :remembers [seen: false] }',
-    'kind Person { contains :score 0 }',
+    'kind Person: sprout.Actor { :score 0 }',
     'object hall: Room in printers_shop',
     'object yard: Room in printers_shop',
     'object shelf: Shelf in hall',

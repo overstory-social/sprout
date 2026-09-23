@@ -2,3 +2,5 @@ world without_not_a_member: sprout.World {
   visitors are Creature
   visitors arrive at composing_room
 }
+
+kind Creature: sprout.Actor { }

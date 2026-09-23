@@ -9,3 +9,5 @@ kind Room {
 }
 
 object composing_room: Room in property_two_origins
+
+kind Creature: sprout.Actor { }

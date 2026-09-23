@@ -1,0 +1,9 @@
+{
+  "name": "library_sprout_unnamed",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "files": ["world.sprout"]
+}

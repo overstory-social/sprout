@@ -89,13 +89,16 @@ export function identityOf(written: KindExpr, from: string, kinds: KindSource): 
 }
 
 /**
- * What is said of a composed kind nothing declares, read from inside
- * `from`, with the kind it most likely meant where one is close enough.
+ * What is said of a kind nothing declares, read from inside `from`, with
+ * the kind it most likely meant where one is close enough. `composes`,
+ * written as `: sprout.Actor`, is what a declaration the remedy suggests
+ * would compose.
  */
 export function unknownKind(
   written: KindExpr,
   from: string,
   kinds: KindSource,
+  composes = '',
 ): { message: string; remedy: string } {
   const name = written.name.text;
   const library = written.library?.text ?? null;
@@ -109,7 +112,7 @@ export function unknownKind(
       message: `${message} Did you mean \`${as(meant)}\`?`,
       remedy:
         library === null
-          ? `Write \`${meant}\`, or declare \`${name}\` with \`kind ${name} { … }\`.`
+          ? `Write \`${meant}\`, or declare \`${name}\` with \`kind ${name}${composes} { … }\`.`
           : `Write \`${as(meant)}\`.`,
     };
   }
@@ -117,7 +120,7 @@ export function unknownKind(
     message,
     remedy:
       library === null
-        ? `Declare it with \`kind ${name} { … }\`, or check the spelling of a kind this world or a library it uses declares.`
+        ? `Declare it with \`kind ${name}${composes} { … }\`, or check the spelling of a kind this world or a library it uses declares.`
         : `Check the spelling, and that the world uses the library \`${library}\` and it declares \`${name}\`.`,
   };
 }
@@ -373,12 +376,7 @@ function composedKinds(composer: Composer, context: ComposeContext): Composed[] 
       case 'unknown': {
         whole = false;
         const { message, remedy } =
-          identity === WORLD
-            ? {
-                message: `The standard library is missing \`${WORLD}\`.`,
-                remedy: 'Every world composes it, for the words the engine speaks for itself.',
-              }
-            : unknownKind(written, composer.library, kinds);
+          identity === WORLD ? missingWorld(kinds) : unknownKind(written, composer.library, kinds);
         if (context.onUnknown !== undefined) context.onUnknown(written, message, remedy);
         else diagnostics.refuse(written.at, message, remedy);
         break;
@@ -401,6 +399,24 @@ function composedKinds(composer: Composer, context: ComposeContext): Composed[] 
     }
   }
   return whole ? composed : null;
+}
+
+/**
+ * What is said when there is no `sprout.World` to compose: the library
+ * `sprout` is not there at all, which the manifest answers, or it is and
+ * does not declare it.
+ */
+function missingWorld(kinds: KindSource): { message: string; remedy: string } {
+  if (kinds.named(SPROUT).length === 0) {
+    return {
+      message: `\`${WORLD}\` is not here, because the library \`${SPROUT}\` is not.`,
+      remedy: `Every world composes \`${WORLD}\` from the library \`${SPROUT}\`: name it among the manifest's libraries and vendor it with the world, as \`sprout init\` does.`,
+    };
+  }
+  return {
+    message: `The standard library is missing \`${WORLD}\`.`,
+    remedy: 'Every world composes it, for the words the engine speaks for itself.',
+  };
 }
 
 /** Whether two origins' declarations could be one slot: the same type, range and memory. */

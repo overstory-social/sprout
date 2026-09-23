@@ -1,7 +1,8 @@
 // `node scripts/pin-standard-library.mjs`: pin the standard library the CLI
 // carries in every corpus manifest, by its name, version and current hash.
 // It rewrites the `libraries` value alone: another library's pin is kept as
-// it was, and nothing else in a manifest is touched. It reads the built
+// it was, and nothing else in a manifest is touched. A manifest that leaves
+// `libraries` out uses none, on purpose, and is left alone. It reads the built
 // library, so run `npm run build` first. Read the diff before committing it.
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -58,6 +59,10 @@ const manifests = ['corpus/good', 'corpus/bad']
 let changed = 0;
 for (const path of manifests) {
   const text = readFileSync(path, 'utf8');
+  if (!('libraries' in JSON.parse(text))) {
+    console.log(`left ${path} alone: it uses no libraries`);
+    continue;
+  }
   const at = librariesValue(text);
   if (at === null) throw new Error(`${path}: no "libraries" list to pin the standard library in`);
   const others = JSON.parse(text.slice(at.start, at.end)).filter((p) => p.name !== pin.name);

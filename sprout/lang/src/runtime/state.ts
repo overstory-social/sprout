@@ -71,8 +71,8 @@ export interface WorldState {
   /**
    * Everything kept untouched and saved back verbatim: an object absent
    * from source or of an absent kind, a spawn of a kind no longer
-   * declared, the world while the bundle carries no world kind, and
-   * visitors while it carries no visitor kind.
+   * declared, and, in a loaded world that admits no one for want of
+   * them, the world without its kind and visitors without theirs.
    */
   readonly dormant: ReadonlyMap<InstanceId, StoredInstance>;
   readonly visitors: ReadonlyMap<VisitKey, VisitorRecord>;

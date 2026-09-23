@@ -3,3 +3,5 @@ world remembers_entry_recovers: sprout.World {
   visitors arrive at hall
   :remembers [faulty: [Ward] [oak], alpha: 1]
 }
+
+kind Creature: sprout.Actor { }

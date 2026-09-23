@@ -1,8 +1,9 @@
 // What one bundle says about the instances a world may hold (the spec's
-// The runtime › State): every declared object by its id, the kinds a
-// spawn may name, where visitors arrive, and the host's caps that stored
-// values are read under. Built once per load, and read by every rule
-// that reconciles stored state with source.
+// The runtime › State): every declared object by its id, what the world
+// and a visitor are made of, the kinds a spawn may name, where visitors
+// arrive, and the host's caps that stored values are read under. Built
+// once per load, and read by every rule that reconciles stored state
+// with source.
 //
 // Every placement in the declared tree is here, one whose kind is absent
 // included, so that what it holds keeps its declared container and its
@@ -30,13 +31,9 @@ export interface DeclaredEntry {
 export interface Catalogue {
   /** The world's id, which is its name and the root of the tree. */
   readonly world: InstanceId;
-  /**
-   * What the world is made of. Null while the bundle carries no composed
-   * world, which it does not until a `sprout` library can be vendored and
-   * `compileBundle` resolves the world.
-   */
+  /** What the world is made of; null in a loaded world that admits no one for want of it. */
   readonly worldKind: KindRef | null;
-  /** What a visitor is made of; null while the bundle carries no visitor kind. */
+  /** What a visitor is made of; null in a loaded world that admits no one for want of it. */
   readonly visitorKind: KindRef | null;
   /** Every placement in the declared tree, by id, absent kinds included. */
   readonly declared: ReadonlyMap<InstanceId, DeclaredEntry>;
@@ -68,8 +65,8 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
   }
   return {
     world,
-    worldKind: null,
-    visitorKind: null,
+    worldKind: bundle.world,
+    visitorKind: bundle.visitor,
     declared,
     kinds: new Map(bundle.kinds.map((kind) => [kindName(kind), kind])),
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),

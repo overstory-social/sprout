@@ -3,3 +3,5 @@ world default_dot_misplaced: sprout.World {
   visitors arrive at hall
   :wear integer.3
 }
+
+kind Creature: sprout.Actor { }

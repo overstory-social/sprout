@@ -3,3 +3,5 @@ world enum_twice: sprout.World {
   visitors are Creature
   visitors arrive at enum_twice
 }
+
+kind Creature: sprout.Actor { }
