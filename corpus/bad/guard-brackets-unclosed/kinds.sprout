@@ -1,0 +1,6 @@
+// A guard's parameters close their bracket before the body opens.
+kind Crate {
+  contains
+
+  depart (to { allow }
+}

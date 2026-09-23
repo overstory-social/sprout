@@ -10,6 +10,7 @@ import type { DeclarationReader, Parser } from './parser.js';
 import { readable } from '../../source/words.js';
 import { recover, recoverInBraces, separator } from './recovery.js';
 import { typeExpr } from './types.js';
+import { isGuardName } from './guards.js';
 import { kindDeclaration, objectDeclaration } from './kinds.js';
 import { worldDeclaration } from './world.js';
 
@@ -31,6 +32,16 @@ export function file(p: Parser): Declaration[] {
         token.at,
         'A passage belongs to a kind, an object or the world, and is written inside its braces.',
         'Move it into the body of the one whose words these are, as in `kind Mirror { passage greeting { … } }`.',
+      );
+      p.next();
+      recover(p);
+      continue;
+    }
+    if (token.kind === 'name' && isGuardName(token.text)) {
+      p.diagnostics.refuse(
+        token.at,
+        `\`${token.text}\` belongs to a kind, an object or the world, and is written inside its braces.`,
+        `Move it into the body of the one it speaks for, as in \`kind Crate { accept (item, from) { … } }\`.`,
       );
       p.next();
       recover(p);

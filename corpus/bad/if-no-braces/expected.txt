@@ -1,0 +1,4 @@
+kinds.sprout:6:26  What `if` decides goes in braces.
+                   Write `if (<condition>) { … }`, as in `if (self.count >= 8) { refuse full }`.
+
+refused: 1 problem

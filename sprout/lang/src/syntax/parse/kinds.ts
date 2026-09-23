@@ -45,7 +45,7 @@ export function kindDeclaration(p: Parser): KindDeclaration | null {
     return null;
   }
 
-  const read = body(p, 'kind', name, kindMembers(p));
+  const read = body(p, 'kind', name, kindMembers(p, name.text));
   if (read === null) return null;
   return {
     kind: 'kind',
@@ -83,7 +83,7 @@ export function objectDeclaration(p: Parser): ObjectDeclaration | null {
   if (container === null) {
     // A body written after it is still read, so what it holds is checked
     // and nothing in it is taken for the next declaration.
-    if (p.take('punct', '{') !== null) body(p, 'object', name, kindMembers(p));
+    if (p.take('punct', '{') !== null) body(p, 'object', name, kindMembers(p, name.text));
     else recover(p);
     return null;
   }
@@ -98,7 +98,7 @@ export function objectDeclaration(p: Parser): ObjectDeclaration | null {
       members: [],
     };
   }
-  const read = body(p, 'object', name, kindMembers(p));
+  const read = body(p, 'object', name, kindMembers(p, name.text));
   if (read === null) return null;
   return {
     kind: 'object',

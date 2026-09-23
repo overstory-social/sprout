@@ -7,7 +7,6 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { WorldMember } from '../../ast.js';
 import { parseDeclarations } from '../../parse.js';
 import { chooser, type Chooser } from '../../../fixtures/parse.js';
 import {
@@ -15,21 +14,15 @@ import {
   defectiveMember,
   explained,
   FOLLOWING,
+  memberNames,
   ownedBy,
   reading,
   tally,
   wellFormed,
+  WELL_FORMED_GUARDS,
   OWNERS,
   SORTS,
 } from '../../../fixtures/recovery.js';
-
-/** A world member by what it would be looked up as, a `:remembers` by each entry. */
-const memberNames = (member: WorldMember): string[] =>
-  member.kind === 'property'
-    ? [member.name.text]
-    : member.kind === 'remembers'
-      ? member.properties.map((p) => `remembers.${p.name.text}`)
-      : [member.kind];
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   it('does not let a refused bound step into the next declaration’s own word', () => {
@@ -59,6 +52,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       { names: ['visitors-arrive-at'], text: () => 'visitors arrive at y', worldOnly: true },
       { names: ['contains'], text: () => 'contains actors', worldOnly: false },
       { names: ['without'], text: () => 'without changed :lit from Lamp', worldOnly: false },
+      ...WELL_FORMED_GUARDS.map(({ names, text }) => ({
+        names,
+        text: () => text,
+        worldOnly: false,
+      })),
     ];
     for (const [n, owner] of OWNERS.entries()) {
       const c = chooser(20_260_925 + n);
@@ -121,7 +119,19 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
             // A symbol written where a value goes, `:wet` or `:stir`, is
             // a member of its own: a reading, and not something that
             // appeared.
-            [...good, 'faulty', 'remembers.faulty', 'remembers.echo', 'contains', 'wet', 'stir'],
+            [
+              ...good,
+              'faulty',
+              'remembers.faulty',
+              'remembers.echo',
+              'contains',
+              'wet',
+              'stir',
+              // A guard with a defect inside its block is kept with what read.
+              'depart',
+              'release',
+              'accept',
+            ],
             said,
           ),
         ).toEqual([]);

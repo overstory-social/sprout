@@ -597,8 +597,8 @@ describe('`without` leaves out one contribution, naming the member and the kind 
 
   it('reaches any kind in the closure, and then asks whether that kind declares the member', () => {
     // `Light` is reached through `Lantern`, so the only question left is
-    // the member, and no kind declares a handler, a hook, a guard or a
-    // role yet: every form is refused at the member, saying so.
+    // the member, and `Light` declares none of these: every form is
+    // refused at the member, saying so.
     for (const [member, column] of [
       ['changed :lit', 11],
       ['on :stir', 11],
@@ -634,6 +634,19 @@ describe('`without` leaves out one contribution, naming the member and the kind 
     const { said } = compose('kind Hall {\n  without depart from sprout.World\n}');
     expect(said.map(([, message]) => message)).toEqual([
       '`Hall` does not compose `sprout.World`, so there is nothing of its to leave out.',
+    ]);
+  });
+
+  it('records a guard the kind after `from` writes itself, and refuses one it only composes', () => {
+    const GUARDED = `${LAMPS}kind Fragile { depart (to) { refuse "It would break." } }\nkind Vase: Fragile { }\n`;
+    const left = compose(`${GUARDED}kind Urn: Vase {\n  without depart from Fragile\n}`);
+    expect(left.said).toEqual([]);
+    expect(left.kind!.suppressed.map((one) => one.source)).toEqual(['shop.Fragile']);
+    expect(left.kind!.guards.depart).toEqual([]);
+
+    const through = compose(`${GUARDED}kind Urn: Vase {\n  without depart from Vase\n}`);
+    expect(through.said.map(([, message]) => message)).toEqual([
+      '`Vase` has no `depart` to leave out.',
     ]);
   });
 

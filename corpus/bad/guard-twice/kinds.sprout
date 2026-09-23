@@ -1,0 +1,13 @@
+// One kind answers once for each part of a move.
+kind Crate {
+  contains
+  :open true
+  :capacity 4 min 0 max 20
+
+  accept (item, from) {
+    if (!self.get(:open)) { refuse "It is shut." }
+  }
+  accept (item, from) {
+    if (self.count >= self.get(:capacity)) { refuse "It is full." }
+  }
+}

@@ -6,7 +6,15 @@
 import type { WorldDeclaration, WorldMember } from '../ast.js';
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
-import { body, composition, contains, kindName, without, type MemberReaders } from './bodies.js';
+import {
+  addGuards,
+  body,
+  composition,
+  contains,
+  kindName,
+  without,
+  type MemberReaders,
+} from './bodies.js';
 import { passage } from './passages.js';
 import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
@@ -41,7 +49,7 @@ export function worldDeclaration(p: Parser): WorldDeclaration | null {
     return null;
   }
 
-  const read = body(p, 'world', name, worldMembers(p));
+  const read = body(p, 'world', name, worldMembers(p, name.text));
   if (read === null) return null;
   return {
     kind: 'world',
@@ -52,14 +60,15 @@ export function worldDeclaration(p: Parser): WorldDeclaration | null {
   };
 }
 
-/** What may be written inside a world past its properties, and what reads each one. */
-function worldMembers(p: Parser): MemberReaders<WorldMember> {
+/** What may be written inside the world `owner` past its properties, and what reads each one. */
+function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember> {
   const readers = new Map<string, () => WorldMember | null>([
     ['visitors', () => visitors(p)],
     ['contains', () => contains(p)],
   ]);
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
+  addGuards(p, owner, readers);
   return readers;
 }
 

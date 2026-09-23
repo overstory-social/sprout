@@ -7,8 +7,10 @@
 // table, so the two cannot drift.
 
 import {
+  GUARD_NAMES,
   writtenMember,
   type ContainsDeclaration,
+  type GuardDeclaration,
   type KindExpr,
   type KindMember,
   type MemberRef,
@@ -21,6 +23,7 @@ import type { Node } from '../../source/nodes.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
+import { guard, isGuardName } from './guards.js';
 import { isPassage, passage } from './passages.js';
 import { property, remembers } from './properties.js';
 import { stepPast } from './recovery.js';
@@ -78,12 +81,26 @@ export function composition(p: Parser, owner: Owner): KindExpr[] | null {
   }
 }
 
-/** What a kind's body or an object's may hold, past its properties. */
-export function kindMembers(p: Parser): MemberReaders<KindMember> {
+/** What a kind's body or an object's may hold, past its properties. `owner` is its name. */
+export function kindMembers(p: Parser, owner: string): MemberReaders<KindMember> {
   const readers = new Map<string, () => KindMember | null>([['contains', () => contains(p)]]);
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
+  addGuards(p, owner, readers);
   return readers;
+}
+
+/**
+ * The three guards, added to a body's table. A guard never closed ends
+ * where the body's next member starts, which the same table says.
+ */
+export function addGuards<M>(
+  p: Parser,
+  owner: string,
+  readers: Map<string, () => M | GuardDeclaration | null>,
+): void {
+  const startsMember = (token: Token): boolean => memberReader(p, token, readers) !== null;
+  for (const name of GUARD_NAMES) readers.set(name, () => guard(p, owner, startsMember));
 }
 
 /**
@@ -177,7 +194,7 @@ interface FoundMember {
  * Members written after the `}` that closes a body, as a stray one
  * left inside a member's own text leaves them: a property, a
  * `:remembers`, or one of the body's keyword members (`contains`,
- * `visitors`, `without`), found before the next declaration or the end
+ * `visitors`, `without`, a guard), found before the next declaration or the end
  * of the file. A brace count alone cannot tell such a stray closer from
  * the body's own, so every member after it is named in one refusal
  * instead of being lost the way stepping straight to the next
@@ -237,6 +254,10 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
     const text = token.kind === 'symbol' ? `:${token.text}` : token.text;
     if (!found.some((member) => member.text === text)) found.push({ at: token.at, text });
     ahead += 1;
+    // A guard's brackets and block are its own, and are stepped over
+    // with it, so its `{` does not end the scan and its statements are
+    // not taken for members.
+    if (token.kind === 'name' && isGuardName(token.text)) ahead = pastGuard(p, ahead);
   }
   if (found.length === 0) return;
   p.diagnostics.refuse(
@@ -247,6 +268,31 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
     `Everything \`${name.text}\` is made of goes inside its braces. Take out the \`}\` that ends it too early.`,
   );
   for (let i = 0; i < ahead; i++) p.next();
+}
+
+/**
+ * Past a guard's `( … )` and `{ … }`, from just after its word at
+ * `ahead`, where each is written and closes; otherwise where it stopped.
+ */
+function pastGuard(p: Parser, ahead: number): number {
+  let at = ahead;
+  for (const [open, close] of [
+    ['(', ')'],
+    ['{', '}'],
+  ] as const) {
+    if (!punct(p.peek(at), open)) return at;
+    let depth = 0;
+    for (let scan = at; ; scan++) {
+      const token = p.peek(scan);
+      if (token.kind === 'end' || p.atDeclarationStart(scan)) return at;
+      if (punct(token, open)) depth += 1;
+      else if (punct(token, close) && --depth === 0) {
+        at = scan + 1;
+        break;
+      }
+    }
+  }
+  return at;
 }
 
 /**
@@ -405,8 +451,6 @@ export function without<M>(p: Parser, readers: MemberReaders<M>): WithoutDeclara
   return { kind: 'without', at: spanning(keyword.at, source.at), member, source };
 }
 
-const GUARDS: ReadonlySet<string> = new Set(['depart', 'release', 'accept']);
-
 /**
  * The member a `without` names: `on :m`, `changed :p`, a guard, or `as
  * <role> for <verb>`. Null having said why.
@@ -434,13 +478,11 @@ function memberNamed<M>(p: Parser, keyword: Span, readers: MemberReaders<M>): Me
       ? { kind: 'handler-ref', at, message: p.ident(named) }
       : { kind: 'hook-ref', at, property: p.ident(named) };
   }
-  if (token.kind === 'name' && GUARDS.has(token.text)) {
+  // A guard's word with its brackets after it is the next member, a
+  // guard as written, and not what this line leaves out.
+  if (token.kind === 'name' && isGuardName(token.text) && !punct(p.peek(1), '(')) {
     p.next();
-    return {
-      kind: 'guard-ref',
-      at: token.at,
-      guard: token.text as 'depart' | 'release' | 'accept',
-    };
+    return { kind: 'guard-ref', at: token.at, guard: token.text };
   }
   if (token.kind === 'name' && token.text === 'as') {
     p.next();

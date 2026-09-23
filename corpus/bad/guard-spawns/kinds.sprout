@@ -1,0 +1,12 @@
+// A guard may not make or remove anything: the engine asks it in the
+// middle of a move, and the world must not change underneath it.
+kind Crate {
+  contains
+
+  release (item, to) {
+    spawn Crate in self
+  }
+  depart (to) {
+    destroy self
+  }
+}

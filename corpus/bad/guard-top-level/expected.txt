@@ -1,0 +1,4 @@
+kinds.sprout:3:1  `accept` belongs to a kind, an object or the world, and is written inside its braces.
+                  Move it into the body of the one it speaks for, as in `kind Crate { accept (item, from) { … } }`.
+
+refused: 1 problem

@@ -12,6 +12,7 @@ import {
   hereBinding,
   letBinding,
   loopBinding,
+  guardParameterBinding,
   moverBinding,
   objectOf,
   OPEN_OBJECT,
@@ -60,6 +61,14 @@ describe('where types come from — the table, row by row', () => {
 
   it('`mover`, in a guard — object; whatever proposed the move', () => {
     expect(moverBinding(at('mover')).type).toEqual(OPEN_OBJECT);
+  });
+
+  it('a guard’s `to`, `item` or `from` — object, under the name the guard gives it', () => {
+    const item = guardParameterBinding('thing', at('item'));
+    expect(item.name).toBe('thing');
+    expect(item.type).toEqual(OPEN_OBJECT);
+    expect(item.origin).toBe('parameter');
+    expect(item.writable).toBe(false);
   });
 
   it('a role — the kind the verb declares', () => {
