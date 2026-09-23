@@ -11,6 +11,7 @@ import type {
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { DEEPEST, parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
 import { SourceFile } from '../../source/source.js';
+import { chooser, type Chooser } from '../../fixtures/parse.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   // The generator in `types.spec.ts` asserts no-throw, no-repeat and
@@ -352,29 +353,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   const contained = (text: string): Defect => ({ text, sort: 'contained' });
   const stray = (text: string): Defect => ({ text, sort: 'stray' });
   const unclosed = (text: string): Defect => ({ text, sort: 'unclosed' });
-
-  /** mulberry32: a fixed stream of choices, so every failure reproduces from the source it prints. */
-  function chooser(seed: number) {
-    let state = seed >>> 0;
-    const below = (n: number): number => {
-      state = (state + 0x6d2b79f5) >>> 0;
-      let t = state;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) % n;
-    };
-    const one = <T>(items: readonly T[]): T => items[below(items.length)]!;
-    const shuffled = <T>(items: readonly T[]): T[] => {
-      const out = [...items];
-      for (let i = out.length - 1; i > 0; i--) {
-        const j = below(i + 1);
-        [out[i], out[j]] = [out[j]!, out[i]!];
-      }
-      return out;
-    };
-    return { below, one, shuffled };
-  }
-  type Chooser = ReturnType<typeof chooser>;
 
   const OVER_CAP = `[${Array.from({ length: 17 }, (_, i) => i).join(', ')}]`;
 
