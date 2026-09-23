@@ -54,9 +54,9 @@ describe('a character the lexer stepped over is not reported again as a missing 
     ]);
   });
 
-  it('says only what the lexer said, inside a :remembers', () => {
+  it('says only what the lexer said, inside a `remembers` block', () => {
     const diagnostics = new Diagnostics();
-    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 % b: 1]'), diagnostics);
+    parseRemembers(new SourceFile('k.sprout', 'remembers { :a 0 %\n  :b 1 }'), diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "%".',
     ]);
@@ -181,10 +181,10 @@ describe('a stepped-over character beside a separator that is, or is not, there'
     expect(value.kind === 'list-literal' && value.elements).toHaveLength(2);
   });
 
-  it('keeps every entry of a :remembers whose separator sits beside the character', () => {
+  it('keeps every entry of a `remembers` block beside the character', () => {
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: 0 % , b: 1]'),
+      new SourceFile('k.sprout', 'remembers { :a 0 % :b 1 }'),
       diagnostics,
     );
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
@@ -267,9 +267,9 @@ describe('recovery and reading ask the same word different questions', () => {
     expect(refusals.map((d) => d.message)).toEqual(['A minus sign needs a number after it.']);
   });
 
-  it('a `:remembers`, past an entry it could not read: the same', () => {
+  it('a `remembers` block, past an entry it could not read: the same', () => {
     const { declarations, refusals } = read(
-      'world outer is sprout.World {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+      'world outer is sprout.World {\n  remembers { :oops - message foo }\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
     // `message foo` is the abandoned entry's own text, stepped over
@@ -283,12 +283,10 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
   // *Reserved names* reserves nothing for a property's name or an
   // option's, so `enum`, `message` and `world` are ordinary words
   // almost everywhere. Recovery has to tell a declaration from a word
-  // that merely spells one, and a remembered property's name is never
-  // followed by a closer, since its grammar is `name: value` \u2014 so a
-  // guard that asked only for a closer would read every `:remembers`
-  // holding an entry called `enum` as a declaration starting mid-list
-  // and throw it away whole, and inside a world would take the world
-  // with it.
+  // that merely spells one: a guard that asked only for a closer would
+  // read a list holding an option called `enum` as a declaration
+  // starting mid-list and throw it away whole, and inside a world would
+  // take the world with it.
   //
   // The suite in `recovery.spec.ts` walks DEFECTIVE items and asks what
   // survives beside them. This is the other half \u2014 nothing well formed
@@ -299,7 +297,7 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
     for (const word of DECLARATIONS) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
-        new SourceFile('k.sprout', `:remembers [${word}: 1, keep: 2]`),
+        new SourceFile('k.sprout', `remembers { :${word} 1 :keep 2 }`),
         diagnostics,
       );
       expect(diagnostics.refusals, word).toEqual([]);
@@ -358,7 +356,7 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
     // vanish and a stray "An enum needs a name." would name nothing.
     for (const word of DECLARATIONS) {
       const { declarations, refusals } = readWorld(
-        `world w is sprout.World {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
+        `world w is sprout.World {\n  remembers { :${word} 1 }\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
       );
       expect(
         refusals.map((d) => d.message),
@@ -401,10 +399,10 @@ describe('the parser bounds its own recursion, and nothing else does', () => {
     expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(1);
   });
 
-  it('says so once for a `:remembers` too, which has the same loop', () => {
+  it('says so once for a `remembers` block too, which reads on past an entry', () => {
     const diagnostics = new Diagnostics();
     parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: ' + '['.repeat(2000) + 'oak]'),
+      new SourceFile('k.sprout', 'remembers { :a ' + '['.repeat(2000) + 'oak }'),
       diagnostics,
     );
     expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(1);
@@ -423,12 +421,12 @@ describe('the parser bounds its own recursion, and nothing else does', () => {
 
     const diagnostics = new Diagnostics();
     const after = parseRemembers(
-      new SourceFile('k.sprout', `:remembers [a: ${deep}oak${']'.repeat(DEEPEST + 1)}, b c: 1]`),
+      new SourceFile('k.sprout', `remembers { :a ${deep}oak${']'.repeat(DEEPEST + 1)} b c: 1 }`),
       diagnostics,
     );
     const said = diagnostics.refusals.map((d) => d.message);
     expect(said.filter((m) => m === TOO_DEEP)).toHaveLength(1);
-    expect(said.join(' ')).toContain('needs a colon between its name and its value');
+    expect(said.join(' ')).toContain('holds properties, and `b` is not one');
     expect(after).not.toBeNull();
   });
 
@@ -468,12 +466,12 @@ message :b with ${deep}Ward
     expect(call.shape).toBe('self.f(b)');
     expect(call.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
 
-    // The same shape in a `:remembers`.
+    // The same shape in a `remembers` block.
     const diagnostics = new Diagnostics();
     const remembered = parseRemembers(
       new SourceFile(
         'k.sprout',
-        ':remembers [a: ' + '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1) + ', b: 3]',
+        'remembers { :a ' + '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1) + ' :b 3 }',
       ),
       diagnostics,
     );
@@ -483,12 +481,12 @@ message :b with ${deep}Ward
   it('steps over a TYPE it would not read, keeping the entry after it', () => {
     // The type path opens its own bracket before it discovers it may
     // not read what is inside, so it is the one that has to step back
-    // over it. Left behind, that `]` ends the `:remembers` around it
-    // and `b` goes with nothing said.
+    // over it. Left behind, that `]` is answered for as an entry of its
+    // own, a mistake the author did not make.
     const type = '['.repeat(DEEPEST + 1) + 'Ward' + ']'.repeat(DEEPEST + 1);
     const diagnostics = new Diagnostics();
     const remembered = parseRemembers(
-      new SourceFile('k.sprout', `:remembers [a: ${type} default oak, b: 3]`),
+      new SourceFile('k.sprout', `remembers { :a ${type} default oak :b 3 }`),
       diagnostics,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['b']);
@@ -506,7 +504,7 @@ message :b with ${deep}Ward
     for (const tail of ['default oak', 'default [oak, silver]', 'default 0 min 0 max 9']) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
-        new SourceFile('k.sprout', `:remembers [a: ${type} ${tail}, b: 3]`),
+        new SourceFile('k.sprout', `remembers { :a ${type} ${tail} :b 3 }`),
         diagnostics,
       );
       expect(
@@ -524,7 +522,7 @@ message :b with ${deep}Ward
     const value = '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1);
     const list = new Diagnostics();
     const remembered = parseRemembers(
-      new SourceFile('k.sprout', `:remembers [a: ${value}, b: 3]`),
+      new SourceFile('k.sprout', `remembers { :a ${value} :b 3 }`),
       list,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
@@ -544,7 +542,7 @@ message :b with ${deep}Ward
     const trap = '['.repeat(DEEPEST + 1) + 'message foo' + ']'.repeat(DEEPEST + 1);
     const diagnostics = new Diagnostics();
     const remembered = parseRemembers(
-      new SourceFile('k.sprout', `:remembers [a: ${trap}, c: 3]`),
+      new SourceFile('k.sprout', `remembers { :a ${trap} :c 3 }`),
       diagnostics,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);

@@ -1,11 +1,11 @@
-// `:remembers` entries merge by the same rule as properties: two kinds
+// `remembers` entries merge by the same rule as properties: two kinds
 // remembering `:seen` are two claims on one slot.
 kind Watched {
-  :remembers [seen: false]
+  remembers { :seen false }
 }
 
 kind Greeted {
-  :remembers [seen: false]
+  remembers { :seen false }
 }
 
 // Where the objects above sit.

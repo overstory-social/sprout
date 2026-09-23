@@ -1,7 +1,7 @@
 // A restatement changes a default and keeps the type, range and all.
 kind Wooden {
   :worn 0 min 0 max 9
-  :remembers [seen: false]
+  remembers { :seen false }
 }
 
 kind Chest is Wooden {

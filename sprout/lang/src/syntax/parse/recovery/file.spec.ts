@@ -54,10 +54,10 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           ]),
       },
     ];
-    // A world never closed, holding a `:remembers` or not; whatever
+    // A world never closed, holding a `remembers` block or not; whatever
     // follows it, in the file or here, is a declaration of its own.
     const unclosedWorld = (): string =>
-      `world faulty is sprout.World {\n  ${option(['visitors are P', 'visitors are P\n  :remembers [a: 0]', ':remembers [a: 0]'])}`;
+      `world faulty is sprout.World {\n  ${option(['visitors are P', 'visitors are P\n  remembers { :a 0 }', 'remembers { :a 0 }'])}`;
     const DEFECTIVE: readonly (() => string)[] = [
       // An enum: its name, its braces, one option, or a comma.
       () => `enum ${option(['faulty', '', '4', 'Faulty.'])} { oak }`,
@@ -169,7 +169,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       used.add(which);
       const unclosed = DEFECTIVE[which] === unclosedWorld;
       // After a world never closed, now and then a declaration whose own
-      // header reads like the entries of a `:remembers`.
+      // header has a list's tail written into it.
       const following =
         unclosed && c.below(2) === 0 ? c.one(FOLLOWING.filter((f) => !f.wellFormed)) : null;
       const defect = `${DEFECTIVE[which]!()}${following === null ? '' : `\n${following.text}`}`;
@@ -198,7 +198,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       ).toEqual([]);
       if (unclosed) {
         reached.add(
-          following !== null && defect.includes(':remembers') ? 'across' : 'unclosed world',
+          following !== null && defect.includes('remembers {') ? 'across' : 'unclosed world',
         );
         expect(
           said.some((d) => d.message === '`faulty` is never closed.'),

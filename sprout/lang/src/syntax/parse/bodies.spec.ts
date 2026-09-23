@@ -51,7 +51,7 @@ type Owner = (typeof OWNERS)[number];
 
 /** The members every body holds, with `holds` first where the owner says one more. */
 const membersOf = (owner: Owner): string =>
-  `${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\`, \`accept\`, \`as\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\`, \`accept\`, \`as\` and \`object\``;
 
 /**
  * The declaration a file's text opened with: a world or a kind, or, for
@@ -214,8 +214,8 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       read(`${owner.around[0]}${owner.open} {\n  ${members}\n}\n${owner.around[1]}`);
     const owned = (declarations: readonly Declaration[]) => ownedIn(declarations, owner);
 
-    it(`${owner.noun}: holds its properties, a \`:remembers\` and \`contains\``, () => {
-      const { declarations, refusals } = opened(':a 1\n  :remembers [b: 2]\n  contains actors');
+    it(`${owner.noun}: holds its properties, a \`remembers\` block and \`contains\``, () => {
+      const { declarations, refusals } = opened(':a 1\n  remembers { :b 2 }\n  contains actors');
       expect(refusals).toEqual([]);
       expect(owned(declarations)!.members.map((m) => m.kind)).toEqual([
         'property',
@@ -307,20 +307,20 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
     ]);
   });
 
-  it('names the entries of a `:remembers` written after a stray `}`, one by one', () => {
-    // A `:remembers` after the stray brace is named entry by entry, so
-    // the remedy says which memory was lost and not merely that one was.
+  it('names the entries of a `remembers` block written after a stray `}`, one by one', () => {
+    // A block after the stray brace is named entry by entry, so the
+    // remedy says which memory was lost and not merely that one was.
     const { declarations, refusals } = read(`kind K is sprout.Container {
   :alpha 0
   }
-  :remembers [visits: 0, greeted: false]
+  remembers { :visits 0 :greeted false }
 }
 `);
     expect(
       owned(declarations)!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind)),
     ).toEqual(['alpha']);
     expect(refusals.map((d) => d.message)).toEqual([
-      '`visits` and `greeted` are written after the `}` that ends `K`.',
+      '`:visits` and `:greeted` are written after the `}` that ends `K`.',
     ]);
   });
 

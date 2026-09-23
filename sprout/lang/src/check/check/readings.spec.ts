@@ -53,7 +53,7 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(refused.said.join(' ')).toContain('Narrow it first');
   });
 
-  it('`x.recall(:p)` — `x` composes `sprout.Actor`, `p` in `self`’s `:remembers`', () => {
+  it('`x.recall(:p)` — `x` composes `sprout.Actor`, `p` in `self`’s `remembers` block', () => {
     expect(shapeOf('actor.recall(:visits)', bodyOf(PRINTER))).toBe('integer 0 to 99');
     expect(effect('actor.remember(:handled, true)', bodyOf(PRINTER))).toBe(true);
     expect(effect('actor.adjust(:visits, 1)', bodyOf(PRINTER))).toBe(true);
@@ -74,7 +74,7 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(saidBy(notActor).join(' ')).toContain(ACTOR);
   });
 
-  it('`x.recall(:p)` — `p` is in SELF’s `:remembers`, never the receiver’s', () => {
+  it('`x.recall(:p)` — `p` is in SELF’s `remembers` block, never the receiver’s', () => {
     // `actor` is a Printer, which remembers `:visits`. Asked from
     // inside a Vessel, which remembers nothing, it is still refused:
     // memory is keyed to the object that declared it, and no object

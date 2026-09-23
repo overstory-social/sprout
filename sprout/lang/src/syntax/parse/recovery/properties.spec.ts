@@ -35,7 +35,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     const c = chooser(20_260_923);
     const reached = tally();
     for (let i = 0; i < 400; i++) {
-      const made = defectiveProperty(c, 'member');
+      const made = defectiveProperty(c);
       const { result, said, threw } = reading(made.text, parseProperty);
       expect(threw, made.text).toBeNull();
       reached.add(made.defect.sort);

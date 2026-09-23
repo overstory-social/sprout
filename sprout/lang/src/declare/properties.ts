@@ -109,7 +109,7 @@ export function resolveRemembers(
     if (seen.has(property.name.text)) {
       diagnostics.refuse(
         property.name.at,
-        `\`${property.name.text}\` is remembered twice.`,
+        `\`:${property.name.text}\` is remembered twice.`,
         'A remembered property is declared once. Remove the second.',
       );
       continue;
@@ -171,7 +171,7 @@ export function restateProperty(
 
 /**
  * How to restate a property, written out for a remedy: `:open true`, or
- * `:remembers [opened: false]`. The default shown is `preferred` when it
+ * `remembers { :opened false }`. The default shown is `preferred` when it
  * is a value of the property's type, and the property's own otherwise.
  */
 export function restatementOf(
@@ -182,6 +182,6 @@ export function restatementOf(
   const literal = fits ? preferred : property.declaration.default!;
   const value = literal.at.source.text.slice(literal.at.start, literal.at.end);
   return property.remembered
-    ? `\`:remembers [${property.name}: ${value}]\``
+    ? `\`remembers { :${property.name} ${value} }\``
     : `\`:${property.name} ${value}\``;
 }

@@ -71,8 +71,10 @@ export function objectDeclaration(p: Parser, nested: boolean): ObjectDeclaration
   const keyword = p.next();
   // A word that starts the next declaration is not this one's name:
   // `object` with its name forgotten must not take `enum Ward { … }`'s
-  // word and then its braces for a body, nor `is` for a name.
-  const name = p.atDeclarationStart() || p.at('name', 'is') ? null : p.take('name');
+  // word and then its braces for a body, nor `is` for a name, nor the
+  // body's next `remembers` block, a reserved word no object is named.
+  const block = p.at('name', 'remembers') && punct(p.peek(1), '{');
+  const name = p.atDeclarationStart() || p.at('name', 'is') || block ? null : p.take('name');
   if (name === null) {
     p.diagnostics.refuse(
       atComposition(p) ? p.here() : p.peek().at,

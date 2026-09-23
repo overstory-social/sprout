@@ -13,7 +13,7 @@ world composition is sprout.World {
     // stays 0 to 9, and `:opened` stays remembered.
     object chest is Chest {
       :worn 3
-      :remembers [opened: true, counted: 0 min 0 max 99]
+      remembers { :opened true :counted 0 min 0 max 99 }
     }
   }
 }

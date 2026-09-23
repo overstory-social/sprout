@@ -39,7 +39,8 @@ import type { SourceFile } from '../source/source.js';
 import { DECLARATION_READERS, file } from './parse/declarations.js';
 import { expression } from './parse/expressions.js';
 import { Parser } from './parse/parser.js';
-import { property, remembers } from './parse/properties.js';
+import { property } from './parse/properties.js';
+import { remembers } from './parse/remembers.js';
 import { notAStatement, statement } from './parse/statements.js';
 
 export { DEEPEST } from './parse/parser.js';
@@ -106,11 +107,24 @@ export function parseExpression(
   return expression(new Parser(source, diagnostics, DECLARATION_READERS, caps));
 }
 
-/** One `:remembers`, read on its own, for the same reason. */
+/**
+ * One `remembers { … }`, read on its own, for the same reason. Outside a
+ * body there is no next member to end a block never closed, so only the
+ * file's end or a declaration does.
+ */
 export function parseRemembers(
   source: SourceFile,
   diagnostics: Diagnostics,
   caps?: StaticCaps,
 ): RemembersDeclaration | null {
-  return remembers(new Parser(source, diagnostics, DECLARATION_READERS, caps));
+  const p = new Parser(source, diagnostics, DECLARATION_READERS, caps);
+  if (!p.at('name', 'remembers')) {
+    p.diagnostics.refuse(
+      p.peek().at,
+      `This is not a \`remembers\` block, and ${p.describe(p.peek())} does not start one.`,
+      'Write `remembers { :visits 0 }`.',
+    );
+    return null;
+  }
+  return remembers(p, () => false);
 }

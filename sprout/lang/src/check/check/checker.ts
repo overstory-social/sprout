@@ -24,8 +24,8 @@ export interface CheckContext {
   readonly from: string;
   /**
    * `self`'s kind. Memory is keyed to the object that declared it — no
-   * object can read another object's memory of anyone — so `:remembers`
-   * is looked up here and never on the receiver.
+   * object can read another object's memory of anyone — so a `remembers`
+   * entry is looked up here and never on the receiver.
    */
   readonly self: KindRef | null;
   readonly diagnostics: Diagnostics;
