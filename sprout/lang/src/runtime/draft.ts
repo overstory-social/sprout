@@ -11,7 +11,8 @@
 // serial is issued once, so a destroyed instance's id is never minted
 // again. A destroyed instance stays readable through `destroyed` for the
 // rest of the turn, holding the state it had; what it held, dormant
-// records included, is removed with it (the spec's Destroying).
+// records included, is removed with it, and every declared object among
+// what is removed is tombstoned, gone for good (the spec's Destroying).
 
 import { mintedId, type InstanceId, type VisitKey } from './ids.js';
 import { encodeInstance, encodeVisitor } from './load.js';
@@ -32,6 +33,8 @@ export interface StateChanges {
   readonly written: readonly InstanceId[];
   /** Instances there before the turn and removed by it. */
   readonly removed: readonly InstanceId[];
+  /** Declared objects this turn destroyed, each a tombstone the store keeps for good. */
+  readonly tombstoned: readonly InstanceId[];
   readonly visitors: readonly VisitKey[];
 }
 
@@ -43,6 +46,7 @@ export class Draft implements StateReader {
   private readonly written = new Map<InstanceId, Instance>();
   private readonly gone = new Map<InstanceId, Instance>();
   private readonly goneDormant = new Set<InstanceId>();
+  private readonly buried = new Set<InstanceId>();
   private readonly contents = new Map<InstanceId, readonly InstanceId[]>();
   private stored: number;
   private readonly visitors = new Map<VisitKey, VisitorRecord>();
@@ -75,6 +79,10 @@ export class Draft implements StateReader {
 
   visitor(visit: VisitKey): VisitorRecord | undefined {
     return this.visitors.get(visit) ?? this.base.visitors.get(visit);
+  }
+
+  tombstoned(id: InstanceId): boolean {
+    return this.buried.has(id) || this.base.tombstones.has(id);
   }
 
   /** A dormant record, kept untouched, that this turn has not removed. */
@@ -167,7 +175,8 @@ export class Draft implements StateReader {
       id === this.world ||
       this.instance(id) !== undefined ||
       this.gone.has(id) ||
-      this.base.dormant.has(id)
+      this.base.dormant.has(id) ||
+      this.tombstoned(id)
     ) {
       throw new Error(`\`${id}\` is taken, and an id is never reused.`);
     }
@@ -181,8 +190,8 @@ export class Draft implements StateReader {
 
   /**
    * Remove `id` and everything inside it, dormant records included, as
-   * `subtree` orders them, and return what was removed. The world is
-   * never removed.
+   * `subtree` orders them, and return what was removed. Each declared
+   * object removed is tombstoned. The world is never removed.
    */
   remove(id: InstanceId): readonly InstanceId[] {
     this.open();
@@ -191,6 +200,7 @@ export class Draft implements StateReader {
     const removed = this.subtree(id);
     for (const one of removed) {
       const decoded = this.instance(one);
+      if ((decoded ?? this.dormant(one))?.made.from === 'declared') this.buried.add(one);
       if (decoded === undefined) this.goneDormant.add(one);
       else {
         this.written.delete(one);
@@ -229,6 +239,7 @@ export class Draft implements StateReader {
       instances,
       dormant,
       visitors,
+      tombstones: new Set([...this.base.tombstones, ...this.buried]),
       children,
     };
     const sorted = <T extends string>(ids: Iterable<T>): T[] => [...ids].sort(compare);
@@ -241,6 +252,7 @@ export class Draft implements StateReader {
           ...[...this.gone.keys()].filter((id) => this.base.instances.has(id)),
           ...this.goneDormant,
         ]),
+        tombstoned: sorted(this.buried),
         visitors: sorted(this.visitors.keys()),
       },
     };
@@ -291,7 +303,7 @@ export class Draft implements StateReader {
   }
 }
 
-/** What a store writes for one committed turn: the records to upsert and the ids to delete. */
+/** What a store writes for one committed turn: the records to upsert, the ids to delete, and the tombstones to add. */
 export function storedChanges(
   state: WorldState,
   changes: StateChanges,
@@ -299,6 +311,7 @@ export function storedChanges(
   readonly serial: number;
   readonly upsert: readonly StoredInstance[];
   readonly remove: readonly string[];
+  readonly tombstones: readonly string[];
   readonly visitors: readonly StoredVisitor[];
 } {
   const record = <T>(found: T | undefined, what: string): T => {
@@ -309,6 +322,7 @@ export function storedChanges(
     serial: changes.serial,
     upsert: changes.written.map((id) => encodeInstance(record(state.instances.get(id), id))),
     remove: [...changes.removed],
+    tombstones: [...changes.tombstoned],
     visitors: changes.visitors.map((visit) =>
       encodeVisitor(record(state.visitors.get(visit), visit)),
     ),

@@ -212,7 +212,13 @@ function faultsWritingNothing(
   const fault = faultOf(() => run(draft));
   expect(fault.reason).toBe(reason);
   const { state, changes } = draft.commit();
-  expect(changes).toEqual({ serial: base.serial, written: [], removed: [], visitors: [] });
+  expect(changes).toEqual({
+    serial: base.serial,
+    written: [],
+    removed: [],
+    tombstoned: [],
+    visitors: [],
+  });
   expect(JSON.stringify(saveWorld(state))).toBe(JSON.stringify(saveWorld(base)));
   return fault;
 }

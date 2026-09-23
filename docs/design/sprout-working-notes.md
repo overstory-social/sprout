@@ -195,6 +195,7 @@ How this section works, for the agents that read it. **Open** comes first and ho
 - **35. Which kind a register library is composed onto.** A register composed onto the world replaces `sprout.World`'s lines and not `sprout.Place`'s or `sprout.Actor`'s, since a passage is the kind's. Left for the library work (#127).
 - **54. The register of the stock lines.** Long-term, not a blocker.
 - **81. Whether a host may unset a limit the spec gives a figure for.** The spec's Limits says a limit the host leaves unset is unbounded, and its tables give most limits a figure a host starts from. Built so a host may unset only the limits whose default is the host's to say and the wall clock, and a `null` for the step budget or any other figured limit is refused at boot; the other reading would let a host run turns with no step budget at all.
+- **82. A path the engine reads to a declared place destroyed.** A declared place with no one inside may be destroyed, and the engine itself reads paths to places: `visitors arrive at`, when it admits someone, and an exit's destination, when it polls the room. By Destroying's letter each is a name that faults when read, so a world whose arrival place was destroyed would fault every admission, and a room with an exit to one would fault every poll into `unseen`. The narrow reading, not built, is that an exit to a destroyed place does not apply (as a link to one reads as unavailable), and a world whose arrival place was destroyed admits no one, as one whose arrival place is absent does. Neither is reached until admission (B42) and exits (B28) are built. (Recorded while keeping a destroyed declared object gone; see below.)
 
 **Decided 2026-09-23, night**, now in the spec:
 
@@ -213,7 +214,7 @@ How this section works, for the agents that read it. **Open** comes first and ho
 - 69: `:departed` and `:arrived`, as named.
 - 70: the world's name may be a path's first step, and no other. Built: `visitors arrive at printers_shop.hall` reaches the hall, the world's name as a later step is refused, and the hidden-name warning names the path through it.
 - 71: a refused `move`, and a refused `act`, end the body they stand in: the first refusal ends the work.
-- 72: a destroyed declared object is gone for good; its id is never made again, a reference to it is a fault when read, and the compiler warns about `destroy self` on a declared object. Destroying is meant for what was spawned.
+- 72: a destroyed declared object is gone for good; its id is never made again, a reference to it is a fault when read, and the compiler warns about `destroy self` on a declared object. Destroying is meant for what was spawned. Built: a tombstone per destroyed declared id, load making none again, the warning, and the fault where a name is read (see "Found while keeping a destroyed declared object gone").
 - 73: every composer of `sprout.Actor` is an actor and may `act`; the visitor kind composes `sprout.Visitor`, and every other actor is an NPC. What "no behaviour" covers was decided the same night (80).
 - 74: a value role in an `act` is filled only by a binding. A friendly noun form for options a visitor types is B27's to settle.
 - 75: an actor found at load where actors cannot stand is a loud engine error.
@@ -512,7 +513,7 @@ Found while destroying what a destroyed object held, each decided the narrow way
 - **A visitor kept dormant inside.** Faults the destroy as a live one does: a record kept for want of the visitor kind is still a person's. An away visitor is inside nothing and faults nothing.
 - **Which visitor the fault names.** The first found in destroy order; the fault is about the object destroyed, and names one visitor in its detail.
 - **Stored records that hold each other.** Records a store left holding one another in a loop are each destroyed once.
-- **A destroyed declared object at the next load.** Not decided here: load makes every declared object it finds no record for, so one destroyed comes back at its defaults. It is Open 72. *Decided 2026-09-23 (72):* gone for good, never re-made; a reference to it faults; a compiler warning for destroying a declared object. The code catches up.
+- **A destroyed declared object at the next load.** Not decided here: load makes every declared object it finds no record for, so one destroyed comes back at its defaults. It is Open 72. *Decided 2026-09-23 (72):* gone for good, never re-made; a reference to it faults; a compiler warning for destroying a declared object. Built.
 
 Found while building `act` (B26), each decided the narrow way and awaiting Eric:
 
@@ -605,6 +606,18 @@ Found while giving the host its limits (B43), each decided the narrow way and aw
 - **What the runtime reads under.** An excepted world's stored values are read, and its lists grown, under the caps the exception granted, which that load's bundle records, rather than the host's own.
 - **Pending wakes per object.** A runtime budget in the table, 1 by default, counted against one object across turns; what a load does with a stored wake list longer than a lowered figure is B36's.
 - **Budgets are not recorded.** A bundle records its static caps and nothing of the runtime budgets, which apply as the host sets them on the day a turn runs.
+
+Found while keeping a destroyed declared object gone, each decided the narrow way and awaiting Eric:
+
+- **Stored state written before tombstones.** `tombstones` is a required field, so a stored world without it is unreadable; nothing is released, so no store holds one.
+- **The stored mark.** A `tombstones` list on the stored world, one declared id each, in code-unit order, kept for good: nothing removes one. The schema refuses a tombstone that is not a declared id, one written twice, and any instance stored under one or inside one; a link or a visitor's last place may still name one, since the absent rules read those. A turn's change set carries the tombstones it adds beside what it upserts and removes.
+- **What is tombstoned.** Every declared object a destroy removes: the one destroyed and each declared object inside it, a copy a kind gave it and a dormant declared record included, so a file restored does not bring one back. What was spawned inside it, and what a kind gave a spawn, is removed and leaves no tombstone, since a minted id is never made again anyway.
+- **What source adds inside it later.** Load does not make a declared object inside one tombstoned, however it came to be declared there, since what would hold it is gone; only a destroy writes a tombstone, so nothing is written for it.
+- **When a name faults.** From the moment the destroy takes effect, for the rest of that turn as well as after it; a binding to the object is not a name, and reads it as it was for the rest of the turn, as Destroying says.
+- **Where the fault is read.** `namedObject` (runtime) resolves a declared id and faults for a tombstoned one, `DestroyedReference`, naming the object; a declared id with nothing decoded under it gives nothing, for the absent rules. Nothing a body runs resolves an identifier or a path yet, so no world reaches the fault until B32 resolves them through it; the engine's own paths are Open 82.
+- **Which object the warning names.** The first declared object, in declared order, that runs the `destroy`, by its path; a `destroy` in a kind is warned about once however many declared objects are made of it, and names the kind the `destroy` is written in. One that no declared object runs, because none is made of its kind or each leaves the play out with `without`, is not warned about.
+- **Where the warning looks.** A play's `do`, however deep in an `if`, since that is the only body that may destroy today; handlers, hooks and wakes join as B32 reads them.
+- **Its words.** "`kitchen.taper` is made of `Candle` and is declared in the world, so once it is destroyed it never comes back.", or without the kind for the object's own body, and the remedy "Destroying is meant for what was spawned. To have something come and go, `spawn` it when it should appear; to keep this one, change one of its properties instead." Pinned by `corpus/good/destroy-declared`.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

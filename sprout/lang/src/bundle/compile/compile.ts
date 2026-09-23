@@ -29,8 +29,8 @@
 // taking the report: the caps to check against, the manifest's own
 // fields, the files, the libraries, what the bundle weighs, the first tier over every file, the
 // one world, the declarations, what the world and its visitors are made
-// of, where visitors arrive, which actors may be declared where, and the
-// bodies every kind writes.
+// of, where visitors arrive, which actors may be declared where, the
+// bodies every kind writes, and which of them destroy a declared object.
 
 import type { KindDeclaration } from '../../syntax/ast.js';
 import type { CompileMode } from '../absent.js';
@@ -44,6 +44,7 @@ import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
 import { checkBodies } from './bodies.js';
+import { warnDestroyingDeclared } from './destroyed.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
 import { checkLibraries } from './libraries.js';
@@ -151,6 +152,7 @@ export function compileBundle(
     ],
     { kinds: tables.kinds, verbs: tables.verbs, visitor, diagnostics: report.diagnostics },
   );
+  warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
 
   // The kinds, objects and places caps count what resolved, on the same
   // footing as the source and file caps, and so refuse at load too.
