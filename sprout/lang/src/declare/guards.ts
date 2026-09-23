@@ -6,8 +6,9 @@
 // Guards compose conjunctively: every contribution runs, in the order its
 // source appears in the closure, the composer's own last. One origin
 // reached by several paths contributes once. A `without` leaves one
-// origin's guard out, and what a kind leaves out stays left out in every
-// kind that composes it, however else that kind reaches the source.
+// origin's guard out of the kind that wrote it and so out of every kind
+// that reaches that origin through it; the same guard reaching a composer
+// by another path still runs.
 
 import type { GuardDeclaration, GuardName, KindMember } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -58,8 +59,9 @@ export function ownGuards(
 }
 
 /**
- * The guards a composer runs: what its composed kinds run, each origin
- * once and in closure order (`order`, the composer not in it), less what
+ * The guards a composer runs: what its composed kinds run (each already
+ * less what that kind left out), each origin once and in closure order
+ * (`order`, the composer not in it), less what the composer's own
  * `suppressed` leaves out, then its own.
  */
 export function composeGuards(
