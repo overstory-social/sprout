@@ -52,8 +52,13 @@ world printers_shop is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
   :season Season default autumn
+
+  object composing_room is sprout.Place { … }
+  object press_yard is sprout.Place { … }
 }
 ```
+
+The source is written in the shape of that tree. The world's body holds what sits directly in the world, beside what the world declares for itself, and each object's body holds what sits directly in that object, under Objects. The world's body is one block in one file, so every object in a world is declared in the file that declares the world; the kinds, enums, verbs and messages it uses may sit in any of its files, and a file that holds only those needs no world.
 
 The world is the only object with no container, the only one that cannot move, and the only one that can be neither spawned nor destroyed. It holds what belongs to no single place, and — because a broadcast travels outward as well as inward — it is the only route by which one place can hear another. Its pass rule is `pass any (false)` unless it says otherwise, so nothing crosses between places unless the world says it may.
 
@@ -72,7 +77,7 @@ kind Place {
   passage leaves  default { {item} leaves. }
 }
 
-object composing_room is sprout.Place in printers_shop {
+object composing_room is sprout.Place {
   grammar {
     name    "composing room"
     article the
@@ -95,16 +100,33 @@ Exits live in the grammar block, because an exit is surface: a direction, a labe
 ### Objects
 
 ```sprout
-object brass_key is Key in shelf {
-  grammar { name "brass key" }
-}
+kind Chest is sprout.Container { }
 
-object bench is Bench in composing_room { … }
+world printers_shop is sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+
+  object composing_room is sprout.Place {
+    object cabinet is Chest {
+      :open false
+
+      object brass_key is Key {
+        grammar { name "brass key" }
+      }
+    }
+
+    object bench is Bench { … }
+  }
+}
 ```
 
-An object names its kinds after `is` and its container after `in`, and declares everything a visitor may say to it in one block. A body may follow, which declares an anonymous kind for that object alone — the right form for a thing there is only one of. Its identifier is scoped to whatever contains it, so two chests may each hold a `key`.
+An object is declared inside the body of what holds it: the world's body for what sits directly in the world, and another object's body for what sits inside that object. The parse tree is the containment tree, so a declaration never names its container, and where an object starts is where it is written.
 
-`in` is read from inside the world: a bare name is the world or something directly in it, and anything deeper is named by its dotted path, `in kiln.shelf`, under Identifiers and scope.
+An object names its kinds after `is`, and declares everything a visitor may say to it in one block. A body may follow, which declares an anonymous kind for that object alone — the right form for a thing there is only one of — and holds the objects inside it. The two sit side by side: the cabinet's body restates `:open` for itself and holds the key. Only something whose kind holds things may hold an object, as the cabinet's does by composing `sprout.Container`; an object in the body of one whose kind does not is refused.
+
+Kinds are declared at a file's top level and never hold objects. A kind has no instance of its own to hold them, so what a chest starts with is written in that chest's declaration, never in `Chest`. An `object` inside a kind's body is refused, and so is an `object` at a file's top level, outside the world.
+
+An object's identifier belongs to the body it is written in, so two chests may each hold a `key`; how a name is seen from other bodies is under Identifiers and scope. Where an example in this document shows an object on its own, it is an excerpt from the body that holds it.
 
 ### Range
 
@@ -149,7 +171,7 @@ kind Player is sprout.Actor {
 
 `sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. A world's own kind — the **visitor kind** — adds whatever this story needs a person to have, and `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
-A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; like an object's `in`, it is read from inside the world, so a place deeper than the world's own is named by its path: `visitors arrive at kiln.back_room`.
+A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
 An **NPC** is an object composing the visitor kind with nobody behind it. It is declared like any object, has a name rather than a nickname, acts on `:tick` or on a message rather than on typing, performs verbs with `act`, and reads nothing: prose addressed to it goes nowhere. Its presence does not keep a place ticking; only a person's does.
 
@@ -177,7 +199,9 @@ kind Clay {
 
 `spawn Kind in <target>` makes a new instance at runtime, with the kind's defaults, in a container in range. No guard is asked — nothing is proposing anything; the author is placing — and the container receives `:entered` as for any arrival. The new object is sent `:spawned (from)` so it can speak for itself. `spawn` is a statement, and the one statement that also yields a binding: `let cup = spawn Cup in actor` names the new object for the rest of the block.
 
-A spawned instance has no identifier — identifiers are source-level and scoped to a container, and a spawn happens in neither. It is addressed by its kind's nouns, and where several instances of one kind with one name answer to the same words, the first in its container's order is meant.
+A `spawn` whose target, when it runs, is out of range or does not hold things is a fault, never nothing: the statement yields a binding, and there is no null for it to hold. The world is a target like any other, so a spawn into it is allowed wherever the world is in range.
+
+A spawned instance has no identifier — an identifier is a declaration written in its container's body, and a spawn declares nothing. It is addressed by its kind's nouns, and where several instances of one kind with one name answer to the same words, the first in its container's order is meant.
 
 A place may be spawned like anything else. Nothing can *exit* to one, because an exit names its target by identifier and a spawned object has none; a **link**, described under Verbs, is the way out that is assigned while the world runs, and it is how a spawned place is reached.
 
@@ -189,13 +213,13 @@ Spawning is bounded per turn by a budget the host sets, and over time by how man
 
 `destroy self` is the only form: an object removes itself, as it is the only thing it may write. It takes effect when the body that ran it ends; statements after it still run. Whatever it held falls to its container, without consent — nothing is proposing anything, and the container that would have answered has ceased to exist — and the container receives `:entered` for each thing that fell.
 
-A binding to a destroyed object stays readable for the rest of the turn, holding the state the object had. Messages queued to or from it are dropped. Destroying a place with a visitor standing in it is a fault.
+A binding to a destroyed object stays readable for the rest of the turn, holding the state the object had. A destroyed object has no effects. Everything pending on it is dropped: messages queued to it, messages it sent that have not yet been delivered, engine messages that name it as their `from`, and its pending wakes. Destroying a place with a visitor standing directly in it is a fault.
 
 There is no sweep primitive. An object that should not outlive its usefulness asks to be woken and destroys itself, which puts the policy in the world that cares about it.
 
 ### Files
 
-A microworld is a manifest, some `.sprout` files, the `.prose` files they point at, and the vendored source of every library they use. A place to a file is the convention rather than a rule, and identifiers resolve across files by the scope rules in Names.
+A microworld is a manifest, some `.sprout` files, the `.prose` files they point at, and the vendored source of every library they use. The file that declares the world declares every object in it, because the world's body is one block; kinds, enums, verbs and messages may sit in any file, and identifiers resolve across files by the scope rules in Names.
 
 A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
 
@@ -241,7 +265,7 @@ Everything after `is` is composed; a kind may compose any number of kinds, inclu
 
 `is` composes and the colon does not. The colon marks a property, a message or an option in an expression, keys a `:remembers` entry, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
 
-A kind body may declare properties, `:remembers`, `contains`, `contains actors`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`.
+A kind body may declare properties, `:remembers`, `contains`, `contains actors`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same, and holds the objects inside it besides; a kind's body never holds an object.
 
 ### How members combine
 
@@ -416,14 +440,14 @@ An identifier names something in source. Its scope is the smallest one that work
 |  | scope | because |
 | --- | --- | --- |
 | kinds, enums, verbs, messages | their library | libraries namespace them, and linking is static |
-| objects | whatever contains them, and everything inside that | an object's neighbourhood is its container |
+| objects | the body they are written in, and everything inside it | that body is their container |
 | members — properties, passages | whatever declares them | a kind's passages are the kind's |
 
-One rule covers objects at every depth: an identifier belongs to its container and is visible from inside that container at any depth, the nearest declaration winning. From inside the cat, `cabinet` is the cabinet beside it and `composing_room` is the room around it; from inside a chest, `key` is the chest's own key even if the room has another. Places sitting directly in the world are visible from everywhere, so an exit can name one from anywhere. Two places may each hold a `shelf`, and two chests may each hold a `key`, and nobody writes `kiln_shelf` again.
+One rule covers objects at every depth: an identifier belongs to the body it is written in and is visible from inside that body at any depth, the nearest declaration winning. From inside the cat, `cabinet` is the cabinet beside it and `composing_room` is the room around it; from inside a chest, `key` is the chest's own key even if the room has another. Places sitting directly in the world are written in the world's body, and every other object is inside it, so they are visible from every object's body and an exit can name one from anywhere. Two places may each hold a `shelf`, and two chests may each hold a `key`, and nobody writes `kiln_shelf` again.
 
-Nearest-wins is the rule for identifiers inside a body. What a file declares at its top level is read from inside the world instead: in an object's `in` and the world's `visitors arrive at`, a bare name is something directly in the world, and anything deeper is named by its dotted path, written without spaces around the dots — `object key is Key in kiln.shelf`, `visitors arrive at kiln.back_room`. An `in` may also name the world itself, whole. The world's name is never a step of a path, and no object may take it.
+Something deeper than a body can see is named by its dotted path, written without spaces around the dots: the first step is a name visible where the path is written, and each step after it is declared in the body of the one before. An exit names a wardrobe in another room as `-> bedroom.wardrobe`, and the world's `visitors arrive at`, written in the world's body, names a nested place the same way: `visitors arrive at composing_room.paper_store`. The world's name is never a step of a path.
 
-An object hides anything of its name held further out: by the container around its own, or any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
+An object hides anything of its name written further out: in the body of the container around its own, or of any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
 
 An identifier resolves at compile time and is a target at run time only if it is in range; a `send` to an identifier out of range does nothing, and a `get` through one is a fault.
 
@@ -432,7 +456,7 @@ An identifier resolves at compile time and is a target at run time only if it is
 Naming is part of the grammar block, not a set of properties. The engine never reaches for a property by name to learn what something is called, and a name cannot be rewritten mid-scene, so nothing can rename itself into something else.
 
 ```sprout
-object brass_key is Key in composing_room {
+object brass_key is Key {
   grammar {
     name    "brass key"
     article a
@@ -530,7 +554,7 @@ kind Key {
   :opens [Ward] default [oak]
 }
 
-object skeleton_key is Key in shelf { :opens [oak, silver] }
+object skeleton_key is Key { :opens [oak, silver] }
 ```
 
 A list holds no duplicates, and it may change. Its element type may itself be a list, `[[Ward]]`, so long as every element is of that one type. `self.add(:opens, silver)` on a list already holding `silver` does nothing, and `self.remove(:opens, iron)` on a list without `iron` does nothing. Order is insertion order and is preserved, because `{for … of}` makes it visible in prose.
@@ -865,7 +889,7 @@ A value tool is single: `many` on a `symbol` or an `integer` tool is a refusal a
 An object that composes the visitor kind may perform a verb itself:
 
 ```sprout
-object cat is Creature in composing_room {
+object cat is Creature {
   on :stir {
     each p: Creature in composing_room {
       if (p != self && chance(4)) { act nuzzle (target: p) }
@@ -920,23 +944,23 @@ Guards are read-only and pure, as a description is, and for the same reason: the
 A place is an object, so a place may sit inside one. A wardrobe that declares `contains actors` can be entered, shut, and left through a different door than the one you came in by.
 
 ```sprout
-object bedroom is sprout.Place in the_house {
+object bedroom is sprout.Place {
   grammar { exit in "into the wardrobe" -> wardrobe }
-}
 
-object wardrobe is sprout.Place, sprout.Container in bedroom {
-  grammar {
-    name    "wardrobe"
-    article the
-    exit out     "back into the bedroom" -> bedroom
-    exit through "through the fur coats" -> narnia when (self.get(:snowing))
+  object wardrobe is sprout.Place, sprout.Container {
+    grammar {
+      name    "wardrobe"
+      article the
+      exit out     "back into the bedroom" -> bedroom
+      exit through "through the fur coats" -> narnia when (self.get(:snowing))
+    }
   }
 }
 ```
 
 Everything this needs is already true. Range flows through the wardrobe's pass rule, so pulling the door shut cuts off the bedroom. `tell` reaches the wardrobe's occupants and not the bedroom's, because an actor's place is the nearest ancestor holding actors. And the way through to Narnia leaves the containment tree's shape entirely, because an exit says how the world is joined up, not what contains what.
 
-An identifier is scoped to its container, so `wardrobe` is a name only inside the bedroom. An exit elsewhere reaches it by path — `-> bedroom.wardrobe`. Places sitting directly in the world need no path, which is why most exits are one word.
+An identifier belongs to the body it is written in, so `wardrobe` is a name only inside the bedroom. An exit elsewhere reaches it by path — `-> bedroom.wardrobe`. Places sitting directly in the world are written in the world's body and need no path, which is why most exits are one word.
 
 An occupant of a shut container-place can always name the container itself and its exits — an object reaches its own container's surface as it reaches its own contents — so a visitor shut in the paper store can open it from inside, and nobody can be trapped by a lid.
 
@@ -974,9 +998,9 @@ kind MazeCell is sprout.Place {
 
 A link's destination is **write-only from the language's side.** It can be connected from a binding and never read back into an expression. So no null is ever observed, no dangling value is ever compared, and nothing can `get` through a link, `send` to it, or walk it with `each`. What an object may talk to still follows from where it sits; only the map grew. The sole consumer is traversal, which goes through the consent protocol like any other move.
 
-Spawning into `self` is the idiom. Containment is not adjacency — exits and links do the joining — so a maze growing inside the maze is sound, and it avoids asking whether the world root is a legal spawn target.
+Spawning into `self` is the idiom. Containment is not adjacency — exits and links do the joining — so a maze growing inside the maze is sound, and a cell can spawn into itself however deep it sits, where a spawn into the world needs the world in range.
 
-Three things come with it. Procedural space counts against live instances like everything else, so a world that grows must prune; a cell that wakes and destroys itself once empty is the natural form. Destroying a place with a visitor standing in it is a fault, because the alternative is moving someone silently. And a link whose destination has been destroyed reads as unavailable rather than broken, which is the `absent` rule once more.
+Three things come with it. Procedural space counts against live instances like everything else, so a world that grows must prune; a cell that wakes and destroys itself once empty is the natural form. Destroying a place with a visitor standing directly in it is a fault, because the alternative is moving someone silently. And a link whose destination has been destroyed reads as unavailable rather than broken, which is the `absent` rule once more.
 
 ### Engine verbs
 
@@ -1368,7 +1392,7 @@ Such a counter would be state nobody declared: absent from the property map a mo
 Write the state instead. It is barely longer and it says what it means:
 
 ```sprout
-object composing_room is sprout.Place in printers_shop {
+object composing_room is sprout.Place {
   :remembers [visits: 0 min 0 max 99]
 
   on :entered (item, from) {
@@ -1473,7 +1497,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 | a `say`, `tell` or `text` written as a literal | 600 characters |
 | places, objects, kinds, files, total source bytes | as the host says |
 
-`objects` counts the world's `object` declarations, composed or not; `places` counts those whose composed kind holds actors, placed or not; the world counts toward neither. `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, and not an object's anonymous kind.
+`objects` counts the `object` declarations in the world's body, at every depth, composed or not; `places` counts those whose composed kind holds actors; the world counts toward neither. `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, and not an object's anonymous kind.
 
 Vendored library source is content-hashed and exempt from the source, kind and file caps, so using the standard library costs an author nothing. A modified copy is the author's own source and counts as it.
 
@@ -1499,7 +1523,7 @@ Nesting has no cap. The compiler bounds its own recursion so that pathologically
 
 A turn is a typed command, a tick, a wake, a maintenance turn, or a poll; the budgets are per turn, except pending wakes, which an object holds across turns. Parsing is charged to steps because typed slots make it real work, and a command that costs too much to read is a fault like any other.
 
-Two bounds are the world's rather than a turn's, and outlive any turn. How many live instances a world may hold is the host's storage decision, not a figure in this table: when the host will not hold another, a `spawn` faults. How many wakes an object may have pending is the table's: a `wake` past it faults the same way, and with live instances it bounds how many wakes a world has waiting. There is no cap on spawns over time; what a world can accumulate is bounded by what the host will store.
+Two bounds are the world's rather than a turn's, and outlive any turn. How many live instances a world may hold — every instance the host stores, dormant ones included — is the host's storage decision, not a figure in this table: when the host will not hold another, a `spawn` faults. How many wakes an object may have pending is the table's: a `wake` past it faults the same way, and with live instances it bounds how many wakes a world has waiting. There is no cap on spawns over time; what a world can accumulate is bounded by what the host will store.
 
 The step budget is the one that matters. Totality guarantees a body ends; it says nothing about when. An `each` nested inside an `each` is total and, over a large room, effectively endless — the event budget never notices, because iteration emits no events. Counting steps is five lines in the evaluator and is the only bound that actually holds.
 
@@ -1547,8 +1571,8 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | reference | when its target is absent |
 | --- | --- |
 | a kind, in an object's composition | the object is absent: not in range, not listed, not addressable; what it holds is unreachable until the kind returns |
-| a container, in an object's `in` | the object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns |
 | a kind, in a role's declaration | nothing fills the role; the verb's phrases do not match |
+| a kind, in a `spawn` | the `spawn` faults when it runs, and the actor, if there is one, reads the world's `fault` passage |
 | a verb | its readings do not parse, and `act` of it does nothing |
 | a message | sends of it go nowhere |
 | a passage or `.prose` file | the slot or statement renders nothing, and the description is refused at publish if that leaves it empty |
@@ -1578,8 +1602,9 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - `many` on a `symbol` or `integer` tool.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place.
-- An object inside itself, or a ring of objects each inside the next; an `in` naming something that does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one container.
+- An `object` at a file's top level, or inside a kind's body; an object inside something whose kind does not hold things; the world's name as a step of a path; two objects of one name in one body.
 - `visitors arrive at` naming the world itself.
+- A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
 - Any static cap exceeded.
 
 ### What it warns about
@@ -1909,6 +1934,158 @@ world printers_shop is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
   :season Season default autumn
+
+  object composing_room is sprout.Place {
+    grammar {
+      name    "composing room"
+      article the
+      exit out "out to the press yard" -> press_yard
+      exit in  "into the paper store"  -> paper_store
+    }
+
+    prose "composing_room.prose"
+    :remembers [visits: 0 min 0 max 99]
+
+    describe { text arrival }
+
+    on :entered (item, from) {
+      if (item.is(Creature)) { item.adjust(:visits, 1) }
+    }
+
+    on :tick { broadcast :stir }
+
+    object paper_store is sprout.Place, sprout.Container, Warded {
+      grammar {
+        name    "paper store"
+        article the
+        exit out "back to the composing room" -> composing_room
+        exit up  "up the ladder to the loft"  -> drying_loft when (ladder.get(:down))
+      }
+
+      :open     false
+      :ward     iron
+      :capacity 40
+
+      describe { text "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
+
+      object ladder is sprout.Fixture {
+        grammar { nouns "ladder" }
+
+        :down false
+
+        passage immovable { The ladder is chained to the shelving. }
+
+        as target for lower {
+          permit { if (self.get(:down)) { refuse "It is down already." } }
+          do {
+            self.set(:down, true)
+            say  "You let the ladder down. The hatch above it swings open."
+            tell "{actor} lets the ladder down."
+          }
+        }
+      }
+    }
+
+    object cabinet is sprout.Container, Warded, sprout.Fixture {
+      grammar { name "type cabinet" article the nouns "cabinet", "type" }
+
+      :open     false
+      :capacity 12
+
+      passage immovable { It is a cabinet. It stays where it is. }
+
+      object shop_key is Key {
+        grammar { name "shop key" nouns "iron key" }
+        :opens [brass, iron]
+      }
+    }
+
+    object brass_key is Key
+
+    object apprentice is Creature {
+      grammar { name "apprentice" article the nouns "boy" }
+
+      :knows [Topic] default [the_press, the_cat]
+
+      as target for ask {
+        topic from :knows
+        do {
+          if (bound topic) {
+            if (topic == :the_press) { say "Bar's stiff, he says. Mind your knuckles." }
+            else                     { say "She's not ours, he says. She just decided." }
+          } else {
+            say "He shrugs. Not something he knows about."
+          }
+        }
+      }
+    }
+
+    object cat is Creature {
+      grammar { name "shop cat" article the }
+
+      on :stir {
+        if (chance(8)) {
+          tell "{one of}The cat resettles.{or}The cat regards the door and declines to go through it.{/one of}"
+        }
+        each p: Creature in composing_room {
+          if (p != self && chance(4)) { act nuzzle (target: p) }
+        }
+      }
+    }
+  }
+
+  object press_yard is sprout.Place {
+    grammar {
+      name    "press yard"
+      article the
+      exit in "back into the shop" -> composing_room
+    }
+
+    prose "press_yard.prose"
+    describe { text yard }
+
+    object wooden_rib is Rib { grammar { nouns "rib" } }
+    object bone_rib   is Rib { grammar { nouns "rib" } }
+
+    object press is sprout.Fixture {
+      grammar { name "press" article the }
+
+      :inked false
+
+      passage immovable { The press is bolted to the yard. }
+
+      as target for ink {
+        permit { if (self.get(:inked)) { refuse "The forme is inked already." } }
+        do {
+          self.set(:inked, true)
+          say "You beat the ink over the forme until it shines."
+        }
+      }
+
+      as target for work {
+        permit {
+          if (!self.get(:inked))         { refuse "Dry type. It would print nothing but a bruise." }
+          else if (tools.count(Rib) > 1) { refuse "Two ribs at once is one rib too many." }
+        }
+        do {
+          self.set(:inked, false)
+          spawn Sheet in here
+          say  "The bar comes over, and the yard is briefly very quiet."
+          tell "{actor} works the press."
+        }
+      }
+    }
+  }
+
+  object drying_loft is sprout.Place {
+    grammar {
+      name    "drying loft"
+      article the
+      exit down "down the ladder" -> composing_room.paper_store
+    }
+
+    describe { text "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
+  }
 }
 
 enum Season { spring, summer, autumn, winter }
@@ -1945,61 +2122,9 @@ kind Creature is sprout.Actor {
 }
 ```
 
-### `composing_room.sprout`
+### `locks.sprout`
 
 ```sprout
-object composing_room is sprout.Place in printers_shop {
-  grammar {
-    name    "composing room"
-    article the
-    exit out "out to the press yard" -> press_yard
-    exit in  "into the paper store"  -> paper_store
-  }
-
-  prose "composing_room.prose"
-  :remembers [visits: 0 min 0 max 99]
-
-  describe { text arrival }
-
-  on :entered (item, from) {
-    if (item.is(Creature)) { item.adjust(:visits, 1) }
-  }
-
-  on :tick { broadcast :stir }
-}
-
-object paper_store is sprout.Place, sprout.Container, Warded in composing_room {
-  grammar {
-    name    "paper store"
-    article the
-    exit out "back to the composing room" -> composing_room
-    exit up  "up the ladder to the loft"  -> drying_loft when (ladder.get(:down))
-  }
-
-  :open     false
-  :ward     iron
-  :capacity 40
-
-  describe { text "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
-}
-
-object ladder is sprout.Fixture in composing_room.paper_store {
-  grammar { nouns "ladder" }
-
-  :down false
-
-  passage immovable { The ladder is chained to the shelving. }
-
-  as target for lower {
-    permit { if (self.get(:down)) { refuse "It is down already." } }
-    do {
-      self.set(:down, true)
-      say  "You let the ladder down. The hatch above it swings open."
-      tell "{actor} lets the ladder down."
-    }
-  }
-}
-
 kind Warded is sprout.Lockable {
   :ward Ward default brass
 
@@ -2010,15 +2135,6 @@ kind Warded is sprout.Lockable {
       } else { refuse "{tool} is not a key." }
     }
   }
-}
-
-object cabinet is sprout.Container, Warded, sprout.Fixture in composing_room {
-  grammar { name "type cabinet" article the nouns "cabinet", "type" }
-
-  :open     false
-  :capacity 12
-
-  passage immovable { It is a cabinet. It stays where it is. }
 }
 
 kind Key {
@@ -2032,86 +2148,11 @@ kind Key {
     do     { self.adjust(:wear, 1) }
   }
 }
-
-object brass_key is Key in composing_room
-
-object shop_key is Key in composing_room.cabinet {
-  grammar { name "shop key" nouns "iron key" }
-  :opens [brass, iron]
-}
-
-object apprentice is Creature in composing_room {
-  grammar { name "apprentice" article the nouns "boy" }
-
-  :knows [Topic] default [the_press, the_cat]
-
-  as target for ask {
-    topic from :knows
-    do {
-      if (bound topic) {
-        if (topic == :the_press) { say "Bar's stiff, he says. Mind your knuckles." }
-        else                     { say "She's not ours, he says. She just decided." }
-      } else {
-        say "He shrugs. Not something he knows about."
-      }
-    }
-  }
-}
-
-object cat is Creature in composing_room {
-  grammar { name "shop cat" article the }
-
-  on :stir {
-    if (chance(8)) {
-      tell "{one of}The cat resettles.{or}The cat regards the door and declines to go through it.{/one of}"
-    }
-    each p: Creature in composing_room {
-      if (p != self && chance(4)) { act nuzzle (target: p) }
-    }
-  }
-}
 ```
 
-### `composing_room.prose`
-
-```
-passage arrival {
-  Lead and lamp oil. The composing frames take the long wall, and the
-  cabinet stands where the light is worst, which is either carelessness
-  or the opposite.
-
-  {if actor.recall(:visits) <= 1}
-  You have not stood in here before, and the room somehow knows it.
-  {/if}
-
-  {for thing in self}{if thing != actor}{thing}{if $last}.{else}, {/if}{/if}{/for}
-}
-```
-
-### `press_yard.sprout`
+### `press.sprout`
 
 ```sprout
-object press_yard is sprout.Place in printers_shop {
-  grammar {
-    name    "press yard"
-    article the
-    exit in "back into the shop" -> composing_room
-  }
-
-  prose "press_yard.prose"
-  describe { text yard }
-}
-
-object drying_loft is sprout.Place in printers_shop {
-  grammar {
-    name    "drying loft"
-    article the
-    exit down "down the ladder" -> composing_room.paper_store
-  }
-
-  describe { text "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
-}
-
 kind Rib {
   :cracked false
   :used    false
@@ -2119,38 +2160,6 @@ kind Rib {
   as tools for work {
     permit { if (self.get(:cracked)) { refuse "The rib is cracked; it would score the sheet." } }
     do     { self.set(:used, true) }
-  }
-}
-
-object wooden_rib is Rib in press_yard { grammar { nouns "rib" } }
-object bone_rib   is Rib in press_yard { grammar { nouns "rib" } }
-
-object press is sprout.Fixture in press_yard {
-  grammar { name "press" article the }
-
-  :inked false
-
-  passage immovable { The press is bolted to the yard. }
-
-  as target for ink {
-    permit { if (self.get(:inked)) { refuse "The forme is inked already." } }
-    do {
-      self.set(:inked, true)
-      say "You beat the ink over the forme until it shines."
-    }
-  }
-
-  as target for work {
-    permit {
-      if (!self.get(:inked))         { refuse "Dry type. It would print nothing but a bruise." }
-      else if (tools.count(Rib) > 1) { refuse "Two ribs at once is one rib too many." }
-    }
-    do {
-      self.set(:inked, false)
-      spawn Sheet in here
-      say  "The bar comes over, and the yard is briefly very quiet."
-      tell "{actor} works the press."
-    }
   }
 }
 
@@ -2175,6 +2184,22 @@ kind Sheet {
 }
 ```
 
+### `composing_room.prose`
+
+```
+passage arrival {
+  Lead and lamp oil. The composing frames take the long wall, and the
+  cabinet stands where the light is worst, which is either carelessness
+  or the opposite.
+
+  {if actor.recall(:visits) <= 1}
+  You have not stood in here before, and the room somehow knows it.
+  {/if}
+
+  {for thing in self}{if thing != actor}{thing}{if $last}.{else}, {/if}{/if}{/for}
+}
+```
+
 ### `press_yard.prose`
 
 ```
@@ -2193,7 +2218,7 @@ passage yard {
 What removes the boilerplate is a library kind on the negative side. `sprout.Fixture` refuses departure to an actor and puts its words in a passage, so most fixtures compose it and write nothing:
 
 ```sprout
-object press is sprout.Fixture in press_yard {
+object press is sprout.Fixture {
   passage immovable { The press is bolted to the yard. }
 }
 ```
@@ -2215,5 +2240,7 @@ Overriding the prose rather than the guard sidesteps the ordering trap. A compos
 **The cat acts like anyone else.** The cat does not `send` a lick; it performs `nuzzle`, a verb with no phrases, on a person in the room, and the person's own kind decides what a lick does to them and tells them so in the second person. The cat is the actor of that reading, so the bystanders' line reads "The shop cat winds round Marta's ankles" and Marta's reads "…licks your hand," from two sentences the author wrote for two audiences. That is the whole of the NPC model, and it is the same model as a visitor.
 
 **Listing contents needed no convention after all.** An earlier draft invoked `{thing.short}` on everything a place held and had to assume every object supplied that passage. An object already has a name and an article, so `{thing}` renders "a brass key" and the loop is the whole of it — with one `{if thing != actor}`, because the person reading the room is standing in it.
+
+**The world file is the floor plan.** With every object declared in the body of what holds it, `world.sprout` reads as the shop does: the ladder in the paper store, the paper store and the key-holding cabinet in the composing room, the ribs and the press in the yard. What those things are made of sits in files of its own, because a kind holds no objects.
 
 **Not exercised:** `link` and `connect`, because nothing in a printer's shop wants space that does not exist yet; `changed` hooks and `without`; `destroy self`; authored `move`; `release`; `random` and integer value roles; `{for … of}` over a list; and `send` with a value. Inventing a maze or a vending machine to reach them would have tested the example rather than the language.
