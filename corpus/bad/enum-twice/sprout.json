@@ -5,6 +5,12 @@
   "license": "MIT",
   "level": 1,
   "extensions": [],
-  "libraries": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "aea37f6f24085755470beebc6501342de62422ab5a699f9f7e10ffa8d9365253"
+    }
+  ],
   "files": ["kinds.sprout", "more.sprout", "world.sprout"]
 }

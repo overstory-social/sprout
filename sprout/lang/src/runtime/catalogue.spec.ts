@@ -65,6 +65,9 @@ describe('a catalogue says what one bundle holds as instances', () => {
       'printers_shop.Person',
       'printers_shop.Room',
       'printers_shop.Shelf',
+      'sprout.Actor',
+      'sprout.Place',
+      'sprout.World',
     ]);
     for (const [name, kind] of catalogue.kinds) expect(kindName(kind)).toBe(name);
   });

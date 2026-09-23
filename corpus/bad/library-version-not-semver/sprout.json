@@ -1,5 +1,5 @@
 {
-  "name": "container_cycle",
+  "name": "library_version_not_semver",
   "version": "0.1.0",
   "author": "corpus",
   "license": "MIT",
@@ -10,7 +10,12 @@
       "name": "sprout",
       "version": "0.1.0",
       "sha": "aea37f6f24085755470beebc6501342de62422ab5a699f9f7e10ffa8d9365253"
+    },
+    {
+      "name": "ericworld",
+      "version": "1.0",
+      "sha": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
-  "files": ["world.sprout", "kinds.sprout", "objects.sprout"]
+  "files": ["world.sprout"]
 }

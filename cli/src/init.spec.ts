@@ -2,7 +2,13 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { checkShape, compileBundle, SourceFile } from '@overstory/sprout/lang';
+import {
+  checkShape,
+  compileBundle,
+  libraryHash,
+  SourceFile,
+  STANDARD_LIBRARY,
+} from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
@@ -20,7 +26,7 @@ describe('initWorld', () => {
       license: 'MIT',
       level: 1,
       extensions: [],
-      libraries: [],
+      libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(STANDARD_LIBRARY) }],
       files: ['world.sprout'],
     });
     expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain(

@@ -99,12 +99,13 @@ function atKey(manifest: SourceFile, key: string): Span {
 
 /**
  * Where a value was written inside the manifest, for a problem about one
- * entry of a list. It finds the first place the value is written, which
- * is the right one for a name that appears once — scaffolding until the
- * manifest is read with spans of its own rather than arriving parsed.
+ * entry of a list. It finds the first place the value is written at or
+ * after `from`, which is the right one for a name that appears once —
+ * scaffolding until the manifest is read with spans of its own rather
+ * than arriving parsed.
  */
-function atValue(manifest: SourceFile, value: string, fallback: Span): Span {
-  const at = manifest.text.indexOf(`"${value}"`);
+function atValue(manifest: SourceFile, value: string, fallback: Span, from = 0): Span {
+  const at = manifest.text.indexOf(`"${value}"`, from);
   return at < 0 ? fallback : manifest.span(at, at + value.length + 2);
 }
 
@@ -112,10 +113,16 @@ function atValue(manifest: SourceFile, value: string, fallback: Span): Span {
 const NAMESPACE = /^[a-z][a-z0-9_]*$/;
 
 // The manifest's `version` row: "which version of this world this is, as
-// semver" (the spec's The world model › The manifest). The expression is
-// the one semver.org publishes for recognizing a semantic version.
+// semver" (the spec's The world model › The manifest). A library's
+// version, as the manifest pins it and as its vendored source says it, is
+// read the same way. The expression is the one semver.org publishes for
+// recognizing a semantic version.
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+
+/** What to write instead of a version that is not one, the world's or a library's. */
+const SEMVER_REMEDY =
+  'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.';
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
@@ -295,7 +302,7 @@ export function compileBundle(
     report.refuse(
       atKey(manifestFile, 'version'),
       `"${manifest.version}" is not a version.`,
-      'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.',
+      SEMVER_REMEDY,
     );
   }
   if (!Number.isInteger(manifest.level) || manifest.level < 1) {
@@ -432,6 +439,13 @@ export function compileBundle(
         'A name starts with a lower-case letter and holds letters, digits and _.',
       );
     }
+    if (!SEMVER.test(pin.version)) {
+      report.refuse(
+        atValue(manifestFile, pin.version, at, at.start),
+        `"${pin.version}" is not a version of the library "${pin.name}".`,
+        SEMVER_REMEDY,
+      );
+    }
     const library = byName.get(pin.name);
     if (library === undefined) {
       unusable.add(pin.name);
@@ -451,13 +465,29 @@ export function compileBundle(
       );
       continue;
     }
-    if (library.version !== pin.version) {
+    // A version that is not one is said on its own, and not compared.
+    const comparable = SEMVER.test(pin.version) && SEMVER.test(library.version);
+    if (comparable && library.version !== pin.version) {
       report.strict(
         at,
         `The manifest records "${pin.name}" at version ${pin.version}, and the source that travelled says ${library.version}.`,
         'The source is what runs; correct the version the manifest records.',
       );
     }
+  }
+  // The version a vendored library says of itself is read as its pin's
+  // is. Where the pin wrote the same text, that has been said once already.
+  for (const library of vendored) {
+    if (SEMVER.test(library.version)) continue;
+    const pin = manifest.libraries.find((p) => p.name === library.name);
+    if (pin?.version === library.version) continue;
+    report.refuse(
+      pin === undefined
+        ? (library.files[0]?.span(0, 0) ?? librariesKey)
+        : atValue(manifestFile, pin.name, librariesKey),
+      `The library "${library.name}" that travelled says its version is "${library.version}", which is not a version.`,
+      `${SEMVER_REMEDY} Vendor a copy that says one.`,
+    );
   }
   const used = new Set(manifest.libraries.map((pin) => pin.name));
   for (const library of vendored) {
