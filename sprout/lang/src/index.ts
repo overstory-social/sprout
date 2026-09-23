@@ -2,9 +2,9 @@
 // and what the compiler says about it, the syntax and its parser, the
 // declarations and their types, the checker, the closed bundle a
 // microworld compiles to, and the runtime's meter, values, range, ids and
-// stored state. It imports zod and nothing else (boundary.spec.ts holds
-// that line), so a host plugs it in and the language never learns whose
-// world it is running in.
+// state, stored and live. It imports zod and nothing else
+// (boundary.spec.ts holds that line), so a host plugs it in and the
+// language never learns whose world it is running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -43,3 +43,8 @@ export * from './runtime/range.js';
 export * from './runtime/ids.js';
 export * from './runtime/values.js';
 export * from './runtime/stored.js';
+export * from './runtime/catalogue.js';
+export * from './runtime/state.js';
+export * from './runtime/load.js';
+export * from './runtime/draft.js';
+export * from './runtime/live.js';

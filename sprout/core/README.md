@@ -6,10 +6,11 @@ interface, the memory store every suite runs on, and the conformance
 suite every adapter must pass.
 
 The runtime itself — turns, the log, the view — is built by B34 onward
-against the spec's *The runtime*; the records here still describe the
-previous state model and are reshaped by B16 (instance ids and persisted
-state) and B40 (the event log). What holds already, and what the
-conformance suite proves, is the contract:
+against the spec's _The runtime_. The language now has its state model
+(`StoredWorld` and the draft a write turn commits); the records here
+still carry the previous one until a later item replaces them with that
+stored form, and B40 reshapes them for the event log. What holds
+already, and what the conformance suite proves, is the contract:
 
 1. Write turns on one microworld are serialized; read turns are not.
 2. A transaction's function may be invoked more than once and must have
