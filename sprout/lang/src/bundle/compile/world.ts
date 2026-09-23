@@ -5,8 +5,8 @@
 // `visitors are` names the world's own kind composing `sprout.Visitor`,
 // whose own body declares no behaviour. None, or two, is the absent
 // table's `world` row, and so is a kind the world is made of that is not
-// there; a visitor kind that is not there is its `visitor-kind` row. Each is refused at publish, and at load the
-// world admits no one.
+// there; a visitor kind that is not there is its `visitor-kind` row.
+// Each is refused at publish, and at load the world admits no one.
 
 import type { Declaration, WorldDeclaration } from '../../syntax/ast.js';
 import type { MicroworldSource } from '../bundle.js';
