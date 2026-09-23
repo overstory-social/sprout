@@ -14,7 +14,7 @@
 
 import type { Ident, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { readable } from '../syntax/parse/parser.js';
+import { readable } from '../source/words.js';
 import { nearestOption } from './enums.js';
 import type { KindRef } from './kinds.js';
 

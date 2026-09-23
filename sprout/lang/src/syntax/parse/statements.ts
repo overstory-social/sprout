@@ -21,7 +21,8 @@ import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
 import { kindName } from './bodies.js';
 import { expression } from './expressions.js';
-import { punct, readable, type Parser } from './parser.js';
+import { punct, type Parser } from './parser.js';
+import { readable } from '../../source/words.js';
 import { objectPath } from './paths.js';
 
 /** Each statement this compiler reads, by the word it starts with. */

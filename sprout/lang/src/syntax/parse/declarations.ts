@@ -6,7 +6,8 @@
 import type { Declaration, EnumDeclaration, EnumOption, MessageDeclaration } from '../ast.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
-import { readable, type DeclarationReader, type Parser } from './parser.js';
+import type { DeclarationReader, Parser } from './parser.js';
+import { readable } from '../../source/words.js';
 import { recover, recoverInBraces, separator } from './recovery.js';
 import { typeExpr } from './types.js';
 import { kindDeclaration, objectDeclaration } from './kinds.js';
