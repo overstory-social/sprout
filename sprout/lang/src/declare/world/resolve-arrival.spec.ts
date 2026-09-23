@@ -194,20 +194,50 @@ world shop is sprout.World {
     });
   });
 
-  it('refuses the world’s name as a step of the path', () => {
+  it('reads the world’s name as the first step, reaching what the world holds', () => {
+    const { found, said } = arriving(`${PLACES}
+world shop is sprout.World {
+  visitors arrive at shop.hall.nook
+  object hall is Room {
+    object nook is Room
+  }
+}
+`);
+    expect(said).toEqual([]);
+    expect(found).toEqual({ found: 'place', path: ['hall', 'nook'] });
+  });
+
+  it('refuses the world’s name as a step after the first', () => {
     const { found, said, remedies } = arriving(`${PLACES}
 world shop is sprout.World {
-  visitors arrive at shop.hall
-  object hall is Room
+  visitors arrive at hall.shop.nook
+  object hall is Room {
+    object nook is Room
+  }
 }
 `);
     expect(found).toEqual({ found: 'refused' });
     expect(said).toEqual([
-      '`shop` is the world, which is named on its own and never as a step of a path.',
+      "`shop` is the world, whose name may be a path's first step and no other.",
     ]);
     expect(remedies).toEqual([
-      'A path starts from something directly in the world: write `visitors arrive at hall`.',
+      "Leave the world's name out of the middle: write `visitors arrive at hall.nook`.",
     ]);
+  });
+
+  it('says what the world holds where the step after its name names nothing', () => {
+    const { found } = arriving(`${PLACES}
+world shop is sprout.World {
+  visitors arrive at shop.hal
+  object hall is Room
+}
+`);
+    expect(found).toMatchObject({
+      found: 'absent',
+      message: 'Nothing in `shop` is called `hal`. Did you mean `hall`?',
+      remedy: 'Write `visitors arrive at shop.hall`, or declare an object called `hal`.',
+      said: false,
+    });
   });
 
   it('refuses what `arrivalOf` refuses, and says it once', () => {

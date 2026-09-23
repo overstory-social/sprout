@@ -1,0 +1,11 @@
+kind Room {
+  contains actors
+}
+
+kind Chest {
+  contains
+}
+
+kind Thing { }
+
+kind Creature is sprout.Actor { }

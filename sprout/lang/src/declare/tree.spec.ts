@@ -82,7 +82,8 @@ function shown(found: Resolution): string {
     case 'world':
       return 'world';
     case 'missing':
-      return `missing at ${found.step}${found.within === null ? '' : ` in ${pathKey(found.within)}`}`;
+      if (found.within === null) return `missing at ${found.step}`;
+      return `missing at ${found.step} in ${found.within.length === 0 ? 'the world' : pathKey(found.within)}`;
     case 'world-inside':
       return `world inside at ${found.step}`;
   }
@@ -235,9 +236,28 @@ describe('resolving a name from somewhere in the tree, the nearest winning', () 
     expect(shown(resolveFrom(tree, ['yard'], ['hall', 'key']))).toBe('hall.key');
   });
 
-  it('names the world by its name, and only as the whole path', () => {
+  it('names the world by its name, as the whole path or its first step', () => {
     expect(shown(resolveFrom(tree, ['hall', 'red_chest'], ['shop']))).toBe('world');
-    expect(shown(resolveFrom(tree, [], ['shop', 'hall']))).toBe('world inside at 0');
+    expect(shown(resolveFrom(tree, [], ['shop', 'hall']))).toBe('hall');
+    expect(shown(resolveFrom(tree, ['yard'], ['shop', 'hall', 'red_chest', 'key']))).toBe(
+      'hall.red_chest.key',
+    );
+  });
+
+  it('reaches what is directly in the world through its name, past a nearer one of that name', () => {
+    // From inside the red chest a bare `key` is the chest's; the world's
+    // name reaches past it to the room's, and to the world's own contents.
+    const { tree: nested } = place(`${SHOP}\nobject key is Thing`);
+    const inChest = ['hall', 'red_chest'];
+    expect(shown(resolveFrom(nested, inChest, ['key']))).toBe('hall.red_chest.key');
+    expect(shown(resolveFrom(nested, inChest, ['shop', 'key']))).toBe('key');
+    expect(shown(resolveFrom(nested, inChest, ['shop', 'hall', 'key']))).toBe('hall.key');
+  });
+
+  it('refuses the world’s name as any step after the first', () => {
+    expect(shown(resolveFrom(tree, [], ['hall', 'shop']))).toBe('world inside at 1');
+    expect(shown(resolveFrom(tree, [], ['shop', 'shop']))).toBe('world inside at 1');
+    expect(shown(resolveFrom(tree, [], ['shop', 'hall', 'shop', 'key']))).toBe('world inside at 2');
   });
 
   it('says where a path stops when nothing answers', () => {
@@ -249,6 +269,9 @@ describe('resolving a name from somewhere in the tree, the nearest winning', () 
     // A thing inside something is not in reach from outside it by its name alone.
     expect(shown(resolveFrom(tree, ['yard'], ['box']))).toBe('missing at 0');
     expect(shown(resolveFrom(tree, [], []))).toBe('missing at 0');
+    // After the world's name, the step is searched for among what the world holds.
+    expect(shown(resolveFrom(tree, ['hall'], ['shop', 'key']))).toBe('missing at 1 in the world');
+    expect(shown(resolveFrom(tree, [], ['shop', 'hall', 'shelf']))).toBe('missing at 2 in hall');
   });
 
   it('lists what a first step can reach, nearest first, a nearer name hiding an outer one', () => {
@@ -310,18 +333,20 @@ describe('an object hiding one of its name further out', () => {
     ]);
   });
 
-  it('says so where the one hidden is directly in the world, which no path reaches from inside', () => {
-    const { said, severities } = place(
+  it('names the world’s name as the path where the one hidden is directly in the world', () => {
+    const { tree, said, severities } = place(
       'object key is Thing\nobject hall is Room {\n  object key is Thing\n}',
     );
     expect(said).toEqual([
       [
         'shop.sprout:7:10',
         '`key` hides the `key` directly in the world: inside `hall`, a bare `key` now means this one.',
-        "No path reaches the world's `key` from inside `hall`, since the world's name is never a step of one. Give one of them another name if both are meant there.",
+        'Write `shop.key` where the outer one is meant, or give this one another name.',
       ],
     ]);
     expect(severities).toEqual(['warning']);
+    // And the path it names reaches the one hidden from where it is hidden.
+    expect(shown(resolveFrom(tree, ['hall'], ['shop', 'key']))).toBe('key');
   });
 
   it('says nothing of two of one name in sibling containers, which hide nothing', () => {
@@ -586,17 +611,35 @@ describe('the words for a path where visitors arrive', () => {
     );
   });
 
-  it('refuse the world’s name as a step, and not as the whole path', () => {
+  it('refuse the world’s name as a later step, and not as the whole path or the first', () => {
     expect(worldInPath('shop', writtenPath('shop'))).toBeNull();
     expect(worldInPath('shop', writtenPath('hall.nook'))).toBeNull();
-    expect(worldInPath('shop', writtenPath('shop.hall'))).toMatchObject({
-      step: { text: 'shop' },
-      message: '`shop` is the world, which is named on its own and never as a step of a path.',
-      remedy:
-        'A path starts from something directly in the world: write `visitors arrive at hall`.',
+    expect(worldInPath('shop', writtenPath('shop.hall'))).toBeNull();
+    expect(worldInPath('shop', writtenPath('shop.hall.nook'))).toBeNull();
+    const later = worldInPath('shop', writtenPath('hall.shop.nook'));
+    expect(later).toMatchObject({
+      message: "`shop` is the world, whose name may be a path's first step and no other.",
+      remedy: "Leave the world's name out of the middle: write `visitors arrive at hall.nook`.",
     });
-    expect(worldInPath('shop', writtenPath('shop.shop'))!.remedy).toBe(
-      'Name a place in the world, as in `visitors arrive at kiln`.',
+    // Said at the later step, not at the first.
+    expect(later!.step.at.start).toBe('hall.'.length);
+    const twice = worldInPath('shop', writtenPath('shop.shop'));
+    expect(twice!.step.at.start).toBe('shop.'.length);
+    expect(twice!.remedy).toBe('Name a place in the world, as in `visitors arrive at shop.kiln`.');
+    expect(worldInPath('shop', writtenPath('shop.shop.hall'))!.remedy).toBe(
+      "Leave the world's name out of the middle: write `visitors arrive at shop.hall`.",
+    );
+  });
+
+  it('say what the world holds where a step after its name names nothing', () => {
+    const { tree } = place('object hall is Room {\n  object nook is Room\n}');
+    expect(unknownStep(tree, writtenPath('shop.hal'), { step: 1, within: [] })).toMatchObject({
+      message: 'Nothing in `shop` is called `hal`. Did you mean `hall`?',
+      remedy: 'Write `visitors arrive at shop.hall`, or declare an object called `hal`.',
+      step: { text: 'hal' },
+    });
+    expect(unknownStep(tree, writtenPath('shop.zzzz'), { step: 1, within: [] }).remedy).toBe(
+      '`shop` holds `hall`.',
     );
   });
 });

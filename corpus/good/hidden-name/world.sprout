@@ -23,8 +23,8 @@ world hidden_name is sprout.World {
     }
   }
 
-  // Directly in the world, and hidden inside the shop floor, where no path
-  // reaches it.
+  // Directly in the world, and hidden inside the shop floor, where the
+  // world's name reaches it: `hidden_name.lamp`.
   object lamp is Thing
 }
 

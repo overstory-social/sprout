@@ -1,0 +1,13 @@
+world arrival_through_world is sprout.World {
+  visitors are Creature
+
+  // The world's name may be a path's first step: from it, the next step is
+  // something directly in the world.
+  visitors arrive at arrival_through_world.hall
+
+  object hall is Room {
+    object bench is Chest {
+      object cup is Thing
+    }
+  }
+}

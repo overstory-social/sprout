@@ -317,7 +317,7 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
       return { found: 'refused' };
     }
     case 'world-inside':
-      // `worldInPath` has answered every path the world's name is a step of.
+      // `worldInPath` has answered every path the world's name is a later step of.
       return { found: 'refused' };
     case 'missing': {
       const step = path.parts[found.step]!;
