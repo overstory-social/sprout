@@ -31,7 +31,10 @@ export type LifecycleFaultReason =
 /**
  * A spawn or a destroy the world cannot make. Thrown, as `ListFull` is,
  * because the turn cannot do what it was asked and is about to be rolled
- * back; B34 turns it into the world's `fault` passage.
+ * back; B34 turns it into the world's `fault` passage. The `reason` and
+ * `object` are what that passage renders, naming the object by its noun;
+ * the detail names it by its id, for the log and the host, never for a
+ * visitor.
  */
 export class LifecycleFault extends Error {
   constructor(
