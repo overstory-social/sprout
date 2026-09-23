@@ -69,11 +69,9 @@ export function weighBundle(
   const files =
     arrived.length + charged.reduce((count, library) => count + library.files.length, 0);
 
-  // The spec's Limits says a host refuses a bundle checked against larger
-  // static caps than its own, unless it has recorded an exception for that
-  // world — and the host's way of recording one is B43's. Until B43 lands
-  // no exception exists to grant, so a cap over the host's own refuses at
-  // load exactly as it does at publish.
+  // Refused at load as at publish: the caps are the ones this compile
+  // checks against, which an exception the host made for the world has
+  // already widened.
   if (caps.sourceBytes !== null && sourceBytes > caps.sourceBytes) {
     report.refuse(
       atKey(manifestFile, 'name'),

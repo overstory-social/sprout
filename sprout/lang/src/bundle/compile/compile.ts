@@ -26,8 +26,8 @@
 // a check is not yet possible, this says so rather than pretending.
 //
 // `compileBundle` runs the steps in order, each a module of this folder
-// taking the report: the manifest's own fields, the files, the
-// libraries, what the bundle weighs, the first tier over every file, the
+// taking the report: the caps to check against, the manifest's own
+// fields, the files, the libraries, what the bundle weighs, the first tier over every file, the
 // one world, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
 // bodies every kind writes, and which of them destroy a declared object.
@@ -49,6 +49,7 @@ import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
 import { checkLibraries } from './libraries.js';
 import { checkManifest } from './manifest-fields.js';
+import { capsToCheck, type RecordedCaps } from './recorded.js';
 import { Report } from './report.js';
 import { weighBundle } from './weight.js';
 import { oneWorld, worldKinds } from './world.js';
@@ -59,6 +60,12 @@ export interface CompileOptions {
   readonly mode?: CompileMode;
   /** The host's limits. The caps a bundle is checked against are recorded in it. */
   readonly limits?: Limits;
+  /**
+   * At load, the caps the world was checked against when it was
+   * published and whether the host made an exception for it. Unread at
+   * publish, which is checked against the host's own caps.
+   */
+  readonly recorded?: RecordedCaps;
   /**
    * The library hashes the host has blessed. Blessing is a quota
    * decision granted at publish: a blessed library's bytes cost the
@@ -88,6 +95,7 @@ export function compileBundle(
   const limits = options.limits ?? DEFAULT_LIMITS;
   const { manifest, manifestFile } = source;
   const report = new Report(options.mode ?? 'publish', manifestFile.span(0, 0));
+  const caps = capsToCheck(limits.caps, options.recorded, manifestFile, report);
 
   checkManifest(source, report);
   const withheld = checkFiles(source, report);
@@ -96,7 +104,7 @@ export function compileBundle(
     source,
     usable,
     withheld,
-    limits.caps,
+    caps,
     options.compilerLevel ?? LANGUAGE_LEVEL,
     report,
   );
@@ -104,7 +112,7 @@ export function compileBundle(
     arrived,
     usable,
     manifest.namespace,
-    limits.caps,
+    caps,
     report,
   );
   const theWorld = oneWorld(source, byLibrary, ownFileRefused, report);
@@ -157,7 +165,7 @@ export function compileBundle(
       objects: tables.composed.map((object) => object.declaration),
       composed: tables.composed,
     },
-    limits.caps,
+    caps,
     report.diagnostics,
   );
 
@@ -194,7 +202,7 @@ export function compileBundle(
     level,
     extensions: manifest.extensions,
     libraries: usable,
-    caps: limits.caps,
+    caps,
     size: { files, sourceBytes, exemptBytes, ...counts },
     absent: report.absent,
     hash: bundleHashOf(manifest, arrived, usable),

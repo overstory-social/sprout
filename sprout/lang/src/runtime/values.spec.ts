@@ -125,6 +125,7 @@ describe('whether a value fits a type', () => {
     const at = SproutList.of(
       integer(),
       Array.from({ length: ALLOWED }, (_, i) => i),
+      CAPS,
     );
     expect(fits(numbers, at, CAPS)).toBe(true);
     // One over the host's cap as it now stands: a list built under a
@@ -134,21 +135,22 @@ describe('whether a value fits a type', () => {
   });
 
   it('holds a list to its element type, and each element to it', () => {
-    expect(fits(WARDS, SproutList.of(WARD, ['oak']), CAPS)).toBe(true);
-    expect(fits(WARDS, SproutList.of(STRING, ['oak']), CAPS)).toBe(false);
+    expect(fits(WARDS, SproutList.of(WARD, ['oak'], CAPS), CAPS)).toBe(true);
+    expect(fits(WARDS, SproutList.of(STRING, ['oak'], CAPS), CAPS)).toBe(false);
     expect(fits(WARDS, 'oak', CAPS)).toBe(false);
     const digits = { type: 'list', element: integer(0, 9) } as const;
-    expect(fits(digits, SproutList.of(integer(), [1, 2]), CAPS)).toBe(true);
-    expect(fits(digits, SproutList.of(integer(), [1, 10]), CAPS)).toBe(false);
+    expect(fits(digits, SproutList.of(integer(), [1, 2], CAPS), CAPS)).toBe(true);
+    expect(fits(digits, SproutList.of(integer(), [1, 10], CAPS), CAPS)).toBe(false);
   });
 
   it('holds a list to its type all the way down', () => {
     const grid = { type: 'list', element: WARDS } as const;
-    const good = SproutList.of(WARDS, [SproutList.of(WARD, ['oak'])]);
-    const bad = SproutList.of(WARDS, [
-      SproutList.of(WARD, ['oak']),
-      SproutList.of(WARD, ['brass']),
-    ]);
+    const good = SproutList.of(WARDS, [SproutList.of(WARD, ['oak'], CAPS)], CAPS);
+    const bad = SproutList.of(
+      WARDS,
+      [SproutList.of(WARD, ['oak'], CAPS), SproutList.of(WARD, ['brass'], CAPS)],
+      CAPS,
+    );
     expect(fits(grid, good, CAPS)).toBe(true);
     expect(fits(grid, bad, CAPS)).toBe(false);
   });

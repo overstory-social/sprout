@@ -10,7 +10,8 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
 import { integer, STRING } from '../declare/types.js';
 
-const ALLOWED = DEFAULT_LIMITS.caps.listElements;
+const CAPS = DEFAULT_LIMITS.caps;
+const ALLOWED = CAPS.listElements;
 
 /** `Ward`, resolved the way a property's type would be. */
 const WARD: ValueType = (() => {
@@ -33,29 +34,30 @@ function full(holds: ValueType = integer()): SproutList {
   return SproutList.of(
     holds,
     Array.from({ length: ALLOWED }, (_, i) => i),
+    CAPS,
   );
 }
 
 describe('a list is ordered, and its order is insertion order', () => {
   it('keeps what it was given in the order it was given', () => {
-    expect(SproutList.of(integer(), [3, 1, 2]).elements).toEqual([3, 1, 2]);
-    expect(SproutList.of(WARD, ['silver', 'oak']).elements).toEqual(['silver', 'oak']);
+    expect(SproutList.of(integer(), [3, 1, 2], CAPS).elements).toEqual([3, 1, 2]);
+    expect(SproutList.of(WARD, ['silver', 'oak'], CAPS).elements).toEqual(['silver', 'oak']);
   });
 
   it('adds at the end, because `{for … of}` makes the order visible in prose', () => {
-    const opens = SproutList.of(WARD, ['oak']).add('silver').add('brass');
+    const opens = SproutList.of(WARD, ['oak'], CAPS).add('silver').add('brass');
     expect(opens.elements).toEqual(['oak', 'silver', 'brass']);
   });
 
   it('keeps the order of what is left after a removal', () => {
-    const three = SproutList.of(WARD, ['oak', 'silver', 'brass']);
+    const three = SproutList.of(WARD, ['oak', 'silver', 'brass'], CAPS);
     expect(three.remove('silver').elements).toEqual(['oak', 'brass']);
   });
 });
 
 describe('a list holds no duplicates, and says so by doing nothing', () => {
   it('adds something it already holds by doing nothing at all', () => {
-    const opens = SproutList.of(WARD, ['oak', 'silver']);
+    const opens = SproutList.of(WARD, ['oak', 'silver'], CAPS);
     // The same list, not an equal one: a caller can tell nothing
     // happened, which is what `add` of a held thing means.
     expect(opens.add('oak')).toBe(opens);
@@ -63,7 +65,7 @@ describe('a list holds no duplicates, and says so by doing nothing', () => {
   });
 
   it('removes something it does not hold by doing nothing at all', () => {
-    const opens = SproutList.of(WARD, ['oak']);
+    const opens = SproutList.of(WARD, ['oak'], CAPS);
     expect(opens.remove('brass')).toBe(opens);
   });
 
@@ -71,18 +73,18 @@ describe('a list holds no duplicates, and says so by doing nothing', () => {
     // `self.add(:opens, silver)` on a list already holding `silver`
     // does nothing, and `self.remove(:opens, iron)` on a list without
     // `iron` does nothing.
-    const opens = SproutList.of(WARD, ['oak', 'silver']);
+    const opens = SproutList.of(WARD, ['oak', 'silver'], CAPS);
     expect(opens.add('silver').elements).toEqual(['oak', 'silver']);
     expect(opens.remove('brass').elements).toEqual(['oak', 'silver']);
   });
 
   it('drops a repeat it was built from rather than holding it twice', () => {
-    expect(SproutList.of(integer(), [1, 1, 2, 2, 1]).elements).toEqual([1, 2]);
+    expect(SproutList.of(integer(), [1, 1, 2, 2, 1], CAPS).elements).toEqual([1, 2]);
   });
 });
 
 describe('the four operations, and no more', () => {
-  const opens = SproutList.of(WARD, ['oak', 'silver']);
+  const opens = SproutList.of(WARD, ['oak', 'silver'], CAPS);
 
   it('`includes(x)`', () => {
     expect(opens.includes('oak')).toBe(true);
@@ -91,7 +93,7 @@ describe('the four operations, and no more', () => {
 
   it('`count`', () => {
     expect(opens.count).toBe(2);
-    expect(SproutList.of(WARD).count).toBe(0);
+    expect(SproutList.of(WARD, [], CAPS).count).toBe(0);
   });
 
   it('`add` and `remove` hand back a list rather than changing this one', () => {
@@ -108,7 +110,7 @@ describe('a list is bounded, and a full one faults rather than dropping', () => 
   it('holds as many as the host allows', () => {
     expect(full().count).toBe(ALLOWED);
     expect(full().full).toBe(true);
-    expect(SproutList.of(integer(), [1]).full).toBe(false);
+    expect(SproutList.of(integer(), [1], CAPS).full).toBe(false);
   });
 
   it('faults when a new element is added to a full one', () => {
@@ -132,7 +134,7 @@ describe('a list is bounded, and a full one faults rather than dropping', () => 
 
   it('faults when it is built from more than the host allows', () => {
     const many: Value[] = Array.from({ length: ALLOWED + 1 }, (_, i) => i);
-    expect(() => SproutList.of(integer(), many)).toThrow(ListFull);
+    expect(() => SproutList.of(integer(), many, CAPS)).toThrow(ListFull);
   });
 
   it('takes the bound from the host, not from a number of its own', () => {
@@ -156,8 +158,8 @@ describe('a list is bounded, and a full one faults rather than dropping', () => 
 
 describe('a list of lists keeps the no-duplicates rule by order', () => {
   const ROW: ValueType = { type: 'list', element: WARD };
-  const row = (...wards: string[]) => SproutList.of(ROW, wards);
-  const grid = (...rows: SproutList[]) => SproutList.of({ type: 'list', element: ROW }, rows);
+  const row = (...wards: string[]) => SproutList.of(ROW, wards, CAPS);
+  const grid = (...rows: SproutList[]) => SproutList.of({ type: 'list', element: ROW }, rows, CAPS);
 
   it('drops a later inner list holding the same wards in the same order', () => {
     // Not identity: two inner lists built separately are still the
@@ -174,7 +176,7 @@ describe('a list of lists keeps the no-duplicates rule by order', () => {
 
   it('is not the same element as an inner list of another element type', () => {
     const wards = grid(row('oak'));
-    expect(wards.includes(SproutList.of(STRING, ['oak']))).toBe(false);
+    expect(wards.includes(SproutList.of(STRING, ['oak'], CAPS))).toBe(false);
   });
 
   it('`includes`, `add` and `remove` take a whole inner list', () => {

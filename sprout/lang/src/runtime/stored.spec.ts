@@ -84,7 +84,7 @@ function world(): StoredWorld {
         id: 'printers_shop.composing_room.cabinet',
         made: { from: 'declared' },
         container: 'printers_shop.composing_room',
-        properties: { opens: encodeValue(WARDS, SproutList.of(WARD, ['oak'])) },
+        properties: { opens: encodeValue(WARDS, SproutList.of(WARD, ['oak'], CAPS)) },
         memory: { 'printers_shop#1': { visits: encodeValue(integer(0, 99), 2) } },
       }),
       instance({
@@ -288,12 +288,16 @@ describe('a value round-trips through its stored form', () => {
     ['a string', STRING, 'a line'],
     ['an option', WARD, 'silver'],
     ['an option of another library', TOOL, 'bodkin'],
-    ['a list', WARDS, SproutList.of(WARD, ['silver', 'oak'])],
-    ['an empty list', WARDS, SproutList.of(WARD, [])],
+    ['a list', WARDS, SproutList.of(WARD, ['silver', 'oak'], CAPS)],
+    ['an empty list', WARDS, SproutList.of(WARD, [], CAPS)],
     [
       'a list of lists',
       GRID,
-      SproutList.of(WARDS, [SproutList.of(WARD, ['oak']), SproutList.of(WARD, ['brass', 'oak'])]),
+      SproutList.of(
+        WARDS,
+        [SproutList.of(WARD, ['oak'], CAPS), SproutList.of(WARD, ['brass', 'oak'], CAPS)],
+        CAPS,
+      ),
     ],
   ];
 
@@ -312,7 +316,11 @@ describe('a value round-trips through its stored form', () => {
   });
 
   it('stores a list as an array, an inner list as an inner array', () => {
-    const grid = SproutList.of(WARDS, [SproutList.of(WARD, ['oak']), SproutList.of(WARD, [])]);
+    const grid = SproutList.of(
+      WARDS,
+      [SproutList.of(WARD, ['oak'], CAPS), SproutList.of(WARD, [], CAPS)],
+      CAPS,
+    );
     expect(encodeValue(GRID, grid)).toEqual({
       type: '[[printers_shop.Ward]]',
       value: [['oak'], []],
@@ -334,7 +342,7 @@ describe('a stored value that no longer fits falls to the default', () => {
   });
 
   it('is retyped when a list’s element type changed', () => {
-    expect(carried(WARDS, SproutList.of(WARD, ['oak']), GRID)).toEqual({
+    expect(carried(WARDS, SproutList.of(WARD, ['oak'], CAPS), GRID)).toEqual({
       fits: false,
       why: 'retyped',
     });
@@ -358,7 +366,7 @@ describe('a stored value that no longer fits falls to the default', () => {
   });
 
   it('no longer fits a host whose list cap is now below its length', () => {
-    const three = SproutList.of(WARD, ['oak', 'silver', 'brass']);
+    const three = SproutList.of(WARD, ['oak', 'silver', 'brass'], CAPS);
     const two = limitsFrom({ caps: { listElements: 2 } }).caps;
     expect(carried(WARDS, three, WARDS, two)).toEqual({ fits: false, why: 'no-longer-fits' });
     expect(carried(WARDS, three, WARDS, limitsFrom({ caps: { listElements: 3 } }).caps).fits).toBe(
@@ -368,15 +376,16 @@ describe('a stored value that no longer fits falls to the default', () => {
 
   it('defaults whole when one element misfits, keeping none of the rest', () => {
     const after = symbolOf(enumsOf('enum Ward { oak, silver }\n'), 'printers_shop', 'Ward');
-    const held = SproutList.of(WARD, ['oak', 'brass', 'silver']);
+    const held = SproutList.of(WARD, ['oak', 'brass', 'silver'], CAPS);
     expect(carried(WARDS, held, { type: 'list', element: after })).toEqual({
       fits: false,
       why: 'no-longer-fits',
     });
-    const grid = SproutList.of(WARDS, [
-      SproutList.of(WARD, ['oak']),
-      SproutList.of(WARD, ['brass']),
-    ]);
+    const grid = SproutList.of(
+      WARDS,
+      [SproutList.of(WARD, ['oak'], CAPS), SproutList.of(WARD, ['brass'], CAPS)],
+      CAPS,
+    );
     expect(
       carried(GRID, grid, { type: 'list', element: { type: 'list', element: after } }),
     ).toEqual({
@@ -418,7 +427,7 @@ describe('a stored value that still fits keeps its value', () => {
       'Ward',
     );
     expect(carried(WARD, 'brass', after)).toEqual({ fits: true, value: 'brass' });
-    const decoded = carried(WARDS, SproutList.of(WARD, ['brass', 'oak']), {
+    const decoded = carried(WARDS, SproutList.of(WARD, ['brass', 'oak'], CAPS), {
       type: 'list',
       element: after,
     });

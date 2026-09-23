@@ -9,6 +9,24 @@ import { LOCK_TIMEOUT, sqlStore, type Queryable } from './store.js';
 // foreign column cast. Whether the SQL is right is `conformance.spec.ts`,
 // on PGlite.
 
+/** The spec's default caps, as a publish under a host that set none of its own records them. */
+const CAPS = {
+  optionsPerEnum: 100,
+  rolesPerVerb: 8,
+  phrasesPerVerb: 8,
+  phraseCharacters: 80,
+  nounsPerObject: 8,
+  nounCharacters: 40,
+  exitsPerPlace: 8,
+  listElements: 16,
+  literalCharacters: 600,
+  places: null,
+  objects: null,
+  kinds: null,
+  files: null,
+  sourceBytes: null,
+};
+
 const NOW = new Date('2026-09-18T12:00:00Z');
 const MICROWORLD: MicroworldRecord = {
   id: 'w',
@@ -16,16 +34,8 @@ const MICROWORLD: MicroworldRecord = {
   stamp: 's1',
   level: 1,
   extensions: [],
-  limits: {
-    rooms: 16,
-    objects: 192,
-    kinds: 32,
-    files: 256,
-    sourceBytes: 262144,
-    instances: 2000,
-    actionDays: 30,
-    misses: 500,
-  },
+  caps: CAPS,
+  excepted: false,
   loadedAt: NOW,
 };
 

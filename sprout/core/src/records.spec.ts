@@ -1,23 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
-import { ActionRecord, ActorRecord, Limits, MicroworldRecord, ObjectRecord } from './records.js';
+import { DEFAULT_LIMITS, limitsFrom, type StaticCaps } from '@overstory/sprout/lang';
+
+import {
+  ActionRecord,
+  ActorRecord,
+  MicroworldRecord,
+  ObjectRecord,
+  RecordedCaps,
+} from './records.js';
 
 // The record shapes an adapter carries: defaults, what is required.
 
 describe('the records', () => {
-  it('Limits has its defaults', () => {
-    expect(Limits.parse({})).toEqual({
-      rooms: 16,
-      objects: 192,
-      kinds: 32,
-      files: 256,
-      sourceBytes: 262144,
-      instances: 2000,
-      actionDays: 30,
-      misses: 500,
-    });
-    expect(Limits.parse({ rooms: 32 }).rooms).toBe(32);
-    expect(Limits.safeParse({ rooms: 0 }).success).toBe(false);
+  it('keeps every static cap the language has, and invents none', () => {
+    expect(Object.keys(RecordedCaps.shape)).toEqual(Object.keys(DEFAULT_LIMITS.caps));
+    expect(RecordedCaps.safeParse({}).success).toBe(false);
+  });
+
+  it('keeps the caps a bundle was checked against as they were, unset ones as null', () => {
+    const caps: StaticCaps = limitsFrom({ caps: { exitsPerPlace: 12, places: 40 } }).caps;
+    const kept: StaticCaps = RecordedCaps.parse(caps);
+    expect(kept).toEqual(caps);
+    expect(RecordedCaps.parse(DEFAULT_LIMITS.caps).sourceBytes).toBeNull();
+    expect(RecordedCaps.safeParse({ ...caps, places: 0 }).success).toBe(false);
+    expect(RecordedCaps.safeParse({ ...caps, places: 1.5 }).success).toBe(false);
+    expect(RecordedCaps.safeParse({ ...caps, exitsPerPlace: null }).success).toBe(false);
+  });
+
+  it('a microworld keeps its recorded caps and whether the host excepted it', () => {
+    expect(Object.keys(MicroworldRecord.shape)).toEqual(
+      expect.arrayContaining(['caps', 'excepted']),
+    );
+    expect(Object.keys(MicroworldRecord.shape)).not.toContain('limits');
   });
 
   it('every record is keyed by its microworld; an action carries no actor', () => {
