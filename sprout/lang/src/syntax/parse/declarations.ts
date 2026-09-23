@@ -25,6 +25,16 @@ export function file(p: Parser): Declaration[] {
       if (declared !== null) declarations.push(declared);
       continue;
     }
+    if (token.kind === 'name' && token.text === 'passage') {
+      p.diagnostics.refuse(
+        token.at,
+        'A passage belongs to a kind, an object or the world, and is written inside its braces.',
+        'Move it into the body of the one whose words these are, as in `kind Mirror { passage greeting { … } }`.',
+      );
+      p.next();
+      recover(p);
+      continue;
+    }
     p.diagnostics.refuse(
       token.at,
       `Sprout does not know what to do with "${token.text}" here.`,

@@ -1,19 +1,23 @@
-// Where spans come from (the spec's The compiler › Diagnostics).
+// Where spans come from (the spec's The compiler › Diagnostics, Lexical
+// rules).
 //
 // Nothing downstream can point at a token the reader never kept, so
 // every token carries the span of its own text, and a node built from
 // tokens spans the ones it was built from.
 //
-// It is PULL-BASED rather than a list-returning pass, for two reasons.
-// A passage body is raw prose between braces (the spec's Prose ›
-// Passages) and cannot be read with the same rules as the code around
-// it, so the parser has to be able to change how the next thing is read;
-// and a lexer that hands back one token at a time can report a bad
-// character, step over it and carry on, where one that throws gives an
-// author the first problem in their file and hides the rest.
+// It is PULL-BASED rather than a list-returning pass: a lexer that hands
+// back one token at a time can report a bad character, step over it and
+// carry on, where one that throws gives an author the first problem in
+// their file and hides the rest.
 //
-// This is the token surface the code of the language is written in;
-// reading a passage body is B29's.
+// A passage's body is raw prose between braces (the spec's Prose ›
+// Passages) and is not read by the rules of the code around it: an
+// apostrophe or a `?` would be refused, and every recovery walk would
+// count the braces of its slots. So the body is one `passage-body` token
+// holding its text whole, and B29 reads what it says. What opens one is
+// decided here, from the tokens already read rather than from the
+// parser, because a parser looking ahead for a closing bracket reads
+// past a passage before any reader has asked for it.
 
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span, SourceFile } from '../source/source.js';
@@ -32,6 +36,11 @@ export type TokenKind =
   | 'integer'
   /** `{`, `->`, `==` — everything in PUNCTUATION. */
   | 'punct'
+  /**
+   * `{ You take {target}. }` after a passage's header — its `text` is
+   * everything between the outer braces, exactly as written.
+   */
+  | 'passage-body'
   /** The zero-width token at the end of the file, returned for ever after. */
   | 'end';
 
@@ -80,6 +89,35 @@ const PUNCTUATION = [
   '!',
 ] as const;
 
+/** What may follow a backslash, in quoted text and in a passage alike (the spec's Lexical rules). */
+const ESCAPES: ReadonlySet<string> = new Set(['"', '\\', 'n', '{']);
+
+/**
+ * The tokens a passage's header may hold between `passage` and its `{`.
+ * The header is a name and `default`; one more is allowed so that a stray
+ * word there is refused at the word rather than the prose after it being
+ * read as code.
+ */
+export const HEADER_WORDS = 3;
+
+/** The kinds of token that may stand in a passage's header. */
+export const HEADER_KINDS: ReadonlySet<TokenKind> = new Set([
+  'name',
+  'kind',
+  'symbol',
+  'string',
+  'integer',
+]);
+
+/** A passage's header while it is being read: the words after `passage` so far. */
+interface Header {
+  readonly words: number;
+  /** Where the last token of the header ended, to tell a word on the next line. */
+  readonly end: number;
+  /** The passage's name where one was written, for the refusal of a body never closed. */
+  readonly name: string | null;
+}
+
 const isDigit = (ch: string): boolean => ch >= '0' && ch <= '9';
 const isLower = (ch: string): boolean => ch >= 'a' && ch <= 'z';
 const isUpper = (ch: string): boolean => ch >= 'A' && ch <= 'Z';
@@ -104,6 +142,10 @@ export class Lexer {
   private aheadAt = 0;
   /** Whether a character was refused since the last token was made. */
   private pendingRefusal = false;
+  /** The passage header being read, from the word `passage` to the `{` that opens its body. */
+  private header: Header | null = null;
+  /** Whether a comment or a passage body never closed took the rest of the file. */
+  private swallowed = false;
 
   constructor(
     readonly source: SourceFile,
@@ -125,6 +167,15 @@ export class Lexer {
   peek(ahead = 0): Token {
     while (this.ahead.length - this.aheadAt <= ahead) this.ahead.push(this.read());
     return this.ahead[this.aheadAt + ahead]!;
+  }
+
+  /**
+   * Whether a comment or a passage body never closed took the rest of
+   * the file. What was open around it was closed inside it, so its own
+   * refusal is the one mistake to report.
+   */
+  get swallowedRest(): boolean {
+    return this.swallowed;
   }
 
   /** Whether everything but the `end` token has been read. */
@@ -173,6 +224,7 @@ export class Lexer {
         // a file that simply ended.
         this.at = text.length;
         this.pendingRefusal = true;
+        this.swallowed = true;
         this.diagnostics.refuse(
           this.span(start, start + 2),
           'This comment is never closed.',
@@ -185,6 +237,38 @@ export class Lexer {
   }
 
   private read(): Token {
+    const token = this.readToken();
+    this.follow(token);
+    return token;
+  }
+
+  /**
+   * Keep track of a passage header. A `{` opens a passage's body when it
+   * follows the word `passage` with at most `HEADER_WORDS` words between,
+   * all on the line `passage` was written on: a header left without its
+   * braces then never takes the next line's member for its own.
+   */
+  private follow(token: Token): void {
+    if (token.kind === 'name' && token.text === 'passage') {
+      this.header = { words: 0, end: token.at.end, name: null };
+      return;
+    }
+    const header = this.header;
+    if (header === null) return;
+    const sameLine = !this.source.text.slice(header.end, token.at.start).includes('\n');
+    if (!HEADER_KINDS.has(token.kind) || !sameLine || header.words >= HEADER_WORDS) {
+      this.header = null;
+      return;
+    }
+    const named = token.kind !== 'name' || token.text !== 'default';
+    this.header = {
+      words: header.words + 1,
+      end: token.at.end,
+      name: header.name ?? (named ? token.text : null),
+    };
+  }
+
+  private readToken(): Token {
     const text = this.source.text;
     for (;;) {
       this.skipBlanks();
@@ -223,6 +307,8 @@ export class Lexer {
         return this.token('kind', start, end);
       }
 
+      if (ch === '{' && this.header !== null) return this.readPassageBody(start);
+
       const punct = PUNCTUATION.find((p) => text.startsWith(p, start));
       if (punct !== undefined) {
         this.at = start + punct.length;
@@ -258,8 +344,8 @@ export class Lexer {
       if (ch === '\n') break;
       if (ch === '\\') {
         const escape = source[i + 1] ?? '';
-        if (escape === '"' || escape === '\\' || escape === '{') value += escape;
-        else if (escape === 'n') value += '\n';
+        if (escape === 'n') value += '\n';
+        else if (ESCAPES.has(escape)) value += escape;
         else {
           this.diagnostics.refuse(
             this.span(i, i + 2),
@@ -281,6 +367,70 @@ export class Lexer {
       'Add a closing " at the end of it. Text does not run past the end of a line.',
     );
     return this.token('string', start, i, value);
+  }
+
+  /**
+   * A passage's body, from its `{` through the `}` that matches it. Braces
+   * inside nest, since each opens a slot; one escaped, `\{`, is a
+   * character. Inside a slot, quoted text is text, and a brace in it counts
+   * for nothing. `//` and `/*` are prose here, not comments. A body never
+   * closed is refused once, at its opening, and takes the rest of the file.
+   */
+  private readPassageBody(open: number): Token {
+    const text = this.source.text;
+    const name = this.header?.name ?? null;
+    let depth = 0;
+    let quoted = false;
+    let i = open + 1;
+    while (i < text.length) {
+      const ch = text[i]!;
+      if (ch === '\\') {
+        const escape = text[i + 1] ?? '';
+        if (ESCAPES.has(escape)) {
+          i += 2;
+          continue;
+        }
+        // Stepped over with the character after it, as in quoted text, so
+        // a `\}` meant as a brace does not close anything; a line break
+        // after it is left to be read.
+        const width = escape === '' || escape === '\n' ? 1 : 2;
+        this.diagnostics.refuse(
+          this.span(i, i + width),
+          'A backslash inside a passage means one of \\" , \\\\ , \\n or \\{.',
+          'Write \\\\ if you meant a backslash of its own.',
+        );
+        i += width;
+        continue;
+      }
+      if (quoted) {
+        // Quoted text in a slot ends at its quote, or at the end of its
+        // line as quoted text in code does.
+        if (ch === '"' || ch === '\n') quoted = false;
+      } else if (ch === '"') {
+        quoted = depth > 0;
+      } else if (ch === '{') {
+        depth += 1;
+      } else if (ch === '}') {
+        if (depth === 0) {
+          this.at = i + 1;
+          return this.token('passage-body', open, this.at, text.slice(open + 1, i));
+        }
+        depth -= 1;
+      }
+      i += 1;
+    }
+    this.at = text.length;
+    this.diagnostics.refuse(
+      this.span(open, open + 1),
+      name === null
+        ? 'This passage opens here and is never closed.'
+        : `The passage \`${name}\` opens here and is never closed.`,
+      'Add a } where its words end. Every { inside a passage opens a slot that needs its own }; write \\{ for a brace that is only a character.',
+    );
+    const token = this.token('passage-body', open, text.length, text.slice(open + 1));
+    this.pendingRefusal = true;
+    this.swallowed = true;
+    return token;
   }
 }
 

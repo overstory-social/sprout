@@ -245,6 +245,20 @@ describe('what the parser refuses, and where it says so', () => {
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:1');
   });
 
+  it('refuses a passage at the top of a file, at its word, and reads what follows', () => {
+    const { declarations, refusals } = read(
+      "passage greeting {\n  It's late. Who's there?\n}\nenum Ward { oak }\n",
+    );
+    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'ward.sprout:1:1',
+        'A passage belongs to a kind, an object or the world, and is written inside its braces.',
+        'Move it into the body of the one whose words these are, as in `kind Mirror { passage greeting { … } }`.',
+      ],
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+  });
+
   it('names every declaration it reads, so the message grows with the compiler', () => {
     for (const word of DECLARATIONS) {
       expect(read('nonsense').refusals[0]!.remedy).toContain(`\`${word}\``);

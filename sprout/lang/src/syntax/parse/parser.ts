@@ -161,6 +161,15 @@ export class Parser {
     return this.peek().kind === 'end';
   }
 
+  /**
+   * Whether a comment or a passage never closed took the rest of the
+   * file, having said so. A body it ran through is then not said to be
+   * never closed as well: its `}` is inside what swallowed it.
+   */
+  get swallowedRest(): boolean {
+    return this.lexer.swallowedRest;
+  }
+
   /** Whether the next token is this punctuation, or this exact word. */
   at(kind: TokenKind, text?: string): boolean {
     const token = this.peek();
@@ -262,6 +271,8 @@ export class Parser {
         return `\`:${token.text}\`, which is a property or a message`;
       case 'end':
         return 'the end of the file';
+      case 'passage-body':
+        return "a passage's words in braces";
       default:
         return `\`${token.text}\``;
     }

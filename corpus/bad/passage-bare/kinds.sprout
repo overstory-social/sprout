@@ -1,0 +1,5 @@
+// The word `passage` on its own, with neither a name nor braces.
+kind Mirror {
+  passage
+  :mood 0
+}

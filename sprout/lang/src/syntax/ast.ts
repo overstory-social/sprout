@@ -386,12 +386,44 @@ export interface WithoutDeclaration extends Node {
   readonly source: KindExpr;
 }
 
+// --- passages -------------------------------------------------------------
+
+/**
+ * A passage's words, between its braces, exactly as written: escapes,
+ * slots, blocks and line breaks all still in them. B29 reads slots,
+ * `{if}`, `{for}` and reflow; until then the body is carried whole. Its
+ * span covers the braces.
+ */
+export interface PassageBody extends Node {
+  readonly kind: 'passage-body';
+  readonly text: string;
+}
+
+/**
+ * `passage greeting { … }`, `passage taken default { You take {target}. }`
+ * — a named block of words belonging to the kind, object or world that
+ * writes it (the spec's Prose › Passages). A `default` passage yields to
+ * one of the same name from any other source (Kinds › How members
+ * combine).
+ */
+export interface PassageDeclaration extends Node {
+  readonly kind: 'passage';
+  readonly name: Ident;
+  /** Whether it was written `default`. */
+  readonly yields: boolean;
+  readonly body: PassageBody;
+}
+
 /**
  * What a kind's body, or an object's, may declare (the spec's Kinds ›
  * Declaring and composing). The union grows one item at a time.
  */
 export type KindMember =
-  PropertyDeclaration | RemembersDeclaration | ContainsDeclaration | WithoutDeclaration;
+  | PropertyDeclaration
+  | RemembersDeclaration
+  | ContainsDeclaration
+  | WithoutDeclaration
+  | PassageDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

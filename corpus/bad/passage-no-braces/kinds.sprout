@@ -1,0 +1,7 @@
+// A passage holds its words in braces. Left without them, the member
+// on the next line is still read as a member.
+kind Mirror {
+  passage greeting
+  :mood 0
+  contains
+}

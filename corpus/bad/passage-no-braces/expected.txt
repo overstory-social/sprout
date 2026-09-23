@@ -1,0 +1,4 @@
+kinds.sprout:4:19  The passage `greeting` has no braces.
+                   A passage holds its words in braces, even when it has few: `passage greeting { … }`.
+
+refused: 1 problem

@@ -4,6 +4,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { Lexer, tokenise, type Token } from './lexer.js';
 import { unspanned } from '../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../source/source.js';
+import { chooser } from '../fixtures/parse.js';
 
 /** Tokenise a scrap of source, with the diagnostics it raised. */
 function read(text: string, name = 'kiln.sprout'): { tokens: Token[]; diagnostics: Diagnostics } {
@@ -221,13 +222,13 @@ describe('a problem names its own character and reading carries on', () => {
   });
 });
 
-describe('the lexer is pulled, so the parser can change how the next thing is read', () => {
+describe('the lexer is pulled, and peeking reads what pulling would', () => {
   const source = new SourceFile('kiln.sprout', 'passage immovable { chained }');
 
   it('peeks without consuming, at any distance', () => {
     const lexer = new Lexer(source, new Diagnostics());
     expect(lexer.peek().text).toBe('passage');
-    expect(lexer.peek(2).text).toBe('{');
+    expect(lexer.peek(2).kind).toBe('passage-body');
     expect(lexer.peek().text).toBe('passage');
     expect(lexer.next().text).toBe('passage');
     expect(lexer.next().text).toBe('immovable');
@@ -429,5 +430,214 @@ describe('looking ahead, and the cursor that reading back does not pay for', () 
       read += 1;
     }
     expect(read).toBe(count);
+  });
+});
+
+describe("a passage's body is one token, holding its words whole", () => {
+  /** The one passage body in a scrap of source. */
+  const bodyOf = (text: string) => read(text).tokens.find((t) => t.kind === 'passage-body');
+
+  it('holds everything between its braces as written, and spans the braces', () => {
+    const text = 'passage greeting {\n  Hello, {actor}.\n}\n:a 1';
+    const { tokens, diagnostics } = read(text);
+    expect(diagnostics.all).toEqual([]);
+    expect(tokens.map((t) => t.kind)).toEqual([
+      'name',
+      'name',
+      'passage-body',
+      'symbol',
+      'integer',
+      'end',
+    ]);
+    expect(tokens[2]!.text).toBe('\n  Hello, {actor}.\n');
+    expect(textOf(tokens[2]!.at)).toBe('{\n  Hello, {actor}.\n}');
+    expect(locationOf(tokens[2]!.at)).toBe('kiln.sprout:1:18');
+  });
+
+  it('reads prose as prose: no character in it is refused, and nothing in it is a comment', () => {
+    const words = `It's late. Who's there? 50% of it // is here /* and this */ too; ~ @ # & |`;
+    const { diagnostics } = read(`passage greeting { ${words} }`);
+    expect(diagnostics.all).toEqual([]);
+    expect(bodyOf(`passage greeting { ${words} }`)!.text).toBe(` ${words} `);
+  });
+
+  it('opens after a name, after `default`, and after up to three words on the header’s line', () => {
+    for (const header of [
+      'passage',
+      'passage greeting',
+      'passage greeting default',
+      'passage Greeting',
+      'passage "greeting"',
+      'passage :greeting',
+      'passage default greeting',
+      'passage greeting default please',
+      'passage greeting\n',
+    ]) {
+      expect(bodyOf(`${header} { Hi. }`)?.text, header).toBe(' Hi. ');
+    }
+  });
+
+  it('does not open where the header runs on, onto another line, or past a mark', () => {
+    for (const text of [
+      'passage greeting default please now { Hi. }',
+      'passage greeting\n  contains { Hi. }',
+      'passage\n  greeting { Hi. }',
+      'passage greeting. { Hi. }',
+      'passage greeting } { Hi. }',
+      'greeting { Hi. }',
+    ]) {
+      expect(bodyOf(text), text).toBeUndefined();
+    }
+  });
+
+  it('counts the braces of its slots, so a slot never closes it', () => {
+    expect(bodyOf('passage p { {if a}{thing}{/if} } :x')!.text).toBe(' {if a}{thing}{/if} ');
+  });
+
+  it('counts no brace written `\\{`, and no brace inside quoted text in a slot', () => {
+    expect(bodyOf('passage p { a \\{ b } :x')!.text).toBe(' a \\{ b ');
+    expect(bodyOf('passage p { {say("}")} } :x')!.text).toBe(' {say("}")} ');
+    expect(bodyOf('passage p { {say("{", "\\"}")} } :x')!.text).toBe(' {say("{", "\\"}")} ');
+  });
+
+  it('reads a quote in its prose as a character, and a quote in a slot as ending at its line', () => {
+    expect(bodyOf('passage p { She said "no}" }')!.text).toBe(' She said "no');
+    expect(bodyOf('passage p { {a("x\n} b } :x')!.text).toBe(' {a("x\n} b ');
+  });
+
+  it('takes the four escapes quoted text takes, and keeps them as written', () => {
+    const { tokens, diagnostics } = read('passage p { \\" \\\\ \\n \\{ }');
+    expect(diagnostics.all).toEqual([]);
+    expect(tokens[2]!.text).toBe(' \\" \\\\ \\n \\{ ');
+  });
+
+  it('refuses any other escape at its backslash, naming the four, and reads on', () => {
+    const { tokens, diagnostics } = read('passage p { C:\\attic \\} }\n:x 1');
+    expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'kiln.sprout:1:15',
+        'A backslash inside a passage means one of \\" , \\\\ , \\n or \\{.',
+        'Write \\\\ if you meant a backslash of its own.',
+      ],
+      [
+        'kiln.sprout:1:22',
+        'A backslash inside a passage means one of \\" , \\\\ , \\n or \\{.',
+        'Write \\\\ if you meant a backslash of its own.',
+      ],
+    ]);
+    // A `\}` meant as a brace closes nothing.
+    expect(tokens.map((t) => t.kind)).toEqual([
+      'name',
+      'name',
+      'passage-body',
+      'symbol',
+      'integer',
+      'end',
+    ]);
+  });
+
+  it('refuses a backslash at the end of a line on its own, and leaves the line break', () => {
+    const { tokens, diagnostics } = read('passage p { a\\\n}');
+    expect(diagnostics.refusals.map((d) => textOf(d.at))).toEqual(['\\']);
+    expect(tokens[2]!.text).toBe(' a\\\n');
+  });
+
+  it('refuses a body never closed once, at its opening, naming the passage', () => {
+    const { tokens, diagnostics } = read(':a 1\npassage greeting {\n  Hello, {actor.\n}\n:b 2');
+    expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'kiln.sprout:2:18',
+        'The passage `greeting` opens here and is never closed.',
+        'Add a } where its words end. Every { inside a passage opens a slot that needs its own }; write \\{ for a brace that is only a character.',
+      ],
+    ]);
+    expect(tokens.map((t) => t.kind)).toEqual([
+      'symbol',
+      'integer',
+      'name',
+      'name',
+      'passage-body',
+      'end',
+    ]);
+    expect(tokens.at(-1)!.afterRefusal).toBe(true);
+    expect(read('passage { a {b').diagnostics.refusals[0]!.message).toBe(
+      'This passage opens here and is never closed.',
+    );
+  });
+
+  it('says whether something never closed took the rest of the file', () => {
+    for (const [text, swallowed] of [
+      ['passage p { {', true],
+      ['/* a', true],
+      ['passage p { a } "b', false],
+      ['%', false],
+    ] as const) {
+      const lexer = new Lexer(new SourceFile('k.sprout', text), new Diagnostics());
+      while (!lexer.done) lexer.next();
+      expect(lexer.swallowedRest, text).toBe(swallowed);
+    }
+  });
+
+  it('reads the same whether the body was peeked past first or not', () => {
+    const text = "kind K { passage p { It's {a}. } :x 1 }";
+    const peeked = new Lexer(new SourceFile('k.sprout', text), new Diagnostics());
+    peeked.peek(8);
+    const pulled: string[] = [];
+    while (!peeked.done) pulled.push(`${peeked.next().kind}:${peeked.peek().at.start}`);
+    const straight = new Lexer(new SourceFile('k.sprout', text), new Diagnostics());
+    const again: string[] = [];
+    while (!straight.done) again.push(`${straight.next().kind}:${straight.peek().at.start}`);
+    expect(pulled).toEqual(again);
+  });
+
+  it('over generated bodies: one token holding exactly what was written, and nothing refused', () => {
+    // Prose that code would refuse or misread, slots whose braces nest
+    // and hold quoted braces, and every escape; whatever the mix, the body
+    // is one token, its text is what was generated, and the tokens after
+    // it are the ones written after it.
+    const c = chooser(20_260_923);
+    const PROSE = [
+      "It's",
+      'late?',
+      '50%',
+      '// no comment',
+      '/* nor this',
+      '*/',
+      '"quoted"',
+      ';',
+      '~',
+      'and',
+      '\n',
+      '\n\n',
+      '  ',
+    ];
+    const ESCAPED = ['\\"', '\\\\', '\\n', '\\{'];
+    const slot = (depth: number): string => {
+      const inner = Array.from({ length: c.below(3) }, () =>
+        depth > 0 && c.below(3) === 0
+          ? slot(depth - 1)
+          : c.one(['if x', 'thing', ' "}{" ', '"\\"}"', ':a', '$last', ...ESCAPED]),
+      );
+      return `{${inner.join('')}}`;
+    };
+    for (let i = 0; i < 500; i++) {
+      const words = Array.from({ length: c.below(12) }, () => {
+        const roll = c.below(4);
+        return roll === 0 ? slot(2) : roll === 1 ? c.one(ESCAPED) : c.one(PROSE);
+      }).join(c.one([' ', '']));
+      const header = c.one(['passage p', 'passage p default', 'passage\tp']);
+      const text = `:a 1\n${header} {${words}}\n:b 2`;
+      const { tokens, diagnostics } = read(text);
+      expect(diagnostics.all, text).toEqual([]);
+      const body = tokens.filter((t) => t.kind === 'passage-body');
+      expect(
+        body.map((t) => t.text),
+        text,
+      ).toEqual([words]);
+      expect(
+        tokens.slice(-3).map((t) => t.text),
+        text,
+      ).toEqual(['b', '2', '']);
+    }
   });
 });

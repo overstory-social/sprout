@@ -7,6 +7,7 @@ import {
   type EnumOption,
   type Ident,
   type KindDeclaration,
+  type PassageDeclaration,
 } from './ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { isNode, nodesOf, unspanned } from '../source/nodes.js';
@@ -82,5 +83,34 @@ describe('a member named by `without` is shown as it was written', () => {
     expect(
       kind.members.flatMap((m) => (m.kind === 'without' ? [writtenMember(m.member)] : [])),
     ).toEqual(['on :stir', 'changed :lit', 'depart', 'as target for unlock']);
+  });
+});
+
+describe('a passage is a member whose body is carried as written', () => {
+  const text = 'kind Mirror {\n  passage greeting default { Hello, {actor}. }\n}';
+  const diagnostics = new Diagnostics();
+  const [mirror] = parseDeclarations(new SourceFile('m.sprout', text), diagnostics) as [
+    KindDeclaration,
+  ];
+
+  it('keeps the node rule, its name and its body each a node of their own', () => {
+    expect(diagnostics.refusals).toEqual([]);
+    expect(unspanned(mirror)).toEqual([]);
+    expect([...nodesOf(mirror.members)].map((n) => n.kind)).toEqual([
+      'passage',
+      'ident',
+      'passage-body',
+    ]);
+  });
+
+  it('is narrowed by its `kind`, to its name, whether it yields, and its words', () => {
+    const [member] = mirror.members;
+    if (member?.kind !== 'passage') return expect.unreachable('a passage was written');
+    const passage: PassageDeclaration = member;
+    expect(passage.name.text).toBe('greeting');
+    expect(passage.yields).toBe(true);
+    expect(passage.body.text).toBe(' Hello, {actor}. ');
+    expect(textOf(passage.body.at)).toBe('{ Hello, {actor}. }');
+    expect(textOf(passage.at)).toBe('passage greeting default { Hello, {actor}. }');
   });
 });

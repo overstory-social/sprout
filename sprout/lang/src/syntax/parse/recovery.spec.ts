@@ -217,6 +217,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       'without on :stir',
       'without as target',
       'without as target for',
+      // A passage's header wrong, with its body after it or without one.
+      'passage',
+      'passage { Hi. }',
+      'passage Hello { Hi. }',
+      'passage default hello { Hi. }',
+      'passage hello extra { Hi. }',
+      'passage hello',
+      'passage "hello" { Hi. }',
+      'without passage hello',
       ...ENTRY_DEFECTS.filter((entry) => entry.startsWith('b:')).map(
         (entry) => `:b${entry.slice(2)}`,
       ),
@@ -552,9 +561,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     }
     if (sort === 'stray') {
       for (const name of good) {
-        // As said: `remembers.walks` is said as `walks`, and a property
-        // as it was written, `:bravo`.
-        const word = name.split('.').at(-1)!;
+        // As said: `remembers.walks` is said as `walks`, a property as it
+        // was written, `:bravo`, and a word-led member by its first word,
+        // `visitors-arrive-at` as `visitors`.
+        const word = name.includes('.')
+          ? name.split('.').at(-1)!
+          : /^[a-z]+(?:-[a-z]+)+$/.test(name)
+            ? name.split('-')[0]!
+            : name;
         const named = said.some(
           (d) => d.message.includes(`\`${word}\``) || d.message.includes(`\`:${word}\``),
         );
@@ -752,6 +766,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         'without accept from 4',
         'without nonsense from K',
         'without changed',
+        'passage',
+        'passage Hello { Hi. }',
+        'passage hello extra { Hi. }',
+        'passage hello',
+        'without passage hello',
       ]);
       return { text, defect: contained(text) };
     }

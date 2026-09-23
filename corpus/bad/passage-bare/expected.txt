@@ -1,0 +1,4 @@
+kinds.sprout:3:10  A passage needs a name, and its words in braces.
+                   Write `passage greeting { … }`, with the passage's words between the braces.
+
+refused: 1 problem
