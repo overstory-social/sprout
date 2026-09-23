@@ -77,7 +77,6 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     self,
     diagnostics,
     verb: verb.name,
-    visitor: setting.visitor,
     acting: { verbs: setting.verbs, visitor: setting.visitor },
   };
   const declaration = play.declaration;

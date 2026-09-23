@@ -4,7 +4,7 @@ import type { DestroyStatement, MoveStatement, SpawnStatement, Statement } from 
 import { letBinding, showBindingType, valueOf } from './bindings.js';
 import { narrowingOf, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
-import { kindName } from '../declare/kinds.js';
+import { kindName, type KindRef } from '../declare/kinds.js';
 import { ACTOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseExpression, parseStatement } from '../syntax/parse.js';
@@ -24,6 +24,11 @@ import {
 } from '../fixtures/check.js';
 
 /** A statement as written. The parse must succeed first. */
+/** An `act` setting naming only the visitor kind, which is all a spawn reads of it. */
+function actingAs(visitor: KindRef) {
+  return { verbs: { qualified: () => null, unqualified: () => null, all: () => [] }, visitor };
+}
+
 function parsed(text: string): Statement {
   const parsing = new Diagnostics();
   const statement = parseStatement(new SourceFile('b.sprout', text), parsing);
@@ -294,10 +299,10 @@ describe('`spawn` makes a kind in something that holds things', () => {
   });
 
   it('refuses an actor that would not be an NPC, and takes one that would', () => {
-    const npc = { ...vessel(), visitor: PRINTER };
+    const npc = { ...vessel(), acting: actingAs(PRINTER) };
     expect(spawned('spawn Printer in self', npc)).toEqual({ kind: 'shop.Printer', said: [] });
     const visitor = kind('Visitor', [], [ACTOR]);
-    expect(spawned('spawn Printer in self', { ...vessel(), visitor })).toEqual({
+    expect(spawned('spawn Printer in self', { ...vessel(), acting: actingAs(visitor) })).toEqual({
       kind: null,
       said: [
         [
@@ -308,7 +313,9 @@ describe('`spawn` makes a kind in something that holds things', () => {
       ],
     });
     // A thing is spawned whatever the visitor kind is.
-    expect(spawned('spawn Rib in self', { ...vessel(), visitor }).said).toEqual([]);
+    expect(spawned('spawn Rib in self', { ...vessel(), acting: actingAs(visitor) }).said).toEqual(
+      [],
+    );
   });
 });
 

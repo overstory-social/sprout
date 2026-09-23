@@ -31,8 +31,6 @@ export interface CheckContext {
   readonly diagnostics: Diagnostics;
   /** The verb a body plays a role in, by name, where it plays one: what `bound` asks about. */
   readonly verb?: string;
-  /** The world's visitor kind, where the body is one that may spawn: what a spawned actor must compose. */
-  readonly visitor?: KindRef | null;
   /** What an `act` in the body is checked against, where the body may hold one. */
   readonly acting?: ActSetting;
 }

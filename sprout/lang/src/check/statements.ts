@@ -135,7 +135,7 @@ function spawnedKind(statement: SpawnStatement, context: CheckContext): KindRef 
   const kind = resolveKind(statement.spawned, context);
   if (kind === null) return null;
   const written = writtenKind(statement.spawned);
-  const visitor = context.visitor ?? null;
+  const visitor = context.acting?.visitor ?? null;
   if (visitor !== null && isActor(kind) && !isNpc(kind, visitor)) {
     context.diagnostics.refuse(
       statement.spawned.at,
