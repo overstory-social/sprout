@@ -1,0 +1,12 @@
+// Two verbs of one name in one world: the second is refused, and the
+// first is the world's `pry`.
+verb pry {
+  role target
+  "pry [target]"
+}
+
+verb pry {
+  role target
+  role tool
+  "pry [target] open with [tool]"
+}

@@ -1,0 +1,9 @@
+// A role is filled by a kind or a value type, never by an enum: the
+// object that plays the role says which options it hears.
+enum Topic { bridge, toll, weather }
+
+verb ask_about {
+  role target
+  role topic: Topic
+  "ask [target] about [topic]"
+}

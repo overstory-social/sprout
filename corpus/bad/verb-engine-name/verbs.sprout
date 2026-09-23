@@ -1,0 +1,6 @@
+// `look` is the engine's: it reads the world rather than change it, and
+// only the standard library declares its phrases.
+verb look {
+  role target
+  "look under [target]"
+}

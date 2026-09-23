@@ -67,7 +67,7 @@ describe('what the compiler checks — the table, row by row', () => {
   it('`x.recall(:p)` — refuses a receiver that is not an actor, by name', () => {
     const notActor = bodyOf(
       VESSEL,
-      roleBinding('tool', { role: 'kind', kind: KEY }, null, at('tool'), new Diagnostics())!,
+      roleBinding('tool', { fills: 'kind', kind: KEY }, null, at('tool'), new Diagnostics())!,
     );
     expect(read('tool.recall(:visits)', notActor).type).toBeNull();
     expect(saidBy(notActor).join(' ')).toContain('`shop.Key` is not someone');
