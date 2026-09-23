@@ -7,6 +7,7 @@ import type { WorldDeclaration, WorldMember } from '../ast.js';
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import { body, composition, contains, kindName, without, type MemberReaders } from './bodies.js';
+import { passage } from './passages.js';
 import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
 
@@ -57,6 +58,7 @@ function worldMembers(p: Parser): MemberReaders<WorldMember> {
     ['visitors', () => visitors(p)],
     ['contains', () => contains(p)],
   ]);
+  readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
   return readers;
 }

@@ -12,6 +12,8 @@ import {
 } from '../parse.js';
 import { SourceFile } from '../../source/source.js';
 import { read, optionsOf, readProperty, readExpression, readWorld } from '../../fixtures/parse.js';
+import { DECLARATION_READERS } from './declarations.js';
+import { Parser } from './parser.js';
 
 /** The parser's own depth bound, refused in the same words wherever it is met. */
 const TOO_DEEP = 'This is nested too deep to read.';
@@ -658,6 +660,29 @@ message :b with ${deep}Ward
         () => parseProperty(new SourceFile('k.sprout', text), new Diagnostics()),
         text.slice(0, 16),
       ).not.toThrow();
+    }
+  });
+});
+
+describe('what the parser says about the passages the lexer hands it', () => {
+  const over = (text: string) =>
+    new Parser(new SourceFile('k.sprout', text), new Diagnostics(), DECLARATION_READERS);
+
+  it("describes a passage's body as words, never by the prose it holds", () => {
+    const p = over('passage greeting { Hello, {actor}. }');
+    expect(p.describe(p.peek(2))).toBe("a passage's words in braces");
+  });
+
+  it('knows when a passage or a comment never closed took the rest of the file', () => {
+    for (const [text, swallowed] of [
+      ['passage greeting { Hello, {actor}.', true],
+      ['/* the rest', true],
+      ['passage greeting { Hello. }', false],
+      ['%', false],
+    ] as const) {
+      const p = over(text);
+      while (!p.done) p.next();
+      expect(p.swallowedRest, text).toBe(swallowed);
     }
   });
 });

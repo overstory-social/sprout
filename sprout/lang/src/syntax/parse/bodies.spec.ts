@@ -121,8 +121,8 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       const { declarations, refusals } = opened('nonsense\n  :a 1');
       const holds =
         owner.holds === null
-          ? '`contains` and `without`'
-          : `\`${owner.holds}\`, \`contains\` and \`without\``;
+          ? '`contains`, `passage` and `without`'
+          : `\`${owner.holds}\`, \`contains\`, \`passage\` and \`without\``;
       expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
         [`${owner.article} is not made of \`nonsense\`.`, `It holds its properties, ${holds}.`],
       ]);
@@ -299,6 +299,28 @@ describe('`without` names a member and the kind it comes from, in any body', () 
     ]);
   });
 
+  it('refuses a passage, at the word, since writing one replaces it, and reads on', () => {
+    const remedy = (name: string) =>
+      `Write your own \`passage ${name} { … }\` in this body instead: a body's own passage is the one that applies.`;
+    const message = '`without` does not leave out a passage.';
+    expect(said('without passage immovable from sprout.Fixture')).toEqual([
+      ['k.sprout:2:11', message, remedy('immovable')],
+    ]);
+    expect(said('without passage immovable { It stays. }')).toEqual([
+      ['k.sprout:2:11', message, remedy('immovable')],
+    ]);
+    expect(said('without passage from sprout.Fixture')).toEqual([
+      ['k.sprout:2:11', message, remedy('<name>')],
+    ]);
+    for (const line of ['without passage immovable', 'without passage immovable { It stays. }']) {
+      const { declarations } = read(`kind K {\n  ${line}\n  :a 1\n  contains\n}\n`);
+      expect(
+        owned(declarations)!.members.map((m) => m.kind),
+        line,
+      ).toEqual(['property', 'contains']);
+    }
+  });
+
   it('refuses a `from` that names no kind, at what it names or just after it', () => {
     const remedy = `Name it as it is composed, with its capital: ${EXAMPLE}.`;
     expect(said('without accept from 4')).toEqual([
@@ -307,5 +329,39 @@ describe('`without` names a member and the kind it comes from, in any body', () 
     expect(said('without accept from')).toEqual([
       ['k.sprout:2:22', 'After `from` comes the kind that declares `accept`.', remedy],
     ]);
+  });
+});
+
+describe('a body never closed', () => {
+  it('says so where the file ends', () => {
+    const { refusals } = read('kind K {\n  :a 1\n', 'k.sprout');
+    expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
+      ['`K` is never closed.', 'Add a } after what the kind is made of.'],
+    ]);
+  });
+
+  it('says nothing more when a comment or a passage never closed took its `}`', () => {
+    for (const text of [
+      'kind K {\n  :a 1\n  /* the rest\n}\n',
+      'kind K {\n  passage greeting { Hello, {actor.\n}\n',
+    ]) {
+      const { refusals } = read(text, 'k.sprout');
+      expect(refusals, text).toHaveLength(1);
+      expect(refusals[0]!.message, text).toMatch(/never closed/);
+      expect(refusals[0]!.message, text).not.toMatch(/`K`/);
+    }
+  });
+
+  it('names the passage it ends with, whose slot may have taken its `}`', () => {
+    const text = 'kind K {\n  passage greeting { A {slot.\n  }\n}\nenum Ward { oak }\n';
+    const { declarations, refusals } = read(text, 'k.sprout');
+    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'k.sprout:5:1',
+        '`K` is never closed.',
+        'Add a } after what the kind is made of. If there is one, a { inside the passage `greeting` has no } of its own, and took it.',
+      ],
+    ]);
+    expect(declarations.map((d) => d.kind)).toEqual(['enum']);
   });
 });

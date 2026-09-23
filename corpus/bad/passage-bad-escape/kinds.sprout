@@ -1,0 +1,7 @@
+// A passage takes the escapes quoted text does, and no others.
+kind Mirror {
+  :mood 0
+  passage greeting {
+    Scratched into the frame: C:\attic\glass. A brace is written \{.
+  }
+}
