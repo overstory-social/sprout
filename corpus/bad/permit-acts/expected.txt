@@ -1,0 +1,4 @@
+kinds.sprout:5:14  `act` performs a verb, and a `permit` only reads and decides.
+                   Move it to `do`; a `permit` ends in `allow` or `refuse`.
+
+refused: 1 problem

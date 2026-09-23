@@ -1,0 +1,9 @@
+// The roles go in brackets after the verb.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act nuzzle target: actor
+      say "The cat settles."
+    }
+  }
+}

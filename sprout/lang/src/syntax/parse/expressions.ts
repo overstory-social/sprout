@@ -1,6 +1,6 @@
 // Expressions (the spec's Properties › Precedence, and `bound` from
 // Verbs › Optional tools, read as a primary). A statement is not
-// one: `spawn`, `destroy` and `move` in an expression are refused
+// one: `spawn`, `destroy`, `move` and `act` in an expression are refused
 // here, and a `let` is read in `statements.ts`.
 //
 // Precedence climbing over one table. Every operand of a given level
@@ -206,7 +206,7 @@ function primary(p: Parser): Expr | null {
     return { kind: 'kind-expr', at: token.at, library: null, name: p.ident(token) };
   }
   if (token.kind === 'name') {
-    if (token.text === 'spawn' || token.text === 'destroy' || token.text === 'move') {
+    if (STATEMENT_WORDS.has(token.text)) {
       return statementRead(p);
     }
     if (token.text === 'bound') return boundTest(p);
@@ -286,15 +286,23 @@ const STATEMENT_READ = {
     '`move` moves something, and is not something to read.',
     'Write it on its own line, as in `move target to self`.',
   ],
+  act: [
+    '`act` performs a verb, and is not something to read.',
+    'Write it on its own line, as in `act nuzzle (target: p)`.',
+  ],
 } as const;
 
+/** The statements `statementRead` steps over where a value is wanted. */
+const STATEMENT_WORDS: ReadonlySet<string> = new Set(Object.keys(STATEMENT_READ));
+
 /**
- * `spawn`, `destroy` or `move` where a value is wanted, refused once.
- * What the statement is made of is stepped over with it, so that its
- * parts are not read as values of their own and refused again. The shape
- * it steps over is the one `statements.ts` reads (a kind, then `in` and a
- * path; `self`; or a path, then `to` and a path), and the two are kept in
- * step: a form the statement grammar gains is stepped over here too.
+ * `spawn`, `destroy`, `move` or `act` where a value is wanted, refused
+ * once. What the statement is made of is stepped over with it, so that
+ * its parts are not read as values of their own and refused again. The
+ * shape it steps over is the one `statements.ts` and `act.ts` read (a
+ * kind, then `in` and a path; `self`; a path, then `to` and a path; or a
+ * verb and its bracketed roles), and they are kept in step: a form the
+ * statement grammar gains is stepped over here too.
  */
 function statementRead(p: Parser): null {
   const keyword = p.next();
@@ -317,6 +325,10 @@ function statementRead(p: Parser): null {
       step();
       path();
     }
+  } else if (keyword.text === 'act') {
+    if (p.at('name')) path();
+    const close = p.at('punct', '(') ? closingBracket(p) : 0;
+    for (let i = 0; i < close; i++) step();
   } else {
     if (p.at('kind')) step();
     else if (p.at('name') && punct(p.peek(1), '.') && p.peek(2).kind === 'kind') {
@@ -332,6 +344,21 @@ function statementRead(p: Parser): null {
   const [message, remedy] = STATEMENT_READ[keyword.text as keyof typeof STATEMENT_READ];
   p.diagnostics.refuse(spanning(keyword.at, last.at), message, remedy);
   return null;
+}
+
+/**
+ * How many tokens the `(` here spans through the `)` that closes it, or 0
+ * where a brace or the end of the file comes first, so an `act` left open
+ * takes nothing past its own line of reading.
+ */
+function closingBracket(p: Parser): number {
+  let depth = 0;
+  for (let ahead = 0; ; ahead++) {
+    const token = p.peek(ahead);
+    if (token.kind === 'end' || punct(token, '{') || punct(token, '}')) return 0;
+    if (punct(token, '(')) depth += 1;
+    else if (punct(token, ')') && --depth === 0) return ahead + 1;
+  }
 }
 
 /**

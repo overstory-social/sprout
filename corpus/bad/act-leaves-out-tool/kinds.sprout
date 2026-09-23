@@ -1,0 +1,10 @@
+// A tool every phrase fills is never left out, and nor is one on a verb
+// with no phrases that does not mark it `optional`.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act shove (target: actor)
+      act poke (target: actor)
+    }
+  }
+}

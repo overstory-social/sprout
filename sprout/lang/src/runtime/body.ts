@@ -1,18 +1,18 @@
 // Running a body's block (the spec's Verbs › The two passes, Moving
-// something; Movement and consent › Guards are read-only; Properties ›
-// What the compiler checks, Lists, Per-actor memory; The world model ›
-// Spawning, Destroying; Prose; Limits › Runtime budgets).
+// something, Acting; Movement and consent › Guards are read-only;
+// Properties › What the compiler checks, Lists, Per-actor memory; The
+// world model › Spawning, Destroying; Prose; Limits › Runtime budgets).
 //
 // One runner, in two modes. A guard and a `permit` decide: they read, and
 // end in `allow`, in `refuse`, or by reaching their end. A `do` acts: it
-// writes `self` through the turn's draft, spawns, destroys, moves and
+// writes `self` through the turn's draft, spawns, destroys, moves, acts and
 // says. Each mode holds exactly what `check/blocks.ts` lets its bodies
 // hold, so anything else reaching it is the engine's defect, thrown as a
 // plain `Error`. Every statement executed is one step and every
 // expression node one more. A `set` or `remember` of a value its property
 // cannot hold faults, an `adjust` clamps, and adding a new element to a
 // full list faults. Nothing is rendered: B29 renders what is said. B30
-// brings `tell`, B26 `act` and B32 `send`.
+// brings `tell` and B32 `send`.
 
 import type {
   Block,
@@ -46,6 +46,7 @@ import {
   type LifecycleContext,
 } from './lifecycle.js';
 import { SproutList } from './lists.js';
+import type { Performed } from './act.js';
 import type { Instance } from './state.js';
 import { defaultOf, fits, type Value } from './values.js';
 
@@ -82,6 +83,12 @@ export interface ActSink {
    * goes on after it, whether the move was made or refused.
    */
   move(mover: InstanceId, item: InstanceId, to: InstanceId): void;
+  /**
+   * `act`, performed by `actor`, the object whose body ran it: its reading
+   * run through both passes, and what came of it said or sent. The body
+   * goes on after it, whether the reading acted or was refused.
+   */
+  act(actor: InstanceId, performed: Performed): void;
 }
 
 /**
@@ -101,11 +108,16 @@ export class ValueOutOfRange extends Error {
   }
 }
 
-/** One run of a body: its mode, where its effects go, and whether it has asked to be destroyed. */
+/**
+ * One run of a body: its mode, where its effects go, whether it has asked
+ * to be destroyed, and whether `self` is already gone, destroyed by a
+ * reading it performed, which ends the body there.
+ */
 interface Run {
   readonly mode: BodyMode;
   readonly sink: ActSink | null;
   destroying: boolean;
+  gone: boolean;
 }
 
 /**
@@ -117,9 +129,10 @@ export function runBody(block: Block, frame: Frame, mode: BodyMode, sink: ActSin
   if (mode === 'act' && sink === null) {
     throw new Error('a body that acts has somewhere to put what it does.');
   }
-  const run: Run = { mode, sink, destroying: false };
+  const run: Run = { mode, sink, destroying: false, gone: false };
   const ended = runBlock(block, frame, run);
-  if (run.destroying) sink!.destroyed(destroyInstance(sink!.lifecycle.draft, frame.self));
+  if (run.destroying && !run.gone)
+    sink!.destroyed(destroyInstance(sink!.lifecycle.draft, frame.self));
   return ended;
 }
 
@@ -129,7 +142,7 @@ function runBlock(block: Block, outer: Frame, run: Run): Ended {
   const frame: Frame = { ...outer, bindings };
   for (const statement of block.statements) {
     const ended = runStatement(statement, frame, bindings, run);
-    if (ended !== 'end') return ended;
+    if (ended !== 'end' || run.gone) return ended;
   }
   return 'end';
 }
@@ -172,6 +185,18 @@ function runStatement(
       const item = asObject(evaluate(named(statement.thing), frame));
       const to = asObject(evaluate(named(statement.destination), frame));
       sink.move(frame.self, item, to);
+      return 'end';
+    }
+    case 'act': {
+      const sink = acting(run, '`act`');
+      const roles = new Map<string, Evaluated>();
+      for (const role of statement.roles) {
+        roles.set(role.role.text, evaluate(named(role.filler), frame));
+      }
+      sink.act(frame.self, { verb: statement.verb.text, library: frame.library, roles });
+      // The reading may have destroyed the actor, and a body whose `self`
+      // is gone has nothing left to run for.
+      if (sink.lifecycle.draft.instance(frame.self) === undefined) run.gone = true;
       return 'end';
     }
     case 'say':
@@ -235,8 +260,9 @@ function spawn(statement: SpawnStatement, frame: Frame, sink: ActSink): Instance
 }
 
 /**
- * A spawn's container, or either side of a move: a name in scope, since
- * a dotted path is refused until a body resolves identifiers.
+ * A spawn's container, either side of a move, or what fills a role of an
+ * `act`: a name in scope, since a dotted path is refused until a body
+ * resolves identifiers.
  */
 function named(path: ObjectPath): Expr {
   const [only, ...rest] = path.parts;

@@ -1,0 +1,12 @@
+world act_filler_wrong_kind: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at hall
+}
+
+kind Visitor: sprout.Actor { }
+
+verb pet    { role target  "pet [target]" }
+verb unlock { role target: Lockable  role tool  "unlock [target] with [tool]"  "unlock [target]" }
+
+object hall: sprout.Place in act_filler_wrong_kind

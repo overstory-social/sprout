@@ -1,0 +1,4 @@
+kinds.sprout:6:11  `act` names a verb by its name alone.
+                   Write `act take (…)`: a verb's name reaches this world's own verb first, then the standard library's.
+
+refused: 1 problem

@@ -1,0 +1,7 @@
+kinds.sprout:8:27  `target` of `nuzzle` is filled by a thing in the world, and `toys` is a set of objects.
+                   Name one thing: only a role marked `many` takes a set.
+
+kinds.sprout:9:27  `target` of `nuzzle` is filled by a thing in the world, and `naps` is integer 0 to 9.
+                   Name a thing in the world, as in `act nuzzle (target: self)`.
+
+refused: 2 problems

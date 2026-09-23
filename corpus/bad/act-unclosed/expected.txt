@@ -1,0 +1,4 @@
+kinds.sprout:7:7  The bracket after `act nuzzle` is never closed.
+                  Add a ) after its last role.
+
+refused: 1 problem

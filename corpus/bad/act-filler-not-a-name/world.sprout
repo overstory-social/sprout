@@ -1,0 +1,12 @@
+world act_filler_not_a_name: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at hall
+}
+
+kind Visitor: sprout.Actor { }
+
+verb pet    { role target  "pet [target]" }
+verb quiz   { role target  role topic: symbol  "quiz [target] about [topic]" }
+
+object hall: sprout.Place in act_filler_not_a_name

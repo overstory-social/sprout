@@ -1,0 +1,12 @@
+world act_as_value: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at hall
+}
+
+kind Visitor: sprout.Actor { }
+
+verb pet    { role target  "pet [target]" }
+verb nuzzle { role target  "nuzzle [target]" }
+
+object hall: sprout.Place in act_as_value

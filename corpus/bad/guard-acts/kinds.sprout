@@ -1,0 +1,6 @@
+// A guard only reads and decides, so it performs nothing.
+kind Cat: Visitor {
+  depart (to) {
+    act nuzzle (target: to)
+  }
+}

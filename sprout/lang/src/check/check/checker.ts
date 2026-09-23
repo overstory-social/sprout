@@ -11,6 +11,7 @@
 import type { Expr } from '../../syntax/ast.js';
 import type { BindingType, Scope } from '../bindings.js';
 import type { KindLookup, KindRef } from '../../declare/kinds.js';
+import type { ResolvedVerb, VerbLookup } from '../../declare/verbs.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 
 /** What a body is being read inside. */
@@ -30,6 +31,15 @@ export interface CheckContext {
   readonly diagnostics: Diagnostics;
   /** The verb a body plays a role in, by name, where it plays one: what `bound` asks about. */
   readonly verb?: string;
+  /** What an `act` in the body is checked against, where the body may hold one. */
+  readonly acting?: ActSetting;
+}
+
+/** The verbs an `act` may name, and the kind that decides who may act (the spec's Verbs › Acting). */
+export interface ActSetting {
+  readonly verbs: VerbLookup & { all(): readonly ResolvedVerb[] };
+  /** The world's visitor kind; null where the world has none to name, which has been said. */
+  readonly visitor: KindRef | null;
 }
 
 /** A context that can type an expression it meets on the way, by the walk it was made with. */

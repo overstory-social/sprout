@@ -5,13 +5,14 @@ import { playsOf } from '../declare/roles.js';
 import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import type { Block } from '../syntax/ast.js';
+import type { Performed } from './act.js';
 import { runBody, ValueOutOfRange, type ActSink, type Spoken } from './body.js';
 import { Budget } from './budget.js';
 import { catalogueOf, type Catalogue } from './catalogue.js';
 import { Draft } from './draft.js';
 import { boundObject, type Frame } from './evaluate.js';
 import { declaredId, type InstanceId } from './ids.js';
-import type { Destroyed, EngineSend } from './lifecycle.js';
+import { destroyInstance, type Destroyed, type EngineSend } from './lifecycle.js';
 import { ListFull, SproutList } from './lists.js';
 import { initialState } from './load.js';
 import { newInstance } from './state.js';
@@ -31,6 +32,8 @@ const VERBS = [
   'spill',
   'weigh',
   'haul',
+  'poke',
+  'shove',
 ];
 
 /**
@@ -65,10 +68,16 @@ const bundle = compiledWorld('shop', {
     '  as target for haul   { do { move actor to self  move self to here  say "Hauled." } }',
     '}',
     'kind Loud: Counter { passage done { Done, loudly. } }',
+    'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
+    'kind Pet: Person {',
+    '  as target for poke  { do { act nuzzle (target: actor, toys: here)  say "After." } }',
+    '  as target for shove { do { act nuzzle (target: actor)  say "After." } }',
+    '}',
     'object hall: Room in shop',
     'object counter: Counter in hall',
     'object loud: Loud in hall',
     'object pin: Cup in hall.counter',
+    'object cat: Pet in hall',
     '',
   ].join('\n'),
 });
@@ -79,6 +88,7 @@ const HALL = id('hall');
 const COUNTER = id('hall', 'counter');
 const LOUD = id('hall', 'loud');
 const PIN = id('hall', 'counter', 'pin');
+const CAT = id('hall', 'cat');
 
 /** What an acting body did, as the sink heard it. */
 interface Heard {
@@ -87,6 +97,8 @@ interface Heard {
   readonly destroyed: Destroyed[];
   /** Each `move` proposed: the mover, the thing and where it is to go. */
   readonly moves: [InstanceId, InstanceId, InstanceId][];
+  /** Each `act` performed: the actor, and the reading as the body evaluated it. */
+  readonly acts: [InstanceId, Performed][];
 }
 
 interface Turn {
@@ -143,8 +155,9 @@ function act(
   self: InstanceId,
   verb: string,
   budget = new Budget(DEFAULT_LIMITS.budgets),
+  performing: (actor: InstanceId) => void = () => {},
 ): Heard {
-  const heard: Heard = { spoken: [], sends: [], destroyed: [], moves: [] };
+  const heard: Heard = { spoken: [], sends: [], destroyed: [], moves: [], acts: [] };
   const sink: ActSink = {
     lifecycle: {
       draft: turn.draft,
@@ -157,6 +170,10 @@ function act(
     sent: (sends) => heard.sends.push(...sends),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
     move: (mover, item, to) => heard.moves.push([mover, item, to]),
+    act: (actor, performed) => {
+      heard.acts.push([actor, performed]);
+      performing(actor);
+    },
   };
   expect(runBody(body(turn.draft, self, verb), frameOf(turn, self, budget), 'act', sink)).toBe(
     'end',
@@ -289,6 +306,44 @@ describe('what a `do` moves', () => {
   });
 });
 
+describe('what a `do` performs', () => {
+  it('hands each `act` to the sink with `self` as the actor and each role as evaluated, and goes on', () => {
+    const one = turn();
+    const heard = act(one, CAT, 'poke');
+    expect(heard.acts).toEqual([
+      [
+        CAT,
+        {
+          verb: 'nuzzle',
+          library: 'shop',
+          roles: new Map([
+            ['target', { binds: 'object', id: one.visitor }],
+            ['toys', { binds: 'object', id: HALL }],
+          ]),
+        },
+      ],
+    ]);
+    expect(heard.spoken.map(words)).toEqual(['After.']);
+  });
+
+  it('ends the body where the reading it performed destroyed `self`', () => {
+    const one = turn();
+    const heard = act(one, CAT, 'shove', undefined, (actor) => destroyInstance(one.draft, actor));
+    expect(heard.acts).toHaveLength(1);
+    expect(heard.spoken).toEqual([]);
+    // Nothing is destroyed twice: the body asked for no destroy of its own.
+    expect(heard.destroyed).toEqual([]);
+  });
+
+  it('throws an engine error for an `act` in a body that decides', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    expect(() =>
+      runBody(body(one.draft, CAT, 'poke'), frameOf(one, CAT, budget), 'decide', null),
+    ).toThrow(/`act` reached a body that decides/);
+  });
+});
+
 describe('the two modes', () => {
   it('decides in a `permit`: a refusal with its words, or `allow`', () => {
     const one = turn();
@@ -354,5 +409,13 @@ describe('what a `do` is charged', () => {
     act(one, COUNTER, 'haul', budget);
     // Two `move`s of three each, and a `say`.
     expect(budget.spentSteps).toBe(7);
+  });
+
+  it('charges an `act` as the statement and each name it evaluates; the reading is the sink’s', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    act(one, CAT, 'poke', budget);
+    // The `act` and its two names, and a `say`.
+    expect(budget.spentSteps).toBe(4);
   });
 });

@@ -311,12 +311,15 @@ describe('who takes part, and in what order', () => {
     setOn(one, BOTH, { a: true });
     expect(first()).toBe('First balks.');
     setOn(one, visitor!, { balks: true });
-    expect(refused(runReading(order, contextOf(one)))).toEqual({
+    const refusal = refused(runReading(order, contextOf(one)));
+    expect(refusal).toMatchObject({
       by: visitor,
       role: 'actor',
       origin: 'yard.Person',
       said: { text: 'The actor balks.' },
     });
+    // What the refusing play saw, for its slots: every role, a set left out as empty.
+    expect([...refusal.bindings.keys()]).toEqual(['actor', 'here', 'target', 'tool', 'weights']);
   });
 });
 
@@ -513,7 +516,7 @@ describe('the effect pass', () => {
 describe('where the actor is', () => {
   const hereOf = (actor: InstanceId, one: Turn) =>
     acted(
-      runReading(reading(YARD, 'nod', actor, { target: { object: STONE } }), contextOf(one)),
+      runReading(reading(YARD, 'nudge', actor, { target: { object: DOG } }), contextOf(one)),
     ).said[0]!.bindings.get('here');
 
   it('is its nearest container holding actors, a place inside a place included', () => {
@@ -542,14 +545,12 @@ describe('an NPC acting', () => {
     expect(said.said[0]).toMatchObject({ to: [DOG, ivo], by: marta, speaker: CAT });
   });
 
-  it('answers a reading that said nothing to the same audience, from the NPC', () => {
+  it('has no output where its reading said nothing, since nobody is behind it to answer', () => {
     const one = turn(YARD, [HALL]);
-    const [marta] = one.people;
     const said = acted(
       runReading(reading(YARD, 'nod', CAT, { target: { object: STONE } }), contextOf(one)),
     );
-    expect(lines(said)).toEqual([[WORLD_ID, NOTHING]]);
-    expect(said.said[0]).toMatchObject({ to: [DOG, marta], speaker: CAT });
+    expect(said.said).toEqual([]);
   });
 });
 
@@ -728,7 +729,7 @@ describe('the corpus world `good/roles`', () => {
       [LEVER, 'roles.Lever clunk: The lever drops with a clunk.'],
     ]);
     expect(held(one, LEVER!, 'pulled')).toBe(true);
-    expect(refused(play(one, 'pull', { target: { object: LEVER! } }))).toEqual({
+    expect(refused(play(one, 'pull', { target: { object: LEVER! } }))).toMatchObject({
       by: LEVER,
       role: 'target',
       origin: 'roles.Lever',
