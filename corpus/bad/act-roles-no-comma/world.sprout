@@ -1,0 +1,12 @@
+world act_roles_no_comma: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at hall
+}
+
+kind Visitor: sprout.Actor { }
+
+verb pet    { role target  "pet [target]" }
+verb unlock { role target  role tool  "unlock [target] with [tool]" }
+
+object hall: sprout.Place in act_roles_no_comma

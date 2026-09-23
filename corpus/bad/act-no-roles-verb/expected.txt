@@ -1,0 +1,4 @@
+kinds.sprout:5:17  `purr` has no roles, so only the actor takes part.
+                   Write `act purr ()`.
+
+refused: 1 problem

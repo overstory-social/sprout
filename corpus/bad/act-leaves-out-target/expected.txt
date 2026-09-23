@@ -1,0 +1,4 @@
+kinds.sprout:5:11  `act nuzzle` leaves out `target`, the role it is done to, which every reading fills.
+                   Name it: `act nuzzle (target: <what fills it>)`.
+
+refused: 1 problem

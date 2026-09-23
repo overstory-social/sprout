@@ -1,0 +1,7 @@
+// Only something made of what visitors are made of acts: a kettle has no
+// part to play as an actor.
+kind Kettle {
+  as target for pet {
+    do { act nuzzle (target: actor) }
+  }
+}

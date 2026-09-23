@@ -1,0 +1,10 @@
+// A verb is named alone: this world's own is reached first, then the
+// standard library's.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act sprout.take (target: actor)
+      say "The cat settles."
+    }
+  }
+}

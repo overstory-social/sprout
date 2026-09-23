@@ -374,3 +374,21 @@ kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in her
     ]);
   });
 });
+
+describe('a `do` performs verbs with `act`', () => {
+  it('checks each `act` against the bundle’s verbs and what visitors are made of', () => {
+    expect(
+      checked('kind Cat: Visitor { as actor for sit { do { act pull (target: self) } } }'),
+    ).toEqual([]);
+    expect(
+      checked('kind Lever { as target for pull { do { act sit (target: self) } } }').map(
+        ([at, message]) => [at, message],
+      ),
+    ).toEqual([
+      [
+        'shop.sprout:10:40',
+        'Only something made of `Visitor` acts, and `Lever` does not compose it.',
+      ],
+    ]);
+  });
+});

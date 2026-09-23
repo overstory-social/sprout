@@ -290,6 +290,26 @@ export interface MoveStatement extends Node {
   readonly destination: ObjectPath;
 }
 
+/** `target: p` inside an `act`'s brackets: a role of the verb, and what fills it. */
+export interface ActRole extends Node {
+  readonly kind: 'act-role';
+  readonly role: Ident;
+  /** A binding or an identifier, or a dotted path to one. */
+  readonly filler: ObjectPath;
+}
+
+/**
+ * `act nuzzle (target: p)` — a reading with `self` as the actor and each
+ * named role filled, run where the statement stands (the spec's Verbs ›
+ * Acting). Roles are named, so no phrase is needed.
+ */
+export interface ActStatement extends Node {
+  readonly kind: 'act';
+  readonly verb: Ident;
+  /** In the order written. */
+  readonly roles: readonly ActRole[];
+}
+
 /**
  * `{ … }` — statements in the order written, which run in that order and
  * are a scope of their own: a `let` in a block lives to its `}`.
@@ -352,6 +372,7 @@ export type Statement =
   | SpawnStatement
   | DestroyStatement
   | MoveStatement
+  | ActStatement
   | IfStatement
   | RefuseStatement
   | AllowStatement

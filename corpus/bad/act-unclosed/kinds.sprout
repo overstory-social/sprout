@@ -1,0 +1,10 @@
+// An `act`'s bracket left open costs only the `act`: the `say` after it
+// is still read.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act nuzzle (target: actor
+      say "The cat settles."
+    }
+  }
+}

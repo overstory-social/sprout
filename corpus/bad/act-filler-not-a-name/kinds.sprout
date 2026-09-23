@@ -1,0 +1,10 @@
+// A role is filled by the name of something in reach, never by a value
+// written out.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act quiz (target: actor, topic: :toll)
+      say "The cat settles."
+    }
+  }
+}

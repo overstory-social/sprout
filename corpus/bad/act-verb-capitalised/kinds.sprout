@@ -1,0 +1,9 @@
+// A verb is named in lower case, as it was declared.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act Nuzzle (target: actor)
+      say "The cat settles."
+    }
+  }
+}

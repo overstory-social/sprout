@@ -1,0 +1,9 @@
+// A role named is given something to fill it.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      act nuzzle (target)
+      say "The cat settles."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+// A role a thing fills takes one thing: neither a set nor a value.
+kind Cat: Visitor {
+  :naps 0 min 0 max 9
+
+  as target for play {
+    do {
+      let naps = self.get(:naps)
+      act nuzzle (target: toys)
+      act nuzzle (target: naps)
+    }
+  }
+}

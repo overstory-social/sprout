@@ -29,13 +29,13 @@ import {
   type Binding,
   type Words,
 } from './bindings.js';
-import type { CheckContext } from './check.js';
+import type { ActSetting, CheckContext } from './check.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a play is read: the kinds and verbs in scope, what visitors are made of, and somewhere to say what is wrong. */
 export interface PlaySetting {
   readonly kinds: KindLookup;
-  readonly verbs: { qualified(library: string, name: string): ResolvedVerb | null };
+  readonly verbs: ActSetting['verbs'];
   /** The world's visitor kind; null where the world has none to name, which has been said. */
   readonly visitor: KindRef | null;
   readonly diagnostics: Diagnostics;
@@ -78,6 +78,7 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     diagnostics,
     verb: verb.name,
     visitor: setting.visitor,
+    acting: { verbs: setting.verbs, visitor: setting.visitor },
   };
   const declaration = play.declaration;
   if (declaration.permit !== null) checkBlock(declaration.permit, context, { body: 'permit' });

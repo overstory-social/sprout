@@ -216,7 +216,7 @@ function checkContainer(path: ObjectPath, context: CheckContext, going: Going): 
 }
 
 /** A path as the one name it is looked up by: its only part, or the whole of it written out. */
-function nameOf(path: ObjectPath): Ident {
+export function nameOf(path: ObjectPath): Ident {
   return path.parts.length === 1
     ? path.parts[0]!
     : { kind: 'ident', at: path.at, text: writtenPath(path) };

@@ -1,0 +1,9 @@
+// `act` performs a verb and gives nothing back to name.
+kind Cat: Visitor {
+  as target for pet {
+    do {
+      let done = act nuzzle (target: actor)
+      say "The cat settles."
+    }
+  }
+}
