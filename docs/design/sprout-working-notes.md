@@ -522,7 +522,7 @@ Found while refusing actors where actors cannot stand, each decided the narrow w
 - **In either mode.** Both refusals are refusals at load too, as the refusal of an object in something that holds nothing is.
 - **A spawn the compiler can see is wrong.** A spawn of an NPC kind into something whose kind the compiler knows holds no actors is not refused at compile; the spec lists it only as a fault, and it faults when it runs (`holds-no-actors`), checked after a container that holds nothing.
 - **An exit to something that does not hold actors.** Not built: exits are not read yet, so B28 refuses it beside the exit on something that is not a place.
-- **`here`.** The actor's container, which holds actors; an actor found in one that does not is an engine error, which nothing but a stored state can make (Open 73). A move of an actor is between two places, so the notices are spoken for every one.
+- **`here`.** The actor's container, which holds actors; an actor found in one that does not is an engine error, which nothing but a stored state can make (Open 75). A move of an actor is between two places, so the notices are spoken for every one.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
