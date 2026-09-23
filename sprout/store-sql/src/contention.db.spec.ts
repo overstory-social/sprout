@@ -8,9 +8,9 @@ import { sqlStore, type Queryable } from './store.js';
 // What PGlite cannot prove (`cannotProve`): real contention — one
 // connection blocking another until commit — and a lock timeout FIRING
 // rather than hanging. This runs against a real Postgres, a pool of
-// connections, only where `DATABASE_URL` is set. It is the two conformance
-// cases `conformance.spec.ts` skips by name, plus the timeout, on a
-// store whose every transaction is its own connection.
+// connections, only where `DATABASE_URL` is set. It is the three
+// conformance cases `conformance.spec.ts` skips by name, plus the
+// timeout, on a store whose every transaction is its own connection.
 
 /** The spec's default caps, as a publish under a host that set none of its own records them. */
 const CAPS = {
@@ -37,7 +37,16 @@ interface Pool {
   end(): Promise<void>;
 }
 
-const TABLES = ['microworld', 'spawn_counter', 'object', 'actor', 'memory', 'action', 'miss'];
+const TABLES = [
+  'microworld',
+  'serial',
+  'instance',
+  'memory',
+  'visitor',
+  'tombstone',
+  'action',
+  'miss',
+];
 
 describe.skipIf(!url)('sqlStore on a real Postgres (contention)', () => {
   let pool: Pool;
@@ -82,12 +91,14 @@ describe.skipIf(!url)('sqlStore on a real Postgres (contention)', () => {
       },
     });
 
-  const needsTwo = cases.filter(
-    (c) =>
-      c.name === 'write turns on one microworld serialize; reads do not wait' ||
-      c.name === 'a read is a snapshot',
+  const needsTwo = cases.filter((c) =>
+    [
+      'write turns on one microworld serialize; reads do not wait',
+      'a read is a snapshot',
+      'forgetting a visitor waits on the world’s write turns',
+    ].includes(c.name),
   );
-  it('the two cases exist to run', () => expect(needsTwo).toHaveLength(2));
+  it('the three cases exist to run', () => expect(needsTwo).toHaveLength(3));
   for (const c of needsTwo) {
     it(`${c.name} — ${c.proves}`, async () => {
       await c.run(store);
@@ -114,13 +125,13 @@ describe.skipIf(!url)('sqlStore on a real Postgres (contention)', () => {
     let entered!: () => void;
     const inside = new Promise<void>((r) => (entered = r));
     const first = s.transaction('w', async (tx) => {
-      await tx.nextSpawn(); // takes the microworld's lock
-      entered();
+      entered(); // inside the transaction, which holds the microworld's lock
       await held;
+      await tx.state();
     });
     await inside;
     const started = Date.now();
-    await expect(s.transaction('w', async (tx) => tx.nextSpawn())).rejects.toThrow(
+    await expect(s.transaction('w', async (tx) => tx.state())).rejects.toThrow(
       /lock timeout|canceling statement/i,
     );
     expect(Date.now() - started).toBeLessThan(5000);

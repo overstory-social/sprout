@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import type { StoredChanges, StoredInstance, StoredVisitor } from '@overstory/sprout/core';
+
 import { memoryBackend, type DocumentBackend } from './backend.js';
 import { documentStore, keys, parseKey } from './store.js';
 
-// The layout, pinned: which key holds what,
-// the objects as one opaque string, one document per action and miss,
-// ids encoded so a microworld named `<zone>/draft` is not the zone's.
+// The layout, pinned: which key holds what, the instances and
+// tombstones as one opaque string, one document per visitor, action and
+// miss, ids encoded so a microworld named `<zone>/draft` is not the zone's.
 
 /** The spec's default caps, as a publish under a host that set none of its own records them. */
 const CAPS = {
@@ -37,15 +39,38 @@ const microworld = (id: string) => ({
   blessed: [],
   loadedAt: NOW,
 });
-const actor = (microworldId: string, id: string) => ({
-  microworldId,
-  id,
-  name: id,
-  roomId: 'hall',
-  lastSeen: NOW,
-  narration: [],
-  lastNoun: null,
-  pending: [],
+const lamp: StoredInstance = {
+  id: 'shop.hall.lamp',
+  made: { from: 'declared' },
+  container: 'shop.hall',
+  arrival: null,
+  properties: { lit: { type: 'boolean', value: true } },
+  links: {},
+  wakes: [],
+  memory: { 'shop#1': { seen: { type: 'boolean', value: true } } },
+  lastTick: null,
+};
+const marta: StoredInstance = {
+  ...lamp,
+  id: 'shop#1',
+  made: { from: 'visitor' },
+  arrival: 1,
+  properties: {},
+  memory: {},
+};
+const visitor = (visit: string): StoredVisitor => ({
+  visit,
+  nickname: 'Marta',
+  instance: 'shop#1',
+  lastPlace: 'shop.hall',
+});
+const turn = (over: Partial<StoredChanges> = {}): StoredChanges => ({
+  serial: 1,
+  upsert: [lamp, marta],
+  remove: [],
+  tombstones: ['shop.hall.vase'],
+  visitors: [visitor('v-marta')],
+  ...over,
 });
 const action = (microworldId: string) => ({
   microworldId,
@@ -64,18 +89,18 @@ const action = (microworldId: string) => ({
 
 describe('the keys', () => {
   it('put the microworld first, URL-encoded, so `<zone>/draft` is its own prefix', () => {
-    expect(keys.objects('z/draft')).toBe('microworld/z%2Fdraft/objects');
+    expect(keys.state('z/draft')).toBe('microworld/z%2Fdraft/state');
     expect(keys.microworld('z')).toBe('microworld/z/');
-    expect(keys.actor('z', 'p/1')).toBe('microworld/z/actors/p%2F1');
+    expect(keys.visitor('z', 'p/1')).toBe('microworld/z/visitors/p%2F1');
     expect(keys.action('z', 7)).toBe('microworld/z/actions/000000000007');
-    expect(parseKey('microworld/z%2Fdraft/actors/p%2F1')).toEqual({
+    expect(parseKey('microworld/z%2Fdraft/visitors/p%2F1')).toEqual({
       microworldId: 'z/draft',
-      collection: 'actors',
+      collection: 'visitors',
       member: 'p/1',
     });
-    expect(parseKey('microworld/z/objects')).toEqual({
+    expect(parseKey('microworld/z/state')).toEqual({
       microworldId: 'z',
-      collection: 'objects',
+      collection: 'state',
       member: null,
     });
     expect(parseKey('other/thing')).toBeNull();
@@ -83,103 +108,118 @@ describe('the keys', () => {
 });
 
 describe('the layout on the backend', () => {
-  it('objects are one document holding an opaque string; actors, memory, actions and misses one document each; the counters one', async () => {
+  it('instances and tombstones are one document holding an opaque string; each visitor, action and miss one document; the counters one', async () => {
     const backend = memoryBackend();
     const store = documentStore(backend);
     await store.transaction('w', async (tx) => {
       await tx.putMicroworld(microworld('w'));
-      await tx.putObjects({
-        upsert: [
-          {
-            microworldId: 'w',
-            id: 'lamp',
-            spawnedFrom: null,
-            container: 'hall',
-            home: 'hall',
-            state: { lit: true },
-          },
-        ],
-        remove: [],
-      });
-      await tx.putActor(actor('w', 'v'));
-      await tx.putMemory({ microworldId: 'w', actorId: 'v', byObject: { lamp: { seen: true } } });
+      await tx.putState(turn());
       await tx.appendAction(action('w'));
       await tx.appendAction(action('w'));
       await tx.appendMiss({
         microworldId: 'w',
         at: NOW,
-        roomId: 'hall',
+        roomId: 'shop.hall',
         input: 'dance',
         couldSay: [],
         couldName: [],
-        state: { room: {}, items: {} },
+        state: { room: lamp, items: [] },
       });
-      expect(await tx.nextSpawn()).toBe(1);
-      expect(await tx.nextSpawn()).toBe(2);
     });
     expect(await backend.list('')).toEqual([
       'microworld/w/actions/000000000001',
       'microworld/w/actions/000000000002',
-      'microworld/w/actors/v',
       'microworld/w/archive',
       'microworld/w/counters',
-      'microworld/w/memory/v',
       'microworld/w/misses/000000000001',
-      'microworld/w/objects',
+      'microworld/w/state',
+      'microworld/w/visitors/v-marta',
     ]);
-    const objects = (await backend.get('microworld/w/objects')) as { blob: string };
-    expect(typeof objects.blob).toBe('string');
-    expect(JSON.parse(objects.blob)).toEqual([
-      {
-        microworldId: 'w',
-        id: 'lamp',
-        spawnedFrom: null,
-        container: 'hall',
-        home: 'hall',
-        state: { lit: true },
-      },
-    ]);
-    expect(await backend.get('microworld/w/counters')).toEqual({ spawn: 2, actions: 2, misses: 1 });
+    const state = (await backend.get('microworld/w/state')) as { blob: string };
+    expect(typeof state.blob).toBe('string');
+    expect(JSON.parse(state.blob)).toEqual({
+      instances: [marta, lamp],
+      tombstones: ['shop.hall.vase'],
+    });
+    expect(await backend.get('microworld/w/counters')).toEqual({
+      serial: 1,
+      actions: 2,
+      misses: 1,
+    });
+    expect(await backend.get('microworld/w/visitors/v-marta')).toEqual(visitor('v-marta'));
     // Dates travel as ISO strings and come back as dates.
-    expect((await backend.get('microworld/w/actors/v')) as object).toMatchObject({
-      lastSeen: '2026-09-18T12:00:00.000Z',
+    expect((await backend.get('microworld/w/archive')) as object).toMatchObject({
+      loadedAt: '2026-09-18T12:00:00.000Z',
     });
     await store.read('w', async (tx) => {
-      expect((await tx.actor('v'))?.lastSeen).toEqual(NOW);
       expect((await tx.microworld())?.loadedAt).toEqual(NOW);
       expect((await tx.actions({ limit: 5 }))[0]?.at).toEqual(NOW);
     });
   });
 
+  it('a turn writes only the visitor documents it changed', async () => {
+    const backend = memoryBackend();
+    const writes: string[] = [];
+    const watching: DocumentBackend = {
+      ...backend,
+      transact: (ks, fn) =>
+        backend.transact(ks, (tx) =>
+          fn({
+            ...tx,
+            get: (k) => tx.get(k),
+            list: (p) => tx.list(p),
+            put: async (k, d) => {
+              writes.push(k);
+              await tx.put(k, d);
+            },
+            delete: (k) => tx.delete(k),
+          }),
+        ),
+    };
+    const store = documentStore(watching);
+    await store.transaction('w', async (tx) =>
+      tx.putState(turn({ visitors: [visitor('v-marta'), visitor('v-ines')] })),
+    );
+    writes.length = 0;
+    await store.transaction('w', async (tx) =>
+      tx.putState(turn({ serial: 2, upsert: [lamp], visitors: [] })),
+    );
+    expect(writes.sort()).toEqual(['microworld/w/counters', 'microworld/w/state']);
+  });
+
   it('a document that is not the record it should be is refused by name', async () => {
     const backend = memoryBackend();
-    await backend.put('microworld/w/actors/v', { garbage: true });
-    await backend.put('microworld/w/objects', { blob: '[{"nope":1}]' });
+    await backend.put('microworld/w/visitors/v', { garbage: true });
+    await backend.put('microworld/x/state', { blob: '{"instances":[{"nope":1}],"tombstones":[]}' });
     const store = documentStore(backend);
-    await expect(store.read('w', (tx) => tx.actor('v'))).rejects.toThrow(
-      'microworld/w/actors/v is not the record it should be',
+    await expect(store.read('w', (tx) => tx.state())).rejects.toThrow(
+      'microworld/w/visitors/v is not the record it should be',
     );
-    await expect(store.read('w', (tx) => tx.objects())).rejects.toThrow(
-      'microworld/w/objects is not the record it should be',
+    await expect(store.read('x', (tx) => tx.state())).rejects.toThrow(
+      'microworld/x/state is not the record it should be',
     );
   });
 
-  it('a read is memoised by key: the objects document is fetched once for the read, however often it is asked', async () => {
+  it('a read is memoised by key: the state document is fetched once for the read, however often it is asked', async () => {
     const backend = memoryBackend();
     let gets = 0;
     const counting = { ...backend, get: async (k: string) => (gets++, backend.get(k)) };
     const store = documentStore(counting);
-    await store.transaction('w', async (tx) => tx.putMicroworld(microworld('w')));
+    await store.transaction('w', async (tx) => {
+      await tx.putMicroworld(microworld('w'));
+      await tx.putState(turn());
+    });
     gets = 0;
     await store.read('w', async (tx) => {
-      await tx.objects();
-      await tx.objects();
+      await tx.state();
+      await tx.state();
       await tx.microworld();
     });
-    expect(gets).toBe(2);
+    // The state, the counters, one visitor, the archive.
+    expect(gets).toBe(4);
   });
 
-  it('a write transaction locks the objects key alone; the heartbeat locks the actor’s', async () => {
+  it('a write transaction, a forget and an export each lock the state key of the world alone', async () => {
     const backend = memoryBackend();
     const locked: string[][] = [];
     const watching: DocumentBackend = {
@@ -190,49 +230,28 @@ describe('the layout on the backend', () => {
       },
     };
     const store = documentStore(watching);
-    await store.transaction('w', async (tx) => {
-      await tx.putMicroworld(microworld('w'));
-      await tx.putActor(actor('w', 'v'));
-    });
-    await store.read('w', (tx) => tx.touchActor('v', NOW, true));
-    await store.read('w', (tx) => tx.touchActor('nobody', NOW, true));
+    for (const w of ['a', 'b']) {
+      await store.transaction(w, async (tx) => {
+        await tx.putMicroworld(microworld(w));
+        await tx.putState(turn());
+      });
+    }
+    await store.exportVisitor('v-marta');
+    await store.forgetVisitor('v-marta');
+    await store.forgetVisitor('v-marta');
     expect(locked).toEqual([
-      ['microworld/w/objects'],
-      ['microworld/w/actors/v'],
-      ['microworld/w/actors/nobody'],
+      ['microworld/a/state'],
+      ['microworld/b/state'],
+      ['microworld/a/state'],
+      ['microworld/b/state'],
+      ['microworld/a/state'],
+      ['microworld/b/state'],
     ]);
-  });
-
-  it('forgetActor holds the actor’s keys, so a heartbeat racing it cannot bring the row back', async () => {
-    const backend = memoryBackend();
-    const store = documentStore(backend);
-    await store.transaction('w', async (tx) => {
-      await tx.putMicroworld(microworld('w'));
-      await tx.putActor(actor('w', 'v'));
-      await tx.putMemory({ microworldId: 'w', actorId: 'v', byObject: {} });
-    });
-    // The heartbeat is a small transaction on the actor's key; the forget
-    // takes the same key, so they run in order — whichever is first.
-    await Promise.all([
-      store.read('w', (tx) => tx.touchActor('v', new Date(NOW.getTime() + 1000), true)),
-      store.forgetActor('v'),
-      store.read('w', (tx) => tx.touchActor('v', new Date(NOW.getTime() + 2000), true)),
+    expect(await backend.list('microworld/a/')).toEqual([
+      'microworld/a/archive',
+      'microworld/a/counters',
+      'microworld/a/state',
     ]);
-    expect(await backend.list('microworld/w/')).toEqual(['microworld/w/archive']);
-    // …and the keys were held, not merely deleted one by one
-    const locked: string[][] = [];
-    const watching: DocumentBackend = {
-      ...backend,
-      transact: (ks, fn) => {
-        locked.push([...ks].sort());
-        return backend.transact(ks, fn);
-      },
-    };
-    const again = documentStore(watching);
-    await again.transaction('w', async (tx) => tx.putActor(actor('w', 'v')));
-    await again.exportActor('v');
-    await again.forgetActor('v');
-    expect(locked.slice(1)).toEqual([['microworld/w/actors/v'], ['microworld/w/actors/v']]);
   });
 
   it('destroyMicroworld takes every document under its prefix and nothing under a lookalike', async () => {
@@ -241,13 +260,13 @@ describe('the layout on the backend', () => {
     for (const id of ['z', 'z/draft', 'zz']) {
       await store.transaction(id, async (tx) => {
         await tx.putMicroworld(microworld(id));
-        await tx.putActor(actor(id, 'v'));
+        await tx.putState(turn());
       });
     }
     await store.destroyMicroworld('z');
     const left = await backend.list('');
     expect(left.some((k) => k.startsWith('microworld/z/'))).toBe(false);
-    expect(left.filter((k) => k.startsWith('microworld/z%2Fdraft/'))).toHaveLength(2);
-    expect(left.filter((k) => k.startsWith('microworld/zz/'))).toHaveLength(2);
+    expect(left.filter((k) => k.startsWith('microworld/z%2Fdraft/'))).toHaveLength(4);
+    expect(left.filter((k) => k.startsWith('microworld/zz/'))).toHaveLength(4);
   });
 });

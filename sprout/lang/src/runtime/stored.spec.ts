@@ -14,7 +14,10 @@ import {
   decodeValue,
   encodeValue,
   readStoredWorld,
+  StoredInstanceSchema,
+  StoredPropertySchema,
   StoredStateUnreadable,
+  StoredVisitorSchema,
   StoredWorldSchema,
   type StoredInstance,
   type StoredValue,
@@ -258,6 +261,31 @@ describe('the stored form of a world', () => {
   it('refuses a spawn that does not say its kind, and a time that is not whole seconds', () => {
     expect(issues(withInstance(4, { made: { from: 'spawned' } }))).toHaveLength(1);
     expect(issues(withInstance(1, { lastTick: 1.5 }))).toHaveLength(1);
+  });
+});
+
+describe('one stored record, checked on its own', () => {
+  it('reads back every instance and visitor of a well-formed world as written', () => {
+    const stored = world();
+    for (const record of stored.instances) {
+      expect(StoredInstanceSchema.parse(JSON.parse(JSON.stringify(record)))).toEqual(record);
+    }
+    expect(StoredVisitorSchema.parse(stored.visitors[0])).toEqual(stored.visitors[0]);
+    expect(StoredPropertySchema.parse(encodeValue(STRING, 'x'))).toEqual({
+      type: 'string',
+      value: 'x',
+    });
+  });
+
+  it('refuses a record of the wrong shape, and leaves which world its ids belong to for the world', () => {
+    const lamp = instance({ id: 'printers_shop.lamp', made: { from: 'declared' } });
+    expect(StoredInstanceSchema.safeParse({ ...lamp, wakes: undefined }).success).toBe(false);
+    expect(StoredInstanceSchema.safeParse({ ...lamp, lastTick: 1.5 }).success).toBe(false);
+    expect(StoredInstanceSchema.safeParse({ ...lamp, id: 'elsewhere.lamp' }).success).toBe(true);
+    expect(StoredVisitorSchema.safeParse({ ...world().visitors[0], visit: '' }).success).toBe(
+      false,
+    );
+    expect(StoredPropertySchema.safeParse({ type: '', value: 1 }).success).toBe(false);
   });
 });
 

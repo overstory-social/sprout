@@ -303,17 +303,22 @@ export class Draft implements StateReader {
   }
 }
 
-/** What a store writes for one committed turn: the records to upsert, the ids to delete, and the tombstones to add. */
-export function storedChanges(
-  state: WorldState,
-  changes: StateChanges,
-): {
+/** What a store writes for one committed turn, in the stored form. */
+export interface StoredChanges {
+  /** The world's serial after the turn. */
   readonly serial: number;
+  /** Instance records written whole, each replacing the one stored under its id. */
   readonly upsert: readonly StoredInstance[];
+  /** The ids of instance records to delete. */
   readonly remove: readonly string[];
+  /** Tombstones to add, kept for good. */
   readonly tombstones: readonly string[];
+  /** Visitor records written whole, each replacing the one stored under its visit. */
   readonly visitors: readonly StoredVisitor[];
-} {
+}
+
+/** What a store writes for one committed turn: the records to upsert, the ids to delete, and the tombstones to add. */
+export function storedChanges(state: WorldState, changes: StateChanges): StoredChanges {
   const record = <T>(found: T | undefined, what: string): T => {
     if (found === undefined) throw new Error(`\`${what}\` changed and is not in the state.`);
     return found;

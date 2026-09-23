@@ -1,9 +1,10 @@
-// The `sprout` schema: one Postgres schema, one table per record type
-// of core's store port,
-// NO foreign key to anything of the host's — a namespace that makes that
-// visible rather than conventional, and the eventual drop auditable. Ids
-// are `text` (identifiers and spawn numbers); an actor id is whatever the
-// host supplies, so `forgetActor` is served by an index, never a cascade.
+// The `sprout` schema: one Postgres schema, a table per part of what
+// core's store port keeps, NO foreign key to anything of the host's — a
+// namespace that makes that visible rather than conventional, and the
+// eventual drop auditable. Ids are `text` (declared paths and minted
+// ids); a visit is whatever the host supplies, so `forgetVisitor` is
+// served by an index, never a cascade. A migration once released is
+// never edited: a database that applied it gets the next one.
 //
 // Migrations are EXPORTED, not copied: an ordered `{ name, sql }[]` and a
 // runner. A host with its own migration ledger (Overstory) holds one
@@ -20,7 +21,7 @@ export interface SqlMigration {
 }
 
 /** The schema version the current export produces; `sprout.meta` records it. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const migrations: readonly SqlMigration[] = [
   {
@@ -122,6 +123,70 @@ CREATE TABLE sprout.miss (
   state jsonb NOT NULL
 );
 CREATE INDEX miss_microworld_idx ON sprout.miss (microworld_id, at DESC);
+`,
+  },
+  {
+    name: 'sprout/002_stored_state.sql',
+    sql: `-- @overstory/sprout-store-sql 002 (schema version 2): a world's state in the
+-- language's stored form. The object, actor, memory and spawn counter tables
+-- held a state model this runtime does not read, and go with what they held.
+DROP TABLE sprout.object;
+DROP TABLE sprout.actor;
+DROP TABLE sprout.memory;
+DROP TABLE sprout.spawn_counter;
+UPDATE sprout.meta SET value = '2' WHERE key = 'schema_version';
+
+-- The world's serial, the last one issued: off the row a turn reads, so
+-- a turn that issues one never leaves a dead tuple on the microworld row.
+CREATE TABLE sprout.serial (
+  microworld_id text PRIMARY KEY,
+  serial bigint NOT NULL
+);
+
+-- StoredInstance, but its memory: one instance, by microworld and id.
+-- Host seconds are bigint, since they pass a 32-bit integer in 2038.
+CREATE TABLE sprout.instance (
+  microworld_id text NOT NULL,
+  id text NOT NULL,
+  made jsonb NOT NULL,
+  container text,
+  arrival bigint,
+  properties jsonb NOT NULL,
+  links jsonb NOT NULL,
+  wakes jsonb NOT NULL,
+  last_tick bigint,
+  PRIMARY KEY (microworld_id, id)
+);
+
+-- An instance's memory of one actor: a row each, so forgetting a visitor
+-- is an indexed delete by the actor's id.
+CREATE TABLE sprout.memory (
+  microworld_id text NOT NULL,
+  instance_id text NOT NULL,
+  actor_id text NOT NULL,
+  properties jsonb NOT NULL,
+  PRIMARY KEY (microworld_id, instance_id, actor_id)
+);
+CREATE INDEX memory_actor_idx ON sprout.memory (microworld_id, actor_id);
+
+-- StoredVisitor: the visit, the nickname, the instance, where they last
+-- stood. Indexed by visit for forgetVisitor and exportVisitor.
+CREATE TABLE sprout.visitor (
+  microworld_id text NOT NULL,
+  visit text NOT NULL,
+  nickname text NOT NULL,
+  instance text NOT NULL,
+  last_place text,
+  PRIMARY KEY (microworld_id, visit)
+);
+CREATE INDEX visitor_visit_idx ON sprout.visitor (visit);
+
+-- A declared object destroyed, kept for good.
+CREATE TABLE sprout.tombstone (
+  microworld_id text NOT NULL,
+  id text NOT NULL,
+  PRIMARY KEY (microworld_id, id)
+);
 `,
   },
 ];

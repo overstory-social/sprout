@@ -5,12 +5,20 @@ schemas, since an adapter validates what it reads back), the `SproutStore`
 interface, the memory store every suite runs on, and the conformance
 suite every adapter must pass.
 
+A world's state is the language's stored form (the spec's _The runtime ›
+State_): `state()` reads its serial, its `StoredInstance`s, its
+`StoredVisitor`s and its tombstones, and `putState` writes the change set
+a turn's draft made (`storedChanges`), serial included. An instance's
+memory is keyed by the actor's instance id, so `forgetVisitor(visit)`
+reads across every instance of each world holding the visit, taking the
+visitor's record, their instance and what it held, and every memory of
+them; `exportVisitor` hands back the same, but what their instance held.
+Reads write nothing.
+
 The runtime itself — turns, the log, the view — is built by B34 onward
-against the spec's _The runtime_. The language now has its state model
-(`StoredWorld` and the draft a write turn commits); the records here
-still carry the previous one until a later item replaces them with that
-stored form, and B40 reshapes them for the event log. What holds
-already, and what the conformance suite proves, is the contract:
+against the spec's _The runtime_, and B40 reshapes the action and miss
+records for the event log. What holds already, and what the conformance
+suite proves, is the contract:
 
 1. Write turns on one microworld are serialized; read turns are not.
 2. A transaction's function may be invoked more than once and must have
@@ -18,7 +26,8 @@ already, and what the conformance suite proves, is the contract:
 3. A turn's writes land together or not at all.
 4. Locks have timeouts.
 5. The host may supply the transaction.
-6. Housekeeping is not a turn.
+6. Housekeeping is not a turn; what of it writes a world's state waits
+   on that world's lock.
 
 MIT. Imports the language and zod, and nothing else; `conformance.ts`
 imports no test framework, so a host runs it under whatever runner it has:
