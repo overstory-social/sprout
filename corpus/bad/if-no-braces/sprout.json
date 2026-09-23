@@ -1,0 +1,16 @@
+{
+  "name": "if_no_braces",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "e656a51a91784771b2605278f7a7594dd359ef5f3910cd018a2f3b59960626e0"
+    }
+  ],
+  "files": ["world.sprout", "kinds.sprout"]
+}
