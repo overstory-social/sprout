@@ -557,7 +557,6 @@ Found while reserving the engine's message names, each decided the narrow way an
 
 - **Whose messages.** Reserved names says "an authored message"; every library's declaration is refused, the standard library's included, since the engine's messages are the engine's and no library declares them.
 - **By name alone.** A declaration is refused whatever it carries, with or without `with`; a handler for one of the eight still binds what the engine passes, since nothing needs declaring for it.
-- **The member words.** `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` are refused as a verb's name and not yet as a message's, though the same sentence of Reserved names keeps them from both. It needs an issue of its own, with a `corpus/bad` world pinning its words.
 
 Found while giving kinds their contents, each decided the narrow way and awaiting Eric:
 
@@ -571,6 +570,12 @@ Found while giving kinds their contents, each decided the narrow way and awaitin
 - **What is counted.** The `objects` cap counts each copy a declared instance is given, and `places` each copy that holds actors (Open 78). `sprout check`'s summary counts declarations written, where a kind's contents are part of the kind, and not one per instance. The compiler bounds the copies only by the host's `objects` cap, so a world whose kinds nest many contents in many instances is as large as the host lets it be.
 - **What a kind's body is checked as.** Each content's body is checked once, against its own anonymous kind composed in the library that wrote it, however many instances are given it, and a content no instance is given is checked all the same.
 - **Naming a content from the kind's own bodies.** `wick` inside `Lantern`'s handlers resolves with identifiers inside bodies, B32's; until then it is refused as a name nothing answers to, as a dotted target is.
+
+Found while refusing a member word as a message's name, each decided the narrow way and awaiting Eric:
+
+- **Whose messages.** As with the engine's names, every library's declaration is refused, the standard library's included, whatever it carries.
+- **Its words.** The verb refusal's, with `message` for `verb`: "`:describe` names a member of a kind, so it cannot name a message", and the remedy the engine-name refusal gives, "Choose another word, as in `:rang`."
+- **Before a duplicate.** A member word is refused ahead of the check for two of one name, so two `message :prose` in one library are two member-word refusals, not one of those and a duplicate.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

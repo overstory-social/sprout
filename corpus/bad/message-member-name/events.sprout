@@ -1,0 +1,3 @@
+// A member's word names the member, so it cannot name a message either.
+message :describe
+message :permit with boolean
