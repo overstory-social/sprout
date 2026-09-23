@@ -63,7 +63,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     const reached = tally();
     for (let i = 0; i < 1000; i++) {
       const good = ['alpha', 'bravo', 'charlie', 'delta'].slice(0, c.below(5));
-      const made = generatedRemembers(c, good, true);
+      const made = generatedRemembers(c, good);
       const { result, said, threw } = reading(made.text, parseRemembers);
       expect(threw, made.text).toBeNull();
       reached.add(made.defect.sort);

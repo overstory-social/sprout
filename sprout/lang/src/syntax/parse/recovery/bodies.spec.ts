@@ -32,6 +32,18 @@ const memberNames = (member: WorldMember): string[] =>
       : [member.kind];
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
+  it('does not let a refused bound step into the next declaration’s own word', () => {
+    // `max - -` fails at its bound and steps over what is left of it,
+    // and that step must stop at `enum`, the next declaration's own
+    // word — even though `Omega, name: [1]]` is a malformed header for
+    // it. `enum` is a neighbour to name, not to eat.
+    const text = 'kind K {\n  :faulty Ward.oak max - -\nenum Omega, name: [1]] { y }\n';
+    const { said } = reading(text, parseDeclarations);
+    expect(said.map((d) => d.message)).toContain('A max is a whole number.');
+    expect(said.map((d) => d.message)).toContain('`K` is never closed.');
+    expect(said.map((d) => d.message)).toContain('The options of `Omega` go in braces.');
+  });
+
   it('over a generated body of a world, a kind and an object, a defect in any member', () => {
     const SYMBOL_LED = [
       { names: ['alpha'], text: (ch: Chooser) => wellFormed(ch, 'alpha', 'member') },

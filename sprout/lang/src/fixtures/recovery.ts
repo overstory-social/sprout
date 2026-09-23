@@ -232,6 +232,27 @@ export const BAD_BOUNDS: readonly Defect[] = [
   unclosed('[1'),
 ];
 
+/**
+ * A bound left with nothing of its own after it — `min`, `max -`, `max
+ * - -` — the shape `skipValue` must stop at whatever stands right after
+ * it for. A body's generated run draws this often, rather than leaving
+ * it to however rarely a plain `BAD_BOUNDS` draw lands here, so a
+ * next declaration's own word placed directly against it is reached.
+ */
+export const BOUND_LEAVES_NOTHING_AFTER: readonly Defect[] = [
+  contained(''),
+  contained('-'),
+  contained('- -'),
+];
+
+/** `:faulty 0 max - -` — a member whose bound leaves nothing of its own behind it. */
+export function boundLeavingNothingAfter(c: Chooser): { text: string; defect: Defect } {
+  const which = c.one(['min', 'max']);
+  const defect = c.one(BOUND_LEAVES_NOTHING_AFTER);
+  const bound = `${which} ${defect.text}`.trim();
+  return { text: spelled('faulty', 'member', ['0', bound]), defect };
+}
+
 /** Between any two parts: something that closes or opens and should not. */
 export const BETWEEN: readonly Defect[] = [stray(']'), stray('}'), contained(')'), unclosed('[')];
 
@@ -313,16 +334,10 @@ const listEntry = (name: string): string => `${name}: [oak, silver]`;
 
 /**
  * One `:remembers` of well-formed entries and one defective one, in any
- * order. `reachColonlessBesideList` is for the `:remembers` run of its
- * own: it builds a colonless entry beside a list default now and then, a
- * pairing the entry shapes reach only rarely by chance. The body run
- * keeps to its own pool and its own draws.
+ * order. A colonless entry beside a list default is built directly, now
+ * and then, since that pairing falls together by chance only rarely.
  */
-export function generatedRemembers(
-  c: Chooser,
-  names: readonly string[],
-  reachColonlessBesideList = false,
-) {
+export function generatedRemembers(c: Chooser, names: readonly string[]) {
   let faulty = c.below(names.length + 1);
   const entries = names.map((name) => wellFormed(c, name, 'entry'));
   // A missing or doubled comma after a well-formed entry is a defect of
@@ -334,7 +349,7 @@ export function generatedRemembers(
   // Built directly on one side or the other, in place of whatever
   // `defectiveProperty` rolled, since a list shape for the neighbour and
   // a colonless name for the defect seldom fall together by chance.
-  if (reachColonlessBesideList && !inSeparator && names.length > 0 && c.below(4) === 0) {
+  if (!inSeparator && names.length > 0 && c.below(4) === 0) {
     made = colonlessEntry(c);
     if (c.below(2) === 0) {
       // Before: the colonless entry is read first and refused at its
@@ -360,7 +375,7 @@ export function generatedRemembers(
 
 /** One defective world member, of any kind a world holds, or text between two members. */
 export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
-  const roll = c.below(11);
+  const roll = c.below(12);
   if (roll <= 3) return defectiveProperty(c, 'member');
   if (roll <= 5) return generatedRemembers(c, ['echo']);
   if (roll === 6) {
@@ -393,7 +408,8 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
     const text = ':faulty }';
     return { text, defect: contained(text) };
   }
-  if (roll === 8) {
+  if (roll === 8) return boundLeavingNothingAfter(c);
+  if (roll === 9) {
     // A list default with no `]` anywhere, immediately before the body's
     // own `}` or the next member: the hunt for its close stops at
     // either rather than reading past them, so the neighbour that
@@ -402,7 +418,7 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
     const text = ':faulty [oak';
     return { text, defect: unclosed(text) };
   }
-  if (roll === 9) {
+  if (roll === 10) {
     // The same for a `:remembers` with no `]` anywhere.
     const text = ':remembers [faulty: 0';
     return { text, defect: unclosed(text) };
