@@ -177,7 +177,11 @@ export class Budget {
     }
   }
 
-  /** Charge one spawn. The per-world and per-hour caps are the world's, not the turn's. */
+  /**
+   * Charge one spawn against the turn's cap. How many live instances a
+   * world may hold is the host's storage decision, not a budget, and is
+   * checked where the spawn is made.
+   */
   spawn(): void {
     this.spawns += 1;
     if (this.spawns > this.limits.spawnsPerTurn) {
