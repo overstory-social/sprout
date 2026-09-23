@@ -167,7 +167,7 @@ describe('an object reaches itself, its own contents, and the surface of its con
 });
 
 describe('outward, a container is passed through only if it passes', () => {
-  it('opens the wardrobe onto the bedroom, and stops at the world', () => {
+  it('opens the wardrobe onto the bedroom, and stops at the world’s surface', () => {
     const walk = walkHouse('ann', { open: ['wardrobe'] });
     expect(shown(walk)).toEqual([
       'ann (self)',
@@ -183,9 +183,10 @@ describe('outward, a container is passed through only if it passes', () => {
       'table',
       'box',
       'ring',
+      'house (surface)',
     ]);
     expect(walk.walls).toEqual(['pouch', 'chest', 'marta', 'house']);
-    for (const out of ['gem', 'brass_key', 'pocket_key', 'house', 'yard', 'well']) {
+    for (const out of ['gem', 'brass_key', 'pocket_key', 'yard', 'well']) {
       expect(walk.within.has(out), out).toBe(false);
     }
   });
@@ -200,6 +201,7 @@ describe('outward, a container is passed through only if it passes', () => {
       'brass_key',
       'box',
       'ring',
+      'house (surface)',
     ]);
   });
 
@@ -217,9 +219,10 @@ describe('outward, a container is passed through only if it passes', () => {
     expect(shut.walls[0]).toBe('box');
   });
 
-  it('keeps places apart until the world passes', () => {
+  it('lets a thing in a room reach the world as a surface, and keeps places apart until it passes', () => {
     const closed = walkHouse('table');
-    for (const out of ['house', 'yard', 'well']) expect(closed.within.has(out), out).toBe(false);
+    expect(closed.reached.at(-1)).toEqual({ node: 'house', via: 'surface' });
+    for (const out of ['yard', 'well']) expect(closed.within.has(out), out).toBe(false);
     expect(closed.walls.at(-1)).toBe('house');
 
     const open = walkHouse('table', { open: ['house'] });
@@ -337,28 +340,28 @@ describe('a walk is charged one step for every object it reaches', () => {
     rangeOf(contextOf(HOUSE, houseRule({ open: ['wardrobe'] }), budget), 'ann', 'any');
 
   it('costs exactly what it reaches', () => {
-    const budget = budgetOf({ steps: 13 });
+    const budget = budgetOf({ steps: 14 });
     const walk = walkWith(budget);
-    expect(walk.reached).toHaveLength(13);
-    expect(budget.spentSteps).toBe(13);
+    expect(walk.reached).toHaveLength(14);
+    expect(budget.spentSteps).toBe(14);
   });
 
   it('faults a command turn that cannot afford the walk, with nothing half-walked to show', () => {
     let walk: RangeWalk<string> | undefined;
     try {
-      walk = walkWith(budgetOf({ steps: 12 }));
+      walk = walkWith(budgetOf({ steps: 13 }));
       expect.unreachable('should have thrown');
     } catch (error) {
       expect(error).toBeInstanceOf(BudgetExhausted);
       expect((error as BudgetExhausted).limit).toBe('steps');
-      expect((error as BudgetExhausted).allowed).toBe(12);
+      expect((error as BudgetExhausted).allowed).toBe(13);
     }
     expect(walk).toBeUndefined();
   });
 
   it('charges a poll to the poll’s budget', () => {
     try {
-      walkWith(budgetOf({ pollSteps: 12 }, 'poll'));
+      walkWith(budgetOf({ pollSteps: 13 }, 'poll'));
       expect.unreachable('should have thrown');
     } catch (error) {
       expect((error as BudgetExhausted).limit).toBe('pollSteps');
@@ -376,7 +379,7 @@ describe('a walk is charged one step for every object it reaches', () => {
     };
     rangeOf({ tree: HOUSE, passes, budget }, 'ann', 'any');
     expect(asked).toBe(9);
-    expect(budget.spentSteps).toBe(13 + 9);
+    expect(budget.spentSteps).toBe(14 + 9);
   });
 
   it('charges a membership test one step per node on the path, not a whole walk', () => {
@@ -447,10 +450,12 @@ describe('`reaches` answers from the path alone, as the walk would', () => {
     expect(inHouse('table', 'box', { shut: ['box'] })).toBe(true);
   });
 
-  it('reaches an ancestor past its own container only if that ancestor passes', () => {
+  it('reaches an ancestor as a surface when nothing between refuses, whatever its own rule', () => {
     expect(inHouse('ann', 'bedroom', { open: ['wardrobe'] })).toBe(true);
-    expect(inHouse('ann', 'house', { open: ['wardrobe'] })).toBe(false);
-    expect(inHouse('ann', 'house', { open: ['wardrobe', 'house'] })).toBe(true);
+    expect(inHouse('ann', 'house', { open: ['wardrobe'] })).toBe(true);
+    expect(inHouse('ann', 'house')).toBe(false);
+    expect(inHouse('ann', 'yard', { open: ['wardrobe'] })).toBe(false);
+    expect(inHouse('table', 'house')).toBe(true);
     expect(inHouse('table', 'yard')).toBe(false);
     expect(inHouse('table', 'well', { open: ['house'] })).toBe(true);
   });
@@ -516,7 +521,7 @@ describe('over generated trees, the walk, the membership test and the path agree
     return { size, parent, tree, passes };
   }
 
-  /** The rule as a path: every node strictly between passes, and so does an ancestor past the asker's own container. */
+  /** The rule as a path: every node strictly between passes. */
   function oracle(
     parent: readonly (number | null)[],
     passes: PassRule<number>,
@@ -537,9 +542,7 @@ describe('over generated trees, the walk, the membership test and the path agree
       ...fromAsker.slice(1, fromAsker.indexOf(meet) + 1),
       ...fromTarget.slice(1, fromTarget.indexOf(meet)),
     ].filter((node) => node !== target && node !== asker);
-    if (!between.every((node) => passes(node, asking))) return false;
-    const ancestor = fromAsker.indexOf(target);
-    return ancestor < 2 || passes(target, asking);
+    return between.every((node) => passes(node, asking));
   }
 
   it('holds for every asker and target in two hundred generated worlds', () => {
@@ -600,14 +603,16 @@ describe('over a declared world', () => {
     expect(live.containerOf('shop')).toBeNull();
   });
 
-  it('reaches across a room and stops at the world', () => {
+  it('reaches across a room and stops at the world’s surface', () => {
     const walk = rangeOf(contextOf(live, passRuleOf(tree)), 'shop.kiln.crate', 'any');
     expect(shown(walk)).toEqual([
       'shop.kiln.crate (self)',
       'shop.kiln',
       'shop.kiln.shelf',
       'shop.kiln.shelf.key',
+      'shop (surface)',
     ]);
+    expect(walk.within.has('shop.yard')).toBe(false);
     expect(walk.walls).toEqual(['shop']);
   });
 
@@ -619,6 +624,7 @@ describe('over a declared world', () => {
     );
     expect(walk.within.has('shop.kiln.shelf')).toBe(true);
     expect(walk.within.has('shop.kiln.shelf.key')).toBe(false);
+    expect(walk.reached.at(-1)).toEqual({ node: 'shop', via: 'surface' });
     expect(walk.walls).toEqual(['shop.kiln.shelf', 'shop']);
   });
 });

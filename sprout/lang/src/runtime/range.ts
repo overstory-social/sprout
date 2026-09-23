@@ -6,8 +6,9 @@
 // reaches is one step of the turn's budget (Limits › Runtime budgets).
 //
 // Two invariants. The asker always reaches itself, its own contents and
-// the surface of its own container, whatever any rule says, because a
-// lid stops others looking in, not the chest looking down. And the walk
+// the surface of every container out to the first that refuses, whatever
+// that one's rule says, because a lid stops others looking in, not the
+// chest looking down, and a wall is still a thing to name. And the walk
 // is a loop over a queue, never recursion, since nesting has no cap.
 
 import type { Budget } from './budget.js';
@@ -44,8 +45,9 @@ export interface RangeContext<Id> {
 
 /**
  * How a node came into range: the asker itself, one of its own contents,
- * its own container seen only as a surface, or through a rule that
- * passed. `self` and `surface` are what a broadcast leaves out.
+ * a container outward that refuses, seen from inside only as a surface,
+ * or through a rule that passed. `self` and `surface` are what a
+ * broadcast leaves out.
  */
 export type Via = 'self' | 'held' | 'surface' | 'passed';
 
@@ -66,10 +68,10 @@ export interface RangeWalk<Id> {
 
 /**
  * Everything in range of `asker` for `asking`, nearest first: itself, its
- * own contents breadth-first, then each container outward that passes,
- * followed by its other contents breadth-first, until one refuses. A
- * container that holds something is crossed into only if it passes, and
- * each rule is asked at most once.
+ * own contents breadth-first, then each container outward, followed by
+ * its other contents breadth-first, until one refuses, which is reached
+ * as a surface and is the last. A container that holds something is
+ * crossed into only if it passes, and each rule is asked at most once.
  */
 export function rangeOf<Id>(context: RangeContext<Id>, asker: Id, asking: Asking): RangeWalk<Id> {
   const { tree, passes, budget } = context;
@@ -107,11 +109,10 @@ export function rangeOf<Id>(context: RangeContext<Id>, asker: Id, asking: Asking
 
   let inner = asker;
   let outer = tree.containerOf(asker);
-  let first = true;
   while (outer !== null) {
     const open = passes(outer, asking);
     if (!open) {
-      if (first) reach(outer, 'surface');
+      reach(outer, 'surface');
       walls.push(outer);
       break;
     }
@@ -121,7 +122,6 @@ export function rangeOf<Id>(context: RangeContext<Id>, asker: Id, asking: Asking
     sweep(ring);
     inner = outer;
     outer = tree.containerOf(outer);
-    first = false;
   }
 
   return { reached, within, walls };
@@ -129,9 +129,9 @@ export function rangeOf<Id>(context: RangeContext<Id>, asker: Id, asking: Asking
 
 /**
  * Whether `target` is in range of `asker`, by the path between them
- * alone: every node strictly between must pass, and an ancestor beyond
- * the asker's own container must pass itself. One step per node climbed,
- * and each rule on the path asked in the order `rangeOf` would ask it.
+ * alone: every node strictly between must pass. One step per node
+ * climbed, and each rule on the path asked in the order `rangeOf` would
+ * ask it.
  */
 export function reaches<Id>(
   context: RangeContext<Id>,
@@ -162,17 +162,17 @@ export function reaches<Id>(
   const meet = depth.get(node)!;
 
   if (below.length === 0) {
-    // The target is the asker or one of its ancestors: every container
-    // from the asker's own out to the target's inner one must pass, and
-    // the target too unless it is the asker's own container.
-    const last = meet >= 2 ? meet : meet - 1;
-    for (let at = 1; at <= last; at++) if (!passes(chain[at]!, asking)) return false;
+    // The target is the asker or one of its ancestors, reached as a
+    // surface if nothing between refuses: every container from the
+    // asker's own out to the one inside the target must pass.
+    for (let at = 1; at < meet; at++) if (!passes(chain[at]!, asking)) return false;
     return true;
   }
 
-  // Outward from the asker's own container to where the paths meet, then
-  // inward from there, leaving out the target itself. At the asker
-  // (meet 0), the first step inward is the asker's own contents.
+  // Outward from the asker's own container to where the paths meet, which
+  // is strictly between them, then inward from there, leaving out the
+  // target itself. At the asker (meet 0), the first step inward is the
+  // asker's own contents, whose rule is never asked.
   for (let at = 1; at <= meet; at++) if (!passes(chain[at]!, asking)) return false;
   for (let at = below.length - 1; at >= 1; at--) if (!passes(below[at]!, asking)) return false;
   return true;
