@@ -191,15 +191,18 @@ How this section works, for the agents that read it. **Open** comes first and ho
 
 **Open**, awaiting Eric:
 
-- **7. A `:remembers` entry written as a property is.** Decided: an option is written `Ward.iron` or bare `:iron` where the enum is known, the author's choice. Still open: writing a `:remembers` entry exactly as a property, `:remembers [:visits 0 min 0 max 99]`, instead of `visits: 0`.
 - **10. Whether a withheld file changes the bundle's hash.** Deferred until the publish, share, repository and library-versioning story is settled.
 - **35. Which kind a register library is composed onto.** A register composed onto the world replaces `sprout.World`'s lines and not `sprout.Place`'s or `sprout.Actor`'s, since a passage is the kind's. Left for the library work (#127).
 - **54. The register of the stock lines.** Long-term, not a blocker.
-- **67. One kind per file: the rest of the rule.** Decided: one kind per file, and a library follows the same rule, a library being a package with a manifest and no world. Open, Eric asked how: where enums, verbs and messages shared between kinds are declared, and how that avoids circular references. Proposed: they may sit in any file, alone or beside a kind; nothing is imported, since every name resolves across the whole closed bundle, so no reference can be circular; a kind's file is named for it (`chest.sprout` for `kind Chest`).
-- **76. What a spawned instance's contents are told.** Spawning names `:entered` for the container and `:spawned (from)` for the new object, and is silent on what its kinds give it. Built: nothing for the contents, neither `:entered` to what holds them nor `:spawned` to them, so a spawn tells what it always told. Options: (a) as built; (b) each content is sent `:spawned (from)` too, after the instance's, so a wick can light itself; (c) (b), and each holder `:entered` for what it was given.
-- **78. Whether a kind's contents count against the `objects` cap.** Limits › Static caps counts "the `object` declarations in the world's body, at every depth", and the caps bound what a person must read. Built: every copy a declared instance is given counts, as an instance the host stores, so two lanterns and their wicks are four objects, and a copy that holds actors counts as a place. Options: (a) as built; (b) count only what is written in the world's body, which is the spec's sentence read literally and what an author reads, leaving stored instances to the host's live-instance bound; (c) count each kind's content once, as a declaration.
-- **79. A kind's content made of a kind it is already inside.** `kind Box is sprout.Container { object inner is Box }` would give every box another box without end. Built: refused at the content, "`inner` is made of `Box`, which it is already inside, so every `Box` would hold another without end." The spec is silent; the alternative is a depth bound from the host.
-- **80. What counts as "behaviour" in a visitor kind.** Eric: visitors compose `sprout.Visitor` and "don't have any programmatic behaviors (should be a compile time error)". What a visitor kind composes must still run, since `sprout.Actor`'s guards and plays are how a person takes anything. Proposed: the visitor kind's own body may declare properties, `:remembers`, passages, a grammar block and a `describe`, and is refused a handler, hook, tick, wake, play, guard or pass rule; behaviour a person needs is written on a kind the visitor kind composes, as the spec's tag yard now does with `Tagged`. Not built.
+
+**Decided 2026-09-23, night**, now in the spec:
+
+- 7: memory is declared in a `remembers` block whose entries are written exactly as properties, `remembers { :visits 0 min 0 max 99 }`; `remembers` is a reserved word, and the colon no longer keys an entry.
+- 67: each kind in a file of its own, named for it; enums, verbs and messages in any file; libraries alike; nothing imported, so nothing circular. Booked until it becomes a problem.
+- 76: a spawned instance's contents are told nothing; the instance gets `:spawned` and its container `:entered`, as built.
+- 78: the `objects` cap counts every copy a kind gives a declared instance, as built, and `places` the copies that hold actors.
+- 79: a kind's content made of that kind is refused at compile, as built; a loop the compiler cannot see would fault at a cap.
+- 80: the visitor kind's own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, and is refused a handler, hook, tick, wake, play, guard or pass rule.
 
 **Decided 2026-09-23, late**, now in the spec:
 

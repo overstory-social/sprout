@@ -124,7 +124,9 @@ An object is declared inside the body of what holds it: the world's body for wha
 
 An object names its kinds after `is`, and declares everything a visitor may say to it in one block. A body may follow, which declares an anonymous kind for that object alone — the right form for a thing there is only one of — and holds the objects inside it. The two sit side by side: the cabinet's body restates `:open` for itself and holds the key. Only something whose kind holds things may hold an object, as the cabinet's does by composing `sprout.Container`; an object in the body of one whose kind does not is refused.
 
-Kinds are declared at a file's top level, and a kind's body may hold objects too: every instance of the kind, declared or spawned, starts with its own copy of each, inside it. So `kind Lantern is sprout.Container { object wick is Wick }` gives every lantern a wick, and spawning a lantern spawns its wick with it. A declared instance's own body may hold more beside what its kinds give it; a name its kinds' contents already use is two objects of one name in one body. An `object` at a file's top level, outside the world, is refused.
+Kinds are declared at a file's top level, and a kind's body may hold objects too: every instance of the kind, declared or spawned, starts with its own copy of each, inside it. So `kind Lantern is sprout.Container { object wick is Wick }` gives every lantern a wick, and spawning a lantern spawns its wick with it, telling only the lantern `:spawned` and its container `:entered`. An object in a kind's body that is made of that kind, directly or through another kind's contents, would never end, and is refused. A declared instance's own body may hold more beside what its kinds give it; a name its kinds' contents already use is two objects of one name in one body. An `object` at a file's top level, outside the world, is refused.
+
+Each kind is declared in a file of its own, named for it: `kind Chest` in `chest.sprout`. Enums, verbs and messages may sit in any file, alone or beside a kind, and a library is held to the same rule. Nothing is imported, since every name resolves across the whole closed bundle, so no two files can refer to each other in a circle.
 
 An object's identifier belongs to the body it is written in, so two chests may each hold a `key`; how a name is seen from other bodies is under Identifiers and scope. Where an example in this document shows an object on its own, it is an excerpt from the body that holds it.
 
@@ -172,7 +174,7 @@ kind Tagged is sprout.Actor {
 }
 ```
 
-`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing (what counts as behaviour is the notes' Open 80). `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
+`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, and is refused a handler, hook, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
 A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
@@ -188,7 +190,7 @@ So the rule sharpens rather than loosening: **an object may read what this world
 
 Writes still go only to self. To change a visitor, send them a message or give them a role to play — their own kind's handler does the writing. That is why `as target for tag` is the natural shape above: the tagger proposes and the visitor decides.
 
-Two kinds of memory sit side by side, and they are not the same. A property on the visitor is the world's **public record**: anything in range can read whether you are It. `:remembers` on an object is that object's **private note** about an actor, which nothing else can read. A door remembering it has seen you before is private; being It is not.
+Two kinds of memory sit side by side, and they are not the same. A property on the visitor is the world's **public record**: anything in range can read whether you are It. a `remembers` entry on an object is that object's **private note** about an actor, which nothing else can read. A door remembering it has seen you before is private; being It is not.
 
 A visitor who leaves keeps their state for a later visit and has no container while away — out of range of everything, receiving nothing.
 
@@ -284,9 +286,9 @@ kind Crate is sprout.Container {
 
 Everything after `is` is composed; a kind may compose any number of kinds, including none, and one that composes none leaves `is` out: `kind Marker { }`. `kind Crate is sprout.Container` reads as the question `x.is(K)` asks, answered: every crate is a `sprout.Container`.
 
-`is` composes and the colon does not. The colon marks a property, a message or an option in an expression, keys a `:remembers` entry, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
+`is` composes and the colon does not. The colon marks a property, a message or an option in an expression, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
 
-A kind body may declare properties, `:remembers`, `contains`, `contains actors`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
+A kind body may declare properties, a `remembers` block, `contains`, `contains actors`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
 
 ### How members combine
 
@@ -295,7 +297,7 @@ Members divide by whether more than one answer makes sense.
 | member | several sources |
 | --- | --- |
 | property declaration | refuse; composer restates to merge |
-| `:remembers` declaration | refuse; composer restates to merge |
+| `remembers` entry | refuse; composer restates to merge |
 | `on :m` handler | all run |
 | `changed :p` hook | all run |
 | `depart` / `release` / `accept` | all run; any refusal decides |
@@ -630,7 +632,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `self.adjust(:p, e)` | both integer; the result is clamped to `p`'s range |
 | `self.add(:p, e)`, `self.remove(:p, e)` | `p` a list; `e` its element type |
 | `x.get(:p)` | `p` is declared on `x`'s type; `x` is not of object type |
-| `x.recall(:p)`, `x.remember(:p, e)`, `x.adjust(:p, e)` on memory | `x` composes `sprout.Actor`; `p` is in `self`'s `:remembers` |
+| `x.recall(:p)`, `x.remember(:p, e)`, `x.adjust(:p, e)` on memory | `x` composes `sprout.Actor`; `p` is in `self`'s `remembers` |
 | `x.includes(e)` | `x` a list or a set role; `e` its element type |
 | `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope |
 | `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` |
@@ -691,10 +693,14 @@ A kind filter binds only the contents that compose it and types the variable; wi
 
 ### Per-actor memory
 
-`:remembers` declares properties held per actor rather than per object, typed by the same rules and written in the same syntax:
+A `remembers` block declares properties held per actor rather than per object. Each entry is written exactly as a property is, and typed by the same rules:
 
 ```sprout
-:remembers [handled: false, ward_seen: Ward default oak, visits: 0 min 0 max 99]
+remembers {
+  :handled   false
+  :ward_seen Ward default oak
+  :visits    0 min 0 max 99
+}
 ```
 
 They are read with `x.recall(:p)`, written with `x.remember(:p, v)` and stepped with `x.adjust(:p, n)`, where `x` is any binding that composes `sprout.Actor` — most often `actor`, and in an `:entered` handler the `item` that arrived. Only the object that declared them may read or write them. No object can read another object's memory of anyone.
@@ -1414,7 +1420,7 @@ Write the state instead. It is barely longer and it says what it means:
 
 ```sprout
 object composing_room is sprout.Place {
-  :remembers [visits: 0 min 0 max 99]
+  remembers { :visits 0 min 0 max 99 }
 
   on :entered (item, from) {
     if (item.is(Creature)) { item.adjust(:visits, 1) }
@@ -1518,7 +1524,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 | a `say`, `tell` or `text` written as a literal | 600 characters |
 | places, objects, kinds, files, total source bytes | as the host says |
 
-`objects` counts the `object` declarations in the world's body, at every depth, composed or not; `places` counts those whose composed kind holds actors; the world counts toward neither. `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, and not an object's anonymous kind.
+`objects` counts every object the world starts with: the `object` declarations in the world's body, at every depth, composed or not, and every copy a kind's contents give a declared instance; `places` counts those whose composed kind holds actors, copies included; the world counts toward neither. `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, and not an object's anonymous kind.
 
 Vendored library source is content-hashed and exempt from the source, kind and file caps, so using the standard library costs an author nothing. A modified copy is the author's own source and counts as it.
 
@@ -1571,7 +1577,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `for`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `for`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### Two tiers
 
@@ -1970,7 +1976,7 @@ world printers_shop is sprout.World {
     }
 
     prose "composing_room.prose"
-    :remembers [visits: 0 min 0 max 99]
+    remembers { :visits 0 min 0 max 99 }
 
     describe { text arrival }
 
@@ -2133,7 +2139,11 @@ verb work {
 verb ink    { role target  "ink [target]" }
 verb lower  { role target  "lower [target]"  "let down [target]" }
 verb nuzzle { role target: Creature }
+```
 
+### `creature.sprout`
+
+```sprout
 kind Creature is sprout.Actor {
   :capacity 4
   :cuff     Cuff default dry
@@ -2147,10 +2157,15 @@ kind Creature is sprout.Actor {
   }
 }
 
+```
+
+### `visitor.sprout`
+
+```sprout
 kind Visitor is Creature, sprout.Visitor { }
 ```
 
-### `locks.sprout`
+### `warded.sprout`
 
 ```sprout
 kind Warded is sprout.Lockable {
@@ -2164,7 +2179,11 @@ kind Warded is sprout.Lockable {
     }
   }
 }
+```
 
+### `key.sprout`
+
+```sprout
 kind Key {
   grammar { nouns "key" }
 
@@ -2178,7 +2197,7 @@ kind Key {
 }
 ```
 
-### `press.sprout`
+### `rib.sprout`
 
 ```sprout
 kind Rib {
@@ -2190,7 +2209,11 @@ kind Rib {
     do     { self.set(:used, true) }
   }
 }
+```
 
+### `sheet.sprout`
+
+```sprout
 kind Sheet {
   grammar { name "printed sheet" nouns "sheet", "print" }
 
