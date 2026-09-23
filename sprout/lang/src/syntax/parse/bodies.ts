@@ -146,6 +146,17 @@ export function body<M extends Node>(
       members.push(member);
       continue;
     }
+    // A property or a `:remembers` that could not be read may have
+    // failed exactly at the `}` that would otherwise be taken for the
+    // body's own: `:faulty }` with no value, read on into the next
+    // member. Real members standing between here and the body's true
+    // close say this `}` is not the body's, and reading past it keeps
+    // them from being merely named after a closer that was never truly
+    // here.
+    if (token.kind === 'symbol' && p.at('punct', '}') && membersFollow(p, readers, 1)) {
+      p.next();
+      continue;
+    }
     // The declaration is still returned with what did read, since the
     // refusal already keeps the file from being used. A word no reader
     // took is stepped over, unless the next declaration may begin
@@ -215,9 +226,15 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
       if (found.length === before) found.push({ at: token.at, text: ':remembers' });
       continue;
     }
-    // A property is named as it was written, colon and all, so the author
-    // can find the line; a word-led member by its first word.
-    found.push({ at: token.at, text: token.kind === 'symbol' ? `:${token.text}` : token.text });
+    // A property is named as it was written, colon and all; a word-led
+    // member by its first word, since the table only reads a member by
+    // that word and cannot yet say which of its forms this one is. Two
+    // members that read the same way, `visitors are` and `visitors
+    // arrive at` alike, are named once and not twice: the remedy is the
+    // same for both, and a name repeated says nothing a single one does
+    // not.
+    const text = token.kind === 'symbol' ? `:${token.text}` : token.text;
+    if (!found.some((member) => member.text === text)) found.push({ at: token.at, text });
     ahead += 1;
   }
   if (found.length === 0) return;
@@ -255,6 +272,35 @@ function remembersEntries(p: Parser, ahead: number, found: FoundMember[]): numbe
       found.push({ at: token.at, text: token.text });
     }
     at += 1;
+  }
+}
+
+/**
+ * Whether a member starts somewhere before the next `}` at this depth,
+ * looking from `ahead` tokens past the cursor. Called only where a `}`
+ * stands right where a property's value was refused, to tell that `}`
+ * from the body's own: one with a member waiting past it is not the
+ * body's true close. A `[` is tracked so a bare word inside a list value
+ * is never taken for the start of one.
+ */
+function membersFollow<M>(p: Parser, readers: MemberReaders<M>, ahead: number): boolean {
+  let depth = 0;
+  for (;;) {
+    const token = p.peek(ahead);
+    if (token.kind === 'end' || p.atRecoveryStop(ahead)) return false;
+    if (punct(token, '[')) {
+      depth += 1;
+      ahead += 1;
+      continue;
+    }
+    if (depth > 0) {
+      if (punct(token, ']')) depth -= 1;
+      ahead += 1;
+      continue;
+    }
+    if (punct(token, '{') || punct(token, '}')) return false;
+    if (memberReader(p, token, readers) !== null) return true;
+    ahead += 1;
   }
 }
 

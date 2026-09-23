@@ -360,7 +360,7 @@ export function generatedRemembers(
 
 /** One defective world member, of any kind a world holds, or text between two members. */
 export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
-  const roll = c.below(8);
+  const roll = c.below(9);
   if (roll <= 3) return defectiveProperty(c, 'member');
   if (roll <= 5) return generatedRemembers(c, ['echo']);
   if (roll === 6) {
@@ -383,6 +383,14 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
       'passage hello',
       'without passage hello',
     ]);
+    return { text, defect: contained(text) };
+  }
+  if (roll === 7) {
+    // A property with no value, immediately before the body's own `}`:
+    // that `}` is refused as `faulty`'s value, and is not the body's to
+    // take — the well-formed members that stand before the real one
+    // must still be read, not merely named as displaced.
+    const text = ':faulty }';
     return { text, defect: contained(text) };
   }
   // A word that starts a declaration ends the world as never closed, and
