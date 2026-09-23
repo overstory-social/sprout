@@ -34,6 +34,7 @@ const microworld = (id: string) => ({
   extensions: [],
   caps: CAPS,
   excepted: false,
+  blessed: [],
   loadedAt: NOW,
 });
 const actor = (microworldId: string, id: string) => ({

@@ -619,6 +619,14 @@ Found while keeping a destroyed declared object gone, each decided the narrow wa
 - **Where the warning looks.** A play's `do`, however deep in an `if`, since that is the only body that may destroy today; handlers, hooks and wakes join as B32 reads them.
 - **Its words.** "`kitchen.taper` is made of `Candle` and is declared in the world, so once it is destroyed it never comes back.", or without the kind for the object's own body, and the remedy "Destroying is meant for what was spawned. To have something come and go, `spawn` it when it should appear; to keep this one, change one of its properties instead." Pinned by `corpus/good/destroy-declared`.
 
+Found while blessing libraries (B44), each decided the narrow way and awaiting Eric:
+
+- **Where the set comes from.** It is the host's, as its limits are: `blessedFrom({ bless, unbless })` starts from `DEFAULT_BLESSED`, the standard library's hash and nothing else, adds and removes hashes, and throws `BlessedError` at the host's boot for anything that is not 64 lower-case hex digits or for unblessing a hash it does not hold. `compileBundle` blesses `DEFAULT_BLESSED` when the host names no set, as it checks against `DEFAULT_LIMITS` when the host names no limits; `sprout check` publishes under that default and takes no set of its own, since an author's machine is not a host.
+- **What a load honours.** Exactly the hashes blessed at the world's publish, which the host keeps beside the caps it recorded (lang's `RecordedCaps.blessed`, core's `MicroworldRecord.blessed`, as `blessedIn(bundle)` gives them). The host's set on the day of the load is not read: a library unblessed since publish stays exempt, and one blessed since is still charged, until the world is published again. A load with nothing recorded blesses the host's own set, as it checks the host's own caps. The spec says the exemption is granted at publish and does not say whether a later blessing reaches a published world.
+- **Under an exception.** What was blessed is honoured the same way whether or not the host excepted the world; an exception widens caps and does not touch blessing.
+- **A blessed copy under another name.** A library's hash is its files by name and text and nothing else, so a copy of a blessed library vendored under another name is blessed too, as it is the same source.
+- **No words of its own.** Blessing adds no refusal: a world past a cap with a library unblessed is refused with the source, file or kind cap's own words, whose remedy already names a blessed library. A bundle's library records `blessed`, and nothing new is said at load when the recorded blessing and the host's current set differ.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.
