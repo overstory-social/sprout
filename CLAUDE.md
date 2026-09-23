@@ -51,10 +51,11 @@ Rules that follow from the table:
 
 - **One file, one concern, and a file stays readable.** When a file passes
   about 800 lines, split it on its section comments into a folder of
-  modules that take a context object; do not grow a class. `syntax/parse.ts`
-  is the file most likely to hit this first: its grammar areas (types,
-  expressions, the world, later kinds and bodies) become modules of
-  functions taking the parser.
+  modules that take a context object; do not grow a class. `syntax/parse/`
+  and `bundle/compile/` are the model: grammar areas and compile stages as
+  modules of functions taking the parser or the report. `check/check.ts`
+  is past the line and splits next, by expression area; a spec file past
+  it gets an issue of its own (#117 and #122 hold the ones known).
 - **Functions over a context, not methods on a god object.** A class is
   earned only by real mutable state every method needs (the parser's cursor,
   the budget's counters, a scope). Evaluation, checking, rendering and
