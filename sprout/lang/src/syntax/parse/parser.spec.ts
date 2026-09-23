@@ -270,10 +270,10 @@ describe('recovery and reading ask the same word different questions', () => {
       'world outer: sprout.World {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
-    expect(refusals.map((d) => d.message)).toEqual([
-      'A minus sign needs a number after it.',
-      '`foo` needs a colon between its name and its value.',
-    ]);
+    // `message foo` is the abandoned entry's own text, stepped over
+    // whole rather than retried as a sibling, so only the one thing
+    // wrong with `oops` is said.
+    expect(refusals.map((d) => d.message)).toEqual(['A minus sign needs a number after it.']);
   });
 });
 

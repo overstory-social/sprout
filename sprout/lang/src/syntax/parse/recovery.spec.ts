@@ -343,27 +343,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
 
   type Sort = 'contained' | 'stray' | 'unclosed';
 
-  /**
-   * One defect as written. `leavesRest` marks one refused before the
-   * rest of its property is read, which matters to the one named
-   * exclusion below.
-   */
+  /** One defect as written. */
   interface Defect {
     readonly text: string;
     readonly sort: Sort;
-    readonly leavesRest?: boolean;
   }
-  const contained = (text: string, leavesRest = false): Defect => ({
-    text,
-    sort: 'contained',
-    leavesRest,
-  });
-  const stray = (text: string, leavesRest = false): Defect => ({ text, sort: 'stray', leavesRest });
-  const unclosed = (text: string, leavesRest = false): Defect => ({
-    text,
-    sort: 'unclosed',
-    leavesRest,
-  });
+  const contained = (text: string): Defect => ({ text, sort: 'contained' });
+  const stray = (text: string): Defect => ({ text, sort: 'stray' });
+  const unclosed = (text: string): Defect => ({ text, sort: 'unclosed' });
 
   /** mulberry32: a fixed stream of choices, so every failure reproduces from the source it prints. */
   function chooser(seed: number) {
@@ -454,14 +441,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
    */
   const PART_DEFECTS: Record<Exclude<Role, 'bound'>, readonly Defect[]> = {
     type: [
-      contained('%', true),
-      contained('integer.3', true),
-      contained('sprout.', true),
+      contained('%'),
+      contained('integer.3'),
+      contained('sprout.'),
       contained('[Ward, oak]'),
       contained(tooDeep('Ward')),
       unclosed('[Ward'),
     ],
-    default: [contained('', true), contained('defualt', true)],
+    default: [contained(''), contained('defualt')],
     value: [
       contained(''),
       contained('1.5'),
@@ -495,12 +482,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   ];
 
   /** Between any two parts: something that closes or opens and should not. */
-  const BETWEEN: readonly Defect[] = [
-    stray(']', true),
-    stray('}', true),
-    contained(')', true),
-    unclosed('[', true),
-  ];
+  const BETWEEN: readonly Defect[] = [stray(']'), stray('}'), contained(')'), unclosed('[')];
 
   /** How a defect in a name is written, as a `:remembers` entry and as a property. */
   const NAME_DEFECTS: Record<'entry' | 'member', readonly string[]> = {
@@ -522,18 +504,17 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   /**
    * A property called `faulty` with one defect in one part: its name,
    * its type, its `default`, its value, a bound, or between two parts.
-   * `rest` is what it wrote after a defect that leaves the rest unread.
    */
   function defectiveProperty(
     c: Chooser,
     form: 'entry' | 'member',
-  ): { text: string; defect: Defect; rest: string } {
+  ): { text: string; defect: Defect } {
     const parts = wellFormedParts(c);
     const texts = parts.map((part) => part.text);
     const roll = c.below(10);
     if (roll === 0) {
       const text = [c.one(NAME_DEFECTS[form]), ...texts].join(' ');
-      return { text, defect: contained('', true), rest: texts.join(' ') };
+      return { text, defect: contained('') };
     }
     if (roll <= 3) {
       // A bad bound, in place of one written or added to any value, or
@@ -544,37 +525,19 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       const at = parts.findIndex((part) => part.role === 'bound');
       if (at >= 0 && c.below(2) === 0) texts[at] = bound;
       else texts.push(bound);
-      return { text: spelled('faulty', form, texts), defect, rest: '' };
+      return { text: spelled('faulty', form, texts), defect };
     }
     if (roll <= 5) {
       const defect = c.one(BETWEEN);
       const at = c.below(texts.length + 1);
       texts.splice(at, 0, defect.text);
-      return { text: spelled('faulty', form, texts), defect, rest: texts.slice(at + 1).join(' ') };
+      return { text: spelled('faulty', form, texts), defect };
     }
     const at = c.below(parts.filter((part) => part.role !== 'bound').length);
     const defect = c.one(PART_DEFECTS[parts[at]!.role as Exclude<Role, 'bound'>]);
     texts[at] = defect.text;
-    return { text: spelled('faulty', form, texts), defect, rest: texts.slice(at + 1).join(' ') };
+    return { text: spelled('faulty', form, texts), defect };
   }
-
-  /**
-   * NOT held, and named rather than quietly left out: a `:remembers`
-   * entry refused before the rest of it was read leaves that rest to be
-   * walked a token at a time, and a `]` in it ends the `:remembers`. The
-   * entries after it are lost, and at best named as written after a `]`
-   * that the author in fact wrote correctly:
-   *
-   *     :remembers [faulty: ) [[Ward]] default [[oak], [oak]], alpha: 1]
-   *         alpha lost, and nothing said names it
-   *     :remembers [faulty: [Ward] [oak], alpha: 1]
-   *         alpha lost, and named as after the `]` of `[Ward]`
-   *
-   * The world body steps over a refused member through its brackets; the
-   * `:remembers` reader does not yet do the same for a refused entry.
-   */
-  const walksIntoItsRest = (defect: Defect, rest: string): boolean =>
-    defect.leavesRest === true && rest.includes(']');
 
   /**
    * The rule, at the strength the defect's sort allows. `good` were
@@ -647,7 +610,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // of its own, and changes nothing about what must be kept.
     const inSeparator = faulty < names.length && c.below(8) === 0;
     const made = inSeparator
-      ? { text: wellFormed(c, 'faulty', 'entry'), defect: contained(''), rest: '' }
+      ? { text: wellFormed(c, 'faulty', 'entry'), defect: contained('') }
       : defectiveProperty(c, 'entry');
     entries.splice(faulty, 0, made.text);
     const body = inSeparator
@@ -657,16 +620,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   }
 
   it('over generated `:remembers`, a defect in any part of any entry', () => {
+    // An entry refused before the rest of it is read is stepped over
+    // through its own brackets, the way a refused member is, so every
+    // shape here is held to the strong rule: nothing written is lost.
     const c = chooser(20_260_922);
     const reached = tally();
     for (let i = 0; i < 1000; i++) {
       const good = ['alpha', 'bravo', 'charlie', 'delta'].slice(0, c.below(5));
       const made = generatedRemembers(c, good);
       const { result, said } = reading(made.text, parseRemembers);
-      if (walksIntoItsRest(made.defect, made.rest)) {
-        reached.add('excluded');
-        continue;
-      }
       reached.add(made.defect.sort);
       explained(
         made.text,
@@ -678,8 +640,9 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         !stoppedShort(made.text, result),
       );
     }
-    expect(reached.keys()).toEqual([...SORTS, 'excluded'].sort());
-    // The exclusion is a named gap, not most of the net.
+    expect(reached.keys()).toEqual(SORTS);
+    // No shape here is excluded any more: the share of a gap the net
+    // does not cover stays at zero.
     expect(reached.count('excluded')).toBeLessThan(reached.count('contained') / 5);
   });
 
@@ -770,7 +733,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         : [member.kind];
 
   /** One defective world member, of any kind a world holds, or text between two members. */
-  function defectiveMember(c: Chooser): { text: string; defect: Defect; rest: string } {
+  function defectiveMember(c: Chooser): { text: string; defect: Defect } {
     const roll = c.below(8);
     if (roll <= 3) return defectiveProperty(c, 'member');
     if (roll <= 5) return generatedRemembers(c, ['echo']);
@@ -789,14 +752,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         'without nonsense from K',
         'without changed',
       ]);
-      return { text, defect: contained(text), rest: '' };
+      return { text, defect: contained(text) };
     }
     // A word that starts a declaration ends the world as never closed,
     // and what follows is the file's: see "recovery and reading ask the
     // same word different questions".
-    if (c.below(4) === 0) return { text: 'enum', defect: unclosed('enum'), rest: '' };
+    if (c.below(4) === 0) return { text: 'enum', defect: unclosed('enum') };
     const defect = c.one([stray(']'), contained(')'), unclosed('[')]);
-    return { text: defect.text, defect, rest: '' };
+    return { text: defect.text, defect };
   }
 
   /**
@@ -918,9 +881,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const text = `${owner.open}\n  ${lines.join('\n  ')}\n}\n`;
         const { result, said } = reading(text, parseDeclarations);
         const inRemembers = made.text.startsWith(':remembers');
-        if (
-          inRemembers ? walksIntoItsRest(made.defect, made.rest) : endsTheWorldEarly(made.defect)
-        ) {
+        if (!inRemembers && endsTheWorldEarly(made.defect)) {
           reached.add('excluded');
           continue;
         }

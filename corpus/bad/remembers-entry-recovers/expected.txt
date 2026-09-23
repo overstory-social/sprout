@@ -1,0 +1,4 @@
+world.sprout:4:30  `:faulty` has a type and no value to start at.
+                   Every instance starts at a default: write `default` and the value.
+
+refused: 1 problem
