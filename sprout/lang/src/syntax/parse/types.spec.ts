@@ -14,6 +14,15 @@ function optionsOf(literal: Literal | null | undefined): string[] {
   return [];
 }
 
+/** The leaf values — integers, strings, booleans — a list default holds, at any depth. */
+function leavesOf(literal: Literal | null | undefined): (number | string | boolean)[] {
+  if (literal?.kind === 'list-literal') return literal.elements.flatMap(leavesOf);
+  if (literal?.kind === 'integer' || literal?.kind === 'string' || literal?.kind === 'boolean') {
+    return [literal.value];
+  }
+  return [];
+}
+
 describe('a file that runs out is explained once, not once per bracket', () => {
   const diagnose = (
     text: string,
@@ -385,6 +394,28 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
       '`silver` is written after the `]` that ends this list.',
     ]);
     expect(optionsOf(declared?.default)).toEqual(['oak']);
+  });
+
+  it('names integers, signed ones included, the same way for an integer list of lists', () => {
+    const text = ':x [[integer]] default [[1, 2, ]], [-3, 4]]';
+    const { declared, refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`-3` and `4` are written after the `]` that ends this list.',
+    ]);
+    expect(leavesOf(declared?.default)).toEqual([1, 2]);
+  });
+
+  it('names strings and true/false the same way', () => {
+    const text = ':x [[string]] default [["a", "b", ]], ["c", "d"]]';
+    const { declared, refusals } = readProperty(text);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`"c"` and `"d"` are written after the `]` that ends this list.',
+    ]);
+    expect(leavesOf(declared?.default)).toEqual(['a', 'b']);
+
+    const bools = ':x [[boolean]] default [[true, false, ]], [true]]';
+    const said = readProperty(bools).refusals.map((d) => d.message);
+    expect(said).toEqual(['`true` is written after the `]` that ends this list.']);
   });
 
   it('leaves a `:remembers` entry after it for the entry reader, not itself', () => {

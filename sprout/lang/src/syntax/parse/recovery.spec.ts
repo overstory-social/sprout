@@ -662,6 +662,18 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     expect(reached.keys()).toEqual(SORTS);
   });
 
+  /**
+   * The element pool a generated list draws its leaves from, and the
+   * declared type that matches: options for an enum, and, so the elements
+   * written after a stray closer are named whatever shape they are, whole
+   * numbers (signed ones included) and text too.
+   */
+  const ELEMENT_KINDS: readonly { readonly type: string; readonly pool: readonly string[] }[] = [
+    { type: 'Ward', pool: ['oak', 'silver', 'iron', 'brass', 'tin', 'copper', 'zinc', 'lead'] },
+    { type: 'integer', pool: ['1', '-2', '3', '-4', '5', '-6', '7', '-8'] },
+    { type: 'string', pool: ['"a"', '"b"', '"c"', '"d"', '"e"', '"f"', '"g"', '"h"'] },
+  ];
+
   it('over a generated list default, a defect at any depth', () => {
     const c = chooser(20_260_924);
     const ELEMENT: readonly Defect[] = [
@@ -674,12 +686,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       stray(']'),
       unclosed('['),
     ];
-    const POOL = ['oak', 'silver', 'iron', 'brass', 'tin', 'copper', 'zinc', 'lead'];
     const reached = tally();
     for (let i = 0; i < 600; i++) {
       // The list is built with numbered holes for its leaves, so the
       // defect can go in place of one leaf, beside it, or in place of
       // the comma after it.
+      const kind = c.one(ELEMENT_KINDS);
       const depth = 1 + c.below(3);
       let leaves = 0;
       const nested = (level: number): string => {
@@ -689,7 +701,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         return `[${inner.join(', ')}]`;
       };
       const template = nested(depth);
-      const names = Array.from({ length: leaves }, (_, n) => POOL[n % POOL.length]!);
+      const names = Array.from({ length: leaves }, (_, n) => kind.pool[n % kind.pool.length]!);
       const target = c.below(leaves);
       const commaAfter = template.includes(`<${target}>,`);
       const how = c.below(commaAfter ? 3 : 2);
@@ -701,12 +713,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         if (how === 1) return `${leaf} ${defect.text}${comma}`;
         return `${leaf}${defect.text}`;
       });
-      const text = `:x ${'['.repeat(depth)}Ward${']'.repeat(depth)} default ${value}`;
+      const text = `:x ${'['.repeat(depth)}${kind.type}${']'.repeat(depth)} default ${value}`;
       const { result, said } = reading(text, parseProperty);
       const kept: string[] = [];
       const walk = (literal: Literal | null | undefined): void => {
         if (literal?.kind === 'option-literal') kept.push(literal.name.text);
-        if (literal?.kind === 'list-literal') literal.elements.forEach(walk);
+        else if (literal?.kind === 'integer') kept.push(String(literal.value));
+        else if (literal?.kind === 'string') kept.push(`"${literal.value}"`);
+        else if (literal?.kind === 'list-literal') literal.elements.forEach(walk);
       };
       walk(result?.default);
       reached.add(defect.sort);

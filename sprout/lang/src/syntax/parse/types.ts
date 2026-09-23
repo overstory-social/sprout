@@ -298,22 +298,30 @@ function listLiteral(p: Parser, open: Token): Literal | null {
   }
 }
 
+/** One element-shaped token found written after a list's own close, as it reads. */
+interface FoundElement {
+  readonly at: Span;
+  readonly text: string;
+}
+
 /**
  * Elements written after the `]` that ends a value's outermost list, as a
- * stray `]` inside it leaves them: `[oak, ]], silver]`, `[[oak], silver]]`.
- * Every name found before the next declaration, brace, colon-named entry
- * or end of file is named, at whatever depth it stands, so none is lost
- * in silence; what is named is then stepped over, through its own
- * brackets, so what reads next is not handed the same mistake. A `]`
- * reached at this scan's own depth of zero belongs to whatever encloses
- * the list, not to the run, and is left for that to read.
+ * stray `]` inside it leaves them: `[oak, ]], silver]`, `[[1, 2], 3]]`.
+ * Every option, number, string and `true`/`false` found before the next
+ * declaration, brace, colon-named entry or end of file is named, at
+ * whatever depth it stands, so none is lost in silence; what is named is
+ * then stepped over, through its own brackets, so what reads next is not
+ * handed the same mistake. A `]` reached at this scan's own depth of
+ * zero belongs to whatever encloses the list, not to the run, and is
+ * left for that to read.
  */
 function elementsAfterClose(p: Parser): void {
   const bareWord = (t: Token) => t.kind === 'name' || t.kind === 'kind';
-  const names: Token[] = [];
+  const found: FoundElement[] = [];
   let depth = 0;
   let closed = 0;
-  for (let ahead = 0; ; ahead++) {
+  let ahead = 0;
+  for (;;) {
     const token = p.peek(ahead);
     // `min` and `max` belong to the property's own tail, not to the
     // list, and only at this list's own depth: nested inside a bracket
@@ -353,19 +361,32 @@ function elementsAfterClose(p: Parser): void {
         // with it. Something WAS found: the run has read past the
         // list's own true end once already, and this is it, reclaimed
         // — the one bracket the early close cost it, no more.
-        if (names.length > 0) closed = ahead + 1;
+        if (found.length > 0) closed = ahead + 1;
         break;
       }
       depth -= 1;
+    } else if (punct(token, '-') && p.peek(ahead + 1).kind === 'integer') {
+      // A sign stands with the number it signs, as everywhere else a
+      // value is read: `-3`, not `-` and `3` apart.
+      const digits = p.peek(ahead + 1);
+      found.push({ at: spanning(token.at, digits.at), text: `-${digits.text}` });
+      closed = ahead + 2;
+      ahead += 2;
+      continue;
+    } else if (token.kind === 'integer') {
+      found.push({ at: token.at, text: token.text });
+    } else if (token.kind === 'string') {
+      found.push({ at: token.at, text: `"${token.text}"` });
     } else if (token.kind === 'name') {
-      names.push(token);
+      found.push({ at: token.at, text: token.text });
     }
     closed = ahead + 1;
+    ahead += 1;
   }
-  if (names.length === 0) return;
+  if (found.length === 0) return;
   p.diagnostics.refuse(
-    names[0]!.at,
-    `${readable(names.map((name) => name.text))} ${names.length === 1 ? 'is' : 'are'} written after the \`]\` that ends this list.`,
+    found[0]!.at,
+    `${readable(found.map((element) => element.text))} ${found.length === 1 ? 'is' : 'are'} written after the \`]\` that ends this list.`,
     'Everything the list holds goes inside its brackets. Take out the `]` that ends it too early.',
   );
   for (let i = 0; i < closed; i++) p.next();
