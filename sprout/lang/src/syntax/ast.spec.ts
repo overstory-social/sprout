@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  GUARD_NAMES,
   writtenMember,
   type Declaration,
   type EnumDeclaration,
   type EnumOption,
+  type GuardDeclaration,
   type Ident,
   type KindDeclaration,
   type PassageDeclaration,
@@ -112,5 +114,41 @@ describe('a passage is a member whose body is carried as written', () => {
     expect(passage.body.text).toBe(' Hello, {actor}. ');
     expect(textOf(passage.body.at)).toBe('{ Hello, {actor}. }');
     expect(textOf(passage.at)).toBe('passage greeting default { Hello, {actor}. }');
+  });
+});
+
+describe('a guard is a member whose parameters and statements are nodes', () => {
+  const text = 'kind Crate {\n  accept (item, from) { if (a) { refuse full } else { allow } }\n}';
+  const diagnostics = new Diagnostics();
+  const [crate] = parseDeclarations(new SourceFile('c.sprout', text), diagnostics) as [
+    KindDeclaration,
+  ];
+
+  it('keeps the node rule down to each statement and each name', () => {
+    expect(diagnostics.refusals).toEqual([]);
+    expect(unspanned(crate)).toEqual([]);
+    expect([...nodesOf(crate.members)].map((n) => n.kind)).toEqual([
+      'guard',
+      'ident',
+      'ident',
+      'block',
+      'if',
+      'binding',
+      'ident',
+      'block',
+      'refuse',
+      'ident',
+      'block',
+      'allow',
+    ]);
+  });
+
+  it('is named by one of the three guards, in the order the engine asks them', () => {
+    expect(GUARD_NAMES).toEqual(['depart', 'release', 'accept']);
+    const [member] = crate.members;
+    if (member?.kind !== 'guard') return expect.unreachable('a guard was written');
+    const guard: GuardDeclaration = member;
+    expect(guard.guard).toBe('accept');
+    expect(textOf(guard.at)).toBe('accept (item, from) { if (a) { refuse full } else { allow } }');
   });
 });

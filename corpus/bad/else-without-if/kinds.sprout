@@ -1,0 +1,8 @@
+// An `else` follows an `if`.
+kind Crate {
+  contains
+
+  accept (item, from) {
+    else { refuse "No room." }
+  }
+}

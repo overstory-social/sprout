@@ -52,6 +52,19 @@ describe('a world declaration', () => {
     ]);
   });
 
+  it('writes the three guards as a kind does, a guard never closed ending at its next member', () => {
+    const { world, refusals } = readWorld(`world w: sprout.World {
+  depart (to) { refuse "The world goes nowhere." }
+  release (item, to) { allow }
+  accept (item, from) { if (a) { allow }
+  visitors are P
+}`);
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['w.sprout:5:3', '`accept` is never closed.'],
+    ]);
+    expect(membersOf(world!)).toEqual(['guard', 'guard', 'visitors-are']);
+  });
+
   it('spans from `world` to its closing brace', () => {
     const { world } = readWorld('world w: sprout.World { visitors are P\n visitors arrive at y }');
     expect(textOf(world!.at).startsWith('world w: sprout.World {')).toBe(true);

@@ -17,6 +17,7 @@ import { checkEffectCall, isEffect, typeOf, type CheckContext } from '../check/c
 import { checkerOf, type Checker } from '../check/check/checker.js';
 import type { CallExpr, Expr, Ident } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import { NO_GUARDS } from '../declare/guards.js';
 import { ACTOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
@@ -86,6 +87,7 @@ export function kind(
     composes: new Set(order),
     properties: new Map(properties.map((p) => [p.name, p])),
     passages: new Map(),
+    guards: NO_GUARDS,
     // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,

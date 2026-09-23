@@ -1,0 +1,8 @@
+world refuse_unknown_passage: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in refuse_unknown_passage

@@ -1,0 +1,4 @@
+kinds.sprout:7:35  `refuse` says why.
+                   Write the words in quotes, as in `refuse "No room here."`, or name a passage of `Crate`, as in `refuse full`.
+
+refused: 1 problem

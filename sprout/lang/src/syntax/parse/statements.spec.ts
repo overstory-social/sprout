@@ -8,7 +8,7 @@ import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { chooser, readStatement, shape, type Chooser } from '../../fixtures/parse.js';
 import { Lexer } from '../lexer.js';
 import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { DEEPEST, Parser } from './parser.js';
 import { destroyStatement, letStatement, spawnStatement, statement } from './statements.js';
 
 /** One reader, run over a string on its own. */
@@ -285,16 +285,158 @@ describe('`destroy self` is the only form', () => {
   });
 });
 
-describe('a statement', () => {
-  it('is read by the word it starts with', () => {
-    const kinds = ['let n = 1', 'spawn Cup in self', 'destroy self'].map(
-      (text) => readWith(statement, text).read?.kind,
+describe('`if`, `refuse` and `allow`', () => {
+  const said = (text: string) =>
+    readStatement(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+
+  it('reads an `if` with its `else if` chain as nested `if`s, each spanning to the end', () => {
+    const { statement, refusals } = readStatement(
+      'if (a) { refuse shut } else if (b) { refuse "Full." } else { allow }',
     );
-    expect(kinds).toEqual(['let', 'spawn', 'destroy']);
+    expect(refusals).toEqual([]);
+    expect(unspanned(statement)).toEqual([]);
+    if (statement?.kind !== 'if') return expect.unreachable('an `if` was written');
+    expect(shape(statement.condition)).toBe('a');
+    expect(statement.then.statements.map((s) => s.kind)).toEqual(['refuse']);
+    const next = statement.otherwise;
+    if (next?.kind !== 'if') return expect.unreachable('an `else if` was written');
+    expect(textOf(next.at)).toBe('if (b) { refuse "Full." } else { allow }');
+    expect(next.otherwise?.kind).toBe('block');
+    expect(textOf(statement.at)).toBe(
+      'if (a) { refuse shut } else if (b) { refuse "Full." } else { allow }',
+    );
+  });
+
+  it('reads a long `else if` chain without spending depth', () => {
+    const chain = Array.from({ length: 400 }, (_, i) => `if (n == ${i}) { allow }`).join(' else ');
+    const { statement, refusals } = readStatement(chain);
+    expect(refusals).toEqual([]);
+    expect(statement?.kind).toBe('if');
+  });
+
+  it('refuses an `if` with no condition in brackets, or an empty one', () => {
+    const remedy = 'Write `if (<condition>) { … }`, as in `if (self.count >= 8) { … }`.';
+    expect(said('if self.count > 3 { allow }')).toEqual([
+      ['body.sprout:1:4', '`if` needs a condition in brackets.', remedy],
+    ]);
+    expect(said('if () { allow }')).toEqual([
+      ['body.sprout:1:5', '`if` needs a condition in brackets.', remedy],
+    ]);
+  });
+
+  it('refuses a condition whose bracket is never closed, at what follows it', () => {
+    expect(said('if (a b) { allow }').map(([at, message]) => [at, message])).toEqual([
+      ['body.sprout:1:7', "The `if`'s condition ends here, and its bracket is never closed."],
+    ]);
+  });
+
+  it('refuses what `if` or `else` decides written without braces', () => {
+    expect(said('if (a) allow')).toEqual([
+      [
+        'body.sprout:1:8',
+        'What `if` decides goes in braces.',
+        'Write `if (<condition>) { … }`, as in `if (self.count >= 8) { refuse full }`.',
+      ],
+    ]);
+    expect(said('if (a) { allow } else allow')).toEqual([
+      [
+        'body.sprout:1:23',
+        'What `else` does goes in braces.',
+        'Write `else { … }`, or `else if (<condition>) { … }`.',
+      ],
+    ]);
+  });
+
+  it('refuses an `else` that follows no `if`, and still reads what it holds', () => {
+    expect(said('else { refuse }').map(([at, message]) => [at, message])).toEqual([
+      ['body.sprout:1:1', "`else` follows an `if`'s closing brace."],
+      ['body.sprout:1:14', '`refuse` says why.'],
+    ]);
+  });
+
+  it('reads `refuse` with words in quotes or a passage’s name', () => {
+    for (const [text, said] of [
+      ['refuse "No room here."', 'string'],
+      ['refuse full', 'ident'],
+    ] as const) {
+      const { statement, refusals } = readStatement(text);
+      expect(refusals, text).toEqual([]);
+      if (statement?.kind !== 'refuse') return expect.unreachable('a `refuse` was written');
+      expect(statement.said.kind, text).toBe(said);
+      expect(textOf(statement.at), text).toBe(text);
+    }
+  });
+
+  it('refuses a `refuse` that says nothing, where the reason goes, never taking what follows', () => {
+    const remedy =
+      'Write the words in quotes, as in `refuse "No room here."`, or name a passage, as in `refuse full`.';
+    expect(said('refuse')).toEqual([['body.sprout:1:7', '`refuse` says why.', remedy]]);
+    // The next statement is its own, not a passage's name.
+    const block = readStatement('if (a) { refuse\n allow }');
+    expect(block.refusals.map((d) => locationOf(d.at))).toEqual(['body.sprout:1:16']);
+    if (block.statement?.kind !== 'if') return expect.unreachable('an `if` was written');
+    expect(block.statement.then.statements.map((s) => s.kind)).toEqual(['allow']);
+    // A reading after it is not a name either.
+    expect(said('refuse self.count').map(([at]) => at)).toEqual(['body.sprout:1:7']);
+    // Anything else in its place is the reason written wrong, and is taken with it.
+    expect(said('refuse 4')).toEqual([['body.sprout:1:8', '`refuse` says why.', remedy]]);
+  });
+
+  it('reads `allow` as the word alone', () => {
+    const { statement, refusals } = readStatement('allow');
+    expect(refusals).toEqual([]);
+    expect(statement).toMatchObject({ kind: 'allow' });
+    expect(textOf(statement!.at)).toBe('allow');
+  });
+
+  it('refuses a block never closed where it is read on its own, at the end', () => {
+    expect(said('if (a) { allow').map(([at, message]) => [at, message])).toEqual([
+      ['body.sprout:1:15', 'This block is never closed.'],
+    ]);
+  });
+
+  it('refuses a block nested past the parser’s own bound once', () => {
+    const deep = `${'if (a) { '.repeat(DEEPEST + 1)}allow${' }'.repeat(DEEPEST + 1)}`;
+    expect(said(deep).map(([, message]) => message)).toEqual(['This is nested too deep to read.']);
+  });
+
+  it('steps over a statement it could not read to the next, and keeps that one', () => {
+    const { statement, refusals } = readStatement(
+      'if (a) {\n  refuse 4 5\n  self.set(:open, false)\n  if b { allow } allow\n}',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`refuse` says why.',
+      '`if` needs a condition in brackets.',
+    ]);
+    if (statement?.kind !== 'if') return expect.unreachable('an `if` was written');
+    expect(statement.then.statements.map((s) => s.kind)).toEqual(['expression-statement', 'allow']);
+  });
+});
+
+describe('a statement', () => {
+  it('is read by the word it starts with, or is an expression', () => {
+    const kinds = [
+      'let n = 1',
+      'spawn Cup in self',
+      'destroy self',
+      'if (a) { allow }',
+      'refuse full',
+      'allow',
+      'self.set(:wear, 1)',
+    ].map((text) => readWith(statement, text).read?.kind);
+    expect(kinds).toEqual([
+      'let',
+      'spawn',
+      'destroy',
+      'if',
+      'refuse',
+      'allow',
+      'expression-statement',
+    ]);
   });
 
   it('refuses a word that starts none, naming the ones it reads', () => {
-    for (const text of ['ribs = 1', 'self.set(:wear, 1)', 'Cup in self', '"text"']) {
+    for (const text of ['say taken', '4 + 1', 'Cup in self', '"text"']) {
       const { statement, refusals } = readStatement(text);
       expect(statement, text).toBeNull();
       expect(refusals, text).toHaveLength(1);
@@ -302,7 +444,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `let`, `spawn` and `destroy`, as in `let cup = spawn Cup in self`.',
+        'A statement starts with `if`, `refuse`, `allow`, `let`, `spawn` and `destroy`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -325,6 +467,13 @@ describe('a statement', () => {
 // refused twice for one gap, never thrown. The let values are ones in
 // which every token is the parser's to miss: a call with its argument
 // taken out is a well-formed call, and its arity is the checker's.
+//
+// Two gaps read otherwise, and are held to what they read as. A first
+// word taken out can leave a bare name, `self` from `destroy self`,
+// which is an expression standing as a statement, or nothing, where it
+// was `allow`: a reading, not a loss. And a `}` taken out from before an `else` leaves that `else`
+// inside the block it should have followed, which is said as well as
+// the block that is then never closed.
 
 const KINDS = ['Cup', 'Sheet', 'MazeCell', 'sprout.Container', 'victorian.Voice'];
 const TARGETS = ['self', 'actor', 'here', 'from', 'kiln.shelf', 'shop.kiln.shelf'];
@@ -338,7 +487,23 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
     ['spawn', c.one(KINDS), 'in', c.one(TARGETS)]
       .map((word, i) => (i === 0 ? word : gap() + word))
       .join('');
-  switch (c.below(4)) {
+  const conditions = ['a', 'self.count >= 8', 'open == false', 'mover != self', 'n + 1 > 3'];
+  const inner = (): string => c.one(['allow', 'refuse "No room."', 'refuse full', 'let n = 1', '']);
+  const branch = (): string => `(${c.one(conditions)})${gap()}{${gap()}${inner()}${gap()}}`;
+  switch (c.below(7)) {
+    case 4: {
+      let text = `if${gap()}${branch()}`;
+      if (c.below(2) === 0) text += `${gap()}else if${gap()}${branch()}`;
+      if (c.below(2) === 0) text += `${gap()}else${gap()}{${gap()}${inner()}${gap()}}`;
+      return { text, kind: 'if' };
+    }
+    case 5:
+      return {
+        text: `refuse${gap()}${c.one(['"No room here."', 'full', 'hands_full'])}`,
+        kind: 'refuse',
+      };
+    case 6:
+      return { text: 'allow', kind: 'allow' };
     case 0:
       return { text: spawn(), kind: 'spawn' };
     case 1:
@@ -364,7 +529,7 @@ describe('a statement never vanishes silently', () => {
   it('over generated statements, whole and with any one token taken out', () => {
     const c = chooser(20_260_923);
     const reached = new Set<string>();
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 600; i++) {
       const made = wellFormed(c);
       const whole = readStatement(made.text);
       expect(
@@ -386,12 +551,37 @@ describe('a statement never vanishes silently', () => {
         expect(() => {
           read = readStatement(text);
         }, text).not.toThrow();
-        expect(
-          read!.refusals.map((d) => d.message),
-          `${JSON.stringify(text)}, from ${JSON.stringify(made.text)}`,
-        ).toHaveLength(1);
+        const said = read!.refusals.map((d) => d.message);
+        const shown = `${JSON.stringify(text)}, from ${JSON.stringify(made.text)}`;
+        // A statement's first word taken out, where a bare name is left
+        // (`self` from `destroy self`, `full` from `refuse full`), leaves
+        // an expression standing as a statement; `allow` taken out leaves
+        // a block without it. Both are readings, not losses.
+        const word = made.text.slice(dropped.start, dropped.end);
+        if (said.length === 0 && ['destroy', 'refuse', 'allow'].includes(word)) {
+          reached.add('a reading');
+          continue;
+        }
+        const beforeElse =
+          made.text.slice(dropped.start, dropped.end) === '}' && /^\s*else/.test(after);
+        if (beforeElse) {
+          expect(said, shown).toContain("`else` follows an `if`'s closing brace.");
+          expect(said, shown).toHaveLength(2);
+          reached.add('an else left inside');
+          continue;
+        }
+        expect(said, shown).toHaveLength(1);
       }
     }
-    expect([...reached].sort()).toEqual(['destroy', 'let', 'spawn']);
+    expect([...reached].sort()).toEqual([
+      'a reading',
+      'allow',
+      'an else left inside',
+      'destroy',
+      'if',
+      'let',
+      'refuse',
+      'spawn',
+    ]);
   });
 });
