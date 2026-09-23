@@ -201,6 +201,17 @@ describe('the stored form of a world', () => {
     ]);
   });
 
+  it('takes a spawned instance’s content under a minted id, naming its kind and its path there', () => {
+    const given = { from: 'given', kind: 'printers_shop.Cellar', path: ['shelf', 'jar'] };
+    expect(issues(withInstance(4, { made: given }))).toEqual([]);
+    expect(issues(withInstance(2, { made: given }))).toEqual([
+      'instances.2.made: `printers_shop.composing_room.cabinet` is a declared id, and made from given takes a minted one.',
+    ]);
+    expect(issues(withInstance(4, { made: { ...given, path: [] } }))).toHaveLength(1);
+    expect(issues(withInstance(4, { made: { ...given, path: ['Shelf'] } }))).toHaveLength(1);
+    expect(issues(withInstance(4, { made: { from: 'given', path: ['jar'] } }))).toHaveLength(1);
+  });
+
   it('refuses a spawn that does not say its kind, and a time that is not whole seconds', () => {
     expect(issues(withInstance(4, { made: { from: 'spawned' } }))).toHaveLength(1);
     expect(issues(withInstance(1, { lastTick: 1.5 }))).toHaveLength(1);
