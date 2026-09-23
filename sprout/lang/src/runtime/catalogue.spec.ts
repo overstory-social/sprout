@@ -131,7 +131,7 @@ describe('a catalogue of a world loaded with a gap', () => {
       withheld: ['kiln.sprout'],
     });
     expect(catalogueOf(gone, DEFAULT_LIMITS.caps).visitorKind).toBeNull();
-    expect(gone.absent.map((a) => [a.what, a.kind])).toContainEqual(['Person', 'world']);
+    expect(gone.absent.map((a) => [a.what, a.kind])).toContainEqual(['Person', 'visitor-kind']);
   });
 
   it('finds nothing for a world’s own kind that failed to compose, never the library’s of that name', () => {

@@ -123,10 +123,10 @@ export type Visitors =
   /** The world's own kind, composing `sprout.Actor`. */
   | { readonly found: 'kind'; readonly kind: KindRef }
   /**
-   * Nothing is there to make a visitor of. The absent table has no row
-   * for it; a compile treats it as the `world` row, refused at publish
-   * and recorded at load, the world admitting no one. `said` is whether
-   * what left it absent has been told already.
+   * Nothing is there to make a visitor of: the absent table's
+   * `visitor-kind` row, refused at publish and recorded at load, the
+   * world admitting no one. `said` is whether what left it absent has
+   * been told already.
    */
   | {
       readonly found: 'absent';
