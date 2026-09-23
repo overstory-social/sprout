@@ -123,16 +123,18 @@ describe('`without` leaves one origin’s guard out', () => {
     expect(kind('D').suppressed.map((one) => one.source)).toEqual(['shop.A']);
   });
 
-  it('keeps it left out in whatever composes the kind that left it out, however else that reaches it', () => {
-    // `B` leaves `A`'s out; `C` brings `A`'s back by another path, and
-    // it stays out in `D` all the same.
+  it('removes only the copy that came through the kind that left it out', () => {
+    // `B` leaves `A`'s out, so `E: B` never runs it; `C` brings `A`'s to
+    // `D` by another path, and that copy runs once.
     const { kind } = composed(`kind A { depart (to) { refuse "a" } }
 kind B: A { without depart from A }
 kind C: A { }
-kind D: B, C { }`);
-    expect(origins(kind('C'), 'depart')).toEqual(['shop.A']);
-    expect(origins(kind('D'), 'depart')).toEqual([]);
-    expect(kind('D').suppressed.map((one) => one.source)).toEqual(['shop.A']);
+kind D: B, C { }
+kind E: B { }`);
+    expect(origins(kind('E'), 'depart')).toEqual([]);
+    expect(origins(kind('D'), 'depart')).toEqual(['shop.A']);
+    expect(kind('D').suppressed).toEqual([]);
+    expect(kind('E').suppressed).toEqual([]);
   });
 
   it('leaves the other parts of a move alone', () => {
