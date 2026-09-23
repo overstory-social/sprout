@@ -20,7 +20,7 @@
 
 import type { Absent } from './absent.js';
 import type { Declaration } from '../syntax/ast.js';
-import type { KindRef } from '../declare/kinds.js';
+import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { ResolvedObject } from '../declare/objects.js';
 import type { ObjectTree, TreePath } from '../declare/tree.js';
 import type { SourceFile } from '../source/source.js';
@@ -170,6 +170,13 @@ export interface Bundle {
   readonly definitions: readonly Declaration[];
   /** Every kind the bundle declares, composed, the world's and its libraries' alike. */
   readonly kinds: readonly KindRef[];
+  /**
+   * The same kinds found by name, exactly as the checker found them in
+   * every body: a world's own kind that failed to compose (at load, one
+   * composing a kind that is absent) is null, never read as the standard
+   * library's kind of that name.
+   */
+  readonly kindLookup: KindLookup;
   /**
    * What the world is made of: `sprout.World` and whatever else it
    * composes, with its own body last, named for the world. Null only in

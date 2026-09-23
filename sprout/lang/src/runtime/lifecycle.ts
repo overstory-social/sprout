@@ -50,16 +50,30 @@ export class LifecycleFault extends Error {
 
 /**
  * A message the engine sends for itself, for B32 to queue in the order
- * given. Its sender is the engine, never the object its `from` names.
+ * given (the spec's Events, messages and the bus › Receiving). Its sender
+ * is the engine, never the object a binding names; each arm carries the
+ * bindings its handler receives, by the names the spec gives them.
  */
 export type EngineSend =
   | {
       readonly message: 'entered';
-      readonly to: InstanceId;
+      readonly recipient: InstanceId;
       readonly item: InstanceId;
       readonly from: InstanceId;
     }
-  | { readonly message: 'spawned'; readonly to: InstanceId; readonly from: InstanceId };
+  | {
+      readonly message: 'left';
+      readonly recipient: InstanceId;
+      readonly item: InstanceId;
+      readonly to: InstanceId;
+    }
+  | {
+      readonly message: 'moved';
+      readonly recipient: InstanceId;
+      readonly from: InstanceId;
+      readonly to: InstanceId;
+    }
+  | { readonly message: 'spawned'; readonly recipient: InstanceId; readonly from: InstanceId };
 
 /** What a spawn reads and writes. */
 export interface LifecycleContext {
@@ -150,8 +164,8 @@ export function spawnInstance(
   return {
     id,
     sends: [
-      { message: 'entered', to: container, item: id, from: spawner },
-      { message: 'spawned', to: id, from: spawner },
+      { message: 'entered', recipient: container, item: id, from: spawner },
+      { message: 'spawned', recipient: id, from: spawner },
     ],
   };
 }
@@ -192,7 +206,7 @@ export function destroyInstance(draft: Draft, id: InstanceId): Destroyed {
     id,
     container,
     fell: held,
-    sends: held.map((item) => ({ message: 'entered', to: container, item, from: id })),
+    sends: held.map((item) => ({ message: 'entered', recipient: container, item, from: id })),
   };
 }
 

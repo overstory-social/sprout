@@ -167,6 +167,7 @@ export function compileBundle(
     manifest,
     definitions: declarations,
     kinds: tables.kinds.all(),
+    kindLookup: tables.kinds,
     world,
     visitor,
     objects: tables.objects,

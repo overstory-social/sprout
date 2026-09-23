@@ -108,6 +108,35 @@ describe('the standard library', () => {
     expect(capacity.declaration.default).toMatchObject({ kind: 'integer', value: 8 });
   });
 
+  it('gives `sprout.Actor` one guard for each part of a move, each refusing through a default of its own', () => {
+    const actor = compiled().bundle!.kinds.find(
+      (k) => k.library === 'sprout' && k.name === 'Actor',
+    )!;
+    const refusesThrough = (guard: 'depart' | 'release' | 'accept'): string[] =>
+      actor.guards[guard].map((one) => {
+        expect(one.origin).toBe('sprout.Actor');
+        return JSON.stringify(one.declaration.parameters.map((p) => p.text));
+      });
+    // The parameters the spec's three roles name, in its order.
+    expect(refusesThrough('depart')).toEqual(['["to"]']);
+    expect(refusesThrough('release')).toEqual(['["item","to"]']);
+    expect(refusesThrough('accept')).toEqual(['["item","from"]']);
+    // The worked microworld's words, each yielding to any other source's line.
+    const lines = Object.fromEntries(
+      ['held_fast', 'not_yours', 'hands_full'].map((name) => {
+        const passage = actor.passages.get(name)!;
+        expect(passage, name).toMatchObject({ origin: 'sprout.Actor', yields: true });
+        return [name, passage.body.text.trim()];
+      }),
+    );
+    expect(lines).toEqual({
+      held_fast: '{self} is not something you can carry off.',
+      not_yours: 'That is for {self} to put down, not you.',
+      hands_full: '{self} cannot carry any more.',
+    });
+    expect([...actor.passages.keys()].sort()).toEqual(['hands_full', 'held_fast', 'not_yours']);
+  });
+
   it('gives `sprout.World` a default line for every passage the engine speaks through', () => {
     const world = compiled().bundle!.kinds.find(
       (k) => k.library === 'sprout' && k.name === 'World',
@@ -156,7 +185,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'e656a51a91784771b2605278f7a7594dd359ef5f3910cd018a2f3b59960626e0',
+      '7a4dd31cf82d17beb59c4fa287ab5b15f567e6d591c77ef6e238a68bf102f9cf',
     );
   });
 });

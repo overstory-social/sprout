@@ -4,7 +4,7 @@
 // knows. The visitor kind is the world's own kind composing it, and an NPC
 // is an object composing the visitor kind with nobody behind it. Nothing
 // here asks where an actor stands: an NPC needs no place among its
-// ancestors, and moving one is B22's and B42's.
+// ancestors, and where one may be moved is `runtime/move.ts`'s and B42's.
 
 import type { KindExpr } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
