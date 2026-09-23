@@ -1,0 +1,4 @@
+kind Wick {
+  contains
+  object spare is Lantern
+}

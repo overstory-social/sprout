@@ -7,6 +7,4 @@ world move_unknown_name is sprout.World {
   object cellar is Cellar
 }
 
-kind Person is sprout.Visitor { }
-
 verb pull { role target  "pull [target]" }

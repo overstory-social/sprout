@@ -1,0 +1,6 @@
+// A glass case: the light gets in, nothing else does.
+kind GlassCase {
+  contains
+  pass :illuminating (true)
+  pass any (false)
+}

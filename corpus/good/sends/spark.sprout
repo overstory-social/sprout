@@ -1,0 +1,8 @@
+// A spark lights the lamp it is spawned beside, then goes once every
+// message the turn has sent has been handled.
+kind Spark {
+  on :spawned (from) {
+    send sending.hall.lamp :lit with true
+    finally destroy self
+  }
+}

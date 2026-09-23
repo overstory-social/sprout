@@ -1,6 +1,2 @@
 // A message is sent to a thing, and a value hears nothing.
 message :pong with integer
-
-kind Ball {
-  on :pong (from, n) { send n :pong with n }
-}

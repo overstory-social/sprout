@@ -1,0 +1,5 @@
+// So would a lantern whose wick holds a lantern, through two kinds.
+kind Lantern {
+  contains
+  object wick is Wick
+}

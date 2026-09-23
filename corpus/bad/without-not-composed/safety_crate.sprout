@@ -1,0 +1,5 @@
+// `without` leaves out what a kind it composes contributes, and `Crate`
+// does not compose `LightSource`.
+kind SafetyCrate is Crate {
+  without changed :lit from LightSource
+}

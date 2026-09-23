@@ -1,0 +1,17 @@
+// A second player of the same role: `Lockable`'s `permit` runs, then this
+// one, and either may refuse. The tool is read only once `bound` says a
+// visitor named one.
+kind Warded is Lockable {
+  :sealed false
+
+  as target for unlock {
+    permit {
+      if (self.get(:sealed)) { refuse "A second ward shimmers across the plate." }
+      else if (bound tool) {
+        if (!tool.is(Key)) { refuse "{tool} is not a key." }
+      } else {
+        refuse "You need something to turn the lock with."
+      }
+    }
+  }
+}

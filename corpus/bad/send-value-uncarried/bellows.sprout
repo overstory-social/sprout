@@ -1,0 +1,4 @@
+kind Bellows {
+  on :spawned (from) { broadcast :gust with 3 }
+  on :gust { }
+}

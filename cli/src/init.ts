@@ -10,9 +10,10 @@ import {
   type Manifest,
 } from '@overstory/sprout/lang';
 
-// `sprout init [dir]`: a folder with a manifest, a world and a README
-// line. The manifest pins the standard library the CLI carries, since
-// every world composes `sprout.World`. What it writes passes `sprout check`.
+// `sprout init [dir]`: a folder with a manifest, a world, the kind its
+// visitors are made of in the file named for it, and a README line. The
+// manifest pins the standard library the CLI carries, since every world
+// composes `sprout.World`. What it writes passes `sprout check`.
 
 export function initWorld(dir: string, author = userInfo().username): string[] {
   const root = resolve(dir);
@@ -38,13 +39,14 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
         sha: libraryHash(STANDARD_LIBRARY),
       },
     ],
-    files: ['world.sprout'],
+    files: ['world.sprout', 'person.sprout'],
   };
   const { namespace: _namespace, ...written } = manifest;
   // A visitor is made of the world's own kind composing `sprout.Visitor`,
   // named `Person` because a `Visitor` of its own would hide the
   // library's, and arrives in a place, which `sprout.Place` is, written in
-  // the world's body because it sits directly in the world.
+  // the world's body because it sits directly in the world. The kind is
+  // in a file of its own, as every kind is.
   const world = [
     `world ${name} is sprout.World {`,
     '  visitors are Person',
@@ -53,13 +55,13 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
     '  object hall is sprout.Place',
     '}',
     '',
-    'kind Person is sprout.Visitor { }',
-    '',
   ].join('\n');
+  const person = 'kind Person is sprout.Visitor { }\n';
   const readme = `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it.\n`;
   const files = [
     [MANIFEST_FILE, `${JSON.stringify(written, null, 2)}\n`],
     ['world.sprout', world],
+    ['person.sprout', person],
     ['README.md', readme],
   ] as const;
   for (const [file, text] of files) writeFileSync(join(root, file), text);

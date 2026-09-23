@@ -1,9 +1,3 @@
-// A passage never closed runs to the end of the file, and is refused
-// once, at the brace that opened it.
-kind Lamp {
-  :lit false
-}
-
 kind Mirror {
   :mood 0
   passage greeting {

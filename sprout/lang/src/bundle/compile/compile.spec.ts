@@ -14,11 +14,11 @@ import {
   file,
   HALL,
   refusals,
-  ROOT,
-  rootWith,
-  VISITOR,
+  WORLD_LINE,
   WORLD_TEXT,
   world,
+  worldFiles,
+  worldLine,
 } from '../../fixtures/compile.js';
 import { locationOf } from '../../source/source.js';
 
@@ -40,18 +40,16 @@ describe('what a compiled bundle carries', () => {
 
   it('hashes differently once anything about the world changes', () => {
     const changed = world({
-      files: [file('world.sprout', `${ROOT}\nenum Season { spring }`)],
+      files: worldFiles(`${WORLD_LINE}\nenum Season { spring }`),
     });
     expect(compileBundle(changed).bundle!.hash).not.toBe(bundle!.hash);
   });
 
   it('carries every kind composed, the world’s objects and the tree they sit in', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `${rootWith('object crate is Crate { object box is Crate }')}\nkind Crate { contains }`,
-      ),
-    ];
+    const files = worldFiles(
+      worldLine('object crate is Crate { object box is Crate }'),
+      'kind Crate { contains }',
+    );
     const { bundle: carried, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     expect(carried!.kinds.map((k) => [k.library, k.name, k.order])).toEqual([
@@ -72,7 +70,7 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('carries the kinds by name as the checker found them, a failed kind of its own included', () => {
-    const files = [file('world.sprout', `${ROOT}\nkind Place is Nowhere { contains actors }`)];
+    const files = worldFiles(WORLD_LINE, 'kind Place is Nowhere { contains actors }');
     const { bundle: loaded } = compileBundle(world({ files }), { mode: 'load' });
     const found = (name: string) => loaded!.kindLookup.unqualified(name, 'printers_shop');
     expect([found('Person')!.library, found('Actor')!.library]).toEqual([
@@ -85,12 +83,9 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('carries the verbs resolved, found by name as a body names one, its own before the library’s', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `${ROOT}\nverb take { role target "grab [target]" }\nverb poke { role target "poke [target]" }`,
-      ),
-    ];
+    const files = worldFiles(
+      `${WORLD_LINE}\nverb take { role target "grab [target]" }\nverb poke { role target "poke [target]" }`,
+    );
     const { bundle: carried, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     const verbs = carried!.verbs;
@@ -120,9 +115,7 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('roots the tree at the manifest’s name, not its namespace', () => {
-    const files = [
-      file('world.sprout', `${rootWith('object crate is Crate')}\nkind Crate { contains }`),
-    ];
+    const files = worldFiles(worldLine('object crate is Crate'), 'kind Crate { contains }');
     const { bundle: carried, diagnostics } = compileBundle(
       world({ files, manifest: { namespace: 'ink' } }),
     );
@@ -139,8 +132,8 @@ describe('what a compiled bundle carries', () => {
     // object is not among them: it is in the world's body.
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
       'printers_shop',
-      'Person',
       'Season',
+      'Person',
       'World',
       'go',
       'look',
@@ -162,14 +155,10 @@ describe('what a compiled bundle carries', () => {
 
 describe('what a compiled bundle knows of its bodies', () => {
   it('records what each name a body writes reaches, and the messages a send reaches them in', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `${rootWith('object bell is Bell')}
-message :rang
-kind Bell { on :rang { send hall :rang } }`,
-      ),
-    ];
+    const files = worldFiles(
+      `${worldLine('object bell is Bell')}\nmessage :rang`,
+      'kind Bell { on :rang { send hall :rang } }',
+    );
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     expect(bundle!.messages.qualified('printers_shop', 'rang')).not.toBeNull();
@@ -186,7 +175,7 @@ describe('publishing is strict: any problem is a refusal', () => {
   });
 
   it('refuses a world with a file held back, because a world is not published in pieces', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const { bundle, diagnostics } = compileBundle(world({ files, withheld: ['kiln.sprout'] }), {
       mode: 'publish',
     });
@@ -209,10 +198,9 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
       `  ${HALL}`,
       '  object crate is Crate { accept (item, from) { refuse gone } }',
       '}',
-      'kind Person is sprout.Visitor { }',
-      'kind Crate { contains }',
     ].join('\n');
-    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    const files = worldFiles(text, 'kind Crate { contains }');
+    const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
       [
@@ -224,13 +212,13 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
   });
 
   it('checks what a kind’s body holds once, however many instances are given it', () => {
-    const text = [
-      rootWith('object red is Chest object blue is Chest'),
+    const files = worldFiles(
+      worldLine('object red is Chest object blue is Chest'),
       'kind Chest { contains object lid is Lid { accept (item, from) { refuse gone } } }',
       'kind Lid { contains }',
       'kind Unused { contains object latch is Lid { accept (item, from) { refuse stuck } } }',
-    ].join('\n');
-    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    );
+    const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => d.message)).toEqual([
       '`lid` has no passage `gone`.',
@@ -239,12 +227,12 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
   });
 
   it('carries what each kind’s body gives, and places a copy in every declared instance', () => {
-    const text = [
-      rootWith('object red is Chest'),
+    const files = worldFiles(
+      worldLine('object red is Chest'),
       'kind Chest { contains object lid is Lid }',
       'kind Lid { }',
-    ].join('\n');
-    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    );
+    const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     expect(bundle!.contents.get('printers_shop.Chest')!.map((one) => one.path)).toEqual([['lid']]);
     expect(bundle!.tree.placed.has('red.lid')).toBe(true);
@@ -252,13 +240,13 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
   });
 
   it('compiles a world whose guards read and decide', () => {
-    const text = [
-      rootWith(
+    const files = worldFiles(
+      worldLine(
         'object crate is Crate { depart (to) { if (mover != self) { refuse "Nailed down." } } }',
       ),
       'kind Crate { contains :capacity 4 accept (item, from) { if (self.count >= self.get(:capacity)) { refuse full } } passage full { No room. } }',
-    ].join('\n');
-    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    );
+    const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     const crate = bundle!.objects.find((object) => object.name === 'crate')!;
     expect(crate.kind.guards.accept.map((guard) => guard.origin)).toEqual(['printers_shop.Crate']);
@@ -278,17 +266,12 @@ describe('a compile refuses actors where the spec has none', () => {
     '  }',
     '  object ghost is Porter',
     '}',
-    VISITOR,
-    'kind Porter is sprout.Actor { }',
-    'kind Basket { contains }',
   ].join('\n');
+  const files = worldFiles(text, 'kind Porter is sprout.Actor { }', 'kind Basket { contains }');
 
   it('refuses, in either mode, a declared visitor and an NPC where no actors stand', () => {
     for (const mode of ['publish', 'load'] as const) {
-      const { bundle, diagnostics } = compileBundle(
-        world({ files: [file('world.sprout', text)] }),
-        { mode },
-      );
+      const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
       expect(bundle, mode).toBeNull();
       expect(
         refusals(diagnostics).map((d) => [locationOf(d.at), d.message]),
@@ -308,16 +291,15 @@ describe('a compile refuses actors where the spec has none', () => {
   });
 
   it('refuses a spawn of what visitors are made of, and takes an NPC’s kind', () => {
-    const verbs = [
-      rootWith('object horn is Horn'),
+    const files = worldFiles(
+      `${worldLine('object horn is Horn')}\nverb whistle { role target  "whistle at [target]" }`,
       'kind Porter is sprout.Actor { }',
-      'verb whistle { role target  "whistle at [target]" }',
       'kind Horn { as target for whistle { do { spawn Porter in here  spawn Person in here } } }',
-    ].join('\n');
-    const { diagnostics } = compileBundle(world({ files: [file('world.sprout', verbs)] }));
+    );
+    const { diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
       [
-        'world.sprout:4:70',
+        'horn.sprout:1:70',
         '`Person` composes `sprout.Visitor`, what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
       ],
     ]);

@@ -1,0 +1,7 @@
+// Two written in one kind's body are two of one name there, whether or
+// not anything is made of the kind.
+kind Candle {
+  contains
+  object wick is Wick
+  object wick is Wick
+}

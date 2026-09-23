@@ -1,4 +1,7 @@
-kinds.sprout:5:6  `on` names the message a handler answers, with its colon.
+cat.sprout:2:6    `on` names the message a handler answers, with its colon.
                   Write `on :stir`, as in `on :stir { … }`.
+
+kinds.sprout:2:9  Nothing handles `:stir`, so sending it does nothing.
+                  Write `on :stir { … }` in the kind that should hear it, or take the message out.
 
 refused: 1 problem

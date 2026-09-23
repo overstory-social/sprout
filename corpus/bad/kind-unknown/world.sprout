@@ -6,5 +6,3 @@ world kind_unknown is sprout.World {
     object press is Wooden, Heavy
   }
 }
-
-kind Creature is sprout.Visitor { }

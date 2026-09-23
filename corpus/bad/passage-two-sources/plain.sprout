@@ -1,0 +1,3 @@
+kind Plain {
+  passage taken { You take it. }
+}

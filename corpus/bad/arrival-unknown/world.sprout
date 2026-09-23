@@ -5,9 +5,3 @@ world arrival_unknown is sprout.World {
 
   object hall is Room
 }
-
-kind Room {
-  contains actors
-}
-
-kind Creature is sprout.Visitor { }

@@ -1,0 +1,4 @@
+kind Lantern {
+  contains
+  object wick is Wick
+}

@@ -1,4 +1,4 @@
-kinds.sprout:6:24  Nothing here is called `celar`. Did you mean `cellar`?
-                   In reach: `self`, `actor`, `here`, `hall`, `cellar` and `move_unknown_name`.
+trapdoor.sprout:6:24  Nothing here is called `celar`. Did you mean `cellar`?
+                      In reach: `self`, `actor`, `here`, `hall`, `cellar` and `move_unknown_name`.
 
 refused: 1 problem

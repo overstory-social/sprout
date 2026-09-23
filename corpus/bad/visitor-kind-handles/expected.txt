@@ -1,10 +1,10 @@
-world.sprout:13:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not answer a message with `on :stir`.
+person.sprout:6:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not answer a message with `on :stir`.
                    Write it on a kind `Person` composes: `kind Creature is sprout.Actor { on :stir … }` and `kind Person is Creature, sprout.Visitor { … }`.
 
-world.sprout:14:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not watch a property with `changed :stamina`.
+person.sprout:7:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not watch a property with `changed :stamina`.
                    Write it on a kind `Person` composes: `kind Creature is sprout.Actor { changed :stamina … }` and `kind Person is Creature, sprout.Visitor { … }`.
 
-world.sprout:15:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not say what passes with `pass any`.
+person.sprout:8:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not say what passes with `pass any`.
                    Write it on a kind `Person` composes: `kind Creature is sprout.Actor { pass any (…) … }` and `kind Person is Creature, sprout.Visitor { … }`.
 
 refused: 3 problems

@@ -15,5 +15,3 @@ world container_twice_named is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Visitor { }

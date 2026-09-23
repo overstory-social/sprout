@@ -1,0 +1,11 @@
+// Opening the cupboard makes a lantern, wick and flame and all.
+kind Cupboard {
+  contains
+
+  as target for open {
+    do {
+      spawn Lantern in self
+      say "A lantern is waiting on the top shelf."
+    }
+  }
+}

@@ -8,6 +8,3 @@ world actor_directly_in_world is sprout.World {
   // inside it rather than in the world itself.
   object ghost is Creature
 }
-
-kind Creature is sprout.Actor { }
-kind Person is Creature, sprout.Visitor { }

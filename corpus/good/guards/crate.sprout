@@ -1,0 +1,26 @@
+// A lid and a capacity, and a passage for each refusal.
+kind Crate {
+  contains
+  :open true
+  :capacity 4 min 0 max 20
+
+  accept (item, from) {
+    if (!self.get(:open)) { refuse shut }
+    else if (self.count >= self.get(:capacity)) { refuse full }
+    else { allow }
+  }
+  release (item, to) {
+    let lid = self.get(:open)
+    if (!lid) { refuse shut }
+  }
+  depart (to) {
+    // `to` is an object: narrowed to a creature, what a creature
+    // declares is readable.
+    if (to.is(Creature)) {
+      if (to.get(:strength) < 3) { refuse "It is too heavy to lift." }
+    }
+  }
+
+  passage shut { {self} is shut. }
+  passage full { There is no room in {self}. }
+}

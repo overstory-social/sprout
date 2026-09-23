@@ -8,5 +8,3 @@ world restatement_changes_type is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Visitor { }

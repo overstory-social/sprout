@@ -27,7 +27,3 @@ world hidden_name is sprout.World {
   // world's name reaches it: `hidden_name.lamp`.
   object lamp is Thing
 }
-
-kind Creature is sprout.Visitor { }
-kind Chest { contains }
-kind Thing { }

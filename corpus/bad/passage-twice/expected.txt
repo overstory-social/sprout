@@ -1,4 +1,4 @@
-kinds.sprout:4:11  `Mirror` writes the passage `greeting` twice.
-                   A thing speaks each line in one voice. Keep one of them, or give the other another name.
+mirror.sprout:4:11  `Mirror` writes the passage `greeting` twice.
+                    A thing speaks each line in one voice. Keep one of them, or give the other another name.
 
 refused: 1 problem

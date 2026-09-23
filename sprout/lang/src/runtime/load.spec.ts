@@ -204,7 +204,7 @@ describe('a declared object is read against its kind now', () => {
     const changed = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace(':fill 3 min', ':fill 5 min'),
+        'jar.sprout': SHOP['jar.sprout']!.replace(':fill 3 min', ':fill 5 min'),
       }),
       CAPS,
     );
@@ -432,7 +432,7 @@ describe('what cannot be decoded now is kept dormant, untouched', () => {
     const lanterns = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'kiln.sprout': `${SHOP['kiln.sprout']!}kind Lantern { contains object wick is Jar }\n`,
+        'lantern.sprout': 'kind Lantern { contains object wick is Jar }\n',
       }),
       CAPS,
     );

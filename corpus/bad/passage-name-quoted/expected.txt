@@ -1,4 +1,4 @@
-kinds.sprout:3:11  A passage's name is not written in quotes.
-                   Write it as a bare lower-case word: `passage greeting { … }`.
+mirror.sprout:3:11  A passage's name is not written in quotes.
+                    Write it as a bare lower-case word: `passage greeting { … }`.
 
 refused: 1 problem

@@ -4,5 +4,3 @@ world verbs_library is sprout.World {
 
   object yard is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

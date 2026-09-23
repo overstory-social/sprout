@@ -1,0 +1,13 @@
+// The lamp answers `:illuminating` by writing its own state, and a hook
+// on that state counts every change, with the value it had before.
+kind Lamp {
+  :lit false
+  :flickers 0 min 0 max 99
+
+  on :illuminating (from, value) { self.set(:lit, value) }
+  on :gust                       { self.set(:lit, false) }
+
+  changed :lit (was) {
+    if (was) { self.adjust(:flickers, 1) }
+  }
+}

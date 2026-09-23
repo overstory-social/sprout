@@ -1,4 +1,4 @@
-kinds.sprout:5:25  `target` is not given anything to fill it.
-                   Write `target: <what fills it>`, as in `act nuzzle (target: p)`.
+cat.sprout:5:25  `target` is not given anything to fill it.
+                 Write `target: <what fills it>`, as in `act nuzzle (target: p)`.
 
 refused: 1 problem

@@ -1,4 +1,4 @@
-kinds.sprout:3:11  `default` comes after a passage's name.
-                   Write `passage greeting default { … }`.
+mirror.sprout:3:11  `default` comes after a passage's name.
+                    Write `passage greeting default { … }`.
 
 refused: 1 problem

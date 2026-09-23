@@ -1,0 +1,9 @@
+// The ordinary refusal, which a lock of any kind carries.
+kind Lockable {
+  :locked true
+
+  as target for unlock {
+    permit { if (!self.get(:locked)) { refuse "It is already unlocked." } }
+    do     { self.set(:locked, false)  say "The lock turns over." }
+  }
+}

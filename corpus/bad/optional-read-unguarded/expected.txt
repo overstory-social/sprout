@@ -1,4 +1,4 @@
-kinds.sprout:8:12  `tool` may be missing here: `"unlock [target]"` leaves it out.
-                   Read it inside `if (bound tool) { … }`.
+warded.sprout:6:12  `tool` may be missing here: `"unlock [target]"` leaves it out.
+                    Read it inside `if (bound tool) { … }`.
 
 refused: 1 problem

@@ -1,4 +1,4 @@
-kinds.sprout:6:14  `say` has nobody to speak to inside `on :stir`.
-                   Use `tell` to speak to the room, or `tell p` to one person.
+cat.sprout:2:14  `say` has nobody to speak to inside `on :stir`.
+                 Use `tell` to speak to the room, or `tell p` to one person.
 
 refused: 1 problem

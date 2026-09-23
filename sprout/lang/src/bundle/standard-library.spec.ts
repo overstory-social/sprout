@@ -28,7 +28,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
     level: 1,
     extensions: [],
     libraries: [{ name: 'sprout', version: STANDARD_LIBRARY.version, sha }],
-    files: ['world.sprout'],
+    files: ['world.sprout', 'person.sprout', 'yard.sprout'],
   };
   return compileBundle(
     {
@@ -37,8 +37,10 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
       files: [
         new SourceFile(
           'world.sprout',
-          'world shed is sprout.World { visitors are Person visitors arrive at yard object yard is Yard }\nkind Person is sprout.Visitor { }\nkind Yard { contains actors }\n',
+          'world shed is sprout.World { visitors are Person visitors arrive at yard object yard is Yard }\n',
         ),
+        new SourceFile('person.sprout', 'kind Person is sprout.Visitor { }\n'),
+        new SourceFile('yard.sprout', 'kind Yard { contains actors }\n'),
       ],
       libraries: [library],
     },
@@ -85,7 +87,7 @@ describe('the standard library', () => {
     ]);
   });
 
-  it('reads clean through the first tier, with at most one kind to a file', () => {
+  it('reads clean through the first tier, each kind in the file named for it', () => {
     for (const file of STANDARD_LIBRARY.files) {
       const { declarations, diagnostics } = checkShape(file);
       expect(diagnostics, file.name).toEqual([]);

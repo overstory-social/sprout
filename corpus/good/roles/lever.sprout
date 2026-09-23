@@ -1,0 +1,11 @@
+// A `permit` decides and a `do` acts.
+kind Lever {
+  :pulled false
+
+  passage clunk { The lever drops with a clunk. }
+
+  as target for pull {
+    permit { if (self.get(:pulled)) { refuse "It is already down." } }
+    do     { self.set(:pulled, true)  say clunk }
+  }
+}

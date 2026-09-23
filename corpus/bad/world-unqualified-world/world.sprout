@@ -2,5 +2,3 @@ world unqualified_world is World {
   visitors are Creature
   visitors arrive at hall
 }
-
-kind Creature is sprout.Visitor { }

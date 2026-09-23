@@ -1,4 +1,4 @@
-kinds.sprout:6:15  `move` moves one thing, and `pieces` is a set of objects.
-                   Name one thing, as in `move target to self`; a set is moved one of its things at a time.
+tray.sprout:6:15  `move` moves one thing, and `pieces` is a set of objects.
+                  Name one thing, as in `move target to self`; a set is moved one of its things at a time.
 
 refused: 1 problem

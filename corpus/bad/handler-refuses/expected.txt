@@ -1,4 +1,4 @@
-kinds.sprout:8:27  `refuse` answers someone, and nobody waits on `on :unlock_attempt` for an answer.
-                   Decide with `if` by writing or not writing. Where the sender should know, send it a message, as in `send from :unlock_failed`.
+door.sprout:4:27  `refuse` answers someone, and nobody waits on `on :unlock_attempt` for an answer.
+                  Decide with `if` by writing or not writing. Where the sender should know, send it a message, as in `send from :unlock_failed`.
 
 refused: 1 problem

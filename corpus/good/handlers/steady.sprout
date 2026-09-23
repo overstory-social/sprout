@@ -1,0 +1,5 @@
+// A kind may leave out a composed kind's handler and write its own.
+kind Steady is Lamp {
+  without on :gust from Lamp
+  on :gust { }
+}

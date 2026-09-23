@@ -13,7 +13,7 @@ import { locationOf, SourceFile } from '../../source/source.js';
 import { arrivalPlace } from './arrival.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
-import { file, refusals, ROOT, VISITOR, warnings, world } from '../../fixtures/compile.js';
+import { file, refusals, warnings, world, WORLD_LINE, worldFiles } from '../../fixtures/compile.js';
 
 /** Where visitors arrive in the world `shop` written as `own`, in `mode`. */
 function arriving(own: string, mode: 'publish' | 'load' = 'publish') {
@@ -78,12 +78,12 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
    * The world arriving at `at`, with a hall holding a bench and `inHall`
    * in its body, and `more` beside the hall.
    */
-  const worldArrivingAt = (at: string, more = '', inHall = '') => [
-    file(
-      'world.sprout',
-      `world printers_shop is sprout.World { visitors arrive at ${at} visitors are Person object hall is Room { object bench is Bench ${inHall} } ${more} }\nkind Room { contains actors }\nkind Bench { contains }\n${VISITOR}\n`,
-    ),
-  ];
+  const worldArrivingAt = (at: string, more = '', inHall = '') =>
+    worldFiles(
+      `world printers_shop is sprout.World { visitors arrive at ${at} visitors are Person object hall is Room { object bench is Bench ${inHall} } ${more} }\n`,
+      'kind Room { contains actors }\n',
+      'kind Bench { contains }\n',
+    );
 
   it('carries the place’s path, deeper by its dotted path', () => {
     const shallow = compileBundle(world({ files: worldArrivingAt('hall') }));
@@ -138,12 +138,10 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
   });
 
   it('refuses the world as where visitors arrive in either mode, even one that holds actors', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `world printers_shop is sprout.World { contains actors visitors are Person visitors arrive at printers_shop object hall is Room }\nkind Room { contains actors }\n${VISITOR}`,
-      ),
-    ];
+    const files = worldFiles(
+      'world printers_shop is sprout.World { contains actors visitors are Person visitors arrive at printers_shop object hall is Room }',
+      'kind Room { contains actors }',
+    );
     for (const mode of ['publish', 'load'] as const) {
       const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
       expect(bundle, mode).toBeNull();
@@ -161,12 +159,9 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
   });
 
   it('says once that a world does not say where visitors arrive', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `world printers_shop is sprout.World { contains actors visitors are Person } ${VISITOR}`,
-      ),
-    ];
+    const files = worldFiles(
+      'world printers_shop is sprout.World { contains actors visitors are Person }',
+    );
     for (const mode of ['publish', 'load'] as const) {
       const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
       expect(bundle, mode).toBeNull();
@@ -182,7 +177,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
       file('world.sprout', 'world shop is sprout.World { visitors arrive at nowhere }'),
     ];
     expect(refusals(compileBundle(world({ files: misnamed })).diagnostics)).toHaveLength(1);
-    const doubled = [file('world.sprout', `${ROOT}\nworld printers_shop is sprout.World { }`)];
+    const doubled = worldFiles(`${WORLD_LINE}\nworld printers_shop is sprout.World { }`);
     const loaded = compileBundle(world({ files: doubled }), load);
     expect(loaded.bundle!.absent.map((a) => a.kind)).toEqual(['world']);
     expect(loaded.bundle!.arrival).toBeNull();

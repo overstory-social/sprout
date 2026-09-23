@@ -7,9 +7,3 @@ world library_version_not_semver is sprout.World {
 
   object hall is Hall
 }
-
-kind Hall {
-  contains actors
-}
-
-kind Creature is sprout.Visitor { }

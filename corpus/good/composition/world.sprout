@@ -17,5 +17,3 @@ world composition is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Visitor { }

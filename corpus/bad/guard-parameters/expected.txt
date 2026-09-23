@@ -1,4 +1,4 @@
-kinds.sprout:5:16  `release` names the thing and where it goes: two names in brackets.
+crate.sprout:5:16  `release` names the thing and where it goes: two names in brackets.
                    Write `release (item, to) { … }`.
 
 refused: 1 problem

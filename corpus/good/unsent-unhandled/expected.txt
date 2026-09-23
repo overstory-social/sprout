@@ -1,7 +1,7 @@
+cat.sprout:2:6    Nothing sends `:stir`, so `on :stir` never runs.
+                  Send it with `send <thing> :stir` or `broadcast :stir`, or take the handler out.
+
 kinds.sprout:2:9  Nothing handles `:creak`, so sending it does nothing.
                   Write `on :creak { … }` in the kind that should hear it, or take the message out.
 
-kinds.sprout:5:6  Nothing sends `:stir`, so `on :stir` never runs.
-                  Send it with `send <thing> :stir` or `broadcast :stir`, or take the handler out.
-
-ok: 6 declarations in 2 files, 2 warnings
+ok: 6 declarations in 4 files, 2 warnings

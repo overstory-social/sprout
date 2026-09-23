@@ -1,0 +1,4 @@
+kind Flint {
+  contains
+  as target for strike { do { spawn Spark in self  say "A spark leaps from the flint." } }
+}

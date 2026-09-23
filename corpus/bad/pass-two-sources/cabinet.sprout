@@ -1,0 +1,3 @@
+// Two composed kinds that each say what passes cannot both be the
+// container's policy.
+kind Cabinet is Glass, Oak { }

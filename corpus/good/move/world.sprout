@@ -18,16 +18,6 @@ world moving is sprout.World {
   object hall is sprout.Place
 }
 
-// A person climbs aboard by moving themselves: in the actor's own part
-// `actor` is the one whose body runs, so it is the mover, and
-// `sprout.Actor`'s `depart` consents. The part is written on a kind a
-// person composes, since a person's own kind has no behaviour.
-kind Creature is sprout.Actor {
-  as actor for board { do { move actor to target  say "You climb aboard." } }
-}
-
-kind Person is Creature, sprout.Visitor { }
-
 verb board  { role target: Cart  "board [target]"  "climb into [target]" }
 verb shelve { role target  role tool: Shelf  "shelve [target] on [tool]" }
 verb tidy   { role target: Shelf  role tool  "tidy [target] with [tool]"  "tidy [target]" }

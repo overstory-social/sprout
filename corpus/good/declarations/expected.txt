@@ -10,4 +10,4 @@ kinds.sprout:7:9   Nothing handles `:ward_seen`, so sending it does nothing.
 kinds.sprout:11:9  Nothing handles `:ward_seen_again`, so sending it does nothing.
                    Write `on :ward_seen_again { … }` in the kind that should hear it, or take the message out.
 
-ok: 11 declarations in 2 files, 4 warnings
+ok: 11 declarations in 4 files, 4 warnings

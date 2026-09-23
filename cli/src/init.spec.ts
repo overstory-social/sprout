@@ -15,9 +15,14 @@ import { initWorld } from './init.js';
 import { readWorld } from './world.js';
 
 describe('initWorld', () => {
-  it('writes a manifest, a world and a README, named for the folder', () => {
+  it('writes a manifest, a world, its visitors’ kind and a README, named for the folder', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Paper Store');
-    expect(initWorld(dir, 'marta')).toEqual(['sprout.json', 'world.sprout', 'README.md']);
+    expect(initWorld(dir, 'marta')).toEqual([
+      'sprout.json',
+      'world.sprout',
+      'person.sprout',
+      'README.md',
+    ]);
     const manifest = JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'));
     expect(manifest).toEqual({
       name: 'paper_store',
@@ -27,7 +32,7 @@ describe('initWorld', () => {
       level: 1,
       extensions: [],
       libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(STANDARD_LIBRARY) }],
-      files: ['world.sprout'],
+      files: ['world.sprout', 'person.sprout'],
     });
     expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain(
       'world paper_store is sprout.World {',
@@ -58,12 +63,13 @@ describe('initWorld', () => {
     expect(bundle!.size.places).toBe(1);
   });
 
-  it('writes the kind visitors are made of: the world’s own, composing `sprout.Visitor`', () => {
+  it('writes the kind visitors are made of: the world’s own, composing `sprout.Visitor`, in the file named for it', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
-    const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
-    expect(written).toContain('  visitors are Person\n');
-    expect(written).toContain('kind Person is sprout.Visitor { }');
+    expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain('  visitors are Person\n');
+    const person = readFileSync(join(dir, 'person.sprout'), 'utf8');
+    expect(person).toBe('kind Person is sprout.Visitor { }\n');
+    expect(checkShape(new SourceFile('person.sprout', person)).diagnostics).toEqual([]);
     const { bundle, diagnostics } = compileBundle(readWorld(dir).source!);
     // Not even a warning: a `Visitor` of the world's own would hide `sprout.Visitor`.
     expect(diagnostics).toEqual([]);

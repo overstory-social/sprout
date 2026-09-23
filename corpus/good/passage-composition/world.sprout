@@ -22,5 +22,3 @@ world passage_composition is sprout.World, Terse {
     object type_case is Both
   }
 }
-
-kind Creature is sprout.Visitor { }

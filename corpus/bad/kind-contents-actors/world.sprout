@@ -15,19 +15,3 @@ world kind_contents_actors is sprout.World {
     object chest is Chest
   }
 }
-
-kind Creature is sprout.Actor { }
-
-kind Thing { }
-
-kind Hutch {
-  contains
-  object rabbit is Creature
-}
-
-kind Chest {
-  contains
-  object key is Thing
-}
-
-kind Person is Creature, sprout.Visitor { }

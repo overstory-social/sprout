@@ -1,12 +1,3 @@
 // `from` narrows a value the visitor names; a target is a thing, and
 // there is nothing to narrow.
 enum Ward { oak, iron }
-
-kind Key {
-  :opens [Ward] default [oak]
-
-  as tool for unlock {
-    target from :opens
-    do { }
-  }
-}

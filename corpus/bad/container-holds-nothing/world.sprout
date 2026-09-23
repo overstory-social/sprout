@@ -9,5 +9,3 @@ world container_holds_nothing is sprout.World {
     }
   }
 }
-
-kind Creature is sprout.Visitor { }

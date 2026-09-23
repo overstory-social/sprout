@@ -1,0 +1,3 @@
+kind Fixture {
+  passage immovable default { It will not move. }
+}

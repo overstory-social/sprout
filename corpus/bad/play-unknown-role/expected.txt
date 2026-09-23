@@ -1,4 +1,4 @@
-kinds.sprout:3:6  `unlock` has no role `tool2`. Its roles are `target` and `tool`.
-                  Write `as tool for unlock`, or `as actor for unlock` to play whoever is acting.
+key.sprout:3:6  `unlock` has no role `tool2`. Its roles are `target` and `tool`.
+                Write `as tool for unlock`, or `as actor for unlock` to play whoever is acting.
 
 refused: 1 problem

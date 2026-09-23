@@ -4,5 +4,3 @@ world object_top_level is sprout.World {
 
   object composing_room is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

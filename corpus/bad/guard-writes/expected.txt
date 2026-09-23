@@ -1,4 +1,4 @@
-kinds.sprout:8:28  `self.set` writes, and a guard only reads and decides.
+crate.sprout:8:28  `self.set` writes, and a guard only reads and decides.
                    Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
 
 refused: 1 problem

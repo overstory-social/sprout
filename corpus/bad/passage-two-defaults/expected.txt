@@ -1,4 +1,4 @@
-kinds.sprout:12:23  `Mirror` gets a default passage `shrug` from both `Plain` and `Terse`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.
+mirror.sprout:4:23  `Mirror` gets a default passage `shrug` from both `Plain` and `Terse`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.
                     Write its own `passage shrug { … }` in `Mirror`, which is then the one that applies, or compose only one of them.
 
 refused: 1 problem

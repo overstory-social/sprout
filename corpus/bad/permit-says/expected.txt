@@ -1,4 +1,4 @@
-kinds.sprout:5:14  `say` speaks, and a `permit` only decides.
+lever.sprout:5:14  `say` speaks, and a `permit` only decides.
                    Move it to `do`, or make it the words of a `refuse`.
 
 refused: 1 problem

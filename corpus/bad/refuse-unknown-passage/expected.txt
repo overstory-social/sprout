@@ -1,4 +1,4 @@
-kinds.sprout:7:53  `Crate` has no passage `ful`. Did you mean `full`?
+crate.sprout:7:53  `Crate` has no passage `ful`. Did you mean `full`?
                    Write `refuse full`, or write `passage ful { … }` in `Crate`.
 
 refused: 1 problem

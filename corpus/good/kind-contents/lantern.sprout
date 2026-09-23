@@ -1,0 +1,11 @@
+// Every lantern holds a wick, which holds a flame: what a kind's body
+// holds may hold objects of its own.
+kind Lantern {
+  contains
+  :lit false
+
+  object wick is Wick {
+    contains
+    object flame is Flame
+  }
+}

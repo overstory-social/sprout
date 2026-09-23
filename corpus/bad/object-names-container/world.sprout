@@ -9,9 +9,3 @@ world object_names_container is sprout.World {
   // An object is written inside what holds it, and never names it.
   object cushion is Bench in composing_room.bench
 }
-
-kind Creature is sprout.Visitor { }
-
-kind Bench {
-  contains
-}

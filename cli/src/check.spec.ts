@@ -19,7 +19,7 @@ describe('checkWorld', () => {
     const result = checkWorld(worldWith({}));
     expect(result.ok).toBe(true);
     expect(result.diagnostics).toEqual([]);
-    expect(formatCheck(result)).toBe('ok: 3 declarations in 1 files\n');
+    expect(formatCheck(result)).toBe('ok: 3 declarations in 2 files\n');
   });
 
   it('refuses a broken file by file, line and column, as a page and as JSON', () => {
@@ -54,7 +54,7 @@ describe('checkWorld', () => {
     expect(bundle!.libraries.map((l) => [l.name, l.version, l.blessed])).toEqual([
       ['sprout', '0.1.0', true],
     ]);
-    expect(bundle!.size).toMatchObject({ files: 1, kinds: 1 });
+    expect(bundle!.size).toMatchObject({ files: 2, kinds: 1 });
     expect(bundle!.size.exemptBytes).toBeGreaterThan(0);
   });
 

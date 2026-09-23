@@ -7,22 +7,3 @@ world kind_contents_loop is sprout.World {
     object lantern is Lantern
   }
 }
-
-kind Creature is sprout.Visitor { }
-
-// A box that holds a box would hold another inside that, without end.
-kind Box {
-  contains
-  object inner is Box
-}
-
-// So would a lantern whose wick holds a lantern, through two kinds.
-kind Lantern {
-  contains
-  object wick is Wick
-}
-
-kind Wick {
-  contains
-  object spare is Lantern
-}

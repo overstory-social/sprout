@@ -5,8 +5,6 @@ world from_on_thing_role is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb unlock {
   role target
   role tool

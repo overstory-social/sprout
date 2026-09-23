@@ -1,0 +1,8 @@
+// The engine's messages bind what they name, positionally, under the
+// author's names, and are read only through `is()`.
+kind Cellar is sprout.Place {
+  :arrivals 0 min 0 max 999
+  on :entered (thing, _) {
+    if (thing.is(Person)) { self.adjust(:arrivals, 1) }
+  }
+}

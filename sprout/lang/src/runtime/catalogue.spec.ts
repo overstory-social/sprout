@@ -66,7 +66,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
           'object jar is Jar',
           'object jar is Jar object lantern is Lantern',
         ),
-        'kiln.sprout': `${SHOP['kiln.sprout']!}kind Lantern { contains object wick is Jar }\n`,
+        'lantern.sprout': 'kind Lantern { contains object wick is Jar }\n',
       }),
       DEFAULT_LIMITS.caps,
     );
@@ -141,19 +141,12 @@ describe('a catalogue of a world loaded with a gap', () => {
   it('has no visitor kind where the one `visitors are` names is absent', () => {
     const bundle = compiledWorld('printers_shop', SHOP, {
       mode: 'load',
-      withheld: ['kiln.sprout'],
+      withheld: ['crate.sprout'],
     });
     expect(catalogueOf(bundle, DEFAULT_LIMITS.caps).visitorKind).not.toBeNull();
-    const elsewhere = {
-      'world.sprout': SHOP['world.sprout']!.replace(
-        'kind Person is Creature, sprout.Visitor { }',
-        '',
-      ),
-      'kiln.sprout': `${SHOP['kiln.sprout']!}kind Person is Creature, sprout.Visitor { }\n`,
-    };
-    const gone = compiledWorld('printers_shop', elsewhere, {
+    const gone = compiledWorld('printers_shop', SHOP, {
       mode: 'load',
-      withheld: ['kiln.sprout'],
+      withheld: ['person.sprout'],
     });
     expect(catalogueOf(gone, DEFAULT_LIMITS.caps).visitorKind).toBeNull();
     expect(gone.absent.map((a) => [a.what, a.kind])).toContainEqual(['Person', 'visitor-kind']);
@@ -164,7 +157,7 @@ describe('a catalogue of a world loaded with a gap', () => {
     // that is a gap, and `Place` fails to compose.
     const broken = {
       ...SHOP,
-      'world.sprout': `${SHOP['world.sprout']!}kind Place is Nowhere { contains actors }\n`,
+      'place.sprout': 'kind Place is Nowhere { contains actors }\n',
     };
     const bundle = compiledWorld('printers_shop', broken, { mode: 'load' });
     expect(bundle.absent.map((a) => a.what)).toContain('Nowhere');
@@ -175,12 +168,12 @@ describe('a catalogue of a world loaded with a gap', () => {
 
   it('has no arrival for a world that admits no one', () => {
     const closed = {
+      ...SHOP,
       'world.sprout': SHOP['world.sprout']!.replace('arrive at hall', 'arrive at box'),
-      'kiln.sprout': SHOP['kiln.sprout']!,
     };
     const bundle = compiledWorld('printers_shop', closed, {
       mode: 'load',
-      withheld: ['kiln.sprout'],
+      withheld: ['crate.sprout'],
     });
     expect(catalogueOf(bundle, DEFAULT_LIMITS.caps).arrival).toBeNull();
   });

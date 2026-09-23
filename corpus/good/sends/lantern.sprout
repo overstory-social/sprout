@@ -1,0 +1,7 @@
+// A lantern hands the light on to its own wick, the copy it gives every
+// lantern, named from the kind's own body.
+kind Lantern {
+  contains
+  on :lit (_, value) { send wick :lit with value }
+  object wick is Wick
+}

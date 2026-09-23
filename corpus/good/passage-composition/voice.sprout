@@ -1,0 +1,5 @@
+// A diamond: `Voice` is reached through both `Left` and `Right`, and its
+// one default counts once.
+kind Voice {
+  passage shrug default { {self} gives nothing away. }
+}

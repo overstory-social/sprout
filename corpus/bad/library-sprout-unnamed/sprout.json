@@ -5,5 +5,5 @@
   "license": "MIT",
   "level": 1,
   "extensions": [],
-  "files": ["world.sprout"]
+  "files": ["world.sprout", "creature.sprout", "room.sprout"]
 }

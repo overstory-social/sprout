@@ -1,4 +1,4 @@
-kinds.sprout:5:33  The roles inside `act unlock (…)` are separated by commas.
-                   Write a comma between each two, as in `act unlock (target: p, tool: q)`.
+cat.sprout:5:33  The roles inside `act unlock (…)` are separated by commas.
+                 Write a comma between each two, as in `act unlock (target: p, tool: q)`.
 
 refused: 1 problem

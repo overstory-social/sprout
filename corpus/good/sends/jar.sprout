@@ -1,0 +1,4 @@
+kind Jar {
+  :rung false
+  on :rang { self.set(:rung, true) }
+}

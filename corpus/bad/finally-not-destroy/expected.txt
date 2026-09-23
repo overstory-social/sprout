@@ -1,4 +1,7 @@
-kinds.sprout:6:22  Only `destroy self` may follow `finally`.
+kinds.sprout:3:9   Nothing handles `:rang`, so sending it does nothing.
+                   Write `on :rang { … }` in the kind that should hear it, or take the message out.
+
+match.sprout:2:22  Only `destroy self` may follow `finally`.
                    Write `finally destroy self`, which destroys the object once every message the turn has sent has been handled.
 
 refused: 1 problem

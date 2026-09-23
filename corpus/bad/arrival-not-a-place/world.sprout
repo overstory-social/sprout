@@ -8,13 +8,3 @@ world arrival_not_a_place is sprout.World {
     object bench is Bench
   }
 }
-
-kind Room {
-  contains actors
-}
-
-kind Bench {
-  contains
-}
-
-kind Creature is sprout.Visitor { }

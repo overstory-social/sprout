@@ -6,7 +6,3 @@ kind Mirror {
     The glass is older than {self.get(:mood) the frame.
   }
 }
-
-kind Lamp {
-  :lit false
-}

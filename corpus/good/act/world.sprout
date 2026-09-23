@@ -14,13 +14,6 @@ world acting is sprout.World {
 
 enum Mood { calm, cross, sleepy }
 
-// Everyone, a person or a cat, nuzzles the same way.
-kind Creature is sprout.Actor {
-  as actor for nuzzle { do { say "You nuzzle {target}." } }
-}
-
-kind Person is Creature, sprout.Visitor { }
-
 verb pet    { role target  "pet [target]" }
 verb nuzzle { role target  "nuzzle [target]" }
 verb play   { role target  role toys many  "play with [target] using [toys]"  "play with [target]" }

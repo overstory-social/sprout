@@ -1,0 +1,4 @@
+kind Candle {
+  :lit true
+  on :gust (from, strength) { self.set(:lit, false) }
+}

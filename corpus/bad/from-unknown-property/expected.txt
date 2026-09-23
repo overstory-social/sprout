@@ -1,4 +1,4 @@
-kinds.sprout:8:16  `Guard` has no property `:knws`. Did you mean `:knows`?
+guard.sprout:5:16  `Guard` has no property `:knws`. Did you mean `:knows`?
                    Write `topic from :knows`.
 
 refused: 1 problem

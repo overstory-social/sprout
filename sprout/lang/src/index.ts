@@ -22,6 +22,7 @@ export * from './declare/enums.js';
 export * from './declare/sprout-world.js';
 export * from './declare/actors.js';
 export * from './declare/kinds.js';
+export * from './declare/kind-files.js';
 export * from './declare/compose.js';
 export * from './declare/objects.js';
 export * from './declare/tree.js';

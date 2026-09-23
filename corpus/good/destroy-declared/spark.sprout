@@ -1,0 +1,3 @@
+kind Spark {
+  as target for burn { do { destroy self  say "The spark winks out." } }
+}

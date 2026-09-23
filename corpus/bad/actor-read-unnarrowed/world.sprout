@@ -10,19 +10,4 @@ world actor_read_unnarrowed is sprout.World {
   }
 }
 
-kind Person is sprout.Visitor {
-  :oil 3 min 0 max 9
-}
-
 verb light { role target  "light [target]" }
-
-kind Lamp {
-  as target for light {
-    permit { if (actor.get(:oil) == 0) { refuse "You have no oil." } }
-    do {
-      if (actor.is(Person)) {
-        if (actor.get(:oil) > 5) { say "The lamp burns bright." }
-      }
-    }
-  }
-}

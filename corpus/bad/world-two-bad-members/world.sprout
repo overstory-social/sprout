@@ -5,5 +5,3 @@ world w is sprout.World {
   :ward Ward.Iron
   :opens [Ward].brass
 }
-
-kind Creature is sprout.Visitor { }

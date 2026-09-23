@@ -1,7 +1,2 @@
 // What a message carries is the type its declaration says.
 message :illuminating with boolean
-
-kind Lamp {
-  on :spawned (from) { broadcast :illuminating with 1 }
-  on :illuminating (_, value) { }
-}

@@ -6,5 +6,3 @@ world unsent_unhandled is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Person is sprout.Visitor { }

@@ -1,0 +1,4 @@
+kind Wooden {
+  :worn 0 min 0 max 9
+  remembers { :seen false }
+}

@@ -1,0 +1,8 @@
+// A body names things by the names in scope, `self`, `actor`, `here`, the
+// roles and its `let`s, and by the objects in reach of where it is
+// written. A misspelt one is a name nothing here answers to.
+kind Trapdoor {
+  as target for pull {
+    do { move actor to celar }
+  }
+}

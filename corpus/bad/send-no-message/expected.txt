@@ -1,4 +1,7 @@
-kinds.sprout:5:34  `send from` does not say which message.
-                   A message is written with its colon: `send from :creak`.
+door.sprout:2:34  `send from` does not say which message.
+                  A message is written with its colon: `send from :creak`.
+
+kinds.sprout:2:9  Nothing handles `:creak`, so sending it does nothing.
+                  Write `on :creak { … }` in the kind that should hear it, or take the message out.
 
 refused: 1 problem

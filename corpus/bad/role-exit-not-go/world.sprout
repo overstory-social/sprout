@@ -4,5 +4,3 @@ world role_exit_not_go is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Creature is sprout.Visitor { }

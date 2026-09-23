@@ -1,7 +1,2 @@
 message :stir
 message :creak
-
-kind Cat {
-  on :stir { }
-  on :spawned (from) { send from :creak }
-}

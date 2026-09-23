@@ -1,0 +1,9 @@
+// The world is not declared in a kind's file.
+kind Person is sprout.Visitor { }
+
+world kind_file_world is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

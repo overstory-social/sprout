@@ -4,10 +4,3 @@ world missing is sprout.World {
 
   object hall is Hall
 }
-
-// Where visitors arrive.
-kind Hall {
-  contains actors
-}
-
-kind Creature is sprout.Visitor { }

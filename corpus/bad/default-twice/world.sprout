@@ -3,5 +3,3 @@ world default_twice is sprout.World {
   visitors arrive at hall
   :ward Ward.iron default brass
 }
-
-kind Creature is sprout.Visitor { }

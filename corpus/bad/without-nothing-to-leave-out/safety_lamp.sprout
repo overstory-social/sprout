@@ -1,0 +1,5 @@
+// `SafetyLamp` composes `LightSource`, but nothing in `LightSource` is
+// a `changed :lit` hook, so there is nothing to leave out.
+kind SafetyLamp is LightSource {
+  without changed :lit from LightSource
+}

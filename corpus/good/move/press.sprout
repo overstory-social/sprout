@@ -1,0 +1,12 @@
+// A new sheet is made in the press, then handed to whoever pulled.
+kind Press {
+  contains
+
+  as target for pull {
+    do {
+      let sheet = spawn Sheet in self
+      move sheet to actor
+      say "A sheet slides out into your hands."
+    }
+  }
+}

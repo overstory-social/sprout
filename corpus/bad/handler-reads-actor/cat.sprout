@@ -1,0 +1,6 @@
+kind Cat {
+  :woken false
+  on :stir {
+    if (actor.is(Cat)) { self.set(:woken, true) }
+  }
+}

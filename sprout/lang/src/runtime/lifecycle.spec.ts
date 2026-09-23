@@ -36,7 +36,7 @@ const catalogueSource = `${SHOP['world.sprout']!.replace(
   'kind Hutch { contains object rabbit is Creature }',
   '',
 ].join('\n')}`;
-const KILN_SOURCE = 'kind Crate { contains :lid false }\nkind Kiln { contains actors }\n';
+const KILN_SOURCE = 'kind Kiln { contains actors }\n';
 const catalogue = catalogueOf(
   compiledWorld('printers_shop', {
     ...SHOP,
@@ -62,7 +62,7 @@ const KILN = id('yard', 'kiln');
 const CAT = id('yard', 'kiln', 'cat');
 const TIN = id('hall', 'box', 'tin');
 
-/** The shop saved and loaded with `kiln.sprout` withheld: `Crate` is absent, so the kiln and the box are dormant. */
+/** The shop saved and loaded with `crate.sprout` and `kiln.sprout` withheld: `Crate` and `Kiln` are absent, so the kiln and the box are dormant. */
 const withheld = (): WorldState =>
   loadWorld(
     saveWorld(initialState(catalogue)),
@@ -72,7 +72,7 @@ const withheld = (): WorldState =>
         { ...SHOP, 'world.sprout': catalogueSource, 'kiln.sprout': KILN_SOURCE },
         {
           mode: 'load',
-          withheld: ['kiln.sprout'],
+          withheld: ['crate.sprout', 'kiln.sprout'],
         },
       ),
       CAPS,

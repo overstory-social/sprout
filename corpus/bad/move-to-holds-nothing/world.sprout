@@ -6,6 +6,4 @@ world move_to_holds_nothing is sprout.World {
   object hall is sprout.Place
 }
 
-kind Person is sprout.Visitor { }
-
 verb press { role target  role tool: Button  "press [tool] on [target]" }

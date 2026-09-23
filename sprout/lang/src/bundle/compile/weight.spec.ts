@@ -23,10 +23,10 @@ import {
   file,
   OWN_BYTES,
   refusals,
-  ROOT,
   SPROUT_SHA,
-  WORLD_TEXT,
   world,
+  WORLD_LINE,
+  worldFiles,
 } from '../../fixtures/compile.js';
 
 const OWN = 'enum Season { spring }\n';
@@ -124,15 +124,15 @@ describe('blessed library source costs the author nothing, and a fork costs them
   it('leaves a blessed library out of the source the caps count', () => {
     const { bundle } = compileBundle(world(), { blessed: new Set([SPROUT_SHA]) });
     expect(bundle!.size.exemptBytes).toBe(libraryBytes);
-    expect(bundle!.size.sourceBytes).toBe(WORLD_TEXT.length);
-    expect(bundle!.size.files).toBe(1);
+    expect(bundle!.size.sourceBytes).toBe(OWN_BYTES);
+    expect(bundle!.size.files).toBe(2);
   });
 
   it('counts an unblessed library as the author’s own source', () => {
     const { bundle } = compileBundle(world(), { blessed: new Set() });
     expect(bundle!.size.exemptBytes).toBe(0);
-    expect(bundle!.size.sourceBytes).toBe(WORLD_TEXT.length + libraryBytes);
-    expect(bundle!.size.files).toBe(1 + STANDARD_LIBRARY.files.length);
+    expect(bundle!.size.sourceBytes).toBe(OWN_BYTES + libraryBytes);
+    expect(bundle!.size.files).toBe(2 + STANDARD_LIBRARY.files.length);
   });
 
   it('refuses a world past the host’s source cap, and says what to do', () => {
@@ -162,7 +162,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
     // A .prose file, because a megabyte of source would be a megabyte
     // of parse errors and this test is about the cap, not the parser.
     const big = file('big.prose', 'x'.repeat(1_000_000));
-    const files = [big, file('world.sprout', ROOT)];
+    const files = [big, ...worldFiles(WORLD_LINE)];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 });

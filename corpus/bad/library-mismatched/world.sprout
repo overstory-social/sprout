@@ -8,5 +8,3 @@ world library_mismatched is sprout.World {
 
   object hall is sprout.Place
 }
-
-kind Person is sprout.Visitor { }

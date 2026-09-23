@@ -9,7 +9,7 @@ import { locationOf, SourceFile } from '../../source/source.js';
 import { checkFiles, FILE_GONE, isCode } from './files.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
-import { file, refusals, WORLD_TEXT, world } from '../../fixtures/compile.js';
+import { file, refusals, WORLD_TEXT, world, worldFiles } from '../../fixtures/compile.js';
 
 /** A world naming `named`, with `travelled` arriving and `withheld` held back. */
 function source(named: string[], travelled: string[], withheld?: string[]): MicroworldSource {
@@ -101,8 +101,8 @@ describe('the manifest enumerates the world’s own files', () => {
   it('refuses a file that travelled and the manifest does not name', () => {
     const { bundle, diagnostics } = compileBundle(
       world({
-        files: [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')],
-        manifest: { files: ['world.sprout'] },
+        files: [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')],
+        manifest: { files: ['world.sprout', 'person.sprout'] },
       }),
     );
     expect(bundle).toBeNull();
@@ -119,7 +119,7 @@ describe('the manifest enumerates the world’s own files', () => {
   });
 
   it('takes a .prose file as readily as a .sprout one', () => {
-    const files = [file('world.sprout', WORLD_TEXT), file('kiln.prose', 'Warm brick.')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.prose', 'Warm brick.')];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 

@@ -16,5 +16,3 @@ world handlers is sprout.World {
     object lighter is Lighter
   }
 }
-
-kind Person is sprout.Visitor { }

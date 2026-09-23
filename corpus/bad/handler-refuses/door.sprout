@@ -1,0 +1,7 @@
+kind Door {
+  :locked true
+  on :unlock_attempt (from) {
+    if (!from.is(Door)) { refuse "It does not fit." }
+    self.set(:locked, false)
+  }
+}

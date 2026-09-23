@@ -1,0 +1,4 @@
+// Where the objects above sit.
+kind Room {
+  contains actors
+}

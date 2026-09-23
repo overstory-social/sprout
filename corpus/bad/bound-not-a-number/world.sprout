@@ -3,5 +3,3 @@ world bound_not_a_number is sprout.World {
   visitors arrive at hall
   :wear 0 min [1]
 }
-
-kind Creature is sprout.Visitor { }
