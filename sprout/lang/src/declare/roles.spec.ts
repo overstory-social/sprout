@@ -50,7 +50,7 @@ function world(text: string, options: { onUnknownVerb?: boolean } = {}) {
     diagnostics,
   );
   const unknown: PlayDeclaration[] = [];
-  kinds.resolve(new EnumTable(), diagnostics, undefined, {
+  kinds.resolve('shop', new EnumTable(), diagnostics, undefined, {
     verbs,
     ...(options.onUnknownVerb === true ? { onUnknownVerb: (play) => unknown.push(play) } : {}),
   });

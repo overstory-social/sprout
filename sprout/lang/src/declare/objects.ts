@@ -63,7 +63,7 @@ export function resolveObjects(
         composes: declaration.composes,
         members: declaration.members,
       },
-      context,
+      { ...context, world: library },
     ),
   }));
 }

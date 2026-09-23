@@ -117,16 +117,6 @@ export function runBody(block: Block, frame: Frame, mode: BodyMode, sink: ActSin
   return ended;
 }
 
-/**
- * The library of a kind by its qualified name. A library's name is a
- * manifest name, which holds no `.`, so the library is what precedes the first.
- */
-export function libraryOf(qualified: string): string {
-  const dot = qualified.indexOf('.');
-  if (dot <= 0) throw new Error(`\`${qualified}\` is not a qualified name.`);
-  return qualified.slice(0, dot);
-}
-
 /** A block's statements in order, in a scope of its own: a `let` lives to its `}`. */
 function runBlock(block: Block, outer: Frame, run: Run): Ended {
   const bindings = new Map(outer.bindings);

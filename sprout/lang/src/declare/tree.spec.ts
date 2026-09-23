@@ -41,7 +41,7 @@ function place(text: string, options: { callback?: boolean } = {}) {
     declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
     read,
   );
-  kinds.resolve(enums, read);
+  kinds.resolve('shop', enums, read);
   const composed = resolveObjects(
     'shop',
     declared.filter((d): d is ObjectDeclaration => d.kind === 'object'),

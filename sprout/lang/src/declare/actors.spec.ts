@@ -32,7 +32,7 @@ const KINDS = (() => {
       diagnostics,
     );
   }
-  table.resolve(new EnumTable(), diagnostics);
+  table.resolve('shop', new EnumTable(), diagnostics);
   expect(diagnostics.all.map((d) => d.message)).toEqual([]);
   return table;
 })();

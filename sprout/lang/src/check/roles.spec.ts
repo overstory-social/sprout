@@ -54,7 +54,7 @@ function checked(text: string, options: { visitor?: boolean } = {}): string[][] 
     shop.filter((d): d is KindDeclaration => d.kind === 'kind'),
     setup,
   );
-  kinds.resolve(enums, setup, undefined, { verbs: names });
+  kinds.resolve('shop', enums, setup, undefined, { verbs: names });
   const verbs = new VerbTable();
   verbs.add('shop', verbDeclarations, { kinds, enums, diagnostics: setup });
   expect(

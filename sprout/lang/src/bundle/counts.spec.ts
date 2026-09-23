@@ -31,7 +31,7 @@ function count(text: string, caps: Partial<StaticCaps> = {}) {
   const enums = new EnumTable();
   const table = new KindTable();
   table.add('shop', kinds, read);
-  table.resolve(enums, read);
+  table.resolve('shop', enums, read);
   const composed = resolveObjects('shop', objects, {
     enums,
     kinds: table,

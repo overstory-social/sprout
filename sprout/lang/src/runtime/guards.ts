@@ -17,8 +17,9 @@
 import type { GuardName } from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import type { ResolvedGuard } from '../declare/guards.js';
+import { libraryOf } from '../declare/enums.js';
 import type { KindLookup } from '../declare/kinds.js';
-import { libraryOf, runBody, type Speech } from './body.js';
+import { runBody, type Speech } from './body.js';
 import type { Budget } from './budget.js';
 import { boundObject, type Evaluated, type Frame } from './evaluate.js';
 import type { InstanceId } from './ids.js';

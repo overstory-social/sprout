@@ -16,9 +16,10 @@
 // consent pass alone.
 
 import { isActor } from '../declare/actors.js';
+import { libraryOf } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
-import { libraryOf, runBody, type ActSink, type Speech } from './body.js';
+import { runBody, type ActSink, type Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.js';
