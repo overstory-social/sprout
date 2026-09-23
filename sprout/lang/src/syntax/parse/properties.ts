@@ -14,9 +14,9 @@ import type {
 } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
-import { punct, type Parser } from './parser.js';
+import { atMemberOrClose, punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
-import { separator, stepPast } from './recovery.js';
+import { closesAhead, separator, stepPast } from './recovery.js';
 import { atFraction, atType, BUILT_IN_TYPE_WORDS, literal, skipValue, typeExpr } from './types.js';
 
 /** `Ward`, `sprout.Ward` — a named type as it was written. */
@@ -70,15 +70,22 @@ export function remembers(p: Parser): RemembersDeclaration | null {
 function entries(p: Parser, symbol: Token): RemembersDeclaration | null {
   const properties: PropertyDeclaration[] = [];
   let missingComma: Span | null = null;
+  // As in `listLiteral`: asked once, of the tokens right after `[`,
+  // whether this `:remembers`'s own `]` is out there at all.
+  const closes = closesAhead(p);
   for (;;) {
     const close = p.take('punct', ']');
     if (close !== null) {
       entriesAfterClose(p);
       return { kind: 'remembers', at: spanning(symbol.at, close.at), properties };
     }
-    if (p.done || p.atDeclarationStart()) {
+    if (p.done || p.atDeclarationStart() || (!closes && atMemberOrClose(p))) {
       // As in `listLiteral`: a word that starts a declaration ends the
-      // hunt, because otherwise it runs to the end of the file.
+      // hunt, because otherwise it runs to the end of the file. So do a
+      // `:symbol`, the next member's own name, and a `}`, the body's
+      // own close — neither is ever an entry of this `:remembers` —
+      // but only where `closes` says this `:remembers`'s own `]` is
+      // nowhere ahead of it.
       p.diagnostics.refuse(
         p.done ? p.source.endSpan : p.peek().at,
         'This `:remembers` is never closed.',
@@ -90,10 +97,12 @@ function entries(p: Parser, symbol: Token): RemembersDeclaration | null {
     const declared = rememberedProperty(p);
     if (declared === null) {
       // As in `listLiteral`, including that a file which ran out inside
-      // the entry has already been explained by whatever read it, and
-      // that a word starting a declaration ends the hunt.
-      if (p.done || p.atDeclarationStart()) return null;
-      recoverToEntry(p);
+      // the entry has already been explained by whatever read it, that a
+      // word starting a declaration ends the hunt, and that — where
+      // `closes` is false — the next member's `:symbol` or the body's
+      // `}` needs nothing more said.
+      if (p.done || p.atDeclarationStart() || (!closes && atMemberOrClose(p))) return null;
+      recoverToEntry(p, closes);
       separator(p, ']');
       missingComma = null;
       continue;
@@ -115,11 +124,16 @@ function entries(p: Parser, symbol: Token): RemembersDeclaration | null {
  * Step over what is left of an entry that could not be read, to its own
  * comma or the list's closing `]` at depth zero, by `stepPast`, so a
  * bracket the entry wrote correctly is never taken for the list's own.
+ * Stops at the next member's `:symbol` or the body's `}` too, where
+ * `closes` says this `:remembers` never reaches its own `]` — the same
+ * swallowing `entries` itself refuses at that token instead of walking
+ * past.
  */
-function recoverToEntry(p: Parser): void {
+function recoverToEntry(p: Parser, closes: boolean): void {
   while (!p.done) {
     const token = p.peek();
     if (punct(token, ',') || punct(token, ']') || p.atRecoveryStop()) return;
+    if (!closes && atMemberOrClose(p)) return;
     stepPast(p);
   }
 }

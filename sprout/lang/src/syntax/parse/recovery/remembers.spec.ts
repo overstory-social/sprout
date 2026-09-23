@@ -12,6 +12,8 @@ import {
   explained,
   generatedRemembers,
   memberNames,
+  ownedBy,
+  OWNERS,
   reading,
   stoppedShort,
   tally,
@@ -35,6 +37,22 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     expect(said.map((d) => d.message)).toEqual([
       '`faulty` needs a colon between its name and its value.',
     ]);
+  });
+
+  it('an unclosed `:remembers`, directly before a well-formed member, keeps that member', () => {
+    // No `]` anywhere: the hunt for one stops at the next member's own
+    // `:symbol` rather than reading past it, so `bravo` survives and the
+    // body still closes at its own `}`, though `:remembers`'s own entry
+    // is lost along with the rest of its abandoned declaration.
+    for (const owner of OWNERS) {
+      const text = `${owner.open}\n  :remembers [echo: 0\n  :bravo 1\n}\n`;
+      const { result, said } = reading(text, parseDeclarations);
+      expect(ownedBy(owner, result)?.members.flatMap(memberNames), text).toEqual(['bravo']);
+      expect(
+        said.map((d) => d.message),
+        text,
+      ).toEqual(['This `:remembers` is never closed.']);
+    }
   });
 
   it('over generated `:remembers`, a defect in any part of any entry', () => {
