@@ -1,9 +1,0 @@
-// The world is a place only where it says so: holding things is not
-// holding people.
-world arrival_world_not_a_place: sprout.World {
-  contains
-  visitors are Creature
-  visitors arrive at arrival_world_not_a_place
-}
-
-kind Creature: sprout.Actor { }

@@ -1,7 +1,6 @@
 world play_twice: sprout.World {
-  contains actors
   visitors are Visitor
-  visitors arrive at play_twice
+  visitors arrive at hall
 }
 
 kind Visitor: sprout.Actor { }
@@ -12,3 +11,5 @@ verb unlock {
   "unlock [target] with [tool]"
   "unlock [target]"
 }
+
+object hall: sprout.Place in play_twice

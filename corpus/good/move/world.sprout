@@ -4,7 +4,7 @@
 world moving: sprout.World {
   contains actors
   visitors are Visitor
-  visitors arrive at moving
+  visitors arrive at hall
 }
 
 // A person climbs aboard by moving themselves: in the actor's own part
@@ -25,3 +25,5 @@ object shelf: Shelf in moving
 object press: Press in moving
 object ball: Ball in moving
 object duster: Thing in moving
+
+object hall: sprout.Place in moving

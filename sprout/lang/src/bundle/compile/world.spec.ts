@@ -21,7 +21,7 @@ import { locationOf, SourceFile } from '../../source/source.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import { oneWorld, worldKinds } from './world.js';
-import { file, refusals, ROOT, warnings, WORLD_LINE, world } from '../../fixtures/compile.js';
+import { file, HALL, refusals, ROOT, warnings, WORLD_LINE, world } from '../../fixtures/compile.js';
 
 const MANIFEST = new SourceFile('sprout.json', '{\n  "name": "shop"\n}\n');
 
@@ -384,7 +384,7 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
     const files = [
       file(
         'world.sprout',
-        'world printers_shop: sprout.World { contains actors visitors are Basket visitors arrive at printers_shop }\nkind Basket { contains }',
+        `world printers_shop: sprout.World { visitors are Basket visitors arrive at hall }\nkind Basket { contains }\n${HALL}`,
       ),
     ];
     for (const mode of ['publish', 'load'] as const) {
@@ -398,7 +398,7 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
   });
 
   it('runs a world whose visitor kind is absent at load, admitting no one', () => {
-    const files = [file('world.sprout', WORLD_LINE), file('people.sprout', VISITOR)];
+    const files = [file('world.sprout', `${WORLD_LINE}\n${HALL}`), file('people.sprout', VISITOR)];
     const { bundle, diagnostics } = compileBundle(world({ files, withheld: ['people.sprout'] }), {
       mode: 'load',
     });

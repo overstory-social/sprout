@@ -3,9 +3,8 @@
 // `bound`, a value tool narrowed with `from`, two kinds playing one role
 // and composing, a play left out with `without`, and the actor's own part.
 world roles: sprout.World {
-  contains actors
   visitors are Visitor
-  visitors arrive at roles
+  visitors arrive at hall
 }
 
 // The one acting plays its part too: a full pair of hands pulls nothing.
@@ -26,8 +25,9 @@ verb unlock {
   "unlock [target]"
 }
 
-object lever: Lever in roles
-object door: Warded in roles
-object gate: Rusted in roles
-object key: Key in roles
-object guard: Guard in roles
+object hall: sprout.Place in roles
+object lever: Lever in hall
+object door: Warded in hall
+object gate: Rusted in hall
+object key: Key in hall
+object guard: Guard in hall

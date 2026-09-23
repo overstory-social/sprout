@@ -9,8 +9,9 @@
 // a first step names something directly in the world, or the world
 // itself, and anything deeper is named by its path. And from anywhere
 // else the nearest declaration wins, walking outward one container at a
-// time to the world (`resolveFrom`). Both are loops rather than
-// recursion, since nesting has no cap.
+// time to the world (`resolveFrom`), so an object that hides one of its
+// name further out is warned about once the tree is whole. Both rules are
+// loops rather than recursion, since nesting has no cap.
 
 import type { Ident, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -300,7 +301,49 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
     for (const index of trail) walked.set(index, 'done');
   }
 
+  warnHidden(objects, tree, diagnostics);
   return tree;
+}
+
+/**
+ * Warn at each placed object that hides one of its name held further out
+ * (the spec's Identifiers and scope): by the container around its own, or
+ * any beyond that out to the world. Only the nearest one hidden is named,
+ * since it is the one the name meant there before.
+ */
+function warnHidden(
+  objects: readonly Placeable[],
+  tree: ObjectTree,
+  diagnostics: Diagnostics,
+): void {
+  const byDeclaration = new Map([...tree.placed.values()].map((one) => [one.declaration, one]));
+  for (const { declaration } of objects) {
+    const inner = byDeclaration.get(declaration);
+    if (inner === undefined) continue;
+    const name = declaration.name.text;
+    const rings = ringsTo(tree, inner.container);
+    // The last ring is the container's own, where two of one name are refused.
+    let hidden: Placement | undefined;
+    for (let ring = rings.length - 2; ring >= 0 && hidden === undefined; ring--) {
+      hidden = rings[ring]!.get(name);
+    }
+    if (hidden === undefined) continue;
+    const inside = pathKey(inner.container);
+    const outer = pathKey(hidden.path);
+    if (hidden.container.length === 0) {
+      diagnostics.warn(
+        declaration.name.at,
+        `\`${name}\` hides the \`${name}\` directly in the world: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
+        `No path reaches the world's \`${name}\` from inside \`${inside}\`, since the world's name is never a step of one. Give one of them another name if both are meant there.`,
+      );
+    } else {
+      diagnostics.warn(
+        declaration.name.at,
+        `\`${name}\` hides \`${outer}\`: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
+        `Write \`${outer}\` where the outer one is meant, or give this one another name.`,
+      );
+    }
+  }
 }
 
 /**

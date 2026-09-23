@@ -1,9 +1,10 @@
 world play_empty: sprout.World {
-  contains actors
   visitors are Visitor
-  visitors arrive at play_empty
+  visitors arrive at hall
 }
 
 kind Visitor: sprout.Actor { }
 
 verb pull { role target  "pull [target]" }
+
+object hall: sprout.Place in play_empty

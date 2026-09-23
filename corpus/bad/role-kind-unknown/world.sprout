@@ -1,7 +1,8 @@
 world role_kind_unknown: sprout.World {
-  contains actors
   visitors are Creature
-  visitors arrive at role_kind_unknown
+  visitors arrive at hall
 }
 
 kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in role_kind_unknown

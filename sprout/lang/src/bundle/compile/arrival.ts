@@ -12,8 +12,8 @@ import type { DeclarationTables } from '../declarations.js';
 import type { Report } from './report.js';
 
 /**
- * The path of the place visitors arrive at, the world's being the empty
- * one, or null having said why there is none. At publish a file the
+ * The path of the place inside the world visitors arrive at, or null
+ * having said why there is none. At publish a file the
  * first tier refused may be where the place was declared, so its absence
  * is not said, and what left it absent is not told twice; at load the
  * gap is recorded either way.

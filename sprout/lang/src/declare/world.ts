@@ -8,11 +8,11 @@
 // it writes otherwise, so places are out of range of one another until
 // the world says so; `visitors are` names the visitor kind, the world's
 // own kind composing `sprout.Actor` (`resolveVisitors`); and `contains
-// actors` is what makes a place a place, the world included if it says
-// so. `visitors arrive at` is a path read from inside the world, as an
-// object's `in` is, and what it reaches must be a place
-// (`resolveArrival`); B32 reads the pass rules, and B42 puts a visitor
-// there at run time.
+// actors` is what makes a place a place. `visitors arrive at` is a path
+// read from inside the world, as an object's `in` is, and what it
+// reaches must be a place inside the world, never the world itself, even
+// one that declares `contains actors` (`resolveArrival`); B32 reads the
+// pass rules, and B42 puts a visitor there at run time.
 
 import {
   writtenPath,
@@ -37,6 +37,7 @@ import {
 import { ACTOR, checkVisitorKind } from './actors.js';
 import type { OnUnknownVerb, VerbNames } from './roles.js';
 import {
+  pathKey,
   resolveFrom,
   unknownStep,
   worldInPath,
@@ -250,7 +251,7 @@ export interface ArrivalContext {
 
 /** Where visitors arrive, as `resolveArrival` finds it. */
 export type Arrival =
-  /** A place, by its path; the world is the empty path. */
+  /** A place inside the world, by its path. */
   | { readonly found: 'place'; readonly path: TreePath }
   /**
    * Nothing is there to arrive in: the absent table's `place-of-arrival`
@@ -270,10 +271,10 @@ export type Arrival =
 
 /**
  * Resolve `visitors arrive at` from inside the world, as an object's
- * `in` is read, and ask whether what it names is a place: something
- * whose kind declares `contains actors` (the spec's Places). The world
- * itself is one when its own body says so, or a kind it composes beside
- * `sprout.World` does.
+ * `in` is read, and ask whether what it names is a place: something in
+ * the world whose kind declares `contains actors` (the spec's Places).
+ * The world itself is refused, whatever it declares (the spec's Actors
+ * and visitors).
  */
 export function resolveArrival(declared: WorldDeclaration, context: ArrivalContext): Arrival {
   const { tree, diagnostics } = context;
@@ -304,8 +305,17 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
     path.parts.map((part) => part.text),
   );
   switch (found.found) {
-    case 'world':
-      return worldAsPlace(declared, context, absent, notAPlace);
+    case 'world': {
+      const place = [...tree.placed.values()].find((one) => one.kind?.containsActors === true);
+      diagnostics.refuse(
+        last.at,
+        `\`${last.text}\` is the world itself, and visitors arrive in a place inside it.`,
+        place === undefined
+          ? 'Declare a place in the world, an object that composes `sprout.Place` or writes `contains actors` in its body, and name it here.'
+          : `Name a place in the world, as in \`visitors arrive at ${pathKey(place.path)}\`.`,
+      );
+      return { found: 'refused' };
+    }
     case 'world-inside':
       // `worldInPath` has answered every path the world's name is a step of.
       return { found: 'refused' };
@@ -345,47 +355,4 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
       );
     }
   }
-}
-
-/**
- * The world named as where visitors arrive: a place if its own body
- * declares `contains actors` or a kind it composes beside `sprout.World`
- * does. A kind it composes that nothing declares leaves that unknown,
- * which is the `place-of-arrival` gap rather than a refusal.
- */
-function worldAsPlace(
-  declared: WorldDeclaration,
-  context: ArrivalContext,
-  absent: (message: string, remedy: string, said: boolean, at: Span) => Arrival,
-  notAPlace: (name: string, remedy: string) => Arrival,
-): Arrival {
-  const name = declared.name.text;
-  const own = declared.members.some((member) => member.kind === 'contains' && member.actors);
-  if (own) return { found: 'place', path: [] };
-  let missing: Arrival | null = null;
-  for (const written of declared.composes) {
-    if (writesWorld(written)) continue;
-    const found = context.kinds.find(identityOf(written, context.from, context.kinds));
-    if (found.found === 'kind') {
-      if (found.kind.containsActors) return { found: 'place', path: [] };
-    } else if (missing === null) {
-      const kind = writtenKind(written);
-      const unknown =
-        found.found === 'unknown' ? unknownKind(written, context.from, context.kinds) : null;
-      missing = absent(
-        `${unknown?.message ?? `\`${kind}\` is absent.`} \`${name}\` is made of it, so it is not known to be a place for visitors to arrive in.`,
-        unknown?.remedy ??
-          `Bring \`${kind}\` back, or write \`contains actors\` in the world's body.`,
-        unknown === null,
-        written.at,
-      );
-    }
-  }
-  return (
-    missing ??
-    notAPlace(
-      name,
-      "Write `contains actors` in the world's body to make it a place, or name a place in it for visitors to arrive at.",
-    )
-  );
 }

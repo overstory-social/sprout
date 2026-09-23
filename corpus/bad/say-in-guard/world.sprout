@@ -1,7 +1,8 @@
 world say_in_guard: sprout.World {
-  contains actors
   visitors are Visitor
-  visitors arrive at say_in_guard
+  visitors arrive at hall
 }
 
 kind Visitor: sprout.Actor { }
+
+object hall: sprout.Place in say_in_guard

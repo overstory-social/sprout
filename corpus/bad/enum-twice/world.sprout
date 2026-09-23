@@ -1,7 +1,8 @@
 world enum_twice: sprout.World {
-  contains actors
   visitors are Creature
-  visitors arrive at enum_twice
+  visitors arrive at hall
 }
 
 kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in enum_twice

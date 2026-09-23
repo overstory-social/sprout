@@ -10,7 +10,15 @@ import { describe, expect, it } from 'vitest';
 
 import { compileBundle } from './compile.js';
 import { limitsFrom } from '../limits.js';
-import { file, refusals, ROOT, WORLD_LINE, WORLD_TEXT, world } from '../../fixtures/compile.js';
+import {
+  file,
+  HALL,
+  refusals,
+  ROOT,
+  WORLD_LINE,
+  WORLD_TEXT,
+  world,
+} from '../../fixtures/compile.js';
 import { locationOf } from '../../source/source.js';
 
 describe('what a compiled bundle carries', () => {
@@ -40,7 +48,7 @@ describe('what a compiled bundle carries', () => {
     const files = [
       file(
         'world.sprout',
-        `${ROOT}\nkind Crate { contains }\nobject hall: Crate in printers_shop\nobject box: Crate in hall`,
+        `${ROOT}\nkind Crate { contains }\nobject crate: Crate in printers_shop\nobject box: Crate in crate`,
       ),
     ];
     const { bundle: carried, diagnostics } = compileBundle(world({ files }));
@@ -53,11 +61,12 @@ describe('what a compiled bundle carries', () => {
       ['sprout', 'Actor', ['sprout.Actor']],
     ]);
     expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container])).toEqual([
-      ['hall', ['printers_shop.Crate', 'printers_shop.hall'], []],
-      ['box', ['printers_shop.Crate', 'printers_shop.box'], ['hall']],
+      ['hall', ['sprout.Place', 'printers_shop.hall'], []],
+      ['crate', ['printers_shop.Crate', 'printers_shop.crate'], []],
+      ['box', ['printers_shop.Crate', 'printers_shop.box'], ['crate']],
     ]);
     expect(carried!.tree.world).toBe('printers_shop');
-    expect([...carried!.tree.placed.keys()]).toEqual(['hall', 'hall.box']);
+    expect([...carried!.tree.placed.keys()]).toEqual(['hall', 'crate', 'crate.box']);
   });
 
   it('carries the kinds by name as the checker found them, a failed kind of its own included', () => {
@@ -97,7 +106,8 @@ describe('what a compiled bundle carries', () => {
 
   it('carries the world composed, named for itself, and the kind its visitors are made of', () => {
     expect(bundle!.world!.order).toEqual(['sprout.World', 'printers_shop.printers_shop']);
-    expect(bundle!.world!.containsActors).toBe(true);
+    // `sprout.World` holds things and not people; visitors arrive in `hall`.
+    expect([bundle!.world!.contains, bundle!.world!.containsActors]).toEqual([true, false]);
     expect(bundle!.visitor!.order).toEqual(['sprout.Actor', 'printers_shop.Visitor']);
     // `sprout.Actor`'s hands arrive with it, by the ordinary property rules.
     expect([...bundle!.visitor!.properties.keys()]).toEqual(['capacity']);
@@ -105,14 +115,20 @@ describe('what a compiled bundle carries', () => {
 
   it('roots the tree at the manifest’s name, not its namespace', () => {
     const files = [
-      file('world.sprout', `${ROOT}\nkind Crate { contains }\nobject hall: Crate in printers_shop`),
+      file(
+        'world.sprout',
+        `${ROOT}\nkind Crate { contains }\nobject crate: Crate in printers_shop`,
+      ),
     ];
     const { bundle: carried, diagnostics } = compileBundle(
       world({ files, manifest: { namespace: 'ink' } }),
     );
     expect(refusals(diagnostics)).toEqual([]);
     expect(carried!.tree.world).toBe('printers_shop');
-    expect(carried!.objects.map((o) => [o.library, o.path])).toEqual([['ink', ['hall']]]);
+    expect(carried!.objects.map((o) => [o.library, o.path])).toEqual([
+      ['ink', ['hall']],
+      ['ink', ['crate']],
+    ]);
   });
 
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
@@ -120,6 +136,7 @@ describe('what a compiled bundle carries', () => {
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
       'printers_shop',
       'Visitor',
+      'hall',
       'Season',
       'World',
       'go',
@@ -164,6 +181,7 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
     const text = [
       WORLD_LINE.replace('}', 'depart (to) { destroy self } }'),
       'kind Visitor: sprout.Actor { }',
+      HALL,
       'kind Crate { contains }',
       'object crate: Crate in printers_shop { accept (item, from) { refuse gone } }',
     ].join('\n');
@@ -171,10 +189,10 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
       [
-        'world.sprout:1:121',
+        'world.sprout:1:96',
         '`destroy self` removes something, and a guard only reads and decides.',
       ],
-      ['world.sprout:4:69', '`crate` has no passage `gone`.'],
+      ['world.sprout:5:69', '`crate` has no passage `gone`.'],
     ]);
   });
 
@@ -182,6 +200,7 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
     const text = [
       WORLD_LINE,
       'kind Visitor: sprout.Actor { }',
+      HALL,
       'kind Crate { contains :capacity 4 accept (item, from) { if (self.count >= self.get(:capacity)) { refuse full } } passage full { No room. } }',
       'object crate: Crate in printers_shop { depart (to) { if (mover != self) { refuse "Nailed down." } } }',
     ].join('\n');

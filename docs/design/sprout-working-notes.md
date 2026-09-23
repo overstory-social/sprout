@@ -245,13 +245,13 @@ The code that differs is an issue each; see the items below.
 - The absent table has a row for a kind named in a `spawn`: the `spawn` faults when it runs.
 - The host's live-instance bound counts every instance it stores, dormant ones included.
 
-Composing with `is`, refusing arrival at the world, the shadowing warning, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
+Composing with `is`, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
 - **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
-- **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
+- **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is. Decided 2026-09-23: the line is still accepted, but visitors never arrive at the world itself, whatever it declares; `visitors arrive at` naming it is refused in either mode, and the remedy names a place inside the world where there is one.
 - **A block comment never closed, or inside another.** Decided 2026-09-22 and now under Lexical rules: refused at its opening; no nesting.
 - **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
 - **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.
@@ -477,6 +477,13 @@ Found while building `move` (B25), each decided the narrow way and awaiting Eric
 - **Order among a body's effects.** What its spawns, moves and destroys send, and what it says and has refused, keep the order the body did them in.
 - **`move` where a value is wanted.** `let x = move a to b` is refused once, as `spawn` and `destroy` are, with both sides stepped over.
 - **A move whose mover is not the actor.** `sprout.Actor`'s `depart` refuses when the mover is not itself, so `move actor to self` in a cart's `do` is refused by the actor; a person boards by moving themselves, in the actor's own part, as `good/move` does.
+
+Found while refusing arrival at the world and warning on a hidden name, each decided the narrow way and awaiting Eric:
+
+- **Which place the arrival refusal names.** The first place in the tree, shallowest first and in the order declared within a depth, by its path (`visitors arrive at kiln.back_room`). A world with no place in it is told to declare one.
+- **Which hidden object the warning names.** Only the nearest one further out, since that is what the name meant there before; an object that hides several is warned about once.
+- **A hidden object directly in the world.** No path reaches it from inside the hiding container, since the world's name is never a step of a path, so the warning says so instead of naming a path, and says to rename one if both are meant there.
+- **An object whose kind is absent.** It is still placed, so it still hides one of its name further out and can be hidden itself, and the warning is said in either mode.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

@@ -1,7 +1,8 @@
 world verb_twice: sprout.World {
-  contains actors
   visitors are Creature
-  visitors arrive at verb_twice
+  visitors arrive at hall
 }
 
 kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in verb_twice

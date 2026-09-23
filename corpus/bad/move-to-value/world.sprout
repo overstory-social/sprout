@@ -1,9 +1,11 @@
 world move_to_value: sprout.World {
   contains actors
   visitors are Visitor
-  visitors arrive at move_to_value
+  visitors arrive at hall
 }
 
 kind Visitor: sprout.Actor { }
 
 verb bump { role target  "bump [target]" }
+
+object hall: sprout.Place in move_to_value
