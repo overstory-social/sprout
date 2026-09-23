@@ -39,8 +39,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * A yard whose hall holds a player of each part a reading has. `Both`
  * composes `First` and `Second`, each playing the target of `order`, and
  * adds its own; every `permit` refuses when its flag is set, and every
- * `do` says who it is. The world holds things and not actors, so a
- * mouse in a crate in it is in no place but the world.
+ * `do` says who it is. The world holds things and not actors.
  */
 const YARD = compiledWorld('yard', {
   'world.sprout': [
@@ -122,10 +121,7 @@ const YARD = compiledWorld('yard', {
     'object cat: Person in hall',
     'object dog: Person in hall',
     'object basket: Basket in hall',
-    'object kit: Person in hall.basket',
     'object wardrobe: Room in hall',
-    'object crate: Basket in yard',
-    'object mouse: Person in crate',
     '',
   ].join('\n'),
 });
@@ -149,9 +145,8 @@ const BEAD = at('hall', 'bubble', 'bead');
 const GLASS = at('hall', 'glass');
 const CAT = at('hall', 'cat');
 const DOG = at('hall', 'dog');
-const KIT = at('hall', 'basket', 'kit');
+const BASKET = at('hall', 'basket');
 const WARDROBE = at('hall', 'wardrobe');
-const MOUSE = at('crate', 'mouse');
 
 interface Turn {
   readonly draft: Draft;
@@ -518,17 +513,19 @@ describe('where the actor is', () => {
       runReading(reading(YARD, 'nod', actor, { target: { object: STONE } }), contextOf(one)),
     ).said[0]!.bindings.get('here');
 
-  it('is its nearest container holding actors, a place inside a place included', () => {
+  it('is its container, which holds actors, a place inside a place included', () => {
     const one = turn(YARD, [HALL, WARDROBE]);
     expect(hereOf(one.people[0]!, one)).toEqual({ binds: 'object', id: HALL });
     expect(hereOf(one.people[1]!, one)).toEqual({ binds: 'object', id: WARDROBE });
-    // A basket holds things and not actors, so the kit in it is in the hall.
-    expect(hereOf(KIT, one)).toEqual({ binds: 'object', id: HALL });
+    expect(hereOf(CAT, one)).toEqual({ binds: 'object', id: HALL });
   });
 
-  it('is the world where nothing around it holds actors', () => {
+  it('is an engine error for an actor in something that holds no actors, which nothing makes', () => {
     const one = turn(YARD, []);
-    expect(hereOf(MOUSE, one)).toEqual({ binds: 'object', id: WORLD_ID });
+    one.draft.place(CAT, BASKET);
+    expect(() => hereOf(CAT, one)).toThrow(
+      `\`${CAT}\` is in \`${BASKET}\`, which holds no actors.`,
+    );
   });
 });
 

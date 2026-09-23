@@ -17,12 +17,14 @@ import type { InstanceId } from './ids.js';
 import { isLive, liveTree } from './live.js';
 import { reaches, type PassRule } from './range.js';
 import { newInstance } from './state.js';
+import { isActor } from '../declare/actors.js';
 
 /** Why a spawn or a destroy could not be made. */
 export type LifecycleFaultReason =
   | 'instances'
   | 'out-of-range'
   | 'holds-nothing'
+  | 'holds-no-actors'
   | 'kind-absent'
   | 'world'
   | 'visitor'
@@ -109,7 +111,8 @@ export interface Destroyed {
  * Spawn an instance of `kind`, by qualified name, into `container` at the
  * kind's defaults; `spawner` is the object whose body ran the `spawn`.
  * Faults, writing nothing, when the kind is absent, the container is out
- * of range or holds nothing, or the turn's cap or the host's bound is reached.
+ * of range, holds nothing, or holds no actors where the kind is an actor,
+ * or the turn's cap or the host's bound is reached.
  */
 export function spawnInstance(
   context: LifecycleContext,
@@ -142,6 +145,13 @@ export function spawnInstance(
       'holds-nothing',
       container,
       `\`${container}\` holds nothing, so ${shown} could not be spawned in it.`,
+    );
+  }
+  if (isActor(made) && draft.instance(container)?.kind.containsActors !== true) {
+    throw new LifecycleFault(
+      'holds-no-actors',
+      container,
+      `\`${container}\` holds no actors, so ${shown}, an actor, could not be spawned in it.`,
     );
   }
   budget.spawn();

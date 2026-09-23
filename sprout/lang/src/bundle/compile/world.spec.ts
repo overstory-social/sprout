@@ -355,29 +355,28 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
 });
 
 describe('a world’s actors: what its visitors are made of, and its NPCs', () => {
-  it('accepts an NPC with no place among what holds it, and one inside what holds no people', () => {
-    // The world here holds things and not people, so the ghost stands in
-    // no place; the cat is in a basket in the hall. Where an actor may be
-    // moved is a matter for moving it, and declaring one is accepted.
+  it('accepts an NPC in a place, and one in a place inside a place', () => {
     const files = [
       file(
         'world.sprout',
         [
           'world printers_shop: sprout.World { visitors are Visitor visitors arrive at hall }',
           VISITOR,
-          'kind Basket { contains }',
+          'kind Cat: Visitor { }',
           'object hall: sprout.Place in printers_shop',
-          'object ghost: Visitor in printers_shop',
-          'object basket: Basket in hall',
-          'object cat: Visitor in hall.basket',
+          'object nook: sprout.Place in hall',
+          'object ghost: Visitor in hall',
+          'object cat: Cat in hall.nook',
         ].join('\n'),
       ),
     ];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(diagnostics).toEqual([]);
-    expect(bundle!.world!.containsActors).toBe(false);
     const npcs = bundle!.objects.filter((o) => isNpc(o.kind, bundle!.visitor!));
-    expect(npcs.map((o) => o.path)).toEqual([['ghost'], ['hall', 'basket', 'cat']]);
+    expect(npcs.map((o) => o.path)).toEqual([
+      ['hall', 'ghost'],
+      ['hall', 'nook', 'cat'],
+    ]);
   });
 
   it('refuses a visitor kind that is not an actor in either mode, since nothing is missing', () => {

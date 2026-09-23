@@ -368,20 +368,16 @@ function hears(narrowing: RoleNarrowing, value: Value, self: Instance): boolean 
 }
 
 /**
- * The actor's place: its nearest container holding actors (the spec's
- * Places inside places). One that nothing around holds actors is placed
- * in the world, the one container every object has.
+ * The actor's place: its container, which holds actors, since an actor is
+ * only ever inside something that does (the spec's Actors and visitors).
  */
 function placeOf(state: StateReader, actor: InstanceId): InstanceId {
   const container = instanceIn(state, actor).container;
   if (container === null)
     throw new Error(`\`${actor}\` is away, and an away visitor reads nothing.`);
-  for (let at: InstanceId | null = container; at !== null;) {
-    const holder = instanceIn(state, at);
-    if (holder.kind.containsActors) return at;
-    at = holder.container;
-  }
-  return state.world;
+  if (!instanceIn(state, container).kind.containsActors)
+    throw new Error(`\`${actor}\` is in \`${container}\`, which holds no actors.`);
+  return container;
 }
 
 /**

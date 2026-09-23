@@ -1,0 +1,22 @@
+world spawn_actor_not_an_npc: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+kind Porter: sprout.Actor { }
+
+verb ring { role target  "ring [target]" }
+
+// What a spawn makes is declared nowhere, and an actor made that way is
+// an NPC like any other, so it is made of what visitors are made of.
+kind Bell {
+  as target for ring {
+    do { spawn Porter in here }
+  }
+}
+
+object hall: sprout.Place in spawn_actor_not_an_npc
+
+object bell: Bell in hall

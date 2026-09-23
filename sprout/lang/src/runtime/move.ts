@@ -194,7 +194,8 @@ export function moveInstance(
     { message: 'moved', recipient: item, from, to },
   ];
   const notices: Notice[] = [];
-  if (actor && holdsActors(draft, from) && holdsActors(draft, to)) {
+  // An actor is only ever in a place, so it has moved between two.
+  if (actor) {
     const spoken = (notice: 'leaves' | 'arrives', place: InstanceId): void => {
       const passage = draft.instance(place)?.kind.passages.get(notice);
       if (passage === undefined) return;

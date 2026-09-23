@@ -2,15 +2,17 @@
 // world model › Actors and visitors). An actor is whatever composes
 // `sprout.Actor`, an ordinary nominal test rather than a name the engine
 // knows. The visitor kind is the world's own kind composing it, and an NPC
-// is an object composing the visitor kind with nobody behind it. Nothing
-// here asks where an actor stands: an NPC needs no place among its
-// ancestors, and where one may be moved is `runtime/move.ts`'s and B42's.
+// is an object composing the visitor kind with nobody behind it. The only
+// actors are visitors and NPCs, and an actor is only ever directly inside
+// something that declares `contains actors` (`checkActors`), so every
+// actor has a place; where one may be moved is `runtime/move.ts`'s.
 
 import type { KindExpr } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, SPROUT } from './enums.js';
 import { composesKind, kindName, type KindRef } from './kinds.js';
 import { writtenKind } from './compose.js';
+import { pathKey, type ObjectTree, type Placeable } from './tree.js';
 
 /** `sprout.Actor`: the hands and their capacity, which every actor composes. */
 export const ACTOR = qualifiedName(SPROUT, 'Actor');
@@ -63,4 +65,72 @@ export function checkVisitorKind(
     return false;
   }
   return true;
+}
+
+/**
+ * Why `name`, made of an actor kind that does not compose `visitor`, may
+ * not be one: the words a declaration's refusal and a spawn's share.
+ */
+export function notAnNpc(name: string, visitor: KindRef): string {
+  return `\`${name}\` composes \`${ACTOR}\` but not \`${visitor.name}\`, and the only actors are visitors and NPCs.`;
+}
+
+/** What `checkActors` reads: the tree, every object in it, and what the world and its visitors are made of. */
+export interface ActorSetting {
+  readonly tree: ObjectTree;
+  /** Every object declared, in the order declared, with its kind where it composed. */
+  readonly objects: readonly Placeable[];
+  /** The world's kind; null where it is absent, which has been said. */
+  readonly world: KindRef | null;
+  /** The visitor kind; null where the world has none to name, which has been said. */
+  readonly visitor: KindRef | null;
+  readonly diagnostics: Diagnostics;
+}
+
+/**
+ * Refuse every declared actor that is not an NPC, and every NPC declared
+ * directly inside something that does not hold actors (the spec's Actors
+ * and visitors). Each object is told at most one of the two, and nothing
+ * is said where what decides it is absent.
+ */
+export function checkActors(setting: ActorSetting): void {
+  const { tree, world, visitor, diagnostics } = setting;
+  const placed = new Map([...tree.placed.values()].map((one) => [one.declaration, one]));
+  for (const { declaration, kind } of setting.objects) {
+    if (kind === null || !isActor(kind)) continue;
+    const name = declaration.name.text;
+    if (visitor !== null && !isNpc(kind, visitor)) {
+      diagnostics.refuse(
+        declaration.name.at,
+        notAnNpc(name, visitor),
+        `Compose \`${visitor.name}\`, what this world's visitors are made of, to make \`${name}\` an NPC, or make it of kinds that do not compose \`${ACTOR}\`.`,
+      );
+      continue;
+    }
+    const placement = placed.get(declaration);
+    if (placement === undefined) continue;
+    const holder =
+      placement.container.length === 0
+        ? world
+        : tree.placed.get(pathKey(placement.container))!.kind;
+    if (holder === null || holder.containsActors) continue;
+    const step = declaration.container.parts.at(-1)!;
+    if (placement.container.length === 0) {
+      const place = [...tree.placed.values()].find((one) => one.kind?.containsActors === true);
+      diagnostics.refuse(
+        step.at,
+        `\`${tree.world}\` is the world, which holds no actors, so \`${name}\` cannot stand directly in it.`,
+        place === undefined
+          ? `Declare a place in the world, an object that composes \`sprout.Place\` or writes \`contains actors\` in its body, and put \`${name}\` in it.`
+          : `Put \`${name}\` in a place in the world, as in \`in ${pathKey(place.path)}\`.`,
+      );
+    } else {
+      const last = placement.container.at(-1)!;
+      diagnostics.refuse(
+        step.at,
+        `\`${last}\` holds no actors, so \`${name}\` cannot stand in it.`,
+        `Put \`${name}\` in a place, or make \`${last}\` one: compose \`sprout.Place\`, or write \`contains actors\` in its body.`,
+      );
+    }
+  }
 }

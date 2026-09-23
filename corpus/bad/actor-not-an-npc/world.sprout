@@ -1,0 +1,14 @@
+world actor_not_an_npc: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+// A porter is an actor, but it is not made of what visitors are made of,
+// so it is neither a visitor nor an NPC, and the only actors are those.
+kind Porter: sprout.Actor { }
+
+object hall: sprout.Place in actor_not_an_npc
+
+object porter: Porter in hall

@@ -23,9 +23,12 @@ object press_yard: sprout.Place in actors
 
 object basket: Basket in composing_room
 
-// An NPC is an object made of the visitor kind, with nobody behind it.
-// The cat sleeps in a basket, which holds things and not people: where
-// an actor may be put is a matter for moving it, not for declaring it.
-object cat: Creature in composing_room.basket
+// A place may stand inside another: the nook is somewhere to be, inside
+// the composing room.
+object nook: sprout.Place in composing_room
+
+// An NPC is an object made of the visitor kind, with nobody behind it,
+// and like every actor it stands in a place. The cat sleeps in the nook.
+object cat: Creature in composing_room.nook
 
 object apprentice: Creature in press_yard

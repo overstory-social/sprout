@@ -5,6 +5,7 @@ import { letBinding, showBindingType, valueOf } from './bindings.js';
 import { narrowingOf, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { kindName } from '../declare/kinds.js';
+import { ACTOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseExpression, parseStatement } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
@@ -12,6 +13,7 @@ import { integer } from '../declare/types.js';
 import {
   at,
   bodyOf,
+  kind,
   KINDS,
   PRINTER,
   saidBy,
@@ -289,6 +291,24 @@ describe('`spawn` makes a kind in something that holds things', () => {
   it('asks for no property, since every property has a written default', () => {
     // `Key` declares `:wear` and `:opens`; a spawn is at the defaults.
     expect(spawned('spawn Key in self', vessel()).said).toEqual([]);
+  });
+
+  it('refuses an actor that would not be an NPC, and takes one that would', () => {
+    const npc = { ...vessel(), visitor: PRINTER };
+    expect(spawned('spawn Printer in self', npc)).toEqual({ kind: 'shop.Printer', said: [] });
+    const visitor = kind('Visitor', [], [ACTOR]);
+    expect(spawned('spawn Printer in self', { ...vessel(), visitor })).toEqual({
+      kind: null,
+      said: [
+        [
+          'b.sprout:1:7',
+          '`Printer` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
+          "Spawn `Visitor`, what this world's visitors are made of, or a kind that composes it, to make an NPC; or spawn a kind that is not an actor.",
+        ],
+      ],
+    });
+    // A thing is spawned whatever the visitor kind is.
+    expect(spawned('spawn Rib in self', { ...vessel(), visitor }).said).toEqual([]);
   });
 });
 

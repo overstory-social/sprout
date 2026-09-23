@@ -77,6 +77,7 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     self,
     diagnostics,
     verb: verb.name,
+    visitor: setting.visitor,
   };
   const declaration = play.declaration;
   if (declaration.permit !== null) checkBlock(declaration.permit, context, { body: 'permit' });

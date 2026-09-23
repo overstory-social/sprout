@@ -29,7 +29,8 @@
 // taking the report: the manifest's own fields, the files, the
 // libraries, what the bundle weighs, the first tier over every file, the
 // one world, the declarations, what the world and its visitors are made
-// of, where visitors arrive, and the bodies every kind writes.
+// of, where visitors arrive, which actors may be declared where, and the
+// bodies every kind writes.
 
 import type { KindDeclaration, ObjectDeclaration } from '../../syntax/ast.js';
 import type { CompileMode } from '../absent.js';
@@ -37,6 +38,7 @@ import { bundleHashOf, LANGUAGE_LEVEL } from '../bundle.js';
 import type { Bundle, MicroworldSource } from '../bundle.js';
 import { softenPolicy, type Diagnostic } from '../../source/diagnostics.js';
 import { resolveDeclarations } from '../declarations.js';
+import { checkActors } from '../../declare/actors.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
@@ -121,6 +123,13 @@ export function compileBundle(
     theWorld === null
       ? null
       : arrivalPlace(theWorld, tables, manifest.namespace, ownFileRefused, report);
+  checkActors({
+    tree: tables.tree,
+    objects: tables.composed,
+    world,
+    visitor,
+    diagnostics: report.diagnostics,
+  });
 
   // Every body, against the kind that wrote it.
   checkBodies(
