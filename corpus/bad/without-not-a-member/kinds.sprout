@@ -4,6 +4,6 @@ kind LightSource {
   :lit false
 }
 
-kind SafetyLamp: LightSource {
+kind SafetyLamp is LightSource {
   without :lit from LightSource
 }

@@ -4,4 +4,4 @@ kind Wooden {
   :worn 0 min 0 max 9
 }
 
-kind Chest: Wooden, Wooden { }
+kind Chest is Wooden, Wooden { }

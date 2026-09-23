@@ -1,7 +1,7 @@
-world default_option_capitalised: sprout.World {
+world default_option_capitalised is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :ward Ward.Iron
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

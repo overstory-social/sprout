@@ -1,7 +1,7 @@
-world no_default: sprout.World {
+world no_default is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :season Season
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

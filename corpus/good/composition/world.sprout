@@ -1,8 +1,21 @@
 // A printer's shop made of kinds and objects the world declares itself.
-world composition: sprout.World {
+world composition is sprout.World {
   contains
   visitors are Creature
   visitors arrive at composing_room
+
+  // An object names its kinds after `is`, and a body may follow, which
+  // holds what sits inside it.
+  object composing_room is Room {
+    object type_case is Lidded, Heavy
+
+    // A body restates what the object composes, keeping its type: `:worn`
+    // stays 0 to 9, and `:opened` stays remembered.
+    object chest is Chest {
+      :worn 3
+      :remembers [opened: true, counted: 0 min 0 max 99]
+    }
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

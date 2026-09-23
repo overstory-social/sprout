@@ -15,7 +15,8 @@ import {
   HALL,
   refusals,
   ROOT,
-  WORLD_LINE,
+  rootWith,
+  VISITOR,
   WORLD_TEXT,
   world,
 } from '../../fixtures/compile.js';
@@ -48,7 +49,7 @@ describe('what a compiled bundle carries', () => {
     const files = [
       file(
         'world.sprout',
-        `${ROOT}\nkind Crate { contains }\nobject crate: Crate in printers_shop\nobject box: Crate in crate`,
+        `${rootWith('object crate is Crate { object box is Crate }')}\nkind Crate { contains }`,
       ),
     ];
     const { bundle: carried, diagnostics } = compileBundle(world({ files }));
@@ -70,7 +71,7 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('carries the kinds by name as the checker found them, a failed kind of its own included', () => {
-    const files = [file('world.sprout', `${ROOT}\nkind Place: Nowhere { contains actors }`)];
+    const files = [file('world.sprout', `${ROOT}\nkind Place is Nowhere { contains actors }`)];
     const { bundle: loaded } = compileBundle(world({ files }), { mode: 'load' });
     const found = (name: string) => loaded!.kindLookup.unqualified(name, 'printers_shop');
     expect([found('Visitor')!.library, found('Actor')!.library]).toEqual([
@@ -115,10 +116,7 @@ describe('what a compiled bundle carries', () => {
 
   it('roots the tree at the manifest’s name, not its namespace', () => {
     const files = [
-      file(
-        'world.sprout',
-        `${ROOT}\nkind Crate { contains }\nobject crate: Crate in printers_shop`,
-      ),
+      file('world.sprout', `${rootWith('object crate is Crate')}\nkind Crate { contains }`),
     ];
     const { bundle: carried, diagnostics } = compileBundle(
       world({ files, manifest: { namespace: 'ink' } }),
@@ -132,11 +130,11 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
-    // The union grows as the syntax lands; B27 fills the word set.
+    // The union grows as the syntax lands; B27 fills the word set. An
+    // object is not among them: it is in the world's body.
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
       'printers_shop',
       'Visitor',
-      'hall',
       'Season',
       'World',
       'go',
@@ -179,30 +177,33 @@ describe('publishing is strict: any problem is a refusal', () => {
 describe('a compile checks the bodies of kinds, objects and the world', () => {
   it('refuses what an object’s and the world’s own guards get wrong', () => {
     const text = [
-      WORLD_LINE.replace('}', 'depart (to) { destroy self } }'),
-      'kind Visitor: sprout.Actor { }',
-      HALL,
+      'world printers_shop is sprout.World {',
+      '  visitors are Visitor',
+      '  visitors arrive at hall',
+      '  depart (to) { destroy self }',
+      `  ${HALL}`,
+      '  object crate is Crate { accept (item, from) { refuse gone } }',
+      '}',
+      'kind Visitor is sprout.Actor { }',
       'kind Crate { contains }',
-      'object crate: Crate in printers_shop { accept (item, from) { refuse gone } }',
     ].join('\n');
     const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
       [
-        'world.sprout:1:96',
+        'world.sprout:4:17',
         '`destroy self` removes something, and a guard only reads and decides.',
       ],
-      ['world.sprout:5:69', '`crate` has no passage `gone`.'],
+      ['world.sprout:6:56', '`crate` has no passage `gone`.'],
     ]);
   });
 
   it('compiles a world whose guards read and decide', () => {
     const text = [
-      WORLD_LINE,
-      'kind Visitor: sprout.Actor { }',
-      HALL,
+      rootWith(
+        'object crate is Crate { depart (to) { if (mover != self) { refuse "Nailed down." } } }',
+      ),
       'kind Crate { contains :capacity 4 accept (item, from) { if (self.count >= self.get(:capacity)) { refuse full } } passage full { No room. } }',
-      'object crate: Crate in printers_shop { depart (to) { if (mover != self) { refuse "Nailed down." } } }',
     ].join('\n');
     const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
     expect(refusals(diagnostics)).toEqual([]);
@@ -214,13 +215,18 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
 
 describe('a compile refuses actors where the spec has none', () => {
   const text = [
-    ROOT,
-    'kind Porter: sprout.Actor { }',
+    'world printers_shop is sprout.World {',
+    '  visitors are Visitor',
+    '  visitors arrive at hall',
+    '  object hall is sprout.Place {',
+    '    object basket is Basket { object cat is Visitor }',
+    '    object porter is Porter',
+    '  }',
+    '  object ghost is Visitor',
+    '}',
+    VISITOR,
+    'kind Porter is sprout.Actor { }',
     'kind Basket { contains }',
-    'object basket: Basket in hall',
-    'object porter: Porter in hall',
-    'object cat: Visitor in hall.basket',
-    'object ghost: Visitor in printers_shop',
   ].join('\n');
 
   it('refuses, in either mode, an actor that is not an NPC and an NPC where no actors stand', () => {
@@ -234,13 +240,13 @@ describe('a compile refuses actors where the spec has none', () => {
         refusals(diagnostics).map((d) => [locationOf(d.at), d.message]),
         mode,
       ).toEqual([
+        ['world.sprout:5:38', '`basket` holds no actors, so `cat` cannot stand in it.'],
         [
-          'world.sprout:5:8',
+          'world.sprout:6:12',
           '`porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
         ],
-        ['world.sprout:6:29', '`basket` holds no actors, so `cat` cannot stand in it.'],
         [
-          'world.sprout:7:26',
+          'world.sprout:8:10',
           '`printers_shop` is the world, which holds no actors, so `ghost` cannot stand directly in it.',
         ],
       ]);
@@ -249,11 +255,10 @@ describe('a compile refuses actors where the spec has none', () => {
 
   it('refuses a spawn of an actor that would not be an NPC, and takes one that would', () => {
     const verbs = [
-      ROOT,
-      'kind Porter: sprout.Actor { }',
+      rootWith('object horn is Horn'),
+      'kind Porter is sprout.Actor { }',
       'verb whistle { role target  "whistle at [target]" }',
       'kind Horn { as target for whistle { do { spawn Porter in here  spawn Visitor in here } } }',
-      'object horn: Horn in hall',
     ].join('\n');
     const { diagnostics } = compileBundle(world({ files: [file('world.sprout', verbs)] }));
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([

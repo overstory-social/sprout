@@ -33,7 +33,7 @@ describe('a world is the root of the one tree', () => {
   });
 
   it('remembers about each actor, in the same syntax as anything else', () => {
-    const { kind, said } = world(`world w: sprout.World { :remembers [seen: false]
+    const { kind, said } = world(`world w is sprout.World { :remembers [seen: false]
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual([]);
@@ -41,7 +41,7 @@ describe('a world is the root of the one tree', () => {
   });
 
   it('refuses to hold one property twice, and keeps the first', () => {
-    const { kind, said } = world(`world w: sprout.World { :a false
+    const { kind, said } = world(`world w is sprout.World { :a false
   :a true
   visitors are Creature
   visitors arrive at y }`);
@@ -57,7 +57,7 @@ describe('every world writes `sprout.World`', () => {
   visitors arrive at y }`);
     expect(said).toEqual(['`w` does not compose `sprout.World`.']);
     expect(diagnostics.refusals[0]!.remedy).toBe(
-      'Every world writes it: `world w: sprout.World { … }`.',
+      'Every world writes it: `world w is sprout.World { … }`.',
     );
     // At the name, which is what the sentence is about — not at a
     // composition list that is not there to point at.
@@ -66,12 +66,12 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('with the library named, because `World` on its own is another kind', () => {
-    const { said, diagnostics } = world(`world w: World {
+    const { said, diagnostics } = world(`world w is World {
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual(['`w` does not compose `sprout.World`.']);
     expect(diagnostics.refusals[0]!.remedy).toBe(
-      '`World` on its own is not `sprout.World`; write the library too: `world w: sprout.World { … }`.',
+      '`World` on its own is not `sprout.World`; write the library too: `world w is sprout.World { … }`.',
     );
   });
 
@@ -87,11 +87,11 @@ describe('every world writes `sprout.World`', () => {
     // spellings sequence differently and can never differ in what happened.
     for (const [written, order] of [
       [
-        'world w: victorian.Voice, sprout.World { visitors are Creature\n visitors arrive at y }',
+        'world w is victorian.Voice, sprout.World { visitors are Creature\n visitors arrive at y }',
         ['victorian.Voice', WORLD, 'printers_shop.w'],
       ],
       [
-        'world w: sprout.World, victorian.Voice { visitors are Creature\n visitors arrive at y }',
+        'world w is sprout.World, victorian.Voice { visitors are Creature\n visitors arrive at y }',
         [WORLD, 'victorian.Voice', 'printers_shop.w'],
       ],
     ] as const) {
@@ -102,7 +102,7 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('beside whatever else it composes — a library of stock lines in another register', () => {
-    const { kind, said } = world(`world printers_shop: sprout.World, victorian.Voice {
+    const { kind, said } = world(`world printers_shop is sprout.World, victorian.Voice {
   visitors are Creature
   visitors arrive at composing_room }`);
     expect(said).toEqual([]);
@@ -112,7 +112,7 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('refuses a kind nothing declares, and still says what else is wrong', () => {
-    const { kind, said } = world(`world w: sprout.World, nope.Voice {
+    const { kind, said } = world(`world w is sprout.World, nope.Voice {
   visitors arrive at y }`);
     expect(said[0]).toContain('Nothing here is a `nope.Voice`');
     // An author owed two problems is owed both. The world itself cannot
@@ -124,7 +124,7 @@ describe('every world writes `sprout.World`', () => {
   it('tells a compile of a kind nothing declares, rather than refusing it', () => {
     const parsing = new Diagnostics();
     const [declared] = parseDeclarations(
-      new SourceFile('w.sprout', 'world w: sprout.World, Nope { visitors are Creature }'),
+      new SourceFile('w.sprout', 'world w is sprout.World, Nope { visitors are Creature }'),
       parsing,
     ) as WorldDeclaration[];
     const diagnostics = new Diagnostics();
@@ -142,14 +142,14 @@ describe('every world writes `sprout.World`', () => {
   });
 
   it('refuses the same kind twice', () => {
-    const { said } = world(`world w: sprout.World, victorian.Voice, victorian.Voice {
+    const { said } = world(`world w is sprout.World, victorian.Voice, victorian.Voice {
   visitors are Creature
   visitors arrive at y }`);
     expect(said.join(' ')).toContain('composes `victorian.Voice` twice');
   });
 
   it('refuses `sprout.World` twice, like any other kind', () => {
-    const { said } = world(`world w: sprout.World, sprout.World {
+    const { said } = world(`world w is sprout.World, sprout.World {
   visitors are Creature
   visitors arrive at y }`);
     expect(said.join(' ')).toContain('composes `sprout.World` twice');
@@ -194,18 +194,18 @@ describe('a world that does not write `sprout.World` is refused on its own', () 
   });
 
   it('is satisfied by the written words alone', () => {
-    expect(shape('world w: sprout.World { visitors are Creature }')).toEqual([]);
+    expect(shape('world w is sprout.World { visitors are Creature }')).toEqual([]);
   });
 
   it('is not satisfied by an unqualified `World`, whatever it would resolve to', () => {
-    expect(shape('world w: World { visitors are Creature }')).toHaveLength(1);
+    expect(shape('world w is World { visitors are Creature }')).toHaveLength(1);
   });
 });
 
 describe('a world composes like a kind', () => {
   const opened = (composes: string, ...lines: string[]) =>
     world(
-      `world w: ${composes} {\n  visitors are Creature\n  visitors arrive at y\n${lines.map((l) => `  ${l}\n`).join('')}}`,
+      `world w is ${composes} {\n  visitors are Creature\n  visitors arrive at y\n${lines.map((l) => `  ${l}\n`).join('')}}`,
     );
 
   it('refuses a property from two origins, as a kind is refused', () => {

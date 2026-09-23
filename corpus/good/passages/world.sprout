@@ -1,16 +1,22 @@
 // A passage is a named block of words that a kind, an object or the
 // world writes inline. Its body is prose: an apostrophe, a question mark
 // or a `//` in it is a word, not code, and `\{` writes a brace.
-world passages: sprout.World {
+world passages is sprout.World {
   visitors are Creature
   visitors arrive at hall
 
   passage welcome {
     You're here at last. Who else would have come, at this hour?
   }
+
+  object hall is sprout.Place {
+    object mirror is Mirror {
+      passage aside { A brace is written \{ and a slot as {"{thing}"}. }
+    }
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }
 
 kind Mirror {
   :mood 0 min 0 max 2
@@ -23,10 +29,4 @@ kind Mirror {
   }
 
   passage shrug default { {self} gives nothing away. }
-}
-
-object hall: sprout.Place in passages
-
-object mirror: Mirror in hall {
-  passage aside { A brace is written \{ and a slot as {"{thing}"}. }
 }

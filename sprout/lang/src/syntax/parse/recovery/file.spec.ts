@@ -33,12 +33,16 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       { name: 'hotel', text: () => option(['message :hotel with boolean', 'message :hotel']) },
       {
         name: 'india',
-        text: () => 'world india: sprout.World {\n  visitors are P\n  visitors arrive at y\n}',
+        text: () =>
+          option([
+            'world india is sprout.World {\n  visitors are P\n  visitors arrive at y\n}',
+            'world india is sprout.World {\n  visitors are P\n  object yard is Room {\n    object kilo is Juliet { contains }\n  }\n}',
+          ]),
       },
       {
         name: 'Juliet',
         text: () =>
-          option(['kind Juliet { }', 'kind Juliet: Crate, sprout.Container {\n  :open true\n}']),
+          option(['kind Juliet { }', 'kind Juliet is Crate, sprout.Container {\n  :open true\n}']),
       },
       {
         name: 'lima',
@@ -49,20 +53,11 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
             'verb lima { "lima" }',
           ]),
       },
-      {
-        name: 'kilo',
-        text: () =>
-          option([
-            'object kilo: Juliet in yard',
-            'object kilo: Juliet in yard {\n  contains\n}',
-            'object kilo: Juliet in yard.shed.shelf',
-          ]),
-      },
     ];
     // A world never closed, holding a `:remembers` or not; whatever
     // follows it, in the file or here, is a declaration of its own.
     const unclosedWorld = (): string =>
-      `world faulty: sprout.World {\n  ${option(['visitors are P', 'visitors are P\n  :remembers [a: 0]', ':remembers [a: 0]'])}`;
+      `world faulty is sprout.World {\n  ${option(['visitors are P', 'visitors are P\n  :remembers [a: 0]', ':remembers [a: 0]'])}`;
     const DEFECTIVE: readonly (() => string)[] = [
       // An enum: its name, its braces, one option, or a comma.
       () => `enum ${option(['faulty', '', '4', 'Faulty.'])} { oak }`,
@@ -97,11 +92,18 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         return `message :faulty with ${carried}`;
       },
       // A world: its name, what it is composed from, a brace, a member.
-      () => option(['world faulty: 4 { }', 'world faulty', 'world: sprout.World']),
       () =>
-        `world faulty: sprout.World {\n  visitors arrive at ${option(['yard.', 'yard..shed', 'yard.4', 'yard . shed'])}\n}`,
+        option([
+          'world faulty is 4 { }',
+          'world faulty: sprout.World { }',
+          'world faulty',
+          'world: sprout.World',
+          'world is sprout.World { }',
+        ]),
+      () =>
+        `world faulty is sprout.World {\n  visitors arrive at ${option(['yard.', 'yard..shed', 'yard.4', 'yard . shed'])}\n}`,
       unclosedWorld,
-      () => `world faulty: sprout.World {\n  visitors are P\n  ${defectiveMember(c).text}\n}`,
+      () => `world faulty is sprout.World {\n  visitors are P\n  ${defectiveMember(c).text}\n}`,
       // A kind: its name, what it composes, its braces, a member.
       () =>
         option([
@@ -109,27 +111,44 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           'kind faulty { }',
           'kind: Crate { }',
           'kind Faulty',
-          'kind Faulty: 4 { }',
-          'kind Faulty: Crate Fixture { }',
+          'kind Faulty is 4 { }',
+          'kind Faulty: Crate { }',
+          'kind Faulty is Crate Fixture { }',
         ]),
-      () => `kind Faulty: sprout.Container {\n  ${defectiveMember(c).text}\n}`,
-      // An object: its name, what it composes, its container, a member.
+      () => `kind Faulty is sprout.Container {\n  ${defectiveMember(c).text}\n}`,
+      // An object at the top level, which is refused however well it is
+      // written: its name, what it composes, a container it names.
       () =>
         option([
           'object',
-          'object Faulty: Crate in yard',
-          'object faulty: 4 in yard',
+          'object Faulty is Crate',
+          'object faulty is 4',
           'object faulty: Crate',
-          'object faulty: Crate { }',
-          'object faulty: Crate in { }',
-          'object faulty: Crate in Yard',
-          'object faulty: Crate in yard.',
-          'object faulty: Crate in yard..shed',
-          'object faulty: Crate in yard.4 { }',
-          'object faulty: Crate in yard.Shed',
-          'object faulty: Crate in yard . shed { contains }',
+          'object faulty is Crate',
+          'object faulty is Crate { }',
+          'object faulty is Crate { contains }',
+          'object faulty is Crate in { }',
+          'object faulty is Crate in Yard',
+          'object faulty is Crate in yard.',
+          'object faulty is Crate in yard..shed',
+          'object faulty is Crate in yard.4 { }',
+          'object faulty is Crate in yard.Shed',
+          'object faulty is Crate in yard . shed { contains }',
         ]),
-      () => `object faulty: Crate in yard {\n  ${defectiveMember(c).text}\n}`,
+      () => `object faulty is Crate {\n  ${defectiveMember(c).text}\n}`,
+      // An object in the world's body, with a defect of its own or in a
+      // member of its body.
+      () =>
+        `world faulty is sprout.World {\n  ${option([
+          'object Faulty is Crate',
+          'object faulty is 4',
+          'object faulty: Crate',
+          'object faulty is Crate in yard',
+          'object faulty is Crate in yard..shed { contains }',
+          'object',
+        ])}\n}`,
+      () =>
+        `world faulty is sprout.World {\n  object faulty is Crate {\n    ${defectiveMember(c).text}\n  }\n}`,
       // A verb: its name, its braces, or one member.
       () =>
         option([

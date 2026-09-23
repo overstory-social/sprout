@@ -8,6 +8,6 @@ kind Crate {
   :open true
 }
 
-kind SafetyCrate: Crate {
+kind SafetyCrate is Crate {
   without changed :lit from LightSource
 }

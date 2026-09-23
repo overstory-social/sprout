@@ -11,7 +11,7 @@ import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { read } from '../../fixtures/parse.js';
-import { body, composition, kindMembers } from './bodies.js';
+import { apart, body, composition, kindMembers, writtenKind } from './bodies.js';
 import { DECLARATION_READERS } from './declarations.js';
 import { Parser } from './parser.js';
 
@@ -25,45 +25,70 @@ function parserOver(text: string) {
 /**
  * Each thing that holds a body, opened as it is written: the three share
  * one reader, so every rule below is asserted of all three, in the words
- * each is named by.
+ * each is named by. An object is written in the body of what holds it,
+ * so its text sits inside a world's, `around` it.
  */
 const OWNERS = [
   {
     noun: 'world',
     article: 'A world',
     name: 'w',
-    open: 'world w: sprout.World',
+    open: 'world w is sprout.World',
     holds: 'visitors',
+    around: ['', ''],
   },
-  { noun: 'kind', article: 'A kind', name: 'K', open: 'kind K', holds: null },
-  { noun: 'object', article: 'An object', name: 'o', open: 'object o: K in r', holds: null },
+  { noun: 'kind', article: 'A kind', name: 'K', open: 'kind K', holds: null, around: ['', ''] },
+  {
+    noun: 'object',
+    article: 'An object',
+    name: 'o',
+    open: 'object o is K',
+    holds: null,
+    around: ['world w is sprout.World {\n', '}\n'],
+  },
 ] as const;
+type Owner = (typeof OWNERS)[number];
 
-/** The declaration a file's text opened with. */
-const owned = (declarations: readonly Declaration[]) =>
-  declarations.find(
-    (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration =>
-      d.kind === 'world' || d.kind === 'kind' || d.kind === 'object',
+/** The members every body holds, with `holds` first where the owner says one more. */
+const membersOf = (owner: Owner): string =>
+  `${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\`, \`accept\`, \`as\` and \`object\``;
+
+/**
+ * The declaration a file's text opened with: a world or a kind, or, for
+ * the object owner, the object in the world's body.
+ */
+const ownedIn = (declarations: readonly Declaration[], owner?: Owner) => {
+  const top = declarations.find(
+    (d): d is WorldDeclaration | KindDeclaration => d.kind === 'world' || d.kind === 'kind',
   );
+  return owner?.noun === 'object' ? (top?.objects[0] as ObjectDeclaration | undefined) : top;
+};
+const owned = (declarations: readonly Declaration[]) => ownedIn(declarations);
 
-describe('the kinds after the colon, read directly', () => {
-  it('are none, and nothing is taken, where no colon follows', () => {
-    const { p, diagnostics } = parserOver('{ }');
-    expect(composition(p, 'kind')).toEqual([]);
+/** A parser at `text` with the declaration's name taken, as its reader leaves it. */
+function afterName(text: string) {
+  const { p, diagnostics } = parserOver(text);
+  return { p, diagnostics, name: p.next() };
+}
+
+describe('the kinds after `is`, read directly', () => {
+  it('are none, and nothing is taken, where no `is` follows', () => {
+    const { p, diagnostics, name } = afterName('K { }');
+    expect(composition(p, 'kind', name)).toEqual([]);
     expect(p.peek().text).toBe('{');
     expect(diagnostics.refusals).toEqual([]);
   });
 
   it('are what was written, up to the first thing that is not one', () => {
-    const { p } = parserOver(': Crate, sprout.Container in r');
-    const composes = composition(p, 'object');
+    const { p, name } = afterName('o is Crate, sprout.Container {');
+    const composes = composition(p, 'object', name);
     expect(composes?.map((c) => textOf(c.at))).toEqual(['Crate', 'sprout.Container']);
-    expect(p.peek().text).toBe('in');
+    expect(p.peek().text).toBe('{');
   });
 
   it('are null, having said why, where one cannot be read', () => {
-    const { p, diagnostics } = parserOver(': Crate, 4 { }');
-    expect(composition(p, 'kind')).toBeNull();
+    const { p, diagnostics, name } = afterName('K is Crate, 4 { }');
+    expect(composition(p, 'kind', name)).toBeNull();
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'the number 4 is not the name of a kind.',
     ]);
@@ -71,14 +96,82 @@ describe('the kinds after the colon, read directly', () => {
 
   it('name their owner when a comma is missing, and show how it is written', () => {
     for (const [owner, remedy] of [
-      ['world', 'Write `world <name>: one.Kind, Another { … }`.'],
-      ['kind', 'Write `kind <Name>: one.Kind, Another { … }`.'],
-      ['object', 'Write `object <name>: one.Kind, Another in <container> { … }`.'],
+      ['world', 'Write `world <name> is one.Kind, Another { … }`.'],
+      ['kind', 'Write `kind <Name> is one.Kind, Another { … }`.'],
+      ['object', 'Write `object <name> is one.Kind, Another { … }`.'],
     ] as const) {
-      const { p, diagnostics } = parserOver(': Crate Heavy {');
-      expect(composition(p, owner)?.length, owner).toBe(2);
+      const { p, diagnostics, name } = afterName('x is Crate Heavy {');
+      expect(composition(p, owner, name)?.length, owner).toBe(2);
       expect(diagnostics.refusals.map((d) => d.remedy)).toEqual([remedy]);
     }
+  });
+
+  it('are read after a colon in place of `is`, which is refused, and the line shown with `is`', () => {
+    for (const [owner, text, kinds, remedy] of [
+      [
+        'world',
+        'shop: sprout.World, victorian.Voice {',
+        ['sprout.World', 'victorian.Voice'],
+        'Write `world shop is sprout.World, victorian.Voice { … }`.',
+      ],
+      [
+        'kind',
+        'Crate: sprout.Container {',
+        ['sprout.Container'],
+        'Write `kind Crate is sprout.Container { … }`.',
+      ],
+      ['object', 'bench: Bench {', ['Bench'], 'Write `object bench is Bench { … }`.'],
+    ] as const) {
+      const { p, diagnostics, name } = afterName(text);
+      expect(
+        composition(p, owner, name)?.map((c) => textOf(c.at)),
+        owner,
+      ).toEqual(kinds);
+      const article = OWNERS.find((o) => o.noun === owner)!.article;
+      expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+        [
+          `b.sprout:1:${text.indexOf(':') + 1}`,
+          `${article} composes its kinds with \`is\`, not a colon.`,
+          remedy,
+        ],
+      ]);
+      expect(p.peek().text).toBe('{');
+    }
+  });
+
+  it('refuse the colon with a kind left to name where what follows it is not one', () => {
+    const { p, diagnostics, name } = afterName('Crate: 4 { }');
+    expect(composition(p, 'kind', name)).toBeNull();
+    expect(diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        'the number 4 is not the name of a kind.',
+        'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
+      ],
+      ['A kind composes its kinds with `is`, not a colon.', 'Write `kind Crate is <Kind> { … }`.'],
+    ]);
+  });
+});
+
+describe('a kind as it was written, for a remedy', () => {
+  it('keeps its library where one was written', () => {
+    const { p, name } = afterName('K is sprout.Container, Crate {');
+    expect(composition(p, 'kind', name)?.map(writtenKind)).toEqual(['sprout.Container', 'Crate']);
+  });
+});
+
+describe('the members of a body, apart from the objects written in it', () => {
+  it('splits what was read, keeping each side in the order written', () => {
+    const { declarations } = read(
+      'world w is sprout.World {\n  object a is K\n  :x 1\n  object b is K\n  contains\n}\n',
+    );
+    const world = owned(declarations) as WorldDeclaration;
+    const both = [...world.members, ...world.objects].sort((m, n) => m.at.start - n.at.start);
+    const { members, objects } = apart(
+      both,
+      (m): m is (typeof world.members)[number] => m.kind !== 'object',
+    );
+    expect(members.map((m) => m.kind)).toEqual(['property', 'contains']);
+    expect(objects.map((o) => o.name.text)).toEqual(['a', 'b']);
   });
 });
 
@@ -87,7 +180,12 @@ describe('a body, read directly', () => {
     const { p, diagnostics } = parserOver('K { :open true\n contains } after');
     const name = p.next();
     p.next();
-    const read = body(p, 'kind', name, kindMembers(p, 'K'));
+    const read = body(
+      p,
+      'kind',
+      name,
+      kindMembers(p, 'K', () => null),
+    );
     expect(diagnostics.refusals).toEqual([]);
     expect(read?.members.map((m) => m.kind)).toEqual(['property', 'contains']);
     expect(read?.close.text).toBe('}');
@@ -98,14 +196,23 @@ describe('a body, read directly', () => {
     const { p, diagnostics } = parserOver('K { :open true');
     const name = p.next();
     p.next();
-    expect(body(p, 'kind', name, kindMembers(p, 'K'))).toBeNull();
+    expect(
+      body(
+        p,
+        'kind',
+        name,
+        kindMembers(p, 'K', () => null),
+      ),
+    ).toBeNull();
     expect(diagnostics.refusals.map((d) => d.message)).toEqual(['`K` is never closed.']);
   });
 });
 
 describe('a world, a kind and an object read their bodies by one rule', () => {
   for (const owner of OWNERS) {
-    const opened = (members: string) => read(`${owner.open} {\n  ${members}\n}\n`);
+    const opened = (members: string) =>
+      read(`${owner.around[0]}${owner.open} {\n  ${members}\n}\n${owner.around[1]}`);
+    const owned = (declarations: readonly Declaration[]) => ownedIn(declarations, owner);
 
     it(`${owner.noun}: holds its properties, a \`:remembers\` and \`contains\``, () => {
       const { declarations, refusals } = opened(':a 1\n  :remembers [b: 2]\n  contains actors');
@@ -119,12 +226,11 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
 
     it(`${owner.noun}: names itself and what it holds when a word is no member`, () => {
       const { declarations, refusals } = opened('nonsense\n  :a 1');
-      const holds =
-        owner.holds === null
-          ? '`contains`, `passage`, `without`, `depart`, `release`, `accept` and `as`'
-          : `\`${owner.holds}\`, \`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\`, \`accept\` and \`as\``;
       expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
-        [`${owner.article} is not made of \`nonsense\`.`, `It holds its properties, ${holds}.`],
+        [
+          `${owner.article} is not made of \`nonsense\`.`,
+          `It holds its properties, ${membersOf(owner)}.`,
+        ],
       ]);
       expect(owned(declarations)!.members.map((m) => m.kind)).toEqual(['property']);
     });
@@ -139,9 +245,13 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
     });
 
     it(`${owner.noun}: says it is never closed, in its own noun`, () => {
-      const { refusals } = read(`${owner.open} {\n  :a 1\n`);
+      // An object never closed leaves the world around it never closed too.
+      const { refusals } = read(`${owner.around[0]}${owner.open} {\n  :a 1\n`);
       expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
         [`\`${owner.name}\` is never closed.`, `Add a } after what the ${owner.noun} is made of.`],
+        ...(owner.noun === 'object'
+          ? [['`w` is never closed.', 'Add a } after what the world is made of.']]
+          : []),
       ]);
     });
 
@@ -160,7 +270,7 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
     // so what follows it is named rather than lost the way stepping
     // straight to the next declaration would lose it — as `bodies.ts`
     // holds for a world, a kind and an object alike.
-    const { declarations, refusals } = read(`kind K: sprout.Container {
+    const { declarations, refusals } = read(`kind K is sprout.Container {
   :alpha 0
   }
   :bravo 1
@@ -200,7 +310,7 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
   it('names the entries of a `:remembers` written after a stray `}`, one by one', () => {
     // A `:remembers` after the stray brace is named entry by entry, so
     // the remedy says which memory was lost and not merely that one was.
-    const { declarations, refusals } = read(`kind K: sprout.Container {
+    const { declarations, refusals } = read(`kind K is sprout.Container {
   :alpha 0
   }
   :remembers [visits: 0, greeted: false]
@@ -219,7 +329,7 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
     // that refusal, and not a brace count, is what tells the reader this
     // `}` is not `w`'s own, so the members before the real one are read
     // rather than merely named as displaced.
-    const { declarations, refusals } = read(`world w: sprout.World {
+    const { declarations, refusals } = read(`world w is sprout.World {
   :faulty }
   visitors are P
   visitors arrive at y
@@ -240,7 +350,7 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
     // `visitors`, the only word the member table itself knows; naming
     // each occurrence again would read as if the same word had been
     // written twice.
-    const { declarations, refusals } = read(`world w: sprout.World {
+    const { declarations, refusals } = read(`world w is sprout.World {
   :alpha 0
   }
   visitors are P
@@ -258,8 +368,8 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
 
 describe('`without` names a member and the kind it comes from, in any body', () => {
   /** The `without` lines a body read, each as the member and kind it names. */
-  const withouts = (declarations: readonly Declaration[]) =>
-    owned(declarations)!.members.flatMap((m) =>
+  const withouts = (declarations: readonly Declaration[], owner?: Owner) =>
+    ownedIn(declarations, owner)!.members.flatMap((m) =>
       m.kind === 'without' ? [`${writtenMember(m.member)} from ${textOf(m.source.at)}`] : [],
     );
 
@@ -273,10 +383,14 @@ describe('`without` names a member and the kind it comes from, in any body', () 
         'without accept from Crate',
         'without as target for unlock from Lock',
       ];
-      const { declarations, refusals } = read(`${owner.open} {\n  ${lines.join('\n  ')}\n}\n`);
+      const { declarations, refusals } = read(
+        `${owner.around[0]}${owner.open} {\n  ${lines.join('\n  ')}\n}\n${owner.around[1]}`,
+      );
       expect(refusals).toEqual([]);
-      expect(withouts(declarations)).toEqual(lines.map((line) => line.slice('without '.length)));
-      const first = owned(declarations)!.members[0]!;
+      expect(withouts(declarations, owner)).toEqual(
+        lines.map((line) => line.slice('without '.length)),
+      );
+      const first = ownedIn(declarations, owner)!.members[0]!;
       expect(textOf(first.at)).toBe(lines[0]);
       expect(unspanned(declarations)).toEqual([]);
     });
@@ -448,5 +562,64 @@ describe('`without` beside a guard', () => {
       members: ['guard'],
       said: ['`without` does not say what to leave out.'],
     });
+  });
+});
+
+describe('objects written in a body', () => {
+  it('are held apart from its members, each holding what is written in its own', () => {
+    const { declarations, refusals } = read(`world w is sprout.World {
+  visitors are P
+  object hall is Room {
+    :lit true
+    object chest is Chest {
+      object key is Key
+    }
+    object bench is Bench
+  }
+  visitors arrive at hall
+  object yard is Room
+}
+`);
+    expect(refusals).toEqual([]);
+    const world = owned(declarations) as WorldDeclaration;
+    expect(world.members.map((m) => m.kind)).toEqual(['visitors-are', 'visitors-arrive-at']);
+    expect(world.objects.map((o) => o.name.text)).toEqual(['hall', 'yard']);
+    const hall = world.objects[0]!;
+    expect(hall.members.map((m) => m.kind)).toEqual(['property']);
+    expect(hall.objects.map((o) => o.name.text)).toEqual(['chest', 'bench']);
+    expect(hall.objects[0]!.objects.map((o) => o.name.text)).toEqual(['key']);
+    expect(unspanned(declarations)).toEqual([]);
+  });
+
+  it('are read in a kind’s body too, where the declaration layer says what it makes of them', () => {
+    const { declarations, refusals } = read(
+      'kind Lantern {\n  contains\n  object wick is Wick\n}\n',
+    );
+    expect(refusals).toEqual([]);
+    const kind = owned(declarations) as KindDeclaration;
+    expect(kind.members.map((m) => m.kind)).toEqual(['contains']);
+    expect(kind.objects.map((o) => o.name.text)).toEqual(['wick']);
+  });
+
+  it('leave what follows an object’s `}` to the body around it, where it was written', () => {
+    const { declarations, refusals } = read(
+      'world w is sprout.World {\n  object hall is Room { :lit true }\n  :season 1\n  visitors are P\n}\n',
+    );
+    expect(refusals).toEqual([]);
+    const world = owned(declarations) as WorldDeclaration;
+    expect(world.members.map((m) => m.kind)).toEqual(['property', 'visitors-are']);
+    expect(world.objects[0]!.members.map((m) => m.kind)).toEqual(['property']);
+  });
+
+  it('are where stepping over a member that could not be read stops', () => {
+    const { declarations, refusals } = read(
+      'world w is sprout.World {\n  :faulty Zeta [oak]\n  object hall is Room\n  :after 1\n}\n',
+    );
+    expect(refusals.length).toBeGreaterThan(0);
+    const world = owned(declarations) as WorldDeclaration;
+    expect(world.objects.map((o) => o.name.text)).toEqual(['hall']);
+    expect(world.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'after',
+    ]);
   });
 });

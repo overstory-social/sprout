@@ -31,14 +31,21 @@ export const MANIFEST = [
 ].join('\n');
 
 /** What visitors are made of: the world's own kind, composing `sprout.Actor`. */
-export const VISITOR = 'kind Visitor: sprout.Actor { }';
-/** The world's own declaration: its visitors arrive at `hall`. */
-export const WORLD_LINE =
-  'world printers_shop: sprout.World { visitors are Visitor visitors arrive at hall }';
-/** The place visitors arrive at, directly in the world. */
-export const HALL = 'object hall: sprout.Place in printers_shop';
-/** The world, the kind its visitors are made of, and the place they arrive at, on one line. */
-export const ROOT = `${WORLD_LINE} ${VISITOR} ${HALL}`;
+export const VISITOR = 'kind Visitor is sprout.Actor { }';
+/** The place visitors arrive at, written in the world's body. */
+export const HALL = 'object hall is sprout.Place';
+/**
+ * The world's own declaration, on one line: its visitors arrive at
+ * `hall`, and `inside` is written in its body after the hall.
+ */
+export const worldLine = (inside = ''): string =>
+  `world printers_shop is sprout.World { visitors are Visitor visitors arrive at hall ${HALL}${inside === '' ? '' : ` ${inside}`} }`;
+/** The world's own declaration, holding the hall and nothing else. */
+export const WORLD_LINE = worldLine();
+/** The world holding `inside` beside the hall, and the kind its visitors are made of, on one line. */
+export const rootWith = (inside: string): string => `${worldLine(inside)} ${VISITOR}`;
+/** The world, the place visitors arrive at, and the kind they are made of, on one line. */
+export const ROOT = rootWith('');
 export const WORLD_TEXT = `${ROOT}\nenum Season { spring, summer, autumn, winter }`;
 /** Exactly the world's own source: blessed fits, unblessed does not. */
 export const OWN_BYTES = WORLD_TEXT.length;

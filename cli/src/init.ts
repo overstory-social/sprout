@@ -42,16 +42,17 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
   };
   const { namespace: _namespace, ...written } = manifest;
   // A visitor is made of the world's own kind composing `sprout.Actor`,
-  // and arrives in a place, which `sprout.Place` is.
+  // and arrives in a place, which `sprout.Place` is, written in the
+  // world's body because it sits directly in the world.
   const world = [
-    `world ${name}: sprout.World {`,
+    `world ${name} is sprout.World {`,
     '  visitors are Visitor',
     '  visitors arrive at hall',
+    '',
+    '  object hall is sprout.Place',
     '}',
     '',
-    'kind Visitor: sprout.Actor { }',
-    '',
-    `object hall: sprout.Place in ${name}`,
+    'kind Visitor is sprout.Actor { }',
     '',
   ].join('\n');
   const readme = `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it.\n`;

@@ -1,4 +1,0 @@
-// A thing cannot be inside itself.
-object hall: Room in container_itself
-
-object crate: Chest in crate

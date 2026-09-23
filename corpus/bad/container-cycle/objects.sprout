@@ -1,9 +1,0 @@
-// Two things cannot each be inside the other, however they are written.
-object hall: Room in container_cycle
-
-object crate: Chest in hall.box
-
-object box: Chest in hall.crate
-
-// What sits in the ring is not said about again.
-object nail: Thing in hall.box.crate

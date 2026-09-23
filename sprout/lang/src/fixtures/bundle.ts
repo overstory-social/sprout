@@ -62,28 +62,34 @@ export function compiledWorld(
 /**
  * A small shop, in two files: a world that is open, two rooms, a shelf
  * holding a jar and a cup, `Person` for visitors to be made of, and a
- * box whose kind `Crate` lives in `kiln.sprout` with an object of its
- * own. Withhold that file at load and the box is absent while the tin it
- * holds still composes, and the kiln is not placed.
+ * box and a kiln whose kind `Crate` lives in `kiln.sprout`. Withhold
+ * that file at load and the box and the kiln are absent, while the tin
+ * the box holds still composes.
  */
 export const SHOP: Readonly<Record<string, string>> = {
   'world.sprout': [
-    'world printers_shop: sprout.World { contains visitors are Person visitors arrive at hall :open true }',
+    'world printers_shop is sprout.World { contains visitors are Person visitors arrive at hall :open true',
+    '  object hall is Room {',
+    '    object shelf is Shelf {',
+    '      object jar is Jar',
+    '      object cup is Jar',
+    '    }',
+    '    object box is Crate {',
+    '      object tin is Jar',
+    '    }',
+    '  }',
+    '  object yard is Room {',
+    '    object kiln is Crate',
+    '  }',
+    '}',
     'enum Glaze { none, shino, tenmoku }',
     'kind Room { contains actors :lit true }',
     'kind Shelf { contains }',
     'kind Jar { :glaze Glaze default none :fill 3 min 0 max 9 :remembers [seen: false] }',
-    'kind Person: sprout.Actor { :score 0 }',
-    'object hall: Room in printers_shop',
-    'object yard: Room in printers_shop',
-    'object shelf: Shelf in hall',
-    'object jar: Jar in hall.shelf',
-    'object cup: Jar in hall.shelf',
-    'object box: Crate in hall',
-    'object tin: Jar in hall.box',
+    'kind Person is sprout.Actor { :score 0 }',
     '',
   ].join('\n'),
-  'kiln.sprout': 'kind Crate { contains :lid false }\nobject kiln: Crate in yard\n',
+  'kiln.sprout': 'kind Crate { contains :lid false }\n',
 };
 
 /** The shop as published. */

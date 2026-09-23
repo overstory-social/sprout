@@ -1,8 +1,8 @@
-world enum_twice: sprout.World {
+world enum_twice is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in enum_twice
+kind Creature is sprout.Actor { }

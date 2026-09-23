@@ -1,2 +1,2 @@
-world shop: sprout.World {
+world shop is sprout.World {
 }

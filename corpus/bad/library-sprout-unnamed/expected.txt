@@ -1,7 +1,7 @@
-world.sprout:3:31  `sprout.World` is not here, because the library `sprout` is not.
-                   Every world composes `sprout.World` from the library `sprout`: name it among the manifest's libraries and vendor it with the world, as `sprout init` does.
+world.sprout:3:33   `sprout.World` is not here, because the library `sprout` is not.
+                    Every world composes `sprout.World` from the library `sprout`: name it among the manifest's libraries and vendor it with the world, as `sprout init` does.
 
-world.sprout:8:16  Nothing here is a `sprout.Actor`.
-                   Check the spelling, and that the world uses the library `sprout` and it declares `Actor`.
+world.sprout:10:18  Nothing here is a `sprout.Actor`.
+                    Check the spelling, and that the world uses the library `sprout` and it declares `Actor`.
 
 refused: 2 problems

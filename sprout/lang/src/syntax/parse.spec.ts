@@ -18,11 +18,11 @@ import { read, optionsOf } from '../fixtures/parse.js';
  */
 const A_DECLARATION: Record<string, string> = {
   enum: 'enum Two { a }',
-  kind: 'kind Two: sprout.Container { :open true }',
+  kind: 'kind Two is sprout.Container { :open true }',
   message: 'message :stir',
-  object: 'object two: Crate in yard { contains }',
+  object: 'object two is Crate { contains }',
   verb: 'verb two { role target: Crate  "two [target]" }',
-  world: 'world two: sprout.World { visitors are P\n visitors arrive at y }',
+  world: 'world two is sprout.World { visitors are P\n visitors arrive at y }',
 };
 
 /**
@@ -33,15 +33,16 @@ const A_DECLARATION: Record<string, string> = {
  * `world`'s row in `DECLARATION_SHAPES` passes the whole suite. A world
  * that leaves `sprout.World` out is refused a layer later, and the
  * parser has to read it as a world for that refusal to be reached. A
- * kind may compose nothing, an object may leave its body out, and a verb
- * may have no roles, no phrases, or neither.
+ * kind may compose nothing, an object may leave its body out or its kinds
+ * (which is refused a layer later), and a verb may have no roles, no
+ * phrases, or neither.
  */
 const ALSO_WRITTEN: Record<string, string[]> = {
-  kind: ['kind Two { }', 'kind Two: Crate, sprout.Container { contains actors }'],
-  object: ['object two: Crate in yard', 'object two: Crate, sprout.Fixture in yard { }'],
+  kind: ['kind Two { }', 'kind Two is Crate, sprout.Container { contains actors }'],
+  object: ['object two is Crate', 'object two is Crate, sprout.Fixture { }', 'object two { }'],
   verb: ['verb two { "two" }', 'verb two { }', 'verb two { role target  role tools many }'],
   world: [
-    'world two: sprout.World, victorian.Voice { visitors are P\n visitors arrive at y }',
+    'world two is sprout.World, victorian.Voice { visitors are P\n visitors arrive at y }',
     'world two { visitors are P\n visitors arrive at y }',
   ],
 };
@@ -55,6 +56,24 @@ function spellingsOf(word: string): string[] {
 function sampleOf(word: string): string {
   expect(Object.keys(A_DECLARATION), `${word} has no sample in A_DECLARATION`).toContain(word);
   return A_DECLARATION[word]!;
+}
+
+/**
+ * What a file keeps of one declaration written well at its top level: the
+ * declaration, and nothing said. An `object` is the exception, since an
+ * object is written inside what holds it: at the top level it is read
+ * whole, so it ends what came before it and takes nothing after it, and
+ * refused, and the file keeps nothing of it.
+ */
+function keptAtTopLevel(word: string): { declarations: number; said: string[] } {
+  return word === 'object'
+    ? {
+        declarations: 0,
+        said: [
+          '`two` is written outside the world, and an object is written inside what holds it.',
+        ],
+      }
+    : { declarations: 1, said: [] };
 }
 
 describe('a forgotten brace does not eat the declaration after it', () => {
@@ -84,7 +103,7 @@ describe('a forgotten brace does not eat the declaration after it', () => {
         expect(
           declarations.map((d) => d.kind),
           written,
-        ).toHaveLength(2);
+        ).toHaveLength(1 + keptAtTopLevel(word).declarations);
       }
     }
   });
@@ -139,16 +158,23 @@ describe('every place that asks where a declaration starts reads one table', () 
   it('reads every word it says it reads', () => {
     for (const word of DECLARATIONS) {
       const { declarations, refusals } = read(sampleOf(word));
-      expect(refusals, word).toEqual([]);
-      expect(declarations, word).toHaveLength(1);
+      expect(
+        refusals.map((d) => d.message),
+        word,
+      ).toEqual(keptAtTopLevel(word).said);
+      expect(declarations, word).toHaveLength(keptAtTopLevel(word).declarations);
     }
   });
 
   it('stops recovery at every word it reads, however that word is written', () => {
     for (const word of DECLARATIONS) {
       for (const written of spellingsOf(word)) {
-        const { declarations } = read(`nonsense\n${written}`);
-        expect(declarations, written).toHaveLength(1);
+        const { declarations, refusals } = read(`nonsense\n${written}`);
+        expect(declarations, written).toHaveLength(keptAtTopLevel(word).declarations);
+        expect(
+          refusals.slice(1).map((d) => d.message),
+          written,
+        ).toEqual(keptAtTopLevel(word).said);
       }
     }
   });
@@ -157,8 +183,11 @@ describe('every place that asks where a declaration starts reads one table', () 
     for (const word of DECLARATIONS) {
       for (const written of spellingsOf(word)) {
         const { declarations, refusals } = read(written);
-        expect(refusals, written).toEqual([]);
-        expect(declarations, written).toHaveLength(1);
+        expect(
+          refusals.map((d) => d.message),
+          written,
+        ).toEqual(keptAtTopLevel(word).said);
+        expect(declarations, written).toHaveLength(keptAtTopLevel(word).declarations);
       }
     }
   });

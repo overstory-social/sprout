@@ -49,8 +49,8 @@ describe('a catalogue says what one bundle holds as instances', () => {
     const reversed = {
       ...SHOP,
       'world.sprout': SHOP['world.sprout']!.replace(
-        'object jar: Jar in hall.shelf\nobject cup: Jar in hall.shelf',
-        'object cup: Jar in hall.shelf\nobject jar: Jar in hall.shelf',
+        'object jar is Jar\n      object cup is Jar',
+        'object cup is Jar\n      object jar is Jar',
       ),
     };
     const other = catalogueOf(compiledWorld('printers_shop', reversed), DEFAULT_LIMITS.caps);
@@ -111,8 +111,8 @@ describe('a catalogue of a world loaded with a gap', () => {
     expect(tin.container).toBe(id('hall', 'box'));
   });
 
-  it('holds nothing for an object whose file is withheld, and no kind it declared', () => {
-    expect(catalogue.declared.has(id('yard', 'kiln'))).toBe(false);
+  it('holds an object whose kind’s file is withheld with no kind, and no kind that file declared', () => {
+    expect(catalogue.declared.get(id('yard', 'kiln'))!.kind).toBeNull();
     expect(catalogue.kinds.has('printers_shop.Crate')).toBe(false);
   });
 
@@ -123,8 +123,8 @@ describe('a catalogue of a world loaded with a gap', () => {
     });
     expect(catalogueOf(bundle, DEFAULT_LIMITS.caps).visitorKind).not.toBeNull();
     const elsewhere = {
-      'world.sprout': SHOP['world.sprout']!.replace('kind Person: sprout.Actor { :score 0 }', ''),
-      'kiln.sprout': `${SHOP['kiln.sprout']!}kind Person: sprout.Actor { :score 0 }\n`,
+      'world.sprout': SHOP['world.sprout']!.replace('kind Person is sprout.Actor { :score 0 }', ''),
+      'kiln.sprout': `${SHOP['kiln.sprout']!}kind Person is sprout.Actor { :score 0 }\n`,
     };
     const gone = compiledWorld('printers_shop', elsewhere, {
       mode: 'load',
@@ -139,7 +139,7 @@ describe('a catalogue of a world loaded with a gap', () => {
     // that is a gap, and `Place` fails to compose.
     const broken = {
       ...SHOP,
-      'world.sprout': `${SHOP['world.sprout']!}kind Place: Nowhere { contains actors }\n`,
+      'world.sprout': `${SHOP['world.sprout']!}kind Place is Nowhere { contains actors }\n`,
     };
     const bundle = compiledWorld('printers_shop', broken, { mode: 'load' });
     expect(bundle.absent.map((a) => a.what)).toContain('Nowhere');

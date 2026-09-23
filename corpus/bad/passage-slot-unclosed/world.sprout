@@ -1,8 +1,8 @@
-world passage_slot_unclosed: sprout.World {
+world passage_slot_unclosed is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in passage_slot_unclosed
+kind Creature is sprout.Actor { }

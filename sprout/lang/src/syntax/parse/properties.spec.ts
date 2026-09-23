@@ -317,12 +317,12 @@ describe('a :remembers, as an object writes one', () => {
 
   it('steps over entries after an early `]` only through their own `]`', () => {
     // Closed: the world reads on as if the `]` had not been there.
-    const closed = read('world w: sprout.World {\n  :remembers [a: 0 ], walks: 1]\n  :z 1\n}');
+    const closed = read('world w is sprout.World {\n  :remembers [a: 0 ], walks: 1]\n  :z 1\n}');
     expect(closed.refusals.map((d) => d.message)).toEqual([
       '`walks` is written after the `]` that ends this `:remembers`.',
     ]);
     // Not closed: nothing is taken past the next member, which is kept.
-    const open = read('world w: sprout.World {\n  :remembers [a: 0 ], walks: 1\n  :z 1\n}');
+    const open = read('world w is sprout.World {\n  :remembers [a: 0 ], walks: 1\n  :z 1\n}');
     expect(open.refusals.map((d) => d.message)).toContain(
       '`walks` is written after the `]` that ends this `:remembers`.',
     );
@@ -340,7 +340,7 @@ describe('a :remembers, as an object writes one', () => {
     // its header is not entries of the `:remembers` above it, however
     // it reads.
     const text =
-      'world w: sprout.World {\n  :remembers [a: 0]\nworld bar: sprout.World, name: 1] {\n  visitors are P\n  visitors arrive at y\n}\n';
+      'world w is sprout.World {\n  :remembers [a: 0]\nworld bar is sprout.World, name: 1] {\n  visitors are P\n  visitors arrive at y\n}\n';
     const { declarations, refusals } = read(text);
     expect(declarations).toEqual([]);
     expect(refusals.map((d) => [d.message, d.at.start])).toEqual([

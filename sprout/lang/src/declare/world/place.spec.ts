@@ -7,12 +7,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, ObjectDeclaration, WorldDeclaration } from '../../syntax/ast.js';
+import type { KindDeclaration, WorldDeclaration } from '../../syntax/ast.js';
 import { KindTable } from '../kinds.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { parseDeclarations } from '../../syntax/parse.js';
 import { SourceFile, textOf } from '../../source/source.js';
-import { resolveObjects } from '../objects.js';
+import { objectsIn, resolveObjects } from '../objects.js';
 import { placeObjects } from '../tree.js';
 import { resolveArrival } from '../world.js';
 import { ENUMS } from '../../fixtures/world.js';
@@ -57,8 +57,8 @@ describe('the world itself is never where visitors arrive', () => {
       'contains actors',
       '',
       {},
-      'kind Room {\n  contains actors\n}\nkind Box {\n  contains\n}\n' +
-        'object crate: Box in shop\nobject nook: Room in crate\nobject hall: Room in shop',
+      'kind Room {\n  contains actors\n}\nkind Box {\n  contains\n}\n',
+      'object crate is Box {\n    object nook is Room\n  }\n  object hall is Room',
     );
     expect(remedies).toEqual(['Name a place in the world, as in `visitors arrive at hall`.']);
   });
@@ -68,18 +68,22 @@ describe('the world itself is never where visitors arrive', () => {
       '',
       '',
       {},
-      'kind Room {\n  contains actors\n}\nkind Box {\n  contains\n}\n' +
-        'object crate: Box in shop\nobject nook: Room in crate',
+      'kind Room {\n  contains actors\n}\nkind Box {\n  contains\n}\n',
+      'object crate is Box {\n    object nook is Room\n  }',
     );
     expect(remedies).toEqual(['Name a place in the world, as in `visitors arrive at crate.nook`.']);
   });
 
-  /** `visitors arrive at shop`, the world's body holding `line`, beside `rest`. */
+  /**
+   * `visitors arrive at shop`, the world's body holding `line` and the
+   * objects `inside`, beside `rest`.
+   */
   function arrivingAtShop(
     line: string,
     composes = '',
     libraries: Readonly<Record<string, string>> = {},
     rest = '',
+    inside = '',
   ) {
     const parsing = new Diagnostics();
     const diagnostics = new Diagnostics();
@@ -96,7 +100,7 @@ describe('the world itself is never where visitors arrive', () => {
     const declarations = parseDeclarations(
       new SourceFile(
         'shop.sprout',
-        `world shop: sprout.World${composes} {\n  ${line}\n  visitors arrive at shop\n}\n${rest}`,
+        `world shop is sprout.World${composes} {\n  ${line}\n  visitors arrive at shop\n  ${inside}\n}\n${rest}`,
       ),
       parsing,
     );
@@ -107,17 +111,15 @@ describe('the world itself is never where visitors arrive', () => {
       diagnostics,
     );
     kinds.resolve('shop', ENUMS, diagnostics);
-    const objects = resolveObjects(
-      'shop',
-      declarations.filter((d): d is ObjectDeclaration => d.kind === 'object'),
-      { enums: ENUMS, kinds, diagnostics },
-    );
+    const world = declarations.find((d): d is WorldDeclaration => d.kind === 'world')!;
+    const objects = resolveObjects('shop', objectsIn(world), {
+      enums: ENUMS,
+      kinds,
+      diagnostics,
+    });
     const tree = placeObjects(objects, { world: 'shop', diagnostics });
     const before = diagnostics.all.length;
-    const found = resolveArrival(
-      declarations.find((d): d is WorldDeclaration => d.kind === 'world')!,
-      { tree, objects, kinds, from: 'shop', diagnostics },
-    );
+    const found = resolveArrival(world, { tree, objects, kinds, from: 'shop', diagnostics });
     const said = diagnostics.all.slice(before);
     return {
       found,

@@ -109,7 +109,7 @@ describe('a declaration’s word inside a body: a word in an option’s place, o
     'enum Ward {\n  oak\nmessage :stir\n',
     'enum Ward {\n  oak,\nenum Two { a }\n',
     'enum Ward {\n  oak\nkind Crate { }\n',
-    'enum Ward {\n  oak\nobject bench: Bench in hall\n',
+    'enum Ward {\n  oak\nworld w is sprout.World { }\n',
   ];
   for (const text of asForgottenBrace) {
     it(`reads it as a forgotten brace in ${JSON.stringify(text)}`, () => {
@@ -130,12 +130,12 @@ describe('a declaration’s word inside a body: a word in an option’s place, o
     const asDeclaration = read('enum Ward { message :stir }').refusals.map((d) => d.message);
     expect(asDeclaration).toContain('`Ward` is never closed.');
     expect(asDeclaration).not.toContain(notAnOption('message'));
-    // `object` is followed by its name and then `in` or a colon, and
-    // `kind` by a capitalised name and its brace or colon.
+    // `object` is followed by its name and then `is` or a brace, and
+    // `kind` by a capitalised name and its brace or `is`.
     expect(read('enum Ward { object, a }').refusals.map((d) => d.message)).toEqual([
       notAnOption('object'),
     ]);
-    for (const text of ['enum Ward { object bench in hall }', 'enum Ward { kind Crate { } }']) {
+    for (const text of ['enum Ward { object bench is Bench }', 'enum Ward { kind Crate { } }']) {
       const said = read(text).refusals.map((d) => d.message);
       expect(said, text).toContain('`Ward` is never closed.');
       expect(said, text).not.toContain(notAnOption(text.split(' ')[3]!));
@@ -248,7 +248,7 @@ describe('recovery and reading ask the same word different questions', () => {
 
   it('a world\u2019s members: the loose question would not say the word is not a member', () => {
     const { declarations, refusals } = read(
-      'world w: sprout.World { message foo }\nenum Ward { oak }',
+      'world w is sprout.World { message foo }\nenum Ward { oak }',
     );
     expect(refusals.map((d) => d.message)).toEqual([
       'A world is not made of `message`.',
@@ -260,7 +260,7 @@ describe('recovery and reading ask the same word different questions', () => {
 
   it('a list literal, past an element it could not read: it would lose the world', () => {
     const { declarations, refusals } = read(
-      'world w: sprout.World {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+      'world w is sprout.World {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
     // `message` is what the sign stood before, and goes with it.
@@ -269,7 +269,7 @@ describe('recovery and reading ask the same word different questions', () => {
 
   it('a `:remembers`, past an entry it could not read: the same', () => {
     const { declarations, refusals } = read(
-      'world outer: sprout.World {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
+      'world outer is sprout.World {\n  :remembers [oops: - message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
     expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
     // `message foo` is the abandoned entry's own text, stepped over
@@ -358,7 +358,7 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
     // vanish and a stray "An enum needs a name." would name nothing.
     for (const word of DECLARATIONS) {
       const { declarations, refusals } = readWorld(
-        `world w: sprout.World {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
+        `world w is sprout.World {\n  :remembers [${word}: 1]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n`,
       );
       expect(
         refusals.map((d) => d.message),

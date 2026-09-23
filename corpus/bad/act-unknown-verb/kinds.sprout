@@ -1,5 +1,5 @@
 // A verb is one this world or the standard library declares.
-kind Cat: Visitor {
+kind Cat is Visitor {
   as target for pet {
     do {
       act nuzle (target: actor)

@@ -1,4 +1,4 @@
-objects.sprout:7:30  `composing_room` composes `sprout.World`, which only a world may.
-                     Take it out of what `composing_room` composes: it would make a thing into a world, and a bundle has one world, written `world <name>: sprout.World { … }`.
+world.sprout:5:34  `composing_room` composes `sprout.World`, which only a world may.
+                   Take it out of what `composing_room` composes: it would make a thing into a world, and a bundle has one world, written `world <name> is sprout.World { … }`.
 
 refused: 1 problem

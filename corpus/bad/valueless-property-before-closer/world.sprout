@@ -1,7 +1,7 @@
 // A property with no value, standing right where the world's own `}`
 // would be, must not be taken for that closer: the members written
 // after it are read, not displaced.
-world valueless_property_before_closer: sprout.World {
+world valueless_property_before_closer is sprout.World {
   :faulty }
   visitors are Creature
   visitors arrive at hall

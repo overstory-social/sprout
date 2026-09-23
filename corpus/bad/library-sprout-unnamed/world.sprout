@@ -1,14 +1,14 @@
 // Every world composes `sprout.World`, from the standard library, which
 // its manifest names among the libraries it uses. This manifest names none.
-world library_sprout_unnamed: sprout.World {
+world library_sprout_unnamed is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is Room
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }
 
 kind Room {
   contains actors
 }
-
-object hall: Room in library_sprout_unnamed

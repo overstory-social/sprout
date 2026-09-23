@@ -25,22 +25,46 @@ import type { Chooser } from './parse.js';
 export const tooDeep = (inner: string) => '['.repeat(DEEPEST + 1) + inner + ']'.repeat(DEEPEST + 1);
 
 /**
- * What holds a body of members, as each is opened. A world, a kind and
- * an object read their bodies through one reader, and every run over
- * this list therefore tests a change to it for all three.
+ * What holds a body of members, as each is opened and closed. A world, a
+ * kind and an object read their bodies through one reader, and every run
+ * over this list therefore tests a change to it for all three. An object
+ * is written in the body of what holds it, so it opens inside a world
+ * and closes both.
  */
 export const OWNERS = [
-  { kind: 'world', name: 'w', open: 'world w: sprout.World {' },
-  { kind: 'kind', name: 'K', open: 'kind K {' },
-  { kind: 'object', name: 'o', open: 'object o: K in r {' },
+  { kind: 'world', name: 'w', open: 'world w is sprout.World {', close: '}' },
+  { kind: 'kind', name: 'K', open: 'kind K {', close: '}' },
+  { kind: 'object', name: 'o', open: 'world w is sprout.World {\nobject o is K {', close: '}\n}' },
 ] as const;
 export type Owner = (typeof OWNERS)[number];
 
-/** The declaration an owner opened, among what a file read. */
-export const ownedBy = (owner: Owner, declared: readonly Declaration[]) =>
-  declared.find(
-    (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration => d.kind === owner.kind,
-  );
+/** The declaration an owner opened, among what a file read: an object, in its world's body. */
+export const ownedBy = (
+  owner: Owner,
+  declared: readonly Declaration[],
+): WorldDeclaration | KindDeclaration | ObjectDeclaration | undefined => {
+  if (owner.kind !== 'object') {
+    return declared.find((d): d is WorldDeclaration | KindDeclaration => d.kind === owner.kind);
+  }
+  const world = declared.find((d): d is WorldDeclaration => d.kind === 'world');
+  return world?.objects.find((object) => object.name.text === owner.name);
+};
+
+/**
+ * What the body around an owner holds of its own: for an object, the
+ * world's members and the objects beside it. A stray `}` in an object's
+ * body closes it, and what was written after that is read by the world
+ * around it, where it is kept rather than lost.
+ */
+export const aroundOwner = (owner: Owner, declared: readonly Declaration[]): string[] => {
+  if (owner.kind !== 'object') return [];
+  const world = declared.find((d): d is WorldDeclaration => d.kind === 'world');
+  if (world === undefined) return [];
+  return [
+    ...world.members.flatMap(memberNames),
+    ...world.objects.filter((o) => o.name.text !== owner.name).map((o) => `object.${o.name.text}`),
+  ];
+};
 
 /**
  * A world member by what it would be looked up as, a `:remembers` by each
@@ -454,6 +478,14 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
       'passage hello extra { Hi. }',
       'passage hello',
       'without passage hello',
+      'object',
+      'object 4',
+      'object Faulty is Crate',
+      'object faulty is',
+      'object faulty is 4',
+      'object faulty: Crate',
+      'object faulty is Crate in yard',
+      'object faulty is Crate { nonsense }',
     ]);
     return { text, defect: contained(text) };
   }
@@ -501,14 +533,12 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
 export const FOLLOWING = [
   { name: 'Omega', text: 'enum Omega { y }', wellFormed: true },
   { name: 'omega', text: 'message :omega', wellFormed: true },
-  { name: 'omega', text: 'world omega: sprout.World {\n  visitors are P\n}', wellFormed: true },
-  { name: 'Omega', text: 'kind Omega: sprout.Container {\n  contains\n}', wellFormed: true },
-  { name: 'omega', text: 'object omega: Crate in yard', wellFormed: true },
-  { name: 'Omega', text: 'kind Omega: sprout.Container, name: 1] { }', wellFormed: false },
-  { name: 'omega', text: 'object omega: Crate, name: 1] in yard', wellFormed: false },
+  { name: 'omega', text: 'world omega is sprout.World {\n  visitors are P\n}', wellFormed: true },
+  { name: 'Omega', text: 'kind Omega is sprout.Container {\n  contains\n}', wellFormed: true },
+  { name: 'Omega', text: 'kind Omega is sprout.Container, name: 1] { }', wellFormed: false },
   {
     name: 'omega',
-    text: 'world omega: sprout.World, name: 1] {\n  visitors are P\n}',
+    text: 'world omega is sprout.World, name: 1] {\n  visitors are P\n}',
     wellFormed: false,
   },
   { name: 'Omega', text: 'enum Omega, name: [1]] { y }', wellFormed: false },

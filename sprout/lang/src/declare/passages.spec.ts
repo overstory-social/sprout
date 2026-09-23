@@ -68,7 +68,7 @@ function resolve(text: string) {
 describe('the composer’s own passage always applies', () => {
   it('replaces a composed default, with the composer as its origin', () => {
     const { applies, said } = resolve(
-      'kind Plain { passage taken default { You take it. } }\nkind Bold: Plain { passage taken { You seize it. } }',
+      'kind Plain { passage taken default { You take it. } }\nkind Bold is Plain { passage taken { You seize it. } }',
     );
     expect(said).toEqual([]);
     expect(applies('taken')).toEqual({
@@ -80,7 +80,7 @@ describe('the composer’s own passage always applies', () => {
 
   it('replaces a composed passage that is not a default, since the composer is no second source', () => {
     const { applies, said } = resolve(
-      'kind Mirror { passage greeting { Old glass. } }\nkind Clouded: Mirror { passage greeting { Nothing shows. } }',
+      'kind Mirror { passage greeting { Old glass. } }\nkind Clouded is Mirror { passage greeting { Nothing shows. } }',
     );
     expect(said).toEqual([]);
     expect(applies('greeting').origin).toBe('shop.Clouded');
@@ -88,7 +88,7 @@ describe('the composer’s own passage always applies', () => {
 
   it('settles what would otherwise collide: two sources and the composer’s own is the composer’s', () => {
     const { applies, said } = resolve(
-      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Plain, Terse { passage taken { C. } }',
+      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is Plain, Terse { passage taken { C. } }',
     );
     expect(said).toEqual([]);
     expect(applies('taken').origin).toBe('shop.Porter');
@@ -96,14 +96,14 @@ describe('the composer’s own passage always applies', () => {
 
   it('keeps its own `default` over a composed line that is not one, and still yields further up', () => {
     const { applies, said } = resolve(
-      'kind Loud { passage shrug { A shrug. } }\nkind Quiet: Loud { passage shrug default { Nothing. } }',
+      'kind Loud { passage shrug { A shrug. } }\nkind Quiet is Loud { passage shrug default { Nothing. } }',
     );
     expect(said).toEqual([]);
     expect(applies('shrug')).toMatchObject({ origin: 'shop.Quiet', yields: true });
   });
 
   it('carries what it writes that nothing it composes does', () => {
-    const { passages } = resolve('kind A { passage one { 1 } }\nkind B: A { passage two { 2 } }');
+    const { passages } = resolve('kind A { passage one { 1 } }\nkind B is A { passage two { 2 } }');
     expect([...passages.keys()].sort()).toEqual(['one', 'two']);
     expect(passages.get('two')!.origin).toBe('shop.B');
     expect(passages.get('one')!.origin).toBe('shop.A');
@@ -127,7 +127,7 @@ describe('the composer’s own passage always applies', () => {
 describe('among composed sources, a default yields to any other', () => {
   it('applies a lone default as it came, origin and `default` kept', () => {
     const { applies, said } = resolve(
-      'kind Plain { passage taken default { You take it. } }\nkind Porter: Plain { }',
+      'kind Plain { passage taken default { You take it. } }\nkind Porter is Plain { }',
     );
     expect(said).toEqual([]);
     expect(applies('taken')).toMatchObject({ origin: 'shop.Plain', yields: true });
@@ -135,7 +135,7 @@ describe('among composed sources, a default yields to any other', () => {
 
   it('passes a default through a kind that says nothing, so it still yields further up', () => {
     const { applies, said } = resolve(
-      'kind Plain { passage taken default { Stock. } }\nkind Middle: Plain { }\nkind Terse { passage taken { Mine. } }\nkind Porter: Middle, Terse { }',
+      'kind Plain { passage taken default { Stock. } }\nkind Middle is Plain { }\nkind Terse { passage taken { Mine. } }\nkind Porter is Middle, Terse { }',
     );
     expect(said).toEqual([]);
     expect(applies('taken').origin).toBe('shop.Terse');
@@ -144,7 +144,7 @@ describe('among composed sources, a default yields to any other', () => {
   it('lets one line that is not a default beat any number of defaults, wherever it is written', () => {
     for (const order of ['A, B, Loud', 'Loud, A, B', 'A, Loud, B']) {
       const { applies, said } = resolve(
-        `kind A { passage shrug default { a } }\nkind B { passage shrug default { b } }\nkind Loud { passage shrug { loud } }\nkind Mirror: ${order} { }`,
+        `kind A { passage shrug default { a } }\nkind B { passage shrug default { b } }\nkind Loud { passage shrug { loud } }\nkind Mirror is ${order} { }`,
       );
       expect(said, order).toEqual([]);
       expect(applies('shrug'), order).toMatchObject({ origin: 'shop.Loud', yields: false });
@@ -153,7 +153,7 @@ describe('among composed sources, a default yields to any other', () => {
 
   it('counts one origin reached through a diamond once, so its default does not collide with itself', () => {
     const { applies, said } = resolve(
-      'kind Voice { passage shrug default { Nothing. } }\nkind Left: Voice { }\nkind Right: Voice { }\nkind Both: Left, Right { }',
+      'kind Voice { passage shrug default { Nothing. } }\nkind Left is Voice { }\nkind Right is Voice { }\nkind Both is Left, Right { }',
     );
     expect(said).toEqual([]);
     expect(applies('shrug').origin).toBe('shop.Voice');
@@ -161,7 +161,7 @@ describe('among composed sources, a default yields to any other', () => {
 
   it('counts a line that is not a default, reached through a diamond, once too', () => {
     const { applies, said } = resolve(
-      'kind Voice { passage shrug { Nothing. } }\nkind Left: Voice { }\nkind Right: Voice { }\nkind Both: Left, Right { }',
+      'kind Voice { passage shrug { Nothing. } }\nkind Left is Voice { }\nkind Right is Voice { }\nkind Both is Left, Right { }',
     );
     expect(said).toEqual([]);
     expect(applies('shrug').origin).toBe('shop.Voice');
@@ -169,7 +169,7 @@ describe('among composed sources, a default yields to any other', () => {
 
   it('takes a side of the diamond that wrote its own line over the default the other side passes on', () => {
     const { applies, said } = resolve(
-      'kind Voice { passage shrug default { Stock. } }\nkind Left: Voice { passage shrug { Left’s. } }\nkind Right: Voice { }\nkind Both: Left, Right { }',
+      'kind Voice { passage shrug default { Stock. } }\nkind Left is Voice { passage shrug { Left’s. } }\nkind Right is Voice { }\nkind Both is Left, Right { }',
     );
     expect(said).toEqual([]);
     expect(applies('shrug').origin).toBe('shop.Left');
@@ -182,11 +182,11 @@ describe('two sources that neither yields are refused', () => {
 
   it('refuses two lines that are not defaults at the kind, as written, that brought the second, naming both', () => {
     const { said } = resolve(
-      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Plain, Terse { }',
+      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is Plain, Terse { }',
     );
     expect(said).toEqual([
       [
-        'shop.sprout:3:21',
+        'shop.sprout:3:23',
         '`Porter` gets the passage `taken` from both `Plain` and `Terse`, and a thing speaks each line in one voice.',
         REMEDY,
       ],
@@ -195,11 +195,11 @@ describe('two sources that neither yields are refused', () => {
 
   it('names only the sources that collide, not the defaults that yield to them', () => {
     const { said } = resolve(
-      'kind Stock { passage taken default { S. } }\nkind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Stock, Plain, Terse { }',
+      'kind Stock { passage taken default { S. } }\nkind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is Stock, Plain, Terse { }',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:4:28',
+        'shop.sprout:4:30',
         '`Porter` gets the passage `taken` from both `Plain` and `Terse`, and a thing speaks each line in one voice.',
       ],
     ]);
@@ -207,7 +207,7 @@ describe('two sources that neither yields are refused', () => {
 
   it('names every source when there are more than two', () => {
     const { said } = resolve(
-      'kind A { passage taken { a } }\nkind B { passage taken { b } }\nkind C { passage taken { c } }\nkind Porter: A, B, C { }',
+      'kind A { passage taken { a } }\nkind B { passage taken { b } }\nkind C { passage taken { c } }\nkind Porter is A, B, C { }',
     );
     expect(said.map(([, message]) => message)).toEqual([
       '`Porter` gets the passage `taken` from `A`, `B` and `C`, and a thing speaks each line in one voice.',
@@ -216,11 +216,11 @@ describe('two sources that neither yields are refused', () => {
 
   it('refuses two defaults with nothing else beside them, as any two sources collide', () => {
     const { said } = resolve(
-      'kind Plain { passage taken default { A. } }\nkind Terse { passage taken default { B. } }\nkind Porter: Plain, Terse { }',
+      'kind Plain { passage taken default { A. } }\nkind Terse { passage taken default { B. } }\nkind Porter is Plain, Terse { }',
     );
     expect(said).toEqual([
       [
-        'shop.sprout:3:21',
+        'shop.sprout:3:23',
         '`Porter` gets a default passage `taken` from both `Plain` and `Terse`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.',
         REMEDY,
       ],
@@ -229,11 +229,11 @@ describe('two sources that neither yields are refused', () => {
 
   it('refuses a default restated over another origin’s default when both arrive: two origins are two sources', () => {
     const { said } = resolve(
-      'kind Voice { passage shrug default { Stock. } }\nkind Quiet: Voice { passage shrug default { Hush. } }\nkind Mirror: Quiet, Voice { }',
+      'kind Voice { passage shrug default { Stock. } }\nkind Quiet is Voice { passage shrug default { Hush. } }\nkind Mirror is Quiet, Voice { }',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:3:21',
+        'shop.sprout:3:23',
         '`Mirror` gets a default passage `shrug` from both `Quiet` and `Voice`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.',
       ],
     ]);
@@ -241,11 +241,11 @@ describe('two sources that neither yields are refused', () => {
 
   it('keeps the first of a refused collision, so a kind composing this one hears nothing more of it', () => {
     const { passages } = resolve(
-      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Plain, Terse { }',
+      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is Plain, Terse { }',
     );
     expect(passages.get('taken')!.origin).toBe('shop.Plain');
     const above = resolve(
-      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Plain, Terse { }\nkind Crowd: Porter { }',
+      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is Plain, Terse { }\nkind Crowd is Porter { }',
     );
     expect(above.said).toEqual([]);
   });
@@ -253,7 +253,7 @@ describe('two sources that neither yields are refused', () => {
   it('never decides by order: `A, B` and `B, A` refuse alike', () => {
     for (const order of ['Plain, Terse', 'Terse, Plain']) {
       const { said } = resolve(
-        `kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: ${order} { }`,
+        `kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is ${order} { }`,
       );
       expect(said, order).toHaveLength(1);
     }
@@ -266,7 +266,7 @@ describe('the standard library’s default yields to another library’s', () =>
     const [declared] = parseDeclarations(
       new SourceFile(
         `${origin}.sprout`,
-        `kind K: Through { passage arrives${yields ? ' default' : ''} { From ${origin}. } }`,
+        `kind K is Through { passage arrives${yields ? ' default' : ''} { From ${origin}. } }`,
       ),
       new Diagnostics(),
     ) as KindDeclaration[];

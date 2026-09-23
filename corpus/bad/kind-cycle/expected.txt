@@ -1,4 +1,4 @@
-kinds.sprout:6:13  `Lidded` composes itself, through `Chest` and `Trunk`.
+kinds.sprout:6:15  `Lidded` composes itself, through `Chest` and `Trunk`.
                    Take `Lidded` out of what `Trunk` composes: a kind cannot be made of itself.
 
 refused: 1 problem

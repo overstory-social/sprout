@@ -76,7 +76,9 @@ function compose(
       setup,
     );
   }
-  const composer = shop.at(-1) as KindDeclaration | ObjectDeclaration;
+  const last = shop.at(-1)!;
+  const composer: KindDeclaration | ObjectDeclaration =
+    last.kind === 'world' ? last.objects.at(-1)! : (last as KindDeclaration);
   kinds.add(
     'shop',
     shop.filter((d): d is KindDeclaration => d.kind === 'kind' && d !== composer),
@@ -115,40 +117,42 @@ const NOTHING: KindSource = {
 };
 
 const DIAMOND = `kind A { :worn 0 min 0 max 9 }
-kind B: A { }
-kind C: A { }
+kind B is A { }
+kind C is A { }
 `;
 
 describe('the closure is depth-first, left to right, each kind at its first appearance, own last', () => {
-  it('walks a diamond once: `D: B, C` with `B: A` and `C: A` is A, B, C, D', () => {
-    const { kind, said } = compose(`${DIAMOND}kind D: B, C { }`);
+  it('walks a diamond once: `D is B, C` with `B is A` and `C is A` is A, B, C, D', () => {
+    const { kind, said } = compose(`${DIAMOND}kind D is B, C { }`);
     expect(said).toEqual([]);
     expect(kind!.order).toEqual(['shop.A', 'shop.B', 'shop.C', 'shop.D']);
   });
 
-  it('walks a chain three deep from the bottom: `D: C`, `C: B`, `B: A` is A, B, C, D', () => {
-    const { kind } = compose('kind A { }\nkind B: A { }\nkind C: B { }\nkind D: C { }');
+  it('walks a chain three deep from the bottom: `D is C`, `C is B`, `B is A` is A, B, C, D', () => {
+    const { kind } = compose('kind A { }\nkind B is A { }\nkind C is B { }\nkind D is C { }');
     expect(kind!.order).toEqual(['shop.A', 'shop.B', 'shop.C', 'shop.D']);
   });
 
-  it('follows the list as written, so `E: C, B` runs C before B', () => {
-    const { kind } = compose(`${DIAMOND}kind E: C, B { }`);
+  it('follows the list as written, so `E is C, B` runs C before B', () => {
+    const { kind } = compose(`${DIAMOND}kind E is C, B { }`);
     expect(kind!.order).toEqual(['shop.A', 'shop.C', 'shop.B', 'shop.E']);
   });
 
   it('places a kind at its first appearance, not where it is written again', () => {
-    const { kind } = compose(`${DIAMOND}kind F: B, A { }`);
+    const { kind } = compose(`${DIAMOND}kind F is B, A { }`);
     expect(kind!.order).toEqual(['shop.A', 'shop.B', 'shop.F']);
   });
 
   it('holds the same kinds as a set, itself included', () => {
-    const { kind } = compose(`${DIAMOND}kind D: B, C { }`);
+    const { kind } = compose(`${DIAMOND}kind D is B, C { }`);
     expect([...kind!.composes].sort()).toEqual([...kind!.order].sort());
     expect(kind!.composes.has('shop.D')).toBe(true);
   });
 
   it('composes an object as its anonymous kind, named for the object', () => {
-    const { kind, said } = compose(`${DIAMOND}object chest: B, C in hall { :worn 3 }`);
+    const { kind, said } = compose(
+      `${DIAMOND}world shop is sprout.World { object chest is B, C { :worn 3 } }`,
+    );
     expect(said).toEqual([]);
     expect(kind!.order).toEqual(['shop.A', 'shop.B', 'shop.C', 'shop.chest']);
   });
@@ -162,7 +166,7 @@ describe('a written kind is read from the composer’s library, then the standar
   const written = (text: string): KindExpr =>
     (
       parseDeclarations(
-        new SourceFile('k.sprout', `kind K: ${text} { }`),
+        new SourceFile('k.sprout', `kind K is ${text} { }`),
         new Diagnostics(),
       )[0] as KindDeclaration
     ).composes[0]!;
@@ -180,7 +184,7 @@ describe('a written kind is read from the composer’s library, then the standar
   });
 
   it('composes the world’s own `Container` over the standard library’s', () => {
-    const { kind } = compose('kind Container { :lid false }\nkind Crate: Container { }');
+    const { kind } = compose('kind Container { :lid false }\nkind Crate is Container { }');
     expect(kind!.order).toEqual(['shop.Container', 'shop.Crate']);
     expect([...kind!.properties.keys()]).toEqual(['lid']);
   });
@@ -188,7 +192,7 @@ describe('a written kind is read from the composer’s library, then the standar
 
 describe('a property from one origin is one property, however many paths reach it', () => {
   it('merges the diamond’s `:worn` into one, from `A`', () => {
-    const { kind, said } = compose(`${DIAMOND}kind D: B, C { }`);
+    const { kind, said } = compose(`${DIAMOND}kind D is B, C { }`);
     expect(said).toEqual([]);
     expect([...kind!.properties.values()].map((p) => [p.name, p.origin])).toEqual([
       ['worn', 'shop.A'],
@@ -219,10 +223,10 @@ describe('a property from two origins is refused until the composer restates it'
   const TWO = 'kind Lidded { :open true }\nkind Futon { :open false }\n';
 
   it('refuses at the kind, as written, that brought the second origin, naming both', () => {
-    const { said } = compose(`${TWO}kind Crate: Lidded, Futon { }`);
+    const { said } = compose(`${TWO}kind Crate is Lidded, Futon { }`);
     expect(said).toEqual([
       [
-        'shop.sprout:3:21',
+        'shop.sprout:3:23',
         '`Crate` gets `:open` from both `Lidded` and `Futon`, which are two claims on one slot.',
         'If they are meant to be one property, restate it in `Crate`: `:open true`.',
       ],
@@ -231,7 +235,7 @@ describe('a property from two origins is refused until the composer restates it'
 
   it('refuses even identical declarations, since two kinds meaning `:open` may mean two things', () => {
     const { said } = compose(
-      'kind Lidded { :open true }\nkind Futon { :open true }\nkind Crate: Lidded, Futon { }',
+      'kind Lidded { :open true }\nkind Futon { :open true }\nkind Crate is Lidded, Futon { }',
     );
     expect(said.map(([, message]) => message)).toEqual([
       '`Crate` gets `:open` from both `Lidded` and `Futon`, which are two claims on one slot.',
@@ -239,27 +243,29 @@ describe('a property from two origins is refused until the composer restates it'
   });
 
   it('names a library’s kind with its library', () => {
-    const { said } = compose('kind Futon { :open false }\nkind Crate: sprout.Container, Futon { }');
+    const { said } = compose(
+      'kind Futon { :open false }\nkind Crate is sprout.Container, Futon { }',
+    );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:2:31',
+        'shop.sprout:2:33',
         '`Crate` gets `:open` from both `sprout.Container` and `Futon`, which are two claims on one slot.',
       ],
     ]);
   });
 
   it('names every origin when there are more than two', () => {
-    const { said } = compose(`${TWO}kind Box { :open true }\nkind Crate: Lidded, Futon, Box { }`);
+    const { said } = compose(`${TWO}kind Box { :open true }\nkind Crate is Lidded, Futon, Box { }`);
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:4:21',
+        'shop.sprout:4:23',
         '`Crate` gets `:open` from `Lidded`, `Futon` and `Box`, which are 3 claims on one slot.',
       ],
     ]);
   });
 
   it('takes the restatement as the one property, with the composer as its origin', () => {
-    const { kind, said } = compose(`${TWO}kind Crate: Lidded, Futon { :open false }`);
+    const { kind, said } = compose(`${TWO}kind Crate is Lidded, Futon { :open false }`);
     expect(said).toEqual([]);
     const open = kind!.properties.get('open')!;
     expect([open.origin, showType(open.type), open.declaration.default]).toMatchObject([
@@ -272,28 +278,28 @@ describe('a property from two origins is refused until the composer restates it'
   it('refuses two origins of `:remembers` the same way, and restates inside `:remembers`', () => {
     const REMEMBERS =
       'kind Lidded { :remembers [seen: false] }\nkind Futon { :remembers [seen: true] }\n';
-    const { said } = compose(`${REMEMBERS}kind Crate: Lidded, Futon { }`);
+    const { said } = compose(`${REMEMBERS}kind Crate is Lidded, Futon { }`);
     expect(said.map(([, message, remedy]) => [message, remedy])).toEqual([
       [
         '`Crate` gets `:seen` from both `Lidded` and `Futon`, which are two claims on one slot.',
         'If they are meant to be one property, restate it in `Crate`: `:remembers [seen: false]`.',
       ],
     ]);
-    const restated = compose(`${REMEMBERS}kind Crate: Lidded, Futon { :remembers [seen: true] }`);
+    const restated = compose(`${REMEMBERS}kind Crate is Lidded, Futon { :remembers [seen: true] }`);
     expect(restated.said).toEqual([]);
     expect(restated.kind!.properties.get('seen')!.remembered).toBe(true);
   });
 
   it('cannot merge two origins that disagree in type, and says so rather than offering a restatement', () => {
     const DIFFER = 'kind Lidded { :open true }\nkind Hinged { :open 0 min 0 max 9 }\n';
-    const { said } = compose(`${DIFFER}kind Crate: Lidded, Hinged { }`);
+    const { said } = compose(`${DIFFER}kind Crate is Lidded, Hinged { }`);
     expect(said.map(([, , remedy]) => remedy)).toEqual([
       'They hold boolean and integer 0 to 9, so they cannot be one property: compose only one of them, or give one of them another name in a kind of your own.',
     ]);
-    const restated = compose(`${DIFFER}kind Crate: Lidded, Hinged { :open false }`);
+    const restated = compose(`${DIFFER}kind Crate is Lidded, Hinged { :open false }`);
     expect(restated.said).toEqual([
       [
-        'shop.sprout:3:30',
+        'shop.sprout:3:32',
         '`:open` holds boolean in `Lidded` and integer 0 to 9 in `Hinged`, so restating it cannot make them one property.',
         'Compose only one of them, or give one of them another name in a kind of your own.',
       ],
@@ -302,7 +308,7 @@ describe('a property from two origins is refused until the composer restates it'
 
   it('counts a remembered and a plain declaration of one name as disagreeing', () => {
     const { said } = compose(
-      'kind Lidded { :open true }\nkind Futon { :remembers [open: true] }\nkind Crate: Lidded, Futon { :open false }',
+      'kind Lidded { :open true }\nkind Futon { :remembers [open: true] }\nkind Crate is Lidded, Futon { :open false }',
     );
     expect(said.map(([, message]) => message)).toEqual([
       '`:open` holds boolean in `Lidded` and boolean (remembered) in `Futon`, so restating it cannot make them one property.',
@@ -313,7 +319,7 @@ describe('a property from two origins is refused until the composer restates it'
     // `Crate` restates `sprout.Container`'s `:capacity`, and is its
     // origin from then on: composing both is two origins.
     const { said } = compose(
-      'kind Crate: sprout.Container { :capacity 40 }\nobject box: Crate, sprout.Container in hall',
+      'kind Crate is sprout.Container { :capacity 40 }\nworld shop is sprout.World { object box is Crate, sprout.Container }',
     );
     // `:open` reaches `box` by both paths from one origin, and is one.
     expect(said.map(([, message]) => message)).toEqual([
@@ -324,24 +330,24 @@ describe('a property from two origins is refused until the composer restates it'
 
 describe('a restatement keeps the composed type', () => {
   it('keeps `sprout.Container`’s range for `:capacity 40`', () => {
-    const { kind, said } = compose('kind Crate: sprout.Container { :capacity 40 }');
+    const { kind, said } = compose('kind Crate is sprout.Container { :capacity 40 }');
     expect(said).toEqual([]);
     expect(kind!.properties.get('capacity')!.type).toEqual(integer(0, 99));
   });
 
   it('keeps the enum for a bare option', () => {
     const { kind, said } = compose(
-      'kind Warded { :ward sprout.Ward default oak }\nkind Gate: Warded { :ward silver }',
+      'kind Warded { :ward sprout.Ward default oak }\nkind Gate is Warded { :ward silver }',
     );
     expect(said).toEqual([]);
     expect(showType(kind!.properties.get('ward')!.type)).toBe('Ward');
   });
 
   it('refuses a change of type at what was written, naming the kind it came from', () => {
-    const { said } = compose('kind Crate: sprout.Container { :capacity 40 min 0 max 50 }');
+    const { said } = compose('kind Crate is sprout.Container { :capacity 40 min 0 max 50 }');
     expect(said).toEqual([
       [
-        'shop.sprout:1:49',
+        'shop.sprout:1:51',
         '`:capacity` holds integer 0 to 99 in `sprout.Container`, and whatever composes it keeps that type.',
         'Restate only its default, as in `:capacity 40`; a property holding something else takes a name of its own.',
       ],
@@ -353,14 +359,14 @@ describe('`contains` and `contains actors` are idempotent, so they hold across t
   const HOLDERS = 'kind Box { contains }\nkind Room { contains actors }\n';
 
   it('holds what anything it composes holds', () => {
-    const { kind } = compose(`${HOLDERS}kind Crate: Box { }`);
+    const { kind } = compose(`${HOLDERS}kind Crate is Box { }`);
     expect([kind!.contains, kind!.containsActors]).toEqual([true, false]);
   });
 
   it('is a place when anything it composes is, which implies holding', () => {
-    const { kind } = compose(`${HOLDERS}kind Hall: Box, Room { }`);
+    const { kind } = compose(`${HOLDERS}kind Hall is Box, Room { }`);
     expect([kind!.contains, kind!.containsActors]).toEqual([true, true]);
-    expect(compose(`${HOLDERS}kind Hall: Room { }`).kind!.contains).toBe(true);
+    expect(compose(`${HOLDERS}kind Hall is Room { }`).kind!.contains).toBe(true);
   });
 
   it('holds nothing when nothing says so', () => {
@@ -369,23 +375,23 @@ describe('`contains` and `contains actors` are idempotent, so they hold across t
   });
 
   it('takes its own line as well as what it composes', () => {
-    const { kind } = compose(`${HOLDERS}kind Den: Box { contains actors }`);
+    const { kind } = compose(`${HOLDERS}kind Den is Box { contains actors }`);
     expect([kind!.contains, kind!.containsActors]).toEqual([true, true]);
   });
 });
 
 describe('what a composition list may not name', () => {
   it('tells `onUnknown` of a kind nothing declares, and composes nothing', () => {
-    const { kind, unknown, said } = compose('kind Crate: Missing, sprout.Gone { }');
+    const { kind, unknown, said } = compose('kind Crate is Missing, sprout.Gone { }');
     expect(kind).toBeNull();
-    expect(unknown.map((w) => locationOf(w.at))).toEqual(['shop.sprout:1:13', 'shop.sprout:1:22']);
+    expect(unknown.map((w) => locationOf(w.at))).toEqual(['shop.sprout:1:15', 'shop.sprout:1:24']);
     expect(said).toEqual([]);
   });
 
   it('says so in words a person can act on', () => {
     const [bare, qualified] = (
       parseDeclarations(
-        new SourceFile('k.sprout', 'kind K: Missing, victorian.Voice { }'),
+        new SourceFile('k.sprout', 'kind K is Missing, victorian.Voice { }'),
         new Diagnostics(),
       )[0] as KindDeclaration
     ).composes;
@@ -410,22 +416,22 @@ describe('what a composition list may not name', () => {
       named: (library) =>
         ({ shop: ['Wooden'], sprout: ['Container'], victorian: ['Voice'] })[library] ?? [],
     };
-    expect(unknownKind(composes('kind K: Wodden { }'), 'shop', kinds)).toEqual({
+    expect(unknownKind(composes('kind K is Wodden { }'), 'shop', kinds)).toEqual({
       message: 'Nothing here is a `Wodden`. Did you mean `Wooden`?',
       remedy: 'Write `Wooden`, or declare `Wodden` with `kind Wodden { … }`.',
     });
-    expect(unknownKind(composes('kind K: Contianer { }'), 'shop', kinds).message).toBe(
+    expect(unknownKind(composes('kind K is Contianer { }'), 'shop', kinds).message).toBe(
       'Nothing here is a `Contianer`. Did you mean `Container`?',
     );
-    expect(unknownKind(composes('kind K: victorian.Vioce { }'), 'shop', kinds)).toEqual({
+    expect(unknownKind(composes('kind K is victorian.Vioce { }'), 'shop', kinds)).toEqual({
       message: 'Nothing here is a `victorian.Vioce`. Did you mean `victorian.Voice`?',
       remedy: 'Write `victorian.Voice`.',
     });
     // A library's kinds are not offered for a bare name, nor a guess too far off.
-    expect(unknownKind(composes('kind K: Vioce { }'), 'shop', kinds).message).toBe(
+    expect(unknownKind(composes('kind K is Vioce { }'), 'shop', kinds).message).toBe(
       'Nothing here is a `Vioce`.',
     );
-    expect(unknownKind(composes('kind K: Barrel { }'), 'shop', kinds).message).toBe(
+    expect(unknownKind(composes('kind K is Barrel { }'), 'shop', kinds).message).toBe(
       'Nothing here is a `Barrel`.',
     );
   });
@@ -433,7 +439,7 @@ describe('what a composition list may not name', () => {
   it('refuses it itself when nobody asked to be told', () => {
     const diagnostics = new Diagnostics();
     const [crate] = parseDeclarations(
-      new SourceFile('k.sprout', 'kind Crate: Missing { }'),
+      new SourceFile('k.sprout', 'kind Crate is Missing { }'),
       diagnostics,
     );
     const kinds = new KindTable();
@@ -448,35 +454,35 @@ describe('what a composition list may not name', () => {
     );
     expect(kind).toBeNull();
     expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['k.sprout:1:13', 'Nothing here is a `Missing`.'],
+      ['k.sprout:1:15', 'Nothing here is a `Missing`.'],
     ]);
   });
 
   it('does not read a body whose composition failed, since a restatement would read as new', () => {
     // `:ward silver` restates a `sprout.Ward` property only if `Warded`
     // is there to say so; read alone it would be refused for naming no enum.
-    const { said, unknown } = compose('kind Gate: Warded { :ward silver }');
+    const { said, unknown } = compose('kind Gate is Warded { :ward silver }');
     expect(unknown).toHaveLength(1);
     expect(said).toEqual([]);
   });
 
   it('refuses the same kind twice, at the second', () => {
-    const { said } = compose('kind Box { }\nkind Crate: Box, Box { }');
+    const { said } = compose('kind Box { }\nkind Crate is Box, Box { }');
     expect(said).toEqual([
-      ['shop.sprout:2:18', '`Crate` composes `Box` twice.', 'Compose it once.'],
+      ['shop.sprout:2:20', '`Crate` composes `Box` twice.', 'Compose it once.'],
     ]);
   });
 
   it('names a kind written twice as it was written, bare or qualified', () => {
     // A bare name nothing declares resolves to the standard library's
     // spelling, which the author never wrote and must not be shown.
-    const unknown = compose('kind Crate: Wodden, Wodden { }');
+    const unknown = compose('kind Crate is Wodden, Wodden { }');
     expect(unknown.unknown).toHaveLength(1);
     expect(unknown.said).toEqual([
-      ['shop.sprout:1:21', '`Crate` composes `Wodden` twice.', 'Compose it once.'],
+      ['shop.sprout:1:23', '`Crate` composes `Wodden` twice.', 'Compose it once.'],
     ]);
-    expect(compose('kind Crate: sprout.Container, sprout.Container { }').said).toEqual([
-      ['shop.sprout:1:31', '`Crate` composes `sprout.Container` twice.', 'Compose it once.'],
+    expect(compose('kind Crate is sprout.Container, sprout.Container { }').said).toEqual([
+      ['shop.sprout:1:33', '`Crate` composes `sprout.Container` twice.', 'Compose it once.'],
     ]);
   });
 
@@ -488,7 +494,7 @@ describe('what a composition list may not name', () => {
     };
     const diagnostics = new Diagnostics();
     const [crate] = parseDeclarations(
-      new SourceFile('k.sprout', 'kind Crate: Broken { }'),
+      new SourceFile('k.sprout', 'kind Crate is Broken { }'),
       diagnostics,
     );
     const kind = composeKind(
@@ -511,14 +517,14 @@ describe('what a composition list may not name', () => {
       find: (): Found => ({ found: 'cycle', through: ['shop.B', 'sprout.C'] }),
     };
     const diagnostics = new Diagnostics();
-    const [kind] = parseDeclarations(new SourceFile('k.sprout', 'kind C: A { }'), diagnostics);
+    const [kind] = parseDeclarations(new SourceFile('k.sprout', 'kind C is A { }'), diagnostics);
     composeKind(
       { library: 'shop', name: 'C', composes: (kind as KindDeclaration).composes, members: [] },
       { enums: new EnumTable(), kinds: looping, world: 'shop', diagnostics },
     );
     expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
-        'k.sprout:1:9',
+        'k.sprout:1:11',
         '`A` composes itself, through `B` and `sprout.C`.',
         'Take `A` out of what `C` composes: a kind cannot be made of itself.',
       ],
@@ -528,12 +534,12 @@ describe('what a composition list may not name', () => {
 
 describe('`sprout.World` is composed by a world and nothing else', () => {
   it('refuses a bare `World` that means it, with the words the shape tier uses', () => {
-    const { said, kind } = compose('object hall: World in nowhere');
+    const { said, kind } = compose('world shop is sprout.World { object hall is World }');
     expect(said).toEqual([
       [
-        'shop.sprout:1:14',
+        'shop.sprout:1:45',
         '`hall` composes `sprout.World`, which only a world may.',
-        'Take it out of what `hall` composes: it would make a thing into a world, and a bundle has one world, written `world <name>: sprout.World { … }`.',
+        'Take it out of what `hall` composes: it would make a thing into a world, and a bundle has one world, written `world <name> is sprout.World { … }`.',
       ],
     ]);
     // The rest of it is composed: nothing else was wrong with it.
@@ -541,24 +547,24 @@ describe('`sprout.World` is composed by a world and nothing else', () => {
   });
 
   it('knows it by identity even when no standard library travelled', () => {
-    const { said } = compose('kind Hall: World { }', { sprout: '' });
+    const { said } = compose('kind Hall is World { }', { sprout: '' });
     expect(said.map(([, message]) => message)).toEqual([
       '`Hall` composes `sprout.World`, which only a world may.',
     ]);
   });
 
   it('leaves `sprout.World` written out to the shape tier, which has refused it once already', () => {
-    expect(compose('kind Hall: sprout.World { }').said).toEqual([]);
+    expect(compose('kind Hall is sprout.World { }').said).toEqual([]);
   });
 
   it('lets a world’s own `World` be composed, since it is some other kind', () => {
-    const { said, kind } = compose('kind World { }\nkind Hall: World { }');
+    const { said, kind } = compose('kind World { }\nkind Hall is World { }');
     expect(said).toEqual([]);
     expect(kind!.order).toEqual(['shop.World', 'shop.Hall']);
   });
 
   it('is composed where the composer may, in the order written like any kind', () => {
-    const { said, kind } = compose('kind Voice { }\nkind Shop: Voice, sprout.World { }', {
+    const { said, kind } = compose('kind Voice { }\nkind Shop is Voice, sprout.World { }', {
       mayComposeWorld: true,
     });
     expect(said).toEqual([]);
@@ -568,7 +574,7 @@ describe('`sprout.World` is composed by a world and nothing else', () => {
   });
 
   it('is said to be missing from the standard library where one may compose it and none did', () => {
-    const { kind, unknown } = compose('kind Shop: sprout.World { }', {
+    const { kind, unknown } = compose('kind Shop is sprout.World { }', {
       sprout: '',
       mayComposeWorld: true,
     });
@@ -579,11 +585,11 @@ describe('`sprout.World` is composed by a world and nothing else', () => {
 
 describe('`without` leaves out one contribution, naming the member and the kind it comes from', () => {
   /** A lamp two kinds deep, so its closure holds more than what it wrote. */
-  const LAMPS = 'kind Light { :lit false }\nkind Lantern: Light { }\n';
+  const LAMPS = 'kind Light { :lit false }\nkind Lantern is Light { }\n';
 
   it('refuses a kind the composer does not compose, at the kind', () => {
     const { kind, said } = compose(
-      `${LAMPS}kind Crate: sprout.Container {\n  without changed :lit from Light\n}`,
+      `${LAMPS}kind Crate is sprout.Container {\n  without changed :lit from Light\n}`,
     );
     expect(said).toEqual([
       [
@@ -597,7 +603,7 @@ describe('`without` leaves out one contribution, naming the member and the kind 
   });
 
   it('refuses the composer itself, whose own members are dropped by taking them out', () => {
-    const { said } = compose(`${LAMPS}kind Safety: Lantern {\n  without depart from Safety\n}`);
+    const { said } = compose(`${LAMPS}kind Safety is Lantern {\n  without depart from Safety\n}`);
     expect(said).toEqual([
       [
         'shop.sprout:4:23',
@@ -608,7 +614,7 @@ describe('`without` leaves out one contribution, naming the member and the kind 
   });
 
   it('refuses a kind nothing declares, with the kind it most likely meant', () => {
-    const { said } = compose(`${LAMPS}kind Safety: Lantern {\n  without depart from Lantrn\n}`);
+    const { said } = compose(`${LAMPS}kind Safety is Lantern {\n  without depart from Lantrn\n}`);
     expect(said.map(([, message]) => message)).toEqual([
       'Nothing here is a `Lantrn`. Did you mean `Lantern`?',
     ]);
@@ -627,7 +633,7 @@ describe('`without` leaves out one contribution, naming the member and the kind 
       ['as target for unlock', 11],
     ] as const) {
       const { kind, said } = compose(
-        `${LAMPS}message :stir\nkind Safety: Lantern {\n  without ${member} from Light\n}`,
+        `${LAMPS}message :stir\nkind Safety is Lantern {\n  without ${member} from Light\n}`,
       );
       expect(said, member).toEqual([
         [
@@ -641,7 +647,7 @@ describe('`without` leaves out one contribution, naming the member and the kind 
   });
 
   it('is read on a world, where `sprout.World` is in the closure like any kind', () => {
-    const { said } = compose('kind Shop: sprout.World {\n  without depart from sprout.World\n}', {
+    const { said } = compose('kind Shop is sprout.World {\n  without depart from sprout.World\n}', {
       mayComposeWorld: true,
     });
     expect(said.map(([, message]) => message)).toEqual([
@@ -657,20 +663,20 @@ describe('`without` leaves out one contribution, naming the member and the kind 
   });
 
   it('records a guard the kind after `from` writes itself, and refuses one it only composes', () => {
-    const GUARDED = `${LAMPS}kind Fragile { depart (to) { refuse "It would break." } }\nkind Vase: Fragile { }\n`;
-    const left = compose(`${GUARDED}kind Urn: Vase {\n  without depart from Fragile\n}`);
+    const GUARDED = `${LAMPS}kind Fragile { depart (to) { refuse "It would break." } }\nkind Vase is Fragile { }\n`;
+    const left = compose(`${GUARDED}kind Urn is Vase {\n  without depart from Fragile\n}`);
     expect(left.said).toEqual([]);
     expect(left.kind!.suppressed.map((one) => one.source)).toEqual(['shop.Fragile']);
     expect(left.kind!.guards.depart).toEqual([]);
 
-    const through = compose(`${GUARDED}kind Urn: Vase {\n  without depart from Vase\n}`);
+    const through = compose(`${GUARDED}kind Urn is Vase {\n  without depart from Vase\n}`);
     expect(through.said.map(([, message]) => message)).toEqual([
       '`Vase` has no `depart` to leave out.',
     ]);
   });
 
   it('records nothing on a kind that writes none', () => {
-    expect(compose(`${LAMPS}kind Safety: Lantern { }`).kind!.suppressed).toEqual([]);
+    expect(compose(`${LAMPS}kind Safety is Lantern { }`).kind!.suppressed).toEqual([]);
   });
 });
 
@@ -691,7 +697,7 @@ kind Place {
 
   it('gives a kind what it composes, and its own line over a composed default', () => {
     const { kind, said } = compose(
-      'kind Plain { passage taken default { You take it. } passage dropped default { Down. } }\nkind Bold: Plain { passage taken { You seize it. } }',
+      'kind Plain { passage taken default { You take it. } passage dropped default { Down. } }\nkind Bold is Plain { passage taken { You seize it. } }',
     );
     expect(said).toEqual([]);
     expect(origins(kind!)).toEqual({ taken: 'shop.Bold', dropped: 'shop.Plain' });
@@ -699,7 +705,7 @@ kind Place {
 
   it('lets an object write its own over a kind’s line, with the object as its origin', () => {
     const { kind, said } = compose(
-      'kind Mirror { passage greeting { Old glass. } }\nobject mirror: Mirror in hall { passage greeting { Clouded. } }',
+      'kind Mirror { passage greeting { Old glass. } }\nworld shop is sprout.World { object mirror is Mirror { passage greeting { Clouded. } } }',
     );
     expect(said).toEqual([]);
     expect(origins(kind!)).toEqual({ greeting: 'shop.mirror' });
@@ -707,7 +713,7 @@ kind Place {
 
   it('lets the world write its own `nothing_happens` over `sprout.World`’s', () => {
     const { kind, said } = compose(
-      'kind Shop: sprout.World { passage nothing_happens { The shop does not notice. } }',
+      'kind Shop is sprout.World { passage nothing_happens { The shop does not notice. } }',
       { sprout: VOICED, mayComposeWorld: true },
     );
     expect(said).toEqual([]);
@@ -719,7 +725,7 @@ kind Place {
 
   it('takes a register’s line that is not a default over `sprout.Place`’s, and the rest from the library', () => {
     const { kind, said } = compose(
-      'kind Hushed { passage arrives { {item} slips in. } }\nobject hall: sprout.Place, Hushed in shop { }',
+      'kind Hushed { passage arrives { {item} slips in. } }\nworld shop is sprout.World { object hall is sprout.Place, Hushed { } }',
       { sprout: VOICED },
     );
     expect(said).toEqual([]);
@@ -727,10 +733,13 @@ kind Place {
   });
 
   it('takes a register library’s default over `sprout.Place`’s, still a default, and the rest from the library', () => {
-    const { kind, said } = compose('object hall: sprout.Place, victorian.Hushed in shop { }', {
-      sprout: VOICED,
-      libraries: { victorian: 'kind Hushed { passage arrives default { {item} slips in. } }' },
-    });
+    const { kind, said } = compose(
+      'world shop is sprout.World { object hall is sprout.Place, victorian.Hushed { } }',
+      {
+        sprout: VOICED,
+        libraries: { victorian: 'kind Hushed { passage arrives default { {item} slips in. } }' },
+      },
+    );
     expect(said).toEqual([]);
     expect(origins(kind!)).toEqual({ arrives: 'victorian.Hushed', leaves: 'sprout.Place' });
     expect(kind!.passages.get('arrives')!.yields).toBe(true);
@@ -738,12 +747,12 @@ kind Place {
 
   it('refuses two defaults at the kind as written, naming a library’s kind with its library', () => {
     const { kind, said } = compose(
-      'kind Quiet { passage arrives default { {item} is here. } }\nobject hall: sprout.Place, Quiet in shop { }',
+      'kind Quiet { passage arrives default { {item} is here. } }\nworld shop is sprout.World { object hall is sprout.Place, Quiet { } }',
       { sprout: VOICED },
     );
     expect(said).toEqual([
       [
-        'shop.sprout:2:28',
+        'shop.sprout:2:59',
         '`hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one, or the standard library’s to another library’s.',
         'Write its own `passage arrives { … }` in `hall`, which is then the one that applies, or compose only one of them.',
       ],
@@ -754,11 +763,11 @@ kind Place {
 
   it('refuses two sources that are not defaults, and not the composer’s own line written once', () => {
     const { said } = compose(
-      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter: Plain, Terse {\n  passage greeting { Hello. }\n}',
+      'kind Plain { passage taken { A. } }\nkind Terse { passage taken { B. } }\nkind Porter is Plain, Terse {\n  passage greeting { Hello. }\n}',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:3:21',
+        'shop.sprout:3:23',
         '`Porter` gets the passage `taken` from both `Plain` and `Terse`, and a thing speaks each line in one voice.',
       ],
     ]);
@@ -766,7 +775,7 @@ kind Place {
 
   it('refuses a passage written twice in the composer’s own body', () => {
     const { said } = compose(
-      'kind Mirror { }\nobject mirror: Mirror in hall {\n  passage greeting { A. }\n  passage greeting { B. }\n}',
+      'kind Mirror { }\nworld shop is sprout.World { object mirror is Mirror {\n  passage greeting { A. }\n  passage greeting { B. }\n} }',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       ['shop.sprout:4:11', '`mirror` writes the passage `greeting` twice.'],

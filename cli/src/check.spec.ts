@@ -23,7 +23,7 @@ describe('checkWorld', () => {
   });
 
   it('refuses a broken file by file, line and column, as a page and as JSON', () => {
-    const dir = worldWith({ 'world.sprout': 'world w: sprout.World {\n  visitors are 42\n}\n' });
+    const dir = worldWith({ 'world.sprout': 'world w is sprout.World {\n  visitors are 42\n}\n' });
     const result = checkWorld(dir);
     expect(result.ok).toBe(false);
     expect(result.bundle).toBeNull();

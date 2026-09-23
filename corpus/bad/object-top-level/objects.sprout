@@ -1,0 +1,9 @@
+kind Bench {
+  :worn 0
+}
+
+// An object is written inside what holds it, never on its own at the top
+// of a file: this bench belongs in the composing room's braces.
+object bench is Bench {
+  :worn 2
+}

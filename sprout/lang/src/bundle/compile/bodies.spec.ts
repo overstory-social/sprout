@@ -40,9 +40,9 @@ describe('each body is checked once, against the kind that wrote it', () => {
   it('says a problem in a composed guard once, however many kinds compose it', () => {
     expect(
       checked(`kind Lid { :open true  depart (to) { self.set(:open, false) } }
-kind Crate: Lid { }
-kind Chest: Lid { }
-kind Trunk: Crate, Chest { }`),
+kind Crate is Lid { }
+kind Chest is Lid { }
+kind Trunk is Crate, Chest { }`),
     ).toEqual([['shop.sprout:1:38', '`self.set` writes, and a guard only reads and decides.']]);
   });
 
@@ -51,14 +51,14 @@ kind Trunk: Crate, Chest { }`),
     // and reads it in its own guard as any composed property.
     expect(
       checked(`kind Lid { :open true  depart (to) { if (!self.get(:open)) { refuse "Shut." } } }
-kind Crate: Lid { accept (item, from) { if (self.get(:open)) { allow } } }`),
+kind Crate is Lid { accept (item, from) { if (self.get(:open)) { allow } } }`),
     ).toEqual([]);
   });
 
   it('asks the kind that wrote the guard for the passage it refuses with', () => {
     expect(
       checked(`kind Lid { depart (to) { refuse shut } }
-kind Crate: Lid { passage shut { {self} is shut. } }`),
+kind Crate is Lid { passage shut { {self} is shut. } }`),
     ).toEqual([['shop.sprout:1:33', '`Lid` has no passage `shut`.']]);
   });
 
@@ -66,9 +66,9 @@ kind Crate: Lid { passage shut { {self} is shut. } }`),
     expect(
       checked(`verb pull { role target  "pull [target]" }
 kind Lever { :up true  as target for pull { permit { self.set(:up, false) } } }
-kind Brass: Lever { }
-kind Iron: Lever { }
-kind Both: Brass, Iron { }`),
+kind Brass is Lever { }
+kind Iron is Lever { }
+kind Both is Brass, Iron { }`),
     ).toEqual([['shop.sprout:2:54', '`self.set` writes, and a `permit` only reads and decides.']]);
   });
 
@@ -76,7 +76,7 @@ kind Both: Brass, Iron { }`),
     expect(
       checked(`verb pull { role target  "pull [target]" }
 kind Lever { as target for pull { do { say pulled } } }
-kind Brass: Lever { passage pulled { Clunk. } }`),
+kind Brass is Lever { passage pulled { Clunk. } }`),
     ).toEqual([['shop.sprout:2:44', '`Lever` has no passage `pulled`.']]);
   });
 });

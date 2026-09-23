@@ -30,7 +30,7 @@ describe('initWorld', () => {
       files: ['world.sprout'],
     });
     expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain(
-      'world paper_store: sprout.World {',
+      'world paper_store is sprout.World {',
     );
   });
 
@@ -38,17 +38,19 @@ describe('initWorld', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
-    expect(written).toContain('world kiln_yard: sprout.World {');
+    expect(written).toContain('world kiln_yard is sprout.World {');
     // What a beginner is handed is what the compiler takes.
     expect(checkShape(new SourceFile('world.sprout', written)).diagnostics).toEqual([]);
   });
 
-  it('writes the place visitors arrive at, in the world, holding actors', () => {
+  it('writes the place visitors arrive at, written in the world’s body, holding actors', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
     expect(written).toContain('  visitors arrive at hall\n');
-    expect(written).toContain('object hall: sprout.Place in kiln_yard');
+    expect(written).toMatch(
+      /world kiln_yard is sprout.World \{[^}]*\n {2}object hall is sprout.Place\n\}/,
+    );
     const source = readWorld(dir).source!;
     const { bundle, diagnostics } = compileBundle(source);
     expect(diagnostics.filter((d) => d.severity === 'refusal')).toEqual([]);
@@ -61,7 +63,7 @@ describe('initWorld', () => {
     initWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
     expect(written).toContain('  visitors are Visitor\n');
-    expect(written).toContain('kind Visitor: sprout.Actor { }');
+    expect(written).toContain('kind Visitor is sprout.Actor { }');
     const { bundle } = compileBundle(readWorld(dir).source!);
     expect(bundle!.visitor!.library).toBe('kiln_yard');
     expect(bundle!.visitor!.name).toBe('Visitor');

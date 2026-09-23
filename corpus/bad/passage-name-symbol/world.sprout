@@ -1,8 +1,8 @@
-world passage_name_symbol: sprout.World {
+world passage_name_symbol is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in passage_name_symbol
+kind Creature is sprout.Actor { }

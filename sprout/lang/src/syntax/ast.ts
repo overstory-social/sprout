@@ -411,7 +411,7 @@ export interface VisitorsAre extends Node {
 
 /**
  * `visitors arrive at composing_room` — where a person begins: a path
- * read from inside the world, as an object's `in` is, naming a place.
+ * read from the world's body, where it is written, naming a place.
  */
 export interface VisitorsArriveAt extends Node {
   readonly kind: 'visitors-arrive-at';
@@ -605,55 +605,58 @@ export type KindMember =
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;
 
 /**
- * `world printers_shop: sprout.World { … }` — the root of the one tree.
+ * `world printers_shop is sprout.World { … }` — the root of the one tree.
  * The only object with no container, the only one that cannot move, and
  * the only one that can be neither spawned nor destroyed.
  *
  * Every world writes `sprout.World`, which carries the words the engine
  * speaks for itself, and it may compose more beside it:
- * `world printers_shop: sprout.World, victorian.Voice { … }` is how a
+ * `world printers_shop is sprout.World, victorian.Voice { … }` is how a
  * library of stock lines in another register is installed. `composes`
  * is what was WRITTEN, library and all, so a diagnostic about a
- * composed kind can point at the words the author typed.
+ * composed kind can point at the words the author typed. `objects` are
+ * what sits directly in the world, each holding its own.
  */
 export interface WorldDeclaration extends Node {
   readonly kind: 'world';
   readonly name: Ident;
   readonly composes: readonly KindExpr[];
   readonly members: readonly WorldMember[];
+  readonly objects: readonly ObjectDeclaration[];
 }
 
 // --- kinds and objects ----------------------------------------------------
 
 /**
- * `kind Crate: sprout.Container { … }` — a named bundle of properties and
- * behaviour with no place in the world (the spec's Kinds, composition and
- * libraries › Declaring and composing). Everything after the colon is
+ * `kind Crate is sprout.Container { … }` — a named bundle of properties
+ * and behaviour with no place in the world (the spec's Kinds, composition
+ * and libraries › Declaring and composing). Everything after `is` is
  * composed, and a kind may compose any number of kinds, including none.
- * `composes` is what was WRITTEN, library and all, as for a world.
+ * `composes` is what was WRITTEN, library and all, as for a world;
+ * `objects` are the objects its body writes.
  */
 export interface KindDeclaration extends Node {
   readonly kind: 'kind';
   readonly name: Ident;
   readonly composes: readonly KindExpr[];
   readonly members: readonly KindMember[];
+  readonly objects: readonly ObjectDeclaration[];
 }
 
 /**
- * `object bench: Bench in composing_room { … }` — one thing in the tree,
- * naming its kinds and its container (the spec's The world model ›
- * Objects). A body may follow, which declares an anonymous kind for that
- * object alone; one that writes none has no members. The container is
- * the path as written, read from inside the world: `in kiln` names
- * something directly in it and `in kiln.shelf` something deeper
- * (`declare/tree.ts` resolves it).
+ * `object bench is Bench { … }` — one thing in the tree, written in the
+ * body of what holds it, the world's or another object's (the spec's The
+ * world model › Objects). The parse tree is the containment tree, so it
+ * never names its container. A body may follow, which declares an
+ * anonymous kind for that object alone and holds `objects`, what sits
+ * inside it; one that writes none has neither.
  */
 export interface ObjectDeclaration extends Node {
   readonly kind: 'object';
   readonly name: Ident;
   readonly composes: readonly KindExpr[];
-  readonly container: ObjectPath;
   readonly members: readonly KindMember[];
+  readonly objects: readonly ObjectDeclaration[];
 }
 
 // --- verbs ----------------------------------------------------------------
@@ -731,11 +734,9 @@ export interface VerbDeclaration extends Node {
   readonly phrases: readonly PhraseDeclaration[];
 }
 
-/** Everything that can be written at the top of a file. The union grows per item. */
+/**
+ * Everything a file holds at its top level. An object is not among them:
+ * it is written in the body of what holds it. The union grows per item.
+ */
 export type Declaration =
-  | EnumDeclaration
-  | MessageDeclaration
-  | WorldDeclaration
-  | KindDeclaration
-  | ObjectDeclaration
-  | VerbDeclaration;
+  EnumDeclaration | MessageDeclaration | WorldDeclaration | KindDeclaration | VerbDeclaration;

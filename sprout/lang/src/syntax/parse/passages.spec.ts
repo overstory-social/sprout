@@ -15,19 +15,25 @@ import { tokenise } from '../lexer.js';
 import { chooser, read } from '../../fixtures/parse.js';
 import { isPassage } from './passages.js';
 
-/** Each thing that may hold a passage, opened as it is written. */
+/**
+ * Each thing that may hold a passage, opened and closed as it is written;
+ * an object in the body of a world, which holds it.
+ */
 const OWNERS = [
-  { kind: 'world', open: 'world w: sprout.World {' },
-  { kind: 'kind', open: 'kind K {' },
-  { kind: 'object', open: 'object o: K in r {' },
+  { kind: 'world', open: 'world w is sprout.World {', close: '}' },
+  { kind: 'kind', open: 'kind K {', close: '}' },
+  { kind: 'object', open: 'world w is sprout.World {\nobject o is K {', close: '}\n}' },
 ] as const;
 
-/** The body a file's text opened with. */
-const owned = (declarations: readonly Declaration[]) =>
-  declarations.find(
-    (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration =>
-      d.kind === 'world' || d.kind === 'kind' || d.kind === 'object',
+/** The body a file's text opened with: a world's or a kind's, or the object's in a world. */
+const owned = (
+  declarations: readonly Declaration[],
+): WorldDeclaration | KindDeclaration | ObjectDeclaration | undefined => {
+  const top = declarations.find(
+    (d): d is WorldDeclaration | KindDeclaration => d.kind === 'world' || d.kind === 'kind',
   );
+  return top?.kind === 'world' && top.objects.length > 0 ? top.objects[0] : top;
+};
 
 /** The passages a body read. */
 function passagesOf(declarations: readonly Declaration[]): PassageDeclaration[] {
@@ -48,7 +54,7 @@ const membersOf = (declarations: readonly Declaration[]): string[] =>
 describe('a passage, as a world, a kind and an object write one', () => {
   for (const owner of OWNERS) {
     it(`${owner.kind}: reads its name, whether it yields, and its words as written`, () => {
-      const text = `${owner.open}\n  passage greeting {\n    It's late. Who's there?\n  }\n  passage taken default { You take {target}. }\n  :a 1\n}\n`;
+      const text = `${owner.open}\n  passage greeting {\n    It's late. Who's there?\n  }\n  passage taken default { You take {target}. }\n  :a 1\n${owner.close}\n`;
       const { declarations, refusals } = read(text, 'k.sprout');
       expect(refusals).toEqual([]);
       expect(unspanned(declarations)).toEqual([]);
@@ -64,7 +70,7 @@ describe('a passage, as a world, a kind and an object write one', () => {
         ' You take {target}. ',
       ]);
       expect(textOf(taken!.at)).toBe('passage taken default { You take {target}. }');
-      expect(locationOf(taken!.name.at)).toBe('k.sprout:5:11');
+      expect(locationOf(taken!.name.at)).toBe(`k.sprout:${owner.kind === 'object' ? 6 : 5}:11`);
       expect(membersOf(declarations)).toEqual(['passage greeting', 'passage taken', ':a']);
     });
   }
@@ -326,7 +332,7 @@ describe('over generated bodies of members, a passage is never lost to a neighbo
         for (let d = 0; d < 1 + c.below(2); d++) {
           lines.splice(c.below(lines.length + 1), 0, c.one(HEADER_DEFECTS));
         }
-        const text = `${owner.open}\n  ${lines.join('\n  ')}\n}\n`;
+        const text = `${owner.open}\n  ${lines.join('\n  ')}\n${owner.close}\n`;
         const { declarations, refusals } = read(text, 'g.sprout');
 
         expect(refusals.length, `${text}\n  nothing was wrong with it`).toBeGreaterThan(0);

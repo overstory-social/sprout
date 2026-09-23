@@ -22,7 +22,7 @@ import type { Report } from './report.js';
 /**
  * The world's one `world` declaration, named as the manifest, or null
  * having said why there is not one. Only the world's own declarations
- * are read for it; a world or an object in a library is refused.
+ * are read for it; a world in a library is refused, and what it holds with it.
  */
 export function oneWorld(
   source: MicroworldSource,
@@ -54,7 +54,7 @@ export function oneWorld(
         consequence: 'the world admits no one until it has one',
       },
       'This world has no `world` declaration.',
-      `Write one, in one of its files: \`world ${manifest.name}: sprout.World { … }\`.`,
+      `Write one, in one of its files: \`world ${manifest.name} is sprout.World { … }\`.`,
     );
   } else if (ownWorlds.length > 1) {
     // There is no principled way to choose among several, so every one
@@ -78,24 +78,20 @@ export function oneWorld(
     report.refuse(
       named.name.at,
       `\`${named.name.text}\` is not this world's name.`,
-      `The manifest names it \`${manifest.name}\`; write \`world ${manifest.name}: sprout.World { … }\`, or change the manifest.`,
+      `The manifest names it \`${manifest.name}\`; write \`world ${manifest.name} is sprout.World { … }\`, or change the manifest.`,
     );
   }
 
   // A library is vendored source, not the world: only the world's own
-  // files may declare it, or anything in its tree.
+  // files may declare it, and with it everything in its tree.
   for (const [library, declared] of byLibrary) {
     if (library === manifest.namespace) continue;
     for (const stray of declared) {
-      if (stray.kind !== 'world' && stray.kind !== 'object') continue;
+      if (stray.kind !== 'world') continue;
       report.refuse(
         stray.name.at,
-        stray.kind === 'world'
-          ? 'A library does not declare a world.'
-          : `A library does not declare an object, and \`${stray.name.text}\` is one.`,
-        stray.kind === 'world'
-          ? "The world's own files do; move it there, or remove it from the library."
-          : "The world's own files do; move it there, or declare a kind here for the world to make it of.",
+        'A library does not declare a world.',
+        "The world's own files do; move it there, or remove it from the library.",
       );
     }
   }

@@ -1,5 +1,5 @@
 // Roles are separated by commas.
-kind Cat: Visitor {
+kind Cat is Visitor {
   as target for pet {
     do {
       act unlock (target: actor tool: self)

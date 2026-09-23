@@ -1,4 +1,4 @@
 world.sprout:1:7  `without_sprout_world` does not compose `sprout.World`.
-                  Every world writes it: `world without_sprout_world: sprout.World { … }`.
+                  Every world writes it: `world without_sprout_world is sprout.World { … }`.
 
 refused: 1 problem

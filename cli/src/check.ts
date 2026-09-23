@@ -36,10 +36,15 @@ export function checkWorld(dir: string): CheckResult {
   return { ok: bundle !== null, diagnostics: all, bundle };
 }
 
-/** The world's own declarations: what its files hold, not the libraries it vendored. */
+/**
+ * The world's own declarations: what its files hold, not the libraries it
+ * vendored, and every object written in the world's body at any depth.
+ */
 function ownDeclarations(bundle: Bundle): number {
   const vendored = new Set(bundle.libraries.flatMap((library) => library.files));
-  return bundle.definitions.filter((d) => !vendored.has(d.at.source)).length;
+  return (
+    bundle.definitions.filter((d) => !vendored.has(d.at.source)).length + bundle.objects.length
+  );
 }
 
 /** The diagnostics as a page, then one line saying what was checked. */

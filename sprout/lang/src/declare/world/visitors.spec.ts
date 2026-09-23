@@ -18,7 +18,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
   /** What `visitors are <written>` finds, and everything said about it, with where. */
   const naming = (written: string, kinds: KindSource = KINDS) => {
     const found = world(
-      `world w: sprout.World {\n  visitors are ${written}\n  visitors arrive at y\n}`,
+      `world w is sprout.World {\n  visitors are ${written}\n  visitors arrive at y\n}`,
       kinds,
     );
     return {
@@ -36,7 +36,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
   });
 
   it('refuses a world that does not say what a visitor is, at its name', () => {
-    const { visitors, diagnostics } = world('world w: sprout.World { visitors arrive at y }');
+    const { visitors, diagnostics } = world('world w is sprout.World { visitors arrive at y }');
     expect(visitors).toEqual({ found: 'refused' });
     expect(diagnostics.refusals.map((d) => [textOf(d.at), d.message, d.remedy])).toEqual([
       [
@@ -48,11 +48,11 @@ describe('a world says what its visitors are made of: a kind of its own that is 
   });
 
   it('says nothing about where visitors arrive, which is `arrivalOf`’s', () => {
-    expect(world('world w: sprout.World { visitors are Creature }').said).toEqual([]);
+    expect(world('world w is sprout.World { visitors are Creature }').said).toEqual([]);
   });
 
   it('refuses saying it twice at the second, and reads the first', () => {
-    const { visitor, said } = world(`world w: sprout.World { visitors are Creature
+    const { visitor, said } = world(`world w is sprout.World { visitors are Creature
   visitors are Hall
   visitors arrive at y }`);
     expect(said).toEqual(['`w` says twice what its visitors are.']);
@@ -66,7 +66,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
       [
         'Hall',
         "`Hall` is not an actor, and a world's visitors are made of one.",
-        'Write `kind Visitor: sprout.Actor { … }` and `visitors are Visitor`, or name a kind that composes `sprout.Actor`.',
+        'Write `kind Visitor is sprout.Actor { … }` and `visitors are Visitor`, or name a kind that composes `sprout.Actor`.',
       ],
     ]);
   });
@@ -76,7 +76,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
       [
         'sprout.Actor',
         "`sprout.Actor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.",
-        'Declare one that composes `sprout.Actor`, as `kind Visitor: sprout.Actor { … }`, and write `visitors are Visitor`.',
+        'Declare one that composes `sprout.Actor`, as `kind Visitor is sprout.Actor { … }`, and write `visitors are Visitor`.',
       ],
     ]);
     // A library's actor is composed into the world's own kind, not named.
@@ -84,12 +84,12 @@ describe('a world says what its visitors are made of: a kind of its own that is 
       [
         'victorian.Gent',
         "`victorian.Gent` belongs to the library `victorian`. A world's visitors are made of a kind of its own.",
-        'Declare one that composes `victorian.Gent`, as `kind Visitor: victorian.Gent { … }`, and write `visitors are Visitor`.',
+        'Declare one that composes `victorian.Gent`, as `kind Visitor is victorian.Gent { … }`, and write `visitors are Visitor`.',
       ],
     ]);
     // One that is not an actor either is told the one thing that fixes both.
     expect(naming('victorian.Voice').told[0]![2]).toBe(
-      'Declare one that composes `sprout.Actor`, as `kind Visitor: sprout.Actor { … }`, and write `visitors are Visitor`.',
+      'Declare one that composes `sprout.Actor`, as `kind Visitor is sprout.Actor { … }`, and write `visitors are Visitor`.',
     );
   });
 
@@ -101,7 +101,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
       what: 'Nope',
       message: 'Nothing here is a `Nope`.',
       remedy:
-        'Declare it with `kind Nope: sprout.Actor { … }`, or check the spelling of a kind this world or a library it uses declares.',
+        'Declare it with `kind Nope is sprout.Actor { … }`, or check the spelling of a kind this world or a library it uses declares.',
       said: false,
     });
     if (visitors.found === 'absent') expect(textOf(visitors.at)).toBe('Nope');
@@ -111,7 +111,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
     expect(naming('Creture').visitors).toMatchObject({
       found: 'absent',
       message: 'Nothing here is a `Creture`. Did you mean `Creature`?',
-      remedy: 'Write `Creature`, or declare `Creture` with `kind Creture: sprout.Actor { … }`.',
+      remedy: 'Write `Creature`, or declare `Creture` with `kind Creture is sprout.Actor { … }`.',
     });
   });
 
@@ -121,7 +121,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
     table.add(
       'printers_shop',
       parseDeclarations(
-        new SourceFile('k.sprout', 'kind Creature: sprout.Actor, Nope { }'),
+        new SourceFile('k.sprout', 'kind Creature is sprout.Actor, Nope { }'),
         parsing,
       ).filter((d): d is KindDeclaration => d.kind === 'kind'),
       parsing,

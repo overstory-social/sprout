@@ -15,13 +15,20 @@ import { file, refusals, VISITOR, world } from '../../../fixtures/compile.js';
 describe('kinds, objects and places are counted against the host’s caps', () => {
   // Two kinds and two objects of the world's own, one of them a place,
   // and a copy of the standard library with a fourth kind added to its three.
-  const OWN = `world printers_shop: sprout.World { visitors are Visitor visitors arrive at hall }
+  // What the world's body holds beside them is `extra`, from line 7.
+  const ownWith = (extra = ''): string => `world printers_shop is sprout.World {
+  visitors are Visitor
+  visitors arrive at hall
+  object hall is Room {
+    object box is Crate
+  }
+${extra}
+}
 ${VISITOR}
 kind Room { contains actors }
 kind Crate { contains }
-object hall: Room in printers_shop
-object box: Crate in hall
 `;
+  const OWN = ownWith();
   const KINDED: LibrarySource = {
     ...STANDARD_LIBRARY,
     files: [...STANDARD_LIBRARY.files, file('kinds.sprout', 'kind Container { contains }')],
@@ -69,14 +76,14 @@ object box: Crate in hall
         d.message,
       ]),
     ).toEqual([
-      ['world.sprout:6:8', 'This world declares 2 objects, and 1 is as many as it may have.'],
+      ['world.sprout:5:12', 'This world declares 2 objects, and 1 is as many as it may have.'],
     ]);
-    const places = `${OWN}object press_room: Room in printers_shop\n`;
+    const places = ownWith('  object press_room is Room');
     const { diagnostics } = compileBundle(world({ files: [file('world.sprout', places)] }), {
       limits: limitsFrom({ caps: { places: 1 } }),
     });
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['world.sprout:7:8', 'This world has 2 places, and 1 is as many as it may have.'],
+      ['world.sprout:7:10', 'This world has 2 places, and 1 is as many as it may have.'],
     ]);
   });
 
@@ -90,8 +97,8 @@ object box: Crate in hall
   });
 
   it('bounds none of them where the host set nothing', () => {
-    const many = Array.from({ length: 40 }, (_, i) => `object o${i}: Room in printers_shop`);
-    const files = [file('world.sprout', `${OWN}${many.join('\n')}\n`)];
+    const many = Array.from({ length: 40 }, (_, i) => `  object o${i} is Room`);
+    const files = [file('world.sprout', ownWith(many.join('\n')))];
     const { bundle } = compileBundle(world({ files }));
     expect(bundle!.size).toMatchObject({ objects: 42, places: 41 });
   });

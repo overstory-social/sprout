@@ -1,8 +1,8 @@
-world verb_engine_name: sprout.World {
+world verb_engine_name is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in verb_engine_name
+kind Creature is sprout.Actor { }

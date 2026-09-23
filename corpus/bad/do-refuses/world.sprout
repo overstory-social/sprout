@@ -1,10 +1,10 @@
-world do_refuses: sprout.World {
+world do_refuses is sprout.World {
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb pull { role target  "pull [target]" }
-
-object hall: sprout.Place in do_refuses

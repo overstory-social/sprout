@@ -1,4 +1,0 @@
-objects.sprout:4:24  Nothing here is called `hal`. Did you mean `hall`?
-                     Write `in hall`, or declare an object called `hal`.
-
-refused: 1 problem

@@ -1,9 +1,11 @@
-world bound_not_optional: sprout.World {
+world bound_not_optional is sprout.World {
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb unlock {
   role target
@@ -11,5 +13,3 @@ verb unlock {
   "unlock [target] with [tool]"
   "unlock [target]"
 }
-
-object hall: sprout.Place in bound_not_optional

@@ -36,8 +36,8 @@ verb throw  { role target  role tools many  "throw [target] using [tools]" }
 verb purr   { "purr" }
 kind Lockable { }
 kind Rib { }
-kind Visitor: sprout.Actor { }
-kind Cat: Visitor { }
+kind Visitor is sprout.Actor { }
+kind Cat is Visitor { }
 kind Kettle { }
 `;
 

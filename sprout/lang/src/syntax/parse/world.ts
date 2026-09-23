@@ -1,14 +1,16 @@
-// `world printers_shop: sprout.World { … }` (the spec's The world model).
-// What it composes and its body are read as a kind's are, by `bodies.ts`;
-// what is its own is the table of its members, which adds what it says
-// about visitors to what any kind may hold.
+// `world printers_shop is sprout.World { … }` (the spec's The world
+// model). What it composes and its body are read as a kind's are, by
+// `bodies.ts`; what is its own is the table of its members, which adds
+// what it says about visitors, and the objects sitting directly in it,
+// to what any kind may hold.
 
-import type { WorldDeclaration, WorldMember } from '../ast.js';
+import type { ObjectDeclaration, WorldDeclaration, WorldMember } from '../ast.js';
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import {
   addGuards,
   addPlays,
+  apart,
   body,
   composition,
   contains,
@@ -16,25 +18,27 @@ import {
   without,
   type MemberReaders,
 } from './bodies.js';
+import { objectDeclaration } from './kinds.js';
 import { passage } from './passages.js';
 import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
 
 export function worldDeclaration(p: Parser): WorldDeclaration | null {
   const keyword = p.next();
-  // As for an object: the next declaration's word is not this one's name.
-  const name = p.atDeclarationStart() ? null : p.take('name');
+  // As for an object: the next declaration's word is not this one's
+  // name, and neither is `is`.
+  const name = p.atDeclarationStart() || p.at('name', 'is') ? null : p.take('name');
   if (name === null) {
     p.diagnostics.refuse(
       p.peek().at,
       'A world needs a name.',
-      'Write `world <name>: sprout.World { … }`, as in `world printers_shop: sprout.World { … }`.',
+      'Write `world <name> is sprout.World { … }`, as in `world printers_shop is sprout.World { … }`.',
     );
     recover(p);
     return null;
   }
 
-  const composes = composition(p, 'world');
+  const composes = composition(p, 'world', name);
   if (composes === null) {
     recover(p);
     return null;
@@ -44,7 +48,7 @@ export function worldDeclaration(p: Parser): WorldDeclaration | null {
     p.diagnostics.refuse(
       p.here(),
       `\`${name.text}\` has nothing in it.`,
-      'A world is written `world <name>: sprout.World { … }`, holding what it is made of.',
+      'A world is written `world <name> is sprout.World { … }`, holding what it is made of.',
     );
     recover(p);
     return null;
@@ -57,13 +61,13 @@ export function worldDeclaration(p: Parser): WorldDeclaration | null {
     at: spanning(keyword.at, read.close.at),
     name: p.ident(name),
     composes,
-    members: read.members,
+    ...apart(read.members, isWorldMember),
   };
 }
 
 /** What may be written inside the world `owner` past its properties, and what reads each one. */
-function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember> {
-  const readers = new Map<string, () => WorldMember | null>([
+function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember | ObjectDeclaration> {
+  const readers = new Map<string, () => WorldMember | ObjectDeclaration | null>([
     ['visitors', () => visitors(p)],
     ['contains', () => contains(p)],
   ]);
@@ -71,7 +75,13 @@ function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember> {
   readers.set('without', () => without(p, readers));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);
+  readers.set('object', () => objectDeclaration(p, true));
   return readers;
+}
+
+/** What the world's body read that is a member of it, and not an object sitting in it. */
+function isWorldMember(member: WorldMember | ObjectDeclaration): member is WorldMember {
+  return member.kind !== 'object';
 }
 
 /** `visitors are Creature`, `visitors arrive at composing_room`. */

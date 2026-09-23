@@ -8,5 +8,3 @@ kind Trapdoor {
 }
 
 kind Cellar { contains actors }
-
-object cellar: Cellar in move_unknown_name

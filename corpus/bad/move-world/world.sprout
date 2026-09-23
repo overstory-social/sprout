@@ -1,4 +1,4 @@
-world move_world: sprout.World {
+world move_world is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
@@ -7,10 +7,10 @@ world move_world: sprout.World {
   as tool for shake {
     do { move self to target }
   }
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb shake { role target  role tool  "shake [target] with [tool]" }
-
-object hall: sprout.Place in move_world

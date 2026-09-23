@@ -1,34 +1,34 @@
 // A world's people are made of its own kind, which composes `sprout.Actor`:
 // an actor has hands, and here they hold four things rather than eight.
-world actors: sprout.World {
+world actors is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
+
+  // A place is made of `sprout.Place`, which holds actors. The composing
+  // room keeps a note about each actor: how often they have come in.
+  object composing_room is sprout.Place {
+    :remembers [visits: 0 min 0 max 99]
+
+    object basket is Basket
+
+    // A place may stand inside another: the nook is somewhere to be, inside
+    // the composing room.
+    object nook is sprout.Place {
+      // An NPC is an object made of the visitor kind, with nobody behind it,
+      // and like every actor it stands in a place. The cat sleeps in the nook.
+      object cat is Creature
+    }
+  }
+
+  object press_yard is sprout.Place {
+    object apprentice is Creature
+  }
 }
 
-kind Creature: sprout.Actor {
+kind Creature is sprout.Actor {
   :capacity 4
 }
 
 kind Basket {
   contains
 }
-
-// A place is made of `sprout.Place`, which holds actors. The composing
-// room keeps a note about each actor: how often they have come in.
-object composing_room: sprout.Place in actors {
-  :remembers [visits: 0 min 0 max 99]
-}
-
-object press_yard: sprout.Place in actors
-
-object basket: Basket in composing_room
-
-// A place may stand inside another: the nook is somewhere to be, inside
-// the composing room.
-object nook: sprout.Place in composing_room
-
-// An NPC is an object made of the visitor kind, with nobody behind it,
-// and like every actor it stands in a place. The cat sleeps in the nook.
-object cat: Creature in composing_room.nook
-
-object apprentice: Creature in press_yard

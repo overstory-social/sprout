@@ -1,14 +1,14 @@
 // Verbs, as far as the compiler reads them today: roles open, by kind
 // and by value, a set role, a tool some phrase leaves out, a verb with no
 // phrases and one with no roles.
-world verbs: sprout.World {
+world verbs is sprout.World {
   visitors are Potter
   visitors arrive at studio
+
+  object studio is sprout.Place
 }
 
-kind Potter: sprout.Actor { }
+kind Potter is sprout.Actor { }
 kind Lockable { :locked true }
 kind Clay { }
 kind Rib { }
-
-object studio: sprout.Place in verbs

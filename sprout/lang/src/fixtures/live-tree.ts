@@ -3,22 +3,23 @@
 // them (`shop.kiln.shelf`), and a pass rule standing where B32's
 // evaluated ones will. Spec support: the package build leaves it out.
 
-import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
+import type { KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import type { LiveTree, PassRule } from '../runtime/range.js';
 import { declaredId } from '../runtime/ids.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable } from '../declare/kinds.js';
-import { resolveObjects } from '../declare/objects.js';
+import { objectsIn, resolveObjects } from '../declare/objects.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { placeObjects, type ObjectTree, type Placement } from '../declare/tree.js';
 import { SourceFile } from '../source/source.js';
 import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 
 /**
- * Place the kinds and objects in `text` in the world `world`. A kind
- * nothing declares leaves its object absent; anything else wrong throws,
- * since a fixture that does not declare cleanly proves nothing.
+ * Place the objects written in the body of the world `world`, which
+ * `text` declares with the kinds they are made of. A kind nothing
+ * declares leaves its object absent; anything else wrong throws, since a
+ * fixture that does not declare cleanly proves nothing.
  */
 export function declaredTree(world: string, text: string): ObjectTree {
   const diagnostics = new Diagnostics();
@@ -31,11 +32,13 @@ export function declaredTree(world: string, text: string): ObjectTree {
   );
   const enums = new EnumTable();
   kinds.resolve(world, enums, diagnostics);
-  const composed = resolveObjects(
-    world,
-    declared.filter((d): d is ObjectDeclaration => d.kind === 'object'),
-    { enums, kinds, diagnostics, onUnknown: () => {} },
-  );
+  const root = declared.find((d): d is WorldDeclaration => d.kind === 'world');
+  const composed = resolveObjects(world, root === undefined ? [] : objectsIn(root), {
+    enums,
+    kinds,
+    diagnostics,
+    onUnknown: () => {},
+  });
   const tree = placeObjects(composed, { world, diagnostics });
   if (diagnostics.refusals.length > 0) {
     throw new Error(diagnostics.refusals.map((refusal) => refusal.message).join('\n'));

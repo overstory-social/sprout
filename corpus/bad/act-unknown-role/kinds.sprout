@@ -1,5 +1,5 @@
 // A role is one the verb declares, and the target is never left out.
-kind Cat: Visitor {
+kind Cat is Visitor {
   as target for pet {
     do {
       act nuzzle (tagret: actor)

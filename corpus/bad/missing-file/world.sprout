@@ -1,6 +1,8 @@
-world missing: sprout.World {
+world missing is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is Hall
 }
 
 // Where visitors arrive.
@@ -8,6 +10,4 @@ kind Hall {
   contains actors
 }
 
-object hall: Hall in missing
-
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

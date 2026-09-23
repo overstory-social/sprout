@@ -1,7 +1,7 @@
-world default_twice: sprout.World {
+world default_twice is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :ward Ward.iron default brass
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

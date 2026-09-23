@@ -1,4 +1,4 @@
 world.sprout:5:16  `sprout.Actor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.
-                   Declare one that composes `sprout.Actor`, as `kind Visitor: sprout.Actor { … }`, and write `visitors are Visitor`.
+                   Declare one that composes `sprout.Actor`, as `kind Visitor is sprout.Actor { … }`, and write `visitors are Visitor`.
 
 refused: 1 problem

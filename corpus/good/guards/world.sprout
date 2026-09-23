@@ -3,7 +3,7 @@
 // entering (`accept`). The world writes all three, as a kind and an
 // object may. A guard only reads and decides; it ends in `allow`, in
 // `refuse`, or by reaching its end, which allows.
-world guards: sprout.World {
+world guards is sprout.World {
   visitors are Creature
   visitors arrive at hall
 
@@ -12,4 +12,20 @@ world guards: sprout.World {
     if (item.is(Creature)) { refuse "Nobody leaves the world." }
   }
   accept (item, from) { allow }
+
+  object hall is sprout.Place {
+    // An object writes its own guards beside the ones its kind composes;
+    // all of them run, the kind's first.
+    object crate is Crate {
+      depart (to) { refuse nailed }
+      release (item, to) { allow }
+      accept (item, from) {
+        if (item.is(Vase)) { refuse "The vase would crack in there." }
+      }
+
+      passage nailed { The crate is nailed to the floor. }
+    }
+
+    object vase is Vase
+  }
 }

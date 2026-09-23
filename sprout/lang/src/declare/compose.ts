@@ -111,7 +111,7 @@ export function identityOf(written: KindExpr, from: string, kinds: KindSource): 
 /**
  * What is said of a kind nothing declares, read from inside `from`, with
  * the kind it most likely meant where one is close enough. `composes`,
- * written as `: sprout.Actor`, is what a declaration the remedy suggests
+ * written as ` is sprout.Actor`, is what a declaration the remedy suggests
  * would compose.
  */
 export function unknownKind(

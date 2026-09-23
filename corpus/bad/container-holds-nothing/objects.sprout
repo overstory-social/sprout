@@ -1,6 +1,0 @@
-// A thing can only be in something that holds things.
-object hall: Room in container_holds_nothing
-
-object bench: Thing in hall
-
-object cushion: Thing in hall.bench

@@ -1,8 +1,8 @@
-world verbs_library: sprout.World {
+world verbs_library is sprout.World {
   visitors are Creature
   visitors arrive at yard
+
+  object yard is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object yard: sprout.Place in verbs_library
+kind Creature is sprout.Actor { }

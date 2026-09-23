@@ -1,4 +1,4 @@
-objects.sprout:7:8  `bench` does not say what kind of thing it is.
-                    An object names the kinds it is made of: `object bench: <Kind> in composing_room { … }`.
+world.sprout:6:12  `bench` does not say what kind of thing it is.
+                   An object names the kinds it is made of after `is`: `object bench is <Kind> { … }`.
 
 refused: 1 problem

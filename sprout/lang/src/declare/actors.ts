@@ -52,7 +52,7 @@ export function checkVisitorKind(
     diagnostics.refuse(
       written.at,
       `\`${name}\` belongs to the library \`${kind.library}\`. A world's visitors are made of a kind of its own.`,
-      `Declare one that composes \`${base}\`, as \`kind Visitor: ${base} { … }\`, and write \`visitors are Visitor\`.`,
+      `Declare one that composes \`${base}\`, as \`kind Visitor is ${base} { … }\`, and write \`visitors are Visitor\`.`,
     );
     return false;
   }
@@ -60,7 +60,7 @@ export function checkVisitorKind(
     diagnostics.refuse(
       written.at,
       `\`${name}\` is not an actor, and a world's visitors are made of one.`,
-      `Write \`kind Visitor: ${ACTOR} { … }\` and \`visitors are Visitor\`, or name a kind that composes \`${ACTOR}\`.`,
+      `Write \`kind Visitor is ${ACTOR} { … }\` and \`visitors are Visitor\`, or name a kind that composes \`${ACTOR}\`.`,
     );
     return false;
   }
@@ -114,22 +114,21 @@ export function checkActors(setting: ActorSetting): void {
         ? world
         : tree.placed.get(pathKey(placement.container))!.kind;
     if (holder === null || holder.containsActors) continue;
-    const step = declaration.container.parts.at(-1)!;
     if (placement.container.length === 0) {
       const place = [...tree.placed.values()].find((one) => one.kind?.containsActors === true);
       diagnostics.refuse(
-        step.at,
+        declaration.name.at,
         `\`${tree.world}\` is the world, which holds no actors, so \`${name}\` cannot stand directly in it.`,
         place === undefined
-          ? `Declare a place in the world, an object that composes \`sprout.Place\` or writes \`contains actors\` in its body, and put \`${name}\` in it.`
-          : `Put \`${name}\` in a place in the world, as in \`in ${pathKey(place.path)}\`.`,
+          ? `Declare a place in the world, an object that composes \`sprout.Place\` or writes \`contains actors\` in its body, and write \`${name}\` inside its braces.`
+          : `Write \`${name}\` inside the braces of a place in the world, such as \`${pathKey(place.path)}\`.`,
       );
     } else {
       const last = placement.container.at(-1)!;
       diagnostics.refuse(
-        step.at,
+        declaration.name.at,
         `\`${last}\` holds no actors, so \`${name}\` cannot stand in it.`,
-        `Put \`${name}\` in a place, or make \`${last}\` one: compose \`sprout.Place\`, or write \`contains actors\` in its body.`,
+        `Write \`${name}\` inside the braces of a place, or make \`${last}\` one: compose \`sprout.Place\`, or write \`contains actors\` in its body.`,
       );
     }
   }

@@ -1,9 +1,11 @@
-world play_twice: sprout.World {
+world play_twice is sprout.World {
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb unlock {
   role target
@@ -11,5 +13,3 @@ verb unlock {
   "unlock [target] with [tool]"
   "unlock [target]"
 }
-
-object hall: sprout.Place in play_twice

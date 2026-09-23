@@ -1,15 +1,19 @@
 // The invariant this folder guards — "a defect in one item never loses a
 // well-formed neighbour in silence" — run over the body of a world, a
 // kind and an object, built member by member with a fixed seed, and one
-// defective member placed among well-formed ones. Now and then the body
-// is left never closed, so a declaration written after it is checked
-// against `closedByWhatFollows` instead.
+// defective member placed among well-formed ones, an object written in
+// the body among them. Now and then the body is left never closed, so a
+// declaration written after it is checked against `closedByWhatFollows`
+// instead. An object sits in a world's body, so a stray `}` that closes
+// it early leaves what follows to the world, which keeps it there.
 
 import { describe, expect, it } from 'vitest';
 
 import { parseDeclarations } from '../../parse.js';
 import { chooser, type Chooser } from '../../../fixtures/parse.js';
+import type { Declaration } from '../../ast.js';
 import {
+  aroundOwner,
   closedByWhatFollows,
   defectiveMember,
   explained,
@@ -22,7 +26,18 @@ import {
   WELL_FORMED_GUARDS,
   OWNERS,
   SORTS,
+  type Owner,
 } from '../../../fixtures/recovery.js';
+
+/** What an owner's body kept: its members by name, and the objects in it as `object.<name>`. */
+const keptBy = (owner: Owner, result: readonly Declaration[]): string[] => {
+  const owned = ownedBy(owner, result);
+  if (owned === undefined) return [];
+  return [
+    ...owned.members.flatMap(memberNames),
+    ...owned.objects.map((object) => `object.${object.name.text}`),
+  ];
+};
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   it('does not let a refused bound step into the next declaration’s own word', () => {
@@ -51,6 +66,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       { names: ['visitors-are'], text: () => 'visitors are P', worldOnly: true },
       { names: ['visitors-arrive-at'], text: () => 'visitors arrive at y', worldOnly: true },
       { names: ['contains'], text: () => 'contains actors', worldOnly: false },
+      { names: ['object.echo'], text: () => 'object echo is Crate', worldOnly: false },
+      {
+        names: ['object.foxtrot'],
+        text: () => 'object foxtrot is Crate {\n    :lit true\n    object inner is Crate\n  }',
+        worldOnly: false,
+      },
       { names: ['without'], text: () => 'without changed :lit from Lamp', worldOnly: false },
       ...WELL_FORMED_GUARDS.map(({ names, text }) => ({
         names,
@@ -100,7 +121,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           expect(closedByWhatFollows(text, owner.name, following, result, said)).toEqual([]);
           continue;
         }
-        const text = `${owner.open}\n  ${lines.join('\n  ')}\n}\n`;
+        const text = `${owner.open}\n  ${lines.join('\n  ')}\n${owner.close}\n`;
         const { result, said, threw } = reading(text, parseDeclarations);
         expect(threw, text).toBeNull();
         // Not every `:remembers`-shaped defect holds a well-formed
@@ -110,11 +131,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         reached.add(made.defect.sort);
         const good = members.flatMap((member) => member.names);
         if (inRemembers) good.push('remembers.echo');
+        const kept = [
+          ...keptBy(owner, result),
+          ...(made.defect.sort === 'stray' ? aroundOwner(owner, result) : []),
+        ];
         expect(
           explained(
             text,
             made.defect.sort,
-            ownedBy(owner, result)?.members.flatMap(memberNames) ?? [],
+            kept,
             good,
             // A symbol written where a value goes, `:wet` or `:stir`, is
             // a member of its own: a reading, and not something that
@@ -131,6 +156,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
               'depart',
               'release',
               'accept',
+              // An object with a defect in its own head is kept with what read.
+              'object.faulty',
             ],
             said,
           ),
@@ -141,7 +168,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         // always kept, since the hunt for its close stops there rather
         // than reading past it.
         if (made.text === ':faulty [oak' || made.text.startsWith(':remembers [faulty: 0')) {
-          const kept = ownedBy(owner, result)?.members.flatMap(memberNames) ?? [];
+          const kept = keptBy(owner, result);
           if (at < members.length) {
             for (const name of (members[at] as { names: readonly string[] }).names) {
               expect(kept, text).toContain(name);

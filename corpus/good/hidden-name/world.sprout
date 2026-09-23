@@ -1,30 +1,33 @@
 // A nearer name wins, and hides the one further out: the world compiles,
 // and the compiler says so at the inner declaration, naming the path the
 // outer one is still reached by.
-world hidden_name: sprout.World {
+world hidden_name is sprout.World {
   visitors are Creature
   visitors arrive at shop_floor
+
+  object shop_floor is sprout.Place {
+    object key is Thing
+    object lamp is Thing
+
+    // Two chests side by side, each with a lid: neither is further out
+    // than the other, so neither lid hides the other.
+    object red_chest is Chest {
+      // The chest's key hides the floor's from inside the chest. The
+      // floor's is `shop_floor.key` there.
+      object key is Thing
+      object lid is Thing
+    }
+
+    object blue_chest is Chest {
+      object lid is Thing
+    }
+  }
+
+  // Directly in the world, and hidden inside the shop floor, where no path
+  // reaches it.
+  object lamp is Thing
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }
 kind Chest { contains }
 kind Thing { }
-
-object shop_floor: sprout.Place in hidden_name
-object red_chest: Chest in shop_floor
-object blue_chest: Chest in shop_floor
-
-// The chest's key hides the floor's from inside the chest. The floor's is
-// `shop_floor.key` there.
-object key: Thing in shop_floor
-object key: Thing in shop_floor.red_chest
-
-// Two chests side by side, each with a lid: neither is further out than
-// the other, so neither lid hides the other.
-object lid: Thing in shop_floor.red_chest
-object lid: Thing in shop_floor.blue_chest
-
-// Directly in the world, and hidden inside the shop floor, where no path
-// reaches it.
-object lamp: Thing in hidden_name
-object lamp: Thing in shop_floor

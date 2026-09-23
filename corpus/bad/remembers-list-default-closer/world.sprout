@@ -2,11 +2,11 @@
 // `]` that closes `:remembers` off with it.
 enum Ward { oak, silver }
 
-world remembers_list_default_closer: sprout.World {
+world remembers_list_default_closer is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :remembers [echo: [oak], faulty "x"]
   :greeting "hello"
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

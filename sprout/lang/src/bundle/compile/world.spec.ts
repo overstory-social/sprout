@@ -71,8 +71,8 @@ function kinds(own: string, mode: 'publish' | 'load' = 'publish', refused = fals
   };
 }
 
-const WORLD = 'world shop: sprout.World { visitors are Visitor visitors arrive at shop }';
-const VISITOR = 'kind Visitor: sprout.Actor { }';
+const WORLD = 'world shop is sprout.World { visitors are Visitor visitors arrive at shop }';
+const VISITOR = 'kind Visitor is sprout.Actor { }';
 
 describe('a bundle holds one world, named as the manifest', () => {
   it('gives back the one there is', () => {
@@ -97,22 +97,19 @@ describe('a bundle holds one world, named as the manifest', () => {
       world: null,
       said: ['world.sprout:2:7 There are two `world` declarations, and a world has one.'],
     });
-    expect(one('world yard: sprout.World { }').said).toEqual([
+    expect(one('world yard is sprout.World { }').said).toEqual([
       "world.sprout:1:7 `yard` is not this world's name.",
     ]);
   });
 
-  it('refuses a world or an object declared in a library', () => {
+  it('refuses a world declared in a library, and says nothing more of what it holds', () => {
     const { said } = one(
       WORLD,
       'publish',
       false,
-      'world v: sprout.World { }\nobject lamp: Voice in v',
+      'world v is sprout.World {\n  object lamp is Voice\n}\n',
     );
-    expect(said).toEqual([
-      'v.sprout:1:7 A library does not declare a world.',
-      'v.sprout:2:8 A library does not declare an object, and `lamp` is one.',
-    ]);
+    expect(said).toEqual(['v.sprout:1:7 A library does not declare a world.']);
   });
 });
 
@@ -125,8 +122,8 @@ describe('what the world and its visitors are made of', () => {
   });
 
   it('refuses a kind the world composes that nothing declares at publish, and at load admits no one', () => {
-    const text = `world shop: sprout.World, Voice { visitors are Visitor }\n${VISITOR}`;
-    expect(kinds(text).said).toEqual(['world.sprout:1:27 Nothing here is a `Voice`.']);
+    const text = `world shop is sprout.World, Voice { visitors are Visitor }\n${VISITOR}`;
+    expect(kinds(text).said).toEqual(['world.sprout:1:29 Nothing here is a `Voice`.']);
     const loaded = kinds(text, 'load');
     expect(loaded.world).toBeNull();
     expect(loaded.visitor).not.toBeNull();
@@ -134,7 +131,7 @@ describe('what the world and its visitors are made of', () => {
   });
 
   it('records the world absent at load when a kind it composes could not be made', () => {
-    const text = `world shop: sprout.World, Lamp { visitors are Visitor }\nkind Lamp: Nope { }\n${VISITOR}`;
+    const text = `world shop is sprout.World, Lamp { visitors are Visitor }\nkind Lamp is Nope { }\n${VISITOR}`;
     const loaded = kinds(text, 'load');
     expect(loaded.world).toBeNull();
     expect(loaded.absent).toEqual([
@@ -149,8 +146,8 @@ describe('what the world and its visitors are made of', () => {
   });
 
   it('refuses a visitor kind nothing declares at publish, and at load admits no one', () => {
-    const text = 'world shop: sprout.World { visitors are Visitor }';
-    expect(kinds(text).said).toEqual(['world.sprout:1:41 Nothing here is a `Visitor`.']);
+    const text = 'world shop is sprout.World { visitors are Visitor }';
+    expect(kinds(text).said).toEqual(['world.sprout:1:43 Nothing here is a `Visitor`.']);
     const loaded = kinds(text, 'load');
     expect(loaded.visitor).toBeNull();
     expect(loaded.world).not.toBeNull();
@@ -159,20 +156,20 @@ describe('what the world and its visitors are made of', () => {
 
   it('does not say the visitor kind is missing at publish while an own file was refused', () => {
     expect(
-      kinds('world shop: sprout.World { visitors are Visitor }', 'publish', true).said,
+      kinds('world shop is sprout.World { visitors are Visitor }', 'publish', true).said,
     ).toEqual([]);
   });
 
   it('refuses a visitor kind that is not an actor in either mode, since nothing is missing', () => {
     for (const mode of ['publish', 'load'] as const) {
       const found = kinds(
-        'world shop: sprout.World { visitors are Hall }\nkind Hall: sprout.Place { }',
+        'world shop is sprout.World { visitors are Hall }\nkind Hall is sprout.Place { }',
         mode,
       );
       expect(found.visitor, mode).toBeNull();
       expect(found.absent, mode).toEqual([]);
       expect(found.said, mode).toEqual([
-        "world.sprout:1:41 `Hall` is not an actor, and a world's visitors are made of one.",
+        "world.sprout:1:43 `Hall` is not an actor, and a world's visitors are made of one.",
       ]);
     }
   });
@@ -205,7 +202,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     const problem = refusals(diagnostics)[0]!;
     expect(problem.message).toBe('This world has no `world` declaration.');
     expect(problem.remedy).toBe(
-      'Write one, in one of its files: `world printers_shop: sprout.World { … }`.',
+      'Write one, in one of its files: `world printers_shop is sprout.World { … }`.',
     );
     expect(locationOf(problem.at)).toBe('sprout.json:2:3');
   });
@@ -221,13 +218,13 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   });
 
   it('refuses a `world` declaration named otherwise, with both names in the remedy', () => {
-    const files = [file('world.sprout', 'world shop: sprout.World {}')];
+    const files = [file('world.sprout', 'world shop is sprout.World {}')];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     const problem = refusals(diagnostics)[0]!;
     expect(problem.message).toBe("`shop` is not this world's name.");
     expect(problem.remedy).toBe(
-      'The manifest names it `printers_shop`; write `world printers_shop: sprout.World { … }`, ' +
+      'The manifest names it `printers_shop`; write `world printers_shop is sprout.World { … }`, ' +
         'or change the manifest.',
     );
     expect(locationOf(problem.at)).toBe('world.sprout:1:7');
@@ -236,7 +233,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   it('refuses a `world` declaration in a vendored library’s files', () => {
     const withWorld: LibrarySource = {
       ...STANDARD_LIBRARY,
-      files: [...STANDARD_LIBRARY.files, file('root.sprout', 'world sprout: sprout.World {}')],
+      files: [...STANDARD_LIBRARY.files, file('root.sprout', 'world sprout is sprout.World {}')],
     };
     const { bundle, diagnostics } = compileBundle(
       world({
@@ -253,14 +250,11 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     expect(locationOf(problem.at)).toBe('root.sprout:1:7');
   });
 
-  it('refuses an `object` in a vendored library’s files, since objects are the world’s', () => {
+  it('refuses an `object` at the top of a vendored library’s file, as of any file', () => {
     // The corpus vendors only the standard library the CLI carries, so this is pinned here.
     const withObject: LibrarySource = {
       ...STANDARD_LIBRARY,
-      files: [
-        ...STANDARD_LIBRARY.files,
-        file('box.sprout', 'kind Box { }\nobject box: Box in hall'),
-      ],
+      files: [...STANDARD_LIBRARY.files, file('box.sprout', 'kind Box { }\nobject box is Box')],
     };
     const compiled = (mode: 'publish' | 'load') =>
       compileBundle(
@@ -276,13 +270,15 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
-        'box.sprout:2:8',
-        'A library does not declare an object, and `box` is one.',
-        "The world's own files do; move it there, or declare a kind here for the world to make it of.",
+        'box.sprout:2:1',
+        '`box` is written outside the world, and an object is written inside what holds it.',
+        'Move `object box …` into the braces of the world, `world <name> is sprout.World { … }`, or of the object that holds it.',
       ],
     ]);
-    // Never allowable, so not softened at load.
-    expect(compiled('load').bundle).toBeNull();
+    // A file that does not compile reads as absent at load, and the world runs without it.
+    expect(compiled('load').bundle!.absent.map((a) => [a.what, a.kind])).toEqual([
+      ['box.sprout', 'file'],
+    ]);
   });
 
   it('is a gap at load when there is no `world` declaration, and still produces a bundle', () => {
@@ -321,7 +317,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   });
 
   it('still refuses a `world` declaration named otherwise at load, because it is never allowable', () => {
-    const files = [file('world.sprout', 'world shop: sprout.World {}')];
+    const files = [file('world.sprout', 'world shop is sprout.World {}')];
     expect(compileBundle(world({ files }), { mode: 'load' }).bundle).toBeNull();
   });
 
@@ -332,7 +328,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     // publish is about to refuse the bundle for that defect regardless.
     // Saying the world also has none would be the same mistake said
     // twice.
-    const files = [file('world.sprout', 'world printers_shop: sprout.World {\n  :x [-]\n}')];
+    const files = [file('world.sprout', 'world printers_shop is sprout.World {\n  :x [-]\n}')];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)).toHaveLength(1);
@@ -343,7 +339,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     // At load the broken file itself is a gap (its declarations, world
     // included, are not in `byLibrary`), so the world genuinely has none
     // among what is usable, and that gap stands beside the file's.
-    const files = [file('world.sprout', 'world printers_shop: sprout.World {\n  :x [-]\n}')];
+    const files = [file('world.sprout', 'world printers_shop is sprout.World {\n  :x [-]\n}')];
     const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
     expect(bundle).not.toBeNull();
     expect(refusals(diagnostics)).toEqual([]);
@@ -360,13 +356,16 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
       file(
         'world.sprout',
         [
-          'world printers_shop: sprout.World { visitors are Visitor visitors arrive at hall }',
+          'world printers_shop is sprout.World {',
+          '  visitors are Visitor',
+          '  visitors arrive at hall',
+          '  object hall is sprout.Place {',
+          '    object nook is sprout.Place { object cat is Cat }',
+          '    object ghost is Visitor',
+          '  }',
+          '}',
           VISITOR,
-          'kind Cat: Visitor { }',
-          'object hall: sprout.Place in printers_shop',
-          'object nook: sprout.Place in hall',
-          'object ghost: Visitor in hall',
-          'object cat: Cat in hall.nook',
+          'kind Cat is Visitor { }',
         ].join('\n'),
       ),
     ];
@@ -374,8 +373,8 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
     expect(diagnostics).toEqual([]);
     const npcs = bundle!.objects.filter((o) => isNpc(o.kind, bundle!.visitor!));
     expect(npcs.map((o) => o.path)).toEqual([
-      ['hall', 'ghost'],
       ['hall', 'nook', 'cat'],
+      ['hall', 'ghost'],
     ]);
   });
 
@@ -383,7 +382,7 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
     const files = [
       file(
         'world.sprout',
-        `world printers_shop: sprout.World { visitors are Basket visitors arrive at hall }\nkind Basket { contains }\n${HALL}`,
+        `world printers_shop is sprout.World { visitors are Basket visitors arrive at hall ${HALL} }\nkind Basket { contains }`,
       ),
     ];
     for (const mode of ['publish', 'load'] as const) {
@@ -397,7 +396,7 @@ describe('a world’s actors: what its visitors are made of, and its NPCs', () =
   });
 
   it('runs a world whose visitor kind is absent at load, admitting no one', () => {
-    const files = [file('world.sprout', `${WORLD_LINE}\n${HALL}`), file('people.sprout', VISITOR)];
+    const files = [file('world.sprout', WORLD_LINE), file('people.sprout', VISITOR)];
     const { bundle, diagnostics } = compileBundle(world({ files, withheld: ['people.sprout'] }), {
       mode: 'load',
     });

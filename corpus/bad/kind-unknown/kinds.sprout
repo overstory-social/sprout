@@ -3,13 +3,9 @@ kind Wooden {
   :worn 0 min 0 max 9
 }
 
-kind Chest: Wodden { }
-
-object press: Wooden, Heavy in composing_room
+kind Chest is Wodden { }
 
 // Where the objects above sit.
 kind Room {
   contains actors
 }
-
-object composing_room: Room in kind_unknown

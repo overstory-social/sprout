@@ -1,8 +1,8 @@
-world passage_name_quoted: sprout.World {
+world passage_name_quoted is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in passage_name_quoted
+kind Creature is sprout.Actor { }

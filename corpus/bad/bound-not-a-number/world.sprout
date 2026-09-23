@@ -1,7 +1,7 @@
-world bound_not_a_number: sprout.World {
+world bound_not_a_number is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :wear 0 min [1]
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

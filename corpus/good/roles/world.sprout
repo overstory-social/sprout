@@ -2,13 +2,21 @@
 // played for with `permit` and `do`, an optional tool read under
 // `bound`, a value tool narrowed with `from`, two kinds playing one role
 // and composing, a play left out with `without`, and the actor's own part.
-world roles: sprout.World {
+world roles is sprout.World {
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lever is Lever
+    object door is Warded
+    object gate is Rusted
+    object key is Key
+    object guard is Guard
+  }
 }
 
 // The one acting plays its part too: a full pair of hands pulls nothing.
-kind Visitor: sprout.Actor {
+kind Visitor is sprout.Actor {
   as actor for pull {
     permit { if (self.count >= self.get(:capacity)) { refuse "Your hands are full." } }
   }
@@ -24,10 +32,3 @@ verb unlock {
   "use [tool] on [target]"
   "unlock [target]"
 }
-
-object hall: sprout.Place in roles
-object lever: Lever in hall
-object door: Warded in hall
-object gate: Rusted in hall
-object key: Key in hall
-object guard: Guard in hall

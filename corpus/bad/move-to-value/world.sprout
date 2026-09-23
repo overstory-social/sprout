@@ -1,11 +1,11 @@
-world move_to_value: sprout.World {
+world move_to_value is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb bump { role target  "bump [target]" }
-
-object hall: sprout.Place in move_to_value

@@ -1,9 +1,0 @@
-kind Room {
-  contains actors
-}
-
-kind Chest {
-  contains
-}
-
-kind Thing { }

@@ -51,7 +51,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // `:symbol` rather than reading past it, so `bravo` survives and the
     // body still closes at its own `}`.
     for (const owner of OWNERS) {
-      const text = `${owner.open}\n  :faulty [oak\n  :bravo 1\n}\n`;
+      const text = `${owner.open}\n  :faulty [oak\n  :bravo 1\n${owner.close}\n`;
       const { result, said } = reading(text, parseDeclarations);
       expect(ownedBy(owner, result)?.members.flatMap(memberNames), text).toEqual(['bravo']);
       expect(

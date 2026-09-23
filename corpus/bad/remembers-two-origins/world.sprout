@@ -1,6 +1,10 @@
-world remembers_two_origins: sprout.World {
+world remembers_two_origins is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
+
+  object composing_room is Room {
+    object bell is Watched, Greeted
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

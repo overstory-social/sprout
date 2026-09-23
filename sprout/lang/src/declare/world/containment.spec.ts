@@ -15,7 +15,7 @@ describe('containment is a declaration, and a place is whatever holds actors', (
    */
   function holding(...lines: string[]) {
     const { kind, said } = world(
-      `world printers_shop: sprout.World {\n${lines.map((l) => `  ${l}`).join('\n')}\n` +
+      `world printers_shop is sprout.World {\n${lines.map((l) => `  ${l}`).join('\n')}\n` +
         '  visitors are Creature\n  visitors arrive at composing_room\n}',
     );
     return { said, contains: kind?.contains, containsActors: kind?.containsActors };

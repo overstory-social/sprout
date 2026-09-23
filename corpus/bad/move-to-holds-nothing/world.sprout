@@ -1,11 +1,11 @@
-world move_to_holds_nothing: sprout.World {
+world move_to_holds_nothing is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb press { role target  role tool: Button  "press [tool] on [target]" }
-
-object hall: sprout.Place in move_to_holds_nothing

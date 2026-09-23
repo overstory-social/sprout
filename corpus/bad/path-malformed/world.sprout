@@ -1,0 +1,18 @@
+world path_malformed is sprout.World {
+  visitors are Creature
+
+  // A path is names joined by dots, with nothing between them.
+  visitors arrive at kiln..shelf
+
+  visitors arrive at kiln.shelf.
+
+  visitors arrive at kiln.4
+
+  visitors arrive at kiln . shelf
+
+  object kiln is Room {
+    object shelf is Room
+  }
+}
+
+kind Creature is sprout.Actor { }

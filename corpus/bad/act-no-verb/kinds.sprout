@@ -1,5 +1,5 @@
 // `act` names the verb it performs, then its roles.
-kind Cat: Visitor {
+kind Cat is Visitor {
   as target for pet {
     do {
       act (target: actor)

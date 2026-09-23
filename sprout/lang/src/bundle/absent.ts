@@ -15,16 +15,13 @@
 //
 // The table below is the spec's, as data, because nine different parts
 // of the language consult it and each should read the same row rather
-// than remember its own. One row is this compiler's and not yet the
-// spec's: `container`, for an object whose `in` names nothing, which the
-// working notes' Holes in the spec record for Eric to decide.
+// than remember its own.
 
 import type { Span } from '../source/source.js';
 
 /** What a reference can point at, for the row that says what its absence does. */
 export type ReferenceKind =
   | 'kind-in-composition'
-  | 'container'
   | 'kind-in-role'
   | 'verb'
   | 'message'
@@ -48,18 +45,12 @@ export interface AbsenceRule {
   readonly told: string | null;
 }
 
-/** The spec's table, in its order, with `container` after the row it follows from. */
+/** The spec's table, in its order. */
 export const ABSENT_TABLE: readonly AbsenceRule[] = [
   {
     reference: 'kind-in-composition',
     consequence:
       'the object is absent: not in range, not listed, not addressable; what it holds is unreachable until the kind returns',
-    told: null,
-  },
-  {
-    reference: 'container',
-    consequence:
-      'the object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns',
     told: null,
   },
   {

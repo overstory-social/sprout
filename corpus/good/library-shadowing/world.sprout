@@ -1,10 +1,11 @@
-world library_shadowing: sprout.World {
+world library_shadowing is sprout.World {
   visitors are Creature
   visitors arrive at home
-}
 
-// One object made of the world's own bare `Place`, one of the library's
-// qualified `sprout.Place`: both compose, and the qualified name still
-// reaches the library's kind after the shadow.
-object home: Place in library_shadowing
-object annex: sprout.Place in library_shadowing
+  // One object made of the world's own bare `Place`, one of the library's
+  // qualified `sprout.Place`: both compose, and the qualified name still
+  // reaches the library's kind after the shadow.
+  object home is Place
+
+  object annex is sprout.Place
+}

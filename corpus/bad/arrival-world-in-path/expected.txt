@@ -1,0 +1,4 @@
+world.sprout:6:22  `arrival_world_in_path` is the world, which is named on its own and never as a step of a path.
+                   A path starts from something directly in the world: write `visitors arrive at hall`.
+
+refused: 1 problem

@@ -9,4 +9,4 @@ kind Futon {
   :open false
 }
 
-kind Chest: Lidded, Futon { }
+kind Chest is Lidded, Futon { }

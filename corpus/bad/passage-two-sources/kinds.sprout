@@ -9,4 +9,4 @@ kind Terse {
   passage taken { Taken. }
 }
 
-kind Porter: Plain, Terse { }
+kind Porter is Plain, Terse { }

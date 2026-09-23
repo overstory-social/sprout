@@ -1,4 +1,0 @@
-objects.sprout:4:24  `container_world_in_path` is the world, which is named on its own and never as a step of a path.
-                     A path starts from something directly in the world: write `in hall`.
-
-refused: 1 problem

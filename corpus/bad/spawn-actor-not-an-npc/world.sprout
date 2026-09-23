@@ -1,11 +1,15 @@
-world spawn_actor_not_an_npc: sprout.World {
+world spawn_actor_not_an_npc is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place {
+    object bell is Bell
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }
 
-kind Porter: sprout.Actor { }
+kind Porter is sprout.Actor { }
 
 verb ring { role target  "ring [target]" }
 
@@ -16,7 +20,3 @@ kind Bell {
     do { spawn Porter in here }
   }
 }
-
-object hall: sprout.Place in spawn_actor_not_an_npc
-
-object bell: Bell in hall

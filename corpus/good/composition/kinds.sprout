@@ -7,18 +7,18 @@ kind Room {
   contains actors
 }
 
-kind Lidded: Wooden {
+kind Lidded is Wooden {
   contains
   :open true
 }
 
-kind Heavy: Wooden {
+kind Heavy is Wooden {
   :weight 40 min 0 max 200
 }
 
 // A diamond: `Wooden` is reached through both `Lidded` and `Heavy`.
 // `:open` is restated, which keeps its type and changes its default.
-kind Chest: Lidded, Heavy {
+kind Chest is Lidded, Heavy {
   :open false
   :remembers [opened: false]
 }

@@ -1,4 +1,0 @@
-objects.sprout:5:21  An object says what holds it.
-                     Write `in` and the name of its container after its kinds: `object bench: Bench in composing_room { … }`.
-
-refused: 1 problem

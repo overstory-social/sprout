@@ -1,2 +1,2 @@
-world world_twice: sprout.World {
+world world_twice is sprout.World {
 }

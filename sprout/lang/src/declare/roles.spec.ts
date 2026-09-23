@@ -189,7 +189,7 @@ kind Hand { as target for take { do { } } }`);
 describe('a `from` narrows a value role by a property the role-player holds, or a range', () => {
   it('reads a property of its own or one it composes, and a range written out', () => {
     const { said, kinds } = world(`${UNLOCK}kind Knowing { :knows [integer] default [] }
-kind Guard: Knowing { as target for ask { topic from :knows  do { } } }
+kind Guard is Knowing { as target for ask { topic from :knows  do { } } }
 kind Dial { as target for ask { topic from 1 to 12  do { } } }`);
     expect(said).toEqual([]);
     const guard = playsOf(kinds.qualified('shop', 'Guard')!.plays, 'shop', 'ask', 'target')[0]!;
@@ -243,7 +243,7 @@ kind Cursed { as target for unlock { permit { } } }
 
   it('runs each composed kind’s play in the order its source appears, its own last', () => {
     const { said, plays } = world(
-      `${LOCKS}kind Chest: Cursed, Lock { as target for unlock { do { } } }`,
+      `${LOCKS}kind Chest is Cursed, Lock { as target for unlock { do { } } }`,
     );
     expect(said).toEqual([]);
     expect(plays('Chest', 'shop', 'unlock', 'target')).toEqual([
@@ -254,14 +254,14 @@ kind Cursed { as target for unlock { permit { } } }
   });
 
   it('runs one origin once, however many paths reach it', () => {
-    const { plays } = world(`${LOCKS}kind Brass: Lock { }
-kind Iron: Lock { }
-kind Both: Brass, Iron { }`);
+    const { plays } = world(`${LOCKS}kind Brass is Lock { }
+kind Iron is Lock { }
+kind Both is Brass, Iron { }`);
     expect(plays('Both', 'shop', 'unlock', 'target')).toEqual(['shop.Lock']);
   });
 
   it('leaves out what `without as <role> for <verb> from X` names, and nothing else', () => {
-    const { said, plays } = world(`${LOCKS}kind Chest: Lock, Cursed {
+    const { said, plays } = world(`${LOCKS}kind Chest is Lock, Cursed {
   without as target for unlock from Lock
 }`);
     expect(said).toEqual([]);
@@ -270,17 +270,17 @@ kind Both: Brass, Iron { }`);
 
   it('keeps a play left out through one path when another path still reaches it', () => {
     const { said, plays } =
-      world(`${LOCKS}kind Quiet: Lock { without as target for unlock from Lock }
-kind Chest: Quiet, Lock { }`);
+      world(`${LOCKS}kind Quiet is Lock { without as target for unlock from Lock }
+kind Chest is Quiet, Lock { }`);
     expect(said).toEqual([]);
     expect(plays('Quiet', 'shop', 'unlock', 'target')).toEqual([]);
     expect(plays('Chest', 'shop', 'unlock', 'target')).toEqual(['shop.Lock']);
   });
 
   it('refuses to leave out a play the kind after `from` only composes, or does not write', () => {
-    const { said } = world(`${LOCKS}kind Brass: Lock { }
-kind Chest: Brass { without as target for unlock from Brass }
-kind Box: Lock { without as tool for unlock from Lock }`);
+    const { said } = world(`${LOCKS}kind Brass is Lock { }
+kind Chest is Brass { without as target for unlock from Brass }
+kind Box is Lock { without as tool for unlock from Lock }`);
     expect(said.map(([, message]) => message)).toEqual([
       '`Brass` has no `as target for unlock` to leave out.',
       '`Lock` has no `as tool for unlock` to leave out.',

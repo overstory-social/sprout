@@ -1,16 +1,21 @@
 // `act`, as far as the compiler reads it today: something made of what
 // visitors are made of performs a verb itself, from a `do`, with its roles
 // named rather than typed.
-world acting: sprout.World {
+world acting is sprout.World {
   contains actors
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place {
+    object cat is Cat
+    object mouse is Toy
+  }
 }
 
 enum Mood { calm, cross, sleepy }
 
 // Everyone, a person or a cat, nuzzles the same way.
-kind Creature: sprout.Actor {
+kind Creature is sprout.Actor {
   as actor for nuzzle { do { say "You nuzzle {target}." } }
 }
 
@@ -21,8 +26,3 @@ verb bat    { role target  role toys many }
 verb quiz   { role target  role topic: symbol  "quiz [target] about [topic]" }
 verb mew    { role target  role mood: symbol }
 verb knead  { role target  role tool optional }
-
-object cat: Cat in hall
-object mouse: Toy in hall
-
-object hall: sprout.Place in acting

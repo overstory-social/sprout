@@ -25,7 +25,7 @@ kind Lockable {
 // A second player of the same role: `Lockable`'s `permit` runs, then this
 // one, and either may refuse. The tool is read only once `bound` says a
 // visitor named one.
-kind Warded: Lockable {
+kind Warded is Lockable {
   :sealed false
 
   as target for unlock {
@@ -42,7 +42,7 @@ kind Warded: Lockable {
 
 // A lock rusted open at the plate: `Lockable`'s refusal and bolt are left
 // out, and `Warded`'s ward still runs.
-kind Rusted: Warded {
+kind Rusted is Warded {
   without as target for unlock from Lockable
 }
 

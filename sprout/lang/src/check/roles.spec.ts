@@ -22,7 +22,7 @@ verb dial { role target  role number: integer  "dial [number] on [target]" }
 verb throw { role target  role tools many  "throw [target] using [tools]" }
 verb nudge { role target  role tool optional }
 verb sit { role target }
-kind Visitor: sprout.Actor { :score 0 }
+kind Visitor is sprout.Actor { :score 0 }
 `;
 
 /**
@@ -290,7 +290,7 @@ describe('`as actor` is played by an actor', () => {
         "Compose `sprout.Actor` into `Bench`, or play one of `sit`'s roles instead: `target`.",
       ],
     ]);
-    expect(checked('kind Sitter: sprout.Actor { as actor for sit { do { } } }')).toEqual([]);
+    expect(checked('kind Sitter is sprout.Actor { as actor for sit { do { } } }')).toEqual([]);
   });
 });
 
@@ -356,7 +356,7 @@ describe('a `permit` decides and a `do` acts', () => {
   });
 
   it('refuses a spawn of an actor that is not made of what visitors are', () => {
-    const text = `kind Porter: sprout.Actor { }
+    const text = `kind Porter is sprout.Actor { }
 kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in here } } }`;
     expect(messages(checked(text))).toEqual([
       '`Porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
@@ -378,7 +378,7 @@ kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in her
 describe('a `do` performs verbs with `act`', () => {
   it('checks each `act` against the bundle’s verbs and what visitors are made of', () => {
     expect(
-      checked('kind Cat: Visitor { as actor for sit { do { act pull (target: self) } } }'),
+      checked('kind Cat is Visitor { as actor for sit { do { act pull (target: self) } } }'),
     ).toEqual([]);
     expect(
       checked('kind Lever { as target for pull { do { act sit (target: self) } } }').map(
