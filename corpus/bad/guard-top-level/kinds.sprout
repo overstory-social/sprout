@@ -1,0 +1,9 @@
+// A guard speaks for a kind, an object or the world: written on its own
+// at the top of a file, it speaks for nothing.
+accept (item, from) {
+  if (item.is(Crate)) { refuse "Not another crate." }
+}
+
+kind Crate {
+  contains
+}

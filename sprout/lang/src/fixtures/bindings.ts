@@ -15,6 +15,7 @@ import {
   type RoleNarrowing,
 } from '../check/bindings.js';
 import type { KindRef } from '../declare/kinds.js';
+import { NO_GUARDS } from '../declare/guards.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import type { DeclaredMessage } from '../declare/messages.js';
@@ -82,6 +83,7 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
     composes: new Set(order),
     properties: new Map(),
     passages: new Map(),
+    guards: NO_GUARDS,
     contains: false,
     containsActors: false,
     suppressed: [],

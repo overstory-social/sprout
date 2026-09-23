@@ -1,0 +1,11 @@
+// `refuse` names a passage of the kind that wrote the guard.
+kind Crate {
+  contains
+  :capacity 4 min 0 max 20
+
+  accept (item, from) {
+    if (self.count >= self.get(:capacity)) { refuse ful }
+  }
+
+  passage full { There is no room in {self}. }
+}

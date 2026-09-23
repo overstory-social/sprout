@@ -15,6 +15,7 @@ import {
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
 import type { ResolvedPassage } from './passages.js';
+import type { Guards } from './guards.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import { composeKind, type Found, type KindSource, type OnUnknown } from './compose.js';
 import { refuseComposingWorld, writesWorld } from './sprout-world.js';
@@ -64,6 +65,12 @@ export interface KindRef {
    * to any other source's).
    */
   readonly passages: ReadonlyMap<string, ResolvedPassage>;
+  /**
+   * The consent guards it runs, for each part of a move: every composed
+   * kind's in closure order, its own last, less what is left out (the
+   * spec's How members combine; Suppressing a contribution).
+   */
+  readonly guards: Guards;
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**
@@ -73,9 +80,11 @@ export interface KindRef {
    */
   readonly containsActors: boolean;
   /**
-   * The contributions it leaves out with `without`, each a member and the
-   * kind in its closure that declares it (the spec's Suppressing a
-   * contribution). B22, B24 and B32, which run composed members, skip these.
+   * The contributions left out with `without`, each a member and the kind
+   * in its closure that declares it (the spec's Suppressing a
+   * contribution): its own, and every one a kind it composes left out,
+   * which stays left out here. `guards` already has them removed; B24 and
+   * B32, which run composed roles, handlers and hooks, skip these.
    */
   readonly suppressed: readonly Suppression[];
 }

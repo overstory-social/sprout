@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Literal } from '../ast.js';
+import type { KindDeclaration, Literal } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
@@ -405,6 +405,20 @@ describe('an unclosed list stops at what follows it, not the file', () => {
     expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
       'b',
     ]);
+  });
+});
+
+describe('a guard after a list default is the next member, not more of the list', () => {
+  it('keeps the guard whole after a list closed where it should be, and one closed early', () => {
+    for (const list of ['[oak, silver]', '[oak, ], silver]']) {
+      const text = `kind K {\n  :x [Ward] default ${list}\n  accept (item, from) { allow }\n}`;
+      const { declarations } = read(text);
+      const kind = declarations[0] as KindDeclaration;
+      expect(
+        kind.members.map((m) => m.kind),
+        list,
+      ).toEqual(['property', 'guard']);
+    }
   });
 });
 

@@ -29,7 +29,7 @@
 // taking the report: the manifest's own fields, the files, the
 // libraries, what the bundle weighs, the first tier over every file, the
 // one world, the declarations, what the world and its visitors are made
-// of, and where visitors arrive.
+// of, where visitors arrive, and the bodies every kind writes.
 
 import type { KindDeclaration, ObjectDeclaration } from '../../syntax/ast.js';
 import type { CompileMode } from '../absent.js';
@@ -40,6 +40,7 @@ import { resolveDeclarations } from '../declarations.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
+import { checkBodies } from './bodies.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
 import { checkLibraries } from './libraries.js';
@@ -120,6 +121,17 @@ export function compileBundle(
     theWorld === null
       ? null
       : arrivalPlace(theWorld, tables, manifest.namespace, ownFileRefused, report);
+
+  // Every body, against the kind that wrote it.
+  checkBodies(
+    [
+      ...tables.kinds.all(),
+      ...tables.composed.flatMap(({ kind }) => (kind === null ? [] : [kind])),
+      ...(world === null ? [] : [world]),
+    ],
+    tables.kinds,
+    report.diagnostics,
+  );
 
   // The kinds, objects and places caps count what resolved, on the same
   // footing as the source and file caps, and so refuse at load too.

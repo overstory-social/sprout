@@ -225,8 +225,8 @@ Found while building composition (B19), each decided the narrow way and awaiting
 - **An object in a library.** Refused, as a world is: a library holds kinds for the world to make things of.
 - **An object's anonymous kind.** Named for the object, in the world's library, and the origin of what its body declares.
 - **A kind composing one that is absent at load.** It is not composed and its body is not read; the objects made of it are absent with no gap of their own beyond the `kind-in-composition` one.
-- **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. No kind declares any of those members yet, so every `without` is refused with "has no … to leave out" until B22 reads guards.
-- **A `without` in a kind that is itself composed.** Whether what `B` leaves out stays left out in `D: B`, and what happens when `D` also reaches the source another way, is unsaid; the suppression is recorded on the kind that wrote it, and whichever of B22, B24 and B32 first runs a composed member decides how it travels.
+- **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. Guards are read, so `without depart from X` works where `X` writes a `depart` itself; every other form is refused with "has no … to leave out" until B24 reads roles and B32 handlers and hooks.
+- **A `without` in a kind that is itself composed.** Whether what `B` leaves out stays left out in `D: B`, and what happens when `D` also reaches the source another way, was unsaid. *Decided by B22, awaiting Eric:* it stays left out, however `D` reaches the source; see the B22 list below.
 - **What the kinds, objects and places caps count.** `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, not an object's anonymous kind; `objects` counts the world's `object` declarations, composed or not; `places` counts its objects whose composed kind holds actors. The world counts toward neither `objects` nor `places`. Each is refused at the first declaration past it, at load as at publish.
 - **Where a library lives on disk.** Still unspecified for any library's vendored copy in a world folder, so the CLI reads none from one. The CLI carries the standard library itself and sends it whenever the manifest names `sprout`, and `sprout init` pins it.
 
@@ -323,6 +323,16 @@ Found while building passages (B20), each decided the narrow way and awaiting Er
 - **Where a passage's header may sit.** Its words on the `passage` line, the brace on that line or the next; a header left without braces then never takes the next member for its own.
 - **`{item}` in `arrives` and `leaves`.** Untyped by the binding table until B29 and B42 say what a place's notices bind.
 - **A world whose composed kinds lack an engine passage.** A forked standard library without `fault` or `displaced`: what the engine says then is B34's and B48's.
+
+Found while reading, checking and composing the consent guards (B22), each decided the narrow way and awaiting Eric:
+
+- **A guard's parameters.** Positional, named as the author chooses: one for `depart`, two for `release` and `accept`, and any other count is refused. `to` and `from` are reserved words, and the spec's own guards name parameters with them, so those two may name one and no other reserved word may. `_` for a parameter left unnamed waits for the lexer to read it, as a handler's does (B32); until then every parameter is named.
+- **What follows `allow` or `refuse` in a block.** Accepted, and never runs; a warning for it is B50's.
+- **A guard written twice in one body.** Refused at the second, as a passage written twice is, and the first kept.
+- **`release` or `accept` on something that holds nothing, and `depart` on the world.** Accepted, and never asked, since nothing can leave or enter it and the world never moves.
+- **How a `without` travels.** What `B` leaves out stays left out in `D: B`, even where `D` reaches the source another way (`D: B, C` with `C: A`): suppressions accumulate through the closure, and `KindRef.suppressed` holds a kind's own and every one it composed. Answers "A `without` in a kind that is itself composed" in the B19 list above.
+- **Where `refuse <name>` looks.** At the passages of the kind that wrote the guard, composed ones included; the evaluator looks the passage up on the refusing instance's kind at run time, so a composer's own line replaces a library default.
+- **What a guard may say as a statement.** A call that writes or remembers is refused as a write, and any other expression standing as a statement is refused as reading without doing, as everywhere. `say`, `tell`, `send`, `move` and `act` are not read as statements yet; in a guard they are refused as statements this compiler does not read, until the items that read them refuse them there by name.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

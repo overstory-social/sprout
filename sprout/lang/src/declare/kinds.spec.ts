@@ -5,6 +5,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from './enums.js';
+import { NO_GUARDS } from './guards.js';
 import {
   checkKindDeclaration,
   composesKind,
@@ -23,6 +24,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     composes: new Set(order),
     properties: new Map(),
     passages: new Map(),
+    guards: NO_GUARDS,
     contains: false,
     containsActors: false,
     suppressed: [],

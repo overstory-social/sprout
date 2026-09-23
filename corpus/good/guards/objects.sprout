@@ -1,0 +1,15 @@
+object hall: sprout.Place in guards
+
+// An object writes its own guards beside the ones its kind composes;
+// all of them run, the kind's first.
+object crate: Crate in hall {
+  depart (to) { refuse nailed }
+  release (item, to) { allow }
+  accept (item, from) {
+    if (item.is(Vase)) { refuse "The vase would crack in there." }
+  }
+
+  passage nailed { The crate is nailed to the floor. }
+}
+
+object vase: Vase in hall

@@ -266,7 +266,61 @@ export interface DestroyStatement extends Node {
   readonly kind: 'destroy';
 }
 
-export type Statement = LetStatement | SpawnStatement | DestroyStatement;
+/**
+ * `{ … }` — statements in the order written, which run in that order and
+ * are a scope of their own: a `let` in a block lives to its `}`.
+ */
+export interface Block extends Node {
+  readonly kind: 'block';
+  readonly statements: readonly Statement[];
+}
+
+/**
+ * `if (self.count >= 8) { … } else if (…) { … } else { … }` — the
+ * condition is a boolean, with no truthiness behind it (the spec's
+ * Properties › What the compiler checks). An `else if` is the `if` in
+ * `otherwise`, so a chain is a list read from its head.
+ */
+export interface IfStatement extends Node {
+  readonly kind: 'if';
+  readonly condition: Expr;
+  readonly then: Block;
+  readonly otherwise: Block | IfStatement | null;
+}
+
+/**
+ * `refuse "No room on the shelf."` or `refuse full` — a guard's or a
+ * `permit`'s refusal, in a one-line passage in quotes or in a passage of
+ * the kind that writes it, named (the spec's Movement and consent, Prose).
+ */
+export interface RefuseStatement extends Node {
+  readonly kind: 'refuse';
+  readonly said: StringLiteral | Ident;
+}
+
+/** `allow` — a guard's consent, said before its end (the spec's Movement and consent). */
+export interface AllowStatement extends Node {
+  readonly kind: 'allow';
+}
+
+/**
+ * `self.set(:open, true)` — an expression written as a statement. Only a
+ * call that writes or remembers does anything there, and where one may
+ * stand is the checker's to say.
+ */
+export interface ExpressionStatement extends Node {
+  readonly kind: 'expression-statement';
+  readonly expression: Expr;
+}
+
+export type Statement =
+  | LetStatement
+  | SpawnStatement
+  | DestroyStatement
+  | IfStatement
+  | RefuseStatement
+  | AllowStatement
+  | ExpressionStatement;
 
 // --- the world ------------------------------------------------------------
 
@@ -340,10 +394,18 @@ export interface HookRef extends Node {
   readonly property: Ident;
 }
 
+/**
+ * The three consent guards, one for each party to a move, in the order
+ * the engine asks them: the thing, the container it leaves, the one it
+ * enters (the spec's Movement and consent › The three roles).
+ */
+export const GUARD_NAMES = ['depart', 'release', 'accept'] as const;
+export type GuardName = (typeof GUARD_NAMES)[number];
+
 /** `depart`, `release`, `accept` — a consent guard, named by its role in a move. */
 export interface GuardRef extends Node {
   readonly kind: 'guard-ref';
-  readonly guard: 'depart' | 'release' | 'accept';
+  readonly guard: GuardName;
 }
 
 /** `as target for unlock` — a role member, named by the role and the verb. */
@@ -414,6 +476,23 @@ export interface PassageDeclaration extends Node {
   readonly body: PassageBody;
 }
 
+// --- consent guards -------------------------------------------------------
+
+/**
+ * `depart (to) { … }`, `release (item, to) { … }`, `accept (item, from)
+ * { … }` — what one party to a move says about it (the spec's Movement
+ * and consent). The parameters are positional, one for `depart` and two
+ * for the others, each named as the author chose. The body reads and
+ * decides: it ends in `allow`, in `refuse`, or by reaching its end,
+ * which allows.
+ */
+export interface GuardDeclaration extends Node {
+  readonly kind: 'guard';
+  readonly guard: GuardName;
+  readonly parameters: readonly Ident[];
+  readonly body: Block;
+}
+
 /**
  * What a kind's body, or an object's, may declare (the spec's Kinds ›
  * Declaring and composing). The union grows one item at a time.
@@ -423,7 +502,8 @@ export type KindMember =
   | RemembersDeclaration
   | ContainsDeclaration
   | WithoutDeclaration
-  | PassageDeclaration;
+  | PassageDeclaration
+  | GuardDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

@@ -1,0 +1,11 @@
+// The `if` closes, and the `accept` around it does not, so the passage
+// after it is where the guard runs out.
+kind Crate {
+  contains
+  :open true
+
+  accept (item, from) {
+    if (!self.get(:open)) { refuse shut }
+
+  passage shut { {self} is shut. }
+}
