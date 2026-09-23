@@ -10,6 +10,7 @@
 import type { Ident } from '../syntax/ast.js';
 import { isObjectBinding, type Binding, type ObjectBinding } from '../check/bindings.js';
 import type { KindRef } from '../declare/kinds.js';
+import { NO_PASS_RULES } from '../declare/passes.js';
 import { NO_GUARDS } from '../declare/guards.js';
 import { NO_PLAYS, type RoleNarrowing } from '../declare/roles.js';
 import { Diagnostics } from '../source/diagnostics.js';
@@ -81,6 +82,9 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
     passages: new Map(),
     guards: NO_GUARDS,
     plays: NO_PLAYS,
+    handlers: new Map(),
+    hooks: new Map(),
+    passes: NO_PASS_RULES,
     contains: false,
     containsActors: false,
     suppressed: [],

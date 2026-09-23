@@ -3,8 +3,8 @@
 // whole bundle). Every composed kind is checked for what it wrote itself —
 // a named kind, an object's anonymous kind, the world — and nothing is
 // checked twice for being composed: a kind's guard or play is checked
-// once, against the kind that wrote it. Today a body is a consent guard or
-// a role's `permit` and `do`; handlers and hooks join as B32 reads them.
+// once, against the kind that wrote it: a consent guard, a role's `permit`
+// and `do`, a handler, a hook and a pass rule.
 
 import { GUARD_NAMES } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
@@ -12,6 +12,7 @@ import { kindName, type KindLookup, type KindRef } from '../../declare/kinds.js'
 import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
+import { checkHandler, checkHook, checkPass } from '../../check/handlers.js';
 
 /** What every body is checked against: the kinds and verbs. */
 export interface BodySetting {
@@ -20,7 +21,7 @@ export interface BodySetting {
   readonly diagnostics: Diagnostics;
 }
 
-/** Check every guard and play each of `composed` wrote itself, against it. */
+/** Check every body each of `composed` wrote itself, against it. */
 export function checkBodies(composed: readonly KindRef[], setting: BodySetting): void {
   for (const kind of composed) {
     const own = kindName(kind);
@@ -31,6 +32,18 @@ export function checkBodies(composed: readonly KindRef[], setting: BodySetting):
     }
     for (const plays of kind.plays.values()) {
       for (const play of plays) if (play.origin === own) checkPlay(play, kind, setting);
+    }
+    for (const handlers of kind.handlers.values()) {
+      for (const handler of handlers) {
+        if (handler.origin === own) checkHandler(handler, kind, setting);
+      }
+    }
+    for (const hooks of kind.hooks.values()) {
+      for (const hook of hooks) if (hook.origin === own) checkHook(hook, kind, setting);
+    }
+    const { any, messages } = kind.passes;
+    for (const pass of [...(any === null ? [] : [any]), ...messages.values()]) {
+      if (pass.origin === own) checkPass(pass, kind, setting);
     }
   }
 }

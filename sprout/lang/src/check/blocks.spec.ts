@@ -148,3 +148,21 @@ describe('a condition opens the branch it guards', () => {
     expect(context.scope.withheld('n')!.unread).toBe(words);
   });
 });
+
+describe('a handler or a hook acts, with nobody to answer or speak to', () => {
+  const HANDLER: BodyKind = { body: 'handler', written: 'on :gust' };
+
+  it('writes, spawns and destroys, as a `do` does', () => {
+    expect(
+      check('self.set(:inked, true)\n    spawn Vessel in self\n    destroy self', HANDLER),
+    ).toEqual([]);
+  });
+
+  it('refuses `say`, `refuse` and `allow`, naming the handler', () => {
+    expect(check('say "Hi."\n    refuse "No."\n    allow', HANDLER).map(([, m]) => m)).toEqual([
+      '`say` has nobody to speak to inside `on :gust`.',
+      '`refuse` answers someone, and nobody waits on `on :gust` for an answer.',
+      '`allow` answers someone, and nobody waits on `on :gust` for an answer.',
+    ]);
+  });
+});

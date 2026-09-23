@@ -4,7 +4,7 @@ import type { MessageDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { ENGINE_MESSAGES } from './engine-messages.js';
 import { EnumTable } from './enums.js';
-import { MessageTable } from './messages.js';
+import { MessageTable, messageKey, reachMessage, unknownMessage } from './messages.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { MEMBER_WORDS } from '../syntax/reserved.js';
 import { SourceFile } from '../source/source.js';
@@ -244,5 +244,43 @@ describe('what the parser makes of a message declaration', () => {
     expect(
       declare('message :said with string').table.unqualified('said', 'printers_shop')!.carries,
     ).toEqual(STRING);
+  });
+});
+
+describe('what a message name reaches, and the key it is known by', () => {
+  it('is the engine’s own first, then the library’s, then the standard library’s', () => {
+    const { table } = declare('message :stir\nmessage :tick_over');
+    const standard = declare('message :stir\nmessage :bell', 'sprout').table.all();
+    const both = new MessageTable();
+    both.add(
+      'printers_shop',
+      table.all().map((m) => m.declaration),
+      ENUMS,
+      new Diagnostics(),
+    );
+    both.add(
+      'sprout',
+      standard.map((m) => m.declaration),
+      ENUMS,
+      new Diagnostics(),
+    );
+    const reached = (name: string) => reachMessage(name, 'printers_shop', both);
+    expect(reached('tick')).toEqual({ engine: ENGINE_MESSAGES.find((m) => m.name === 'tick') });
+    expect(messageKey(reached('tick')!)).toBe('tick');
+    expect(messageKey(reached('stir')!)).toBe('printers_shop.stir');
+    expect(messageKey(reached('bell')!)).toBe('sprout.bell');
+    expect(reached('nothing')).toBeNull();
+  });
+
+  it('is said, where nothing declares it, with the one most likely meant', () => {
+    const { table } = declare('message :illuminating with boolean');
+    expect(unknownMessage('illumnating', 'printers_shop', table)).toEqual({
+      message: 'Nothing declares a message `:illumnating`. Did you mean `:illuminating`?',
+      remedy: 'Write `:illuminating`, or declare `message :illumnating`.',
+    });
+    expect(unknownMessage('zzz', 'printers_shop', table)).toEqual({
+      message: 'Nothing declares a message `:zzz`.',
+      remedy: "Declare it with `message :zzz`, beside the world's kinds and verbs.",
+    });
   });
 });

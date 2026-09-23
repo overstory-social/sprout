@@ -31,7 +31,7 @@ import { writtenPath } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
-import { kindName } from './bodies.js';
+import { kindName } from './composition.js';
 import { expression } from './expressions.js';
 import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';

@@ -11,7 +11,8 @@ import type { KindDeclaration, KindMember, ObjectDeclaration } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
-import { apart, body, composition, kindMembers, writtenKind } from './bodies.js';
+import { apart, body, kindMembers } from './bodies.js';
+import { composition, writtenKind } from './composition.js';
 import { objectPath } from './paths.js';
 import { recover, skipBracketed } from './recovery.js';
 

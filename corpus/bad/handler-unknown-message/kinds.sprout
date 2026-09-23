@@ -1,0 +1,7 @@
+// A misspelt message is a refusal rather than a handler that never runs.
+message :illuminating with boolean
+
+kind Lamp {
+  :lit false
+  on :illumnating (from, value) { self.set(:lit, value) }
+}

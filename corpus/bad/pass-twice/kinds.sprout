@@ -1,0 +1,6 @@
+// A container answers once for each message.
+kind Crate {
+  contains
+  pass any (true)
+  pass any (false)
+}

@@ -1,0 +1,11 @@
+// A handler decides by writing or not writing; the sender never hears a
+// refusal, so there is none to write.
+message :unlock_attempt
+
+kind Door {
+  :locked true
+  on :unlock_attempt (from) {
+    if (!from.is(Door)) { refuse "It does not fit." }
+    self.set(:locked, false)
+  }
+}

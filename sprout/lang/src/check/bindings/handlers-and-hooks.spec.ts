@@ -79,7 +79,7 @@ describe('a handler binds the sender and the value it carries', () => {
 });
 
 describe('the engine’s own messages bind what they name', () => {
-  it('binds them under the names the spec writes', () => {
+  it('binds them positionally, under the names the spec writes', () => {
     const written: Record<string, string[]> = {
       entered: ['item', 'from'],
       left: ['item', 'to'],
@@ -91,7 +91,12 @@ describe('the engine’s own messages bind what they name', () => {
       woke: ['elapsed'],
     };
     for (const message of ENGINE_MESSAGES) {
-      const made = engineParameters(message, at('item'));
+      const made = engineParameters(
+        message,
+        parameters(...written[message.name]!),
+        at('item'),
+        new Diagnostics(),
+      );
       expect(
         made.map((b) => b.name),
         message.name,
@@ -101,10 +106,49 @@ describe('the engine’s own messages bind what they name', () => {
 
   it('types `elapsed` as an integer and everything else as an object', () => {
     for (const message of ENGINE_MESSAGES) {
-      for (const binding of engineParameters(message, at('item'))) {
+      const names = message.parameters.map((one) => one.name);
+      const made = engineParameters(message, parameters(...names), at('item'), new Diagnostics());
+      for (const binding of made) {
         const wanted = binding.name === 'elapsed' ? valueOf(integer()) : OPEN_OBJECT;
         expect(binding.type, `:${message.name} (${binding.name})`).toEqual(wanted);
       }
     }
+  });
+});
+
+describe('the engine’s own messages bind positionally, under the author’s names', () => {
+  const entered = ENGINE_MESSAGES.find((one) => one.name === 'entered')!;
+
+  it('binds what a position passes under whatever the author named it', () => {
+    const made = engineParameters(
+      entered,
+      parameters('thing', 'pot'),
+      at('thing'),
+      new Diagnostics(),
+    );
+    expect(made.map((b) => [b.name, b.type])).toEqual([
+      ['thing', OPEN_OBJECT],
+      ['pot', OPEN_OBJECT],
+    ]);
+  });
+
+  it('leaves `_` unbound, and what is left off after the last named', () => {
+    const made = engineParameters(entered, parameters(null, 'from'), at('from'), new Diagnostics());
+    expect(made.map((b) => b.name)).toEqual(['from']);
+    expect(
+      engineParameters(entered, parameters('item'), at('item'), new Diagnostics()).map(
+        (b) => b.name,
+      ),
+    ).toEqual(['item']);
+  });
+
+  it('refuses one past what the message passes, naming what it does', () => {
+    const { made, said } = trying((d) =>
+      engineParameters(entered, parameters('item', 'from', 'n'), at('n'), d),
+    );
+    expect(made).toEqual([]);
+    expect(said).toEqual([
+      '`:entered` passes `item` and `from`, and nothing else. Write `on :entered (item, from)`, naming as many as you need.',
+    ]);
   });
 });

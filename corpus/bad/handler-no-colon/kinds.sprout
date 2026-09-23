@@ -1,0 +1,6 @@
+// A handler names its message with the colon.
+message :stir
+
+kind Cat {
+  on stir { }
+}

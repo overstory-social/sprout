@@ -30,7 +30,8 @@ export function checkGuard(guard: GuardDeclaration, self: KindRef, setting: Guar
   const scope = Scope.root();
   scope.introduce(selfBinding(self, guard.at), diagnostics);
   scope.introduce(moverBinding(guard.at), diagnostics);
-  for (const parameter of guard.parameters) {
+  // `_` leaves a parameter unnamed, as a handler's does.
+  for (const parameter of guard.parameters.filter((one) => one.text !== '_')) {
     scope.introduce(guardParameterBinding(parameter.text, parameter.at), diagnostics);
   }
   const context: CheckContext = {

@@ -12,8 +12,8 @@ import type { KindDeclaration, ObjectDeclaration, WorldDeclaration } from '../sy
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { EnumTable } from './enums.js';
 import type { KindRef } from './kinds.js';
-import { composeKind, type KindSource, type OnUnknown } from './compose.js';
-import type { OnUnknownVerb, VerbNames } from './roles.js';
+import { composeKind, type KindSource, type MemberNames, type OnUnknown } from './compose.js';
+
 import type { ObjectTree, Placeable } from './tree.js';
 import { givenBy, type KindContent, type KindContents } from './contents.js';
 
@@ -66,15 +66,12 @@ export interface ComposedObject extends Placeable {
   readonly giver: string | null;
 }
 
-export interface ObjectContext {
+export interface ObjectContext extends MemberNames {
   readonly enums: EnumTable;
   /** Every kind, already composed. */
   readonly kinds: KindSource;
   readonly diagnostics: Diagnostics;
   readonly onUnknown?: OnUnknown;
-  /** The verbs an object's own plays may name. */
-  readonly verbs?: VerbNames;
-  readonly onUnknownVerb?: OnUnknownVerb;
 }
 
 /**

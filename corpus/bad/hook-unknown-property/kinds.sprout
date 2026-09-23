@@ -1,0 +1,5 @@
+// A hook watches a property its kind holds.
+kind Lamp {
+  :lit false
+  changed :lt (was) { }
+}

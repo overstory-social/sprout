@@ -8,12 +8,11 @@
 // A `destroy` is warned about once, naming the first declared object in
 // declared order that runs it; one that no declared object runs, because
 // none composes its kind or each leaves the play out with `without`, is
-// not. Today a body that may destroy is a play's `do`; handlers, hooks
-// and wakes join as B32 reads them.
+// not. A body that may destroy is a play's `do`, a handler or a hook.
 
 import type { Block, DestroyStatement, Statement } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
-import { kindName } from '../../declare/kinds.js';
+import { kindName, type KindRef } from '../../declare/kinds.js';
 import type { ComposedObject } from '../../declare/objects.js';
 import type { ObjectTree } from '../../declare/tree.js';
 
@@ -29,21 +28,34 @@ export function warnDestroyingDeclared(
     if (object.kind === null || placement === undefined) continue;
     const path = `\`${placement.path.join('.')}\``;
     const own = kindName(object.kind);
-    for (const plays of object.kind.plays.values()) {
-      for (const play of plays) {
-        for (const destroy of destroysIn(play.declaration.do)) {
-          if (warned.has(destroy)) continue;
-          warned.add(destroy);
-          const made = play.origin === own ? '' : ` is made of \`${shown(play.origin)}\` and`;
-          diagnostics.warn(
-            destroy.at,
-            `${path}${made} is declared in the world, so once it is destroyed it never comes back.`,
-            'Destroying is meant for what was spawned. To have something come and go, `spawn` it when it should appear; to keep this one, change one of its properties instead.',
-          );
-        }
+    for (const { origin, body } of acting(object.kind)) {
+      for (const destroy of destroysIn(body)) {
+        if (warned.has(destroy)) continue;
+        warned.add(destroy);
+        const made = origin === own ? '' : ` is made of \`${shown(origin)}\` and`;
+        diagnostics.warn(
+          destroy.at,
+          `${path}${made} is declared in the world, so once it is destroyed it never comes back.`,
+          'Destroying is meant for what was spawned. To have something come and go, `spawn` it when it should appear; to keep this one, change one of its properties instead.',
+        );
       }
     }
   }
+}
+
+/** Every body a kind runs that may destroy, with the kind that wrote it, in run order. */
+function acting(kind: KindRef): { readonly origin: string; readonly body: Block | null }[] {
+  return [
+    ...[...kind.plays.values()]
+      .flat()
+      .map((play) => ({ origin: play.origin, body: play.declaration.do })),
+    ...[...kind.handlers.values()]
+      .flat()
+      .map((one) => ({ origin: one.origin, body: one.declaration.body })),
+    ...[...kind.hooks.values()]
+      .flat()
+      .map((one) => ({ origin: one.origin, body: one.declaration.body })),
+  ];
 }
 
 /** Every `destroy` in `block`, however deep inside an `if`, in the order written. */

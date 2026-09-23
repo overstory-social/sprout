@@ -293,6 +293,13 @@ export class Lexer {
         return this.token('integer', start, end);
       }
 
+      // `_` on its own is the name for a parameter left unnamed (the
+      // spec's Events › Receiving); a name still starts with a letter.
+      if (ch === '_' && !isNameRest(text[start + 1] ?? '')) {
+        this.at = start + 1;
+        return this.token('name', start, this.at);
+      }
+
       if (isLower(ch)) {
         let end = start;
         while (end < text.length && isNameRest(text[end]!)) end++;

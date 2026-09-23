@@ -1,14 +1,17 @@
-// A body's blocks, checked statement by statement, for the three kinds of
-// body that hold them today: a consent guard, a role's `permit`, and a
-// role's `do` (the spec's Movement and consent › Guards are read-only;
-// Verbs › The two passes; Prose; The compiler › What it refuses).
+// A body's blocks, checked statement by statement, for the kinds of body
+// that hold them: a consent guard, a role's `permit`, a role's `do`, and a
+// handler or a hook (the spec's Movement and consent › Guards are
+// read-only; Verbs › The two passes; Events › Handlers do not refuse;
+// Prose; The compiler › What it refuses).
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
 // `refuse`, and a write, a `spawn`, a `destroy`, a `move`, an `act` or a
 // `say` in one is refused, since the engine asks it before anything
 // happens and it must not change the world underneath the decision it is
 // part of. A `do` acts: it writes, spawns, destroys, moves, acts and
-// speaks, and `refuse` and `allow` are refused there, since the deciding was done. `if (x.is(K))` narrows
+// speaks, and `refuse` and `allow` are refused there, since the deciding
+// was done. A handler or a hook acts as a `do` does, but nobody is acting,
+// so it neither speaks with `say` nor refuses. `if (x.is(K))` narrows
 // `x`, and `if (bound tool)` binds `tool`, for the branch each guards.
 // Statements after an `allow` or a `refuse` are accepted and never run.
 
@@ -33,7 +36,9 @@ import { checkAct } from './act.js';
 export type BodyKind =
   | { readonly body: 'guard'; readonly guard: GuardName }
   | { readonly body: 'permit' }
-  | { readonly body: 'do' };
+  | { readonly body: 'do' }
+  /** A handler or a hook, by its head as written: `on :stir`, `changed :lit`. */
+  | { readonly body: 'handler'; readonly written: string };
 
 /** A block, in a scope of its own, as the body it belongs to allows. */
 export function checkBlock(block: Block, outer: CheckContext, kind: BodyKind): void {
@@ -42,7 +47,7 @@ export function checkBlock(block: Block, outer: CheckContext, kind: BodyKind): v
 }
 
 function checkStatement(statement: Statement, context: CheckContext, kind: BodyKind): void {
-  const decides = kind.body !== 'do';
+  const decides = kind.body === 'guard' || kind.body === 'permit';
   switch (statement.kind) {
     case 'let':
       if (statement.value.kind === 'spawn' && decides)
@@ -54,10 +59,12 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
       return;
     case 'refuse':
       if (decides) checkPassage(statement, context);
+      else if (kind.body === 'handler') undecided(statement.at, 'refuse', kind.written, context);
       else acts(statement.at, 'refuse', context);
       return;
     case 'allow':
-      if (!decides) acts(statement.at, 'allow', context);
+      if (kind.body === 'handler') undecided(statement.at, 'allow', kind.written, context);
+      else if (!decides) acts(statement.at, 'allow', context);
       return;
     case 'say':
       if (kind.body === 'do') checkPassage(statement, context);
@@ -187,9 +194,17 @@ function refuseWrite(call: CallExpr, context: CheckContext, kind: BodyKind): voi
   );
 }
 
-/** `say` where nobody is spoken to: a guard, or a `permit`, which only decides. */
+/** `say` where nobody is spoken to: a guard, a `permit`, which only decides, or a handler. */
 function refuseSay(statement: SayStatement, context: CheckContext, kind: BodyKind): void {
   const at = spanOfWord(statement);
+  if (kind.body === 'handler') {
+    context.diagnostics.refuse(
+      at,
+      `\`say\` has nobody to speak to inside \`${kind.written}\`.`,
+      'Use `tell` to speak to the room, or `tell p` to one person.',
+    );
+    return;
+  }
   if (kind.body === 'guard') {
     context.diagnostics.refuse(
       at,
@@ -202,6 +217,26 @@ function refuseSay(statement: SayStatement, context: CheckContext, kind: BodyKin
     at,
     '`say` speaks, and a `permit` only decides.',
     'Move it to `do`, or make it the words of a `refuse`.',
+  );
+}
+
+/**
+ * `refuse` or `allow` in a handler or a hook, which decides by writing or
+ * not writing: a queued message has no one to answer (the spec's Handlers
+ * do not refuse).
+ */
+function undecided(
+  at: Span,
+  word: 'refuse' | 'allow',
+  written: string,
+  context: CheckContext,
+): void {
+  context.diagnostics.refuse(
+    at,
+    `\`${word}\` answers someone, and nobody waits on \`${written}\` for an answer.`,
+    word === 'refuse'
+      ? 'Decide with `if` by writing or not writing. Where the sender should know, send it a message, as in `send from :unlock_failed`.'
+      : 'Take it out: a handler decides by what it writes.',
   );
 }
 

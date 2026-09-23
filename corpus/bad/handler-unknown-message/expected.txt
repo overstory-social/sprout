@@ -1,0 +1,4 @@
+kinds.sprout:6:6  Nothing declares a message `:illumnating`. Did you mean `:illuminating`?
+                  Write `:illuminating`, or declare `message :illumnating`.
+
+refused: 1 problem

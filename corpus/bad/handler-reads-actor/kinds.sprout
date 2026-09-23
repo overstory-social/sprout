@@ -1,0 +1,10 @@
+// Nobody is acting when a message arrives, so `actor` names no one in a
+// handler.
+message :stir
+
+kind Cat {
+  :woken false
+  on :stir {
+    if (actor.is(Cat)) { self.set(:woken, true) }
+  }
+}

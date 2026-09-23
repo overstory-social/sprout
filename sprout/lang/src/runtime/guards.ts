@@ -62,7 +62,7 @@ export function runGuard(guard: ResolvedGuard, context: GuardContext): 'allow' |
   }
   const bindings = new Map<string, Evaluated>([['mover', boundObject(context.mover)]]);
   declaration.parameters.forEach((parameter, at) => {
-    bindings.set(parameter.text, boundObject(context.parameters[at]!));
+    if (parameter.text !== '_') bindings.set(parameter.text, boundObject(context.parameters[at]!));
   });
   const frame: Frame = {
     state: context.state,

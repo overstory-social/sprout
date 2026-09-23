@@ -187,6 +187,15 @@ describe('the standard library', () => {
     expect(kinds.get('sprout.World')).toMatchObject({ contains: true, containsActors: false });
   });
 
+  it('makes a pocket private: `sprout.Actor` passes nothing, and a person composes that', () => {
+    const kinds = new Map(compiled().bundle!.kinds.map((k) => [`${k.library}.${k.name}`, k]));
+    for (const name of ['sprout.Actor', 'sprout.Visitor']) {
+      const any = kinds.get(name)!.passes.any;
+      expect(any?.origin, name).toBe('sprout.Actor');
+      expect(any?.declaration.rule, name).toMatchObject({ kind: 'boolean', value: false });
+    }
+  });
+
   it('gives `sprout.Actor` hands, and a whole-number capacity of 8', () => {
     const actor = compiled().bundle!.kinds.find(
       (k) => k.library === 'sprout' && k.name === 'Actor',
@@ -278,7 +287,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '5bd019792ad4a23dfe754560ee81494d1e69064a6b5ab3ef9a9247c15a2fc276',
+      '51c11a09e9c545ff62c3b68446343f63cedc481dceaa6e020db11d84ec0a98b9',
     );
   });
 });

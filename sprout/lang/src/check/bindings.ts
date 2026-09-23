@@ -26,8 +26,8 @@
 // its `let` calls `letBinding` below, and a guard's body
 // `moverBinding` and `guardParameterBinding`; a body playing a role calls
 // `roleBinding` with the filler `declare/verbs.ts` resolved, and
-// withholds the tools that may be missing (`Withheld`); handlers and
-// hooks are B32's, and call `handlerParameters`.
+// withholds the tools that may be missing (`Withheld`); a handler calls
+// `handlerParameters` or `engineParameters`, and a hook `wasBinding`.
 
 import type { Ident } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -40,6 +40,7 @@ import type { RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
 import { integer, showType, type ValueType } from '../declare/types.js';
+import { readable } from '../source/words.js';
 
 // --- what a binding can be ------------------------------------------------
 
@@ -390,15 +391,37 @@ export function elapsedBinding(name: string, at: Span): Binding {
 }
 
 /**
- * What an engine message binds, under the names it passes them by: what
- * it names rather than a sender and a value.
+ * What an engine message binds, positionally, under the names written:
+ * what it names rather than a sender and a value, `elapsed` an integer
+ * and the rest objects. `_` leaves one unnamed and those after the last
+ * written may be left off; one past what it passes is refused.
  */
-export function engineParameters(message: EngineMessage, at: Span): Binding[] {
-  return message.parameters.map((parameter) =>
-    parameter.binds === 'integer'
-      ? elapsedBinding(parameter.name, at)
-      : bind(parameter.name, OPEN_OBJECT, 'parameter', at),
-  );
+export function engineParameters(
+  message: EngineMessage,
+  written: readonly (Ident | null)[],
+  at: Span,
+  diagnostics: Diagnostics,
+): Binding[] {
+  const passes = message.parameters;
+  if (written.length > passes.length) {
+    const names = passes.map((one) => one.name);
+    diagnostics.refuse(
+      written[passes.length]?.at ?? at,
+      `\`:${message.name}\` passes ${readable(names)}, and nothing else.`,
+      `Write \`on :${message.name} (${names.join(', ')})\`, naming as many as you need.`,
+    );
+    return [];
+  }
+  const bindings: Binding[] = [];
+  written.forEach((name, i) => {
+    if (name === null) return;
+    bindings.push(
+      passes[i]!.binds === 'integer'
+        ? elapsedBinding(name.text, name.at)
+        : bind(name.text, OPEN_OBJECT, 'parameter', name.at),
+    );
+  });
+  return bindings;
 }
 
 // --- what a body may not read where it stands ------------------------------

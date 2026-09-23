@@ -1,0 +1,4 @@
+kinds.sprout:7:3  `Cat` writes `on :stir` twice.
+                  A kind answers a message once. Keep one, and write what both do in it, with `if` where they differ.
+
+refused: 1 problem

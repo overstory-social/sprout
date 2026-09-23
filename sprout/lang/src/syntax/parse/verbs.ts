@@ -23,7 +23,7 @@ import type { Token } from '../lexer.js';
 import { isMemberWord, isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
-import { kindName } from './bodies.js';
+import { kindName } from './composition.js';
 import { lowerCase, phrase } from './phrases.js';
 import { recover, stepPast } from './recovery.js';
 

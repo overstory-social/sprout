@@ -54,6 +54,18 @@ ${VERB}`;
     ]);
   });
 
+  it('in a handler or a hook, as in a play', () => {
+    const text = `${WORLD}
+  object lamp is Thing { :lit true  on :snuffed { destroy self }  changed :lit { destroy self } }
+} }
+${VERB}
+message :snuffed`;
+    expect(warned(text)).toEqual([
+      '2:51 `hall.lamp` is declared in the world, so once it is destroyed it never comes back.',
+      '2:82 `hall.lamp` is declared in the world, so once it is destroyed it never comes back.',
+    ]);
+  });
+
   it('in a kind it is made of, directly or through composition, naming the kind', () => {
     const text = `${WORLD}
   object lamp is Lantern

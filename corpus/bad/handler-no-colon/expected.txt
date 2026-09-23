@@ -1,0 +1,4 @@
+kinds.sprout:5:6  `on` names the message a handler answers, with its colon.
+                  Write `on :stir`, as in `on :stir { … }`.
+
+refused: 1 problem

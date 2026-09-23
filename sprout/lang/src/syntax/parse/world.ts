@@ -8,16 +8,17 @@ import type { ObjectDeclaration, WorldDeclaration, WorldMember } from '../ast.js
 import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import {
+  addEvents,
   addGuards,
   addPlays,
   apart,
   body,
-  composition,
   contains,
-  kindName,
-  without,
+  startsMemberOf,
   type MemberReaders,
 } from './bodies.js';
+import { composition, kindName } from './composition.js';
+import { without } from './without.js';
 import { objectDeclaration } from './kinds.js';
 import { passage } from './passages.js';
 import { objectPath } from './paths.js';
@@ -72,9 +73,10 @@ function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember | Obj
     ['contains', () => contains(p)],
   ]);
   readers.set('passage', () => passage(p, readers));
-  readers.set('without', () => without(p, readers));
+  readers.set('without', () => without(p, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);
+  addEvents(p, owner, readers);
   readers.set('object', () => objectDeclaration(p, true));
   return readers;
 }

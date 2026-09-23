@@ -1,0 +1,4 @@
+kinds.sprout:8:9  `actor` is not bound inside `on :stir`: nobody is acting when a message arrives.
+                  Name what you mean through what the message passes, as `on :entered (item, from)` names what arrived.
+
+refused: 1 problem

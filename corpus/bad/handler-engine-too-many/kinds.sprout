@@ -1,0 +1,6 @@
+// `:entered` passes what arrived and where it came from, and no third
+// thing.
+kind Room {
+  contains actors
+  on :entered (item, from, third) { }
+}
