@@ -45,6 +45,7 @@ import {
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { ACTOR, isActor } from '../declare/actors.js';
 import type { Diagnostics } from '../source/diagnostics.js';
+import { readable } from '../source/words.js';
 import { checkOption, nearestOption } from '../declare/enums.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
@@ -1036,13 +1037,4 @@ function writtenKind(written: KindExpr): string {
   return written.library === null
     ? written.name.text
     : `${written.library.text}.${written.name.text}`;
-}
-
-/** `a, b and c`, or `nothing` — the same shape the parser's own lists use. */
-function readable(words: readonly string[]): string {
-  const sorted = [...words];
-  if (sorted.length === 0) return 'none of them';
-  if (sorted.length === 1) return `\`${sorted[0]}\``;
-  const last = sorted.pop()!;
-  return `${sorted.map((word) => `\`${word}\``).join(', ')} and \`${last}\``;
 }

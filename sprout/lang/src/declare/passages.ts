@@ -15,7 +15,7 @@
 import type { KindExpr, KindMember, PassageBody } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
-import { readable } from '../syntax/parse/parser.js';
+import { readable } from '../source/words.js';
 
 /** The passage that applies for one name on a composed kind. */
 export interface ResolvedPassage {
