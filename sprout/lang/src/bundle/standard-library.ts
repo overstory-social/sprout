@@ -42,14 +42,22 @@ kind Place {
 }
 `;
 
-const ACTOR = `// sprout.Actor: the hands, and their capacity (the spec's Actors and
-// visitors). B22 brings the guards that make a person's things their
-// own, which read :capacity, with the passages they refuse through; B32
-// its pass any (false); B48 take, drop, put and give and the inventory
-// line, with their passages.
+const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that make a
+// person's things their own (the spec's Actors and visitors; Movement and
+// consent, The three roles), with the passages they refuse through. B32
+// brings its pass any (false); B48 take, drop, put and give and the
+// inventory line, with their passages.
 kind Actor {
   contains
   :capacity 8
+
+  depart  (to)         { if (mover != self) { refuse held_fast } }
+  release (item, to)   { if (mover != self) { refuse not_yours } }
+  accept  (item, from) { if (self.count >= self.get(:capacity)) { refuse hands_full } }
+
+  passage held_fast default   { {self} is not something you can carry off. }
+  passage not_yours default   { That is for {self} to put down, not you. }
+  passage hands_full default  { {self} cannot carry any more. }
 }
 `;
 

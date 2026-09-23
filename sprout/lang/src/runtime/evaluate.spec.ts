@@ -67,11 +67,7 @@ const bundle = compiledWorld('printers_shop', {
 });
 const catalogue = catalogueOf(bundle, CAPS);
 
-const KINDS: KindLookup = {
-  qualified: (library, name) =>
-    bundle.kinds.find((kind) => kind.library === library && kind.name === name) ?? null,
-  unqualified: (name, from) => KINDS.qualified(from, name) ?? KINDS.qualified('sprout', name),
-};
+const KINDS: KindLookup = catalogue.lookup;
 const kindNamed = (name: string, library = 'printers_shop'): KindRef => {
   const kind = KINDS.qualified(library, name);
   if (kind === null) throw new Error(`the fixture has no ${library}.${name}`);
