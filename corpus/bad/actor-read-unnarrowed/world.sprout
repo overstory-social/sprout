@@ -1,0 +1,28 @@
+// `actor` is whoever is acting, a person or an NPC, so it is a
+// `sprout.Actor`: what only a person has is read once `is()` has said the
+// actor is one. The lamp asks after a person's lamp oil before it has.
+world actor_read_unnarrowed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}
+
+kind Person is sprout.Visitor {
+  :oil 3 min 0 max 9
+}
+
+verb light { role target  "light [target]" }
+
+kind Lamp {
+  as target for light {
+    permit { if (actor.get(:oil) == 0) { refuse "You have no oil." } }
+    do {
+      if (actor.is(Person)) {
+        if (actor.get(:oil) > 5) { say "The lamp burns bright." }
+      }
+    }
+  }
+}

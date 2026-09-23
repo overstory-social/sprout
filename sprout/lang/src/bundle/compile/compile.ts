@@ -140,7 +140,7 @@ export function compileBundle(
       ),
       ...(world === null ? [] : [world]),
     ],
-    { kinds: tables.kinds, verbs: tables.verbs, visitor, diagnostics: report.diagnostics },
+    { kinds: tables.kinds, verbs: tables.verbs, diagnostics: report.diagnostics },
   );
 
   // The kinds, objects and places caps count what resolved, on the same

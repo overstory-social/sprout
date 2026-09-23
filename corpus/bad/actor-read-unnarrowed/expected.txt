@@ -1,0 +1,4 @@
+world.sprout:21:28  `sprout.Actor` has no `:oil`.
+                    It has `:capacity`.
+
+refused: 1 problem
