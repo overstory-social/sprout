@@ -1,0 +1,8 @@
+world passage_no_braces: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in passage_no_braces

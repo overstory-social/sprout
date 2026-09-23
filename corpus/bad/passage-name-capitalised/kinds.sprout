@@ -1,0 +1,5 @@
+// A passage's name is written in lower case, as a property's is.
+kind Mirror {
+  passage Greeting { The glass is older than the frame. }
+  :mood 0
+}

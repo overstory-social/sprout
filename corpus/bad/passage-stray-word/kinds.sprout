@@ -1,0 +1,5 @@
+// Between a passage's name and its braces, only `default` may stand.
+kind Mirror {
+  passage greeting default please { The glass is older than the frame. }
+  :mood 0
+}

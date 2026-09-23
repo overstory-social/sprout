@@ -1,0 +1,9 @@
+// A passage belongs to a kind, an object or the world: written on its
+// own at the top of a file, it has nothing to belong to.
+passage greeting {
+  The glass is older than the frame.
+}
+
+kind Mirror {
+  :mood 0
+}

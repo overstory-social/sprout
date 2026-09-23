@@ -1,0 +1,4 @@
+kinds.sprout:3:11  A passage's name starts with a lower-case letter, and `Greeting` starts with a capital.
+                   Write `passage greeting { … }`.
+
+refused: 1 problem

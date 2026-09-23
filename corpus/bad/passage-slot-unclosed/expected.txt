@@ -1,0 +1,4 @@
+kinds.sprout:10:1  `Mirror` is never closed.
+                   Add a } after what the kind is made of. If there is one, a { inside the passage `greeting` has no } of its own, and took it.
+
+refused: 1 problem

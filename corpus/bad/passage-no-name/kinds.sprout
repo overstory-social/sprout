@@ -1,0 +1,5 @@
+// A passage is named, so that `say`, `tell` and a slot can find it.
+kind Mirror {
+  passage { The glass is older than the frame. }
+  :mood 0
+}
