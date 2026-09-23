@@ -297,8 +297,16 @@ export interface VerbContext {
   readonly onUnknownKind?: OnUnknown;
 }
 
+/** The verbs a bundle declares, found by name as a body or a command names one. */
+export interface VerbLookup {
+  /** A verb by its full identity: `sprout.take` is not `ericworld.take`. */
+  qualified(library: string, name: string): ResolvedVerb | null;
+  /** A verb written without a library: the asking world's own first, then `sprout`'s. */
+  unqualified(name: string, from: string): ResolvedVerb | null;
+}
+
 /** Every verb the bundle declares, by library and name. */
-export class VerbTable {
+export class VerbTable implements VerbLookup {
   private readonly byQualified = new Map<string, ResolvedVerb>();
 
   /**

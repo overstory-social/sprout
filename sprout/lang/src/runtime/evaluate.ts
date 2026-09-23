@@ -10,7 +10,9 @@
 // step budget, which charges one step for every expression node
 // evaluated, and `+` or `-` whose result leaves the integer range.
 //
-// It only reads. `chance` and `random` are B33's.
+// It only reads. `bound tool` asks whether the frame binds the name, which
+// is how a role's body tells a tool it was given from one it was not.
+// `chance` and `random` are B33's.
 
 import type { BinaryOperator, CallExpr, Expr, KindExpr, MemberExpr } from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';
@@ -110,6 +112,9 @@ function leaf(expr: Expr, frame: Frame): Evaluated {
       if (bound === undefined) throw unchecked(`\`${expr.name.text}\`, which nothing binds,`);
       return bound;
     }
+    case 'bound':
+      // A tool the reading left out, or a value outside what this role-player hears, is not in the frame.
+      return boundValue(frame.bindings.has(expr.name.text));
     case 'kind-expr':
       throw unchecked('a kind standing as a value');
     case 'free-call':

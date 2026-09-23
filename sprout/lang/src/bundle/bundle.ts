@@ -22,6 +22,7 @@ import type { Absent } from './absent.js';
 import type { Declaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { ResolvedObject } from '../declare/objects.js';
+import type { VerbLookup } from '../declare/verbs.js';
 import type { ObjectTree, TreePath } from '../declare/tree.js';
 import type { SourceFile } from '../source/source.js';
 import type { StaticCaps } from './limits.js';
@@ -177,6 +178,11 @@ export interface Bundle {
    * library's kind of that name.
    */
   readonly kindLookup: KindLookup;
+  /**
+   * Every verb the bundle declares, resolved, found by name: what a
+   * reading is of, whether a command builds it or an `act` does.
+   */
+  readonly verbs: VerbLookup;
   /**
    * What the world is made of: `sprout.World` and whatever else it
    * composes, with its own body last, named for the world. Null only in

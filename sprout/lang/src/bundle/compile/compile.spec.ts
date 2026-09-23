@@ -73,6 +73,28 @@ describe('what a compiled bundle carries', () => {
     expect(loaded!.kindLookup.qualified('sprout', 'Place')!.name).toBe('Place');
   });
 
+  it('carries the verbs resolved, found by name as a body names one, its own before the library’s', () => {
+    const files = [
+      file(
+        'world.sprout',
+        `${ROOT}\nverb take { role target "grab [target]" }\nverb poke { role target "poke [target]" }`,
+      ),
+    ];
+    const { bundle: carried, diagnostics } = compileBundle(world({ files }));
+    expect(refusals(diagnostics)).toEqual([]);
+    const verbs = carried!.verbs;
+    expect(verbs.unqualified('poke', 'printers_shop')!.roles.map((r) => r.name)).toEqual([
+      'target',
+    ]);
+    // The world's own `take` shadows the library's for a bare name, and both are there by identity.
+    expect(verbs.unqualified('take', 'printers_shop')!.library).toBe('printers_shop');
+    expect(verbs.qualified('sprout', 'take')!.phrases.map((p) => p.text)).toContain(
+      'pick up [target]',
+    );
+    expect(verbs.unqualified('ask', 'printers_shop')!.library).toBe('sprout');
+    expect(verbs.qualified('printers_shop', 'dance')).toBeNull();
+  });
+
   it('carries the world composed, named for itself, and the kind its visitors are made of', () => {
     expect(bundle!.world!.order).toEqual(['sprout.World', 'printers_shop.printers_shop']);
     expect(bundle!.world!.containsActors).toBe(true);

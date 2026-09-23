@@ -394,7 +394,7 @@ Found while resolving verbs across libraries (B23), each decided the narrow way 
 
 Asked ahead of building the two passes (B24), 2026-09-23:
 
-- **Declared order.** The actor first, then the verb's roles as declared (the target, then the tools; a set role's fillers in typed order), and within one participant its kind's contributions in closure order, the composer's own last. Proposed; awaiting Eric.
+- **Declared order.** The actor first, then the verb's roles as declared (the target, then the tools; a set role's fillers in typed order), and within one participant its kind's contributions in closure order, the composer's own last. Proposed; awaiting Eric, and built so, as The two passes, Set roles and How members combine read.
 - **`allow` in a `permit`, `refuse` in a `do`.** Proposed: the first accepted, since a `permit` has a guard's shape; the second refused. Awaiting Eric.
 - **An NPC actor's `say`.** Decided 2026-09-23, now under Acting: it comes from the NPC, heard by whoever would hear its `tell`, as *the cat says "miaow"*. How the line is framed (a stock passage on `sprout.World`, or fixed words), and whether `nothing_happens` is told the same way for an NPC's reading that said nothing, are open; B30 carries who hears it.
 - **The warning for a verb no object plays a role for.** Waits for B48, which brings the library's role bodies, so it does not fire for `take`, `drop` and `give` in every world. Decided 2026-09-23.
@@ -417,6 +417,18 @@ Found while reading, checking and composing the roles a kind plays (B24), each d
 - **An exit role inside a play.** Not bound; only the engine's `go` has one, and what an exit binds is B28's.
 - **The two warnings.** A verb with phrases no participant `say`s for waits for B30, which reads what a body says to whom. A verb no object plays a role for waits for B48: it would fire for `take`, `drop` and `give` in every world until the library writes their plays.
 - **A verb nothing declares, at load.** The absent table's `verb` row: a gap at the verb as written, and the play dropped.
+
+Found while running a reading through the two passes (B24), each decided the narrow way and awaiting Eric:
+
+- **How an NPC's line is framed.** Acting has the audience hear an NPC's `say` "as the cat speaking, _the cat says "miaow"_", and does not say whether that frame is a stock passage on `sprout.World` or fixed words. Built: the line is carried as written, to the audience, with the NPC as its speaker, and the framing is left to B29.
+- **`nothing_happens` for an NPC's reading.** Told the same way as its lines: to whoever would hear its `tell`, from the NPC, when its reading said nothing at all.
+- **A `say` in a participant's `do` that is not the actor's.** Reaches the actor, since Prose says `say` reaches the actor whoever's body it is in, with that participant as `self` when it renders; where the actor is an NPC it goes to the NPC's audience, from the NPC, as the NPC's own lines do.
+- **Who hears an NPC.** The actors directly in its place, NPCs among them, less the NPC and every participant, in contents order. What reaches an NPC and what reaches an occupant of something inside the place is B30's.
+- **`here`.** The actor's nearest container that holds actors, so a wardrobe declaring `contains actors` is `here` for whoever stands in it. An actor with no such container, as an NPC in a crate in a world that holds only things, has the world as `here`; the spec does not say.
+- **`allow` in a `permit`.** Ends that `permit`, consenting; every other `permit` is still asked, as a guard's `allow` leaves the other parties to be asked.
+- **A participant destroyed earlier in the effect pass.** `destroy self` takes effect when the `do` that ran it ends, so one is an object filling two roles, or one whose composed play destroyed it before its own ran. Its later `do`s, composed or own, do not run.
+- **What a `do` does at this level.** `let`, `if`, `spawn`, `destroy self`, the four writes, `remember` and `say`. `tell`, `move`, `send` and `act` are not yet statements the parser reads; B30, B25, B32 and B26 bring them.
+- **A world composing no `nothing_happens`.** An engine error, which B34 turns into a fault, as for the other engine passages a forked standard library leaves out.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

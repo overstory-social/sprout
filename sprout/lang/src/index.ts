@@ -57,5 +57,7 @@ export * from './runtime/draft.js';
 export * from './runtime/live.js';
 export * from './runtime/lifecycle.js';
 export * from './runtime/evaluate.js';
+export * from './runtime/body.js';
 export * from './runtime/guards.js';
 export * from './runtime/move.js';
+export * from './runtime/reading.js';

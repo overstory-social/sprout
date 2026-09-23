@@ -1,0 +1,331 @@
+import { describe, expect, it } from 'vitest';
+
+import { DEFAULT_LIMITS, type StaticCaps } from '../bundle/limits.js';
+import { playsOf } from '../declare/roles.js';
+import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import type { Block } from '../syntax/ast.js';
+import { runBody, ValueOutOfRange, type ActSink, type Spoken } from './body.js';
+import { Budget } from './budget.js';
+import { catalogueOf, type Catalogue } from './catalogue.js';
+import { Draft } from './draft.js';
+import { boundObject, type Frame } from './evaluate.js';
+import { declaredId, type InstanceId } from './ids.js';
+import type { Destroyed, EngineSend } from './lifecycle.js';
+import { ListFull, SproutList } from './lists.js';
+import { initialState } from './load.js';
+import { newInstance } from './state.js';
+
+const CAPS = DEFAULT_LIMITS.caps;
+
+const VERBS = [
+  'fill',
+  'bump',
+  'grow',
+  'shrink',
+  'greet',
+  'stare',
+  'speak',
+  'craft',
+  'vanish',
+  'spill',
+  'weigh',
+];
+
+/**
+ * A shop whose counter plays the target of one verb per thing a `do` may
+ * do, and one `permit`. `Loud` composes it and writes its own `done`.
+ */
+const bundle = compiledWorld('shop', {
+  'world.sprout': [
+    'world shop: sprout.World { contains visitors are Person visitors arrive at hall }',
+    'enum Ward { oak, silver, iron }',
+    'kind Person: sprout.Actor { }',
+    'kind Room { contains actors }',
+    'kind Cup { }',
+    ...VERBS.map((verb) => `verb ${verb} { role target "${verb} [target]" }`),
+    'kind Counter {',
+    '  contains',
+    '  :n 1 min 0 max 9',
+    '  :wards [Ward] default [oak]',
+    '  :remembers [seen: 0 min 0 max 3, met: false]',
+    '  passage done default { Done. }',
+    '  as target for fill   { do { let a = 2  self.set(:n, self.get(:n) + a) } }',
+    '  as target for bump   { do { self.adjust(:n, 20)  let top = self.get(:n)  self.adjust(:n, -30)  self.adjust(:n, top) } }',
+    '  as target for grow   { do { self.add(:wards, :silver)  self.add(:wards, :oak) } }',
+    '  as target for shrink { do { self.remove(:wards, :oak)  self.remove(:wards, :iron) } }',
+    '  as target for greet  { do { actor.remember(:met, true)  actor.adjust(:seen, 5) } }',
+    '  as target for stare  { do { actor.remember(:seen, self.get(:n) + 5) } }',
+    '  as target for speak  { do { say "Plain words."  let a = 1  say done } }',
+    '  as target for craft  { do { let cup = spawn Cup in self  spawn Cup in actor  say "Made {cup}." } }',
+    '  as target for vanish { do { destroy self  self.set(:n, 5)  say "Gone." } }',
+    '  as target for spill  { do { self.set(:n, 7)  self.set(:n, self.get(:n) + 20) } }',
+    '  as target for weigh  { permit { if (self.get(:n) > 5) { refuse "Too full." } allow } }',
+    '}',
+    'kind Loud: Counter { passage done { Done, loudly. } }',
+    'object hall: Room in shop',
+    'object counter: Counter in hall',
+    'object loud: Loud in hall',
+    'object pin: Cup in hall.counter',
+    '',
+  ].join('\n'),
+});
+
+const id = (...path: string[]): InstanceId => declaredId('shop', path);
+const WORLD_ID = id();
+const HALL = id('hall');
+const COUNTER = id('hall', 'counter');
+const LOUD = id('hall', 'loud');
+const PIN = id('hall', 'counter', 'pin');
+
+/** What an acting body did, as the sink heard it. */
+interface Heard {
+  readonly spoken: Spoken[];
+  readonly sends: EngineSend[];
+  readonly destroyed: Destroyed[];
+}
+
+interface Turn {
+  readonly draft: Draft;
+  readonly visitor: InstanceId;
+  readonly catalogue: Catalogue;
+}
+
+/** A fresh turn, with a visitor in the hall, under the host's caps given. */
+function turn(caps: StaticCaps = CAPS): Turn {
+  const catalogue = catalogueOf(bundle, caps);
+  const draft = new Draft(initialState(catalogue));
+  const visitor = draft.mint();
+  draft.add(
+    newInstance(
+      visitor,
+      { from: 'visitor' },
+      catalogue.visitorKind!,
+      HALL,
+      draft.nextSerial(),
+      caps,
+    ),
+  );
+  return { draft, visitor, catalogue };
+}
+
+/** The `do` (or the `permit`) `self`'s kind plays as the target of `verb`. */
+function body(draft: Draft, self: InstanceId, verb: string, part: 'do' | 'permit' = 'do'): Block {
+  const plays = playsOf(draft.instance(self)!.kind.plays, 'shop', verb, 'target');
+  expect(plays).toHaveLength(1);
+  const block = plays[0]!.declaration[part];
+  if (block === null) throw new Error(`no ${part} for ${verb}`);
+  return block;
+}
+
+function frameOf(turn: Turn, self: InstanceId, budget: Budget): Frame {
+  return {
+    state: turn.draft,
+    kinds: turn.catalogue.lookup,
+    library: 'shop',
+    self,
+    bindings: new Map([
+      ['actor', boundObject(turn.visitor)],
+      ['here', boundObject(HALL)],
+    ]),
+    budget,
+    caps: turn.catalogue.caps,
+  };
+}
+
+/** Run `verb`'s `do` for `self` in act mode; what the sink heard, and the budget charged. */
+function act(
+  turn: Turn,
+  self: InstanceId,
+  verb: string,
+  budget = new Budget(DEFAULT_LIMITS.budgets),
+): Heard {
+  const heard: Heard = { spoken: [], sends: [], destroyed: [] };
+  const sink: ActSink = {
+    lifecycle: {
+      draft: turn.draft,
+      catalogue: turn.catalogue,
+      passes: (container) => (container === WORLD_ID ? WORLD_PASSES_ANYTHING : true),
+      budget,
+      mayHold: null,
+    },
+    say: (spoken) => heard.spoken.push(spoken),
+    sent: (sends) => heard.sends.push(...sends),
+    destroyed: (destroyed) => heard.destroyed.push(destroyed),
+  };
+  expect(runBody(body(turn.draft, self, verb), frameOf(turn, self, budget), 'act', sink)).toBe(
+    'end',
+  );
+  return heard;
+}
+
+const property = (turn: Turn, self: InstanceId, name: string) =>
+  turn.draft.instance(self)!.properties.get(name);
+const wards = (turn: Turn) => (property(turn, COUNTER, 'wards') as SproutList).elements;
+const words = (spoken: Spoken) =>
+  'text' in spoken.said
+    ? spoken.said.text
+    : `${spoken.said.passage.origin} ${spoken.said.passage.name}: ${spoken.said.passage.body.text.trim()}`;
+
+describe('what a `do` writes', () => {
+  it('`set` writes `self` through the draft, and a later read in the turn sees it', () => {
+    const one = turn();
+    act(one, COUNTER, 'fill');
+    expect(property(one, COUNTER, 'n')).toBe(3);
+    act(one, COUNTER, 'fill');
+    expect(property(one, COUNTER, 'n')).toBe(5);
+    // The committed state is untouched until the turn commits.
+    const committed = new Draft(initialState(one.catalogue));
+    expect(committed.instance(COUNTER)!.properties.get('n')).toBe(1);
+  });
+
+  it('`set` faults on a value outside the range, and writes nothing of it', () => {
+    const one = turn();
+    expect(() => act(one, COUNTER, 'spill')).toThrow(ValueOutOfRange);
+    // The first `set` landed; the second, 27, did not.
+    expect(property(one, COUNTER, 'n')).toBe(7);
+  });
+
+  it('`adjust` clamps at the top of the range and at the bottom, rather than faulting', () => {
+    const one = turn();
+    act(one, COUNTER, 'bump');
+    // 1 + 20 is 9 at the top; 9 - 30 is 0 at the bottom; 0 + 9 is 9.
+    expect(property(one, COUNTER, 'n')).toBe(9);
+  });
+
+  it('`add` appends a new option and does nothing with one held; `remove` likewise', () => {
+    const one = turn();
+    act(one, COUNTER, 'grow');
+    expect(wards(one)).toEqual(['oak', 'silver']);
+    act(one, COUNTER, 'shrink');
+    expect(wards(one)).toEqual(['silver']);
+  });
+
+  it('`add` of a new option to a full list faults, and writes nothing of it', () => {
+    const one = turn({ ...CAPS, listElements: 1 });
+    expect(() => act(one, COUNTER, 'grow')).toThrow(ListFull);
+    expect(wards(one)).toEqual(['oak']);
+  });
+
+  it("writes memory as `self`'s own, about the actor: `remember` sets, `adjust` clamps", () => {
+    const one = turn();
+    act(one, COUNTER, 'greet');
+    const about = one.draft.instance(COUNTER)!.memory.get(one.visitor)!;
+    expect(Object.fromEntries(about)).toEqual({ met: true, seen: 3 });
+    // Nothing is written on the actor: memory is the rememberer's.
+    expect(one.draft.instance(one.visitor)!.memory.size).toBe(0);
+  });
+
+  it('`remember` faults on a value outside the range, and writes nothing', () => {
+    const one = turn();
+    expect(() => act(one, COUNTER, 'stare')).toThrow(ValueOutOfRange);
+    expect(one.draft.instance(COUNTER)!.memory.size).toBe(0);
+  });
+});
+
+describe('what a `do` says, spawns and destroys', () => {
+  it("says words in quotes, and a passage as `self`'s kind has it, a composer's own over a default", () => {
+    const one = turn();
+    const plain = act(one, COUNTER, 'speak').spoken;
+    expect(plain.map((spoken) => [spoken.by, words(spoken)])).toEqual([
+      [COUNTER, 'Plain words.'],
+      [COUNTER, 'shop.Counter done: Done.'],
+    ]);
+    const loud = act(one, LOUD, 'speak').spoken;
+    expect(words(loud[1]!)).toBe('shop.Loud done: Done, loudly.');
+  });
+
+  it('carries the names in scope where it was said, a `let` among them only after it', () => {
+    const one = turn();
+    const [first, second] = act(one, COUNTER, 'speak').spoken;
+    expect([...first!.bindings.keys()]).toEqual(['actor', 'here']);
+    expect([...second!.bindings.keys()]).toEqual(['actor', 'here', 'a']);
+  });
+
+  it('spawns into what the name is bound to, binds a `let` to the new one, and hands on what the engine sends', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'craft');
+    const [cup, carried] = [heard.sends[1]!.recipient, heard.sends[3]!.recipient];
+    expect(heard.sends).toEqual([
+      { message: 'entered', recipient: COUNTER, item: cup, from: COUNTER },
+      { message: 'spawned', recipient: cup, from: COUNTER },
+      { message: 'entered', recipient: one.visitor, item: carried, from: COUNTER },
+      { message: 'spawned', recipient: carried, from: COUNTER },
+    ]);
+    expect(one.draft.children(COUNTER)).toEqual([PIN, cup]);
+    expect(one.draft.children(one.visitor)).toEqual([carried]);
+    expect(heard.spoken[0]!.bindings.get('cup')).toEqual(boundObject(cup));
+  });
+
+  it('destroys `self` when the body ends: what follows still runs, and what it held falls', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'vanish');
+    expect(heard.spoken.map(words)).toEqual(['Gone.']);
+    expect(heard.destroyed).toHaveLength(1);
+    expect(heard.destroyed[0]).toMatchObject({ id: COUNTER, container: HALL, fell: [PIN] });
+    expect(one.draft.instance(COUNTER)).toBeUndefined();
+    // The write after `destroy self` landed before it took effect.
+    expect(one.draft.destroyed(COUNTER)!.properties.get('n')).toBe(5);
+    expect(one.draft.instance(PIN)!.container).toBe(HALL);
+  });
+});
+
+describe('the two modes', () => {
+  it('decides in a `permit`: a refusal with its words, or `allow`', () => {
+    const one = turn();
+    const decide = () =>
+      runBody(
+        body(one.draft, COUNTER, 'weigh', 'permit'),
+        frameOf(one, COUNTER, new Budget(DEFAULT_LIMITS.budgets)),
+        'decide',
+        null,
+      );
+    expect(decide()).toBe('allow');
+    // 1, then 3, 5 and 7.
+    for (let times = 0; times < 3; times++) act(one, COUNTER, 'fill');
+    expect(decide()).toEqual({ refused: { text: 'Too full.' } });
+  });
+
+  it('throws an engine error, not a fault, for an effect in a body that decides', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    for (const verb of ['fill', 'speak', 'craft', 'vanish']) {
+      expect(() =>
+        runBody(body(one.draft, COUNTER, verb), frameOf(one, COUNTER, budget), 'decide', null),
+      ).toThrow(/reached a body that decides/);
+    }
+    expect(property(one, COUNTER, 'n')).toBe(1);
+  });
+
+  it('throws an engine error for a refusal in a body that acts, and for acting with nowhere to act', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const permit = body(one.draft, COUNTER, 'weigh', 'permit');
+    const sink = { lifecycle: {} } as ActSink;
+    expect(() => runBody(permit, frameOf(one, COUNTER, budget), 'act', sink)).toThrow(
+      /reached a `do`/,
+    );
+    expect(() =>
+      runBody(body(one.draft, COUNTER, 'fill'), frameOf(one, COUNTER, budget), 'act', null),
+    ).toThrow(/somewhere to put/);
+  });
+});
+
+describe('what a `do` is charged', () => {
+  it('charges a step for every statement and every node, a write as a reading is charged', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    act(one, COUNTER, 'fill', budget);
+    // `let a = 2`: 2. `self.set(:n, self.get(:n) + a)`: the statement,
+    // `self`, the call and `:n`, then five for the value: 9.
+    expect(budget.spentSteps).toBe(11);
+  });
+
+  it('charges a `say` as the statement it is', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    act(one, COUNTER, 'speak', budget);
+    // Two `say`s and a `let` with its literal.
+    expect(budget.spentSteps).toBe(4);
+  });
+});
