@@ -98,6 +98,18 @@ export function recoverInBraces(p: Parser): boolean {
 }
 
 /**
+ * Advance past the token here: one token, or the whole `[`…`]` run
+ * where it is a `[` that closes, so a bracket a refused item wrote
+ * correctly is never taken for its container's own. This is the step
+ * every recovery walk takes.
+ */
+export function stepPast(p: Parser): void {
+  const run = punct(p.peek(), '[') ? closedBracketRun(p) : 0;
+  for (let i = 1; i < run; i++) p.next();
+  p.next();
+}
+
+/**
  * How many tokens the `[` here spans through its own `]`, or 0 where
  * no `]` closes it before a brace or the end of the file.
  */

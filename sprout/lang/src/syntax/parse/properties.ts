@@ -15,7 +15,7 @@ import type {
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, readable, type Parser } from './parser.js';
-import { closedBracketRun, separator } from './recovery.js';
+import { separator, stepPast } from './recovery.js';
 import { atFraction, atType, BUILT_IN_TYPE_WORDS, literal, skipValue, typeExpr } from './types.js';
 
 /** `Ward`, `sprout.Ward` — a named type as it was written. */
@@ -102,20 +102,14 @@ export function remembers(p: Parser): RemembersDeclaration | null {
 
 /**
  * Step over what is left of an entry that could not be read, to its own
- * comma or the list's closing `]` at depth zero — stepping over a
- * balanced `[`…`]` run whole, as `recoverToMember` steps over a refused
- * member's own brackets, so a bracket the entry wrote correctly is never
- * taken for the list's own. A `[` that never closes is left where
- * `closedBracketRun` found it, one token at a time, as everywhere else
- * an unclosed bracket is.
+ * comma or the list's closing `]` at depth zero, by `stepPast`, so a
+ * bracket the entry wrote correctly is never taken for the list's own.
  */
 function recoverToEntry(p: Parser): void {
   while (!p.done) {
     const token = p.peek();
     if (punct(token, ',') || punct(token, ']') || p.atRecoveryStop()) return;
-    const run = punct(token, '[') ? closedBracketRun(p) : 0;
-    for (let i = 1; i < run; i++) p.next();
-    p.next();
+    stepPast(p);
   }
 }
 
