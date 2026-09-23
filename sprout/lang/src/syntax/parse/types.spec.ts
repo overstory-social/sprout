@@ -44,7 +44,7 @@ describe('a file that runs out is explained once, not once per bracket', () => {
   });
 
   it('does not add the outer construct’s own complaint on top of the inner one', () => {
-    expect(diagnose(':remembers [a: [oak,[Zeta', parseRemembers)).toEqual([
+    expect(diagnose('remembers { :a [oak,[Zeta', parseRemembers)).toEqual([
       '`Zeta`, which starts with a capital is not a value.',
       'This list is never closed.',
     ]);
@@ -56,8 +56,8 @@ describe('a file that runs out is explained once, not once per bracket', () => {
       '`Zeta`, which starts with a capital is not a value.',
       'This list is never closed.',
     ]);
-    expect(diagnose(':remembers [a: 0', parseRemembers)).toEqual([
-      'This `:remembers` is never closed.',
+    expect(diagnose('remembers { :a 0', parseRemembers)).toEqual([
+      'This `remembers` block is never closed.',
     ]);
   });
 });
@@ -214,7 +214,7 @@ describe('brackets inside brackets with something unreadable at the bottom, enum
         ] as const) {
           yield { text: `:x ${open}${bad}${tail}`, what: `depth ${depth}, ${bad}, ${what}` };
           yield {
-            text: `:remembers [a: ${open}${bad}${tail}]`,
+            text: `remembers { :a ${open}${bad}${tail} }`,
             what: `remembers depth ${depth}, ${bad}, ${what}`,
           };
         }
@@ -318,7 +318,7 @@ describe('a list is bounded by what the host allows', () => {
     const caps = { ...DEFAULT_LIMITS.caps, listElements: 3 };
     const diagnostics = new Diagnostics();
     parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: [1, 2, 3, 4], b: [5, 6, 7, 8]]'),
+      new SourceFile('k.sprout', 'remembers { :a [1, 2, 3, 4] :b [5, 6, 7, 8] }'),
       diagnostics,
       caps,
     );
@@ -483,11 +483,10 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
     expect(said).toEqual(['`true` is written after the `]` that ends this list.']);
   });
 
-  it('leaves a `:remembers` entry after it for the entry reader, not itself', () => {
-    // `visits`, not the list's own: a `:remembers` entry's name after a
-    // comma and before a colon is its neighbour's to read, however this
-    // list closed.
-    const text = ':remembers [tags: [oak, ], silver], visits: 0]';
+  it('leaves a `remembers` entry after it for the block to read, not itself', () => {
+    // `:visits` is the next property of the block, however this list
+    // closed.
+    const text = 'remembers { :tags [oak, ], silver] :visits 0 }';
     const { declared, refusals } = parseRemembersInto(text);
     expect(declared?.properties.map((p) => p.name.text)).toEqual(['tags', 'visits']);
     expect(refusals.map((d) => d.message)).toEqual([
@@ -495,29 +494,27 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
     ]);
   });
 
-  it('leaves a colonless `:remembers` entry after it too, rather than reading it as elements', () => {
-    // `faulty "x"` has no colon, so nothing here can call it an entry's
-    // name for certain — but a bare word with another value standing
-    // right after it, no comma between them, is never two elements of
-    // THIS list either. The list's own close is genuine, not stray, and
-    // the `]` that ends `:remembers` stays `:remembers`'s to read.
-    const text = ':remembers [echo: [oak], faulty "x"]';
+  it('leaves a word with a value after it for what reads next, as a property that lost its colon', () => {
+    // `faulty "x"` has no colon, so nothing here can call it a property
+    // for certain — but a bare word with another value standing right
+    // after it, no comma between them, is never two elements of THIS
+    // list either. The list's own close is genuine, not stray.
+    const text = 'remembers { :echo [oak] faulty "x" }';
     const { declared, refusals } = parseRemembersInto(text);
     expect(declared?.properties.map((p) => p.name.text)).toEqual(['echo']);
     expect(optionsOf(declared?.properties[0]?.default)).toEqual(['oak']);
     expect(refusals.map((d) => d.message)).toEqual([
-      '`faulty` needs a colon between its name and its value.',
+      'A `remembers` block holds properties, and `faulty` is not one.',
     ]);
+    const body = read('kind K {\n  :tags [Ward] default [oak] faulty "x"\n  :after 1\n}');
+    expect(body.refusals.map((d) => d.message)).toEqual(['A kind is not made of `faulty`.']);
   });
 
-  it('names a bare word and the value after it as elements outside a `:remembers`', () => {
-    // Only among a `:remembers`'s entries is `silver "extra"` an entry
-    // that lost its colon. After a property's own list, no member starts
-    // that way, so both are more of the list, written after its `]`.
-    const text = ':tags [Ward] default [oak, ], silver "extra"]';
+  it('names a bare word after the `]` as more of the list where no value follows it', () => {
+    const text = ':tags [Ward] default [oak, ], silver, gold]';
     const { refusals } = readProperty(text);
     expect(refusals.map((d) => d.message)).toEqual([
-      '`silver` and `"extra"` are written after the `]` that ends this list.',
+      '`silver` and `gold` are written after the `]` that ends this list.',
     ]);
   });
 });

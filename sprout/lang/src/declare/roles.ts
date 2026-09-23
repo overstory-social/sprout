@@ -394,7 +394,7 @@ function narrowingOf(
     diagnostics.refuse(
       by.at,
       `\`:${name}\` is remembered about each actor, and \`from\` names what \`${composer.name}\` itself holds.`,
-      'Name a property declared without `:remembers`.',
+      'Name a property declared outside a `remembers` block.',
     );
     return null;
   }

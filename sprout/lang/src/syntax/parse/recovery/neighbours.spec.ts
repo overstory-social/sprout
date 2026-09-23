@@ -1,7 +1,7 @@
 // The invariant this folder guards — "a defect in one item never loses a
 // well-formed neighbour in silence" — over hand-picked defects beside
 // hand-picked well-formed neighbours, one `it` per construct: a
-// `:remembers`, the members of a world, a kind and an object, a list
+// `remembers` block, the members of a world, a kind and an object, a list
 // literal, and the declarations of a whole file. `recovery/*.spec.ts`
 // runs the same invariant over generated input; this file is the
 // shapes someone thought to write down.
@@ -15,36 +15,40 @@ import { SourceFile } from '../../../source/source.js';
 import { nothingVanishes, ownedBy, tooDeep, OWNERS } from '../../../fixtures/recovery.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
+  // Each a defect in one property, as a body or a `remembers` block
+  // writes one.
   const ENTRY_DEFECTS = [
-    'Zeta: 0',
-    '4: 0',
+    ':Zeta 0',
+    '4 0',
     'b 1',
-    'b: Zeta',
-    'b: 1.5',
-    'b: %',
-    'b: :wet',
-    'b:',
+    'b: 1',
+    ',',
+    ':b Zeta',
+    ':b 1.5',
+    ':b %',
+    ':b :wet',
+    ':b',
     ': 0',
-    'b: {}',
-    'b: [oak silver]',
-    'b: 0 min [1, 2]',
-    'b: 0 min oak',
-    'b: 0 min max 9',
-    'b: 0 min 0 min 1',
-    'b: 0 max 1.5',
-    'b: Ward.',
-    'b: Ward.Iron',
-    'b: integer.3',
-    'b: Ward.oak default silver',
-    'b: 0 min',
-    `b: ${tooDeep('oak')}`,
-    `b: ${tooDeep('Ward')} default oak`,
-    `b: [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,
-    'b: 0 min -[1]',
-    'b: 0 max -[1, 2]',
-    'b: 0 min -oak',
-    'b: 0 min - max 9',
-    'b: -[1]',
+    ':b {}',
+    ':b [oak silver]',
+    ':b 0 min [1, 2]',
+    ':b 0 min oak',
+    ':b 0 min max 9',
+    ':b 0 min 0 min 1',
+    ':b 0 max 1.5',
+    ':b Ward.',
+    ':b Ward.Iron',
+    ':b integer.3',
+    ':b Ward.oak default silver',
+    ':b 0 min',
+    `:b ${tooDeep('oak')}`,
+    `:b ${tooDeep('Ward')} default oak`,
+    `:b [Ward] default [${Array.from({ length: 17 }, (_, i) => `e${i}`).join(',')}]`,
+    ':b 0 min -[1]',
+    ':b 0 max -[1, 2]',
+    ':b 0 min -oak',
+    ':b 0 min - max 9',
+    ':b -[1]',
   ];
 
   // Not `enum`: it is a reserved word, but the parser reads `[oak, enum]`
@@ -104,13 +108,13 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     'world w is sprout.World { visitors arrive at y . s }',
   ];
 
-  it('over a `:remembers`, whichever side of the defect the good entries are', () => {
+  it('over a `remembers` block, whichever side of the defect the good entries are', () => {
     let checked = 0;
     for (const defect of ENTRY_DEFECTS) {
       for (const [text, good] of [
-        [`:remembers [alpha: 0, ${defect}]`, ['alpha']],
-        [`:remembers [${defect}, omega: 1]`, ['omega']],
-        [`:remembers [alpha: 0, ${defect}, omega: 1]`, ['alpha', 'omega']],
+        [`remembers { :alpha 0 ${defect} }`, ['alpha']],
+        [`remembers { ${defect} :omega 1 }`, ['omega']],
+        [`remembers {\n  :alpha 0\n  ${defect}\n  :omega 1\n}`, ['alpha', 'omega']],
       ] as const) {
         checked += 1;
         const diagnostics = new Diagnostics();
@@ -138,8 +142,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // after it, a member word followed by one that is no member, and a
     // word that is no member at all. Then the tables above as a world
     // writes them: an entry defect as a property where it has the shape
-    // of one and inside a `:remembers` always, and an element defect
-    // inside a list default.
+    // of one and inside a `remembers` block always, and an element
+    // defect inside a list default.
     const MEMBER_DEFECTS = [
       'visitors are 4',
       'visitors arrive y',
@@ -178,16 +182,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       'object faulty: K',
       'object faulty is K in r',
       'object faulty is K { visitors are X }',
-      ...ENTRY_DEFECTS.filter((entry) => entry.startsWith('b:')).map(
-        (entry) => `:b${entry.slice(2)}`,
-      ),
-      ...ENTRY_DEFECTS.map((entry) => `:remembers [${entry}]`),
+      ...ENTRY_DEFECTS.filter((entry) => entry.startsWith(':b')),
+      ...ENTRY_DEFECTS.map((entry) => `remembers { ${entry} }`),
       ...ELEMENT_DEFECTS.map((element) => `:b [Ward] default [oak, ${element}]`),
     ];
     // Symbols, and not `visitors …`: a property whose value is missing
     // reads the next word as its value, which is a reading and not a
     // loss, and a symbol can never be a value.
-    const GOOD = [':alpha 0', ':remembers [omega: 1]'] as const;
+    const GOOD = [':alpha 0', 'remembers { :omega 1 }'] as const;
     /** A member by what it would be looked up as. */
     const nameOf = (member: WorldMember): string =>
       member.kind === 'property'
@@ -211,7 +213,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           const diagnostics = new Diagnostics();
           const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
           // What the defect itself may leave standing: the `contains` a
-          // `contains 4` did read, and a `:remembers` whose entry was refused.
+          // `contains 4` did read, and a `remembers` block whose entry was refused.
           expect(
             nothingVanishes(
               text,

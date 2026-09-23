@@ -1,4 +1,4 @@
-world.sprout:8:35  `faulty` needs a colon between its name and its value.
-                   Write `faulty: 0`.
+world.sprout:8:27  A `remembers` block holds properties, and `faulty` is not one.
+                   Write `:faulty` and its value, as a property is written.
 
 refused: 1 problem

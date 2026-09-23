@@ -1,0 +1,23 @@
+world visitor_kind_behaviour is sprout.World {
+  contains actors
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+// What a person has and is described by is the visitor kind's to say, and
+// behaviour it composes runs; its own body writes none.
+kind Person is Creature, sprout.Visitor {
+  :stamina 3 min 0 max 9
+
+  passage tired { You are too tired to go on. }
+
+  as actor for wave { do { say "You wave." } }
+
+  depart (to) {
+    if (self.get(:stamina) == 0) { refuse tired }
+  }
+}
+
+verb wave { role target  "wave at [target]" }

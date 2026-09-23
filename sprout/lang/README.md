@@ -8,7 +8,7 @@ The language is described whole in
 [`docs/design/sprout-design-spec.md`](../../docs/design/sprout-design-spec.md);
 this package implements it one backlog item at a time, and the spec is the
 authority where they disagree. What compiles today: enum, message and world
-declarations, properties and `:remembers`, and the expression language
+declarations, properties and `remembers` blocks, and the expression language
 with its checker. Kinds, objects, verbs, bodies and prose are the items
 after B12.
 

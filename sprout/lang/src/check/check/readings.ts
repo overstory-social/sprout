@@ -127,7 +127,7 @@ export function getCall(
 
 /**
  * `x.recall(:p)` — `x` composes `sprout.Actor`, and `p` is in SELF's
- * `:remembers`. Only the object that declared them may read them, and
+ * `remembers` block. Only the object that declared them may read them, and
  * no object can read another object's memory of anyone.
  */
 export function recallCall(

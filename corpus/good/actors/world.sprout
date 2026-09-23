@@ -9,7 +9,7 @@ world actors is sprout.World {
   // A place is made of `sprout.Place`, which holds actors. The composing
   // room keeps a note about each actor: how often they have come in.
   object composing_room is sprout.Place {
-    :remembers [visits: 0 min 0 max 99]
+    remembers { :visits 0 min 0 max 99 }
 
     object basket is Basket
 

@@ -66,7 +66,7 @@ const bundle = compiledWorld('shop', {
     '  contains',
     '  :n 1 min 0 max 9',
     '  :wards [Ward] default [oak]',
-    '  :remembers [seen: 0 min 0 max 3, met: false]',
+    '  remembers { :seen 0 min 0 max 3 :met false }',
     '  passage done default { Done. }',
     '  as target for fill   { do { let a = 2  self.set(:n, self.get(:n) + a) } }',
     '  as target for bump   { do { self.adjust(:n, 20)  let top = self.get(:n)  self.adjust(:n, -30)  self.adjust(:n, top) } }',

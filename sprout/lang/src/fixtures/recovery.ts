@@ -1,6 +1,6 @@
 // Shared machinery behind the parser's recovery invariant — "a defect in
 // one item never loses a well-formed neighbour in silence" — that
-// syntax/parse/recovery/*.spec.ts runs over `:remembers`, properties,
+// syntax/parse/recovery/*.spec.ts runs over `remembers` blocks, properties,
 // list defaults, bodies and whole files. Spec support: the package build
 // leaves it out. It holds no `describe`, and, per boundary.spec.ts, a
 // non-spec file under src/ may not import vitest, so every check here
@@ -67,8 +67,8 @@ export const aroundOwner = (owner: Owner, declared: readonly Declaration[]): str
 };
 
 /**
- * A world member by what it would be looked up as, a `:remembers` by each
- * entry, a guard by its word, a play by its head.
+ * A world member by what it would be looked up as, a `remembers` block by
+ * each entry, a guard by its word, a play by its head.
  */
 export const memberNames = (member: WorldMember): string[] =>
   member.kind === 'property'
@@ -331,26 +331,29 @@ export function boundLeavingNothingAfter(c: Chooser): { text: string; defect: De
   const which = c.one(['min', 'max']);
   const defect = c.one(BOUND_LEAVES_NOTHING_AFTER);
   const bound = `${which} ${defect.text}`.trim();
-  return { text: spelled('faulty', 'member', ['0', bound]), defect };
+  return { text: spelled('faulty', ['0', bound]), defect };
 }
 
 /** Between any two parts: something that closes or opens and should not. */
 export const BETWEEN: readonly Defect[] = [stray(']'), stray('}'), contained(')'), unclosed('[')];
 
-/** How a defect in a name is written, as a `:remembers` entry and as a property. */
-export const NAME_DEFECTS: Record<'entry' | 'member', readonly string[]> = {
-  entry: ['Zeta:', '4:', ':', 'faulty', '"faulty":', 'faulty::'],
-  member: [':Zeta', 'faulty', '"faulty"', '::faulty', ': faulty'],
-};
+/** How a defect in a property's name is written. */
+export const NAME_DEFECTS: readonly string[] = [
+  ':Zeta',
+  'faulty',
+  'faulty:',
+  '"faulty"',
+  '::faulty',
+  ': faulty',
+];
 
-/** A property as written, the name first in the form its place asks for. */
-export const spelled = (name: string, form: 'entry' | 'member', parts: readonly string[]): string =>
-  [form === 'entry' ? `${name}:` : `:${name}`, ...parts].filter((t) => t !== '').join(' ');
+/** A property as written, its name with its colon and then its parts. */
+export const spelled = (name: string, parts: readonly string[]): string =>
+  [`:${name}`, ...parts].filter((t) => t !== '').join(' ');
 
-export const wellFormed = (c: Chooser, name: string, form: 'entry' | 'member'): string =>
+export const wellFormed = (c: Chooser, name: string): string =>
   spelled(
     name,
-    form,
     wellFormedParts(c).map((part) => part.text),
   );
 
@@ -358,15 +361,12 @@ export const wellFormed = (c: Chooser, name: string, form: 'entry' | 'member'): 
  * A property called `faulty` with one defect in one part: its name, its
  * type, its `default`, its value, a bound, or between two parts.
  */
-export function defectiveProperty(
-  c: Chooser,
-  form: 'entry' | 'member',
-): { text: string; defect: Defect } {
+export function defectiveProperty(c: Chooser): { text: string; defect: Defect } {
   const parts = wellFormedParts(c);
   const texts = parts.map((part) => part.text);
   const roll = c.below(10);
   if (roll === 0) {
-    const text = [c.one(NAME_DEFECTS[form]), ...texts].join(' ');
+    const text = [c.one(NAME_DEFECTS), ...texts].join(' ');
     return { text, defect: contained('') };
   }
   if (roll <= 3) {
@@ -378,18 +378,18 @@ export function defectiveProperty(
     const at = parts.findIndex((part) => part.role === 'bound');
     if (at >= 0 && c.below(2) === 0) texts[at] = bound;
     else texts.push(bound);
-    return { text: spelled('faulty', form, texts), defect };
+    return { text: spelled('faulty', texts), defect };
   }
   if (roll <= 5) {
     const defect = c.one(BETWEEN);
     const at = c.below(texts.length + 1);
     texts.splice(at, 0, defect.text);
-    return { text: spelled('faulty', form, texts), defect };
+    return { text: spelled('faulty', texts), defect };
   }
   const at = c.below(parts.filter((part) => part.role !== 'bound').length);
   const defect = c.one(PART_DEFECTS[parts[at]!.role as Exclude<Role, 'bound'>]);
   texts[at] = defect.text;
-  return { text: spelled('faulty', form, texts), defect };
+  return { text: spelled('faulty', texts), defect };
 }
 
 /**
@@ -400,10 +400,9 @@ export function defectiveProperty(
 const COLONLESS_VALUES: readonly string[] = ['-19', '"a line"', '[oak, silver]'];
 
 /**
- * `faulty "a line"` — a `:remembers` entry with no colon at all between
- * its name and its value, the shape a list default's own recovery
- * (`elementsAfterClose` in `types.ts`) must tell apart from more of a
- * list's own elements.
+ * `faulty "a line"` — an entry with no colon before its name, the shape a
+ * list default's own recovery (`elementsAfterClose` in `types.ts`) must
+ * tell apart from more of a list's own elements.
  */
 const colonlessEntry = (c: Chooser): { text: string; defect: Defect } => ({
   text: `faulty ${c.one(COLONLESS_VALUES)}`,
@@ -411,53 +410,39 @@ const colonlessEntry = (c: Chooser): { text: string; defect: Defect } => ({
 });
 
 /** A well-formed entry whose default is a plain list, unconditionally. */
-const listEntry = (name: string): string => `${name}: [oak, silver]`;
+const listEntry = (name: string): string => `:${name} [oak, silver]`;
 
 /**
- * One `:remembers` of well-formed entries and one defective one, in any
- * order. A colonless entry beside a list default is built directly, now
- * and then, since that pairing falls together by chance only rarely.
+ * One `remembers` block of well-formed entries and one defective one, in
+ * any order, each on a line of its own or all on one. A colonless entry
+ * right after a list default is built directly, now and then, since that
+ * pairing falls together by chance only rarely.
  */
 export function generatedRemembers(c: Chooser, names: readonly string[]) {
   let faulty = c.below(names.length + 1);
-  const entries = names.map((name) => wellFormed(c, name, 'entry'));
-  // A missing or doubled comma after a well-formed entry is a defect of
-  // its own, and changes nothing about what must be kept.
+  const entries = names.map((name) => wellFormed(c, name));
+  // A comma between two entries is a defect of its own, and changes
+  // nothing about what must be kept.
   const inSeparator = faulty < names.length && c.below(8) === 0;
   let made = inSeparator
-    ? { text: wellFormed(c, 'faulty', 'entry'), defect: contained('') }
-    : defectiveProperty(c, 'entry');
-  // Built directly on one side or the other, in place of whatever
-  // `defectiveProperty` rolled, since a list shape for the neighbour and
-  // a colonless name for the defect seldom fall together by chance.
+    ? { text: `${wellFormed(c, 'faulty')},`, defect: contained('') }
+    : defectiveProperty(c);
   if (!inSeparator && names.length > 0 && c.below(4) === 0) {
+    // Right after the list default, the colonless entry must be read as
+    // the block's next entry and not as more of the list.
     made = colonlessEntry(c);
-    if (c.below(2) === 0) {
-      // Before: the colonless entry is read first and refused at its
-      // own missing colon, and recovery must step past its value's own
-      // brackets rather than the list default's, which stands right
-      // after it.
-      faulty = 0;
-      entries[0] = listEntry(names[0]!);
-    } else {
-      // After: the list default's own close is genuine, and nothing
-      // well-formed stands between the colonless entry and `:remembers`'s
-      // own `]`, so that closer is the one the scan must leave alone.
-      faulty = entries.length;
-      entries[entries.length - 1] = listEntry(names[entries.length - 1]!);
-    }
+    faulty = c.below(names.length) + 1;
+    entries[faulty - 1] = listEntry(names[faulty - 1]!);
   }
   entries.splice(faulty, 0, made.text);
-  const body = inSeparator
-    ? `${entries.slice(0, faulty + 1).join(', ')}${c.one([' ', ', , '])}${entries.slice(faulty + 1).join(', ')}`
-    : entries.join(', ');
-  return { ...made, text: `:remembers [${body}]` };
+  const between = c.below(2) === 0 ? ' ' : '\n  ';
+  return { ...made, text: `remembers {${between}${entries.join(between)}${between}}` };
 }
 
 /** One defective world member, of any kind a world holds, or text between two members. */
 export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
   const roll = c.below(12);
-  if (roll <= 3) return defectiveProperty(c, 'member');
+  if (roll <= 3) return defectiveProperty(c);
   if (roll <= 5) return generatedRemembers(c, ['echo']);
   if (roll === 6) {
     const text = c.one([
@@ -513,9 +498,15 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
     return { text, defect: unclosed(text) };
   }
   if (roll === 10) {
-    // The same for a `:remembers` with no `]` anywhere.
-    const text = ':remembers [faulty: 0';
-    return { text, defect: unclosed(text) };
+    // A `remembers` block with no `}` of its own, which ends at the
+    // body's next word-led member; or memory written as a list, which
+    // is refused and costs only itself, closed or not.
+    const text = c.one([
+      'remembers { :faulty 0',
+      ':remembers [faulty: 0]',
+      ':remembers [faulty: 0',
+    ]);
+    return { text, defect: text.startsWith('remembers') ? unclosed(text) : contained(text) };
   }
   // A word that starts a declaration ends the world as never closed, and
   // what follows is the file's: see `FOLLOWING` and `closedByWhatFollows`.
@@ -526,8 +517,8 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
 
 /**
  * What may follow a body that was never closed: declarations written
- * well, which are kept, and ones whose own header reads like the entries
- * of a `:remembers` — `, name: 1]` — which are kept or refused at their
+ * well, which are kept, and ones whose own header has a list's tail
+ * written into it — `, name: 1]` — which are kept or refused at their
  * own text, and never taken for the body's.
  */
 export const FOLLOWING = [
@@ -598,16 +589,20 @@ export function explained(
   }
   if (sort === 'stray') {
     for (const name of good) {
-      // As said: `remembers.walks` is said as `walks`, a property as it
-      // was written, `:bravo`, and a word-led member by its first word,
-      // `visitors-arrive-at` as `visitors`.
+      // As said: `remembers.walks` and a property are said as they were
+      // written, `:walks` and `:bravo`, a word-led member by its first
+      // word, `visitors-arrive-at` as `visitors`, and what the file's
+      // own reader cannot place in quotes, "bravo".
       const word = name.includes('.')
         ? name.split('.').at(-1)!
         : /^[a-z]+(?:-[a-z]+)+$/.test(name)
           ? name.split('-')[0]!
           : name;
       const named = said.some(
-        (d) => d.message.includes(`\`${word}\``) || d.message.includes(`\`:${word}\``),
+        (d) =>
+          d.message.includes(`\`${word}\``) ||
+          d.message.includes(`\`:${word}\``) ||
+          d.message.includes(`"${word}"`),
       );
       if (!(kept.includes(name) || named)) {
         findings.push(`${text}\n  \`${name}\` vanished, and nothing said names it`);

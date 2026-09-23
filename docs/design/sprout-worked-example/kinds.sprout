@@ -9,7 +9,7 @@ kind Vessel {
   :glaze one_of [none, shino, tenmoku] default none
   // a string property: short text, set and compared, never joined
   :mark "unsigned"
-  :remembers [handled: false]
+  remembers { :handled false }
 
   // the third consent guard: the thing moving has a say. A raw pot will
   // not survive being lifted; the actor reads the refusal.

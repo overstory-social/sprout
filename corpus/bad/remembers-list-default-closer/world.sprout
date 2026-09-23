@@ -1,11 +1,11 @@
-// A colonless entry right after a list-default entry must not carry the
-// `]` that closes `:remembers` off with it.
+// An entry without its colon, right after an entry whose default is a
+// list, is the block's to refuse, not more of that list.
 enum Ward { oak, silver }
 
 world remembers_list_default_closer is sprout.World {
   visitors are Creature
   visitors arrive at hall
-  :remembers [echo: [oak], faulty "x"]
+  remembers { :echo [oak] faulty "x" }
   :greeting "hello"
 }
 

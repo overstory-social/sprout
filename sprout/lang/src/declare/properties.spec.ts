@@ -70,7 +70,7 @@ describe('a property is a name, a type and a default', () => {
     expect(locationOf(resolved!.declaration.at)).toBe('kiln.sprout:1:1');
   });
 
-  it('is not remembered unless it was declared inside a :remembers', () => {
+  it('is not remembered unless it was declared inside a `remembers` block', () => {
     expect(declare(':wear 0').resolved!.remembered).toBe(false);
   });
 
@@ -203,7 +203,7 @@ describe('what an object remembers about each actor', () => {
 
   it('is typed by the same rules and written in the same syntax', () => {
     const { resolved, refusals } = remember(
-      ':remembers [handled: false, ward_seen: Ward default oak, visits: 0 min 0 max 99]',
+      'remembers { :handled false :ward_seen Ward default oak :visits 0 min 0 max 99 }',
     );
     expect(refusals).toEqual([]);
     expect(resolved.map((p) => p.name)).toEqual(['handled', 'ward_seen', 'visits']);
@@ -211,24 +211,24 @@ describe('what an object remembers about each actor', () => {
   });
 
   it('marks every one of them as remembered', () => {
-    const { resolved } = remember(':remembers [visits: 0]');
+    const { resolved } = remember('remembers { :visits 0 }');
     expect(resolved.every((p) => p.remembered)).toBe(true);
   });
 
   it('refuses the same name remembered twice, at the second', () => {
-    const { resolved, refusals } = remember(':remembers [visits: 0, visits: 1]');
+    const { resolved, refusals } = remember('remembers { :visits 0 :visits 1 }');
     expect(resolved.map((p) => p.name)).toEqual(['visits']);
-    expect(refusals[0]!.message).toBe('`visits` is remembered twice.');
+    expect(refusals[0]!.message).toBe('`:visits` is remembered twice.');
   });
 
   it('drops one it cannot resolve and keeps the rest', () => {
-    const { resolved, refusals } = remember(':remembers [handled: false, ward: iron, visits: 0]');
+    const { resolved, refusals } = remember('remembers { :handled false :ward iron :visits 0 }');
     expect(resolved.map((p) => p.name)).toEqual(['handled', 'visits']);
     expect(refusals).toHaveLength(1);
   });
 
   it('remembers nothing when it says nothing', () => {
-    expect(remember(':remembers []').resolved).toEqual([]);
+    expect(remember('remembers { }').resolved).toEqual([]);
   });
 });
 
@@ -328,7 +328,7 @@ describe('a composer restates a property to change its default, keeping its type
     expect(plain.refusals.map((d) => [d.message, d.remedy])).toEqual([
       [
         '`:opened` is remembered about each actor in `sprout.Container`, and whatever composes it keeps that.',
-        'Restate it as it is declared there: `:remembers [opened: true]`.',
+        'Restate it as it is declared there: `remembers { :opened true }`.',
       ],
     ]);
     const remembered = restate(CAPACITY, ':capacity 40', true);
@@ -350,13 +350,13 @@ describe('a restatement is written out for a remedy as the author would write it
     expect(restatementOf(declare(':note "a \\{line}"').resolved!)).toBe('`:note "a \\{line}"`');
   });
 
-  it('writes a remembered one inside `:remembers`', () => {
+  it('writes a remembered one inside a `remembers` block', () => {
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('k.sprout', ':remembers [seen: 0]'),
+      new SourceFile('k.sprout', 'remembers { :seen 0 }'),
       diagnostics,
     );
     const [seen] = resolveRemembers(declared!, ENUMS, 'printers_shop', ORIGIN, diagnostics);
-    expect(restatementOf(seen!)).toBe('`:remembers [seen: 0]`');
+    expect(restatementOf(seen!)).toBe('`remembers { :seen 0 }`');
   });
 });

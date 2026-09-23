@@ -177,7 +177,7 @@ describe('a hook', () => {
   });
 
   it('refuses a remembered property, which is held about each actor', () => {
-    expect(checked('kind Lamp { :remembers [seen: false]  changed :seen { } }').messages).toEqual([
+    expect(checked('kind Lamp { remembers { :seen false }  changed :seen { } }').messages).toEqual([
       '`:seen` is remembered about each actor, and `changed` watches what `Lamp` holds itself.',
     ]);
   });

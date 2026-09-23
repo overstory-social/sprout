@@ -54,12 +54,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
 
   it('over a generated body of a world, a kind and an object, a defect in any member', () => {
     const SYMBOL_LED = [
-      { names: ['alpha'], text: (ch: Chooser) => wellFormed(ch, 'alpha', 'member') },
-      { names: ['bravo'], text: (ch: Chooser) => wellFormed(ch, 'bravo', 'member') },
+      { names: ['alpha'], text: (ch: Chooser) => wellFormed(ch, 'alpha') },
+      { names: ['bravo'], text: (ch: Chooser) => wellFormed(ch, 'bravo') },
       {
         names: ['remembers.charlie', 'remembers.delta'],
         text: (ch: Chooser) =>
-          `:remembers [${wellFormed(ch, 'charlie', 'entry')}, ${wellFormed(ch, 'delta', 'entry')}]`,
+          `remembers { ${wellFormed(ch, 'charlie')} ${wellFormed(ch, 'delta')} }`,
       },
     ];
     const WORD_LED = [
@@ -99,21 +99,21 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const lines = members.map((member) => member.text(c));
         lines.splice(at, 0, made.text);
         // Now and then the world is never closed, and a declaration
-        // follows it, with a `:remembers` last in the body or not. Not
+        // follows it, with a `remembers` block last in the body or not. Not
         // after a brace in the defect, which would close it, nor an
         // unclosed bracket, which takes what follows as far as a closer
         // turns up.
         const crossable = made.defect.sort !== 'unclosed' && !made.text.includes('}');
         const following = crossable && c.below(4) === 0 ? c.one(FOLLOWING) : null;
         if (following !== null) {
-          // Whether a `:remembers` closes the body last is drawn only
+          // Whether a `remembers` block closes the body last is drawn only
           // where the defect is not already the line right before
           // `following`: there, standing directly against it is the
           // shape this run is for, since a value missing exactly where
           // `following`'s word stands is refused by the property reader
           // before it can be taken for a bare option.
           const remembersLast = at < members.length && c.below(2) === 0;
-          if (remembersLast) lines.push(':remembers [zulu: 0]');
+          if (remembersLast) lines.push('remembers { :zulu 0 }');
           const text = `${owner.open}\n  ${lines.join('\n  ')}\n${following.text}\n`;
           const { result, said, threw } = reading(text, parseDeclarations);
           expect(threw, text).toBeNull();
@@ -124,10 +124,12 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const text = `${owner.open}\n  ${lines.join('\n  ')}\n${owner.close}\n`;
         const { result, said, threw } = reading(text, parseDeclarations);
         expect(threw, text).toBeNull();
-        // Not every `:remembers`-shaped defect holds a well-formed
-        // `echo`: the one this run's own generator writes always does,
-        // but an unclosed `:remembers` never reaches an entry of its own.
-        const inRemembers = made.text.startsWith(':remembers') && made.text.includes('echo');
+        // Not every memory-shaped defect holds a well-formed `echo`: the
+        // block this run's own generator writes always does.
+        const inRemembers = made.text.startsWith('remembers') && made.text.includes('echo');
+        // A block never closed takes the symbol-led members after it as
+        // its own entries, which is a reading and not a loss.
+        const unclosedBlock = made.text === 'remembers { :faulty 0';
         reached.add(made.defect.sort);
         const good = members.flatMap((member) => member.names);
         if (inRemembers) good.push('remembers.echo');
@@ -135,6 +137,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           ...keptBy(owner, result),
           ...(made.defect.sort === 'stray' ? aroundOwner(owner, result) : []),
         ];
+        const taken = unclosedBlock
+          ? good.map((name) => `remembers.${name.replace(/^remembers\./, '')}`)
+          : [];
+        // A stray `}` ends the block early, and its entries after it are
+        // read as the body's own properties: a reading, and not a loss.
+        if (inRemembers && made.defect.sort === 'stray' && kept.includes('echo')) {
+          kept.push('remembers.echo');
+          taken.push('echo');
+        }
         expect(
           explained(
             text,
@@ -151,6 +162,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
               'remembers.echo',
               'contains',
               'wet',
+              'remembers.wet',
               'stir',
               // A guard with a defect inside its block is kept with what read.
               'depart',
@@ -158,16 +170,19 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
               'accept',
               // An object with a defect in its own head is kept with what read.
               'object.faulty',
+              ...taken,
             ],
             said,
           ),
         ).toEqual([]);
-        // An unclosed list default or `:remembers`, with nothing of its
-        // own to lose, is held to the strong rule beyond what `unclosed`
-        // otherwise requires: the member written directly after it is
-        // always kept, since the hunt for its close stops there rather
-        // than reading past it.
-        if (made.text === ':faulty [oak' || made.text.startsWith(':remembers [faulty: 0')) {
+        // An unclosed list default, or a block never closed before a
+        // word-led member, with nothing of its own to lose, is held to the
+        // strong rule beyond what `unclosed` otherwise requires: the
+        // member written directly after it is always kept, since the hunt
+        // for its close stops there rather than reading past it.
+        const wordLedNext =
+          at < members.length && wordLed.includes(members[at] as (typeof WORD_LED)[number]);
+        if (made.text === ':faulty [oak' || (unclosedBlock && wordLedNext)) {
           const kept = keptBy(owner, result);
           if (at < members.length) {
             for (const name of (members[at] as { names: readonly string[] }).names) {

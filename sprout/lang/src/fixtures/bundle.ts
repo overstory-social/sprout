@@ -85,7 +85,7 @@ export const SHOP: Readonly<Record<string, string>> = {
     'enum Glaze { none, shino, tenmoku }',
     'kind Room { contains actors :lit true }',
     'kind Shelf { contains }',
-    'kind Jar { :glaze Glaze default none :fill 3 min 0 max 9 :remembers [seen: false] }',
+    'kind Jar { :glaze Glaze default none :fill 3 min 0 max 9 remembers { :seen false } }',
     'kind Creature is sprout.Actor { :score 0 }',
     'kind Person is Creature, sprout.Visitor { }',
     '',

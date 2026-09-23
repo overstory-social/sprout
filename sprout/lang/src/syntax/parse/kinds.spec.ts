@@ -89,9 +89,9 @@ describe('a kind declaration', () => {
     expect(kind!.composes[0]!.library).toBeNull();
   });
 
-  it('holds properties, a `:remembers` and `contains`', () => {
+  it('holds properties, a `remembers` block and `contains`', () => {
     const { kind, refusals } = readKind(
-      'kind Place {\n  contains actors\n  :lit true\n  :remembers [visits: 0 min 0 max 99]\n}',
+      'kind Place {\n  contains actors\n  :lit true\n  remembers { :visits 0 min 0 max 99 }\n}',
     );
     expect(refusals).toEqual([]);
     expect(membersOf(kind!)).toEqual(['contains', ':lit', 'remembers']);
@@ -118,7 +118,7 @@ describe('an object declaration', () => {
 
   it('holds a body, which is an anonymous kind for that object alone', () => {
     const { object, declarations, refusals } = readObjects(
-      'object cabinet is sprout.Container, Heavy {\n  :capacity 4\n  :remembers [opened: false]\n  contains\n}',
+      'object cabinet is sprout.Container, Heavy {\n  :capacity 4\n  remembers { :opened false }\n  contains\n}',
     );
     expect(refusals).toEqual([]);
     expect(composed(object!)).toEqual(['sprout.Container', 'Heavy']);
@@ -272,7 +272,7 @@ describe('what is refused, where, and what the author is told to write', () => {
       [
         'k.sprout:2:3',
         'A kind is not made of `visitors`.',
-        'It holds its properties, `contains`, `passage`, `without`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.',
+        'It holds its properties, `remembers`, `contains`, `passage`, `without`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.',
       ],
     ]);
     expect(membersOf(kind!)).toEqual([':open']);
@@ -290,6 +290,10 @@ describe('what is refused, where, and what the author is told to write', () => {
       ['k.sprout:2:8', 'An object needs a name.', remedy],
     ]);
     expect(said(inWorld('object Bench is Bench'))).toEqual([
+      ['k.sprout:2:8', 'An object needs a name.', remedy],
+    ]);
+    // The body's next `remembers` block is not the name, and is read.
+    expect(said(inWorld('object remembers { :a 0 }'))).toEqual([
       ['k.sprout:2:8', 'An object needs a name.', remedy],
     ]);
   });

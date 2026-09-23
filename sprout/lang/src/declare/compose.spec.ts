@@ -200,7 +200,7 @@ describe('a property from one origin is one property, however many paths reach i
   });
 
   it('declares what the body declares, with the composer as its origin', () => {
-    const { kind } = compose('kind Crate { :lid false\n:remembers [seen: 0] }');
+    const { kind } = compose('kind Crate { :lid false\nremembers { :seen 0 } }');
     expect([...kind!.properties.values()].map((p) => [p.name, p.origin, p.remembered])).toEqual([
       ['lid', 'shop.Crate', false],
       ['seen', 'shop.Crate', true],
@@ -208,7 +208,7 @@ describe('a property from one origin is one property, however many paths reach i
   });
 
   it('refuses one name declared twice in one body, at the second', () => {
-    const { said } = compose('kind Crate { :lid false\n:remembers [lid: true] }');
+    const { said } = compose('kind Crate { :lid false\nremembers { :lid true } }');
     expect(said).toEqual([
       [
         'shop.sprout:2:13',
@@ -275,17 +275,19 @@ describe('a property from two origins is refused until the composer restates it'
     ]);
   });
 
-  it('refuses two origins of `:remembers` the same way, and restates inside `:remembers`', () => {
+  it('refuses two origins of a `remembers` entry the same way, and restates inside a block', () => {
     const REMEMBERS =
-      'kind Lidded { :remembers [seen: false] }\nkind Futon { :remembers [seen: true] }\n';
+      'kind Lidded { remembers { :seen false } }\nkind Futon { remembers { :seen true } }\n';
     const { said } = compose(`${REMEMBERS}kind Crate is Lidded, Futon { }`);
     expect(said.map(([, message, remedy]) => [message, remedy])).toEqual([
       [
         '`Crate` gets `:seen` from both `Lidded` and `Futon`, which are two claims on one slot.',
-        'If they are meant to be one property, restate it in `Crate`: `:remembers [seen: false]`.',
+        'If they are meant to be one property, restate it in `Crate`: `remembers { :seen false }`.',
       ],
     ]);
-    const restated = compose(`${REMEMBERS}kind Crate is Lidded, Futon { :remembers [seen: true] }`);
+    const restated = compose(
+      `${REMEMBERS}kind Crate is Lidded, Futon { remembers { :seen true } }`,
+    );
     expect(restated.said).toEqual([]);
     expect(restated.kind!.properties.get('seen')!.remembered).toBe(true);
   });
@@ -308,7 +310,7 @@ describe('a property from two origins is refused until the composer restates it'
 
   it('counts a remembered and a plain declaration of one name as disagreeing', () => {
     const { said } = compose(
-      'kind Lidded { :open true }\nkind Futon { :remembers [open: true] }\nkind Crate is Lidded, Futon { :open false }',
+      'kind Lidded { :open true }\nkind Futon { remembers { :open true } }\nkind Crate is Lidded, Futon { :open false }',
     );
     expect(said.map(([, message]) => message)).toEqual([
       '`:open` holds boolean in `Lidded` and boolean (remembered) in `Futon`, so restating it cannot make them one property.',

@@ -11,6 +11,7 @@ import {
   addEvents,
   addGuards,
   addPlays,
+  addRemembers,
   apart,
   body,
   contains,
@@ -68,10 +69,10 @@ export function worldDeclaration(p: Parser): WorldDeclaration | null {
 
 /** What may be written inside the world `owner` past its properties, and what reads each one. */
 function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember | ObjectDeclaration> {
-  const readers = new Map<string, () => WorldMember | ObjectDeclaration | null>([
-    ['visitors', () => visitors(p)],
-    ['contains', () => contains(p)],
-  ]);
+  const readers = new Map<string, () => WorldMember | ObjectDeclaration | null>();
+  addRemembers(p, readers);
+  readers.set('visitors', () => visitors(p));
+  readers.set('contains', () => contains(p));
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);
