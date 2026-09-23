@@ -14,6 +14,7 @@ import {
 import { STANDARD_LIBRARY } from '../standard-library.js';
 import { locationOf, SourceFile } from '../../source/source.js';
 import { checkLibraries } from './libraries.js';
+import { atKey } from './manifest-fields.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import {
@@ -131,6 +132,29 @@ describe('the manifest records every library by version and by the hash of its s
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toContain('is not the source the manifest recorded');
     expect(refusals(diagnostics)[0]!.remedy).toContain('Vendor the library again');
+  });
+
+  it('points a mismatch at the pin, not at a namespace spelled the same', () => {
+    const fork: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [STANDARD_LIBRARY.files[0]!, file('glaze.sprout', 'enum Glaze { none }')],
+    };
+    const manifestText = JSON.stringify(
+      {
+        name: 'sprout',
+        namespace: 'sprout',
+        libraries: [{ name: 'sprout', version: '0.1.0', sha: SHA }],
+      },
+      null,
+      2,
+    );
+    const named = world({ manifest: { namespace: 'sprout' }, manifestText, libraries: [fork] });
+    const { diagnostics } = compileBundle(named);
+    const mismatch = refusals(diagnostics).find((d) =>
+      d.message.includes('is not the source the manifest recorded'),
+    );
+    expect(mismatch).toBeDefined();
+    expect(mismatch!.at.start).toBeGreaterThan(atKey(named.manifestFile, 'libraries').start);
   });
 
   it('refuses a version the manifest records that the source does not agree with', () => {
