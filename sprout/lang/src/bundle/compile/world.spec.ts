@@ -173,6 +173,26 @@ describe('what the world and its visitors are made of', () => {
       ]);
     }
   });
+
+  it('refuses behaviour in the visitor kind’s own body in either mode, and still makes visitors of it', () => {
+    const text = [
+      'world shop is sprout.World { visitors are Person }',
+      'verb wave { role target  "wave at [target]" }',
+      'kind Creature is sprout.Actor { as actor for wave { do { say "You wave." } } }',
+      'kind Person is Creature, sprout.Visitor { depart (to) { } }',
+      'kind Porter is sprout.Actor { accept (item, from) { } }',
+    ].join('\n');
+    for (const mode of ['publish', 'load'] as const) {
+      const found = kinds(text, mode);
+      expect(kindName(found.visitor!), mode).toBe('shop.Person');
+      expect([...found.visitor!.plays.keys()], mode).toContain('as actor for shop.wave');
+      // Only the visitor kind's own body is read: what it composes, and an
+      // NPC's kind, keep their behaviour.
+      expect(found.said, mode).toEqual([
+        'world.sprout:4:43 `Person` is what a person is made of, and a person acts by typing, so its own body does not guard a move with `depart`.',
+      ]);
+    }
+  });
 });
 
 // The same rules through a whole compile: one `world` declaration named
