@@ -1,6 +1,7 @@
 // The printer's shop, far enough built to ask real questions: the kinds,
-// enums and bodies the checker's specs type against. Spec support: the
-// package build leaves it out.
+// enums and bodies the checker's specs type against, and the helpers that
+// read an expression in one of them. Spec support: the package build
+// leaves it out.
 
 import {
   actorBinding,
@@ -9,14 +10,17 @@ import {
   Scope,
   selfBinding,
   setRoleBinding,
+  showBindingType,
   type Binding,
 } from '../check/bindings.js';
-import type { CheckContext } from '../check/check.js';
+import { checkEffectCall, isEffect, typeOf, type CheckContext } from '../check/check.js';
+import { checkerOf, type Checker } from '../check/check/checker.js';
+import type { CallExpr, Expr, Ident } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import { ACTOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
-import { parseDeclarations, parseProperty } from '../syntax/parse.js';
+import { parseDeclarations, parseExpression, parseProperty } from '../syntax/parse.js';
 import { resolveProperty, type ResolvedProperty } from '../declare/properties.js';
 import { SourceFile } from '../source/source.js';
 
@@ -164,3 +168,68 @@ export const vessel = () =>
     setRoleBinding('tools', RIB, at('tools')),
     roleBinding('target', { role: 'open' }, null, at('target'), new Diagnostics())!,
   );
+
+/** A checker over `context`, wired to the real walk, for a spec that calls a module's functions directly. */
+export function checking(context: CheckContext): Checker {
+  return checkerOf(context, (expr, checker) => typeOf(expr, checker));
+}
+
+/** An expression as written. A parse that fails is the case's fault, and says so. */
+export function expression(text: string): Expr {
+  const parsing = new Diagnostics();
+  const expr = parseExpression(new SourceFile('b.sprout', text), parsing);
+  if (parsing.refusals.length > 0 || expr === null) {
+    throw new Error(
+      `\`${text}\` did not parse: ${parsing.refusals.map((d) => d.message).join(' ')}`,
+    );
+  }
+  return expr;
+}
+
+/** A call as written, for a spec that hands its parts to a module directly. */
+export function call(text: string): CallExpr {
+  const expr = expression(text);
+  if (expr.kind !== 'call') throw new Error(`\`${text}\` is not a call`);
+  return expr;
+}
+
+/** The word a `:p` or a bare name is written with. */
+export function word(text: string): Ident {
+  const expr = expression(text);
+  if (expr.kind === 'symbol-expr' || expr.kind === 'binding') return expr.name;
+  throw new Error(`\`${text}\` is not a word`);
+}
+
+/** Read an expression and ask what it is. The parse must succeed first. */
+export function read(text: string, context: CheckContext) {
+  const expr = expression(text);
+  const type = typeOf(expr, context);
+  return {
+    expr,
+    type,
+    shown: type === null ? null : showBindingType(type),
+    said: saidBy(context),
+    diagnostics: context.diagnostics,
+  };
+}
+
+/** What an expression is, in a body that has everything it needs. */
+export function shapeOf(text: string, context: CheckContext = bodyOf(VESSEL)): string | null {
+  return read(text, context).shown;
+}
+
+/** Whether a call that writes is allowed, checked as a statement would check it. */
+export function effect(text: string, context: CheckContext): boolean {
+  return effectSaid(text, context).ok;
+}
+
+/** A call that writes, checked, with everything said about it. */
+export function effectSaid(
+  text: string,
+  context: CheckContext,
+): { ok: boolean; messages: string[] } {
+  const expr = expression(text);
+  if (!isEffect(expr)) throw new Error(`\`${text}\` is not a call that writes`);
+  const ok = checkEffectCall(expr, context);
+  return { ok, messages: saidBy(context) };
+}
