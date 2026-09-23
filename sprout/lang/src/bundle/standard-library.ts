@@ -3,7 +3,9 @@
 // is written in Sprout; A worked microworld › The standard library it
 // needs). It is ordinary Sprout source, one file per kind, vendored and
 // hashed like any library: the compiler gives it no privilege, and a
-// world that pins another hash runs against that copy or none.
+// world that pins another hash runs against that copy or none. Its files
+// are named as the worked microworld names them, `sprout/actor.sprout`,
+// so a diagnostic in library source never reads as one in the world's own.
 //
 // It holds only what the parser reads today. The rest of the worked
 // microworld's library is named, file by file, as the item that brings it.
@@ -42,8 +44,8 @@ export const STANDARD_LIBRARY: LibrarySource = {
   version: '0.1.0',
   level: 1,
   files: [
-    new SourceFile('world.sprout', WORLD),
-    new SourceFile('place.sprout', PLACE),
-    new SourceFile('actor.sprout', ACTOR),
+    new SourceFile('sprout/world.sprout', WORLD),
+    new SourceFile('sprout/place.sprout', PLACE),
+    new SourceFile('sprout/actor.sprout', ACTOR),
   ],
 };

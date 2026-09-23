@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { libraryHash, type Manifest } from './bundle.js';
+import { libraryHash, type LibrarySource, type Manifest } from './bundle.js';
 import { checkShape, compileBundle } from './compile.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
-import { SourceFile } from '../source/source.js';
+import { locationOf, SourceFile } from '../source/source.js';
 
-/** A world with nothing of its own but a place to arrive at, vendoring the library and blessing it. */
-function compiled() {
-  const sha = libraryHash(STANDARD_LIBRARY);
+/**
+ * A world with nothing of its own but a place to arrive at, vendoring the
+ * library (or a copy of it) pinned at its hash, and blessing that hash.
+ */
+function compiled(library: LibrarySource = STANDARD_LIBRARY) {
+  const sha = libraryHash(library);
   const manifest: Manifest = {
     name: 'shed',
     namespace: 'shed',
@@ -29,7 +32,7 @@ function compiled() {
           'world shed: sprout.World { contains actors visitors arrive at shed }',
         ),
       ],
-      libraries: [STANDARD_LIBRARY],
+      libraries: [library],
     },
     { blessed: new Set([sha]) },
   );
@@ -57,10 +60,21 @@ describe('the standard library', () => {
       checkShape(file).declarations.map((d) => [file.name, d.kind, d.name.text]),
     );
     expect(declared).toEqual([
-      ['world.sprout', 'kind', 'World'],
-      ['place.sprout', 'kind', 'Place'],
-      ['actor.sprout', 'kind', 'Actor'],
+      ['sprout/world.sprout', 'kind', 'World'],
+      ['sprout/place.sprout', 'kind', 'Place'],
+      ['sprout/actor.sprout', 'kind', 'Actor'],
     ]);
+  });
+
+  it('names its own file in a refusal, never one the world’s files could be', () => {
+    const [world, place] = STANDARD_LIBRARY.files;
+    const fork: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [world!, place!, new SourceFile('sprout/actor.sprout', 'kind Actor {\n  %\n}\n')],
+    };
+    const { bundle, diagnostics } = compiled(fork);
+    expect(bundle).toBeNull();
+    expect(diagnostics.map((d) => locationOf(d.at))).toEqual(['sprout/actor.sprout:2:3']);
   });
 
   it('compiles whole beside a world, the world composing `sprout.World`', () => {
@@ -92,7 +106,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'aea37f6f24085755470beebc6501342de62422ab5a699f9f7e10ffa8d9365253',
+      '18a55de7837b8a60ef4f5ff6f2980e644c31b1f4712178b02bccb6199350fd40',
     );
   });
 });
