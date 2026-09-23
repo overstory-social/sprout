@@ -39,11 +39,16 @@ const at = (place: string, more = '') =>
   `world shop: sprout.World { visitors arrive at ${place} }\nobject hall: sprout.Place in shop\n${more}`;
 
 describe('where visitors arrive, as a compile records it', () => {
-  it('is the path of a place, and the world’s is the empty one', () => {
+  it('is the path of a place, and never the world itself', () => {
     expect(arriving(at('hall')).path).toEqual(['hall']);
-    expect(
-      arriving('world shop: sprout.World { contains actors visitors arrive at shop }').path,
-    ).toEqual([]);
+    for (const mode of ['publish', 'load'] as const) {
+      const itself = arriving(at('shop').replace('{', '{ contains actors'), mode);
+      expect(itself.path, mode).toBeNull();
+      expect(itself.said, mode).toEqual([
+        'world.sprout:1:63 `shop` is the world itself, and visitors arrive in a place inside it.',
+      ]);
+      expect(itself.absent, mode).toEqual([]);
+    }
   });
 
   it('refuses a place nothing answers to at publish, and records it at load', () => {
@@ -81,7 +86,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     ),
   ];
 
-  it('carries the place’s path, deeper by its dotted path, and the world as the empty one', () => {
+  it('carries the place’s path, deeper by its dotted path', () => {
     const shallow = compileBundle(world({ files: worldArrivingAt('hall') }));
     expect(refusals(shallow.diagnostics)).toEqual([]);
     expect(shallow.bundle!.arrival).toEqual(['hall']);
@@ -91,9 +96,6 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     );
     expect(refusals(deeper.diagnostics)).toEqual([]);
     expect(deeper.bundle!.arrival).toEqual(['hall', 'nook']);
-
-    const itself = compileBundle(world());
-    expect(itself.bundle!.arrival).toEqual([]);
   });
 
   it('refuses a place nothing answers to at publish, in the words an `in` gets', () => {
@@ -136,17 +138,27 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     }
   });
 
-  it('refuses the world as where visitors arrive unless it holds actors', () => {
+  it('refuses the world as where visitors arrive in either mode, even one that holds actors', () => {
     const files = [
       file(
         'world.sprout',
-        `world printers_shop: sprout.World { contains visitors are Visitor visitors arrive at printers_shop } ${VISITOR}`,
+        `world printers_shop: sprout.World { contains actors visitors are Visitor visitors arrive at printers_shop }\nkind Room { contains actors }\nobject hall: Room in printers_shop\n${VISITOR}`,
       ),
     ];
-    const { diagnostics } = compileBundle(world({ files }));
-    expect(refusals(diagnostics).map((d) => d.message)).toEqual([
-      '`printers_shop` is not a place, and visitors arrive in one.',
-    ]);
+    for (const mode of ['publish', 'load'] as const) {
+      const { bundle, diagnostics } = compileBundle(world({ files }), { mode });
+      expect(bundle, mode).toBeNull();
+      expect(
+        refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy]),
+        mode,
+      ).toEqual([
+        [
+          'world.sprout:1:93',
+          '`printers_shop` is the world itself, and visitors arrive in a place inside it.',
+          'Name a place in the world, as in `visitors arrive at hall`.',
+        ],
+      ]);
+    }
   });
 
   it('says once that a world does not say where visitors arrive', () => {

@@ -1,0 +1,11 @@
+// Visitors arrive in a place inside the world, never the world itself,
+// even one that holds people: the remedy names a place that is there.
+world arrival_at_world: sprout.World {
+  contains actors
+  visitors are Creature
+  visitors arrive at arrival_at_world
+}
+
+kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in arrival_at_world

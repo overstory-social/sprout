@@ -1,7 +1,6 @@
 world optional_read_unguarded: sprout.World {
-  contains actors
   visitors are Visitor
-  visitors arrive at optional_read_unguarded
+  visitors arrive at hall
 }
 
 kind Visitor: sprout.Actor { }
@@ -12,3 +11,5 @@ verb unlock {
   "unlock [target] with [tool]"
   "unlock [target]"
 }
+
+object hall: sprout.Place in optional_read_unguarded

@@ -37,12 +37,14 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
       at: expect.anything(),
       consequence: 'every kind, enum, verb and message it holds reads as absent',
     });
-    // Without it the world and its visitors have nothing to be made of,
-    // so it admits no one, and says why.
+    // Without it the world, its visitors and the place they arrive at have
+    // nothing to be made of, so it admits no one, and says why.
     expect(bundle!.absent.slice(1).map((a) => [a.what, a.kind])).toEqual([
       ['sprout.Actor', 'kind-in-composition'],
+      ['sprout.Place', 'kind-in-composition'],
       ['sprout.World', 'world'],
       ['Visitor', 'visitor-kind'],
+      ['hall', 'place-of-arrival'],
     ]);
     expect(bundle!.world).toBeNull();
     expect(bundle!.visitor).toBeNull();
@@ -57,9 +59,9 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     ];
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
-    expect(loaded.bundle!.objects).toEqual([]);
+    expect(loaded.bundle!.objects.map((o) => o.name)).toEqual(['hall']);
     // Absent, and still where it was written, so the tin is placed inside it.
-    expect([...loaded.bundle!.tree.placed.keys()]).toEqual(['box', 'box.tin']);
+    expect([...loaded.bundle!.tree.placed.keys()]).toEqual(['hall', 'box', 'box.tin']);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
       [
         ['Crate', 'kind-in-composition', 'missing', 'world.sprout:2:13'],
@@ -82,14 +84,14 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     const files = [
       file(
         'world.sprout',
-        `${ROOT}\nkind Crate { contains }\nobject hall: Crate in printers_shop\nobject box: Crate in hal\nobject tin: Crate in hall.box`,
+        `${ROOT}\nkind Crate { contains }\nobject box: Crate in hal\nobject tin: Crate in hall.box`,
       ),
     ];
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
     expect(loaded.bundle!.objects.map((o) => o.name)).toEqual(['hall']);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
-      [['hal', 'container', 'missing', 'world.sprout:4:22']],
+      [['hal', 'container', 'missing', 'world.sprout:3:22']],
     );
     expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
       'Nothing here is called `hal`. Did you mean `hall`? The object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns.',

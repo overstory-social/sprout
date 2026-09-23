@@ -37,7 +37,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
       files: [
         new SourceFile(
           'world.sprout',
-          'world shed: sprout.World { contains actors visitors are Visitor visitors arrive at shed }\nkind Visitor: sprout.Actor { }\n',
+          'world shed: sprout.World { visitors are Visitor visitors arrive at yard }\nkind Visitor: sprout.Actor { }\nkind Yard { contains actors }\nobject yard: Yard in shed\n',
         ),
       ],
       libraries: [library],
@@ -161,8 +161,8 @@ describe('the standard library', () => {
     const { bundle, diagnostics } = compiled();
     expect(diagnostics).toEqual([]);
     expect(bundle!.libraries.map((l) => [l.name, l.blessed])).toEqual([['sprout', true]]);
-    // Only the world's own `Visitor` counts; the blessed library's three cost nothing.
-    expect(bundle!.size.kinds).toBe(1);
+    // Only the world's own `Visitor` and `Yard` count; the blessed library's three cost nothing.
+    expect(bundle!.size.kinds).toBe(2);
     expect(bundle!.world!.composes.has('sprout.World')).toBe(true);
     expect(bundle!.visitor!.composes.has('sprout.Actor')).toBe(true);
   });

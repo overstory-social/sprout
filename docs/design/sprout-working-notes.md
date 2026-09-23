@@ -223,13 +223,13 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - The absent table has a row for a kind named in a `spawn`: the `spawn` faults when it runs.
 - The host's live-instance bound counts every instance it stores, dormant ones included.
 
-Composing with `is`, refusing arrival at the world, the shadowing warning, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
+Composing with `is`, the shadowing warning, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
 - **Whether `contains actors` implies `contains`.** The standard library's own `kind Place` declares only `contains actors` and holds a bench, so it implies it, and `contains` is true wherever either was written.
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
-- **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
+- **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is. Decided 2026-09-23: the line is still accepted, but visitors never arrive at the world itself, whatever it declares; `visitors arrive at` naming it is refused in either mode, and the remedy names a place inside the world where there is one.
 - **A block comment never closed, or inside another.** Decided 2026-09-22 and now under Lexical rules: refused at its opening; no nesting.
 - **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
 - **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.

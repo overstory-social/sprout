@@ -32,14 +32,13 @@ export const MANIFEST = [
 
 /** What visitors are made of: the world's own kind, composing `sprout.Actor`. */
 export const VISITOR = 'kind Visitor: sprout.Actor { }';
-/**
- * The world's own declaration, and a place: it arrives at itself, which
- * `contains actors` makes one.
- */
+/** The world's own declaration: its visitors arrive at `hall`. */
 export const WORLD_LINE =
-  'world printers_shop: sprout.World { contains actors visitors are Visitor visitors arrive at printers_shop }';
-/** The world, and the kind its visitors are made of, on one line. */
-export const ROOT = `${WORLD_LINE} ${VISITOR}`;
+  'world printers_shop: sprout.World { visitors are Visitor visitors arrive at hall }';
+/** The place visitors arrive at, directly in the world. */
+export const HALL = 'object hall: sprout.Place in printers_shop';
+/** The world, the kind its visitors are made of, and the place they arrive at, on one line. */
+export const ROOT = `${WORLD_LINE} ${VISITOR} ${HALL}`;
 export const WORLD_TEXT = `${ROOT}\nenum Season { spring, summer, autumn, winter }`;
 /** Exactly the world's own source: blessed fits, unblessed does not. */
 export const OWN_BYTES = WORLD_TEXT.length;

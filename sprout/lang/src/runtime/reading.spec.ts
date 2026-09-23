@@ -558,7 +558,8 @@ describe('the corpus world `good/roles`', () => {
     'world.sprout': readFileSync(join(folder, 'world.sprout'), 'utf8'),
     'kinds.sprout': readFileSync(join(folder, 'kinds.sprout'), 'utf8'),
   });
-  const thing = (name: string): InstanceId => declaredId('roles', [name]);
+  const ROLES_HALL = declaredId('roles', ['hall']);
+  const thing = (name: string): InstanceId => declaredId('roles', ['hall', name]);
   const [LEVER, DOOR, GATE, CORPUS_KEY, CORPUS_GUARD] = [
     'lever',
     'door',
@@ -572,7 +573,7 @@ describe('the corpus world `good/roles`', () => {
     one.draft.instance(id)!.properties.get(name);
 
   it('pulls the lever once, saying its passage, and refuses the second pull in its words', () => {
-    const one = turn(ROLES, [declaredId('roles', [])]);
+    const one = turn(ROLES, [ROLES_HALL]);
     expect(lines(acted(play(one, 'pull', { target: { object: LEVER! } })))).toEqual([
       [LEVER, 'roles.Lever clunk: The lever drops with a clunk.'],
     ]);
@@ -586,7 +587,7 @@ describe('the corpus world `good/roles`', () => {
   });
 
   it('asks the actor first: full hands refuse before the lever is asked', () => {
-    const one = turn(ROLES, [declaredId('roles', [])]);
+    const one = turn(ROLES, [ROLES_HALL]);
     setOn(one, one.people[0]!, { capacity: 0 });
     expect(refused(play(one, 'pull', { target: { object: LEVER! } }))).toMatchObject({
       by: one.people[0],
@@ -596,7 +597,7 @@ describe('the corpus world `good/roles`', () => {
   });
 
   it('unlocks the warded door with the key, both locks consenting and the key worn', () => {
-    const one = turn(ROLES, [declaredId('roles', [])]);
+    const one = turn(ROLES, [ROLES_HALL]);
     const unlock = (tool?: InstanceId) =>
       play(one, 'unlock', {
         target: { object: DOOR! },
@@ -613,7 +614,7 @@ describe('the corpus world `good/roles`', () => {
   });
 
   it('leaves out what `without` leaves out: the rusted gate neither refuses nor turns', () => {
-    const one = turn(ROLES, [declaredId('roles', [])]);
+    const one = turn(ROLES, [ROLES_HALL]);
     setOn(one, GATE!, { locked: false });
     const said = acted(
       play(one, 'unlock', { target: { object: GATE! }, tool: { object: CORPUS_KEY! } }),
@@ -625,7 +626,7 @@ describe('the corpus world `good/roles`', () => {
   });
 
   it('asks the guard about a topic it knows, and about one it does not', () => {
-    const one = turn(ROLES, [declaredId('roles', [])]);
+    const one = turn(ROLES, [ROLES_HALL]);
     const ask = (topic: string) =>
       lines(
         acted(
