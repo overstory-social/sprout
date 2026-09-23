@@ -200,7 +200,9 @@ How this section works, for the agents that read it. **Open** comes first and ho
 - **67. One kind per file.** Eric: "every kind definition needs to be a separate file." To confirm: whether the file must be named for the kind (`chest.sprout` for `kind Chest`), whether enums, verbs and messages may still share a file, and whether a library (the standard one has several kinds a file) is held to it. Not in the spec yet.
 - **68. A kind's contents under composition.** The spec now lets a kind's body hold objects, which every instance starts with. Chosen, to confirm: every kind in the instance's closure contributes its contents, in closure order, before the object's own; a declared instance's kind-given contents have identifiers under it, as `cabinet.wick`; a spawned instance's have none.
 - **69. The names of the notices' messages.** Eric: every object in range of a place hears an actor leave or arrive, visitors by the place's `leaves` and `arrives` text and everything else "just get the notification". Named, to confirm: `:departed (actor, to)` and `:arrived (actor, from)`, sent to every object in range of the place but the visitors (who read the text) and the one who moved.
-- **70. A destroyed declared object at the next load.** Load makes, at its defaults, every declared object it finds no stored record for, which is how a new world starts and how an object added to source appears; so a declared object that destroyed itself, and everything declared that it held, comes back the next time the world loads. Not built: the store needs to know it was destroyed, a record the spec does not name.
+- **70. A name hiding one directly in the world.** The world's name is never a step of a path, so nothing inside a place can name an object directly in the world that one of its name hides. Built: the hiding warning says no path reaches it and suggests renaming. To decide: allow the world's name as a path's first step, or leave renaming as the answer.
+- **71. Whether a refused `move` ends the body.** Built: it continues, so the library's `take` would say "You cannot carry any more." and then `taken`. Options: (a) a refused `move` ends the `do`; (b) it continues and the author guards what follows; (c) `move` yields whether it moved. Proposed: (a).
+- **72. A destroyed declared object at the next load.** Load makes, at its defaults, every declared object it finds no stored record for, which is how a new world starts and how an object added to source appears; so a declared object that destroyed itself, and everything declared that it held, comes back the next time the world loads. Not built: the store needs to know it was destroyed, a record the spec does not name.
 
 **Decided 2026-09-23, evening**, now in the spec:
 
@@ -493,7 +495,7 @@ Found while destroying what a destroyed object held, each decided the narrow way
 - **A visitor kept dormant inside.** Faults the destroy as a live one does: a record kept for want of the visitor kind is still a person's. An away visitor is inside nothing and faults nothing.
 - **Which visitor the fault names.** The first found in destroy order; the fault is about the object destroyed, and names one visitor in its detail.
 - **Stored records that hold each other.** Records a store left holding one another in a loop are each destroyed once.
-- **A destroyed declared object at the next load.** Not decided here: load makes every declared object it finds no record for, so one destroyed comes back at its defaults. It is Open 70.
+- **A destroyed declared object at the next load.** Not decided here: load makes every declared object it finds no record for, so one destroyed comes back at its defaults. It is Open 72.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
