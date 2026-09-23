@@ -19,7 +19,8 @@ import {
 import type { Token } from '../lexer.js';
 import type { Node } from '../../source/nodes.js';
 import { spanning, type Span } from '../../source/source.js';
-import { punct, readable, type Parser } from './parser.js';
+import { punct, type Parser } from './parser.js';
+import { readable } from '../../source/words.js';
 import { isPassage, passage } from './passages.js';
 import { property, remembers } from './properties.js';
 import { stepPast } from './recovery.js';

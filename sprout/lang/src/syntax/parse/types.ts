@@ -5,7 +5,8 @@
 import type { Literal, TypeExpr } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
-import { punct, readable, type Parser } from './parser.js';
+import { punct, type Parser } from './parser.js';
+import { readable } from '../../source/words.js';
 import { separator, skipBracketed } from './recovery.js';
 
 /**

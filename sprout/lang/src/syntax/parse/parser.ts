@@ -102,14 +102,6 @@ export function punct(token: Token, text: string): boolean {
  */
 export const DEEPEST = 128;
 
-/** A list written out the way a person reads one: `a`, `a and b`, `a, b and c`. */
-export function readable(words: readonly string[]): string {
-  if (words.length === 0) return 'nothing';
-  if (words.length === 1) return `\`${words[0]}\``;
-  const all = words.map((word) => `\`${word}\``);
-  return `${all.slice(0, -1).join(', ')} and ${all.at(-1)}`;
-}
-
 /** What reads one declaration, as the `readers` table holds it. */
 export type DeclarationReader = (p: Parser) => Declaration | null;
 
