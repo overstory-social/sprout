@@ -1,0 +1,8 @@
+// An `if` reads its condition in brackets.
+kind Crate {
+  contains
+
+  accept (item, from) {
+    if self.count >= 8 { refuse "No room." }
+  }
+}

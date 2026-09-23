@@ -1,0 +1,4 @@
+kinds.sprout:5:14  The brackets after `depart` are never closed.
+                   Write `depart (to) { … }`.
+
+refused: 1 problem

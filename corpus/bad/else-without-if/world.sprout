@@ -1,0 +1,8 @@
+world else_without_if: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+
+object hall: sprout.Place in else_without_if

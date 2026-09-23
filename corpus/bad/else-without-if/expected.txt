@@ -1,0 +1,4 @@
+kinds.sprout:6:5  `else` follows an `if`'s closing brace.
+                  Write it straight after the } of the `if` it belongs to: `if (<condition>) { … } else { … }`.
+
+refused: 1 problem
