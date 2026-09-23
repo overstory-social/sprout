@@ -12,6 +12,7 @@ import { DECLARATION_READERS } from './declarations.js';
 import { Parser } from './parser.js';
 import {
   closedBracketRun,
+  closesAhead,
   recover,
   recoverInBraces,
   separator,
@@ -122,6 +123,33 @@ describe('closedBracketRun', () => {
   it('reports 0 when a brace stands before the bracket closes', () => {
     const { p } = parserOver('[a { b');
     expect(closedBracketRun(p)).toBe(0);
+  });
+});
+
+describe('closesAhead', () => {
+  it('says yes when a `]` at the bracket’s own depth stands ahead, whatever is in the way', () => {
+    for (const text of ['oak, silver]', ':a, silver]', 'oak } silver]', '[oak], silver]']) {
+      const { p } = parserOver(text);
+      expect(closesAhead(p), text).toBe(true);
+    }
+  });
+
+  it('says no when only nested closers stand ahead, or nothing does', () => {
+    for (const text of ['oak, [silver]', 'oak :b 1 }', '']) {
+      const { p } = parserOver(text);
+      expect(closesAhead(p), text).toBe(false);
+    }
+  });
+
+  it('looks no further than the next declaration, whose `]` is its own', () => {
+    const { p } = parserOver('oak\nenum Ward { a }\n:x [1]]');
+    expect(closesAhead(p)).toBe(false);
+  });
+
+  it('consumes nothing', () => {
+    const { p } = parserOver('oak, silver]');
+    closesAhead(p);
+    expect(p.peek().text).toBe('oak');
   });
 });
 

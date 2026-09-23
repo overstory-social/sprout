@@ -224,11 +224,11 @@ export class Parser {
    * [enum: 1]` would lose its whole block. Recovery has the opposite
    * exposure and therefore its own question, below.
    */
-  atDeclarationStart(): boolean {
-    const token = this.peek();
+  atDeclarationStart(ahead = 0): boolean {
+    const token = this.peek(ahead);
     if (token.kind !== 'name' || !this.readers.has(token.text)) return false;
     const shape = DECLARATION_SHAPES.get(token.text);
-    return shape !== undefined && shape(this.peek(1), this.peek(2));
+    return shape !== undefined && shape(this.peek(ahead + 1), this.peek(ahead + 2));
   }
 
   /**
