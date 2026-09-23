@@ -253,8 +253,6 @@ Found while building identifier scope (B14), each decided the narrow way and awa
 
 Found while building range (B15), each decided the narrow way and awaiting Eric:
 
-- **Which containers out are in range.** Decided 2026-09-23: the path rule. A target is in range when nothing strictly between refuses; a refusing container is reached from inside as a surface and is a wall beyond, in both directions, so a bench in a relaying room reaches the house and can read its `:season`.
-- **The order of range and of broadcast delivery.** The spec gives none. Nearest first: the asker, its own contents breadth-first, then each container outward followed by its other contents breadth-first, each container's contents in its order.
 - **Crossing into the asker's own contents.** The spec says a container's other contents are crossed into where they pass, and says only that the asker reaches its own contents. Built uniformly: the asker's own contents are always reached, and what they hold only through their own rules, so a pouch in a visitor's hands keeps its gem out of range while it is shut.
 - **What `get`, `each` and a command's nouns ask of a pass rule.** They carry no message, so they consult `pass any`.
 - **What a broadcast leaves out of "the same walk".** Events, messages and the bus › Sending delivers to neither the sender nor a container outward that refuses, which the walk reaches only as a surface, so a reached node records how it was reached (`self`, `held`, `surface`, `passed`) and B32 drops the first and the third.
