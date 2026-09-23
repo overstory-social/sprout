@@ -1,0 +1,4 @@
+sprout.json:10:15  The library "sprout" that travelled is not the source the manifest recorded.
+                   Vendor the library again, so that what travels and what the manifest records are one thing.
+
+refused: 1 problem

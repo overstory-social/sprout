@@ -56,6 +56,65 @@ describe('a report answers the one question the two modes turn on', () => {
   });
 });
 
+describe('a kind made of a library already refused at the manifest is not asked for again', () => {
+  const composed = (what: string, kind: Absent['kind']): Absent => ({
+    what,
+    kind,
+    reason: 'missing',
+    at: AT,
+    consequence: 'the object is absent',
+  });
+
+  it('says nothing at publish for a kind-in-composition or a world gap naming that library', () => {
+    const report = new Report('publish', HEAD);
+    report.libraryRefused('sprout');
+    report.gap(
+      composed('sprout.Actor', 'kind-in-composition'),
+      'Nothing here is a `sprout.Actor`.',
+    );
+    report.gap(composed('sprout.World', 'world'), '`sprout.World` is not here.');
+    expect(report.diagnostics.all).toEqual([]);
+  });
+
+  it('still refuses a kind written without a library, even when the library is refused', () => {
+    const report = new Report('publish', HEAD);
+    report.libraryRefused('sprout');
+    report.gap(composed('Actor', 'kind-in-composition'), 'Nothing here is an `Actor`.');
+    expect(report.diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Nothing here is an `Actor`.',
+    ]);
+  });
+
+  it('still refuses a gap of a library that was not refused', () => {
+    const report = new Report('publish', HEAD);
+    report.libraryRefused('sprout');
+    report.gap(composed('paint.Wall', 'kind-in-composition'), 'Nothing here is a `paint.Wall`.');
+    expect(report.diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Nothing here is a `paint.Wall`.',
+    ]);
+  });
+
+  it('changes nothing at load: the gap is still recorded and warned about', () => {
+    const report = new Report('load', HEAD);
+    report.libraryRefused('sprout');
+    report.gap(
+      composed('sprout.Actor', 'kind-in-composition'),
+      'Nothing here is a `sprout.Actor`.',
+    );
+    expect(report.absent).toEqual([composed('sprout.Actor', 'kind-in-composition')]);
+    expect(report.diagnostics.all[0]!.severity).toBe('warning');
+  });
+
+  it('leaves an unrelated absence row alone even where the text happens to hold a dot', () => {
+    const report = new Report('publish', HEAD);
+    report.libraryRefused('sprout');
+    report.gap(composed('sprout.hall', 'container'), 'There is nothing at `sprout.hall`.');
+    expect(report.diagnostics.refusals.map((d) => d.message)).toEqual([
+      'There is nothing at `sprout.hall`.',
+    ]);
+  });
+});
+
 describe('a name written twice is refused at the second', () => {
   it('names the second, and says nothing of names written once', () => {
     const report = new Report('publish', HEAD);

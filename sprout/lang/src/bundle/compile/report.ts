@@ -21,12 +21,24 @@ function sentence(cell: string): string {
 export class Report {
   readonly diagnostics = new Diagnostics();
   readonly absent: Absent[] = [];
+  /**
+   * Libraries the manifest named that did not travel, or travelled at
+   * another hash: absent, per the spec's Kinds › Libraries and
+   * namespaces. That is said once, at the manifest; a kind or the world
+   * made of one of them is not asked "is this here" again at publish.
+   */
+  private readonly refusedLibraries = new Set<string>();
 
   /** @param anywhere where a gap with nothing of its own to point at is reported. */
   constructor(
     readonly mode: CompileMode,
     private readonly anywhere: Span,
   ) {}
+
+  /** Record a library the manifest named as refused, so what it would have held is not asked for twice. */
+  libraryRefused(name: string): void {
+    this.refusedLibraries.add(name);
+  }
 
   /** Always wrong, in either mode: a refusal that leniency does not soften. */
   refuse(at: Span, message: string, remedy?: string): void {
@@ -54,6 +66,12 @@ export class Report {
    * warned about, and run around.
    */
   gap(absent: Absent, message: string, remedy?: string): void {
+    // A kind or the world made of a library already refused at the
+    // manifest is a consequence of that one problem, not a second one:
+    // at publish it is not said again. At load nothing changes here —
+    // the library's kinds read as absent regardless of why it did not
+    // travel, as the absent table says.
+    if (this.mode === 'publish' && this.saidOfALibrary(absent)) return;
     const at = absent.at ?? this.anywhere;
     if (this.mode === 'publish') {
       this.refuse(at, message, remedy);
@@ -61,6 +79,20 @@ export class Report {
     }
     this.absent.push(absent);
     this.warn(at, `${message} ${sentence(absent.consequence)}`, remedy);
+  }
+
+  /**
+   * Whether a gap is a kind, or the world, written with a library the
+   * manifest's refusal already named — `library.Name`, only for the
+   * `kind-in-composition` and `world` rows, where a written kind names
+   * the library it comes from. A kind written without one is unaffected:
+   * it resolves to nothing for its own reason, and is still refused.
+   */
+  private saidOfALibrary(absent: Absent): boolean {
+    if (absent.kind !== 'kind-in-composition' && absent.kind !== 'world') return false;
+    const dot = absent.what.indexOf('.');
+    if (dot === -1) return false;
+    return this.refusedLibraries.has(absent.what.slice(0, dot));
   }
 }
 
