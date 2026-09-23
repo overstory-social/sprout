@@ -23,11 +23,17 @@ export function atKey(manifest: SourceFile, key: string): Span {
 /**
  * Where a value was written inside the manifest, for a problem about one
  * entry of a list. It finds the first place the value is written at or
- * after `from`, which is the right one for a name that appears once —
- * scaffolding until the manifest is read with spans of its own rather
- * than arriving parsed.
+ * after `from`, which is the list's own key unless a caller says
+ * otherwise, so a library named as the world is found in the pins and
+ * not in the namespace above them — scaffolding until the manifest is
+ * read with spans of its own rather than arriving parsed.
  */
-export function atValue(manifest: SourceFile, value: string, fallback: Span, from = 0): Span {
+export function atValue(
+  manifest: SourceFile,
+  value: string,
+  fallback: Span,
+  from = fallback.start,
+): Span {
   const at = manifest.text.indexOf(`"${value}"`, from);
   return at < 0 ? fallback : manifest.span(at, at + value.length + 2);
 }
