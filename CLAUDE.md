@@ -54,8 +54,8 @@ Rules that follow from the table:
   modules that take a context object; do not grow a class. `syntax/parse/`
   and `bundle/compile/` are the model: grammar areas and compile stages as
   modules of functions taking the parser or the report. `check/check.ts`
-  is past the line and splits next, by expression area; the spec files
-  past it are #122's.
+  is past the line and splits next, by expression area; a spec file past
+  it gets an issue of its own (#117 and #122 hold the ones known).
 - **Functions over a context, not methods on a god object.** A class is
   earned only by real mutable state every method needs (the parser's cursor,
   the budget's counters, a scope). Evaluation, checking, rendering and
