@@ -4,7 +4,8 @@ import type { ValueType } from '../declare/types.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
-import { ListFull, SproutList, type Element } from './lists.js';
+import { ListFull, SproutList } from './lists.js';
+import type { Value } from './values.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
 import { integer, STRING } from '../declare/types.js';
@@ -130,7 +131,7 @@ describe('a list is bounded, and a full one faults rather than dropping', () => 
   });
 
   it('faults when it is built from more than the host allows', () => {
-    const many: Element[] = Array.from({ length: ALLOWED + 1 }, (_, i) => i);
+    const many: Value[] = Array.from({ length: ALLOWED + 1 }, (_, i) => i);
     expect(() => SproutList.of(integer(), many)).toThrow(ListFull);
   });
 

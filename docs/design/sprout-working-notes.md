@@ -258,6 +258,15 @@ Found while building range (B15), each decided the narrow way and awaiting Eric:
 - **What a membership test costs.** Whether one object is in range of another is answered by the path between them, one step per node climbed, not by a whole walk.
 - **`each` over a container that is in range but refuses, seen from outside.** Its contents are out of range, so it visits nothing.
 
+Found while building the state model (B16), each decided the narrow way and awaiting Eric:
+
+- **The minted id's form.** `<world>#<n>`, as `printers_shop#12`, from one persisted serial counter per world that spawns, arrivals and wakes all draw from, so no id is ever reused. A name never holds `.` or `#`, so a minted id and a declared path cannot collide.
+- **A stored value carries the type key it was written under.** A property retyped from `string` to `Ward` falls to its default even when the stored text is one of `Ward`'s options, so a value is never reinterpreted under a type it was not written as.
+- **A value outside a narrowed range.** Falls to the default, and is not clamped into the new range: the spec's "no longer fits" is read as no longer fitting, and `adjust`'s clamp is for a write, not for reading state.
+- **A list that no longer fits.** Falls to the default whole, when any element misfits or it holds more than the host's current cap, rather than keeping the elements that still fit.
+- **Times in stored state.** Whole host seconds, as `elapsed` is.
+- **Pending wakes are stored as a list.** Decided 2026-09-23: how many an object may have pending is a cap of the host's, 1 by default, rather than one per object as a rule of the language; the stored form is a list bounded by that cap. `lastTick` is kept on every instance's record and stays null for anything that is not a place.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.
