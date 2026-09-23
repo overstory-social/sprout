@@ -127,6 +127,7 @@ describe('a reader of committed state', () => {
     visitors: new Map([
       [visit, { visit, nickname: 'Marta', instance: minted(1), lastPlace: null }],
     ]),
+    tombstones: new Set([id('hall', 'lamp')]),
     children: new Map([[id('hall', 'shelf'), [jar.id]]]),
   };
   const reader = readerOf(state);
@@ -136,6 +137,11 @@ describe('a reader of committed state', () => {
     expect(reader.instance(jar.id)).toBe(jar);
     expect(reader.children(id('hall', 'shelf'))).toEqual([jar.id]);
     expect(reader.visitor(visit)!.nickname).toBe('Marta');
+  });
+
+  it('knows a declared object destroyed for good by its tombstone', () => {
+    expect(reader.tombstoned(id('hall', 'lamp'))).toBe(true);
+    expect(reader.tombstoned(jar.id)).toBe(false);
   });
 
   it('answers nothing for what is not there, and no contents for what holds nothing', () => {

@@ -56,6 +56,7 @@ export * from './runtime/memory.js';
 export * from './runtime/draft.js';
 export * from './runtime/live.js';
 export * from './runtime/lifecycle.js';
+export * from './runtime/named.js';
 export * from './runtime/evaluate.js';
 export * from './runtime/body.js';
 export * from './runtime/guards.js';

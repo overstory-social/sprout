@@ -109,6 +109,7 @@ function world(): StoredWorld {
         lastPlace: 'printers_shop.composing_room',
       },
     ],
+    tombstones: ['printers_shop.composing_room.lamp'],
   };
 }
 
@@ -210,6 +211,48 @@ describe('the stored form of a world', () => {
     expect(issues(withInstance(4, { made: { ...given, path: [] } }))).toHaveLength(1);
     expect(issues(withInstance(4, { made: { ...given, path: ['Shelf'] } }))).toHaveLength(1);
     expect(issues(withInstance(4, { made: { from: 'given', path: ['jar'] } }))).toHaveLength(1);
+  });
+
+  it('keeps a tombstone only for a declared id, once, with nothing stored under or inside it', () => {
+    const stored = world();
+    expect(issues({ ...stored, tombstones: ['printers_shop#2'] })).toEqual([
+      "tombstones.0: `printers_shop#2` is not a declared object's id in printers_shop.",
+    ]);
+    expect(issues({ ...stored, tombstones: ['printers_shop'] })).toContain(
+      "tombstones.0: `printers_shop` is not a declared object's id in printers_shop.",
+    );
+    expect(issues({ ...stored, tombstones: ['bakery.oven'] })).toHaveLength(1);
+    const lamp = 'printers_shop.composing_room.lamp';
+    expect(issues({ ...stored, tombstones: [lamp, lamp] })).toEqual([
+      `tombstones.1: \`${lamp}\` is a tombstone twice.`,
+    ]);
+    expect(issues({ ...stored, tombstones: ['printers_shop.composing_room.cabinet'] })).toEqual([
+      'instances.2.id: `printers_shop.composing_room.cabinet` was destroyed, and is stored again.',
+    ]);
+    expect(issues({ ...stored, tombstones: ['printers_shop.composing_room'] })).toEqual([
+      'instances.1.id: `printers_shop.composing_room` was destroyed, and is stored again.',
+      'instances.2.container: `printers_shop.composing_room.cabinet` is inside `printers_shop.composing_room`, which was destroyed.',
+      'instances.3.container: `printers_shop#1` is inside `printers_shop.composing_room`, which was destroyed.',
+    ]);
+  });
+
+  it('lets a link and a visitor’s last place name a tombstone, which the absent rules read', () => {
+    const stored = world();
+    const withLink = withInstance(4, { links: { up: 'printers_shop.attic' } }) as StoredWorld;
+    expect(issues({ ...withLink, tombstones: ['printers_shop.attic'] })).toEqual([]);
+    expect(
+      issues({
+        ...stored,
+        visitors: [{ ...stored.visitors[0]!, lastPlace: 'printers_shop.attic' }],
+        tombstones: ['printers_shop.attic'],
+      }),
+    ).toEqual([]);
+  });
+
+  it('refuses a store with no tombstones at all', () => {
+    const without: Record<string, unknown> = { ...world() };
+    delete without.tombstones;
+    expect(issues(without)).toHaveLength(1);
   });
 
   it('refuses a spawn that does not say its kind, and a time that is not whole seconds', () => {

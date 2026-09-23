@@ -4,7 +4,8 @@
 // in a container in range, and with it a copy of everything its kinds'
 // bodies give it, all the way down, each under a minted id of its own; a
 // destroy removes an instance and everything inside it, all the way down,
-// dormant records included, and tells no one.
+// dormant records included, tombstones every declared object among them,
+// which is gone for good, and tells no one.
 //
 // Two invariants. Nothing is written until every check has passed, so a
 // fault leaves the draft as it was, and a spawn makes all of what it

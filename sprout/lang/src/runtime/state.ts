@@ -9,7 +9,8 @@
 // as it was and a poll reads the committed state (Limits › Runtime
 // budgets; The runtime › Turns). What cannot be decoded against the
 // bundle now is kept dormant, verbatim, so a file restored brings its
-// objects back as they were (The compiler › What absent means).
+// objects back as they were (The compiler › What absent means). A
+// declared object destroyed leaves a tombstone, so nothing makes it again.
 //
 // A container's contents are in one order (The world model › Range):
 // declared objects still where they were declared first, in declared
@@ -76,6 +77,8 @@ export interface WorldState {
    */
   readonly dormant: ReadonlyMap<InstanceId, StoredInstance>;
   readonly visitors: ReadonlyMap<VisitKey, VisitorRecord>;
+  /** Every declared object destroyed, gone for good (the spec's Destroying): never made again. */
+  readonly tombstones: ReadonlySet<InstanceId>;
   /** What each container holds among `instances`, in contents order. Derived, never stored. */
   readonly children: ReadonlyMap<InstanceId, readonly InstanceId[]>;
 }
@@ -87,6 +90,8 @@ export interface StateReader {
   /** What `id` holds among decoded instances, in contents order. */
   children(id: InstanceId): readonly InstanceId[];
   visitor(visit: VisitKey): VisitorRecord | undefined;
+  /** Whether `id` is a declared object destroyed for good, this turn or before. */
+  tombstoned(id: InstanceId): boolean;
 }
 
 /** A reader of committed state. */
@@ -96,6 +101,7 @@ export function readerOf(state: WorldState): StateReader {
     instance: (id) => state.instances.get(id),
     children: (id) => state.children.get(id) ?? [],
     visitor: (visit) => state.visitors.get(visit),
+    tombstoned: (id) => state.tombstones.has(id),
   };
 }
 
