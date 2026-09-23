@@ -8,9 +8,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Ident } from '../../syntax/ast.js';
+import { ENGINE_MESSAGES } from '../../declare/engine-messages.js';
 import {
-  ENGINE_MESSAGES,
-  engineMessage,
   engineParameters,
   handlerParameters,
   OPEN_OBJECT,
@@ -80,19 +79,6 @@ describe('a handler binds the sender and the value it carries', () => {
 });
 
 describe('the engine’s own messages bind what they name', () => {
-  it('is the eight the spec lists, in its order, and only those', () => {
-    expect(ENGINE_MESSAGES.map((m) => m.name)).toEqual([
-      'entered',
-      'left',
-      'moved',
-      'arrived',
-      'departed',
-      'spawned',
-      'tick',
-      'woke',
-    ]);
-  });
-
   it('binds them under the names the spec writes', () => {
     const written: Record<string, string[]> = {
       entered: ['item', 'from'],
@@ -120,14 +106,5 @@ describe('the engine’s own messages bind what they name', () => {
         expect(binding.type, `:${message.name} (${binding.name})`).toEqual(wanted);
       }
     }
-  });
-
-  it('knows one of its own from an authored one', () => {
-    expect(engineMessage('tick')!.name).toBe('tick');
-    expect(engineMessage('entered')!.parameters.map((p) => p.name)).toEqual(['item', 'from']);
-    expect(engineMessage('arrived')!.parameters.map((p) => p.name)).toEqual(['actor', 'from']);
-    expect(engineMessage('departed')!.parameters.map((p) => p.name)).toEqual(['actor', 'to']);
-    expect(engineMessage('illuminating')).toBeNull();
-    expect(engineMessage('stir')).toBeNull();
   });
 });

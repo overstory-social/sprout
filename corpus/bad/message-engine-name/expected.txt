@@ -1,0 +1,7 @@
+events.sprout:3:9  `:entered` is one of the engine's messages, and the engine sends those itself.
+                   The engine's messages are `:entered`, `:left`, `:moved`, `:arrived`, `:departed`, `:spawned`, `:tick` and `:woke`. Name yours for what it means to your world, as in `:rang`.
+
+events.sprout:4:9  `:arrived` is one of the engine's messages, and the engine sends those itself.
+                   The engine's messages are `:entered`, `:left`, `:moved`, `:arrived`, `:departed`, `:spawned`, `:tick` and `:woke`. Name yours for what it means to your world, as in `:rang`.
+
+refused: 2 problems

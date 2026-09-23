@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { MessageDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
+import { ENGINE_MESSAGES } from './engine-messages.js';
 import { EnumTable } from './enums.js';
 import { MessageTable } from './messages.js';
 import { parseDeclarations } from '../syntax/parse.js';
@@ -110,14 +111,14 @@ describe('a message’s identity is its library and its name', () => {
     const diagnostics = new Diagnostics();
     table.add(
       'sprout',
-      parseDeclarations(new SourceFile('a.sprout', 'message :moved'), diagnostics).filter(
+      parseDeclarations(new SourceFile('a.sprout', 'message :stir'), diagnostics).filter(
         (d): d is MessageDeclaration => d.kind === 'message',
       ),
       ENUMS,
       diagnostics,
     );
-    expect(table.unqualified('moved', 'printers_shop')!.library).toBe('sprout');
-    expect(table.unqualified('moved', 'anything_at_all')!.library).toBe('sprout');
+    expect(table.unqualified('stir', 'printers_shop')!.library).toBe('sprout');
+    expect(table.unqualified('stir', 'anything_at_all')!.library).toBe('sprout');
   });
 
   it('knows nothing about a message nobody declared', () => {
@@ -129,6 +130,41 @@ describe('a message’s identity is its library and its name', () => {
     const { table, refusals } = declare('message :a with Ward', 'sprout');
     expect(refusals[0]!.message).toBe('`Ward` is not a type.');
     expect(table.all()).toEqual([]);
+  });
+});
+
+describe('an authored message may not take an engine message’s name', () => {
+  it('refuses each of the eight, at the name, and declares none of them', () => {
+    for (const { name } of ENGINE_MESSAGES) {
+      const { table, refusals } = declare(`message :${name}`);
+      expect(refusals, name).toHaveLength(1);
+      expect(refusals[0]!.message).toBe(
+        `\`:${name}\` is one of the engine's messages, and the engine sends those itself.`,
+      );
+      expect(refusals[0]!.at.start, name).toBe('message '.length);
+      expect(refusals[0]!.remedy).toContain('as in `:rang`');
+      expect(table.all()).toEqual([]);
+    }
+  });
+
+  it('names every engine message in the remedy', () => {
+    const { refusals } = declare('message :tick with integer');
+    for (const { name } of ENGINE_MESSAGES) expect(refusals[0]!.remedy).toContain(`\`:${name}\``);
+  });
+
+  it('refuses a library’s as well as a world’s, the standard library’s included', () => {
+    expect(declare('message :woke', 'sprout').refusals).toHaveLength(1);
+    expect(declare('message :arrived', 'a_library').refusals).toHaveLength(1);
+  });
+
+  it('keeps the rest of the declarations', () => {
+    const { table, refusals } = declare('message :entered\nmessage :rang');
+    expect(refusals).toHaveLength(1);
+    expect(table.all().map((m) => m.name)).toEqual(['rang']);
+  });
+
+  it('leaves a name that only begins like one alone', () => {
+    expect(declare('message :ticked\nmessage :arrived_late').refusals).toEqual([]);
   });
 });
 

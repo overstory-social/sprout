@@ -1,0 +1,4 @@
+// The engine sends its own messages; a world names its own for what
+// they mean to it.
+message :entered
+message :arrived with boolean
