@@ -2,10 +2,17 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
-import { LANGUAGE_LEVEL, MANIFEST_FILE, type Manifest } from '@overstory/sprout/lang';
+import {
+  LANGUAGE_LEVEL,
+  libraryHash,
+  MANIFEST_FILE,
+  STANDARD_LIBRARY,
+  type Manifest,
+} from '@overstory/sprout/lang';
 
 // `sprout init [dir]`: a folder with a manifest, a world and a README
-// line. What it writes passes `sprout check`.
+// line. The manifest pins the standard library the CLI carries, since
+// every world composes `sprout.World`. What it writes passes `sprout check`.
 
 export function initWorld(dir: string, author = userInfo().username): string[] {
   const root = resolve(dir);
@@ -24,7 +31,13 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
     license: 'MIT',
     level: LANGUAGE_LEVEL,
     extensions: [],
-    libraries: [],
+    libraries: [
+      {
+        name: STANDARD_LIBRARY.name,
+        version: STANDARD_LIBRARY.version,
+        sha: libraryHash(STANDARD_LIBRARY),
+      },
+    ],
     files: ['world.sprout'],
   };
   const { namespace: _namespace, ...written } = manifest;

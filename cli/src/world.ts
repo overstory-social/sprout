@@ -6,6 +6,7 @@ import {
   MANIFEST_FILE,
   parseManifest,
   SourceFile,
+  STANDARD_LIBRARY,
   type Diagnostic,
   type MicroworldSource,
 } from '@overstory/sprout/lang';
@@ -14,8 +15,11 @@ import {
 // `.prose` files, and nothing else the compiler reads. Dotted entries are
 // skipped. A file's name is its path from the folder with `/` between.
 //
-// Vendored libraries have no on-disk layout yet (the working notes record
-// the hole); until they do, a folder is read as a world with none.
+// The CLI carries one copy of the standard library and sends it as the
+// vendored `sprout` whenever the manifest names that library; the manifest's
+// pin is checked against it like any vendored source. Where a vendored copy
+// of a library lives in a world folder is unspecified (the working notes'
+// Holes), so nothing else is read as one.
 
 export interface ReadWorld {
   /** The resolved path it was read from. */
@@ -68,9 +72,10 @@ export function readWorld(dir: string): ReadWorld {
     (path) =>
       new SourceFile(relative(root, path).split('\\').join('/'), readFileSync(path, 'utf8')),
   );
+  const usesStandard = manifest.libraries.some((pin) => pin.name === STANDARD_LIBRARY.name);
   return {
     path: root,
-    source: { manifestFile, manifest, files, libraries: [] },
+    source: { manifestFile, manifest, files, libraries: usesStandard ? [STANDARD_LIBRARY] : [] },
     diagnostics: diagnostics.all,
   };
 }

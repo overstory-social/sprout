@@ -1,0 +1,13 @@
+// A library's version is semver, as the world's is. The corpus can vendor
+// only the standard library, so the library pinned here does not travel
+// either, and the page says both.
+world library_version_not_semver: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Hall {
+  contains actors
+}
+
+object hall: Hall in library_version_not_semver

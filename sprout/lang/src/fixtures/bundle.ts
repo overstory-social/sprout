@@ -1,10 +1,12 @@
 // What the runtime's specs load a world from: a real bundle, compiled
 // through `compileBundle` from the files given, under a manifest naming
-// exactly them. Spec support: the package build leaves it out.
+// exactly them and pinning the standard library, which travels with it
+// blessed as the CLI sends it. Spec support: the package build leaves it out.
 
-import type { Bundle, Manifest } from '../bundle/bundle.js';
+import { libraryHash, type Bundle, type Manifest } from '../bundle/bundle.js';
 import { compileBundle } from '../bundle/compile.js';
 import { DEFAULT_LIMITS, type Limits } from '../bundle/limits.js';
+import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { SourceFile } from '../source/source.js';
 
 export interface WorldOptions {
@@ -25,6 +27,7 @@ export function compiledWorld(
   files: Readonly<Record<string, string>>,
   options: WorldOptions = {},
 ): Bundle {
+  const sha = libraryHash(STANDARD_LIBRARY);
   const manifest: Manifest = {
     name,
     namespace: name,
@@ -33,7 +36,7 @@ export function compiledWorld(
     license: 'MIT',
     level: 1,
     extensions: [],
-    libraries: [],
+    libraries: [{ name: STANDARD_LIBRARY.name, version: STANDARD_LIBRARY.version, sha }],
     files: Object.keys(files),
   };
   const { bundle, diagnostics } = compileBundle(
@@ -41,10 +44,14 @@ export function compiledWorld(
       manifestFile: new SourceFile('sprout.json', JSON.stringify(manifest, null, 2)),
       manifest,
       files: Object.entries(files).map(([file, text]) => new SourceFile(file, text)),
-      libraries: [],
+      libraries: [STANDARD_LIBRARY],
       ...(options.withheld === undefined ? {} : { withheld: options.withheld }),
     },
-    { mode: options.mode ?? 'publish', limits: options.limits ?? DEFAULT_LIMITS },
+    {
+      mode: options.mode ?? 'publish',
+      limits: options.limits ?? DEFAULT_LIMITS,
+      blessed: new Set([sha]),
+    },
   );
   if (bundle === null) {
     throw new Error(diagnostics.map((diagnostic) => diagnostic.message).join('\n'));

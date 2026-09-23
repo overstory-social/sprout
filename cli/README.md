@@ -16,7 +16,12 @@ runtime does (B34, B37).
 
 The manifest is the spec's (*The world model › The manifest*): `name`,
 optional `namespace`, `version`, `author`, `license`, `level`,
-`extensions`, `libraries` and `files`. Vendored libraries have no on-disk
-layout yet; a folder is read as a world with none.
+`extensions`, `libraries` and `files`. The CLI carries the standard
+library, `sprout`, and sends it whenever the manifest names it; `init` pins
+it by version and hash, and `check` blesses that hash, so its source costs
+the author nothing. A pin at another hash is refused as a library that is
+not the source the manifest recorded. Where a vendored copy of any library
+lives in a world folder is not yet specified, so no other library is read
+from one.
 
 MIT. Imports the Sprout packages and `node:*` only.

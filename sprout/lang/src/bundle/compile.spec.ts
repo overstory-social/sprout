@@ -2,22 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { LANGUAGE_LEVEL, libraryHash, type LibrarySource, type Manifest } from './bundle.js';
 import { checkShape, compileBundle, type CompileOptions } from './compile.js';
+import { STANDARD_LIBRARY } from './standard-library.js';
 import { limitsFrom } from './limits.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import type { Diagnostic } from '../source/diagnostics.js';
 
 const file = (name: string, text: string): SourceFile => new SourceFile(name, text);
 
-const SPROUT: LibrarySource = {
-  name: 'sprout',
-  version: '1.0.0',
-  level: 1,
-  files: [
-    file('ward.sprout', 'enum Ward { oak, silver }'),
-    file('glaze.sprout', 'enum Glaze { none, shino, tenmoku }'),
-  ],
-};
-const SPROUT_SHA = libraryHash(SPROUT);
+const SPROUT_SHA = libraryHash(STANDARD_LIBRARY);
 
 const MANIFEST = [
   '{',
@@ -27,7 +19,7 @@ const MANIFEST = [
   '  "license": "MIT",',
   '  "level": 1,',
   '  "extensions": [{ "name": "media", "major": 2 }],',
-  `  "libraries": [{ "name": "sprout", "version": "1.0.0", "sha": "${SPROUT_SHA}" }],`,
+  `  "libraries": [{ "name": "sprout", "version": "0.1.0", "sha": "${SPROUT_SHA}" }],`,
   '  "files": ["world.sprout"]',
   '}',
   '',
@@ -61,7 +53,7 @@ function world(
     license: 'MIT',
     level: 1,
     extensions: [{ name: 'media', major: 2 }],
-    libraries: [{ name: 'sprout', version: '1.0.0', sha: SPROUT_SHA }],
+    libraries: [{ name: 'sprout', version: '0.1.0', sha: SPROUT_SHA }],
     files: overrides.files?.map((f) => f.name) ?? ['world.sprout'],
     ...overrides.manifest,
   };
@@ -69,7 +61,7 @@ function world(
     manifestFile: file('sprout.json', overrides.manifestText ?? MANIFEST),
     manifest,
     files: overrides.files ?? [file('world.sprout', WORLD_TEXT)],
-    libraries: overrides.libraries ?? [SPROUT],
+    libraries: overrides.libraries ?? [STANDARD_LIBRARY],
     ...(overrides.withheld === undefined ? {} : { withheld: overrides.withheld }),
   };
 }
@@ -349,14 +341,14 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
 
   it('refuses a `world` declaration in a vendored library’s files', () => {
     const withWorld: LibrarySource = {
-      ...SPROUT,
-      files: [...SPROUT.files, file('root.sprout', 'world sprout: sprout.World {}')],
+      ...STANDARD_LIBRARY,
+      files: [...STANDARD_LIBRARY.files, file('root.sprout', 'world sprout: sprout.World {}')],
     };
     const { bundle, diagnostics } = compileBundle(
       world({
         libraries: [withWorld],
         manifest: {
-          libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(withWorld) }],
+          libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(withWorld) }],
         },
       }),
     );
@@ -368,17 +360,20 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   });
 
   it('refuses an `object` in a vendored library’s files, since objects are the world’s', () => {
-    // No library can be vendored in the corpus yet, so this is pinned here.
+    // The corpus vendors only the standard library the CLI carries, so this is pinned here.
     const withObject: LibrarySource = {
-      ...SPROUT,
-      files: [...SPROUT.files, file('box.sprout', 'kind Box { }\nobject box: Box in hall')],
+      ...STANDARD_LIBRARY,
+      files: [
+        ...STANDARD_LIBRARY.files,
+        file('box.sprout', 'kind Box { }\nobject box: Box in hall'),
+      ],
     };
     const compiled = (mode: 'publish' | 'load') =>
       compileBundle(
         world({
           libraries: [withObject],
           manifest: {
-            libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(withObject) }],
+            libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(withObject) }],
           },
         }),
         { mode },
@@ -480,8 +475,8 @@ describe('the manifest records every library by version and by the hash of its s
 
   it('refuses a library whose source is not the source the manifest recorded', () => {
     const fork: LibrarySource = {
-      ...SPROUT,
-      files: [SPROUT.files[0]!, file('glaze.sprout', 'enum Glaze { none }')],
+      ...STANDARD_LIBRARY,
+      files: [STANDARD_LIBRARY.files[0]!, file('glaze.sprout', 'enum Glaze { none }')],
     };
     const { bundle, diagnostics } = compileBundle(world({ libraries: [fork] }));
     expect(bundle).toBeNull();
@@ -490,19 +485,84 @@ describe('the manifest records every library by version and by the hash of its s
   });
 
   it('refuses a version the manifest records that the source does not agree with', () => {
-    const renamed: LibrarySource = { ...SPROUT, version: '2.0.0' };
+    const renamed: LibrarySource = { ...STANDARD_LIBRARY, version: '2.0.0' };
     const { bundle, diagnostics } = compileBundle(world({ libraries: [renamed] }));
     expect(bundle).toBeNull();
-    expect(refusals(diagnostics)[0]!.message).toContain('version 1.0.0');
+    expect(refusals(diagnostics)[0]!.message).toContain('version 0.1.0');
     expect(refusals(diagnostics)[0]!.message).toContain('says 2.0.0');
   });
 
+  it('refuses a library pinned at a version that is not semver, as the world’s is', () => {
+    for (const version of ['1.0', 'v0.1.0', 'latest']) {
+      const manifestText = MANIFEST.replace('"version": "0.1.0"', `"version": "${version}"`);
+      const pinned = { libraries: [{ name: 'sprout', version, sha: SPROUT_SHA }] };
+      for (const mode of ['publish', 'load'] as const) {
+        const { bundle, diagnostics } = compileBundle(world({ manifest: pinned, manifestText }), {
+          mode,
+        });
+        expect(bundle, `${version} at ${mode}`).toBeNull();
+        expect(
+          refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy]),
+          `${version} at ${mode}`,
+        ).toEqual([
+          [
+            'sprout.json:8:48',
+            `"${version}" is not a version of the library "sprout".`,
+            'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.',
+          ],
+        ]);
+      }
+    }
+  });
+
+  it('refuses a vendored library whose own version is not semver, and compares nothing', () => {
+    const odd: LibrarySource = { ...STANDARD_LIBRARY, version: '0.1' };
+    const { bundle, diagnostics } = compileBundle(world({ libraries: [odd] }));
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'sprout.json:8:27',
+        'The library "sprout" that travelled says its version is "0.1", which is not a version.',
+        'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1. Vendor a copy that says one.',
+      ],
+    ]);
+  });
+
+  it('says a version that is not one once, when the pin and the source agree on it', () => {
+    const odd: LibrarySource = { ...STANDARD_LIBRARY, version: 'latest' };
+    const { diagnostics } = compileBundle(
+      world({
+        libraries: [odd],
+        manifest: { libraries: [{ name: 'sprout', version: 'latest', sha: SPROUT_SHA }] },
+      }),
+    );
+    expect(refusals(diagnostics).map((d) => d.message)).toEqual([
+      '"latest" is not a version of the library "sprout".',
+    ]);
+  });
+
+  it('refuses a library travelling unused whose version is not semver, at its first file', () => {
+    const spare: LibrarySource = {
+      name: 'ericworld',
+      version: 'one',
+      level: 1,
+      files: [file('a.sprout', 'enum Spare { one }')],
+    };
+    const { diagnostics } = compileBundle(world({ libraries: [STANDARD_LIBRARY, spare] }));
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'a.sprout:1:1',
+        'The library "ericworld" that travelled says its version is "one", which is not a version.',
+      ],
+    ]);
+  });
+
   it('refuses a library name that is not a name', () => {
-    const odd: LibrarySource = { ...SPROUT, name: 'Sprout' };
+    const odd: LibrarySource = { ...STANDARD_LIBRARY, name: 'Sprout' };
     expect(
       compileBundle(
         world({
-          manifest: { libraries: [{ name: 'Sprout', version: '1.0.0', sha: libraryHash(odd) }] },
+          manifest: { libraries: [{ name: 'Sprout', version: '0.1.0', sha: libraryHash(odd) }] },
           libraries: [odd],
         }),
       ).bundle,
@@ -510,9 +570,11 @@ describe('the manifest records every library by version and by the hash of its s
   });
 
   it('refuses the same library used twice, or vendored twice', () => {
-    const pin = { name: 'sprout', version: '1.0.0', sha: SPROUT_SHA };
+    const pin = { name: 'sprout', version: '0.1.0', sha: SPROUT_SHA };
     expect(compileBundle(world({ manifest: { libraries: [pin, pin] } })).bundle).toBeNull();
-    expect(compileBundle(world({ libraries: [SPROUT, SPROUT] })).bundle).toBeNull();
+    expect(
+      compileBundle(world({ libraries: [STANDARD_LIBRARY, STANDARD_LIBRARY] })).bundle,
+    ).toBeNull();
   });
 
   it('warns about a library that travelled and is not used', () => {
@@ -522,7 +584,7 @@ describe('the manifest records every library by version and by the hash of its s
       level: 1,
       files: [file('a.sprout', 'enum Spare { one }')],
     };
-    const { bundle, diagnostics } = compileBundle(world({ libraries: [SPROUT, spare] }));
+    const { bundle, diagnostics } = compileBundle(world({ libraries: [STANDARD_LIBRARY, spare] }));
     expect(bundle).not.toBeNull();
     expect(warnings(diagnostics)).toHaveLength(1);
     expect(warnings(diagnostics)[0]!.message).toContain('"ericworld"');
@@ -546,7 +608,7 @@ describe('the bundle records whether the host blessed each library’s hash', ()
 });
 
 describe('blessed library source costs the author nothing, and a fork costs them everything', () => {
-  const libraryBytes = SPROUT.files.reduce((n, f) => n + f.text.length, 0);
+  const libraryBytes = STANDARD_LIBRARY.files.reduce((n, f) => n + f.text.length, 0);
 
   it('leaves a blessed library out of the source the caps count', () => {
     const { bundle } = compileBundle(world(), { blessed: new Set([SPROUT_SHA]) });
@@ -559,7 +621,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
     const { bundle } = compileBundle(world());
     expect(bundle!.size.exemptBytes).toBe(0);
     expect(bundle!.size.sourceBytes).toBe(WORLD_TEXT.length + libraryBytes);
-    expect(bundle!.size.files).toBe(3);
+    expect(bundle!.size.files).toBe(4);
   });
 
   it('refuses a world past the host’s source cap, and says what to do', () => {
@@ -596,7 +658,7 @@ describe('blessed library source costs the author nothing, and a fork costs them
 
 describe('kinds, objects and places are counted against the host’s caps', () => {
   // Two kinds and two objects of the world's own, one of them a place,
-  // and a standard library that declares a kind of its own.
+  // and a copy of the standard library with a fourth kind added to its three.
   const OWN = `world printers_shop: sprout.World { visitors arrive at hall }
 kind Room { contains actors }
 kind Crate { contains }
@@ -604,15 +666,15 @@ object hall: Room in printers_shop
 object box: Crate in hall
 `;
   const KINDED: LibrarySource = {
-    ...SPROUT,
-    files: [...SPROUT.files, file('kinds.sprout', 'kind Container { contains }')],
+    ...STANDARD_LIBRARY,
+    files: [...STANDARD_LIBRARY.files, file('kinds.sprout', 'kind Container { contains }')],
   };
   const kinded = () =>
     world({
       files: [file('world.sprout', OWN)],
       libraries: [KINDED],
       manifest: {
-        libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(KINDED) }],
+        libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(KINDED) }],
       },
     });
   const blessed = new Set([libraryHash(KINDED)]);
@@ -620,7 +682,7 @@ object box: Crate in hall
   it('records how many of each the world has, a library’s kinds among its own', () => {
     const { bundle, diagnostics } = compileBundle(kinded());
     expect(refusals(diagnostics)).toEqual([]);
-    expect(bundle!.size).toMatchObject({ kinds: 3, objects: 2, places: 1 });
+    expect(bundle!.size).toMatchObject({ kinds: 6, objects: 2, places: 1 });
   });
 
   it('leaves a blessed library’s kinds out, as it leaves out its bytes and files', () => {
@@ -629,13 +691,13 @@ object box: Crate in hall
   });
 
   it('refuses a kind past the cap at the kind, a library’s included', () => {
-    const limits = limitsFrom({ caps: { kinds: 2 } });
+    const limits = limitsFrom({ caps: { kinds: 5 } });
     const { bundle, diagnostics } = compileBundle(kinded(), { limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
         'kinds.sprout:1:6',
-        'This world declares 3 kinds, and 2 is as many as it may have.',
+        'This world declares 6 kinds, and 5 is as many as it may have.',
         'Take some out, or use a library the host has blessed, whose kinds cost nothing.',
       ],
     ]);
@@ -666,7 +728,7 @@ object box: Crate in hall
     const { bundle, diagnostics } = compileBundle(kinded(), { mode: 'load', limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toBe(
-      'This world declares 3 kinds, and 1 is as many as it may have.',
+      'This world declares 6 kinds, and 1 is as many as it may have.',
     );
   });
 
@@ -680,7 +742,7 @@ object box: Crate in hall
 
 describe('a bundle’s level is the highest of any of its parts', () => {
   const atLevel = (n: number): CompileOptions => ({ compilerLevel: n });
-  const at = (level: number): LibrarySource => ({ ...SPROUT, level });
+  const at = (level: number): LibrarySource => ({ ...STANDARD_LIBRARY, level });
 
   it('is the world’s own when nothing it uses is newer', () => {
     expect(compileBundle(world()).bundle!.level).toBe(1);
@@ -719,13 +781,13 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
 
   it('refuses a syntax problem in a vendored library too, because they compile together', () => {
     const broken: LibrarySource = {
-      ...SPROUT,
+      ...STANDARD_LIBRARY,
       files: [file('ward.sprout', 'enum Ward { oak }\n%\n')],
     };
     const { bundle, diagnostics } = compileBundle(
       world({
         libraries: [broken],
-        manifest: { libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(broken) }] },
+        manifest: { libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(broken) }] },
       }),
     );
     expect(bundle).toBeNull();
@@ -779,6 +841,9 @@ describe('what a compiled bundle carries', () => {
     expect(refusals(diagnostics)).toEqual([]);
     expect(carried!.kinds.map((k) => [k.library, k.name, k.order])).toEqual([
       ['printers_shop', 'Crate', ['printers_shop.Crate']],
+      ['sprout', 'World', ['sprout.World']],
+      ['sprout', 'Place', ['sprout.Place']],
+      ['sprout', 'Actor', ['sprout.Actor']],
     ]);
     expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container])).toEqual([
       ['hall', ['printers_shop.Crate', 'printers_shop.hall'], []],
@@ -805,8 +870,9 @@ describe('what a compiled bundle carries', () => {
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
       'printers_shop',
       'Season',
-      'Ward',
-      'Glaze',
+      'World',
+      'Place',
+      'Actor',
     ]);
     expect(bundle!.words).toEqual([]);
   });
@@ -921,7 +987,10 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world whose library is not the source recorded, and does not use that library', () => {
-    const fork: LibrarySource = { ...SPROUT, files: [file('ward.sprout', 'enum Ward { oak }')] };
+    const fork: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [file('ward.sprout', 'enum Ward { oak }')],
+    };
     const { bundle } = compileBundle(world({ libraries: [fork] }), load);
     expect(bundle).not.toBeNull();
     expect(bundle!.absent[0]).toMatchObject({ what: 'sprout', reason: 'mismatched' });
@@ -1058,7 +1127,7 @@ describe('the level a world was accepted at is the bundle’s, not the manifest�
   // carries a `since` yet, so this pins the number the threshold is
   // taken from rather than the softening itself.
   it('is the highest of any part, even when the manifest asks for less', () => {
-    const newer: LibrarySource = { ...SPROUT, level: 2 };
+    const newer: LibrarySource = { ...STANDARD_LIBRARY, level: 2 };
     const { bundle } = compileBundle(world({ libraries: [newer] }), {
       compilerLevel: 2,
       mode: 'load',
@@ -1079,13 +1148,13 @@ describe('a library’s own file reads as absent when it will not compile', () =
   // world-file case above, kept because the two are only obviously the
   // same path if you have read the loop.
   const broken: LibrarySource = {
-    ...SPROUT,
+    ...STANDARD_LIBRARY,
     files: [file('ward.sprout', 'enum Ward { oak }\n%\n')],
   };
   const withBroken = () =>
     world({
       libraries: [broken],
-      manifest: { libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(broken) }] },
+      manifest: { libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(broken) }] },
     });
 
   it('refuses it at publish', () => {
