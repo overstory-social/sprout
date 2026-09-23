@@ -1,0 +1,16 @@
+{
+  "name": "library_mismatched",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "f000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "files": ["world.sprout"]
+}
