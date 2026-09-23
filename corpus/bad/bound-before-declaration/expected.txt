@@ -1,0 +1,10 @@
+world.sprout:9:24   A max is a whole number.
+                    Write `max 0`, or leave it out.
+
+world.sprout:10:1   `K` is never closed.
+                    Add a } after what the kind is made of.
+
+world.sprout:10:11  The options of `Omega` go in braces.
+                    Write `enum Omega { oak, silver }`, listing the values it can hold.
+
+refused: 3 problems
