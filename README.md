@@ -41,7 +41,7 @@ sprout/lang/src
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, the world
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, strict and lenient compiling
-  runtime/   the turn's meter and the list value
+  runtime/   the turn's meter, the list value, and range
 sprout/core/src   the store port, its records, the memory store, the conformance suite
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check
