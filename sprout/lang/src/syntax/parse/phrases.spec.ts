@@ -35,6 +35,12 @@ describe('a phrase, split into its words and its slots', () => {
     expect(partsOf(readPhrase('"?"').read!)).toEqual(['?']);
   });
 
+  it('reads two slots with nothing between them as two slots', () => {
+    const { read, refusals } = readPhrase('"combo [a][b]"');
+    expect(refusals).toEqual([]);
+    expect(partsOf(read!)).toEqual(['combo', '[a]', '[b]']);
+  });
+
   it('trims each run of words and makes its spaces single, and reads nothing from spaces alone', () => {
     expect(partsOf(readPhrase('"  pick   up [target]  "').read!)).toEqual(['pick up', '[target]']);
     expect(readPhrase('"   "').read!.parts).toEqual([]);
