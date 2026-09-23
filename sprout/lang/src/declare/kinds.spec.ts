@@ -138,15 +138,9 @@ describe('what one kind or object declaration is refused for on its own', () => 
     ]);
   });
 
-  it('refuses each object a kind’s body holds, at its name, as not read here yet', () => {
-    expect(
-      shape('kind Lantern {\n  contains\n  object wick is Wick\n  object flame is Flame\n}'),
-    ).toEqual(
-      ['wick', 'flame'].map((name, i) => [
-        `k.sprout:${3 + i}:10`,
-        `\`${name}\` is written in the body of the kind \`Lantern\`, and this compiler does not read objects in a kind's body yet.`,
-        `For now, write \`object ${name} …\` inside the braces of each object made of \`Lantern\`.`,
-      ]),
+  it('asks nothing of the objects a kind’s body holds, each of which is asked on its own', () => {
+    expect(shape('kind Lantern {\n  contains\n  object wick\n  object flame is Flame\n}')).toEqual(
+      [],
     );
   });
 

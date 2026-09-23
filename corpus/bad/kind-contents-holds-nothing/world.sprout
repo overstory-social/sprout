@@ -1,0 +1,29 @@
+world kind_contents_holds_nothing is sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+
+  object composing_room is sprout.Place {
+    object lantern is Lantern
+    object candle is Candle
+  }
+}
+
+kind Creature is sprout.Actor { }
+
+kind Wick { }
+
+// A kind's body may hold objects only where the kind holds things, and
+// a lantern that does not write `contains` holds nothing. It is said once,
+// at the kind, however many lanterns there are.
+kind Lantern {
+  object wick is Wick
+}
+
+// The same holds for what a kind's content holds: the wick written here
+// holds nothing, so nothing may be written inside it.
+kind Candle {
+  contains
+  object wick is Wick {
+    object flame is Wick
+  }
+}

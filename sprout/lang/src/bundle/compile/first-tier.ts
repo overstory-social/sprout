@@ -58,10 +58,12 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
       }
     }
     // As it does whether a kind or an object wrote it, which anything
-    // but a world may not, whether an object named a kind at all, and
-    // whether a kind's body holds objects.
+    // but a world may not, and whether an object named a kind at all.
     if (declared.kind === 'kind') {
       checkKindDeclaration(declared, diagnostics);
+      for (const { declaration } of objectsIn(declared)) {
+        checkKindDeclaration(declaration, diagnostics);
+      }
     }
   }
   return { declarations, diagnostics: diagnostics.all };

@@ -4,7 +4,8 @@
 // name, and the tree is the parse tree: an object is a node under the
 // one whose body it is written in, or under the world where it is
 // written in the world's, one whose kind is absent included, since what
-// it holds still has somewhere to be.
+// it holds still has somewhere to be. What a kind's body holds is a node
+// under each instance of the kind, one declaration placed many times.
 //
 // A name resolves nearest first, walking outward one container at a time
 // to the world (`resolveFrom`), so an object that hides one of its name
@@ -13,7 +14,7 @@
 // directly in the world. Both walks are loops rather than recursion.
 
 import type { Ident, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
-import type { Diagnostics } from '../source/diagnostics.js';
+import { onceEach, type Diagnostics, type Sayer } from '../source/diagnostics.js';
 import { readable } from '../source/words.js';
 import { nearestOption } from './enums.js';
 import type { KindRef } from './kinds.js';
@@ -21,11 +22,15 @@ import type { KindRef } from './kinds.js';
 /** Names from the world down, outermost first. The world is the empty path. */
 export type TreePath = readonly string[];
 
-/** What `placeObjects` places: a declaration, where it is written, and its kind where it composed. */
+/**
+ * What `placeObjects` places: a declaration, what holds it, and its kind
+ * where it composed. Each is one object, and is placed by its identity:
+ * a kind's content is one declaration placed once in every instance.
+ */
 export interface Placeable {
   readonly declaration: ObjectDeclaration;
-  /** The object whose body it is written in; null where that is the world's. */
-  readonly within: ObjectDeclaration | null;
+  /** What holds it; null where that is the world. */
+  readonly within: Placeable | null;
   /** Null for an object whose kind is absent. */
   readonly kind: KindRef | null;
 }
@@ -50,6 +55,8 @@ export interface ObjectTree {
   readonly holds: ReadonlyMap<string, Placement>;
   /** Every placed object, by `pathKey` of its path. */
   readonly placed: ReadonlyMap<string, Placement>;
+  /** The same, by what was placed. */
+  readonly placements: ReadonlyMap<Placeable, Placement>;
 }
 
 /** What a path resolves to from somewhere in the tree. */
@@ -138,35 +145,44 @@ export interface TreeContext {
   readonly diagnostics: Diagnostics;
 }
 
+/** The words for `name` written in the body of `holder`, which holds nothing. */
+export function holdsNothing(holder: string, name: string): { message: string; remedy: string } {
+  return {
+    message: `\`${holder}\` holds nothing, so \`${name}\` cannot be in it.`,
+    remedy: `Move \`${name}\` out of \`${holder}\`'s braces into something that holds things, or let \`${holder}\` hold things by writing \`contains\` in its body.`,
+  };
+}
+
 /**
- * Place every object under the one whose body it is written in, or under
- * the world, shallowest first and in the order written within a depth,
- * which is the order `placed` keeps. `objects` lists each after what
- * holds it, as `objectsIn` does. What fails to place is said once, at its
- * name, and nothing more is said about what it holds, which has nowhere
- * to be.
+ * Place every object under what holds it, or under the world, shallowest
+ * first and in the order listed within a depth, which is the order
+ * `placed` keeps. `objects` lists each after what holds it. What fails to
+ * place is said once, at its name, and nothing more is said about what it
+ * holds, which has nowhere to be; what is said at one declaration twice,
+ * as a kind's content in two instances can be, is said once.
  */
 export function placeObjects(objects: readonly Placeable[], context: TreeContext): ObjectTree {
-  const { world, diagnostics } = context;
+  const { world } = context;
+  const diagnostics = onceEach(context.diagnostics);
   const placed = new Map<string, Placement>();
+  const placements = new Map<Placeable, Placement>();
   const worldHolds = new Map<string, Placement>();
-  const tree: ObjectTree = { world, holds: worldHolds, placed };
-  /** Every placed node's contents, writable while placing, by its declaration. */
-  const writable = new Map<ObjectDeclaration, { at: Placement; holds: Map<string, Placement> }>();
+  const tree: ObjectTree = { world, holds: worldHolds, placed, placements };
+  /** Every placed node's contents, writable while placing. */
+  const writable = new Map<Placeable, { at: Placement; holds: Map<string, Placement> }>();
 
-  const depth = new Map<ObjectDeclaration, number>();
-  for (const { declaration, within } of objects) {
-    depth.set(declaration, within === null ? 0 : (depth.get(within) ?? 0) + 1);
+  const depth = new Map<Placeable, number>();
+  for (const object of objects) {
+    const { within } = object;
+    depth.set(object, within === null ? 0 : (depth.get(within) ?? 0) + 1);
   }
   const shallowestFirst = objects
     .map((object, index) => ({ object, index }))
-    .sort(
-      (a, b) =>
-        depth.get(a.object.declaration)! - depth.get(b.object.declaration)! || a.index - b.index,
-    )
+    .sort((a, b) => depth.get(a.object)! - depth.get(b.object)! || a.index - b.index)
     .map(({ object }) => object);
 
-  for (const { declaration, within, kind } of shallowestFirst) {
+  for (const object of shallowestFirst) {
+    const { declaration, within, kind } = object;
     const name = declaration.name.text;
     const holder = within === null ? null : writable.get(within);
     // Inside something that did not place, whose own refusal was said.
@@ -180,12 +196,8 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
       continue;
     }
     if (holder !== null && holder.at.kind !== null && !holder.at.kind.contains) {
-      const last = holder.at.path.at(-1)!;
-      diagnostics.refuse(
-        declaration.name.at,
-        `\`${last}\` holds nothing, so \`${name}\` cannot be in it.`,
-        `Move \`${name}\` out of \`${last}\`'s braces into something that holds things, or let \`${last}\` hold things by writing \`contains\` in its body.`,
-      );
+      const words = holdsNothing(holder.at.path.at(-1)!, name);
+      diagnostics.refuse(declaration.name.at, words.message, words.remedy);
       continue;
     }
     const siblings = holder === null ? worldHolds : holder.holds;
@@ -206,9 +218,10 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
       kind,
       holds,
     };
-    writable.set(declaration, { at: placement, holds });
+    writable.set(object, { at: placement, holds });
     siblings.set(name, placement);
     placed.set(pathKey(placement.path), placement);
+    placements.set(object, placement);
   }
 
   warnHidden(tree, diagnostics);
@@ -221,7 +234,7 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
  * any beyond that out to the world. Only the nearest one hidden is named,
  * since it is the one the name meant there before.
  */
-function warnHidden(tree: ObjectTree, diagnostics: Diagnostics): void {
+function warnHidden(tree: ObjectTree, diagnostics: Sayer): void {
   for (const inner of tree.placed.values()) {
     const name = inner.declaration.name.text;
     const rings = ringsTo(tree, inner.container);

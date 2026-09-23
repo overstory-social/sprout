@@ -1,0 +1,40 @@
+world kind_contents_same_name is sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+
+  object composing_room is sprout.Place {
+    // Every lantern is given a wick, so a lantern's own body may not
+    // write another: that is two objects of one name in one body.
+    object lantern is Lantern {
+      object wick is Wick
+    }
+
+    // A storm lantern is a lantern and a glass case, and each gives it
+    // a `wick`.
+    object storm is StormLantern
+  }
+}
+
+kind Creature is sprout.Actor { }
+
+kind Wick { }
+
+kind Lantern {
+  contains
+  object wick is Wick
+}
+
+kind Case {
+  contains
+  object wick is Wick
+}
+
+kind StormLantern is Lantern, Case { }
+
+// Two written in one kind's body are two of one name there, whether or
+// not anything is made of the kind.
+kind Candle {
+  contains
+  object wick is Wick
+  object wick is Wick
+}

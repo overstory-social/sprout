@@ -9,7 +9,7 @@ import { declaredId } from '../runtime/ids.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable } from '../declare/kinds.js';
-import { objectsIn, resolveObjects } from '../declare/objects.js';
+import { resolveObjects } from '../declare/objects.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { placeObjects, type ObjectTree, type Placement } from '../declare/tree.js';
 import { SourceFile } from '../source/source.js';
@@ -33,12 +33,17 @@ export function declaredTree(world: string, text: string): ObjectTree {
   const enums = new EnumTable();
   kinds.resolve(world, enums, diagnostics);
   const root = declared.find((d): d is WorldDeclaration => d.kind === 'world');
-  const composed = resolveObjects(world, root === undefined ? [] : objectsIn(root), {
-    enums,
-    kinds,
-    diagnostics,
-    onUnknown: () => {},
-  });
+  const composed = resolveObjects(
+    world,
+    root,
+    {
+      enums,
+      kinds,
+      diagnostics,
+      onUnknown: () => {},
+    },
+    new Map(),
+  );
   const tree = placeObjects(composed, { world, diagnostics });
   if (diagnostics.refusals.length > 0) {
     throw new Error(diagnostics.refusals.map((refusal) => refusal.message).join('\n'));

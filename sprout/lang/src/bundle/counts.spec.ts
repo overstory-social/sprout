@@ -4,7 +4,8 @@ import type { KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable } from '../declare/kinds.js';
-import { objectsIn, resolveObjects } from '../declare/objects.js';
+import { resolveContents } from '../declare/contents.js';
+import { resolveObjects } from '../declare/objects.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { countWorld } from './counts.js';
@@ -36,12 +37,9 @@ function count(body: string, caps: Partial<StaticCaps> = {}, kinds = KINDS) {
   const table = new KindTable();
   table.add('shop', own, read);
   table.resolve('shop', enums, read);
-  const composed = resolveObjects('shop', objectsIn(world), {
-    enums,
-    kinds: table,
-    diagnostics: read,
-    onUnknown: () => {},
-  });
+  const context = { enums, kinds: table, diagnostics: read, onUnknown: () => {} };
+  const contents = resolveContents(new Map([['shop', own]]), { ...context, world: 'shop' });
+  const composed = resolveObjects('shop', world, context, contents);
   expect(read.refusals, 'the fixture composes').toEqual([]);
 
   const diagnostics = new Diagnostics();
@@ -78,6 +76,15 @@ describe('a world’s kinds, objects and places are counted', () => {
         `${SHOP}\n  object yard is Crate { object pen is Crate { object nook is Room } }\n  object shed is Room, Missing`,
       ).counts,
     ).toEqual({ kinds: 2, objects: 7, places: 3 });
+  });
+
+  it('counts each copy of what a kind gives as an object, and as a place where it is one', () => {
+    const { counts } = count(
+      'object hall is Room {\n    object brass is Lantern\n    object tin is Lantern\n  }',
+      {},
+      `${KINDS}kind Lantern { contains object wick is Crate object nook is Room }\n`,
+    );
+    expect(counts).toEqual({ kinds: 3, objects: 7, places: 3 });
   });
 
   it('within a cap that is exactly met', () => {

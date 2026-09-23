@@ -323,9 +323,8 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
       const step = path.parts[found.step]!;
       // A step naming an object that did not place names something
       // absent, whose own refusal or gap has been said.
-      const placed = new Set([...tree.placed.values()].map((one) => one.declaration));
       const unplaced = context.objects.some(
-        ({ declaration }) => declaration.name.text === step.text && !placed.has(declaration),
+        (object) => object.declaration.name.text === step.text && !tree.placements.has(object),
       );
       if (unplaced) {
         return absent(

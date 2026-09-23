@@ -10,7 +10,8 @@ import type {
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
-import { objectsIn, resolveObjects } from './objects.js';
+import { resolveContents } from './contents.js';
+import { resolveObjects } from './objects.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import {
@@ -53,12 +54,12 @@ function place(body: string, kinds = '') {
   );
   table.resolve('shop', enums, read);
   const world = declared.find((d): d is WorldDeclaration => d.kind === 'world')!;
-  const composed = resolveObjects('shop', objectsIn(world), {
-    enums,
-    kinds: table,
-    diagnostics: read,
-    onUnknown: () => {},
-  });
+  const context = { enums, kinds: table, diagnostics: read, onUnknown: () => {} };
+  const contents = resolveContents(
+    new Map([['shop', declared.filter((d): d is KindDeclaration => d.kind === 'kind')]]),
+    { ...context, world: 'shop' },
+  );
+  const composed = resolveObjects('shop', world, context, contents);
   expect(read.refusals, 'the fixture composes').toEqual([]);
 
   const diagnostics = new Diagnostics();
@@ -188,11 +189,10 @@ describe('placing every object under the body it is written in', () => {
       members: [],
       objects: [],
     }));
-    const objects: Placeable[] = declarations.map((declaration, i) => ({
-      declaration,
-      within: i === 0 ? null : declarations[i - 1]!,
-      kind: null,
-    }));
+    const objects: Placeable[] = [];
+    for (const declaration of declarations) {
+      objects.push({ declaration, within: objects.at(-1) ?? null, kind: null });
+    }
     const diagnostics = new Diagnostics();
     const tree = placeObjects(objects, { world: 'shop', diagnostics });
     expect(diagnostics.all).toEqual([]);
@@ -395,6 +395,65 @@ describe('what is refused where an object is written', () => {
       ],
     ]);
     expect(paths(tree)).toEqual([]);
+  });
+});
+
+describe('what a kind’s body gives, in every instance', () => {
+  const LANTERN = 'kind Lantern { contains object wick is Thing object hook is Thing }\n';
+
+  it('is placed under each instance, before what the instance’s own body holds', () => {
+    const { tree, said } = place(
+      'object hall is Room {\n  object brass is Lantern { object spare is Thing }\n  object tin is Lantern\n}',
+      LANTERN,
+    );
+    expect(said).toEqual([]);
+    expect(contentsOf(tree, ['hall', 'brass'])).toEqual(['wick', 'hook', 'spare']);
+    expect(contentsOf(tree, ['hall', 'tin'])).toEqual(['wick', 'hook']);
+    const wicks = [...tree.placed.values()].filter((one) => one.path.at(-1) === 'wick');
+    expect(wicks.map((one) => pathKey(one.path))).toEqual(['hall.brass.wick', 'hall.tin.wick']);
+    expect(wicks[0]!.declaration).toBe(wicks[1]!.declaration);
+  });
+
+  it('refuses a name the instance’s own body uses beside one its kind gives, at its own', () => {
+    const { tree, said } = place(
+      'object hall is Room {\n  object brass is Lantern { object wick is Thing }\n}',
+      LANTERN,
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:6:36',
+        '`hall.brass` holds two objects called `wick`.',
+        'Give one of them another name, or remove it.',
+      ],
+    ]);
+    expect(contentsOf(tree, ['hall', 'brass'])).toEqual(['wick', 'hook']);
+  });
+
+  it('warns at the kind’s declaration of what a content hides, for each instance', () => {
+    const { said } = place(
+      'object hall is Room {\n  object hook is Thing\n  object brass is Lantern\n  object tin is Lantern\n}',
+      LANTERN,
+    );
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      [
+        'shop.sprout:11:53',
+        '`hook` hides `hall.hook`: inside `hall.brass`, a bare `hook` now means this one.',
+      ],
+      [
+        'shop.sprout:11:53',
+        '`hook` hides `hall.hook`: inside `hall.tin`, a bare `hook` now means this one.',
+      ],
+    ]);
+  });
+
+  it('says what is the same at one declaration in every instance once', () => {
+    const { said } = place(
+      'object brass is Lantern\nobject tin is Lantern',
+      'kind Lantern { contains object shop is Thing }\n',
+    );
+    expect(said.map(([, message]) => message)).toEqual([
+      "`shop` is the world's name, so no object can take it.",
+    ]);
   });
 });
 

@@ -1,0 +1,31 @@
+world kind_contents_actors is sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+
+  object composing_room is sprout.Place {
+    object key is Thing
+
+    // Every hutch is given a rabbit, an NPC, and a hutch holds no actors,
+    // so the rabbit cannot stand in it. It is said at the rabbit, in the
+    // kind's body.
+    object hutch is Hutch
+
+    // Every chest is given a key, which hides the room's from inside the
+    // chest; that is said at the chest's key too.
+    object chest is Chest
+  }
+}
+
+kind Creature is sprout.Actor { }
+
+kind Thing { }
+
+kind Hutch {
+  contains
+  object rabbit is Creature
+}
+
+kind Chest {
+  contains
+  object key is Thing
+}

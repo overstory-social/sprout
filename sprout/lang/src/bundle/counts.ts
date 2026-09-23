@@ -17,7 +17,10 @@ import type { StaticCaps } from './limits.js';
 export interface Countable {
   /** The world's own kinds, and those of every usable library the host has not blessed. */
   readonly kinds: readonly KindDeclaration[];
-  /** The world's own objects, whether or not they could be composed. */
+  /**
+   * The world's objects, whether or not they could be composed, each copy
+   * of a kind's content among them, since each is an instance stored.
+   */
   readonly objects: readonly ObjectDeclaration[];
   /**
    * The world's objects with their kinds, null where one could not be

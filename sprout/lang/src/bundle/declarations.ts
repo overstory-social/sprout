@@ -4,8 +4,9 @@
 // library before the next, in the order they depend on one another:
 // enums, then messages, which may carry an option; the names of the
 // verbs, which a kind's plays name; kinds, whose properties may hold an
-// option; verbs, whose roles may name a kind; then the world's objects,
-// made of kinds, and the tree the world's body nests them in
+// option; verbs, whose roles may name a kind; what each kind's body gives
+// its instances; then the world's objects, made of kinds and holding what
+// those give, and the tree the world's body nests them in
 // (`declare/tree.ts`).
 //
 // Three references here may name nothing, and each is a row of the
@@ -28,8 +29,8 @@ import { EnumTable, SPROUT } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
 import { KindTable } from '../declare/kinds.js';
 import { VerbTable } from '../declare/verbs.js';
+import { resolveContents, type KindContents } from '../declare/contents.js';
 import {
-  objectsIn,
   placedObjects,
   resolveObjects,
   type ComposedObject,
@@ -54,11 +55,16 @@ export interface DeclarationTables {
   /** Which verbs are declared, by name, which is what composing a play reads. */
   readonly verbNames: VerbNames;
   readonly verbs: VerbTable;
-  /** The world's own objects that could be composed and placed, in the order declared. */
+  /** What each kind's body gives every instance of it. */
+  readonly contents: KindContents;
+  /** The objects written in the world's body that could be composed and placed, in the order declared. */
   readonly objects: readonly ResolvedObject[];
   /** Every object of the world's that has a place, absent kinds included. */
   readonly tree: ObjectTree;
-  /** Every one of the world's objects, in the order declared, with its kind where it composed. */
+  /**
+   * Every one of the world's objects, what its kinds gave it included,
+   * each after what holds it, with its kind where it composed.
+   */
   readonly composed: readonly ComposedObject[];
 }
 
@@ -146,13 +152,24 @@ export function resolveDeclarations(
     diagnostics,
   });
 
+  const contents = resolveContents(
+    new Map(
+      [...byLibrary].map(([library, declared]) => [
+        library,
+        declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
+      ]),
+    ),
+    { enums, kinds, world: world.namespace, diagnostics, onUnknown, ...plays },
+  );
+
   const declared = (byLibrary.get(world.namespace) ?? []).find(
     (d): d is WorldDeclaration => d.kind === 'world',
   );
   const composed = resolveObjects(
     world.namespace,
-    declared === undefined ? [] : objectsIn(declared),
+    declared,
     { enums, kinds, diagnostics, onUnknown, ...plays },
+    contents,
   );
   const tree = placeObjects(composed, { world: world.name, diagnostics });
 
@@ -162,6 +179,7 @@ export function resolveDeclarations(
     kinds,
     verbNames,
     verbs,
+    contents,
     objects: placedObjects(world.namespace, composed, tree),
     tree,
     composed,
