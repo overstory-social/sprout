@@ -37,7 +37,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
       files: [
         new SourceFile(
           'world.sprout',
-          'world shed is sprout.World { visitors are Visitor visitors arrive at yard object yard is Yard }\nkind Visitor is sprout.Actor { }\nkind Yard { contains actors }\n',
+          'world shed is sprout.World { visitors are Person visitors arrive at yard object yard is Yard }\nkind Person is sprout.Visitor { }\nkind Yard { contains actors }\n',
         ),
       ],
       libraries: [library],
@@ -94,7 +94,7 @@ describe('the standard library', () => {
     }
   });
 
-  it('declares exactly `World`, `Place` and `Actor`, the engine’s verbs, the actor’s, and `ask`', () => {
+  it('declares exactly `World`, `Place`, `Actor` and `Visitor`, the engine’s verbs, the actor’s, and `ask`', () => {
     const declared = STANDARD_LIBRARY.files.map((file) => [
       file.name,
       checkShape(file).declarations.map((d) => `${d.kind} ${d.name.text}`),
@@ -104,6 +104,7 @@ describe('the standard library', () => {
       ['sprout/engine.sprout', ENGINE_VERBS.map((name) => `verb ${name}`)],
       ['sprout/place.sprout', ['kind Place']],
       ['sprout/actor.sprout', ['verb take', 'verb drop', 'verb give', 'kind Actor']],
+      ['sprout/visitor.sprout', ['kind Visitor']],
       ['sprout/talk.sprout', ['verb ask']],
     ]);
   });
@@ -161,10 +162,23 @@ describe('the standard library', () => {
     const { bundle, diagnostics } = compiled();
     expect(diagnostics).toEqual([]);
     expect(bundle!.libraries.map((l) => [l.name, l.blessed])).toEqual([['sprout', true]]);
-    // Only the world's own `Visitor` and `Yard` count; the blessed library's three cost nothing.
+    // Only the world's own `Person` and `Yard` count; the blessed library's four cost nothing.
     expect(bundle!.size.kinds).toBe(2);
     expect(bundle!.world!.composes.has('sprout.World')).toBe(true);
-    expect(bundle!.visitor!.composes.has('sprout.Actor')).toBe(true);
+    expect(bundle!.visitor!.composes.has('sprout.Visitor')).toBe(true);
+  });
+
+  it('makes `sprout.Visitor` an actor and nothing more: it adds nothing to `sprout.Actor`', () => {
+    const kinds = new Map(compiled().bundle!.kinds.map((k) => [`${k.library}.${k.name}`, k]));
+    const visitor = kinds.get('sprout.Visitor')!;
+    const actor = kinds.get('sprout.Actor')!;
+    expect([...visitor.composes].sort()).toEqual(['sprout.Actor', 'sprout.Visitor']);
+    expect([...visitor.properties.keys()]).toEqual([...actor.properties.keys()]);
+    expect([...visitor.passages.keys()]).toEqual([...actor.passages.keys()]);
+    expect(visitor.plays.size).toBe(0);
+    for (const guard of ['depart', 'release', 'accept'] as const) {
+      expect(visitor.guards[guard].map((one) => one.origin)).toEqual(['sprout.Actor']);
+    }
   });
 
   it('makes `sprout.Place` hold actors, and `sprout.World` hold things and not people', () => {
@@ -264,7 +278,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '24dd45a23d8ef40ecf983b6a121a34a338c264b45e1f824e4aeebfa10f90871b',
+      '5bd019792ad4a23dfe754560ee81494d1e69064a6b5ab3ef9a9247c15a2fc276',
     );
   });
 });

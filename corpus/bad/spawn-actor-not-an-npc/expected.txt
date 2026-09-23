@@ -1,4 +1,0 @@
-world.sprout:20:16  `Porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.
-                    Spawn `Creature`, what this world's visitors are made of, or a kind that composes it, to make an NPC; or spawn a kind that is not an actor.
-
-refused: 1 problem

@@ -1,4 +1,4 @@
-kind Creature is sprout.Actor {
+kind Creature is sprout.Visitor {
   :strength 5 min 0 max 9
 }
 

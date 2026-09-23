@@ -1,12 +1,13 @@
 world act_unclosed is sprout.World {
   contains actors
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }
 
 verb pet    { role target  "pet [target]" }
 verb nuzzle { role target  "nuzzle [target]" }

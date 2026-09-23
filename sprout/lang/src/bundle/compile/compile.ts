@@ -126,7 +126,6 @@ export function compileBundle(
     tree: tables.tree,
     objects: tables.composed,
     world,
-    visitor,
     diagnostics: report.diagnostics,
   });
 

@@ -1,0 +1,14 @@
+// Nothing declares a visitor: each one is a person who arrives. A porter
+// with nobody behind it is an NPC, made of what a person shares with it
+// and not of what a person is made of.
+world object_is_a_visitor is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object porter is Person
+  }
+}
+
+kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }

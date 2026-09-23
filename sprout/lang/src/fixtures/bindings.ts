@@ -90,7 +90,7 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
 export const CONTAINER = kind('sprout', 'Container');
 export const VESSEL = kind('printers_shop', 'Vessel', 'sprout.Container');
 export const LOCKABLE = kind('sprout', 'Lockable');
-export const VISITOR = kind('printers_shop', 'Printer', 'sprout.Actor');
+export const VISITOR = kind('printers_shop', 'Printer', 'sprout.Actor', 'sprout.Visitor');
 
 export const MESSAGES = (() => {
   const table = new MessageTable();

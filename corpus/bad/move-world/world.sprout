@@ -1,6 +1,6 @@
 world move_world is sprout.World {
   contains actors
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   // The world is the root of the tree, and goes nowhere.
@@ -11,6 +11,6 @@ world move_world is sprout.World {
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Person is sprout.Visitor { }
 
 verb shake { role target  role tool  "shake [target] with [tool]" }

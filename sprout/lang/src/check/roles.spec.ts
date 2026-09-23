@@ -10,8 +10,8 @@ import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkPlay } from './roles.js';
 
-/** The standard library's part: what an actor is. */
-const SPROUT_TEXT = 'kind Actor { contains }\n';
+/** The standard library's part: what an actor is, and a person. */
+const SPROUT_TEXT = 'kind Actor { contains }\nkind Visitor is Actor { }\n';
 
 /** The verbs every case here may play. */
 const VERBS = `enum Topic { bridge, toll, weather }
@@ -22,7 +22,7 @@ verb dial { role target  role number: integer  "dial [number] on [target]" }
 verb throw { role target  role tools many  "throw [target] using [tools]" }
 verb nudge { role target  role tool optional }
 verb sit { role target }
-kind Visitor is sprout.Actor { :score 0 }
+kind Visitor is sprout.Visitor { :score 0 }
 `;
 
 /**
@@ -355,13 +355,15 @@ describe('a `permit` decides and a `do` acts', () => {
     ]);
   });
 
-  it('refuses a spawn of an actor that is not made of what visitors are', () => {
+  it('refuses a spawn of what visitors are made of, and takes an NPC’s kind', () => {
     const text = `kind Porter is sprout.Actor { }
 kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in here } } }`;
-    expect(messages(checked(text))).toEqual([
-      '`Porter` composes `sprout.Actor` but not `Visitor`, and the only actors are visitors and NPCs.',
-    ]);
-    expect(checked(text, { visitor: false })).toEqual([]);
+    const refused = [
+      '`Visitor` composes `sprout.Visitor`, what a person is made of, and nothing spawns a visitor: each one is a person who arrives.',
+    ];
+    expect(messages(checked(text))).toEqual(refused);
+    // What a person is made of decides it, not what the world names.
+    expect(messages(checked(text, { visitor: false }))).toEqual(refused);
   });
 
   it('says a passage a `say` names must be the kind’s', () => {
@@ -376,19 +378,19 @@ kind Bell { as target for pull { do { spawn Porter in here  spawn Visitor in her
 });
 
 describe('a `do` performs verbs with `act`', () => {
-  it('checks each `act` against the bundle’s verbs and what visitors are made of', () => {
-    expect(
-      checked('kind Cat is Visitor { as actor for sit { do { act pull (target: self) } } }'),
-    ).toEqual([]);
+  it('checks each `act` against the bundle’s verbs and whether its kind is an actor', () => {
+    for (const cat of ['sprout.Actor', 'Visitor']) {
+      expect(
+        checked(`kind Cat is ${cat} { as actor for sit { do { act pull (target: self) } } }`),
+        cat,
+      ).toEqual([]);
+    }
     expect(
       checked('kind Lever { as target for pull { do { act sit (target: self) } } }').map(
         ([at, message]) => [at, message],
       ),
     ).toEqual([
-      [
-        'shop.sprout:10:40',
-        'Only something made of `Visitor` acts, and `Lever` does not compose it.',
-      ],
+      ['shop.sprout:10:40', 'Only an actor acts, and `Lever` does not compose `sprout.Actor`.'],
     ]);
   });
 });

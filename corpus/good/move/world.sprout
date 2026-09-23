@@ -3,7 +3,7 @@
 // and the same three guards a typed command meets decide.
 world moving is sprout.World {
   contains actors
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   // The engine refuses a move that would put a thing inside itself, in
@@ -21,7 +21,7 @@ world moving is sprout.World {
 // A person climbs aboard by moving themselves: in the actor's own part
 // `actor` is the one whose body runs, so it is the mover, and
 // `sprout.Actor`'s `depart` consents.
-kind Visitor is sprout.Actor {
+kind Person is sprout.Visitor {
   as actor for board { do { move actor to target  say "You climb aboard." } }
 }
 

@@ -10,7 +10,7 @@ world object_names_container is sprout.World {
   object cushion is Bench in composing_room.bench
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 
 kind Bench {
   contains

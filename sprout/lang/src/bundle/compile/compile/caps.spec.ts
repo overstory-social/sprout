@@ -14,10 +14,10 @@ import { file, refusals, VISITOR, world } from '../../../fixtures/compile.js';
 
 describe('kinds, objects and places are counted against the host’s caps', () => {
   // Two kinds and two objects of the world's own, one of them a place,
-  // and a copy of the standard library with a fourth kind added to its three.
+  // and a copy of the standard library with a fifth kind added to its four.
   // What the world's body holds beside them is `extra`, from line 7.
   const ownWith = (extra = ''): string => `world printers_shop is sprout.World {
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
   object hall is Room {
     object box is Crate
@@ -46,7 +46,7 @@ kind Crate { contains }
   it('records how many of each the world has, a library’s kinds among its own', () => {
     const { bundle, diagnostics } = compileBundle(kinded());
     expect(refusals(diagnostics)).toEqual([]);
-    expect(bundle!.size).toMatchObject({ kinds: 7, objects: 2, places: 1 });
+    expect(bundle!.size).toMatchObject({ kinds: 8, objects: 2, places: 1 });
   });
 
   it('leaves a blessed library’s kinds out, as it leaves out its bytes and files', () => {
@@ -55,13 +55,13 @@ kind Crate { contains }
   });
 
   it('refuses a kind past the cap at the kind, a library’s included', () => {
-    const limits = limitsFrom({ caps: { kinds: 6 } });
+    const limits = limitsFrom({ caps: { kinds: 7 } });
     const { bundle, diagnostics } = compileBundle(kinded(), { limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
         'kinds.sprout:1:6',
-        'This world declares 7 kinds, and 6 is as many as it may have.',
+        'This world declares 8 kinds, and 7 is as many as it may have.',
         'Take some out, or use a library the host has blessed, whose kinds cost nothing.',
       ],
     ]);
@@ -92,7 +92,7 @@ kind Crate { contains }
     const { bundle, diagnostics } = compileBundle(kinded(), { mode: 'load', limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toBe(
-      'This world declares 7 kinds, and 1 is as many as it may have.',
+      'This world declares 8 kinds, and 1 is as many as it may have.',
     );
   });
 

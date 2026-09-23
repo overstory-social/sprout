@@ -108,7 +108,7 @@ describe('who takes part, and in what order', () => {
     expect(refusal).toMatchObject({
       by: visitor,
       role: 'actor',
-      origin: 'yard.Person',
+      origin: 'yard.Creature',
       said: { text: 'The actor balks.' },
     });
     // What the refusing play saw, for its slots: every role, a set left out as empty.

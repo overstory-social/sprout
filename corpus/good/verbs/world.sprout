@@ -8,7 +8,7 @@ world verbs is sprout.World {
   object studio is sprout.Place
 }
 
-kind Potter is sprout.Actor { }
+kind Potter is sprout.Visitor { }
 kind Lockable { :locked true }
 kind Clay { }
 kind Rib { }

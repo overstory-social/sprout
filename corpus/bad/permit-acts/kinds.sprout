@@ -1,6 +1,6 @@
 // A `permit` is asked before anything happens, so it performs nothing.
 // Acting belongs in `do`.
-kind Cat is Visitor {
+kind Cat is Creature {
   as target for pet {
     permit { act nuzzle (target: actor) }
   }

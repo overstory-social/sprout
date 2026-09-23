@@ -1,7 +1,9 @@
-// A world's people are made of its own kind, which composes `sprout.Actor`:
-// an actor has hands, and here they hold four things rather than eight.
+// A world's people are made of its own kind, which composes `sprout.Visitor`:
+// a person is an actor, and has hands. What a person shares with the
+// world's NPCs is written on a kind they both compose, and here their hands
+// hold four things rather than eight.
 world actors is sprout.World {
-  visitors are Creature
+  visitors are Person
   visitors arrive at composing_room
 
   // A place is made of `sprout.Place`, which holds actors. The composing
@@ -14,20 +16,32 @@ world actors is sprout.World {
     // A place may stand inside another: the nook is somewhere to be, inside
     // the composing room.
     object nook is sprout.Place {
-      // An NPC is an object made of the visitor kind, with nobody behind it,
-      // and like every actor it stands in a place. The cat sleeps in the nook.
+      // An NPC is an object made of `sprout.Actor` and not `sprout.Visitor`,
+      // with nobody behind it, and like every actor it stands in a place.
+      // The cat sleeps in the nook.
       object cat is Creature
     }
   }
 
   object press_yard is sprout.Place {
     object apprentice is Creature
+    // An NPC need share nothing with a person: the porter is an actor, and
+    // no more.
+    object porter is Porter
   }
 }
 
 kind Creature is sprout.Actor {
   :capacity 4
 }
+
+// `Creature`'s `:capacity` and the one `sprout.Visitor` brings from
+// `sprout.Actor` are two claims on one slot, so a person restates it.
+kind Person is Creature, sprout.Visitor {
+  :capacity 4
+}
+
+kind Porter is sprout.Actor { }
 
 kind Basket {
   contains

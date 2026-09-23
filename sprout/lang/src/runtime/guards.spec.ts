@@ -36,7 +36,7 @@ const bundle = compiledWorld('keep', {
     '  }',
     '  object nook is Place',
     '}',
-    'kind Person is sprout.Actor { :strength 5 min 0 max 9 }',
+    'kind Person is sprout.Visitor { :strength 5 min 0 max 9 }',
     'kind Place { contains actors }',
     'kind Fruit { :ripe true }',
     'kind Crate {',

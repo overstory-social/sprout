@@ -61,7 +61,8 @@ export function compiledWorld(
 
 /**
  * A small shop, in two files: a world that is open, two rooms, a shelf
- * holding a jar and a cup, `Person` for visitors to be made of, and a
+ * holding a jar and a cup, `Person` for visitors to be made of, sharing
+ * `Creature` with any NPC a case declares, and a
  * box and a kiln whose kind `Crate` lives in `kiln.sprout`. Withhold
  * that file at load and the box and the kiln are absent, while the tin
  * the box holds still composes.
@@ -86,7 +87,8 @@ export const SHOP: Readonly<Record<string, string>> = {
     'kind Room { contains actors :lit true }',
     'kind Shelf { contains }',
     'kind Jar { :glaze Glaze default none :fill 3 min 0 max 9 :remembers [seen: false] }',
-    'kind Person is sprout.Actor { :score 0 }',
+    'kind Creature is sprout.Actor { :score 0 }',
+    'kind Person is Creature, sprout.Visitor { }',
     '',
   ].join('\n'),
   'kiln.sprout': 'kind Crate { contains :lid false }\n',

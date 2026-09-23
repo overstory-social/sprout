@@ -5,7 +5,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { integer } from '../declare/types.js';
-import { bodyOf, KEY, PRINTER, VESSEL, at } from '../fixtures/check.js';
+import { bodyOf, KEY, VESSEL, at } from '../fixtures/check.js';
 import { roleBinding, valueOf } from './bindings.js';
 import { checkBlock, type BodyKind } from './blocks.js';
 
@@ -30,7 +30,7 @@ function blockOf(statements: string): Block {
 
 /**
  * Check `statements` as the body `kind` allows, in a vessel's body, with a
- * withheld tool, no verbs to act, and printers for visitors.
+ * withheld tool and no verbs to act.
  */
 function check(statements: string, kind: BodyKind) {
   const context = bodyOf(VESSEL);
@@ -51,7 +51,7 @@ function check(statements: string, kind: BodyKind) {
     context.diagnostics,
   );
   const acting = { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } };
-  checkBlock(blockOf(statements), { ...context, acting: { ...acting, visitor: PRINTER } }, kind);
+  checkBlock(blockOf(statements), { ...context, acting }, kind);
   return context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message]);
 }
 
@@ -107,10 +107,10 @@ describe('a `do` acts', () => {
     expect(check('if (bound tool) { move tool to self }', DO)).toEqual([]);
   });
 
-  it('checks an `act` as a statement, against the verbs and visitor kind it is given', () => {
-    // No verbs, and a vessel is no printer: both are said, of the one `act`.
+  it('checks an `act` as a statement, against the verbs it is given and the kind acting', () => {
+    // No verbs, and a vessel is no actor: both are said, of the one `act`.
     expect(check('act purr ()', DO)).toEqual([
-      ['b.sprout:3:5', 'Only something made of `Printer` acts, and `Vessel` does not compose it.'],
+      ['b.sprout:3:5', 'Only an actor acts, and `Vessel` does not compose `sprout.Actor`.'],
       ['b.sprout:3:9', 'Nothing declares a verb `purr`.'],
     ]);
   });

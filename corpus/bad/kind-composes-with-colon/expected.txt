@@ -5,6 +5,6 @@ world.sprout:8:24   An object composes its kinds with `is`, not a colon.
                     Write `object composing_room is sprout.Place { … }`.
 
 world.sprout:11:14  A kind composes its kinds with `is`, not a colon.
-                    Write `kind Creature is sprout.Actor, Fragile { … }`.
+                    Write `kind Creature is sprout.Visitor, Fragile { … }`.
 
 refused: 3 problems

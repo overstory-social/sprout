@@ -1,0 +1,7 @@
+// Only an actor acts, a kind composing `sprout.Actor`: a kettle has no
+// part to play as one.
+kind Kettle {
+  as target for pet {
+    do { act nuzzle (target: actor) }
+  }
+}

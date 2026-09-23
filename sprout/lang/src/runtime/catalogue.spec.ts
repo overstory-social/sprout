@@ -76,11 +76,11 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(wick.rank).toBeGreaterThan(lanterns.declared.get(id('hall', 'shelf', 'lantern'))!.rank);
   });
 
-  it('holds the kinds a spawn may name, by qualified name, and never one composing `sprout.World`', () => {
+  it('holds the kinds a spawn may name, by qualified name, and never one composing `sprout.World` or `sprout.Visitor`', () => {
     expect([...catalogue.kinds.keys()].sort()).toEqual([
       'printers_shop.Crate',
+      'printers_shop.Creature',
       'printers_shop.Jar',
-      'printers_shop.Person',
       'printers_shop.Room',
       'printers_shop.Shelf',
       'sprout.Actor',
@@ -89,8 +89,12 @@ describe('a catalogue says what one bundle holds as instances', () => {
     for (const [name, kind] of catalogue.kinds) {
       expect(kindName(kind)).toBe(name);
       expect(kind.composes.has('sprout.World')).toBe(false);
+      expect(kind.composes.has('sprout.Visitor')).toBe(false);
     }
-    expect(shop().kinds.some((kind) => kindName(kind) === 'sprout.World')).toBe(true);
+    const all = shop().kinds.map(kindName);
+    expect(all).toEqual(
+      expect.arrayContaining(['sprout.World', 'sprout.Visitor', 'printers_shop.Person']),
+    );
   });
 
   it('takes the world’s kind and the visitor kind from the bundle', () => {
@@ -141,8 +145,11 @@ describe('a catalogue of a world loaded with a gap', () => {
     });
     expect(catalogueOf(bundle, DEFAULT_LIMITS.caps).visitorKind).not.toBeNull();
     const elsewhere = {
-      'world.sprout': SHOP['world.sprout']!.replace('kind Person is sprout.Actor { :score 0 }', ''),
-      'kiln.sprout': `${SHOP['kiln.sprout']!}kind Person is sprout.Actor { :score 0 }\n`,
+      'world.sprout': SHOP['world.sprout']!.replace(
+        'kind Person is Creature, sprout.Visitor { }',
+        '',
+      ),
+      'kiln.sprout': `${SHOP['kiln.sprout']!}kind Person is Creature, sprout.Visitor { }\n`,
     };
     const gone = compiledWorld('printers_shop', elsewhere, {
       mode: 'load',

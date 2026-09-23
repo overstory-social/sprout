@@ -1,5 +1,5 @@
 world actor_in_what_holds_no_actors is sprout.World {
-  visitors are Creature
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place {
@@ -11,6 +11,7 @@ world actor_in_what_holds_no_actors is sprout.World {
 }
 
 kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }
 
 kind Basket {
   contains

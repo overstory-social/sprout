@@ -4,4 +4,4 @@ world remembers_entry_recovers is sprout.World {
   :remembers [faulty: [Ward] [oak], alpha: 1]
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

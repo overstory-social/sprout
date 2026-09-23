@@ -34,7 +34,7 @@ import {
  */
 const DEPOT = compiledWorld('depot', {
   'world.sprout': [
-    'world depot is sprout.World { contains visitors are Walker visitors arrive at yard',
+    'world depot is sprout.World { contains visitors are Person visitors arrive at yard',
     '  object yard is sprout.Place {',
     '    object cart is Cart',
     '    object crate is Crate',
@@ -57,6 +57,7 @@ const DEPOT = compiledWorld('depot', {
     '  as actor for board { do { move self to target } }',
     '  as actor for take  { do { move target to self  say taken } }',
     '}',
+    'kind Person is Walker, sprout.Visitor { }',
     'kind Anvil {',
     '  depart (to) { refuse "It is far too heavy." }',
     '  as target for take { do { say "clang" } }',

@@ -5,5 +5,5 @@ world passage_default_beside_stock is sprout.World {
   object hall is sprout.Place, Quiet
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 

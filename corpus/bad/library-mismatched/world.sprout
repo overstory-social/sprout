@@ -3,10 +3,10 @@
 // are made of, and the hall are all made of `sprout`, and their kinds
 // being unknown are consequences of the one problem rather than three more.
 world library_mismatched is sprout.World {
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Person is sprout.Visitor { }

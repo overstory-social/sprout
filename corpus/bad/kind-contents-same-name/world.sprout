@@ -15,7 +15,7 @@ world kind_contents_same_name is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 
 kind Wick { }
 

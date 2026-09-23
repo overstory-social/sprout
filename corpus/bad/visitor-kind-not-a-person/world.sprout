@@ -1,0 +1,13 @@
+// A world's visitors are made of a kind composing `sprout.Visitor`. A
+// creature is an actor, and the cat is made of it, so a person shares it
+// through a kind of their own rather than being made of it.
+world visitor_kind_not_a_person is sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object cat is Creature
+  }
+}
+
+kind Creature is sprout.Actor { }

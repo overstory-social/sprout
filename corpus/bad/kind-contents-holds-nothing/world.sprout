@@ -8,7 +8,7 @@ world kind_contents_holds_nothing is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 
 kind Wick { }
 

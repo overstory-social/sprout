@@ -1,6 +1,6 @@
 // A verb is named alone: this world's own is reached first, then the
 // standard library's.
-kind Cat is Visitor {
+kind Cat is Creature {
   as target for pet {
     do {
       act sprout.take (target: actor)

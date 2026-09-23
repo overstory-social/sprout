@@ -2,14 +2,14 @@
 // the thing (`depart`), the container it leaves (`release`) and the one
 // it enters (`accept`), in that order, and the first refusal decides.
 world consent is sprout.World {
-  visitors are Creature
+  visitors are Person
   visitors arrive at yard
 
   // A place speaks for itself when someone arrives or leaves: the yard in
   // the library's words, the shed in its own.
   object yard is sprout.Place {
-    // An NPC composes the visitor kind, so the same guards govern her: what
-    // she holds is hers to put down.
+    // An NPC shares `Creature` with a person, so the same guards govern
+    // her: what she holds is hers to put down.
     object marta is Creature {
       object trowel is Tool
     }
@@ -22,14 +22,20 @@ world consent is sprout.World {
   }
 }
 
-// A person is made of `sprout.Actor`, whose guards make their things
-// their own: nobody else carries them off (`held_fast`), nobody else
-// takes from their hands (`not_yours`), and they hold only what fits
-// (`hands_full`). The world keeps the library's first two lines and says
-// the third in its own words.
+// A person is made of `Creature`, and so of `sprout.Actor`, whose guards
+// make their things their own: nobody else carries them off
+// (`held_fast`), nobody else takes from their hands (`not_yours`), and
+// they hold only what fits (`hands_full`). The world keeps the library's
+// first two lines and says the third in its own words.
 kind Creature is sprout.Actor {
   :capacity 2
   passage hands_full { {self} has both hands full already. }
+}
+
+// `Creature`'s `:capacity` and the one `sprout.Visitor` brings from
+// `sprout.Actor` are two claims on one slot, so a person restates it.
+kind Person is Creature, sprout.Visitor {
+  :capacity 2
 }
 
 kind Tool { }

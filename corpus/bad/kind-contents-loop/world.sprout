@@ -8,7 +8,7 @@ world kind_contents_loop is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 
 // A box that holds a box would hold another inside that, without end.
 kind Box {

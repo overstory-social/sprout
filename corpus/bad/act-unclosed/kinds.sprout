@@ -1,6 +1,6 @@
 // An `act`'s bracket left open costs only the `act`: the `say` after it
 // is still read.
-kind Cat is Visitor {
+kind Cat is Creature {
   as target for pet {
     do {
       act nuzzle (target: actor

@@ -3,4 +3,4 @@ world without_sprout_world {
   visitors arrive at hall
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

@@ -8,4 +8,4 @@ world object_named_as_world is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

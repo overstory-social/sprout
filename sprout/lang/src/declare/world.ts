@@ -7,7 +7,7 @@
 // are load-bearing elsewhere: its pass rule is `pass any (false)` unless
 // it writes otherwise, so places are out of range of one another until
 // the world says so; `visitors are` names the visitor kind, the world's
-// own kind composing `sprout.Actor` (`resolveVisitors`); and `contains
+// own kind composing `sprout.Visitor` (`resolveVisitors`); and `contains
 // actors` is what makes a place a place. `visitors arrive at` is a path
 // read from the world's body, where it is written, and what it
 // reaches must be a place inside the world, never the world itself, even
@@ -34,7 +34,7 @@ import {
   type KindSource,
   type OnUnknown,
 } from './compose.js';
-import { ACTOR, checkVisitorKind } from './actors.js';
+import { checkVisitorKind, VISITOR } from './actors.js';
 import type { OnUnknownVerb, VerbNames } from './roles.js';
 import {
   pathKey,
@@ -133,7 +133,7 @@ export function composeWorld(declared: WorldDeclaration, context: WorldContext):
 
 /** What `visitors are` names, as `resolveVisitors` finds it. */
 export type Visitors =
-  /** The world's own kind, composing `sprout.Actor`. */
+  /** The world's own kind, composing `sprout.Visitor`. */
   | { readonly found: 'kind'; readonly kind: KindRef }
   /**
    * Nothing is there to make a visitor of: the absent table's
@@ -154,7 +154,7 @@ export type Visitors =
 
 /**
  * Read `visitors are`: said once, naming a kind of the world's own that
- * composes `sprout.Actor` (the spec's Actors and visitors). Saying it
+ * composes `sprout.Visitor` (the spec's Actors and visitors). Saying it
  * twice is refused at the second, and the first is read.
  */
 export function resolveVisitors(
@@ -179,7 +179,7 @@ export function resolveVisitors(
     diagnostics.refuse(
       declared.name.at,
       `\`${declared.name.text}\` does not say what a visitor is.`,
-      `Write \`visitors are <Kind>\`, naming a kind of the world's own that composes \`${ACTOR}\`.`,
+      `Write \`visitors are <Kind>\`, naming a kind of the world's own that composes \`${VISITOR}\`.`,
     );
     return { found: 'refused' };
   }
@@ -192,7 +192,7 @@ export function resolveVisitors(
         ? { found: 'kind', kind: found.kind }
         : { found: 'refused' };
     case 'unknown': {
-      const { message, remedy } = unknownKind(written, from, kinds, ` is ${ACTOR}`);
+      const { message, remedy } = unknownKind(written, from, kinds, ` is ${VISITOR}`);
       return { found: 'absent', what: name, at: written.at, message, remedy, said: false };
     }
     case 'failed':

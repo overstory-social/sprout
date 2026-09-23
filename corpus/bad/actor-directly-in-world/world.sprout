@@ -1,5 +1,5 @@
 world actor_directly_in_world is sprout.World {
-  visitors are Creature
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
@@ -10,3 +10,4 @@ world actor_directly_in_world is sprout.World {
 }
 
 kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }

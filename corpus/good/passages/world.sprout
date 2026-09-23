@@ -16,7 +16,7 @@ world passages is sprout.World {
   }
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }
 
 kind Mirror {
   :mood 0 min 0 max 2

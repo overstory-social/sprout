@@ -1,4 +1,4 @@
-kinds.sprout:6:30  `target` of `unlock` is filled by a `Lockable`, and `actor` is a `Visitor`.
+kinds.sprout:6:30  `target` of `unlock` is filled by a `Lockable`, and `actor` is a `Person`.
                    Read it as one first: `if (actor.is(Lockable)) { act unlock (target: actor) }`.
 
 refused: 1 problem

@@ -4,4 +4,4 @@ world default_option_capitalised is sprout.World {
   :ward Ward.Iron
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

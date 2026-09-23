@@ -1,12 +1,13 @@
 world act_filler_not_a_name is sprout.World {
   contains actors
-  visitors are Visitor
+  visitors are Person
   visitors arrive at hall
 
   object hall is sprout.Place
 }
 
-kind Visitor is sprout.Actor { }
+kind Creature is sprout.Actor { }
+kind Person is Creature, sprout.Visitor { }
 
 verb pet    { role target  "pet [target]" }
 verb quiz   { role target  role topic: symbol  "quiz [target] about [topic]" }

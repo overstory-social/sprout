@@ -81,7 +81,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
   const worldArrivingAt = (at: string, more = '', inHall = '') => [
     file(
       'world.sprout',
-      `world printers_shop is sprout.World { visitors arrive at ${at} visitors are Visitor object hall is Room { object bench is Bench ${inHall} } ${more} }\nkind Room { contains actors }\nkind Bench { contains }\n${VISITOR}\n`,
+      `world printers_shop is sprout.World { visitors arrive at ${at} visitors are Person object hall is Room { object bench is Bench ${inHall} } ${more} }\nkind Room { contains actors }\nkind Bench { contains }\n${VISITOR}\n`,
     ),
   ];
 
@@ -141,7 +141,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     const files = [
       file(
         'world.sprout',
-        `world printers_shop is sprout.World { contains actors visitors are Visitor visitors arrive at printers_shop object hall is Room }\nkind Room { contains actors }\n${VISITOR}`,
+        `world printers_shop is sprout.World { contains actors visitors are Person visitors arrive at printers_shop object hall is Room }\nkind Room { contains actors }\n${VISITOR}`,
       ),
     ];
     for (const mode of ['publish', 'load'] as const) {
@@ -152,7 +152,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
         mode,
       ).toEqual([
         [
-          'world.sprout:1:95',
+          'world.sprout:1:94',
           '`printers_shop` is the world itself, and visitors arrive in a place inside it.',
           'Name a place in the world, as in `visitors arrive at hall`.',
         ],
@@ -164,7 +164,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     const files = [
       file(
         'world.sprout',
-        `world printers_shop is sprout.World { contains actors visitors are Visitor } ${VISITOR}`,
+        `world printers_shop is sprout.World { contains actors visitors are Person } ${VISITOR}`,
       ),
     ];
     for (const mode of ['publish', 'load'] as const) {

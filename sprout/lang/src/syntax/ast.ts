@@ -400,7 +400,7 @@ export function writtenPath(path: ObjectPath): string {
 }
 
 /**
- * `visitors are Creature` — what a person is made of in this world.
+ * `visitors are Person` — what a person is made of in this world.
  * The visitor kind is an ordinary kind, and `item.is(sprout.Actor)` is
  * an ordinary nominal test rather than a name the engine knows.
  */

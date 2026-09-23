@@ -4,4 +4,4 @@ world default_dot_misplaced is sprout.World {
   :wear integer.3
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

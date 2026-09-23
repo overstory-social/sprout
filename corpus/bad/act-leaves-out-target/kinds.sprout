@@ -1,5 +1,5 @@
 // Every reading fills the target.
-kind Cat is Visitor {
+kind Cat is Creature {
   as target for pet {
     do {
       act nuzzle ()

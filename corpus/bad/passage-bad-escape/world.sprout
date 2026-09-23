@@ -5,4 +5,4 @@ world passage_bad_escape is sprout.World {
   object hall is sprout.Place
 }
 
-kind Creature is sprout.Actor { }
+kind Creature is sprout.Visitor { }

@@ -159,6 +159,7 @@ describe('the first tier reads every file in the bundle', () => {
       'drop',
       'give',
       'Actor',
+      'Visitor',
       'ask',
     ]);
   });

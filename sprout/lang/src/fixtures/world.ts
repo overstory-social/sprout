@@ -39,9 +39,11 @@ export const ENUMS = (() => {
 
 /** The kinds a world here may compose, by library, which must compose cleanly. */
 export const LIBRARIES: Readonly<Record<string, string>> = {
-  sprout: 'kind World { }\nkind Actor { }\nkind Container { :open true }',
-  printers_shop: 'kind Creature is sprout.Actor { }\nkind Hall { contains actors }',
-  victorian: 'kind Voice { :formal true }\nkind Lamp { :open true }\nkind Gent is sprout.Actor { }',
+  sprout:
+    'kind World { }\nkind Actor { }\nkind Visitor is Actor { }\nkind Container { :open true }',
+  printers_shop: 'kind Creature is sprout.Visitor { }\nkind Hall { contains actors }',
+  victorian:
+    'kind Voice { :formal true }\nkind Lamp { :open true }\nkind Gent is sprout.Visitor { }\nkind Butler is sprout.Actor { }',
 };
 
 /** Every kind in `libraries`, composed. */

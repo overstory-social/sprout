@@ -11,7 +11,7 @@ import { newInstance, readerOf, type Instance, type WorldState } from './state.j
 const CAPS = DEFAULT_LIMITS.caps;
 const catalogue = catalogueOf(shop(), CAPS);
 const JAR = catalogue.kinds.get('printers_shop.Jar')!;
-const PERSON = catalogue.kinds.get('printers_shop.Person')!;
+const PERSON = catalogue.visitorKind!;
 const id = (...path: string[]): InstanceId => declaredId('printers_shop', path);
 const minted = (serial: number): InstanceId => mintedId('printers_shop', serial);
 const HALL = id('hall');
