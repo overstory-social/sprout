@@ -1,10 +1,10 @@
 // @overstory/sprout/lang — the Sprout language: where a thing was written
 // and what the compiler says about it, the syntax and its parser, the
 // declarations and their types, the checker, the closed bundle a
-// microworld compiles to, and the runtime's meter, values, range, ids and
-// state, stored and live. It imports zod and nothing else
-// (boundary.spec.ts holds that line), so a host plugs it in and the
-// language never learns whose world it is running in.
+// microworld compiles to, and the runtime's meter, values, range, ids,
+// state, stored and live, and the evaluator a guard runs on. It imports
+// zod and nothing else (boundary.spec.ts holds that line), so a host
+// plugs it in and the language never learns whose world it is running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -54,3 +54,5 @@ export * from './runtime/memory.js';
 export * from './runtime/draft.js';
 export * from './runtime/live.js';
 export * from './runtime/lifecycle.js';
+export * from './runtime/evaluate.js';
+export * from './runtime/guards.js';
