@@ -80,11 +80,13 @@ export interface KindRef {
    */
   readonly containsActors: boolean;
   /**
-   * The contributions left out with `without`, each a member and the kind
-   * in its closure that declares it (the spec's Suppressing a
-   * contribution): its own, and every one a kind it composes left out,
-   * which stays left out here. `guards` already has them removed; B24 and
-   * B32, which run composed roles, handlers and hooks, skip these.
+   * The contributions this kind's own `without` lines leave out, each a
+   * member and the kind in its closure that declares it (the spec's
+   * Suppressing a contribution). A composed kind's are not repeated
+   * here: they shaped that kind's own members, which is how a `without`
+   * removes only the copy that came through the kind that wrote it.
+   * `guards` already has them removed; B24 and B32, which run composed
+   * roles, handlers and hooks, skip these the same way.
    */
   readonly suppressed: readonly Suppression[];
 }
