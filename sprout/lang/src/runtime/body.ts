@@ -74,7 +74,7 @@ export interface ActSink {
   say(spoken: Spoken): void;
   /** What the engine tells the world of a spawn, in order. */
   sent(sends: readonly EngineSend[]): void;
-  /** `self` removed, at the end of the body that ran `destroy self`. */
+  /** `self` removed with everything it held, at the end of the body that ran `destroy self`. */
   destroyed(destroyed: Destroyed): void;
   /**
    * `move item to to`, proposed by `mover`, the object whose body ran it:

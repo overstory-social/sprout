@@ -262,16 +262,18 @@ describe('what a `do` says, spawns and destroys', () => {
     expect(heard.spoken[0]!.bindings.get('cup')).toEqual(boundObject(cup));
   });
 
-  it('destroys `self` when the body ends: what follows still runs, and what it held falls', () => {
+  it('destroys `self` when the body ends: what follows still runs, and what it held goes with it', () => {
     const one = turn();
     const heard = act(one, COUNTER, 'vanish');
     expect(heard.spoken.map(words)).toEqual(['Gone.']);
     expect(heard.destroyed).toHaveLength(1);
-    expect(heard.destroyed[0]).toMatchObject({ id: COUNTER, container: HALL, fell: [PIN] });
+    expect(heard.destroyed[0]).toEqual({ id: COUNTER, removed: [COUNTER, PIN] });
+    expect(heard.sends).toEqual([]);
     expect(one.draft.instance(COUNTER)).toBeUndefined();
     // The write after `destroy self` landed before it took effect.
     expect(one.draft.destroyed(COUNTER)!.properties.get('n')).toBe(5);
-    expect(one.draft.instance(PIN)!.container).toBe(HALL);
+    expect(one.draft.instance(PIN)).toBeUndefined();
+    expect(one.draft.destroyed(PIN)!.container).toBe(COUNTER);
   });
 });
 

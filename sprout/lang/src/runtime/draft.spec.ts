@@ -19,6 +19,7 @@ const SHELF = id('hall', 'shelf');
 const BOX = id('hall', 'box');
 const JAR_ID = id('hall', 'shelf', 'jar');
 const CUP_ID = id('hall', 'shelf', 'cup');
+const TIN = id('hall', 'box', 'tin');
 
 /** A jar spawned into `container` by `draft`, the way `spawn` will: a minted id, and an arrival after it. */
 function spawnJar(draft: Draft, container: InstanceId): Instance {
@@ -177,16 +178,48 @@ describe('writing, placing, adding and removing', () => {
     expect(() => draft.add({ ...at(minted(9)), arrival: null })).toThrow(/arrival/);
   });
 
-  it('removes only what holds nothing, and never the world', () => {
+  it('removes what it names and everything inside it, all the way down, and never the world', () => {
     const draft = new Draft(initialState(catalogue));
-    expect(() => draft.remove(SHELF)).toThrow(/still holds/);
+    const held = draft.held;
     expect(() => draft.remove(draft.world)).toThrow(/world/);
-    draft.remove(JAR_ID);
-    draft.remove(CUP_ID);
-    draft.remove(SHELF);
-    expect(draft.children(HALL)).toEqual([BOX]);
-    expect(draft.instance(SHELF)).toBeUndefined();
+    const inner = spawnJar(draft, SHELF);
+    expect(draft.remove(HALL)).toEqual([HALL, SHELF, JAR_ID, CUP_ID, inner.id, BOX, TIN]);
+    expect(draft.held).toBe(held + 1 - 7);
+    expect(draft.children(draft.world)).toEqual([id('yard')]);
+    for (const one of [HALL, SHELF, JAR_ID, CUP_ID, inner.id, BOX, TIN]) {
+      expect(draft.instance(one)).toBeUndefined();
+      expect(draft.children(one)).toEqual([]);
+    }
+    // Each stays readable where it was, inside what was removed with it.
+    expect(draft.destroyed(TIN)!.container).toBe(BOX);
     expect(() => draft.remove(SHELF)).toThrow(/not an instance/);
+  });
+
+  it('removes the dormant records inside what it removes, and the decoded ones they hold', () => {
+    // `Crate` is absent, so the box is dormant and the tin in it is decoded but not live.
+    const base = loadWorld(
+      saveWorld(initialState(catalogue)),
+      catalogueOf(shopWithheld(), CAPS),
+    ).state;
+    expect(base.dormant.has(BOX)).toBe(true);
+    expect(base.instances.get(TIN)!.container).toBe(BOX);
+    const draft = new Draft(base);
+    const held = draft.held;
+    expect(draft.subtree(HALL)).toEqual([HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN]);
+    expect(draft.dormant(BOX)).toBe(base.dormant.get(BOX));
+    expect(draft.remove(HALL)).toEqual([HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN]);
+    expect(draft.held).toBe(held - 6);
+    expect(draft.dormant(BOX)).toBeUndefined();
+    expect(draft.subtree(id('yard'))).toEqual([id('yard'), id('yard', 'kiln')]);
+    const { state, changes } = draft.commit();
+    expect(changes.removed).toEqual([HALL, SHELF, JAR_ID, CUP_ID, BOX, TIN].sort());
+    expect(state.dormant.has(BOX)).toBe(false);
+    expect(state.dormant.has(id('yard', 'kiln'))).toBe(true);
+    expect(state.children.has(BOX)).toBe(false);
+    expect(state.instances.size + state.dormant.size).toBe(held - 6);
+    // A reload finds none of it stored, dormant or otherwise.
+    const saved = saveWorld(state).instances.map((one) => one.id);
+    for (const one of [BOX, TIN, SHELF]) expect(saved).not.toContain(one);
   });
 
   it('counts what the world stores, dormant included, up for an add and down for a remove', () => {

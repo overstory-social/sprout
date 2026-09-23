@@ -1,14 +1,14 @@
 // Making and unmaking instances while a world runs (the spec's The world
 // model › Spawning, Destroying; Limits › Runtime budgets). A spawn makes
 // an instance of a declared kind at its defaults, under a minted id, last
-// in a container in range; a destroy removes an instance and lets what it
-// held fall to its container, without consent.
+// in a container in range; a destroy removes an instance and everything
+// inside it, all the way down, dormant records included, and tells no one.
 //
 // Two invariants. Nothing is written until every check has passed, so a
 // fault leaves the draft as it was. And what the engine tells the world
-// about either is returned as `EngineSend`s rather than queued here, so
-// B32's queue holds the one rule for what is dropped when an object is
-// destroyed (the spec's Destroying: messages to or from it are dropped).
+// of a spawn is returned as `EngineSend`s rather than queued here, as a
+// destroy returns every instance it removed, so B32's queue holds the one
+// rule for what is dropped with a destroyed object (the spec's Destroying).
 
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
@@ -26,7 +26,7 @@ export type LifecycleFaultReason =
   | 'kind-absent'
   | 'world'
   | 'visitor'
-  | 'visitor-standing';
+  | 'visitor-inside';
 
 /**
  * A spawn or a destroy the world cannot make. Thrown, as `ListFull` is,
@@ -97,17 +97,12 @@ export interface Spawned {
 
 export interface Destroyed {
   readonly id: InstanceId;
-  /** Where what it held fell. */
-  readonly container: InstanceId;
-  /** What fell, in the order it was held. */
-  readonly fell: readonly InstanceId[];
   /**
-   * One `:entered` per thing that fell, each from `id`. The caller drops
-   * every queued message to or from `id`, every engine send naming `id`
-   * as `from` (these included, since a destroyed object has no effects),
-   * and `id`'s pending wakes; then queues what is left of these.
+   * Every instance removed: `id`, then what it held, as `Draft.subtree`
+   * orders them. The caller drops everything pending on each (the spec's
+   * Destroying); nothing is sent for any of them.
    */
-  readonly sends: readonly EngineSend[];
+  readonly removed: readonly InstanceId[];
 }
 
 /**
@@ -171,11 +166,10 @@ export function spawnInstance(
 }
 
 /**
- * Destroy `id`, as `destroy self` does when the body that ran it ends:
- * what it held falls, in order, last into its container, and its record
- * stays readable through `draft.destroyed` for the rest of the turn.
- * Faults, writing nothing, for the world, a visitor, and a place with a
- * visitor standing in it.
+ * Destroy `id`, as `destroy self` does when the body that ran it ends,
+ * and everything inside it with it; each record stays readable through
+ * `draft.destroyed` for the rest of the turn. Faults, writing nothing,
+ * for the world, and for a visitor or anything with a visitor inside it.
  */
 export function destroyInstance(draft: Draft, id: InstanceId): Destroyed {
   if (id === draft.world) {
@@ -190,24 +184,17 @@ export function destroyInstance(draft: Draft, id: InstanceId): Destroyed {
       `\`${id}\` is a visitor, and a person is never destroyed.`,
     );
   }
-  const held = [...draft.children(id)];
-  if (held.some((child) => draft.instance(child)?.made.from === 'visitor')) {
+  const visitor = draft
+    .subtree(id)
+    .find((one) => (draft.instance(one) ?? draft.dormant(one))?.made.from === 'visitor');
+  if (visitor !== undefined) {
     throw new LifecycleFault(
-      'visitor-standing',
+      'visitor-inside',
       id,
-      `\`${id}\` is a place with a visitor standing in it, and destroying it would move them without a word.`,
+      `\`${id}\` has the visitor \`${visitor}\` inside it, and a person is never destroyed.`,
     );
   }
-  // Only the world has no container, and only an away visitor is out of the tree.
-  const container = instance.container!;
-  for (const child of held) draft.place(child, container);
-  draft.remove(id);
-  return {
-    id,
-    container,
-    fell: held,
-    sends: held.map((item) => ({ message: 'entered', recipient: container, item, from: id })),
-  };
+  return { id, removed: draft.remove(id) };
 }
 
 /** A kind as a fault names it: its own name, as an author most often writes it. */
