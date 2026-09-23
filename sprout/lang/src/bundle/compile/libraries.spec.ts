@@ -276,6 +276,8 @@ describe('the bundle records whether the host blessed each library’s hash', ()
   });
 
   it('does not bless a library the host has not', () => {
-    expect(compileBundle(world()).bundle!.libraries[0]!.blessed).toBe(false);
+    expect(compileBundle(world(), { blessed: new Set() }).bundle!.libraries[0]!.blessed).toBe(
+      false,
+    );
   });
 });

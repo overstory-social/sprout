@@ -208,7 +208,11 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
 
   it('still refuses a world past the host’s source cap, since no exception is recorded for it', () => {
     const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
-    const { bundle, diagnostics } = compileBundle(world(), { ...load, limits });
+    const { bundle, diagnostics } = compileBundle(world(), {
+      ...load,
+      limits,
+      blessed: new Set(),
+    });
     expect(bundle).toBeNull();
     expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('sprout.json:2:3');
     expect(refusals(diagnostics)[0]!.message).toContain('bytes of source');
@@ -216,7 +220,11 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
 
   it('still refuses a world past the host’s file cap, since no exception is recorded for it', () => {
     const limits = limitsFrom({ caps: { files: 2 } });
-    const { bundle, diagnostics } = compileBundle(world(), { ...load, limits });
+    const { bundle, diagnostics } = compileBundle(world(), {
+      ...load,
+      limits,
+      blessed: new Set(),
+    });
     expect(bundle).toBeNull();
     expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('sprout.json:2:3');
     expect(refusals(diagnostics)[0]!.message).toContain('files');

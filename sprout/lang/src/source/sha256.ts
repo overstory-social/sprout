@@ -1,7 +1,7 @@
 // Content hashing (the spec's Kinds › Libraries and namespaces).
 //
 // "Vendored library source is content-hashed. A copy matching a version
-// the host knows is exempt from the world's source and kind caps and
+// the host knows is exempt from the world's source, kind and file caps and
 // collapses in the moderation view; a modified copy is the author's own
 // source and counts as it." The host keeps a set of trusted hashes and
 // grants the exemption at publish, so the hash is a TRUST boundary: a

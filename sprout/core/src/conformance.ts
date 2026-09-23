@@ -1,4 +1,4 @@
-import { DEFAULT_LIMITS } from '@overstory/sprout/lang';
+import { DEFAULT_BLESSED, DEFAULT_LIMITS } from '@overstory/sprout/lang';
 
 import type {
   ActionRecord,
@@ -43,6 +43,7 @@ const microworld = (id: string): MicroworldRecord => ({
   extensions: [],
   caps: DEFAULT_LIMITS.caps,
   excepted: false,
+  blessed: [...DEFAULT_BLESSED],
   loadedAt: NOW,
 });
 const object = (

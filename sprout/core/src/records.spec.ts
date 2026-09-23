@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_LIMITS, limitsFrom, type StaticCaps } from '@overstory/sprout/lang';
+import {
+  DEFAULT_BLESSED,
+  DEFAULT_LIMITS,
+  limitsFrom,
+  type StaticCaps,
+} from '@overstory/sprout/lang';
 
 import {
   ActionRecord,
@@ -28,11 +33,20 @@ describe('the records', () => {
     expect(RecordedCaps.safeParse({ ...caps, exitsPerPlace: null }).success).toBe(false);
   });
 
-  it('a microworld keeps its recorded caps and whether the host excepted it', () => {
+  it('a microworld keeps its recorded caps, whether the host excepted it, and what it blessed', () => {
     expect(Object.keys(MicroworldRecord.shape)).toEqual(
-      expect.arrayContaining(['caps', 'excepted']),
+      expect.arrayContaining(['caps', 'excepted', 'blessed']),
     );
     expect(Object.keys(MicroworldRecord.shape)).not.toContain('limits');
+  });
+
+  it('keeps what the host blessed as library hashes, and nothing that is not one', () => {
+    const blessed = MicroworldRecord.shape.blessed;
+    expect(blessed.parse([...DEFAULT_BLESSED])).toEqual([...DEFAULT_BLESSED]);
+    expect(blessed.parse([])).toEqual([]);
+    for (const hash of ['sprout', 'A'.repeat(64), 'a'.repeat(63)]) {
+      expect(blessed.safeParse([hash]).success).toBe(false);
+    }
   });
 
   it('every record is keyed by its microworld; an action carries no actor', () => {
