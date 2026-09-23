@@ -1,0 +1,9 @@
+// A refusal says why, in quotes or by naming a passage.
+kind Crate {
+  contains
+  :open true
+
+  accept (item, from) {
+    if (!self.get(:open)) { refuse }
+  }
+}

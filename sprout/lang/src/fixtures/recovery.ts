@@ -40,13 +40,63 @@ export const ownedBy = (owner: Owner, declared: readonly Declaration[]) =>
     (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration => d.kind === owner.kind,
   );
 
-/** A world member by what it would be looked up as, a `:remembers` by each entry. */
+/** A world member by what it would be looked up as, a `:remembers` by each entry, a guard by its word. */
 export const memberNames = (member: WorldMember): string[] =>
   member.kind === 'property'
     ? [member.name.text]
     : member.kind === 'remembers'
       ? member.properties.map((p) => `remembers.${p.name.text}`)
-      : [member.kind];
+      : member.kind === 'guard'
+        ? [member.guard]
+        : [member.kind];
+
+/**
+ * The three guards, written well, each with a block that holds a block:
+ * the spec's own `sprout.Actor` guards and `sprout.Container`'s `accept`.
+ */
+export const WELL_FORMED_GUARDS = [
+  { names: ['depart'], text: 'depart (to) { if (mover != self) { refuse held_fast } }' },
+  {
+    names: ['release'],
+    text: 'release (item, to) {\n    if (mover != self) { refuse "That is not yours." }\n    else { allow }\n  }',
+  },
+  {
+    names: ['accept'],
+    text: 'accept (item, from) {\n    if (!self.get(:open)) { refuse shut }\n    else if (self.count >= self.get(:capacity)) { refuse full }\n  }',
+  },
+] as const;
+
+/**
+ * A guard with one defect in it: its parameters, its braces, or one of
+ * its statements. Each costs the guard at most, and never a neighbour.
+ */
+export const GUARD_DEFECTS: readonly string[] = [
+  'depart',
+  'depart (to)',
+  'depart { allow }',
+  'depart (To) { allow }',
+  'depart (to,) { allow }',
+  'depart (to { allow }',
+  'release (item) { allow }',
+  'accept (item, from, extra) { allow }',
+  'release (item, if) { allow }',
+  'depart (to) { refuse }',
+  'depart (to) { refuse 4 }',
+  'depart (to) { if self.open { allow } }',
+  'depart (to) { if () { allow } }',
+  'depart (to) { if (a) allow }',
+  'depart (to) { else { allow } }',
+  'depart (to) { if (a) { allow } else }',
+  'accept (item, from) { say "Hello." }',
+  'accept (item, from) { if (a) { allow } %% allow }',
+];
+
+/**
+ * A guard whose block is never closed. Before another member it is said
+ * there and the member is kept; last in the body, it takes the body's
+ * own `}`, and the body is never closed.
+ */
+export const GUARD_UNCLOSED = 'depart (to) { if (a) { allow }';
 
 /**
  * Every well-formed thing is KEPT.
@@ -398,6 +448,11 @@ export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
       'passage hello',
       'without passage hello',
     ]);
+    return { text, defect: contained(text) };
+  }
+  if (roll === 11 && c.below(2) === 0) {
+    if (c.below(6) === 0) return { text: GUARD_UNCLOSED, defect: unclosed(GUARD_UNCLOSED) };
+    const text = c.one(GUARD_DEFECTS);
     return { text, defect: contained(text) };
   }
   if (roll === 7) {

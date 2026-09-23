@@ -259,6 +259,20 @@ describe('what the parser refuses, and where it says so', () => {
     expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
   });
 
+  it('refuses a guard at the top of a file, at its word, and reads what follows', () => {
+    const { declarations, refusals } = read(
+      'accept (item, from) {\n  if (item.is(Crate)) { refuse "No." }\n}\nkind Crate { contains }\n',
+    );
+    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'ward.sprout:1:1',
+        '`accept` belongs to a kind, an object or the world, and is written inside its braces.',
+        'Move it into the body of the one it speaks for, as in `kind Crate { accept (item, from) { … } }`.',
+      ],
+    ]);
+    expect(declarations.map((d) => d.name.text)).toEqual(['Crate']);
+  });
+
   it('names every declaration it reads, so the message grows with the compiler', () => {
     for (const word of DECLARATIONS) {
       expect(read('nonsense').refusals[0]!.remedy).toContain(`\`${word}\``);

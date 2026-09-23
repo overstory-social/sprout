@@ -1,0 +1,10 @@
+// A guard reads and decides. Closing the lid is a write, and a write
+// belongs after the move, in a handler, not inside the question.
+kind Crate {
+  contains
+  :open true
+
+  accept (item, from) {
+    if (self.count >= 3) { self.set(:open, false) }
+  }
+}

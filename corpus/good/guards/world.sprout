@@ -1,0 +1,15 @@
+// A move asks three parties, and each answers for itself: the thing
+// (`depart`), the container it is leaving (`release`) and the one it is
+// entering (`accept`). The world writes all three, as a kind and an
+// object may. A guard only reads and decides; it ends in `allow`, in
+// `refuse`, or by reaching its end, which allows.
+world guards: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+
+  depart (to) { refuse "The world goes nowhere." }
+  release (item, to) {
+    if (item.is(Creature)) { refuse "Nobody leaves the world." }
+  }
+  accept (item, from) { allow }
+}

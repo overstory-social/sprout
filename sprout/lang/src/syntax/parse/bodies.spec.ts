@@ -87,7 +87,7 @@ describe('a body, read directly', () => {
     const { p, diagnostics } = parserOver('K { :open true\n contains } after');
     const name = p.next();
     p.next();
-    const read = body(p, 'kind', name, kindMembers(p));
+    const read = body(p, 'kind', name, kindMembers(p, 'K'));
     expect(diagnostics.refusals).toEqual([]);
     expect(read?.members.map((m) => m.kind)).toEqual(['property', 'contains']);
     expect(read?.close.text).toBe('}');
@@ -98,7 +98,7 @@ describe('a body, read directly', () => {
     const { p, diagnostics } = parserOver('K { :open true');
     const name = p.next();
     p.next();
-    expect(body(p, 'kind', name, kindMembers(p))).toBeNull();
+    expect(body(p, 'kind', name, kindMembers(p, 'K'))).toBeNull();
     expect(diagnostics.refusals.map((d) => d.message)).toEqual(['`K` is never closed.']);
   });
 });
@@ -121,8 +121,8 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       const { declarations, refusals } = opened('nonsense\n  :a 1');
       const holds =
         owner.holds === null
-          ? '`contains`, `passage` and `without`'
-          : `\`${owner.holds}\`, \`contains\`, \`passage\` and \`without\``;
+          ? '`contains`, `passage`, `without`, `depart`, `release` and `accept`'
+          : `\`${owner.holds}\`, \`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\` and \`accept\``;
       expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
         [`${owner.article} is not made of \`nonsense\`.`, `It holds its properties, ${holds}.`],
       ]);
@@ -176,6 +176,24 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
         '`:bravo` and `contains` are written after the `}` that ends `K`.',
         'Everything `K` is made of goes inside its braces. Take out the `}` that ends it too early.',
       ],
+    ]);
+  });
+
+  it('names a guard written after a stray `}` by its word, and steps over its block', () => {
+    // The guard's own braces are not members, and not the scan's end:
+    // what comes after the guard is named too.
+    const { declarations, refusals } = read(`kind K {
+  :alpha 0
+  }
+  depart (to) { if (mover != self) { refuse "No." } }
+  :bravo 1
+}
+`);
+    expect(
+      owned(declarations)!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind)),
+    ).toEqual(['alpha']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`depart` and `:bravo` are written after the `}` that ends `K`.',
     ]);
   });
 
@@ -404,5 +422,31 @@ describe('a body never closed', () => {
       ],
     ]);
     expect(declarations.map((d) => d.kind)).toEqual(['enum']);
+  });
+});
+
+describe('`without` beside a guard', () => {
+  /** A kind's body, its members by kind, and what was said. */
+  const readKind = (members: string) => {
+    const { declarations, refusals } = read(`kind Crate {\n  ${members}\n}\n`, 'k.sprout');
+    const kind = declarations[0] as KindDeclaration;
+    return {
+      members: kind.members.map((m) => m.kind),
+      said: refusals.map((d) => d.message),
+    };
+  };
+
+  it('names a guard by its word, and leaves a guard written after it alone', () => {
+    expect(readKind('without depart from Fixture\n  depart (to) { allow }')).toEqual({
+      members: ['without', 'guard'],
+      said: [],
+    });
+  });
+
+  it('with nothing named, does not take the guard written after it for what it leaves out', () => {
+    expect(readKind('without\n  depart (to) { allow }')).toEqual({
+      members: ['guard'],
+      said: ['`without` does not say what to leave out.'],
+    });
   });
 });

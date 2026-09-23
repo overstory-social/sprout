@@ -364,7 +364,10 @@ function elementsAfterClose(p: Parser): void {
         next.kind === 'integer' ||
         punct(next, '[') ||
         (punct(next, '-') && p.peek(ahead + 2).kind === 'integer'));
-    const wordLed = depth === 0 && bareWord(token) && (bareWord(next) || valueLed);
+    // A word with a bracket straight after it is never an element either,
+    // and is how a guard starts: `accept (item, from)`.
+    const wordLed =
+      depth === 0 && bareWord(token) && (bareWord(next) || valueLed || punct(next, '('));
     if (
       token.kind === 'end' ||
       token.kind === 'symbol' ||

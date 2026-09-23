@@ -79,9 +79,8 @@ export function parseProperty(
 }
 
 /**
- * One statement, read on its own: `let`, `spawn` or `destroy`. A
- * statement is written inside a body, and no body holds one yet (B24
- * onward), so this is how one is exercised. Anything written after a
+ * One statement, read on its own, outside any body, so a statement can
+ * be exercised without the guard around it. Anything written after a
  * statement that read is refused as the next statement would be.
  */
 export function parseStatement(
@@ -96,9 +95,8 @@ export function parseStatement(
 }
 
 /**
- * One expression, read on its own. Expressions are written inside
- * bodies, and no body exists yet (B24 onward), so this is how one is
- * exercised.
+ * One expression, read on its own, outside any statement, so an
+ * expression can be exercised without the body around it.
  */
 export function parseExpression(
   source: SourceFile,

@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
 
 import { compileBundle } from './compile.js';
 import { limitsFrom } from '../limits.js';
-import { file, refusals, ROOT, WORLD_TEXT, world } from '../../fixtures/compile.js';
+import { file, refusals, ROOT, WORLD_LINE, WORLD_TEXT, world } from '../../fixtures/compile.js';
+import { locationOf } from '../../source/source.js';
 
 describe('what a compiled bundle carries', () => {
   const { bundle } = compileBundle(world());
@@ -110,5 +111,39 @@ describe('publishing is strict: any problem is a refusal', () => {
 
   it('records no gaps, since a published world has none', () => {
     expect(compileBundle(world()).bundle!.absent).toEqual([]);
+  });
+});
+
+describe('a compile checks the bodies of kinds, objects and the world', () => {
+  it('refuses what an object’s and the world’s own guards get wrong', () => {
+    const text = [
+      WORLD_LINE.replace('}', 'depart (to) { destroy self } }'),
+      'kind Visitor: sprout.Actor { }',
+      'kind Crate { contains }',
+      'object crate: Crate in printers_shop { accept (item, from) { refuse gone } }',
+    ].join('\n');
+    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'world.sprout:1:121',
+        '`destroy self` removes something, and a guard only reads and decides.',
+      ],
+      ['world.sprout:4:69', '`crate` has no passage `gone`.'],
+    ]);
+  });
+
+  it('compiles a world whose guards read and decide', () => {
+    const text = [
+      WORLD_LINE,
+      'kind Visitor: sprout.Actor { }',
+      'kind Crate { contains :capacity 4 accept (item, from) { if (self.count >= self.get(:capacity)) { refuse full } } passage full { No room. } }',
+      'object crate: Crate in printers_shop { depart (to) { if (mover != self) { refuse "Nailed down." } } }',
+    ].join('\n');
+    const { bundle, diagnostics } = compileBundle(world({ files: [file('world.sprout', text)] }));
+    expect(refusals(diagnostics)).toEqual([]);
+    const crate = bundle!.objects.find((object) => object.name === 'crate')!;
+    expect(crate.kind.guards.accept.map((guard) => guard.origin)).toEqual(['printers_shop.Crate']);
+    expect(crate.kind.guards.depart.map((guard) => guard.origin)).toEqual(['printers_shop.crate']);
   });
 });

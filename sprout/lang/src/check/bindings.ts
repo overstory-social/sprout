@@ -23,8 +23,9 @@
 // confusion at the argument boundary.
 //
 // Checking an expression against these bindings is `check.ts`'s, and
-// its `let` calls `letBinding` below; verbs and their roles are B23's,
-// and call `roleBinding`; handlers and hooks are B32's, and call
+// its `let` calls `letBinding` below, and a guard's body
+// `moverBinding` and `guardParameterBinding`; verbs and their roles are
+// B23's, and call `roleBinding`; handlers and hooks are B32's, and call
 // `handlerParameters`.
 
 import type { Ident } from '../syntax/ast.js';
@@ -174,6 +175,11 @@ export function hereBinding(at: Span): Binding {
 /** `mover`, in a guard — object; whatever proposed the move. */
 export function moverBinding(at: Span): Binding {
   return bind('mover', OPEN_OBJECT, 'mover', at);
+}
+
+/** A guard's `to`, `item` or `from`, under the name the guard gives it — object. */
+export function guardParameterBinding(name: string, at: Span): Binding {
+  return bind(name, OPEN_OBJECT, 'parameter', at);
 }
 
 /** An `each` or `{for}` variable — its kind filter, or object without one. */

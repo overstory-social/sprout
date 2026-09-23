@@ -1,0 +1,6 @@
+// `release` names two things: what is leaving and where it goes.
+kind Crate {
+  contains
+
+  release (item) { allow }
+}

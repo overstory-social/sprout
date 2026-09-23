@@ -12,7 +12,9 @@
 // keeps the type. `contains` and `contains actors` are idempotent, so
 // they are OR'd over the closure. A passage is one per name, which
 // `passages.ts` resolves: the composer's own, else the one source that
-// is not `default`, else the one default.
+// is not `default`, else the one default. Guards all run, in closure
+// order less what `without` leaves out, which `guards.ts` resolves; a
+// suppression travels to every kind that composes the one that wrote it.
 
 import {
   writtenMember,
@@ -34,6 +36,7 @@ import {
 } from './properties.js';
 import { identicalType, showType } from './types.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
+import { composeGuards, ownGuards, writesGuard } from './guards.js';
 
 /** What looking up a composed kind finds. */
 export type Found =
@@ -269,7 +272,23 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   for (const { kind } of composed) {
     for (const identity of kind.order) if (!order.includes(identity)) order.push(identity);
   }
-  const suppressed = leftOut(composer, withouts, order, context);
+  // What a composed kind left out stays left out here, and what this
+  // kind leaves out joins it.
+  const suppressed: Suppression[] = [];
+  for (const one of [
+    ...composed.flatMap(({ kind }) => kind.suppressed),
+    ...leftOut(composer, withouts, order, context),
+  ]) {
+    if (!suppressed.some((other) => sameSuppression(one, other))) suppressed.push(one);
+  }
+
+  // --- guards, all of them, in closure order ----------------------------
+  const guards = composeGuards(
+    composed.map(({ kind }) => kind.guards),
+    order,
+    suppressed,
+    ownGuards(composer.name, composer.members, own, diagnostics),
+  );
   order.push(own);
 
   return {
@@ -279,6 +298,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     composes: new Set(order),
     properties: merged,
     passages,
+    guards,
     contains: contains || containsActors,
     containsActors,
     suppressed,
@@ -330,7 +350,7 @@ function leftOut(
       );
       continue;
     }
-    if (!declaresMember(identity, member)) {
+    if (!declaresMember(identity, member, kinds)) {
       diagnostics.refuse(
         member.at,
         `\`${named}\` has no \`${what}\` to leave out.`,
@@ -344,12 +364,19 @@ function leftOut(
 }
 
 /**
- * Whether the kind `identity` itself declares `member`. No body reads a
- * handler, a hook, a guard or a role member yet (B22 reads guards, B24
- * roles, B32 handlers and hooks), so no kind declares one.
+ * Whether the kind `identity`, composed already, itself declares
+ * `member`. Guards are the only such member read yet: B24 reads roles,
+ * and B32 handlers and hooks.
  */
-function declaresMember(_identity: string, _member: MemberRef): boolean {
-  return false;
+function declaresMember(identity: string, member: MemberRef, kinds: KindSource): boolean {
+  if (member.kind !== 'guard-ref') return false;
+  const found = kinds.find(identity);
+  return found.found === 'kind' && writesGuard(found.kind.guards, member.guard, identity);
+}
+
+/** Whether two suppressions leave out the same member of the same kind. */
+function sameSuppression(a: Suppression, b: Suppression): boolean {
+  return a.source === b.source && writtenMember(a.member) === writtenMember(b.member);
 }
 
 /**
