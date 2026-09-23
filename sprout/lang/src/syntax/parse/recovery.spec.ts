@@ -699,16 +699,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     expect(reached.keys()).toEqual(SORTS);
   });
 
-  /**
-   * NOT held, and named: a stray `]` inside a list default ends the list
-   * there, and the elements written after it are not named. On its own
-   * the property reader stops at the `]`; in a world, the world refuses
-   * the comma after it and steps over the rest.
-   *
-   *     :x [[Ward]] default [[oak, silver, ]], [brass, tin]]     brass, tin lost
-   */
-  const endsTheListEarly = (defect: Defect): boolean => defect.text === ']';
-
   it('over a generated list default, a defect at any depth', () => {
     const c = chooser(20_260_924);
     const ELEMENT: readonly Defect[] = [
@@ -750,10 +740,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       });
       const text = `:x ${'['.repeat(depth)}Ward${']'.repeat(depth)} default ${value}`;
       const { result, said } = reading(text, parseProperty);
-      if (endsTheListEarly(defect)) {
-        reached.add('excluded');
-        continue;
-      }
       const kept: string[] = [];
       const walk = (literal: Literal | null | undefined): void => {
         if (literal?.kind === 'option-literal') kept.push(literal.name.text);
@@ -772,7 +758,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         !stoppedShort(text, result),
       );
     }
-    expect(reached.keys()).toEqual([...SORTS, 'excluded'].sort());
+    expect(reached.keys()).toEqual(SORTS);
   });
 
   /** A world member by what it would be looked up as, a `:remembers` by each entry. */
