@@ -7,7 +7,7 @@ import { chooser } from '../fixtures/parse.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { catalogueOf, type Catalogue } from './catalogue.js';
 import { Draft } from './draft.js';
-import { declaredId, mintedId, type InstanceId } from './ids.js';
+import { declaredId, mintedId, visitKey, type InstanceId } from './ids.js';
 import {
   destroyInstance,
   LifecycleFault,
@@ -23,11 +23,9 @@ import { newInstance, type Instance, type WorldState } from './state.js';
 const CAPS = DEFAULT_LIMITS.caps;
 
 /** The shop, with a `Cup` to spawn and a cat, an NPC, asleep in the kiln. */
+const catalogueSource = `${SHOP['world.sprout']!}kind Cup { :full false }\nobject cat: Person in yard.kiln\n`;
 const catalogue = catalogueOf(
-  compiledWorld('printers_shop', {
-    ...SHOP,
-    'world.sprout': `${SHOP['world.sprout']!}kind Cup { :full false }\nobject cat: Person in yard.kiln\n`,
-  }),
+  compiledWorld('printers_shop', { ...SHOP, 'world.sprout': catalogueSource }),
   CAPS,
 );
 const PERSON = catalogue.kinds.get('printers_shop.Person')!;
@@ -45,6 +43,24 @@ const JAR = id('hall', 'shelf', 'jar');
 const CUP_ID = id('hall', 'shelf', 'cup');
 const KILN = id('yard', 'kiln');
 const CAT = id('yard', 'kiln', 'cat');
+const TIN = id('hall', 'box', 'tin');
+
+/** The shop saved and loaded with `kiln.sprout` withheld: `Crate` is absent, so the kiln and the box are dormant. */
+const withheld = (): WorldState =>
+  loadWorld(
+    saveWorld(initialState(catalogue)),
+    catalogueOf(
+      compiledWorld(
+        'printers_shop',
+        { ...SHOP, 'world.sprout': catalogueSource },
+        {
+          mode: 'load',
+          withheld: ['kiln.sprout'],
+        },
+      ),
+      CAPS,
+    ),
+  ).state;
 
 /** The world refuses, as its unwritten rule does; the ids in `shut` refuse; everything else relays. */
 const passing =
@@ -269,45 +285,66 @@ describe('a spawn', () => {
 });
 
 describe('a destroy', () => {
-  it('lets what it held fall in order, each last in its container, with an `:entered` from it', () => {
-    const draft = new Draft(initialState(catalogue));
+  it('destroys what it held with it, all the way down, and sends nothing', () => {
+    const base = initialState(catalogue);
+    const draft = new Draft(base);
+    const held = draft.held;
     const spawned = spawnInstance(context(draft), JAR, CUP, SHELF).id;
-    const destroyed = destroyInstance(draft, SHELF);
-    expect(destroyed.container).toBe(HALL);
-    expect(destroyed.fell).toEqual([JAR, CUP_ID, spawned]);
-    expect(draft.children(HALL)).toEqual([BOX, JAR, CUP_ID, spawned]);
-    expect(draft.instance(SHELF)).toBeUndefined();
-    for (const item of destroyed.fell) expect(draft.instance(item)!.container).toBe(HALL);
-    expect(destroyed.sends).toEqual(
-      [JAR, CUP_ID, spawned].map((item) => ({
-        message: 'entered',
-        recipient: HALL,
-        item,
-        from: SHELF,
-      })),
-    );
+    const destroyed = destroyInstance(draft, HALL);
+    const all = [HALL, SHELF, JAR, CUP_ID, spawned, BOX, TIN];
+    expect(destroyed).toEqual({ id: HALL, removed: all });
+    expect(Object.keys(destroyed)).not.toContain('sends');
+    for (const one of all) expect(draft.instance(one)).toBeUndefined();
+    expect(draft.children(WORLD_ID)).toEqual([YARD]);
+    expect(draft.held).toBe(held + 1 - all.length);
+    const { changes } = draft.commit();
+    expect(changes.removed).toEqual(all.filter((one) => one !== spawned).sort());
+    expect(changes.written).toEqual([]);
   });
 
-  it('sends nothing for a destroyed object that held nothing', () => {
+  it('takes the pending wakes of everything inside it with their records', () => {
+    const draft = new Draft(initialState(catalogue));
+    const box = draft.instance(BOX)!;
+    draft.write({ ...box, wakes: [{ serial: draft.nextSerial(), askedAt: 0, dueAt: 60 }] });
+    destroyInstance(draft, HALL);
+    const { state } = draft.commit();
+    const waking = [...state.instances.values()].filter((one) => one.wakes.length > 0);
+    expect(waking).toEqual([]);
+  });
+
+  it('destroys the dormant records inside it, and what they hold', () => {
+    const base = withheld();
+    expect(base.dormant.has(KILN)).toBe(true);
+    const draft = new Draft(base);
+    const destroyed = destroyInstance(draft, YARD);
+    expect(destroyed.removed).toEqual([YARD, KILN, CAT]);
+    const { state } = draft.commit();
+    expect(state.dormant.has(KILN)).toBe(false);
+    expect(state.instances.has(CAT)).toBe(false);
+    expect(saveWorld(state).instances.map((one) => one.id)).not.toContain(KILN);
+  });
+
+  it('holds nothing afterwards, so a destroyed object held nothing to be told of', () => {
     const draft = new Draft(initialState(catalogue));
     const destroyed = destroyInstance(draft, JAR);
-    expect(destroyed).toEqual({ id: JAR, container: SHELF, fell: [], sends: [] });
+    expect(destroyed).toEqual({ id: JAR, removed: [JAR] });
     expect(draft.children(SHELF)).toEqual([CUP_ID]);
   });
 
-  it('leaves the destroyed object readable, holding the state it had', () => {
+  it('leaves each destroyed record readable, holding the state it had and where it was', () => {
     const draft = new Draft(initialState(catalogue));
     const cup = spawnInstance(context(draft), JAR, CUP, BOX).id;
     const record = draft.instance(cup)!;
     draft.write({ ...record, properties: new Map([['full', true]]) });
-    destroyInstance(draft, cup);
+    destroyInstance(draft, HALL);
     expect(draft.instance(cup)).toBeUndefined();
     const final = draft.destroyed(cup)!;
     expect(final.properties.get('full')).toBe(true);
     expect(final.container).toBe(BOX);
+    expect(draft.destroyed(BOX)!.container).toBe(HALL);
   });
 
-  it('faults for the world, a visitor, and a place with a visitor standing in it, writing nothing', () => {
+  it('faults for the world and a visitor, writing nothing', () => {
     const empty = initialState(catalogue);
     const world = faultsWritingNothing(empty, (draft) => destroyInstance(draft, WORLD_ID), 'world');
     expect(world.message).toBe('the world cannot be destroyed.');
@@ -319,31 +356,57 @@ describe('a destroy', () => {
     expect(visitor.message).toBe(
       '`printers_shop#1` is a visitor, and a person is never destroyed.',
     );
-    const standing = faultsWritingNothing(
+  });
+
+  it('faults for a visitor anywhere inside, however deep, writing nothing', () => {
+    const opened = new Draft(initialState(catalogue));
+    const marta = visitorIn(opened, BOX);
+    const base = opened.commit().state;
+    const direct = faultsWritingNothing(
+      base,
+      (draft) => destroyInstance(draft, BOX),
+      'visitor-inside',
+    );
+    expect(direct.object).toBe(BOX);
+    const deep = faultsWritingNothing(
       base,
       (draft) => destroyInstance(draft, HALL),
-      'visitor-standing',
+      'visitor-inside',
     );
-    expect(standing.object).toBe(HALL);
-    expect(standing.message).toBe(
-      '`printers_shop.hall` is a place with a visitor standing in it, and destroying it would move them without a word.',
+    expect(deep.object).toBe(HALL);
+    expect(deep.message).toBe(
+      `\`printers_shop.hall\` has the visitor \`${marta}\` inside it, and a person is never destroyed.`,
     );
+    // Nothing else in the hall made the fault: without her, it is destroyed.
+    const away = new Draft(base);
+    away.place(marta, null);
+    expect(destroyInstance(away, HALL).removed).toContain(BOX);
   });
 
-  it('lets a visitor deeper in fall with what holds them', () => {
-    const draft = new Draft(initialState(catalogue));
-    const marta = visitorIn(draft, BOX);
-    destroyInstance(draft, HALL);
-    expect(draft.instance(BOX)!.container).toBe(WORLD_ID);
-    expect(draft.instance(marta)!.container).toBe(BOX);
+  it('faults for a visitor kept dormant inside, writing nothing', () => {
+    const opened = new Draft(initialState(catalogue));
+    const marta = visitorIn(opened, KILN);
+    opened.putVisitor({
+      visit: visitKey('v-1'),
+      nickname: 'Marta',
+      instance: marta,
+      lastPlace: KILN,
+    });
+    // Without a visitor kind, the visitor's record is kept dormant, still in the kiln.
+    const base = loadWorld(saveWorld(opened.commit().state), {
+      ...catalogue,
+      visitorKind: null,
+    }).state;
+    expect(base.dormant.get(minted(1))!.container).toBe(KILN);
+    faultsWritingNothing(base, (draft) => destroyInstance(draft, YARD), 'visitor-inside');
   });
 
-  it('lets an NPC fall like anything else', () => {
+  it('destroys an NPC inside it with everything else', () => {
     const draft = new Draft(initialState(catalogue));
     expect(draft.children(KILN)).toEqual([CAT]);
-    const destroyed = destroyInstance(draft, KILN);
-    expect(destroyed.fell).toEqual([CAT]);
-    expect(draft.children(YARD)).toEqual([CAT]);
+    expect(destroyInstance(draft, KILN).removed).toEqual([KILN, CAT]);
+    expect(draft.children(YARD)).toEqual([]);
+    expect(draft.destroyed(CAT)!.container).toBe(KILN);
   });
 
   it('nets to nothing after a spawn in the same turn', () => {
@@ -378,10 +441,7 @@ describe('what the engine sends', () => {
   it('names the recipient apart from the bindings its handler receives, as the spec names them', () => {
     const draft = new Draft(initialState(catalogue));
     const spawned = spawnInstance(context(draft), JAR, CUP, SHELF);
-    const destroyed = destroyInstance(draft, SHELF);
-    const shapes = [...spawned.sends, ...destroyed.sends].map((send) =>
-      Object.keys(send).join(' '),
-    );
+    const shapes = spawned.sends.map((send) => Object.keys(send).join(' '));
     // `:entered (item, from)` and `:spawned (from)`.
     expect(new Set(shapes)).toEqual(
       new Set(['message recipient item from', 'message recipient from']),
@@ -422,7 +482,17 @@ describe('any run of spawns, destroys and moves', () => {
           );
           known.add(spawned.id);
         } else if (action === 1) {
-          destroyInstance(draft, choose.one(anywhere));
+          const target = choose.one(anywhere);
+          const inside = anywhere.filter((one) => {
+            for (let at: InstanceId | null = one; at !== null; at = draft.instance(at)!.container) {
+              if (at === target) return true;
+            }
+            return false;
+          });
+          const { removed } = destroyInstance(draft, target);
+          // Exactly what was inside it, itself included, is gone, and nothing else.
+          expect(new Set(removed), `seed ${seed}, step ${step}`).toEqual(new Set(inside));
+          for (const one of removed) expect(draft.instance(one)).toBeUndefined();
         } else {
           const moving = choose.one(here);
           if (draft.instance(moving)!.made.from === 'visitor') continue;

@@ -61,7 +61,7 @@ object case: GlassCase in shed {
 }
 
 // `destroy self` — the lump goes when the wheel says it was used;
-// what it held (nothing) would fall to its container.
+// what it held (nothing) would go with it.
 object sample: Lump in bin {
   :name "Sample lump"
   :names ["sample"]

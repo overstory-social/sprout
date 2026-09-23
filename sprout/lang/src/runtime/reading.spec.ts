@@ -482,7 +482,7 @@ describe('the effect pass', () => {
     expect(lines(effectPass(nod, contextOf(one)))).toEqual([[WORLD_ID, NOTHING]]);
   });
 
-  it('hands on what a spawn or a destroy sends, and a participant destroyed does nothing more', () => {
+  it('hands on everything a destroy removed, sends nothing for it, and a participant destroyed does nothing more', () => {
     const one = turn(YARD, [HALL]);
     const [visitor] = one.people;
     const said = acted(
@@ -493,8 +493,10 @@ describe('the effect pass', () => {
     );
     // The bubble played the target, and was gone before it could play the tool.
     expect(lines(said)).toEqual([[BUBBLE, 'pop']]);
-    expect(said.destroyed).toEqual([BUBBLE]);
-    expect(said.sends).toEqual([{ message: 'entered', recipient: HALL, item: BEAD, from: BUBBLE }]);
+    // What it held went with it, and the queue drops everything pending on each.
+    expect(said.destroyed).toEqual([BUBBLE, BEAD]);
+    expect(said.sends).toEqual([]);
+    expect(one.draft.instance(BEAD)).toBeUndefined();
   });
 
   it('runs none of a participant’s later composed plays once one of them destroyed it', () => {
