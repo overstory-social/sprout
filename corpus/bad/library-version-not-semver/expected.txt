@@ -1,0 +1,7 @@
+sprout.json:15:15  This world uses the library "ericworld", and its source did not travel with it.
+                   A published world carries the full source of every library it uses: vendor it, or stop using it.
+
+sprout.json:16:18  "1.0" is not a version of the library "ericworld".
+                   A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.
+
+refused: 2 problems

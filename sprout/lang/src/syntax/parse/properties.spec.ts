@@ -318,6 +318,26 @@ describe('a :remembers, as an object writes one', () => {
       expect(() => remember(text), text).not.toThrow();
     }
   });
+
+  it('steps over a refused entry through its own brackets, so its `]` is never the list’s', () => {
+    // The rest of an entry refused before it was read is stepped over
+    // whole, a balanced `[`…`]` run at a time, the way a refused member
+    // is: its own bracket never ends the `:remembers`, and the entry
+    // after it is read normally.
+    for (const text of [
+      ':remembers [faulty: ) [[Ward]] default [[oak], [oak]], alpha: 1]',
+      ':remembers [faulty: [Ward] [oak], alpha: 1]',
+    ]) {
+      const { declared, refusals } = remember(text);
+      expect(
+        declared!.properties.map((p) => p.name.text),
+        text,
+      ).toEqual(['alpha']);
+      expect(declared!.properties[0]!.default, text).toMatchObject({ kind: 'integer', value: 1 });
+      expect(refusals, text).toHaveLength(1);
+      expect(refusals[0]!.message, text).not.toContain(']');
+    }
+  });
 });
 
 describe('a type that failed to parse is not mistaken for no type at all', () => {

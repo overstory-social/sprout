@@ -27,21 +27,13 @@
 // no-duplicates rule is kept by taking two elements to be the same when
 // they hold the same element type and the same elements in the same
 // order — not an `==` an author can write (the spec's Lists). What a
-// VALUE is at run time belongs to B16, which builds the state model;
-// this is the one collection the language has, written so that B16 has
-// something to persist.
+// list holds is a `Value` (`values.ts`), and it is stored as an array of
+// its elements (`stored.ts`), read back whole or not at all.
 
 import type { ValueType } from '../declare/types.js';
+import type { Value } from './values.js';
 import { DEFAULT_LIMITS, type StaticCaps } from '../bundle/limits.js';
 import { sameType, showType } from '../declare/types.js';
-
-/**
- * What a list holds. An option is its own name — `oak`, not `:oak` —
- * because that is what a symbol IS once its enum is known, and the
- * enum is known from the list's element type. An element may itself be
- * a list, since a list's element type may be `[[Ward]]`.
- */
-export type Element = boolean | number | string | SproutList;
 
 /**
  * A full list was added to. Thrown, and not returned, for the reason
@@ -62,29 +54,28 @@ export class ListFull extends Error {
 /**
  * A list value. Immutable from the outside: `add` and `remove` hand
  * back a list rather than changing this one, so a binding that named it
- * still names what it named. B16 decides what is persisted; nothing
- * here holds a reference to an object, because no list can.
+ * still names what it named. Nothing here holds a reference to an
+ * object, because no list can.
  */
 export class SproutList {
   private constructor(
     readonly holds: ValueType,
-    private readonly items: readonly Element[],
+    private readonly items: readonly Value[],
     readonly allowed: number,
   ) {}
 
   /**
    * A list of `holds`, holding `elements` in the order given. Later
    * duplicates are dropped rather than refused — a caller building one
-   * from source has already had them refused by `checkLiteral`, and a
-   * caller restoring one from state is restoring what was already
-   * checked.
+   * from source has already had them refused by `checkLiteral`, and
+   * `decodeValue` refuses a stored list holding one before it gets here.
    */
   static of(
     holds: ValueType,
-    elements: readonly Element[] = [],
+    elements: readonly Value[] = [],
     caps: StaticCaps = DEFAULT_LIMITS.caps,
   ): SproutList {
-    const items: Element[] = [];
+    const items: Value[] = [];
     for (const element of elements) {
       if (items.some((held) => same(held, element))) continue;
       if (items.length >= caps.listElements) throw new ListFull(caps.listElements, holds);
@@ -94,7 +85,7 @@ export class SproutList {
   }
 
   /** What it holds, in insertion order. */
-  get elements(): readonly Element[] {
+  get elements(): readonly Value[] {
     return this.items;
   }
 
@@ -104,7 +95,7 @@ export class SproutList {
   }
 
   /** Whether it holds this. One of the four. */
-  includes(element: Element): boolean {
+  includes(element: Value): boolean {
     return this.items.some((held) => same(held, element));
   }
 
@@ -118,14 +109,14 @@ export class SproutList {
    * list, not a copy, so a caller can tell nothing changed. Adding a
    * NEW element to a full list faults.
    */
-  add(element: Element): SproutList {
+  add(element: Value): SproutList {
     if (this.includes(element)) return this;
     if (this.full) throw new ListFull(this.allowed, this.holds);
     return new SproutList(this.holds, [...this.items, element], this.allowed);
   }
 
   /** Without this element. Not holding it does nothing. */
-  remove(element: Element): SproutList {
+  remove(element: Value): SproutList {
     if (!this.includes(element)) return this;
     return new SproutList(
       this.holds,
@@ -147,7 +138,7 @@ export class SproutList {
  * no-duplicates rule inside a list of lists, and it is the only
  * sameness there is for lists — the spec gives an author no `==` on one.
  */
-function same(a: Element, b: Element): boolean {
+function same(a: Value, b: Value): boolean {
   if (a instanceof SproutList || b instanceof SproutList) {
     if (!(a instanceof SproutList) || !(b instanceof SproutList)) return false;
     if (!sameType(a.holds, b.holds)) return false;

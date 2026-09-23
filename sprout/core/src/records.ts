@@ -8,9 +8,10 @@ import { z } from 'zod';
 // microworld must never share a row with `torch` in another.
 
 /**
- * A property map as the store keeps it. B16 types this against the
- * bundle's declarations; until then a stored value is whatever JSON
- * holds.
+ * A property map as the store keeps it: whatever JSON holds. These
+ * records carry the previous state model until a later item replaces
+ * them with the language's stored form, `StoredWorld`, whose values are
+ * typed against the bundle's declarations.
  */
 export const SproutState = z.record(z.string(), z.unknown());
 export type SproutState = z.infer<typeof SproutState>;

@@ -20,7 +20,7 @@ import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, readable, type Parser } from './parser.js';
 import { property, remembers } from './properties.js';
-import { closedBracketRun } from './recovery.js';
+import { stepPast } from './recovery.js';
 
 /** What declares a body, as its messages name it. */
 export type Owner = 'world' | 'kind' | 'object';
@@ -164,8 +164,8 @@ function recoverToMember<M>(p: Parser, readers: MemberReaders<M>): boolean {
       // is no more trustworthy than anything else.
       if (p.atRecoveryStop()) return false;
       if (memberReader(p, token, readers) !== null) return true;
-      const run = punct(token, '[') ? closedBracketRun(p) : 0;
-      for (let i = 1; i < run; i++) p.next();
+      stepPast(p);
+      continue;
     }
     p.next();
   }
