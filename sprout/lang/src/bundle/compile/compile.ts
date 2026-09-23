@@ -167,6 +167,7 @@ export function compileBundle(
     definitions: declarations,
     kinds: tables.kinds.all(),
     kindLookup: tables.kinds,
+    verbs: tables.verbs,
     world,
     visitor,
     objects: tables.objects,

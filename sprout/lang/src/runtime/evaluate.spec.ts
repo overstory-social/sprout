@@ -189,6 +189,20 @@ describe('literals and bindings', () => {
       id: JAR,
     });
   });
+
+  it('asks with `bound` whether the frame binds the name, and charges it as one node', () => {
+    const { draft } = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const given: Frame = {
+      ...frame(budget, draft),
+      bindings: new Map([['tool', boundObject(CUP)]]),
+    };
+    expect(evaluateCondition(expression('bound tool'), given)).toBe(true);
+    expect(evaluateCondition(expression('bound topic'), given)).toBe(false);
+    expect(evaluateCondition(expression('!bound tool'), given)).toBe(false);
+    // `bound tool`, `bound topic`, and `!` over `bound tool`.
+    expect(budget.spentSteps).toBe(4);
+  });
 });
 
 describe('the operators, as the checker types them', () => {
