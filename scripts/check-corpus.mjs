@@ -21,10 +21,27 @@ const dirs = (root) => (existsSync(root) ? readdirSync(root).map((d) => join(roo
 let failed = 0;
 for (const dir of dirs('corpus/good')) {
   const { code, out } = check(dir);
+  const expectedFile = join(dir, 'expected.txt');
+  const hasExpected = existsSync(expectedFile);
   if (code !== 0) {
     failed++;
     console.error(`✗ ${dir}: expected to pass\n${out}`);
-  } else console.log(`✓ ${dir} passes`);
+    continue;
+  }
+  if (write && hasExpected) {
+    writeFileSync(expectedFile, out);
+    console.log(`wrote ${expectedFile}`);
+    continue;
+  }
+  if (hasExpected) {
+    const expected = readFileSync(expectedFile, 'utf8');
+    if (expected !== out) {
+      failed++;
+      console.error(`✗ ${dir}: the page changed\n--- expected\n${expected}--- actual\n${out}`);
+      continue;
+    }
+  }
+  console.log(`✓ ${dir} passes`);
 }
 for (const dir of dirs('corpus/bad')) {
   const { code, out } = check(dir);

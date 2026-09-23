@@ -1,0 +1,4 @@
+sprout.json:3:3  This world's namespace, `sprout`, is also the name of a library it uses.
+                 Give the manifest a `namespace` that names no library.
+
+refused: 1 problem

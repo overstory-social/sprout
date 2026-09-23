@@ -1,0 +1,4 @@
+kinds.sprout:4:6  `Place` hides `sprout.Place`: a bare `Place` in this world is now yours.
+                  Write `sprout.Place` where the library's is meant, or give yours another name.
+
+ok: 5 declarations in 2 files, 1 warning

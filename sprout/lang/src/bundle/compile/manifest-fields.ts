@@ -64,6 +64,16 @@ export function checkManifest(source: MicroworldSource, report: Report): void {
       'A namespace starts with a lower-case letter and holds letters, digits and _.',
     );
   }
+  // A world's own declarations are unqualified in its namespace, so a
+  // namespace equal to a pinned library's name would make every one of
+  // the world's own declarations indistinguishable from that library's.
+  if (manifest.libraries.some((pin) => pin.name === manifest.namespace)) {
+    report.refuse(
+      atKey(manifestFile, 'namespace'),
+      `This world's namespace, \`${manifest.namespace}\`, is also the name of a library it uses.`,
+      'Give the manifest a `namespace` that names no library.',
+    );
+  }
   for (const [key, value] of [
     ['version', manifest.version],
     ['author', manifest.author],
