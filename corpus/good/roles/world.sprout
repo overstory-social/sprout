@@ -16,11 +16,15 @@ world roles is sprout.World {
 }
 
 // The one acting plays its part too: a full pair of hands pulls nothing.
-kind Person is sprout.Visitor {
+// A person's own kind has no behaviour, so the part is written on a kind
+// it composes, which an NPC could compose as well.
+kind Creature is sprout.Actor {
   as actor for pull {
     permit { if (self.count >= self.get(:capacity)) { refuse "Your hands are full." } }
   }
 }
+
+kind Person is Creature, sprout.Visitor { }
 
 verb pull { role target  "pull [target]"  "yank [target]" }
 

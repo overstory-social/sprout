@@ -220,6 +220,11 @@ export class KindTable implements KindLookup, KindSource {
       .map((one) => one.declaration.name.text);
   }
 
+  /** The declaration a kind was composed from, as written, or null where none is declared. */
+  declaration(kind: KindRef): KindDeclaration | null {
+    return this.declared.get(kindName(kind))?.declaration ?? null;
+  }
+
   /** What a composition finds for a kind, once `resolve` has composed them all. */
   find(identity: string): Found {
     return this.settled(identity) ?? { found: 'unknown' };
