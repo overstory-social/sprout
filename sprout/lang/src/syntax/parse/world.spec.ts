@@ -262,6 +262,25 @@ describe('a world declaration', () => {
     }
   });
 
+  it('refuses a missing value rather than reading the next declaration as one', () => {
+    // `:faulty` has no value, and `:wet` has none either: reading
+    // `message`, the word that opens the declaration after it, as
+    // `:wet`'s bare option would lose `message :omega` with nothing
+    // said about it. The world is still never closed, and `message
+    // :omega` reads as its own declaration once it is not swallowed.
+    const { declarations, refusals } = readWorld(
+      'world w: sprout.World {\n  :faulty :wet\nmessage :omega\n',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`:wet`, which is a property or a message is not a value.',
+      '`:wet` has no value where one should be.',
+      '`w` is never closed.',
+    ]);
+    expect(declarations.find((d) => d.kind === 'world')).toBeUndefined();
+    const message = declarations.find((d) => d.kind === 'message');
+    expect(message?.name.text).toBe('omega');
+  });
+
   it('does not let a member’s own recovery run past the declaration after it', () => {
     // A list hunting for its `]` must not run to the end of the file:
     // `file()` is still reading behind a property inside a world.

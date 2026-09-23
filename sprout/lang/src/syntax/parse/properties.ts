@@ -190,6 +190,24 @@ function rememberedProperty(p: Parser): PropertyDeclaration | null {
 }
 
 /**
+ * Refuses a value that is missing exactly where the next declaration's
+ * word stands, before it can be taken for a bare option. Left unchecked,
+ * `:faulty` with nothing after it and `message :omega` on the next line
+ * would read `message` as `:faulty`'s value and lose the declaration
+ * with it — the parser's invariant that a defect in one item never
+ * loses a well-formed neighbour in silence. True where it refused.
+ */
+function missingValueBeforeDeclaration(p: Parser, name: Ident): boolean {
+  if (!p.atDeclarationStart()) return false;
+  p.diagnostics.refuse(
+    p.here(),
+    `\`:${name.text}\` has no value where one should be.`,
+    'Write an option of the type, or a literal, before the next declaration.',
+  );
+  return true;
+}
+
+/**
  * What follows a property's name, in either place it can be written:
  * an optional type, then a default, then an optional integer range.
  * An enum and the option a property starts at may be written as one
@@ -220,9 +238,11 @@ function propertyBody(p: Parser, name: Ident, from: Span): PropertyDeclaration |
     value = qualifiedDefault(p, name, type);
     if (value === null) return null;
   } else if (type === null) {
+    if (missingValueBeforeDeclaration(p, name)) return null;
     value = literal(p);
     if (value === null) return null;
   } else if (p.take('name', 'default') !== null) {
+    if (missingValueBeforeDeclaration(p, name)) return null;
     value = literal(p);
     if (value === null) return null;
   } else {
@@ -269,6 +289,7 @@ function propertyBody(p: Parser, name: Ident, from: Span): PropertyDeclaration |
  * the default, so no `default` may follow it.
  */
 function qualifiedDefault(p: Parser, name: Ident, type: NamedType): OptionLiteral | null {
+  if (missingValueBeforeDeclaration(p, name)) return null;
   const word = p.take('name');
   if (word === null) {
     const wrong = p.peek();
