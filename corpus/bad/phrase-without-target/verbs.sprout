@@ -1,0 +1,7 @@
+// Every phrase names the first role.
+verb shove {
+  role target
+  role tool
+  "shove [target] with [tool]"
+  "shove"
+}

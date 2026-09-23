@@ -11,6 +11,7 @@ import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration } from '../../declare/enums.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
+import { checkVerbDeclaration } from '../../declare/verbs.js';
 import { checkWorldDeclaration } from '../../declare/world.js';
 import { parseDeclarations } from '../../syntax/parse.js';
 import { DEFAULT_LIMITS, type StaticCaps } from '../limits.js';
@@ -26,11 +27,11 @@ export interface ShapeResult {
 
 /**
  * The first tier: one file, checked alone for its shape. Today that is
- * its syntax, the options cap, `sprout.World` written on the world and
- * nowhere else, and an object naming a kind; the rest of the caps that
- * apply to a definition on its own, its declarations agreeing with
- * themselves and every write going to `self` join it as the syntax that
- * expresses them lands. The caps are the host's, as every limit is.
+ * its syntax, the options cap, a verb's roles and phrases and its caps,
+ * `sprout.World` written on the world and nowhere else, and an object
+ * naming a kind; the rest of the caps that apply to a definition on its
+ * own, its declarations agreeing with themselves and every write going
+ * to `self` join it as the syntax that expresses them lands. The caps are the host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const diagnostics = new Diagnostics();
@@ -40,6 +41,11 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   for (const declared of declarations) {
     if (declared.kind === 'enum') {
       checkEnumDeclaration(declared, using.optionsPerEnum, diagnostics);
+    }
+    // A verb's roles and phrases agree with each other or not on their
+    // own, and its caps are the host's.
+    if (declared.kind === 'verb') {
+      checkVerbDeclaration(declared, using, diagnostics);
     }
     // One declaration answers on its own whether it wrote
     // `sprout.World`, so the first tier is where a world that did not

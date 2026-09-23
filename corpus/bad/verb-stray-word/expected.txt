@@ -1,0 +1,4 @@
+verbs.sprout:4:3  A verb is not made of `please`.
+                  It holds its roles, as `role target`, and its phrases in quotes, as `"take [target]"`.
+
+refused: 1 problem

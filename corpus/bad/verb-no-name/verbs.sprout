@@ -1,0 +1,5 @@
+// A verb has a name.
+verb {
+  role target
+  "take [target]"
+}

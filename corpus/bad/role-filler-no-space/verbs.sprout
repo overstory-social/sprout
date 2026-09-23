@@ -1,0 +1,6 @@
+// A colon against a lower-case word reads as a property.
+verb ask {
+  role target
+  role topic:symbol
+  "ask [target] about [topic]"
+}

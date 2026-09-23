@@ -1,6 +1,7 @@
 // A file, and the declarations it holds: `enum`, `kind`, `message`,
-// `object` and `world` (the spec's Properties › Enums, Kinds › Declaring
-// and composing, Events › Declaring a message, The world model).
+// `object`, `verb` and `world` (the spec's Properties › Enums, Kinds ›
+// Declaring and composing, Events › Declaring a message, Verbs ›
+// Declaring a verb, The world model).
 // `DECLARATION_READERS` is the one table of what a file holds.
 
 import type { Declaration, EnumDeclaration, EnumOption, MessageDeclaration } from '../ast.js';
@@ -12,6 +13,7 @@ import { recover, recoverInBraces, separator } from './recovery.js';
 import { typeExpr } from './types.js';
 import { isGuardName } from './guards.js';
 import { kindDeclaration, objectDeclaration } from './kinds.js';
+import { verbDeclaration } from './verbs.js';
 import { worldDeclaration } from './world.js';
 
 /** Every declaration in the file, in the order they were written. */
@@ -212,5 +214,6 @@ export const DECLARATION_READERS: ReadonlyMap<string, DeclarationReader> = new M
   ['kind', kindDeclaration],
   ['message', messageDeclaration],
   ['object', objectDeclaration],
+  ['verb', verbDeclaration],
   ['world', worldDeclaration],
 ]);

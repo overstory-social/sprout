@@ -54,7 +54,7 @@ export { DEEPEST } from './parse/parser.js';
  * spec holds that this list and that message name the same words, in
  * both directions.
  */
-export const DECLARATIONS = ['enum', 'kind', 'message', 'object', 'world'] as const;
+export const DECLARATIONS = ['enum', 'kind', 'message', 'object', 'verb', 'world'] as const;
 
 /** Every declaration in one file. Problems go to `diagnostics`; nothing is thrown. */
 export function parseDeclarations(

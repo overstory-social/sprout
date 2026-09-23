@@ -1,0 +1,4 @@
+verbs.sprout:3:12  `"wave at [target]"` names `target`, and `wave` has no roles.
+                   Take the slot out, or add `role target`.
+
+refused: 1 problem

@@ -1,0 +1,5 @@
+// A role's name is a lower-case word; a kind that fills it comes after a colon.
+verb unlock {
+  role Lockable
+  "unlock [lockable]"
+}

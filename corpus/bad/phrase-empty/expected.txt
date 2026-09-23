@@ -1,0 +1,4 @@
+verbs.sprout:5:3  `take` has a phrase with no words in it.
+                  Write the words a visitor types, as in `"take [target]"`, or take the phrase out.
+
+refused: 1 problem

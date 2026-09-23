@@ -1,0 +1,6 @@
+// A verb never closed says so, and the declaration after it is kept.
+verb take {
+  role target
+  "take [target]"
+
+message :stir

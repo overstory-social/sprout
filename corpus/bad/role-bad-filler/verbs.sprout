@@ -1,0 +1,6 @@
+// A role is filled by a kind, by `symbol` or `integer`, or by nothing.
+verb flip {
+  role target
+  role side: boolean
+  "flip [target] to [side]"
+}

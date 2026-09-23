@@ -1,0 +1,7 @@
+// A verb with phrases lets them decide which tools are optional.
+verb unlock {
+  role target
+  role tool optional
+  "unlock [target] with [tool]"
+  "unlock [target]"
+}

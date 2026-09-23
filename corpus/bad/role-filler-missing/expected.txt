@@ -1,0 +1,4 @@
+verbs.sprout:3:15  `target` has a colon and nothing after it to fill the role.
+                   A role is filled by a kind (`role target: Container`), by `symbol` or `integer` for a value the visitor names, or by nothing. With nothing, leave the colon out.
+
+refused: 1 problem
