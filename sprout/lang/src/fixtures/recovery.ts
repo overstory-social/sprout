@@ -1,0 +1,455 @@
+// Shared machinery behind the parser's recovery invariant — "a defect in
+// one item never loses a well-formed neighbour in silence" — that
+// syntax/parse/recovery/*.spec.ts runs over `:remembers`, properties,
+// list defaults, bodies and whole files. Spec support: the package build
+// leaves it out. It holds no `describe`, and, per boundary.spec.ts, a
+// non-spec file under src/ may not import vitest, so every check here
+// returns a list of findings (empty means the rule held) and the calling
+// spec `expect`s it.
+
+import type {
+  Declaration,
+  KindDeclaration,
+  ObjectDeclaration,
+  WorldDeclaration,
+  WorldMember,
+} from '../syntax/ast.js';
+import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
+import { DEEPEST } from '../syntax/parse.js';
+import { SourceFile } from '../source/source.js';
+import type { Chooser } from './parse.js';
+
+/** A construct nested one level past the parser's own depth bound, `DEEPEST`. */
+export const tooDeep = (inner: string) => '['.repeat(DEEPEST + 1) + inner + ']'.repeat(DEEPEST + 1);
+
+/**
+ * What holds a body of members, as each is opened. A world, a kind and
+ * an object read their bodies through one reader, and every run over
+ * this list therefore tests a change to it for all three.
+ */
+export const OWNERS = [
+  { kind: 'world', name: 'w', open: 'world w: sprout.World {' },
+  { kind: 'kind', name: 'K', open: 'kind K {' },
+  { kind: 'object', name: 'o', open: 'object o: K in r {' },
+] as const;
+export type Owner = (typeof OWNERS)[number];
+
+/** The declaration an owner opened, among what a file read. */
+export const ownedBy = (owner: Owner, declared: readonly Declaration[]) =>
+  declared.find(
+    (d): d is WorldDeclaration | KindDeclaration | ObjectDeclaration => d.kind === owner.kind,
+  );
+
+/** A world member by what it would be looked up as, a `:remembers` by each entry. */
+export const memberNames = (member: WorldMember): string[] =>
+  member.kind === 'property'
+    ? [member.name.text]
+    : member.kind === 'remembers'
+      ? member.properties.map((p) => `remembers.${p.name.text}`)
+      : [member.kind];
+
+/**
+ * Every well-formed thing is KEPT.
+ *
+ * Kept, not merely "named in something said": a name is "named" by any
+ * refusal that happens to quote it, so a declaration that vanished
+ * entirely would pass if whatever swallowed it complained about its name
+ * on the way past. And kept HERE: a declaration written inside a world,
+ * reparsed as a sibling of the world that held it, is not kept.
+ *
+ * So: kept, and nothing else appears that was not written at this level.
+ * A defect that genuinely takes a neighbour with it is named in its
+ * table rather than covered by a weaker rule. Returns one finding per
+ * violation; an empty array means the rule held.
+ */
+export function nothingVanishes(
+  what: string,
+  kept: readonly string[],
+  good: readonly string[],
+  written: readonly string[] = good,
+): string[] {
+  const findings: string[] = [];
+  for (const name of good) {
+    if (!kept.includes(name)) findings.push(`${what}: \`${name}\` vanished`);
+  }
+  for (const name of kept) {
+    if (!written.includes(name)) {
+      findings.push(`${what}: \`${name}\` appeared where it was not written`);
+    }
+  }
+  return findings;
+}
+
+// --- the same rule, over generated input -----------------------------
+//
+// What follows builds a well-formed item from its parts, with a fixed
+// seed chosen by each spec, and puts one defect into any one part of it,
+// so the net reaches shapes nobody thought to write down.
+//
+// A defect is one of three sorts, and the rule is as strong as each
+// allows. Most are self-contained, and every well-formed item is KEPT. A
+// stray closer really does end what it closes, so an item after it may
+// instead be NAMED in something said. An unclosed bracket really does
+// take what follows it, as far as whichever closer turns up, so it is
+// held only to the rest of the rule, which binds all three: nothing
+// appears that was not written, nothing is thrown, and the defect is
+// refused, which keeps the net from passing vacuously.
+
+export type Sort = 'contained' | 'stray' | 'unclosed';
+
+/** One defect as written. */
+export interface Defect {
+  readonly text: string;
+  readonly sort: Sort;
+}
+export const contained = (text: string): Defect => ({ text, sort: 'contained' });
+export const stray = (text: string): Defect => ({ text, sort: 'stray' });
+export const unclosed = (text: string): Defect => ({ text, sort: 'unclosed' });
+
+/** Sorted defects generated so far, so a sort a run never reached is a failure. */
+export function tally() {
+  const seen = new Map<string, number>();
+  return {
+    add: (key: string) => seen.set(key, (seen.get(key) ?? 0) + 1),
+    keys: () => [...seen.keys()].sort(),
+  };
+}
+
+export const SORTS = ['contained', 'stray', 'unclosed'];
+
+/** A number over the cap a list default's `caps.maxListLength` allows. */
+export const OVER_CAP = `[${Array.from({ length: 17 }, (_, i) => i).join(', ')}]`;
+
+/** What a written property is made of after its name. */
+export type Role = 'type' | 'default' | 'value' | 'bound';
+export interface Part {
+  readonly role: Role;
+  readonly text: string;
+}
+
+/**
+ * A well-formed property's parts: a written type and `default`, or a
+ * bare value; a number, a truth value, text, an option or a list nested
+ * up to three deep; and on a number, a `min` and a `max` in either
+ * order, or one, or neither.
+ */
+export function wellFormedParts(c: Chooser): Part[] {
+  const int = (): string => `${c.below(3) === 0 ? '-' : ''}${c.below(100)}`;
+  const nested = (depth: number, leaf: () => string): string => {
+    const count = depth > 1 ? 1 + c.below(2) : c.below(4);
+    const inner = (): string => (depth > 1 ? nested(depth - 1, leaf) : leaf());
+    return `[${Array.from({ length: count }, inner).join(', ')}]`;
+  };
+  const bare = (value: string): Part[] => [{ role: 'value', text: value }];
+  const typed = (type: string, value: string): Part[] => [
+    { role: 'type', text: type },
+    { role: 'default', text: 'default' },
+    { role: 'value', text: value },
+  ];
+  const depth = 1 + c.below(3);
+  const listOf = (element: string): string => `${'['.repeat(depth)}${element}${']'.repeat(depth)}`;
+  const shapes: (() => Part[])[] = [
+    () => bare(int()),
+    () => typed('integer', int()),
+    () => bare(c.one(['true', 'false'])),
+    () => typed('boolean', c.one(['true', 'false'])),
+    () => bare('"a line"'),
+    () => typed('string', '"a line"'),
+    () => bare('oak'),
+    () => typed(c.one(['Ward', 'sprout.Ward']), 'oak'),
+    () => bare(c.one(['Ward.oak', 'sprout.Ward.oak'])),
+    () =>
+      typed(
+        listOf('Ward'),
+        nested(depth, () => c.one(['oak', 'silver'])),
+      ),
+    () => typed(listOf('integer'), nested(depth, int)),
+    () => bare(nested(depth, int)),
+  ];
+  const parts = c.one(shapes)();
+  if (/^-?\d+$/.test(parts.at(-1)!.text)) {
+    const bounds = [`min ${int()}`, `max ${int()}`].filter(() => c.below(2) === 0);
+    if (c.below(2) === 0) bounds.reverse();
+    parts.push(...bounds.map((text) => ({ role: 'bound' as const, text })));
+  }
+  return parts;
+}
+
+/**
+ * What a defect in each part may be: between them, every sort the net is
+ * for — a wrong token, a missing one, a reserved word, a capitalised
+ * word, a fraction, a nest too deep, a list over the cap, a bad bound, a
+ * stray closer and an unclosed bracket.
+ */
+export const PART_DEFECTS: Record<Exclude<Role, 'bound'>, readonly Defect[]> = {
+  type: [
+    contained('%'),
+    contained('integer.3'),
+    contained('sprout.'),
+    contained('[Ward, oak]'),
+    contained(tooDeep('Ward')),
+    unclosed('[Ward'),
+  ],
+  default: [contained(''), contained('defualt')],
+  value: [
+    contained(''),
+    contained('1.5'),
+    contained('-1.5'),
+    contained('%'),
+    contained(':wet'),
+    contained('{}'),
+    contained('Zeta'),
+    contained('-oak'),
+    contained('-[1]'),
+    contained('-'),
+    contained('Ward.Iron'),
+    contained(tooDeep('1')),
+    contained(OVER_CAP),
+    contained('[oak silver]'),
+    contained('[oak, [silver, Zeta]]'),
+    // Not `message :stir` or `enum Ward { oak }`: a reserved word that
+    // completes its declaration's opening is no longer a defect
+    // contained in this value — the property reader takes it for a
+    // missing value with a declaration written after it, which is not a
+    // loss and has its own coverage: `[oak, enum]` in world.spec.ts for
+    // a reserved word that stands as a value, and the generated body run
+    // in bodies.spec.ts, through `following`, for one that opens a real
+    // declaration. A capitalised word in the same spot is still refused
+    // everywhere it can stand, so it keeps that coverage.
+    contained('Ward'),
+    contained('Drying'),
+    unclosed('[oak'),
+  ],
+};
+
+/** What may stand after a `min` or a `max` and is not a whole number. */
+export const BAD_BOUNDS: readonly Defect[] = [
+  ...['[1]', '-[1]', '-[1, 2]', '[[1]]', 'oak', '-oak', 'Ward', '"9"', 'true', ':wet'].map((text) =>
+    contained(text),
+  ),
+  ...['1.5', '-1.5', '-', '', '- -', tooDeep('1'), OVER_CAP].map((text) => contained(text)),
+  stray(']'),
+  unclosed('[1'),
+];
+
+/** Between any two parts: something that closes or opens and should not. */
+export const BETWEEN: readonly Defect[] = [stray(']'), stray('}'), contained(')'), unclosed('[')];
+
+/** How a defect in a name is written, as a `:remembers` entry and as a property. */
+export const NAME_DEFECTS: Record<'entry' | 'member', readonly string[]> = {
+  entry: ['Zeta:', '4:', ':', 'faulty', '"faulty":', 'faulty::'],
+  member: [':Zeta', 'faulty', '"faulty"', '::faulty', ': faulty'],
+};
+
+/** A property as written, the name first in the form its place asks for. */
+export const spelled = (name: string, form: 'entry' | 'member', parts: readonly string[]): string =>
+  [form === 'entry' ? `${name}:` : `:${name}`, ...parts].filter((t) => t !== '').join(' ');
+
+export const wellFormed = (c: Chooser, name: string, form: 'entry' | 'member'): string =>
+  spelled(
+    name,
+    form,
+    wellFormedParts(c).map((part) => part.text),
+  );
+
+/**
+ * A property called `faulty` with one defect in one part: its name, its
+ * type, its `default`, its value, a bound, or between two parts.
+ */
+export function defectiveProperty(
+  c: Chooser,
+  form: 'entry' | 'member',
+): { text: string; defect: Defect } {
+  const parts = wellFormedParts(c);
+  const texts = parts.map((part) => part.text);
+  const roll = c.below(10);
+  if (roll === 0) {
+    const text = [c.one(NAME_DEFECTS[form]), ...texts].join(' ');
+    return { text, defect: contained('') };
+  }
+  if (roll <= 3) {
+    // A bad bound, in place of one written or added to any value, or a
+    // bound written twice.
+    const which = c.one(['min', 'max']);
+    const defect = c.below(6) === 0 ? contained(`0 ${which} 1`) : c.one(BAD_BOUNDS);
+    const bound = `${which} ${defect.text}`.trim();
+    const at = parts.findIndex((part) => part.role === 'bound');
+    if (at >= 0 && c.below(2) === 0) texts[at] = bound;
+    else texts.push(bound);
+    return { text: spelled('faulty', form, texts), defect };
+  }
+  if (roll <= 5) {
+    const defect = c.one(BETWEEN);
+    const at = c.below(texts.length + 1);
+    texts.splice(at, 0, defect.text);
+    return { text: spelled('faulty', form, texts), defect };
+  }
+  const at = c.below(parts.filter((part) => part.role !== 'bound').length);
+  const defect = c.one(PART_DEFECTS[parts[at]!.role as Exclude<Role, 'bound'>]);
+  texts[at] = defect.text;
+  return { text: spelled('faulty', form, texts), defect };
+}
+
+/** One `:remembers` of well-formed entries and one defective one, in any order. */
+export function generatedRemembers(c: Chooser, names: readonly string[]) {
+  const faulty = c.below(names.length + 1);
+  const entries = names.map((name) => wellFormed(c, name, 'entry'));
+  // A missing or doubled comma after a well-formed entry is a defect of
+  // its own, and changes nothing about what must be kept.
+  const inSeparator = faulty < names.length && c.below(8) === 0;
+  const made = inSeparator
+    ? { text: wellFormed(c, 'faulty', 'entry'), defect: contained('') }
+    : defectiveProperty(c, 'entry');
+  entries.splice(faulty, 0, made.text);
+  const body = inSeparator
+    ? `${entries.slice(0, faulty + 1).join(', ')}${c.one([' ', ', , '])}${entries.slice(faulty + 1).join(', ')}`
+    : entries.join(', ');
+  return { ...made, text: `:remembers [${body}]` };
+}
+
+/** One defective world member, of any kind a world holds, or text between two members. */
+export function defectiveMember(c: Chooser): { text: string; defect: Defect } {
+  const roll = c.below(8);
+  if (roll <= 3) return defectiveProperty(c, 'member');
+  if (roll <= 5) return generatedRemembers(c, ['echo']);
+  if (roll === 6) {
+    const text = c.one([
+      'visitors are 4',
+      'visitors arrive y',
+      'visitors',
+      'visitors are',
+      'contains 4',
+      'nonsense',
+      '4',
+      'without',
+      'without accept',
+      'without accept from 4',
+      'without nonsense from K',
+      'without changed',
+      'passage',
+      'passage Hello { Hi. }',
+      'passage hello extra { Hi. }',
+      'passage hello',
+      'without passage hello',
+    ]);
+    return { text, defect: contained(text) };
+  }
+  // A word that starts a declaration ends the world as never closed, and
+  // what follows is the file's: see `FOLLOWING` and `closedByWhatFollows`.
+  if (c.below(4) === 0) return { text: 'enum', defect: unclosed('enum') };
+  const defect = c.one([stray(']'), contained(')'), unclosed('[')]);
+  return { text: defect.text, defect };
+}
+
+/**
+ * What may follow a body that was never closed: declarations written
+ * well, which are kept, and ones whose own header reads like the entries
+ * of a `:remembers` — `, name: 1]` — which are kept or refused at their
+ * own text, and never taken for the body's.
+ */
+export const FOLLOWING = [
+  { name: 'Omega', text: 'enum Omega { y }', wellFormed: true },
+  { name: 'omega', text: 'message :omega', wellFormed: true },
+  { name: 'omega', text: 'world omega: sprout.World {\n  visitors are P\n}', wellFormed: true },
+  { name: 'Omega', text: 'kind Omega: sprout.Container {\n  contains\n}', wellFormed: true },
+  { name: 'omega', text: 'object omega: Crate in yard', wellFormed: true },
+  { name: 'Omega', text: 'kind Omega: sprout.Container, name: 1] { }', wellFormed: false },
+  { name: 'omega', text: 'object omega: Crate, name: 1] in yard', wellFormed: false },
+  {
+    name: 'omega',
+    text: 'world omega: sprout.World, name: 1] {\n  visitors are P\n}',
+    wellFormed: false,
+  },
+  { name: 'Omega', text: 'enum Omega, name: [1]] { y }', wellFormed: false },
+] as const;
+
+/**
+ * A world never closed says so, and the declaration after it is its own:
+ * kept, or refused somewhere in its own text by something other than the
+ * world's refusal. Returns one finding per violation.
+ */
+export function closedByWhatFollows(
+  text: string,
+  world: string,
+  following: (typeof FOLLOWING)[number],
+  declared: readonly Declaration[],
+  said: readonly Diagnostic[],
+): string[] {
+  const findings: string[] = [];
+  const unclosedMessage = `\`${world}\` is never closed.`;
+  if (!said.some((d) => d.message === unclosedMessage)) {
+    findings.push(`${text}\n  nothing says \`${world}\` is never closed`);
+  }
+  const kept = declared.some((d) => d.name.text === following.name);
+  const from = text.lastIndexOf(following.text);
+  const refused = said.some((d) => d.at.start >= from && d.message !== unclosedMessage);
+  if (!(kept || (!following.wellFormed && refused))) {
+    findings.push(`${text}\n  \`${following.name}\` vanished, and nothing in it was refused`);
+  }
+  return findings;
+}
+
+/**
+ * The rule, at the strength the defect's sort allows. `good` were
+ * written well formed; `written` is every name the source holds at this
+ * level, the defective item's included. `refusable` is false only where
+ * a reader read on its own stopped before the end, since the text after
+ * what it reads is not its to refuse. Returns one finding per violation.
+ */
+export function explained(
+  text: string,
+  sort: Sort,
+  kept: readonly string[],
+  good: readonly string[],
+  written: readonly string[],
+  said: readonly Diagnostic[],
+  refusable = true,
+): string[] {
+  const findings: string[] = [];
+  if (refusable && said.length === 0) {
+    findings.push(`${text}\n  nothing was wrong with it`);
+  }
+  if (sort === 'contained') {
+    findings.push(...nothingVanishes(text, kept, [...good], [...written]));
+    return findings;
+  }
+  if (sort === 'stray') {
+    for (const name of good) {
+      // As said: `remembers.walks` is said as `walks`, a property as it
+      // was written, `:bravo`, and a word-led member by its first word,
+      // `visitors-arrive-at` as `visitors`.
+      const word = name.includes('.')
+        ? name.split('.').at(-1)!
+        : /^[a-z]+(?:-[a-z]+)+$/.test(name)
+          ? name.split('-')[0]!
+          : name;
+      const named = said.some(
+        (d) => d.message.includes(`\`${word}\``) || d.message.includes(`\`:${word}\``),
+      );
+      if (!(kept.includes(name) || named)) {
+        findings.push(`${text}\n  \`${name}\` vanished, and nothing said names it`);
+      }
+    }
+  }
+  findings.push(...nothingVanishes(text, kept, [], [...written]));
+  return findings;
+}
+
+/** Whether a reader read on its own stopped short of the end of what it was given. */
+export const stoppedShort = (
+  text: string,
+  read: { at: { end: number } } | null | undefined,
+): boolean => read !== null && read !== undefined && read.at.end < text.trimEnd().length;
+
+/** Runs one reader, and reports if it threw rather than refusing. */
+export function reading<T>(text: string, read: (s: SourceFile, d: Diagnostics) => T) {
+  const diagnostics = new Diagnostics();
+  let result: T | undefined;
+  let threw: string | null = null;
+  try {
+    result = read(new SourceFile('g.sprout', text), diagnostics);
+  } catch (error) {
+    threw = error instanceof Error ? error.message : String(error);
+  }
+  return { result: result as T, said: diagnostics.refusals as readonly Diagnostic[], threw };
+}
