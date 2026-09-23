@@ -11,7 +11,9 @@
 // to the world (`resolveFrom`), so an object that hides one of its name
 // further out is warned about once the tree is whole; a first step read
 // from the world's body, as `visitors arrive at` is, names something
-// directly in the world. Both walks are loops rather than recursion.
+// directly in the world. The world's name may be a path's first step and
+// no other, and from there the next step is directly in the world, from
+// anywhere. Both walks are loops rather than recursion.
 
 import type { Ident, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
 import { onceEach, type Diagnostics, type Sayer } from '../source/diagnostics.js';
@@ -65,10 +67,11 @@ export type Resolution =
   | { readonly found: 'world' }
   /**
    * Nothing answers at `step`. `within` is the node whose contents were
-   * searched, or null where the first step was searched for outward.
+   * searched, the world's being the empty path, or null where the first
+   * step was searched for outward.
    */
   | { readonly found: 'missing'; readonly step: number; readonly within: TreePath | null }
-  /** The world's name, as the first step of a longer path. */
+  /** The world's name, as a step of a path other than the first. */
   | { readonly found: 'world-inside'; readonly step: number };
 
 /** The key a node is held under in `placed`: `kiln.shelf`. */
@@ -114,25 +117,35 @@ export function inReach(tree: ObjectTree, vantage: TreePath): string[] {
 
 /**
  * Resolve `path` from inside `vantage`, the nearest declaration winning
- * (the spec's Identifiers and scope). The first step is looked for in
- * the vantage's contents, then its container's, which hold the vantage
- * itself, outward to the world's and then the world's name; each step
- * after it among the contents of what the one before reached.
+ * (the spec's Identifiers and scope). The first step is the world's name,
+ * whose next step is among what the world holds, or is looked for in the
+ * vantage's contents, then its container's, outward to the world's; each
+ * step after it among the contents of what the one before reached.
  */
 export function resolveFrom(tree: ObjectTree, vantage: TreePath, path: TreePath): Resolution {
   const first = path[0];
   if (first === undefined) return { found: 'missing', step: 0, within: null };
-  const rings = ringsTo(tree, vantage);
   let reached: Placement | undefined;
-  for (let ring = rings.length - 1; ring >= 0 && reached === undefined; ring--) {
-    reached = rings[ring]!.get(first);
+  let step = 1;
+  if (first === tree.world) {
+    // No object takes the world's name, so nothing nearer can hide it.
+    const next = path[1];
+    if (next === undefined) return { found: 'world' };
+    if (next === tree.world) return { found: 'world-inside', step: 1 };
+    reached = tree.holds.get(next);
+    if (reached === undefined) return { found: 'missing', step: 1, within: [] };
+    step = 2;
+  } else {
+    const rings = ringsTo(tree, vantage);
+    for (let ring = rings.length - 1; ring >= 0 && reached === undefined; ring--) {
+      reached = rings[ring]!.get(first);
+    }
+    if (reached === undefined) return { found: 'missing', step: 0, within: null };
   }
-  if (reached === undefined) {
-    if (first !== tree.world) return { found: 'missing', step: 0, within: null };
-    return path.length === 1 ? { found: 'world' } : { found: 'world-inside', step: 0 };
-  }
-  for (let step = 1; step < path.length; step++) {
-    const next: Placement | undefined = reached.holds.get(path[step]!);
+  for (; step < path.length; step++) {
+    const name = path[step]!;
+    if (name === tree.world) return { found: 'world-inside', step };
+    const next: Placement | undefined = reached.holds.get(name);
     if (next === undefined) return { found: 'missing', step, within: reached.path };
     reached = next;
   }
@@ -245,20 +258,15 @@ function warnHidden(tree: ObjectTree, diagnostics: Sayer): void {
     }
     if (hidden === undefined) continue;
     const inside = pathKey(inner.container);
-    const outer = pathKey(hidden.path);
-    if (hidden.container.length === 0) {
-      diagnostics.warn(
-        inner.declaration.name.at,
-        `\`${name}\` hides the \`${name}\` directly in the world: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
-        `No path reaches the world's \`${name}\` from inside \`${inside}\`, since the world's name is never a step of one. Give one of them another name if both are meant there.`,
-      );
-    } else {
-      diagnostics.warn(
-        inner.declaration.name.at,
-        `\`${name}\` hides \`${outer}\`: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
-        `Write \`${outer}\` where the outer one is meant, or give this one another name.`,
-      );
-    }
+    const inWorld = hidden.container.length === 0;
+    // The world's name as the first step reaches what the world holds from anywhere.
+    const outer = inWorld ? pathKey([tree.world, name]) : pathKey(hidden.path);
+    const what = inWorld ? `the \`${name}\` directly in the world` : `\`${outer}\``;
+    diagnostics.warn(
+      inner.declaration.name.at,
+      `\`${name}\` hides ${what}: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
+      `Write \`${outer}\` where the outer one is meant, or give this one another name.`,
+    );
   }
 }
 
@@ -270,22 +278,22 @@ export interface PathWords {
 }
 
 /**
- * The world's name as a step of a longer path in `visitors arrive at`,
- * which is refused: the world is never a step of a path. Null where the
- * path does not name it so.
+ * The world's name as a step of a path other than the first in `visitors
+ * arrive at`, which is refused (the spec's Identifiers and scope). Null
+ * where the path does not name it so.
  */
 export function worldInPath(world: string, path: ObjectPath): PathWords | null {
-  const { parts } = path;
-  const inside = parts.length > 1 ? parts.find((part) => part.text === world) : undefined;
-  if (inside === undefined) return null;
-  const rest = parts.filter((part) => part.text !== world).map((part) => part.text);
+  const [first, ...after] = path.parts;
+  const inside = after.find((part) => part.text === world);
+  if (first === undefined || inside === undefined) return null;
+  const rest = [first, ...after.filter((part) => part.text !== world)].map((part) => part.text);
   return {
     step: inside,
-    message: `\`${world}\` is the world, which is named on its own and never as a step of a path.`,
+    message: `\`${world}\` is the world, whose name may be a path's first step and no other.`,
     remedy:
-      rest.length === 0
-        ? 'Name a place in the world, as in `visitors arrive at kiln`.'
-        : `A path starts from something directly in the world: write \`visitors arrive at ${rest.join('.')}\`.`,
+      rest.length === 1 && first.text === world
+        ? `Name a place in the world, as in \`visitors arrive at ${world}.kiln\`.`
+        : `Leave the world's name out of the middle: write \`visitors arrive at ${rest.join('.')}\`.`,
   };
 }
 
@@ -305,7 +313,8 @@ export function unknownStep(
   const within = miss.within;
   const reach = within === null ? inReach(tree, []) : contentsOf(tree, within);
   const meant = nearestOption(step.text, reach);
-  const where = within === null ? 'here' : `in \`${pathKey(within)}\``;
+  const node = within === null ? '' : within.length === 0 ? tree.world : pathKey(within);
+  const where = within === null ? 'here' : `in \`${node}\``;
   const message = `Nothing ${where} is called \`${step.text}\`.${meant === null ? '' : ` Did you mean \`${meant}\`?`}`;
 
   const rest = steps.slice(miss.step + 1);
@@ -327,7 +336,7 @@ export function unknownStep(
     remedy =
       'Name something directly in the world, or something deeper by its path, as in `kiln.shelf`.';
   } else {
-    remedy = `\`${pathKey(within)}\` holds ${readable(reach)}.`;
+    remedy = `\`${node}\` holds ${readable(reach)}.`;
   }
   return { step, message, remedy };
 }

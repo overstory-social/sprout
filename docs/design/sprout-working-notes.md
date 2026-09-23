@@ -207,7 +207,7 @@ How this section works, for the agents that read it. **Open** comes first and ho
 - 66: `finally destroy self`'s details as chosen.
 - 68: a kind's contents compose as chosen.
 - 69: `:departed` and `:arrived`, as named.
-- 70: the world's name may be a path's first step, and no other.
+- 70: the world's name may be a path's first step, and no other. Built: `visitors arrive at printers_shop.hall` reaches the hall, the world's name as a later step is refused, and the hidden-name warning names the path through it.
 - 71: a refused `move`, and a refused `act`, end the body they stand in: the first refusal ends the work.
 - 72: a destroyed declared object is gone for good; its id is never made again, a reference to it is a fault when read, and the compiler warns about `destroy self` on a declared object. Destroying is meant for what was spawned.
 - 73: every composer of `sprout.Actor` is an actor and may `act`; the visitor kind composes `sprout.Visitor`, and every other actor is an NPC. What "no behaviour" covers is Open 80.
@@ -253,7 +253,7 @@ The code that differs is an issue each; see the items below.
 - Objects are declared inside the body of what holds them; the parse tree is the containment tree; `in` and its refusals and the `container` absent row go. Built.
 - An identifier belongs to the body it is written in and is seen from inside it at any depth, nearest wins; a dotted path names anything deeper, and the world's `visitors arrive at`, written in the world's body, names a nested place by one. Built for the tree and `visitors arrive at`; bodies resolve identifiers with B32.
 - Kinds stay at a file's top level; an `object` at a file's top level is refused. The world's body is one block in one file, and a file holding only kinds and enums needs no world. (That a kind's body may hold objects was decided later the same day, above.) Built, a kind's objects refused as not read yet.
-- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one body. Built.
+- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path other than the first (70), or as an object's name; two objects of one name in one body. Built.
 - What `objects`, `places` and `kinds` count, under Static caps.
 - A `spawn` of `sprout.World`, or of a kind that composes it, is refused; so is `destroy self` in the world's own body.
 - A destroyed object has no effects: messages queued to it, messages it sent that have not been delivered, engine messages naming it as their `from`, and its pending wakes are all dropped. (What it held was decided later the same day, above: destroyed with it.)
@@ -498,7 +498,7 @@ Found while refusing arrival at the world and warning on a hidden name, each dec
 
 - **Which place the arrival refusal names.** The first place in the tree, shallowest first and in the order declared within a depth, by its path (`visitors arrive at kiln.back_room`). A world with no place in it is told to declare one.
 - **Which hidden object the warning names.** Only the nearest one further out, since that is what the name meant there before; an object that hides several is warned about once.
-- **A hidden object directly in the world.** No path reaches it from inside the hiding container, since the world's name is never a step of a path, so the warning says so instead of naming a path, and says to rename one if both are meant there.
+- **A hidden object directly in the world.** The world's name as a path's first step reaches it from anywhere (Decided 70), so the warning names that path, `printers_shop.lamp`, as the other hidden-name warnings name theirs. Built.
 - **An object whose kind is absent.** It is still placed, so it still hides one of its name further out and can be hidden itself, and the warning is said in either mode.
 
 Found while destroying what a destroyed object held, each decided the narrow way and awaiting Eric:
