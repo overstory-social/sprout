@@ -272,13 +272,13 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   for (const { kind } of composed) {
     for (const identity of kind.order) if (!order.includes(identity)) order.push(identity);
   }
-  // What a composed kind left out stays left out here, and what this
-  // kind leaves out joins it.
+  // What this kind leaves out. A composed kind's own `without` has
+  // already shaped that kind's guards, so a contribution reaching here
+  // through it is gone and the same contribution reaching here by another
+  // path is not: a `without` removes the copy that came through the kind
+  // that wrote it.
   const suppressed: Suppression[] = [];
-  for (const one of [
-    ...composed.flatMap(({ kind }) => kind.suppressed),
-    ...leftOut(composer, withouts, order, context),
-  ]) {
+  for (const one of leftOut(composer, withouts, order, context)) {
     if (!suppressed.some((other) => sameSuppression(one, other))) suppressed.push(one);
   }
 
