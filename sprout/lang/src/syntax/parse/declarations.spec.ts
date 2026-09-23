@@ -493,14 +493,17 @@ describe('what recovery says, and what it keeps', () => {
     }
   });
 
-  it('keeps a well-formed :remembers entry that follows one it could not read', () => {
+  it('steps over the rest of a malformed :remembers entry rather than re-reading it as a new one', () => {
+    // `b c: 1` has no comma between `b` and `c: 1`, so both are the one
+    // malformed entry: recovery steps over all of it, up to the comma
+    // before the next entry, and says one thing about it.
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
       new SourceFile('k.sprout', ':remembers [a: 0, b c: 1]'),
       diagnostics,
     );
     expect(diagnostics.refusals).toHaveLength(1);
-    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
+    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a']);
   });
 
   it('never loops on an item it cannot read and cannot step over', () => {

@@ -1,0 +1,5 @@
+world remembers_entry_recovers: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+  :remembers [faulty: [Ward] [oak], alpha: 1]
+}
