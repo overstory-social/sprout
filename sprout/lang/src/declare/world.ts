@@ -121,6 +121,7 @@ export function composeWorld(declared: WorldDeclaration, context: WorldContext):
     {
       enums,
       kinds,
+      world: context.from,
       diagnostics,
       ...(onUnknown === undefined ? {} : { onUnknown }),
       ...(verbs === undefined ? {} : { verbs }),

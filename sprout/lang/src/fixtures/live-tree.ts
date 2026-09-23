@@ -30,7 +30,7 @@ export function declaredTree(world: string, text: string): ObjectTree {
     diagnostics,
   );
   const enums = new EnumTable();
-  kinds.resolve(enums, diagnostics);
+  kinds.resolve(world, enums, diagnostics);
   const composed = resolveObjects(
     world,
     declared.filter((d): d is ObjectDeclaration => d.kind === 'object'),

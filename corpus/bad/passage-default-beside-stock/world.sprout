@@ -1,0 +1,7 @@
+world passage_default_beside_stock: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+}
+
+kind Creature: sprout.Actor { }
+

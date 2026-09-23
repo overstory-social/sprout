@@ -1,0 +1,8 @@
+// A kind of the world's own writes a default `arrives`, and `sprout.Place`
+// writes one too. The standard library's default gives way to another
+// library's, and the world's own kinds are not one, so the two collide.
+kind Quiet {
+  passage arrives default { {item} is here. }
+}
+
+object hall: sprout.Place, Quiet in passage_default_beside_stock { }

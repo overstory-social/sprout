@@ -6,16 +6,22 @@
 // composer's own always does, since a collision is only ever between two
 // sources neither of which is the composer. Among what its composed kinds
 // bring, one origin reached by several paths counts once; a default
-// yields to any passage of the same name from another source; and two
-// that neither yields, or two defaults with nothing else beside them,
-// are refused at the composed kind, as written, that brought the second.
-// The one that applies keeps its origin and its `default`, so a default
-// passed through still yields further up.
+// yields to any passage of the same name from another source, and the
+// standard library's default to another library's; and two that neither
+// yields, or two defaults with nothing else beside them, are refused at
+// the composed kind, as written, that brought the second. The one that
+// applies keeps its origin and its `default`, so a default passed through
+// still yields further up.
+//
+// The world's own kinds are not read as another library: a world kind's
+// default beside the standard library's collides, as it does beside any
+// other default. Whether the spec means them to win is a hole for Eric.
 
 import type { KindExpr, KindMember, PassageBody } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import { readable } from '../source/words.js';
+import { libraryOf, SPROUT } from './enums.js';
 
 /** The passage that applies for one name on a composed kind. */
 export interface ResolvedPassage {
@@ -95,15 +101,18 @@ export function passageArrivals(
 /** What a composer is called in a refusal, and how a kind's qualified name is shown from it. */
 export interface PassageComposer {
   readonly name: string;
+  /** The world's namespace, whose kinds are the world's own and not a library's. */
+  readonly world: string;
   shown(identity: string): string;
 }
 
 /**
  * The passage that applies for each name: the composer's own, else the
- * one arrival that does not yield, else the one default. Two or more
- * that do not yield, or two or more defaults and nothing else, are
- * refused, and the first of them is kept so that nothing further up is
- * said about the same line again.
+ * one arrival that does not yield, else the one default, the standard
+ * library's having given way to another library's. Two or more that do
+ * not yield, or two or more defaults and nothing else, are refused, and
+ * the first of them is kept so that nothing further up is said about the
+ * same line again.
  */
 export function resolvePassages(
   composer: PassageComposer,
@@ -119,12 +128,25 @@ export function resolvePassages(
       continue;
     }
     const speaking = came.filter((one) => !one.passage.yields);
-    const contenders = speaking.length > 0 ? speaking : came;
+    const contenders = speaking.length > 0 ? speaking : amongDefaults(composer, came);
     if (contenders.length > 1) refuseCollision(composer, name, contenders, diagnostics);
     resolved.set(name, contenders[0]!.passage);
   }
   for (const [name, passage] of own) if (!resolved.has(name)) resolved.set(name, passage);
   return resolved;
+}
+
+/**
+ * Which of several defaults stand: the standard library's give way when
+ * another library's is among them, and every default stands otherwise.
+ */
+function amongDefaults(
+  composer: PassageComposer,
+  came: readonly PassageArrival[],
+): readonly PassageArrival[] {
+  const library = (one: PassageArrival): string => libraryOf(one.passage.origin);
+  const another = came.some((one) => library(one) !== SPROUT && library(one) !== composer.world);
+  return another ? came.filter((one) => library(one) !== SPROUT) : came;
 }
 
 /** Two or more sources for one line, none of them the composer: refused at the second, naming them all. */
@@ -137,10 +159,11 @@ function refuseCollision(
   const sources = readable(contenders.map((one) => composer.shown(one.passage.origin)));
   const from = contenders.length === 2 ? `both ${sources}` : sources;
   const allDefault = contenders.every((one) => one.passage.yields);
+  const stock = contenders.some((one) => libraryOf(one.passage.origin) === SPROUT);
   diagnostics.refuse(
     contenders[1]!.through.at,
     allDefault
-      ? `\`${composer.name}\` gets a default passage \`${name}\` from ${from}, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.`
+      ? `\`${composer.name}\` gets a default passage \`${name}\` from ${from}, and a thing speaks each line in one voice: a default gives way only to a passage that is not one${stock ? ', or the standard library’s to another library’s' : ''}.`
       : `\`${composer.name}\` gets the passage \`${name}\` from ${from}, and a thing speaks each line in one voice.`,
     `Write its own \`passage ${name} { … }\` in \`${composer.name}\`, which is then the one that applies, or compose only one of them.`,
   );

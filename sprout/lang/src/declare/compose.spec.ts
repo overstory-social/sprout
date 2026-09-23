@@ -32,11 +32,23 @@ enum Ward { oak, silver }
  * above. What the composer's own composition says is all that is
  * reported.
  */
-function compose(text: string, options: { sprout?: string; mayComposeWorld?: boolean } = {}) {
+function compose(
+  text: string,
+  options: {
+    sprout?: string;
+    /** Other libraries' kinds, by library. */
+    libraries?: Readonly<Record<string, string>>;
+    mayComposeWorld?: boolean;
+  } = {},
+) {
   const read = new Diagnostics();
   const sprout = parseDeclarations(
     new SourceFile('sprout.sprout', options.sprout ?? SPROUT_TEXT),
     read,
+  );
+  const libraries = Object.entries(options.libraries ?? {}).map(
+    ([library, source]) =>
+      [library, parseDeclarations(new SourceFile(`${library}.sprout`, source), read)] as const,
   );
   const shop = parseDeclarations(new SourceFile('shop.sprout', text), read);
   expect(
@@ -57,13 +69,20 @@ function compose(text: string, options: { sprout?: string; mayComposeWorld?: boo
     sprout.filter((d): d is KindDeclaration => d.kind === 'kind'),
     setup,
   );
+  for (const [library, declared] of libraries) {
+    kinds.add(
+      library,
+      declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
+      setup,
+    );
+  }
   const composer = shop.at(-1) as KindDeclaration | ObjectDeclaration;
   kinds.add(
     'shop',
     shop.filter((d): d is KindDeclaration => d.kind === 'kind' && d !== composer),
     setup,
   );
-  kinds.resolve(enums, setup);
+  kinds.resolve('shop', enums, setup);
   expect(
     setup.refusals.map((d) => d.message),
     'the kinds it composes resolve',
@@ -79,7 +98,7 @@ function compose(text: string, options: { sprout?: string; mayComposeWorld?: boo
       members: composer.members,
       mayComposeWorld: options.mayComposeWorld ?? false,
     },
-    { enums, kinds, diagnostics, onUnknown: (written) => unknown.push(written) },
+    { enums, kinds, world: 'shop', diagnostics, onUnknown: (written) => unknown.push(written) },
   );
   return {
     kind,
@@ -425,7 +444,7 @@ describe('what a composition list may not name', () => {
         composes: (crate as KindDeclaration).composes,
         members: [],
       },
-      { enums: new EnumTable(), kinds, diagnostics },
+      { enums: new EnumTable(), kinds, world: 'shop', diagnostics },
     );
     expect(kind).toBeNull();
     expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
@@ -479,7 +498,7 @@ describe('what a composition list may not name', () => {
         composes: (crate as KindDeclaration).composes,
         members: [],
       },
-      { enums: new EnumTable(), kinds: failed, diagnostics },
+      { enums: new EnumTable(), kinds: failed, world: 'shop', diagnostics },
     );
     expect(kind).toBeNull();
     expect(diagnostics.all).toEqual([]);
@@ -495,7 +514,7 @@ describe('what a composition list may not name', () => {
     const [kind] = parseDeclarations(new SourceFile('k.sprout', 'kind C: A { }'), diagnostics);
     composeKind(
       { library: 'shop', name: 'C', composes: (kind as KindDeclaration).composes, members: [] },
-      { enums: new EnumTable(), kinds: looping, diagnostics },
+      { enums: new EnumTable(), kinds: looping, world: 'shop', diagnostics },
     );
     expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
@@ -707,6 +726,16 @@ kind Place {
     expect(origins(kind!)).toEqual({ arrives: 'shop.Hushed', leaves: 'sprout.Place' });
   });
 
+  it('takes a register library’s default over `sprout.Place`’s, still a default, and the rest from the library', () => {
+    const { kind, said } = compose('object hall: sprout.Place, victorian.Hushed in shop { }', {
+      sprout: VOICED,
+      libraries: { victorian: 'kind Hushed { passage arrives default { {item} slips in. } }' },
+    });
+    expect(said).toEqual([]);
+    expect(origins(kind!)).toEqual({ arrives: 'victorian.Hushed', leaves: 'sprout.Place' });
+    expect(kind!.passages.get('arrives')!.yields).toBe(true);
+  });
+
   it('refuses two defaults at the kind as written, naming a library’s kind with its library', () => {
     const { kind, said } = compose(
       'kind Quiet { passage arrives default { {item} is here. } }\nobject hall: sprout.Place, Quiet in shop { }',
@@ -715,7 +744,7 @@ kind Place {
     expect(said).toEqual([
       [
         'shop.sprout:2:28',
-        '`hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.',
+        '`hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one, or the standard library’s to another library’s.',
         'Write its own `passage arrives { … }` in `hall`, which is then the one that applies, or compose only one of them.',
       ],
     ]);

@@ -21,7 +21,7 @@ function objects(text: string) {
     declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
     diagnostics,
   );
-  kinds.resolve(enums, diagnostics);
+  kinds.resolve('shop', enums, diagnostics);
   const missing: string[] = [];
   const resolved = resolveObjects(
     'shop',

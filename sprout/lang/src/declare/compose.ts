@@ -87,6 +87,8 @@ export interface Composer {
 export interface ComposeContext {
   readonly enums: EnumTable;
   readonly kinds: KindSource;
+  /** The world's namespace, which is no library's. */
+  readonly world: string;
   readonly diagnostics: Diagnostics;
   readonly onUnknown?: OnUnknown;
   /** The verbs a play may name; with none, every play names a verb nothing declares. */
@@ -273,7 +275,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
 
   // --- passages, one per name -------------------------------------------
   const passages = resolvePassages(
-    { name: composer.name, shown },
+    { name: composer.name, world: context.world, shown },
     ownPassages(composer.name, composer.members, own, diagnostics),
     passageArrivals(composed.map(({ kind, written }) => ({ passages: kind.passages, written }))),
     diagnostics,

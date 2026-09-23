@@ -5,7 +5,13 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { shownName } from './enums.js';
-import { ownPassages, passageArrivals, resolvePassages, type ResolvedPassage } from './passages.js';
+import {
+  ownPassages,
+  passageArrivals,
+  resolvePassages,
+  type PassageArrival,
+  type ResolvedPassage,
+} from './passages.js';
 
 /**
  * Resolve the passages of the last kind in `text`, every kind in the
@@ -37,7 +43,7 @@ function resolve(text: string) {
       written,
     }));
     const resolved = resolvePassages(
-      { name, shown: (identity) => shownName(identity, 'shop') },
+      { name, world: 'shop', shown: (identity) => shownName(identity, 'shop') },
       ownPassages(name, declaration.members, `shop.${name}`, diagnostics),
       passageArrivals(composed),
       diagnostics,
@@ -251,5 +257,82 @@ describe('two sources that neither yields are refused', () => {
       );
       expect(said, order).toHaveLength(1);
     }
+  });
+});
+
+describe('the standard library’s default yields to another library’s', () => {
+  /** An `arrives` as `origin` wrote it, a default unless `yields` is false, arriving through one composed kind. */
+  function arrival(origin: string, yields = true): PassageArrival {
+    const [declared] = parseDeclarations(
+      new SourceFile(
+        `${origin}.sprout`,
+        `kind K: Through { passage arrives${yields ? ' default' : ''} { From ${origin}. } }`,
+      ),
+      new Diagnostics(),
+    ) as KindDeclaration[];
+    const own = ownPassages('K', declared!.members, origin, new Diagnostics());
+    return { passage: own.get('arrives')!, through: declared!.composes[0]! };
+  }
+
+  /** What `hall`, a thing of the world `shop` writing nothing itself, gets for `arrives` from these origins. */
+  function settle(...origins: readonly (string | [string, false])[]) {
+    const diagnostics = new Diagnostics();
+    const came = origins.map((one) =>
+      typeof one === 'string' ? arrival(one) : arrival(one[0], false),
+    );
+    const passages = resolvePassages(
+      { name: 'hall', world: 'shop', shown: (identity) => shownName(identity, 'shop') },
+      new Map(),
+      new Map([['arrives', came]]),
+      diagnostics,
+    );
+    const applies = passages.get('arrives')!;
+    return {
+      origin: applies.origin,
+      yields: applies.yields,
+      said: diagnostics.refusals.map((d) => d.message),
+    };
+  }
+
+  it('lets another library’s default apply over the standard library’s, and it stays a default', () => {
+    expect(settle('sprout.Place', 'victorian.Hushed')).toEqual({
+      origin: 'victorian.Hushed',
+      yields: true,
+      said: [],
+    });
+  });
+
+  it('gives way whichever was composed first', () => {
+    expect(settle('victorian.Hushed', 'sprout.Place').origin).toBe('victorian.Hushed');
+  });
+
+  it('still refuses two defaults from two libraries other than the standard one, naming only them', () => {
+    const { said } = settle('sprout.Place', 'victorian.Hushed', 'regency.Quiet');
+    expect(said).toEqual([
+      '`hall` gets a default passage `arrives` from both `victorian.Hushed` and `regency.Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.',
+    ]);
+  });
+
+  it('does not read the world’s own kinds as another library: its default beside the standard library’s collides', () => {
+    const { said, origin } = settle('sprout.Place', 'shop.Quiet');
+    expect(said).toEqual([
+      '`hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one, or the standard library’s to another library’s.',
+    ]);
+    expect(origin).toBe('sprout.Place');
+  });
+
+  it('drops the standard library’s once another library’s is there, and the world’s own still collides with that', () => {
+    const { said } = settle('sprout.Place', 'shop.Quiet', 'victorian.Hushed');
+    expect(said).toEqual([
+      '`hall` gets a default passage `arrives` from both `Quiet` and `victorian.Hushed`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one.',
+    ]);
+  });
+
+  it('is beside the point once any source does not yield: that one applies', () => {
+    expect(settle('sprout.Place', 'victorian.Hushed', ['shop.Loud', false])).toEqual({
+      origin: 'shop.Loud',
+      yields: false,
+      said: [],
+    });
   });
 });

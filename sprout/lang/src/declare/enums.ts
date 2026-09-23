@@ -40,6 +40,16 @@ export function qualifiedName(library: string, name: string): string {
 }
 
 /**
+ * The library of a qualified name: `sprout` from `sprout.Ward`. A library's
+ * name is a manifest name, which holds no `.`, so it is what precedes the first.
+ */
+export function libraryOf(qualified: string): string {
+  const dot = qualified.indexOf('.');
+  if (dot <= 0) throw new Error(`\`${qualified}\` is not a qualified name.`);
+  return qualified.slice(0, dot);
+}
+
+/**
  * A qualified name as an author inside `from` would write it: their own
  * declarations bare, anything of another library's with the library.
  */
