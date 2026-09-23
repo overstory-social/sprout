@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { libraryHash, STANDARD_LIBRARY } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 import { readWorld } from './world.js';
@@ -39,6 +40,34 @@ describe('readWorld', () => {
     expect(world.source!.manifest.namespace).toBe('shop');
     expect(world.source!.files.map((f) => f.name)).toEqual(['rooms/hall.prose', 'world.sprout']);
     expect(world.source!.libraries).toEqual([]);
+  });
+
+  it('sends the standard library it carries when the manifest names `sprout`', () => {
+    const pinned = (sha: string) =>
+      JSON.stringify({
+        ...JSON.parse(MANIFEST),
+        libraries: [{ name: 'sprout', version: '0.1.0', sha }],
+      });
+    for (const sha of [libraryHash(STANDARD_LIBRARY), 'not-the-hash']) {
+      const dir = folder({
+        'sprout.json': pinned(sha),
+        'world.sprout': 'world shop: sprout.World {}',
+      });
+      // The copy sent is the one carried, whatever the pin says; the
+      // compiler compares the two.
+      expect(readWorld(dir).source!.libraries).toEqual([STANDARD_LIBRARY]);
+    }
+  });
+
+  it('sends no library the manifest does not name, and reads none from the folder', () => {
+    const dir = folder({
+      'sprout.json': JSON.stringify({
+        ...JSON.parse(MANIFEST),
+        libraries: [{ name: 'ericworld', version: '0.1.0', sha: 'x' }],
+      }),
+      'world.sprout': 'world shop: sprout.World {}',
+    });
+    expect(readWorld(dir).source!.libraries).toEqual([]);
   });
 
   it('reports a manifest that does not parse, and reads no files', () => {

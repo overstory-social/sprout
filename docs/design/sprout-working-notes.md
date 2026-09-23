@@ -204,7 +204,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
 - **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
 - **A block comment never closed, or inside another.** Decided 2026-09-22 and now under Lexical rules: refused at its opening; no nesting.
-- **Whether a library's `version` is semver.** The manifest's `libraries` row says only "by version", and a vendored library declares one beside its source. Not decided; #75 checks the world's `version` alone.
+- **Whether a library's `version` is semver.** Decided 2026-09-23: it is, and the manifest's pin and the vendored source's own version are checked as the world's is, now that a library can travel.
 - **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
 - **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.
 - Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); a world composes like a kind, so it holds whatever anything it composes holds.
@@ -228,7 +228,7 @@ Found while building composition (B19), each decided the narrow way and awaiting
 - **What `without` may name.** Only the members whose several sources all run: `on :m`, `changed :p`, `depart`, `release`, `accept` and `as <role> for <verb>`. `from` names the kind that declares the member, which must be in the composer's closure and not the composer itself. No kind declares any of those members yet, so every `without` is refused with "has no … to leave out" until B22 reads guards.
 - **A `without` in a kind that is itself composed.** Whether what `B` leaves out stays left out in `D: B`, and what happens when `D` also reaches the source another way, is unsaid; the suppression is recorded on the kind that wrote it, and whichever of B22, B24 and B32 first runs a composed member decides how it travels.
 - **What the kinds, objects and places caps count.** `kinds` counts kind declarations in the world's files and in every usable library the host has not blessed, not an object's anonymous kind; `objects` counts the world's `object` declarations, composed or not; `places` counts its objects whose composed kind holds actors. The world counts toward neither `objects` nor `places`. Each is refused at the first declaration past it, at load as at publish.
-- **Where a library lives on disk.** Unspecified, so nothing can vendor `sprout` yet (the CLI sends no libraries), and the world is not resolved in `compileBundle` until it can: resolving it would refuse every world for a `sprout.World` that cannot travel.
+- **Where a library lives on disk.** Still unspecified for any library's vendored copy in a world folder, so the CLI reads none from one. The CLI carries the standard library itself and sends it whenever the manifest names `sprout`, and `sprout init` pins it; the world is not yet resolved in `compileBundle`, and B17 resolves it next.
 
 Found while building identifier scope (B14), each decided the narrow way and awaiting Eric:
 
@@ -275,6 +275,10 @@ Found while building the state model (B16), each decided the narrow way and awai
 - **An instance whose container no longer declares `contains`.** Stays where it is; nothing is moved at load.
 - **Whether dormant instances count toward the host's live-instance limit.** B18's, with `spawn`.
 - **Which item puts the composed world and the visitor kind into the bundle.** Open. Until one does, the world instance has no properties (its record is kept dormant, empty at first) and visitors' instances are dormant.
+
+Found while building actors (B17), each decided the narrow way and awaiting Eric:
+
+- **How the standard library travels.** From the CLI as one known copy, blessed, and pinned by `sprout init`; every manifest names it, and one that does not will be refused for a missing `sprout.World` once `compileBundle` composes the world.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
