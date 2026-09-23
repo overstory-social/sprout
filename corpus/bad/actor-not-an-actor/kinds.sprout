@@ -1,0 +1,6 @@
+// Only an actor plays the one acting, and a bench is not one.
+kind Bench {
+  as actor for sit {
+    do { }
+  }
+}

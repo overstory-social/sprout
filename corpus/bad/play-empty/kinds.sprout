@@ -1,0 +1,4 @@
+// A play with no `permit` and no `do` says nothing at all.
+kind Lever {
+  as target for pull { }
+}

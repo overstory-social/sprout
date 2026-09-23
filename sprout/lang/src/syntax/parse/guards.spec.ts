@@ -195,8 +195,8 @@ describe('a guard’s block', () => {
   });
 
   it('keeps the statements that read around one that did not', () => {
-    const { guards, messages } = readGuards('depart (to) {\n    say "Hi."\n    allow\n  }');
-    expect(messages).toEqual(['`say` does not start a statement this compiler reads.']);
+    const { guards, messages } = readGuards('depart (to) {\n    tell "Hi."\n    allow\n  }');
+    expect(messages).toEqual(['`tell` does not start a statement this compiler reads.']);
     expect(guards[0]!.body.statements.map(shapeOf)).toEqual(['allow']);
   });
 });

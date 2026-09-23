@@ -1,0 +1,19 @@
+{
+  "name": "permit_says",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "cfccc61655d3d5e94faa08d19767331d2333bcd4339dd1b5c598238ce96e9139"
+    }
+  ],
+  "files": [
+    "world.sprout",
+    "kinds.sprout"
+  ]
+}

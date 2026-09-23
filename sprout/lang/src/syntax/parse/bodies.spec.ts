@@ -121,8 +121,8 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       const { declarations, refusals } = opened('nonsense\n  :a 1');
       const holds =
         owner.holds === null
-          ? '`contains`, `passage`, `without`, `depart`, `release` and `accept`'
-          : `\`${owner.holds}\`, \`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\` and \`accept\``;
+          ? '`contains`, `passage`, `without`, `depart`, `release`, `accept` and `as`'
+          : `\`${owner.holds}\`, \`contains\`, \`passage\`, \`without\`, \`depart\`, \`release\`, \`accept\` and \`as\``;
       expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
         [`${owner.article} is not made of \`nonsense\`.`, `It holds its properties, ${holds}.`],
       ]);

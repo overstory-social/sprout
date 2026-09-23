@@ -1,0 +1,14 @@
+world from_on_thing_role: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at from_on_thing_role
+}
+
+kind Visitor: sprout.Actor { }
+
+verb unlock {
+  role target
+  role tool
+  "unlock [target] with [tool]"
+  "unlock [target]"
+}

@@ -388,6 +388,25 @@ Found while resolving verbs across libraries (B23), each decided the narrow way 
 - **A role whose kind was declared and could not be composed.** Nothing more is said of it, since the composition's refusal already has; the role fills nothing, as an absent kind's does.
 - **`put` in the standard library.** It names `Container`, which no library file declares yet, so it waits for `sprout/container.sprout` (B48). `take`, `drop`, `give` and the engine verbs' phrases are there now, with nothing yet playing them; `ask` is in `sprout/talk.sprout`.
 
+Found while reading, checking and composing the roles a kind plays (B24), each decided the narrow way and awaiting Eric:
+
+- **Where a verb is known before kinds compose.** A kind's play resolves its verb as it composes, and what fills a verb's role is a composed kind, so the two cannot wait on each other. Which verbs exist, and the roles each declares, are read from the declarations before any kind composes (`VerbNames`, keeping what the verb table keeps); fillers are still the verb table's, built after the kinds.
+- **Which verb a bare name in a play reaches.** The play's own library's, then the standard library's, as for a kind. `as target for sprout.take` is still not a form.
+- **`allow` in a `permit`, and `refuse` or `allow` in a `do`.** The Two passes calls a `permit` the same shape as a guard, so `allow` is accepted there. A `do` runs once every `permit` has allowed, so both `refuse` and `allow` are refused in one.
+- **The role played, by its own name.** Not bound: inside `as target for unlock`, `target` is `self`, and a read of it says to write `self`. A set role is the exception, since Set roles binds the whole set in every participant's body, its own fillers' included.
+- **A value tool with no `from`.** Unbound, and refused at a read or at `bound`, not at the play. An integer tool with no `from` is the same, as A role-player narrows its own options says.
+- **What `from` may name.** A property of the role-player's, composed ones included, and not a remembered one, which is held about each actor rather than by the role-player. A `from` naming a role the verb lacks, or a role twice, is refused.
+- **What may be played.** A role the verb declares, or `actor`. A value role or an exit is named by the visitor and played by nothing, so `as topic for ask` is refused. A play of an engine verb is accepted; what the engine does with one is B34's.
+- **A kind playing a role its verb's filler does not name.** Accepted: the spec's own `sprout.Lockable` plays `target` for `open`, whose target is a `Container`, and composes no container, so its play contributes wherever a composer composes both. `self` in such a play is the kind that wrote it.
+- **`as actor` on a kind that does not compose `sprout.Actor`.** Refused, from The actor's own part ("A kind composing `sprout.Actor` may play it"). By the `Lockable` reading above, a library kind adding to what every actor does would want the same latitude; this is the question to answer if it does.
+- **`actor` where the world names no visitor kind.** Of the object type, since that failure has been said where the world is declared.
+- **`permit` or `do` twice in one play.** Refused at the second. A play with neither is refused at its head.
+- **A play on the world's own body.** Accepted, though nothing fills a role with the world.
+- **`bound`.** Read as a primary, the word and a name, so it binds tighter than any operator; Precedence does not list it. It narrows only as a whole condition, as `is()` does, so `bound tool && tool.is(Key)` reads `tool` unbound on the right.
+- **An exit role inside a play.** Not bound; only the engine's `go` has one, and what an exit binds is B28's.
+- **The two warnings.** A verb with phrases no participant `say`s for waits for B30, which reads what a body says to whom. A verb no object plays a role for waits for B48: it would fire for `take`, `drop` and `give` in every world until the library writes their plays.
+- **A verb nothing declares, at load.** The absent table's `verb` row: a gap at the verb as written, and the play dropped.
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.

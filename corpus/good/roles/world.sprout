@@ -1,0 +1,33 @@
+// Roles, as far as the compiler reads them today: a world's own verbs
+// played for with `permit` and `do`, an optional tool read under
+// `bound`, a value tool narrowed with `from`, two kinds playing one role
+// and composing, a play left out with `without`, and the actor's own part.
+world roles: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at roles
+}
+
+// The one acting plays its part too: a full pair of hands pulls nothing.
+kind Visitor: sprout.Actor {
+  as actor for pull {
+    permit { if (self.count >= self.get(:capacity)) { refuse "Your hands are full." } }
+  }
+}
+
+verb pull { role target  "pull [target]"  "yank [target]" }
+
+// An open tool, which `"unlock [target]"` leaves out, so it is optional.
+verb unlock {
+  role target: Lockable
+  role tool
+  "unlock [target] with [tool]"
+  "use [tool] on [target]"
+  "unlock [target]"
+}
+
+object lever: Lever in roles
+object door: Warded in roles
+object gate: Rusted in roles
+object key: Key in roles
+object guard: Guard in roles

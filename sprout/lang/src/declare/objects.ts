@@ -10,6 +10,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { EnumTable } from './enums.js';
 import type { KindRef } from './kinds.js';
 import { composeKind, type KindSource, type OnUnknown } from './compose.js';
+import type { OnUnknownVerb, VerbNames } from './roles.js';
 import type { ObjectTree, Placeable } from './tree.js';
 
 /** An object as the bundle holds it. */
@@ -38,6 +39,9 @@ export interface ObjectContext {
   readonly kinds: KindSource;
   readonly diagnostics: Diagnostics;
   readonly onUnknown?: OnUnknown;
+  /** The verbs an object's own plays may name. */
+  readonly verbs?: VerbNames;
+  readonly onUnknownVerb?: OnUnknownVerb;
 }
 
 /**

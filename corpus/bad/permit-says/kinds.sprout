@@ -1,0 +1,7 @@
+// A `permit` decides and speaks to no one: the words belong in `do`, or
+// in a `refuse`.
+kind Lever {
+  as target for pull {
+    permit { say "Clunk." }
+  }
+}

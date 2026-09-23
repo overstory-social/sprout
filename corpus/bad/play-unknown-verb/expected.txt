@@ -1,0 +1,4 @@
+kinds.sprout:4:17  `Warded` plays `target` for `unlokc`, and nothing declares that verb. Did you mean `unlock`?
+                   Write `as target for unlock`, or declare `verb unlokc { … }`.
+
+refused: 1 problem

@@ -116,6 +116,8 @@ function runStatement(
       throw readOnly('`spawn`');
     case 'destroy':
       throw readOnly('`destroy`');
+    case 'say':
+      throw readOnly('`say`');
     case 'expression-statement':
       throw readOnly('an expression standing as a statement');
   }

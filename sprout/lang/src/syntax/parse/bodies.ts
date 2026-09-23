@@ -14,6 +14,7 @@ import {
   type KindExpr,
   type KindMember,
   type MemberRef,
+  type PlayDeclaration,
   type PropertyDeclaration,
   type RemembersDeclaration,
   type WithoutDeclaration,
@@ -27,6 +28,7 @@ import { guard, isGuardName } from './guards.js';
 import { isPassage, passage } from './passages.js';
 import { property, remembers } from './properties.js';
 import { stepPast } from './recovery.js';
+import { play } from './roles.js';
 
 /** What declares a body, as its messages name it. */
 export type Owner = 'world' | 'kind' | 'object';
@@ -87,6 +89,7 @@ export function kindMembers(p: Parser, owner: string): MemberReaders<KindMember>
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
   addGuards(p, owner, readers);
+  addPlays(p, owner, readers);
   return readers;
 }
 
@@ -101,6 +104,20 @@ export function addGuards<M>(
 ): void {
   const startsMember = (token: Token): boolean => memberReader(p, token, readers) !== null;
   for (const name of GUARD_NAMES) readers.set(name, () => guard(p, owner, startsMember));
+}
+
+/**
+ * `as <role> for <verb> { … }`, added to a body's table. A play never
+ * closed ends where the body's next member starts, which the same table
+ * says.
+ */
+export function addPlays<M>(
+  p: Parser,
+  owner: string,
+  readers: Map<string, () => M | PlayDeclaration | null>,
+): void {
+  const startsMember = (token: Token): boolean => memberReader(p, token, readers) !== null;
+  readers.set('as', () => play(p, owner, startsMember));
 }
 
 /**
@@ -251,13 +268,15 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
     // arrive at` alike, are named once and not twice: the remedy is the
     // same for both, and a name repeated says nothing a single one does
     // not.
-    const text = token.kind === 'symbol' ? `:${token.text}` : token.text;
+    const text = token.kind === 'symbol' ? `:${token.text}` : (playHeadAt(p, ahead) ?? token.text);
     if (!found.some((member) => member.text === text)) found.push({ at: token.at, text });
     ahead += 1;
     // A guard's brackets and block are its own, and are stepped over
     // with it, so its `{` does not end the scan and its statements are
     // not taken for members.
     if (token.kind === 'name' && isGuardName(token.text)) ahead = pastGuard(p, ahead);
+    // A play's head and braces are its own in the same way.
+    if (token.kind === 'name' && token.text === 'as') ahead = pastPlay(p, ahead);
   }
   if (found.length === 0) return;
   p.diagnostics.refuse(
@@ -293,6 +312,38 @@ function pastGuard(p: Parser, ahead: number): number {
     }
   }
   return at;
+}
+
+/** `as target for unlock`, where a play's whole head is written at `ahead`; else null. */
+function playHeadAt(p: Parser, ahead: number): string | null {
+  const [as, role, word, verb] = [0, 1, 2, 3].map((i) => p.peek(ahead + i));
+  const named = (token: Token | undefined): boolean => token?.kind === 'name';
+  if (as?.text !== 'as' || !named(as) || !named(role) || word?.text !== 'for' || !named(verb)) {
+    return null;
+  }
+  return `as ${role!.text} for ${verb!.text}`;
+}
+
+/**
+ * Past a play's `<role> for <verb>` and its `{ … }`, from just after its
+ * `as` at `ahead`, where each is written and closes; otherwise where it
+ * stopped.
+ */
+function pastPlay(p: Parser, ahead: number): number {
+  let at = ahead;
+  for (let words = 0; words < 3; words++) {
+    const token = p.peek(at);
+    if (token.kind !== 'name' && token.kind !== 'kind') break;
+    at += 1;
+  }
+  if (!punct(p.peek(at), '{')) return at;
+  let depth = 0;
+  for (let scan = at; ; scan++) {
+    const token = p.peek(scan);
+    if (token.kind === 'end' || p.atDeclarationStart(scan)) return at;
+    if (punct(token, '{')) depth += 1;
+    else if (punct(token, '}') && --depth === 0) return scan + 1;
+  }
 }
 
 /**
@@ -484,7 +535,9 @@ function memberNamed<M>(p: Parser, keyword: Span, readers: MemberReaders<M>): Me
     p.next();
     return { kind: 'guard-ref', at: token.at, guard: token.text };
   }
-  if (token.kind === 'name' && token.text === 'as') {
+  // `as <role> for <verb>` with its brace after it is the next member, a
+  // play as written, and not what this line leaves out.
+  if (token.kind === 'name' && token.text === 'as' && !playFollows(p)) {
     p.next();
     const role = namePart(p, 'name', readers);
     const said = role === null ? null : p.take('name', 'for');
@@ -544,6 +597,21 @@ function memberNamed<M>(p: Parser, keyword: Span, readers: MemberReaders<M>): Me
   // next member, so the body does not read it again.
   if (memberReader(p, token, readers) !== null) p.next();
   return null;
+}
+
+/** Whether `as <role> for <verb> {` is written from here: a play, not a member named. */
+function playFollows(p: Parser): boolean {
+  const word = (ahead: number): boolean => {
+    const token = p.peek(ahead);
+    return token.kind === 'name' || token.kind === 'kind';
+  };
+  return (
+    word(1) &&
+    p.peek(2).kind === 'name' &&
+    p.peek(2).text === 'for' &&
+    word(3) &&
+    punct(p.peek(4), '{')
+  );
 }
 
 /**

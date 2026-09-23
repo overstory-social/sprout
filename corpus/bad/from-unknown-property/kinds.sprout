@@ -1,0 +1,11 @@
+// `from` names a property the guard holds; this one is misspelt.
+enum Topic { bridge, toll }
+
+kind Guard {
+  :knows [Topic] default [bridge, toll]
+
+  as target for ask {
+    topic from :knws
+    do { }
+  }
+}

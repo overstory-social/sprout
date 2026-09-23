@@ -1,0 +1,12 @@
+// A `do` runs once every `permit` has allowed, so it has nothing left to
+// refuse.
+kind Lever {
+  :pulled false
+
+  as target for pull {
+    do {
+      if (self.get(:pulled)) { refuse "It is already down." }
+      self.set(:pulled, true)
+    }
+  }
+}
