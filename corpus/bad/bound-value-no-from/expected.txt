@@ -1,0 +1,4 @@
+kinds.sprout:6:17  `topic` has no options here, so it is never bound.
+                   Write `topic from :<a list property>` in this body, naming the options `Guard` hears.
+
+refused: 1 problem

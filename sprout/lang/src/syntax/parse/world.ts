@@ -8,6 +8,7 @@ import { spanning } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import {
   addGuards,
+  addPlays,
   body,
   composition,
   contains,
@@ -69,6 +70,7 @@ function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember> {
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
   addGuards(p, owner, readers);
+  addPlays(p, owner, readers);
   return readers;
 }
 

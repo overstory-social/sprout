@@ -1,4 +1,5 @@
-// Expressions (the spec's Properties › Precedence). A statement is not
+// Expressions (the spec's Properties › Precedence, and `bound` from
+// Verbs › Optional tools, read as a primary). A statement is not
 // one: `spawn` and `destroy` in an expression are refused here, and a
 // `let` is read in `statements.ts`.
 //
@@ -206,6 +207,7 @@ function primary(p: Parser): Expr | null {
   }
   if (token.kind === 'name') {
     if (token.text === 'spawn' || token.text === 'destroy') return statementRead(p);
+    if (token.text === 'bound') return boundTest(p);
     if (token.text === 'true' || token.text === 'false') {
       p.next();
       return { kind: 'boolean', at: token.at, value: token.text === 'true' };
@@ -244,6 +246,27 @@ function primary(p: Parser): Expr | null {
     `${p.describe(token)} is not something to read.`,
     'Write a value, a name something in scope answers to, or a reading such as `self.get(:wear)`.',
   );
+  return null;
+}
+
+/**
+ * `bound tool` — the word and the name it asks about, read as a primary:
+ * what it asks about is a name alone, so nothing binds tighter or looser
+ * around it than around any other name.
+ */
+function boundTest(p: Parser): Expr | null {
+  const keyword = p.next();
+  const name = p.peek();
+  if (name.kind === 'name' && !punct(p.peek(1), '.') && !punct(p.peek(1), '(')) {
+    p.next();
+    return { kind: 'bound', at: spanning(keyword.at, name.at), name: p.ident(name) };
+  }
+  p.diagnostics.refuse(
+    name.kind === 'name' || name.kind === 'kind' ? name.at : p.source.span(keyword.at.end),
+    '`bound` asks whether a tool was given, by its name alone.',
+    'Write `bound` and the name of the tool, as in `if (bound tool) { … }`.',
+  );
+  if (name.kind === 'name' || name.kind === 'kind') p.next();
   return null;
 }
 

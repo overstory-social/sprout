@@ -1,0 +1,11 @@
+// `ask`'s topic is a value the visitor names, so no object plays it: the
+// guard plays the target, and narrows the topic.
+enum Topic { bridge, toll }
+
+kind Guard {
+  :knows [Topic] default [bridge, toll]
+
+  as topic for ask {
+    do { }
+  }
+}

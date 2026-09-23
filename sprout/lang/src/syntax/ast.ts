@@ -226,6 +226,16 @@ export interface FreeCallExpr extends Node {
   readonly arguments: readonly Expr[];
 }
 
+/**
+ * `bound tool` — whether an optional tool was given, the test that lets a
+ * body read it (the spec's Optional tools). It asks about a name, and
+ * nothing else stands after the word.
+ */
+export interface BoundExpr extends Node {
+  readonly kind: 'bound';
+  readonly name: Ident;
+}
+
 export type Expr =
   | LiteralExpr
   | BindingExpr
@@ -235,7 +245,8 @@ export type Expr =
   | BinaryExpr
   | MemberExpr
   | CallExpr
-  | FreeCallExpr;
+  | FreeCallExpr
+  | BoundExpr;
 
 // --- statements -----------------------------------------------------------
 
@@ -298,6 +309,16 @@ export interface RefuseStatement extends Node {
   readonly said: StringLiteral | Ident;
 }
 
+/**
+ * `say "The bolt slides back."` or `say taken` — words for the actor, in
+ * quotes or in a passage of the kind that writes it, named (the spec's
+ * Prose). Where one may stand is the checker's.
+ */
+export interface SayStatement extends Node {
+  readonly kind: 'say';
+  readonly said: StringLiteral | Ident;
+}
+
 /** `allow` — a guard's consent, said before its end (the spec's Movement and consent). */
 export interface AllowStatement extends Node {
   readonly kind: 'allow';
@@ -320,6 +341,7 @@ export type Statement =
   | IfStatement
   | RefuseStatement
   | AllowStatement
+  | SayStatement
   | ExpressionStatement;
 
 // --- the world ------------------------------------------------------------
@@ -408,7 +430,10 @@ export interface GuardRef extends Node {
   readonly guard: GuardName;
 }
 
-/** `as target for unlock` — a role member, named by the role and the verb. */
+/**
+ * `as target for unlock` — a role member, named by the role and the verb:
+ * the head of one as written, and what `without` names to leave one out.
+ */
 export interface RoleRef extends Node {
   readonly kind: 'role-ref';
   readonly role: Ident;
@@ -493,6 +518,41 @@ export interface GuardDeclaration extends Node {
   readonly body: Block;
 }
 
+// --- playing a role -------------------------------------------------------
+
+/** `1 to 12` after a `from` — a range of numbers written out, the lower first. */
+export interface IntegerRange extends Node {
+  readonly kind: 'integer-range';
+  readonly min: IntegerLiteral;
+  readonly max: IntegerLiteral;
+}
+
+/**
+ * `topic from :knows`, `dial from 1 to 12` — the options a value role
+ * binds for this role-player: a property it holds, or a range written
+ * out (the spec's A role-player narrows its own options).
+ */
+export interface FromDeclaration extends Node {
+  readonly kind: 'from';
+  readonly role: Ident;
+  readonly by: SymbolExpr | IntegerRange;
+}
+
+/**
+ * `as target for unlock { permit { … } do { … } }`, `as actor for take
+ * { … }` — the claim that this thing can play a role in a verb, and the
+ * code for playing it (the spec's Verbs › Playing a role, The actor's own
+ * part). `permit` decides and `do` acts; either may be left out, and
+ * both are read by the statement reader.
+ */
+export interface PlayDeclaration extends Node {
+  readonly kind: 'play';
+  readonly head: RoleRef;
+  readonly narrows: readonly FromDeclaration[];
+  readonly permit: Block | null;
+  readonly do: Block | null;
+}
+
 /**
  * What a kind's body, or an object's, may declare (the spec's Kinds ›
  * Declaring and composing). The union grows one item at a time.
@@ -503,7 +563,8 @@ export type KindMember =
   | ContainsDeclaration
   | WithoutDeclaration
   | PassageDeclaration
-  | GuardDeclaration;
+  | GuardDeclaration
+  | PlayDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

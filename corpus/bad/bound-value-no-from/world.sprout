@@ -1,0 +1,7 @@
+world bound_value_no_from: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at bound_value_no_from
+}
+
+kind Visitor: sprout.Actor { }

@@ -1,0 +1,9 @@
+world actor_not_an_actor: sprout.World {
+  contains actors
+  visitors are Visitor
+  visitors arrive at actor_not_an_actor
+}
+
+kind Visitor: sprout.Actor { }
+
+verb sit { role target  "sit on [target]" }

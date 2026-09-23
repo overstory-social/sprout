@@ -1,0 +1,4 @@
+kinds.sprout:7:14  `self.set` writes, and a `permit` only reads and decides.
+                   Move it to `do`; a `permit` ends in `allow` or `refuse`.
+
+refused: 1 problem

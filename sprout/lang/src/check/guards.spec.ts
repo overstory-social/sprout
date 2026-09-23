@@ -143,6 +143,16 @@ describe('a guard may not write, make or remove anything', () => {
     ]);
   });
 
+  it('refuses a `say`, which has nobody to speak to in a guard', () => {
+    expect(check('accept (item, from) { say "Hello." }').said).toEqual([
+      [
+        'g.sprout:2:25',
+        '`say` has nobody to speak to inside `accept`.',
+        "It belongs in a role's `do`.",
+      ],
+    ]);
+  });
+
   it('refuses a reading written as a statement, which does nothing', () => {
     expect(check('depart (to) { self.count }').messages).toEqual([
       'This reads something rather than doing something.',

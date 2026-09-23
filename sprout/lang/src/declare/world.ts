@@ -35,6 +35,7 @@ import {
   type OnUnknown,
 } from './compose.js';
 import { ACTOR, checkVisitorKind } from './actors.js';
+import type { OnUnknownVerb, VerbNames } from './roles.js';
 import {
   resolveFrom,
   unknownStep,
@@ -84,6 +85,9 @@ export interface WorldContext {
    * refused.
    */
   readonly onUnknown?: OnUnknown;
+  /** The verbs the world's own plays may name. */
+  readonly verbs?: VerbNames;
+  readonly onUnknownVerb?: OnUnknownVerb;
 }
 
 /**
@@ -102,7 +106,7 @@ export function composeWorld(declared: WorldDeclaration, context: WorldContext):
     checkWorldDeclaration(declared, context.diagnostics);
     return null;
   }
-  const { enums, kinds, diagnostics, onUnknown } = context;
+  const { enums, kinds, diagnostics, onUnknown, verbs, onUnknownVerb } = context;
   return composeKind(
     {
       library: context.from,
@@ -114,7 +118,14 @@ export function composeWorld(declared: WorldDeclaration, context: WorldContext):
       ),
       mayComposeWorld: true,
     },
-    { enums, kinds, diagnostics, ...(onUnknown === undefined ? {} : { onUnknown }) },
+    {
+      enums,
+      kinds,
+      diagnostics,
+      ...(onUnknown === undefined ? {} : { onUnknown }),
+      ...(verbs === undefined ? {} : { verbs }),
+      ...(onUnknownVerb === undefined ? {} : { onUnknownVerb }),
+    },
   );
 }
 
@@ -123,10 +134,10 @@ export type Visitors =
   /** The world's own kind, composing `sprout.Actor`. */
   | { readonly found: 'kind'; readonly kind: KindRef }
   /**
-   * Nothing is there to make a visitor of. The absent table has no row
-   * for it; a compile treats it as the `world` row, refused at publish
-   * and recorded at load, the world admitting no one. `said` is whether
-   * what left it absent has been told already.
+   * Nothing is there to make a visitor of: the absent table's
+   * `visitor-kind` row, refused at publish and recorded at load, the
+   * world admitting no one. `said` is whether what left it absent has
+   * been told already.
    */
   | {
       readonly found: 'absent';

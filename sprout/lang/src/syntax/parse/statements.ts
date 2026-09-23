@@ -1,7 +1,7 @@
-// Statements: blocks, `if`, `refuse` and `allow`; `let`; the two that
-// change what exists, `spawn` and `destroy`; and a call written as a
-// statement (the spec's Movement and consent; Properties › Naming a
-// value; The world model › Spawning, Destroying). A `let` is here rather
+// Statements: blocks, `if`, `refuse` and `allow`; `say`; `let`; the two
+// that change what exists, `spawn` and `destroy`; and a call written as a
+// statement (the spec's Movement and consent; Prose; Properties › Naming
+// a value; The world model › Spawning, Destroying). A `let` is here rather
 // than with expressions because its value may be a statement: `spawn` is
 // the one statement that also yields a binding.
 //
@@ -19,6 +19,7 @@ import type {
   KindExpr,
   LetStatement,
   RefuseStatement,
+  SayStatement,
   SpawnStatement,
   Statement,
 } from '../ast.js';
@@ -72,6 +73,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['if', ifStatement],
   ['refuse', refuseStatement],
   ['allow', allowStatement],
+  ['say', sayStatement],
   ['let', (p) => letStatement(p)],
   ['spawn', (p) => spawnStatement(p)],
   ['destroy', (p) => destroyStatement(p)],
@@ -323,26 +325,42 @@ function danglingElse(p: Parser, within: Enclosing): null {
   return null;
 }
 
-/**
- * `refuse "No room here."` or `refuse full` — the words in quotes, or the
- * name of a passage. A word that starts a statement, or a name read
- * through a dot, is not a passage's name, so `refuse` with nothing after
- * it never takes the next statement for one.
- */
+/** `refuse "No room here."` or `refuse full` — the words in quotes, or a passage's name. */
 function refuseStatement(p: Parser, within: Enclosing): RefuseStatement | null {
   const keyword = p.next();
+  const said = wordsOrPassage(p, keyword, within, 'refuse', '"No room here."', 'full');
+  return said === null ? null : { kind: 'refuse', at: spanning(keyword.at, said.at), said };
+}
+
+/** `say "The bolt slides back."` or `say taken` — read as `refuse` is. */
+function sayStatement(p: Parser, within: Enclosing): SayStatement | null {
+  const keyword = p.next();
+  const said = wordsOrPassage(p, keyword, within, 'say', '"The bolt slides back."', 'taken');
+  return said === null ? null : { kind: 'say', at: spanning(keyword.at, said.at), said };
+}
+
+/**
+ * What `refuse` or `say` says: the words in quotes, or the name of a
+ * passage. A word that starts a statement, or a name read through a dot,
+ * is not a passage's name, so the word with nothing after it never takes
+ * the next statement for one. Null having said why.
+ */
+function wordsOrPassage(
+  p: Parser,
+  keyword: Token,
+  within: Enclosing,
+  word: 'refuse' | 'say',
+  quoted: string,
+  named: string,
+): RefuseStatement['said'] | null {
   const token = p.peek();
   if (token.kind === 'string') {
     p.next();
-    return {
-      kind: 'refuse',
-      at: spanning(keyword.at, token.at),
-      said: { kind: 'string', at: token.at, value: token.text },
-    };
+    return { kind: 'string', at: token.at, value: token.text };
   }
   // A word the next statement or member starts with, or a property's
-  // name on a line of its own, is not this refusal's: it is left to be
-  // read. Anything else standing where the reason goes is the reason,
+  // name on a line of its own, is not this one's: it is left to be
+  // read. Anything else standing where the words go is the words,
   // written wrong, and is taken with it.
   const ahead =
     token.kind === 'name'
@@ -351,7 +369,7 @@ function refuseStatement(p: Parser, within: Enclosing): RefuseStatement | null {
   const read = token.kind === 'name' && !punct(p.peek(1), '.') && !punct(p.peek(1), '(');
   if (read && !ahead) {
     p.next();
-    return { kind: 'refuse', at: spanning(keyword.at, token.at), said: p.ident(token) };
+    return p.ident(token);
   }
   const nothing =
     ahead ||
@@ -363,8 +381,8 @@ function refuseStatement(p: Parser, within: Enclosing): RefuseStatement | null {
   const passage = within.owner === null ? 'a passage' : `a passage of \`${within.owner}\``;
   p.diagnostics.refuse(
     nothing ? p.source.span(keyword.at.end) : token.at,
-    '`refuse` says why.',
-    `Write the words in quotes, as in \`refuse "No room here."\`, or name ${passage}, as in \`refuse full\`.`,
+    word === 'refuse' ? '`refuse` says why.' : '`say` says something.',
+    `Write the words in quotes, as in \`${word} ${quoted}\`, or name ${passage}, as in \`${word} ${named}\`.`,
   );
   return null;
 }
