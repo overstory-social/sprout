@@ -363,6 +363,20 @@ describe('a type is not taken from the next declaration', () => {
   });
 });
 
+describe('a value abandoned to recovery does not step into the next declaration', () => {
+  it('does not take a bad bound’s neighbour word for the rest of it', () => {
+    // `:x true max -` fails at its bound and steps over what is left
+    // of it; that step must stop at `kind`, the next declaration's own
+    // word, or `Omega` vanishes with nothing said about it.
+    const { declarations, refusals } = read(
+      'world w: sprout.World {\n  :x true max -\nkind Omega { }\n',
+    );
+    expect(refusals.map((d) => d.message)).toContain('A max is a whole number.');
+    expect(refusals.map((d) => d.message)).toContain('`w` is never closed.');
+    expect(declarations.map((d) => d.name.text)).toContain('Omega');
+  });
+});
+
 describe('a stray `]` inside a list default does not lose what it closed too early', () => {
   it('names what is written after it rather than dropping it in silence', () => {
     // The stray closer ends the inner list at `silver`, as it must —
