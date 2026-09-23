@@ -1,11 +1,13 @@
 // The standard library, `sprout`, as it travels with a world that names
 // it (the spec's Kinds › Libraries and namespaces, The standard library
 // is written in Sprout; A worked microworld › The standard library it
-// needs). It is ordinary Sprout source, one file per kind, vendored and
-// hashed like any library: the compiler gives it no privilege, and a
-// world that pins another hash runs against that copy or none. Its files
-// are named as the worked microworld names them, `sprout/actor.sprout`,
-// so a diagnostic in library source never reads as one in the world's own.
+// needs). It is ordinary Sprout source, a kind at most to a file beside
+// the verbs it plays, vendored and hashed like any library. The compiler
+// gives it one privilege: only it declares the engine verbs, and only its
+// `go` has a role an exit fills (Reserved names, Exits). A world that
+// pins another hash runs against that copy or none. Its files are named
+// as the worked microworld names them, `sprout/actor.sprout`, so a
+// diagnostic in library source never reads as one in the world's own.
 //
 // It holds only what the compiler reads today, written as the worked
 // microworld writes it. The rest of that library is named, file by file,
@@ -16,8 +18,7 @@ import { SourceFile } from '../source/source.js';
 
 const WORLD = `// sprout.World: what every world composes (the spec's The world model),
 // and the words the engine speaks for itself, as default passages any
-// other source's line of the same name replaces. B48 brings the engine
-// verbs' phrases.
+// other source's line of the same name replaces.
 kind World {
   contains
 
@@ -33,6 +34,17 @@ kind World {
 }
 `;
 
+const ENGINE = `// The phrases for the verbs whose behaviour is the engine's (the spec's
+// Engine verbs). They have no \`do\`: the engine answers them, and only
+// \`go\` may have a role an exit fills.
+verb go        { role way: exit  "go [way]"  "[way]"  "walk [way]" }
+verb look      { "look"  "l"  "look around" }
+verb examine   { role target  "examine [target]"  "x [target]"  "look at [target]"  "inspect [target]" }
+verb inventory { "inventory"  "i"  "inv" }
+verb wait      { "wait"  "z" }
+verb help      { "help"  "?" }
+`;
+
 const PLACE = `// sprout.Place: a place is whatever holds actors (the spec's Places),
 // and the notices of someone arriving and leaving, as default passages.
 kind Place {
@@ -44,9 +56,15 @@ kind Place {
 
 const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that make a
 // person's things their own (the spec's Actors and visitors; Movement and
-// consent, The three roles), with the passages they refuse through. B32
-// brings its pass any (false); B48 take, drop, put and give and the
-// inventory line, with their passages.
+// consent, The three roles), with the passages they refuse through; and
+// the verbs a visitor takes for granted (The actor's own part). B32
+// brings its pass any (false); B48 brings \`put\` with the container it
+// names, each verb's \`as actor for\` and its passages, and the inventory
+// line.
+verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "grab [target]" }
+verb drop { role target  "drop [target]"  "put down [target]" }
+verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]" }
+
 kind Actor {
   contains
   :capacity 8
@@ -61,6 +79,17 @@ kind Actor {
 }
 `;
 
+const TALK = `// \`ask\`, whose topic is a value the visitor names (the spec's Value
+// roles). The library plays no part in it: a world's own object is asked,
+// and says with \`from\` which topics it hears.
+verb ask {
+  role target
+  role topic: symbol
+  "ask [target] about [topic]"
+  "ask [target] [topic]"
+}
+`;
+
 /** The standard library at the version the CLI carries and `sprout init` pins. */
 export const STANDARD_LIBRARY: LibrarySource = {
   name: 'sprout',
@@ -68,7 +97,9 @@ export const STANDARD_LIBRARY: LibrarySource = {
   level: 1,
   files: [
     new SourceFile('sprout/world.sprout', WORLD),
+    new SourceFile('sprout/engine.sprout', ENGINE),
     new SourceFile('sprout/place.sprout', PLACE),
     new SourceFile('sprout/actor.sprout', ACTOR),
+    new SourceFile('sprout/talk.sprout', TALK),
   ],
 };

@@ -1,0 +1,7 @@
+verbs.sprout:7:16  Nothing here is a `Lockabel`. Did you mean `Lockable`?
+                   Write `Lockable`, or declare `Lockabel` with `kind Lockabel { … }`.
+
+verbs.sprout:8:14  Nothing here is a `victorian.Pick`.
+                   Check the spelling, and that the world uses the library `victorian` and it declares `Pick`.
+
+refused: 2 problems

@@ -100,8 +100,18 @@ describe('what a compiled bundle carries', () => {
       'Visitor',
       'Season',
       'World',
+      'go',
+      'look',
+      'examine',
+      'inventory',
+      'wait',
+      'help',
       'Place',
+      'take',
+      'drop',
+      'give',
       'Actor',
+      'ask',
     ]);
     expect(bundle!.words).toEqual([]);
   });

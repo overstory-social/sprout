@@ -1,6 +1,6 @@
 // The spec's Two tiers, Strict and lenient, What absent means: at load a
-// file, a library, a kind in a composition or an object's container that
-// is missing, mismatched, withheld or broken reads as absent rather than
+// file, a library, a kind in a composition or a role, or an object's
+// container that is missing, mismatched, withheld or broken reads as absent rather than
 // refusing the bundle, the rest of the world keeps compiling, and every
 // gap says so in a whole sentence. What was never allowable — a name
 // that cannot be one, text newer than the compiler — is still refused in
@@ -99,6 +99,49 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect(refusals(published.diagnostics).map((d) => d.message)).toEqual([
       'Nothing here is called `hal`. Did you mean `hall`?',
     ]);
+  });
+
+  it('runs a world with a kind in a role that is not there, and the role fills nothing', () => {
+    const files = [
+      file('world.sprout', `${ROOT}\nverb unlock { role target: Lockabel  "unlock [target]" }`),
+    ];
+    const loaded = compileBundle(world({ files }), load);
+    expect(refusals(loaded.diagnostics)).toEqual([]);
+    expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
+      [['Lockabel', 'kind-in-role', 'missing', 'world.sprout:2:28']],
+    );
+    expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
+      'Nothing here is a `Lockabel`. Nothing fills the role; the verb’s phrases do not match.',
+    ]);
+    // At publish the same is a refusal, with what to write instead.
+    const published = compileBundle(world({ files }));
+    expect(published.bundle).toBeNull();
+    expect(refusals(published.diagnostics).map((d) => [d.message, d.remedy])).toEqual([
+      [
+        'Nothing here is a `Lockabel`.',
+        'Declare it with `kind Lockabel { … }`, or check the spelling of a kind this world or a library it uses declares.',
+      ],
+    ]);
+  });
+
+  it('says a role’s kind is absent only once where its library did not travel', () => {
+    const files = [
+      file(
+        'world.sprout',
+        `${ROOT}\nverb give { role item  role recipient: sprout.Actor  "give [item] to [recipient]" }`,
+      ),
+    ];
+    // At publish the library's absence is the one problem, said at the manifest.
+    const published = compileBundle(world({ files, libraries: [] }));
+    expect(published.bundle).toBeNull();
+    expect(refusals(published.diagnostics).map((d) => d.message)).not.toContainEqual(
+      expect.stringContaining('`sprout.Actor`'),
+    );
+    // At load the role is one more gap, recorded under its own row.
+    const loaded = compileBundle(world({ files, libraries: [] }), load);
+    expect(
+      loaded.bundle!.absent.filter((a) => a.kind === 'kind-in-role').map((a) => a.what),
+    ).toEqual(['sprout.Actor']);
   });
 
   it('refuses objects that hold each other at load as at publish, since nothing is missing', () => {

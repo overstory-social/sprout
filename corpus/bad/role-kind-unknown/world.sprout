@@ -1,0 +1,7 @@
+world role_kind_unknown: sprout.World {
+  contains actors
+  visitors are Creature
+  visitors arrive at role_kind_unknown
+}
+
+kind Creature: sprout.Actor { }

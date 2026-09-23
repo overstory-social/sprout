@@ -1,0 +1,7 @@
+world role_names_enum: sprout.World {
+  contains actors
+  visitors are Creature
+  visitors arrive at role_names_enum
+}
+
+kind Creature: sprout.Actor { }

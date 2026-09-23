@@ -131,8 +131,18 @@ describe('the first tier reads every file in the bundle', () => {
     expect(tier.declarations.map((d) => d.name.text)).toEqual([
       'Season',
       'World',
+      'go',
+      'look',
+      'examine',
+      'inventory',
+      'wait',
+      'help',
       'Place',
+      'take',
+      'drop',
+      'give',
       'Actor',
+      'ask',
     ]);
   });
 

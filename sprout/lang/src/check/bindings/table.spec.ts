@@ -73,14 +73,14 @@ describe('where types come from — the table, row by row', () => {
 
   it('a role — the kind the verb declares', () => {
     const { made, said } = trying((d) =>
-      roleBinding('target', { role: 'kind', kind: LOCKABLE }, null, at('target'), d),
+      roleBinding('target', { fills: 'kind', kind: LOCKABLE }, null, at('target'), d),
     );
     expect(said).toEqual([]);
     expect(made!.type).toEqual(objectOf(LOCKABLE));
   });
 
   it('a role — object where the verb declares none', () => {
-    const { made } = trying((d) => roleBinding('tools', { role: 'open' }, null, at('tools'), d));
+    const { made } = trying((d) => roleBinding('tools', { fills: 'open' }, null, at('tools'), d));
     expect(made!.type).toEqual(OPEN_OBJECT);
   });
 
@@ -91,7 +91,7 @@ describe('where types come from — the table, row by row', () => {
 
   it('a role narrowed by `from` — the element type of the property named', () => {
     const { made, said } = trying((d) =>
-      roleBinding('topic', { role: 'symbol' }, fromProperty(KNOWS), at('topic'), d),
+      roleBinding('topic', { fills: 'symbol' }, fromProperty(KNOWS), at('topic'), d),
     );
     expect(said).toEqual([]);
     expect(showBindingType(made!.type)).toBe('Topic');

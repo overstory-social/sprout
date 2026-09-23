@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Declaration } from '../syntax/ast.js';
+import { Diagnostics } from '../source/diagnostics.js';
+import { kindName } from '../declare/kinds.js';
+import { ENGINE_VERBS, type ResolvedVerb } from '../declare/verbs.js';
 import { ABSENT_TABLE } from './absent.js';
+import { resolveDeclarations } from './declarations.js';
 import { libraryHash, type LibrarySource, type Manifest } from './bundle.js';
 import { compileBundle } from './compile/compile.js';
 import { checkShape } from './compile/first-tier.js';
@@ -41,6 +46,36 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
   );
 }
 
+/** The library's own verbs, resolved as the second tier resolves them, by file. */
+function verbsByFile(): Map<string, ResolvedVerb[]> {
+  const declared = new Map<string, Declaration[]>([
+    ['sprout', STANDARD_LIBRARY.files.flatMap((file) => [...checkShape(file).declarations])],
+  ]);
+  const diagnostics = new Diagnostics();
+  const { verbs } = resolveDeclarations(
+    declared,
+    { namespace: 'sprout', name: 'sprout' },
+    { diagnostics, gap: () => expect.unreachable('the library names nothing it lacks') },
+  );
+  expect(diagnostics.all).toEqual([]);
+  const byFile = new Map<string, ResolvedVerb[]>();
+  for (const verb of verbs.all()) {
+    const file = verb.declaration.at.source.name;
+    byFile.set(file, [...(byFile.get(file) ?? []), verb]);
+  }
+  return byFile;
+}
+
+/** A verb's roles as `name:filler`, with `?` on an optional one and `*` on a set. */
+function rolesOf(verb: ResolvedVerb): string[] {
+  return verb.roles.map((role) => {
+    const filler = role.filler;
+    const fills =
+      filler === null ? 'nothing' : filler.fills === 'kind' ? kindName(filler.kind) : filler.fills;
+    return `${role.name}:${fills}${role.optional ? '?' : ''}${role.many ? '*' : ''}`;
+  });
+}
+
 describe('the standard library', () => {
   it('is `sprout` at 0.1.0, written for level 1', () => {
     expect([STANDARD_LIBRARY.name, STANDARD_LIBRARY.version, STANDARD_LIBRARY.level]).toEqual([
@@ -50,30 +85,72 @@ describe('the standard library', () => {
     ]);
   });
 
-  it('reads clean through the first tier, one kind to a file', () => {
+  it('reads clean through the first tier, with at most one kind to a file', () => {
     for (const file of STANDARD_LIBRARY.files) {
       const { declarations, diagnostics } = checkShape(file);
       expect(diagnostics, file.name).toEqual([]);
-      expect(declarations, file.name).toHaveLength(1);
+      expect(declarations.length, file.name).toBeGreaterThan(0);
+      expect(declarations.filter((d) => d.kind === 'kind').length, file.name).toBeLessThan(2);
     }
   });
 
-  it('declares exactly `World`, `Place` and `Actor`, and nothing else', () => {
-    const declared = STANDARD_LIBRARY.files.flatMap((file) =>
-      checkShape(file).declarations.map((d) => [file.name, d.kind, d.name.text]),
-    );
+  it('declares exactly `World`, `Place` and `Actor`, the engine’s verbs, the actor’s, and `ask`', () => {
+    const declared = STANDARD_LIBRARY.files.map((file) => [
+      file.name,
+      checkShape(file).declarations.map((d) => `${d.kind} ${d.name.text}`),
+    ]);
     expect(declared).toEqual([
-      ['sprout/world.sprout', 'kind', 'World'],
-      ['sprout/place.sprout', 'kind', 'Place'],
-      ['sprout/actor.sprout', 'kind', 'Actor'],
+      ['sprout/world.sprout', ['kind World']],
+      ['sprout/engine.sprout', ENGINE_VERBS.map((name) => `verb ${name}`)],
+      ['sprout/place.sprout', ['kind Place']],
+      ['sprout/actor.sprout', ['verb take', 'verb drop', 'verb give', 'kind Actor']],
+      ['sprout/talk.sprout', ['verb ask']],
     ]);
   });
 
+  it('gives the engine’s verbs their phrases, and `go` alone a role an exit fills', () => {
+    const engine = verbsByFile().get('sprout/engine.sprout')!;
+    expect(Object.fromEntries(engine.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
+      // Every phrase names the way, so it is never unbound.
+      go: ['way:exit'],
+      look: [],
+      examine: ['target:open'],
+      inventory: [],
+      wait: [],
+      help: [],
+    });
+    // The spec's Engine verbs: `look` answers to `l`, `examine` to `x` and `look at`.
+    const phrases = (name: string): string[] =>
+      engine.find((verb) => verb.name === name)!.phrases.map((phrase) => phrase.text);
+    expect(phrases('look')).toContain('l');
+    expect(phrases('examine')).toEqual(expect.arrayContaining(['x [target]', 'look at [target]']));
+    expect(phrases('go')).toContain('[way]');
+  });
+
+  it('gives the actor `take`, `drop` and `give`, the recipient an actor, and none of them optional', () => {
+    const actor = verbsByFile().get('sprout/actor.sprout')!;
+    expect(Object.fromEntries(actor.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
+      take: ['target:open'],
+      drop: ['target:open'],
+      give: ['item:open', 'recipient:sprout.Actor'],
+    });
+  });
+
+  it('gives `ask` a topic the visitor names, optional whatever its phrases say', () => {
+    const [ask] = verbsByFile().get('sprout/talk.sprout')!;
+    expect(rolesOf(ask!)).toEqual(['target:open', 'topic:symbol?']);
+    // Every phrase fills it; it is optional because it is a value.
+    expect(ask!.roles[1]!.omittedBy).toBeNull();
+  });
+
   it('names its own file in a refusal, never one the world’s files could be', () => {
-    const [world, , actor] = STANDARD_LIBRARY.files;
     const fork: LibrarySource = {
       ...STANDARD_LIBRARY,
-      files: [world!, new SourceFile('sprout/place.sprout', 'kind Place {\n  %\n}\n'), actor!],
+      files: STANDARD_LIBRARY.files.map((file) =>
+        file.name === 'sprout/place.sprout'
+          ? new SourceFile('sprout/place.sprout', 'kind Place {\n  %\n}\n')
+          : file,
+      ),
     };
     const { bundle, diagnostics } = compiled(fork);
     expect(bundle).toBeNull();
@@ -185,7 +262,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '7a4dd31cf82d17beb59c4fa287ab5b15f567e6d591c77ef6e238a68bf102f9cf',
+      'cfccc61655d3d5e94faa08d19767331d2333bcd4339dd1b5c598238ce96e9139',
     );
   });
 });

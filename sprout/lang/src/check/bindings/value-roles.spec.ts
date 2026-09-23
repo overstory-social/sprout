@@ -6,7 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { roleBinding, valueOf, type RoleDeclaredAs } from '../bindings.js';
+import { roleBinding, valueOf } from '../bindings.js';
+import type { RoleFiller } from '../../declare/verbs.js';
 import { integer } from '../../declare/types.js';
 import {
   at,
@@ -23,7 +24,7 @@ import {
 describe('a role-player narrows its own options', () => {
   it('types a symbol role by the list’s element type, so `== :toll` checks against `Topic`', () => {
     const { made } = trying((d) =>
-      roleBinding('topic', { role: 'symbol' }, fromProperty(KNOWS), at('topic'), d),
+      roleBinding('topic', { fills: 'symbol' }, fromProperty(KNOWS), at('topic'), d),
     );
     expect(made!.type).toEqual(
       valueOf({ type: 'symbol', of: ENUMS.unqualified('Topic', 'printers_shop')! }),
@@ -32,7 +33,7 @@ describe('a role-player narrows its own options', () => {
 
   it('bounds an integer role by the range of the property named', () => {
     const { made, said } = trying((d) =>
-      roleBinding('n', { role: 'integer' }, fromProperty(WEAR), at('n'), d),
+      roleBinding('n', { fills: 'integer' }, fromProperty(WEAR), at('n'), d),
     );
     expect(said).toEqual([]);
     expect(made!.type).toEqual(valueOf(integer(0, 99)));
@@ -40,14 +41,14 @@ describe('a role-player narrows its own options', () => {
 
   it('takes a literal range — `from 1 to 12`', () => {
     const { made } = trying((d) =>
-      roleBinding('n', { role: 'integer' }, fromRange(1, 12), at('n'), d),
+      roleBinding('n', { fills: 'integer' }, fromRange(1, 12), at('n'), d),
     );
     expect(made!.type).toEqual(valueOf(integer(1, 12)));
   });
 
   it('refuses a symbol role that has not said what it hears, naming what to write', () => {
     const { made, said } = trying((d) =>
-      roleBinding('topic', { role: 'symbol' }, null, at('topic'), d),
+      roleBinding('topic', { fills: 'symbol' }, null, at('topic'), d),
     );
     expect(made).toBeNull();
     expect(said.join(' ')).toContain('has not said which options it hears');
@@ -55,13 +56,13 @@ describe('a role-player narrows its own options', () => {
 
   it('refuses a symbol role narrowed by a range, and an integer one by a list', () => {
     const symbol = trying((d) =>
-      roleBinding('topic', { role: 'symbol' }, fromRange(1, 12), at('topic'), d),
+      roleBinding('topic', { fills: 'symbol' }, fromRange(1, 12), at('topic'), d),
     );
     expect(symbol.made).toBeNull();
     expect(symbol.said.join(' ')).toContain('not a set of options');
 
     const number = trying((d) =>
-      roleBinding('n', { role: 'integer' }, fromProperty(KNOWS), at('n'), d),
+      roleBinding('n', { fills: 'integer' }, fromProperty(KNOWS), at('n'), d),
     );
     expect(number.made).toBeNull();
     expect(number.said.join(' ')).toContain('[Topic]');
@@ -69,7 +70,7 @@ describe('a role-player narrows its own options', () => {
 
   it('refuses a symbol role narrowed by a list of something else', () => {
     const { made, said } = trying((d) =>
-      roleBinding('topic', { role: 'symbol' }, fromProperty(SIZES), at('topic'), d),
+      roleBinding('topic', { fills: 'symbol' }, fromProperty(SIZES), at('topic'), d),
     );
     expect(made).toBeNull();
     expect(said.join(' ')).toContain('[integer]');
@@ -77,17 +78,17 @@ describe('a role-player narrows its own options', () => {
 
   it('refuses a range that counts downward', () => {
     const { made, said } = trying((d) =>
-      roleBinding('n', { role: 'integer' }, fromRange(12, 1), at('n'), d),
+      roleBinding('n', { fills: 'integer' }, fromRange(12, 1), at('n'), d),
     );
     expect(made).toBeNull();
     expect(said.join(' ')).toContain('A range counts upward');
   });
 
   it('refuses a `from` on a role filled by a thing, where there is nothing to narrow', () => {
-    for (const declared of [
-      { role: 'kind', kind: LOCKABLE },
-      { role: 'open' },
-    ] as RoleDeclaredAs[]) {
+    for (const declared of [{ fills: 'kind', kind: LOCKABLE }, { fills: 'open' }] as Exclude<
+      RoleFiller,
+      { fills: 'exit' }
+    >[]) {
       const { made, said } = trying((d) =>
         roleBinding('target', declared, fromProperty(KNOWS), at('target'), d),
       );
@@ -97,7 +98,7 @@ describe('a role-player narrows its own options', () => {
   });
 
   it('takes an integer role with no `from` as the whole integer range', () => {
-    const { made, said } = trying((d) => roleBinding('n', { role: 'integer' }, null, at('n'), d));
+    const { made, said } = trying((d) => roleBinding('n', { fills: 'integer' }, null, at('n'), d));
     expect(said).toEqual([]);
     expect(made!.type).toEqual(valueOf(integer()));
   });
