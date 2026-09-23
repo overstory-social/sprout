@@ -12,10 +12,11 @@
 // keeps the type. `contains` and `contains actors` are idempotent, so
 // they are OR'd over the closure. A passage is one per name, which
 // `passages.ts` resolves: the composer's own, else the one source that
-// is not `default`, else the one default. Guards and plays all run, in
-// closure order less what `without` leaves out, which `guards.ts` and
-// `roles.ts` resolve; a suppression travels to every kind that composes
-// the one that wrote it.
+// is not `default`, else the one default; a pass rule is one per
+// message, which `passes.ts` resolves. Guards, plays, handlers and hooks
+// all run, in closure order less what `without` leaves out, which
+// `guards.ts`, `roles.ts` and `handlers.ts` resolve; a suppression travels
+// to every kind that composes the one that wrote it.
 
 import {
   writtenMember,
@@ -38,6 +39,18 @@ import {
 import { identicalType, showType } from './types.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
 import { composeGuards, ownGuards, writesGuard } from './guards.js';
+import {
+  composeHandlers,
+  composeHooks,
+  ownHandlers,
+  ownHooks,
+  writesHandler,
+  writesHook,
+  type MessageSetting,
+  type OnUnknownMessage,
+} from './handlers.js';
+import { MessageTable, type MessageLookup } from './messages.js';
+import { composePassRules, ownPassRules } from './passes.js';
 import {
   composePlays,
   ownPlays,
@@ -84,16 +97,38 @@ export interface Composer {
   readonly mayComposeWorld?: boolean;
 }
 
-export interface ComposeContext {
+/**
+ * The verbs a play may name and the messages a handler or a pass rule
+ * may, and what is told of one nothing declares. With no verbs every play
+ * names a verb nothing declares; with no messages, only the engine's are
+ * known.
+ */
+export interface MemberNames {
+  readonly verbs?: VerbNames;
+  readonly onUnknownVerb?: OnUnknownVerb;
+  readonly messages?: MessageLookup;
+  readonly onUnknownMessage?: OnUnknownMessage;
+}
+
+export interface ComposeContext extends MemberNames {
   readonly enums: EnumTable;
   readonly kinds: KindSource;
   /** The world's namespace, which is no library's. */
   readonly world: string;
   readonly diagnostics: Diagnostics;
   readonly onUnknown?: OnUnknown;
-  /** The verbs a play may name; with none, every play names a verb nothing declares. */
-  readonly verbs?: VerbNames;
-  readonly onUnknownVerb?: OnUnknownVerb;
+}
+
+/** What a composer's handlers and pass rules read their messages through. */
+function messageSetting(library: string, context: ComposeContext): MessageSetting {
+  return {
+    library,
+    messages: context.messages ?? new MessageTable(),
+    diagnostics: context.diagnostics,
+    ...(context.onUnknownMessage === undefined
+      ? {}
+      : { onUnknownMessage: context.onUnknownMessage }),
+  };
 }
 
 /**
@@ -321,6 +356,29 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     }),
     reach,
   );
+  // --- handlers and hooks, all of them, in closure order ----------------
+  const messages = messageSetting(composer.library, context);
+  const handlers = composeHandlers(
+    composed.map(({ kind }) => kind.handlers),
+    order,
+    suppressed,
+    ownHandlers(composer.name, composer.members, own, messages),
+  );
+  const hooks = composeHooks(
+    composed.map(({ kind }) => kind.hooks),
+    order,
+    suppressed,
+    ownHooks(composer.name, composer.members, own, diagnostics),
+  );
+
+  // --- pass rules, one for each message ---------------------------------
+  const passes = composePassRules(
+    composer.name,
+    composed.map(({ kind, written }) => ({ rules: kind.passes, written })),
+    ownPassRules(composer.name, composer.members, own, messages),
+    shown,
+    diagnostics,
+  );
   order.push(own);
 
   return {
@@ -332,6 +390,9 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     passages,
     guards,
     plays,
+    handlers,
+    hooks,
+    passes,
     contains: contains || containsActors,
     containsActors,
     suppressed,
@@ -399,8 +460,7 @@ function leftOut(
 
 /**
  * Whether the kind `identity`, composed already, itself declares
- * `member`, a play's verb read as `reach` reads it. Guards and plays are
- * the members read yet; B32 reads handlers and hooks.
+ * `member`, a play's verb read as `reach` reads it.
  */
 function declaresMember(
   identity: string,
@@ -411,7 +471,11 @@ function declaresMember(
   const found = kinds.find(identity);
   if (found.found !== 'kind') return false;
   if (member.kind === 'guard-ref') return writesGuard(found.kind.guards, member.guard, identity);
-  if (member.kind !== 'role-ref') return false;
+  if (member.kind === 'handler-ref') {
+    return writesHandler(found.kind.handlers, member.message.text, identity);
+  }
+  if (member.kind === 'hook-ref')
+    return writesHook(found.kind.hooks, member.property.text, identity);
   const verb = reach(member.verb.text);
   if (verb === null) return false;
   return writesPlay(found.kind.plays, verb.library, verb.name, member.role.text, identity);

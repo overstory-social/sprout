@@ -1,0 +1,12 @@
+// A body names things in reach of where it is written; a misspelt one is a
+// name nothing here answers to. From a kind's body, that is what the world's
+// body holds, and anything deeper by its path.
+message :lit with boolean
+
+kind Lamp {
+  on :lit (_, value) { }
+}
+
+kind Match {
+  on :spawned (from) { send hal.lamp :lit with true }
+}

@@ -17,6 +17,7 @@ import { BOOLEAN, integer, STRING } from '../../declare/types.js';
 import { readable } from '../../source/words.js';
 import type { CheckContext, Checker } from './checker.js';
 import { identityType } from './operators.js';
+import { identifiersInReach, identifierType } from '../names.js';
 
 /** The free calls this compiler reads. B33 fills it with `chance` and `random`. */
 export const FREE_CALLS: ReadonlySet<string> = new Set<string>();
@@ -74,8 +75,9 @@ export function leafType(expr: Expr, context: Checker): BindingType | null {
 }
 
 /**
- * What a name in scope is bound to, or null having said why it may not be
- * read here, or that nothing here answers to it.
+ * What a name in scope is bound to, else the object it names from where
+ * the body is written, or null having said why it may not be read here,
+ * or that nothing here answers to it.
  */
 export function bindingType(name: Ident, context: CheckContext): BindingType | null {
   const binding = context.scope.lookup(name.text);
@@ -85,11 +87,14 @@ export function bindingType(name: Ident, context: CheckContext): BindingType | n
     context.diagnostics.refuse(name.at, withheld.unread.message, withheld.unread.remedy);
     return null;
   }
-  const meant = nearestOption(name.text, context.scope.names());
+  const identified = identifierType(name, context);
+  if (identified !== null) return identified;
+  const reach = [...context.scope.names(), ...identifiersInReach(context)];
+  const meant = nearestOption(name.text, reach);
   context.diagnostics.refuse(
     name.at,
     `Nothing here is called \`${name.text}\`.${meant === null ? '' : ` Did you mean \`${meant}\`?`}`,
-    `In reach: ${readable(context.scope.names())}.`,
+    `In reach: ${readable([...new Set(reach)])}.`,
   );
   return null;
 }

@@ -1,0 +1,10 @@
+world send_unknown_name is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}
+
+kind Person is sprout.Visitor { }

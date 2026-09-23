@@ -5,6 +5,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from './enums.js';
+import { NO_PASS_RULES } from './passes.js';
 import { NO_GUARDS } from './guards.js';
 import { NO_PLAYS } from './roles.js';
 import {
@@ -27,6 +28,9 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     passages: new Map(),
     guards: NO_GUARDS,
     plays: NO_PLAYS,
+    handlers: new Map(),
+    hooks: new Map(),
+    passes: NO_PASS_RULES,
     contains: false,
     containsActors: false,
     suppressed: [],

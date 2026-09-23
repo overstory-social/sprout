@@ -1,0 +1,10 @@
+// A handler nothing sends to never runs, and a message nothing handles
+// goes nowhere; both are said, as warnings, so neither is a silence.
+world unsent_unhandled is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+kind Person is sprout.Visitor { }

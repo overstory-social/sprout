@@ -1,0 +1,5 @@
+// A pass rule names a message, with its colon, or `any`.
+kind Crate {
+  contains
+  pass open (true)
+}

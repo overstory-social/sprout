@@ -1,0 +1,11 @@
+// `finally` marks the object to be destroyed once every message the turn
+// sent has been handled; nothing else may follow it.
+message :rang
+
+kind Match {
+  on :rang { finally say "Gone." }
+}
+
+kind Bell {
+  on :spawned (from) { broadcast :rang }
+}

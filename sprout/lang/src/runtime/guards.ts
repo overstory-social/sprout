@@ -24,6 +24,8 @@ import type { Budget } from './budget.js';
 import { boundObject, type Evaluated, type Frame } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import type { StateReader } from './state.js';
+import type { NameTable } from '../check/names.js';
+import type { PassRule } from './range.js';
 
 /** One party's refusal of a move, and what it said. */
 export interface Refusal {
@@ -50,6 +52,10 @@ export interface GuardContext {
   readonly mover: InstanceId;
   /** `to` for `depart`; `item, to` for `release`; `item, from` for `accept`. */
   readonly parameters: readonly InstanceId[];
+  /** What each identifier a body writes names. */
+  readonly names: NameTable;
+  /** What the turn's containers let through. */
+  readonly passes: PassRule<InstanceId>;
 }
 
 /** Run `guard` for `context.self`: `'allow'`, or the refusal that decides. */
@@ -62,7 +68,7 @@ export function runGuard(guard: ResolvedGuard, context: GuardContext): 'allow' |
   }
   const bindings = new Map<string, Evaluated>([['mover', boundObject(context.mover)]]);
   declaration.parameters.forEach((parameter, at) => {
-    bindings.set(parameter.text, boundObject(context.parameters[at]!));
+    if (parameter.text !== '_') bindings.set(parameter.text, boundObject(context.parameters[at]!));
   });
   const frame: Frame = {
     state: context.state,
@@ -72,6 +78,8 @@ export function runGuard(guard: ResolvedGuard, context: GuardContext): 'allow' |
     bindings,
     budget: context.budget,
     caps: context.caps,
+    names: context.names,
+    passes: context.passes,
   };
   const ended = runBody(declaration.body, frame, 'decide', null);
   if (ended === 'end' || ended === 'allow') return 'allow';

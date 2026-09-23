@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, VerbDeclaration } from '../../syntax/ast.js';
+import type { KindDeclaration } from '../../syntax/ast.js';
+import type { VerbDeclaration } from '../../syntax/ast-verbs.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { parseDeclarations } from '../../syntax/parse.js';
 import { locationOf, SourceFile } from '../../source/source.js';
 import { EnumTable } from '../../declare/enums.js';
-import { KindTable } from '../../declare/kinds.js';
+import { kindName, KindTable } from '../../declare/kinds.js';
+import { MessageTable } from '../../declare/messages.js';
+import { placeObjects } from '../../declare/tree.js';
 import { VerbNames } from '../../declare/roles.js';
 import { VerbTable } from '../../declare/verbs.js';
 import { checkBodies } from './bodies.js';
@@ -32,7 +35,20 @@ function checked(text: string): string[][] {
     'the fixture composes',
   ).toEqual([]);
   const diagnostics = new Diagnostics();
-  checkBodies(kinds.all(), { kinds, verbs, diagnostics });
+  checkBodies(
+    kinds
+      .all()
+      .map((kind) => ({ kind, vantage: { in: 'kind' as const, giver: kindName(kind), path: [] } })),
+    {
+      kinds,
+      verbs,
+      diagnostics,
+      messages: { lookup: new MessageTable() },
+      source: { tree: placeObjects([], { world: 'shop', diagnostics }), contents: new Map() },
+      world: null,
+      names: new Map(),
+    },
+  );
   return diagnostics.refusals.map((d) => [locationOf(d.at), d.message]);
 }
 

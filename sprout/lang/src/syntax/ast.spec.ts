@@ -10,8 +10,8 @@ import {
   type Ident,
   type KindDeclaration,
   type PassageDeclaration,
-  type VerbDeclaration,
 } from './ast.js';
+import type { VerbDeclaration } from './ast-verbs.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { isNode, nodesOf, unspanned } from '../source/nodes.js';
 import { parseDeclarations } from './parse.js';

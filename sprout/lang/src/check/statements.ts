@@ -42,6 +42,7 @@ import {
   typeOf,
   type CheckContext,
 } from './check.js';
+import { dottedType } from './names.js';
 
 /**
  * `let ribs = tools.count(Rib)` — a name for what an expression works
@@ -154,7 +155,7 @@ function spawnedKind(statement: SpawnStatement, context: CheckContext): KindRef 
 /** What moves: one object, and not the world, which goes nowhere. */
 function checkThing(path: ObjectPath, context: CheckContext): boolean {
   const name = nameOf(path);
-  const type = bindingType(name, context);
+  const type = pathType(path, context);
   if (type === null) return false;
   if (type.binds !== 'object') {
     context.diagnostics.refuse(
@@ -185,14 +186,10 @@ interface Going {
   readonly example: string;
 }
 
-/**
- * Whether what a spawn or a move names as its container may hold what
- * goes in. A dotted path names an identifier inside a body, which nothing
- * resolves yet (B32), so it is refused as a name nothing here answers to.
- */
+/** Whether what a spawn or a move names as its container may hold what goes in. */
 function checkContainer(path: ObjectPath, context: CheckContext, going: Going): boolean {
   const name = nameOf(path);
-  const type = bindingType(name, context);
+  const type = pathType(path, context);
   if (type === null) return false;
   if (type.binds !== 'object') {
     context.diagnostics.refuse(
@@ -211,7 +208,15 @@ function checkContainer(path: ObjectPath, context: CheckContext, going: Going): 
   return false;
 }
 
-/** A path as the one name it is looked up by: its only part, or the whole of it written out. */
+/**
+ * What a path names: one name is a binding, else an identifier; a dotted
+ * path is an object inside another (`check/names.ts`). Null having said why.
+ */
+export function pathType(path: ObjectPath, context: CheckContext): BindingType | null {
+  return path.parts.length === 1 ? bindingType(path.parts[0]!, context) : dottedType(path, context);
+}
+
+/** A path as the one name a message calls it by: its only part, or the whole of it written out. */
 export function nameOf(path: ObjectPath): Ident {
   return path.parts.length === 1
     ? path.parts[0]!

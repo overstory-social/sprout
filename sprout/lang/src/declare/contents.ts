@@ -16,8 +16,8 @@ import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, type EnumTable } from './enums.js';
 import type { KindRef, KindTable } from './kinds.js';
-import { composeKind, type OnUnknown } from './compose.js';
-import type { OnUnknownVerb, VerbNames } from './roles.js';
+import { composeKind, type MemberNames, type OnUnknown } from './compose.js';
+
 import { holdsNothing, type TreePath } from './tree.js';
 
 /** One object a kind's body gives every instance, and what it holds. */
@@ -72,7 +72,7 @@ export function everyContent(contents: KindContents): KindContent[] {
   return found;
 }
 
-export interface ContentsContext {
+export interface ContentsContext extends MemberNames {
   readonly enums: EnumTable;
   /** Every kind, already composed. */
   readonly kinds: KindTable;
@@ -80,8 +80,6 @@ export interface ContentsContext {
   readonly world: string;
   readonly diagnostics: Diagnostics;
   readonly onUnknown?: OnUnknown;
-  readonly verbs?: VerbNames;
-  readonly onUnknownVerb?: OnUnknownVerb;
 }
 
 /**

@@ -58,10 +58,10 @@ kind Place {
 const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that make a
 // person's things their own (the spec's Actors and visitors; Movement and
 // consent, The three roles), with the passages they refuse through; and
-// the verbs a visitor takes for granted (The actor's own part). B32
-// brings its pass any (false); B48 brings \`put\` with the container it
-// names, each verb's \`as actor for\` and its passages, and the inventory
-// line.
+// the verbs a visitor takes for granted (The actor's own part). Its pass
+// rule makes a pocket private (Containers route). B48 brings \`put\` with
+// the container it names, each verb's \`as actor for\` and its passages,
+// and the inventory line.
 verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "grab [target]" }
 verb drop { role target  "drop [target]"  "put down [target]" }
 verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]" }
@@ -69,6 +69,7 @@ verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "han
 kind Actor {
   contains
   :capacity 8
+  pass any (false)
 
   depart  (to)         { if (mover != self) { refuse held_fast } }
   release (item, to)   { if (mover != self) { refuse not_yours } }

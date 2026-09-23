@@ -1,0 +1,4 @@
+kinds.sprout:5:34  `send from` does not say which message.
+                   A message is written with its colon: `send from :creak`.
+
+refused: 1 problem

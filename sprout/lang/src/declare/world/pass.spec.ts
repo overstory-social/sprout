@@ -13,8 +13,8 @@ describe('the world refuses to pass, which is why places cannot reach one anothe
 
   it('is a default of the language, not a number a host sets', () => {
     // The spec states the value, so nothing configures it: `pass any
-    // (false)` unless the world says otherwise. B32 reads the rules a
-    // world writes; this is what it answers without one.
+    // (false)` unless the world says otherwise; this is what it answers
+    // where it writes none.
     expect(typeof WORLD_PASSES_ANYTHING).toBe('boolean');
   });
 });

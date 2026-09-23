@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PhraseDeclaration, VerbDeclaration } from '../ast.js';
+import type { PhraseDeclaration, VerbDeclaration } from '../ast-verbs.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';

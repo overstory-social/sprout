@@ -1,0 +1,12 @@
+// One kind answers a message once.
+message :stir
+
+kind Cat {
+  :n 0 min 0 max 9
+  on :stir { self.adjust(:n, 1) }
+  on :stir { self.adjust(:n, 2) }
+}
+
+kind Bellows {
+  on :spawned (from) { broadcast :stir }
+}

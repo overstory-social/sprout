@@ -1,0 +1,6 @@
+// A remembered property is held about each actor, and a hook watches what
+// the kind holds itself.
+kind Bell {
+  remembers { :heard false }
+  changed :heard { }
+}

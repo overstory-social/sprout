@@ -11,7 +11,7 @@
 // fault leaves the draft as it was, and a spawn makes all of what it
 // would make or none of it. And what the engine tells the world
 // of a spawn is returned as `EngineSend`s rather than queued here, as a
-// destroy returns every instance it removed, so B32's queue holds the one
+// destroy returns every instance it removed, so the queue (`bus.ts`) holds the one
 // rule for what is dropped with a destroyed object (the spec's Destroying).
 
 import type { Budget } from './budget.js';
@@ -57,7 +57,7 @@ export class LifecycleFault extends Error {
 }
 
 /**
- * A message the engine sends for itself, for B32 to queue in the order
+ * A message the engine sends for itself, for the queue to deliver in the order
  * given (the spec's Events, messages and the bus › Receiving). Its sender
  * is the engine, never the object a binding names; each arm carries the
  * bindings its handler receives, by the names the spec gives them.

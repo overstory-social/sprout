@@ -1,0 +1,7 @@
+// `:illuminating` carries a value, and a send of it gives one.
+message :illuminating with boolean
+
+kind Lamp {
+  on :spawned (from) { broadcast :illuminating }
+  on :illuminating (_, value) { }
+}

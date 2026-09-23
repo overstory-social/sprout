@@ -24,6 +24,17 @@ describe('the token surface the language is written in', () => {
     expect(shapes('world printers_shop')).toEqual(['name:world', 'name:printers_shop']);
   });
 
+  it('reads `_` alone as a name, for a parameter left unnamed, and nowhere else', () => {
+    expect(shapes('(_, value)')).toEqual(['punct:(', 'name:_', 'punct:,', 'name:value', 'punct:)']);
+    const { tokens, diagnostics } = read('_value');
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "_".',
+    ]);
+    expect(tokens.filter((t) => t.kind !== 'end').map((t) => `${t.kind}:${t.text}`)).toEqual([
+      'name:value',
+    ]);
+  });
+
   it('reads a kind or an enum by its capital', () => {
     expect(shapes('Season Creature')).toEqual(['kind:Season', 'kind:Creature']);
   });

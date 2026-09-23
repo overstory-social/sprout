@@ -12,9 +12,16 @@ import type { ResolvedProperty } from './properties.js';
 import type { ResolvedPassage } from './passages.js';
 import type { Guards } from './guards.js';
 import type { Plays } from './roles.js';
+import type { Handlers, Hooks } from './handlers.js';
+import type { PassRules } from './passes.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
-import { composeKind, type Found, type KindSource, type OnUnknown } from './compose.js';
-import type { OnUnknownVerb, VerbNames } from './roles.js';
+import {
+  composeKind,
+  type Found,
+  type KindSource,
+  type MemberNames,
+  type OnUnknown,
+} from './compose.js';
 import { refuseComposingWorld, writesWorld } from './sprout-world.js';
 
 /**
@@ -74,6 +81,15 @@ export interface KindRef {
    * spec's Roles compose; Suppressing a contribution).
    */
   readonly plays: Plays;
+  /**
+   * The handlers it runs, for each message by `messageKey`, and the hooks,
+   * for each property: every composed kind's in closure order, its own
+   * last, less what is left out (the spec's How members combine).
+   */
+  readonly handlers: Handlers;
+  readonly hooks: Hooks;
+  /** What it answers as a container: its own rule for a message, else the one it composes. */
+  readonly passes: PassRules;
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**
@@ -88,8 +104,7 @@ export interface KindRef {
    * Suppressing a contribution). A composed kind's are not repeated
    * here: they shaped that kind's own members, which is how a `without`
    * removes only the copy that came through the kind that wrote it.
-   * `guards` and `plays` already have them removed; B32, which runs
-   * composed handlers and hooks, skips these the same way.
+   * `guards`, `plays`, `handlers` and `hooks` already have them removed.
    */
   readonly suppressed: readonly Suppression[];
 }
@@ -156,16 +171,16 @@ export class KindTable implements KindLookup, KindSource {
    * Compose every kind added, `world` being the world's namespace, whose
    * kinds are its own and not a library's. A kind reached while it is
    * still being composed closes a cycle, which `composeKind` refuses;
-   * `onUnknown` is told of a composed kind nothing declares. `plays` are
-   * the verbs a kind's plays may name, and what is told of one nothing
-   * declares.
+   * `onUnknown` is told of a composed kind nothing declares. `names` are
+   * the verbs a kind's plays may name and the messages its handlers and
+   * pass rules may, and what is told of one nothing declares.
    */
   resolve(
     world: string,
     enums: EnumTable,
     diagnostics: Diagnostics,
     onUnknown?: OnUnknown,
-    plays?: { readonly verbs: VerbNames; readonly onUnknownVerb?: OnUnknownVerb },
+    names?: MemberNames,
   ): void {
     const composing: string[] = [];
     const source: KindSource = {
@@ -196,7 +211,7 @@ export class KindTable implements KindLookup, KindSource {
           world,
           diagnostics,
           ...(onUnknown === undefined ? {} : { onUnknown }),
-          ...plays,
+          ...names,
         },
       );
       composing.pop();

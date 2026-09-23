@@ -17,6 +17,7 @@ import { checkEffectCall, isEffect, typeOf, type CheckContext } from '../check/c
 import { checkerOf, type Checker } from '../check/check/checker.js';
 import type { CallExpr, Expr, Ident } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import { NO_PASS_RULES } from '../declare/passes.js';
 import { NO_GUARDS } from '../declare/guards.js';
 import { NO_PLAYS } from '../declare/roles.js';
 import { ACTOR, VISITOR } from '../declare/actors.js';
@@ -90,6 +91,9 @@ export function kind(
     passages: new Map(),
     guards: NO_GUARDS,
     plays: NO_PLAYS,
+    handlers: new Map(),
+    hooks: new Map(),
+    passes: NO_PASS_RULES,
     // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,

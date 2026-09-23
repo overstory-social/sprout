@@ -16,6 +16,8 @@ import type { KindLookup, KindRef } from '../declare/kinds.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import { expression } from '../fixtures/check.js';
 import { chooser } from '../fixtures/parse.js';
+import { eventTurn, LAMP, LANTERN } from '../fixtures/events.js';
+import { NameOutOfRange } from './named.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 import { Budget, BudgetExhausted } from './budget.js';
@@ -151,6 +153,8 @@ function run(text: string, body: Body): Evaluated {
     bindings: new Map(Object.entries(names).map(([name, { bound }]) => [name, bound])),
     budget: body.budget ?? new Budget(DEFAULT_LIMITS.budgets),
     caps: CAPS,
+    names: new Map(),
+    passes: () => true,
   };
   return evaluate(expr, frame);
 }
@@ -171,6 +175,8 @@ const frame = (budget: Budget, draft: Draft): Frame => ({
   bindings: new Map(),
   budget,
   caps: CAPS,
+  names: new Map(),
+  passes: () => true,
 });
 
 const thing = (at: InstanceId, kind: KindRef | null = null): Named => ({
@@ -432,5 +438,34 @@ describe('what cannot be evaluated', () => {
         frame(new Budget(DEFAULT_LIMITS.budgets), draft),
       );
     expect(condition).toThrow(/read as true or false/);
+  });
+});
+
+describe('an identifier in an expression', () => {
+  /** `text`, whose one name the checker resolved to the declared `path`, evaluated in the lamp's body. */
+  function throughName(text: string, path: readonly string[]): Evaluated {
+    const one = eventTurn();
+    const expr = expression(text);
+    const name = expr.kind === 'binding' ? expr.name : null;
+    if (name === null) throw new Error(`\`${text}\` is not a name`);
+    return evaluate(expr, {
+      state: one.draft,
+      kinds: one.catalogue.lookup,
+      library: 'bus',
+      self: LAMP,
+      bindings: new Map(),
+      budget: one.budget,
+      caps: one.catalogue.caps,
+      names: new Map([[name, { names: 'declared', path, kind: null }]]),
+      passes: one.passes,
+    });
+  }
+
+  it('is the object the checker resolved it to, where it is in range', () => {
+    expect(throughName('lantern', ['hall', 'lantern'])).toEqual(boundObject(LANTERN));
+  });
+
+  it('faults where what it names is out of range', () => {
+    expect(() => throughName('stray', ['yard', 'stray'])).toThrow(NameOutOfRange);
   });
 });

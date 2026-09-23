@@ -1,0 +1,7 @@
+kinds.sprout:6:25  `send` sends a message, and a guard only reads and decides.
+                   Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
+
+kinds.sprout:7:6   Nothing sends `:creak`, so `on :creak` never runs.
+                   Send it with `send <thing> :creak` or `broadcast :creak`, or take the handler out.
+
+refused: 1 problem

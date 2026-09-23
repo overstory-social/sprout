@@ -1,0 +1,10 @@
+// A misspelt message is a refusal rather than a send that goes nowhere.
+message :unlock_attempt
+
+kind Key {
+  on :spawned (from) { send from :unlok_attempt }
+}
+
+kind Lock {
+  on :unlock_attempt { }
+}

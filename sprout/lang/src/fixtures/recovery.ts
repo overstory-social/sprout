@@ -12,10 +12,10 @@ import {
   type Declaration,
   type KindDeclaration,
   type ObjectDeclaration,
-  type VerbDeclaration,
   type WorldDeclaration,
   type WorldMember,
 } from '../syntax/ast.js';
+import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { DEEPEST } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';

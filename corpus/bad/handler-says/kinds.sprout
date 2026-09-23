@@ -1,0 +1,11 @@
+// A handler runs when a message arrives, and nobody is acting then, so
+// there is nobody for `say` to speak to.
+message :stir
+
+kind Cat {
+  on :stir { say "The cat stretches." }
+}
+
+kind Bellows {
+  on :spawned (from) { broadcast :stir }
+}

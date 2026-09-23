@@ -1,0 +1,4 @@
+kinds.sprout:5:29  `send` sends to one thing, and `n` is integer.
+                   Name a thing in the world, as in `send oak_door :unlock_attempt`; a value hears nothing.
+
+refused: 1 problem

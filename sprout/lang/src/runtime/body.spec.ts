@@ -12,7 +12,8 @@ import { catalogueOf, type Catalogue } from './catalogue.js';
 import { Draft } from './draft.js';
 import { boundObject, type Frame } from './evaluate.js';
 import { declaredId, type InstanceId } from './ids.js';
-import { destroyInstance, type Destroyed, type EngineSend } from './lifecycle.js';
+import { destroyInstance, type Destroyed } from './lifecycle.js';
+import type { Sent } from './sends.js';
 import { ListFull, SproutList } from './lists.js';
 import { initialState } from './load.js';
 import { newInstance } from './state.js';
@@ -36,6 +37,7 @@ const VERBS = [
   'shove',
   'lug',
   'sink',
+  'ring',
 ];
 
 /**
@@ -48,9 +50,11 @@ const bundle = compiledWorld('shop', {
     '  contains visitors are Person visitors arrive at hall',
     '  object hall is Room {',
     '    object counter is Counter { object pin is Cup }',
+    '    object near is Heeds',
     '    object loud is Loud',
     '    object cat is Pet',
     '  }',
+    '  object yard is Room { object far is Heeds }',
     '}',
     'enum Ward { oak, silver, iron }',
     'kind Creature is sprout.Actor { }',
@@ -78,7 +82,11 @@ const bundle = compiledWorld('shop', {
     '  as target for haul   { do { move actor to self  move self to here  say "Hauled." } }',
     '  as target for lug    { do { self.set(:n, 4)  if (self.get(:n) > 0) { move actor to self  say "Inside." }  say "After." } }',
     '  as target for sink   { do { destroy self  move actor to self  say "Sunk." } }',
+    '  as target for ring   { do { send hall.counter.pin :knock  send hall.cat :tally with self.get(:n)  send hall.near :knock  send yard.far :knock  broadcast :knock } }',
     '}',
+    'message :knock',
+    'message :tally with integer',
+    'kind Heeds { on :knock { } on :tally (_, n) { } }',
     'kind Loud is Counter { passage done { Done, loudly. } }',
     'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
     'kind Pet is Creature {',
@@ -96,12 +104,15 @@ const COUNTER = id('hall', 'counter');
 const LOUD = id('hall', 'loud');
 const PIN = id('hall', 'counter', 'pin');
 const CAT = id('hall', 'cat');
+const NEAR = id('hall', 'near');
+const FAR = id('yard', 'far');
 
 /** What an acting body did, as the sink heard it. */
 interface Heard {
   readonly spoken: Spoken[];
-  readonly sends: EngineSend[];
+  readonly sends: Sent[];
   readonly destroyed: Destroyed[];
+  readonly marked: InstanceId[];
   /** Each `move` proposed: the mover, the thing and where it is to go. */
   readonly moves: [InstanceId, InstanceId, InstanceId][];
   /** Each `act` performed: the actor, and the reading as the body evaluated it. */
@@ -147,6 +158,8 @@ function frameOf(turn: Turn, self: InstanceId, budget: Budget): Frame {
     kinds: turn.catalogue.lookup,
     library: 'shop',
     self,
+    names: turn.catalogue.names,
+    passes: () => true,
     bindings: new Map([
       ['actor', boundObject(turn.visitor)],
       ['here', boundObject(HALL)],
@@ -170,7 +183,7 @@ function act(
   answer: (nth: number) => Proposed = () => 'done',
 ): Heard {
   let proposed = 0;
-  const heard: Heard = { spoken: [], sends: [], destroyed: [], moves: [], acts: [] };
+  const heard: Heard = { spoken: [], sends: [], destroyed: [], marked: [], moves: [], acts: [] };
   const sink: ActSink = {
     lifecycle: {
       draft: turn.draft,
@@ -182,6 +195,7 @@ function act(
     say: (spoken) => heard.spoken.push(spoken),
     sent: (sends) => heard.sends.push(...sends),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
+    marked: (marked) => heard.marked.push(marked),
     move: (mover, item, to) => {
       heard.moves.push([mover, item, to]);
       return answer(proposed++);
@@ -473,5 +487,34 @@ describe('what a `do` is charged', () => {
     act(one, CAT, 'poke', budget);
     // The `act` and its two names, and a `say`.
     expect(budget.spentSteps).toBe(4);
+  });
+});
+
+describe('what a `do` sends', () => {
+  it('queues each send in body order, from `self`, down a path, with the value it carries', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'ring');
+    const authored = heard.sends.filter((sent) => sent.message === 'authored');
+    expect(
+      authored.slice(0, 3).map((sent) => [sent.recipient, sent.declared.name, sent.value]),
+    ).toEqual([
+      [PIN, 'knock', null],
+      [CAT, 'tally', 1],
+      [NEAR, 'knock', null],
+    ]);
+    expect(new Set(authored.map((sent) => sent.from))).toEqual(new Set([COUNTER]));
+  });
+
+  it('sends nothing to a target out of range, and broadcasts to what the walk reaches', () => {
+    const one = turn();
+    const to = act(one, COUNTER, 'ring').sends.map((sent) => sent.recipient);
+    // The yard is another place, and the world passes nothing between places.
+    expect(to).not.toContain(FAR);
+    // The broadcast: what the counter holds, then the hall and what else it holds; never itself.
+    const broadcast = to.slice(3);
+    expect(broadcast[0]).toBe(PIN);
+    expect(broadcast).toEqual(expect.arrayContaining([HALL, LOUD, CAT, NEAR]));
+    expect(broadcast).not.toContain(COUNTER);
+    expect(broadcast).not.toContain(WORLD_ID);
   });
 });

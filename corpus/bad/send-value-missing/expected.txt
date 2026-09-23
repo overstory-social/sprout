@@ -1,0 +1,4 @@
+kinds.sprout:5:34  `:illuminating` carries boolean, and `broadcast :illuminating` gives it none.
+                   Write `broadcast :illuminating with <value>`, the value it carries.
+
+refused: 1 problem

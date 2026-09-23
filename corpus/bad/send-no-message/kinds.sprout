@@ -1,0 +1,7 @@
+// A send names the message it sends, with its colon.
+message :creak
+
+kind Door {
+  on :spawned (from) { send from creak }
+  on :creak { }
+}

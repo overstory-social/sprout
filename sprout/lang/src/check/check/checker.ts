@@ -13,6 +13,9 @@ import type { BindingType, Scope } from '../bindings.js';
 import type { KindLookup, KindRef } from '../../declare/kinds.js';
 import type { ResolvedVerb, VerbLookup } from '../../declare/verbs.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
+import type { NameScope } from '../names.js';
+import type { MessageLookup } from '../../declare/messages.js';
+import type { OnUnknownMessage } from '../../declare/handlers.js';
 
 /** What a body is being read inside. */
 export interface CheckContext {
@@ -33,6 +36,16 @@ export interface CheckContext {
   readonly verb?: string;
   /** What an `act` in the body is checked against, where the body may hold one. */
   readonly acting?: ActSetting;
+  /** Where the body's identifiers are resolved from; with none, only bindings are names. */
+  readonly names?: NameScope;
+  /** The messages a `send` or a `broadcast` may name, where the body may hold one. */
+  readonly messages?: MessageSetting;
+}
+
+/** The messages a body's sends reach, and what is told of one nothing declares. */
+export interface MessageSetting {
+  readonly lookup: MessageLookup;
+  readonly onUnknown?: OnUnknownMessage;
 }
 
 /** The verbs an `act` may name (the spec's Verbs › Acting). */
@@ -57,6 +70,7 @@ export function checkerOf(
     self: context.self,
     diagnostics: context.diagnostics,
     ...(context.verb === undefined ? {} : { verb: context.verb }),
+    ...(context.names === undefined ? {} : { names: context.names }),
     typeOf: (expr) => walk(expr, checker),
   };
   return checker;

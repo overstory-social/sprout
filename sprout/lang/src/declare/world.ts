@@ -11,8 +11,9 @@
 // actors` is what makes a place a place. `visitors arrive at` is a path
 // read from the world's body, where it is written, and what it
 // reaches must be a place inside the world, never the world itself, even
-// one that declares `contains actors` (`resolveArrival`); B32 reads the
-// pass rules, and B42 puts a visitor there at run time.
+// one that declares `contains actors` (`resolveArrival`); a world's
+// written pass rules compose as any kind's, and B42 puts a visitor there
+// at run time.
 
 import {
   writtenPath,
@@ -32,10 +33,10 @@ import {
   unknownKind,
   writtenKind,
   type KindSource,
+  type MemberNames,
   type OnUnknown,
 } from './compose.js';
 import { checkVisitorKind, VISITOR } from './actors.js';
-import type { OnUnknownVerb, VerbNames } from './roles.js';
 import {
   pathKey,
   resolveFrom,
@@ -74,7 +75,7 @@ export function checkWorldDeclaration(declared: WorldDeclaration, diagnostics: D
 }
 
 /** What composing a world, and reading what its visitors are made of, read. */
-export interface WorldContext {
+export interface WorldContext extends MemberNames {
   readonly enums: EnumTable;
   readonly kinds: KindSource;
   /** The library the world is read from inside: its own kinds are in it. */
@@ -86,9 +87,6 @@ export interface WorldContext {
    * refused.
    */
   readonly onUnknown?: OnUnknown;
-  /** The verbs the world's own plays may name. */
-  readonly verbs?: VerbNames;
-  readonly onUnknownVerb?: OnUnknownVerb;
 }
 
 /**
@@ -107,7 +105,8 @@ export function composeWorld(declared: WorldDeclaration, context: WorldContext):
     checkWorldDeclaration(declared, context.diagnostics);
     return null;
   }
-  const { enums, kinds, diagnostics, onUnknown, verbs, onUnknownVerb } = context;
+  const { enums, kinds, diagnostics, onUnknown, verbs, onUnknownVerb, messages, onUnknownMessage } =
+    context;
   return composeKind(
     {
       library: context.from,
@@ -127,6 +126,8 @@ export function composeWorld(declared: WorldDeclaration, context: WorldContext):
       ...(onUnknown === undefined ? {} : { onUnknown }),
       ...(verbs === undefined ? {} : { verbs }),
       ...(onUnknownVerb === undefined ? {} : { onUnknownVerb }),
+      ...(messages === undefined ? {} : { messages }),
+      ...(onUnknownMessage === undefined ? {} : { onUnknownMessage }),
     },
   );
 }

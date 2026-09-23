@@ -1,7 +1,8 @@
-// What a world, a kind and an object share: the kinds written after
-// `is`, a body of members in braces, and the members any of them may
-// write (the spec's Kinds, composition and libraries › Declaring and
-// composing, Suppressing a contribution; The world model). Each owner
+// What a world, a kind and an object share: a body of members in braces,
+// and the members any of them may write (the spec's Kinds, composition
+// and libraries › Declaring and composing; The world model); the kinds
+// written after `is` are `composition.ts`'s, and `without` is
+// `without.ts`'s. Each owner
 // reads its body through one table of the words its members begin with,
 // and the message for a word it does not read is built from that same
 // table, so the two cannot drift. `object` is one of those words, since
@@ -9,17 +10,16 @@
 
 import {
   GUARD_NAMES,
-  writtenMember,
   type ContainsDeclaration,
   type GuardDeclaration,
-  type KindExpr,
+  type HandlerDeclaration,
+  type HookDeclaration,
   type KindMember,
-  type MemberRef,
   type ObjectDeclaration,
+  type PassDeclaration,
   type PlayDeclaration,
   type PropertyDeclaration,
   type RemembersDeclaration,
-  type WithoutDeclaration,
 } from '../ast.js';
 import type { Token } from '../lexer.js';
 import type { Node } from '../../source/nodes.js';
@@ -27,34 +27,15 @@ import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
 import { guard, isGuardName } from './guards.js';
+import { handler, hook } from './handlers.js';
+import { passRule } from './passes.js';
 import { isPassage, passage } from './passages.js';
 import { property } from './properties.js';
 import { rememberedAsList, remembers } from './remembers.js';
 import { stepPast } from './recovery.js';
 import { play } from './roles.js';
-
-/** What declares a body, as its messages name it. */
-export type Owner = 'world' | 'kind' | 'object';
-
-const ARTICLE: Readonly<Record<Owner, string>> = {
-  world: 'A world',
-  kind: 'A kind',
-  object: 'An object',
-};
-
-/** How each owner is written, `name` and then `kinds` after `is`, for a remedy to show. */
-const WRITTEN: Readonly<Record<Owner, (name: string, kinds: string) => string>> = {
-  world: (name, kinds) => `world ${name} is ${kinds} { … }`,
-  kind: (name, kinds) => `kind ${name} is ${kinds} { … }`,
-  object: (name, kinds) => `object ${name} is ${kinds} { … }`,
-};
-
-/** Each owner's name as a remedy shows it where the name is not the point. */
-const PLACEHOLDER: Readonly<Record<Owner, string>> = {
-  world: '<name>',
-  kind: '<Name>',
-  object: '<name>',
-};
+import { ARTICLE, type Owner } from './composition.js';
+import { without } from './without.js';
 
 /** What may be written inside a body, by the word each member begins with. */
 export type MemberReaders<M> = ReadonlyMap<string, () => M | null>;
@@ -66,52 +47,6 @@ type Member<M> = M | PropertyDeclaration;
 export interface Body<M> {
   readonly members: Member<M>[];
   readonly close: Token;
-}
-
-/**
- * `is sprout.World, victorian.Voice` — the kinds the declaration `name`
- * composes, as written, or none where no `is` follows its name. A colon
- * in its place is read and refused, with `is` as the remedy (the spec's
- * Declaring and composing). Null having said why where a kind could not
- * be read; the caller steps over the rest.
- */
-export function composition(p: Parser, owner: Owner, name: Token): KindExpr[] | null {
-  const composes: KindExpr[] = [];
-  const colon = p.take('punct', ':');
-  if (colon === null && p.take('name', 'is') === null) return composes;
-  let read = true;
-  for (;;) {
-    const composed = kindName(p);
-    if (composed === null) {
-      read = false;
-      break;
-    }
-    composes.push(composed);
-    if (p.take('punct', ',') !== null) continue;
-    // Every other comma-separated list says so when the comma is
-    // missing; letting what follows complain instead would name the
-    // wrong problem.
-    if (!atKindName(p)) break;
-    p.diagnostics.refuse(
-      p.here(),
-      `${ARTICLE[owner]} needs a comma between the kinds it composes.`,
-      `Write \`${WRITTEN[owner](PLACEHOLDER[owner], 'one.Kind, Another')}\`.`,
-    );
-  }
-  if (colon !== null) {
-    const kinds = read && composes.length > 0 ? composes.map(writtenKind).join(', ') : '<Kind>';
-    p.diagnostics.refuse(
-      colon.at,
-      `${ARTICLE[owner]} composes its kinds with \`is\`, not a colon.`,
-      `Write \`${WRITTEN[owner](name.text, kinds)}\`.`,
-    );
-  }
-  return read ? composes : null;
-}
-
-/** A composed kind as the author wrote it, for a remedy that repeats it. */
-export function writtenKind(kind: KindExpr): string {
-  return kind.library === null ? kind.name.text : `${kind.library.text}.${kind.name.text}`;
 }
 
 /** What reads an object written in a body, `object bench is Bench { … }`. */
@@ -130,11 +65,17 @@ export function kindMembers(
   addRemembers(p, readers);
   readers.set('contains', () => contains(p));
   readers.set('passage', () => passage(p, readers));
-  readers.set('without', () => without(p, readers));
+  readers.set('without', () => without(p, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);
+  addEvents(p, owner, readers);
   readers.set('object', object);
   return readers;
+}
+
+/** Whether a token starts one of the members `readers` reads, a property among them. */
+export function startsMemberOf<M>(p: Parser, readers: MemberReaders<M>): (token: Token) => boolean {
+  return (token) => memberReader(p, token, readers) !== null;
 }
 
 /** A body's members apart from the objects written in it, which the AST holds on their own. */
@@ -169,7 +110,7 @@ export function addGuards<M>(
   owner: string,
   readers: Map<string, () => M | GuardDeclaration | null>,
 ): void {
-  const startsMember = (token: Token): boolean => memberReader(p, token, readers) !== null;
+  const startsMember = startsMemberOf(p, readers);
   for (const name of GUARD_NAMES) readers.set(name, () => guard(p, owner, startsMember));
 }
 
@@ -183,8 +124,24 @@ export function addPlays<M>(
   owner: string,
   readers: Map<string, () => M | PlayDeclaration | null>,
 ): void {
-  const startsMember = (token: Token): boolean => memberReader(p, token, readers) !== null;
+  const startsMember = startsMemberOf(p, readers);
   readers.set('as', () => play(p, owner, startsMember));
+}
+
+/**
+ * Handlers, hooks and pass rules, added to a body's table. One never
+ * closed ends where the body's next member starts, which the same table
+ * says.
+ */
+export function addEvents<M>(
+  p: Parser,
+  owner: string,
+  readers: Map<string, () => M | HandlerDeclaration | HookDeclaration | PassDeclaration | null>,
+): void {
+  const startsMember = startsMemberOf(p, readers);
+  readers.set('on', () => handler(p, owner, startsMember));
+  readers.set('changed', () => hook(p, owner, startsMember));
+  readers.set('pass', () => passRule(p, startsMember));
 }
 
 /**
@@ -335,7 +292,10 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
     // arrive at` alike, are named once and not twice: the remedy is the
     // same for both, and a name repeated says nothing a single one does
     // not.
-    const text = token.kind === 'symbol' ? `:${token.text}` : (playHeadAt(p, ahead) ?? token.text);
+    const text =
+      token.kind === 'symbol'
+        ? `:${token.text}`
+        : (playHeadAt(p, ahead) ?? eventHeadAt(p, ahead) ?? token.text);
     if (!found.some((member) => member.text === text)) found.push({ at: token.at, text });
     ahead += 1;
     // A guard's brackets and block are its own, and are stepped over
@@ -344,6 +304,8 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
     if (token.kind === 'name' && isGuardName(token.text)) ahead = pastGuard(p, ahead);
     // A play's head and braces are its own in the same way.
     if (token.kind === 'name' && token.text === 'as') ahead = pastPlay(p, ahead);
+    // So are a handler's, a hook's and a pass rule's, past what they name.
+    if (token.kind === 'name' && EVENT_WORDS.has(token.text)) ahead = pastEvent(p, ahead);
   }
   if (found.length === 0) return;
   p.diagnostics.refuse(
@@ -379,6 +341,43 @@ function pastGuard(p: Parser, ahead: number): number {
     }
   }
   return at;
+}
+
+/** The words a handler, a hook and a pass rule begin with. */
+const EVENT_WORDS: ReadonlySet<string> = new Set(['on', 'changed', 'pass']);
+
+/** `on :stir`, `changed :lit`, `pass :m` or `pass any`, where one is written at `ahead`; else null. */
+function eventHeadAt(p: Parser, ahead: number): string | null {
+  const word = p.peek(ahead);
+  const named = p.peek(ahead + 1);
+  if (word.kind !== 'name' || !EVENT_WORDS.has(word.text)) return null;
+  if (named.kind === 'symbol') return `${word.text} :${named.text}`;
+  if (word.text === 'pass' && named.kind === 'name' && named.text === 'any') return 'pass any';
+  return null;
+}
+
+/**
+ * Past what a handler, a hook or a pass rule names, from just after its
+ * word at `ahead`, and then its brackets and its block where each is
+ * written and closes; otherwise where it stopped.
+ */
+function pastEvent(p: Parser, ahead: number): number {
+  const named = p.peek(ahead);
+  const at =
+    named.kind === 'symbol' || (named.kind === 'name' && named.text === 'any') ? ahead + 1 : ahead;
+  return pastBracketed(p, pastBracketed(p, at, '(', ')'), '{', '}');
+}
+
+/** Past a bracketed stretch opening at `ahead` and closing before any declaration; else `ahead`. */
+function pastBracketed(p: Parser, ahead: number, open: string, close: string): number {
+  if (!punct(p.peek(ahead), open)) return ahead;
+  let depth = 0;
+  for (let scan = ahead; ; scan++) {
+    const token = p.peek(scan);
+    if (token.kind === 'end' || p.atDeclarationStart(scan)) return ahead;
+    if (punct(token, open)) depth += 1;
+    else if (punct(token, close) && --depth === 0) return scan + 1;
+  }
 }
 
 /** `as target for unlock`, where a play's whole head is written at `ahead`; else null. */
@@ -530,243 +529,4 @@ export function contains(p: Parser): ContainsDeclaration | null {
     at: actors === null ? keyword.at : spanning(keyword.at, actors.at),
     actors: actors !== null,
   };
-}
-
-/** How a `without` is written, for a remedy to show. */
-const WITHOUT_EXAMPLE = '`without changed :lit from sprout.LightSource`';
-
-/**
- * `without changed :lit from sprout.LightSource` — a member a composed
- * kind contributes, left out (the spec's Suppressing a contribution).
- * `readers` is the body's own table, so that a member written after a
- * `without` with nothing in it is left for the body to read.
- */
-export function without<M>(p: Parser, readers: MemberReaders<M>): WithoutDeclaration | null {
-  const keyword = p.next();
-  const member = memberNamed(p, keyword.at, readers);
-  if (member === null) return null;
-  const written = `without ${writtenMember(member)}`;
-
-  const from = p.take('name', 'from');
-  if (from === null) {
-    p.diagnostics.refuse(
-      endOf(p, member.at),
-      `\`${written}\` does not say which kind it comes from.`,
-      `Write \`from\` and the kind that declares it: \`${written} from <Kind>\`, as in ${WITHOUT_EXAMPLE}.`,
-    );
-    return null;
-  }
-  const first = p.peek();
-  if (first.kind !== 'kind' && !(first.kind === 'name' && punct(p.peek(1), '.'))) {
-    p.diagnostics.refuse(
-      endsHere(p, readers) ? endOf(p, from.at) : first.at,
-      `After \`from\` comes the kind that declares \`${writtenMember(member)}\`.`,
-      `Name it as it is composed, with its capital: ${WITHOUT_EXAMPLE}.`,
-    );
-    return null;
-  }
-  const source = kindName(p);
-  if (source === null) return null;
-  return { kind: 'without', at: spanning(keyword.at, source.at), member, source };
-}
-
-/**
- * The member a `without` names: `on :m`, `changed :p`, a guard, or `as
- * <role> for <verb>`. Null having said why.
- */
-function memberNamed<M>(p: Parser, keyword: Span, readers: MemberReaders<M>): MemberRef | null {
-  const token = p.peek();
-  if (token.kind === 'name' && (token.text === 'on' || token.text === 'changed')) {
-    p.next();
-    const named = namePart(p, 'symbol', readers);
-    if (named === null) {
-      const handler = token.text === 'on';
-      p.diagnostics.refuse(
-        endsHere(p, readers) ? endOf(p, token.at) : p.peek().at,
-        handler
-          ? '`on` names the message a handler answers, with its colon.'
-          : '`changed` names the property a hook watches, with its colon.',
-        handler
-          ? 'Write `without on :<message> from <Kind>`, as in `without on :stir from Bellows`.'
-          : `Write \`without changed :<property> from <Kind>\`, as in ${WITHOUT_EXAMPLE}.`,
-      );
-      return null;
-    }
-    const at = spanning(token.at, named.at);
-    return token.text === 'on'
-      ? { kind: 'handler-ref', at, message: p.ident(named) }
-      : { kind: 'hook-ref', at, property: p.ident(named) };
-  }
-  // A guard's word with its brackets after it is the next member, a
-  // guard as written, and not what this line leaves out.
-  if (token.kind === 'name' && isGuardName(token.text) && !punct(p.peek(1), '(')) {
-    p.next();
-    return { kind: 'guard-ref', at: token.at, guard: token.text };
-  }
-  // `as <role> for <verb>` with its brace after it is the next member, a
-  // play as written, and not what this line leaves out.
-  if (token.kind === 'name' && token.text === 'as' && !playFollows(p)) {
-    p.next();
-    const role = namePart(p, 'name', readers);
-    const said = role === null ? null : p.take('name', 'for');
-    const verb = said === null ? null : namePart(p, 'name', readers);
-    if (role === null || verb === null) {
-      p.diagnostics.refuse(
-        endsHere(p, readers) ? endOf(p, (said ?? role ?? token).at) : p.peek().at,
-        '`as` names a role and the verb it plays it for.',
-        'Write `without as <role> for <verb> from <Kind>`, as in `without as target for unlock from Lock`.',
-      );
-      return null;
-    }
-    return {
-      kind: 'role-ref',
-      at: spanning(token.at, verb.at),
-      role: p.ident(role),
-      verb: p.ident(verb),
-    };
-  }
-
-  // An exclusive member is replaced by writing one's own (How members
-  // combine), so there is nothing for `without` to do with a passage.
-  if (token.kind === 'name' && token.text === 'passage') {
-    const after = p.peek(1);
-    const named =
-      after.kind === 'name' && after.text !== 'default' && after.text !== 'from'
-        ? after.text
-        : '<name>';
-    p.diagnostics.refuse(
-      token.at,
-      '`without` does not leave out a passage.',
-      `Write your own \`passage ${named} { … }\` in this body instead: a body's own passage is the one that applies.`,
-    );
-    p.next();
-    return null;
-  }
-
-  // Nothing where the member goes: the body's next member, its brace, or
-  // `from` straight after the word.
-  const beforeFrom = p.peek(1).kind === 'name' && p.peek(1).text === 'from';
-  if ((token.kind === 'name' && token.text === 'from') || (endsHere(p, readers) && !beforeFrom)) {
-    p.diagnostics.refuse(
-      keyword,
-      '`without` does not say what to leave out.',
-      `Name a handler, a hook, a guard or a role, and the kind it comes from: ${WITHOUT_EXAMPLE}.`,
-    );
-    return null;
-  }
-  p.diagnostics.refuse(
-    token.at,
-    `\`without\` names a handler, a hook, a guard or a role, not ${p.describe(token)}.`,
-    token.kind === 'symbol'
-      ? `A handler is written \`on :${token.text}\` and a hook \`changed :${token.text}\`, as in ${WITHOUT_EXAMPLE}.`
-      : `Write one as it is declared: \`on :<message>\`, \`changed :<property>\`, \`depart\`, \`release\`, \`accept\` or \`as <role> for <verb>\`, as in ${WITHOUT_EXAMPLE}.`,
-  );
-  // A member word written in its place is part of this line, not the
-  // next member, so the body does not read it again.
-  if (memberReader(p, token, readers) !== null) p.next();
-  return null;
-}
-
-/** Whether `as <role> for <verb> {` is written from here: a play, not a member named. */
-function playFollows(p: Parser): boolean {
-  const word = (ahead: number): boolean => {
-    const token = p.peek(ahead);
-    return token.kind === 'name' || token.kind === 'kind';
-  };
-  return (
-    word(1) &&
-    p.peek(2).kind === 'name' &&
-    p.peek(2).text === 'for' &&
-    word(3) &&
-    punct(p.peek(4), '{')
-  );
-}
-
-/**
- * The name a member form writes next, `:lit` after `changed` or `target`
- * after `as`, or null. A word that begins the body's next member is taken
- * only where `from` follows it, so a `without` left unfinished does not
- * take the line after it: `without changed` over `:open true` leaves the
- * property to be read.
- */
-function namePart<M>(p: Parser, kind: 'symbol' | 'name', readers: MemberReaders<M>): Token | null {
-  const token = p.peek();
-  if (token.kind !== kind || (kind === 'name' && (token.text === 'from' || token.text === 'for'))) {
-    return null;
-  }
-  const next = p.peek(1);
-  const fromFollows = next.kind === 'name' && next.text === 'from';
-  if (memberReader(p, token, readers) !== null && !fromFollows && !endsAfter(p, readers)) {
-    return null;
-  }
-  return p.next();
-}
-
-/**
- * Whether the token after the next one ends a member: the body's brace,
- * the end of the file, or the start of another member.
- */
-function endsAfter<M>(p: Parser, readers: MemberReaders<M>): boolean {
-  const after = p.peek(1);
-  return punct(after, '}') || after.kind === 'end' || memberReader(p, after, readers) !== null;
-}
-
-/**
- * Whether what comes next is not part of this member: the body's brace,
- * the end of the file, a declaration, or the next member.
- */
-function endsHere<M>(p: Parser, readers: MemberReaders<M>): boolean {
-  const token = p.peek();
-  return (
-    punct(token, '}') ||
-    p.done ||
-    p.atDeclarationStart() ||
-    memberReader(p, token, readers) !== null
-  );
-}
-
-/** The zero-width span just after something, where what should follow it is missing. */
-function endOf(p: Parser, at: Span): Span {
-  return p.source.span(at.end, at.end);
-}
-
-/** Whether a kind's name starts here, which is how a missing comma is told from an end. */
-function atKindName(p: Parser): boolean {
-  const first = p.peek();
-  if (first.kind === 'kind') return true;
-  return first.kind === 'name' && punct(p.peek(1), '.') && p.peek(2).kind === 'kind';
-}
-
-/** `Key` or `sprout.Container` — a kind as written, wherever one is written. */
-export function kindName(p: Parser): KindExpr | null {
-  const first = p.peek();
-  if (first.kind === 'kind') {
-    p.next();
-    return { kind: 'kind-expr', at: first.at, library: null, name: p.ident(first) };
-  }
-  if (first.kind === 'name' && punct(p.peek(1), '.')) {
-    const library = p.next();
-    p.next();
-    const named = p.take('kind');
-    if (named !== null) {
-      return {
-        kind: 'kind-expr',
-        at: spanning(library.at, named.at),
-        library: p.ident(library),
-        name: p.ident(named),
-      };
-    }
-    p.diagnostics.refuse(
-      p.peek().at,
-      `\`${library.text}.\` is not followed by the name of a kind.`,
-      'A kind starts with a capital letter, as in `sprout.Container`.',
-    );
-    return null;
-  }
-  p.diagnostics.refuse(
-    first.at,
-    `${p.describe(first)} is not the name of a kind.`,
-    'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
-  );
-  return null;
 }

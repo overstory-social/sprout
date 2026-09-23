@@ -1,0 +1,16 @@
+world visitor_kind_handles is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+// A person answers no message, watches no property and says nothing of
+// what passes in its own body; a kind it composes may.
+kind Person is sprout.Visitor {
+  :stamina 3 min 0 max 9
+
+  on :stir { self.adjust(:stamina, -1) }
+  changed :stamina (was) { }
+  pass any (true)
+}

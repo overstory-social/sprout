@@ -1,0 +1,5 @@
+message :stir
+
+kind Bellows {
+  on :spawned (from) { broadcast :stir }
+}

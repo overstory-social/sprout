@@ -11,8 +11,10 @@
 // reaching it is the engine's defect, thrown as a plain `Error`. Every statement executed is one step and every
 // expression node one more. A `set` or `remember` of a value its property
 // cannot hold faults, an `adjust` clamps, and adding a new element to a
-// full list faults. Nothing is rendered: B29 renders what is said. B30
-// brings `tell` and B32 `send`.
+// full list faults. A `send` or a `broadcast` queues what it sends, and
+// a write that changes a property its kind watches queues the hook, which
+// the bus delivers once the body has ended. Nothing is rendered: B29
+// renders what is said, and B30 brings `tell`.
 
 import type {
   Block,
@@ -42,11 +44,14 @@ import {
   destroyInstance,
   spawnInstance,
   type Destroyed,
-  type EngineSend,
   type LifecycleContext,
 } from './lifecycle.js';
-import { SproutList } from './lists.js';
+import { sameValue, SproutList } from './lists.js';
 import type { Performed } from './act.js';
+import { objectNamed, reachedByName } from './named.js';
+import { broadcastFrom, sendTo, type Sent } from './sends.js';
+import { reachMessage, type DeclaredMessage } from '../declare/messages.js';
+import { writtenPath } from '../syntax/ast.js';
 import type { Instance } from './state.js';
 import { defaultOf, fits, type Value } from './values.js';
 
@@ -76,10 +81,12 @@ export interface ActSink {
   /** The turn's draft, kinds, pass rules, budget and the host's bound on instances. */
   readonly lifecycle: LifecycleContext;
   say(spoken: Spoken): void;
-  /** What the engine tells the world of a spawn, in order. */
-  sent(sends: readonly EngineSend[]): void;
+  /** What a spawn tells the world, and what a `send` or a `broadcast` queues, in body order. */
+  sent(sends: readonly Sent[]): void;
   /** `self` removed with everything it held, at the end of the body that ran `destroy self`. */
   destroyed(destroyed: Destroyed): void;
+  /** `self` marked by `finally destroy self`, to be destroyed once the turn's queue is empty. */
+  marked(id: InstanceId): void;
   /**
    * `move item to to`, proposed by `mover`, the object whose body ran it:
    * asked through consent, and what came of it said or sent. A refusal
@@ -121,6 +128,8 @@ interface Run {
   readonly mode: BodyMode;
   readonly sink: ActSink | null;
   destroying: boolean;
+  /** Whether it ran `finally destroy self`, which waits for the turn's queue to empty. */
+  finally: boolean;
   stopped: 'gone' | 'refused' | null;
 }
 
@@ -134,10 +143,11 @@ export function runBody(block: Block, frame: Frame, mode: BodyMode, sink: ActSin
   if (mode === 'act' && sink === null) {
     throw new Error('a body that acts has somewhere to put what it does.');
   }
-  const run: Run = { mode, sink, destroying: false, stopped: null };
+  const run: Run = { mode, sink, destroying: false, finally: false, stopped: null };
   const ended = runBlock(block, frame, run);
   if (run.destroying && run.stopped !== 'gone')
     sink!.destroyed(destroyInstance(sink!.lifecycle.draft, frame.self));
+  else if (run.finally && run.stopped !== 'gone') sink!.marked(frame.self);
   return ended;
 }
 
@@ -183,12 +193,13 @@ function runStatement(
       return 'end';
     case 'destroy':
       acting(run, '`destroy`');
-      run.destroying = true;
+      if (statement.finally) run.finally = true;
+      else run.destroying = true;
       return 'end';
     case 'move': {
       const sink = acting(run, '`move`');
-      const item = asObject(evaluate(named(statement.thing), frame));
-      const to = asObject(evaluate(named(statement.destination), frame));
+      const item = objectAt(statement.thing, frame);
+      const to = objectAt(statement.destination, frame);
       if (sink.move(frame.self, item, to) === 'refused') run.stopped = 'refused';
       return 'end';
     }
@@ -196,7 +207,7 @@ function runStatement(
       const sink = acting(run, '`act`');
       const roles = new Map<string, Evaluated>();
       for (const role of statement.roles) {
-        roles.set(role.role.text, evaluate(named(role.filler), frame));
+        roles.set(role.role.text, evaluatedAt(role.filler, frame));
       }
       const proposed = sink.act(frame.self, {
         verb: statement.verb.text,
@@ -207,6 +218,23 @@ function runStatement(
       // The reading may have destroyed the actor, and a body whose `self`
       // is gone has nothing left to run for.
       else if (sink.lifecycle.draft.instance(frame.self) === undefined) run.stopped = 'gone';
+      return 'end';
+    }
+    case 'send': {
+      const sink = acting(run, '`send`');
+      const target = targetAt(statement.target, frame);
+      const declared = declaredMessage(statement.message.text, frame, sink);
+      if (declared === null) return 'end';
+      const value = statement.value === null ? null : asValue(evaluate(statement.value, frame));
+      sink.sent(sendTo(sendingIn(sink, frame), frame.self, target, declared, value));
+      return 'end';
+    }
+    case 'broadcast': {
+      const sink = acting(run, '`broadcast`');
+      const declared = declaredMessage(statement.message.text, frame, sink);
+      if (declared === null) return 'end';
+      const value = statement.value === null ? null : asValue(evaluate(statement.value, frame));
+      sink.sent(broadcastFrom(sendingIn(sink, frame), frame.self, declared, value));
       return 'end';
     }
     case 'say':
@@ -263,23 +291,80 @@ function spawn(statement: SpawnStatement, frame: Frame, sink: ActSink): Instance
     found === null
       ? qualifiedName(written.library?.text ?? frame.library, written.name.text)
       : kindName(found);
-  const container = asObject(evaluate(named(statement.container), frame));
+  const container = objectAt(statement.container, frame);
   const spawned = spawnInstance(sink.lifecycle, frame.self, kind, container);
   sink.sent(spawned.sends);
   return spawned.id;
 }
 
 /**
- * A spawn's container, either side of a move, or what fills a role of an
- * `act`: a name in scope, since a dotted path is refused until a body
- * resolves identifiers.
+ * What a path in a statement evaluates to: one name is a binding or an
+ * identifier, read as an expression reads it, and a dotted path is what
+ * the checker resolved it to, read through in range. One step.
  */
-function named(path: ObjectPath): Expr {
+function evaluatedAt(path: ObjectPath, frame: Frame): Evaluated {
   const [only, ...rest] = path.parts;
-  if (only === undefined || rest.length > 0) {
-    throw new Error('a dotted path reached the runtime in a body; the checker refuses it.');
+  if (only !== undefined && rest.length === 0) {
+    return evaluate({ kind: 'binding', name: only, at: only.at }, frame);
   }
-  return { kind: 'binding', name: only, at: only.at };
+  frame.budget.spend();
+  const named = frame.names.get(path);
+  if (named === undefined) {
+    throw new Error(
+      `\`${writtenPath(path)}\` reached the runtime unresolved; the checker resolves it.`,
+    );
+  }
+  return boundObject(reachedByName(named, writtenPath(path), frame));
+}
+
+/** A spawn's container or either side of a move: one object, read through in range. */
+function objectAt(path: ObjectPath, frame: Frame): InstanceId {
+  return asObject(evaluatedAt(path, frame));
+}
+
+/**
+ * Who a `send` is to: a binding, or what an identifier or path reaches
+ * now, whatever its range, which the send itself asks; null where it
+ * reaches nothing, and the send goes nowhere. One step.
+ */
+function targetAt(path: ObjectPath, frame: Frame): InstanceId | null {
+  const [only, ...rest] = path.parts;
+  if (only !== undefined && rest.length === 0) {
+    const bound = only.text === 'self' ? boundObject(frame.self) : frame.bindings.get(only.text);
+    if (bound !== undefined) {
+      frame.budget.spend();
+      return asObject(bound);
+    }
+  }
+  frame.budget.spend();
+  const named = frame.names.get(rest.length === 0 && only !== undefined ? only : path);
+  if (named === undefined) {
+    throw new Error(
+      `\`${writtenPath(path)}\` reached the runtime unresolved; the checker resolves it.`,
+    );
+  }
+  return objectNamed(named, frame.state, frame.self);
+}
+
+/**
+ * The declared message a send names, reached from the library that wrote
+ * the body; null where it is absent at load, and the send goes nowhere
+ * (the spec's What absent means).
+ */
+function declaredMessage(name: string, frame: Frame, sink: ActSink): DeclaredMessage | null {
+  const reached = reachMessage(name, frame.library, sink.lifecycle.catalogue.messages);
+  if (reached === null) return null;
+  if ('engine' in reached) {
+    throw new Error(
+      `\`:${name}\` is the engine's own, and reached a send; the checker refuses it.`,
+    );
+  }
+  return reached.declared;
+}
+
+/** What a send in this body reads: the turn's draft, its pass rules, and the meter. */
+function sendingIn(sink: ActSink, frame: Frame) {
+  return { state: sink.lifecycle.draft, passes: sink.lifecycle.passes, budget: frame.budget };
 }
 
 /**
@@ -330,6 +415,10 @@ function write(expr: Expr, frame: Frame, sink: ActSink): void {
       throw new Error(`\`${method}\`, which does not write, reached the runtime as a statement.`);
   }
   draft.write({ ...self, properties: new Map(self.properties).set(name, next) });
+  // A hook is queued once per change, with the value it had then.
+  if (!sameValue(held, next) && self.kind.hooks.has(name)) {
+    sink.sent([{ message: 'changed', recipient: self.id, property: name, was: held }]);
+  }
 }
 
 /** `x.adjust(…)` through a name other than `self` is memory's, as the checker reads it. */

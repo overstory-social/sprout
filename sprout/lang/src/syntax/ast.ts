@@ -10,6 +10,7 @@
 // in. `enum Ward { oak, oak }` reports at the second `oak`.
 
 import type { Node } from '../source/nodes.js';
+import type { VerbDeclaration } from './ast-verbs.js';
 
 /** A name as written: an identifier, an enum's option, a kind's name. */
 export interface Ident extends Node {
@@ -272,9 +273,15 @@ export interface SpawnStatement extends Node {
   readonly container: ObjectPath;
 }
 
-/** `destroy self` — the only form (the spec's Destroying). */
+/**
+ * `destroy self`, the only form, or `finally destroy self`, which waits
+ * until every message the turn has queued has been handled (the spec's
+ * Destroying).
+ */
 export interface DestroyStatement extends Node {
   readonly kind: 'destroy';
+  /** Whether it was written `finally destroy self`. */
+  readonly finally: boolean;
 }
 
 /**
@@ -308,6 +315,32 @@ export interface ActStatement extends Node {
   readonly verb: Ident;
   /** In the order written. */
   readonly roles: readonly ActRole[];
+}
+
+/**
+ * `send oak_door :unlock_attempt`, `send from :unlock_failed with 2` — a
+ * message queued to one object, which is not sent to where that object is
+ * out of range when the statement runs (the spec's Events › Sending).
+ */
+export interface SendStatement extends Node {
+  readonly kind: 'send';
+  /** A binding or an identifier, or a dotted path to one: who is sent to. */
+  readonly target: ObjectPath;
+  /** The message without its colon. */
+  readonly message: Ident;
+  /** What it carries, after `with`, where it carries anything. */
+  readonly value: Expr | null;
+}
+
+/**
+ * `broadcast :illuminating with true` — a message queued to everything the
+ * sender's range walk reaches, outward and inward through containment
+ * (the spec's Events › Sending).
+ */
+export interface BroadcastStatement extends Node {
+  readonly kind: 'broadcast';
+  readonly message: Ident;
+  readonly value: Expr | null;
 }
 
 /**
@@ -373,6 +406,8 @@ export type Statement =
   | DestroyStatement
   | MoveStatement
   | ActStatement
+  | SendStatement
+  | BroadcastStatement
   | IfStatement
   | RefuseStatement
   | AllowStatement
@@ -553,6 +588,60 @@ export interface GuardDeclaration extends Node {
   readonly body: Block;
 }
 
+// --- handlers, hooks and pass rules ---------------------------------------
+
+/**
+ * A handler's or a hook's parameters in brackets, positional and named as
+ * the author chose; `null` is `_`, a parameter left unnamed (the spec's
+ * Events › Receiving).
+ */
+export type Parameters = readonly (Ident | null)[];
+
+/**
+ * `on :illuminating (from, value) { … }`, `on :gust { … }` — what an
+ * object does when a message reaches it (the spec's Events › Receiving).
+ * The body runs after the sending body has ended, when the queue reaches
+ * it, and decides by writing or not writing: there is no refusal.
+ */
+export interface HandlerDeclaration extends Node {
+  readonly kind: 'handler';
+  /** The message without its colon: `:stir` is `stir`. */
+  readonly message: Ident;
+  readonly parameters: Parameters;
+  readonly body: Block;
+}
+
+/**
+ * `changed :lit (was) { … }` — what an object does when a write of its
+ * own changed one of its properties, queued once per change with the
+ * value it had before (the spec's Events › Receiving).
+ */
+export interface HookDeclaration extends Node {
+  readonly kind: 'hook';
+  /** The property without its colon. */
+  readonly property: Ident;
+  readonly parameters: Parameters;
+  readonly body: Block;
+}
+
+/**
+ * `pass :illuminating (true)`, `pass any (self.get(:open))` — whether a
+ * container lets a message through to what it holds (the spec's Events ›
+ * Containers route). `pass :m` answers for one message and `pass any` for
+ * every other; the rule is a condition that only reads.
+ */
+export interface PassDeclaration extends Node {
+  readonly kind: 'pass';
+  /** The message without its colon, or null for `pass any`. */
+  readonly message: Ident | null;
+  readonly rule: Expr;
+}
+
+/** A pass rule as the author wrote its head: `pass :illuminating`, `pass any`. */
+export function writtenPass(pass: PassDeclaration): string {
+  return pass.message === null ? 'pass any' : `pass :${pass.message.text}`;
+}
+
 // --- playing a role -------------------------------------------------------
 
 /** `1 to 12` after a `from` — a range of numbers written out, the lower first. */
@@ -599,7 +688,10 @@ export type KindMember =
   | WithoutDeclaration
   | PassageDeclaration
   | GuardDeclaration
-  | PlayDeclaration;
+  | PlayDeclaration
+  | HandlerDeclaration
+  | HookDeclaration
+  | PassDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;
@@ -657,81 +749,6 @@ export interface ObjectDeclaration extends Node {
   readonly composes: readonly KindExpr[];
   readonly members: readonly KindMember[];
   readonly objects: readonly ObjectDeclaration[];
-}
-
-// --- verbs ----------------------------------------------------------------
-
-/**
- * `symbol`, `integer` or `exit` after a role's colon: a value the visitor
- * names rather than a thing the world holds (the spec's Value roles), or
- * an exit, the engine's `go` alone (Exits).
- */
-export interface ValueFiller extends Node {
-  readonly kind: 'value-filler';
-  readonly value: 'symbol' | 'integer' | 'exit';
-}
-
-/** `many` or `optional` after a role, its own node so a refusal of it points at the word. */
-export interface RoleModifier extends Node {
-  readonly kind: 'role-modifier';
-  readonly word: 'many' | 'optional';
-}
-
-/**
- * `role target: Lockable`, `role tools many`, `role topic: symbol` — one
- * participant a verb names besides its actor (the spec's Declaring a
- * verb). A kind narrows what may fill it, a value filler makes it a value
- * role, and none leaves it open, filled by any object. The first role
- * is the target and every other one a tool.
- */
-export interface RoleDeclaration extends Node {
-  readonly kind: 'role';
-  readonly name: Ident;
-  readonly filler: KindExpr | ValueFiller | null;
-  /** A set role (Set roles), filled by every object named in one run. */
-  readonly many: RoleModifier | null;
-  /** Written only on a verb with no phrases, which has nothing to infer it from (Optional tools). */
-  readonly optional: RoleModifier | null;
-}
-
-/** A run of words in a phrase, as the phrase means it: trimmed, its spaces single. */
-export interface PhraseWords extends Node {
-  readonly kind: 'phrase-words';
-  readonly text: string;
-}
-
-/** `[target]` — a slot naming the role a noun typed there fills (the spec's Slots). */
-export interface PhraseSlot extends Node {
-  readonly kind: 'phrase-slot';
-  readonly role: Ident;
-}
-
-export type PhrasePart = PhraseWords | PhraseSlot;
-
-/**
- * `"unlock [target] with [tool]"` — one way a visitor may type the verb.
- * `text` is what the quotes mean, after escapes; each part is spanned
- * inside the quotes, so a problem with a slot points at the slot.
- */
-export interface PhraseDeclaration extends Node {
-  readonly kind: 'phrase';
-  readonly text: string;
-  readonly parts: readonly PhrasePart[];
-}
-
-/**
- * `verb unlock { role target: Lockable  role tool  "unlock [target] with
- * [tool]" }` — what may be typed, declared for the world or exported by a
- * library and never by an object (the spec's Verbs › Declaring a verb).
- * Its roles and phrases may be written in any order and either list may
- * be empty: no roles is `look`, and no phrases is a verb only `act`
- * performs.
- */
-export interface VerbDeclaration extends Node {
-  readonly kind: 'verb';
-  readonly name: Ident;
-  readonly roles: readonly RoleDeclaration[];
-  readonly phrases: readonly PhraseDeclaration[];
 }
 
 /**

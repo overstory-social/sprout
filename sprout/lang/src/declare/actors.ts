@@ -10,6 +10,7 @@
 // may be moved is `runtime/move.ts`'s.
 
 import type { KindDeclaration, KindExpr, KindMember } from '../syntax/ast.js';
+import { writtenPass } from '../syntax/ast.js';
 import type { Span } from '../source/source.js';
 import { onceEach, type Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, SPROUT } from './enums.js';
@@ -118,6 +119,18 @@ function behaviourOf(member: KindMember): Behaviour | null {
         does: `guard a move with \`${member.guard}\``,
         written: `${member.guard} (${parameters})`,
       };
+    }
+    case 'handler': {
+      const handler = `on :${member.message.text}`;
+      return { at: member.at, does: `answer a message with \`${handler}\``, written: handler };
+    }
+    case 'hook': {
+      const hook = `changed :${member.property.text}`;
+      return { at: member.at, does: `watch a property with \`${hook}\``, written: hook };
+    }
+    case 'pass': {
+      const rule = writtenPass(member);
+      return { at: member.at, does: `say what passes with \`${rule}\``, written: `${rule} (…)` };
     }
     // What a person has, holds, remembers and is described by, and what
     // it leaves out of what it composes, is not behaviour of its own.

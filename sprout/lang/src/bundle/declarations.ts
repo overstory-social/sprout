@@ -21,9 +21,9 @@ import type {
   EnumDeclaration,
   KindDeclaration,
   MessageDeclaration,
-  VerbDeclaration,
   WorldDeclaration,
 } from '../syntax/ast.js';
+import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable, SPROUT } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
@@ -38,6 +38,7 @@ import {
 } from '../declare/objects.js';
 import type { OnUnknown } from '../declare/compose.js';
 import { VerbNames, type OnUnknownVerb } from '../declare/roles.js';
+import type { OnUnknownMessage } from '../declare/handlers.js';
 import { placeObjects, type ObjectTree } from '../declare/tree.js';
 import { absenceRule, type Absent, type ReferenceKind } from './absent.js';
 
@@ -119,8 +120,12 @@ export function resolveDeclarations(
       declared.filter((d): d is VerbDeclaration => d.kind === 'verb'),
     );
   }
-  const onUnknownVerb = unknownVerbGap(report);
-  const plays = { verbs: verbNames, onUnknownVerb };
+  const names = {
+    verbs: verbNames,
+    onUnknownVerb: unknownVerbGap(report),
+    messages,
+    onUnknownMessage: unknownMessageGap(report),
+  };
 
   const onUnknown = unknownKindGap('kind-in-composition', report);
 
@@ -132,7 +137,7 @@ export function resolveDeclarations(
       diagnostics,
     );
   }
-  kinds.resolve(world.namespace, enums, diagnostics, onUnknown, plays);
+  kinds.resolve(world.namespace, enums, diagnostics, onUnknown, names);
 
   const verbs = new VerbTable();
   const onUnknownKind = unknownKindGap('kind-in-role', report);
@@ -159,7 +164,7 @@ export function resolveDeclarations(
         declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
       ]),
     ),
-    { enums, kinds, world: world.namespace, diagnostics, onUnknown, ...plays },
+    { enums, kinds, world: world.namespace, diagnostics, onUnknown, ...names },
   );
 
   const declared = (byLibrary.get(world.namespace) ?? []).find(
@@ -168,7 +173,7 @@ export function resolveDeclarations(
   const composed = resolveObjects(
     world.namespace,
     declared,
-    { enums, kinds, diagnostics, onUnknown, ...plays },
+    { enums, kinds, diagnostics, onUnknown, ...names },
     contents,
   );
   const tree = placeObjects(composed, { world: world.name, diagnostics });
@@ -221,6 +226,17 @@ export function unknownVerbGap(report: DeclarationReport): OnUnknownVerb {
         at: play.head.verb.at,
         consequence,
       },
+      message,
+      remedy,
+    );
+}
+
+/** A message a handler, a pass rule or a send names that nothing declares, as the absent table's `message` row. */
+export function unknownMessageGap(report: DeclarationReport): OnUnknownMessage {
+  const { consequence } = absenceRule('message');
+  return (written, message, remedy) =>
+    report.gap(
+      { what: `:${written.text}`, kind: 'message', reason: 'missing', at: written.at, consequence },
       message,
       remedy,
     );

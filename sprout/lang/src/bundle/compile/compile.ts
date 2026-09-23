@@ -39,7 +39,10 @@ import { DEFAULT_BLESSED } from '../blessed.js';
 import { bundleHashOf, LANGUAGE_LEVEL } from '../bundle.js';
 import type { Bundle, MicroworldSource } from '../bundle.js';
 import { softenPolicy, type Diagnostic } from '../../source/diagnostics.js';
-import { resolveDeclarations } from '../declarations.js';
+import { resolveDeclarations, unknownMessageGap } from '../declarations.js';
+import { kindName } from '../../declare/kinds.js';
+import type { Named } from '../../declare/names.js';
+import type { Node } from '../../source/nodes.js';
 import { checkActors } from '../../declare/actors.js';
 import { everyContent } from '../../declare/contents.js';
 import { countWorld } from '../counts.js';
@@ -47,6 +50,7 @@ import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
 import { checkBodies } from './bodies.js';
 import { warnDestroyingDeclared } from './destroyed.js';
+import { warnUnsentAndUnhandled } from './events.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
 import { checkLibraries } from './libraries.js';
@@ -142,8 +146,37 @@ export function compileBundle(
 
   // Every body, against the kind that wrote it: a kind's content once,
   // however many instances hold a copy.
+  const names = new Map<Node, Named>();
   checkBodies(
     [
+      ...tables.kinds.all().map((kind) => ({
+        kind,
+        vantage: { in: 'kind' as const, giver: kindName(kind), path: [] },
+      })),
+      ...everyContent(tables.contents).flatMap(({ kind, giver, path }) =>
+        kind === null ? [] : [{ kind, vantage: { in: 'kind' as const, giver, path } }],
+      ),
+      ...tables.composed.flatMap((object) => {
+        const placement = tables.tree.placements.get(object);
+        return object.kind === null || object.giver !== null || placement === undefined
+          ? []
+          : [{ kind: object.kind, vantage: { in: 'tree' as const, path: placement.path } }];
+      }),
+      ...(world === null ? [] : [{ kind: world, vantage: { in: 'tree' as const, path: [] } }]),
+    ],
+    {
+      kinds: tables.kinds,
+      verbs: tables.verbs,
+      diagnostics: report.diagnostics,
+      messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
+      source: { tree: tables.tree, contents: tables.contents },
+      world,
+      names,
+    },
+  );
+  warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
+  warnUnsentAndUnhandled({
+    kinds: [
       ...tables.kinds.all(),
       ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
       ...tables.composed.flatMap(({ kind, giver }) =>
@@ -151,9 +184,10 @@ export function compileBundle(
       ),
       ...(world === null ? [] : [world]),
     ],
-    { kinds: tables.kinds, verbs: tables.verbs, diagnostics: report.diagnostics },
-  );
-  warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
+    messages: tables.messages,
+    namespace: manifest.namespace,
+    diagnostics: report.diagnostics,
+  });
 
   // The kinds, objects and places caps count what resolved, on the same
   // footing as the source and file caps, and so refuse at load too.
@@ -191,6 +225,8 @@ export function compileBundle(
     kinds: tables.kinds.all(),
     kindLookup: tables.kinds,
     verbs: tables.verbs,
+    messages: tables.messages,
+    names,
     contents: tables.contents,
     world,
     visitor,

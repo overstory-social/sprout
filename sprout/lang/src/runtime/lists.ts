@@ -73,7 +73,7 @@ export class SproutList {
   static of(holds: ValueType, elements: readonly Value[], caps: StaticCaps): SproutList {
     const items: Value[] = [];
     for (const element of elements) {
-      if (items.some((held) => same(held, element))) continue;
+      if (items.some((held) => sameValue(held, element))) continue;
       if (items.length >= caps.listElements) throw new ListFull(caps.listElements, holds);
       items.push(element);
     }
@@ -92,7 +92,7 @@ export class SproutList {
 
   /** Whether it holds this. One of the four. */
   includes(element: Value): boolean {
-    return this.items.some((held) => same(held, element));
+    return this.items.some((held) => sameValue(held, element));
   }
 
   /** Whether another element would fit, which is what `add` faults about. */
@@ -116,7 +116,7 @@ export class SproutList {
     if (!this.includes(element)) return this;
     return new SproutList(
       this.holds,
-      this.items.filter((held) => !same(held, element)),
+      this.items.filter((held) => !sameValue(held, element)),
       this.allowed,
     );
   }
@@ -128,18 +128,18 @@ export class SproutList {
 }
 
 /**
- * Whether two elements are the same element: a scalar by identity, and
+ * Whether two values are the same: a scalar by identity, and
  * a list when it holds the same element type, as many elements, and
  * elements that are the same in order. This is what keeps the
  * no-duplicates rule inside a list of lists, and it is the only
  * sameness there is for lists — the spec gives an author no `==` on one.
  */
-function same(a: Value, b: Value): boolean {
+export function sameValue(a: Value, b: Value): boolean {
   if (a instanceof SproutList || b instanceof SproutList) {
     if (!(a instanceof SproutList) || !(b instanceof SproutList)) return false;
     if (!sameType(a.holds, b.holds)) return false;
     if (a.count !== b.count) return false;
-    return a.elements.every((element, index) => same(element, b.elements[index]!));
+    return a.elements.every((element, index) => sameValue(element, b.elements[index]!));
   }
   return a === b;
 }

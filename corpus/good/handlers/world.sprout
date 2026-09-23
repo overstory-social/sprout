@@ -1,0 +1,20 @@
+// Handlers, hooks and pass rules, as the compiler reads them: a lamp
+// that answers being lit and watches its own light, a glass case that lets
+// the light through and nothing else, a moth that answers the light with
+// the value it carries, and a room that counts what enters it.
+world handlers is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+    object case is GlassCase {
+      object moth is Moth
+    }
+    object cellar is Cellar
+    object bellows is Bellows
+    object lighter is Lighter
+  }
+}
+
+kind Person is sprout.Visitor { }

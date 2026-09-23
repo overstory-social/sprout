@@ -53,7 +53,12 @@ describe('the effect pass', () => {
     const [visitor] = one.people;
     const nod = reading(YARD, 'nod', visitor!, { target: { object: STONE } });
     expect(
-      consentPass(nod, { state: one.draft, catalogue: one.catalogue, budget: one.budget }),
+      consentPass(nod, {
+        state: one.draft,
+        catalogue: one.catalogue,
+        budget: one.budget,
+        passes: contextOf(one).passes,
+      }),
     ).toBeNull();
     expect(lines(effectPass(nod, contextOf(one)))).toEqual([[WORLD_ID, NOTHING]]);
   });

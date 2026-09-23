@@ -19,6 +19,8 @@ import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { WORLD } from '../declare/sprout-world.js';
 import type { Placement, TreePath } from '../declare/tree.js';
 import type { VerbLookup } from '../declare/verbs.js';
+import type { MessageLookup } from '../declare/messages.js';
+import type { NameTable } from '../check/names.js';
 import { declaredId, type InstanceId } from './ids.js';
 
 /** One object the tree places. */
@@ -58,6 +60,10 @@ export interface Catalogue {
   readonly lookup: KindLookup;
   /** Every verb the bundle declares, which an `act` reaches by name. */
   readonly verbs: VerbLookup;
+  /** Every message the bundle declares, which a send's message is reached in. */
+  readonly messages: MessageLookup;
+  /** What each identifier and path a body writes names. */
+  readonly names: NameTable;
   /** Where visitors arrive, or null for a world that admits no one. */
   readonly arrival: InstanceId | null;
   /**
@@ -99,6 +105,8 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     contents: bundle.contents,
     lookup: bundle.kindLookup,
     verbs: bundle.verbs,
+    messages: bundle.messages,
+    names: bundle.names,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
     caps,
   };

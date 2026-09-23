@@ -1,0 +1,7 @@
+kinds.sprout:5:34  Nothing declares a message `:unlok_attempt`. Did you mean `:unlock_attempt`?
+                   Write `:unlock_attempt`, or declare `message :unlok_attempt`.
+
+kinds.sprout:9:6   Nothing sends `:unlock_attempt`, so `on :unlock_attempt` never runs.
+                   Send it with `send <thing> :unlock_attempt` or `broadcast :unlock_attempt`, or take the handler out.
+
+refused: 1 problem

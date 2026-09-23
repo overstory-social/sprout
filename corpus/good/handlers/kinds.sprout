@@ -1,0 +1,61 @@
+message :illuminating with boolean
+message :gust
+
+// The lamp answers `:illuminating` by writing its own state, and a hook
+// on that state counts every change, with the value it had before.
+kind Lamp {
+  :lit false
+  :flickers 0 min 0 max 99
+
+  on :illuminating (from, value) { self.set(:lit, value) }
+  on :gust                       { self.set(:lit, false) }
+
+  changed :lit (was) {
+    if (was) { self.adjust(:flickers, 1) }
+  }
+}
+
+// A glass case: the light gets in, nothing else does.
+kind GlassCase {
+  contains
+  pass :illuminating (true)
+  pass any (false)
+}
+
+// `_` leaves the sender unnamed where only the value matters.
+kind Moth {
+  :drawn false
+  on :illuminating (_, value) { self.set(:drawn, value) }
+}
+
+// The engine's messages bind what they name, positionally, under the
+// author's names, and are read only through `is()`.
+kind Cellar is sprout.Place {
+  :arrivals 0 min 0 max 999
+  on :entered (thing, _) {
+    if (thing.is(Person)) { self.adjust(:arrivals, 1) }
+  }
+}
+
+// A bellows answers being made by fanning out a gust, and a lighter
+// lights whatever the light reaches.
+kind Bellows {
+  on :spawned (from) { broadcast :gust }
+}
+
+verb strike { role target  "strike [target]" }
+
+kind Lighter {
+  as target for strike {
+    do {
+      broadcast :illuminating with true
+      say "The lighter catches."
+    }
+  }
+}
+
+// A kind may leave out a composed kind's handler and write its own.
+kind Steady is Lamp {
+  without on :gust from Lamp
+  on :gust { }
+}

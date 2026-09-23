@@ -238,6 +238,23 @@ describe('the visitor kind’s own body declares no behaviour', () => {
     ]);
   });
 
+  it('refuses a handler, a hook and a pass rule, each at the member', () => {
+    const text = [
+      'kind Person is sprout.Visitor {',
+      '  on :stir { }',
+      '  changed :stamina { }',
+      '  pass any (true)',
+      '}',
+    ];
+    expect(
+      bodyOf(text.join('\n')).map(([at, message, remedy]) => [at!.split(' ')[0], message, remedy]),
+    ).toEqual([
+      ['on', ...behaviour('answer a message with `on :stir`', 'on :stir')],
+      ['changed', ...behaviour('watch a property with `changed :stamina`', 'changed :stamina')],
+      ['pass', ...behaviour('say what passes with `pass any`', 'pass any (…)')],
+    ]);
+  });
+
   it('keeps what else the body declares in the remedy’s braces', () => {
     const told = bodyOf('kind Person is sprout.Visitor { :stamina 3  depart (to) { } }');
     expect(told).toEqual([
