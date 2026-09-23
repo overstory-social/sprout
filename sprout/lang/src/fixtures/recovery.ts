@@ -290,16 +290,67 @@ export function defectiveProperty(
   return { text: spelled('faulty', form, texts), defect };
 }
 
-/** One `:remembers` of well-formed entries and one defective one, in any order. */
-export function generatedRemembers(c: Chooser, names: readonly string[]) {
-  const faulty = c.below(names.length + 1);
+/**
+ * A colonless entry's value: a number, a string or a list, each standing
+ * where the colon should be, and none a bare word. Two bare words in a
+ * row are the shape of a member's own start, and are told apart already.
+ */
+const COLONLESS_VALUES: readonly string[] = ['-19', '"a line"', '[oak, silver]'];
+
+/**
+ * `faulty "a line"` — a `:remembers` entry with no colon at all between
+ * its name and its value, the shape a list default's own recovery
+ * (`elementsAfterClose` in `types.ts`) must tell apart from more of a
+ * list's own elements.
+ */
+const colonlessEntry = (c: Chooser): { text: string; defect: Defect } => ({
+  text: `faulty ${c.one(COLONLESS_VALUES)}`,
+  defect: contained(''),
+});
+
+/** A well-formed entry whose default is a plain list, unconditionally. */
+const listEntry = (name: string): string => `${name}: [oak, silver]`;
+
+/**
+ * One `:remembers` of well-formed entries and one defective one, in any
+ * order. `reachColonlessBesideList` is for the `:remembers` run of its
+ * own: it builds a colonless entry beside a list default now and then, a
+ * pairing the entry shapes reach only rarely by chance. The body run
+ * keeps to its own pool and its own draws.
+ */
+export function generatedRemembers(
+  c: Chooser,
+  names: readonly string[],
+  reachColonlessBesideList = false,
+) {
+  let faulty = c.below(names.length + 1);
   const entries = names.map((name) => wellFormed(c, name, 'entry'));
   // A missing or doubled comma after a well-formed entry is a defect of
   // its own, and changes nothing about what must be kept.
   const inSeparator = faulty < names.length && c.below(8) === 0;
-  const made = inSeparator
+  let made = inSeparator
     ? { text: wellFormed(c, 'faulty', 'entry'), defect: contained('') }
     : defectiveProperty(c, 'entry');
+  // Built directly on one side or the other, in place of whatever
+  // `defectiveProperty` rolled, since a list shape for the neighbour and
+  // a colonless name for the defect seldom fall together by chance.
+  if (reachColonlessBesideList && !inSeparator && names.length > 0 && c.below(4) === 0) {
+    made = colonlessEntry(c);
+    if (c.below(2) === 0) {
+      // Before: the colonless entry is read first and refused at its
+      // own missing colon, and recovery must step past its value's own
+      // brackets rather than the list default's, which stands right
+      // after it.
+      faulty = 0;
+      entries[0] = listEntry(names[0]!);
+    } else {
+      // After: the list default's own close is genuine, and nothing
+      // well-formed stands between the colonless entry and `:remembers`'s
+      // own `]`, so that closer is the one the scan must leave alone.
+      faulty = entries.length;
+      entries[entries.length - 1] = listEntry(names[entries.length - 1]!);
+    }
+  }
   entries.splice(faulty, 0, made.text);
   const body = inSeparator
     ? `${entries.slice(0, faulty + 1).join(', ')}${c.one([' ', ', , '])}${entries.slice(faulty + 1).join(', ')}`
