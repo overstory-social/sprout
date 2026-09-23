@@ -9,22 +9,24 @@
 // fault or a refusal leaves the draft as it was, and the one write is
 // `Draft.place`, which puts the thing last in its new container. And what
 // the engine then tells the world is returned rather than queued or said:
-// the three messages for B32's queue, and the notices a place speaks for
-// B29 to render (B31 describes the place to the one who moved). A move is
+// the messages for B32's queue, and the notices a place speaks for B29 to
+// render (B31 describes the place to the one who moved). A move is
 // charged for what it runs, its range walks and its guards' bodies, and
 // nothing for itself: the statement that proposed it is its body's step.
 
 import { isActor } from '../declare/actors.js';
 import type { GuardName } from '../syntax/ast.js';
 import type { ResolvedPassage } from '../declare/passages.js';
+import type { Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import type { Draft } from './draft.js';
+import { boundObject, type Evaluated } from './evaluate.js';
 import { runGuard, type Refusal } from './guards.js';
 import { declaredPathOf, type InstanceId } from './ids.js';
 import type { EngineSend } from './lifecycle.js';
 import { isLive, liveTree } from './live.js';
-import { reaches, type PassRule } from './range.js';
+import { rangeOf, reaches, type PassRule, type RangeContext } from './range.js';
 
 /** Why a move could not even be asked about. */
 export type MoveFaultReason = 'out-of-range' | 'holds-nothing' | 'world' | 'away';
@@ -63,14 +65,45 @@ export interface MoveContext {
  */
 export type EngineRefusal = 'inside-itself' | 'not-a-place';
 
-/** A move refused: by a party's guard, or by the engine, with the words the actor reads. */
-export type Refused =
-  { readonly refusal: Refusal } | { readonly engine: EngineRefusal; readonly text: string };
+/** The engine's refusal of a move, with the words the actor reads and the bindings they render with. */
+export interface EngineRefused {
+  readonly engine: EngineRefusal;
+  /** For a thing inside itself, the world's `inside_itself` as it applies on the world's kind. */
+  readonly said: Speech;
+  /** `item` for `inside_itself`; none for fixed words. */
+  readonly bindings: ReadonlyMap<string, Evaluated>;
+}
+
+/** A move refused: by a party's guard, or by the engine. */
+export type Refused = { readonly refusal: Refusal } | EngineRefused;
+
+/** The world's line for a move that would make a container hold itself (the spec's After the move). */
+const INSIDE_ITSELF = 'inside_itself';
+
+/**
+ * What the engine sends everything in range of a place an actor left or
+ * entered that does not read the place's notice (the spec's Places; After
+ * the move): `:departed (actor, to)` across the old place's range and
+ * `:arrived (actor, from)` across the new one's, the engine the sender.
+ */
+export type PlaceSend =
+  | {
+      readonly message: 'departed';
+      readonly recipient: InstanceId;
+      readonly actor: InstanceId;
+      readonly to: InstanceId;
+    }
+  | {
+      readonly message: 'arrived';
+      readonly recipient: InstanceId;
+      readonly actor: InstanceId;
+      readonly from: InstanceId;
+    };
 
 /**
  * What the engine speaks for a place when an actor moves between two:
- * the old place's `leaves` to those left behind, the new place's
- * `arrives` to those already there, each with the passage as it applies
+ * the old place's `leaves` to the visitors in its range, the new place's
+ * `arrives` to the visitors in its, each with the passage as it applies
  * on the place's kind and the binding it renders with; and the new
  * place's description to the one who moved, which B31 writes.
  */
@@ -80,7 +113,7 @@ export type Notice =
       readonly place: InstanceId;
       readonly passage: ResolvedPassage;
       readonly bindings: { readonly item: InstanceId };
-      /** The actors directly in the place, the one who moved left out, NPCs included. */
+      /** Every visitor in range of the place, nearest first, the one who moved left out. */
       readonly audience: readonly InstanceId[];
     }
   | {
@@ -94,8 +127,12 @@ export interface Moved {
   readonly item: InstanceId;
   readonly from: InstanceId;
   readonly to: InstanceId;
-  /** `:left` to `from`, `:entered` to `to`, `:moved` to the item, in that order, the engine the sender. */
-  readonly sends: readonly EngineSend[];
+  /**
+   * `:left` to `from`, `:entered` to `to`, `:moved` to the item, then,
+   * where an actor moved, every `:departed` and every `:arrived`, each
+   * nearest first; the engine the sender.
+   */
+  readonly sends: readonly (EngineSend | PlaceSend)[];
   /** `leaves`, `arrives`, then `described`, where an actor moved between places. */
   readonly notices: readonly Notice[];
 }
@@ -151,13 +188,18 @@ export function moveInstance(
   const from = moving.container!;
 
   if (within(draft, to, item)) {
-    return { engine: 'inside-itself', text: `${nameOf(draft, item)} cannot go inside itself.` };
+    return {
+      engine: 'inside-itself',
+      said: { passage: worldPassage(draft, INSIDE_ITSELF) },
+      bindings: new Map([['item', boundObject(item)]]),
+    };
   }
   const actor = isActor(moving.kind);
   if (actor && !holdsActors(draft, to)) {
     return {
       engine: 'not-a-place',
-      text: `${nameOf(draft, item)} cannot stand in ${nameOf(draft, to)}.`,
+      said: { text: `${nameOf(draft, item)} cannot stand in ${nameOf(draft, to)}.` },
+      bindings: new Map(),
     };
   }
 
@@ -188,7 +230,7 @@ export function moveInstance(
 
   draft.place(item, to);
 
-  const sends: EngineSend[] = [
+  const sends: (EngineSend | PlaceSend)[] = [
     { message: 'left', recipient: from, item, to },
     { message: 'entered', recipient: to, item, from },
     { message: 'moved', recipient: item, from, to },
@@ -196,19 +238,68 @@ export function moveInstance(
   const notices: Notice[] = [];
   // An actor is only ever in a place, so it has moved between two.
   if (actor) {
-    const spoken = (notice: 'leaves' | 'arrives', place: InstanceId): void => {
-      const passage = draft.instance(place)?.kind.passages.get(notice);
-      if (passage === undefined) return;
-      const audience = draft
-        .children(place)
-        .filter((one) => one !== item && isActor(draft.instance(one)!.kind));
-      notices.push({ notice, place, passage, bindings: { item }, audience });
-    };
-    spoken('leaves', from);
-    spoken('arrives', to);
+    const notice = (name: 'leaves' | 'arrives', place: InstanceId) =>
+      draft.instance(place)?.kind.passages.get(name);
+    const leaves = notice('leaves', from);
+    const arrives = notice('arrives', to);
+    const left = told(draft, range, from, item, leaves !== undefined);
+    const entered = told(draft, range, to, item, arrives !== undefined);
+    for (const recipient of left.sent)
+      sends.push({ message: 'departed', recipient, actor: item, to });
+    for (const recipient of entered.sent)
+      sends.push({ message: 'arrived', recipient, actor: item, from });
+    if (leaves !== undefined)
+      notices.push({
+        notice: 'leaves',
+        place: from,
+        passage: leaves,
+        bindings: { item },
+        audience: left.read,
+      });
+    if (arrives !== undefined)
+      notices.push({
+        notice: 'arrives',
+        place: to,
+        passage: arrives,
+        bindings: { item },
+        audience: entered.read,
+      });
     notices.push({ notice: 'described', place: to, audience: [item] });
   }
   return { item, from, to, sends, notices };
+}
+
+/**
+ * Who is told that `actor` left or entered `place`, walking the place's
+ * range as it stands after the move, nearest first, the actor left out:
+ * the visitors, who read the place's notice where it writes one, and
+ * everything else, the place itself, NPCs and a surface included, which is
+ * sent the message; where the place writes no notice its visitors are sent
+ * the message too, so nobody in range is told nothing.
+ */
+function told(
+  draft: Draft,
+  range: RangeContext<InstanceId>,
+  place: InstanceId,
+  actor: InstanceId,
+  hasText: boolean,
+): { readonly read: InstanceId[]; readonly sent: InstanceId[] } {
+  const read: InstanceId[] = [];
+  const sent: InstanceId[] = [];
+  for (const { node } of rangeOf(range, place, 'any').reached) {
+    if (node === actor) continue;
+    if (hasText && draft.instance(node)?.made.from === 'visitor') read.push(node);
+    else sent.push(node);
+  }
+  return { read, sent };
+}
+
+/** One of the engine's lines, as it applies on the world's composed kinds. */
+function worldPassage(draft: Draft, name: string): ResolvedPassage {
+  const passage = draft.instance(draft.world)?.kind.passages.get(name);
+  if (passage === undefined)
+    throw new Error(`the world composes no \`${name}\` passage, which \`sprout.World\` writes.`);
+  return passage;
 }
 
 /** Whether `node` is `outer` or anywhere inside it, climbing the draft's containers. */
