@@ -101,7 +101,7 @@ export function ownMemory(named: Ident, context: CheckContext): ResolvedProperty
       ? `This remembers nothing called \`:${named.text}\`.`
       : `\`:${named.text}\` is held by the object, not remembered about each actor.`,
     declared === null
-      ? 'Declare it first, as in `:remembers [visits: 0 min 0 max 99]`. No object reads another object’s memory of anyone.'
+      ? 'Declare it first, as in `remembers { :visits 0 min 0 max 99 }`. No object reads another object’s memory of anyone.'
       : `Read it with \`get\`, as in \`self.get(:${named.text})\`.`,
   );
   return null;

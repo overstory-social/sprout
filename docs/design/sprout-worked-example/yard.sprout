@@ -7,7 +7,7 @@ room yard {
   :name "The Yard"
   :names ["yard", "outside"]
   :illuminated false
-  :remembers [visits: 0 min 0 max 99]
+  remembers { :visits 0 min 0 max 99 }
   :image media "m-yard"
   prose "A brick yard between a shed and a kiln shed. A bench under the eave; a lantern on a hook."
 

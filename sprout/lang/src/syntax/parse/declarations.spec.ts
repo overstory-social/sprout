@@ -412,12 +412,12 @@ describe('one mistake is said once, and said truly', () => {
 
   it('keeps the entry after one whose type it could not read, and says nothing else', () => {
     // A refused type takes the whole property with it: its brackets, so
-    // no closer is left for the `:remembers` to end early on, and its
+    // no closer is left for the block to end early on, and its
     // default, so `default` and `oak` are not read as entries of their
     // own and answered for as if the author had written them that way.
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: [Ward, oak] default silver, b: 3]'),
+      new SourceFile('k.sprout', 'remembers { :a [Ward, oak] default silver :b 3 }'),
       diagnostics,
     );
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
@@ -431,7 +431,7 @@ describe('one mistake is said once, and said truly', () => {
     for (const tail of tails) {
       const diagnostics = new Diagnostics();
       const declared = parseRemembers(
-        new SourceFile('k.sprout', `:remembers [a: [Ward, oak] ${tail}, b: 3]`),
+        new SourceFile('k.sprout', `remembers { :a [Ward, oak] ${tail} :b 3 }`),
         diagnostics,
       );
       expect(
@@ -448,7 +448,7 @@ describe('one mistake is said once, and said truly', () => {
     // nothing with it: `b` is the next entry, not the missing value.
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: [Ward, oak] default, b: 3]'),
+      new SourceFile('k.sprout', 'remembers { :a [Ward, oak] default :b 3 }'),
       diagnostics,
     );
     expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
@@ -457,7 +457,7 @@ describe('one mistake is said once, and said truly', () => {
   it('says Sprout has no fractions, rather than blaming the comma after one', () => {
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: 1.5, b: 2]'),
+      new SourceFile('k.sprout', 'remembers { :a 1.5 :b 2 }'),
       diagnostics,
     );
     expect(diagnostics.refusals.map((d) => d.message)).toEqual(['Sprout has no fractions.']);
@@ -480,12 +480,11 @@ describe('one mistake is said once, and said truly', () => {
     // The two readings have to agree.
     const read1 = new Diagnostics();
     const read2 = new Diagnostics();
-    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 max 1 min % 2 b: 3]'), read1);
-    parseRemembers(new SourceFile('k.sprout', ':remembers [a: 0 min 1 max % 2 b: 3]'), read2);
+    parseRemembers(new SourceFile('k.sprout', 'remembers { :a 0 max 1 min % 2 :b 3 }'), read1);
+    parseRemembers(new SourceFile('k.sprout', 'remembers { :a 0 min 1 max % 2 :b 3 }'), read2);
     expect(read1.refusals.map((d) => d.message)).toEqual(read2.refusals.map((d) => d.message));
     expect(read1.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "%".',
-      'A `:remembers` needs a comma between what it remembers.',
     ]);
   });
 
@@ -521,13 +520,12 @@ describe('what recovery says, and what it keeps', () => {
     }
   });
 
-  it('steps over the rest of a malformed :remembers entry rather than re-reading it as a new one', () => {
-    // `b c: 1` has no comma between `b` and `c: 1`, so both are the one
-    // malformed entry: recovery steps over all of it, up to the comma
-    // before the next entry, and says one thing about it.
+  it('steps over the rest of a malformed `remembers` entry rather than re-reading it as a new one', () => {
+    // `b c: 1` is no property at all: recovery steps over all of it, up
+    // to the next property or the block's close, and says one thing.
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('k.sprout', ':remembers [a: 0, b c: 1]'),
+      new SourceFile('k.sprout', 'remembers { :a 0 b c: 1 }'),
       diagnostics,
     );
     expect(diagnostics.refusals).toHaveLength(1);
@@ -535,7 +533,7 @@ describe('what recovery says, and what it keeps', () => {
   });
 
   it('never loops on an item it cannot read and cannot step over', () => {
-    for (const text of [':x [Zeta]', ':x [Zeta Zeta Zeta]', ':remembers [Zeta]', ':x [,,,]']) {
+    for (const text of [':x [Zeta]', ':x [Zeta Zeta Zeta]', 'remembers { Zeta }', ':x [,,,]']) {
       expect(() => {
         const diagnostics = new Diagnostics();
         parseProperty(new SourceFile('k.sprout', text), diagnostics);

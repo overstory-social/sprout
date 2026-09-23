@@ -117,9 +117,9 @@ export interface PropertyDeclaration extends Node {
 }
 
 /**
- * `:remembers [handled: false, visits: 0 min 0 max 99]` — properties
+ * `remembers { :handled false :visits 0 min 0 max 99 }` — properties
  * held per actor rather than per object, typed by the same rules and
- * written in the same syntax.
+ * written in the same syntax (the spec's Properties › Per-actor memory).
  */
 export interface RemembersDeclaration extends Node {
   readonly kind: 'remembers';

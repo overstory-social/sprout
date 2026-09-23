@@ -8,7 +8,12 @@ world shop is sprout.World {
   :ward Ward.iron
   :sign string default "back \{soon}"
   :grid [[Ward]] default [[iron], [brass, iron]]
-  :remembers [visits: 0 min 0 max 99]
+  // What the shop remembers about each actor, written as properties are.
+  remembers {
+    :visits   0 min 0 max 99
+    :greeted  false
+    :ward_met Ward default brass
+  }
 
   object composing_room is Room
 }

@@ -1,7 +1,7 @@
 world remembers_entry_recovers is sprout.World {
   visitors are Creature
   visitors arrive at hall
-  :remembers [faulty: [Ward] [oak], alpha: 1]
+  remembers { :faulty [Ward] [oak] :alpha 1 }
 }
 
 kind Creature is sprout.Visitor { }

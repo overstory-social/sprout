@@ -62,10 +62,10 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
   // the refusal can name them.
   //
   // The brace on its own, as for an enum — but NOT a bare `:`, though a
-  // nameless `world: victorian.Voice { … }` is written that way.
-  // `world` is an ordinary name too, and `[world: 1]` remembers a
-  // property called `world`; that is input an author meant, where a
-  // world with no name is input they did not.
+  // nameless `world: victorian.Voice { … }` is written that way. A word
+  // with a colon after it labels something, as `act` labels a role, and
+  // the reader there refuses the word itself; a world with no name is
+  // input an author seldom writes.
   [
     'world',
     (name: Token, after: Token) =>
@@ -103,13 +103,15 @@ export function punct(token: Token, text: string): boolean {
 }
 
 /**
- * Whether the next token can only belong to whatever encloses a list or a
- * `:remembers`: the next member's own name (a `symbol`) or the body's own
- * close (`}`). Neither is ever a list element or a remembered entry, so
- * the hunt for a `]` stops here rather than reading past it.
+ * Whether the next token can only belong to whatever encloses a list: the
+ * next member's own name (a `symbol`), a word with a brace after it that
+ * opens the next member's block (`remembers {`), or the body's own close
+ * (`}`). None is ever a list element, so the hunt for a `]` stops here
+ * rather than reading past it.
  */
 export function atMemberOrClose(p: Parser): boolean {
-  return p.at('symbol') || p.at('punct', '}');
+  const block = p.peek().kind === 'name' && punct(p.peek(1), '{');
+  return p.at('symbol') || block || p.at('punct', '}');
 }
 
 /**
@@ -136,12 +138,6 @@ export class Parser {
   /** How deep the brackets currently are, against `DEEPEST`. */
   depth = 0;
   /**
-   * Whether the entries of a `:remembers` are being read, where a bare
-   * word with a value straight after it is an entry that lost its colon
-   * rather than more of a list.
-   */
-  withinEntries = false;
-  /**
    * Whether the depth bound has already been reported for the
    * declaration being read. Too many brackets is ONE fact about one
    * piece of writing, and reading on past what could not be read —
@@ -150,8 +146,8 @@ export class Parser {
    * again each time.
    *
    * Reported once and then refused in silence, rather than abandoning
-   * the rest: a `:remembers` whose first entry is too deep still owes
-   * the author the missing colon in its third. Cleared between
+   * the rest: a `remembers` block whose first entry is too deep still
+   * owes the author the missing value in its third. Cleared between
    * declarations, so two deep ones are two reports.
    */
   tooDeepReported = false;
@@ -228,8 +224,8 @@ export class Parser {
    *
    * Strictly, because of which way this one is allowed to be wrong. A
    * loop reading elements or members stops when this says yes, so a
-   * false yes throws away something the author meant: `:remembers
-   * [enum: 1]` would lose its whole block. Recovery has the opposite
+   * false yes throws away something the author meant: `:ward [oak,
+   * enum]` would lose its whole default. Recovery has the opposite
    * exposure and therefore its own question, below.
    */
   atDeclarationStart(ahead = 0): boolean {

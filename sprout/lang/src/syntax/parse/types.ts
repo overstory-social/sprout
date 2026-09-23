@@ -324,7 +324,7 @@ interface FoundElement {
  * Elements written after the `]` that ends a value's outermost list, as a
  * stray `]` inside it leaves them: `[oak, ]], silver]`, `[[1, 2], 3]]`.
  * Every option, number, string and `true`/`false` found before the next
- * declaration, brace, colon-named entry or end of file is named, at
+ * declaration, brace or end of file is named, at
  * whatever depth it stands, so none is lost in silence; what is named is
  * then stepped over, through its own brackets, so what reads next is not
  * handed the same mistake. A `]` reached at this scan's own depth of
@@ -344,37 +344,31 @@ function elementsAfterClose(p: Parser): void {
     // of its own, a word spelled the same is an element like any other.
     const tail =
       depth === 0 && token.kind === 'name' && (token.text === 'min' || token.text === 'max');
-    // Anything followed by a colon is a `:remembers` entry's own name, as
-    // in `[oak silver], visits: 0]`: this list stands inside one of its
-    // entries, and what follows is the next one, not more of this list.
-    // A colon never follows a list element of its own, so what stands
-    // before one is spared whether it is a well-formed name or not.
-    const entryName = depth === 0 && punct(p.peek(ahead + 1), ':');
     // Two bare words in a row, at this scan's own depth, are never two
     // elements missing a comma — a list tolerates at most one such gap,
     // refused where it is read — but are exactly how a body's own next
     // member starts unpunctuated: `visitors are`, `contains actors`,
-    // `without changed`. Among a `:remembers`'s entries a bare word with
-    // any value straight after it is likewise an entry that lost its
-    // colon, `faulty "x"`. Either belongs to whatever reads next.
+    // `without changed`. A bare word with a value straight after it is
+    // likewise a property that lost its colon, `faulty "x"`, and a word
+    // with a bracket or a brace after it is how a guard or a block
+    // starts, `accept (item, from)`, `remembers {`. Each belongs to
+    // whatever reads next.
     const next = p.peek(ahead + 1);
     const valueLed =
-      p.withinEntries &&
-      (next.kind === 'string' ||
-        next.kind === 'integer' ||
-        punct(next, '[') ||
-        (punct(next, '-') && p.peek(ahead + 2).kind === 'integer'));
-    // A word with a bracket straight after it is never an element either,
-    // and is how a guard starts: `accept (item, from)`.
+      next.kind === 'string' ||
+      next.kind === 'integer' ||
+      punct(next, '[') ||
+      (punct(next, '-') && p.peek(ahead + 2).kind === 'integer');
     const wordLed =
-      depth === 0 && bareWord(token) && (bareWord(next) || valueLed || punct(next, '('));
+      depth === 0 &&
+      bareWord(token) &&
+      (bareWord(next) || valueLed || punct(next, '(') || punct(next, '{'));
     if (
       token.kind === 'end' ||
       token.kind === 'symbol' ||
       punct(token, '{') ||
       punct(token, '}') ||
       tail ||
-      entryName ||
       wordLed ||
       p.atRecoveryStop(ahead)
     ) {
@@ -450,25 +444,20 @@ export function skipValue(p: Parser): void {
     p.next();
     return;
   }
-  // An option, unless a colon after it makes it the name of the next
-  // entry of a `:remembers`, the word is `min` or `max` and goes on with
-  // the property's tail, or a declaration begins there: stepping over
-  // that word too would take a well-formed neighbour with it.
+  // An option, unless the word is `min` or `max` and goes on with the
+  // property's tail, a brace after it starts a block, `remembers {`, or
+  // a declaration begins there: stepping over that word too would take
+  // a well-formed neighbour with it.
   //
-  // Directly in a body — never inside a list or a `:remembers`'s own
-  // entries, where the loop this returns to already steps past a stray
-  // word on its own terms — that question is asked loosely, the way the
-  // rest of recovery asks it: `body`'s own walk picks up from here, and a
-  // malformed header must not lose the word that starts it either.
+  // Directly in a body — never inside a list, where the loop this
+  // returns to already steps past a stray word on its own terms — that
+  // question is asked loosely, the way the rest of recovery asks it:
+  // `body`'s own walk picks up from here, and a malformed header must
+  // not lose the word that starts it either.
   const word = p.peek();
-  const atNext = p.depth === 0 && !p.withinEntries ? p.atRecoveryStop() : p.atDeclarationStart();
-  if (
-    word.kind === 'name' &&
-    word.text !== 'min' &&
-    word.text !== 'max' &&
-    !punct(p.peek(1), ':') &&
-    !atNext
-  ) {
+  const atNext = p.depth === 0 ? p.atRecoveryStop() : p.atDeclarationStart();
+  const block = punct(p.peek(1), '{');
+  if (word.kind === 'name' && word.text !== 'min' && word.text !== 'max' && !block && !atNext) {
     p.next();
   }
 }

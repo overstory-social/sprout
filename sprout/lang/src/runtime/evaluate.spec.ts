@@ -61,7 +61,7 @@ const bundle = compiledWorld('printers_shop', {
     '  :fill 3 min 0 max 9',
     '  :wards [Glaze] default [shino, tenmoku]',
     '  :label string default "salt"',
-    '  :remembers [seen: false, visits: 2 min 0 max 9]',
+    '  remembers { :seen false :visits 2 min 0 max 9 }',
     '}',
     'kind Lidded is Jar { :lid true }',
     'kind Person is sprout.Visitor { :score 0 }',

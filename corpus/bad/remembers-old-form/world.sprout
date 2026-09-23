@@ -1,0 +1,12 @@
+// Memory written as a list, with a colon before `remembers`, is refused,
+// and the remedy is the block its entries make.
+world remembers_old_form is sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    :remembers [handled: false, visits: 0 min 0 max 99]
+  }
+}
+
+kind Creature is sprout.Visitor { }

@@ -36,10 +36,10 @@ describe('a world declaration', () => {
     expect(two.world!.composes[1]!.library).toBeNull();
   });
 
-  it('holds its own properties, and `:remembers` beside them', () => {
+  it('holds its own properties, and a `remembers` block beside them', () => {
     const { world, refusals } = readWorld(`world w is sprout.World {
   :a false
-  :remembers [seen: false]
+  remembers { :seen false }
   visitors are P
   visitors arrive at y
 }`);
@@ -164,12 +164,12 @@ describe('a world declaration', () => {
       );
       return { members, said: refusals.map((d) => d.message) };
     };
-    // A well-formed property, and a `:remembers`, after a bad property.
+    // A well-formed property, and a `remembers` block, after a bad property.
     expect(named(':wear 4 min "x"\n:ward 0')).toEqual({
       members: ['ward'],
       said: ['A min is a whole number.'],
     });
-    expect(named(':wear 4 min "x"\n:remembers [visits: 0]')).toEqual({
+    expect(named(':wear 4 min "x"\nremembers { :visits 0 }')).toEqual({
       members: ['remembers'],
       said: ['A min is a whole number.'],
     });
@@ -283,7 +283,7 @@ describe('a world declaration', () => {
   it('does not let a member’s own recovery run past the declaration after it', () => {
     // A list hunting for its `]` must not run to the end of the file:
     // `file()` is still reading behind a property inside a world.
-    for (const member of [':x [', ':remembers [a: 0']) {
+    for (const member of [':x [', 'remembers { :a [', ':remembers [a: 0']) {
       const { declarations, refusals } = readWorld(
         `world w is sprout.World { ${member}\n}\nenum Ward { oak }\n`,
       );

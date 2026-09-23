@@ -202,13 +202,13 @@ kind Dial { as target for ask { topic from 1 to 12  do { } } }`);
   it('refuses a role the verb lacks, a role narrowed twice, a property nobody holds, and a remembered one', () => {
     const { said } = world(`${UNLOCK}kind Guard {
   :knows [integer] default []
-  :remembers [heard: [integer] default []]
+  remembers { :heard [integer] default [] }
   as target for ask { topc from :knows  do { } }
   as tool for unlock { tool from :knows  tool from :knows  do { } }
   as target for unlock { tool from :knws  do { } }
 }
 kind Clerk {
-  :remembers [heard: [integer] default []]
+  remembers { :heard [integer] default [] }
   as target for ask { topic from :heard  do { } }
 }`);
     expect(said.map(([at, message, remedy]) => [at, message, remedy])).toEqual([
@@ -230,7 +230,7 @@ kind Clerk {
       [
         'shop.sprout:12:34',
         '`:heard` is remembered about each actor, and `from` names what `Clerk` itself holds.',
-        'Name a property declared without `:remembers`.',
+        'Name a property declared outside a `remembers` block.',
       ],
     ]);
   });

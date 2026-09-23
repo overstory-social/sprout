@@ -20,5 +20,5 @@ kind Heavy is Wooden {
 // `:open` is restated, which keeps its type and changes its default.
 kind Chest is Lidded, Heavy {
   :open false
-  :remembers [opened: false]
+  remembers { :opened false }
 }

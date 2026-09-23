@@ -28,7 +28,8 @@ import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
 import { guard, isGuardName } from './guards.js';
 import { isPassage, passage } from './passages.js';
-import { property, remembers } from './properties.js';
+import { property } from './properties.js';
+import { rememberedAsList, remembers } from './remembers.js';
 import { stepPast } from './recovery.js';
 import { play } from './roles.js';
 
@@ -58,8 +59,8 @@ const PLACEHOLDER: Readonly<Record<Owner, string>> = {
 /** What may be written inside a body, by the word each member begins with. */
 export type MemberReaders<M> = ReadonlyMap<string, () => M | null>;
 
-/** A member any body may hold, and a property or a `:remembers`, which every body holds. */
-type Member<M> = M | PropertyDeclaration | RemembersDeclaration;
+/** A member any body may hold, and a property, which every body holds. */
+type Member<M> = M | PropertyDeclaration;
 
 /** A body as read: its members, and the brace that closed it. */
 export interface Body<M> {
@@ -125,9 +126,9 @@ export function kindMembers(
   owner: string,
   object: ObjectReader,
 ): MemberReaders<KindMember | ObjectDeclaration> {
-  const readers = new Map<string, () => KindMember | ObjectDeclaration | null>([
-    ['contains', () => contains(p)],
-  ]);
+  const readers = new Map<string, () => KindMember | ObjectDeclaration | null>();
+  addRemembers(p, readers);
+  readers.set('contains', () => contains(p));
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
   addGuards(p, owner, readers);
@@ -145,6 +146,18 @@ export function apart<M extends Node>(
     members: read.filter(isMember),
     objects: read.filter((member): member is ObjectDeclaration => !isMember(member)),
   };
+}
+
+/**
+ * `remembers { … }`, added to a body's table. A block never closed ends
+ * where the body's next member starts, which the same table says.
+ */
+export function addRemembers<M>(
+  p: Parser,
+  readers: Map<string, () => M | RemembersDeclaration | null>,
+): void {
+  const startsMember = (token: Token): boolean => memberReader(p, token, readers) !== null;
+  readers.set('remembers', () => remembers(p, startsMember));
 }
 
 /**
@@ -238,13 +251,12 @@ export function body<M extends Node>(
       members.push(member);
       continue;
     }
-    // A property or a `:remembers` that could not be read may have
-    // failed exactly at the `}` that would otherwise be taken for the
-    // body's own: `:faulty }` with no value, read on into the next
-    // member. Real members standing between here and the body's true
-    // close say this `}` is not the body's, and reading past it keeps
-    // them from being merely named after a closer that was never truly
-    // here.
+    // A property that could not be read may have failed exactly at the
+    // `}` that would otherwise be taken for the body's own: `:faulty }`
+    // with no value, read on into the next member. Real members standing
+    // between here and the body's true close say this `}` is not the
+    // body's, and reading past it keeps them from being merely named
+    // after a closer that was never truly here.
     if (token.kind === 'symbol' && p.at('punct', '}') && membersFollow(p, readers, 1)) {
       p.next();
       continue;
@@ -266,9 +278,9 @@ interface FoundMember {
 
 /**
  * Members written after the `}` that closes a body, as a stray one
- * left inside a member's own text leaves them: a property, a
- * `:remembers`, or one of the body's keyword members (`contains`,
- * `visitors`, `without`, a guard), found before the next declaration or the end
+ * left inside a member's own text leaves them: a property, or one of the
+ * body's keyword members (`remembers`, `contains`, `visitors`,
+ * `without`, a guard), found before the next declaration or the end
  * of the file. A brace count alone cannot tell such a stray closer from
  * the body's own, so every member after it is named in one refusal
  * instead of being lost the way stepping straight to the next
@@ -308,14 +320,12 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
       ahead += 1;
       continue;
     }
-    if (token.kind === 'symbol' && token.text === 'remembers') {
-      // What a `:remembers` holds is named entry by entry, as a stray
-      // one inside its own brackets is (`entriesAfterClose`), so its
-      // own remedy says which memory was lost and not merely that one
-      // was.
+    if (token.kind === 'name' && token.text === 'remembers') {
+      // What a block holds is named entry by entry, so the remedy says
+      // which memory was lost and not merely that one was.
       const before = found.length;
       ahead = remembersEntries(p, ahead, found);
-      if (found.length === before) found.push({ at: token.at, text: ':remembers' });
+      if (found.length === before) found.push({ at: token.at, text: 'remembers' });
       continue;
     }
     // A property is named as it was written, colon and all; a word-led
@@ -404,29 +414,26 @@ function pastPlay(p: Parser, ahead: number): number {
 }
 
 /**
- * The names of a `:remembers`'s own entries, from just past its keyword
- * at `ahead`, appended to `found`; and where the scan left off, past its
- * own `]` where one closes it. Where no `[` follows the keyword at all,
- * only the keyword itself is stepped past, leaving what follows for the
- * outer scan to read on its own terms.
+ * The entries of a `remembers` block, from its word at `ahead`, appended
+ * to `found` as written, `:visits`; and where the scan left off, past the
+ * block's own `}` where one closes it before the file's end or a
+ * declaration, and otherwise just past the word.
  */
 function remembersEntries(p: Parser, ahead: number, found: FoundMember[]): number {
-  let at = ahead + 1;
-  if (!punct(p.peek(at), '[')) return at;
-  at += 1;
+  const open = ahead + 1;
+  if (!punct(p.peek(open), '{')) return open;
+  const entries: FoundMember[] = [];
   let depth = 0;
-  for (;;) {
+  for (let at = open; ; at++) {
     const token = p.peek(at);
-    if (token.kind === 'end') return at;
-    if (punct(token, '[')) {
-      depth += 1;
-    } else if (punct(token, ']')) {
-      if (depth === 0) return at + 1;
-      depth -= 1;
-    } else if (depth === 0 && token.kind === 'name' && punct(p.peek(at + 1), ':')) {
-      found.push({ at: token.at, text: token.text });
+    if (token.kind === 'end' || p.atDeclarationStart(at)) return open;
+    if (punct(token, '{')) depth += 1;
+    else if (punct(token, '}') && --depth === 0) {
+      found.push(...entries);
+      return at + 1;
+    } else if (depth === 1 && token.kind === 'symbol') {
+      entries.push({ at: token.at, text: `:${token.text}` });
     }
-    at += 1;
   }
 }
 
@@ -498,10 +505,11 @@ function memberReader<M>(
   token: Token,
   readers: MemberReaders<M>,
 ): (() => Member<M> | null) | null {
-  // A property is written with its colon, and `:remembers` is the one
-  // symbol that is not one.
+  // A property is written with its colon, and `:remembers`, which is
+  // never one, is memory written as a list and refused as such.
   if (token.kind === 'symbol') {
-    return token.text === 'remembers' ? () => remembers(p) : () => property(p);
+    const startsMember = (next: Token): boolean => memberReader(p, next, readers) !== null;
+    return token.text === 'remembers' ? () => rememberedAsList(p, startsMember) : () => property(p);
   }
   return token.kind === 'name' ? (readers.get(token.text) ?? null) : null;
 }

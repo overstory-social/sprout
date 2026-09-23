@@ -8,7 +8,7 @@ What needs doing, in the order it needs doing. Each item names what it changes a
 
 Sprout is unreleased, so nothing here is sequenced by compatibility. The only ordering that matters is dependency.
 
-**The design gate is closed.** All six items that had to be settled before implementation have been, and three of them went the opposite way from where they started — type parameters, stateful text alternatives and stored object references were all decided against, each because a decision made for other reasons already covered the case. Roles covered type parameters; purity and `:remembers` covered alternatives; write-only links covered topology.
+**The design gate is closed.** All six items that had to be settled before implementation have been, and three of them went the opposite way from where they started — type parameters, stateful text alternatives and stored object references were all decided against, each because a decision made for other reasons already covered the case. Roles covered type parameters; purity and `remembers` covered alternatives; write-only links covered topology.
 
 The 2026-09-20 reviews (`2026-09-20-reviews/`) reopened it, and the spec was revised against them the same day: the actor model, `act`, `move`, `mover`, message declarations, the poll as a turn, the built-ins as library verbs, and every limit as a host default. What remains unsettled is smaller and none of it blocks a start: which side of a verb should carry knowledge of the other by convention, and the register of the standard library's stock lines. Each can be decided against a real implementation rather than ahead of one.
 
@@ -32,7 +32,7 @@ Every item names the sections of the design spec it implements. The spec is the 
 | # | item | depends on | spec | size |
 | --- | --- | --- | --- | --- |
 | B05 | Enums as library-exportable declarations; option literals checked against the operand's enum; humanised spelling on input and output | B03 | Properties › Enums | S |
-| B06 | Property declarations: type from literal or written, `default`, integer `min`/`max` and the default range, the five value types, `:remembers` in the same syntax | B05 | Properties › The types, Declaring a property, Per-actor memory | S |
+| B06 | Property declarations: type from literal or written, `default`, integer `min`/`max` and the default range, the five value types, a `remembers` block in the same syntax | B05 | Properties › The types, Declaring a property, Per-actor memory | S |
 | B07 | Message declarations with an optional carried type; sending or handling an undeclared message is a refusal | B05 | Events › Declaring a message | S |
 | B08 | Typed bindings, exactly as the table: `self`, `actor` as the visitor kind, `here`, `mover`, roles by kind or value type or the bare object type, set roles, `from`-narrowed roles, `each` and `{for}` variables by kind filter, handler senders as objects, handler values by declaration, `was`, `elapsed`, `let` | B03 B05 B06 B07 | Properties › Where types come from | M |
 | B09 | Expression checking: the checker table in full, `is()` narrowing as the only read through the object type, `holds`, `count`, `includes`, memory `recall`/`remember`/`adjust`, literal range checks, no truthiness or coercion | B08 | Properties › What the compiler checks | M |

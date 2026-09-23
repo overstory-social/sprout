@@ -33,7 +33,7 @@ describe('a world is the root of the one tree', () => {
   });
 
   it('remembers about each actor, in the same syntax as anything else', () => {
-    const { kind, said } = world(`world w is sprout.World { :remembers [seen: false]
+    const { kind, said } = world(`world w is sprout.World { remembers { :seen false }
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual([]);

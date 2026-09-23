@@ -81,7 +81,7 @@ describe('a property declaration, as a kind or an object writes one', () => {
   it('reads it the same way where an object remembers it', () => {
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(
-      new SourceFile('kiln.sprout', ':remembers [ward: Ward.iron]'),
+      new SourceFile('kiln.sprout', 'remembers { :ward Ward.iron }'),
       diagnostics,
     );
     expect(diagnostics.refusals).toEqual([]);
@@ -199,6 +199,19 @@ describe('a property declaration, as a kind or an object writes one', () => {
     }
   });
 
+  it('refuses a value missing before a `remembers` block, and keeps the block', () => {
+    const text = 'kind K {\n  :faulty\n  remembers { :visits 0 }\n}';
+    const { declarations, refusals } = read(text);
+    expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`:faulty` has no value where one should be.',
+        'Write an option of the type, or a literal, before the next `remembers` block.',
+      ],
+    ]);
+    const kind = declarations.find((d) => d.kind === 'kind');
+    expect(kind?.members.map((m) => m.kind)).toEqual(['remembers']);
+  });
+
   it('still reads `message` and `enum` as bare options where no declaration follows', () => {
     // What follows the word is what decides, as it does for a list
     // element: nothing reserves an option's name.
@@ -225,161 +238,6 @@ describe('a property declaration, as a kind or an object writes one', () => {
       ':a boolean default',
     ]) {
       expect(() => declare(text), text).not.toThrow();
-    }
-  });
-});
-
-describe('a :remembers, as an object writes one', () => {
-  const remember = (text: string) => {
-    const diagnostics = new Diagnostics();
-    const declared = parseRemembers(new SourceFile('kiln.sprout', text), diagnostics);
-    return { declared, refusals: diagnostics.refusals };
-  };
-
-  it('reads the spec’s own example', () => {
-    const { declared, refusals } = remember(
-      ':remembers [handled: false, ward_seen: Ward default oak, visits: 0 min 0 max 99]',
-    );
-    expect(refusals).toEqual([]);
-    expect(declared!.properties.map((p) => p.name.text)).toEqual([
-      'handled',
-      'ward_seen',
-      'visits',
-    ]);
-    expect(declared!.properties[2]!.max).toMatchObject({ value: 99 });
-  });
-
-  it('reads one that remembers nothing', () => {
-    expect(remember(':remembers []').declared!.properties).toEqual([]);
-  });
-
-  it('keeps a span on every node it built', () => {
-    expect(unspanned(remember(':remembers [visits: 0]').declared)).toEqual([]);
-  });
-
-  it('refuses a name with a colon before it, which is the other syntax', () => {
-    expect(remember(':remembers [:visits 0]').refusals[0]!.message).toContain(
-      'A remembered property starts with its name',
-    );
-  });
-
-  it('refuses a missing entry value before a declaration, not the declaration’s word as one', () => {
-    // The same reading, and the same refusal, as a property's own value:
-    // `propertyBody` reads both through one path.
-    const text = ':remembers [visits: message :x]';
-    const { declared, refusals } = remember(text);
-    expect(declared).toBeNull();
-    expect(refusals[0]!.message).toBe('`:visits` has no value where one should be.');
-    expect(refusals[0]!.at.start).toBe(text.indexOf('message'));
-  });
-
-  it('refuses a missing colon between a name and its value', () => {
-    expect(remember(':remembers [visits 0]').refusals[0]!.message).toBe(
-      '`visits` needs a colon between its name and its value.',
-    );
-  });
-
-  it('refuses a missing comma, and one that is never closed', () => {
-    expect(remember(':remembers [a: 0 b: 1]').refusals[0]!.message).toContain('needs a comma');
-    expect(remember(':remembers [a: 0').refusals[0]!.message).toBe(
-      'This `:remembers` is never closed.',
-    );
-  });
-
-  it('refuses brackets left out altogether', () => {
-    expect(remember(':remembers visits: 0').refusals[0]!.message).toBe(
-      'What an object remembers goes in brackets.',
-    );
-  });
-
-  it('names every entry written after a `]` that ended it too early', () => {
-    for (const [text, said] of [
-      [
-        ':remembers [handled: false, visits: 0 min ], walks: 1]',
-        '`walks` is written after the `]` that ends this `:remembers`.',
-      ],
-      [
-        ':remembers [handled: false], walks: 1, runs: [1, [2]], hops: 0 min 0]',
-        '`walks`, `runs` and `hops` are written after the `]` that ends this `:remembers`.',
-      ],
-    ] as const) {
-      const { declared, refusals } = remember(text);
-      expect(
-        declared!.properties.map((p) => p.name.text),
-        text,
-      ).toEqual(['handled']);
-      const named = refusals.find((d) => d.message === said);
-      expect(named?.at.start, text).toBe(text.indexOf('walks'));
-    }
-    // A comma after the `]` with no entry in it is not an entry to name.
-    expect(remember(':remembers [a: 0], 4]').refusals).toEqual([]);
-  });
-
-  it('steps over entries after an early `]` only through their own `]`', () => {
-    // Closed: the world reads on as if the `]` had not been there.
-    const closed = read('world w is sprout.World {\n  :remembers [a: 0 ], walks: 1]\n  :z 1\n}');
-    expect(closed.refusals.map((d) => d.message)).toEqual([
-      '`walks` is written after the `]` that ends this `:remembers`.',
-    ]);
-    // Not closed: nothing is taken past the next member, which is kept.
-    const open = read('world w is sprout.World {\n  :remembers [a: 0 ], walks: 1\n  :z 1\n}');
-    expect(open.refusals.map((d) => d.message)).toContain(
-      '`walks` is written after the `]` that ends this `:remembers`.',
-    );
-    for (const { declarations } of [closed, open]) {
-      const world = declarations.find((d) => d.kind === 'world');
-      expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
-        'remembers',
-        'z',
-      ]);
-    }
-  });
-
-  it('never looks past a declaration for entries after its `]`', () => {
-    // The world is never closed, so the next line is a declaration, and
-    // its header is not entries of the `:remembers` above it, however
-    // it reads.
-    const text =
-      'world w is sprout.World {\n  :remembers [a: 0]\nworld bar is sprout.World, name: 1] {\n  visitors are P\n  visitors arrive at y\n}\n';
-    const { declarations, refusals } = read(text);
-    expect(declarations).toEqual([]);
-    expect(refusals.map((d) => [d.message, d.at.start])).toEqual([
-      ['`w` is never closed.', text.indexOf('world bar')],
-      ['`name` is not the name of a kind.', text.indexOf('name:')],
-    ]);
-  });
-
-  it('still names an entry after its `]` that is spelled like a declaration', () => {
-    const { declared, refusals } = remember(':remembers [a: 0], world: 1, enum: 2]');
-    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a']);
-    expect(refusals.map((d) => d.message)).toEqual([
-      '`world` and `enum` are written after the `]` that ends this `:remembers`.',
-    ]);
-  });
-
-  it('never throws, whatever it is given', () => {
-    for (const text of [':remembers', ':remembers [', ':remembers [a', ':remembers [a:', ':x []']) {
-      expect(() => remember(text), text).not.toThrow();
-    }
-  });
-
-  it('steps over a refused entry through its own brackets, so its `]` is never the list’s', () => {
-    // The rest of an entry refused before it was read is stepped over
-    // whole, a balanced `[`…`]` run at a time, the way a refused member
-    // is: its own bracket never ends the `:remembers`, and the entry
-    // after it is read normally.
-    for (const text of [
-      ':remembers [faulty: ) [[Ward]] default [[oak], [oak]], alpha: 1]',
-      ':remembers [faulty: [Ward] [oak], alpha: 1]',
-    ]) {
-      const { declared, refusals } = remember(text);
-      expect(
-        declared!.properties.map((p) => p.name.text),
-        text,
-      ).toEqual(['alpha']);
-      expect(declared!.properties[0]!.default, text).toMatchObject({ kind: 'integer', value: 1 });
-      expect(refusals, text).toHaveLength(1);
-      expect(refusals[0]!.message, text).not.toContain(']');
     }
   });
 });
@@ -462,7 +320,7 @@ describe('a `min` and a `max` are whole numbers', () => {
 
   it('steps over the rest of a property whose bound is refused, and says one thing', () => {
     for (const bad of ['min max 9', 'min oak max 9', 'min 0 min 1 max 2', 'max [1] min 0']) {
-      const text = `:remembers [visits: 0 ${bad}, walks: 1]`;
+      const text = `remembers { :visits 0 ${bad} :walks 1 }`;
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
       expect(
@@ -495,7 +353,7 @@ describe('a `min` and a `max` are whole numbers', () => {
     ]) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
-        new SourceFile('k.sprout', `:remembers [visits: 0 min ${bad}, walks: 1]`),
+        new SourceFile('k.sprout', `remembers { :visits 0 min ${bad} :walks 1 }`),
         diagnostics,
       );
       const kept = remembered?.properties.map((p) => p.name.text) ?? [];
@@ -509,7 +367,7 @@ describe('a `min` and a `max` are whole numbers', () => {
     for (const bad of [']', 'oak', '[1, 2]', '}', '-', '-[1]']) {
       const diagnostics = new Diagnostics();
       const remembered = parseRemembers(
-        new SourceFile('k.sprout', `:remembers [handled: false, visits: 0 min ${bad}]`),
+        new SourceFile('k.sprout', `remembers { :handled false :visits 0 min ${bad} }`),
         diagnostics,
       );
       expect(
