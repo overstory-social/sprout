@@ -1,5 +1,5 @@
 // Each role is named, then what fills it.
-kind Cat: Visitor {
+kind Cat is Visitor {
   as target for pet {
     do {
       act nuzzle (7: actor)

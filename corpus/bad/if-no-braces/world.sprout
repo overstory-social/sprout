@@ -1,8 +1,8 @@
-world if_no_braces: sprout.World {
+world if_no_braces is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in if_no_braces
+kind Creature is sprout.Actor { }

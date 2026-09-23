@@ -1,16 +1,23 @@
 // `move`, as far as the compiler reads it today: a `do` proposes moving
 // a thing into a container, the object whose body runs it is the mover,
 // and the same three guards a typed command meets decide.
-world moving: sprout.World {
+world moving is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object cart is Cart
+  object shelf is Shelf
+  object press is Press
+  object ball is Ball
+  object duster is Thing
+  object hall is sprout.Place
 }
 
 // A person climbs aboard by moving themselves: in the actor's own part
 // `actor` is the one whose body runs, so it is the mover, and
 // `sprout.Actor`'s `depart` consents.
-kind Visitor: sprout.Actor {
+kind Visitor is sprout.Actor {
   as actor for board { do { move actor to target  say "You climb aboard." } }
 }
 
@@ -19,11 +26,3 @@ verb shelve { role target  role tool: Shelf  "shelve [target] on [tool]" }
 verb tidy   { role target: Shelf  role tool  "tidy [target] with [tool]"  "tidy [target]" }
 verb pull   { role target  "pull [target]" }
 verb kick   { role target  "kick [target]" }
-
-object cart: Cart in moving
-object shelf: Shelf in moving
-object press: Press in moving
-object ball: Ball in moving
-object duster: Thing in moving
-
-object hall: sprout.Place in moving

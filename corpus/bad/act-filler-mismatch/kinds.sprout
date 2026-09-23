@@ -1,5 +1,5 @@
 // A role a thing fills takes one thing: neither a set nor a value.
-kind Cat: Visitor {
+kind Cat is Visitor {
   :naps 0 min 0 max 9
 
   as target for play {

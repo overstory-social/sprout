@@ -1,12 +1,12 @@
-world act_as_value: sprout.World {
+world act_as_value is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb pet    { role target  "pet [target]" }
 verb nuzzle { role target  "nuzzle [target]" }
-
-object hall: sprout.Place in act_as_value

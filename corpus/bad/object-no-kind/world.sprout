@@ -1,6 +1,12 @@
-world object_no_kind: sprout.World {
+world object_no_kind is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
+
+  object composing_room is Room {
+    object bench {
+      :worn 0
+    }
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

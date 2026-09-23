@@ -1,7 +1,0 @@
-kind Bench {
-  :worn 0
-}
-
-object bench: Bench {
-  :worn 2
-}

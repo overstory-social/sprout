@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Ident, KindDeclaration, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
+import type {
+  Ident,
+  KindDeclaration,
+  ObjectDeclaration,
+  ObjectPath,
+  WorldDeclaration,
+} from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
-import { resolveObjects } from './objects.js';
+import { objectsIn, resolveObjects } from './objects.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import {
@@ -16,6 +22,7 @@ import {
   unknownStep,
   worldInPath,
   type ObjectTree,
+  type Placeable,
   type Resolution,
 } from './tree.js';
 
@@ -26,49 +33,38 @@ kind Thing { }
 `;
 
 /**
- * Place the objects in `text`, composed against `KINDS` and the kinds in
- * it, in the world `shop`. A step nothing answers to is reported through
- * the callback, as a compile reports a gap; everything else is refused.
+ * Place the objects written in `body`, the body of the world `shop`,
+ * composed against `KINDS` and the kinds in it. `KINDS` takes three lines
+ * and the world's head one more, so `body` starts on line 5.
  */
-function place(text: string, options: { callback?: boolean } = {}) {
+function place(body: string, kinds = '') {
   const read = new Diagnostics();
-  const declared = parseDeclarations(new SourceFile('shop.sprout', `${KINDS}${text}`), read);
+  const declared = parseDeclarations(
+    new SourceFile('shop.sprout', `${KINDS}world shop is sprout.World {\n${body}\n}\n${kinds}`),
+    read,
+  );
   expect(read.refusals, 'the fixture parses').toEqual([]);
   const enums = new EnumTable();
-  const kinds = new KindTable();
-  kinds.add(
+  const table = new KindTable();
+  table.add(
     'shop',
     declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
     read,
   );
-  kinds.resolve('shop', enums, read);
-  const composed = resolveObjects(
-    'shop',
-    declared.filter((d): d is ObjectDeclaration => d.kind === 'object'),
-    { enums, kinds, diagnostics: read, onUnknown: () => {} },
-  );
+  table.resolve('shop', enums, read);
+  const world = declared.find((d): d is WorldDeclaration => d.kind === 'world')!;
+  const composed = resolveObjects('shop', objectsIn(world), {
+    enums,
+    kinds: table,
+    diagnostics: read,
+    onUnknown: () => {},
+  });
   expect(read.refusals, 'the fixture composes').toEqual([]);
 
   const diagnostics = new Diagnostics();
-  const gaps: (readonly [string, string, string, string])[] = [];
-  const tree = placeObjects(composed, {
-    world: 'shop',
-    diagnostics,
-    ...(options.callback === false
-      ? {}
-      : {
-          onUnknown: (container, step, message, remedy) =>
-            gaps.push([
-              container.parts.map((p) => p.text).join('.'),
-              locationOf(step.at),
-              message,
-              remedy,
-            ]),
-        }),
-  });
+  const tree = placeObjects(composed, { world: 'shop', diagnostics });
   return {
     tree,
-    gaps,
     said: diagnostics.sorted().map((d) => [locationOf(d.at), d.message, d.remedy] as const),
     severities: diagnostics.sorted().map((d) => d.severity),
   };
@@ -92,35 +88,38 @@ function shown(found: Resolution): string {
 }
 
 /** A shop with a key in two chests and a key in the room beside them. */
-const SHOP = `object hall: Room in shop
-object yard: Room in shop
-object red_chest: Chest in hall
-object blue_chest: Chest in hall
-object key: Thing in hall
-object key: Thing in hall.red_chest
-object key: Thing in hall.blue_chest
-object box: Chest in hall.red_chest
-object pin: Thing in hall.red_chest.box
-`;
+const SHOP = `object hall is Room {
+  object red_chest is Chest {
+    object key is Thing
+    object box is Chest {
+      object pin is Thing
+    }
+  }
+  object blue_chest is Chest {
+    object key is Thing
+  }
+  object key is Thing
+}
+object yard is Room`;
 
 /** What placing `SHOP` says: each chest's key hides the room's. */
 const HIDDEN_IN_SHOP = [
   [
-    'shop.sprout:9:8',
+    'shop.sprout:7:12',
     '`key` hides `hall.key`: inside `hall.red_chest`, a bare `key` now means this one.',
     'Write `hall.key` where the outer one is meant, or give this one another name.',
   ],
   [
-    'shop.sprout:10:8',
+    'shop.sprout:13:12',
     '`key` hides `hall.key`: inside `hall.blue_chest`, a bare `key` now means this one.',
     'Write `hall.key` where the outer one is meant, or give this one another name.',
   ],
 ] as const;
 
-describe('placing every object under the world', () => {
-  it('reads each `in` from inside the world, a deeper container by its path', () => {
-    const { tree, said, gaps } = place(SHOP);
-    expect([said, gaps]).toEqual([HIDDEN_IN_SHOP, []]);
+describe('placing every object under the body it is written in', () => {
+  it('makes the body an object is written in its container, the world’s for what sits in it', () => {
+    const { tree, said } = place(SHOP);
+    expect(said).toEqual(HIDDEN_IN_SHOP);
     expect(tree.world).toBe('shop');
     expect(paths(tree).sort()).toEqual(
       [
@@ -143,7 +142,7 @@ describe('placing every object under the world', () => {
     ]);
   });
 
-  it('keeps what each node holds in the order declared', () => {
+  it('keeps what each node holds in the order written', () => {
     const { tree } = place(SHOP);
     expect(contentsOf(tree, [])).toEqual(['hall', 'yard']);
     expect(contentsOf(tree, ['hall'])).toEqual(['red_chest', 'blue_chest', 'key']);
@@ -151,47 +150,49 @@ describe('placing every object under the world', () => {
     expect(contentsOf(tree, ['nowhere'])).toEqual([]);
   });
 
-  it('places whatever order the declarations are written in', () => {
-    const reversed = SHOP.trim().split('\n').reverse().join('\n');
-    const { tree, said, gaps } = place(reversed);
-    // The same keys hide the room's, said at the same declarations, now further up.
-    expect(gaps).toEqual([]);
-    expect(said.map(([, message, remedy]) => [message, remedy])).toEqual(
-      HIDDEN_IN_SHOP.map(([, message, remedy]) => [message, remedy]).reverse(),
-    );
-    expect(paths(tree).sort()).toEqual(paths(place(SHOP).tree).sort());
-    // Still in the order declared within each node.
-    expect(contentsOf(tree, ['hall'])).toEqual(['key', 'blue_chest', 'red_chest']);
+  it('places shallowest first, and in the order written within a depth', () => {
+    const { tree } = place(SHOP);
+    expect(paths(tree)).toEqual([
+      'hall',
+      'yard',
+      'hall.red_chest',
+      'hall.blue_chest',
+      'hall.key',
+      'hall.red_chest.key',
+      'hall.red_chest.box',
+      'hall.blue_chest.key',
+      'hall.red_chest.box.pin',
+    ]);
   });
 
   it('places an object whose kind is absent, and what it holds under it', () => {
-    const { tree, said, gaps } = place(
-      'object hall: Room in shop\nobject crate: Missing in hall\nobject nail: Thing in hall.crate',
+    const { tree, said } = place(
+      'object hall is Room {\n  object crate is Missing {\n    object nail is Thing\n  }\n}',
     );
-    expect([said, gaps]).toEqual([[], []]);
+    expect(said).toEqual([]);
     expect(tree.placed.get('hall.crate')!.kind).toBeNull();
     expect(tree.placed.get('hall.crate.nail')!.kind!.name).toBe('nail');
   });
 
-  it('places a nest deeper than anyone writes, deepest written first', () => {
+  it('places a nest deeper than anyone writes', () => {
     // Nesting has no cap, so placing is a loop and not a recursion.
     const file = new SourceFile('deep.sprout', 'x');
     const at = file.span(0, 1);
     const ident = (text: string): Ident => ({ kind: 'ident', at, text });
     const names = Array.from({ length: 3000 }, (_, i) => ident(`n${i}`));
-    const objects = names
-      .map((name, i) => ({
-        declaration: {
-          kind: 'object',
-          at,
-          name,
-          composes: [],
-          members: [],
-          container: { kind: 'path', at, parts: i === 0 ? [ident('shop')] : names.slice(0, i) },
-        } satisfies ObjectDeclaration,
-        kind: null,
-      }))
-      .reverse();
+    const declarations = names.map((name): ObjectDeclaration => ({
+      kind: 'object',
+      at,
+      name,
+      composes: [],
+      members: [],
+      objects: [],
+    }));
+    const objects: Placeable[] = declarations.map((declaration, i) => ({
+      declaration,
+      within: i === 0 ? null : declarations[i - 1]!,
+      kind: null,
+    }));
     const diagnostics = new Diagnostics();
     const tree = placeObjects(objects, { world: 'shop', diagnostics });
     expect(diagnostics.all).toEqual([]);
@@ -268,11 +269,11 @@ describe('an object hiding one of its name further out', () => {
   it('is warned about at the inner declaration, naming the path the outer one is reached by', () => {
     // Written before what it hides: the tree is whole when this is asked.
     const { said, severities, tree } = place(
-      'object key: Thing in hall.chest\nobject hall: Room in shop\nobject chest: Chest in hall\nobject key: Thing in hall',
+      'object hall is Room {\n  object chest is Chest {\n    object key is Thing\n  }\n  object key is Thing\n}',
     );
     expect(said).toEqual([
       [
-        'shop.sprout:4:8',
+        'shop.sprout:7:12',
         '`key` hides `hall.key`: inside `hall.chest`, a bare `key` now means this one.',
         'Write `hall.key` where the outer one is meant, or give this one another name.',
       ],
@@ -283,11 +284,11 @@ describe('an object hiding one of its name further out', () => {
 
   it('hides one any number of containers further out', () => {
     const { said } = place(
-      'object hall: Room in shop\nobject key: Thing in hall\nobject chest: Chest in hall\nobject box: Chest in hall.chest\nobject key: Thing in hall.chest.box',
+      'object hall is Room {\n  object key is Thing\n  object chest is Chest {\n    object box is Chest {\n      object key is Thing\n    }\n  }\n}',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:8:8',
+        'shop.sprout:9:14',
         '`key` hides `hall.key`: inside `hall.chest.box`, a bare `key` now means this one.',
       ],
     ]);
@@ -295,15 +296,15 @@ describe('an object hiding one of its name further out', () => {
 
   it('names only the nearest one it hides, each hider warned about once', () => {
     const { said } = place(
-      'object hall: Room in shop\nobject key: Thing in hall\nobject chest: Chest in hall\nobject key: Thing in hall.chest\nobject box: Chest in hall.chest\nobject key: Thing in hall.chest.box',
+      'object hall is Room {\n  object key is Thing\n  object chest is Chest {\n    object key is Thing\n    object box is Chest {\n      object key is Thing\n    }\n  }\n}',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:7:8',
+        'shop.sprout:8:12',
         '`key` hides `hall.key`: inside `hall.chest`, a bare `key` now means this one.',
       ],
       [
-        'shop.sprout:9:8',
+        'shop.sprout:10:14',
         '`key` hides `hall.chest.key`: inside `hall.chest.box`, a bare `key` now means this one.',
       ],
     ]);
@@ -311,11 +312,11 @@ describe('an object hiding one of its name further out', () => {
 
   it('says so where the one hidden is directly in the world, which no path reaches from inside', () => {
     const { said, severities } = place(
-      'object key: Thing in shop\nobject hall: Room in shop\nobject key: Thing in hall',
+      'object key is Thing\nobject hall is Room {\n  object key is Thing\n}',
     );
     expect(said).toEqual([
       [
-        'shop.sprout:6:8',
+        'shop.sprout:7:10',
         '`key` hides the `key` directly in the world: inside `hall`, a bare `key` now means this one.',
         "No path reaches the world's `key` from inside `hall`, since the world's name is never a step of one. Give one of them another name if both are meant there.",
       ],
@@ -325,157 +326,34 @@ describe('an object hiding one of its name further out', () => {
 
   it('says nothing of two of one name in sibling containers, which hide nothing', () => {
     const { said } = place(
-      'object hall: Room in shop\nobject red: Chest in hall\nobject blue: Chest in hall\nobject key: Thing in hall.red\nobject key: Thing in hall.blue\nobject yard: Room in shop\nobject key: Thing in yard',
+      'object hall is Room {\n  object red is Chest { object key is Thing }\n  object blue is Chest { object key is Thing }\n}\nobject yard is Room { object key is Thing }',
     );
     expect(said).toEqual([]);
   });
 
   it('hides its own container where it takes that name, since the container is held further out', () => {
     const { said } = place(
-      'object hall: Room in shop\nobject box: Chest in hall\nobject box: Thing in hall.box',
+      'object hall is Room {\n  object box is Chest {\n    object box is Thing\n  }\n}',
     );
     expect(said.map(([at, message]) => [at, message])).toEqual([
       [
-        'shop.sprout:6:8',
+        'shop.sprout:7:12',
         '`box` hides `hall.box`: inside `hall.box`, a bare `box` now means this one.',
       ],
     ]);
   });
 });
 
-describe('what an `in` may not say', () => {
-  it('names nothing in reach: a gap, with the name it most likely meant', () => {
-    const { gaps, said, tree } = place(
-      'object hall: Room in shop\nobject bench: Chest in hal\nobject leg: Thing in hall.bench',
-    );
-    expect(said).toEqual([]);
-    // Said once: what the bench would have held is not said again.
-    expect(gaps).toEqual([
-      [
-        'hal',
-        'shop.sprout:5:24',
-        'Nothing here is called `hal`. Did you mean `hall`?',
-        'Write `in hall`, or declare an object called `hal`.',
-      ],
-    ]);
-    expect(paths(tree)).toEqual(['hall']);
-  });
-
-  it('is refused rather than a gap where nothing asks for gaps', () => {
-    const { said } = place('object bench: Thing in hal\nobject hall: Room in shop', {
-      callback: false,
-    });
-    expect(said).toEqual([
-      [
-        'shop.sprout:4:24',
-        'Nothing here is called `hal`. Did you mean `hall`?',
-        'Write `in hall`, or declare an object called `hal`.',
-      ],
-    ]);
-  });
-
-  it('names something deeper without its path: told the path to write', () => {
-    const { gaps } = place(
-      'object kiln: Room in shop\nobject shelf: Chest in kiln\nobject pot: Thing in shelf',
-    );
-    expect(gaps).toEqual([
-      [
-        'shelf',
-        'shop.sprout:6:22',
-        'Nothing here is called `shelf`.',
-        '`shelf` is inside `kiln`, so write `in kiln.shelf`.',
-      ],
-    ]);
-  });
-
-  it('names one of several deeper things of that name: told each path', () => {
-    const { gaps } = place(
-      'object kiln: Room in shop\nobject shed: Room in shop\nobject shelf: Chest in kiln\nobject shelf: Chest in shed\nobject pot: Thing in shelf.lid',
-    );
-    expect(gaps.map(([, , message, remedy]) => [message, remedy])).toEqual([
-      [
-        'Nothing here is called `shelf`.',
-        'There is a `shelf` in more than one place; write the one you mean: `in kiln.shelf.lid` or `in shed.shelf.lid`.',
-      ],
-    ]);
-  });
-
-  it('takes a wrong step deeper in a path: nothing in that container is called that', () => {
-    const { gaps } = place(
-      'object kiln: Room in shop\nobject shelf: Chest in kiln\nobject pot: Thing in kiln.shelv\nobject cup: Thing in kiln.rack',
-    );
-    expect(gaps.map(([, at, message, remedy]) => [at, message, remedy])).toEqual([
-      [
-        'shop.sprout:6:27',
-        'Nothing in `kiln` is called `shelv`. Did you mean `shelf`?',
-        'Write `in kiln.shelf`, or declare an object called `shelv`.',
-      ],
-      ['shop.sprout:7:27', 'Nothing in `kiln` is called `rack`.', '`kiln` holds `shelf`.'],
-    ]);
-  });
-
-  it('names something in the world by a path that goes through the wrong container', () => {
-    const { gaps } = place(
-      'object kiln: Room in shop\nobject yard: Room in shop\nobject pot: Thing in kiln.yard',
-    );
-    expect(gaps.map(([, , , remedy]) => remedy)).toEqual([
-      '`yard` is directly in the world, so write `in yard`.',
-    ]);
-  });
-
-  it('puts two objects in each other: refused once, at the first of the ring', () => {
-    const { said, gaps, tree } = place(
-      'object a: Chest in b\nobject b: Chest in a\nobject c: Thing in a',
-    );
-    expect(gaps).toEqual([]);
-    expect(said).toEqual([
-      [
-        'shop.sprout:4:20',
-        '`a` is in `b`, which is in `a`.',
-        'Something cannot hold what holds it. Put one of them somewhere else.',
-      ],
-    ]);
-    expect(paths(tree)).toEqual([]);
-  });
-
-  it('puts three in a ring, however it is written down', () => {
-    const { said } = place(
-      'object c: Chest in a\nobject a: Chest in b\nobject b: Chest in c\nobject d: Chest in shop',
-    );
-    expect(said.map(([at, message]) => [at, message])).toEqual([
-      ['shop.sprout:4:20', '`c` is in `a`, which is in `b`, which is in `c`.'],
-    ]);
-  });
-
-  it('finds a ring through deeper steps too', () => {
-    const { said } = place(
-      'object k: Room in shop\nobject a: Chest in k.b\nobject b: Chest in k.a',
-    );
-    expect(said.map(([at, message]) => [at, message])).toEqual([
-      ['shop.sprout:5:22', '`a` is in `b`, which is in `a`.'],
-    ]);
-  });
-
-  it('puts an object in itself', () => {
-    const { said } = place('object a: Chest in a\nobject b: Thing in a');
-    expect(said).toEqual([
-      [
-        'shop.sprout:4:20',
-        '`a` cannot be inside itself.',
-        '`in` names what holds `a`: name something else.',
-      ],
-    ]);
-  });
-
-  it('puts an object in something that holds nothing, whatever it holds itself', () => {
+describe('what is refused where an object is written', () => {
+  it('an object in something that holds nothing, and nothing more of what it holds', () => {
     const { said, tree } = place(
-      'object hall: Room in shop\nobject bench: Thing in hall\nobject key: Thing in hall.bench\nobject nail: Thing in hall.bench.key',
+      'object hall is Room {\n  object bench is Thing {\n    object key is Thing {\n      object nail is Thing\n    }\n  }\n}',
     );
     expect(said).toEqual([
       [
-        'shop.sprout:6:27',
+        'shop.sprout:7:12',
         '`bench` holds nothing, so `key` cannot be in it.',
-        'Put `key` in something that holds things, or let `bench` hold things by writing `contains` in its body.',
+        "Move `key` out of `bench`'s braces into something that holds things, or let `bench` hold things by writing `contains` in its body.",
       ],
     ]);
     expect(paths(tree)).toEqual(['hall', 'hall.bench']);
@@ -483,23 +361,23 @@ describe('what an `in` may not say', () => {
 
   it('takes a container by its own body’s `contains`, and the world always holds things', () => {
     const { said } = place(
-      'object bench: Thing in shop { contains }\nobject key: Thing in bench\nobject lamp: Thing in shop',
+      'object bench is Thing {\n  contains\n  object key is Thing\n}\nobject lamp is Thing',
     );
     expect(said).toEqual([]);
   });
 
-  it('puts two of one name in one container: refused at the second', () => {
+  it('two of one name in one body, refused at the second, what it holds with it', () => {
     const { said, tree } = place(
-      'object hall: Room in shop\nobject key: Thing in hall\nobject key: Thing in hall\nobject pin: Thing in shop\nobject pin: Thing in shop',
+      'object hall is Room {\n  object key is Thing\n  object key is Chest {\n    object pin is Thing\n  }\n}\nobject pin is Thing\nobject pin is Thing',
     );
     expect(said).toEqual([
       [
-        'shop.sprout:6:8',
+        'shop.sprout:7:10',
         '`hall` holds two objects called `key`.',
         'Give one of them another name, or remove it.',
       ],
       [
-        'shop.sprout:8:8',
+        'shop.sprout:12:8',
         '`shop` holds two objects called `pin`.',
         'Give one of them another name, or remove it.',
       ],
@@ -507,41 +385,25 @@ describe('what an `in` may not say', () => {
     expect(paths(tree)).toEqual(['hall', 'pin', 'hall.key']);
   });
 
-  it('names an object as the world is named', () => {
-    const { said } = place('object shop: Room in shop\nobject key: Thing in shop');
+  it('an object named as the world is, and nothing more of what it holds', () => {
+    const { said, tree } = place('object shop is Room {\n  object key is Thing\n}');
     expect(said).toEqual([
       [
-        'shop.sprout:4:8',
+        'shop.sprout:5:8',
         "`shop` is the world's name, so no object can take it.",
         'Give the object another name.',
       ],
     ]);
-  });
-
-  it('writes the world’s name as a step of a path', () => {
-    const { said } = place(
-      'object hall: Room in shop\nobject key: Thing in shop.hall\nobject pin: Thing in hall.shop',
-    );
-    expect(said).toEqual([
-      [
-        'shop.sprout:5:22',
-        '`shop` is the world, which is named on its own and never as a step of a path.',
-        'A path starts from something directly in the world: write `in hall`.',
-      ],
-      [
-        'shop.sprout:6:27',
-        '`shop` is the world, which is named on its own and never as a step of a path.',
-        'A path starts from something directly in the world: write `in hall`.',
-      ],
-    ]);
+    expect(paths(tree)).toEqual([]);
   });
 });
 
 describe('a well-formed object is never lost to a neighbour’s mistake', () => {
-  // Generated worlds: a random tree, written in a random order, with one
-  // object given a container that cannot resolve. Everything not inside
-  // that object is placed exactly where it was written, and exactly one
-  // thing is said.
+  // Generated worlds: a random tree, written as it nests, with one
+  // defect: a container whose kind holds nothing, a name written twice in
+  // one body, or an object named as the world is. Everything not inside
+  // what the defect costs is placed exactly where it was written, and
+  // exactly one thing is said of each object the defect refuses.
   function chooser(seed: number) {
     let state = seed >>> 0;
     return (n: number): number => {
@@ -555,7 +417,7 @@ describe('a well-formed object is never lost to a neighbour’s mistake', () => 
 
   it('over generated trees, each with one defect', () => {
     const below = chooser(20_260_922);
-    const DEFECTS = ['typo', 'unknown', 'self', 'ring', 'holds-nothing', 'twice'] as const;
+    const DEFECTS = ['holds-nothing', 'twice', 'world-name'] as const;
     const seen = new Set<string>();
     for (let round = 0; round < 300; round++) {
       // Nodes 1..n, each under an earlier one or the world (0).
@@ -567,69 +429,47 @@ describe('a well-formed object is never lost to a neighbour’s mistake', () => 
         for (let at = i; at !== 0; at = parent[at]!) out.unshift(`o${at}`);
         return out;
       };
-      const line = (i: number, container: string, kind = 'Chest'): string =>
-        `object o${i}: ${kind} in ${container}`;
-      const lines = new Map<number, string>();
-      for (let i = 1; i <= n; i++) {
-        lines.set(i, line(i, parent[i] === 0 ? 'shop' : pathOf(parent[i]!).join('.')));
-      }
+      const children = (i: number): number[] =>
+        parent.flatMap((up, child) => (child > 0 && up === i ? [child] : []));
 
       const broken = 1 + below(n);
-      const defect = DEFECTS[below(DEFECTS.length)]!;
+      // A holder that holds nothing needs something in it to refuse, and
+      // the world always holds things.
+      const holders = parent.filter((up) => up > 0);
+      const drawn = DEFECTS[below(DEFECTS.length)]!;
+      const defect = drawn === 'holds-nothing' && holders.length === 0 ? 'twice' : drawn;
       seen.add(defect);
-      const extra: string[] = [];
-      const written = (i: number): string =>
-        parent[i] === 0 ? 'shop' : pathOf(parent[i]!).join('.');
-      switch (defect) {
-        case 'typo':
-          lines.set(broken, line(broken, `${written(broken)}x`.replace('shopx', 'shpo')));
-          break;
-        case 'unknown':
-          lines.set(broken, line(broken, 'nowhere'));
-          break;
-        case 'self':
-          lines.set(broken, line(broken, `o${broken}`));
-          break;
-        case 'ring':
-          lines.set(broken, line(broken, 'ring_b'));
-          extra.push('object ring_b: Chest in ring_c', `object ring_c: Chest in o${broken}`);
-          break;
-        case 'holds-nothing':
-          if (parent[broken] === 0) {
-            lines.set(broken, line(broken, 'plank'));
-            extra.push('object plank: Thing in shop');
-          } else {
-            const holder = parent[broken]!;
-            lines.set(holder, line(holder, written(holder), 'Thing'));
-          }
-          break;
-        case 'twice':
-          extra.push(line(broken, written(broken)));
-          break;
-      }
+      const holder = defect === 'holds-nothing' ? holders[below(holders.length)]! : -1;
+      const name = (i: number): string =>
+        defect === 'world-name' && i === broken ? 'shop' : `o${i}`;
+      const kind = (i: number): string => (i === holder ? 'Thing' : 'Chest');
+      const written = (i: number, depth: number): string[] => {
+        const pad = '  '.repeat(depth);
+        const inner = children(i).flatMap((child) => written(child, depth + 1));
+        const extra =
+          defect === 'twice' && parent[broken] === i ? [`${pad}  object o${broken} is Thing`] : [];
+        const all = [...inner, ...extra];
+        if (all.length === 0) return [`${pad}object ${name(i)} is ${kind(i)}`];
+        return [`${pad}object ${name(i)} is ${kind(i)} {`, ...all, `${pad}}`];
+      };
+      const top = children(0).flatMap((child) => written(child, 0));
+      if (defect === 'twice' && parent[broken] === 0) top.push(`object o${broken} is Thing`);
+      const text = top.join('\n');
+      const { tree, said } = place(text);
 
-      const order = [...lines.values(), ...extra];
-      for (let i = order.length - 1; i > 0; i--) {
-        const j = below(i + 1);
-        [order[i], order[j]] = [order[j]!, order[i]!];
-      }
-      const text = order.join('\n');
-      const { tree, said, gaps } = place(text);
-
-      // What the defect takes with it: the broken object and everything
-      // under it, or for a container that holds nothing, what it holds.
+      // What the defect takes with it: everything under what it refuses.
+      const under = (i: number, root: number): boolean => {
+        for (let at = i; at !== 0; at = parent[at]!) if (at === root) return true;
+        return false;
+      };
       const lost = (i: number): boolean => {
-        const root = defect === 'holds-nothing' && parent[broken] !== 0 ? parent[broken]! : broken;
-        for (let at = i; at !== 0; at = parent[at]!) {
-          if (defect === 'holds-nothing' && parent[broken] !== 0 && at === root) return i !== root;
-          if (defect !== 'holds-nothing' && defect !== 'twice' && at === root) return true;
-          if (defect === 'holds-nothing' && parent[broken] === 0 && at === root) return true;
-        }
+        if (defect === 'holds-nothing') return children(holder).some((c) => under(i, c));
+        if (defect === 'world-name') return under(i, broken);
         return false;
       };
       for (let i = 1; i <= n; i++) {
         const key = pathKey(pathOf(i));
-        if (lost(i)) {
+        if (lost(i) || (defect === 'world-name' && i === broken)) {
           expect(tree.placed.has(key), `${text}\n  o${i} was placed`).toBe(false);
         } else {
           expect(tree.placed.get(key)?.declaration.name.text, `${text}\n  o${i} vanished`).toBe(
@@ -639,21 +479,16 @@ describe('a well-formed object is never lost to a neighbour’s mistake', () => 
       }
       // One account of the defect; a container that holds nothing is
       // told of at each thing written in it.
-      const told =
-        defect === 'holds-nothing' && parent[broken] !== 0
-          ? parent.filter((up, i) => i > 0 && up === parent[broken]).length
-          : 1;
-      expect(said.length + gaps.length, `${text}\n  said ${JSON.stringify([said, gaps])}`).toBe(
-        told,
-      );
+      const told = defect === 'holds-nothing' ? children(holder).length : 1;
+      expect(said.length, `${text}\n  said ${JSON.stringify(said)}`).toBe(told);
     }
     expect(seen.size).toBe(DEFECTS.length);
   });
 });
 
-describe('the words for a path are the same wherever a path is written', () => {
+describe('the words for a path where visitors arrive', () => {
   /** A path as written, for the word helpers, with nothing to point at but itself. */
-  function written(text: string): ObjectPath {
+  function writtenPath(text: string): ObjectPath {
     const file = new SourceFile('path.sprout', text);
     let at = 0;
     const parts = text.split('.').map((part) => {
@@ -664,39 +499,45 @@ describe('the words for a path are the same wherever a path is written', () => {
     return { kind: 'path', parts, at: file.span(0, text.length) };
   }
 
-  it('writes the remedy after whatever the path was written after', () => {
-    const { tree } = place('object hall: Room in shop\nobject nook: Room in hall');
-    const path = written('hal');
+  it('say what was meant, as `visitors arrive at` writes it', () => {
+    const { tree } = place('object hall is Room {\n  object nook is Room\n}');
     const miss = { step: 0, within: null };
-    expect(unknownStep(tree, path, miss, 'in')).toMatchObject({
-      message: 'Nothing here is called `hal`. Did you mean `hall`?',
-      remedy: 'Write `in hall`, or declare an object called `hal`.',
-    });
-    expect(unknownStep(tree, path, miss, 'visitors arrive at')).toMatchObject({
+    expect(unknownStep(tree, writtenPath('hal'), miss)).toMatchObject({
       message: 'Nothing here is called `hal`. Did you mean `hall`?',
       remedy: 'Write `visitors arrive at hall`, or declare an object called `hal`.',
     });
-    expect(unknownStep(tree, written('nook'), miss, 'visitors arrive at').remedy).toBe(
+    expect(unknownStep(tree, writtenPath('nook'), miss).remedy).toBe(
       '`nook` is inside `hall`, so write `visitors arrive at hall.nook`.',
     );
     // And the step it is said at is the one that named nothing.
-    expect(
-      unknownStep(tree, written('hall.nok'), { step: 1, within: ['hall'] }, 'in'),
-    ).toMatchObject({
-      message: 'Nothing in `hall` is called `nok`. Did you mean `nook`?',
-      step: { text: 'nok' },
-    });
+    expect(unknownStep(tree, writtenPath('hall.nok'), { step: 1, within: ['hall'] })).toMatchObject(
+      {
+        message: 'Nothing in `hall` is called `nok`. Did you mean `nook`?',
+        step: { text: 'nok' },
+      },
+    );
   });
 
-  it('refuses the world’s name as a step, and not as the whole path', () => {
-    expect(worldInPath('shop', written('shop'), 'in')).toBeNull();
-    expect(worldInPath('shop', written('hall.nook'), 'in')).toBeNull();
-    expect(worldInPath('shop', written('shop.hall'), 'visitors arrive at')).toMatchObject({
+  it('name each path where there is a thing of that name in more than one place', () => {
+    const { tree } = place(
+      'object kiln is Room { object shelf is Chest }\nobject shed is Room { object shelf is Chest }',
+    );
+    expect(unknownStep(tree, writtenPath('shelf'), { step: 0, within: null }).remedy).toBe(
+      'There is a `shelf` in more than one place; write the one you mean: `visitors arrive at kiln.shelf` or `visitors arrive at shed.shelf`.',
+    );
+  });
+
+  it('refuse the world’s name as a step, and not as the whole path', () => {
+    expect(worldInPath('shop', writtenPath('shop'))).toBeNull();
+    expect(worldInPath('shop', writtenPath('hall.nook'))).toBeNull();
+    expect(worldInPath('shop', writtenPath('shop.hall'))).toMatchObject({
       step: { text: 'shop' },
       message: '`shop` is the world, which is named on its own and never as a step of a path.',
       remedy:
         'A path starts from something directly in the world: write `visitors arrive at hall`.',
     });
-    expect(worldInPath('shop', written('shop.shop'), 'in')!.remedy).toBe('Write `in shop`.');
+    expect(worldInPath('shop', writtenPath('shop.shop'))!.remedy).toBe(
+      'Name a place in the world, as in `visitors arrive at kiln`.',
+    );
   });
 });

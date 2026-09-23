@@ -15,7 +15,7 @@ kind Plain {
   passage taken default { You take it. }
 }
 
-kind Bold: Plain {
+kind Bold is Plain {
   passage taken { You seize it. }
 }
 
@@ -25,8 +25,8 @@ kind Voice {
   passage shrug default { {self} gives nothing away. }
 }
 
-kind Left: Voice { }
+kind Left is Voice { }
 
-kind Right: Voice { }
+kind Right is Voice { }
 
-kind Both: Left, Right { }
+kind Both is Left, Right { }

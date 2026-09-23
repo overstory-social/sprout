@@ -1,8 +1,8 @@
-world guard_parameters: sprout.World {
+world guard_parameters is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in guard_parameters
+kind Creature is sprout.Actor { }

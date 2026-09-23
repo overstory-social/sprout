@@ -4,5 +4,3 @@
 kind Quiet {
   passage arrives default { {item} is here. }
 }
-
-object hall: sprout.Place, Quiet in passage_default_beside_stock { }

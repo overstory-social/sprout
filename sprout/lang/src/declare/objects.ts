@@ -1,17 +1,44 @@
 // An object, with what it is made of worked out (the spec's The world
-// model › Objects). An object names its kinds and its container, and a
-// body that follows declares an anonymous kind for that object alone,
-// composed by the same rules as any kind and named for the object. Where
-// it sits is `tree.ts`'s; an object the bundle holds is one that both
-// composed and was placed.
+// model › Objects). An object names its kinds, and a body that follows
+// declares an anonymous kind for that object alone, composed by the same
+// rules as any kind and named for the object, and holds the objects
+// inside it. Where it sits is the body it is written in, which
+// `tree.ts` makes a place in the tree of; an object the bundle holds is
+// one that both composed and was placed.
 
-import type { ObjectDeclaration } from '../syntax/ast.js';
+import type { ObjectDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { EnumTable } from './enums.js';
 import type { KindRef } from './kinds.js';
 import { composeKind, type KindSource, type OnUnknown } from './compose.js';
 import type { OnUnknownVerb, VerbNames } from './roles.js';
 import type { ObjectTree, Placeable } from './tree.js';
+
+/** An object declaration, and the object whose body it is written in; null for the world's. */
+export interface NestedObject {
+  readonly declaration: ObjectDeclaration;
+  readonly within: ObjectDeclaration | null;
+}
+
+/**
+ * Every object written in the world's body, at any depth, each after
+ * what holds it and in the order written: a body's objects in order,
+ * each followed by what it holds.
+ */
+export function objectsIn(world: WorldDeclaration): NestedObject[] {
+  const found: NestedObject[] = [];
+  const pending: NestedObject[] = world.objects
+    .map((declaration) => ({ declaration, within: null }))
+    .reverse();
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    found.push(next);
+    const inner = next.declaration;
+    for (let i = inner.objects.length - 1; i >= 0; i--) {
+      pending.push({ declaration: inner.objects[i]!, within: inner });
+    }
+  }
+  return found;
+}
 
 /** An object as the bundle holds it. */
 export interface ResolvedObject {
@@ -51,11 +78,12 @@ export interface ObjectContext {
  */
 export function resolveObjects(
   library: string,
-  declarations: readonly ObjectDeclaration[],
+  declarations: readonly NestedObject[],
   context: ObjectContext,
 ): ComposedObject[] {
-  return declarations.map((declaration) => ({
+  return declarations.map(({ declaration, within }) => ({
     declaration,
+    within,
     kind: composeKind(
       {
         library,

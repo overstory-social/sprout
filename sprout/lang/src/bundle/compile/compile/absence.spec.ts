@@ -18,6 +18,7 @@ import {
   OWN_BYTES,
   refusals,
   ROOT,
+  rootWith,
   warnings,
   WORLD_TEXT,
   world,
@@ -52,10 +53,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
 
   it('runs a world with a kind in a composition that is not there, and its object is absent', () => {
     const files = [
-      file(
-        'world.sprout',
-        `${ROOT}\nobject box: Crate in printers_shop\nobject tin: sprout.Ward in box`,
-      ),
+      file('world.sprout', `${rootWith('object box is Crate {\n  object tin is sprout.Ward\n}')}`),
     ];
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
@@ -64,8 +62,8 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect([...loaded.bundle!.tree.placed.keys()]).toEqual(['hall', 'box', 'box.tin']);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
       [
-        ['Crate', 'kind-in-composition', 'missing', 'world.sprout:2:13'],
-        ['sprout.Ward', 'kind-in-composition', 'missing', 'world.sprout:3:13'],
+        ['Crate', 'kind-in-composition', 'missing', 'world.sprout:1:126'],
+        ['sprout.Ward', 'kind-in-composition', 'missing', 'world.sprout:2:17'],
       ],
     );
     expect(warnings(loaded.diagnostics)[0]!.message).toBe(
@@ -77,29 +75,6 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect(refusals(published.diagnostics).map((d) => d.message)).toEqual([
       'Nothing here is a `Crate`.',
       'Nothing here is a `sprout.Ward`.',
-    ]);
-  });
-
-  it('runs a world with an object whose container is not there, and that object is absent', () => {
-    const files = [
-      file(
-        'world.sprout',
-        `${ROOT}\nkind Crate { contains }\nobject box: Crate in hal\nobject tin: Crate in hall.box`,
-      ),
-    ];
-    const loaded = compileBundle(world({ files }), load);
-    expect(refusals(loaded.diagnostics)).toEqual([]);
-    expect(loaded.bundle!.objects.map((o) => o.name)).toEqual(['hall']);
-    expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
-      [['hal', 'container', 'missing', 'world.sprout:3:22']],
-    );
-    expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
-      'Nothing here is called `hal`. Did you mean `hall`? The object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns.',
-    ]);
-    const published = compileBundle(world({ files }));
-    expect(published.bundle).toBeNull();
-    expect(refusals(published.diagnostics).map((d) => d.message)).toEqual([
-      'Nothing here is called `hal`. Did you mean `hall`?',
     ]);
   });
 
@@ -146,11 +121,11 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     ).toEqual(['sprout.Actor']);
   });
 
-  it('refuses objects that hold each other at load as at publish, since nothing is missing', () => {
+  it('refuses an object in what holds nothing at load as at publish, since nothing is missing', () => {
     const files = [
       file(
         'world.sprout',
-        `${ROOT}\nkind Crate { contains }\nobject a: Crate in b\nobject b: Crate in a`,
+        `${rootWith('object a is Plank { object b is Plank }')}\nkind Plank { }`,
       ),
     ];
     for (const mode of ['load', 'publish'] as const) {
@@ -159,7 +134,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
       expect(
         refusals(diagnostics).map((d) => d.message),
         mode,
-      ).toEqual(['`a` is in `b`, which is in `a`.']);
+      ).toEqual(['`a` holds nothing, so `b` cannot be in it.']);
     }
   });
 

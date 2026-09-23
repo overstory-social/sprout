@@ -57,8 +57,9 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
     (name: Token, after: Token) =>
       punct(name, '{') || ((name.kind === 'name' || name.kind === 'kind') && punct(after, '{')),
   ],
-  // `world printers_shop: sprout.World { … }` — and the same with the
-  // composition left out, which parses so that the refusal can name it.
+  // `world printers_shop is sprout.World { … }` — and the same with the
+  // composition left out, or written with the colon, which parse so that
+  // the refusal can name them.
   //
   // The brace on its own, as for an enum — but NOT a bare `:`, though a
   // nameless `world: victorian.Voice { … }` is written that way.
@@ -68,26 +69,33 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
   [
     'world',
     (name: Token, after: Token) =>
-      punct(name, '{') || (name.kind === 'name' && (punct(after, '{') || punct(after, ':'))),
+      punct(name, '{') || (name.kind === 'name' && (punct(after, '{') || composing(after))),
   ],
-  // `kind Crate: sprout.Container { … }`, or `kind Crate { … }` composing
-  // nothing — a capitalised name, then its colon or its brace. Or the
-  // brace on its own, as for an enum.
+  // `kind Crate is sprout.Container { … }`, or `kind Crate { … }`
+  // composing nothing — a capitalised name, then its `is` (or the colon
+  // written in its place) or its brace. Or the brace on its own, as for
+  // an enum.
   [
     'kind',
     (name: Token, after: Token) =>
-      punct(name, '{') || (name.kind === 'kind' && (punct(after, '{') || punct(after, ':'))),
+      punct(name, '{') || (name.kind === 'kind' && (punct(after, '{') || composing(after))),
   ],
-  // `object bench: Bench in composing_room { … }` — a lower-case name,
-  // then its colon, or the `in` or the brace of one that left its kinds
-  // out, which parses so that the refusal can name what is missing.
+  // `object bench is Bench { … }` — a lower-case name, then its `is`, or
+  // the colon, the brace or the `in` of one that wrote its kinds with a
+  // colon, left them out or named its container, which parse so that the
+  // refusal can name what is wrong.
   [
     'object',
     (name: Token, after: Token) =>
       name.kind === 'name' &&
-      (punct(after, ':') || punct(after, '{') || (after.kind === 'name' && after.text === 'in')),
+      (composing(after) || punct(after, '{') || (after.kind === 'name' && after.text === 'in')),
   ],
 ]);
+
+/** Whether a declaration's kinds start here: `is`, or the colon written in its place. */
+function composing(token: Token): boolean {
+  return punct(token, ':') || (token.kind === 'name' && token.text === 'is');
+}
 
 /** Whether a token is one particular mark, which the shapes above ask a lot. */
 export function punct(token: Token, text: string): boolean {

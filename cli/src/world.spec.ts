@@ -29,7 +29,7 @@ describe('readWorld', () => {
   it('reads the manifest and every .sprout and .prose file, in name order, skipping dotted entries', () => {
     const dir = folder({
       'sprout.json': MANIFEST,
-      'world.sprout': 'world shop: sprout.World {}',
+      'world.sprout': 'world shop is sprout.World {}',
       'rooms/hall.prose': 'passage p { x }',
       'rooms/notes.txt': 'not a world file',
       '.sprout/state.db': 'never read',
@@ -51,7 +51,7 @@ describe('readWorld', () => {
     for (const sha of [libraryHash(STANDARD_LIBRARY), 'not-the-hash']) {
       const dir = folder({
         'sprout.json': pinned(sha),
-        'world.sprout': 'world shop: sprout.World {}',
+        'world.sprout': 'world shop is sprout.World {}',
       });
       // The copy sent is the one carried, whatever the pin says; the
       // compiler compares the two.
@@ -65,7 +65,7 @@ describe('readWorld', () => {
         ...JSON.parse(MANIFEST),
         libraries: [{ name: 'ericworld', version: '0.1.0', sha: 'x' }],
       }),
-      'world.sprout': 'world shop: sprout.World {}',
+      'world.sprout': 'world shop is sprout.World {}',
     });
     expect(readWorld(dir).source!.libraries).toEqual([]);
   });
@@ -73,7 +73,7 @@ describe('readWorld', () => {
   it('reports a manifest that does not parse, and reads no files', () => {
     const dir = folder({
       'sprout.json': '{ not json',
-      'world.sprout': 'world shop: sprout.World {}',
+      'world.sprout': 'world shop is sprout.World {}',
     });
     const world = readWorld(dir);
     expect(world.source).toBeNull();
@@ -82,7 +82,7 @@ describe('readWorld', () => {
 
   it('throws for a missing folder, a file, and a folder with no manifest', () => {
     expect(() => readWorld('/nowhere/at/all')).toThrow('no such folder');
-    const dir = folder({ 'world.sprout': 'world shop: sprout.World {}' });
+    const dir = folder({ 'world.sprout': 'world shop is sprout.World {}' });
     expect(() => readWorld(join(dir, 'world.sprout'))).toThrow('not a folder');
     expect(() => readWorld(dir)).toThrow('no sprout.json here');
   });

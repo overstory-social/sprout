@@ -2,10 +2,10 @@
 // what is written after it.
 enum Ward { oak, silver, brass, tin }
 
-world list_default_stray_closer: sprout.World {
+world list_default_stray_closer is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :grid [[Ward]] default [[oak, silver, ]], [brass, tin]]
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

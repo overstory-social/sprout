@@ -1,4 +1,4 @@
-world.sprout:14:8  `porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.
+world.sprout:6:12  `porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.
                    Compose `Creature`, what this world's visitors are made of, to make `porter` an NPC, or make it of kinds that do not compose `sprout.Actor`.
 
 refused: 1 problem

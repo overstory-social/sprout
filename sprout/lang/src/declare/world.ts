@@ -1,7 +1,7 @@
 // The root of the one tree (the spec's The world model, Places, Actors
 // and visitors). A microworld is one tree; at its root is the world, the
 // only object with no container. A world composes like a kind, so what
-// it writes after its colon and in its body is composed by `compose.ts`,
+// it writes after `is` and in its body is composed by `compose.ts`,
 // `sprout.World` among the rest in the order written (`composeWorld`);
 // what is its own is what it says about visitors. Three things about it
 // are load-bearing elsewhere: its pass rule is `pass any (false)` unless
@@ -9,7 +9,7 @@
 // the world says so; `visitors are` names the visitor kind, the world's
 // own kind composing `sprout.Actor` (`resolveVisitors`); and `contains
 // actors` is what makes a place a place. `visitors arrive at` is a path
-// read from inside the world, as an object's `in` is, and what it
+// read from the world's body, where it is written, and what it
 // reaches must be a place inside the world, never the world itself, even
 // one that declares `contains actors` (`resolveArrival`); B32 reads the
 // pass rules, and B42 puts a visitor there at run time.
@@ -68,8 +68,8 @@ export function checkWorldDeclaration(declared: WorldDeclaration, diagnostics: D
     declared.name.at,
     `\`${declared.name.text}\` does not compose \`${WORLD}\`.`,
     bare
-      ? `\`World\` on its own is not \`${WORLD}\`; write the library too: \`world ${declared.name.text}: ${WORLD} { … }\`.`
-      : `Every world writes it: \`world ${declared.name.text}: ${WORLD} { … }\`.`,
+      ? `\`World\` on its own is not \`${WORLD}\`; write the library too: \`world ${declared.name.text} is ${WORLD} { … }\`.`
+      : `Every world writes it: \`world ${declared.name.text} is ${WORLD} { … }\`.`,
   );
 }
 
@@ -192,7 +192,7 @@ export function resolveVisitors(
         ? { found: 'kind', kind: found.kind }
         : { found: 'refused' };
     case 'unknown': {
-      const { message, remedy } = unknownKind(written, from, kinds, `: ${ACTOR}`);
+      const { message, remedy } = unknownKind(written, from, kinds, ` is ${ACTOR}`);
       return { found: 'absent', what: name, at: written.at, message, remedy, said: false };
     }
     case 'failed':
@@ -270,8 +270,8 @@ export type Arrival =
   | { readonly found: 'refused' };
 
 /**
- * Resolve `visitors arrive at` from inside the world, as an object's
- * `in` is read, and ask whether what it names is a place: something in
+ * Resolve `visitors arrive at` from the world's body, where it is
+ * written, and ask whether what it names is a place: something in
  * the world whose kind declares `contains actors` (the spec's Places).
  * The world itself is refused, whatever it declares (the spec's Actors
  * and visitors).
@@ -280,7 +280,7 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
   const { tree, diagnostics } = context;
   const path = arrivalOf(declared, diagnostics);
   if (path === null) return { found: 'refused' };
-  const inside = worldInPath(tree.world, path, 'visitors arrive at');
+  const inside = worldInPath(tree.world, path);
   if (inside !== null) {
     diagnostics.refuse(inside.step.at, inside.message, inside.remedy);
     return { found: 'refused' };
@@ -335,7 +335,7 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
           step.at,
         );
       }
-      const words = unknownStep(tree, path, found, 'visitors arrive at');
+      const words = unknownStep(tree, path, found);
       return absent(words.message, words.remedy, false, step.at);
     }
     case 'object': {

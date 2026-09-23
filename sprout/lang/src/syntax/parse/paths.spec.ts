@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ObjectDeclaration } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { read, readWorld } from '../../fixtures/parse.js';
+import { readWorld } from '../../fixtures/parse.js';
 import { DECLARATION_READERS } from './declarations.js';
 import { Parser } from './parser.js';
 import { objectPath } from './paths.js';
@@ -33,7 +32,7 @@ describe('a path to an object', () => {
   });
 
   it('is a name and each `.name` after it, spanning all of them, each step its own node', () => {
-    const { read, parts, next, said } = path('kiln.shelf.box\nobject x: K in y');
+    const { read, parts, next, said } = path('kiln.shelf.box\nobject x is K');
     expect(said).toEqual([]);
     expect(parts).toEqual(['kiln', 'shelf', 'box']);
     expect(textOf(read!.at)).toBe('kiln.shelf.box');
@@ -68,12 +67,19 @@ describe('a path written wrong is refused at the step it is about', () => {
     }
   });
 
-  it('ends in a dot before the next declaration, which is left for the file', () => {
-    const { said, next } = path('kiln.\nobject shelf: K in kiln');
-    expect(said.map(([at, message]) => [at, message])).toEqual([
-      ['p.sprout:1:5', 'This path ends in a dot.'],
-    ]);
-    expect(next).toBe('object');
+  it('ends in a dot before the next declaration or the next line, which are left to be read', () => {
+    for (const [text, word] of [
+      ['kiln.\nobject shelf is K', 'object'],
+      ['kiln.\n  visitors are P', 'visitors'],
+      ['kiln.\n  shelf', 'shelf'],
+    ] as const) {
+      const { said, next } = path(text);
+      expect(
+        said.map(([at, message]) => [at, message]),
+        text,
+      ).toEqual([['p.sprout:1:5', 'This path ends in a dot.']]);
+      expect(next, text).toBe(word);
+    }
   });
 
   it('has two dots in a row, said once, and the step after them still read', () => {
@@ -128,19 +134,9 @@ describe('a path written wrong is refused at the step it is about', () => {
 });
 
 describe('where paths are written', () => {
-  it('is an object’s `in`, which costs only that object when the path is wrong', () => {
-    const { declarations, refusals } = read(
-      'object key: Key in kiln..shelf { :worn 0 }\nobject lamp: Lamp in kiln.shelf\n',
-    );
-    expect(refusals.map((d) => d.message)).toEqual(['Two dots in a row leave a name out.']);
-    expect(declarations.map((d) => d.name.text)).toEqual(['lamp']);
-    const [lamp] = declarations as [ObjectDeclaration];
-    expect(textOf(lamp.at)).toBe('object lamp: Lamp in kiln.shelf');
-  });
-
   it('is where a world’s visitors arrive', () => {
     const { world, refusals } = readWorld(
-      'world w: sprout.World {\n  visitors are P\n  visitors arrive at house.hall\n}',
+      'world w is sprout.World {\n  visitors are P\n  visitors arrive at house.hall\n}',
     );
     expect(refusals).toEqual([]);
     const arrive = world!.kind === 'world' ? world!.members[1]! : null;
@@ -150,7 +146,7 @@ describe('where paths are written', () => {
 
   it('is refused where a world’s visitors arrive, and the member after it still read', () => {
     const { world, refusals } = readWorld(
-      'world w: sprout.World {\n  visitors arrive at house.\n  :season 1\n}',
+      'world w is sprout.World {\n  visitors arrive at house.\n  :season 1\n}',
     );
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['w.sprout:2:27', 'This path ends in a dot.'],

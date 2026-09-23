@@ -245,7 +245,7 @@ describe('a declared object is read against its kind now', () => {
     const before = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace('object cup: Jar in hall.shelf\n', ''),
+        'world.sprout': SHOP['world.sprout']!.replace('      object cup is Jar\n', ''),
       }),
       CAPS,
     );
@@ -255,7 +255,7 @@ describe('a declared object is read against its kind now', () => {
 });
 
 describe('what cannot be decoded now is kept dormant, untouched', () => {
-  it('keeps an object whose file is withheld, and saves it back byte for byte', () => {
+  it('keeps an object whose kind’s file is withheld, and saves it back byte for byte', () => {
     const kiln = record({
       id: 'printers_shop.yard.kiln',
       made: { from: 'declared' },
@@ -280,9 +280,9 @@ describe('what cannot be decoded now is kept dormant, untouched', () => {
     const moved = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace(
-          'object cup: Jar in hall.shelf',
-          'object cup: Jar in yard',
+        'world.sprout': SHOP['world.sprout']!.replace('      object cup is Jar\n', '').replace(
+          '    object kiln is Crate\n',
+          '    object kiln is Crate\n    object cup is Jar\n',
         ),
       }),
       CAPS,

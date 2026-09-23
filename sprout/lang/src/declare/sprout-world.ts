@@ -29,6 +29,6 @@ export function refuseComposingWorld(
   diagnostics.refuse(
     written.at,
     `\`${name}\` composes \`${WORLD}\`, which only a world may.`,
-    `Take it out of what \`${name}\` composes: it would make a thing into a world, and a bundle has one world, written \`world <name>: ${WORLD} { … }\`.`,
+    `Take it out of what \`${name}\` composes: it would make a thing into a world, and a bundle has one world, written \`world <name> is ${WORLD} { … }\`.`,
   );
 }

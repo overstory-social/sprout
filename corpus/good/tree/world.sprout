@@ -1,4 +1,37 @@
-world tree: sprout.World {
+world tree is sprout.World {
   visitors are Creature
   visitors arrive at shop_floor.back_room
+
+  // Two rooms directly in the world, written in the world's body: the
+  // body an object is written in is what holds it.
+  object shop_floor is Room {
+    // A key in each of two chests: a name belongs to the body it is
+    // written in, and neither chest is further out than the other, so
+    // neither key is in the other's way.
+    object red_chest is Chest {
+      object key is Thing
+    }
+
+    object blue_chest is Chest {
+      object key is Thing
+    }
+
+    // A place may sit inside a place. Visitors arrive in this one, and the
+    // world names it by its path, as it names anything deeper than its
+    // own body.
+    object back_room is Room
+  }
+
+  object kiln is Room {
+    // Objects nest as deep as their containers do.
+    object shelf is Chest {
+      object pot is Chest {
+        object lid is Thing
+      }
+
+      object jar is Chest {
+        object glaze is Thing
+      }
+    }
+  }
 }

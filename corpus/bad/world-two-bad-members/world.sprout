@@ -1,4 +1,4 @@
-world w: sprout.World {
+world w is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :wear 4 min "x"
@@ -6,4 +6,4 @@ world w: sprout.World {
   :opens [Ward].brass
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

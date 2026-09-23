@@ -1,11 +1,12 @@
-world move_unknown_name: sprout.World {
+world move_unknown_name is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
+  object cellar is Cellar
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb pull { role target  "pull [target]" }
-
-object hall: sprout.Place in move_unknown_name

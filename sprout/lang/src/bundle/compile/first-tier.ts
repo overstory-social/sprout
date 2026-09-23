@@ -11,6 +11,7 @@ import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration } from '../../declare/enums.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
+import { objectsIn } from '../../declare/objects.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';
 import { checkWorldDeclaration } from '../../declare/world.js';
 import { parseDeclarations } from '../../syntax/parse.js';
@@ -52,10 +53,14 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
     // is refused.
     if (declared.kind === 'world') {
       checkWorldDeclaration(declared, diagnostics);
+      for (const { declaration } of objectsIn(declared)) {
+        checkKindDeclaration(declaration, diagnostics);
+      }
     }
     // As it does whether a kind or an object wrote it, which anything
-    // but a world may not, and whether an object named a kind at all.
-    if (declared.kind === 'kind' || declared.kind === 'object') {
+    // but a world may not, whether an object named a kind at all, and
+    // whether a kind's body holds objects.
+    if (declared.kind === 'kind') {
       checkKindDeclaration(declared, diagnostics);
     }
   }

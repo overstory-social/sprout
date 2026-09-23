@@ -1,9 +1,9 @@
-world bound_before_declaration: sprout.World {
+world bound_before_declaration is sprout.World {
   visitors are Creature
   visitors arrive at hall
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }
 
 kind K {
   :faulty Ward.oak max - -

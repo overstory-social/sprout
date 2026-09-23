@@ -496,10 +496,10 @@ describe('what the table refuses, at the thing', () => {
 
   it('says nothing more of a kind that was declared and could not be composed', () => {
     const { verbs, diagnostics } = resolved({
-      shop: 'kind Crate: victorian.Box { }\nverb pack { role target: Crate  "pack [target]" }',
+      shop: 'kind Crate is victorian.Box { }\nverb pack { role target: Crate  "pack [target]" }',
     });
     // Only the composition's own refusal, where the kind was declared.
-    expect(diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:13']);
+    expect(diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:15']);
     expect(verbs.qualified('shop', 'pack')!.roles[0]!.filler).toBeNull();
   });
 });

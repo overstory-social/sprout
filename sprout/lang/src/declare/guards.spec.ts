@@ -37,8 +37,8 @@ const origins = (kind: KindRef, name: GuardName): string[] =>
 
 /** `A`, and two kinds composing it, each writing a `depart` of its own. */
 const DIAMOND = `kind A { depart (to) { refuse "a" } }
-kind B: A { depart (to) { refuse "b" } }
-kind C: A { depart (to) { refuse "c" } }
+kind B is A { depart (to) { refuse "b" } }
+kind C is A { depart (to) { refuse "c" } }
 `;
 
 describe('a kind’s own guards', () => {
@@ -82,14 +82,14 @@ describe('a kind’s own guards', () => {
   });
 
   it('are none where nothing in the closure writes one: the engine allows', () => {
-    const { kind } = composed('kind Plain { :lit false }\nkind Lamp: Plain { }');
+    const { kind } = composed('kind Plain { :lit false }\nkind Lamp is Plain { }');
     expect(kind('Lamp').guards).toEqual(NO_GUARDS);
   });
 });
 
 describe('composed guards all run, in closure order, the composer’s own last', () => {
   it('runs each origin once however many paths reach it, depth-first and left to right', () => {
-    const { kind, said } = composed(`${DIAMOND}kind D: B, C { depart (to) { refuse "d" } }`);
+    const { kind, said } = composed(`${DIAMOND}kind D is B, C { depart (to) { refuse "d" } }`);
     expect(said).toEqual([]);
     expect(origins(kind('D'), 'depart')).toEqual(['shop.A', 'shop.B', 'shop.C', 'shop.D']);
   });
@@ -97,7 +97,7 @@ describe('composed guards all run, in closure order, the composer’s own last',
   it('keeps each part of a move to its own list', () => {
     const { kind } = composed(`kind Shelf { accept (item, from) { allow } }
 kind Fixture { depart (to) { allow } }
-kind Case: Shelf, Fixture { release (item, to) { allow } }`);
+kind Case is Shelf, Fixture { release (item, to) { allow } }`);
     const guards = kind('Case').guards;
     expect(origins(kind('Case'), 'depart')).toEqual(['shop.Fixture']);
     expect(origins(kind('Case'), 'release')).toEqual(['shop.Case']);
@@ -109,7 +109,7 @@ kind Case: Shelf, Fixture { release (item, to) { allow } }`);
   it('orders by where each origin sits in the closure, not by the list it came through', () => {
     // `C` is written first, but `A` comes before it in the closure
     // because `B` reaches `A` and `C` reaches it too; so `A` runs first.
-    const { kind } = composed(`${DIAMOND}kind D: C, B { }`);
+    const { kind } = composed(`${DIAMOND}kind D is C, B { }`);
     expect(kind('D').order).toEqual(['shop.A', 'shop.C', 'shop.B', 'shop.D']);
     expect(origins(kind('D'), 'depart')).toEqual(['shop.A', 'shop.C', 'shop.B']);
   });
@@ -117,20 +117,20 @@ kind Case: Shelf, Fixture { release (item, to) { allow } }`);
 
 describe('`without` leaves one origin’s guard out', () => {
   it('drops that origin’s guard and no other, and records the suppression', () => {
-    const { kind, said } = composed(`${DIAMOND}kind D: B { without depart from A }`);
+    const { kind, said } = composed(`${DIAMOND}kind D is B { without depart from A }`);
     expect(said).toEqual([]);
     expect(origins(kind('D'), 'depart')).toEqual(['shop.B']);
     expect(kind('D').suppressed.map((one) => one.source)).toEqual(['shop.A']);
   });
 
   it('removes only the copy that came through the kind that left it out', () => {
-    // `B` leaves `A`'s out, so `E: B` never runs it; `C` brings `A`'s to
+    // `B` leaves `A`'s out, so `E is B` never runs it; `C` brings `A`'s to
     // `D` by another path, and that copy runs once.
     const { kind } = composed(`kind A { depart (to) { refuse "a" } }
-kind B: A { without depart from A }
-kind C: A { }
-kind D: B, C { }
-kind E: B { }`);
+kind B is A { without depart from A }
+kind C is A { }
+kind D is B, C { }
+kind E is B { }`);
     expect(origins(kind('E'), 'depart')).toEqual([]);
     expect(origins(kind('D'), 'depart')).toEqual(['shop.A']);
     expect(kind('D').suppressed).toEqual([]);
@@ -139,7 +139,7 @@ kind E: B { }`);
 
   it('leaves the other parts of a move alone', () => {
     const { kind } = composed(`kind A { depart (to) { refuse "a" } accept (item, from) { allow } }
-kind B: A { without depart from A }`);
+kind B is A { without depart from A }`);
     expect(origins(kind('B'), 'depart')).toEqual([]);
     expect(origins(kind('B'), 'accept')).toEqual(['shop.A']);
   });

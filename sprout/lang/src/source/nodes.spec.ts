@@ -5,7 +5,7 @@ import { SourceFile, type Span } from './source.js';
 
 const FILE = new SourceFile(
   'kiln.sprout',
-  'object kiln: sprout.Fixture in yard {\n  :door open\n}\n',
+  'object kiln is sprout.Fixture in yard {\n  :door open\n}\n',
 );
 const at = (start: number, end: number): Span => FILE.span(start, end);
 

@@ -1,13 +1,13 @@
 // Visitors arrive at a place named as it was declared.
-world arrival_unknown: sprout.World {
+world arrival_unknown is sprout.World {
   visitors are Creature
   visitors arrive at hal
+
+  object hall is Room
 }
 
 kind Room {
   contains actors
 }
 
-object hall: Room in arrival_unknown
-
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

@@ -1,4 +1,4 @@
-kinds.sprout:8:28  `hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one, or the standard library’s to another library’s.
+world.sprout:5:32  `hall` gets a default passage `arrives` from both `sprout.Place` and `Quiet`, and a thing speaks each line in one voice: a default gives way only to a passage that is not one, or the standard library’s to another library’s.
                    Write its own `passage arrives { … }` in `hall`, which is then the one that applies, or compose only one of them.
 
 refused: 1 problem

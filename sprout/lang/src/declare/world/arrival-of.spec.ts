@@ -30,7 +30,7 @@ describe('`arrivalOf` reads where visitors arrive, and says once what is wrong w
     expect(path!.kind).toBe('path');
     expect(textOf(path!.at)).toBe('composing_room');
     const deeper = arrivalOf(
-      declared('world w: sprout.World {\n  visitors arrive at house.bedroom.wardrobe\n}'),
+      declared('world w is sprout.World {\n  visitors arrive at house.bedroom.wardrobe\n}'),
       diagnostics,
     );
     expect(writtenPath(deeper!)).toBe('house.bedroom.wardrobe');
@@ -38,7 +38,9 @@ describe('`arrivalOf` reads where visitors arrive, and says once what is wrong w
 
   it('refuses a world that says nothing about it, at the world’s name', () => {
     const diagnostics = new Diagnostics();
-    expect(arrivalOf(declared('world w: sprout.World { visitors are P }'), diagnostics)).toBeNull();
+    expect(
+      arrivalOf(declared('world w is sprout.World { visitors are P }'), diagnostics),
+    ).toBeNull();
     expect(diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
       [
         '`w` does not say where a visitor arrives.',
@@ -52,7 +54,7 @@ describe('`arrivalOf` reads where visitors arrive, and says once what is wrong w
     const diagnostics = new Diagnostics();
     const path = arrivalOf(
       declared(
-        'world w: sprout.World {\n  visitors arrive at first\n  visitors arrive at second\n}',
+        'world w is sprout.World {\n  visitors arrive at first\n  visitors arrive at second\n}',
       ),
       diagnostics,
     );

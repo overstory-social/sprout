@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GuardDeclaration, KindDeclaration, Statement } from '../ast.js';
+import type { GuardDeclaration, KindDeclaration, Statement, WorldDeclaration } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
@@ -72,10 +72,15 @@ describe('the three guards', () => {
   });
 
   it('are read in a kind, an object and the world alike', () => {
-    for (const open of ['kind K {', 'object o: K in r {', 'world w: sprout.World {']) {
-      const { declarations, refusals } = read(`${open}\n  depart (to) { allow }\n}`);
+    for (const [open, close] of [
+      ['kind K {', '}'],
+      ['world w is sprout.World {\nobject o is K {', '}\n}'],
+      ['world w is sprout.World {', '}'],
+    ]) {
+      const { declarations, refusals } = read(`${open}\n  depart (to) { allow }\n${close}`);
       expect(refusals, open).toEqual([]);
-      const owner = declarations[0] as KindDeclaration;
+      const top = declarations[0] as KindDeclaration | WorldDeclaration;
+      const owner = top.objects[0] ?? top;
       expect(
         owner.members.map((m) => m.kind),
         open,

@@ -1,10 +1,10 @@
-world actor_not_an_actor: sprout.World {
+world actor_not_an_actor is sprout.World {
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb sit { role target  "sit on [target]" }
-
-object hall: sprout.Place in actor_not_an_actor

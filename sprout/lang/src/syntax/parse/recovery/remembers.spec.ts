@@ -45,7 +45,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // body still closes at its own `}`, though `:remembers`'s own entry
     // is lost along with the rest of its abandoned declaration.
     for (const owner of OWNERS) {
-      const text = `${owner.open}\n  :remembers [echo: 0\n  :bravo 1\n}\n`;
+      const text = `${owner.open}\n  :remembers [echo: 0\n  :bravo 1\n${owner.close}\n`;
       const { result, said } = reading(text, parseDeclarations);
       expect(ownedBy(owner, result)?.members.flatMap(memberNames), text).toEqual(['bravo']);
       expect(

@@ -1,6 +1,13 @@
-world container_holds_nothing: sprout.World {
+world container_holds_nothing is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is Room {
+    // A thing can only be in something that holds things.
+    object bench is Thing {
+      object cushion is Thing
+    }
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

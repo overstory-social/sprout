@@ -24,11 +24,14 @@ const CAPS = DEFAULT_LIMITS.caps;
 
 /**
  * The shop, with a `Cup` to spawn and a cat, an NPC, asleep in the kiln,
- * which here holds actors; the kiln is still absent with its file withheld.
+ * which here holds actors; the kiln is still absent with its kind's file
+ * withheld.
  */
-const catalogueSource = `${SHOP['world.sprout']!}kind Cup { :full false }\nobject cat: Person in yard.kiln\n`;
-const KILN_SOURCE =
-  'kind Crate { contains :lid false }\nkind Kiln { contains actors }\nobject kiln: Kiln in yard\n';
+const catalogueSource = `${SHOP['world.sprout']!.replace(
+  'object kiln is Crate',
+  'object kiln is Kiln { object cat is Person }',
+)}kind Cup { :full false }\n`;
+const KILN_SOURCE = 'kind Crate { contains :lid false }\nkind Kiln { contains actors }\n';
 const catalogue = catalogueOf(
   compiledWorld('printers_shop', {
     ...SHOP,

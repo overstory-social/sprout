@@ -1,0 +1,13 @@
+// Composition is written with `is`. The colon marks a property or a
+// message, and a world, a kind or an object that composes with it is
+// refused, each with the line written as it should be.
+world kind_composes_with_colon: sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+
+  object composing_room: sprout.Place
+}
+
+kind Creature: sprout.Actor, Fragile { }
+
+kind Fragile { }

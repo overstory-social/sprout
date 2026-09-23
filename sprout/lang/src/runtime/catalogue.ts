@@ -22,7 +22,7 @@ import { declaredId, type InstanceId } from './ids.js';
 export interface DeclaredEntry {
   readonly id: InstanceId;
   readonly path: TreePath;
-  /** The id of its declared container, the world's for an object declared `in` it. */
+  /** The id of its declared container, the world's for an object written in the world's body. */
   readonly container: InstanceId;
   /** Its composed anonymous kind; null where the kind is absent and the object with it. */
   readonly kind: KindRef | null;

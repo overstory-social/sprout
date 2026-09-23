@@ -1,4 +1,0 @@
-objects.sprout:6:22  Nothing here is called `shelf`.
-                     `shelf` is inside `kiln`, so write `in kiln.shelf`.
-
-refused: 1 problem

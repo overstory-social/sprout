@@ -109,7 +109,7 @@ describe('a kind made of a library already refused at the manifest is not asked 
   it('leaves an unrelated absence row alone even where the text happens to hold a dot', () => {
     const report = new Report('publish', HEAD);
     report.libraryRefused('sprout');
-    report.gap(composed('sprout.hall', 'container'), 'There is nothing at `sprout.hall`.');
+    report.gap(composed('sprout.hall', 'place-of-arrival'), 'There is nothing at `sprout.hall`.');
     expect(report.diagnostics.refusals.map((d) => d.message)).toEqual([
       'There is nothing at `sprout.hall`.',
     ]);

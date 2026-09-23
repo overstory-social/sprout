@@ -1,4 +1,4 @@
-kind Cart: sprout.Place { }
+kind Cart is sprout.Place { }
 
 kind Thing { }
 

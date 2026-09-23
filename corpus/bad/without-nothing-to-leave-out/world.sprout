@@ -1,6 +1,8 @@
-world without_nothing_to_leave_out: sprout.World {
+world without_nothing_to_leave_out is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
+
+  object composing_room is Room
 }
 
 // Where visitors arrive.
@@ -8,6 +10,4 @@ kind Room {
   contains actors
 }
 
-object composing_room: Room in without_nothing_to_leave_out
-
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

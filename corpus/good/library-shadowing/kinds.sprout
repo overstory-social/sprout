@@ -5,4 +5,4 @@ kind Place {
   contains actors
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

@@ -4,7 +4,7 @@ kind Toy { }
 // whoever petted it, the same verb a visitor types, and then knead,
 // which has no phrases, so only an `act` performs it, and whose optional
 // tool is left out.
-kind Cat: Creature {
+kind Cat is Creature {
   :moods [Mood] default [calm, sleepy]
 
   as target for pet {

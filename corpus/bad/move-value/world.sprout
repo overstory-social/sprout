@@ -1,13 +1,13 @@
-world move_value: sprout.World {
+world move_value is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 enum Topic { bridge, toll }
 
 verb enquire { role target  role topic: symbol  "enquire of [target] about [topic]" }
-
-object hall: sprout.Place in move_value

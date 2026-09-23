@@ -1,4 +1,4 @@
 sprout.json:2:3  This world has no `world` declaration.
-                 Write one, in one of its files: `world world_missing: sprout.World { … }`.
+                 Write one, in one of its files: `world world_missing is sprout.World { … }`.
 
 refused: 1 problem

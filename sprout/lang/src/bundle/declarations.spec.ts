@@ -40,7 +40,7 @@ describe('every table is built over every library, in the order they depend on o
     const tables = resolveDeclarations(
       byLibrary({
         sprout: 'enum Ward { oak, silver }\nkind Warded { :ward Ward default oak }',
-        shop: 'kind Gate: sprout.Warded { :ward silver }\nmessage :opened with sprout.Ward',
+        shop: 'kind Gate is sprout.Warded { :ward silver }\nmessage :opened with sprout.Ward',
       }),
       SHOP,
       report,
@@ -59,7 +59,7 @@ describe('every table is built over every library, in the order they depend on o
     const { objects, tree } = resolveDeclarations(
       byLibrary({
         sprout: 'kind Container { contains }',
-        shop: 'object hall: sprout.Container in shop\nobject box: sprout.Container in hall',
+        shop: 'world shop is sprout.World {\n  object hall is sprout.Container { object box is sprout.Container }\n}',
       }),
       SHOP,
       report,
@@ -74,7 +74,9 @@ describe('every table is built over every library, in the order they depend on o
 
   it('roots the tree at the world’s name, which need not be its namespace', () => {
     const { objects, tree } = resolveDeclarations(
-      byLibrary({ ink: 'kind Room { contains actors }\nobject hall: Room in printers_shop' }),
+      byLibrary({
+        ink: 'kind Room { contains actors }\nworld printers_shop is sprout.World { object hall is Room }',
+      }),
       { namespace: 'ink', name: 'printers_shop' },
       loading(),
     );
@@ -88,7 +90,7 @@ describe('every table is built over every library, in the order they depend on o
       byLibrary({
         sprout:
           'verb give { role item  role recipient: Actor  "give [item] to [recipient]" }\nkind Actor { contains }',
-        shop: 'verb unlock { role target: Lock  "unlock [target]" }\nkind Lock: sprout.Actor { }',
+        shop: 'verb unlock { role target: Lock  "unlock [target]" }\nkind Lock is sprout.Actor { }',
       }),
       SHOP,
       report,
@@ -103,13 +105,27 @@ describe('every table is built over every library, in the order they depend on o
     expect(verbs.unqualified('give', 'shop')!.library).toBe('sprout');
   });
 
-  it('leaves a library’s objects to the refusal that says a library declares none', () => {
+  it('leaves what a library’s world holds to the refusal that says a library declares none', () => {
     const { objects } = resolveDeclarations(
-      byLibrary({ sprout: 'kind Box { }\nobject box: Box in hall', shop: '' }),
+      byLibrary({
+        sprout: 'kind Box { }\nworld shop is sprout.World { object box is Box }',
+        shop: '',
+      }),
       SHOP,
       loading(),
     );
     expect(objects).toEqual([]);
+  });
+
+  it('reads the objects of the first world the world’s own files declare, and of no other', () => {
+    const { objects } = resolveDeclarations(
+      byLibrary({
+        shop: 'kind Box { }\nworld shop is sprout.World { object a is Box }\nworld shop is sprout.World { object b is Box }',
+      }),
+      SHOP,
+      loading(),
+    );
+    expect(objects.map((o) => o.name)).toEqual(['a']);
   });
 });
 
@@ -207,7 +223,7 @@ describe('a kind nothing declares, named in a composition, is the absent table�
     const report = loading();
     const { objects, kinds, tree } = resolveDeclarations(
       byLibrary({
-        shop: 'kind Crate: victorian.Box { }\nobject crate: Crate in shop\nobject tea: Tin in crate',
+        shop: 'kind Crate is victorian.Box { }\nworld shop is sprout.World {\n  object crate is Crate {\n    object tea is Tin\n  }\n}',
       }),
       SHOP,
       report,
@@ -225,10 +241,10 @@ describe('a kind nothing declares, named in a composition, is the absent table�
         'victorian.Box',
         'kind-in-composition',
         'missing',
-        'shop.sprout:1:13',
+        'shop.sprout:1:15',
         'Nothing here is a `victorian.Box`.',
       ],
-      ['Tin', 'kind-in-composition', 'missing', 'shop.sprout:3:13', 'Nothing here is a `Tin`.'],
+      ['Tin', 'kind-in-composition', 'missing', 'shop.sprout:4:19', 'Nothing here is a `Tin`.'],
     ]);
     expect(report.gaps[0]!.absent.consequence).toContain('the object is absent');
     expect(objects).toEqual([]);
@@ -290,7 +306,7 @@ describe('a verb nothing declares, named in a play, is the absent table’s `ver
         sprout: 'verb take { role target  "take [target]" }',
         shop: `verb pull { role target  "pull [target]" }
 kind Lever { as target for pul { do { } }  as target for pull { do { } } }
-object handle: Lever in shop { as target for tug { do { } } }`,
+world shop is sprout.World { object handle is Lever { as target for tug { do { } } } }`,
       }),
       SHOP,
       report,
@@ -314,7 +330,7 @@ object handle: Lever in shop { as target for tug { do { } } }`,
       [
         'tug',
         'verb',
-        'shop.sprout:3:46',
+        'shop.sprout:3:69',
         'its readings do not parse, and `act` of it does nothing',
         '`handle` plays `target` for `tug`, and nothing declares that verb.',
       ],
@@ -328,50 +344,21 @@ object handle: Lever in shop { as target for tug { do { } } }`,
   });
 });
 
-describe('a container nothing answers to is the absent table’s `container` row', () => {
-  it('is a gap at the step, the object is absent, and what it holds goes unsaid', () => {
+describe('where an object is written is never a gap', () => {
+  it('refuses an object in what holds nothing whatever the mode, and says nothing of what it holds', () => {
     const report = loading();
     const { objects, tree } = resolveDeclarations(
       byLibrary({
-        shop: 'kind Room { contains actors }\nobject hall: Room in shop\nobject bench: Room in hal\nobject leg: Room in hall.bench',
+        shop: 'kind Room { contains actors }\nkind Plank { }\nworld shop is sprout.World {\n  object hall is Room { object plank is Plank { object leg is Room { object nail is Plank } } }\n}',
       }),
-      SHOP,
-      report,
-    );
-    expect(
-      report.gaps.map(({ absent, message }) => [
-        absent.what,
-        absent.kind,
-        absent.reason,
-        locationOf(absent.at!),
-        absent.consequence,
-        message,
-      ]),
-    ).toEqual([
-      [
-        'hal',
-        'container',
-        'missing',
-        'shop.sprout:3:23',
-        'the object is absent: not in range, not listed, not addressable; what it holds is unreachable until its container returns',
-        'Nothing here is called `hal`. Did you mean `hall`?',
-      ],
-    ]);
-    expect(objects.map((o) => o.name)).toEqual(['hall']);
-    expect([...tree.placed.keys()]).toEqual(['hall']);
-    expect(report.diagnostics.all).toEqual([]);
-  });
-
-  it('is not what a ring is: that is refused whatever the mode', () => {
-    const report = loading();
-    resolveDeclarations(
-      byLibrary({ shop: 'kind Box { contains }\nobject a: Box in b\nobject b: Box in a' }),
       SHOP,
       report,
     );
     expect(report.gaps).toEqual([]);
     expect(report.diagnostics.refusals.map((d) => d.message)).toEqual([
-      '`a` is in `b`, which is in `a`.',
+      '`plank` holds nothing, so `leg` cannot be in it.',
     ]);
+    expect(objects.map((o) => o.name)).toEqual(['hall', 'plank']);
+    expect([...tree.placed.keys()]).toEqual(['hall', 'hall.plank']);
   });
 });

@@ -1,11 +1,11 @@
 // A world whose namespace names a library it uses: every declaration of
 // its own would be indistinguishable from that library's, so it is
 // refused at the manifest before anything of the library is asked for.
-world world_named_as_library: sprout.World {
+world world_named_as_library is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in world_named_as_library
+kind Creature is sprout.Actor { }

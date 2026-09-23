@@ -1,6 +1,6 @@
-world unqualified_world: World {
+world unqualified_world is World {
   visitors are Creature
   visitors arrive at hall
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

@@ -1,8 +1,8 @@
-world role_names_enum: sprout.World {
+world role_names_enum is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in role_names_enum
+kind Creature is sprout.Actor { }

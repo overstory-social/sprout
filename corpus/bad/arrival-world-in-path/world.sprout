@@ -1,0 +1,11 @@
+world arrival_world_in_path is sprout.World {
+  visitors are Creature
+
+  // The world is named only on its own, never as a step of a path: a
+  // place directly in the world is named by its name alone.
+  visitors arrive at arrival_world_in_path.hall
+
+  object hall is Room
+}
+
+kind Creature is sprout.Actor { }

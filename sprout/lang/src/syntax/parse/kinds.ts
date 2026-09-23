@@ -1,41 +1,42 @@
-// `kind Crate: sprout.Container { … }` and `object bench: Bench in
-// composing_room { … }` (the spec's Kinds, composition and libraries ›
-// Declaring and composing, The world model › Objects). What each composes
-// and its body are read by `bodies.ts`, as a world's are; which kinds
-// those name is resolved a tier later. A kind writes its braces; an
-// object's body is optional, and its container is not, which is a path
-// (`paths.ts`).
+// `kind Crate is sprout.Container { … }` and `object bench is Bench { … }`
+// (the spec's Kinds, composition and libraries › Declaring and composing,
+// The world model › Objects). What each composes and its body are read
+// by `bodies.ts`, as a world's are; which kinds those name is resolved a
+// tier later. A kind writes its braces and stands at a file's top level.
+// An object's body is optional, and it is written in the body of what
+// holds it, so it never names its container: an `object` at a file's top
+// level is read whole and refused.
 
-import type { KindDeclaration, KindExpr, ObjectDeclaration, ObjectPath } from '../ast.js';
+import type { KindDeclaration, KindMember, ObjectDeclaration } from '../ast.js';
 import type { Token } from '../lexer.js';
-import { spanning } from '../../source/source.js';
-import type { Parser } from './parser.js';
-import { body, composition, kindMembers } from './bodies.js';
+import { spanning, type Span } from '../../source/source.js';
+import { punct, type Parser } from './parser.js';
+import { apart, body, composition, kindMembers, writtenKind } from './bodies.js';
 import { objectPath } from './paths.js';
-import { recover } from './recovery.js';
+import { recover, skipBracketed } from './recovery.js';
 
-/** `kind Crate: sprout.Container { … }`, or with no colon, composing nothing. */
+/** `kind Crate is sprout.Container { … }`, or with no `is`, composing nothing. */
 export function kindDeclaration(p: Parser): KindDeclaration | null {
   const keyword = p.next();
   const name = p.take('kind');
   if (name === null) {
     p.diagnostics.refuse(
-      p.at('punct', '{') || p.at('punct', ':') ? p.here() : p.peek().at,
+      atComposition(p) ? p.here() : p.peek().at,
       'A kind needs a name.',
-      'A name for a kind starts with a capital: `kind Crate: sprout.Container { … }`.',
+      'A name for a kind starts with a capital: `kind Crate is sprout.Container { … }`.',
     );
     recover(p);
     return null;
   }
 
-  const composes = composition(p, 'kind');
+  const composes = composition(p, 'kind', name);
   if (composes === null) {
     recover(p);
     return null;
   }
 
   if (p.take('punct', '{') === null) {
-    const head = `kind ${name.text}${composes.length === 0 ? '' : `: ${composes.map(written).join(', ')}`}`;
+    const head = `kind ${name.text}${composes.length === 0 ? '' : ` is ${composes.map(writtenKind).join(', ')}`}`;
     p.diagnostics.refuse(
       p.here(),
       `\`${name.text}\` has no braces.`,
@@ -45,94 +46,130 @@ export function kindDeclaration(p: Parser): KindDeclaration | null {
     return null;
   }
 
-  const read = body(p, 'kind', name, kindMembers(p, name.text));
+  const read = body(
+    p,
+    'kind',
+    name,
+    kindMembers(p, name.text, () => objectDeclaration(p, true)),
+  );
   if (read === null) return null;
   return {
     kind: 'kind',
     at: spanning(keyword.at, read.close.at),
     name: p.ident(name),
     composes,
-    members: read.members,
+    ...apart(read.members, isKindMember),
   };
 }
 
-/** `object bench: Bench in composing_room`, and a body after it where one is written. */
-export function objectDeclaration(p: Parser): ObjectDeclaration | null {
+/**
+ * `object bench is Bench`, and a body after it where one is written. A
+ * `nested` one is written in another body, which its caller is reading;
+ * null having said why, and the caller steps over the rest.
+ */
+export function objectDeclaration(p: Parser, nested: boolean): ObjectDeclaration | null {
   const keyword = p.next();
   // A word that starts the next declaration is not this one's name:
   // `object` with its name forgotten must not take `enum Ward { … }`'s
-  // word and then its braces for a body.
-  const name = p.atDeclarationStart() ? null : p.take('name');
+  // word and then its braces for a body, nor `is` for a name.
+  const name = p.atDeclarationStart() || p.at('name', 'is') ? null : p.take('name');
   if (name === null) {
     p.diagnostics.refuse(
-      p.at('punct', '{') || p.at('punct', ':') ? p.here() : p.peek().at,
+      atComposition(p) ? p.here() : p.peek().at,
       'An object needs a name.',
-      "An object's name is a lower-case word: `object bench: Bench in composing_room { … }`.",
+      "An object's name is a lower-case word: `object bench is Bench { … }`.",
     );
-    recover(p);
     return null;
   }
 
-  const composes = composition(p, 'object');
-  if (composes === null) {
-    recover(p);
-    return null;
-  }
+  const composes = composition(p, 'object', name);
+  if (composes === null) return null;
+  const container = namesItsContainer(p, name);
+  const head = container ?? composes.at(-1)?.at ?? name.at;
 
-  const container = containerOf(p, name);
-  if (container === null) {
-    // A body written after it is still read, so what it holds is checked
-    // and nothing in it is taken for the next declaration.
-    if (p.take('punct', '{') !== null) body(p, 'object', name, kindMembers(p, name.text));
-    else recover(p);
-    return null;
-  }
-
-  if (p.take('punct', '{') === null) {
+  const open = p.peek();
+  if (!punct(open, '{')) {
     return {
       kind: 'object',
-      at: spanning(keyword.at, container.at),
+      at: spanning(keyword.at, head),
       name: p.ident(name),
       composes,
-      container,
       members: [],
+      objects: [],
     };
   }
-  const read = body(p, 'object', name, kindMembers(p, name.text));
+  p.next();
+  // Objects nest in objects, and each body is a level of the parser's
+  // own depth, as a block's braces are.
+  if (!p.deeper(open.at, 'Take some of the braces out.')) {
+    skipBracketed(p, '}');
+    return null;
+  }
+  const read = body(
+    p,
+    'object',
+    name,
+    kindMembers(p, name.text, () => objectDeclaration(p, true)),
+    nested,
+  );
+  p.depth -= 1;
   if (read === null) return null;
   return {
     kind: 'object',
     at: spanning(keyword.at, read.close.at),
     name: p.ident(name),
     composes,
-    container,
-    members: read.members,
+    ...apart(read.members, isKindMember),
   };
 }
 
-/** `in composing_room`, `in kiln.shelf` — what holds an object, which every object says. */
-function containerOf(p: Parser, name: Token): ObjectPath | null {
-  if (p.take('name', 'in') === null) {
-    p.diagnostics.refuse(
-      p.here(),
-      'An object says what holds it.',
-      'Write `in` and the name of its container after its kinds: `object bench: Bench in composing_room { … }`.',
-    );
+/**
+ * An `object` at a file's top level: read whole, so its body is checked
+ * and none of it is taken for the next declaration, and refused, since an
+ * object is written inside the world or inside what holds it.
+ */
+export function topLevelObject(p: Parser): null {
+  const keyword = p.peek();
+  const declared = objectDeclaration(p, false);
+  if (declared === null) {
+    recover(p);
     return null;
   }
-  const held = p.take('name');
-  if (held === null) {
-    p.diagnostics.refuse(
-      p.at('punct', '{') || p.done ? p.here() : p.peek().at,
-      `After \`in\` comes the name of what holds \`${name.text}\`.`,
-      'A container is named as it was declared, in lower case: `object bench: Bench in composing_room { … }`.',
-    );
-    return null;
-  }
-  return objectPath(p, held);
+  p.diagnostics.refuse(
+    spanning(keyword.at, declared.name.at),
+    `\`${declared.name.text}\` is written outside the world, and an object is written inside what holds it.`,
+    `Move \`object ${declared.name.text} …\` into the braces of the world, \`world <name> is sprout.World { … }\`, or of the object that holds it.`,
+  );
+  return null;
 }
 
-/** A composed kind as the author wrote it, for a remedy that repeats it. */
-function written(kind: KindExpr): string {
-  return kind.library === null ? kind.name.text : `${kind.library.text}.${kind.name.text}`;
+/**
+ * `in hall` after an object's kinds, read and refused: the body an
+ * object is written in is its container. Where it ends, or null where
+ * none was written.
+ */
+function namesItsContainer(p: Parser, name: Token): Span | null {
+  const word = p.take('name', 'in');
+  if (word === null) return null;
+  const head = p.take('name');
+  const path = head === null ? null : objectPath(p, head);
+  const container = path?.parts.map((part) => part.text).join('.') ?? null;
+  p.diagnostics.refuse(
+    word.at,
+    'An object does not name what holds it: the body it is written in is its container.',
+    container === null
+      ? `Take out \`in\`, and write \`object ${name.text} …\` inside the braces of what holds it.`
+      : `Take out \`in ${container}\`, and write \`object ${name.text} …\` inside the braces of \`${container}\`.`,
+  );
+  return path?.at ?? word.at;
+}
+
+/** Whether a declaration's kinds or its body start here, where its name should have been. */
+function atComposition(p: Parser): boolean {
+  return p.at('punct', '{') || p.at('punct', ':') || p.at('name', 'is');
+}
+
+/** What a body read that is a member of it, and not an object written in it. */
+function isKindMember(member: KindMember | ObjectDeclaration): member is KindMember {
+  return member.kind !== 'object';
 }

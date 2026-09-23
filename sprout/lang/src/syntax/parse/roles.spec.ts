@@ -79,7 +79,7 @@ describe('a play', () => {
   it('is read in a world, a kind and an object alike', () => {
     for (const owner of OWNERS) {
       const { declarations, refusals } = read(
-        `${owner.open}\n  as target for pull { do { } }\n}\n`,
+        `${owner.open}\n  as target for pull { do { } }\n${owner.close}\n`,
         'w.sprout',
       );
       expect(

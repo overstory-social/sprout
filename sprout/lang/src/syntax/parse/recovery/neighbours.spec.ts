@@ -62,41 +62,46 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // Worlds. The first two: a member word that also starts a
     // declaration, and a member whose value is a list that was never
     // closed. Either could take the declaration after it with it.
-    'world w: sprout.World { enum Inner { oak } }',
-    'world w: sprout.World { :x [ }',
-    // Not `world w: sprout.World { }`: it PARSES, and what is wrong with
+    'world w is sprout.World { enum Inner { oak } }',
+    'world w is sprout.World { :x [ }',
+    // Not `world w is sprout.World { }`: it PARSES, and what is wrong with
     // it — no visitor kind, nowhere to arrive — is `resolveVisitors`' and
     // `arrivalOf`'s to say.
     // A shape that is not a parse defect belongs in world.spec.ts.
-    'world w: sprout.World { nonsense }',
-    'world w: 4 { }',
+    'world w is sprout.World { nonsense }',
+    'world w is 4 { }',
+    'world w: sprout.World { }',
     'world',
     'world w',
-    'world w: sprout.World { visitors }',
-    'world w: sprout.World { visitors are 4 }',
-    // Kinds and objects: a name, a composition, a brace or a container
-    // missing or wrong, a member no kind holds, a list never closed, a
-    // declaration inside the body, and a world's own member in an
-    // object's.
+    'world w is sprout.World { visitors }',
+    'world w is sprout.World { visitors are 4 }',
+    // Kinds and objects: a name or a composition missing or wrong, a
+    // composition written with the colon, a brace missing, a member no
+    // kind holds, a list never closed, a declaration inside the body, an
+    // object at the top level however it is written, a world's own
+    // member in an object's, and an object that names its container.
     'kind',
     'kind K',
-    'kind K: 4 { }',
+    'kind K is 4 { }',
+    'kind K: Crate { }',
     'kind K { nonsense }',
     'kind K { :x [ }',
     'kind K { enum Inner { oak } }',
     'object',
-    'object o: K { }',
-    'object o: K in { }',
-    'object o: K in r { visitors are X }',
-    // A container's path: a dot left at its end, two in a row, a number
-    // or a capital for a step, spaces around a dot; and the same where a
-    // world says its visitors arrive.
-    'object o: K in r.',
-    'object o: K in r..s { }',
-    'object o: K in r.4 { }',
-    'object o: K in r.S',
-    'object o: K in r . s',
-    'world w: sprout.World { visitors arrive at y. }',
+    'object o is K { }',
+    'object o is K',
+    'world w is sprout.World { object o is K { visitors are X } }',
+    'world w is sprout.World { object o is K in r }',
+    'world w is sprout.World { object O is K }',
+    'world w is sprout.World { object o: K { } }',
+    // A path: a dot left at its end, two in a row, a number or a capital
+    // for a step, spaces around a dot, where a world says its visitors
+    // arrive.
+    'world w is sprout.World { visitors arrive at y. }',
+    'world w is sprout.World { visitors arrive at y..s }',
+    'world w is sprout.World { visitors arrive at y.4 }',
+    'world w is sprout.World { visitors arrive at y.S }',
+    'world w is sprout.World { visitors arrive at y . s }',
   ];
 
   it('over a `:remembers`, whichever side of the defect the good entries are', () => {
@@ -163,6 +168,16 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       'passage hello',
       'passage "hello" { Hi. }',
       'without passage hello',
+      // An object written in the body with its head wrong, or naming
+      // what holds it, or with a member it cannot hold.
+      'object',
+      'object 4',
+      'object Faulty is K',
+      'object faulty is',
+      'object faulty is 4',
+      'object faulty: K',
+      'object faulty is K in r',
+      'object faulty is K { visitors are X }',
       ...ENTRY_DEFECTS.filter((entry) => entry.startsWith('b:')).map(
         (entry) => `:b${entry.slice(2)}`,
       ),
@@ -192,7 +207,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           [defect, GOOD[1], GOOD[0]],
         ]) {
           checked += 1;
-          const text = `${owner.open}\n  ${order.join('\n  ')}\n}\n`;
+          const text = `${owner.open}\n  ${order.join('\n  ')}\n${owner.close}\n`;
           const diagnostics = new Diagnostics();
           const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
           // What the defect itself may leave standing: the `contains` a
@@ -250,7 +265,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const diagnostics = new Diagnostics();
         const declared = parseDeclarations(new SourceFile('k.sprout', text), diagnostics);
         // A construct that was never closed gives its contents to the
-        // file — `world w: sprout.World { enum Inner { oak } }` is a
+        // file — `world w is sprout.World { enum Inner { oak } }` is a
         // world that ran on, and `Inner` is the file's enum. That is the
         // rule, and it keeps the author's work rather than skipping to a
         // brace and losing it. So a name WRITTEN inside the defect may

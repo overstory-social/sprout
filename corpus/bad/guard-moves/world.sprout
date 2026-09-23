@@ -1,9 +1,9 @@
-world guard_moves: sprout.World {
+world guard_moves is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
-
-object hall: sprout.Place in guard_moves
+kind Visitor is sprout.Actor { }

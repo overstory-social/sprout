@@ -1,18 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  KindDeclaration,
-  KindExpr,
-  ObjectDeclaration,
-  WorldDeclaration,
-} from '../syntax/ast.js';
+import type { KindDeclaration, KindExpr, WorldDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile, textOf } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { KindTable, type KindRef } from './kinds.js';
 import { ACTOR, checkActors, checkVisitorKind, isActor, isNpc, notAnNpc } from './actors.js';
-import { resolveObjects } from './objects.js';
+import { objectsIn, resolveObjects } from './objects.js';
 import { placeObjects } from './tree.js';
 
 /** Every kind here, composed: the standard library's, the shop's own, and another library's. */
@@ -23,13 +18,13 @@ const KINDS = (() => {
     sprout:
       'kind World { contains }\nkind Actor { contains :capacity 8 }\nkind Place { contains actors }',
     shop: [
-      'kind Creature: sprout.Actor { :capacity 4 }',
-      'kind Cat: Creature { }',
-      'kind Porter: sprout.Actor { }',
-      'kind Hall: sprout.Place { }',
+      'kind Creature is sprout.Actor { :capacity 4 }',
+      'kind Cat is Creature { }',
+      'kind Porter is sprout.Actor { }',
+      'kind Hall is sprout.Place { }',
       'kind Basket { contains }',
     ].join('\n'),
-    victorian: 'kind Gent: sprout.Actor { }\nkind Voice { }',
+    victorian: 'kind Gent is sprout.Actor { }\nkind Voice { }',
   })) {
     table.add(
       library,
@@ -49,7 +44,7 @@ const kind = (library: string, name: string): KindRef => KINDS.qualified(library
 /** `visitors are <written>` as the parser reads it, for its span. */
 function written(text: string): KindExpr {
   const [world] = parseDeclarations(
-    new SourceFile('w.sprout', `world shop: sprout.World { visitors are ${text} }`),
+    new SourceFile('w.sprout', `world shop is sprout.World { visitors are ${text} }`),
     new Diagnostics(),
   ) as WorldDeclaration[];
   const member = world!.members.find((m) => m.kind === 'visitors-are');
@@ -112,7 +107,7 @@ describe('the visitor kind is the world’s own, and an actor', () => {
         [
           'Hall',
           "`Hall` is not an actor, and a world's visitors are made of one.",
-          'Write `kind Visitor: sprout.Actor { … }` and `visitors are Visitor`, or name a kind that composes `sprout.Actor`.',
+          'Write `kind Visitor is sprout.Actor { … }` and `visitors are Visitor`, or name a kind that composes `sprout.Actor`.',
         ],
       ],
     });
@@ -125,7 +120,7 @@ describe('the visitor kind is the world’s own, and an actor', () => {
         [
           'sprout.Actor',
           "`sprout.Actor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.",
-          'Declare one that composes `sprout.Actor`, as `kind Visitor: sprout.Actor { … }`, and write `visitors are Visitor`.',
+          'Declare one that composes `sprout.Actor`, as `kind Visitor is sprout.Actor { … }`, and write `visitors are Visitor`.',
         ],
       ],
     });
@@ -133,26 +128,28 @@ describe('the visitor kind is the world’s own, and an actor', () => {
 
   it('refuses another library’s kind, suggesting it be composed when it is an actor', () => {
     expect(checked('victorian.Gent', kind('victorian', 'Gent')).told[0]![2]).toBe(
-      'Declare one that composes `victorian.Gent`, as `kind Visitor: victorian.Gent { … }`, and write `visitors are Visitor`.',
+      'Declare one that composes `victorian.Gent`, as `kind Visitor is victorian.Gent { … }`, and write `visitors are Visitor`.',
     );
     expect(checked('victorian.Voice', kind('victorian', 'Voice')).told).toHaveLength(1);
   });
 });
 
 /**
- * What `checkActors` says of the objects in `text`, placed in a world
- * made of `world`, as [where, message, remedy]. The objects must place.
+ * What `checkActors` says of the objects written in `body`, the body of a
+ * world made of `world`, as [where, message, remedy]. The objects must
+ * place.
  */
 function actorsIn(
-  text: string,
+  body: string,
   world: KindRef | null = kind('shop', 'Basket'),
   visitor: KindRef | null = kind('shop', 'Creature'),
 ) {
   const placing = new Diagnostics();
-  const declared = parseDeclarations(new SourceFile('o.sprout', text), placing).filter(
-    (d): d is ObjectDeclaration => d.kind === 'object',
-  );
-  const objects = resolveObjects('shop', declared, {
+  const root = parseDeclarations(
+    new SourceFile('o.sprout', `world shop is sprout.World {\n${body}\n}`),
+    placing,
+  ).find((d): d is WorldDeclaration => d.kind === 'world')!;
+  const objects = resolveObjects('shop', objectsIn(root), {
     enums: new EnumTable(),
     kinds: KINDS,
     diagnostics: placing,
@@ -172,26 +169,25 @@ describe('the only actors are visitors and NPCs, and each stands in a place', ()
   });
 
   it('accepts NPCs in a place, in a place inside a place, and directly in a world holding actors', () => {
-    const text = [
-      'object hall: Hall in shop',
-      'object nook: Hall in hall',
-      'object basket: Basket in hall',
-      'object cat: Cat in hall',
-      'object dog: Creature in hall.nook',
-      'object mouse: Creature in shop',
-      'object ball: Basket in hall.basket',
+    const body = [
+      'object hall is Hall {',
+      '  object nook is Hall { object dog is Creature }',
+      '  object basket is Basket { object ball is Basket }',
+      '  object cat is Cat',
+      '}',
+      'object mouse is Creature',
     ].join('\n');
-    expect(actorsIn(text, kind('shop', 'Hall'))).toEqual([]);
+    expect(actorsIn(body, kind('shop', 'Hall'))).toEqual([]);
   });
 
   it('refuses an actor that is not an NPC at its name, and says nothing more of it', () => {
-    const text = [
-      'object hall: Hall in shop',
-      'object basket: Basket in hall',
-      'object porter: Porter in hall.basket',
-      'object gent: victorian.Gent in hall',
+    const body = [
+      'object hall is Hall {',
+      '  object basket is Basket { object porter is Porter }',
+      '  object gent is victorian.Gent',
+      '}',
     ].join('\n');
-    expect(actorsIn(text)).toEqual([
+    expect(actorsIn(body)).toEqual([
       [
         'porter',
         '`porter` composes `sprout.Actor` but not `Creature`, and the only actors are visitors and NPCs.',
@@ -205,42 +201,34 @@ describe('the only actors are visitors and NPCs, and each stands in a place', ()
     ]);
   });
 
-  it('refuses an NPC directly in what holds no actors, at the last step of its `in`', () => {
-    const text = [
-      'object hall: Hall in shop',
-      'object basket: Basket in hall',
-      'object cat: Cat in hall.basket',
-    ].join('\n');
-    expect(actorsIn(text)).toEqual([
+  it('refuses an NPC written in the body of what holds no actors, at its name', () => {
+    const body = ['object hall is Hall {', '  object basket is Basket { object cat is Cat }', '}'];
+    expect(actorsIn(body.join('\n'))).toEqual([
       [
-        'basket',
+        'cat',
         '`basket` holds no actors, so `cat` cannot stand in it.',
-        'Put `cat` in a place, or make `basket` one: compose `sprout.Place`, or write `contains actors` in its body.',
+        'Write `cat` inside the braces of a place, or make `basket` one: compose `sprout.Place`, or write `contains actors` in its body.',
       ],
     ]);
   });
 
   it('refuses an NPC directly in a world that holds no actors, naming its first place', () => {
-    const placed = [
-      'object yard: Basket in shop',
-      'object hall: Hall in yard',
-      'object cat: Cat in shop',
-    ];
-    expect(actorsIn(placed.join('\n'))).toEqual([
+    const body = ['object yard is Basket {', '  object hall is Hall', '}', 'object cat is Cat'];
+    expect(actorsIn(body.join('\n'))).toEqual([
       [
-        'shop',
+        'cat',
         '`shop` is the world, which holds no actors, so `cat` cannot stand directly in it.',
-        'Put `cat` in a place in the world, as in `in yard.hall`.',
+        'Write `cat` inside the braces of a place in the world, such as `yard.hall`.',
       ],
     ]);
-    expect(actorsIn('object cat: Cat in shop')[0]![2]).toBe(
-      'Declare a place in the world, an object that composes `sprout.Place` or writes `contains actors` in its body, and put `cat` in it.',
+    expect(actorsIn('object cat is Cat')[0]![2]).toBe(
+      'Declare a place in the world, an object that composes `sprout.Place` or writes `contains actors` in its body, and write `cat` inside its braces.',
     );
   });
 
   it('says nothing that the absent world kind or visitor kind would decide', () => {
-    expect(actorsIn('object porter: Porter in shop', null, null)).toEqual([]);
+    expect(actorsIn('object porter is Porter', null, null)).toEqual([]);
     // With no visitor kind to be made of, an actor is still refused where it cannot stand.
-    expect(actorsIn('object porter: Porter in shop', kind('shop', 'Basket'), null)).toHaveLength(1);
+    expect(actorsIn('object porter is Porter', kind('shop', 'Basket'), null)).toHaveLength(1);
   });
 });

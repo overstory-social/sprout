@@ -68,7 +68,7 @@ describe('the first tier reads one file alone, for its shape', () => {
 
   it('takes the world that writes it', () => {
     const { declarations, diagnostics } = checkShape(
-      file('world.sprout', 'world shop: sprout.World {\n  visitors are Creature\n}\n'),
+      file('world.sprout', 'world shop is sprout.World {\n  visitors are Creature\n}\n'),
     );
     expect(diagnostics).toEqual([]);
     expect(declarations.map((d) => d.kind)).toEqual(['world']);
@@ -76,24 +76,40 @@ describe('the first tier reads one file alone, for its shape', () => {
 
   it('refuses a kind or an object that writes `sprout.World`, and an object with no kind', () => {
     // Anything but a world composing it is refused, and one declaration
-    // answers that on its own, as it does whether an object named a kind.
+    // answers that on its own, as it does whether an object named a kind,
+    // at any depth in the world's body.
     const { declarations, diagnostics } = checkShape(
       file(
         'kinds.sprout',
-        'kind Crate: sprout.World { }\nobject bench: sprout.World in hall\nobject lamp in hall\n',
+        'kind Crate is sprout.World { }\nworld shop is sprout.World {\n  object bench is sprout.World\n  object hall is Room {\n    object lamp { }\n  }\n}\n',
       ),
     );
-    expect(declarations.map((d) => d.kind)).toEqual(['kind', 'object', 'object']);
+    expect(declarations.map((d) => d.kind)).toEqual(['kind', 'world']);
     expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['kinds.sprout:1:13', '`Crate` composes `sprout.World`, which only a world may.'],
-      ['kinds.sprout:2:15', '`bench` composes `sprout.World`, which only a world may.'],
-      ['kinds.sprout:3:8', '`lamp` does not say what kind of thing it is.'],
+      ['kinds.sprout:1:15', '`Crate` composes `sprout.World`, which only a world may.'],
+      ['kinds.sprout:3:19', '`bench` composes `sprout.World`, which only a world may.'],
+      ['kinds.sprout:5:12', '`lamp` does not say what kind of thing it is.'],
+    ]);
+  });
+
+  it('refuses an object a kind’s body holds, which is not read there yet', () => {
+    const { diagnostics } = checkShape(
+      file('kinds.sprout', 'kind Lantern {\n  contains\n  object wick is Wick\n}\n'),
+    );
+    expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'kinds.sprout:3:10',
+        "`wick` is written in the body of the kind `Lantern`, and this compiler does not read objects in a kind's body yet.",
+      ],
     ]);
   });
 
   it('takes a kind and an object that compose what they may', () => {
     const { diagnostics } = checkShape(
-      file('kinds.sprout', 'kind Crate: sprout.Container { }\nobject box: Crate in hall\n'),
+      file(
+        'kinds.sprout',
+        'kind Crate is sprout.Container { }\nworld shop is sprout.World { object box is Crate }\n',
+      ),
     );
     expect(diagnostics).toEqual([]);
   });

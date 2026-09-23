@@ -1,0 +1,4 @@
+objects.sprout:7:1  `bench` is written outside the world, and an object is written inside what holds it.
+                    Move `object bench …` into the braces of the world, `world <name> is sprout.World { … }`, or of the object that holds it.
+
+refused: 1 problem

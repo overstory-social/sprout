@@ -37,7 +37,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
       files: [
         new SourceFile(
           'world.sprout',
-          'world shed: sprout.World { visitors are Visitor visitors arrive at yard }\nkind Visitor: sprout.Actor { }\nkind Yard { contains actors }\nobject yard: Yard in shed\n',
+          'world shed is sprout.World { visitors are Visitor visitors arrive at yard object yard is Yard }\nkind Visitor is sprout.Actor { }\nkind Yard { contains actors }\n',
         ),
       ],
       libraries: [library],

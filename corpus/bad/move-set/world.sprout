@@ -1,11 +1,11 @@
-world move_set: sprout.World {
+world move_set is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb sort { role target  role pieces many  "sort [pieces] into [target]" }
-
-object hall: sprout.Place in move_set

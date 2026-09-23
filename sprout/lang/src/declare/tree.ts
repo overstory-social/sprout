@@ -1,17 +1,16 @@
 // The containment tree as declared, and how a name is resolved in it
 // (the spec's The world model; Names › Identifiers and scope; Verbs ›
 // Places inside places). The world is the root, named by the manifest's
-// name, and every object declaration is a node under it, one whose kind
-// is absent included: what it holds still has somewhere to be.
+// name, and the tree is the parse tree: an object is a node under the
+// one whose body it is written in, or under the world where it is
+// written in the world's, one whose kind is absent included, since what
+// it holds still has somewhere to be.
 //
-// Two rules hold here. What a file writes at its top level, an object's
-// `in` or a world's `visitors arrive at`, is read from inside the world:
-// a first step names something directly in the world, or the world
-// itself, and anything deeper is named by its path. And from anywhere
-// else the nearest declaration wins, walking outward one container at a
-// time to the world (`resolveFrom`), so an object that hides one of its
-// name further out is warned about once the tree is whole. Both rules are
-// loops rather than recursion, since nesting has no cap.
+// A name resolves nearest first, walking outward one container at a time
+// to the world (`resolveFrom`), so an object that hides one of its name
+// further out is warned about once the tree is whole; a first step read
+// from the world's body, as `visitors arrive at` is, names something
+// directly in the world. Both walks are loops rather than recursion.
 
 import type { Ident, ObjectDeclaration, ObjectPath } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -22,9 +21,11 @@ import type { KindRef } from './kinds.js';
 /** Names from the world down, outermost first. The world is the empty path. */
 export type TreePath = readonly string[];
 
-/** What `placeObjects` places: a declaration, and its kind where it composed. */
+/** What `placeObjects` places: a declaration, where it is written, and its kind where it composed. */
 export interface Placeable {
   readonly declaration: ObjectDeclaration;
+  /** The object whose body it is written in; null where that is the world's. */
+  readonly within: ObjectDeclaration | null;
   /** Null for an object whose kind is absent. */
   readonly kind: KindRef | null;
 }
@@ -131,106 +132,72 @@ export function resolveFrom(tree: ObjectTree, vantage: TreePath, path: TreePath)
   return { found: 'object', placement: reached };
 }
 
-/**
- * Told of a container step nothing in reach answers to, with the words
- * to say. A compile makes it a gap under the absent table's `container`
- * row; with none it is refused.
- */
-export type OnUnknownContainer = (
-  container: ObjectPath,
-  step: Ident,
-  message: string,
-  remedy: string,
-) => void;
-
 export interface TreeContext {
   /** The world's name: the root, and the one name no object may take. */
   readonly world: string;
   readonly diagnostics: Diagnostics;
-  readonly onUnknown?: OnUnknownContainer;
-}
-
-/** An object whose container did not resolve, and where its path stopped. */
-interface Miss {
-  readonly index: number;
-  readonly step: number;
-  readonly within: TreePath | null;
 }
 
 /**
- * Place every object under the world, reading each `in` from inside the
- * world. `in <world>` places at depth one and a path of k steps at depth
- * k + 1, so placing in order of path length, in the order declared
- * within each, finds every container already placed or already failed.
- * What fails to place is said once, at the step it is about, and nothing
- * more is said about what it holds.
+ * Place every object under the one whose body it is written in, or under
+ * the world, shallowest first and in the order written within a depth,
+ * which is the order `placed` keeps. `objects` lists each after what
+ * holds it, as `objectsIn` does. What fails to place is said once, at its
+ * name, and nothing more is said about what it holds, which has nowhere
+ * to be.
  */
 export function placeObjects(objects: readonly Placeable[], context: TreeContext): ObjectTree {
   const { world, diagnostics } = context;
   const placed = new Map<string, Placement>();
   const worldHolds = new Map<string, Placement>();
   const tree: ObjectTree = { world, holds: worldHolds, placed };
-  /** Every node's contents, writable while placing; the world's is `worldHolds`. */
-  const writable = new Map<Placement, Map<string, Placement>>();
+  /** Every placed node's contents, writable while placing, by its declaration. */
+  const writable = new Map<ObjectDeclaration, { at: Placement; holds: Map<string, Placement> }>();
 
-  // --- what one declaration gets wrong on its own ------------------------
-  const pending: { index: number; depth: number }[] = [];
-  objects.forEach(({ declaration }, index) => {
-    const parts = declaration.container.parts;
-    if (declaration.name.text === world) {
+  const depth = new Map<ObjectDeclaration, number>();
+  for (const { declaration, within } of objects) {
+    depth.set(declaration, within === null ? 0 : (depth.get(within) ?? 0) + 1);
+  }
+  const shallowestFirst = objects
+    .map((object, index) => ({ object, index }))
+    .sort(
+      (a, b) =>
+        depth.get(a.object.declaration)! - depth.get(b.object.declaration)! || a.index - b.index,
+    )
+    .map(({ object }) => object);
+
+  for (const { declaration, within, kind } of shallowestFirst) {
+    const name = declaration.name.text;
+    const holder = within === null ? null : writable.get(within);
+    // Inside something that did not place, whose own refusal was said.
+    if (holder === undefined) continue;
+    if (name === world) {
       diagnostics.refuse(
         declaration.name.at,
         `\`${world}\` is the world's name, so no object can take it.`,
         'Give the object another name.',
       );
-      return;
+      continue;
     }
-    const inside = worldInPath(world, declaration.container, 'in');
-    if (inside !== null) {
-      diagnostics.refuse(inside.step.at, inside.message, inside.remedy);
-      return;
+    if (holder !== null && holder.at.kind !== null && !holder.at.kind.contains) {
+      const last = holder.at.path.at(-1)!;
+      diagnostics.refuse(
+        declaration.name.at,
+        `\`${last}\` holds nothing, so \`${name}\` cannot be in it.`,
+        `Move \`${name}\` out of \`${last}\`'s braces into something that holds things, or let \`${last}\` hold things by writing \`contains\` in its body.`,
+      );
+      continue;
     }
-    const depth = parts.length === 1 && parts[0]!.text === world ? 0 : parts.length;
-    pending.push({ index, depth });
-  });
-  pending.sort((a, b) => a.depth - b.depth);
-
-  // --- placing, shallowest first ------------------------------------------
-  const isPlaced = new Set<number>();
-  const misses: Miss[] = [];
-  for (const { index, depth } of pending) {
-    const { declaration, kind } = objects[index]!;
-    const name = declaration.name.text;
-    let holder: Placement | null = null;
-    if (depth > 0) {
-      const steps = declaration.container.parts.map((part) => part.text);
-      const found = resolveFrom(tree, [], steps);
-      if (found.found === 'missing') {
-        misses.push({ index, step: found.step, within: found.within });
-        continue;
-      }
-      if (found.found !== 'object') continue;
-      holder = found.placement;
-      if (holder.kind !== null && !holder.kind.contains) {
-        const last = holder.path.at(-1)!;
-        diagnostics.refuse(
-          declaration.container.parts.at(-1)!.at,
-          `\`${last}\` holds nothing, so \`${name}\` cannot be in it.`,
-          `Put \`${name}\` in something that holds things, or let \`${last}\` hold things by writing \`contains\` in its body.`,
-        );
-        continue;
-      }
-    }
-    const siblings = holder === null ? worldHolds : writable.get(holder)!;
+    const siblings = holder === null ? worldHolds : holder.holds;
     if (siblings.has(name)) {
       diagnostics.refuse(
         declaration.name.at,
-        `\`${holder === null ? world : pathKey(holder.path)}\` holds two objects called \`${name}\`.`,
+        `\`${holder === null ? world : pathKey(holder.at.path)}\` holds two objects called \`${name}\`.`,
         'Give one of them another name, or remove it.',
       );
       continue;
     }
-    const container = holder === null ? [] : holder.path;
+    const container = holder === null ? [] : holder.at.path;
     const holds = new Map<string, Placement>();
     const placement: Placement = {
       path: [...container, name],
@@ -239,69 +206,12 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
       kind,
       holds,
     };
-    writable.set(placement, holds);
+    writable.set(declaration, { at: placement, holds });
     siblings.set(name, placement);
     placed.set(pathKey(placement.path), placement);
-    isPlaced.add(index);
   }
 
-  // --- what did not place, and why ----------------------------------------
-  // A step naming an object that did not place either is inside something
-  // that failed, which has been said, or it is a ring of such steps. Each
-  // step leads to the first unplaced declaration of its name.
-  const unplaced = new Map<string, number>();
-  objects.forEach(({ declaration }, index) => {
-    const name = declaration.name.text;
-    if (!isPlaced.has(index) && !unplaced.has(name)) unplaced.set(name, index);
-  });
-  misses.sort((a, b) => a.index - b.index);
-  const missed = new Map(misses.map((miss) => [miss.index, miss]));
-  const stepOf = (miss: Miss): Ident =>
-    objects[miss.index]!.declaration.container.parts[miss.step]!;
-  const leadsTo = (index: number): number | undefined => {
-    const miss = missed.get(index);
-    return miss === undefined ? undefined : unplaced.get(stepOf(miss).text);
-  };
-
-  for (const miss of misses) {
-    if (leadsTo(miss.index) !== undefined) continue;
-    const container = objects[miss.index]!.declaration.container;
-    const step = container.parts[miss.step]!;
-    const { message, remedy } = unknownStep(tree, container, miss, 'in');
-    if (context.onUnknown !== undefined) context.onUnknown(container, step, message, remedy);
-    else diagnostics.refuse(step.at, message, remedy);
-  }
-
-  // Each declaration leads to at most one other, so a ring is found by
-  // walking until the walk meets itself.
-  const walked = new Map<number, 'walking' | 'done'>();
-  for (const miss of misses) {
-    const trail: number[] = [];
-    let at: number | undefined = miss.index;
-    while (at !== undefined && !walked.has(at)) {
-      walked.set(at, 'walking');
-      trail.push(at);
-      at = leadsTo(at);
-    }
-    if (at !== undefined && walked.get(at) === 'walking') {
-      const ring = trail.slice(trail.indexOf(at));
-      const start = ring.indexOf(ring.reduce((first, index) => Math.min(first, index)));
-      const ordered = [...ring.slice(start), ...ring.slice(0, start)];
-      const names = ordered.map((index) => `\`${objects[index]!.declaration.name.text}\``);
-      diagnostics.refuse(
-        stepOf(missed.get(ordered[0]!)!).at,
-        ordered.length === 1
-          ? `${names[0]} cannot be inside itself.`
-          : `${names[0]} is in ${names.slice(1).join(', which is in ')}, which is in ${names[0]}.`,
-        ordered.length === 1
-          ? `\`in\` names what holds ${names[0]}: name something else.`
-          : 'Something cannot hold what holds it. Put one of them somewhere else.',
-      );
-    }
-    for (const index of trail) walked.set(index, 'done');
-  }
-
-  warnHidden(objects, tree, diagnostics);
+  warnHidden(tree, diagnostics);
   return tree;
 }
 
@@ -311,16 +221,9 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
  * any beyond that out to the world. Only the nearest one hidden is named,
  * since it is the one the name meant there before.
  */
-function warnHidden(
-  objects: readonly Placeable[],
-  tree: ObjectTree,
-  diagnostics: Diagnostics,
-): void {
-  const byDeclaration = new Map([...tree.placed.values()].map((one) => [one.declaration, one]));
-  for (const { declaration } of objects) {
-    const inner = byDeclaration.get(declaration);
-    if (inner === undefined) continue;
-    const name = declaration.name.text;
+function warnHidden(tree: ObjectTree, diagnostics: Diagnostics): void {
+  for (const inner of tree.placed.values()) {
+    const name = inner.declaration.name.text;
     const rings = ringsTo(tree, inner.container);
     // The last ring is the container's own, where two of one name are refused.
     let hidden: Placement | undefined;
@@ -332,26 +235,19 @@ function warnHidden(
     const outer = pathKey(hidden.path);
     if (hidden.container.length === 0) {
       diagnostics.warn(
-        declaration.name.at,
+        inner.declaration.name.at,
         `\`${name}\` hides the \`${name}\` directly in the world: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
         `No path reaches the world's \`${name}\` from inside \`${inside}\`, since the world's name is never a step of one. Give one of them another name if both are meant there.`,
       );
     } else {
       diagnostics.warn(
-        declaration.name.at,
+        inner.declaration.name.at,
         `\`${name}\` hides \`${outer}\`: inside \`${inside}\`, a bare \`${name}\` now means this one.`,
         `Write \`${outer}\` where the outer one is meant, or give this one another name.`,
       );
     }
   }
 }
-
-/**
- * What a path is written after: `in` for an object's container,
- * `visitors arrive at` for a world's arrival. It is what a remedy writes
- * the path after, so the author is shown the line they wrote, corrected.
- */
-export type PathLead = 'in' | 'visitors arrive at';
 
 /** What to say about a path, and the step it is said at. */
 export interface PathWords {
@@ -361,10 +257,11 @@ export interface PathWords {
 }
 
 /**
- * The world's name as a step of a longer path, which is refused: the
- * world is named only as a whole path. Null where the path does not.
+ * The world's name as a step of a longer path in `visitors arrive at`,
+ * which is refused: the world is never a step of a path. Null where the
+ * path does not name it so.
  */
-export function worldInPath(world: string, path: ObjectPath, lead: PathLead): PathWords | null {
+export function worldInPath(world: string, path: ObjectPath): PathWords | null {
   const { parts } = path;
   const inside = parts.length > 1 ? parts.find((part) => part.text === world) : undefined;
   if (inside === undefined) return null;
@@ -374,21 +271,21 @@ export function worldInPath(world: string, path: ObjectPath, lead: PathLead): Pa
     message: `\`${world}\` is the world, which is named on its own and never as a step of a path.`,
     remedy:
       rest.length === 0
-        ? `Write \`${lead} ${world}\`.`
-        : `A path starts from something directly in the world: write \`${lead} ${rest.join('.')}\`.`,
+        ? 'Name a place in the world, as in `visitors arrive at kiln`.'
+        : `A path starts from something directly in the world: write \`visitors arrive at ${rest.join('.')}\`.`,
   };
 }
 
 /**
- * The words for a step of a path read from inside the world that names
- * nothing in reach, with where it may be meant: a name close to it, or
- * an object of that name deeper in the tree, whose path is what to write.
+ * The words for a step of `visitors arrive at`, read from the world's
+ * body, that names nothing in reach, with where it may be meant: a name
+ * close to it, or an object of that name deeper in the tree, whose path
+ * is what to write.
  */
 export function unknownStep(
   tree: ObjectTree,
   path: ObjectPath,
   miss: { readonly step: number; readonly within: TreePath | null },
-  lead: PathLead,
 ): PathWords {
   const steps = path.parts.map((part) => part.text);
   const step = path.parts[miss.step]!;
@@ -400,7 +297,7 @@ export function unknownStep(
 
   const rest = steps.slice(miss.step + 1);
   const elsewhere = [...tree.placed.values()].filter((one) => one.path.at(-1) === step.text);
-  const written = (at: TreePath): string => `\`${lead} ${[...at, ...rest].join('.')}\``;
+  const written = (at: TreePath): string => `\`visitors arrive at ${[...at, ...rest].join('.')}\``;
   let remedy: string;
   if (elsewhere.length === 1) {
     const [only] = elsewhere as [Placement];

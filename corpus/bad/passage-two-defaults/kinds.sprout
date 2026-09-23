@@ -9,4 +9,4 @@ kind Terse {
   passage shrug default { Nothing. }
 }
 
-kind Mirror: Plain, Terse { }
+kind Mirror is Plain, Terse { }

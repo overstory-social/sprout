@@ -1,8 +1,8 @@
-world passage_default_first: sprout.World {
+world passage_default_first is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in passage_default_first
+kind Creature is sprout.Actor { }

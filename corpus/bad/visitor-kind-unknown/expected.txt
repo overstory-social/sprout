@@ -1,4 +1,4 @@
 world.sprout:3:16  Nothing here is a `Creture`. Did you mean `Creature`?
-                   Write `Creature`, or declare `Creture` with `kind Creture: sprout.Actor { … }`.
+                   Write `Creature`, or declare `Creture` with `kind Creture is sprout.Actor { … }`.
 
 refused: 1 problem

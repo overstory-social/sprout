@@ -1,0 +1,19 @@
+world object_in_kind_body is sprout.World {
+  visitors are Creature
+  visitors arrive at composing_room
+
+  object composing_room is sprout.Place {
+    object lantern is Lantern
+  }
+}
+
+kind Creature is sprout.Actor { }
+
+kind Wick { }
+
+// A kind's body may hold objects, which every instance starts with its
+// own copy of. This compiler does not read them there yet, and says so.
+kind Lantern {
+  contains
+  object wick is Wick
+}

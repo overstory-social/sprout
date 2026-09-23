@@ -1,8 +1,8 @@
-world passage_two_sources: sprout.World {
+world passage_two_sources is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-
-object hall: sprout.Place in passage_two_sources
+kind Creature is sprout.Actor { }

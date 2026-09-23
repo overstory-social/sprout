@@ -1,8 +1,8 @@
-world play_value_role: sprout.World {
+world play_value_role is sprout.World {
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
-
-object hall: sprout.Place in play_value_role
+kind Visitor is sprout.Actor { }

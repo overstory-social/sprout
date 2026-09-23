@@ -237,13 +237,13 @@ The code that differs is an issue each; see the items below.
 - What a kind leaves out with `without` stays left out in every kind composing it; a copy of the member reaching the composer through another kind still runs.
 - `visitors arrive at` never names the world, even one that declares `contains actors`.
 - An object hiding one of its name further out is warned about at the inner declaration, naming the outer one's path; objects in sibling containers hide nothing.
-- Composition is written with `is`, `kind Creature is sprout.Actor, Fragile`; the colon form is refused with the `is` form as the remedy.
+- Composition is written with `is`, `kind Creature is sprout.Actor, Fragile`; the colon form is refused with the `is` form as the remedy. Built.
 - Pending wakes per object is a host cap, 1 by default, and a `wake` past it faults as a `spawn` past live instances does.
 - A library's `version` is semver.
-- Objects are declared inside the body of what holds them; the parse tree is the containment tree; `in` and its refusals and the `container` absent row go.
-- An identifier belongs to the body it is written in and is seen from inside it at any depth, nearest wins; a dotted path names anything deeper, and the world's `visitors arrive at`, written in the world's body, names a nested place by one.
-- Kinds stay at a file's top level; an `object` at a file's top level is refused. The world's body is one block in one file, and a file holding only kinds and enums needs no world. (That a kind's body may hold objects was decided later the same day, above.)
-- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one body.
+- Objects are declared inside the body of what holds them; the parse tree is the containment tree; `in` and its refusals and the `container` absent row go. Built.
+- An identifier belongs to the body it is written in and is seen from inside it at any depth, nearest wins; a dotted path names anything deeper, and the world's `visitors arrive at`, written in the world's body, names a nested place by one. Built for the tree and `visitors arrive at`; bodies resolve identifiers with B32.
+- Kinds stay at a file's top level; an `object` at a file's top level is refused. The world's body is one block in one file, and a file holding only kinds and enums needs no world. (That a kind's body may hold objects was decided later the same day, above.) Built, a kind's objects refused as not read yet.
+- Refused: an object inside something whose kind does not hold things; the world's name as a step of a path, or as an object's name; two objects of one name in one body. Built.
 - What `objects`, `places` and `kinds` count, under Static caps.
 - A `spawn` of `sprout.World`, or of a kind that composes it, is refused; so is `destroy self` in the world's own body.
 - A destroyed object has no effects: messages queued to it, messages it sent that have not been delivered, engine messages naming it as their `from`, and its pending wakes are all dropped. (What it held was decided later the same day, above: destroyed with it.)
@@ -251,7 +251,7 @@ The code that differs is an issue each; see the items below.
 - The absent table has a row for a kind named in a `spawn`: the `spawn` faults when it runs.
 - The host's live-instance bound counts every instance it stores, dormant ones included.
 
-Composing with `is`, range's path rule and declaring an object in the body of what holds it differ from what is built or being built, and the code catches up.
+Range's path rule differs from what is built or being built, and the code catches up.
 
 **Recorded since the sweep, awaiting Eric.** Found while building containment (B13), each decided the narrow way:
 
@@ -517,12 +517,27 @@ Found while building `act` (B26), each decided the narrow way and awaiting Eric:
 
 Found while refusing actors where actors cannot stand, each decided the narrow way and awaiting Eric:
 
-- **Where the refusals are said.** An actor that is not an NPC at its name; an NPC inside something that holds no actors at the last step of its `in`, as for something that holds nothing; one directly in a world that holds no actors at the world's name, pointed to the first place in the tree, as the arrival refusal is. An object told it is not an NPC is not also told where it stands.
+- **Where the refusals are said.** At the object's name, all three: an actor that is not an NPC; an NPC written in the body of something that holds no actors, as for something that holds nothing; and one written directly in the body of a world that holds no actors, pointed to the first place in the tree, as the arrival refusal is. An object told it is not an NPC is not also told where it stands.
 - **What is absent decides nothing.** With no visitor kind (refused or absent), an actor is not told it is not an NPC, and is still refused where it cannot stand; one in a container whose kind is absent, or directly in a world whose kind is absent, is told nothing.
 - **In either mode.** Both refusals are refusals at load too, as the refusal of an object in something that holds nothing is.
 - **A spawn the compiler can see is wrong.** A spawn of an NPC kind into something whose kind the compiler knows holds no actors is not refused at compile; the spec lists it only as a fault, and it faults when it runs (`holds-no-actors`), checked after a container that holds nothing.
 - **An exit to something that does not hold actors.** Not built: exits are not read yet, so B28 refuses it beside the exit on something that is not a place.
 - **`here`.** The actor's container, which holds actors; an actor found in one that does not is an engine error, which nothing but a stored state can make (Open 75). A move of an actor is between two places, so the notices are spoken for every one.
+
+Found while nesting objects and composing with `is`, each decided the narrow way and awaiting Eric:
+
+- **The spec's leftovers of `in`.** Identifiers and scope still read an object's `in` from inside the world and stated the hiding rule twice, and What absent means kept a row for a container in an object's `in`; both went with this change, since Objects already says a declaration never names its container.
+- **An `object` at a file's top level.** Read whole, so what its body gets wrong is said too and nothing in it is taken for the next declaration, and refused by the parser at `object` and its name, with the remedy to move it into the world's braces or its container's. The file is then one that does not compile: at load it reads as absent, as any such file does. The same holds in a library's files, so the second-tier refusal of an object in a library goes; a world in a library is still refused, and what its body holds is not read.
+- **An object in a kind's body.** Parsed as a member, and refused in the first tier at its name as something this compiler does not read in a kind's body yet, with the remedy to write it in each object made of the kind for now (Open 68 has the rest).
+- **An object that still names its container.** `object cushion is Bench in hall.bench` is read, refused at `in` with the remedy to take the `in` out and write the object inside the braces of what it named, and kept; a path after the `in` that is itself malformed is refused as well.
+- **The colon written for `is`.** The kinds after it are read and kept, and the colon is refused at itself with the whole line written with `is` as the remedy; where what follows it is not a kind, that is said too, and the remedy writes `<Kind>`.
+- **A path's dot at the end of a line.** A dot followed by a word on a later line ends the path, refused as a dot left over, since in a body the next line is the next member: `visitors arrive at kiln.` does not take the `visitors` below it as a step.
+- **A stray `}` in a nested object's body.** It closes the object, and what follows is read by the body around it, where it is kept; only a top-level body names members written after its `}`, since after an object's `}` the members of the body around it follow as a matter of course.
+- **Which world's body holds the objects.** The first `world` the world's own files declare, whatever its name; a second is refused (or a gap at load) and what it holds is not read.
+- **The arrival refusal beside a refused file.** Said at publish even where another of the world's own files was refused, since the world's body is one block in one file and the refused file cannot be where the place is; two corpus worlds that arrived at a place they never declared now declare it.
+- **Orders.** The tree places shallowest first and in the order written within a depth, which is the order its `placed` map keeps and the arrival remedy's "first place" reads; the bundle's objects are listed in the order written, each before what it holds.
+- **Nesting depth.** Each object body is one level of the parser's own depth bound, as a block's braces are, so a nest past it is refused once as too deep; the tree itself is placed by a loop.
+- **What `sprout check` counts.** Its summary counts every object in the world's body among the world's declarations, so a world says the same number it did when objects stood at the top level.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

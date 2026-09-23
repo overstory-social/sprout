@@ -1,8 +1,9 @@
 // A path to an object: `composing_room`, `kiln.shelf` (the spec's Verbs ›
-// Places inside places, Names › Identifiers and scope). An object's `in`
-// and a world's `visitors arrive at` are read through it, and an exit's
-// destination will be. What is recorded is what was written; which
-// object it reaches is `declare/tree.ts`'s to say.
+// Places inside places, Names › Identifiers and scope). A world's
+// `visitors arrive at` and what a `move`, a `spawn` or an `act` names are
+// read through it, and an exit's destination will be. What is recorded
+// is what was written; which object it reaches is `declare/tree.ts`'s to
+// say.
 //
 // A path is written without spaces around its dots, the way `sprout.Ward`
 // is, so a dot standing apart from its names is refused rather than
@@ -31,10 +32,12 @@ export function objectPath(p: Parser, head: Token): ObjectPath | null {
     const dot = p.next();
     const next = p.peek();
 
-    // A word that starts the next declaration is not a step of this
-    // path: `in kiln.` and then `object shelf: …` is a dot left over,
-    // and the object after it is the file's.
-    if (next.kind === 'name' && !p.atDeclarationStart()) {
+    // A word that starts the next declaration, or stands on a later
+    // line, is not a step of this path: `visitors arrive at kiln.` and
+    // then `visitors are Creature` on the next line is a dot left over,
+    // and the line after it is the body's next member.
+    const laterLine = p.source.text.slice(dot.at.end, next.at.start).includes('\n');
+    if (next.kind === 'name' && !laterLine && !p.atDeclarationStart()) {
       p.next();
       if (dot.at.start !== last.at.end || next.at.start !== dot.at.end) {
         p.diagnostics.refuse(

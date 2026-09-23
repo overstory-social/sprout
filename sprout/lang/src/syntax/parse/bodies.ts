@@ -1,10 +1,11 @@
-// What a world, a kind and an object share: the kinds written after the
-// colon, a body of members in braces, and the members any of them may
+// What a world, a kind and an object share: the kinds written after
+// `is`, a body of members in braces, and the members any of them may
 // write (the spec's Kinds, composition and libraries › Declaring and
 // composing, Suppressing a contribution; The world model). Each owner
 // reads its body through one table of the words its members begin with,
 // and the message for a word it does not read is built from that same
-// table, so the two cannot drift.
+// table, so the two cannot drift. `object` is one of those words, since
+// an object is written in the body of what holds it.
 
 import {
   GUARD_NAMES,
@@ -14,6 +15,7 @@ import {
   type KindExpr,
   type KindMember,
   type MemberRef,
+  type ObjectDeclaration,
   type PlayDeclaration,
   type PropertyDeclaration,
   type RemembersDeclaration,
@@ -39,11 +41,18 @@ const ARTICLE: Readonly<Record<Owner, string>> = {
   object: 'An object',
 };
 
-/** How each owner is written, with `kinds` after its colon, for a remedy to show. */
-const WRITTEN: Readonly<Record<Owner, (kinds: string) => string>> = {
-  world: (kinds) => `world <name>: ${kinds} { … }`,
-  kind: (kinds) => `kind <Name>: ${kinds} { … }`,
-  object: (kinds) => `object <name>: ${kinds} in <container> { … }`,
+/** How each owner is written, `name` and then `kinds` after `is`, for a remedy to show. */
+const WRITTEN: Readonly<Record<Owner, (name: string, kinds: string) => string>> = {
+  world: (name, kinds) => `world ${name} is ${kinds} { … }`,
+  kind: (name, kinds) => `kind ${name} is ${kinds} { … }`,
+  object: (name, kinds) => `object ${name} is ${kinds} { … }`,
+};
+
+/** Each owner's name as a remedy shows it where the name is not the point. */
+const PLACEHOLDER: Readonly<Record<Owner, string>> = {
+  world: '<name>',
+  kind: '<Name>',
+  object: '<name>',
 };
 
 /** What may be written inside a body, by the word each member begins with. */
@@ -59,38 +68,83 @@ export interface Body<M> {
 }
 
 /**
- * `: sprout.World, victorian.Voice` — the kinds a declaration composes, as
- * written, or none where no colon follows its name. Null having said why
- * where one could not be read; the caller steps over the rest.
+ * `is sprout.World, victorian.Voice` — the kinds the declaration `name`
+ * composes, as written, or none where no `is` follows its name. A colon
+ * in its place is read and refused, with `is` as the remedy (the spec's
+ * Declaring and composing). Null having said why where a kind could not
+ * be read; the caller steps over the rest.
  */
-export function composition(p: Parser, owner: Owner): KindExpr[] | null {
+export function composition(p: Parser, owner: Owner, name: Token): KindExpr[] | null {
   const composes: KindExpr[] = [];
-  if (p.take('punct', ':') === null) return composes;
+  const colon = p.take('punct', ':');
+  if (colon === null && p.take('name', 'is') === null) return composes;
+  let read = true;
   for (;;) {
     const composed = kindName(p);
-    if (composed === null) return null;
+    if (composed === null) {
+      read = false;
+      break;
+    }
     composes.push(composed);
     if (p.take('punct', ',') !== null) continue;
     // Every other comma-separated list says so when the comma is
     // missing; letting what follows complain instead would name the
     // wrong problem.
-    if (!atKindName(p)) return composes;
+    if (!atKindName(p)) break;
     p.diagnostics.refuse(
       p.here(),
       `${ARTICLE[owner]} needs a comma between the kinds it composes.`,
-      `Write \`${WRITTEN[owner]('one.Kind, Another')}\`.`,
+      `Write \`${WRITTEN[owner](PLACEHOLDER[owner], 'one.Kind, Another')}\`.`,
     );
   }
+  if (colon !== null) {
+    const kinds = read && composes.length > 0 ? composes.map(writtenKind).join(', ') : '<Kind>';
+    p.diagnostics.refuse(
+      colon.at,
+      `${ARTICLE[owner]} composes its kinds with \`is\`, not a colon.`,
+      `Write \`${WRITTEN[owner](name.text, kinds)}\`.`,
+    );
+  }
+  return read ? composes : null;
 }
 
-/** What a kind's body or an object's may hold, past its properties. `owner` is its name. */
-export function kindMembers(p: Parser, owner: string): MemberReaders<KindMember> {
-  const readers = new Map<string, () => KindMember | null>([['contains', () => contains(p)]]);
+/** A composed kind as the author wrote it, for a remedy that repeats it. */
+export function writtenKind(kind: KindExpr): string {
+  return kind.library === null ? kind.name.text : `${kind.library.text}.${kind.name.text}`;
+}
+
+/** What reads an object written in a body, `object bench is Bench { … }`. */
+export type ObjectReader = () => ObjectDeclaration | null;
+
+/**
+ * What a kind's body or an object's may hold, past its properties, the
+ * objects written in it among them. `owner` is its name.
+ */
+export function kindMembers(
+  p: Parser,
+  owner: string,
+  object: ObjectReader,
+): MemberReaders<KindMember | ObjectDeclaration> {
+  const readers = new Map<string, () => KindMember | ObjectDeclaration | null>([
+    ['contains', () => contains(p)],
+  ]);
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, readers));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);
+  readers.set('object', object);
   return readers;
+}
+
+/** A body's members apart from the objects written in it, which the AST holds on their own. */
+export function apart<M extends Node>(
+  read: readonly (M | ObjectDeclaration)[],
+  isMember: (member: M | ObjectDeclaration) => member is M,
+): { members: M[]; objects: ObjectDeclaration[] } {
+  return {
+    members: read.filter(isMember),
+    objects: read.filter((member): member is ObjectDeclaration => !isMember(member)),
+  };
 }
 
 /**
@@ -124,13 +178,15 @@ export function addPlays<M>(
  * The members of a body whose `{` is already taken, up to its `}`. A
  * member that could not be read costs that member and the body reads on,
  * since an author owed three problems is owed all three; null where the
- * body is never closed, having said so.
+ * body is never closed, having said so. A `nested` body is an object's
+ * inside another body, whose own members may follow its `}`.
  */
 export function body<M extends Node>(
   p: Parser,
   owner: Owner,
   name: Token,
   readers: MemberReaders<M>,
+  nested = false,
 ): Body<M> | null {
   const members: Member<M>[] = [];
   const unclosed = (): null => {
@@ -152,7 +208,7 @@ export function body<M extends Node>(
   for (;;) {
     const close = p.take('punct', '}');
     if (close !== null) {
-      membersAfterClose(p, name, readers);
+      if (!nested) membersAfterClose(p, name, readers);
       return { members, close };
     }
     if (p.done) return unclosed();
@@ -161,8 +217,9 @@ export function body<M extends Node>(
     // reads as one. `kind K { enum Ward { oak } }` is a kind that was
     // never closed, and the enum is the file's; saying "a kind is not
     // made of `enum`" as well leaves its braces orphaned and the enum
-    // reparsed as a sibling of the kind that held it.
-    if (p.atDeclarationStart()) return unclosed();
+    // reparsed as a sibling of the kind that held it. `object` is the
+    // one such word a body reads as a member of its own.
+    if (p.atDeclarationStart() && memberReader(p, p.peek(), readers) === null) return unclosed();
 
     // Whether a word IS a member and whether reading it SUCCEEDED are
     // two questions, and answering them in one expression is how a
@@ -385,7 +442,9 @@ function membersFollow<M>(p: Parser, readers: MemberReaders<M>, ahead: number): 
   let depth = 0;
   for (;;) {
     const token = p.peek(ahead);
-    if (token.kind === 'end' || p.atRecoveryStop(ahead)) return false;
+    if (token.kind === 'end') return false;
+    const member = depth === 0 && memberReader(p, token, readers) !== null;
+    if (!member && p.atRecoveryStop(ahead)) return false;
     if (punct(token, '[')) {
       depth += 1;
       ahead += 1;
@@ -397,7 +456,7 @@ function membersFollow<M>(p: Parser, readers: MemberReaders<M>, ahead: number): 
       continue;
     }
     if (punct(token, '{') || punct(token, '}')) return false;
-    if (memberReader(p, token, readers) !== null) return true;
+    if (member) return true;
     ahead += 1;
   }
 }
@@ -421,9 +480,10 @@ function recoverToMember<M>(p: Parser, readers: MemberReaders<M>): boolean {
       braces -= 1;
     } else if (braces === 0) {
       // As in `recoverInBraces`: below the body's own depth a keyword
-      // is no more trustworthy than anything else.
-      if (p.atRecoveryStop()) return false;
+      // is no more trustworthy than anything else. `object` is a member
+      // of the body before it is a declaration.
       if (memberReader(p, token, readers) !== null) return true;
+      if (p.atRecoveryStop()) return false;
       stepPast(p);
       continue;
     }

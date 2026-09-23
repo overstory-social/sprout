@@ -1,7 +1,7 @@
 kinds.sprout:8:15  `:worn` holds integer 0 to 9 in `Wooden`, and whatever composes it keeps that type.
                    Restate only its default, as in `:worn 0`; a property holding something else takes a name of its own.
 
-kinds.sprout:12:3  `:seen` is remembered about each actor in `Wooden`, and whatever composes it keeps that.
+world.sprout:7:7   `:seen` is remembered about each actor in `Wooden`, and whatever composes it keeps that.
                    Restate it as it is declared there: `:remembers [seen: true]`.
 
 refused: 2 problems

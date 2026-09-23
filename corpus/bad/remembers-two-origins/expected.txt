@@ -1,4 +1,4 @@
-kinds.sprout:11:23  `bell` gets `:seen` from both `Watched` and `Greeted`, which are two claims on one slot.
-                    If they are meant to be one property, restate it in `bell`: `:remembers [seen: false]`.
+world.sprout:6:29  `bell` gets `:seen` from both `Watched` and `Greeted`, which are two claims on one slot.
+                   If they are meant to be one property, restate it in `bell`: `:remembers [seen: false]`.
 
 refused: 1 problem

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, ObjectDeclaration } from '../syntax/ast.js';
+import type { KindDeclaration, ObjectDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
@@ -81,12 +81,19 @@ describe('a lookup answers by full identity, and unqualified from a namespace fi
 });
 
 describe('what one kind or object declaration is refused for on its own', () => {
-  /** What the shape tier says about the one kind or object in some text, nothing resolved. */
+  /**
+   * What the shape tier says about the one kind in some text, or the one
+   * object, which is written in a world's body from line 2, nothing resolved.
+   */
   function shape(text: string) {
     const parsed = new Diagnostics();
-    const declared = parseDeclarations(new SourceFile('k.sprout', text), parsed).find(
-      (d): d is KindDeclaration | ObjectDeclaration => d.kind === 'kind' || d.kind === 'object',
+    const object = text.startsWith('object');
+    const source = object ? `world w is sprout.World {\n${text}\n}` : text;
+    const top = parseDeclarations(new SourceFile('k.sprout', source), parsed).find(
+      (d): d is KindDeclaration | WorldDeclaration => d.kind === 'kind' || d.kind === 'world',
     );
+    const declared: KindDeclaration | ObjectDeclaration | undefined =
+      top?.kind === 'world' ? top.objects[0] : top;
     expect(parsed.refusals, `\`${text}\` did not parse`).toEqual([]);
     const said = new Diagnostics();
     checkKindDeclaration(declared!, said);
@@ -94,47 +101,59 @@ describe('what one kind or object declaration is refused for on its own', () => 
   }
 
   it('refuses `sprout.World` on a kind, at the kind as written', () => {
-    expect(shape('kind Crate: Heavy, sprout.World { }')).toEqual([
+    expect(shape('kind Crate is Heavy, sprout.World { }')).toEqual([
       [
-        'k.sprout:1:20',
+        'k.sprout:1:22',
         '`Crate` composes `sprout.World`, which only a world may.',
-        'Take it out of what `Crate` composes: it would make a thing into a world, and a bundle has one world, written `world <name>: sprout.World { … }`.',
+        'Take it out of what `Crate` composes: it would make a thing into a world, and a bundle has one world, written `world <name> is sprout.World { … }`.',
       ],
     ]);
   });
 
   it('refuses it on an object too, whatever else it composes', () => {
-    const said = shape('object bench: sprout.World, Bench in hall');
+    const said = shape('object bench is sprout.World, Bench');
     expect(said.map(([at, message]) => [at, message])).toEqual([
-      ['k.sprout:1:15', '`bench` composes `sprout.World`, which only a world may.'],
+      ['k.sprout:2:17', '`bench` composes `sprout.World`, which only a world may.'],
     ]);
   });
 
   it('refuses each time it is written, since each is a word to take out', () => {
-    expect(shape('kind Crate: sprout.World, sprout.World { }')).toHaveLength(2);
+    expect(shape('kind Crate is sprout.World, sprout.World { }')).toHaveLength(2);
   });
 
   it('refuses only the written `sprout.World`: another library’s `World`, or a bare one, is some other kind', () => {
     // Which kind a bare `World` names is the second tier's to resolve.
-    expect(shape('kind Crate: World { }')).toEqual([]);
-    expect(shape('kind Crate: victorian.World { }')).toEqual([]);
+    expect(shape('kind Crate is World { }')).toEqual([]);
+    expect(shape('kind Crate is victorian.World { }')).toEqual([]);
   });
 
   it('refuses an object that names no kind, at its name', () => {
-    // The spec's Objects: "An object names its kinds and its container."
-    expect(shape('object bench in hall { :worn 0 }')).toEqual([
+    // The spec's Objects: "An object names its kinds after `is`".
+    expect(shape('object bench { :worn 0 }')).toEqual([
       [
-        'k.sprout:1:8',
+        'k.sprout:2:8',
         '`bench` does not say what kind of thing it is.',
-        'An object names the kinds it is made of: `object bench: <Kind> in hall { … }`.',
+        'An object names the kinds it is made of after `is`: `object bench is <Kind> { … }`.',
       ],
     ]);
   });
 
+  it('refuses each object a kind’s body holds, at its name, as not read here yet', () => {
+    expect(
+      shape('kind Lantern {\n  contains\n  object wick is Wick\n  object flame is Flame\n}'),
+    ).toEqual(
+      ['wick', 'flame'].map((name, i) => [
+        `k.sprout:${3 + i}:10`,
+        `\`${name}\` is written in the body of the kind \`Lantern\`, and this compiler does not read objects in a kind's body yet.`,
+        `For now, write \`object ${name} …\` inside the braces of each object made of \`Lantern\`.`,
+      ]),
+    );
+  });
+
   it('takes a kind that composes nothing, which the spec allows', () => {
     expect(shape('kind Crate { contains }')).toEqual([]);
-    expect(shape('kind Crate: sprout.Container { }')).toEqual([]);
-    expect(shape('object bench: Bench in hall')).toEqual([]);
+    expect(shape('kind Crate is sprout.Container { }')).toEqual([]);
+    expect(shape('object bench is Bench')).toEqual([]);
   });
 });
 
@@ -164,7 +183,7 @@ describe('the kind table composes every kind the bundle declares', () => {
   }
 
   it('composes a kind after what it composes, whatever order they were declared in', () => {
-    const { kinds, said } = table({ shop: 'kind C: B { }\nkind B: A { }\nkind A { }' });
+    const { kinds, said } = table({ shop: 'kind C is B { }\nkind B is A { }\nkind A { }' });
     expect(said).toEqual([]);
     expect(kinds.qualified('shop', 'C')!.order).toEqual(['shop.A', 'shop.B', 'shop.C']);
     expect(kinds.all().map(kindName)).toEqual(['shop.C', 'shop.B', 'shop.A']);
@@ -173,7 +192,7 @@ describe('the kind table composes every kind the bundle declares', () => {
   it('composes across libraries, reading a bare name from its own library first', () => {
     const { kinds } = table({
       sprout: 'kind Container { contains }\nkind Actor { }',
-      shop: 'kind Container { }\nkind Crate: Container, Actor { }',
+      shop: 'kind Container { }\nkind Crate is Container, Actor { }',
     });
     expect(kinds.qualified('shop', 'Crate')!.order).toEqual([
       'shop.Container',
@@ -188,7 +207,7 @@ describe('the kind table composes every kind the bundle declares', () => {
   it('leaves an unqualified name null when the asker’s own of that name failed to compose, never falling through to the library’s', () => {
     const { kinds } = table({
       sprout: 'kind Container { contains }',
-      shop: 'kind Container: Missing { }',
+      shop: 'kind Container is Missing { }',
     });
     expect(kinds.qualified('shop', 'Container')).toBeNull();
     expect(kinds.unqualified('Container', 'shop')).toBeNull();
@@ -205,24 +224,24 @@ describe('the kind table composes every kind the bundle declares', () => {
   });
 
   it('refuses a loop once, at the kind as written that closes it', () => {
-    const { said, kinds } = table({ shop: 'kind A: B { }\nkind B: A { }' });
-    expect(said).toEqual([['shop.sprout:2:9', '`A` composes itself, through `B`.']]);
+    const { said, kinds } = table({ shop: 'kind A is B { }\nkind B is A { }' });
+    expect(said).toEqual([['shop.sprout:2:11', '`A` composes itself, through `B`.']]);
     expect(kinds.qualified('shop', 'A')).toBeNull();
     expect(kinds.qualified('shop', 'B')).toBeNull();
   });
 
   it('names every kind a longer loop runs through, and a kind composing itself outright', () => {
-    expect(table({ shop: 'kind A: B { }\nkind B: C { }\nkind C: A { }' }).said).toEqual([
-      ['shop.sprout:3:9', '`A` composes itself, through `B` and `C`.'],
+    expect(table({ shop: 'kind A is B { }\nkind B is C { }\nkind C is A { }' }).said).toEqual([
+      ['shop.sprout:3:11', '`A` composes itself, through `B` and `C`.'],
     ]);
-    expect(table({ shop: 'kind A: A { }' }).said).toEqual([
-      ['shop.sprout:1:9', '`A` composes itself.'],
+    expect(table({ shop: 'kind A is A { }' }).said).toEqual([
+      ['shop.sprout:1:11', '`A` composes itself.'],
     ]);
   });
 
   it('says nothing more of a kind composing one in a loop: not unknown, not again', () => {
     const { said, missing, kinds } = table({
-      shop: 'kind A: B { }\nkind B: A { }\nkind C: A { }\nkind D: C { }',
+      shop: 'kind A is B { }\nkind B is A { }\nkind C is A { }\nkind D is C { }',
     });
     expect(said).toHaveLength(1);
     expect(missing).toEqual([]);
@@ -231,7 +250,7 @@ describe('the kind table composes every kind the bundle declares', () => {
 
   it('tells of a kind nothing declares, and fails what composes it without telling again', () => {
     const { said, missing, kinds } = table({
-      shop: 'kind Crate: Missing { }\nkind Tea_chest: Crate { }',
+      shop: 'kind Crate is Missing { }\nkind Tea_chest is Crate { }',
     });
     expect(said).toEqual([]);
     expect(missing).toEqual(['Missing']);
@@ -241,7 +260,7 @@ describe('the kind table composes every kind the bundle declares', () => {
   });
 
   it('knows what is declared, composed or not, which is how a bare name is read', () => {
-    const { kinds } = table({ shop: 'kind Crate: Missing { }' });
+    const { kinds } = table({ shop: 'kind Crate is Missing { }' });
     expect(kinds.declares('shop.Crate')).toBe(true);
     expect(kinds.declares('shop.Missing')).toBe(false);
   });

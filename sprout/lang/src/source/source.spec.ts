@@ -12,7 +12,7 @@ import {
 
 const KILN = new SourceFile(
   'kiln.sprout',
-  ['object kiln: sprout.Fixture in yard {', '  :door open', '}', ''].join('\n'),
+  ['object kiln is sprout.Fixture in yard {', '  :door open', '}', ''].join('\n'),
 );
 
 describe('SourceFile counts lines and columns the way a person does', () => {
@@ -54,7 +54,7 @@ describe('SourceFile counts lines and columns the way a person does', () => {
   });
 
   it('gives back a line without its newline, and nothing out of range', () => {
-    expect(KILN.lineText(1)).toBe('object kiln: sprout.Fixture in yard {');
+    expect(KILN.lineText(1)).toBe('object kiln is sprout.Fixture in yard {');
     expect(KILN.lineText(2)).toBe('  :door open');
     expect(KILN.lineText(0)).toBe('');
     expect(KILN.lineText(99)).toBe('');
@@ -99,7 +99,7 @@ describe('spanning joins the tokens a node was built from', () => {
   it('covers the first through the last', () => {
     const object = KILN.span(0, 6);
     const brace = KILN.span(KILN.text.indexOf('{'), KILN.text.indexOf('{') + 1);
-    expect(textOf(spanning(object, brace))).toBe('object kiln: sprout.Fixture in yard {');
+    expect(textOf(spanning(object, brace))).toBe('object kiln is sprout.Fixture in yard {');
   });
 
   it('does not care which order it is given them in', () => {

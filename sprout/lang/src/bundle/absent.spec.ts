@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ABSENT_TABLE, absenceRule, type ReferenceKind } from './absent.js';
 
-describe('the absent table is the spec’s, whole, with the one row proposed beside it', () => {
+describe('the absent table is the spec’s, whole', () => {
   const references: ReferenceKind[] = [
     'kind-in-composition',
-    'container',
     'kind-in-role',
     'verb',
     'message',
@@ -18,7 +17,7 @@ describe('the absent table is the spec’s, whole, with the one row proposed bes
     'extension',
   ];
 
-  it('has a row for every reference the spec names, in its order, and `container`', () => {
+  it('has a row for every reference the spec names, in its order', () => {
     expect(ABSENT_TABLE.map((row) => row.reference)).toEqual(references);
   });
 
@@ -75,7 +74,6 @@ describe('somebody is told through the passage the spec names, where it names on
   it('names no passage for the rest, because there is nobody there to tell', () => {
     for (const reference of [
       'kind-in-composition',
-      'container',
       'kind-in-role',
       'verb',
       'message',
@@ -94,14 +92,11 @@ describe('somebody is told through the passage the spec names, where it names on
   });
 });
 
-describe('an object whose container is not there', () => {
-  it('is absent as one whose kind is not there, and what it holds waits for its container', () => {
-    const container = absenceRule('container').consequence;
-    expect(container).toContain('the object is absent');
-    expect(container).toContain('until its container returns');
-    expect(container.replace('its container', 'the kind')).toBe(
-      absenceRule('kind-in-composition').consequence,
-    );
+describe('an object whose kind is not there', () => {
+  it('is absent, and what it holds waits for the kind', () => {
+    const rule = absenceRule('kind-in-composition').consequence;
+    expect(rule).toContain('the object is absent');
+    expect(rule).toContain('what it holds is unreachable until the kind returns');
   });
 });
 

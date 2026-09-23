@@ -5,23 +5,23 @@
 // enums, then messages, which may carry an option; the names of the
 // verbs, which a kind's plays name; kinds, whose properties may hold an
 // option; verbs, whose roles may name a kind; then the world's objects,
-// made of kinds, and the tree they are placed in (`declare/tree.ts`).
+// made of kinds, and the tree the world's body nests them in
+// (`declare/tree.ts`).
 //
-// Four references here may name nothing, and each is a row of the
+// Three references here may name nothing, and each is a row of the
 // absent table: refused at publish, a gap at load. A kind in a
-// composition (`kind-in-composition`) leaves its object absent; a step
-// of an object's `in` (`container`) leaves the object absent, and what it
-// holds with it; a kind in a role (`kind-in-role`) leaves the role with
-// nothing to fill it; a verb a play names (`verb`) leaves the play out.
+// composition (`kind-in-composition`) leaves its object absent, and what
+// it holds unreachable; a kind in a role (`kind-in-role`) leaves the role
+// with nothing to fill it; a verb a play names (`verb`) leaves the play
+// out.
 
-import {
-  writtenPath,
-  type Declaration,
-  type EnumDeclaration,
-  type KindDeclaration,
-  type MessageDeclaration,
-  type ObjectDeclaration,
-  type VerbDeclaration,
+import type {
+  Declaration,
+  EnumDeclaration,
+  KindDeclaration,
+  MessageDeclaration,
+  VerbDeclaration,
+  WorldDeclaration,
 } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable, SPROUT } from '../declare/enums.js';
@@ -29,6 +29,7 @@ import { MessageTable } from '../declare/messages.js';
 import { KindTable } from '../declare/kinds.js';
 import { VerbTable } from '../declare/verbs.js';
 import {
+  objectsIn,
   placedObjects,
   resolveObjects,
   type ComposedObject,
@@ -36,7 +37,7 @@ import {
 } from '../declare/objects.js';
 import type { OnUnknown } from '../declare/compose.js';
 import { VerbNames, type OnUnknownVerb } from '../declare/roles.js';
-import { placeObjects, type ObjectTree, type OnUnknownContainer } from '../declare/tree.js';
+import { placeObjects, type ObjectTree } from '../declare/tree.js';
 import { absenceRule, type Absent, type ReferenceKind } from './absent.js';
 
 /** What the tables need from a compile: somewhere to say things, and the mode's answer to a gap. */
@@ -70,9 +71,10 @@ export interface WorldNames {
 }
 
 /**
- * Build every table over what parsed, by library. Only the world's own
- * files declare objects; one in a library is refused where the libraries
- * are read.
+ * Build every table over what parsed, by library. The objects are the
+ * ones written in the body of the first world the world's own files
+ * declare; a second world is refused where the world is read, and a
+ * world in a library where the libraries are.
  */
 export function resolveDeclarations(
   byLibrary: ReadonlyMap<string, readonly Declaration[]>,
@@ -144,32 +146,15 @@ export function resolveDeclarations(
     diagnostics,
   });
 
+  const declared = (byLibrary.get(world.namespace) ?? []).find(
+    (d): d is WorldDeclaration => d.kind === 'world',
+  );
   const composed = resolveObjects(
     world.namespace,
-    (byLibrary.get(world.namespace) ?? []).filter(
-      (d): d is ObjectDeclaration => d.kind === 'object',
-    ),
+    declared === undefined ? [] : objectsIn(declared),
     { enums, kinds, diagnostics, onUnknown, ...plays },
   );
-
-  const container = absenceRule('container').consequence;
-  const onUnknownContainer: OnUnknownContainer = (path, step, message, remedy) =>
-    report.gap(
-      {
-        what: writtenPath(path),
-        kind: 'container',
-        reason: 'missing',
-        at: step.at,
-        consequence: container,
-      },
-      message,
-      remedy,
-    );
-  const tree = placeObjects(composed, {
-    world: world.name,
-    diagnostics,
-    onUnknown: onUnknownContainer,
-  });
+  const tree = placeObjects(composed, { world: world.name, diagnostics });
 
   return {
     enums,

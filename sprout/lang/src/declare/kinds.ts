@@ -6,12 +6,7 @@
 // library and its name. What composing one means is `compose.ts`'s; the
 // table only walks the kinds in the order composing them needs.
 
-import {
-  writtenPath,
-  type KindDeclaration,
-  type MemberRef,
-  type ObjectDeclaration,
-} from '../syntax/ast.js';
+import type { KindDeclaration, MemberRef, ObjectDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedProperty } from './properties.js';
 import type { ResolvedPassage } from './passages.js';
@@ -25,9 +20,10 @@ import { refuseComposingWorld, writesWorld } from './sprout-world.js';
 /**
  * Refuse what one kind or object declaration gets wrong on its own: an
  * object that names no kind (the spec's Objects: "An object names its
- * kinds and its container"), and `sprout.World` written anywhere but on
- * the world, since it would make a thing into a world (The compiler ›
- * What it refuses). Which kinds the names resolve to is the second tier's.
+ * kinds after `is`"), `sprout.World` written anywhere but on the world,
+ * since it would make a thing into a world (The compiler › What it
+ * refuses), and an object in a kind's body, which this compiler does not
+ * read yet. Which kinds the names resolve to is the second tier's.
  */
 export function checkKindDeclaration(
   declared: KindDeclaration | ObjectDeclaration,
@@ -38,11 +34,19 @@ export function checkKindDeclaration(
     diagnostics.refuse(
       declared.name.at,
       `\`${name}\` does not say what kind of thing it is.`,
-      `An object names the kinds it is made of: \`object ${name}: <Kind> in ${writtenPath(declared.container)} { … }\`.`,
+      `An object names the kinds it is made of after \`is\`: \`object ${name} is <Kind> { … }\`.`,
     );
   }
   for (const written of declared.composes.filter(writesWorld)) {
     refuseComposingWorld(name, written, diagnostics);
+  }
+  if (declared.kind !== 'kind') return;
+  for (const object of declared.objects) {
+    diagnostics.refuse(
+      object.name.at,
+      `\`${object.name.text}\` is written in the body of the kind \`${name}\`, and this compiler does not read objects in a kind's body yet.`,
+      `For now, write \`object ${object.name.text} …\` inside the braces of each object made of \`${name}\`.`,
+    );
   }
 }
 
@@ -52,8 +56,8 @@ export interface KindRef {
   /**
    * Every kind this one composes, itself included, by qualified name, in
    * the order their composable members run: depth-first, left to right,
-   * each kind at its first appearance and itself last, so `D: B, C` with
-   * `B: A` and `C: A` is `A, B, C, D` (the spec's How members combine,
+   * each kind at its first appearance and itself last, so `D is B, C` with
+   * `B is A` and `C is A` is `A, B, C, D` (the spec's How members combine,
    * rules 2 and 3).
    */
   readonly order: readonly string[];

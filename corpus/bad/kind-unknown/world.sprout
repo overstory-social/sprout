@@ -1,6 +1,10 @@
-world kind_unknown: sprout.World {
+world kind_unknown is sprout.World {
   visitors are Creature
   visitors arrive at composing_room
+
+  object composing_room is Room {
+    object press is Wooden, Heavy
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

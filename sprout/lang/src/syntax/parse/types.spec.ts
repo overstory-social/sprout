@@ -130,7 +130,7 @@ describe('invariants over generated input, brackets included', () => {
   // that vanishes quietly. So the count is checked against the input
   // that produced it, over words an option may be and words it may not.
   it('reports one missing comma for every gap, whatever words the gaps are between', () => {
-    // Not `object` beside `in`: `object oak in` is where an object
+    // Not `object` beside `is` or `in`: `object oak is` is where an object
     // declaration starts, so a body written that way is an enum never
     // closed and not a missing comma.
     const WORDS = [
@@ -345,13 +345,19 @@ describe('a list is bounded by what the host allows', () => {
 
 describe('a type is not taken from the next declaration', () => {
   it('says the type is missing where `object` starts an object, though it names a type too', () => {
+    // The object after it is read as the file's, and refused there, since
+    // an object is written inside what holds it.
     const { declarations, refusals } = read(
-      'message :m with\nobject bench: Bench in hall\nmessage :n with object\n',
+      'message :m with\nobject bench is Bench\nmessage :n with object\n',
     );
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['ward.sprout:2:1', '`object` starts a declaration, so the type before it is missing.'],
+      [
+        'ward.sprout:2:1',
+        '`bench` is written outside the world, and an object is written inside what holds it.',
+      ],
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['bench', 'n']);
+    expect(declarations.map((d) => d.name.text)).toEqual(['n']);
   });
 
   it('says the same where it is an enum that follows', () => {
@@ -369,7 +375,7 @@ describe('a value abandoned to recovery does not step into the next declaration'
     // of it; that step must stop at `kind`, the next declaration's own
     // word, or `Omega` vanishes with nothing said about it.
     const { declarations, refusals } = read(
-      'world w: sprout.World {\n  :x true max -\nkind Omega { }\n',
+      'world w is sprout.World {\n  :x true max -\nkind Omega { }\n',
     );
     expect(refusals.map((d) => d.message)).toContain('A max is a whole number.');
     expect(refusals.map((d) => d.message)).toContain('`w` is never closed.');
@@ -379,7 +385,7 @@ describe('a value abandoned to recovery does not step into the next declaration'
 
 describe('an unclosed list stops at what follows it, not the file', () => {
   it('refuses it once at the member written after it, and keeps that member', () => {
-    const { declarations, refusals } = read('world w: sprout.World {\n  :a [oak\n  :b 1\n}\n');
+    const { declarations, refusals } = read('world w is sprout.World {\n  :a [oak\n  :b 1\n}\n');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['ward.sprout:3:3', 'This list is never closed.'],
     ]);
@@ -390,7 +396,7 @@ describe('an unclosed list stops at what follows it, not the file', () => {
   });
 
   it('refuses it once at the body’s own `}` when nothing else follows', () => {
-    const { declarations, refusals } = read('world w: sprout.World {\n  :a [oak\n}\n');
+    const { declarations, refusals } = read('world w is sprout.World {\n  :a [oak\n}\n');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['ward.sprout:3:1', 'This list is never closed.'],
     ]);
@@ -399,7 +405,7 @@ describe('an unclosed list stops at what follows it, not the file', () => {
   });
 
   it('says so once, however deep it is nested, when a member follows', () => {
-    const { declarations, refusals } = read('world w: sprout.World {\n  :a [[oak\n  :b 1\n}\n');
+    const { declarations, refusals } = read('world w is sprout.World {\n  :a [[oak\n  :b 1\n}\n');
     expect(refusals.map((d) => d.message)).toEqual(['This list is never closed.']);
     const world = declarations.find((d) => d.kind === 'world');
     expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([

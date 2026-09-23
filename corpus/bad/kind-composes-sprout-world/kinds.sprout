@@ -1,3 +1,3 @@
-kind Room: sprout.World {
+kind Room is sprout.World {
   contains actors
 }

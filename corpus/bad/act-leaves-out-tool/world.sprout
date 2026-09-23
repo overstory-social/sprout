@@ -1,13 +1,13 @@
-world act_leaves_out_tool: sprout.World {
+world act_leaves_out_tool is sprout.World {
   contains actors
   visitors are Visitor
   visitors arrive at hall
+
+  object hall is sprout.Place
 }
 
-kind Visitor: sprout.Actor { }
+kind Visitor is sprout.Actor { }
 
 verb pet    { role target  "pet [target]" }
 verb shove  { role target  role pole  "shove [target] with [pole]" }
 verb poke   { role target  role tool }
-
-object hall: sprout.Place in act_leaves_out_tool

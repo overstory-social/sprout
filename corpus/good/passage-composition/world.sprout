@@ -2,27 +2,25 @@
 // world writes its own `nothing_happens`, which replaces `sprout.World`'s
 // stock line, and composes `Terse` beside it, whose `unknown` is not a
 // default and so replaces that one too.
-world passage_composition: sprout.World, Terse {
+world passage_composition is sprout.World, Terse {
   visitors are Creature
   visitors arrive at hall
 
   passage nothing_happens { You try it. The shop does not notice. }
+
+  // `Hushed` is a register composed beside `sprout.Place`: its `arrives`
+  // is not a default, so it is the one the hall speaks, and `leaves` is
+  // still the library's.
+  object hall is sprout.Place, Hushed {
+    // `Mirror`'s `greeting` is its own; this mirror writes its own over it.
+    object mirror is Mirror {
+      passage greeting { The glass is clouded, and shows nothing at all. }
+    }
+
+    object glass is Mirror
+    object seal is Bold
+    object type_case is Both
+  }
 }
 
-kind Creature: sprout.Actor { }
-
-// `Hushed` is a register composed beside `sprout.Place`: its `arrives`
-// is not a default, so it is the one the hall speaks, and `leaves` is
-// still the library's.
-object hall: sprout.Place, Hushed in passage_composition
-
-// `Mirror`'s `greeting` is its own; this mirror writes its own over it.
-object mirror: Mirror in hall {
-  passage greeting { The glass is clouded, and shows nothing at all. }
-}
-
-object glass: Mirror in hall
-
-object seal: Bold in hall
-
-object type_case: Both in hall
+kind Creature is sprout.Actor { }

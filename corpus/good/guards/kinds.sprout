@@ -1,4 +1,4 @@
-kind Creature: sprout.Actor {
+kind Creature is sprout.Actor {
   :strength 5 min 0 max 9
 }
 
@@ -36,7 +36,7 @@ kind Fragile {
 
 // A vase is fragile, but not so fragile that it cannot be carried:
 // it keeps what `Fragile` declares and leaves out its `depart`.
-kind Vase: Fragile {
+kind Vase is Fragile {
   :glazed true
   without depart from Fragile
 }

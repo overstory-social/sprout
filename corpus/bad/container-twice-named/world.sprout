@@ -1,6 +1,19 @@
-world container_twice_named: sprout.World {
+world container_twice_named is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is Room {
+    // Two things of one name may not share a container.
+    object chest is Chest {
+      object key is Thing
+      object key is Thing
+    }
+
+    // A key in another chest beside it is fine: neither hides the other.
+    object box is Chest {
+      object key is Thing
+    }
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

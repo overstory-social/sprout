@@ -2,12 +2,13 @@
 // body's own closing brace.
 enum Ward { oak, silver }
 
-world list_unclosed_before_member: sprout.World {
+world list_unclosed_before_member is sprout.World {
   visitors are Creature
   visitors arrive at hall
   :ward [oak
   :greeting "hello"
+
+  object hall is sprout.Place
 }
 
-kind Creature: sprout.Actor { }
-object hall: sprout.Place in list_unclosed_before_member
+kind Creature is sprout.Actor { }

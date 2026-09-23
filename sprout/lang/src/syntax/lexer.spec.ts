@@ -37,11 +37,7 @@ describe('the token surface the language is written in', () => {
   });
 
   it('reads a colon that starts no symbol as punctuation', () => {
-    expect(shapes('kind Creature: sprout.Actor').slice(0, 3)).toEqual([
-      'name:kind',
-      'kind:Creature',
-      'punct::',
-    ]);
+    expect(shapes('act nuzzle (target: p)').slice(3, 5)).toEqual(['name:target', 'punct::']);
   });
 
   it('reads an integer unsigned, leaving the sign to the parser', () => {
@@ -140,7 +136,7 @@ describe('the token surface the language is written in', () => {
 describe('every token knows where it was written', () => {
   const source = new SourceFile(
     'composing_room.sprout',
-    ['object paper_store: sprout.Place {', '  :open  false', '  :ward  iron', '}', ''].join('\n'),
+    ['object paper_store is sprout.Place {', '  :open  false', '  :ward  iron', '}', ''].join('\n'),
   );
 
   it('covers exactly its own text, for every token in a file', () => {
@@ -249,7 +245,7 @@ describe('the lexer is pulled, and peeking reads what pulling would', () => {
 describe('the spec worked example reads as tokens', () => {
   // The spec's A worked microworld › world.sprout, as written there.
   const WORLD = [
-    'world printers_shop: sprout.World {',
+    'world printers_shop is sprout.World {',
     '  contains',
     '  visitors are Creature',
     '  visitors arrive at composing_room',
@@ -279,7 +275,7 @@ describe('the spec worked example reads as tokens', () => {
     expect(tokens.slice(0, 7).map((t) => `${t.kind}:${t.text}`)).toEqual([
       'name:world',
       'name:printers_shop',
-      'punct::',
+      'name:is',
       'name:sprout',
       'punct:.',
       'kind:World',

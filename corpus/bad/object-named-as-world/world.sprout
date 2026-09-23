@@ -1,6 +1,11 @@
-world object_named_as_world: sprout.World {
+world object_named_as_world is sprout.World {
   visitors are Creature
   visitors arrive at hall
+
+  object hall is Room {
+    // No object may take the world's name.
+    object object_named_as_world is Chest
+  }
 }
 
-kind Creature: sprout.Actor { }
+kind Creature is sprout.Actor { }

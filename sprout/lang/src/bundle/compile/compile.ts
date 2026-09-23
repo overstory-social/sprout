@@ -32,7 +32,7 @@
 // of, where visitors arrive, which actors may be declared where, and the
 // bodies every kind writes.
 
-import type { KindDeclaration, ObjectDeclaration } from '../../syntax/ast.js';
+import type { KindDeclaration } from '../../syntax/ast.js';
 import type { CompileMode } from '../absent.js';
 import { bundleHashOf, LANGUAGE_LEVEL } from '../bundle.js';
 import type { Bundle, MicroworldSource } from '../bundle.js';
@@ -120,9 +120,7 @@ export function compileBundle(
       ? { world: null, visitor: null }
       : worldKinds(theWorld, tables, manifest.namespace, ownFileRefused, report);
   const arrival =
-    theWorld === null
-      ? null
-      : arrivalPlace(theWorld, tables, manifest.namespace, ownFileRefused, report);
+    theWorld === null ? null : arrivalPlace(theWorld, tables, manifest.namespace, report);
   checkActors({
     tree: tables.tree,
     objects: tables.composed,
@@ -149,7 +147,7 @@ export function compileBundle(
       kinds: [own, ...charged.map((library) => byLibrary.get(library.name) ?? [])].flatMap(
         (declared) => declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
       ),
-      objects: own.filter((d): d is ObjectDeclaration => d.kind === 'object'),
+      objects: tables.composed.map((object) => object.declaration),
       composed: tables.composed,
     },
     limits.caps,

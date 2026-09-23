@@ -4,7 +4,7 @@ kind Fixture {
   passage immovable default { It will not move. }
 }
 
-kind Anvil: Fixture {
+kind Anvil is Fixture {
   without passage immovable from Fixture
   :weight 90
 }
