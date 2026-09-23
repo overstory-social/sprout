@@ -204,7 +204,7 @@ Swept on 2026-09-22. Eric answered every hole Phases 0 and 1 had recorded, in co
 - **Whether writing either of them twice is worth saying anything.** *How members combine* calls both idempotent under composition; one body writing the same line twice is treated the same and nothing is said. A warning for a redundant one is B50's to add.
 - **Whether a world may declare `contains actors`, and so be a place itself.** Nothing forbids the line, so it is accepted and the world is a place if it says it is.
 - **A block comment never closed, or inside another.** Decided 2026-09-22 and now under Lexical rules: refused at its opening; no nesting.
-- **Whether a library's `version` is semver.** The manifest's `libraries` row says only "by version", and a vendored library declares one beside its source. Not decided; #75 checks the world's `version` alone.
+- **Whether a library's `version` is semver.** Decided 2026-09-23: it is, and the manifest's pin and the vendored source's own version are checked as the world's is, now that a library can travel.
 - **How a list of lists keeps its no-duplicates rule.** Decided 2026-09-22 and now under Lists: same elements in the same order, inside `add`, `remove` and `includes` only, never as an `==`.
 - **A bundle with no `world` declaration, or two.** Decided 2026-09-22 and now under The manifest and the absent table: refused at publish; at load the world admits no one.
 - Not a hole: a world is not refused for holding nothing, since `sprout.World` declares `contains` and every world composes it (explicitly, as of the sweep); a world composes like a kind, so it holds whatever anything it composes holds.
