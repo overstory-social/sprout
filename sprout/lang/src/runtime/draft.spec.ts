@@ -189,6 +189,26 @@ describe('writing, placing, adding and removing', () => {
     expect(() => draft.remove(SHELF)).toThrow(/not an instance/);
   });
 
+  it('counts what the world stores, dormant included, up for an add and down for a remove', () => {
+    const base = loadWorld(
+      saveWorld(initialState(catalogue)),
+      catalogueOf(shopWithheld(), CAPS),
+    ).state;
+    expect(base.dormant.size).toBeGreaterThan(0);
+    const draft = new Draft(base);
+    const stored = base.instances.size + base.dormant.size;
+    expect(draft.held).toBe(stored);
+    const spawned = spawnJar(draft, HALL);
+    expect(draft.held).toBe(stored + 1);
+    draft.remove(spawned.id);
+    draft.remove(JAR_ID);
+    expect(draft.held).toBe(stored - 1);
+    draft.place(CUP_ID, HALL);
+    expect(draft.held).toBe(stored - 1);
+    const { state } = draft.commit();
+    expect(state.instances.size + state.dormant.size).toBe(stored - 1);
+  });
+
   it('keeps what it removed readable, as it was, for the rest of the turn', () => {
     const draft = new Draft(initialState(catalogue));
     draft.write(filled(draft.instance(JAR_ID)!, 8));

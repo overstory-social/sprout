@@ -1,0 +1,199 @@
+// Making and unmaking instances while a world runs (the spec's The world
+// model › Spawning, Destroying; Limits › Runtime budgets). A spawn makes
+// an instance of a declared kind at its defaults, under a minted id, last
+// in a container in range; a destroy removes an instance and lets what it
+// held fall to its container, without consent.
+//
+// Two invariants. Nothing is written until every check has passed, so a
+// fault leaves the draft as it was. And what the engine tells the world
+// about either is returned as `EngineSend`s rather than queued here, so
+// B32's queue holds the one rule for what is dropped when an object is
+// destroyed (the spec's Destroying: messages to or from it are dropped).
+
+import type { Budget } from './budget.js';
+import type { Catalogue } from './catalogue.js';
+import type { Draft } from './draft.js';
+import type { InstanceId } from './ids.js';
+import { isLive, liveTree } from './live.js';
+import { reaches, type PassRule } from './range.js';
+import { newInstance } from './state.js';
+
+/** Why a spawn or a destroy could not be made. */
+export type LifecycleFaultReason =
+  | 'instances'
+  | 'out-of-range'
+  | 'holds-nothing'
+  | 'kind-absent'
+  | 'world'
+  | 'visitor'
+  | 'visitor-standing';
+
+/**
+ * A spawn or a destroy the world cannot make. Thrown, as `ListFull` is,
+ * because the turn cannot do what it was asked and is about to be rolled
+ * back; B34 turns it into the world's `fault` passage.
+ */
+export class LifecycleFault extends Error {
+  constructor(
+    readonly reason: LifecycleFaultReason,
+    /** The instance the fault is about: the container of a spawn, the object of a destroy. */
+    readonly object: InstanceId,
+    detail: string,
+  ) {
+    super(detail);
+    this.name = 'LifecycleFault';
+  }
+}
+
+/**
+ * A message the engine sends for itself, for B32 to queue in the order
+ * given. Its sender is the engine, never the object its `from` names.
+ */
+export type EngineSend =
+  | {
+      readonly message: 'entered';
+      readonly to: InstanceId;
+      readonly item: InstanceId;
+      readonly from: InstanceId;
+    }
+  | { readonly message: 'spawned'; readonly to: InstanceId; readonly from: InstanceId };
+
+/** What a spawn reads and writes. */
+export interface LifecycleContext {
+  readonly draft: Draft;
+  readonly catalogue: Catalogue;
+  readonly passes: PassRule<InstanceId>;
+  readonly budget: Budget;
+  /**
+   * The most instances the host will store for this world this turn (the
+   * world, declared, spawned, visitors and dormant alike), recorded with
+   * the turn; null where it sets no bound.
+   */
+  readonly mayHold: number | null;
+}
+
+export interface Spawned {
+  readonly id: InstanceId;
+  /** `:entered` to the container, then `:spawned` to the new instance. */
+  readonly sends: readonly EngineSend[];
+}
+
+export interface Destroyed {
+  readonly id: InstanceId;
+  /** Where what it held fell. */
+  readonly container: InstanceId;
+  /** What fell, in the order it was held. */
+  readonly fell: readonly InstanceId[];
+  /**
+   * One `:entered` per thing that fell, each from `id`. The caller drops
+   * every queued message to or from `id`, every engine send naming `id`
+   * as `from` (these included, since a destroyed object has no effects),
+   * and `id`'s pending wakes; then queues what is left of these.
+   */
+  readonly sends: readonly EngineSend[];
+}
+
+/**
+ * Spawn an instance of `kind`, by qualified name, into `container` at the
+ * kind's defaults; `spawner` is the object whose body ran the `spawn`.
+ * Faults, writing nothing, when the kind is absent, the container is out
+ * of range or holds nothing, or the turn's cap or the host's bound is reached.
+ */
+export function spawnInstance(
+  context: LifecycleContext,
+  spawner: InstanceId,
+  kind: string,
+  container: InstanceId,
+): Spawned {
+  const { draft, catalogue, passes, budget, mayHold } = context;
+  const made = catalogue.kinds.get(kind);
+  const shown = `\`${shownKind(kind)}\``;
+  if (made === undefined) {
+    throw new LifecycleFault(
+      'kind-absent',
+      container,
+      `${shown} is absent, so it could not be spawned.`,
+    );
+  }
+  const inRange =
+    reaches({ tree: liveTree(draft), passes, budget }, spawner, container, 'any') &&
+    isLive(draft, container);
+  if (!inRange) {
+    throw new LifecycleFault(
+      'out-of-range',
+      container,
+      `\`${container}\` is out of range of \`${spawner}\`, so nothing could be spawned in it.`,
+    );
+  }
+  if (container !== draft.world && draft.instance(container)?.kind.contains !== true) {
+    throw new LifecycleFault(
+      'holds-nothing',
+      container,
+      `\`${container}\` holds nothing, so ${shown} could not be spawned in it.`,
+    );
+  }
+  budget.spawn();
+  if (mayHold !== null && draft.held + 1 > mayHold) {
+    throw new LifecycleFault(
+      'instances',
+      container,
+      `the host will hold no more instances in this world, so ${shown} could not be spawned.`,
+    );
+  }
+  const id = draft.mint();
+  draft.add(
+    newInstance(id, { from: 'spawned', kind }, made, container, draft.nextSerial(), catalogue.caps),
+  );
+  return {
+    id,
+    sends: [
+      { message: 'entered', to: container, item: id, from: spawner },
+      { message: 'spawned', to: id, from: spawner },
+    ],
+  };
+}
+
+/**
+ * Destroy `id`, as `destroy self` does when the body that ran it ends:
+ * what it held falls, in order, last into its container, and its record
+ * stays readable through `draft.destroyed` for the rest of the turn.
+ * Faults, writing nothing, for the world, a visitor, and a place with a
+ * visitor standing in it.
+ */
+export function destroyInstance(draft: Draft, id: InstanceId): Destroyed {
+  if (id === draft.world) {
+    throw new LifecycleFault('world', id, 'the world cannot be destroyed.');
+  }
+  const instance = draft.instance(id);
+  if (instance === undefined) throw new Error(`\`${id}\` is not an instance in this world.`);
+  if (instance.made.from === 'visitor') {
+    throw new LifecycleFault(
+      'visitor',
+      id,
+      `\`${id}\` is a visitor, and a person is never destroyed.`,
+    );
+  }
+  const held = [...draft.children(id)];
+  if (held.some((child) => draft.instance(child)?.made.from === 'visitor')) {
+    throw new LifecycleFault(
+      'visitor-standing',
+      id,
+      `\`${id}\` is a place with a visitor standing in it, and destroying it would move them without a word.`,
+    );
+  }
+  // Only the world has no container, and only an away visitor is out of the tree.
+  const container = instance.container!;
+  for (const child of held) draft.place(child, container);
+  draft.remove(id);
+  return {
+    id,
+    container,
+    fell: held,
+    sends: held.map((item) => ({ message: 'entered', to: container, item, from: id })),
+  };
+}
+
+/** A kind as a fault names it: its own name, as an author most often writes it. */
+function shownKind(qualified: string): string {
+  return qualified.slice(qualified.lastIndexOf('.') + 1);
+}
