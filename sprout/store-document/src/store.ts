@@ -2,30 +2,34 @@ import { z } from 'zod';
 
 import {
   ActionRecord,
-  ActorRecord,
-  MemoryRecord,
   MicroworldRecord,
   MissRecord,
-  ObjectRecord,
-  type ActorExport,
+  StoredInstanceSchema,
+  StoredVisitorSchema,
+  applyChanges,
+  applyForgetting,
+  codeUnitOrder,
+  forgetting,
+  visitorIn,
   type ReadTx,
   type SproutStore,
+  type StoredState,
   type StoreTx,
+  type VisitorExport,
 } from '@overstory/sprout/core';
 
 import type { DocumentBackend, DocumentReader, DocumentWriter } from './backend.js';
 
-// The store port over a document backend. The
-// layout is split along the WRITE-RATE seam, not the read seam: the
-// objects of a microworld are one document written only when a turn
-// changes something, holding the rows as an opaque serialized string (a
-// map of two thousand small objects would blow a document database's
-// index-entry ceiling); each actor is a small document of its own,
-// written every poll; the archive is one; memory is one per actor; and
+// The store port over a document backend. The layout is split along the
+// WRITE-RATE seam, not the read seam: a world's instances and tombstones
+// are one document written only when a turn changes something, held as
+// an opaque serialized string (a map of two thousand small records would
+// blow a document database's index-entry ceiling); each visitor is a
+// small document of its own, found by its visit; the archive is one; and
 // actions and misses are COLLECTIONS, one document per record, never a
-// dated document appended to. Serialization is `transact` on the objects
+// dated document appended to. Serialization is `transact` on the state
 // key; atomicity is the backend's single commit; re-entrancy is core's
-// re-run rule, which is why every number a turn mints (a spawn, a
+// re-run rule, which is why every number a turn issues (the serial, a
 // record's sequence) is read from the `counters` document inside the
 // transaction.
 //
@@ -41,12 +45,10 @@ const pad = (n: number): string => String(n).padStart(12, '0');
 export const keys = {
   microworld: (w: string) => `microworld/${enc(w)}/`,
   archive: (w: string) => `microworld/${enc(w)}/archive`,
-  objects: (w: string) => `microworld/${enc(w)}/objects`,
+  state: (w: string) => `microworld/${enc(w)}/state`,
   counters: (w: string) => `microworld/${enc(w)}/counters`,
-  actors: (w: string) => `microworld/${enc(w)}/actors/`,
-  actor: (w: string, a: string) => `microworld/${enc(w)}/actors/${enc(a)}`,
-  memories: (w: string) => `microworld/${enc(w)}/memory/`,
-  memory: (w: string, a: string) => `microworld/${enc(w)}/memory/${enc(a)}`,
+  visitors: (w: string) => `microworld/${enc(w)}/visitors/`,
+  visitor: (w: string, visit: string) => `microworld/${enc(w)}/visitors/${enc(visit)}`,
   actions: (w: string) => `microworld/${enc(w)}/actions/`,
   action: (w: string, n: number) => `microworld/${enc(w)}/actions/${pad(n)}`,
   misses: (w: string) => `microworld/${enc(w)}/misses/`,
@@ -68,20 +70,25 @@ export function parseKey(
 
 // --- documents ↔ records --------------------------------------------------
 //
-// JSON carries no dates: the four date fields travel as ISO strings and
-// come back through the record's own schema, so what an adapter reads is
-// validated: a document adapter validates what it reads back.
+// JSON carries no dates: the date fields travel as ISO strings and come
+// back through the record's own schema, so what an adapter reads is
+// validated.
 
 const Counters = z.object({
-  spawn: z.number().int().nonnegative(),
+  serial: z.number().int().nonnegative(),
   actions: z.number().int().nonnegative(),
   misses: z.number().int().nonnegative(),
 });
 type Counters = z.infer<typeof Counters>;
-const NO_COUNTERS: Counters = { spawn: 0, actions: 0, misses: 0 };
+const NO_COUNTERS: Counters = { serial: 0, actions: 0, misses: 0 };
 
-/** The objects document: the rows as ONE opaque string, never a map the backend would index. */
-const ObjectsDoc = z.object({ blob: z.string() });
+/** The state document: instances and tombstones as ONE opaque string, never a map the backend would index. */
+const StateDoc = z.object({ blob: z.string() });
+const StateBlob = z.object({
+  instances: z.array(StoredInstanceSchema),
+  tombstones: z.array(z.string()),
+});
+type StateBlob = z.infer<typeof StateBlob>;
 
 const dated = <T extends z.ZodObject>(schema: T, field: string) =>
   z.preprocess((doc) => {
@@ -96,7 +103,6 @@ const dated = <T extends z.ZodObject>(schema: T, field: string) =>
   }, schema);
 
 const MicroworldDoc = dated(MicroworldRecord, 'loadedAt');
-const ActorDoc = dated(ActorRecord, 'lastSeen');
 const ActionDoc = dated(ActionRecord, 'at');
 const MissDoc = dated(MissRecord, 'at');
 
@@ -106,11 +112,14 @@ function parseOr<T>(schema: z.ZodType<T>, doc: unknown, key: string): T {
   return r.data;
 }
 
-const objectsOf = (doc: unknown, key: string): ObjectRecord[] => {
-  if (doc === null) return [];
-  const { blob } = parseOr(ObjectsDoc, doc, key);
-  return parseOr(z.array(ObjectRecord), JSON.parse(blob), key);
+const blobOf = (doc: unknown, key: string): StateBlob => {
+  if (doc === null) return { instances: [], tombstones: [] };
+  const { blob } = parseOr(StateDoc, doc, key);
+  return parseOr(StateBlob, JSON.parse(blob), key);
 };
+
+const countersOf = (doc: unknown, key: string): Counters =>
+  doc === null ? { ...NO_COUNTERS } : parseOr(Counters, doc, key);
 
 /** A reader that answers each key and each prefix once: the snapshot a read turn sees. */
 function memoised(under: DocumentReader): DocumentReader {
@@ -136,40 +145,47 @@ function memoised(under: DocumentReader): DocumentReader {
   };
 }
 
-/** The reads, over any reader — a snapshot for a read turn, the staging for a write turn. */
-function reads(w: string, r: DocumentReader): Omit<ReadTx, 'touchActor'> {
-  const each = async <T>(prefix: string, schema: z.ZodType<T>): Promise<T[]> => {
-    const ks = await r.list(prefix);
-    const docs = await Promise.all(ks.map((k) => r.get(k)));
-    return docs.flatMap((d, i) => (d === null ? [] : [parseOr(schema, d, ks[i]!)]));
+/** Every document under `prefix`, each checked by `schema`. */
+async function each<T>(r: DocumentReader, prefix: string, schema: z.ZodType<T>): Promise<T[]> {
+  const ks = await r.list(prefix);
+  const docs = await Promise.all(ks.map((k) => r.get(k)));
+  return docs.flatMap((d, i) => (d === null ? [] : [parseOr(schema, d, ks[i]!)]));
+}
+
+/** A world's whole stored state over `r`, each list in code-unit order. */
+async function stateOf(w: string, r: DocumentReader): Promise<StoredState> {
+  const { instances, tombstones } = blobOf(await r.get(keys.state(w)), keys.state(w));
+  const { serial } = countersOf(await r.get(keys.counters(w)), keys.counters(w));
+  const visitors = await each(r, keys.visitors(w), StoredVisitorSchema);
+  return {
+    serial,
+    instances: instances.sort((a, b) => codeUnitOrder(a.id, b.id)),
+    visitors: visitors.sort((a, b) => codeUnitOrder(a.visit, b.visit)),
+    tombstones: tombstones.sort(codeUnitOrder),
   };
+}
+
+/** The state document holding `state`'s instances and tombstones. */
+function stateDoc(state: StoredState): { blob: string } {
+  const blob: StateBlob = { instances: state.instances, tombstones: state.tombstones };
+  return { blob: JSON.stringify(blob) };
+}
+
+/** The reads, over any reader — a snapshot for a read turn, the staging for a write turn. */
+function reads(w: string, r: DocumentReader): ReadTx {
   return {
     microworld: async () => {
       const doc = await r.get(keys.archive(w));
       return doc === null ? null : parseOr(MicroworldDoc, doc, keys.archive(w));
     },
-    objects: async () => objectsOf(await r.get(keys.objects(w)), keys.objects(w)),
-    actor: async (id) => {
-      const doc = await r.get(keys.actor(w, id));
-      return doc === null ? null : parseOr(ActorDoc, doc, keys.actor(w, id));
-    },
-    actorsIn: async (room, since) =>
-      (await each(keys.actors(w), ActorDoc)).filter(
-        (a) => a.roomId === room && a.lastSeen.getTime() >= since.getTime(),
-      ),
-    memory: async (actorId) => {
-      const doc = await r.get(keys.memory(w, actorId));
-      return doc === null
-        ? { microworldId: w, actorId, byObject: {} }
-        : parseOr(MemoryRecord, doc, keys.memory(w, actorId));
-    },
+    state: () => stateOf(w, r),
     // Newest first is the collection's order reversed: the sequence in the key.
     actions: async ({ since, limit, faultedOnly }) =>
-      (await each(keys.actions(w), ActionDoc))
+      (await each(r, keys.actions(w), ActionDoc))
         .filter((a) => (!since || a.at.getTime() >= since.getTime()) && (!faultedOnly || a.faulted))
         .slice(-limit)
         .reverse(),
-    misses: async ({ limit }) => (await each(keys.misses(w), MissDoc)).slice(-limit).reverse(),
+    misses: async ({ limit }) => (await each(r, keys.misses(w), MissDoc)).slice(-limit).reverse(),
   };
 }
 
@@ -177,14 +193,10 @@ function reads(w: string, r: DocumentReader): Omit<ReadTx, 'touchActor'> {
 function writes(w: string, tx: DocumentWriter): StoreTx {
   let counters: Promise<Counters> | null = null;
   const count = async (): Promise<Counters> => {
-    counters ??= tx
-      .get(keys.counters(w))
-      .then((doc) =>
-        doc === null ? { ...NO_COUNTERS } : parseOr(Counters, doc, keys.counters(w)),
-      );
+    counters ??= tx.get(keys.counters(w)).then((doc) => countersOf(doc, keys.counters(w)));
     return counters;
   };
-  const bump = async (field: keyof Counters): Promise<number> => {
+  const bump = async (field: 'actions' | 'misses'): Promise<number> => {
     const c = await count();
     c[field] += 1;
     await tx.put(keys.counters(w), c);
@@ -192,26 +204,15 @@ function writes(w: string, tx: DocumentWriter): StoreTx {
   };
   return {
     ...reads(w, tx),
-    touchActor: async (id, lastSeen, drained) => {
-      const doc = await tx.get(keys.actor(w, id));
-      if (doc === null) return;
-      const a = parseOr(ActorDoc, doc, keys.actor(w, id));
-      await tx.put(keys.actor(w, id), { ...a, lastSeen, pending: drained ? [] : a.pending });
-    },
     putMicroworld: async (m) => tx.put(keys.archive(w), m),
-    nextSpawn: () => bump('spawn'),
-    putObjects: async ({ upsert, remove }) => {
-      const rows = new Map(
-        objectsOf(await tx.get(keys.objects(w)), keys.objects(w)).map((o) => [o.id, o]),
-      );
-      for (const id of remove) rows.delete(id);
-      for (const o of upsert) rows.set(o.id, o);
-      await tx.put(keys.objects(w), { blob: JSON.stringify([...rows.values()]) });
+    // The state document and the counters, and only the visitor documents the turn wrote.
+    putState: async (changes) => {
+      const c = await count();
+      await tx.put(keys.state(w), stateDoc(applyChanges(await stateOf(w, tx), changes)));
+      for (const v of changes.visitors) await tx.put(keys.visitor(w, v.visit), v);
+      c.serial = changes.serial;
+      await tx.put(keys.counters(w), c);
     },
-    clearObjects: async () => tx.put(keys.objects(w), { blob: '[]' }),
-    putActor: async (a) => tx.put(keys.actor(w, a.id), a),
-    putMemory: async (m) => tx.put(keys.memory(w, m.actorId), m),
-    clearMemory: async (actorId) => tx.delete(keys.memory(w, actorId)),
     appendAction: async (a) => tx.put(keys.action(w, await bump('actions')), a),
     appendMiss: async (m) => tx.put(keys.miss(w, await bump('misses')), m),
   };
@@ -224,45 +225,27 @@ async function microworldIds(backend: DocumentReader): Promise<string[]> {
     const parsed = parseKey(k);
     if (parsed) ids.add(parsed.microworldId);
   }
-  return [...ids].sort();
+  return [...ids].sort(codeUnitOrder);
 }
 
-/** An actor's documents across every microworld: `[key, microworldId, collection]`. */
-async function actorKeys(
-  backend: DocumentReader,
-  actorId: string,
-): Promise<{ key: string; microworldId: string; collection: string }[]> {
-  const out: { key: string; microworldId: string; collection: string }[] = [];
+/** Every microworld holding a visitor document for `visit`, in code-unit order. */
+async function worldsHolding(backend: DocumentReader, visit: string): Promise<string[]> {
+  const out = new Set<string>();
   for (const key of await backend.list('microworld/')) {
     const p = parseKey(key);
-    if (p && p.member === actorId && (p.collection === 'actors' || p.collection === 'memory')) {
-      out.push({ key, microworldId: p.microworldId, collection: p.collection });
-    }
+    if (p && p.collection === 'visitors' && p.member === visit) out.add(p.microworldId);
   }
-  return out;
+  return [...out].sort(codeUnitOrder);
 }
 
 /** The store port over a document backend. */
 export function documentStore(backend: DocumentBackend): SproutStore {
   return {
-    transaction: (w, fn) => backend.transact([keys.objects(w)], (tx) => fn(writes(w, tx))),
-    read: async (w, fn) => {
-      const snapshot = memoised(backend);
-      return fn({
-        ...reads(w, snapshot),
-        // The one write a read may make: the actor's own row, atomically, waiting on no turn.
-        touchActor: (id, lastSeen, drained) =>
-          backend.transact([keys.actor(w, id)], async (tx) => {
-            const doc = await tx.get(keys.actor(w, id));
-            if (doc === null) return;
-            const a = parseOr(ActorDoc, doc, keys.actor(w, id));
-            await tx.put(keys.actor(w, id), { ...a, lastSeen, pending: drained ? [] : a.pending });
-          }),
-      });
-    },
+    transaction: (w, fn) => backend.transact([keys.state(w)], (tx) => fn(writes(w, tx))),
+    read: async (w, fn) => fn(reads(w, memoised(backend))),
     async trim(before, keepMisses) {
       for (const w of await microworldIds(backend)) {
-        await backend.transact([keys.objects(w)], async (tx) => {
+        await backend.transact([keys.state(w)], async (tx) => {
           for (const k of await tx.list(keys.actions(w))) {
             const doc = await tx.get(k);
             if (doc !== null && parseOr(ActionDoc, doc, k).at.getTime() < before.getTime()) {
@@ -277,38 +260,30 @@ export function documentStore(backend: DocumentBackend): SproutStore {
       }
     },
     destroyMicroworld: (w) =>
-      backend.transact([keys.objects(w)], async (tx) => {
+      backend.transact([keys.state(w)], async (tx) => {
         for (const k of await tx.list(keys.microworld(w))) await tx.delete(k);
       }),
-    // Both hold the actor's keys for the duration: a
-    // heartbeat locks the actor's own key, so a forget that did not would
-    // race it and the row could come back; an export that did not could
-    // read one microworld before a write and the next after it.
-    async forgetActor(actorId) {
-      const found = await actorKeys(backend, actorId);
-      if (found.length === 0) return;
-      await backend.transact(
-        found.map((f) => f.key),
-        async (tx) => {
-          for (const { key } of found) await tx.delete(key);
-        },
-      );
+    // Each world under its state key, as a write turn holds it, so a turn
+    // that read the visitor's memory cannot write it back afterwards.
+    async forgetVisitor(visit) {
+      for (const w of await worldsHolding(backend, visit)) {
+        await backend.transact([keys.state(w)], async (tx) => {
+          const state = await stateOf(w, tx);
+          const change = forgetting(state, visit);
+          if (change === null) return;
+          await tx.put(keys.state(w), stateDoc(applyForgetting(state, change)));
+          await tx.delete(keys.visitor(w, visit));
+        });
+      }
     },
-    async exportActor(actorId) {
-      const out: ActorExport = { actorId, actors: [], memory: [] };
-      const found = await actorKeys(backend, actorId);
-      if (found.length === 0) return out;
-      await backend.transact(
-        found.map((f) => f.key),
-        async (tx) => {
-          for (const { key, collection } of found) {
-            const doc = await tx.get(key);
-            if (doc === null) continue;
-            if (collection === 'actors') out.actors.push(parseOr(ActorDoc, doc, key));
-            else out.memory.push(parseOr(MemoryRecord, doc, key));
-          }
-        },
-      );
+    async exportVisitor(visit) {
+      const out: VisitorExport = { visit, worlds: [] };
+      for (const w of await worldsHolding(backend, visit)) {
+        const found = await backend.transact([keys.state(w)], async (tx) =>
+          visitorIn(w, await stateOf(w, tx), visit),
+        );
+        if (found) out.worlds.push(found);
+      }
       return out;
     },
   };

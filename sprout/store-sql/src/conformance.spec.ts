@@ -17,7 +17,20 @@ import { sqlStore, type Queryable } from './store.js';
 const NEEDS_TWO_BACKENDS = new Set([
   'write turns on one microworld serialize; reads do not wait',
   'a read is a snapshot',
+  'forgetting a visitor waits on the world’s write turns',
 ]);
+
+/** Every table a microworld's rows live in. */
+const TABLES = [
+  'microworld',
+  'serial',
+  'instance',
+  'memory',
+  'visitor',
+  'tombstone',
+  'action',
+  'miss',
+];
 
 let db: PGlite;
 /** A second, EMPTY database — never migrated — for the missing-schema case. */
@@ -35,9 +48,7 @@ afterAll(async () => {
   await empty.close();
 });
 beforeEach(async () => {
-  for (const t of ['microworld', 'spawn_counter', 'object', 'actor', 'memory', 'action', 'miss']) {
-    await db.query(`DELETE FROM sprout.${t}`);
-  }
+  for (const t of TABLES) await db.query(`DELETE FROM sprout.${t}`);
 });
 
 /** PGlite is one connection: a transaction is BEGIN … COMMIT on it. */
@@ -67,7 +78,7 @@ describe('the migrations', () => {
   it('the adapter refuses a schema it was not built for, with expected and found', async () => {
     const wrong = sqlStore({ client: db as unknown as Queryable, schemaVersion: 99 });
     await expect(wrong.read('w', async () => 1)).rejects.toThrow(
-      /schema version 99 expected, 1 found/,
+      /schema version 99 expected, 2 found/,
     );
     const absent = sqlStore({ client: empty as unknown as Queryable });
     await expect(absent.read('w', async () => 1)).rejects.toThrow(/no sprout schema found/);
@@ -96,22 +107,13 @@ describe('sqlStore passes the conformance suite on PGlite', () => {
     await db.query('BEGIN');
     const bound = sqlStore({ client: db as unknown as Queryable });
     await bound.transaction('w', async (tx) => {
-      await tx.putActor({
-        microworldId: 'w',
-        id: 'v',
-        name: 'vera',
-        roomId: 'hall',
-        lastSeen: new Date('2026-09-18T12:00:00Z'),
-        narration: [],
-        lastNoun: null,
-        pending: [],
-      });
+      await tx.putState({ serial: 1, upsert: [], remove: [], tombstones: [], visitors: [] });
     });
     const held = await db.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()`,
     );
     expect(held.rows[0]!.n).toBeGreaterThanOrEqual(1);
     await db.query('ROLLBACK');
-    await store().read('w', async (tx) => expect(await tx.actor('v')).toBeNull());
+    await store().read('w', async (tx) => expect((await tx.state()).serial).toBe(0));
   });
 });
