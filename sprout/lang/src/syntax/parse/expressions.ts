@@ -1,5 +1,6 @@
-// Expressions, and the `let` that names one (the spec's Properties ›
-// Precedence, Naming a value).
+// Expressions (the spec's Properties › Precedence). A statement is not
+// one: `spawn` and `destroy` in an expression are refused here, and a
+// `let` is read in `statements.ts`.
 //
 // Precedence climbing over one table. Every operand of a given level
 // is read at the level above it, and the loop at each level consumes
@@ -10,11 +11,10 @@
 // of operators at one level is read by the loop rather than by
 // recursion.
 
-import type { BinaryOperator, Expr, LetStatement, UnaryOperator } from '../ast.js';
+import type { BinaryOperator, Expr, UnaryOperator } from '../ast.js';
 import type { Token } from '../lexer.js';
-import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
-import type { Parser } from './parser.js';
+import { punct, type Parser } from './parser.js';
 import { separator, skipBracketed } from './recovery.js';
 import { atFraction } from './types.js';
 
@@ -205,6 +205,7 @@ function primary(p: Parser): Expr | null {
     return { kind: 'kind-expr', at: token.at, library: null, name: p.ident(token) };
   }
   if (token.kind === 'name') {
+    if (token.text === 'spawn' || token.text === 'destroy') return statementRead(p);
     if (token.text === 'true' || token.text === 'false') {
       p.next();
       return { kind: 'boolean', at: token.at, value: token.text === 'true' };
@@ -242,6 +243,50 @@ function primary(p: Parser): Expr | null {
     token.at,
     `${p.describe(token)} is not something to read.`,
     'Write a value, a name something in scope answers to, or a reading such as `self.get(:wear)`.',
+  );
+  return null;
+}
+
+/**
+ * `spawn` or `destroy` where a value is wanted, refused once. What the
+ * statement is made of is stepped over with it, so that its kind and its
+ * target are not read as values of their own and refused again. The
+ * shape it steps over is the one `statements.ts` reads (a kind, then
+ * `in` and a path; or `self`), and the two are kept in step: a form the
+ * statement grammar gains is stepped over here too.
+ */
+function statementRead(p: Parser): null {
+  const keyword = p.next();
+  let last = keyword;
+  const step = (): void => {
+    last = p.next();
+  };
+  if (keyword.text === 'destroy') {
+    if (p.at('name', 'self')) step();
+  } else {
+    if (p.at('kind')) step();
+    else if (p.at('name') && punct(p.peek(1), '.') && p.peek(2).kind === 'kind') {
+      step();
+      step();
+      step();
+    }
+    if (p.at('name', 'in') && p.peek(1).kind === 'name') {
+      step();
+      step();
+      while (p.at('punct', '.') && p.peek(1).kind === 'name') {
+        step();
+        step();
+      }
+    }
+  }
+  p.diagnostics.refuse(
+    spanning(keyword.at, last.at),
+    keyword.text === 'spawn'
+      ? '`spawn` makes a new thing, and is not something to read.'
+      : '`destroy self` removes something, and is not something to read.',
+    keyword.text === 'spawn'
+      ? 'Write it on its own, or name what it makes with `let cup = spawn Cup in self` and read `cup`.'
+      : 'Write it on its own line, as `destroy self`.',
   );
   return null;
 }
@@ -295,59 +340,4 @@ function argumentList(p: Parser, open: Token): { arguments: Expr[]; at: Span } |
   } finally {
     p.depth -= 1;
   }
-}
-
-/**
- * `let ribs = tools.count(Rib)`. The name is lower-case like every
- * other binding, and there is no type to write: a `let` takes its
- * type from what it names, exactly.
- */
-export function letStatement(p: Parser): LetStatement | null {
-  const keyword = p.take('name', 'let');
-  if (keyword === null) {
-    p.diagnostics.refuse(
-      p.peek().at,
-      `${p.describe(p.peek())} does not name a value.`,
-      'Write `let <name> = <what it names>`.',
-    );
-    return null;
-  }
-  const name = p.take('name');
-  if (name === null) {
-    p.diagnostics.refuse(
-      p.peek().at,
-      p.peek().kind === 'kind'
-        ? `A name for a value starts with a small letter, and \`${p.peek().text}\` starts with a capital.`
-        : 'A `let` needs a name.',
-      'Write `let <name> = <what it names>`, as in `let ribs = tools.count(Rib)`.',
-    );
-    return null;
-  }
-  if (isReserved(name.text)) {
-    p.diagnostics.refuse(
-      name.at,
-      `\`${name.text}\` is a word of the language, so it cannot name a value.`,
-      'Choose another name for it, as in `let ribs = <what it names>`.',
-    );
-    return null;
-  }
-  if (p.at('punct', ':')) {
-    p.diagnostics.refuse(
-      p.peek().at,
-      'A `let` takes its type from what it names, so there is none to write.',
-      `Write \`let ${name.text} = <what it names>\`.`,
-    );
-    return null;
-  }
-  if (p.take('punct', '=') === null) {
-    p.diagnostics.refuse(
-      p.here(),
-      `\`${name.text}\` is not given anything to name.`,
-      `Write \`let ${name.text} = <what it names>\`.`,
-    );
-    return null;
-  }
-  const value = expression(p);
-  if (value === null) return null;
-  return { kind: 'let', at: spanning(keyword.at, value.at), name: p.ident(name), value };
 }

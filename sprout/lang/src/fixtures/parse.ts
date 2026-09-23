@@ -4,7 +4,12 @@
 
 import type { EnumDeclaration, Expr } from '../syntax/ast.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
-import { parseDeclarations, parseExpression, parseLet, parseProperty } from '../syntax/parse.js';
+import {
+  parseDeclarations,
+  parseExpression,
+  parseProperty,
+  parseStatement,
+} from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 
@@ -68,8 +73,31 @@ export function readWorld(text: string) {
   };
 }
 
-export function readLet(text: string) {
+export function readStatement(text: string) {
   const diagnostics = new Diagnostics();
-  const statement = parseLet(new SourceFile('body.sprout', text), diagnostics);
+  const statement = parseStatement(new SourceFile('body.sprout', text), diagnostics);
   return { statement, diagnostics, refusals: diagnostics.refusals };
 }
+
+/** mulberry32: a fixed stream of choices, so every failure reproduces from the source it prints. */
+export function chooser(seed: number) {
+  let state = seed >>> 0;
+  const below = (n: number): number => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) % n;
+  };
+  const one = <T>(items: readonly T[]): T => items[below(items.length)]!;
+  const shuffled = <T>(items: readonly T[]): T[] => {
+    const out = [...items];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = below(i + 1);
+      [out[i], out[j]] = [out[j]!, out[i]!];
+    }
+    return out;
+  };
+  return { below, one, shuffled };
+}
+export type Chooser = ReturnType<typeof chooser>;

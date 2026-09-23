@@ -237,6 +237,8 @@ export type Expr =
   | CallExpr
   | FreeCallExpr;
 
+// --- statements -----------------------------------------------------------
+
 /**
  * `let ribs = tools.count(Rib)` — a name for the result of an
  * expression, for the rest of its block. Written once and never again;
@@ -247,8 +249,24 @@ export type Expr =
 export interface LetStatement extends Node {
   readonly kind: 'let';
   readonly name: Ident;
-  readonly value: Expr;
+  /** An expression, or `spawn`, the one statement that yields a binding. */
+  readonly value: Expr | SpawnStatement;
 }
+
+/** `spawn Cup in actor` — a new instance of a kind at its defaults, in a container (the spec's Spawning). */
+export interface SpawnStatement extends Node {
+  readonly kind: 'spawn';
+  readonly spawned: KindExpr;
+  /** A binding or an identifier, or a dotted path to one: what the new instance goes into. */
+  readonly container: ObjectPath;
+}
+
+/** `destroy self` — the only form (the spec's Destroying). */
+export interface DestroyStatement extends Node {
+  readonly kind: 'destroy';
+}
+
+export type Statement = LetStatement | SpawnStatement | DestroyStatement;
 
 // --- the world ------------------------------------------------------------
 

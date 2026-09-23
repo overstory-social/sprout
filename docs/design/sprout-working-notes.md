@@ -289,6 +289,15 @@ Found while building actors (B17), each decided the narrow way and awaiting Eric
 - **An actor that is not an NPC.** Whether an object composing `sprout.Actor` but not the visitor kind is an actor that cannot `act` is open; `isNpc` answers only whether an object composes the visitor kind.
 - **`sprout.Actor` has no guards or relays yet.** Until B22 and B32 land, it declares no `depart`, `release` or `accept` and no `pass any (false)`, so a pocket is visible: what a visitor carries is in range of the people beside them.
 
+Found while building spawning and destroying (B18), each decided the narrow way and awaiting Eric:
+
+- **Spawning the world, and the world destroying itself.** The world model says the world can be neither spawned nor destroyed, and What it refuses does not list either. A `spawn` of a kind composing `sprout.World` is refused, at the kind, named as written (a bare `World` resolving to `sprout.World` included); so is `destroy self` in a body whose `self` composes it. Decided 2026-09-23, going into What it refuses.
+- **A spawn target of the bare object type.** Accepted at compile and checked when the spawn runs, since the worked microworld writes `spawn Sheet in here` and `here` is the object type. A target known to be a value or a set is refused, and so is one whose kind does not write `contains`.
+- **Spawning an actor.** An actor kind, or the world's visitor kind, may be spawned; the spec's Spawning names no exception.
+- **Where `spawn` and `destroy` are refused.** What it refuses forbids both in a guard, a `permit` and `describe`; the items that read those bodies (B22, B24, B31) refuse them there, with a `let` naming a spawn.
+- **The target's grammar.** `in` takes a binding or an identifier, or a dotted path to one, written without spaces around its dots as an object's `in` is — not an expression. `destroy` takes only `self`, and anything else after it is refused once.
+- **A dotted target.** Refused, as a name nothing in the body answers to, until identifiers inside bodies resolve (B32).
+
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 
 - A comment is also `/* … */`.
