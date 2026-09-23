@@ -1,0 +1,6 @@
+// A phrase fills each role once.
+verb give {
+  role item
+  role recipient
+  "give [item] to [item]"
+}

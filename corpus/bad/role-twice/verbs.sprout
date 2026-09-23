@@ -1,0 +1,7 @@
+// A role is named once.
+verb give {
+  role item
+  role recipient
+  role item
+  "give [item] to [recipient]"
+}

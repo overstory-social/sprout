@@ -1,0 +1,4 @@
+// A verb with no roles has no slots to fill.
+verb wave {
+  "wave at [target]"
+}

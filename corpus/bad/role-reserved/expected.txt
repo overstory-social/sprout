@@ -1,0 +1,4 @@
+verbs.sprout:3:8  `exit` is a word of the language, so it cannot name a role.
+                  Choose another word.
+
+refused: 1 problem

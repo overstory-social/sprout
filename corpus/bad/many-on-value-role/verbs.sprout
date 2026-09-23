@@ -1,0 +1,6 @@
+// A value role is single.
+verb ask {
+  role target
+  role topic: symbol many
+  "ask [target] about [topic]"
+}

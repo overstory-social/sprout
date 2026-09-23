@@ -1,0 +1,4 @@
+verbs.sprout:5:19  `"give [item] to [item]"` fills `item` twice.
+                   A phrase fills each role once. Name another role in one of the slots, or take one out.
+
+refused: 1 problem

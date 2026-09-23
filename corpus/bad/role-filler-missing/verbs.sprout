@@ -1,0 +1,5 @@
+// A colon after a role says what fills it.
+verb take {
+  role target:
+  "take [target]"
+}

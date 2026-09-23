@@ -1,0 +1,13 @@
+// A verb has at most the host's number of phrases; this is one past the default.
+verb take {
+  role target
+  "take [target]"
+  "get [target]"
+  "grab [target]"
+  "pick up [target]"
+  "pick [target] up"
+  "snatch [target]"
+  "seize [target]"
+  "lift [target]"
+  "collect [target]"
+}

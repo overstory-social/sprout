@@ -1,0 +1,5 @@
+// A slot names one of the verb's own roles.
+verb take {
+  role target
+  "take [thing]"
+}

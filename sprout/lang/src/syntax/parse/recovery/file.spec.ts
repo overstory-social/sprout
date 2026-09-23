@@ -18,6 +18,7 @@ import {
   reading,
   tally,
   tooDeep,
+  VERB_MEMBER_DEFECTS,
 } from '../../../fixtures/recovery.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
@@ -38,6 +39,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         name: 'Juliet',
         text: () =>
           option(['kind Juliet { }', 'kind Juliet: Crate, sprout.Container {\n  :open true\n}']),
+      },
+      {
+        name: 'lima',
+        text: () =>
+          option([
+            'verb lima { role target  "lima [target]" }',
+            'verb lima {\n  role target: Juliet\n  role tools many\n  "lima [target] with [tools]"\n}',
+            'verb lima { "lima" }',
+          ]),
       },
       {
         name: 'kilo',
@@ -120,6 +130,18 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           'object faulty: Crate in yard . shed { contains }',
         ]),
       () => `object faulty: Crate in yard {\n  ${defectiveMember(c).text}\n}`,
+      // A verb: its name, its braces, or one member.
+      () =>
+        option([
+          'verb',
+          'verb { role target }',
+          'verb Faulty { }',
+          'verb do { role target }',
+          'verb passage { role target }',
+          'verb faulty role target',
+          'verb faulty {\n  role target',
+        ]),
+      () => `verb faulty {\n  role alpha\n  ${option(VERB_MEMBER_DEFECTS)}\n  "go [alpha]"\n}`,
     ];
     const used = new Set<number>();
     for (let i = 0; i < 700; i++) {

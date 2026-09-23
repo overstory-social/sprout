@@ -1,0 +1,4 @@
+verbs.sprout:4:19  `tools` is marked `many` and `optional`, and a set is never optional: a phrase that leaves it out binds the empty set.
+                   Remove `optional`.
+
+refused: 1 problem

@@ -1,0 +1,4 @@
+verbs.sprout:12:3  `take` has 9 phrases, and 8 is as many as a verb may have.
+                   Keep the ways of saying it a visitor is most likely to type, and take the rest out.
+
+refused: 1 problem

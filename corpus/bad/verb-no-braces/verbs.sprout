@@ -1,0 +1,2 @@
+// A verb's roles and phrases go in braces.
+verb take role target "take [target]"

@@ -10,6 +10,7 @@ import {
   type Ident,
   type KindDeclaration,
   type PassageDeclaration,
+  type VerbDeclaration,
 } from './ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { isNode, nodesOf, unspanned } from '../source/nodes.js';
@@ -150,5 +151,45 @@ describe('a guard is a member whose parameters and statements are nodes', () => 
     const guard: GuardDeclaration = member;
     expect(guard.guard).toBe('accept');
     expect(textOf(guard.at)).toBe('accept (item, from) { if (a) { refuse full } else { allow } }');
+  });
+});
+
+describe('a verb is its name, its roles and its phrases, each part a node', () => {
+  const text =
+    'verb work {\n  role target: Clay\n  role tools many\n  "work [target] with [tools]"\n}';
+  const diagnostics = new Diagnostics();
+  const [work] = parseDeclarations(new SourceFile('v.sprout', text), diagnostics) as [
+    VerbDeclaration,
+  ];
+
+  it('keeps the node rule down to each slot and each modifier', () => {
+    expect(diagnostics.refusals).toEqual([]);
+    expect(unspanned(work)).toEqual([]);
+    expect([...nodesOf(work)].map((n) => n.kind)).toEqual([
+      'verb',
+      'ident',
+      'role',
+      'ident',
+      'kind-expr',
+      'ident',
+      'role',
+      'ident',
+      'role-modifier',
+      'phrase',
+      'phrase-words',
+      'phrase-slot',
+      'ident',
+      'phrase-words',
+      'phrase-slot',
+      'ident',
+    ]);
+  });
+
+  it('spans a role from its word to its last modifier, and a phrase over its quotes', () => {
+    expect(work.roles.map((role) => textOf(role.at))).toEqual([
+      'role target: Clay',
+      'role tools many',
+    ]);
+    expect(textOf(work.phrases[0]!.at)).toBe('"work [target] with [tools]"');
   });
 });

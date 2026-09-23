@@ -1,0 +1,5 @@
+// A phrase is at most the host's number of characters; this is past the default.
+verb admire {
+  role target
+  "stand for a long while in quiet admiration of the workmanship of [target] and sigh"
+}

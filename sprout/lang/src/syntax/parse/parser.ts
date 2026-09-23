@@ -49,6 +49,14 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
   // `message :stir` — the colon before the name is the whole of it, and
   // there is no brace to fall back on.
   ['message', (name: Token) => name.kind === 'symbol'],
+  // `verb take { … }` — a name, then the brace its roles and phrases go
+  // in: lower-case, or capitalised so that the refusal can say so. Or
+  // the brace on its own, as for an enum.
+  [
+    'verb',
+    (name: Token, after: Token) =>
+      punct(name, '{') || ((name.kind === 'name' || name.kind === 'kind') && punct(after, '{')),
+  ],
   // `world printers_shop: sprout.World { … }` — and the same with the
   // composition left out, which parses so that the refusal can name it.
   //

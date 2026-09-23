@@ -1,0 +1,4 @@
+verbs.sprout:4:9  `[]` names no role.
+                  A slot holds the name of one of the verb's roles, as in `"take [target]"`.
+
+refused: 1 problem

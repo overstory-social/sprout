@@ -1,0 +1,4 @@
+verbs.sprout:5:8  `give` declares the role `item` twice.
+                  A role's name is what a slot fills, so it is written once. Remove the second, or give it another name.
+
+refused: 1 problem

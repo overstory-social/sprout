@@ -1,0 +1,4 @@
+verbs.sprout:4:9  This slot is never closed.
+                  Add a ] after the role's name: `[target]`.
+
+refused: 1 problem

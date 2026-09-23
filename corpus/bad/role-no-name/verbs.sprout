@@ -1,0 +1,6 @@
+// A role has a name.
+verb take {
+  role
+  role target
+  "take [target]"
+}

@@ -1,0 +1,4 @@
+verbs.sprout:4:9  `[the target]` is not the name of a role.
+                  A slot holds one role's name and nothing else, as in `[target]`; the words around it go outside the brackets.
+
+refused: 1 problem

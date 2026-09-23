@@ -1,0 +1,6 @@
+// Where a role's options come from is the role-player's to say, not the verb's.
+verb ask {
+  role target
+  role topic: symbol from :knows
+  "ask [target] about [topic]"
+}

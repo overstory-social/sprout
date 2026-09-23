@@ -1,0 +1,4 @@
+verbs.sprout:3:8  A role's name is a lower-case word, and `Lockable` starts with a capital.
+                  Write `role lockable`. A kind that fills it comes after a colon: `role target: Lockable`.
+
+refused: 1 problem

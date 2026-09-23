@@ -1,0 +1,6 @@
+// A verb holds roles and phrases, and nothing else.
+verb take {
+  role target
+  please
+  "take [target]"
+}

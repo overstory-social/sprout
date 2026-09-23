@@ -1,0 +1,4 @@
+verbs.sprout:4:3  This phrase is 82 characters long, and 80 is as long as a phrase may be.
+                  Say it in fewer words: a phrase is what a visitor types.
+
+refused: 1 problem

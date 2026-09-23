@@ -1,0 +1,7 @@
+// A phrase is written once.
+verb take {
+  role target
+  "take [target]"
+  "get [target]"
+  "take  [target]"
+}
