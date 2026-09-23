@@ -1,0 +1,10 @@
+// A world whose namespace names a library it uses: every declaration of
+// its own would be indistinguishable from that library's, so it is
+// refused at the manifest before anything of the library is asked for.
+world world_named_as_library: sprout.World {
+  contains actors
+  visitors are Creature
+  visitors arrive at world_named_as_library
+}
+
+kind Creature: sprout.Actor { }
