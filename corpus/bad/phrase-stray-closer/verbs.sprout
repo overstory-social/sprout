@@ -1,0 +1,5 @@
+// A `]` closes a slot.
+verb take {
+  role target
+  "take target] now"
+}

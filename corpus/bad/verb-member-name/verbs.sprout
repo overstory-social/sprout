@@ -1,0 +1,5 @@
+// A member's word cannot name a verb either.
+verb describe {
+  role target
+  "describe [target]"
+}

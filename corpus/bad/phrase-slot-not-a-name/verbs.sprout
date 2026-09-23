@@ -1,0 +1,5 @@
+// A slot holds a role's name and nothing else.
+verb take {
+  role target
+  "take [the target]"
+}

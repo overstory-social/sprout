@@ -1,0 +1,4 @@
+verbs.sprout:4:13  `:symbol` is read as a property's name: a colon straight before a lower-case word makes one.
+                   Write `role topic: symbol`, with a space after the colon.
+
+refused: 1 problem

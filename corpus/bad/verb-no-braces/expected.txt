@@ -1,0 +1,4 @@
+verbs.sprout:2:11  The roles and phrases of `take` go in braces.
+                   Write `verb take { role target  "take [target]" }`.
+
+refused: 1 problem

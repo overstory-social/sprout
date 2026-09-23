@@ -1,0 +1,6 @@
+// A modifier is written once.
+verb throw {
+  role target
+  role tools many many
+  "throw [target] using [tools]"
+}

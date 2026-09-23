@@ -1,0 +1,4 @@
+verbs.sprout:6:1  `take` is never closed.
+                  Add a } after its roles and phrases.
+
+refused: 1 problem

@@ -1,0 +1,4 @@
+verbs.sprout:4:22  `topic` is a `symbol` role, and a value role is single.
+                   Several values are several roles; take `many` off.
+
+refused: 1 problem

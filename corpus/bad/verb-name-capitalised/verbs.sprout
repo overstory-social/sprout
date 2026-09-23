@@ -1,0 +1,5 @@
+// A verb's name is a lower-case word.
+verb Take {
+  role target
+  "take [target]"
+}

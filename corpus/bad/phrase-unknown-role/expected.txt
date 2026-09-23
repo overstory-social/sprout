@@ -1,0 +1,4 @@
+verbs.sprout:4:9  `"take [thing]"` names `thing`, and `take` has no such role.
+                  Its role is `target`. Write `[target]`, or add `role thing`.
+
+refused: 1 problem

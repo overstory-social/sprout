@@ -1,0 +1,4 @@
+verbs.sprout:6:3  `take` has the phrase `"take  [target]"` twice.
+                  A phrase is written once. Remove the second.
+
+refused: 1 problem

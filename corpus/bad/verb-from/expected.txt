@@ -1,0 +1,4 @@
+verbs.sprout:4:22  A verb does not say where a role's options come from.
+                   The object that plays the role says it, inside its `as <role> for <verb>`: `topic from :knows`.
+
+refused: 1 problem

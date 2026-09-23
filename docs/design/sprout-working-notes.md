@@ -328,7 +328,7 @@ Found while building passages (B20), each decided the narrow way and awaiting Er
 - **A typo in an override.** `passage nothing_happen` in the world overrides nothing and is not refused; no warning is listed. A warning for a passage nothing invokes would be B50's.
 - **After a refused collision.** The first contender in list order is kept, as the property collision keeps its first, so a kind composing the refused one hears nothing more about that line; and when non-defaults collide the refusal names only them, not the defaults that gave way.
 - **`default` on an object's or the world's own passage.** Accepted and recorded, though nothing can compose it.
-- **A passage's name.** Any lower-case word, as an object's name may be; only `default` in the name position is read as the keyword. A reserved word as a passage's name is not refused, as it is not for a verb, a message or a kind today.
+- **A passage's name.** Any lower-case word, as an object's name may be; only `default` in the name position is read as the keyword. A reserved word as a passage's name is not refused, as it is not for a message or a kind today; a verb's is.
 - **A lone `}` in prose.** There is no way to write one: only `\{` is an escape, so an unmatched `}` closes the passage and `\}` is refused, stepped over with the character after it as a bad escape in quoted text is.
 - **Quoted text in a slot.** Ends at its line with no refusal until B29 reads slots; in prose a quote is a character.
 - **Where a passage's header may sit.** Its words on the `passage` line, the brace on that line or the next; a header left without braces then never takes the next member for its own.
@@ -373,6 +373,19 @@ Found while moving a thing through consent (B22), each decided the narrow way an
 - **Who hears `leaves` and `arrives`.** The actors directly in the place, not those inside something in it; the one who moved left out; NPCs included, though prose addressed to one goes nowhere; and a mover other than the thing hears as anyone there would.
 - **A destination out of range across places.** A move's destination must be in the mover's range, and while the world refuses one place is out of range of another, so a `move` from one place to another faults. How `go` crosses an exit to another place is B42's.
 - **Where `refuse <name>` looks when it runs.** As recorded above, on the refusing instance's kind, so `good/consent`'s visitor kind says `hands_full` in its own words over `sprout.Actor`'s.
+
+Found while reading a verb and checking it against itself (B23), each decided the narrow way and awaiting Eric:
+
+- **`many` beside a kind.** `role tools: Rib many` is accepted, a set of things of one kind; `many` and `optional` follow the filler, in either order.
+- **`optional` on a verb that has phrases.** Refused: the phrases decide which tools are optional, and `optional` is written only on a verb with none.
+- **A phrase that leaves out the target.** Refused: every phrase names the first role. Declaring a verb says a phrase "need not fill every tool", which is read as tools only.
+- **`many` on the target.** Accepted, as in `verb sort { role targets many  "sort [targets]" }`; the spec restricts `many` on value roles only.
+- **`optional` on the target of a verb with no phrases.** Refused: the target is never optional, which is what the rule above means for a verb with phrases. `optional` on a value tool of such a verb is accepted, though every value tool is optional already.
+- **Two phrases that mean the same, and an empty phrase.** Refused. Two are the same when their words and slots are, however they are spaced: a run of words between slots is trimmed and its spaces made single.
+- **What a slot holds.** Exactly one role's name in lower case: `[ target ]`, `[the target]` and `[Target]` are refused, and so is a `]` that closes no slot. A slot next to a slot, `"[a][b]"`, is accepted; which noun fills which is B27's.
+- **The phrase cap.** Counts the phrase as it means, after escapes, in characters, since that is what a visitor types.
+- **A verb with neither roles nor phrases.** `verb dance { }` is accepted: only `act` performs it, and only the actor plays it.
+- **`exit` as a filler.** Read on any verb here; that only the standard library's `go` may use it is the second half of B23's.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

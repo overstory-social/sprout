@@ -1,0 +1,4 @@
+verbs.sprout:11:3  `juggle` has 9 roles, and 8 is as many as a verb may have.
+                   Take some out. A set role, marked `many`, counts as one however many things it binds.
+
+refused: 1 problem

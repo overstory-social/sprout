@@ -1,0 +1,5 @@
+// The target is never optional, even on a verb with no phrases.
+verb nuzzle {
+  role target optional
+  role gift optional
+}

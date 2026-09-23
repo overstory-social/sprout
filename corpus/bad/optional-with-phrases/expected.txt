@@ -1,0 +1,4 @@
+verbs.sprout:4:13  `tool` is marked `optional`, and `unlock` has phrases, so its phrases decide.
+                   A tool some phrase leaves out is optional already; `optional` is written only on a verb with no phrases. Remove it.
+
+refused: 1 problem

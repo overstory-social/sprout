@@ -1,0 +1,4 @@
+verbs.sprout:4:19  `tools` is marked `many` twice.
+                   Once says it. Remove the second.
+
+refused: 1 problem

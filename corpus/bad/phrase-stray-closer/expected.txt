@@ -1,0 +1,4 @@
+verbs.sprout:4:15  This `]` closes no slot.
+                   A slot opens with [ and closes with ], as in `"take [target]"`. Take this one out, or add the [ it closes.
+
+refused: 1 problem

@@ -1,0 +1,13 @@
+// A verb has at most the host's number of roles; this is one past the default.
+verb juggle {
+  role target
+  role a
+  role b
+  role c
+  role d
+  role e
+  role f
+  role g
+  role h
+  "juggle [target]"
+}

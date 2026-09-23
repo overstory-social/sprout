@@ -11,6 +11,7 @@ import type {
   Declaration,
   KindDeclaration,
   ObjectDeclaration,
+  VerbDeclaration,
   WorldDeclaration,
   WorldMember,
 } from '../syntax/ast.js';
@@ -505,6 +506,8 @@ export const FOLLOWING = [
     wellFormed: false,
   },
   { name: 'Omega', text: 'enum Omega, name: [1]] { y }', wellFormed: false },
+  { name: 'omega', text: 'verb omega {\n  role target\n  "omega [target]"\n}', wellFormed: true },
+  { name: 'omega', text: 'verb omega, name: 1] { }', wellFormed: false },
 ] as const;
 
 /**
@@ -597,3 +600,60 @@ export function reading<T>(text: string, read: (s: SourceFile, d: Diagnostics) =
   }
   return { result: result as T, said: diagnostics.refusals as readonly Diagnostic[], threw };
 }
+
+// --- verbs ------------------------------------------------------------
+
+/**
+ * A verb's members, written well: roles open, by kind and by value, set
+ * and optional, and phrases with escapes in them. Each is named as
+ * `verbMemberNames` names what the reader kept.
+ */
+export const WELL_FORMED_VERB_MEMBERS = [
+  { name: 'role alpha', text: 'role alpha' },
+  { name: 'role bravo', text: 'role bravo: Crate' },
+  { name: 'role charlie', text: 'role charlie: sprout.Container many' },
+  { name: 'role delta', text: 'role delta: symbol' },
+  { name: 'role echo', text: 'role echo: integer optional' },
+  { name: 'phrase go [alpha]', text: '"go [alpha]"' },
+  { name: 'phrase use [bravo] on [alpha]', text: '"use [bravo] on [alpha]"' },
+  { name: 'phrase say "hi" to [alpha]', text: '"say \\"hi\\" to [alpha]"' },
+] as const;
+
+/**
+ * A verb's member with one defect in it: a role's name, filler or
+ * modifiers, a phrase's slot, or a word no member begins with. Every one
+ * says `faulty` or `exit` where it names anything, so what a reader
+ * keeps of it can be told from what was written well.
+ */
+export const VERB_MEMBER_DEFECTS: readonly string[] = [
+  'role',
+  'role Faulty',
+  'role exit',
+  'role faulty: boolean',
+  'role faulty:symbol',
+  'role faulty:',
+  'role faulty: 4',
+  'role faulty: sprout.',
+  'role faulty: [',
+  'role faulty many many',
+  'role faulty many optional',
+  'role faulty: % Crate',
+  '"faulty [target"',
+  '"faulty []"',
+  '"faulty [Target]"',
+  '"faulty ] now"',
+  '"faulty [a b]"',
+  'from :faulty',
+  'faulty',
+  '4',
+  ':faulty',
+  '{ faulty }',
+  '[faulty]',
+  'Faulty',
+];
+
+/** What a verb kept, a role by its name and a phrase by what it means. */
+export const verbMemberNames = (verb: VerbDeclaration): string[] => [
+  ...verb.roles.map((role) => `role ${role.name.text}`),
+  ...verb.phrases.map((phrase) => `phrase ${phrase.text}`),
+];
