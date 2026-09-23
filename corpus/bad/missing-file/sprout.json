@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "e656a51a91784771b2605278f7a7594dd359ef5f3910cd018a2f3b59960626e0"
+      "sha": "7a4dd31cf82d17beb59c4fa287ab5b15f567e6d591c77ef6e238a68bf102f9cf"
     }
   ],
   "files": ["world.sprout", "rooms.sprout"]

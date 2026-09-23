@@ -1,0 +1,33 @@
+// Nobody owns the containment tree, so a move asks everyone with standing:
+// the thing (`depart`), the container it leaves (`release`) and the one
+// it enters (`accept`), in that order, and the first refusal decides.
+world consent: sprout.World {
+  visitors are Creature
+  visitors arrive at yard
+}
+
+// A person is made of `sprout.Actor`, whose guards make their things
+// their own: nobody else carries them off (`held_fast`), nobody else
+// takes from their hands (`not_yours`), and they hold only what fits
+// (`hands_full`). The world keeps the library's first two lines and says
+// the third in its own words.
+kind Creature: sprout.Actor {
+  :capacity 2
+  passage hands_full { {self} has both hands full already. }
+}
+
+kind Tool { }
+
+// A place speaks for itself when someone arrives or leaves: the yard in
+// the library's words, the shed in its own.
+object yard: sprout.Place in consent
+
+object shed: sprout.Place in consent {
+  passage arrives { {item} ducks in under the lintel. }
+}
+
+// An NPC composes the visitor kind, so the same guards govern her: what
+// she holds is hers to put down.
+object marta: Creature in yard
+object trowel: Tool in yard.marta
+object rake: Tool in yard
