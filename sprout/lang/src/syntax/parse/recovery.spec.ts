@@ -466,8 +466,17 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       contained(OVER_CAP),
       contained('[oak silver]'),
       contained('[oak, [silver, Zeta]]'),
-      contained('message :stir'),
-      contained('enum Ward { oak }'),
+      // Not `message :stir` or `enum Ward { oak }`: a reserved word that
+      // completes its declaration's opening is no longer a defect
+      // contained in this value — the property reader takes it for a
+      // missing value with a declaration written after it, which is not
+      // a loss and has its own coverage: `[oak, enum]` in world.spec.ts
+      // for a reserved word that stands as a value, and the world-body
+      // run below, through `following`, for one that opens a real
+      // declaration. A capitalised word in the same spot is still
+      // refused everywhere it can stand, so it keeps that coverage.
+      contained('Ward'),
+      contained('Drying'),
       unclosed('[oak'),
     ],
   };
@@ -599,7 +608,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     const seen = new Map<string, number>();
     return {
       add: (key: string) => seen.set(key, (seen.get(key) ?? 0) + 1),
-      count: (key: string) => seen.get(key) ?? 0,
       keys: () => [...seen.keys()].sort(),
     };
   }
@@ -645,9 +653,6 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       );
     }
     expect(reached.keys()).toEqual(SORTS);
-    // No shape here is excluded any more: the share of a gap the net
-    // does not cover stays at zero.
-    expect(reached.count('excluded')).toBeLessThan(reached.count('contained') / 5);
   });
 
   it('over a generated property on its own, a defect in any part', () => {
@@ -870,16 +875,17 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const crossable = made.defect.sort !== 'unclosed' && !made.text.includes('}');
         const following = crossable && c.below(4) === 0 ? c.one(FOLLOWING) : null;
         if (following !== null) {
-          // Nor straight after the defect, and named rather than quietly
-          // left out: a property whose value is missing reads the word that
-          // starts the declaration as its value, and the declaration is lost,
-          // as `omega` is from `world w: sprout.World {\n  :faulty :wet\n
-          // message :omega`.
-          const last = at === members.length || c.below(2) === 0;
-          if (last) lines.push(':remembers [zulu: 0]');
+          // Whether a `:remembers` closes the body last is drawn only
+          // where the defect is not already the line right before
+          // `following`: there, standing directly against it is the
+          // shape this run is for, since a value missing exactly where
+          // `following`'s word stands is refused by the property reader
+          // before it can be taken for a bare option.
+          const remembersLast = at < members.length && c.below(2) === 0;
+          if (remembersLast) lines.push(':remembers [zulu: 0]');
           const text = `${owner.open}\n  ${lines.join('\n  ')}\n${following.text}\n`;
           const { result, said } = reading(text, parseDeclarations);
-          reached.add(last && !following.wellFormed ? 'across' : 'never closed');
+          reached.add(remembersLast && !following.wellFormed ? 'across' : 'never closed');
           closedByWhatFollows(text, owner.name, following, result, said);
           continue;
         }

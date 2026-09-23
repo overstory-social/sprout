@@ -423,14 +423,16 @@ export function skipValue(p: Parser): void {
     return;
   }
   // An option, unless a colon after it makes it the name of the next
-  // entry of a `:remembers`, or it is the `min` or `max` that goes on
-  // with the property's tail.
+  // entry of a `:remembers`, the word is `min` or `max` and goes on with
+  // the property's tail, or a declaration begins there: stepping over
+  // that word too would take a well-formed neighbour with it.
   const word = p.peek();
   if (
     word.kind === 'name' &&
     word.text !== 'min' &&
     word.text !== 'max' &&
-    !punct(p.peek(1), ':')
+    !punct(p.peek(1), ':') &&
+    !p.atDeclarationStart()
   ) {
     p.next();
   }

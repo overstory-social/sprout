@@ -178,6 +178,40 @@ describe('a property declaration, as a kind or an object writes one', () => {
     expect(declare(':a -').refusals[0]!.message).toBe('A minus sign needs a number after it.');
   });
 
+  it('refuses a value missing before a declaration, not the declaration’s word as one', () => {
+    // Reading `message`, the next declaration's own word, as a bare
+    // option would take `message :x` with it and say nothing about the
+    // loss. The declaration's own colon, `:x`, is what tells `message`
+    // apart from an ordinary option: `[oak, message]` still reads
+    // `message` as one, since nothing follows it there.
+    for (const [text, name, at] of [
+      [':faulty message :x', 'faulty', 'kiln.sprout:1:9'],
+      [':lit boolean default message :x', 'lit', 'kiln.sprout:1:22'],
+      [':ward Ward.\nmessage :x', 'ward', 'kiln.sprout:2:1'],
+    ] as const) {
+      const { declared, refusals } = declare(text);
+      expect(declared, text).toBeNull();
+      expect(refusals[0]!.message, text).toBe(`\`:${name}\` has no value where one should be.`);
+      expect(refusals[0]!.remedy, text).toBe(
+        'Write an option of the type, or a literal, before the next declaration.',
+      );
+      expect(locationOf(refusals[0]!.at), text).toBe(at);
+    }
+  });
+
+  it('still reads `message` and `enum` as bare options where no declaration follows', () => {
+    // What follows the word is what decides, as it does for a list
+    // element: nothing reserves an option's name.
+    expect(declare(':a message').declared!.default).toMatchObject({
+      kind: 'option-literal',
+      name: { text: 'message' },
+    });
+    expect(declare(':a enum').declared!.default).toMatchObject({
+      kind: 'option-literal',
+      name: { text: 'enum' },
+    });
+  });
+
   it('never throws, whatever it is given', () => {
     for (const text of [
       ':a',
@@ -227,6 +261,16 @@ describe('a :remembers, as an object writes one', () => {
     expect(remember(':remembers [:visits 0]').refusals[0]!.message).toContain(
       'A remembered property starts with its name',
     );
+  });
+
+  it('refuses a missing entry value before a declaration, not the declaration’s word as one', () => {
+    // The same reading, and the same refusal, as a property's own value:
+    // `propertyBody` reads both through one path.
+    const text = ':remembers [visits: message :x]';
+    const { declared, refusals } = remember(text);
+    expect(declared).toBeNull();
+    expect(refusals[0]!.message).toBe('`:visits` has no value where one should be.');
+    expect(refusals[0]!.at.start).toBe(text.indexOf('message'));
   });
 
   it('refuses a missing colon between a name and its value', () => {
