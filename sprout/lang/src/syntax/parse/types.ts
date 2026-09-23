@@ -435,13 +435,20 @@ export function skipValue(p: Parser): void {
   // entry of a `:remembers`, the word is `min` or `max` and goes on with
   // the property's tail, or a declaration begins there: stepping over
   // that word too would take a well-formed neighbour with it.
+  //
+  // Directly in a body — never inside a list or a `:remembers`'s own
+  // entries, where the loop this returns to already steps past a stray
+  // word on its own terms — that question is asked loosely, the way the
+  // rest of recovery asks it: `body`'s own walk picks up from here, and a
+  // malformed header must not lose the word that starts it either.
   const word = p.peek();
+  const atNext = p.depth === 0 && !p.withinEntries ? p.atRecoveryStop() : p.atDeclarationStart();
   if (
     word.kind === 'name' &&
     word.text !== 'min' &&
     word.text !== 'max' &&
     !punct(p.peek(1), ':') &&
-    !p.atDeclarationStart()
+    !atNext
   ) {
     p.next();
   }
