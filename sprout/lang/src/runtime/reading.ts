@@ -10,7 +10,8 @@
 // reading, and the first refusal is the reading's whole outcome; the
 // effect pass then runs every `do` in the same order. What a `do` says,
 // and the refusal of a `move` it proposes, reach the actor, or, where the
-// actor is an NPC, whoever would hear its `tell`, from it; a person's
+// actor is an NPC, whoever would hear its `tell`, from it, and a refused
+// `move` or `act` ends the `do` that ran it, not the pass; a person's
 // command that said nothing to them is answered with the world's
 // `nothing_happens`, and an NPC's reading is not. An `act` in a `do` runs
 // its own reading there, one deeper against the cascade depth, and what
@@ -213,7 +214,9 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
       if ('refusal' in outcome) {
         const { by, said: words, bindings } = outcome.refusal;
         said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
-      } else if ('engine' in outcome) {
+        return 'refused';
+      }
+      if ('engine' in outcome) {
         const { said: words, bindings } = outcome;
         said.push({
           effect: 'refused',
@@ -223,10 +226,11 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
           said: words,
           bindings,
         });
-      } else {
-        sends.push(...outcome.sends);
-        notices.push(...outcome.notices);
+        return 'refused';
       }
+      sends.push(...outcome.sends);
+      notices.push(...outcome.notices);
+      return 'done';
     },
     act: (actor, performed) => {
       // An `act` inside a reading is one deeper, as a message sent from a handler is.
@@ -237,12 +241,13 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
         const { by, said: words, bindings } = outcome.refused;
         const heard = hearersOf(state, actor, participantsOf(performing));
         said.push({ effect: 'refused', ...heard, by, said: words, bindings });
-        return;
+        return 'refused';
       }
       said.push(...outcome.said);
       sends.push(...outcome.sends);
       notices.push(...outcome.notices);
       destroyed.push(...outcome.destroyed);
+      return 'done';
     },
   };
   for (const participant of participants) {

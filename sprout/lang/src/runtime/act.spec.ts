@@ -75,7 +75,7 @@ const DEN = compiledWorld('den', {
     '  as actor for purl   { do { spawn Yarn in self } }',
     '  as target for hiss  { mood from :moods  do { if (bound mood) { say "hiss" } } }',
     '  as target for pet    { do { act nuzzle (target: actor, toys: actor)  say "after" } }',
-    '  as target for tease  { do { act swat (target: actor)  say "after" } }',
+    '  as target for tease  { do { self.adjust(:spins, 1)  act swat (target: actor)  say "never" } }',
     '  as target for ignore { do { act yawn () } }',
     '  as target for scare  { do { act fade ()  say "never" } }',
     '  as target for spin   { do { self.adjust(:spins, 1)  act spin (target: self) } }',
@@ -217,7 +217,7 @@ describe('an `act` run where it stands', () => {
     ]);
   });
 
-  it('says a refusal in its consent pass as the NPC’s, and goes on', () => {
+  it('says a refusal in its consent pass as the NPC’s, and ends the body that ran it there', () => {
     const one = turn(2);
     const [marta, ivo] = one.people;
     const outcome = acted(typed(one, 'tease'));
@@ -229,8 +229,18 @@ describe('an `act` run where it stands', () => {
         speaker: CAT,
         words: 'You pull your hand away.',
       },
-      { effect: 'said', by: CAT, to: [marta], speaker: null, words: 'after' },
+      // Nothing after the `act` runs, and the refusal was not said to
+      // Marta, so her command is answered by the world.
+      {
+        effect: 'said',
+        by: WORLD_ID,
+        to: [marta],
+        speaker: null,
+        words: 'sprout.World nothing_happens',
+      },
     ]);
+    // What ran before the refused `act` stands.
+    expect(one.context.draft.instance(CAT)!.properties.get('spins')).toBe(1);
     expect(outcome.said[0]!.bindings.get('actor')).toEqual(boundObject(CAT));
   });
 
