@@ -41,7 +41,8 @@ export class Draft implements StateReader {
   private serial: number;
   private readonly written = new Map<InstanceId, Instance>();
   private readonly gone = new Map<InstanceId, Instance>();
-  private readonly held = new Map<InstanceId, readonly InstanceId[]>();
+  private readonly contents = new Map<InstanceId, readonly InstanceId[]>();
+  private stored: number;
   private readonly visitors = new Map<VisitKey, VisitorRecord>();
   private committed = false;
 
@@ -49,6 +50,16 @@ export class Draft implements StateReader {
     this.base = base;
     this.world = base.world;
     this.serial = base.serial;
+    this.stored = base.instances.size + base.dormant.size;
+  }
+
+  /**
+   * How many instances the world stores now: the world, declared,
+   * spawned, visitors and dormant alike, which is what the host's bound
+   * on live instances counts (the spec's Limits › Runtime budgets).
+   */
+  get held(): number {
+    return this.stored;
   }
 
   instance(id: InstanceId): Instance | undefined {
@@ -57,7 +68,7 @@ export class Draft implements StateReader {
   }
 
   children(id: InstanceId): readonly InstanceId[] {
-    return this.held.get(id) ?? this.base.children.get(id) ?? [];
+    return this.contents.get(id) ?? this.base.children.get(id) ?? [];
   }
 
   visitor(visit: VisitKey): VisitorRecord | undefined {
@@ -136,6 +147,7 @@ export class Draft implements StateReader {
       throw new Error(`\`${id}\` arrives where it is put, so it has an arrival.`);
     }
     this.written.set(id, created);
+    this.stored += 1;
     this.attach(created);
   }
 
@@ -153,6 +165,7 @@ export class Draft implements StateReader {
     this.detach(current);
     this.written.delete(id);
     this.gone.set(id, current);
+    this.stored -= 1;
   }
 
   putVisitor(record: VisitorRecord): void {
@@ -168,7 +181,7 @@ export class Draft implements StateReader {
     for (const [id, instance] of this.written) instances.set(id, instance);
     for (const id of this.gone.keys()) instances.delete(id);
     const children = new Map(this.base.children);
-    for (const [id, held] of this.held) {
+    for (const [id, held] of this.contents) {
       if (held.length === 0) children.delete(id);
       else children.set(id, held);
     }
@@ -206,7 +219,7 @@ export class Draft implements StateReader {
 
   private detach(instance: Instance): void {
     if (instance.container === null) return;
-    this.held.set(
+    this.contents.set(
       instance.container,
       this.children(instance.container).filter((id) => id !== instance.id),
     );
@@ -223,7 +236,7 @@ export class Draft implements StateReader {
       at -= 1;
     }
     siblings.splice(at, 0, instance.id);
-    this.held.set(instance.container, siblings);
+    this.contents.set(instance.container, siblings);
   }
 }
 

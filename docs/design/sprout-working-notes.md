@@ -276,7 +276,7 @@ Found while building the state model (B16), each decided the narrow way and awai
 - **A declared object moved at run time into something now absent.** It is unreachable with its container, and is not returned to its declared container; it comes back where it was when the container does.
 - **A visitor's instance after `visitors are` changes.** Decoded against the world's current visitor kind, whatever it was made under, since a visitor records that it is a visitor and not which kind it was.
 - **An instance whose container no longer declares `contains`.** Stays where it is; nothing is moved at load.
-- **Whether dormant instances count toward the host's live-instance limit.** B18's, with `spawn`.
+- **Whether dormant instances count toward the host's live-instance limit.** *Answered by B18:* they count. Decided 2026-09-23: the host's bound counts everything a world stores — the world, declared objects, spawns, visitors and dormant instances alike — since a dormant record is kept and stored like any other.
 - **Which item puts the composed world and the visitor kind into the bundle.** *Answered by B17:* `compileBundle` composes the world and resolves `visitors are`, and the bundle carries both, so the world's instance holds its composed properties and a visitor's instance decodes; each is dormant only where a loaded world admits no one for want of it.
 
 Found while building actors (B17), each decided the narrow way and awaiting Eric:
@@ -297,6 +297,20 @@ Found while building spawning and destroying (B18), each decided the narrow way 
 - **Where `spawn` and `destroy` are refused.** What it refuses forbids both in a guard, a `permit` and `describe`; the items that read those bodies (B22, B24, B31) refuse them there, with a `let` naming a spawn.
 - **The target's grammar.** `in` takes a binding or an identifier, or a dotted path to one, written without spaces around its dots as an object's `in` is — not an expression. `destroy` takes only `self`, and anything else after it is refused once.
 - **A dotted target.** Refused, as a name nothing in the body answers to, until identifiers inside bodies resolve (B32).
+- **A message naming a destroyed object as `from`.** Dropped. Decided 2026-09-23: a destroyed object takes everything pending on it with it — messages queued to or from it, engine sends naming it as `from`, and its pending wakes.
+- **The destroying body's own sends.** Dropped. Decided 2026-09-23: a destroyed object has no effects, so what it sent in the body that destroyed it goes with it.
+- **What a destroyed object held.** Falls to its container without consent, as Destroying says, each thing placed last in that container in the order it was held, so the fallen keep their order after whatever was already there. Decided 2026-09-23 as the spec is written, until Eric confirms a change: his preference, pending, is that what it held is destroyed with it.
+- **The `:entered` for what fell.** One per thing, in falling order, `from` the destroyed object. The destroy returns them and the queue drops them under the no-effects rule above, since their `from` is gone, so the container is never told. Destroying still says the container receives `:entered` for each thing that fell, which that rule contradicts; the contradiction is recorded for Eric, and the rule lives in one place, the queue's, whichever way it goes.
+- **A visitor standing directly in a destroyed object.** A fault, whatever the object is. Decided 2026-09-23. A visitor further in — in a box in the room — moves with what holds them.
+- **`destroy self` on a visitor's own instance.** A fault. Decided 2026-09-23.
+- **Spawning into the world.** Allowed where the world is in range of the spawner, which it is when every container between them passes. Decided 2026-09-23.
+- **A spawn target out of range, or holding nothing, when the spawn runs.** A fault. Decided 2026-09-23. A target that is not live, the spawner's own self included, is out of range.
+- **A kind absent at load named in a `spawn`.** The `spawn` faults when it runs. Decided 2026-09-23, as a new row of What absent means, which the spec and the compiler's absent table do not carry yet.
+- **Dormant contents of a destroyed object.** Left where they are: a dormant record is kept untouched, so it still names the destroyed object as its container. When its kind returns it decodes into a container that no longer exists and is not live; where it goes then is open.
+- **How the host's bound reaches a turn.** As a number per turn, recorded with the turn (B40), not a callback into the host, so a replayed turn faults exactly where it did.
+- **What a spawn tells.** The container `:entered (item, from)`, the new object as `item` and the spawner as `from`, then the new object `:spawned (from)`, in that order; the engine is the sender of both.
+- **`destroy self` twice.** Is once: it takes effect when the body ends, and a second in the same body changes nothing.
+- **Memory keyed by a destroyed NPC.** Kept: what an object remembers about an actor is its own, and a destroyed actor's id is never minted again, so the entry can name no one else.
 
 **Decided, and different from what was built.** Each has an issue, so the code catches up rather than the spec drifting.
 

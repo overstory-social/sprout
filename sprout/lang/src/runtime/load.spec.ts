@@ -337,6 +337,20 @@ describe('what cannot be decoded now is kept dormant, untouched', () => {
     expect(loaded.state.children.get(id('hall'))).toEqual([id('hall', 'shelf'), minted(2)]);
   });
 
+  it('keeps a stored spawn of `sprout.World` dormant, since the world is never spawned', () => {
+    const spawnedWorld = record({
+      id: 'printers_shop#1',
+      made: { from: 'spawned', kind: 'sprout.World' },
+      arrival: 1,
+    });
+    const loaded = loadWorld(storing(fresh(), [spawnedWorld], 1), published);
+    expect(loaded.state.instances.has(minted(1))).toBe(false);
+    expect(loaded.dormant).toContain(minted(1));
+    expect(JSON.stringify(stored(saveWorld(loaded.state), spawnedWorld.id))).toBe(
+      JSON.stringify(spawnedWorld),
+    );
+  });
+
   it('decodes an instance whose container is dormant or was never there, and it is not live', () => {
     const store = storing(
       fresh(),
