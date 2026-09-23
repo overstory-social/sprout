@@ -250,7 +250,10 @@ function primary(p: Parser): Expr | null {
 /**
  * `spawn` or `destroy` where a value is wanted, refused once. What the
  * statement is made of is stepped over with it, so that its kind and its
- * target are not read as values of their own and refused again.
+ * target are not read as values of their own and refused again. The
+ * shape it steps over is the one `statements.ts` reads (a kind, then
+ * `in` and a path; or `self`), and the two are kept in step: a form the
+ * statement grammar gains is stepped over here too.
  */
 function statementRead(p: Parser): null {
   const keyword = p.next();
