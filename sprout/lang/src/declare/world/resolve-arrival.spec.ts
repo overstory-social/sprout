@@ -43,7 +43,7 @@ describe('`resolveArrival` finds a place, read from inside the world', () => {
       declarations.filter((d): d is KindDeclaration => d.kind === 'kind'),
       diagnostics,
     );
-    kinds.resolve(ENUMS, diagnostics);
+    kinds.resolve('shop', ENUMS, diagnostics);
     const objects = resolveObjects(
       'shop',
       declarations.filter((d): d is ObjectDeclaration => d.kind === 'object'),

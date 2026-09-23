@@ -70,7 +70,7 @@ describe('the world is where visitors arrive only when it is a place', () => {
         diagnostics,
       );
     }
-    kinds.resolve(ENUMS, diagnostics);
+    kinds.resolve('shop', ENUMS, diagnostics);
     const declaredWorld = parseDeclarations(
       new SourceFile(
         'shop.sprout',

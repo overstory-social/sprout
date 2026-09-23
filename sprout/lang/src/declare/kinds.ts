@@ -162,6 +162,7 @@ export class KindTable implements KindLookup, KindSource {
    * kind's plays may name, and what is told of one nothing declares.
    */
   resolve(
+    world: string,
     enums: EnumTable,
     diagnostics: Diagnostics,
     onUnknown?: OnUnknown,
@@ -193,6 +194,7 @@ export class KindTable implements KindLookup, KindSource {
         {
           enums,
           kinds: source,
+          world,
           diagnostics,
           ...(onUnknown === undefined ? {} : { onUnknown }),
           ...plays,

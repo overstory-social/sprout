@@ -57,7 +57,7 @@ export function kindsOf(libraries: Readonly<Record<string, string>> = LIBRARIES)
       diagnostics,
     );
   }
-  kinds.resolve(ENUMS, diagnostics);
+  kinds.resolve('printers_shop', ENUMS, diagnostics);
   settled(diagnostics, 'the kinds');
   return kinds;
 }

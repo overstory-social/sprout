@@ -23,7 +23,7 @@ function composed(text: string) {
     declared.filter((d): d is KindDeclaration => d.kind === 'kind'),
     diagnostics,
   );
-  kinds.resolve(new EnumTable(), diagnostics);
+  kinds.resolve('shop', new EnumTable(), diagnostics);
   return {
     kind: (name: string): KindRef => kinds.qualified('shop', name)!,
     declared,

@@ -228,7 +228,7 @@ function resolved(libraries: Record<string, string>, onUnknownKind?: OnUnknown) 
       diagnostics,
     );
   }
-  kinds.resolve(enums, diagnostics);
+  kinds.resolve('shop', enums, diagnostics);
   const verbs = new VerbTable();
   for (const [library, declared] of byLibrary) {
     verbs.add(

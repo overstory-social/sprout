@@ -124,7 +124,7 @@ export function resolveDeclarations(
       diagnostics,
     );
   }
-  kinds.resolve(enums, diagnostics, onUnknown, plays);
+  kinds.resolve(world.namespace, enums, diagnostics, onUnknown, plays);
 
   const verbs = new VerbTable();
   const onUnknownKind = unknownKindGap('kind-in-role', report);

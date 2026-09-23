@@ -153,7 +153,9 @@ describe('the kind table composes every kind the bundle declares', () => {
       );
     }
     const missing: string[] = [];
-    kinds.resolve(new EnumTable(), diagnostics, (written) => missing.push(written.name.text));
+    kinds.resolve('shop', new EnumTable(), diagnostics, (written) =>
+      missing.push(written.name.text),
+    );
     return {
       kinds,
       missing,

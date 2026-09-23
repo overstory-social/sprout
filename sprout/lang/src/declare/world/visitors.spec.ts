@@ -134,7 +134,7 @@ describe('a world says what its visitors are made of: a kind of its own that is 
       ).filter((d): d is KindDeclaration => d.kind === 'kind'),
       parsing,
     );
-    table.resolve(ENUMS, new Diagnostics(), () => {});
+    table.resolve('printers_shop', ENUMS, new Diagnostics(), () => {});
     expect(naming('Creature', table).visitors).toMatchObject({
       found: 'absent',
       what: 'Creature',

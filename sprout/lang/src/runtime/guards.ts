@@ -16,6 +16,7 @@
 import type { Block, GuardName, IfStatement, RefuseStatement, Statement } from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import type { ResolvedGuard } from '../declare/guards.js';
+import { libraryOf } from '../declare/enums.js';
 import type { KindLookup } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import type { Budget } from './budget.js';
@@ -152,16 +153,6 @@ function refusal(statement: RefuseStatement, frame: Frame, guard: ResolvedGuard)
 
 function count(parameters: number): string {
   return parameters === 1 ? 'one parameter' : `${parameters} parameters`;
-}
-
-/**
- * The library of a kind by its qualified name. A library's name is a
- * manifest name, which holds no `.`, so the library is what precedes the first.
- */
-function libraryOf(qualified: string): string {
-  const dot = qualified.indexOf('.');
-  if (dot <= 0) throw new Error(`\`${qualified}\` is not a qualified name.`);
-  return qualified.slice(0, dot);
 }
 
 /** What a guard may not do reached it: the checker refuses it, so this is the engine's defect. */
