@@ -118,6 +118,12 @@ export class Parser {
   /** How deep the brackets currently are, against `DEEPEST`. */
   depth = 0;
   /**
+   * Whether the entries of a `:remembers` are being read, where a bare
+   * word with a value straight after it is an entry that lost its colon
+   * rather than more of a list.
+   */
+  withinEntries = false;
+  /**
    * Whether the depth bound has already been reported for the
    * declaration being read. Too many brackets is ONE fact about one
    * piece of writing, and reading on past what could not be read —
