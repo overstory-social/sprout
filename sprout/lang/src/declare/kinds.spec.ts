@@ -259,4 +259,13 @@ describe('the kind table composes every kind the bundle declares', () => {
     expect(kinds.declares('shop.Crate')).toBe(true);
     expect(kinds.declares('shop.Missing')).toBe(false);
   });
+
+  it('gives back the declaration a composed kind was made of, by its full identity', () => {
+    const { kinds } = table({ shop: 'kind Crate { :lid true }', other: 'kind Crate { }' });
+    const shops = kinds.declaration(kinds.qualified('shop', 'Crate')!);
+    expect(shops?.members.map((m) => m.kind)).toEqual(['property']);
+    expect(kinds.declaration(kinds.qualified('other', 'Crate')!)?.members).toEqual([]);
+    // A kind no table declared has no declaration in this one.
+    expect(kinds.declaration(CONTAINER)).toBeNull();
+  });
 });

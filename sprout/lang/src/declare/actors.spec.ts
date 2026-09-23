@@ -10,6 +10,7 @@ import {
   ACTOR,
   aVisitorMade,
   checkActors,
+  checkVisitorBody,
   checkVisitorKind,
   isActor,
   isVisitorKind,
@@ -174,6 +175,84 @@ describe('the visitor kind is the world’s own, composing `sprout.Visitor`', ()
         'Declare one that composes `sprout.Visitor`, as `kind Person is sprout.Visitor { … }`, and write `visitors are Person`.',
       );
     }
+  });
+});
+
+/** What `checkVisitorBody` says of `text`, one kind declaration, as [where, message, remedy]. */
+function bodyOf(text: string) {
+  const parsing = new Diagnostics();
+  const [declared] = parseDeclarations(
+    new SourceFile('k.sprout', text),
+    parsing,
+  ) as KindDeclaration[];
+  expect(parsing.all.map((d) => d.message)).toEqual([]);
+  const diagnostics = new Diagnostics();
+  checkVisitorBody(declared!, diagnostics);
+  expect(diagnostics.warnings).toEqual([]);
+  return diagnostics.refusals.map((d) => [textOf(d.at), d.message, d.remedy]);
+}
+
+/** The words `Person`'s body is told for a member that `does`, written on a shared kind as `written`. */
+function behaviour(does: string, written: string, kept = ' ') {
+  return [
+    `\`Person\` is what a person is made of, and a person acts by typing, so its own body does not ${does}.`,
+    `Write it on a kind \`Person\` composes: \`kind Creature is sprout.Actor { ${written} … }\` and \`kind Person is Creature, sprout.Visitor {${kept}}\`.`,
+  ];
+}
+
+describe('the visitor kind’s own body declares no behaviour', () => {
+  it('takes what a person has, holds and is described by, and what it leaves out, saying nothing', () => {
+    const text = [
+      'kind Person is Creature, sprout.Visitor {',
+      '  :stamina 3 min 0 max 9',
+      '  contains',
+      '  passage tired { You are too tired. }',
+      '  without as actor for wave from Creature',
+      '}',
+    ];
+    expect(bodyOf(text.join('\n'))).toEqual([]);
+  });
+
+  it('refuses a play at its head, naming the role and verb it plays', () => {
+    expect(
+      bodyOf('kind Person is sprout.Visitor { as actor for pull { do { say "Hup." } } }'),
+    ).toEqual([
+      ['as actor for pull', ...behaviour('play `as actor for pull`', 'as actor for pull')],
+    ]);
+  });
+
+  it('refuses each consent guard at the guard, with its parameters as written', () => {
+    const text = [
+      'kind Person is sprout.Visitor {',
+      '  depart (there) { }',
+      '  release (item, to) { }',
+      '  accept (thing, from) { allow }',
+      '}',
+    ];
+    expect(
+      bodyOf(text.join('\n')).map(([at, message, remedy]) => [at!.split(' ')[0], message, remedy]),
+    ).toEqual([
+      ['depart', ...behaviour('guard a move with `depart`', 'depart (there)')],
+      ['release', ...behaviour('guard a move with `release`', 'release (item, to)')],
+      ['accept', ...behaviour('guard a move with `accept`', 'accept (thing, from)')],
+    ]);
+  });
+
+  it('keeps what else the body declares in the remedy’s braces', () => {
+    const told = bodyOf('kind Person is sprout.Visitor { :stamina 3  depart (to) { } }');
+    expect(told).toEqual([
+      ['depart (to) { }', ...behaviour('guard a move with `depart`', 'depart (to)', ' … ')],
+    ]);
+  });
+
+  it('names a shared kind other than the visitor kind itself', () => {
+    const [[, message, remedy]] = bodyOf('kind Creature is sprout.Visitor { depart (to) { } }') as [
+      [string, string, string],
+    ];
+    expect(message).toMatch(/^`Creature` is what a person is made of/);
+    expect(remedy).toBe(
+      'Write it on a kind `Creature` composes: `kind Being is sprout.Actor { depart (to) … }` and `kind Creature is Being, sprout.Visitor { }`.',
+    );
   });
 });
 

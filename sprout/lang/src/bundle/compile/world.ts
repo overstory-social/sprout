@@ -2,17 +2,18 @@
 // (the spec's The world model, Actors and visitors; The manifest; The
 // compiler › What absent means). A bundle holds exactly one `world`
 // declaration, named as the manifest; it composes as a kind does, and
-// `visitors are` names the world's own kind composing `sprout.Visitor`.
-// None, or two, is the absent table's `world` row, and so is a kind the
-// world is made of that is not there; a visitor kind that is not there is
-// its `visitor-kind` row. Each is refused at publish, and at load the
-// world admits no one.
+// `visitors are` names the world's own kind composing `sprout.Visitor`,
+// whose own body declares no behaviour. None, or two, is the absent
+// table's `world` row, and so is a kind the world is made of that is not
+// there; a visitor kind that is not there is its `visitor-kind` row.
+// Each is refused at publish, and at load the world admits no one.
 
 import type { Declaration, WorldDeclaration } from '../../syntax/ast.js';
 import type { MicroworldSource } from '../bundle.js';
 import type { KindRef } from '../../declare/kinds.js';
 import { writtenKind } from '../../declare/compose.js';
 import { composeWorld, resolveVisitors } from '../../declare/world.js';
+import { checkVisitorBody } from '../../declare/actors.js';
 import type { Span } from '../../source/source.js';
 import { absenceRule } from '../absent.js';
 import { unknownVerbGap, type DeclarationTables } from '../declarations.js';
@@ -159,6 +160,10 @@ export function worldKinds(
   const found = resolveVisitors(declared, context);
   if (found.found === 'absent' && !(report.mode === 'publish' && (found.said || ownFileRefused))) {
     gap('visitor-kind', found.what, found.at, found.message, found.remedy);
+  }
+  if (found.found === 'kind') {
+    const body = tables.kinds.declaration(found.kind);
+    if (body !== null) checkVisitorBody(body, report.diagnostics);
   }
   return { world, visitor: found.found === 'kind' ? found.kind : null };
 }

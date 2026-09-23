@@ -1,0 +1,7 @@
+world.sprout:16:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not play `as actor for wave`.
+                   Write it on a kind `Person` composes: `kind Creature is sprout.Actor { as actor for wave … }` and `kind Person is Creature, sprout.Visitor { … }`.
+
+world.sprout:18:3  `Person` is what a person is made of, and a person acts by typing, so its own body does not guard a move with `depart`.
+                   Write it on a kind `Person` composes: `kind Creature is sprout.Actor { depart (to) … }` and `kind Person is Creature, sprout.Visitor { … }`.
+
+refused: 2 problems

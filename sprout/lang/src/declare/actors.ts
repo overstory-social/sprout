@@ -3,12 +3,14 @@
 // `sprout.Actor`, an ordinary nominal test rather than a name the engine
 // knows, and every actor may `act`. The visitor kind is the world's own
 // kind composing `sprout.Visitor`; an instance of it is a visitor, and
-// every other actor is an NPC. Nothing declares or spawns a visitor, and
+// every other actor is an NPC; its own body declares no behaviour
+// (`checkVisitorBody`). Nothing declares or spawns a visitor, and
 // an actor is only ever directly inside something that declares
 // `contains actors` (`checkActors`), so every actor has a place; where one
 // may be moved is `runtime/move.ts`'s.
 
-import type { KindExpr } from '../syntax/ast.js';
+import type { KindDeclaration, KindExpr, KindMember } from '../syntax/ast.js';
+import type { Span } from '../source/source.js';
 import { onceEach, type Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, SPROUT } from './enums.js';
 import { kindName, type KindRef } from './kinds.js';
@@ -70,6 +72,62 @@ export function checkVisitorKind(
     return false;
   }
   return true;
+}
+
+/**
+ * Refuse each member of the visitor kind's own body that is behaviour, at
+ * that member: the visitor kind "has no behaviour of its own", since a
+ * person acts by typing (the spec's Actors and visitors). What it
+ * composes is not read here, and runs as it would for any object.
+ */
+export function checkVisitorBody(declared: KindDeclaration, diagnostics: Diagnostics): void {
+  const name = declared.name.text;
+  // The shared kind the remedy writes, which is never the visitor kind itself.
+  const shared = name === 'Creature' ? 'Being' : 'Creature';
+  const found = declared.members.map(behaviourOf);
+  // The visitor kind's braces keep whatever of its body is not behaviour.
+  const kept = found.includes(null) ? ' … ' : ' ';
+  for (const one of found) {
+    if (one === null) continue;
+    diagnostics.refuse(
+      one.at,
+      `\`${name}\` is what a person is made of, and a person acts by typing, so its own body does not ${one.does}.`,
+      `Write it on a kind \`${name}\` composes: \`kind ${shared} is ${ACTOR} { ${one.written} … }\` and \`kind ${name} is ${shared}, ${VISITOR} {${kept}}\`.`,
+    );
+  }
+}
+
+/** A member that is behaviour: where it is, what it does, and its head as written. */
+interface Behaviour {
+  readonly at: Span;
+  readonly does: string;
+  readonly written: string;
+}
+
+/** What `member` does, where it is behaviour, or null where a person's kind may declare it. */
+function behaviourOf(member: KindMember): Behaviour | null {
+  switch (member.kind) {
+    case 'play': {
+      const play = `as ${member.head.role.text} for ${member.head.verb.text}`;
+      return { at: member.head.at, does: `play \`${play}\``, written: play };
+    }
+    case 'guard': {
+      const parameters = member.parameters.map((one) => one.text).join(', ');
+      return {
+        at: member.at,
+        does: `guard a move with \`${member.guard}\``,
+        written: `${member.guard} (${parameters})`,
+      };
+    }
+    // What a person has, holds, remembers and is described by, and what
+    // it leaves out of what it composes, is not behaviour of its own.
+    case 'property':
+    case 'remembers':
+    case 'contains':
+    case 'without':
+    case 'passage':
+      return null;
+  }
 }
 
 /**
