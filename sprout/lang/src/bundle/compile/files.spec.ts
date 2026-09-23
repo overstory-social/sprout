@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import type { Manifest, MicroworldSource } from '../bundle.js';
 import { locationOf, SourceFile } from '../../source/source.js';
 import { checkFiles, FILE_GONE, isCode } from './files.js';
+import { compileBundle } from './compile.js';
 import { Report } from './report.js';
+import { file, refusals, WORLD_TEXT, world } from '../../fixtures/compile.js';
 
 /** A world naming `named`, with `travelled` arriving and `withheld` held back. */
 function source(named: string[], travelled: string[], withheld?: string[]): MicroworldSource {
@@ -74,5 +76,60 @@ describe('a world’s files are the ones its manifest names', () => {
     expect(checked(world).said.map((one) => one[0])).toEqual(['refusal']);
     expect(checked(world, 'load').said.map((one) => one[0])).toEqual(['warning']);
     expect(checked(world, 'load').absent).toEqual([]);
+  });
+});
+
+// The same rule through a whole compile, where a mismatch between the
+// manifest's `files` and what travelled reaches `compileBundle` rather
+// than `checkFiles` alone.
+
+describe('the manifest enumerates the world’s own files', () => {
+  it('refuses a file it names that did not travel, naming it in the manifest', () => {
+    const { bundle, diagnostics } = compileBundle(
+      world({ manifest: { files: ['world.sprout', 'kiln.prose'] } }),
+    );
+    expect(bundle).toBeNull();
+    const problem = refusals(diagnostics).find((d) => d.message.includes('kiln.prose'))!;
+    expect(problem.message).toContain('did not travel');
+    expect(locationOf(problem.at)).toBe('sprout.json:9:3');
+  });
+
+  it('refuses a file that travelled and the manifest does not name', () => {
+    const { bundle, diagnostics } = compileBundle(
+      world({
+        files: [file('world.sprout', WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')],
+        manifest: { files: ['world.sprout'] },
+      }),
+    );
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics)[0]!.message).toContain('does not name it');
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('kiln.sprout:1:1');
+  });
+
+  it('refuses a name that is not a sprout or prose file', () => {
+    const { bundle, diagnostics } = compileBundle(
+      world({ manifest: { files: ['world.sprout', 'notes.txt'] } }),
+    );
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).some((d) => d.message.includes('notes.txt'))).toBe(true);
+  });
+
+  it('takes a .prose file as readily as a .sprout one', () => {
+    const files = [file('world.sprout', WORLD_TEXT), file('kiln.prose', 'Warm brick.')];
+    expect(compileBundle(world({ files })).bundle).not.toBeNull();
+  });
+
+  it('refuses the same file named twice', () => {
+    expect(
+      compileBundle(world({ manifest: { files: ['world.sprout', 'world.sprout'] } })).bundle,
+    ).toBeNull();
+  });
+
+  it('refuses two files of one name arriving', () => {
+    expect(
+      compileBundle(
+        world({ files: [file('a.sprout', 'enum A { a }'), file('a.sprout', 'enum B { b }')] }),
+      ).bundle,
+    ).toBeNull();
   });
 });
