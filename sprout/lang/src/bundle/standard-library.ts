@@ -7,31 +7,46 @@
 // are named as the worked microworld names them, `sprout/actor.sprout`,
 // so a diagnostic in library source never reads as one in the world's own.
 //
-// It holds only what the parser reads today. The rest of the worked
-// microworld's library is named, file by file, as the item that brings it.
+// It holds only what the compiler reads today, written as the worked
+// microworld writes it. The rest of that library is named, file by file,
+// as the item that brings it.
 
 import type { LibrarySource } from './bundle.js';
 import { SourceFile } from '../source/source.js';
 
-const WORLD = `// sprout.World: what every world composes (the spec's The world model).
-// B20 and B29 bring the stock lines the engine speaks for itself, as
-// default passages; B48 the engine verbs' phrases.
+const WORLD = `// sprout.World: what every world composes (the spec's The world model),
+// and the words the engine speaks for itself, as default passages any
+// other source's line of the same name replaces. B48 brings the engine
+// verbs' phrases.
 kind World {
   contains
+
+  passage unknown default         { That is not something you can do here. }
+  passage unreachable default     { You cannot reach {thing} from here. }
+  passage which default           { Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for} }
+  passage nothing_happens default { Nothing much comes of that. }
+  passage unremarkable default    { There is nothing special about {thing}. }
+  passage unseen default          { Something here is too much to take in. }
+  passage fault default           { Something in this world has gone wrong, and nothing has changed. }
+  passage missing default         { This world uses something this host does not provide, and will be missing some of itself. }
+  passage displaced default       { The place you were standing is gone. }
 }
 `;
 
-const PLACE = `// sprout.Place: a place is whatever holds actors (the spec's Places).
-// B20 and B29 bring its arrives and leaves notices, as default passages.
+const PLACE = `// sprout.Place: a place is whatever holds actors (the spec's Places),
+// and the notices of someone arriving and leaving, as default passages.
 kind Place {
   contains actors
+  passage arrives default { {item} arrives. }
+  passage leaves default  { {item} leaves. }
 }
 `;
 
 const ACTOR = `// sprout.Actor: the hands, and their capacity (the spec's Actors and
 // visitors). B22 brings the guards that make a person's things their
-// own, which read :capacity; B32 its pass any (false); B48 take, drop,
-// put and give, with their passages.
+// own, which read :capacity, with the passages they refuse through; B32
+// its pass any (false); B48 take, drop, put and give and the inventory
+// line, with their passages.
 kind Actor {
   contains
   :capacity 8

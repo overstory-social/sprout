@@ -10,7 +10,9 @@
 // per name: one origin reached by several paths is one property, two
 // origins are refused unless the composer restates it, and a restatement
 // keeps the type. `contains` and `contains actors` are idempotent, so
-// they are OR'd over the closure.
+// they are OR'd over the closure. A passage is one per name, which
+// `passages.ts` resolves: the composer's own, else the one source that
+// is not `default`, else the one default.
 
 import {
   writtenMember,
@@ -31,6 +33,7 @@ import {
   type ResolvedProperty,
 } from './properties.js';
 import { identicalType, showType } from './types.js';
+import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
 
 /** What looking up a composed kind finds. */
 export type Found =
@@ -253,6 +256,14 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   for (const [name, came] of arrivals) merged.set(name, properties.get(name) ?? came[0]!.property);
   for (const [name, property] of properties) if (!merged.has(name)) merged.set(name, property);
 
+  // --- passages, one per name -------------------------------------------
+  const passages = resolvePassages(
+    { name: composer.name, shown },
+    ownPassages(composer.name, composer.members, own, diagnostics),
+    passageArrivals(composed.map(({ kind, written }) => ({ passages: kind.passages, written }))),
+    diagnostics,
+  );
+
   // --- the closure, in run order ----------------------------------------
   const order: string[] = [];
   for (const { kind } of composed) {
@@ -267,6 +278,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     order,
     composes: new Set(order),
     properties: merged,
+    passages,
     contains: contains || containsActors,
     containsActors,
     suppressed,
