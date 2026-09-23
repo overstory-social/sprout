@@ -20,29 +20,12 @@ import type {
   VerbDeclaration,
 } from '../ast.js';
 import type { Token } from '../lexer.js';
-import { isReserved } from '../reserved.js';
+import { isMemberWord, isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
 import { kindName } from './bodies.js';
 import { lowerCase, phrase } from './phrases.js';
 import { recover, stepPast } from './recovery.js';
-
-/**
- * The words that name a member of a kind, which the spec's Reserved
- * names keeps from naming a verb. Each is a reserved word too; these are
- * refused in their own words, because what an author meant by one is
- * the member.
- */
-const MEMBER_WORDS: ReadonlySet<string> = new Set([
-  'describe',
-  'depart',
-  'release',
-  'accept',
-  'permit',
-  'do',
-  'passage',
-  'prose',
-]);
 
 /** The value fillers, by the word after a role's colon. */
 const VALUE_FILLERS: ReadonlySet<string> = new Set(['symbol', 'integer', 'exit']);
@@ -100,7 +83,7 @@ function verbName(p: Parser): Ident | null | undefined {
   const token = p.peek();
   if (token.kind === 'name' && !p.atDeclarationStart()) {
     p.next();
-    if (MEMBER_WORDS.has(token.text)) {
+    if (isMemberWord(token.text)) {
       p.diagnostics.refuse(
         token.at,
         `\`${token.text}\` names a member of a kind, so it cannot name a verb.`,

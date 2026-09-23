@@ -4,7 +4,9 @@
 // token, because these words are read as syntax only where syntax may
 // stand. What this set decides is the other half of the spec's sentence
 // — "None may name an enum's option or a binding" — so the parser asks
-// it at each place a name is being GIVEN to something.
+// it at each place a name is being GIVEN to something. The member words
+// (the spec's Names › Reserved names) are the few a message or a verb may
+// not take either.
 
 /**
  * Every reserved word, in the spec's order: the type names, the
@@ -94,4 +96,26 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
 /** Whether a word is the language's own, and so may not be given as a name. */
 export function isReserved(word: string): boolean {
   return RESERVED_WORDS.has(word);
+}
+
+/**
+ * The words that name a member of a kind, which the spec's Names ›
+ * Reserved names keeps from naming a message or a verb. Each is a
+ * reserved word too, but is refused in its own words there, because
+ * what an author meant by one is the member.
+ */
+export const MEMBER_WORDS: ReadonlySet<string> = new Set([
+  'describe',
+  'depart',
+  'release',
+  'accept',
+  'permit',
+  'do',
+  'passage',
+  'prose',
+]);
+
+/** Whether a word names a member of a kind, and so may name no message or verb. */
+export function isMemberWord(word: string): boolean {
+  return MEMBER_WORDS.has(word);
 }

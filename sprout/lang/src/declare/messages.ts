@@ -13,6 +13,7 @@
 
 import type { MessageDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
+import { isMemberWord } from '../syntax/reserved.js';
 import { readable } from '../source/words.js';
 import { ENGINE_MESSAGES, engineMessage } from './engine-messages.js';
 import type { EnumTable } from './enums.js';
@@ -38,7 +39,8 @@ export class MessageTable {
    * Add a library's declarations, resolving what each carries. Two
    * messages of one name in one library collide; two in different
    * libraries do not, because libraries namespace messages. No library
-   * may take an engine message's name (the spec's Reserved names).
+   * may take an engine message's name or a member's word (the spec's
+   * Names › Reserved names).
    */
   add(
     library: string,
@@ -52,6 +54,14 @@ export class MessageTable {
           declared.name.at,
           `\`:${declared.name.text}\` is one of the engine's messages, and the engine sends those itself.`,
           `The engine's messages are ${readable(ENGINE_NAMES)}. Name yours for what it means to your world, as in \`:rang\`.`,
+        );
+        continue;
+      }
+      if (isMemberWord(declared.name.text)) {
+        diagnostics.refuse(
+          declared.name.at,
+          `\`:${declared.name.text}\` names a member of a kind, so it cannot name a message.`,
+          'Choose another word, as in `:rang`.',
         );
         continue;
       }
