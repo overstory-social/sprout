@@ -1,9 +1,11 @@
 world move_set: sprout.World {
   contains actors
   visitors are Visitor
-  visitors arrive at move_set
+  visitors arrive at hall
 }
 
 kind Visitor: sprout.Actor { }
 
 verb sort { role target  role pieces many  "sort [pieces] into [target]" }
+
+object hall: sprout.Place in move_set
