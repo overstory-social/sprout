@@ -1,156 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  actorBinding,
-  hereBinding,
-  letBinding,
-  loopBinding,
-  roleBinding,
-  Scope,
-  selfBinding,
-  setRoleBinding,
-  showBindingType,
-  valueOf,
-  type Binding,
-} from './bindings.js';
-import type { KindLookup, KindRef } from '../declare/kinds.js';
+import { letBinding, loopBinding, roleBinding, showBindingType, valueOf } from './bindings.js';
 import { ACTOR } from '../declare/actors.js';
 import {
+  bindingType,
   checkCondition,
-  checkEffect,
-  checkLet,
+  checkEffectCall,
+  isEffect,
   narrowingOf,
+  resolveKind,
   typeOf,
   type CheckContext,
 } from './check.js';
 import { Diagnostics } from '../source/diagnostics.js';
-import { EnumTable } from '../declare/enums.js';
-import { parseDeclarations, parseExpression, parseLet, parseProperty } from '../syntax/parse.js';
-import { resolveProperty, type ResolvedProperty } from '../declare/properties.js';
+import { parseExpression } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { integer } from '../declare/types.js';
-
-// --- the printer's shop, far enough built to ask real questions -----------
-
-const NAMES = new SourceFile(
-  'shop.sprout',
-  'self actor here target tool tools item thing topic n note\n',
-);
-const at = (word: string) => {
-  const start = NAMES.text.indexOf(word);
-  if (start < 0) throw new Error(`the fixture has no \`${word}\``);
-  return NAMES.span(start, start + word.length);
-};
-
-const ENUMS = (() => {
-  const table = new EnumTable();
-  const diagnostics = new Diagnostics();
-  table.add(
-    'shop',
-    parseDeclarations(
-      new SourceFile(
-        'enums.sprout',
-        'enum Ward { oak, silver }\nenum Drying { wet, cured }\nenum Topic { bridge, toll }\n',
-      ),
-      diagnostics,
-    ).filter((d) => d.kind === 'enum'),
-    diagnostics,
-  );
-  expect(diagnostics.refusals).toHaveLength(0);
-  return table;
-})();
-
-function property(text: string, remembered = false): ResolvedProperty {
-  const diagnostics = new Diagnostics();
-  const declared = parseProperty(new SourceFile('p.sprout', text), diagnostics);
-  const resolved =
-    declared === null
-      ? null
-      : resolveProperty(declared, ENUMS, 'shop', 'shop.Declared', diagnostics, remembered);
-  expect(diagnostics.refusals, text).toHaveLength(0);
-  return resolved!;
-}
-
-function kind(
-  name: string,
-  properties: ResolvedProperty[],
-  composes: string[] = [],
-  contains = false,
-  library = 'shop',
-  containsActors = false,
-): KindRef {
-  const order = [...composes, `${library}.${name}`];
-  return {
-    library,
-    name,
-    order,
-    composes: new Set(order),
-    properties: new Map(properties.map((p) => [p.name, p])),
-    // `contains actors` implies holding, and a fixture that says
-    // otherwise would be typing against a kind that cannot exist.
-    contains: contains || containsActors,
-    containsActors,
-    suppressed: [],
-  };
-}
-
-const KEY = kind('Key', [
-  property(':wear 0 min 0 max 99'),
-  property(':opens [Ward] default [oak]'),
-]);
-const WARDED = kind('Warded', [
-  property(':sealed false'),
-  property(':ward Ward default oak'),
-  property(':state Drying default wet'),
-  property(':note string default ""'),
-  property(':row [Ward] default [oak]'),
-  property(':grid [[Ward]] default [[oak]]'),
-]);
-const RIB = kind('Rib', [property(':cracked false')]);
-const VESSEL = kind(
-  'Vessel',
-  [property(':capacity 4 min 0 max 9'), property(':inked false')],
-  ['sprout.Container'],
-  true,
-);
-const PRINTER = kind(
-  'Printer',
-  [
-    property(':visits 0 min 0 max 99', true),
-    property(':handled false', true),
-    property(':seen [Ward] default [oak]', true),
-  ],
-  [ACTOR],
-  true,
-);
-const CONTAINER = kind('Container', [], [], true, 'sprout');
-
-const ALL = [KEY, WARDED, RIB, VESSEL, PRINTER, CONTAINER];
-const KINDS: KindLookup = {
-  qualified: (library, name) => ALL.find((k) => k.library === library && k.name === name) ?? null,
-  unqualified: (name, from) => KINDS.qualified(from, name) ?? KINDS.qualified('sprout', name),
-};
-
-/** A body of `selfKind`, with the bindings a role-player has. */
-function bodyOf(selfKind: KindRef, ...extra: Binding[]): CheckContext {
-  const scope = Scope.root();
-  const setting = new Diagnostics();
-  for (const binding of [
-    selfBinding(selfKind, at('self')),
-    actorBinding(PRINTER, at('actor')),
-    hereBinding(at('here')),
-    ...extra,
-  ]) {
-    expect(scope.introduce(binding, setting), binding.name).toBe(true);
-  }
-  expect(setting.refusals).toHaveLength(0);
-  return { scope, kinds: KINDS, from: 'shop', self: selfKind, diagnostics: new Diagnostics() };
-}
-
-/** Everything a context has said so far, message and remedy together. */
-function saidBy(context: CheckContext): string[] {
-  return context.diagnostics.all.map((d) => `${d.message} ${d.remedy ?? ''}`.trim());
-}
+import { at, bodyOf, KEY, PRINTER, saidBy, VESSEL, vessel, warded } from '../fixtures/check.js';
 
 /** Read an expression and ask what it is. The parse must succeed first. */
 function read(text: string, context: CheckContext) {
@@ -175,18 +41,6 @@ function read(text: string, context: CheckContext) {
 function shapeOf(text: string, context: CheckContext = bodyOf(VESSEL)): string | null {
   return read(text, context).shown;
 }
-
-const warded = () =>
-  bodyOf(
-    WARDED,
-    roleBinding('tool', { role: 'kind', kind: KEY }, null, at('tool'), new Diagnostics())!,
-  );
-const vessel = () =>
-  bodyOf(
-    VESSEL,
-    setRoleBinding('tools', RIB, at('tools')),
-    roleBinding('target', { role: 'open' }, null, at('target'), new Diagnostics())!,
-  );
 
 // --- the table ------------------------------------------------------------
 
@@ -730,6 +584,42 @@ describe('there is no truthiness and no coercion', () => {
 
 // --- how it behaves at the edges ------------------------------------------
 
+describe('the names a statement reads through', () => {
+  const written = (text: string) =>
+    parseExpression(new SourceFile('b.sprout', text), new Diagnostics())!;
+
+  it('resolves a kind as written, and refuses one nothing declares or that is no kind', () => {
+    const context = vessel();
+    expect(resolveKind(written('Key'), context)).toBe(KEY);
+    expect(resolveKind(written('sprout.Container'), context)!.library).toBe('sprout');
+    expect(resolveKind(written('Kiln'), context)).toBeNull();
+    expect(resolveKind(written('self'), context)).toBeNull();
+    expect(saidBy(context)).toEqual([
+      'Nothing here is a `Kiln`. Write a kind this world declares, or one a library it uses exports.',
+      'This names a kind, which starts with a capital letter. Write the kind, as in `Key` or `sprout.Container`.',
+    ]);
+  });
+
+  it('types a name by what it is bound to, and refuses one nothing answers to', () => {
+    const context = vessel();
+    const name = (text: string) => {
+      const expr = written(text);
+      if (expr.kind !== 'binding') throw new Error(`${text} is not a name`);
+      return expr.name;
+    };
+    expect(bindingType(name('self'), context)).toEqual({ binds: 'object', kind: VESSEL });
+    expect(bindingType(name('shelf'), context)).toBeNull();
+    expect(saidBy(context).join(' ')).toContain('Nothing here is called `shelf`.');
+  });
+
+  it('tells a call that writes from one that reads', () => {
+    expect(isEffect(written('self.set(:inked, true)'))).toBe(true);
+    expect(isEffect(written('actor.remember(:handled, true)'))).toBe(true);
+    expect(isEffect(written('self.get(:inked)'))).toBe(false);
+    expect(isEffect(written('self'))).toBe(false);
+  });
+});
+
 describe('it never guesses, and never dies', () => {
   it('types a chain with no bracket in it, however long', () => {
     // A tree is as deep as its longest chain of operators, and this one
@@ -801,13 +691,6 @@ describe('it never guesses, and never dies', () => {
     expect(saidBy(context).join(' ')).toContain('it is not a value');
   });
 
-  it('refuses a value where a statement is wanted', () => {
-    const context = vessel();
-    const expr = parseExpression(new SourceFile('b.sprout', 'self.get(:inked)'), new Diagnostics());
-    expect(checkEffect(expr!, context)).toBe(false);
-    expect(context.diagnostics.refusals[0]!.message).toContain('reads something');
-  });
-
   it('suggests a name in reach when one is misspelt', () => {
     const context = bodyOf(VESSEL, loopBinding('thing', null, at('thing')));
     expect(read('thnig', context).type).toBeNull();
@@ -828,92 +711,10 @@ function effectSaid(text: string, context: CheckContext): { ok: boolean; message
     parsing.refusals.map((d) => d.message),
     `\`${text}\` did not parse`,
   ).toEqual([]);
-  const ok = checkEffect(expr!, context);
+  expect(expr !== null && isEffect(expr), `\`${text}\` is not a call that writes`).toBe(true);
+  const ok = checkEffectCall(expr as Parameters<typeof checkEffectCall>[0], context);
   return {
     ok,
     messages: context.diagnostics.all.map((d) => `${d.message} ${d.remedy ?? ''}`.trim()),
   };
 }
-
-// --- `let` ----------------------------------------------------------------
-
-/** Read a `let` and bring it into scope, or say why it does not come. */
-function named(text: string, context: CheckContext) {
-  const parsing = new Diagnostics();
-  const statement = parseLet(new SourceFile('b.sprout', text), parsing);
-  expect(
-    parsing.refusals.map((d) => d.message),
-    `\`${text}\` did not parse`,
-  ).toEqual([]);
-  const binding = checkLet(statement!, context);
-  return { binding, shown: binding === null ? null : showBindingType(binding.type) };
-}
-
-describe('`let` names a value', () => {
-  it('reads the spec’s own example, in a body that has what it needs', () => {
-    const context = vessel();
-    expect(named('let ribs = tools.count(Rib)', context).shown).toBe('integer');
-    expect(named('let state = self.get(:inked)', context).shown).toBe('boolean');
-    expect(context.scope.lookup('ribs')!.origin).toBe('let');
-  });
-
-  it('takes the expression’s type EXACTLY, widening nothing', () => {
-    // An integer 0 to 9 stays an integer 0 to 9: there is nothing
-    // annotated, so there is nothing to widen towards.
-    expect(named('let room = self.get(:capacity)', vessel()).shown).toBe('integer 0 to 9');
-    expect(named('let opens = tool.get(:opens)', warded()).shown).toBe('[Ward]');
-  });
-
-  it('may name a thing in the world, at the kind it was known by', () => {
-    expect(named('let it = target', vessel()).shown).toBe('an object');
-    expect(named('let key = tool', warded()).shown).toBe('shop.Key');
-  });
-
-  it('names a thing narrowed by `is()` at the kind it was narrowed to', () => {
-    const context = vessel();
-    const expr = parseExpression(new SourceFile('b.sprout', 'target.is(Key)'), new Diagnostics());
-    const narrowing = narrowingOf(expr!, context)!;
-    const branch = context.scope.narrowing(narrowing.binding, narrowing.kind);
-    const inside: CheckContext = { ...context, scope: branch, diagnostics: new Diagnostics() };
-    expect(named('let it = target', inside).shown).toBe('shop.Key');
-  });
-
-  it('is written once and never again', () => {
-    // There is no reassignment anywhere in the language, so the only
-    // way to write a name twice is to `let` it twice.
-    const context = vessel();
-    expect(named('let n = 1', context).shown).toBe('integer');
-    expect(named('let n = 2', context).binding).toBeNull();
-    expect(saidBy(context).join(' ')).toContain('`n` already names a name for a value');
-    // And the first one still means what it did.
-    expect(context.scope.lookup('n')!.origin).toBe('let');
-  });
-
-  it('may not take the name of a role, a loop variable, or anything else in scope', () => {
-    for (const [text, first] of [
-      ['let tools = 1', "this verb's role"],
-      ['let self = 1', 'the role-player'],
-      ['let actor = 1', 'whoever is acting'],
-      ['let here = 1', "the actor's place"],
-    ] as const) {
-      const context = vessel();
-      expect(named(text, context).binding, text).toBeNull();
-      expect(saidBy(context).join(' '), text).toContain(first);
-    }
-  });
-
-  it('cannot name something that changes the world, because an initializer is an expression', () => {
-    const context = vessel();
-    expect(named('let x = self.set(:inked, true)', context).binding).toBeNull();
-    expect(saidBy(context).join(' ')).toContain('it is not a value');
-    // And the name does not come into scope after a refusal.
-    expect(context.scope.lookup('x')).toBeNull();
-  });
-
-  it('cannot name something that is not there', () => {
-    const context = vessel();
-    expect(named('let x = nothing_at_all', context).binding).toBeNull();
-    expect(saidBy(context).join(' ')).toContain('Nothing here is called `nothing_at_all`');
-    expect(context.scope.lookup('x')).toBeNull();
-  });
-});

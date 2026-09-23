@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EnumDeclaration } from './ast.js';
-import { DECLARATIONS } from './parse.js';
-import { locationOf } from '../source/source.js';
+import { DECLARATIONS, parseStatement } from './parse.js';
+import { Diagnostics } from '../source/diagnostics.js';
+import { locationOf, SourceFile } from '../source/source.js';
 import { read, optionsOf } from '../fixtures/parse.js';
 
 /**
@@ -156,5 +157,37 @@ describe('every place that asks where a declaration starts reads one table', () 
         expect(declarations, written).toHaveLength(1);
       }
     }
+  });
+});
+
+describe('one statement, read on its own', () => {
+  const statement = (text: string) => {
+    const diagnostics = new Diagnostics();
+    const read = parseStatement(new SourceFile('s.sprout', text), diagnostics);
+    return { read, said: diagnostics.refusals.map((d) => `${locationOf(d.at)} ${d.message}`) };
+  };
+
+  it('reads each statement this compiler reads', () => {
+    for (const [text, kind] of [
+      ['let n = 1', 'let'],
+      ['spawn Cup in self', 'spawn'],
+      ['destroy self', 'destroy'],
+    ] as const) {
+      const { read, said } = statement(text);
+      expect(said, text).toEqual([]);
+      expect(read?.kind, text).toBe(kind);
+    }
+  });
+
+  it('keeps the statement it read, and refuses what is written after it', () => {
+    const { read, said } = statement('destroy self self');
+    expect(read?.kind).toBe('destroy');
+    expect(said).toEqual(['s.sprout:1:14 `self` does not start a statement this compiler reads.']);
+  });
+
+  it('says nothing more about what follows a statement it could not read', () => {
+    expect(statement('spawn cup in self').said).toEqual([
+      's.sprout:1:7 `cup` is not the name of a kind.',
+    ]);
   });
 });

@@ -24,23 +24,15 @@
 // so a body never reads a property off something that might not have
 // one.
 //
-// What is NOT here: statements (B24 onward), and the free calls
-// `chance` and `random`, whose types the spec gives but whose rules
-// about where they may appear are B33's. `FREE_CALLS` is the empty
+// What is NOT here: statements, which are `statements.ts`'s, and the
+// free calls `chance` and `random`, whose types the spec gives but whose
+// rules about where they may appear are B33's. `FREE_CALLS` is the empty
 // table B33 fills; the parser reads the shape so the refusal can name
 // the word rather than complain about a bracket.
 
-import type {
-  BinaryOperator,
-  Expr,
-  Ident,
-  KindExpr,
-  LetStatement,
-  SymbolExpr,
-} from '../syntax/ast.js';
+import type { BinaryOperator, CallExpr, Expr, Ident, KindExpr, SymbolExpr } from '../syntax/ast.js';
 import {
   isObjectBinding,
-  letBinding,
   objectOf,
   OPEN_OBJECT,
   showBindingType,
@@ -151,51 +143,20 @@ export function narrowingOf(
   return kind === null ? null : { binding, kind };
 }
 
-/**
- * `let ribs = tools.count(Rib)` — a name for what an expression works
- * out, brought into scope for the rest of its block.
- *
- * Its type is the expression's, EXACTLY: an integer 0 to 9 stays an
- * integer 0 to 9, and a name for a thing in the world stays at the kind
- * it was narrowed to. Nothing is widened on the way in, because nothing
- * was annotated and there is nothing to widen towards.
- *
- * Written once and never again. There is no reassignment anywhere in
- * the language, so the only way to write a name twice is to `let` it
- * twice — which `Scope.introduce` refuses as shadowing, in the same
- * words it refuses a `let` taking the name of a role or an `each`
- * variable. Two things answering to one name is the opposite of what
- * naming is for.
- *
- * WHERE a `let` may be written is not decided here, because none of
- * those places exist yet: a body is B24's, a passage is B29's (and may
- * not hold one), and `let x = spawn …` waits for B18 to have a `spawn`
- * to name.
- */
-export function checkLet(statement: LetStatement, context: CheckContext): Binding | null {
-  const type = typeOf(statement.value, context);
-  if (type === null) return null;
-  const binding = letBinding(statement.name.text, type, statement.name.at);
-  return context.scope.introduce(binding, context.diagnostics) ? binding : null;
+/** Whether an expression is a call to one of the four that write or the one that remembers. */
+export function isEffect(expr: Expr): expr is CallExpr {
+  return expr.kind === 'call' && EFFECTS.has(expr.method.text);
 }
 
 /**
- * A call in statement position: the four that write and the one that
- * remembers. Everything else is a value, and using a value as a
- * statement is a refusal with nothing to say for itself.
+ * A call `isEffect` answers yes to, checked as the write or the memory it
+ * is: only `self` writes `self`, and the value given matches what it is
+ * given to. Where one is allowed is the statement checker's.
  */
-export function checkEffect(expr: Expr, context: CheckContext): boolean {
-  if (expr.kind !== 'call' || !EFFECTS.has(expr.method.text)) {
-    context.diagnostics.refuse(
-      expr.at,
-      'This reads something rather than doing something.',
-      'A body changes the world with `self.set(…)`, `self.adjust(…)`, `self.add(…)`, `self.remove(…)` or `x.remember(…)`.',
-    );
-    return false;
-  }
-  const receiver = typeOf(expr.receiver, context);
+export function checkEffectCall(call: CallExpr, context: CheckContext): boolean {
+  const receiver = typeOf(call.receiver, context);
   if (receiver === null) return false;
-  return effectCall(expr.receiver, receiver, expr.method, expr.arguments, context) !== null;
+  return effectCall(call.receiver, receiver, call.method, call.arguments, context) !== null;
 }
 
 // --- the bottom of a spine ------------------------------------------------
@@ -249,7 +210,8 @@ function leafType(expr: Expr, context: CheckContext): BindingType | null {
   }
 }
 
-function bindingType(name: Ident, context: CheckContext): BindingType | null {
+/** What a name in scope is bound to, or null having said nothing here answers to it. */
+export function bindingType(name: Ident, context: CheckContext): BindingType | null {
   const binding = context.scope.lookup(name.text);
   if (binding !== null) return binding.type;
   const meant = nearestOption(name.text, context.scope.names());
@@ -1026,7 +988,8 @@ function propertyName(written: Expr, context: CheckContext): Ident | null {
   return null;
 }
 
-function resolveKind(written: Expr, context: CheckContext): KindRef | null {
+/** The kind a `Key` or `sprout.Container` names, or null having said why it names none. */
+export function resolveKind(written: Expr, context: CheckContext): KindRef | null {
   if (written.kind !== 'kind-expr') {
     context.diagnostics.refuse(
       written.at,

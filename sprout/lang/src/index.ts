@@ -30,6 +30,7 @@ export * from './declare/world.js';
 
 export * from './check/bindings.js';
 export * from './check/check.js';
+export * from './check/statements.js';
 
 export * from './bundle/limits.js';
 export * from './bundle/absent.js';
