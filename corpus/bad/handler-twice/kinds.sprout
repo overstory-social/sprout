@@ -6,3 +6,7 @@ kind Cat {
   on :stir { self.adjust(:n, 1) }
   on :stir { self.adjust(:n, 2) }
 }
+
+kind Bellows {
+  on :spawned (from) { broadcast :stir }
+}

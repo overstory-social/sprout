@@ -166,3 +166,15 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
     ]);
   });
 });
+
+describe('a guard or a `permit` sends nothing', () => {
+  it('refuses `send` and `broadcast`, which queue a message, as doing', () => {
+    expect(check('send self :creak\n    broadcast :creak', GUARD).map(([, m]) => m)).toEqual([
+      '`send` sends a message, and a guard only reads and decides.',
+      '`broadcast` sends a message, and a guard only reads and decides.',
+    ]);
+    expect(check('send self :creak', PERMIT).map(([, m]) => m)).toEqual([
+      '`send` sends a message, and a `permit` only reads and decides.',
+    ]);
+  });
+});

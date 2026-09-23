@@ -27,7 +27,8 @@ import {
   wasBinding,
   type Binding,
 } from './bindings.js';
-import { typeOf, type ActSetting, type CheckContext } from './check.js';
+import { typeOf, type ActSetting, type CheckContext, type MessageSetting } from './check.js';
+import type { NameScope } from './names.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a handler, a hook or a pass rule is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
@@ -35,6 +36,10 @@ export interface HandlerSetting {
   readonly kinds: KindLookup;
   readonly verbs: ActSetting['verbs'];
   readonly diagnostics: Diagnostics;
+  /** Where the body's identifiers resolve from; with none, only bindings are names. */
+  readonly names?: NameScope;
+  /** The messages a send in the body reaches. */
+  readonly messages?: MessageSetting;
 }
 
 /**
@@ -130,6 +135,7 @@ export function checkPass(pass: ResolvedPass, self: KindRef, setting: HandlerSet
     from: self.library,
     self,
     diagnostics,
+    ...(setting.names === undefined ? {} : { names: setting.names }),
   };
   const rule = pass.declaration.rule;
   const type = typeOf(rule, context);
@@ -181,6 +187,8 @@ function checkBody(
     self,
     diagnostics,
     acting: { verbs: setting.verbs },
+    ...(setting.names === undefined ? {} : { names: setting.names }),
+    ...(setting.messages === undefined ? {} : { messages: setting.messages }),
   };
   checkBlock(body, context, { body: 'handler', written });
 }

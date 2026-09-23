@@ -11,7 +11,9 @@
 // evaluated, and `+` or `-` whose result leaves the integer range.
 //
 // It only reads. `bound tool` asks whether the frame binds the name, which
-// is how a role's body tells a tool it was given from one it was not.
+// is how a role's body tells a tool it was given from one it was not; an
+// identifier is what the checker resolved it to, and faults where that is
+// not in range (`named.ts`).
 // `chance` and `random` are B33's.
 
 import type { BinaryOperator, CallExpr, Expr, KindExpr, MemberExpr } from '../syntax/ast.js';
@@ -22,6 +24,9 @@ import type { Budget } from './budget.js';
 import type { InstanceId } from './ids.js';
 import { SproutList } from './lists.js';
 import type { Instance, StateReader } from './state.js';
+import type { NameTable } from '../check/names.js';
+import { reachedByName } from './named.js';
+import type { PassRule } from './range.js';
 import { defaultOf, type Value } from './values.js';
 
 /**
@@ -49,6 +54,10 @@ export interface Frame {
   readonly budget: Budget;
   /** The host's caps now, which a remembered list's default is built under. */
   readonly caps: StaticCaps;
+  /** What each identifier and path the bundle's bodies wrote names. */
+  readonly names: NameTable;
+  /** What the turn's containers let through, which reading through a name asks. */
+  readonly passes: PassRule<InstanceId>;
 }
 
 /**
@@ -109,8 +118,10 @@ function leaf(expr: Expr, frame: Frame): Evaluated {
     case 'binding': {
       if (expr.name.text === 'self') return boundObject(frame.self);
       const bound = frame.bindings.get(expr.name.text);
-      if (bound === undefined) throw unchecked(`\`${expr.name.text}\`, which nothing binds,`);
-      return bound;
+      if (bound !== undefined) return bound;
+      const named = frame.names.get(expr.name);
+      if (named === undefined) throw unchecked(`\`${expr.name.text}\`, which nothing binds,`);
+      return boundObject(reachedByName(named, expr.name.text, frame));
     }
     case 'bound':
       // A tool the reading left out, or a value outside what this role-player hears, is not in the frame.

@@ -1,0 +1,40 @@
+message :rang
+message :lit with boolean
+message :answered with integer
+
+verb ring { role target  "ring [target]" }
+
+// The lamp writes its own light, and answers whoever lit it.
+kind Lamp {
+  :lit false
+  on :lit (from, value) {
+    self.set(:lit, value)
+    send from :answered with 1
+  }
+  on :rang { }
+}
+
+kind Bell {
+  :answers 0 min 0 max 99
+  on :answered (_, n) { self.adjust(:answers, n) }
+}
+
+// A lantern hands the light on to its own wick, the copy it gives every
+// lantern, named from the kind's own body.
+kind Lantern {
+  contains
+  on :lit (_, value) { send wick :lit with value }
+  object wick is Wick
+}
+
+kind Wick {
+  :burning false
+  on :lit (_, value) { self.set(:burning, value) }
+}
+
+kind Cupboard { contains }
+
+kind Jar {
+  :rung false
+  on :rang { self.set(:rung, true) }
+}

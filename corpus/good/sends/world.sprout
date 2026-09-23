@@ -1,0 +1,30 @@
+// `send` and `broadcast`, and the names a body reaches things by: an
+// object named from where the body is written, the nearest winning; a
+// dotted path to something deeper; the world's name as a path's first
+// step; and, in a kind's body, what the kind gives each instance.
+world sending is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object bell is Bell {
+      // `lamp` is the lamp beside the bell; `hall.cupboard.jar` is deeper.
+      as target for ring {
+        do {
+          send lamp :lit with true
+          send hall.cupboard.jar :rang
+          send sending.hall :rang
+          broadcast :rang
+          say "The bell rings."
+        }
+      }
+    }
+    object lamp is Lamp
+    object lantern is Lantern
+    object cupboard is Cupboard {
+      object jar is Jar
+    }
+  }
+}
+
+kind Person is sprout.Visitor { }

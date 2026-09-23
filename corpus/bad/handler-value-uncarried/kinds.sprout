@@ -5,3 +5,7 @@ kind Candle {
   :lit true
   on :gust (from, strength) { self.set(:lit, false) }
 }
+
+kind Bellows {
+  on :spawned (from) { broadcast :gust }
+}

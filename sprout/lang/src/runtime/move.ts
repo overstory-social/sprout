@@ -214,6 +214,8 @@ export function moveInstance(
         kinds: catalogue.lookup,
         budget,
         caps: catalogue.caps,
+        names: catalogue.names,
+        passes,
         self: party,
         mover,
         parameters,

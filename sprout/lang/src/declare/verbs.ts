@@ -10,13 +10,13 @@
 // identity is its library and its name, as a kind's is. B24 plays a
 // role and B27 parses a phrase; neither is here.
 
+import type { KindExpr } from '../syntax/ast.js';
 import type {
-  KindExpr,
   PhraseDeclaration,
   PhraseSlot,
   RoleDeclaration,
   VerbDeclaration,
-} from '../syntax/ast.js';
+} from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { textOf } from '../source/source.js';
 import { readable } from '../source/words.js';

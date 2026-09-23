@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Declaration, RoleDeclaration, VerbDeclaration } from '../ast.js';
+import type { Declaration } from '../ast.js';
+import type { RoleDeclaration, VerbDeclaration } from '../ast-verbs.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';

@@ -19,6 +19,8 @@
 // bundle that produced it.
 
 import type { Absent } from './absent.js';
+import type { MessageLookup } from '../declare/messages.js';
+import type { NameTable } from '../check/names.js';
 import type { Declaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { KindContents } from '../declare/contents.js';
@@ -184,6 +186,13 @@ export interface Bundle {
    * reading is of, whether a command builds it or an `act` does.
    */
   readonly verbs: VerbLookup;
+  /** Every message the bundle declares, which a send's message is reached in. */
+  readonly messages: MessageLookup;
+  /**
+   * What each identifier and dotted path a body writes names, by the node
+   * written, as the checker resolved it from where the body is written.
+   */
+  readonly names: NameTable;
   /**
    * What each kind's body gives every instance of it, by the kind's
    * qualified name: what a spawn makes with the instance, and what a

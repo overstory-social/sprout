@@ -131,6 +131,8 @@ function ask(guard: GuardName, asked: Asked): 'allow' | Refusal {
     self: asked.self,
     mover: asked.mover,
     parameters: asked.parameters,
+    names: new Map(),
+    passes: () => true,
   };
   return runGuard(guardOf(asked.draft, asked.self, guard), context);
 }

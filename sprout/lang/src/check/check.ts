@@ -32,6 +32,7 @@ import type { CallExpr, Expr } from '../syntax/ast.js';
 import {
   isObjectBinding,
   showBindingType,
+  valueOf,
   type BindingType,
   type ObjectBinding,
 } from './bindings.js';
@@ -41,8 +42,10 @@ import { checkerOf, type CheckContext, type Checker } from './check/checker.js';
 import { leafType } from './check/leaves.js';
 import { aboveType } from './check/operators.js';
 import { EFFECTS, effectCall } from './check/writes.js';
+import { matches } from './check/values.js';
+import type { ValueType } from '../declare/types.js';
 
-export type { ActSetting, CheckContext } from './check/checker.js';
+export type { ActSetting, CheckContext, MessageSetting } from './check/checker.js';
 export { bindingType } from './check/leaves.js';
 export { resolveKind } from './check/arguments.js';
 
@@ -84,6 +87,11 @@ function walk(expr: Expr, checker: Checker): BindingType | null {
     type = aboveType(spine.pop()!, type, checker);
   }
   return type;
+}
+
+/** A value given where `wanted` is: the same type exactly, an option of its enum, a literal in its range. */
+export function checkValue(expr: Expr, wanted: ValueType, context: CheckContext): boolean {
+  return matches(expr, valueOf(wanted), checkerOf(context, walk));
 }
 
 /** `if (e)` — `e` boolean. Nothing else is a condition, and nothing is coerced. */

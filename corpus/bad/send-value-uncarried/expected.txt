@@ -1,0 +1,4 @@
+kinds.sprout:5:45  `:gust` carries no value.
+                   Take `with …` off, as in `broadcast :gust`, or declare the value with `message :gust with <type>`.
+
+refused: 1 problem

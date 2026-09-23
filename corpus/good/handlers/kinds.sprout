@@ -37,6 +37,23 @@ kind Cellar is sprout.Place {
   }
 }
 
+// A bellows answers being made by fanning out a gust, and a lighter
+// lights whatever the light reaches.
+kind Bellows {
+  on :spawned (from) { broadcast :gust }
+}
+
+verb strike { role target  "strike [target]" }
+
+kind Lighter {
+  as target for strike {
+    do {
+      broadcast :illuminating with true
+      say "The lighter catches."
+    }
+  }
+}
+
 // A kind may leave out a composed kind's handler and write its own.
 kind Steady is Lamp {
   without on :gust from Lamp

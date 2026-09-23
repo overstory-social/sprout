@@ -11,13 +11,18 @@ import type { GuardDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import { guardParameterBinding, moverBinding, Scope, selfBinding } from './bindings.js';
-import type { CheckContext } from './check.js';
+import type { CheckContext, MessageSetting } from './check.js';
+import type { NameScope } from './names.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a guard is read: the kinds in scope and somewhere to say what is wrong. */
 export interface GuardSetting {
   readonly kinds: KindLookup;
   readonly diagnostics: Diagnostics;
+  /** Where the body's identifiers resolve from; with none, only bindings are names. */
+  readonly names?: NameScope;
+  /** The messages a send in the body reaches. */
+  readonly messages?: MessageSetting;
 }
 
 /**
@@ -40,6 +45,8 @@ export function checkGuard(guard: GuardDeclaration, self: KindRef, setting: Guar
     from: self.library,
     self,
     diagnostics,
+    ...(setting.names === undefined ? {} : { names: setting.names }),
+    ...(setting.messages === undefined ? {} : { messages: setting.messages }),
   };
   checkBlock(guard.body, context, { body: 'guard', guard: guard.guard });
   return diagnostics.refusals.length === before;

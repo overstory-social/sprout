@@ -1,0 +1,4 @@
+// The engine sends its own messages; a body sends one a library declares.
+kind Door {
+  on :spawned (from) { send from :entered }
+}

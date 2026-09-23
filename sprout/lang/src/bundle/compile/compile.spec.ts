@@ -160,6 +160,25 @@ describe('what a compiled bundle carries', () => {
   });
 });
 
+describe('what a compiled bundle knows of its bodies', () => {
+  it('records what each name a body writes reaches, and the messages a send reaches them in', () => {
+    const files = [
+      file(
+        'world.sprout',
+        `${rootWith('object bell is Bell')}
+message :rang
+kind Bell { on :rang { send hall :rang } }`,
+      ),
+    ];
+    const { bundle, diagnostics } = compileBundle(world({ files }));
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.messages.qualified('printers_shop', 'rang')).not.toBeNull();
+    expect([...bundle!.names.values()]).toContainEqual(
+      expect.objectContaining({ names: 'declared', path: ['hall'] }),
+    );
+  });
+});
+
 describe('publishing is strict: any problem is a refusal', () => {
   it('is what a compile does when nothing says otherwise', () => {
     expect(compileBundle(world({ libraries: [] })).bundle).toBeNull();

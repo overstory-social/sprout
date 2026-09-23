@@ -31,8 +31,9 @@ export interface LiveTree<Id> {
 
 /**
  * Whether a container lets `asking` through to what it holds: the
- * container's policy, never the item's. B32 evaluates written rules;
- * unwritten ones relay, except the world's, which refuses.
+ * container's policy, never the item's. `passes.ts` answers with the
+ * rules a kind writes; unwritten ones relay, except the world's, which
+ * refuses.
  */
 export type PassRule<Id> = (container: Id, asking: Asking) => boolean;
 

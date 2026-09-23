@@ -13,13 +13,8 @@
 // checker's to read. Every play of one role in one verb runs, in closure
 // order, the composer's own last.
 
-import type {
-  FromDeclaration,
-  KindMember,
-  PlayDeclaration,
-  RoleDeclaration,
-  VerbDeclaration,
-} from '../syntax/ast.js';
+import type { FromDeclaration, KindMember, PlayDeclaration } from '../syntax/ast.js';
+import type { RoleDeclaration, VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import { readable } from '../source/words.js';

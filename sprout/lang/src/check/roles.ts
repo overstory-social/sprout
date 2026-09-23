@@ -31,7 +31,8 @@ import {
   type Binding,
   type Words,
 } from './bindings.js';
-import type { ActSetting, CheckContext } from './check.js';
+import type { ActSetting, CheckContext, MessageSetting } from './check.js';
+import type { NameScope } from './names.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a play is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
@@ -39,6 +40,10 @@ export interface PlaySetting {
   readonly kinds: KindLookup;
   readonly verbs: ActSetting['verbs'];
   readonly diagnostics: Diagnostics;
+  /** Where the body's identifiers resolve from; with none, only bindings are names. */
+  readonly names?: NameScope;
+  /** The messages a send in the body reaches. */
+  readonly messages?: MessageSetting;
 }
 
 /**
@@ -79,6 +84,8 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     diagnostics,
     verb: verb.name,
     acting: { verbs: setting.verbs },
+    ...(setting.names === undefined ? {} : { names: setting.names }),
+    ...(setting.messages === undefined ? {} : { messages: setting.messages }),
   };
   const declaration = play.declaration;
   if (declaration.permit !== null) checkBlock(declaration.permit, context, { body: 'permit' });

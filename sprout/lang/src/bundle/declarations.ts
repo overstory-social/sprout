@@ -21,9 +21,9 @@ import type {
   EnumDeclaration,
   KindDeclaration,
   MessageDeclaration,
-  VerbDeclaration,
   WorldDeclaration,
 } from '../syntax/ast.js';
+import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable, SPROUT } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';

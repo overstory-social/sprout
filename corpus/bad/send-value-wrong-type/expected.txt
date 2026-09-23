@@ -1,0 +1,4 @@
+kinds.sprout:5:53  This holds boolean, and integer is not one.
+                   Write something of that type.
+
+refused: 1 problem

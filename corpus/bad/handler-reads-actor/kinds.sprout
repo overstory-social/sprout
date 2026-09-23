@@ -8,3 +8,7 @@ kind Cat {
     if (actor.is(Cat)) { self.set(:woken, true) }
   }
 }
+
+kind Bellows {
+  on :spawned (from) { broadcast :stir }
+}

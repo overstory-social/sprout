@@ -5,3 +5,7 @@ message :stir
 kind Cat {
   on :stir { say "The cat stretches." }
 }
+
+kind Bellows {
+  on :spawned (from) { broadcast :stir }
+}

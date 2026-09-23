@@ -9,3 +9,7 @@ kind Door {
     self.set(:locked, false)
   }
 }
+
+kind Bellows {
+  on :spawned (from) { broadcast :unlock_attempt }
+}

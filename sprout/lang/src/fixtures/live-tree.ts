@@ -1,7 +1,7 @@
 // What the range specs read a declared world through: a `LiveTree` over
 // the tree as declared, ids built by `declaredId` as stored state builds
-// them (`shop.kiln.shelf`), and a pass rule standing where B32's
-// evaluated ones will. Spec support: the package build leaves it out.
+// them (`shop.kiln.shelf`), and a pass rule standing where a kind's
+// written ones would. Spec support: the package build leaves it out.
 
 import type { KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import type { LiveTree, PassRule } from '../runtime/range.js';

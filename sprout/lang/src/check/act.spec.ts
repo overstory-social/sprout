@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ActStatement, KindDeclaration, VerbDeclaration } from '../syntax/ast.js';
+import type { ActStatement, KindDeclaration } from '../syntax/ast.js';
+import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations, parseStatement } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';

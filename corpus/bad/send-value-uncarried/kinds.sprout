@@ -1,0 +1,7 @@
+// `:gust` carries nothing, so a send of it gives nothing.
+message :gust
+
+kind Bellows {
+  on :spawned (from) { broadcast :gust with 3 }
+  on :gust { }
+}

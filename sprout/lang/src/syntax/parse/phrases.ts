@@ -8,7 +8,7 @@
 // names is the first tier's to check (`declare/verbs.ts`); matching a
 // typed command against a phrase is B27's.
 
-import type { PhraseDeclaration, PhrasePart } from '../ast.js';
+import type { PhraseDeclaration, PhrasePart } from '../ast-verbs.js';
 import type { Token } from '../lexer.js';
 import type { Span } from '../../source/source.js';
 import type { Parser } from './parser.js';

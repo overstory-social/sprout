@@ -30,10 +30,12 @@ import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.js';
 import type { InstanceId } from './ids.js';
-import type { EngineSend, LifecycleContext } from './lifecycle.js';
+import type { LifecycleContext } from './lifecycle.js';
 import { SproutList } from './lists.js';
-import { moveInstance, type Notice, type PlaceSend } from './move.js';
+import { moveInstance, type Notice } from './move.js';
+import type { Sent } from './sends.js';
 import type { Instance, StateReader } from './state.js';
+import type { PassRule } from './range.js';
 import type { Value } from './values.js';
 
 /** What fills one role of a reading: a thing, the things a set role names in typed order, or a value the visitor named. */
@@ -106,8 +108,8 @@ export interface Said {
 /** What the effect pass did, in order. */
 export interface Acted {
   readonly said: readonly Said[];
-  /** What the engine tells the world of each spawn and move, for B32's queue. */
-  readonly sends: readonly (EngineSend | PlaceSend)[];
+  /** What each spawn and move tells the world, and what each `send` and `broadcast` queued, in body order. */
+  readonly sends: readonly Sent[];
   /** What the places speak of each move an actor made between two, for B29 to render. */
   readonly notices: readonly Notice[];
   /** What destroyed itself, and everything it held; the queue drops everything pending on each. */
@@ -122,6 +124,7 @@ export interface ConsentContext {
   readonly state: StateReader;
   readonly catalogue: Catalogue;
   readonly budget: Budget;
+  readonly passes: PassRule<InstanceId>;
 }
 
 /** What a whole reading reads and writes: the turn's draft, and what a spawn in a `do` needs. */
@@ -202,7 +205,7 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   const speaker = person ? null : reading.actor;
 
   const said: Said[] = [];
-  const sends: (EngineSend | PlaceSend)[] = [];
+  const sends: Sent[] = [];
   const notices: Notice[] = [];
   const destroyed: InstanceId[] = [];
   const sink: ActSink = {
@@ -300,8 +303,8 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
  * is how many `act`s deep the reading runs: a typed command's is 0.
  */
 export function runReading(reading: Reading, context: ReadingContext, depth = 0): ReadingOutcome {
-  const { draft, catalogue, budget } = context;
-  const refused = consentPass(reading, { state: draft, catalogue, budget });
+  const { draft, catalogue, budget, passes } = context;
+  const refused = consentPass(reading, { state: draft, catalogue, budget, passes });
   return refused === null ? effectPass(reading, context, depth) : { refused };
 }
 
@@ -363,6 +366,8 @@ function frameFor(
     bindings,
     budget: context.budget,
     caps: context.catalogue.caps,
+    names: context.catalogue.names,
+    passes: context.passes,
   };
 }
 

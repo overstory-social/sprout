@@ -153,7 +153,12 @@ describe('the consent pass', () => {
     const { state } = one.draft.commit();
     const order = reading(YARD, 'order', visitor!, { target: { object: BOTH } });
     expect(
-      consentPass(order, { state: readerOf(state), catalogue: one.catalogue, budget: one.budget }),
+      consentPass(order, {
+        state: readerOf(state),
+        catalogue: one.catalogue,
+        budget: one.budget,
+        passes: contextOf(one).passes,
+      }),
     ).toBeNull();
   });
 

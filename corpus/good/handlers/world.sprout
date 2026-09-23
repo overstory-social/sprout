@@ -12,6 +12,8 @@ world handlers is sprout.World {
       object moth is Moth
     }
     object cellar is Cellar
+    object bellows is Bellows
+    object lighter is Lighter
   }
 }
 

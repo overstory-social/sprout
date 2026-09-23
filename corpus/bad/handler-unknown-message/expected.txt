@@ -1,3 +1,6 @@
+kinds.sprout:2:9  Nothing handles `:illuminating`, so sending it does nothing.
+                  Write `on :illuminating { … }` in the kind that should hear it, or take the message out.
+
 kinds.sprout:6:6  Nothing declares a message `:illumnating`. Did you mean `:illuminating`?
                   Write `:illuminating`, or declare `message :illumnating`.
 

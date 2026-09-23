@@ -1,0 +1,4 @@
+kinds.sprout:3:34  `:entered` is one of the engine's messages, and the engine sends those itself.
+                   The engine's messages are `:entered`, `:left`, `:moved`, `:arrived`, `:departed`, `:spawned`, `:tick` and `:woke`. Declare one of your own, as in `message :rang`, and send that.
+
+refused: 1 problem

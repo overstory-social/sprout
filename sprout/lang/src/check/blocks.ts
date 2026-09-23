@@ -31,6 +31,7 @@ import type { Binding, Scope } from './bindings.js';
 import { checkCondition, isEffect, narrowingOf, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { checkAct } from './act.js';
+import { checkBroadcast, checkSend } from './sends.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
 export type BodyKind =
@@ -85,6 +86,14 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'act':
       if (decides) readOnly('act', statement.at, context, kind);
       else checkAct(statement, context);
+      return;
+    case 'send':
+      if (decides) readOnly('send', statement.at, context, kind);
+      else checkSend(statement, context);
+      return;
+    case 'broadcast':
+      if (decides) readOnly('broadcast', statement.at, context, kind);
+      else checkBroadcast(statement, context);
       return;
     case 'expression-statement':
       if (decides && isEffect(statement.expression)) {
@@ -168,9 +177,11 @@ const CHANGES = {
   destroy: '`destroy self` removes something',
   move: '`move` moves something',
   act: '`act` performs a verb',
+  send: '`send` sends a message',
+  broadcast: '`broadcast` sends a message',
 } as const;
 
-/** `spawn`, `destroy self`, `move` or `act` where a guard or a `permit` decides. */
+/** `spawn`, `destroy self`, `move`, `act`, `send` or `broadcast` where a guard or a `permit` decides. */
 function readOnly(
   what: keyof typeof CHANGES,
   at: Span,

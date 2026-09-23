@@ -18,8 +18,8 @@ import { composesKind, kindName, type KindRef } from '../declare/kinds.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
 import { showType } from '../declare/types.js';
 import type { BindingType } from './bindings.js';
-import { bindingType, type CheckContext } from './check.js';
-import { nameOf } from './statements.js';
+import type { CheckContext } from './check.js';
+import { nameOf, pathType } from './statements.js';
 
 /**
  * `act nuzzle (target: p)` — refused where `self` may not act, where the
@@ -36,7 +36,7 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
   const verb = acting.verbs.unqualified(statement.verb.text, context.from);
   if (verb === null) {
     unknownVerb(statement, context);
-    for (const role of statement.roles) bindingType(nameOf(role.filler), context);
+    for (const role of statement.roles) pathType(role.filler, context);
     return false;
   }
   const named = new Set<string>();
@@ -44,7 +44,7 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
     const declared = verb.roles.find((one) => one.name === role.role.text);
     if (declared === undefined) {
       unknownRole(role, verb, context);
-      bindingType(nameOf(role.filler), context);
+      pathType(role.filler, context);
       passed = false;
       continue;
     }
@@ -125,7 +125,7 @@ function fills(
   context: CheckContext,
 ): boolean {
   const name = nameOf(role.filler);
-  const type = bindingType(name, context);
+  const type = pathType(role.filler, context);
   if (type === null) return false;
   const wanted = wants(declared, context);
   const takes = (() => {
