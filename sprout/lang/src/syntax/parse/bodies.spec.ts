@@ -154,6 +154,47 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
       expect(declarations.map((d) => d.name.text)).toContain('Inner');
     });
   }
+
+  it('names every member written after a stray `}` that ends a kind too early', () => {
+    // A brace count alone cannot tell a stray `}` from the kind's own,
+    // so what follows it is named rather than lost the way stepping
+    // straight to the next declaration would lose it — as `bodies.ts`
+    // holds for a world, a kind and an object alike.
+    const { declarations, refusals } = read(`kind K: sprout.Container {
+  :alpha 0
+  }
+  :bravo 1
+  contains actors
+}
+`);
+    const kind = owned(declarations)!;
+    expect(kind.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'alpha',
+    ]);
+    expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`:bravo` and `contains` are written after the `}` that ends `K`.',
+        'Everything `K` is made of goes inside its braces. Take out the `}` that ends it too early.',
+      ],
+    ]);
+  });
+
+  it('names the entries of a `:remembers` written after a stray `}`, one by one', () => {
+    // A `:remembers` after the stray brace is named entry by entry, so
+    // the remedy says which memory was lost and not merely that one was.
+    const { declarations, refusals } = read(`kind K: sprout.Container {
+  :alpha 0
+  }
+  :remembers [visits: 0, greeted: false]
+}
+`);
+    expect(
+      owned(declarations)!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind)),
+    ).toEqual(['alpha']);
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`visits` and `greeted` are written after the `}` that ends `K`.',
+    ]);
+  });
 });
 
 describe('`without` names a member and the kind it comes from, in any body', () => {

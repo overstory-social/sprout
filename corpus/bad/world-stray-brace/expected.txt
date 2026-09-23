@@ -1,0 +1,4 @@
+world.sprout:8:3  `:bravo` and `visitors` are written after the `}` that ends `world_stray_brace`.
+                  Everything `world_stray_brace` is made of goes inside its braces. Take out the `}` that ends it too early.
+
+refused: 1 problem

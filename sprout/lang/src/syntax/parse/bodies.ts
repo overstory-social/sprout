@@ -106,7 +106,10 @@ export function body<M>(
   const members: Member<M>[] = [];
   for (;;) {
     const close = p.take('punct', '}');
-    if (close !== null) return { members, close };
+    if (close !== null) {
+      membersAfterClose(p, name, readers);
+      return { members, close };
+    }
     if (p.done) return unclosed();
 
     // A word that starts a DECLARATION is not a member, however it
@@ -139,6 +142,109 @@ export function body<M>(
     // there: then it is the file's.
     if (p.peek().at.start === token.at.start && !p.atRecoveryStop()) p.next();
     if (!recoverToMember(p, readers)) return unclosed();
+  }
+}
+
+/** One member-shaped token found after a body's own `}`, and how it reads in the refusal. */
+interface FoundMember {
+  readonly at: Span;
+  readonly text: string;
+}
+
+/**
+ * Members written after the `}` that closes a body, as a stray one
+ * left inside a member's own text leaves them: a property, a
+ * `:remembers`, or one of the body's keyword members (`contains`,
+ * `visitors`, `without`), found before the next declaration or the end
+ * of the file. A brace count alone cannot tell such a stray closer from
+ * the body's own, so every member after it is named in one refusal
+ * instead of being lost the way stepping straight to the next
+ * declaration would lose them; what is named is then stepped over,
+ * through the body's own true `}` where one follows before the next
+ * declaration, so the file's reader is not handed the same tokens
+ * again.
+ */
+function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>): void {
+  const found: FoundMember[] = [];
+  let depth = 0;
+  let ahead = 0;
+  for (;;) {
+    const token = p.peek(ahead);
+    if (token.kind === 'end' || p.atRecoveryStop(ahead)) break;
+    if (punct(token, '[')) {
+      depth += 1;
+      ahead += 1;
+      continue;
+    }
+    if (depth > 0) {
+      if (punct(token, ']')) depth -= 1;
+      ahead += 1;
+      continue;
+    }
+    if (punct(token, '{')) break;
+    if (punct(token, '}')) {
+      ahead += 1;
+      break;
+    }
+    if (memberReader(p, token, readers) === null) {
+      // Not member-shaped itself — the orphaned rest of a member's own
+      // value, most likely — so it is skipped over rather than taken
+      // as proof that nothing here is stray: only reaching the next
+      // declaration or the end of the file with `found` still empty
+      // says that.
+      ahead += 1;
+      continue;
+    }
+    if (token.kind === 'symbol' && token.text === 'remembers') {
+      // What a `:remembers` holds is named entry by entry, as a stray
+      // one inside its own brackets is (`entriesAfterClose`), so its
+      // own remedy says which memory was lost and not merely that one
+      // was.
+      const before = found.length;
+      ahead = remembersEntries(p, ahead, found);
+      if (found.length === before) found.push({ at: token.at, text: ':remembers' });
+      continue;
+    }
+    // A property is named as it was written, colon and all, so the author
+    // can find the line; a word-led member by its first word.
+    found.push({ at: token.at, text: token.kind === 'symbol' ? `:${token.text}` : token.text });
+    ahead += 1;
+  }
+  if (found.length === 0) return;
+  p.diagnostics.refuse(
+    found[0]!.at,
+    `${readable(found.map((member) => member.text))} ${
+      found.length === 1 ? 'is' : 'are'
+    } written after the \`}\` that ends \`${name.text}\`.`,
+    `Everything \`${name.text}\` is made of goes inside its braces. Take out the \`}\` that ends it too early.`,
+  );
+  for (let i = 0; i < ahead; i++) p.next();
+}
+
+/**
+ * The names of a `:remembers`'s own entries, from just past its keyword
+ * at `ahead`, appended to `found`; and where the scan left off, past its
+ * own `]` where one closes it. Where no `[` follows the keyword at all,
+ * only the keyword itself is stepped past, leaving what follows for the
+ * outer scan to read on its own terms.
+ */
+function remembersEntries(p: Parser, ahead: number, found: FoundMember[]): number {
+  let at = ahead + 1;
+  if (!punct(p.peek(at), '[')) return at;
+  at += 1;
+  let depth = 0;
+  for (;;) {
+    const token = p.peek(at);
+    if (token.kind === 'end') return at;
+    if (punct(token, '[')) {
+      depth += 1;
+    } else if (punct(token, ']')) {
+      if (depth === 0) return at + 1;
+      depth -= 1;
+    } else if (depth === 0 && token.kind === 'name' && punct(p.peek(at + 1), ':')) {
+      found.push({ at: token.at, text: token.text });
+    }
+    at += 1;
   }
 }
 
