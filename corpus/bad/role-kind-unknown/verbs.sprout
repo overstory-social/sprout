@@ -1,0 +1,10 @@
+// A role's kind must be declared somewhere the world can see.
+kind Lockable {
+  :locked true
+}
+
+verb pick {
+  role target: Lockabel
+  role tool: victorian.Pick
+  "pick [target] with [tool]"
+}

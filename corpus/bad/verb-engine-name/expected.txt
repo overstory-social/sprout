@@ -1,0 +1,4 @@
+verbs.sprout:3:6  `look` is one of the engine's verbs, and only the standard library declares those.
+                  The engine answers `go`, `look`, `examine`, `inventory`, `wait` and `help` itself. Give yours another name.
+
+refused: 1 problem

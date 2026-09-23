@@ -24,15 +24,16 @@
 //
 // Checking an expression against these bindings is `check.ts`'s, and
 // its `let` calls `letBinding` below, and a guard's body
-// `moverBinding` and `guardParameterBinding`; verbs and their roles are
-// B23's, and call `roleBinding`; handlers and hooks are B32's, and call
-// `handlerParameters`.
+// `moverBinding` and `guardParameterBinding`; a body playing a role is
+// B24's, and calls `roleBinding` with the filler `declare/verbs.ts`
+// resolved; handlers and hooks are B32's, and call `handlerParameters`.
 
 import type { Ident } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindRef } from '../declare/kinds.js';
 import { kindName } from '../declare/kinds.js';
 import type { DeclaredMessage } from '../declare/messages.js';
+import type { RoleFiller } from '../declare/verbs.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
 import { integer, showType, type ValueType } from '../declare/types.js';
@@ -226,17 +227,6 @@ export function letBinding(name: string, type: BindingType, at: Span): Binding {
 // --- roles ----------------------------------------------------------------
 
 /**
- * What a verb's role declares it is filled by: a kind, a value type, or
- * nothing — in which case it is filled by anything that plays it and is
- * bound as an object.
- */
-export type RoleDeclaredAs =
-  | { readonly role: 'kind'; readonly kind: KindRef }
-  | { readonly role: 'open' }
-  | { readonly role: 'symbol' }
-  | { readonly role: 'integer' };
-
-/**
  * What a role-player's `from` narrows a value role by: a property it
  * declares, or a literal range.
  */
@@ -255,15 +245,17 @@ export type RoleNarrowing =
  * A kind role binds at that kind; an open role binds as an object; a
  * value role is typed by the `from` the role-player wrote, because a
  * value role's options are the role-player's to say and not the verb's.
+ * An exit role is not here: only the engine's `go` has one, and nothing
+ * plays it.
  */
 export function roleBinding(
   name: string,
-  declared: RoleDeclaredAs,
+  declared: Exclude<RoleFiller, { readonly fills: 'exit' }>,
   narrowing: RoleNarrowing | null,
   at: Span,
   diagnostics: Diagnostics,
 ): Binding | null {
-  if (declared.role === 'kind' || declared.role === 'open') {
+  if (declared.fills === 'kind' || declared.fills === 'open') {
     if (narrowing !== null) {
       diagnostics.refuse(
         narrowing.at,
@@ -272,11 +264,11 @@ export function roleBinding(
       );
       return null;
     }
-    const type = declared.role === 'kind' ? objectOf(declared.kind) : OPEN_OBJECT;
+    const type = declared.fills === 'kind' ? objectOf(declared.kind) : OPEN_OBJECT;
     return bind(name, type, 'role', at);
   }
 
-  const element = narrowedValueType(name, declared.role, narrowing, at, diagnostics);
+  const element = narrowedValueType(name, declared.fills, narrowing, at, diagnostics);
   if (element === null) return null;
   return bind(name, valueOf(element), 'role', at);
 }

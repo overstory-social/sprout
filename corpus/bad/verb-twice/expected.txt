@@ -1,0 +1,4 @@
+verbs.sprout:8:6  verb_twice declares two verbs called `pry`.
+                  Give one of them another name, or remove it.
+
+refused: 1 problem

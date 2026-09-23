@@ -4,13 +4,15 @@
 // library before the next, in the order they depend on one another:
 // enums, then messages, which may carry an option; kinds, whose
 // properties may hold one; then the world's objects, made of kinds, and
-// the tree they are placed in (`declare/tree.ts`).
+// the tree they are placed in (`declare/tree.ts`); and verbs, whose
+// roles may name a kind.
 //
-// Two references here may name nothing, and each is a row of the absent
-// table: refused at publish, a gap at load. A kind in a composition
-// (`kind-in-composition`) leaves its object absent; a step of an
-// object's `in` (`container`) leaves the object absent, and what it
-// holds with it.
+// Three references here may name nothing, and each is a row of the
+// absent table: refused at publish, a gap at load. A kind in a
+// composition (`kind-in-composition`) leaves its object absent; a step
+// of an object's `in` (`container`) leaves the object absent, and what it
+// holds with it; a kind in a role (`kind-in-role`) leaves the role with
+// nothing to fill it.
 
 import {
   writtenPath,
@@ -19,11 +21,13 @@ import {
   type KindDeclaration,
   type MessageDeclaration,
   type ObjectDeclaration,
+  type VerbDeclaration,
 } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable, SPROUT } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
 import { KindTable } from '../declare/kinds.js';
+import { VerbTable } from '../declare/verbs.js';
 import {
   placedObjects,
   resolveObjects,
@@ -32,7 +36,7 @@ import {
 } from '../declare/objects.js';
 import type { OnUnknown } from '../declare/compose.js';
 import { placeObjects, type ObjectTree, type OnUnknownContainer } from '../declare/tree.js';
-import { absenceRule, type Absent } from './absent.js';
+import { absenceRule, type Absent, type ReferenceKind } from './absent.js';
 
 /** What the tables need from a compile: somewhere to say things, and the mode's answer to a gap. */
 export interface DeclarationReport {
@@ -45,6 +49,7 @@ export interface DeclarationTables {
   readonly enums: EnumTable;
   readonly messages: MessageTable;
   readonly kinds: KindTable;
+  readonly verbs: VerbTable;
   /** The world's own objects that could be composed and placed, in the order declared. */
   readonly objects: readonly ResolvedObject[];
   /** Every object of the world's that has a place, absent kinds included. */
@@ -94,22 +99,7 @@ export function resolveDeclarations(
     );
   }
 
-  const { consequence } = absenceRule('kind-in-composition');
-  const onUnknown: OnUnknown = (written, message, remedy) =>
-    report.gap(
-      {
-        what:
-          written.library === null
-            ? written.name.text
-            : `${written.library.text}.${written.name.text}`,
-        kind: 'kind-in-composition',
-        reason: 'missing',
-        at: written.at,
-        consequence,
-      },
-      message,
-      remedy,
-    );
+  const onUnknown = unknownKindGap('kind-in-composition', report);
 
   const kinds = new KindTable();
   for (const [library, declared] of byLibrary) {
@@ -121,14 +111,23 @@ export function resolveDeclarations(
   }
   kinds.resolve(enums, diagnostics, onUnknown);
 
-  warnShadows(
-    world.namespace,
-    byLibrary.get(world.namespace) ?? [],
+  const verbs = new VerbTable();
+  const onUnknownKind = unknownKindGap('kind-in-role', report);
+  for (const [library, declared] of byLibrary) {
+    verbs.add(
+      library,
+      declared.filter((d): d is VerbDeclaration => d.kind === 'verb'),
+      { kinds, enums, diagnostics, onUnknownKind },
+    );
+  }
+
+  warnShadows(world.namespace, byLibrary.get(world.namespace) ?? [], {
     enums,
     messages,
     kinds,
+    verbs,
     diagnostics,
-  );
+  });
 
   const composed = resolveObjects(
     world.namespace,
@@ -161,10 +160,43 @@ export function resolveDeclarations(
     enums,
     messages,
     kinds,
+    verbs,
     objects: placedObjects(world.namespace, composed, tree),
     tree,
     composed,
   };
+}
+
+/** A kind nothing declares, as the absent table's row for where it was named. */
+function unknownKindGap(
+  reference: Extract<ReferenceKind, 'kind-in-composition' | 'kind-in-role'>,
+  report: DeclarationReport,
+): OnUnknown {
+  const { consequence } = absenceRule(reference);
+  return (written, message, remedy) =>
+    report.gap(
+      {
+        what:
+          written.library === null
+            ? written.name.text
+            : `${written.library.text}.${written.name.text}`,
+        kind: reference,
+        reason: 'missing',
+        at: written.at,
+        consequence,
+      },
+      message,
+      remedy,
+    );
+}
+
+/** The tables a shadowing warning asks whether the standard library declares a name. */
+interface ShadowTables {
+  readonly enums: EnumTable;
+  readonly messages: MessageTable;
+  readonly kinds: KindTable;
+  readonly verbs: VerbTable;
+  readonly diagnostics: Diagnostics;
 }
 
 /**
@@ -181,16 +213,13 @@ export function resolveDeclarations(
 function warnShadows(
   namespace: string,
   own: readonly Declaration[],
-  enums: EnumTable,
-  messages: MessageTable,
-  kinds: KindTable,
-  diagnostics: Diagnostics,
+  { enums, messages, kinds, verbs, diagnostics }: ShadowTables,
 ): void {
   if (namespace === SPROUT) return;
   const warned = new Set<string>();
   const shadow = (
-    category: 'enum' | 'message' | 'kind',
-    declared: EnumDeclaration | MessageDeclaration | KindDeclaration,
+    category: 'enum' | 'message' | 'kind' | 'verb',
+    declared: EnumDeclaration | MessageDeclaration | KindDeclaration | VerbDeclaration,
     declaresInStandard: boolean,
   ): void => {
     const name = declared.name.text;
@@ -200,7 +229,11 @@ function warnShadows(
     diagnostics.warn(
       declared.name.at,
       `\`${name}\` hides \`${SPROUT}.${name}\`: a bare \`${name}\` in this world is now yours.`,
-      `Write \`${SPROUT}.${name}\` where the library's is meant, or give yours another name.`,
+      // No syntax writes a verb with its library, so the library's is
+      // reached only by leaving the name to it.
+      category === 'verb'
+        ? `Where the library's \`${name}\` is still meant, give yours another name.`
+        : `Write \`${SPROUT}.${name}\` where the library's is meant, or give yours another name.`,
     );
   };
   for (const declared of own) {
@@ -213,6 +246,15 @@ function warnShadows(
         break;
       case 'kind':
         shadow('kind', declared, kinds.qualified(SPROUT, declared.name.text) !== null);
+        break;
+      case 'verb':
+        // An engine verb's name was refused, and hides nothing.
+        shadow(
+          'verb',
+          declared,
+          verbs.qualified(namespace, declared.name.text) !== null &&
+            verbs.qualified(SPROUT, declared.name.text) !== null,
+        );
         break;
     }
   }

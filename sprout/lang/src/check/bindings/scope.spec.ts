@@ -194,7 +194,7 @@ describe('`is()` narrows, which is not shadowing', () => {
 
   it('keeps everything about the binding but its kind', () => {
     const scope = Scope.root();
-    const target = roleBinding('target', { role: 'open' }, null, at('target'), new Diagnostics())!;
+    const target = roleBinding('target', { fills: 'open' }, null, at('target'), new Diagnostics())!;
     scope.introduce(target, new Diagnostics());
     const branch = scope.narrowing(thingNamed(target), LOCKABLE);
     const narrowed = branch.lookup('target')!;
@@ -233,38 +233,38 @@ describe('nothing ends without saying something', () => {
   const declining: { what: string; run: (d: Diagnostics) => unknown; keeps: number }[] = [
     {
       what: 'a symbol role that has not said what it hears',
-      run: (d) => roleBinding('topic', { role: 'symbol' }, null, at('topic'), d),
+      run: (d) => roleBinding('topic', { fills: 'symbol' }, null, at('topic'), d),
       keeps: 0,
     },
     {
       what: 'a symbol role narrowed by a range',
-      run: (d) => roleBinding('topic', { role: 'symbol' }, fromRange(1, 2), at('topic'), d),
+      run: (d) => roleBinding('topic', { fills: 'symbol' }, fromRange(1, 2), at('topic'), d),
       keeps: 0,
     },
     {
       what: 'a symbol role narrowed by a list of something else',
-      run: (d) => roleBinding('topic', { role: 'symbol' }, fromProperty(SIZES), at('topic'), d),
+      run: (d) => roleBinding('topic', { fills: 'symbol' }, fromProperty(SIZES), at('topic'), d),
       keeps: 0,
     },
     {
       what: 'an integer role narrowed by a list',
-      run: (d) => roleBinding('n', { role: 'integer' }, fromProperty(KNOWS), at('n'), d),
+      run: (d) => roleBinding('n', { fills: 'integer' }, fromProperty(KNOWS), at('n'), d),
       keeps: 0,
     },
     {
       what: 'a range that counts downward',
-      run: (d) => roleBinding('n', { role: 'integer' }, fromRange(9, 1), at('n'), d),
+      run: (d) => roleBinding('n', { fills: 'integer' }, fromRange(9, 1), at('n'), d),
       keeps: 0,
     },
     {
       what: 'a `from` on an open role',
-      run: (d) => roleBinding('target', { role: 'open' }, fromProperty(KNOWS), at('target'), d),
+      run: (d) => roleBinding('target', { fills: 'open' }, fromProperty(KNOWS), at('target'), d),
       keeps: 0,
     },
     {
       what: 'a `from` on a kind role',
       run: (d) =>
-        roleBinding('target', { role: 'kind', kind: LOCKABLE }, fromRange(1, 2), at('target'), d),
+        roleBinding('target', { fills: 'kind', kind: LOCKABLE }, fromRange(1, 2), at('target'), d),
       keeps: 0,
     },
     {

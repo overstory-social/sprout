@@ -1,0 +1,22 @@
+// The world's own `take`, beside the standard library's: a bare `take`
+// in this world is now this one, and the warning says so once, at the
+// declaration.
+verb take {
+  role target
+  "take [target]"
+  "pocket [target]"
+}
+
+// A role may name a kind of the standard library's, qualified or bare:
+// `Actor` is `sprout.Actor`, since this world declares none.
+verb wave {
+  role target: sprout.Actor
+  role tool
+  "wave at [target] with [tool]"
+  "wave at [target]"
+}
+
+verb greet {
+  role target: Actor
+  "greet [target]"
+}

@@ -1,0 +1,7 @@
+world role_exit_not_go: sprout.World {
+  contains actors
+  visitors are Creature
+  visitors arrive at role_exit_not_go
+}
+
+kind Creature: sprout.Actor { }
