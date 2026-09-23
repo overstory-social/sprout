@@ -15,7 +15,7 @@ import type {
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, readable, type Parser } from './parser.js';
-import { separator } from './recovery.js';
+import { separator, stepPast } from './recovery.js';
 import { atFraction, atType, BUILT_IN_TYPE_WORDS, literal, skipValue, typeExpr } from './types.js';
 
 /** `Ward`, `sprout.Ward` — a named type as it was written. */
@@ -76,14 +76,13 @@ export function remembers(p: Parser): RemembersDeclaration | null {
       return null;
     }
 
-    const before = p.peek();
     const declared = rememberedProperty(p);
     if (declared === null) {
       // As in `listLiteral`, including that a file which ran out inside
       // the entry has already been explained by whatever read it, and
       // that a word starting a declaration ends the hunt.
       if (p.done || p.atDeclarationStart()) return null;
-      if (p.peek().at.start === before.at.start) p.next();
+      recoverToEntry(p);
       separator(p, ']');
       missingComma = null;
       continue;
@@ -98,6 +97,19 @@ export function remembers(p: Parser): RemembersDeclaration | null {
     }
     properties.push(declared);
     if (separator(p, ']') === 'missing') missingComma = p.here();
+  }
+}
+
+/**
+ * Step over what is left of an entry that could not be read, to its own
+ * comma or the list's closing `]` at depth zero, by `stepPast`, so a
+ * bracket the entry wrote correctly is never taken for the list's own.
+ */
+function recoverToEntry(p: Parser): void {
+  while (!p.done) {
+    const token = p.peek();
+    if (punct(token, ',') || punct(token, ']') || p.atRecoveryStop()) return;
+    stepPast(p);
   }
 }
 
