@@ -105,7 +105,10 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         const text = `${owner.open}\n  ${lines.join('\n  ')}\n}\n`;
         const { result, said, threw } = reading(text, parseDeclarations);
         expect(threw, text).toBeNull();
-        const inRemembers = made.text.startsWith(':remembers');
+        // Not every `:remembers`-shaped defect holds a well-formed
+        // `echo`: the one this run's own generator writes always does,
+        // but an unclosed `:remembers` never reaches an entry of its own.
+        const inRemembers = made.text.startsWith(':remembers') && made.text.includes('echo');
         reached.add(made.defect.sort);
         const good = members.flatMap((member) => member.names);
         if (inRemembers) good.push('remembers.echo');
@@ -122,6 +125,19 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
             said,
           ),
         ).toEqual([]);
+        // An unclosed list default or `:remembers`, with nothing of its
+        // own to lose, is held to the strong rule beyond what `unclosed`
+        // otherwise requires: the member written directly after it is
+        // always kept, since the hunt for its close stops there rather
+        // than reading past it.
+        if (made.text === ':faulty [oak' || made.text.startsWith(':remembers [faulty: 0')) {
+          const kept = ownedBy(owner, result)?.members.flatMap(memberNames) ?? [];
+          if (at < members.length) {
+            for (const name of (members[at] as { names: readonly string[] }).names) {
+              expect(kept, text).toContain(name);
+            }
+          }
+        }
       }
       expect(reached.keys(), owner.kind).toEqual([...SORTS, 'across', 'never closed'].sort());
     }

@@ -1,0 +1,13 @@
+// An unclosed list must not swallow the member written after it, or the
+// body's own closing brace.
+enum Ward { oak, silver }
+
+world list_unclosed_before_member: sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+  :ward [oak
+  :greeting "hello"
+}
+
+kind Creature: sprout.Actor { }
+object hall: sprout.Place in list_unclosed_before_member

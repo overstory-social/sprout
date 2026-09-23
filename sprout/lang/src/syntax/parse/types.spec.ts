@@ -377,6 +377,37 @@ describe('a value abandoned to recovery does not step into the next declaration'
   });
 });
 
+describe('an unclosed list stops at what follows it, not the file', () => {
+  it('refuses it once at the member written after it, and keeps that member', () => {
+    const { declarations, refusals } = read('world w: sprout.World {\n  :a [oak\n  :b 1\n}\n');
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['ward.sprout:3:3', 'This list is never closed.'],
+    ]);
+    const world = declarations.find((d) => d.kind === 'world');
+    expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'b',
+    ]);
+  });
+
+  it('refuses it once at the body’s own `}` when nothing else follows', () => {
+    const { declarations, refusals } = read('world w: sprout.World {\n  :a [oak\n}\n');
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['ward.sprout:3:1', 'This list is never closed.'],
+    ]);
+    const world = declarations.find((d) => d.kind === 'world');
+    expect(world?.members).toEqual([]);
+  });
+
+  it('says so once, however deep it is nested, when a member follows', () => {
+    const { declarations, refusals } = read('world w: sprout.World {\n  :a [[oak\n  :b 1\n}\n');
+    expect(refusals.map((d) => d.message)).toEqual(['This list is never closed.']);
+    const world = declarations.find((d) => d.kind === 'world');
+    expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
+      'b',
+    ]);
+  });
+});
+
 describe('a stray `]` inside a list default does not lose what it closed too early', () => {
   it('names what is written after it rather than dropping it in silence', () => {
     // The stray closer ends the inner list at `silver`, as it must —
