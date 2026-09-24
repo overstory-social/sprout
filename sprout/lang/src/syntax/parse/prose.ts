@@ -9,8 +9,10 @@
 // refused and stepped over; and a block a close for an enclosing block
 // reaches first is refused as never closed and ended there, so the words
 // around every mistake are still read and each mistake is said once. A
-// `{one of}` holds two or more choices, each ended by an `{or}` written
-// directly inside it or by its `{/one of}`.
+// `{one of}` holds its choices, each ended by an `{or}` written directly
+// inside it or by its `{/one of}`; one with a single choice is warned
+// about, since it says the same words every time (the spec's The
+// compiler › What it warns about).
 
 import type { Prose, ProseFor, ProseIf, ProseOneOf, ProsePiece } from '../ast-prose.js';
 import { DEEPEST, type Parser } from './parser.js';
@@ -219,8 +221,7 @@ function forBlock(r: Reader, tag: Extract<Tag, { tag: 'for' }>): ProseFor {
 
 /**
  * `{one of}` through each `{or}` to its `{/one of}`. One with a single
- * choice is refused, since it would say it every time, and is kept, so
- * what the choice holds is still read.
+ * choice is warned about, and renders that choice.
  */
 function oneOfBlock(r: Reader, opened: Span): ProseOneOf {
   const choices = [run(r, opened)];
@@ -230,9 +231,9 @@ function oneOfBlock(r: Reader, opened: Span): ProseOneOf {
   }
   const closed = closeOf(r, opened, 'one of');
   if (choices.length === 1) {
-    r.p.diagnostics.refuse(
+    r.p.diagnostics.warn(
       opened,
-      'This `{one of}` has one choice, so it would say it every time.',
+      'This `{one of}` has one choice, so it says the same words every time.',
       'Write another choice after an `{or}`, or take out `{one of}` and `{/one of}` and keep the words.',
     );
   }

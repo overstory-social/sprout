@@ -187,6 +187,16 @@ describe('a `{one of}` renders one of its choices, drawn', () => {
     }
   });
 
+  it('renders the one choice of a `{one of}` that has one, drawing once for it', () => {
+    const turn = proseTurn();
+    const c = chooser(9);
+    for (let i = 0; i < 20; i++) {
+      const draws = new Draws(c.below(4_000_000_000));
+      expect(drawnWith(turn, 'hum', draws)).toEqual(['Hmm, you.']);
+      expect(draws.drawn).toBe(1);
+    }
+  });
+
   it('is the engine’s defect where nothing draws, which the checker refuses', () => {
     const turn = proseTurn();
     expect(() => drawnWith(turn, 'call', null)).toThrow(/where nothing draws/);

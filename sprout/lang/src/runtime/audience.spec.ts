@@ -8,10 +8,17 @@ import {
   HALL,
   STONE,
   turn,
+  type Turn,
   WARDROBE,
   WORLD_ID,
   YARD,
 } from '../fixtures/reading.js';
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
+import { Budget } from './budget.js';
+import type { InstanceId } from './ids.js';
+import { liveTree } from './live.js';
+import { reaches } from './range.js';
 import { isPerson, placeOfTeller, toldToOne, toldToPlace } from './audience.js';
 
 describe('where what is told is heard', () => {
@@ -46,14 +53,57 @@ describe('who reads a plain `tell`', () => {
 });
 
 describe('who reads `tell x`', () => {
-  it('is `x`, where it is a person standing in the world, and nobody otherwise', () => {
+  /** What `tell x` reads in `one`, where `shut` refuses everything and the world refuses too. */
+  const telling = (one: Turn, ...shut: InstanceId[]) => ({
+    state: one.draft,
+    passes: (container: InstanceId) =>
+      container === one.draft.world ? WORLD_PASSES_ANYTHING : !shut.includes(container),
+    budget: one.budget,
+  });
+
+  it('is `x`, where it is a person in the teller’s range, and nobody otherwise', () => {
     const one = turn(YARD, [WARDROBE, HALL]);
     const [bo, away] = one.people;
-    expect(toldToOne(one.draft, bo!)).toEqual([bo]);
-    expect(toldToOne(one.draft, CAT)).toEqual([]);
-    expect(toldToOne(one.draft, STONE)).toEqual([]);
+    // The wardrobe relays, so the stone in the hall reaches Bo inside it.
+    expect(toldToOne(telling(one), STONE, bo!)).toEqual([bo]);
+    expect(toldToOne(telling(one), bo!, bo!)).toEqual([bo]);
+    expect(toldToOne(telling(one), STONE, CAT)).toEqual([]);
+    expect(toldToOne(telling(one), CAT, STONE)).toEqual([]);
     one.draft.place(away!, null);
-    expect(toldToOne(one.draft, away!)).toEqual([]);
+    expect(toldToOne(telling(one), STONE, away!)).toEqual([]);
+  });
+
+  it('is nobody where `x` stands beyond the world, which refuses', () => {
+    const one = turn(YARD, [HALL]);
+    const [marta] = one.people;
+    expect(toldToOne(telling(one), STONE, marta!)).toEqual([marta]);
+    // Standing in the world itself, outside the hall, as another place's
+    // occupant does: the world is between them, and it refuses.
+    one.draft.place(marta!, WORLD_ID);
+    expect(toldToOne(telling(one), STONE, marta!)).toEqual([]);
+  });
+
+  it('is nobody where a container between refuses, either way across it', () => {
+    const one = turn(YARD, [HALL, WARDROBE]);
+    const [marta, bo] = one.people;
+    // A teller inside the shut bubble reaches its surface and no further.
+    expect(toldToOne(telling(one, BUBBLE), BEAD, marta!)).toEqual([]);
+    expect(toldToOne(telling(one), BEAD, marta!)).toEqual([marta]);
+    // Bo in a shut wardrobe is out of the stone's range, and the stone out of his.
+    expect(toldToOne(telling(one, WARDROBE), STONE, bo!)).toEqual([]);
+    expect(toldToOne(telling(one, WARDROBE), bo!, bo!)).toEqual([bo]);
+  });
+
+  it('charges the walk `reaches` makes to the turn’s budget, and none for an NPC', () => {
+    const one = turn(YARD, [HALL]);
+    const marta = one.people[0]!;
+    const alone = new Budget(DEFAULT_LIMITS.budgets);
+    reaches({ ...telling(one), tree: liveTree(one.draft), budget: alone }, BEAD, marta, 'any');
+    toldToOne(telling(one), BEAD, marta);
+    expect(one.budget.spentSteps).toBe(alone.spentSteps);
+    expect(alone.spentSteps).toBeGreaterThan(0);
+    toldToOne(telling(one), BEAD, CAT);
+    expect(one.budget.spentSteps).toBe(alone.spentSteps);
   });
 
   it('asks who is a person by how they were made', () => {
