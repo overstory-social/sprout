@@ -1,29 +1,21 @@
 import {
-  arrivalTurn,
   closedByBundle,
-  commandTurn,
-  departureTurn,
-  loadWorld,
   NOT_ADMITTING,
   keptNickname,
   moderated,
   nicknameRefusal,
-  type NicknameRefused,
-  type NicknameRules,
+  pollTurn,
   type Arrival,
   type ArrivalTurn,
-  type Departure,
-  type DepartureTurn,
-  maintenanceTurn,
-  pollTurn,
-  tickTurn,
-  wakeTurn,
-  writeTurn,
   type CaughtUp,
+  type Command,
   type CommandHost,
   type CommandTurn,
-  type Command,
   type Committed,
+  type Departure,
+  type DepartureTurn,
+  type NicknameRefused,
+  type NicknameRules,
   type Polled,
   type PollTurn,
   type Tick,
@@ -33,44 +25,39 @@ import {
   type WakeTurn,
   type WorldState,
   type WriteInputs,
-  type WriteTurn,
-  type WriteTurnKind,
-  type Written,
 } from '@overstory/sprout/lang';
 
-import type { StoredState } from './records.js';
-import type { SproutStore } from './store.js';
+import {
+  arrivalStep,
+  commandStep,
+  departureStep,
+  loaded,
+  maintenanceStep,
+  tickStep,
+  wakeStep,
+  type Step,
+} from './steps.js';
+import type { SproutStore, StoreTx } from './store.js';
 
 // A world's turns run against its store (the spec's The runtime › Turns;
 // The host contract › Storage). A write turn runs inside the store's
 // transaction, under the world's write lock, so write turns on one world
 // are serialized: it reads the stored state, runs as the language's turn
 // over it, and writes the change set only where the turn committed, so a
-// fault writes nothing of the world. A poll reads a snapshot and takes no
-// lock. Each is safe to run twice, as the port's re-run rule asks, since
-// a turn is a function of the state it read and its inputs. Recording a
-// turn in the log is B40's; when to tick is `ticks.ts`'s, and when to
-// deliver a wake, live or as catch-up, is the host's (Time › Absence).
+// fault writes nothing of the world. Each write turn that ran appends its
+// entry to the log in the same transaction, a faulted one included, so a
+// turn and its record land together; what each writes and logs is
+// `steps.ts`'s, which a replay runs too. A poll reads a snapshot and takes
+// no lock. Each is safe to run twice, as the port's re-run rule asks,
+// since a turn is a function of the state it read and its inputs. When to
+// tick is `ticks.ts`'s, and when to deliver a wake, live or as catch-up,
+// is the host's (Time › Absence).
 
-/** The stored state, read against the bundle the host runs. */
-function loaded(stored: StoredState, host: TurnHost): WorldState {
-  return loadWorld({ world: host.catalogue.world, ...stored }, host.catalogue).state;
-}
-
-/** Run `body` as one write turn of `kind` on `microworldId`, under its lock. */
-export function runWriteTurn<T>(
-  store: SproutStore,
-  microworldId: string,
-  kind: WriteTurnKind,
-  host: TurnHost,
-  inputs: WriteInputs,
-  body: (turn: WriteTurn) => T,
-): Promise<Written<T>> {
-  return store.transaction(microworldId, async (tx) => {
-    const turn = writeTurn(loaded(await tx.state(), host), kind, host, inputs, body);
-    if (turn.committed) await tx.putState(turn.changes);
-    return turn;
-  });
+/** Land `step` in `tx`: its changes where it writes, and its entry where it ran. */
+async function landed<T>(tx: StoreTx, step: Step<T>): Promise<T> {
+  if (step.changes !== null) await tx.putState(step.changes);
+  if (step.entry !== null) await tx.appendLog(step.entry);
+  return step.turn;
 }
 
 /** Run `command` as one command turn on `microworldId`, under its lock. */
@@ -80,17 +67,15 @@ export function runCommand(
   host: CommandHost,
   command: Command,
 ): Promise<CommandTurn> {
-  return store.transaction(microworldId, async (tx) => {
-    const turn = commandTurn(loaded(await tx.state(), host), host, command);
-    if (turn.committed) await tx.putState(turn.changes);
-    return turn;
-  });
+  return store.transaction(microworldId, async (tx) =>
+    landed(tx, commandStep(loaded(await tx.state(), host), host, command)),
+  );
 }
 
 /**
  * Run `tick` as one tick turn on `microworldId`, under its lock. A tick
  * that faulted is dropped, and one whose place is empty by then does not
- * run; neither writes anything.
+ * run; neither writes anything of the world.
  */
 export function runTick(
   store: SproutStore,
@@ -98,11 +83,9 @@ export function runTick(
   host: TurnHost,
   tick: Tick,
 ): Promise<TickTurn> {
-  return store.transaction(microworldId, async (tx) => {
-    const turn = tickTurn(loaded(await tx.state(), host), host, tick);
-    if (turn.committed) await tx.putState(turn.changes);
-    return turn;
-  });
+  return store.transaction(microworldId, async (tx) =>
+    landed(tx, tickStep(loaded(await tx.state(), host), host, tick)),
+  );
 }
 
 /**
@@ -116,12 +99,9 @@ export function runWake(
   host: TurnHost,
   wake: Wake,
 ): Promise<WakeTurn> {
-  return store.transaction(microworldId, async (tx) => {
-    const turn = wakeTurn(loaded(await tx.state(), host), host, wake);
-    if (turn.committed) await tx.putState(turn.changes);
-    else if ('consumed' in turn) await tx.putState(turn.consumed.changes);
-    return turn;
-  });
+  return store.transaction(microworldId, async (tx) =>
+    landed(tx, wakeStep(loaded(await tx.state(), host), host, wake)),
+  );
 }
 
 /**
@@ -135,11 +115,9 @@ export function runMaintenance(
   host: TurnHost,
   inputs: WriteInputs,
 ): Promise<Committed<CaughtUp>> {
-  return store.transaction(microworldId, async (tx) => {
-    const turn = maintenanceTurn(loaded(await tx.state(), host), host, inputs);
-    await tx.putState(turn.changes);
-    return turn;
-  });
+  return store.transaction(microworldId, async (tx) =>
+    landed(tx, maintenanceStep(loaded(await tx.state(), host), host, inputs)),
+  );
 }
 
 /** What the host decides of a nickname beyond the bundle (the spec's The host contract › Admission and identity). */
@@ -198,19 +176,29 @@ export async function runArrival(
     return { caughtUp: null, arrived: { committed: false, nicknameRefused: refused } };
   }
   const caughtUp = await runMaintenance(store, microworldId, host, catchUp);
-  const arrived = await store.transaction(
-    microworldId,
-    async (tx): Promise<ArrivalTurn | NicknameRefusedTurn> => {
-      const state = loaded(await tx.state(), host);
-      // Someone may have come in under the same nickname since it was checked.
-      const taken = refusalIn(state);
-      if (taken !== null) return { committed: false, nicknameRefused: taken };
-      const turn = arrivalTurn(state, host, arrival);
-      if (turn.committed) await tx.putState(turn.changes);
-      return turn;
-    },
-  );
+  const arrived = await runArrivalTurn(store, microworldId, host, arrival, nicknames.rules);
   return { caughtUp, arrived };
+}
+
+/**
+ * Run `arrival` as one arrival turn on `microworldId`, under its lock,
+ * its nickname checked again against `rules` and the world as the turn
+ * finds it, since someone may have come in under it since it was
+ * checked. `runArrival` runs it once catch-up has committed.
+ */
+export function runArrivalTurn(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+  arrival: Arrival,
+  rules: NicknameRules,
+): Promise<ArrivalTurn | NicknameRefusedTurn> {
+  return store.transaction(microworldId, async (tx): Promise<ArrivalTurn | NicknameRefusedTurn> => {
+    const state = loaded(await tx.state(), host);
+    const taken = nicknameRefusal(state, host.catalogue, rules, arrival.visit, arrival.nickname);
+    if (taken !== null) return { committed: false, nicknameRefused: taken };
+    return landed(tx, arrivalStep(state, host, arrival));
+  });
 }
 
 /**
@@ -223,11 +211,9 @@ export function runDeparture(
   host: TurnHost,
   departure: Departure,
 ): Promise<DepartureTurn> {
-  return store.transaction(microworldId, async (tx) => {
-    const turn = departureTurn(loaded(await tx.state(), host), host, departure);
-    await tx.putState(turn.committed ? turn.changes : turn.quietly.changes);
-    return turn;
-  });
+  return store.transaction(microworldId, async (tx) =>
+    landed(tx, departureStep(loaded(await tx.state(), host), host, departure)),
+  );
 }
 
 /** The last committed state of `microworldId`, read against the bundle the host runs, with no lock. */

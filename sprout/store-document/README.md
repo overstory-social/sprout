@@ -62,21 +62,21 @@ backend.
 Every key starts with the microworld, URL-encoded (a microworld id may
 carry a `/`, and `microworld/<zone>/` must not list the draft's):
 
-| key                                  | document                                                              | written                          |
-| ------------------------------------ | --------------------------------------------------------------------- | -------------------------------- |
-| `microworld/<id>/archive`            | `MicroworldRecord` — the archive as last loaded, the caps             | at publish                       |
-| `microworld/<id>/state`              | `{ blob }` — every `StoredInstance` and tombstone, as ONE string      | when a turn changes something    |
-| `microworld/<id>/counters`           | `{ serial, actions, misses }` — the world's serial, and the sequences | when a turn changes or appends   |
-| `microworld/<id>/visitors/<visit>`   | `StoredVisitor` — one small document per visitor                      | when a turn changes that visitor |
-| `microworld/<id>/actions/<sequence>` | `ActionRecord` — one document per write turn, no actor                | per write turn                   |
-| `microworld/<id>/misses/<sequence>`  | `MissRecord` — one document per donated miss                          | per miss                         |
+| key                                 | document                                                          | written                          |
+| ----------------------------------- | ----------------------------------------------------------------- | -------------------------------- |
+| `microworld/<id>/archive`           | `MicroworldRecord` — the archive as last loaded, the caps         | at publish                       |
+| `microworld/<id>/state`             | `{ blob }` — every `StoredInstance` and tombstone, as ONE string  | when a turn changes something    |
+| `microworld/<id>/counters`          | `{ serial, log, misses }` — the world's serial, and the sequences | when a turn changes or appends   |
+| `microworld/<id>/visitors/<visit>`  | `StoredVisitor` — one small document per visitor                  | when a turn changes that visitor |
+| `microworld/<id>/log/<sequence>`    | `LogEntry` — one document per entry, its number the sequence      | per write turn, publish, …       |
+| `microworld/<id>/misses/<sequence>` | `MissRecord` — one document per donated miss                      | per miss                         |
 
 The layout is split along the write-rate seam, not the read seam: the
 instances are one document written only when a turn changes something,
 and held as a string a document database will not index (a map of two
 thousand small records would blow Firestore's index-entry ceiling); each
 visitor is its own small document, found by its visit, so forgetting or
-exporting one reads no other world's; actions and misses are
+exporting one reads no other world's; the log and misses are
 collections — one document per record, never a dated document appended
 to, which reaches a document's size ceiling in an hour of play. What is
 read back is validated by the record's zod schema (the language's, for
@@ -120,6 +120,7 @@ transaction closes the moment the event loop turns with nothing pending
 on it, and a turn's body awaits things that are not requests on it.
 `close()` releases the connection.
 
-A whole store's `actions()` reads every action document under the
-microworld and filters in memory — bounded by `trim` (thirty days by
-default), and fine for one player; a host at scale wants the SQL store.
+A page of the log lists every entry's key under the microworld and reads
+only the documents it hands back; the log is kept whole, so that listing
+grows with the world's history, which is fine for one player; a host at
+scale wants the SQL store.

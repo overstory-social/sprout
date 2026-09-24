@@ -1,12 +1,12 @@
 import {
   codeUnitOrder,
   emptyState,
-  type ActionRecord,
   type MicroworldRecord,
   type MissRecord,
   type StoredState,
   type VisitorExport,
 } from './records.js';
+import type { Logged } from './log/entry.js';
 import { applyChanges } from './state.js';
 import type { ReadTx, SproutStore, StoreTx } from './store.js';
 import { applyForgetting, forgetting, visitorIn } from './visitors.js';
@@ -21,21 +21,21 @@ import { applyForgetting, forgetting, visitorIn } from './visitors.js';
 interface World {
   microworld: MicroworldRecord | null;
   state: StoredState;
-  actions: ActionRecord[];
+  log: Logged[];
   misses: MissRecord[];
 }
 
 const clone = <T>(v: T): T => structuredClone(v);
 
 function emptyWorld(): World {
-  return { microworld: null, state: emptyState(), actions: [], misses: [] };
+  return { microworld: null, state: emptyState(), log: [], misses: [] };
 }
 
 function snapshotOf(live: World): World {
   return {
     microworld: live.microworld ? clone(live.microworld) : null,
     state: clone(live.state),
-    actions: live.actions.map(clone),
+    log: live.log.map(clone),
     misses: live.misses.map(clone),
   };
 }
@@ -45,11 +45,10 @@ function reader(w: World): ReadTx {
   return {
     microworld: async () => (w.microworld ? clone(w.microworld) : null),
     state: async () => clone(w.state),
-    actions: async ({ since, limit, faultedOnly }) =>
-      w.actions
-        .filter((a) => (!since || a.at.getTime() >= since.getTime()) && (!faultedOnly || a.faulted))
-        .slice(-limit)
-        .reverse()
+    log: async ({ after = 0, limit }) =>
+      w.log
+        .filter((logged) => logged.seq > after)
+        .slice(0, limit)
         .map(clone),
     misses: async ({ limit }) => w.misses.slice(-limit).reverse().map(clone),
   };
@@ -66,8 +65,8 @@ function writer(live: World): { tx: StoreTx; commit: () => void } {
     putState: async (changes) => {
       snap.state = applyChanges(snap.state, clone(changes));
     },
-    appendAction: async (a) => {
-      snap.actions.push(clone(a));
+    appendLog: async (entry) => {
+      snap.log.push({ seq: (snap.log.at(-1)?.seq ?? 0) + 1, entry: clone(entry) });
     },
     appendMiss: async (m) => {
       snap.misses.push(clone(m));
@@ -78,7 +77,7 @@ function writer(live: World): { tx: StoreTx; commit: () => void } {
     commit: () => {
       live.microworld = snap.microworld;
       live.state = snap.state;
-      live.actions = snap.actions;
+      live.log = snap.log;
       live.misses = snap.misses;
     },
   };
@@ -119,9 +118,8 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
       // A consistent snapshot at entry: a commit that lands while `fn` awaits is not seen mid-read.
       return fn(reader(snapshotOf(world(microworldId))));
     },
-    async trim(before, keepMisses) {
+    async trim(keepMisses) {
       for (const w of worlds.values()) {
-        w.actions = w.actions.filter((a) => a.at.getTime() >= before.getTime());
         if (w.misses.length > keepMisses) w.misses = w.misses.slice(-keepMisses);
       }
     },

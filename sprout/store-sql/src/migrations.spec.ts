@@ -10,6 +10,7 @@ describe('the exported migrations', () => {
     expect(migrations.map((m) => m.name)).toEqual([
       'sprout/001_sprout.sql',
       'sprout/002_stored_state.sql',
+      'sprout/003_log.sql',
     ]);
     expect(migrations.at(-1)!.sql).toContain(
       `SET value = '${SCHEMA_VERSION}' WHERE key = 'schema_version'`,
@@ -18,7 +19,7 @@ describe('the exported migrations', () => {
   });
 
   it('keeps a world’s state in the stored form, and nothing of the state model before it', () => {
-    const last = migrations.at(-1)!.sql;
+    const last = migrations[1]!.sql;
     for (const table of ['serial', 'instance', 'memory', 'visitor', 'tombstone']) {
       expect(last).toContain(`CREATE TABLE sprout.${table} (`);
     }
@@ -28,6 +29,15 @@ describe('the exported migrations', () => {
     // Host seconds and serials pass a 32-bit integer.
     expect(last).toMatch(/last_tick bigint/);
     expect(last).toMatch(/serial bigint NOT NULL/);
+  });
+
+  it('keeps the log as one row per entry, numbered per world, and nothing of the action record', () => {
+    const last = migrations.at(-1)!.sql;
+    expect(last).toContain('DROP TABLE sprout.action;');
+    expect(last).toContain('CREATE TABLE sprout.log (');
+    expect(last).toMatch(/seq bigint NOT NULL/);
+    expect(last).toMatch(/entry jsonb NOT NULL/);
+    expect(last).toMatch(/PRIMARY KEY \(microworld_id, seq\)/);
   });
 
   it('the runner records each applied migration in sprout.meta and rolls a failure back by name', async () => {
@@ -43,7 +53,7 @@ describe('the exported migrations', () => {
       },
     };
     expect(await runMigrations(client)).toEqual({
-      applied: ['sprout/001_sprout.sql', 'sprout/002_stored_state.sql'],
+      applied: ['sprout/001_sprout.sql', 'sprout/002_stored_state.sql', 'sprout/003_log.sql'],
       skipped: [],
     });
     expect(calls).toContain('BEGIN');
