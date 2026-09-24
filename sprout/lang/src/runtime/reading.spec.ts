@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { Budget } from './budget.js';
+import { Draws } from './draws.js';
 import { IntegerOverflow } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import { consentPass, participantsOf, runReading } from './reading.js';
@@ -18,6 +19,7 @@ import {
   acted,
   BOTH,
   contextOf,
+  DIE,
   GUARD,
   HALL,
   KEY,
@@ -116,6 +118,20 @@ describe('who takes part, and in what order', () => {
     });
     // What the refusing play saw, for its slots: every role, a set left out as empty.
     expect([...refusal.bindings.keys()]).toEqual(['actor', 'here', 'target', 'tool', 'weights']);
+  });
+});
+
+describe('the effect pass draws', () => {
+  it('runs a `do` with the turn’s draws, and each reading draws on from where the last left off', () => {
+    const one = turn(YARD, [HALL]);
+    const context = contextOf(one);
+    const roll = reading(YARD, 'roll', one.people[0]!, { target: { object: DIE } });
+    const expected = new Draws(7);
+    for (let i = 0; i < 6; i++) {
+      runReading(roll, context);
+      expect(one.draft.instance(DIE)!.properties.get('face')).toBe(expected.below(6));
+    }
+    expect(context.draws.drawn).toBe(6);
   });
 });
 

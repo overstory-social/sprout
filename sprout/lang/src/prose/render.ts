@@ -7,12 +7,13 @@
 // it, one passage deeper against the turn's bound. `{if}` renders the
 // first branch whose condition holds, and `{for}` its body once for each
 // thing or element it walks, in order, with `$first`, `$last`, `$index`
-// (counting from 1) and `$count` bound. Every expression is evaluated as
-// a body's is and charged the same steps, and every iteration is a step.
-// Rendering only reads.
+// (counting from 1) and `$count` bound. `{one of}` renders one of its
+// choices, drawn from the line's draws. Every expression is evaluated as
+// a body's is and charged the same steps, and every iteration and every
+// choice is a step. Rendering writes nothing.
 
 import type { Expr } from '../syntax/ast.js';
-import type { Prose, ProseFor, ProseIf, ProseSlot } from '../syntax/ast-prose.js';
+import type { Prose, ProseFor, ProseIf, ProseOneOf, ProseSlot } from '../syntax/ast-prose.js';
 import { humanisedOption, libraryOf } from '../declare/enums.js';
 import { kindName } from '../declare/kinds.js';
 import type { Budget } from '../runtime/budget.js';
@@ -28,14 +29,18 @@ import {
 import type { InstanceId } from '../runtime/ids.js';
 import { SproutList } from '../runtime/lists.js';
 import type { PassRule } from '../runtime/range.js';
+import type { Draw } from '../runtime/draws.js';
+import type { LineDraws } from './line-draws.js';
 import { objectWords, type Naming } from './names.js';
 import type { Rendered } from './reflow.js';
 
-/** What rendering reads: the turn's state and names, the bundle, and the turn's budget. */
+/** What rendering reads: the turn's state and names, the bundle, the turn's budget and its draws. */
 export interface RenderContext extends Naming {
   readonly catalogue: Catalogue;
   readonly budget: Budget;
   readonly passes: PassRule<InstanceId>;
+  /** Each line's draws in a write turn; null in a poll, which draws nothing. */
+  readonly draws: LineDraws | null;
 }
 
 /** Who speaks prose: its `self`, the library whose kind wrote it, and every other name it renders with. */
@@ -45,21 +50,23 @@ export interface Voice {
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
-/** `prose` in `voice`, as `reader` reads it. */
+/** `prose` in `voice`, as `reader` reads it, drawing from `draws` where it may draw. */
 export function renderProse(
   prose: Prose,
   voice: Voice,
   reader: InstanceId,
   context: RenderContext,
+  draws: Draw | null,
 ): Rendered[] {
   const out: Rendered[] = [];
-  pieces(prose, frameOf(voice, context), reader, context, out);
+  pieces(prose, frameOf(voice, context, draws), reader, context, out);
   return out;
 }
 
-function frameOf(voice: Voice, context: RenderContext): Frame {
+function frameOf(voice: Voice, context: RenderContext, draws: Draw | null): Frame {
   const { catalogue } = context;
   return {
+    ...(draws === null ? {} : { draws }),
     state: context.state,
     kinds: catalogue.lookup,
     library: voice.library,
@@ -98,6 +105,9 @@ function pieces(
         break;
       case 'prose-for':
         loop(piece, frame, reader, context, out);
+        break;
+      case 'prose-one-of':
+        choose(piece, frame, reader, context, out);
         break;
     }
   }
@@ -162,7 +172,7 @@ function passageOf(
   }
   const voice = { self: owner.id, library: libraryOf(passage.origin), bindings };
   context.budget.passage(() => {
-    pieces(passage.body.prose, frameOf(voice, context), reader, context, out);
+    pieces(passage.body.prose, frameOf(voice, context, frame.draws ?? null), reader, context, out);
   });
 }
 
@@ -188,6 +198,21 @@ function branch(
     }
     link = otherwise;
   }
+}
+
+/** A `{one of}`: one of its choices, each as likely, drawn as a step. */
+function choose(
+  block: ProseOneOf,
+  frame: Frame,
+  reader: InstanceId,
+  context: RenderContext,
+  out: Rendered[],
+): void {
+  frame.budget.spend();
+  if (frame.draws === undefined) {
+    throw new Error('a `{one of}` was rendered where nothing draws, which the checker refuses.');
+  }
+  pieces(block.choices[frame.draws.below(block.choices.length)]!, frame, reader, context, out);
 }
 
 /** A `{for}`: its body once for each thing or element walked, each iteration a step. */

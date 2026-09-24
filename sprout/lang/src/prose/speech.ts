@@ -2,7 +2,8 @@
 // Runtime budgets: output per turn, per recipient). What a body said is
 // carried unrendered, with the names in scope where it was said; this is
 // where it becomes words, once for each reader, since a line naming its
-// reader says "you" to them and their name to everyone else. What it
+// reader says "you" to them and their name to everyone else, and what it
+// draws is drawn once, for every reader (`line-draws.ts`). What it
 // renders is charged to that reader's output, so a crowd costs the host
 // and never the one acting.
 
@@ -28,6 +29,7 @@ export interface Line {
 export function renderFor(line: Line, reader: InstanceId, context: RenderContext): string[] {
   const { said } = line;
   if ('absent' in said) return [];
+  const draws = context.draws?.of(line) ?? null;
   const rendered =
     'passage' in said
       ? context.budget.passage(() =>
@@ -36,6 +38,7 @@ export function renderFor(line: Line, reader: InstanceId, context: RenderContext
             { self: line.by, library: libraryOf(said.passage.origin), bindings: line.bindings },
             reader,
             context,
+            draws,
           ),
         )
       : renderProse(
@@ -43,6 +46,7 @@ export function renderFor(line: Line, reader: InstanceId, context: RenderContext
           { self: line.by, library: said.library, bindings: line.bindings },
           reader,
           context,
+          draws,
         );
   const paragraphs = reflow(rendered);
   context.budget.say(

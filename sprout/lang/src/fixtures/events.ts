@@ -2,12 +2,13 @@
 // a hall holding a lamp that answers being lit and watches its own light,
 // a shut chest and a glass case each with something inside, a lantern
 // whose kind gives it a wick, a bell that counts answers and the time it
-// is handed, and a dog, an NPC that acts; a bubble that bursts, a match
-// that goes once the queue is empty, and a tidier whose move is refused;
-// a yard beside it that the world keeps apart. A fresh turn over it reads
-// its containers' own pass rules. `runtime/sends.spec.ts`,
-// `runtime/passes.spec.ts`, `runtime/named.spec.ts` and `runtime/bus.spec.ts`
-// share it. Spec support: the package build leaves it out.
+// is handed and tolls at random, and a dog, an NPC that acts; a bubble
+// that bursts, a match that goes once the queue is empty, and a tidier
+// whose move is refused; a yard beside it that the world keeps apart. A
+// fresh turn over it reads its containers' own pass rules and draws from
+// seed 7. `runtime/sends.spec.ts`, `runtime/passes.spec.ts`,
+// `runtime/named.spec.ts` and `runtime/bus.spec.ts` share it. Spec
+// support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS, type RuntimeBudgets } from '../bundle/limits.js';
@@ -22,6 +23,7 @@ import { passRules } from '../runtime/passes.js';
 import type { PassRule } from '../runtime/range.js';
 import { newInstance } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
+import { Draws } from '../runtime/draws.js';
 
 export const BUS: Bundle = compiledWorld('bus', {
   'world.sprout': `world bus is sprout.World {
@@ -56,6 +58,7 @@ message :rang
 message :answered with integer
 message :chain with integer
 message :stir
+message :roll
 
 verb light { role target  "light [target]" }
 verb ring  { role target  "ring [target]" }
@@ -113,12 +116,14 @@ kind Wick {
   on :lit (_, value) { self.set(:burning, value) }
 }
 
-// The bell counts answers, and adds up the time it is handed.
+// The bell counts answers, adds up the time it is handed, and tolls at random.
 kind Bell {
   :answers 0 min 0 max 99
   :depth 0 min 0 max 99
   :waited 0 min 0 max 9999
+  :toll 0 min 0 max 5
   on :answered (_, n) { self.adjust(:answers, n) }
+  on :roll { self.set(:toll, random(6)) }
   on :tick (elapsed) { self.adjust(:waited, elapsed) }
   on :woke (elapsed) { self.adjust(:waited, elapsed + elapsed) }
   on :chain (_, n) {
@@ -225,7 +230,7 @@ export function eventTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets): Eve
     budget,
     visitor,
     passes,
-    lifecycle: { draft, catalogue, passes, budget, mayHold: null, now: 0 },
+    lifecycle: { draft, catalogue, passes, budget, draws: new Draws(7), mayHold: null, now: 0 },
   };
 }
 

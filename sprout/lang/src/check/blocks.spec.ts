@@ -117,6 +117,45 @@ describe('a deciding body only reads and decides', () => {
   });
 });
 
+describe('a deciding body draws nothing', () => {
+  it('refuses `chance`, `random` and `{one of}` in a guard, naming the guard', () => {
+    expect(
+      check(
+        'if (chance(2)) { refuse "No." }\n    let n = random(6)\n    refuse "{one of}No.{or}Not now.{/one of}"',
+        GUARD,
+      ),
+    ).toEqual([
+      [
+        'b.sprout:3:9',
+        '`depart` may not use `chance`: a guard is asked as part of a decision it must not change.',
+      ],
+      [
+        'b.sprout:4:13',
+        '`depart` may not use `random`: a guard is asked as part of a decision it must not change.',
+      ],
+      [
+        'b.sprout:5:13',
+        '`depart` may not use `{one of}`: a guard is asked as part of a decision it must not change.',
+      ],
+    ]);
+  });
+
+  it('refuses them in a `permit`, inside every branch', () => {
+    expect(check('if (self.count > 1) { if (random(3) == 0) { allow } }', PERMIT)).toEqual([
+      [
+        'b.sprout:3:31',
+        'A `permit` may not use `random`: a `permit` is asked as part of a decision it must not change.',
+      ],
+    ]);
+  });
+
+  it('takes them in a `do`', () => {
+    expect(
+      check('if (chance(2)) { say "{one of}Yes.{or}Aye.{/one of}" }\n    let n = random(6)', DO),
+    ).toEqual([]);
+  });
+});
+
 describe('a `do` acts', () => {
   it('takes the writes, `say`, `spawn`, `destroy`, `move`, `wake` and a `let` naming a spawn', () => {
     expect(

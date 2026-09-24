@@ -195,3 +195,36 @@ describe('a name in a slot is a binding in reach, or an object named from where 
     expect(at('target').source.name).toBe('shop.sprout');
   });
 });
+
+describe('a `{one of}` checks each of its choices', () => {
+  it('checks what every choice holds, each in a scope of its own', () => {
+    const { said } = checked(
+      '{one of}{for t in self}{t}{/for}{or}{t}{or}{self.get(:ward)}{/one of}',
+      bodyOf({ ...WARDED, contains: true }),
+    );
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain('Nothing here is called `t`.');
+  });
+
+  it('is refused where the prose draws nothing, and still checks its choices', () => {
+    const context: CheckContext = { ...warded(), undrawn: { by: 'permit' } };
+    expect(checked('{one of}a{or}{nobody}{/one of}', context).said).toEqual([
+      'A `permit` may not use `{one of}`: a `permit` is asked as part of a decision it must not change. Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.',
+      expect.stringContaining('Nothing here is called `nobody`.'),
+    ]);
+  });
+
+  it('hands a slot it renders the prose’s reason to draw nothing', () => {
+    const withPassage = { ...VESSEL, passages: new Map([['greeting', passage('greeting')]]) };
+    const guarded: CheckContext = {
+      ...bodyOf(withPassage),
+      undrawn: { by: 'guard', guard: 'accept' },
+    };
+    expect(checked('{self.greeting}', guarded).rendered.map((site) => site.undrawn)).toEqual([
+      { by: 'guard', guard: 'accept' },
+    ]);
+    expect(
+      checked('{self.greeting}', bodyOf(withPassage)).rendered.map((site) => site.undrawn),
+    ).toEqual([null]);
+  });
+});

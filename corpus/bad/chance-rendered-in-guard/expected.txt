@@ -1,0 +1,4 @@
+tower.sprout:4:57  The passage `ring` uses `random`, and it is rendered from `accept`, which may not: a guard is asked as part of a decision it must not change.
+                   Say words here that do not vary, or keep the variation on a property a `do` or a tick sets, and read that in an `{if}`.
+
+refused: 1 problem

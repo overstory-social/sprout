@@ -1,0 +1,5 @@
+kind Yard is sprout.Place {
+  on :tick (elapsed) {
+    if (chance(8)) { broadcast :stir }
+  }
+}

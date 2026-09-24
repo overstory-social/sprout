@@ -1,0 +1,4 @@
+world.sprout:6:20  The world's `unseen` may not use `{one of}`: a poll says it, and a poll draws nothing.
+                   Write words that are the same every time; to vary them, read what the world holds in an `{if}`.
+
+refused: 1 problem

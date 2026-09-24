@@ -6,7 +6,8 @@
 // `do`, and what the actor sent it arrives after, then stirs the dog, an
 // NPC whose sniff the visitor hears; a gong struck overflows after the
 // actor has written and spawned; a drum beaten echoes past the cascade
-// depth; a muffled bell refuses; a stone tapped says nothing. The
+// depth; a muffled bell refuses; a stone tapped says nothing; a coin
+// flipped draws its face, its count and its words. The
 // `runtime/turn.spec.ts`, `runtime/command.spec.ts` and
 // `runtime/faults.spec.ts` share it. Spec support: the package build
 // leaves it out.
@@ -36,6 +37,7 @@ export const BELFRY: Bundle = compiledWorld('belfry', {
     object muffled is Muffled
     object stone is Stone
     object dog is Dog
+    object coin is Coin
   }
   object loft is sprout.Place { }
 }
@@ -49,6 +51,7 @@ verb strike { role target  "strike [target]" }
 verb beat   { role target  "beat [target]" }
 verb tap    { role target  "tap [target]" }
 verb sniff  { role target  "sniff [target]" }
+verb flip   { role target  "flip [target]" }
 `,
   'creature.sprout': `// Whoever rings, strikes or beats counts it and says so, before any
 // role-player's part runs; ringing also tells the bell, by message.
@@ -112,6 +115,19 @@ kind Dog is sprout.Actor {
   as actor for sniff { do { self.adjust(:sniffs, 1)  say "The dog sniffs at the bell." } }
 }
 `,
+  'coin.sprout': `// A flipped coin lands on a face and says how, all of it drawn.
+kind Coin {
+  :face 0 min 0 max 5
+  :heads 0 min 0 max 99
+  as target for flip {
+    do {
+      self.set(:face, random(6))
+      if (chance(2)) { self.adjust(:heads, 1) }
+      say "{one of}It spins.{or}It rings.{or}It rolls away.{/one of}"
+    }
+  }
+}
+`,
 });
 
 const at = (...path: string[]): InstanceId => declaredId('belfry', path);
@@ -124,6 +140,7 @@ export const DRUM = at('hall', 'drum');
 export const MUFFLED = at('hall', 'muffled');
 export const STONE = at('hall', 'stone');
 export const DOG = at('hall', 'dog');
+export const COIN = at('hall', 'coin');
 
 export const CATALOGUE = catalogueOf(BELFRY, DEFAULT_LIMITS.caps);
 
@@ -135,6 +152,7 @@ const NOUNS: Readonly<Record<string, InstanceId>> = {
   muffled: MUFFLED,
   stone: STONE,
   dog: DOG,
+  coin: COIN,
 };
 
 /**

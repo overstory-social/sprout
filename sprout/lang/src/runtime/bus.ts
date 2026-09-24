@@ -193,6 +193,7 @@ function frameFor(sent: Sent, body: Delivered, context: ReadingContext): Frame {
     caps: context.catalogue.caps,
     names: context.catalogue.names,
     passes: context.passes,
+    draws: context.draws,
   };
 }
 

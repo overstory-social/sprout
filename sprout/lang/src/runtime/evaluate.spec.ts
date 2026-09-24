@@ -23,6 +23,7 @@ import { SourceFile } from '../source/source.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { catalogueOf } from './catalogue.js';
 import { Draft } from './draft.js';
+import { Draws } from './draws.js';
 import {
   boundObject,
   evaluate,
@@ -116,6 +117,7 @@ interface Body {
   readonly library?: string;
   readonly budget?: Budget;
   readonly draft?: Draft;
+  readonly draws?: Draws;
 }
 
 /**
@@ -155,6 +157,7 @@ function run(text: string, body: Body): Evaluated {
     caps: CAPS,
     names: new Map(),
     passes: () => true,
+    ...(body.draws === undefined ? {} : { draws: body.draws }),
   };
   return evaluate(expr, frame);
 }
@@ -410,6 +413,55 @@ describe('what a turn is charged', () => {
       value: terms,
     });
     expect(budget.spentSteps).toBe(2 * terms - 1);
+  });
+});
+
+describe('a draw', () => {
+  it('draws `random(n)` from the frame’s stream, and `chance(n)` true where the draw is 0', () => {
+    const draws = new Draws(7);
+    const again = new Draws(7);
+    const drawn = [6, 6, 2, 100].map((n) => valueOf(`random(${n})`, { self: JAR, draws }));
+    expect(drawn).toEqual([6, 6, 2, 100].map((n) => again.below(n)));
+    const chances = new Draws(11);
+    const looked = new Draws(11);
+    for (let i = 0; i < 20; i++) {
+      expect(valueOf('chance(3)', { self: JAR, draws: chances })).toBe(looked.below(3) === 0);
+    }
+  });
+
+  it('gives the same values for the same seed, however often it is run', () => {
+    const run = (seed: number) => {
+      const draws = new Draws(seed);
+      return Array.from({ length: 12 }, () =>
+        valueOf('random(20) + 1 > 10 && chance(2)', { self: JAR, draws }),
+      );
+    };
+    expect(run(5)).toEqual(run(5));
+    expect(run(5).concat(run(6))).toContain(true);
+  });
+
+  it('is one step, as any leaf is, and draws once however it is written', () => {
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const draws = new Draws(3);
+    valueOf('random(6)', { self: JAR, budget, draws });
+    expect(budget.spentSteps).toBe(1);
+    expect(draws.drawn).toBe(1);
+  });
+
+  it('leaves the right of `&&` undrawn where the left decides', () => {
+    const draws = new Draws(3);
+    expect(valueOf('false && chance(2)', { self: JAR, draws })).toBe(false);
+    expect(draws.drawn).toBe(0);
+  });
+
+  it('stays within its bound for any bound and seed written', () => {
+    const c = chooser(19);
+    for (let i = 0; i < 200; i++) {
+      const n = 1 + c.below(i % 2 === 0 ? 12 : 2_147_483_647);
+      const value = valueOf(`random(${n})`, { self: JAR, draws: new Draws(c.below(1_000_000)) });
+      expect(value, `random(${n})`).toBeGreaterThanOrEqual(0);
+      expect(value, `random(${n})`).toBeLessThan(n);
+    }
   });
 });
 

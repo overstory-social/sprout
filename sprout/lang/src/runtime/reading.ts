@@ -223,7 +223,7 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
       if (draft.instance(participant.id) === undefined) break;
       runBody(
         play.declaration.do,
-        frameFor(reading, participant, play, state, context),
+        { ...frameFor(reading, participant, play, state, context), draws: context.draws },
         'act',
         sink,
       );
@@ -413,6 +413,7 @@ function playsFor(
 /**
  * The frame one play runs in: `self` the participant, `actor` and `here`,
  * and each other role as this play sees it (the spec's Playing a role).
+ * It draws nothing: a `do` is given the turn's draws where it runs.
  */
 function frameFor(
   reading: Reading,

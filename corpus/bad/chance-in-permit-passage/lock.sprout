@@ -1,0 +1,7 @@
+// A passage that rolls, said from a `permit` and from a `do`: only the
+// `permit` is refused, where it says it.
+kind Lock {
+  as target for unlock { permit { refuse stuck } }
+  as target for peer { do { say stuck } }
+  passage stuck { {one of}The lock is stuck.{or}The key will not turn.{/one of} }
+}
