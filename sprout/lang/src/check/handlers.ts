@@ -19,8 +19,6 @@ import { nearestOption } from '../declare/enums.js';
 import {
   engineParameters,
   handlerParameters,
-  hereBinding,
-  actorBinding,
   Scope,
   selfBinding,
   showBindingType,
@@ -170,10 +168,7 @@ function checkBody(
   const scope = Scope.root();
   scope.introduce(selfBinding(self, body.at), diagnostics);
   for (const parameter of parameters) scope.introduce(parameter, diagnostics);
-  for (const [name, binding] of [
-    ['actor', actorBinding(null, body.at)],
-    ['here', hereBinding(body.at)],
-  ] as const) {
+  for (const name of ['actor', 'here']) {
     if (scope.lookup(name) !== null) continue;
     const words = {
       message: `\`${name}\` is not bound inside \`${written}\`: nobody is acting when a message arrives.`,
@@ -181,7 +176,7 @@ function checkBody(
         'Name what you mean through what the message passes, as `on :entered (item, from)` names what arrived.',
     };
     scope.withhold(
-      { name, at: binding.at, unread: words, bound: { bindable: false, words } },
+      { name, at: body.at, unread: words, bound: { bindable: false, words } },
       diagnostics,
     );
   }

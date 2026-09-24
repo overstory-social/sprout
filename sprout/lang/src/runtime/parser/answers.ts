@@ -3,7 +3,8 @@
 // › Where types come from): the world's `unknown`, `not_here` and
 // `which` passages, with `actor` and `here` bound as every passage the
 // engine speaks to an actor has them, and `candidates` in a `which`. No
-// answer binds a thing a noun names, so none names what is out of range. Nothing is rendered here: `prose/` renders.
+// answer binds a thing a noun names, so none names what is out of range.
+// Nothing is rendered here: `prose/` renders.
 // A `which` also carries, for each candidate, the line to type again to
 // mean it, so the question is answered with a command and the parser
 // keeps nothing between turns.

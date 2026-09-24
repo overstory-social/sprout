@@ -164,7 +164,8 @@ describe('the standard library', () => {
   it('compiles whole beside a world, the world composing `sprout.World`', () => {
     const { bundle, diagnostics } = compiled();
     expect(diagnostics).toEqual([]);
-    expect(bundle!.libraries.map((l) => [l.name, l.blessed])).toEqual([['sprout', true]]);
+    expect(bundle!.libraries.map((l) => l.name)).toEqual(['sprout']);
+    expect(bundle!.size.exemptBytes).toBe(bundle!.libraries[0]!.bytes);
     // Only the world's own `Person` and `Yard` count; the blessed library's four cost nothing.
     expect(bundle!.size.kinds).toBe(2);
     expect(bundle!.world!.composes.has('sprout.World')).toBe(true);

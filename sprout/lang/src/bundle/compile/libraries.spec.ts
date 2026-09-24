@@ -42,14 +42,10 @@ function source(pins: Manifest['libraries'], libraries: LibrarySource[]): Microw
   };
 }
 
-/** What checking `world`'s libraries gives back and says, in `mode`, with `blessed`. */
-function checked(
-  world: MicroworldSource,
-  mode: 'publish' | 'load' = 'publish',
-  blessed: ReadonlySet<string> = new Set(),
-) {
+/** What checking `world`'s libraries gives back and says, in `mode`. */
+function checked(world: MicroworldSource, mode: 'publish' | 'load' = 'publish') {
   const report = new Report(mode, world.manifestFile.span(0, 0));
-  const usable = checkLibraries(world, blessed, report);
+  const usable = checkLibraries(world, report);
   return {
     usable,
     said: report.diagnostics.all.map((d) => [d.severity, d.message]),
@@ -58,12 +54,14 @@ function checked(
 }
 
 describe('a library is used when what travelled is what the manifest recorded', () => {
-  it('gives it back hashed, weighed and asked about the host’s blessing', () => {
-    const { usable, said } = checked(source([PIN], [STANDARD_LIBRARY]), 'publish', new Set([SHA]));
+  it('gives it back hashed and weighed, with nothing said of the host’s blessing', () => {
+    const { usable, said } = checked(source([PIN], [STANDARD_LIBRARY]));
     expect(said).toEqual([]);
-    expect(usable.map((one) => [one.name, one.hash, one.blessed])).toEqual([['sprout', SHA, true]]);
-    expect(usable[0]!.bytes).toBeGreaterThan(0);
-    expect(checked(source([PIN], [STANDARD_LIBRARY])).usable[0]!.blessed).toBe(false);
+    expect(usable.map((one) => [one.name, one.hash])).toEqual([['sprout', SHA]]);
+    expect(usable[0]!.bytes).toBe(
+      STANDARD_LIBRARY.files.reduce((n, f) => n + new TextEncoder().encode(f.text).length, 0),
+    );
+    expect(Object.keys(usable[0]!)).not.toContain('blessed');
   });
 
   it('is not used when it did not travel, and is a gap at load', () => {
@@ -267,18 +265,5 @@ describe('the manifest records every library by version and by the hash of its s
   it('lets a library and the world share a file name, since they are different source', () => {
     const files = [file('ward.sprout', `${WORLD_LINE}\nenum Mine { one }`), PERSON];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
-  });
-});
-
-describe('the bundle records whether the host blessed each library’s hash', () => {
-  it('records the blessing the host granted at publish', () => {
-    const { bundle } = compileBundle(world(), { blessed: new Set([SPROUT_SHA]) });
-    expect(bundle!.libraries[0]!.blessed).toBe(true);
-  });
-
-  it('does not bless a library the host has not', () => {
-    expect(compileBundle(world(), { blessed: new Set() }).bundle!.libraries[0]!.blessed).toBe(
-      false,
-    );
   });
 });

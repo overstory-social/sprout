@@ -1,0 +1,14 @@
+// `here` is the actor's place, and a `sprout.Place` wherever every kind
+// holding actors composes it, as `Room` does: the lamp walks and counts
+// it without narrowing it first.
+world lamplit is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is Room {
+    object lamp is Lamp
+    object stool is Stool
+  }
+}
+
+verb light { role target  "light [target]" }

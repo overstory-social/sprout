@@ -35,7 +35,7 @@ export const MILL: Bundle = compiledWorld('mill', {
     '  object yard is sprout.Place {',
     '    object press is Press',
     '    object brass_key is Key',
-    '    object oak_door is Plain { grammar { article an } }',
+    '    object oak_door is Plain',
     '    object crate is Crate {',
     '      grammar { article the }',
     '      object apple is Plain { grammar { article an } }',

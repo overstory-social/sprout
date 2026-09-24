@@ -23,7 +23,7 @@ import {
   type BindingType,
 } from './bindings.js';
 import { BOOLEAN, integer, STRING } from '../declare/types.js';
-import { at, KNOWS, LOCKABLE, VESSEL } from '../fixtures/bindings.js';
+import { at, HERE_UNKNOWN, KNOWS, LOCKABLE, VESSEL } from '../fixtures/bindings.js';
 
 describe('a binding type is not a property type', () => {
   it('says what it is, for every arm there is', () => {
@@ -41,7 +41,7 @@ describe('a binding type is not a property type', () => {
   });
 
   it('knows an object binding from a value one, which is what `is()` narrows', () => {
-    expect(isObjectBinding(hereBinding(at('here')))).toBe(true);
+    expect(isObjectBinding(hereBinding(HERE_UNKNOWN, at('here')))).toBe(true);
     expect(isObjectBinding(selfBinding(VESSEL, at('self')))).toBe(true);
     expect(isObjectBinding(elapsedBinding('elapsed', at('elapsed')))).toBe(false);
     expect(isObjectBinding(setRoleBinding('tools', null, at('tools')))).toBe(false);

@@ -97,7 +97,7 @@ function bodyOf(self: KindRef): CheckContext {
   for (const binding of [
     selfBinding(self, spanOf('self')),
     actorBinding(kind('Visitor'), spanOf('actor')),
-    hereBinding(spanOf('here')),
+    hereBinding({ place: TABLES.kinds.qualified('sprout', 'Place'), unlike: null }, spanOf('here')),
     letBinding('door', objectOf(kind('Lockable')), spanOf('door')),
     letBinding('stone', OPEN_OBJECT, spanOf('stone')),
     letBinding('ribs', setOf(kind('Rib')), spanOf('ribs')),

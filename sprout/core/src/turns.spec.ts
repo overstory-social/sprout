@@ -33,16 +33,18 @@ import {
   runWriteTurn,
 } from './turns.js';
 
-// A counter in a hall, one kind per file: bumping it counts, and
-// smashing it counts and then overflows, so the turn faults after it
-// wrote; resting it asks for a wake a minute on, and a wake sets it to
-// the seconds it waited, which it holds only up to 99.
+// A counter and a gauge in a hall, both of one kind, one kind per file:
+// bumping one counts, and smashing it counts and then overflows, so the
+// turn faults after it wrote; resting it asks for a wake a minute on,
+// and a wake sets it to the seconds it waited, which it holds only up to
+// 99.
 const FILES: Record<string, string> = {
   'world.sprout': `world tally is sprout.World {
   visitors are Person
   visitors arrive at hall
   object hall is sprout.Place {
     object counter is Counter
+    object gauge is Counter
   }
 }
 verb bump  { role target  "bump [target]" }
@@ -91,13 +93,16 @@ if (bundle === null) throw new Error('the tally does not compile');
 const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
 const HALL = declaredId('tally', ['hall']);
 const COUNTER = declaredId('tally', ['hall', 'counter']);
+const GAUGE = declaredId('tally', ['hall', 'gauge']);
 const MARTA = visitKey('v-marta');
 
-/** Reads `verb counter`; anything else is not reached by these cases. */
+/** Reads `verb counter` and `verb gauge`; anything else is not reached by these cases. */
 const parse: Parser = (text, actor) => {
-  const verb = bundle.verbs.qualified('tally', text.split(' ')[0]!);
+  const [word, noun] = text.split(' ');
+  const verb = bundle.verbs.qualified('tally', word!);
   if (verb === null) throw new Error(`no verb in \`${text}\``);
-  return { reading: { verb, actor, bindings: new Map([['target', { object: COUNTER }]]) } };
+  const object = noun === 'gauge' ? GAUGE : COUNTER;
+  return { reading: { verb, actor, bindings: new Map([['target', { object }]]) } };
 };
 const host: CommandHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, parse };
 const command = (text: string, now = 0) => ({ visit: MARTA, text, seed: 1, mayHold: null, now });
@@ -122,10 +127,10 @@ async function seeded(store: SproutStore = memoryStore()): Promise<SproutStore> 
   return store;
 }
 
-/** The counter as the store holds it now. */
-async function count(store: SproutStore): Promise<unknown> {
+/** The counter, or what `id` names, as the store holds it now. */
+async function count(store: SproutStore, id = COUNTER): Promise<unknown> {
   const polled = await runPoll(store, 'w', host, (turn) =>
-    turn.state.instance(COUNTER)?.properties.get('n'),
+    turn.state.instance(id)?.properties.get('n'),
   );
   if (polled.faulted) throw new Error(polled.fault.detail);
   return polled.view;
@@ -292,13 +297,45 @@ describe('a maintenance turn against a store', () => {
     const store = await seeded();
     await runCommand(store, 'w', host, command('rest counter', 0));
     const kept = await runMaintenance(store, 'w', host, { now: 75, seed: 6, mayHold: null });
-    expect(kept.value).toMatchObject({ faulted: null, abandoned: [] });
+    expect(kept.value).toMatchObject({ faulted: [], abandoned: [] });
     expect(await count(store)).toBe(75);
 
     await runCommand(store, 'w', host, command('rest counter', 100));
     const faulted = await runMaintenance(store, 'w', host, { now: 900, seed: 7, mayHold: null });
-    expect(faulted.value.faulted?.fault).toMatchObject({ name: 'ValueOutOfRange' });
+    expect(faulted.value.faulted).toMatchObject([{ fault: { name: 'ValueOutOfRange' } }]);
     expect(await count(store)).toBe(75);
     expect(dueWakes(await committedState(store, 'w', host), 10_000)).toEqual([]);
+  });
+
+  it('writes the other objects’ wakes past one that faults, and gives back which did what', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    await runCommand(store, 'w', host, command('rest gauge', 50));
+    // The counter has waited 120 seconds, past what it holds; the gauge 70.
+    const turn = await runMaintenance(store, 'w', host, { now: 120, seed: 8, mayHold: null });
+    expect(turn.value.faulted).toMatchObject([
+      { wake: { object: COUNTER }, fault: { name: 'ValueOutOfRange' } },
+    ]);
+    expect(turn.value.delivered.map((w) => w.object)).toEqual([GAUGE]);
+    expect(turn.value.abandoned).toEqual([]);
+    expect(await count(store)).toBe(0);
+    expect(await count(store, GAUGE)).toBe(70);
+    expect(dueWakes(await committedState(store, 'w', host), 10_000)).toEqual([]);
+  });
+
+  it('leaves the faulted object’s later due wake pending for live time', async () => {
+    const store = await seeded();
+    const twice: CommandHost = {
+      ...host,
+      budgets: { ...DEFAULT_LIMITS.budgets, pendingWakesPerObject: 2 },
+    };
+    await runCommand(store, 'w', twice, command('rest counter', 0));
+    await runCommand(store, 'w', twice, command('rest counter', 10));
+    await runCommand(store, 'w', twice, command('rest gauge', 50));
+    const turn = await runMaintenance(store, 'w', twice, { now: 120, seed: 9, mayHold: null });
+    expect(turn.value.faulted.map((f) => f.wake.object)).toEqual([COUNTER]);
+    expect(turn.value.delivered.map((w) => w.object)).toEqual([GAUGE]);
+    const later = dueWakes(await committedState(store, 'w', twice), 120);
+    expect(later.map((w) => [w.object, w.askedAt])).toEqual([[COUNTER, 10]]);
   });
 });

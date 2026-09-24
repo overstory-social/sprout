@@ -1,0 +1,10 @@
+// A lamp shows whatever stands where the one lighting it is.
+kind Lamp {
+  as target for light {
+    do {
+      if (here.count > 2) { say shown } else { say "The lamp shows only you." }
+    }
+  }
+
+  passage shown { The lamp shows {for thing in here}{thing}{if !$last}, {/if}{/for}. }
+}

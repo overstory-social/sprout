@@ -15,17 +15,13 @@ import { refuseRepeats, type Report } from './report.js';
 /** What a world runs without when a library is not there. */
 const LIBRARY_GONE = 'every kind, enum, verb and message it holds reads as absent';
 
-/** Vendor the libraries: hash each one, and ask the host's blessed set about the hash. */
-function vendor(
-  libraries: readonly LibrarySource[],
-  blessed: ReadonlySet<string>,
-): VendoredLibrary[] {
+/** Vendor the libraries: hash each one, and weigh its source. */
+function vendor(libraries: readonly LibrarySource[]): VendoredLibrary[] {
   return libraries.map((library) => {
     const hash = libraryHash(library);
     return {
       ...library,
       hash,
-      blessed: blessed.has(hash),
       bytes: library.files.reduce((bytes, file) => bytes + bytesOf(file.text), 0),
     };
   });
@@ -33,16 +29,11 @@ function vendor(
 
 /**
  * Check every library the manifest pins against what travelled, and
- * give back the ones the world may use, hashed and with the host's
- * blessing asked of each.
+ * give back the ones the world may use, hashed.
  */
-export function checkLibraries(
-  source: MicroworldSource,
-  blessed: ReadonlySet<string>,
-  report: Report,
-): VendoredLibrary[] {
+export function checkLibraries(source: MicroworldSource, report: Report): VendoredLibrary[] {
   const { manifest, manifestFile } = source;
-  const vendored = vendor(source.libraries, blessed);
+  const vendored = vendor(source.libraries);
   const byName = new Map(vendored.map((library) => [library.name, library]));
   const librariesKey = atKey(manifestFile, 'libraries');
   refuseRepeats(

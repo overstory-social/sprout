@@ -36,7 +36,6 @@ const microworld = (id: string) => ({
   extensions: [],
   caps: CAPS,
   excepted: false,
-  blessed: [],
   loadedAt: NOW,
 });
 const lamp: StoredInstance = {
@@ -198,6 +197,17 @@ describe('the layout on the backend', () => {
     await expect(store.read('x', (tx) => tx.state())).rejects.toThrow(
       'microworld/x/state is not the record it should be',
     );
+  });
+
+  it('reads a stored microworld that lists what was blessed at publish, without the list', async () => {
+    const backend = memoryBackend();
+    await backend.put('microworld/w/archive', {
+      ...microworld('w'),
+      loadedAt: NOW.toISOString(),
+      blessed: ['a'.repeat(64)],
+    });
+    const read = await documentStore(backend).read('w', (tx) => tx.microworld());
+    expect(read).toEqual(microworld('w'));
   });
 
   it('a read is memoised by key: the state document is fetched once for the read, however often it is asked', async () => {
