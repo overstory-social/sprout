@@ -13,17 +13,28 @@ import { nearestOption, shownName } from '../../declare/enums.js';
 import type { ResolvedProperty } from '../../declare/properties.js';
 import type { Span } from '../../source/source.js';
 import { readable } from '../../source/words.js';
+import { placedWords } from '../names.js';
 import type { CheckContext } from './checker.js';
 
-/** The kind a receiver is, or a refusal naming what to do about the object type. */
+/**
+ * The kind a receiver is, or a refusal naming what to do about the object
+ * type: narrow it, through a `let` where `receiver` is a name in a kind's
+ * body that no compile can fix.
+ */
 export function receiverKind(
   type: BindingType,
   at: Span,
   doing: string,
   context: CheckContext,
+  receiver?: Expr,
 ): KindRef | null {
   if (type.binds === 'object' && type.kind !== null) return type.kind;
   if (type.binds === 'object') {
+    const placed = receiver === undefined ? null : placedWords(receiver, doing, context);
+    if (placed !== null) {
+      context.diagnostics.refuse(at, placed.message, placed.remedy);
+      return null;
+    }
     context.diagnostics.refuse(
       at,
       `Sprout does not know what this is, so it cannot ${doing} it.`,
@@ -65,7 +76,12 @@ export function describe(binding: Binding | null, type: BindingType): string {
 }
 
 /** Whether a receiver may be asked about memory: it composes `sprout.Actor`. */
-export function remembers(type: BindingType, at: Span, context: CheckContext): boolean {
+export function remembers(
+  type: BindingType,
+  at: Span,
+  context: CheckContext,
+  receiver?: Expr,
+): boolean {
   if (type.binds === 'object' && type.kind !== null) {
     if (isActor(type.kind)) return true;
     context.diagnostics.refuse(
@@ -76,10 +92,13 @@ export function remembers(type: BindingType, at: Span, context: CheckContext): b
     return false;
   }
   if (type.binds === 'object') {
+    const placed =
+      receiver === undefined ? null : placedWords(receiver, 'ask about memory of', context);
     context.diagnostics.refuse(
       at,
-      'Sprout does not know whether this is someone who can be remembered about.',
-      'Narrow it first, as in `if (item.is(Creature)) { … }`.',
+      placed?.message ??
+        'Sprout does not know whether this is someone who can be remembered about.',
+      placed?.remedy ?? 'Narrow it first, as in `if (item.is(Creature)) { … }`.',
     );
     return false;
   }
@@ -154,18 +173,28 @@ function holdersOf(kind: KindRef, name: string, context: CheckContext): KindRef[
 }
 
 /** `x.count` and `x.count(K)` — a container or a set role. */
-export function countable(type: BindingType, at: Span, context: CheckContext): boolean {
+export function countable(
+  type: BindingType,
+  at: Span,
+  context: CheckContext,
+  receiver?: Expr,
+): boolean {
   if (type.binds === 'set') return true;
   // Lists names `count` as one of a list's four operations, where the
   // checker's own table names only a container and a set role. The
   // fuller sentence wins, and the narrower row is recorded in the
   // notes as a row to widen.
   if (type.binds === 'value' && type.type.type === 'list') return true;
-  return container(type, at, context);
+  return container(type, at, context, receiver);
 }
 
 /** Whether a receiver holds things: a kind that declares `contains`. */
-export function container(type: BindingType, at: Span, context: CheckContext): boolean {
+export function container(
+  type: BindingType,
+  at: Span,
+  context: CheckContext,
+  receiver?: Expr,
+): boolean {
   if (type.binds === 'object' && type.kind !== null && type.kind.contains) return true;
   if (type.binds === 'object' && type.kind !== null) {
     context.diagnostics.refuse(
@@ -176,6 +205,11 @@ export function container(type: BindingType, at: Span, context: CheckContext): b
     return false;
   }
   if (type.binds === 'object') {
+    const placed = receiver === undefined ? null : placedWords(receiver, 'count', context);
+    if (placed !== null) {
+      context.diagnostics.refuse(at, placed.message, placed.remedy);
+      return false;
+    }
     context.diagnostics.refuse(
       at,
       'Sprout does not know whether this holds anything.',

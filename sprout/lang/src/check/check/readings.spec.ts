@@ -225,9 +225,19 @@ describe('the readings, asked directly', () => {
     const context = bodyOf(PRINTER);
     const written = call('actor.recall(:visits)');
     expect(
-      showBindingType(recallCall(objectOf(PRINTER), written.method, written.arguments, context)!),
+      showBindingType(
+        recallCall(
+          written.receiver,
+          objectOf(PRINTER),
+          written.method,
+          written.arguments,
+          context,
+        )!,
+      ),
     ).toBe('integer 0 to 99');
-    expect(recallCall(objectOf(KEY), written.method, written.arguments, context)).toBeNull();
+    expect(
+      recallCall(written.receiver, objectOf(KEY), written.method, written.arguments, context),
+    ).toBeNull();
     expect(saidBy(context).join(' ')).toContain(`Only a kind composing \`${ACTOR}\` is.`);
   });
 

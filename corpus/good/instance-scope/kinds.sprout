@@ -1,0 +1,4 @@
+verb light { role target  "light [target]" }
+verb open  { role target  "open [target]" }
+
+message :kindle

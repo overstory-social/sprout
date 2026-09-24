@@ -1,0 +1,11 @@
+// A name in a kind's body reaches whatever is called that nearest each
+// instance, so Sprout knows it only as an object: reading a property
+// through it is refused until a `let` names it and `is()` narrows that.
+kind Lantern {
+  as target for rub {
+    do {
+      if (lamp.get(:lit)) { say "The lantern is warm." }
+      say "You rub the lantern."
+    }
+  }
+}

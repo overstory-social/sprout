@@ -1,0 +1,24 @@
+// A name in a kind's body resolves from where each instance sits, nearest
+// first (Identifiers and scope). The hall's lantern and the cellar's each
+// name `lamp`, and each reaches the lamp in its own room; a lantern the
+// cupboard makes reaches the hall's, the nearest round it. The world's name
+// fixes a name from anywhere, as `instance_scope.beacon` does. The cellar's
+// stair is a kind's too, and leads up to whichever `hall` is nearest it.
+world instance_scope is sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+    object lantern is Lantern
+    object cupboard is Cupboard
+  }
+
+  object cellar is sprout.Place {
+    object lamp is Lamp
+    object lantern is Lantern
+    object stair is Stair
+  }
+
+  object beacon is Lamp
+}

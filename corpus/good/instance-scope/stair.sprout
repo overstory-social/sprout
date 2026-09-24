@@ -1,0 +1,4 @@
+// A stair leads up to whichever `hall` is nearest it.
+kind Stair is sprout.Place {
+  grammar { exit up "up the stair" -> hall }
+}

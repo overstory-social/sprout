@@ -2,16 +2,19 @@
 // it (the spec's Names › Identifiers and scope; Properties › Where types
 // come from). A name in scope is its binding, and a binding hides an
 // object of its name; any other name is resolved from where the body is
-// written (`declare/names.ts`) and typed at the object's kind, so it reads
-// without `is()`. Each name resolved is recorded, by the node written, for
-// the runtime to find what it reaches, which is only ever a target when it
-// is in range.
+// written (`declare/names.ts`). One the compile fixes is typed at the
+// object's kind, so it reads without `is()`; one in a kind's body that
+// reaches whatever is nearest each instance is of the object type, read
+// only through `is()`. Each name resolved is recorded, by the node
+// written, for the runtime to find what it reaches, which is only ever a
+// target when it is in range.
 
-import type { Ident, ObjectPath } from '../syntax/ast.js';
+import type { Expr, Ident, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
 import type { Node } from '../source/nodes.js';
 import { readable } from '../source/words.js';
 import { nearestOption } from '../declare/enums.js';
+import { writtenKind } from '../declare/compose.js';
 import type { KindRef } from '../declare/kinds.js';
 import {
   nameFrom,
@@ -102,6 +105,30 @@ export function dottedType(path: ObjectPath, context: CheckContext): BindingType
 }
 
 function typed(named: Named, scope: NameScope): BindingType {
+  if (named.names === 'placed') return OPEN_OBJECT;
   const kind = named.names === 'world' ? scope.world : named.kind;
   return kind === null ? OPEN_OBJECT : objectOf(kind);
+}
+
+/**
+ * Where `receiver` is a name in a kind's body that reaches whatever is
+ * nearest each instance, the words for reading through it: say so, and
+ * narrow it through a `let`, since `is()` narrows a binding and a passage
+ * reads the bindings of the body that says it. Null for any other receiver.
+ */
+export function placedWords(
+  receiver: Expr,
+  doing: string,
+  context: CheckContext,
+): { message: string; remedy: string } | null {
+  if (receiver.kind !== 'binding' || context.scope.lookup(receiver.name.text) !== null) return null;
+  const named = context.names?.table.get(receiver.name);
+  if (named?.names !== 'placed') return null;
+  const name = receiver.name.text;
+  const made = named.candidates.flatMap((one) => one.declaration.composes.slice(0, 1));
+  const kind = made.length === 0 ? 'Key' : writtenKind(made[0]!);
+  return {
+    message: `\`${name}\` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot ${doing} it.`,
+    remedy: `Name it with \`let\` and narrow that, as in \`let found = ${name}\` and then \`if (found.is(${kind})) { … }\`; a passage said inside the branch may read \`found\` too.`,
+  };
 }
