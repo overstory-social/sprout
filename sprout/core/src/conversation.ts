@@ -1,9 +1,9 @@
 import {
   hostSeconds,
-  isPerson,
   placeOfTeller,
   readerOf,
   standsInPlace,
+  toldToPlace,
   type HostSeconds,
   type InstanceId,
   type TurnHost,
@@ -125,9 +125,7 @@ export function hearers(state: WorldState, visit: VisitKey): Heard | null {
   const place = placeOfTeller(reader, visitor.instance);
   if (place === null) return null;
   const visits = new Map([...state.visitors.values()].map((one) => [one.instance, one.visit]));
-  const to = reader
-    .children(place)
-    .filter((id) => isPerson(reader, id))
+  const to = toldToPlace(reader, visitor.instance, [])
     .map((id) => visits.get(id))
     .filter((one): one is VisitKey => one !== undefined);
   return { place, to };
