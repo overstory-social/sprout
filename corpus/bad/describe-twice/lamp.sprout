@@ -1,0 +1,4 @@
+kind Lamp {
+  describe { text "A lamp." }
+  describe { text "It burns." }
+}

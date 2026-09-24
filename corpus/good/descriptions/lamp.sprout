@@ -1,0 +1,6 @@
+kind Lamp {
+  :lit true
+  describe {
+    if (self.get(:lit)) { text "The lamp burns." } else { text "The lamp is dark." }
+  }
+}

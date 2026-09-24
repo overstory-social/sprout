@@ -1,0 +1,4 @@
+lamp.sprout:2:12  What `describe` gives goes in braces.
+                  Write `describe { text "Slat-sided, heavier than it looks." }`.
+
+refused: 1 problem

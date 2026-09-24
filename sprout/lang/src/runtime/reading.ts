@@ -24,9 +24,9 @@
 // rendered here: `prose/` renders what is said for each reader, `bus.ts`
 // drains the queue after, and B37 polls the consent pass alone.
 
-import { libraryOf } from '../declare/enums.js';
+import { libraryOf, SPROUT } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
-import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
+import { ENGINE_ANSWERS, type ResolvedRole, type ResolvedVerb } from '../declare/verbs.js';
 import { readingOfAct } from './act.js';
 import { isPerson, toldToOne, toldToPlace } from './audience.js';
 import { runBody, type ActSink, type Proposed, type Speech } from './body.js';
@@ -93,10 +93,11 @@ export interface Said {
   /**
    * What the line is: said by a body; told by one; a `move` or an
    * `act`'s reading refused, whose words are said to its actor as a
-   * refusal (the spec's Verbs › Moving something, Acting); or spoken by
-   * the engine, as a fault is (The runtime › Effects).
+   * refusal (the spec's Verbs › Moving something, Acting); a line of a
+   * description, to the one looking; or spoken by the engine, as a fault
+   * is (The runtime › Effects).
    */
-  readonly effect: 'said' | 'told' | 'refused' | 'notice';
+  readonly effect: 'said' | 'told' | 'refused' | 'described' | 'notice';
   /**
    * Who reads it, each a person: for what is said, the actor, where a
    * person acts, and where an NPC acts, those who would hear its `tell`;
@@ -243,10 +244,15 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
 
   // Only a person's own command is answered: an NPC's reading that says
   // nothing has no output, and a reading performed by `act` is answered,
-  // if at all, as part of the reading it stands in.
-  // Whoever went reads where they arrived (the spec's Engine verbs).
+  // if at all, as part of the reading it stands in. Whoever went reads
+  // where they arrived, and the engine answers `look`, `examine`,
+  // `inventory` and `help` once the queue is empty (the spec's Engine verbs).
   const answered =
-    !person || depth > 0 || went === 'done' || said.some((line) => line.to.includes(reading.actor));
+    !person ||
+    depth > 0 ||
+    went === 'done' ||
+    answeredByEngine(reading.verb) ||
+    said.some((line) => line.to.includes(reading.actor));
   if (!answered) {
     const world = instanceIn(state, state.world);
     const passage = world.kind.passages.get(NOTHING_HAPPENS);
@@ -405,6 +411,11 @@ export function runReading(reading: Reading, context: ReadingContext, depth = 0)
     if ('set' in bound) budget.setRole(bound.set.length);
   const refused = consentPass(reading, { state: draft, catalogue, budget, passes });
   return refused === null ? effectPass(reading, context, depth) : { refused };
+}
+
+/** Whether the engine answers a reading of `verb` with what the actor reads (`engine-verbs.ts`). */
+export function answeredByEngine(verb: ResolvedVerb): boolean {
+  return verb.library === SPROUT && ENGINE_ANSWERS.includes(verb.name);
 }
 
 /** The exit a reading of the engine's `go` takes, or null for any other reading. */

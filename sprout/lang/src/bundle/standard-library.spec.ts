@@ -238,7 +238,23 @@ describe('the standard library', () => {
       not_yours: 'That is for {self} to put down, not you.',
       hands_full: '{self} cannot carry any more.',
     });
-    expect([...actor.passages.keys()].sort()).toEqual(['hands_full', 'held_fast', 'not_yours']);
+    expect([...actor.passages.keys()].sort()).toEqual([
+      'hands_full',
+      'held_fast',
+      'inventory',
+      'not_yours',
+    ]);
+  });
+
+  it('gives `sprout.Actor` the inventory the engine’s `inventory` says, as the worked microworld writes it', () => {
+    const actor = compiled().bundle!.kinds.find(
+      (k) => k.library === 'sprout' && k.name === 'Actor',
+    )!;
+    const inventory = actor.passages.get('inventory')!;
+    expect(inventory).toMatchObject({ origin: 'sprout.Actor', yields: true });
+    expect(inventory.body.text.trim().split(/\s+/).join(' ')).toBe(
+      '{if self.count == 0}You are carrying nothing.{else} You are carrying {for thing in self}{thing}{if $last}.{else}, {/if}{/for}{/if}',
+    );
   });
 
   it('gives `sprout.World` a default line for every passage the engine speaks through', () => {
@@ -300,7 +316,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'ea58a82a45588ac8eb0fea93f2ebbff96d3660cc9d9e6c12dd086a83628e451a',
+      '7a5954b9fe180b1e30f28d1b6448b81d247baf3da73c0e78479d126592666084',
     );
   });
 });

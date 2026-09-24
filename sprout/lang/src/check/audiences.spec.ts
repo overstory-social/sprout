@@ -18,6 +18,7 @@ const GUARD: BodyKind = { body: 'guard', guard: 'depart' };
 const PERMIT: BodyKind = { body: 'permit' };
 const DO: BodyKind = { body: 'do' };
 const HANDLER: BodyKind = { body: 'handler', written: 'on :gust' };
+const DESCRIBE: BodyKind = { body: 'describe' };
 
 /** The statement `text` reads as, which must read. */
 function statementOf(text: string): Statement {
@@ -134,6 +135,26 @@ describe('`tell` speaks to the place or to one person, in a `do` or a handler', 
 });
 
 describe('`text` gives a `describe` its words, and stands nowhere else', () => {
+  it('is checked in a `describe`, words and all, as `say` is in a `do`', () => {
+    expect(spoken('text "{actor} sees {self}, {n} times."', DESCRIBE)).toEqual([]);
+    expect(spoken('text "{nothing}"', DESCRIBE).map(([, message]) => message)).toEqual([
+      'Nothing here is called `nothing`.',
+    ]);
+  });
+
+  it('is the only one of the three a `describe` takes', () => {
+    expect(spoken('say "Hi."', DESCRIBE)).toEqual([
+      [
+        'body.sprout:1:1',
+        '`say` speaks to the one acting, and a `describe` is read by whoever looks.',
+        'Write `text` in its place, as in `text "A lever, waist high."`.',
+      ],
+    ]);
+    expect(spoken('tell self "Hi."', DESCRIBE).map(([, message]) => message)).toEqual([
+      '`tell` speaks to the room, and a `describe` is read by whoever looks, and only reads.',
+    ]);
+  });
+
   it('is refused in every body with what to write there instead', () => {
     expect(spoken('text "Hi."', DO)).toEqual([
       [

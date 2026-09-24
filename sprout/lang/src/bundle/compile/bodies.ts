@@ -6,7 +6,7 @@
 // kind, the world — and nothing is checked twice for being composed: a
 // kind's guard or play is checked once, against the kind that wrote it: a
 // consent guard, a role's `permit` and `do`, a handler, a hook, a pass
-// rule, and an exit's destination and guard. Each body's names resolve
+// rule, an exit's destination and guard, and a `describe`. Each body's names resolve
 // from where it is written, and what each reaches is recorded.
 
 import { GUARD_NAMES } from '../../syntax/ast.js';
@@ -18,6 +18,8 @@ import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
 import { checkHandler, checkHook, checkPass } from '../../check/handlers.js';
 import { checkExit } from '../../check/exits.js';
+import { checkDescribe } from '../../check/describe.js';
+import type { DescribeDeclaration } from '../../syntax/ast-speech.js';
 import type { MessageSetting } from '../../check/check.js';
 import type { Named, NameSource, Vantage } from '../../declare/names.js';
 import type { Node } from '../../source/nodes.js';
@@ -44,6 +46,8 @@ export interface BodySetting {
    * `.prose` file that held it is absent: true where it has been told.
    */
   readonly absentPassage?: (self: KindRef, name: string, at: Span) => boolean;
+  /** Told of a describe whose every `text` names a passage its kind lacks. */
+  readonly emptiedDescribe?: (self: KindRef, describe: DescribeDeclaration) => void;
 }
 
 /** A kind whose own bodies are checked, and where they are written. */
@@ -101,6 +105,12 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Re
       if (pass.origin === own) checkPass(pass, kind, setting);
     }
     for (const exit of kind.exits) if (exit.origin === own) checkExit(exit, kind, setting);
+    if (kind.describe !== null && kind.describe.origin === own) {
+      checkDescribe(kind.describe, kind, {
+        ...setting,
+        ...(base.emptiedDescribe === undefined ? {} : { emptied: base.emptiedDescribe }),
+      });
+    }
   }
   checkPassages({
     speakers: composed.map(({ kind, vantage }) => ({ kind, names: namesOf(vantage) })),

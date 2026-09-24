@@ -1,0 +1,11 @@
+// A describe draws nothing, in itself or in a passage it says: it runs
+// whenever anyone looks, and a roll would change the thing while
+// nobody acts.
+world describe_draws is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}

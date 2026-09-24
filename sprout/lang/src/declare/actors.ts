@@ -142,6 +142,7 @@ function behaviourOf(member: KindMember): Behaviour | null {
     case 'passage':
     case 'prose-file':
     case 'grammar':
+    case 'describe':
       return null;
   }
 }

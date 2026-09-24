@@ -1,0 +1,5 @@
+kind Lamp {
+  describe {
+    text "A lamp."
+  :lit false
+}

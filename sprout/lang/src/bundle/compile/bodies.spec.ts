@@ -69,6 +69,14 @@ function checking(text: string) {
 }
 
 describe('each body is checked once, against the kind that wrote it', () => {
+  it('says a problem in a composed `describe` once, at the kind that wrote it', () => {
+    expect(
+      checked(`kind Lid { :open true  describe { self.set(:open, false)  text "A lid." } }
+kind Crate is Lid { }
+kind Chest is Crate { }`),
+    ).toEqual([['shop.sprout:1:35', '`self.set` writes, and a `describe` only reads.']]);
+  });
+
   it('says a problem in a composed guard once, however many kinds compose it', () => {
     expect(
       checked(`kind Lid { :open true  depart (to) { self.set(:open, false) } }

@@ -1,11 +1,12 @@
 // A command turn (the spec's The runtime › Turns, Faults). Its order is
 // fixed: parse; the consent pass; the effect pass, actor first and then
 // roles in declared order; the queue, breadth-first in insertion order;
-// then the views of everyone present are marked stale, as every write
-// turn that commits marks them. The one who typed the command is always
-// told something: the parser's answer, the consent pass's refusal, what
-// the effect pass said or the world's `nothing_happens`, or, when the
-// turn faults and is abandoned, the world's `fault`.
+// what the engine answers (`engine-verbs.ts`); then the views of everyone
+// present are marked stale, as every write turn that commits marks them.
+// The one who typed the command is always told something: the parser's
+// answer, the consent pass's refusal, what the effect pass said, what
+// the engine answered or the world's `nothing_happens`, or, when the turn
+// faults and is abandoned, the world's `fault`.
 //
 // Reading typed words is the parser's, reached through `Parser`, which
 // `parser.ts` fills: the turn hands it the words, who typed them, each
@@ -17,13 +18,21 @@ import { displace, type Displaced } from './arrival.js';
 import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
 import type { Draw } from './draws.js';
+import { engineAnswers, type EngineAnswer } from './engine-verbs.js';
 import type { Catalogue } from './catalogue.js';
 import { faultTold } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import { standsInPlace } from './live.js';
 import type { Choice } from './parser/answers.js';
 import type { PassRule } from './range.js';
-import { runReading, type Acted, type PermitRefusal, type Reading, type Said } from './reading.js';
+import {
+  runReading,
+  turnState,
+  type Acted,
+  type PermitRefusal,
+  type Reading,
+  type Said,
+} from './reading.js';
 import { readerOf, type StateReader, type WorldState } from './state.js';
 import {
   writeTurn,
@@ -77,7 +86,12 @@ export interface Command extends WriteInputs {
 export type Commanded =
   | { readonly answered: Said; readonly choices: readonly Choice[] }
   | { readonly refused: PermitRefusal }
-  | { readonly acted: Acted; readonly drained: Drained }
+  | {
+      readonly acted: Acted;
+      readonly drained: Drained;
+      /** What the engine answered once the queue was empty: each arrival read, then the command's own. */
+      readonly answers: readonly EngineAnswer[];
+    }
   | { readonly displaced: Displaced };
 
 /** A command turn: committed, or faulted and abandoned, with the actor told so. */
@@ -100,13 +114,14 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
   const written = writeTurn<Commanded>(state, 'command', host, command, (turn) => {
     if (gone) return { displaced: displace(turn, command.visit) };
     const { draft, catalogue, passes, budget, draws } = turn;
+    const nicknames = nicknamesIn(state);
     const parsed = host.parse(command.text, actor, {
       state: draft,
       catalogue,
       passes,
       budget,
       draws,
-      nicknames: nicknamesIn(state),
+      nicknames,
     });
     if ('answered' in parsed) {
       if (!parsed.answered.to.includes(actor)) {
@@ -124,7 +139,15 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
     }
     const outcome = runReading(reading, turn);
     if ('refused' in outcome) return outcome;
-    return { acted: outcome, drained: drain(outcome, turn) };
+    const drained = drain(outcome, turn);
+    const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
+      state: turnState(draft),
+      catalogue,
+      passes,
+      budget,
+      nicknames,
+    });
+    return { acted: outcome, drained, answers };
   });
   return written.committed ? written : { ...written, told: faultTold(committed, actor) };
 }

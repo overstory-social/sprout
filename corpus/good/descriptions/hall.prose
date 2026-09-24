@@ -1,0 +1,4 @@
+passage arrival {
+  A long hall, and {here} is where you stand.
+  {for thing: Lamp in self}{thing}{if $last} burns.{else}, {/if}{/for}
+}

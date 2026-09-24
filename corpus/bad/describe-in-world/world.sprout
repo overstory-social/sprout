@@ -1,0 +1,8 @@
+// Nothing looks at the world, so its own body writes no describe.
+world describe_in_world is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  describe { text "Everything there is." }
+
+  object hall is sprout.Place
+}
