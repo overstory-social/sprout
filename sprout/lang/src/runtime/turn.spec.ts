@@ -400,6 +400,21 @@ describe('a poll', () => {
     });
   });
 
+  it('is budgeted as a command turn where it stands in for one, and says so when it runs out', () => {
+    const budgets = { ...DEFAULT_LIMITS.budgets, steps: 3 };
+    const polled = pollTurn(
+      belfry(),
+      belfryHost(budgets),
+      (turn) => {
+        expect([turn.budget.kind, turn.budget.allowedSteps]).toEqual(['command', 3]);
+        return turn.budget.spend(4);
+      },
+      'command',
+    );
+    if (!polled.faulted) throw new Error('the look did not fault');
+    expect(polled.fault.detail).toBe('steps: a command turn may take 3 steps.');
+  });
+
   it('sees the state before a write turn that has not committed, whatever that turn does', () => {
     const state: WorldState = belfry();
     let seen: unknown;
