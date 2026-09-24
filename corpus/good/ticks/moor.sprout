@@ -1,0 +1,12 @@
+// Written against `elapsed`, so a tick the host skipped changes nothing:
+// its seconds arrive with the next one.
+kind Moor is sprout.Place {
+  :since_gust 0 min 0 max 3600
+  on :tick (elapsed) {
+    self.adjust(:since_gust, elapsed)
+    if (self.get(:since_gust) > 30) {
+      self.set(:since_gust, 0)
+      broadcast :gust
+    }
+  }
+}

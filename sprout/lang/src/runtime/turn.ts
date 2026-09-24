@@ -11,8 +11,8 @@
 // This is the frame, and it holds no store: serializing a world's write
 // turns under its lock, and writing a committed change set in the
 // store's transaction, is core's. What a command turn does inside the
-// frame is `command.ts`'s; a tick's, a wake's and a maintenance turn's
-// are B35's and B36's, and the view a poll builds is B37's.
+// frame is `command.ts`'s and a tick's `tick.ts`'s; a wake's and a
+// maintenance turn's are B36's, and the view a poll builds is B37's.
 
 import type { RuntimeBudgets } from '../bundle/limits.js';
 import type { Speech } from './body.js';

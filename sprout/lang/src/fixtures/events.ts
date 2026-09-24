@@ -1,7 +1,8 @@
 // The world the event specs are written about, and what they run it with:
 // a hall holding a lamp that answers being lit and watches its own light,
 // a shut chest and a glass case each with something inside, a lantern
-// whose kind gives it a wick, a bell that counts answers, and a dog, an
+// whose kind gives it a wick, a bell that counts answers and the time it
+// is handed, and a dog, an
 // NPC that acts; a bubble that bursts, a match that goes once the queue
 // is empty, and a tidier whose move is refused; a yard beside it that the
 // world keeps apart. A fresh turn
@@ -113,10 +114,14 @@ kind Wick {
   on :lit (_, value) { self.set(:burning, value) }
 }
 
+// The bell counts answers, and adds up the time it is handed.
 kind Bell {
   :answers 0 min 0 max 99
   :depth 0 min 0 max 99
+  :waited 0 min 0 max 9999
   on :answered (_, n) { self.adjust(:answers, n) }
+  on :tick (elapsed) { self.adjust(:waited, elapsed) }
+  on :woke (elapsed) { self.adjust(:waited, elapsed + elapsed) }
   on :chain (_, n) {
     self.set(:depth, n)
     send self :chain with n + 1

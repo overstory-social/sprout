@@ -22,7 +22,7 @@ import {
 import { reentrant } from './conformance.js';
 import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
-import { runCommand, runPoll, runWriteTurn } from './turns.js';
+import { committedState, runCommand, runPoll, runTick, runWriteTurn } from './turns.js';
 
 // A counter in a hall, one kind per file: bumping it counts, and
 // smashing it counts and then overflows, so the turn faults after it
@@ -216,5 +216,28 @@ describe('a write turn of any kind against a store', () => {
     );
     expect(minted).toMatchObject({ committed: true, value: before.serial + 1 });
     expect((await stored(store)).serial).toBe(before.serial + 1);
+  });
+});
+
+describe('a tick turn against a store', () => {
+  const tick = (now: number) => ({ place: HALL, now, seed: 2, mayHold: null });
+
+  it('writes the place’s last tick where it commits, and the next tick reads it', async () => {
+    const store = await seeded();
+    expect((await committedState(store, 'w', host)).instances.get(HALL)?.lastTick).toBeNull();
+    expect(await runTick(store, 'w', host, tick(50))).toMatchObject({
+      committed: true,
+      value: { elapsed: 0 },
+    });
+    expect((await committedState(store, 'w', host)).instances.get(HALL)?.lastTick).toBe(50);
+    expect(await runTick(store, 'w', host, tick(80))).toMatchObject({ value: { elapsed: 30 } });
+  });
+
+  it('writes nothing for a tick the host asks for at a time before the last', async () => {
+    const store = await seeded();
+    await runTick(store, 'w', host, tick(50));
+    const before = await stored(store);
+    await expect(runTick(store, 'w', host, tick(40))).rejects.toThrow('does not run backwards');
+    expect(await stored(store)).toEqual(before);
   });
 });

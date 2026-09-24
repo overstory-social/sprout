@@ -68,3 +68,5 @@ export * from './runtime/bus.js';
 export * from './runtime/faults.js';
 export * from './runtime/turn.js';
 export * from './runtime/command.js';
+export * from './runtime/time.js';
+export * from './runtime/tick.js';

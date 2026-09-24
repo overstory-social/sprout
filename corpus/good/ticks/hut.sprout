@@ -1,0 +1,4 @@
+kind Hut is sprout.Place {
+  :ticks 0 min 0 max 999
+  on :tick { self.adjust(:ticks, 1) }
+}

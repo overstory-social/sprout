@@ -1,0 +1,4 @@
+kind Flag {
+  :flaps 0 min 0 max 999
+  on :gust { self.adjust(:flaps, 1) }
+}
