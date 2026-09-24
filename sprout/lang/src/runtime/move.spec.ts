@@ -1,230 +1,54 @@
+// `moveInstance` asking a move's parties in order, the guards composed
+// into one kind, the engine's own refusals, the one write a move makes,
+// and the invariant that any run of moves either moves the thing or writes
+// nothing. Faults, what an actor's move tells, and `sprout.Actor`'s
+// guards are in `move/`; the keep is `fixtures/move.ts`.
+
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
-import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { compiledWorld } from '../fixtures/bundle.js';
+import {
+  ALCOVE,
+  BELL,
+  CAPS,
+  catalogue,
+  CHEST,
+  context,
+  DISH,
+  HALL,
+  LEAF,
+  LUMP,
+  MARTA,
+  moved,
+  passing,
+  PEBBLE,
+  POT,
+  PURSE,
+  refusalOf,
+  SAFE,
+  said,
+  snapshot,
+  STONE,
+  TRAP,
+  TRAY,
+  turn,
+  TWIG,
+  URN,
+  VASE,
+  visitorIn,
+  WORLD_ID,
+} from '../fixtures/move.js';
 import { chooser } from '../fixtures/parse.js';
 import { Budget } from './budget.js';
-import { catalogueOf, type Catalogue } from './catalogue.js';
+import { catalogueOf } from './catalogue.js';
 import { Draft } from './draft.js';
-import type { Refusal } from './guards.js';
 import { declaredId, type InstanceId } from './ids.js';
 import { boundObject, IntegerOverflow } from './evaluate.js';
-import { destroyInstance } from './lifecycle.js';
-import { initialState, saveWorld } from './load.js';
-import {
-  MoveFault,
-  moveInstance,
-  placeEntered,
-  placeLeft,
-  type MoveContext,
-  type MoveFaultReason,
-  type Moved,
-  type Refused,
-} from './move.js';
-import { rangeOf, reaches, type PassRule } from './range.js';
+import { initialState } from './load.js';
+import { MoveFault, moveInstance, type Moved, type Refused } from './move.js';
+import { reaches } from './range.js';
 import { liveTree } from './live.js';
-import { newInstance, type WorldState } from './state.js';
-import type { Speech } from './body.js';
-
-const CAPS = DEFAULT_LIMITS.caps;
-
-/**
- * A keep whose hall holds places, containers, people and things, each
- * kind answering one question a move asks. `Tripwire`'s `release` and
- * `accept` fault if they are ever asked, which is how a test proves a
- * party was not.
- */
-const KEEP = {
-  'world.sprout': [
-    'world keep is sprout.World { contains visitors are Person visitors arrive at hall',
-    '  object hall is sprout.Place {',
-    '    object alcove is sprout.Place { passage arrives { {item} squeezes in. } }',
-    '    object cellar is Room',
-    '    object nook is Room {',
-    '      object tom is Creature',
-    '    }',
-    '    object closet is Room {',
-    '      object sam is Creature',
-    '    }',
-    '    object marta is Creature',
-    '    object basket is Basket',
-    '    object tray is Basket {',
-    '      object dish is Heavy',
-    '    }',
-    '    object stone is Plain',
-    '    object twig is Plain',
-    '    object leaf is Plain',
-    '    object chest is Chest {',
-    '      object coin is Plain',
-    '      object pouch is Basket {',
-    '        object purse is Basket',
-    '      }',
-    '    }',
-    '    object safe is Sealed {',
-    '      object pebble is Plain',
-    '    }',
-    '    object trap is Tripwire {',
-    '      object pot is Heavy',
-    '    }',
-    '    object urn is Heavy, Fragile',
-    '    object bell is Easy, Heavy',
-    '    object lump is Heavy',
-    '    object vase is Fragile { depart (to) { refuse "Not by that hand." } }',
-    '  }',
-    '  object yard is sprout.Place',
-    '}',
-    'kind Creature is sprout.Actor {',
-    '  :capacity 2',
-    '  passage hands_full { {self} has no hand free. }',
-    '}',
-    'kind Person is Creature, sprout.Visitor { }',
-    'kind Room { contains actors }',
-    'kind Plain { }',
-    'kind Basket { contains }',
-    'kind Chest { contains depart (to) { refuse "It is nailed down." } }',
-    'kind Sealed { contains release (item, to) { refuse "It is sealed." } }',
-    'kind Tripwire {',
-    '  contains',
-    '  release (item, to) { if (2147483647 + 1 > 0) { allow } }',
-    '  accept (item, from) { if (2147483647 + 1 > 0) { allow } }',
-    '}',
-    'kind Heavy { depart (to) { refuse "It is too heavy." } }',
-    'kind Fragile { depart (to) { refuse "It would break." } }',
-    'kind Easy { depart (to) { allow } }',
-    '',
-  ].join('\n'),
-};
-const catalogue = catalogueOf(compiledWorld('keep', KEEP), CAPS);
-
-const id = (...path: string[]): InstanceId => declaredId('keep', path);
-const WORLD_ID = id();
-const HALL = id('hall');
-const ALCOVE = id('hall', 'alcove');
-const CELLAR = id('hall', 'cellar');
-const NOOK = id('hall', 'nook');
-const TOM = id('hall', 'nook', 'tom');
-const CLOSET = id('hall', 'closet');
-const SAM = id('hall', 'closet', 'sam');
-const YARD = id('yard');
-const MARTA = id('hall', 'marta');
-const TRAY = id('hall', 'tray');
-const STONE = id('hall', 'stone');
-const TWIG = id('hall', 'twig');
-const LEAF = id('hall', 'leaf');
-const CHEST = id('hall', 'chest');
-const COIN = id('hall', 'chest', 'coin');
-const PURSE = id('hall', 'chest', 'pouch', 'purse');
-const SAFE = id('hall', 'safe');
-const PEBBLE = id('hall', 'safe', 'pebble');
-const TRAP = id('hall', 'trap');
-const POT = id('hall', 'trap', 'pot');
-const DISH = id('hall', 'tray', 'dish');
-const URN = id('hall', 'urn');
-const BELL = id('hall', 'bell');
-const LUMP = id('hall', 'lump');
-const VASE = id('hall', 'vase');
-
-/** The world refuses, as its unwritten rule does; the ids in `shut` refuse; everything else relays. */
-const passing =
-  (...shut: InstanceId[]): PassRule<InstanceId> =>
-  (container) =>
-    container === WORLD_ID ? WORLD_PASSES_ANYTHING : !shut.includes(container);
-
-function context(draft: Draft, over: Partial<Omit<MoveContext, 'draft'>> = {}): MoveContext {
-  return {
-    draft,
-    catalogue,
-    passes: passing(),
-    budget: new Budget(DEFAULT_LIMITS.budgets),
-    ...over,
-  };
-}
-
-/** A visitor standing in `container`, as arrival will add one; null for one who is away. */
-function visitorIn(draft: Draft, container: InstanceId | null, from: Catalogue = catalogue) {
-  const visitor = newInstance(
-    draft.mint(),
-    { from: 'visitor' },
-    from.visitorKind!,
-    container,
-    container === null ? null : draft.nextSerial(),
-    CAPS,
-  );
-  draft.add(visitor);
-  return visitor.id;
-}
-
-/** A fresh turn over the keep as declared, with a visitor standing in the hall. */
-function turn(): { draft: Draft; visitor: InstanceId } {
-  const draft = new Draft(initialState(catalogue));
-  return { draft, visitor: visitorIn(draft, HALL) };
-}
-
-function moved(outcome: Moved | Refused): Moved {
-  if (!('sends' in outcome))
-    throw new Error(`expected a move, and it was refused: ${said(outcome)}`);
-  return outcome;
-}
-
-/** What a refusal said, and who said it: the passage's origin and name, or the words quoted. */
-function said(outcome: Moved | Refused): string {
-  if ('sends' in outcome) return 'moved';
-  if ('engine' in outcome) return `engine ${outcome.engine}: ${wordsOf(outcome.said)}`;
-  const { refusal } = outcome;
-  return `${refusal.guard} by ${refusal.by}: ${wordsOf(refusal.said)}`;
-}
-
-/** Words quoted, or a passage by its origin, its name and what it says. */
-function wordsOf(said: Speech): string {
-  if ('text' in said) return `"${said.text}"`;
-  if ('absent' in said) return `absent ${said.absent}`;
-  return `${said.passage.origin} ${said.passage.name}: ${said.passage.body.text.trim()}`;
-}
-
-function refusalOf(outcome: Moved | Refused): Refusal {
-  if (!('refusal' in outcome)) throw new Error(`expected a guard's refusal: ${said(outcome)}`);
-  return outcome.refusal;
-}
-
-/** The tree around every id named, as a fault or a refusal must leave it. */
-function snapshot(draft: Draft): string {
-  const ids = [WORLD_ID, ...catalogue.declared.keys()];
-  return JSON.stringify(
-    ids.map((one) => [one, draft.instance(one)?.container, draft.children(one)]),
-  );
-}
-
-function faultOf(run: () => unknown): MoveFault {
-  try {
-    run();
-  } catch (error) {
-    if (error instanceof MoveFault) return error;
-    throw error;
-  }
-  throw new Error('expected a fault, and nothing faulted.');
-}
-
-/** Run `run` over a draft of `base`, expect the fault named, and prove nothing was written. */
-function faultsWritingNothing(
-  base: WorldState,
-  run: (draft: Draft) => unknown,
-  reason: MoveFaultReason,
-): MoveFault {
-  const draft = new Draft(base);
-  const fault = faultOf(() => run(draft));
-  expect(fault.reason).toBe(reason);
-  const { state, changes } = draft.commit();
-  expect(changes).toEqual({
-    serial: base.serial,
-    written: [],
-    removed: [],
-    tombstoned: [],
-    visitors: [],
-  });
-  expect(JSON.stringify(saveWorld(state))).toBe(JSON.stringify(saveWorld(base)));
-  return fault;
-}
 
 describe('a move asks the thing, then where it is, then where it goes', () => {
   it('stops at the thing’s refusal, and never asks the container it is in', () => {
@@ -386,96 +210,6 @@ describe('the engine’s own refusals', () => {
   });
 });
 
-describe('a move that cannot be asked about', () => {
-  const base = (): { state: WorldState; visitor: InstanceId; away: InstanceId } => {
-    const draft = new Draft(initialState(catalogue));
-    const visitor = visitorIn(draft, HALL);
-    const away = visitorIn(draft, null);
-    return { state: draft.commit().state, visitor, away };
-  };
-
-  it('faults for the world, writing nothing', () => {
-    const { state, visitor } = base();
-    const fault = faultsWritingNothing(
-      state,
-      (draft) => moveInstance(context(draft), visitor, WORLD_ID, HALL),
-      'world',
-    );
-    expect(fault.object).toBe(WORLD_ID);
-    expect(fault.message).toBe('the world is the root of the tree, and goes nowhere.');
-  });
-
-  it('faults for a visitor who is away, writing nothing', () => {
-    const { state, visitor, away } = base();
-    const fault = faultsWritingNothing(
-      state,
-      (draft) => moveInstance(context(draft), visitor, away, HALL),
-      'away',
-    );
-    expect(fault.message).toBe(
-      `\`${away}\` is a visitor who is away, and is nowhere to be moved from.`,
-    );
-  });
-
-  it('faults for a thing out of the mover’s range, or no longer live, writing nothing', () => {
-    const { state, visitor } = base();
-    const shut = faultsWritingNothing(
-      state,
-      (draft) => moveInstance(context(draft, { passes: passing(CHEST) }), visitor, COIN, TRAY),
-      'out-of-range',
-    );
-    expect(shut.object).toBe(COIN);
-    expect(shut.message).toBe(
-      `\`${COIN}\` is out of range of \`${visitor}\`, so it could not be moved.`,
-    );
-    const draft = new Draft(state);
-    destroyInstance(draft, STONE);
-    expect(faultOf(() => moveInstance(context(draft), visitor, STONE, TRAY)).reason).toBe(
-      'out-of-range',
-    );
-  });
-
-  it('faults for a destination out of the mover’s range, writing nothing', () => {
-    const { state, visitor } = base();
-    // Places are out of range of one another while the world refuses.
-    const fault = faultsWritingNothing(
-      state,
-      (draft) => moveInstance(context(draft), visitor, STONE, YARD),
-      'out-of-range',
-    );
-    expect(fault.object).toBe(YARD);
-    expect(fault.message).toBe(
-      `\`${YARD}\` is out of range of \`${visitor}\`, so nothing could be moved into it.`,
-    );
-  });
-
-  it('asks no range of a destination reached through an exit, and still faults for one not live', () => {
-    const { state, visitor } = base();
-    const draft = new Draft(state);
-    const moved = moveInstance(context(draft), visitor, visitor, YARD, 'exit');
-    expect('item' in moved && [moved.from, moved.to]).toEqual([HALL, YARD]);
-    expect(draft.instance(visitor)!.container).toBe(YARD);
-    const gone = new Draft(state);
-    destroyInstance(gone, URN);
-    expect(faultOf(() => moveInstance(context(gone), visitor, visitor, URN, 'exit')).reason).toBe(
-      'out-of-range',
-    );
-  });
-
-  it('faults for a destination that holds nothing, writing nothing', () => {
-    const { state, visitor } = base();
-    const fault = faultsWritingNothing(
-      state,
-      (draft) => moveInstance(context(draft), visitor, STONE, URN),
-      'holds-nothing',
-    );
-    expect(fault.object).toBe(URN);
-    expect(fault.message).toBe(
-      `\`${URN}\` holds nothing, so \`${STONE}\` could not be moved into it.`,
-    );
-  });
-});
-
 describe('a move made', () => {
   it('is one write: the thing, last in its new container under a new arrival', () => {
     const { draft, visitor } = turn();
@@ -516,280 +250,6 @@ describe('a move made', () => {
   it('speaks nothing for a thing that is not an actor, even between places', () => {
     const { draft, visitor } = turn();
     expect(moved(moveInstance(context(draft), visitor, STONE, ALCOVE)).notices).toEqual([]);
-  });
-});
-
-describe('an actor moved between places', () => {
-  /** The closet and the chest refuse; everything else but the world relays. */
-  const walled = passing(CLOSET, CHEST);
-
-  /**
-   * A visitor walks from the hall into the alcove. Another stands in the
-   * nook, which relays, beside Tom, an NPC; a third stands in the closet
-   * beside Sam, and the closet refuses.
-   */
-  const walk = () => {
-    const { draft, visitor } = turn();
-    const near = visitorIn(draft, NOOK);
-    const shut = visitorIn(draft, CLOSET);
-    const budget = new Budget(DEFAULT_LIMITS.budgets);
-    const outcome = moved(
-      moveInstance(context(draft, { passes: walled, budget }), visitor, visitor, ALCOVE),
-    );
-    const sent = (message: string) =>
-      outcome.sends.filter((send) => send.message === message).map((send) => send.recipient);
-    return { draft, visitor, near, shut, outcome, sent, budget };
-  };
-
-  it('has the old place’s `leaves` read by every visitor in its range, and by no NPC', () => {
-    const { visitor, near, outcome } = walk();
-    const leaves = outcome.notices.find((notice) => notice.notice === 'leaves')!;
-    // The nook's visitor is not directly in the hall, and is in its range;
-    // the closet's is not.
-    expect(leaves).toMatchObject({ place: HALL, bindings: { item: visitor }, audience: [near] });
-    expect('passage' in leaves && [leaves.passage.origin, leaves.passage.name]).toEqual([
-      'sprout.Place',
-      'leaves',
-    ]);
-  });
-
-  it('sends `:departed (actor, to)` to everything else in the old place’s range, nearest first', () => {
-    const { draft, visitor, near, shut, outcome, sent } = walk();
-    const departed = sent('departed');
-    // The place, what is directly in it, an NPC in the nook, a thing in
-    // the tray, and the world, reached as a surface.
-    for (const one of [HALL, MARTA, STONE, NOOK, TOM, DISH, CHEST, WORLD_ID]) {
-      expect(departed, one).toContain(one);
-    }
-    // Behind the closet's wall and the chest's lid; the visitors, who read
-    // the text; and the one who moved.
-    for (const one of [SAM, COIN, PURSE, near, shut, visitor]) {
-      expect(departed, one).not.toContain(one);
-    }
-    expect(departed.indexOf(MARTA)).toBeLessThan(departed.indexOf(TOM));
-    expect(outcome.sends.find((send) => send.message === 'departed')).toEqual({
-      message: 'departed',
-      recipient: HALL,
-      actor: visitor,
-      to: ALCOVE,
-    });
-    // Nothing out of range is told: every recipient is reached from the hall.
-    const range = {
-      tree: liveTree(draft),
-      passes: walled,
-      budget: new Budget(DEFAULT_LIMITS.budgets),
-    };
-    for (const one of departed) expect(reaches(range, HALL, one, 'any'), one).toBe(true);
-  });
-
-  it('has the new place’s own `arrives` read by every visitor in its range, the one arriving left out', () => {
-    const { visitor, near, outcome } = walk();
-    expect(outcome.notices.map((notice) => notice.notice)).toEqual([
-      'leaves',
-      'arrives',
-      'described',
-    ]);
-    const arrives = outcome.notices[1]!;
-    // The alcove relays into the hall, so the nook is in its range too,
-    // and its visitor reads both notices.
-    expect(arrives).toMatchObject({ place: ALCOVE, bindings: { item: visitor }, audience: [near] });
-    // The alcove writes its own line, which replaces the library's default.
-    expect('passage' in arrives && arrives.passage.body.text.trim()).toBe('{item} squeezes in.');
-    expect('passage' in arrives && arrives.passage.yields).toBe(false);
-  });
-
-  it('sends `:arrived (actor, from)` across the new place’s range, after every `:departed`', () => {
-    const { visitor, outcome, sent } = walk();
-    const arrived = sent('arrived');
-    expect(arrived[0]).toBe(ALCOVE);
-    for (const one of [HALL, TOM, MARTA]) expect(arrived, one).toContain(one);
-    for (const one of [SAM, visitor]) expect(arrived, one).not.toContain(one);
-    expect(outcome.sends.find((send) => send.message === 'arrived')).toEqual({
-      message: 'arrived',
-      recipient: ALCOVE,
-      actor: visitor,
-      from: HALL,
-    });
-    const order = outcome.sends.map((send) => send.message);
-    expect(order.slice(0, 3)).toEqual(['left', 'entered', 'moved']);
-    expect(order.lastIndexOf('departed')).toBeLessThan(order.indexOf('arrived'));
-  });
-
-  it('tells what is out of range of both places nothing at all', () => {
-    const { shut, outcome } = walk();
-    for (const notice of outcome.notices) expect(notice.audience).not.toContain(shut);
-    for (const send of outcome.sends) expect([SAM, shut]).not.toContain(send.recipient);
-  });
-
-  it('charges one step for each node the two walks reach, after the write', () => {
-    const { draft, outcome, budget } = walk();
-    const fresh = turn();
-    const before = new Budget(DEFAULT_LIMITS.budgets);
-    const ask = { tree: liveTree(fresh.draft), passes: walled, budget: before };
-    reaches(ask, fresh.visitor, fresh.visitor, 'any');
-    reaches(ask, fresh.visitor, ALCOVE, 'any');
-    const after = new Budget(DEFAULT_LIMITS.budgets);
-    const walk2 = { tree: liveTree(draft), passes: walled, budget: after };
-    rangeOf(walk2, HALL, 'any');
-    rangeOf(walk2, ALCOVE, 'any');
-    // Beside finding both in range and the two walks, the move runs
-    // `sprout.Actor`'s `depart`, `if (mover != self)`: one statement and
-    // its three nodes. The two visitors standing only in the walked turn
-    // are on neither path that `reaches` climbs.
-    expect(budget.spentSteps - before.spentSteps - after.spentSteps).toBe(4);
-    expect(outcome.sends.length).toBeGreaterThan(3);
-  });
-
-  it('describes the new place to the one who moved, with no words until the description is written', () => {
-    const { visitor, outcome } = walk();
-    expect(outcome.notices.at(-1)).toEqual({
-      notice: 'described',
-      place: ALCOVE,
-      audience: [visitor],
-    });
-  });
-
-  it('reads no notice for a place whose kind has no such passage, and still sends and describes', () => {
-    const { draft, visitor } = turn();
-    const { notices, sends } = moved(moveInstance(context(draft), visitor, visitor, CELLAR));
-    expect(notices.map((notice) => [notice.notice, notice.place])).toEqual([
-      ['leaves', HALL],
-      ['described', CELLAR],
-    ]);
-    expect(sends.find((send) => send.message === 'arrived')!.recipient).toBe(CELLAR);
-  });
-
-  it('sends the message to the visitors of a place that writes no notice, so nobody there is told nothing', () => {
-    const { draft, visitor } = turn();
-    const below = visitorIn(draft, CELLAR);
-    const { notices, sends } = moved(moveInstance(context(draft), visitor, visitor, CELLAR));
-    // The cellar relays, so `below` is in the hall's range and reads its leave;
-    // the cellar writes no `arrives`, so of the arrival it is sent the message.
-    expect(
-      notices.filter((notice) => notice.audience.includes(below)).map((n) => n.notice),
-    ).toEqual(['leaves']);
-    expect(sends).toContainEqual({
-      message: 'arrived',
-      recipient: below,
-      actor: visitor,
-      from: HALL,
-    });
-    // Leaving it is the same.
-    const back = moved(moveInstance(context(draft), visitor, visitor, HALL));
-    expect(back.sends).toContainEqual({
-      message: 'departed',
-      recipient: below,
-      actor: visitor,
-      to: HALL,
-    });
-  });
-
-  it('is moved by another the same way, the mover hearing as anyone there would', () => {
-    // Marta walks herself: the visitor beside her reads her leave, and
-    // she is sent nothing of her own move.
-    const { draft, visitor } = turn();
-    const { notices, sends } = moved(moveInstance(context(draft), MARTA, MARTA, CELLAR));
-    expect(notices[0]).toMatchObject({ notice: 'leaves', place: HALL, audience: [visitor] });
-    const told = sends
-      .filter((send) => send.message === 'departed' || send.message === 'arrived')
-      .map((send) => send.recipient);
-    expect(told).not.toContain(MARTA);
-    // The cellar writes no `arrives`, so the visitor in its range is sent the
-    // message instead of reading nothing; of the leave it read the words.
-    expect(sends).toContainEqual({
-      message: 'arrived',
-      recipient: visitor,
-      actor: MARTA,
-      from: HALL,
-    });
-    expect(
-      sends.filter((send) => send.message === 'departed').map((send) => send.recipient),
-    ).not.toContain(visitor);
-  });
-});
-
-describe('what one place says of an actor, alone', () => {
-  const range = (draft: Draft) => ({
-    tree: liveTree(draft),
-    passes: passing(CLOSET, CHEST),
-    budget: new Budget(DEFAULT_LIMITS.budgets),
-  });
-
-  it('is, entered, the place’s `arrives` to its visitors, `:arrived` to the rest, then the description', () => {
-    const { draft, visitor } = turn();
-    const near = visitorIn(draft, NOOK);
-    const spoke = placeEntered(draft, range(draft), HALL, visitor, WORLD_ID);
-    expect(spoke.notices.map((notice) => notice.notice)).toEqual(['arrives', 'described']);
-    expect(spoke.notices[0]).toMatchObject({ place: HALL, audience: [near] });
-    expect(spoke.notices[1]).toEqual({ notice: 'described', place: HALL, audience: [visitor] });
-    expect(spoke.sends[0]).toEqual({
-      message: 'arrived',
-      recipient: HALL,
-      actor: visitor,
-      from: WORLD_ID,
-    });
-    for (const send of spoke.sends) expect([visitor, near]).not.toContain(send.recipient);
-  });
-
-  it('is, left, the place’s `leaves` to its visitors and `:departed` to the rest, and no description', () => {
-    const { draft, visitor } = turn();
-    const near = visitorIn(draft, NOOK);
-    draft.place(visitor, null);
-    const spoke = placeLeft(draft, range(draft), HALL, visitor, WORLD_ID);
-    expect(spoke.notices).toEqual([
-      expect.objectContaining({ notice: 'leaves', place: HALL, audience: [near] }),
-    ]);
-    expect(spoke.sends.every((send) => send.message === 'departed')).toBe(true);
-    expect(spoke.sends[0]).toEqual({
-      message: 'departed',
-      recipient: HALL,
-      actor: visitor,
-      to: WORLD_ID,
-    });
-  });
-});
-
-describe('`sprout.Actor`’s guards, through a world whose visitors compose it', () => {
-  it('keep a stranger from carrying a person off', () => {
-    const { draft, visitor } = turn();
-    const refusal = refusalOf(moveInstance(context(draft), MARTA, visitor, ALCOVE));
-    expect(refusal).toMatchObject({ guard: 'depart', by: visitor, origin: 'sprout.Actor' });
-    expect('passage' in refusal.said && refusal.said.passage).toMatchObject({
-      name: 'held_fast',
-      origin: 'sprout.Actor',
-    });
-    // A person moves themselves.
-    moved(moveInstance(context(draft), visitor, visitor, ALCOVE));
-  });
-
-  it('keep a stranger from taking what a person holds', () => {
-    const { draft, visitor } = turn();
-    moved(moveInstance(context(draft), visitor, STONE, visitor));
-    const refusal = refusalOf(moveInstance(context(draft), MARTA, STONE, MARTA));
-    expect(refusal).toMatchObject({ guard: 'release', by: visitor, origin: 'sprout.Actor' });
-    expect('passage' in refusal.said && refusal.said.passage.name).toBe('not_yours');
-    expect(draft.instance(STONE)!.container).toBe(visitor);
-    // What a person puts down, they put down.
-    moved(moveInstance(context(draft), visitor, STONE, TRAY));
-  });
-
-  it('refuse what does not fit, in the world’s own words where it writes them', () => {
-    const { draft, visitor } = turn();
-    moved(moveInstance(context(draft), visitor, STONE, visitor));
-    moved(moveInstance(context(draft), visitor, TWIG, visitor));
-    const refusal = refusalOf(moveInstance(context(draft), MARTA, LEAF, visitor));
-    expect(refusal).toMatchObject({ guard: 'accept', by: visitor, origin: 'sprout.Actor' });
-    expect('passage' in refusal.said && refusal.said.passage).toMatchObject({
-      name: 'hands_full',
-      origin: 'keep.Creature',
-    });
-    expect(draft.children(visitor)).toEqual([STONE, TWIG]);
-  });
-
-  it('let a gift arrive where there is room', () => {
-    const { draft, visitor } = turn();
-    moved(moveInstance(context(draft), MARTA, STONE, visitor));
-    expect(draft.children(visitor)).toEqual([STONE]);
   });
 });
 
