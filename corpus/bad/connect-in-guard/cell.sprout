@@ -1,4 +1,4 @@
 kind Cell is sprout.Place {
-  grammar { link north "deeper into the dark" }
-  accept (item, from) { connect north to from }
+  grammar { link onward "deeper into the dark" }
+  accept (item, from) { connect onward to from }
 }

@@ -1,10 +1,11 @@
 // A grammar block's ways out: `exit north "deeper into the dark" ->
-// maze_hall when (!self.get(:lit))` and `link north "the way on"` (the
+// maze_hall when (!self.get(:lit))` and `link onward "the way on"` (the
 // spec's Verbs › Exits, An exit may be conditional, Links). An exit is
 // its word, a direction, a label in quotes, `->` and where it leads, and
-// optionally `when` and a condition in brackets; a link is its word, a
-// direction and a label. Which words are directions, what the condition
-// may read and where the path leads are for the tiers after this one.
+// optionally `when` and a condition in brackets; a link is its word, its
+// name and a label. Which words are directions, which may name a link,
+// what the condition may read and where the path leads are for the tiers
+// after this one.
 //
 // A line that could not be read is refused once and stepped over to the
 // block's next line, so one bad exit costs that exit and nothing beside it.
@@ -20,7 +21,7 @@ import { skipBracketed, stepPast } from './recovery.js';
 
 /** How each line is written, for a remedy. */
 const EXIT_EXAMPLE = '`exit north "out to the yard" -> yard`';
-const LINK_EXAMPLE = '`link north "deeper into the dark"`';
+const LINK_EXAMPLE = '`link onward "deeper into the dark"`';
 
 /**
  * Where a line's reading stops: `atLineEnd` says where the block's next
@@ -33,7 +34,7 @@ export interface LineEnds {
 /** An `exit` line, its word next; null having said why and stepped over the rest of it. */
 export function exitLine(p: Parser, ends: LineEnds): GrammarExit | null {
   const keyword = p.next();
-  const direction = directionAfter(p, keyword, 'exit', EXIT_EXAMPLE, ends);
+  const direction = wordAfter(p, keyword, 'exit', EXIT_EXAMPLE, ends);
   if (direction === null) return abandon(p, ends);
   const label = labelAfter(p, direction.at, 'exit', `exit ${direction.text}`, ends);
   if (label === null) return abandon(p, ends);
@@ -72,23 +73,23 @@ export function exitLine(p: Parser, ends: LineEnds): GrammarExit | null {
 /** A `link` line, its word next; null having said why and stepped over the rest of it. */
 export function linkLine(p: Parser, ends: LineEnds): GrammarLink | null {
   const keyword = p.next();
-  const direction = directionAfter(p, keyword, 'link', LINK_EXAMPLE, ends);
-  if (direction === null) return abandon(p, ends);
-  const label = labelAfter(p, direction.at, 'link', `link ${direction.text}`, ends);
+  const name = wordAfter(p, keyword, 'link', LINK_EXAMPLE, ends);
+  if (name === null) return abandon(p, ends);
+  const label = labelAfter(p, name.at, 'link', `link ${name.text}`, ends);
   if (label === null) return abandon(p, ends);
   if (p.at('punct', '->')) {
     p.diagnostics.refuse(
       p.peek().at,
       'A link leads nowhere until the world connects it, so it names no place.',
-      `Write \`link ${direction.text} "${label.text}"\`, and \`connect ${direction.text} to …\` where the place is made; or write an \`exit\` for a place written in source.`,
+      `Write \`link ${name.text} "${label.text}"\`, and \`connect ${name.text} to …\` where the place is made; or write an \`exit\` for a place written in source.`,
     );
     return abandon(p, ends);
   }
-  return { kind: 'grammar-link', at: spanning(keyword.at, label.at), direction, label };
+  return { kind: 'grammar-link', at: spanning(keyword.at, label.at), name, label };
 }
 
-/** The direction after a line's word, a name; null having said why. */
-function directionAfter(
+/** The direction after `exit`, or the name after `link`: a name; null having said why. */
+function wordAfter(
   p: Parser,
   keyword: Token,
   word: 'exit' | 'link',
@@ -97,11 +98,12 @@ function directionAfter(
 ): Ident | null {
   const next = p.peek();
   if (next.kind === 'name' && !ends.atLineEnd(p)) return p.ident(p.next());
+  const what = word === 'exit' ? 'a direction' : "a link's name";
   if (next.kind === 'kind') {
     p.next();
     p.diagnostics.refuse(
       next.at,
-      `\`${next.text}\` starts with a capital, and a direction is written in lower case.`,
+      `\`${next.text}\` starts with a capital, and ${what} is written in lower case.`,
       `Write \`${word} ${next.text.toLowerCase()} …\`, as in ${example}.`,
     );
     return null;
@@ -110,13 +112,15 @@ function directionAfter(
     p,
     keyword.at,
     ends,
-    `\`${word}\` is followed by the direction it leads in, then its label in quotes.`,
+    word === 'exit'
+      ? '`exit` is followed by the direction it leads in, then its label in quotes.'
+      : '`link` is followed by its name, a word of your own, then its label in quotes.',
     `Write ${example}.`,
   );
   return null;
 }
 
-/** The label in quotes after a line's direction; null having said why. */
+/** The label in quotes after an exit's direction or a link's name; null having said why. */
 function labelAfter(
   p: Parser,
   after: Span,
@@ -133,7 +137,7 @@ function labelAfter(
     `\`${written}\` is followed by its label in quotes: what a visitor reads, and may type, for the way out.`,
     word === 'exit'
       ? `Write the label after the direction, as in \`${written} "out to the yard" -> yard\`.`
-      : `Write the label after the direction, as in \`${written} "deeper into the dark"\`.`,
+      : `Write the label after the name, as in \`${written} "deeper into the dark"\`.`,
   );
   return null;
 }

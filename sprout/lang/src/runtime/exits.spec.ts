@@ -4,6 +4,7 @@ import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import {
   BEACON,
   CATALOGUE,
+  DEAD_END,
   LADDER,
   LAMP,
   LOFT,
@@ -22,7 +23,7 @@ import { passRules } from './passes.js';
 import type { StateReader, WorldState } from './state.js';
 import type { Value } from './values.js';
 
-/** The exits that apply on `place` in `state`, as direction, label and where each leads. */
+/** The exits and links that apply on `place` in `state`, as direction (null for a link), label and where each leads. */
 function applying(
   state: WorldState | Draft,
   place: InstanceId,
@@ -97,13 +98,19 @@ describe('the exits that apply on a place', () => {
       kind: CATALOGUE.kinds.get('ways.MazeCell')!,
       links: new Map(),
     });
-    draft.write({ ...draft.instance(MOUTH)!, links: new Map([['north', cell]]) });
+    draft.write({ ...draft.instance(MOUTH)!, links: new Map([['onward', cell]]) });
     expect(applying(draft, MOUTH)).toEqual([
-      ['north', 'deeper into the dark', cell],
+      [null, 'deeper into the dark', cell],
       ['up', 'up into the daylight', YARD],
     ]);
     draft.remove(cell);
     expect(applying(draft, MOUTH).map(([direction]) => direction)).toEqual(['up']);
+  });
+
+  it('are none of a kind the place’s kind composes, since exits and links are not composed', () => {
+    const draft = new Draft(ways());
+    draft.write({ ...draft.instance(DEAD_END)!, links: new Map([['onward', MEADOW]]) });
+    expect(applying(draft, DEAD_END)).toEqual([]);
   });
 
   it('are none where the place is not decoded', () => {

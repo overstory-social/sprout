@@ -53,7 +53,6 @@ import {
 } from './lifecycle.js';
 import { sameValue, SproutList } from './lists.js';
 import type { Performed } from './act.js';
-import { isDirection } from '../declare/exits.js';
 import { connectLink } from './links.js';
 import { objectNamed, reachedByName } from './named.js';
 import { broadcastFrom, sendTo, type Sent } from './sends.js';
@@ -230,12 +229,8 @@ function runStatement(
     }
     case 'connect': {
       const sink = acting(run, '`connect`');
-      const direction = statement.link.text;
-      if (!isDirection(direction)) {
-        throw new Error(`\`connect ${direction}\` reached the runtime; the checker refuses it.`);
-      }
       const to = objectAt(statement.destination, frame);
-      connectLink(sink.lifecycle.draft, frame.self, direction, to);
+      connectLink(sink.lifecycle.draft, frame.self, statement.link.text, to);
       return 'end';
     }
     case 'act': {

@@ -26,7 +26,7 @@ function readWays(lines: string) {
 /** An exit or a link written back. */
 const written = (line: GrammarExit | GrammarLink): string =>
   line.kind === 'grammar-link'
-    ? `link ${line.direction.text} "${line.label.text}"`
+    ? `link ${line.name.text} "${line.label.text}"`
     : `exit ${line.direction.text} "${line.label.text}" -> ${writtenPath(line.destination)}${line.when === null ? '' : ` when (${shape(line.when)})`}`;
 
 const ways = (lines: readonly unknown[]) =>
@@ -40,7 +40,8 @@ describe('an exit line and a link line', () => {
       'exit out "back to the yard" -> yard',
       'exit north "deeper into the dark" -> maze_hall when (!self.get(:lamp_lit))',
       'exit down "down the ladder" -> composing_room.paper_store',
-      'link north "deeper into the dark"',
+      'link onward "deeper into the dark"',
+      'link back_2 "the way you came"',
     ];
     const { lines, said } = readWays(text.join('\n    '));
     expect(said).toEqual([]);
@@ -115,12 +116,44 @@ describe('an exit line and a link line', () => {
     ]);
   });
 
-  it('refuse a link that names a place, since the world connects it', () => {
-    expect(readWays('link north "on" -> cell').said).toEqual([
+  it('read a link’s name as written, a word of the author’s, leaving what it may be to the tier after', () => {
+    const { lines, said } = readWays('link onward "on"\n    link north "on"');
+    expect(said).toEqual([]);
+    expect(ways(lines).map((line) => (line.kind === 'grammar-link' ? line.name.text : ''))).toEqual(
+      ['onward', 'north'],
+    );
+  });
+
+  it('refuse a link with no name, a capitalised one, or no label, each once', () => {
+    expect(readWays('link "the way on"').said).toEqual([
       [
-        'c.sprout:3:21',
+        'c.sprout:3:10',
+        '`link` is followed by its name, a word of your own, then its label in quotes.',
+        'Write `link onward "deeper into the dark"`.',
+      ],
+    ]);
+    expect(readWays('link Onward "on"').said).toEqual([
+      [
+        'c.sprout:3:10',
+        "`Onward` starts with a capital, and a link's name is written in lower case.",
+        'Write `link onward …`, as in `link onward "deeper into the dark"`.',
+      ],
+    ]);
+    expect(readWays('link back\n    name "cell"').said).toEqual([
+      [
+        'c.sprout:3:14',
+        '`link back` is followed by its label in quotes: what a visitor reads, and may type, for the way out.',
+        'Write the label after the name, as in `link back "deeper into the dark"`.',
+      ],
+    ]);
+  });
+
+  it('refuse a link that names a place, since the world connects it', () => {
+    expect(readWays('link onward "on" -> cell').said).toEqual([
+      [
+        'c.sprout:3:22',
         'A link leads nowhere until the world connects it, so it names no place.',
-        'Write `link north "on"`, and `connect north to …` where the place is made; or write an `exit` for a place written in source.',
+        'Write `link onward "on"`, and `connect onward to …` where the place is made; or write an `exit` for a place written in source.',
       ],
     ]);
   });
@@ -136,7 +169,7 @@ const WELL_FORMED = [
   'exit out "back to the yard" -> yard',
   'exit north "deeper" -> maze when (!self.get(:lit))',
   'exit up "the loft" -> shop.loft when (ladder.get(:down) && true)',
-  'link south "the way you came"',
+  'link back "the way you came"',
 ];
 
 describe('an exit or a link never vanishes silently, and never takes the line after it', () => {

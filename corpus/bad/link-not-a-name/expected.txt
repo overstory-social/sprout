@@ -1,0 +1,13 @@
+world.sprout:10:12  `north` is a direction, and a link is named by a word of your own, so `go north` never means a link.
+                    Name it for where it goes, as in `link onward "deeper into the dark"`; a way `north` to a place written in source is an `exit`.
+
+world.sprout:11:12  `in` is a direction, and a link is named by a word of your own, so `go in` never means a link.
+                    Name it for where it goes, as in `link onward "into the wardrobe"`; a way `in` to a place written in source is an `exit`.
+
+world.sprout:12:12  `when` is a word of the language, so it cannot name a link.
+                    Choose another name for it, as in `link onward "whenever it opens"`.
+
+world.sprout:13:12  `_` does not start with a letter, and a link's name does.
+                    Choose another name for it, as in `link onward "somewhere"`.
+
+refused: 4 problems

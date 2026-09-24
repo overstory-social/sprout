@@ -1,0 +1,15 @@
+kind MazeCell is sprout.Place {
+  grammar {
+    name "turning of the maze"
+    link onward "deeper into the dark"
+    exit out    "out to the lane" -> lane
+  }
+
+  as target for dig {
+    do {
+      let cell = spawn MazeCell in self
+      connect onward to cell
+      say "The stones give, and a gap opens into more dark."
+    }
+  }
+}

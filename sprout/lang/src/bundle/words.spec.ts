@@ -31,6 +31,11 @@ describe('the world’s word set', () => {
     expect(words.has('daylight')).toBe(false);
   });
 
+  it('holds no link’s name, which is source’s alone and never typed', () => {
+    expect(WAYS.kinds.some((kind) => kind.exits.some((way) => way.kind === 'link'))).toBe(true);
+    expect(new Set(WAYS.words).has('onward')).toBe(false);
+  });
+
   it('holds the directions and their abbreviations, the articles, determiners and connectors', () => {
     for (const word of [
       'north',

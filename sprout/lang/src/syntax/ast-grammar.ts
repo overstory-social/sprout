@@ -62,13 +62,13 @@ export interface GrammarExit extends Node {
 }
 
 /**
- * `link north "deeper into the dark"`: a way out whose destination is
- * assigned while the world runs, by `connect`, and which does not apply
- * until it is.
+ * `link onward "deeper into the dark"`: a way out whose destination is
+ * assigned while the world runs, by `connect` naming it, and which does
+ * not apply until it is. The name is the author's word, kept as written.
  */
 export interface GrammarLink extends Node {
   readonly kind: 'grammar-link';
-  readonly direction: Ident;
+  readonly name: Ident;
   readonly label: GrammarLabel;
 }
 

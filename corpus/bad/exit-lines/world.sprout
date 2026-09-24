@@ -12,7 +12,7 @@ world exit_lines is sprout.World {
       exit west "to the meadow" ->
       exit south "to the meadow" -> meadow when
       exit up "to the meadow" -> meadow when ()
-      link down "down" -> meadow
+      link below "down" -> meadow
       exit in "into the meadow" -> meadow
     }
   }

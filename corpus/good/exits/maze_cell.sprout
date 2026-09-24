@@ -1,24 +1,25 @@
 // A turning of the maze: the way on is dug while the world runs, and the
-// new turning connects its own way back to the one that made it. Every
-// turning leads up to the yard.
+// new turning connects its own way back to the one that made it. Each
+// link is named by a word of the author's, and a visitor takes it by its
+// label. Every turning leads up to the yard.
 kind MazeCell is sprout.Place {
   :dug false
 
   grammar {
     name "turning of the maze"
-    link north "deeper into the dark"
-    link south "the way you came"
-    exit up    "up to the yard" -> yard
+    link onward "deeper into the dark"
+    link back   "the way you came"
+    exit up     "up to the yard" -> yard
   }
 
-  on :spawned (from) { connect south to from }
+  on :spawned (from) { connect back to from }
 
   as target for dig {
     permit { if (self.get(:dug)) { refuse "This wall is already broken through." } }
     do {
       self.set(:dug, true)
       let cell = spawn MazeCell in self
-      connect north to cell
+      connect onward to cell
       say "The stones give, and a gap opens into more dark."
     }
   }

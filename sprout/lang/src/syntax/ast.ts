@@ -306,13 +306,13 @@ export interface MoveStatement extends Node {
 }
 
 /**
- * `connect north to cell` — `self`'s link in that direction assigned the
+ * `connect onward to cell` — `self`'s link of that name assigned the
  * place a binding holds (the spec's Verbs › Links). A link is write-only:
  * nothing reads it back.
  */
 export interface ConnectStatement extends Node {
   readonly kind: 'connect';
-  /** The link's direction, as written. */
+  /** The link's name, as written. */
   readonly link: Ident;
   /** What it leads to: a binding, which the checker holds it to. */
   readonly destination: ObjectPath;

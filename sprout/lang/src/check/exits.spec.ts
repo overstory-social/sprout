@@ -86,7 +86,8 @@ describe('an exit, against the whole bundle', () => {
 
   it('refuses an exit or a link on something that is not a place', () => {
     const shelf = {
-      'shelf.sprout': 'kind Shelf { contains grammar { exit out "off" -> yard  link up "up" } }\n',
+      'shelf.sprout':
+        'kind Shelf { contains grammar { exit out "off" -> yard  link lift "up" } }\n',
     };
     expect(said('', shelf)).toEqual([
       [
@@ -138,7 +139,7 @@ describe('an exit, against the whole bundle', () => {
       'world.sprout':
         'world ways is sprout.World { visitors are Person visitors arrive at yard object yard is Cell }\n',
       'cell.sprout':
-        'kind Cell is sprout.Place { grammar { exit up "up" -> yard  link north "x" } }\n',
+        'kind Cell is sprout.Place { grammar { exit up "up" -> yard  link onward "x" } }\n',
       ...PERSON,
     });
     const cell = bundle!.kinds.find((kind) => kind.name === 'Cell')!;
@@ -175,7 +176,7 @@ describe('`connect`', () => {
   const { bundle } = compileWorld('maze', {
     'world.sprout':
       'world maze is sprout.World { visitors are Person visitors arrive at hall object hall is Cell object stone is Stone }\n',
-    'cell.sprout': 'kind Cell is sprout.Place { grammar { link north "on"  link south "back" } }\n',
+    'cell.sprout': 'kind Cell is sprout.Place { grammar { link onward "on"  link back "back" } }\n',
     'stone.sprout': 'kind Stone { }\n',
     ...PERSON,
   });
@@ -202,8 +203,8 @@ describe('`connect`', () => {
   }
 
   it('assigns a link `self` has to a binding holding a place', () => {
-    expect(connected('connect north to cell')).toEqual({ accepted: true, said: [] });
-    expect(connected('connect south to self')).toEqual({ accepted: true, said: [] });
+    expect(connected('connect onward to cell')).toEqual({ accepted: true, said: [] });
+    expect(connected('connect back to self')).toEqual({ accepted: true, said: [] });
   });
 
   it('refuses a link `self` does not have, naming the ones it has', () => {
@@ -212,26 +213,52 @@ describe('`connect`', () => {
       said: [
         [
           '`Cell` has no link `up`, so there is nothing to connect.',
-          'Connect one it has: `connect north to …`, `connect south to …`; or declare `link up "…"`.',
+          'Connect one it has: `connect onward to …`, `connect back to …`.',
         ],
       ],
     });
   });
 
+  it('offers to declare the link it names only where that name may name one', () => {
+    expect(connected('connect deeper to cell').said).toEqual([
+      [
+        '`Cell` has no link `deeper`, so there is nothing to connect.',
+        'Connect one it has: `connect onward to …`, `connect back to …`; or declare `link deeper "…"`.',
+      ],
+    ]);
+  });
+
+  it('names the writing body’s own links: a composed kind’s in a kind, and a named kind’s in an object', () => {
+    const body = 'on :spawned (from) { connect onward to from }';
+    const { diagnostics } = compileWorld('maze', {
+      'world.sprout': `world maze is sprout.World { visitors are Person visitors arrive at hall object hall is Cell { ${body} } }\n`,
+      'cell.sprout': 'kind Cell is sprout.Place { grammar { link onward "on" } }\n',
+      'deep.sprout': `kind Deep is Cell { ${body} }\n`,
+      ...PERSON,
+    });
+    expect(diagnostics.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'deep.sprout:1:50',
+        '`Deep` has no link `onward`, so there is nothing to connect.',
+        'Declare one in its grammar block, as in `link onward "deeper into the dark"`.',
+      ],
+    ]);
+  });
+
   it('refuses a destination that is not a binding, is a value, or holds no actors', () => {
-    expect(connected('connect north to hall').said).toEqual([
+    expect(connected('connect onward to hall').said).toEqual([
       [
         '`hall` is not a binding, and a link leads only to a place the world made while it runs.',
-        'Connect it to a binding that holds the place, as in `let cell = spawn Cell in self` then `connect north to cell`; a place written in source is reached by an `exit`.',
+        'Connect it to a binding that holds the place, as in `let cell = spawn Cell in self` then `connect onward to cell`; a place written in source is reached by an `exit`.',
       ],
     ]);
-    expect(connected('connect north to n').said).toEqual([
+    expect(connected('connect onward to n').said).toEqual([
       [
         'A link leads to a place, and `n` is boolean.',
-        'Connect it to one place, as in `connect north to cell`.',
+        'Connect it to one place, as in `connect onward to cell`.',
       ],
     ]);
-    expect(connected('connect north to rock').said).toEqual([
+    expect(connected('connect onward to rock').said).toEqual([
       [
         '`Stone` does not hold actors, so nobody could stand where this link leads.',
         'Connect it to a place: something that composes `sprout.Place` or writes `contains actors`.',

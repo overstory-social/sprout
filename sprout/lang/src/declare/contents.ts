@@ -142,7 +142,13 @@ function composeBody(
     const { declaration, path, into, holder, siblings } = next;
     const name = declaration.name.text;
     const composed = composeKind(
-      { library, name, composes: declaration.composes, members: declaration.members },
+      {
+        library,
+        name,
+        composes: declaration.composes,
+        members: declaration.members,
+        object: true,
+      },
       context,
     );
     if (holder.kind !== null && !holder.kind.contains) {

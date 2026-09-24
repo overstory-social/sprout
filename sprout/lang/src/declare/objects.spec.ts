@@ -60,6 +60,9 @@ const KINDS = [
   'kind Lantern { contains object wick is Wooden { contains object flame is Wooden } }',
   'kind Case { contains object glass is Wooden }',
   'kind Storm is Case, Lantern { contains object vent is Wooden }',
+  'kind Cell is Room { grammar { exit up "up to the yard" -> yard  link onward "deeper" } }',
+  'kind Deep is Cell { }',
+  'kind Warren is Room { contains object burrow is Cell }',
   '',
 ].join('\n');
 
@@ -146,6 +149,40 @@ describe('an object is made of its kinds and its own body', () => {
       ['key', 'key'],
       ['key', 'key'],
       ['lamp', 'lamp'],
+    ]);
+  });
+});
+
+describe('an object’s exits and links (the spec’s Exits)', () => {
+  const ways = (resolved: readonly ComposedObject[], name: string) =>
+    resolved
+      .find((o) => o.declaration.name.text === name)!
+      .kind!.exits.map((way) => [
+        way.kind === 'exit' ? way.direction : `link ${way.name}`,
+        way.origin,
+      ]);
+
+  it('are its own and those of the kinds its `is` names, never of a kind one of those composes', () => {
+    const { resolved, said } = objects(
+      'object mouth is Cell { grammar { exit up "into the daylight" -> mouth } }\nobject deep is Deep\nobject shaft is Room, Cell',
+    );
+    expect(said).toEqual([]);
+    expect(ways(resolved, 'mouth')).toEqual([
+      ['up', 'shop.mouth'],
+      ['link onward', 'shop.Cell'],
+    ]);
+    expect(ways(resolved, 'deep')).toEqual([]);
+    expect(ways(resolved, 'shaft')).toEqual([
+      ['up', 'shop.Cell'],
+      ['link onward', 'shop.Cell'],
+    ]);
+  });
+
+  it('are a kind’s own for what its body holds, as for any object', () => {
+    const { resolved } = objects('object pit is Warren');
+    expect(ways(resolved, 'burrow')).toEqual([
+      ['up', 'shop.Cell'],
+      ['link onward', 'shop.Cell'],
     ]);
   });
 });

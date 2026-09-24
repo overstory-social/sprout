@@ -23,6 +23,7 @@ import {
 } from '../fixtures/turns.js';
 import { NOTHING, words } from '../fixtures/reading.js';
 import {
+  DEAD_END,
   INES as INES_WAYS,
   LADDER,
   LAMP,
@@ -410,18 +411,37 @@ describe('`go`, through a command turn', () => {
 
   it('follows a link once the world connects it, and the way back the new place connected', () => {
     let state = ways([[MARTA_WAYS, MOUTH]]);
-    expect(told(walk(state, 'north'), marta(state))).toEqual([
+    expect(told(walk(state, 'deeper into the dark'), marta(state))).toEqual([
       'sprout.World unknown: That is not something you can do here.',
     ]);
     const dug = walk(state, 'dig turning of the maze');
     expect(told(dug, marta(state))).toEqual(['The stones give, and a gap opens into more dark.']);
     state = dug.state;
-    const on = walk(state, 'north');
+    // A link is taken by its label, never by its name or a direction.
+    for (const text of ['north', 'onward', 'go onward']) {
+      expect(told(walk(state, text), marta(state)), text).toEqual([
+        'sprout.World unknown: That is not something you can do here.',
+      ]);
+    }
+    expect(standing(walk(state, 'go deeper into the dark').state, marta(state))).not.toBe(MOUTH);
+    const on = walk(state, 'deeper into the dark');
     const cell = standing(on.state, marta(state))!;
     expect(on.state.instances.get(cell)!.made).toEqual({ from: 'spawned', kind: 'ways.MazeCell' });
     expect(standing(walk(on.state, 'the way you came').state, marta(state))).toBe(MOUTH);
     // Every turning leads up to the yard, as its kind writes it.
     expect(standing(walk(on.state, 'up').state, marta(state))).toBe(YARD);
+  });
+
+  it('faults, telling the actor, where a composed kind’s `do` connects a link its instance lacks', () => {
+    // A dead end composes the turning, so the turning's `dig` runs on it and its ways out do not.
+    const state = ways([[MARTA_WAYS, DEAD_END]]);
+    const turn = commandTurn(state, waysHost(), typed(MARTA_WAYS, 'dig turning of the maze'));
+    if (turn.committed) throw new Error('the turn committed');
+    expect(turn.fault).toMatchObject({ name: 'ConnectFault', object: DEAD_END, engine: false });
+    expect(toldBy(turn, marta(state))).toEqual([{ to: [marta(state)], words: FAULT }]);
+    expect(told(walk(state, 'up'), marta(state))).toEqual([
+      'sprout.World unknown: That is not something you can do here.',
+    ]);
   });
 
   it('tells its actor something for every line typed, directions and labels among them', () => {
