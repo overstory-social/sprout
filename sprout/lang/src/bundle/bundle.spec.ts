@@ -21,10 +21,9 @@ const sprout: LibrarySource = {
   files: [file('actor.sprout', 'kind Actor { }'), file('place.sprout', 'kind Place { contains }')],
 };
 
-const vendored = (library: LibrarySource, blessed = false): VendoredLibrary => ({
+const vendored = (library: LibrarySource): VendoredLibrary => ({
   ...library,
   hash: libraryHash(library),
-  blessed,
   bytes: sourceBytesOf(library.files),
 });
 
@@ -153,10 +152,6 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
     };
     expect(bundleHashOf(version, own, [vendored(sprout)])).not.toBe(hash);
     expect(bundleHashOf(sha, own, [vendored(sprout)])).not.toBe(hash);
-  });
-
-  it('does not change when the host blesses a library, since blessing is a quota decision', () => {
-    expect(bundleHashOf(manifest, own, [vendored(sprout, true)])).toBe(hash);
   });
 
   it('does not care what order the manifest listed its parts in', () => {

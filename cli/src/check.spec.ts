@@ -51,11 +51,9 @@ describe('checkWorld', () => {
 
   it('vendors the standard library blessed, so its source costs the author nothing', () => {
     const { bundle } = checkWorld(worldWith({}));
-    expect(bundle!.libraries.map((l) => [l.name, l.version, l.blessed])).toEqual([
-      ['sprout', '0.1.0', true],
-    ]);
+    expect(bundle!.libraries.map((l) => [l.name, l.version])).toEqual([['sprout', '0.1.0']]);
     expect(bundle!.size).toMatchObject({ files: 2, kinds: 1 });
-    expect(bundle!.size.exemptBytes).toBeGreaterThan(0);
+    expect(bundle!.size.exemptBytes).toBe(bundle!.libraries[0]!.bytes);
   });
 
   it('refuses a pin at another hash, since the library it carries is not that source', () => {

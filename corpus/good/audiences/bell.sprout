@@ -1,0 +1,4 @@
+// Nobody is acting when a message arrives, so a handler tells the place.
+kind Bell {
+  on :rang { tell "Somewhere below, a bell answers." }
+}

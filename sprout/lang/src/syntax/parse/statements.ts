@@ -1,11 +1,12 @@
-// Statements: blocks, `if`, `refuse` and `allow`; `say`; `let`; the two
-// that change what exists, `spawn` and `destroy`; `move`; and a call
-// written as a statement (the spec's Movement and consent; Prose;
-// Properties › Naming a value; The world model › Spawning, Destroying;
-// Verbs › Moving something). `act` is read in `act.ts`, `connect` in
-// `connect.ts`, `send` and `broadcast` in `sends.ts`, `destroy self` and
-// `finally destroy self` in `destroy.ts`, and `wake` in `wake.ts`, and
-// each is registered here with the rest. A `let` is here rather than with
+// Statements: blocks, `if`, `refuse` and `allow`; `let`; the two that
+// change what exists, `spawn` and `destroy`; `move`; and a call written
+// as a statement (the spec's Movement and consent; Properties › Naming a
+// value; The world model › Spawning, Destroying; Verbs › Moving
+// something). `say`, `tell` and `text`, and the words `refuse` takes, are
+// read in `speech.ts`, `act` in `act.ts`, `connect` in `connect.ts`,
+// `send` and `broadcast` in `sends.ts`, `destroy self` and `finally
+// destroy self` in `destroy.ts`, and `wake` in `wake.ts`, and each is
+// registered here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
 // statement that also yields a binding.
 //
@@ -24,13 +25,10 @@ import type {
   MoveStatement,
   ObjectPath,
   RefuseStatement,
-  SayStatement,
   SpawnStatement,
   Statement,
 } from '../ast.js';
 import { writtenPath } from '../ast.js';
-import type { ProseLiteral } from '../ast-prose.js';
-import { readProse } from './prose.js';
 import type { Token } from '../lexer.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
@@ -44,6 +42,7 @@ import { connectStatement } from './connect.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
 import { wakeStatement } from './wake.js';
+import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
 import { skipBracketed } from './recovery.js';
 
 /**
@@ -87,6 +86,8 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['refuse', refuseStatement],
   ['allow', allowStatement],
   ['say', sayStatement],
+  ['tell', tellStatement],
+  ['text', textStatement],
   ['let', (p) => letStatement(p)],
   ['spawn', (p) => spawnStatement(p)],
   ['destroy', (p) => destroyStatement(p)],
@@ -360,85 +361,8 @@ function danglingElse(p: Parser, within: Enclosing): null {
 /** `refuse "No room here."` or `refuse full` — the words in quotes, or a passage's name. */
 function refuseStatement(p: Parser, within: Enclosing): RefuseStatement | null {
   const keyword = p.next();
-  const said = wordsOrPassage(p, keyword, within, 'refuse', '"No room here."', 'full');
+  const said = refusal(p, keyword, within);
   return said === null ? null : { kind: 'refuse', at: spanning(keyword.at, said.at), said };
-}
-
-/**
- * `say "The bolt slides back."` or `say taken` — read as `refuse` is, and
- * words in quotes held to the host's cap on a literal line (the spec's
- * Limits › Static caps), which a passage is not.
- */
-function sayStatement(p: Parser, within: Enclosing): SayStatement | null {
-  const keyword = p.next();
-  const said = wordsOrPassage(p, keyword, within, 'say', '"The bolt slides back."', 'taken');
-  if (said === null) return null;
-  const cap = p.caps.literalCharacters;
-  if (said.kind === 'prose-literal' && [...said.value].length > cap) {
-    p.diagnostics.refuse(
-      said.at,
-      `This line is ${[...said.value].length} characters long, and ${cap} is as long as a \`say\` in quotes may be.`,
-      'Put the words in a passage, which has no length cap of its own, and say it by name, as in `say greeting`.',
-    );
-  }
-  return { kind: 'say', at: spanning(keyword.at, said.at), said };
-}
-
-/**
- * What `refuse` or `say` says: the words in quotes, or the name of a
- * passage. A word that starts a statement, or a name read through a dot,
- * is not a passage's name, so the word with nothing after it never takes
- * the next statement for one. Null having said why.
- */
-function wordsOrPassage(
-  p: Parser,
-  keyword: Token,
-  within: Enclosing,
-  word: 'refuse' | 'say',
-  quoted: string,
-  named: string,
-): RefuseStatement['said'] | null {
-  const token = p.peek();
-  if (token.kind === 'string') {
-    p.next();
-    return proseLiteral(p, token);
-  }
-  // A word the next statement or member starts with, or a property's
-  // name on a line of its own, is not this one's: it is left to be
-  // read. Anything else standing where the words go is the words,
-  // written wrong, and is taken with it.
-  const ahead = startsNext(p, within, token);
-  const read = token.kind === 'name' && !punct(p.peek(1), '.') && !punct(p.peek(1), '(');
-  if (read && !ahead) {
-    p.next();
-    return p.ident(token);
-  }
-  const nothing =
-    ahead ||
-    p.done ||
-    punct(token, '}') ||
-    p.atDeclarationStart() ||
-    (token.kind === 'name' && !read);
-  if (!nothing && token.kind !== 'punct') p.next();
-  const passage = within.owner === null ? 'a passage' : `a passage of \`${within.owner}\``;
-  p.diagnostics.refuse(
-    nothing ? p.source.span(keyword.at.end) : token.at,
-    word === 'refuse' ? '`refuse` says why.' : '`say` says something.',
-    `Write the words in quotes, as in \`${word} ${quoted}\`, or name ${passage}, as in \`${word} ${named}\`.`,
-  );
-  return null;
-}
-
-/**
- * Words in quotes as a one-line passage, which carries slots (the spec's
- * Prose › Passages). A line never closed has been refused where it was
- * read, and its words are read to where it stops.
- */
-function proseLiteral(p: Parser, token: Token): ProseLiteral {
-  const { start, end } = token.at;
-  const closed = end - start >= 2 && p.source.text[end - 1] === '"';
-  const prose = readProse(p, start + 1, closed ? end - 1 : end);
-  return { kind: 'prose-literal', at: token.at, value: token.text, prose };
 }
 
 /** `allow` — the word alone. */

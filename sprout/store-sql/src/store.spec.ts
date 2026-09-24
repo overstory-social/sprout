@@ -36,7 +36,6 @@ const MICROWORLD: MicroworldRecord = {
   extensions: [],
   caps: CAPS,
   excepted: false,
-  blessed: [],
   loadedAt: NOW,
 };
 

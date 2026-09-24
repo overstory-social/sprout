@@ -1,0 +1,12 @@
+// Nobody is acting when a message arrives, so a handler has no `actor`
+// to tell, and cannot say a passage that renders one.
+world handler_tells_actor is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object bell is Bell
+    object rope is Rope
+  }
+}
+message :rang

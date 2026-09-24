@@ -17,16 +17,18 @@
 // command that said nothing to them is answered with the world's
 // `nothing_happens`, and an NPC's reading is not. An `act` in a `do` runs
 // its own reading there, one deeper against the cascade depth, and what
-// that says, refusal included, joins this one's. What the effect pass
-// says and sends is kept in body order. Nothing is rendered here:
-// `prose/` renders what is said for each reader, B30 brings `tell`,
-// `bus.ts` drains the queue after, and B37 polls the consent pass alone.
+// that says, refusal included, joins this one's. A plain `tell` reaches
+// the people in the teller's place less every participant, and `tell <x>`
+// reaches `x` (`audience.ts`). What the effect pass says, tells and sends
+// is kept in body order. Nothing is rendered here: `prose/` renders what
+// is said for each reader, `bus.ts` drains the queue after, and B37 polls
+// the consent pass alone.
 
-import { isActor } from '../declare/actors.js';
 import { libraryOf } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
 import { readingOfAct } from './act.js';
+import { isPerson, toldToOne, toldToPlace } from './audience.js';
 import { runBody, type ActSink, type Proposed, type Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
@@ -89,13 +91,17 @@ export interface PermitRefusal {
 /** A line a turn says, unrendered. */
 export interface Said {
   /**
-   * What the line is: said by a body; a `move` or an `act`'s reading
-   * refused, whose words are said to its actor as a refusal (the spec's
-   * Verbs › Moving something, Acting); or spoken by the engine, as a
-   * fault is (The runtime › Effects).
+   * What the line is: said by a body; told by one; a `move` or an
+   * `act`'s reading refused, whose words are said to its actor as a
+   * refusal (the spec's Verbs › Moving something, Acting); or spoken by
+   * the engine, as a fault is (The runtime › Effects).
    */
-  readonly effect: 'said' | 'refused' | 'notice';
-  /** Who reads it: the actor, where a person acts; where an NPC acts, those who would hear its `tell`. */
+  readonly effect: 'said' | 'told' | 'refused' | 'notice';
+  /**
+   * Who reads it, each a person: for what is said, the actor, where a
+   * person acts, and where an NPC acts, those who would hear its `tell`;
+   * for what is told, its audience (the spec's Other people › Who hears it).
+   */
   readonly to: readonly InstanceId[];
   /**
    * Whose body said it, which is `self` when it renders: for a refused
@@ -103,7 +109,11 @@ export interface Said {
    * and for the engine's own refusal of a move.
    */
   readonly by: InstanceId;
-  /** The NPC it is heard from, where the actor is one (the spec's Acting); null where it is said to the actor. */
+  /**
+   * The NPC it is heard from, where the actor is one and the line is said
+   * (the spec's Acting); null where it is said to the actor, and for what
+   * is told.
+   */
   readonly speaker: InstanceId | null;
   readonly said: Speech;
   /**
@@ -207,7 +217,8 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   const person = isPerson(state, reading.actor);
   const heardBy = (): readonly InstanceId[] => hearersOf(state, reading.actor, participants).to;
   const speaker = person ? null : reading.actor;
-  const { sink, acted, propose } = actingSink(context, depth, heardBy, speaker);
+  const leftOut = participants.map((participant) => participant.id);
+  const { sink, acted, propose } = actingSink(context, depth, { heardBy, speaker, leftOut });
   const { said } = acted;
   // `go` is the engine's: its move is the reading's first effect, and a
   // refusal of it, said as a refused `move` is, ends the pass.
@@ -282,23 +293,34 @@ export function turnState(draft: ReadingContext['draft']): StateReader {
   };
 }
 
+/** Who reads what an acting body says and tells. */
+export interface Hearing {
+  /** Who reads what it says, a refused `move` included, as it is said. */
+  readonly heardBy: () => readonly InstanceId[];
+  /** The NPC what it says is heard from, where one is acting. */
+  readonly speaker: InstanceId | null;
+  /** Whom a plain `tell` leaves out: the reading's participants, or nobody where none is running. */
+  readonly leftOut: readonly InstanceId[];
+}
+
 /**
  * Where an acting body's effects go, `depth` `act`s or events deep, and
  * what they add up to, in body order: what it says reaches `heardBy`, from
- * `speaker` where an NPC acts; a refused `move` is said the same way; an
- * `act` runs its reading one deeper, heard as that reading's own actor is.
+ * `speaker` where an NPC acts; a refused `move` is said the same way; what
+ * it tells reaches its audience; an `act` runs its reading one deeper,
+ * heard as that reading's own actor is.
  */
 export function actingSink(
   context: ReadingContext,
   depth: number,
-  heardBy: () => readonly InstanceId[],
-  speaker: InstanceId | null,
+  hearing: Hearing,
 ): {
   readonly sink: ActSink;
   readonly acted: Acting;
   /** A move `mover` proposes, reaching `to` as `reach` says, said or kept as the sink's `move` is. */
   readonly propose: (mover: InstanceId, item: InstanceId, to: InstanceId, reach: Reach) => Proposed;
 } {
+  const { heardBy, speaker, leftOut } = hearing;
   const { draft } = context;
   const state = turnState(draft);
   const said: Said[] = [];
@@ -332,6 +354,13 @@ export function actingSink(
   const sink: ActSink = {
     lifecycle: context,
     say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
+    tell: ({ one, ...told }) =>
+      said.push({
+        effect: 'told',
+        ...told,
+        to: one === null ? toldToPlace(state, told.by, leftOut) : toldToOne(state, one),
+        speaker: null,
+      }),
     sent: (more) => sends.push(...more),
     destroyed: (gone) => destroyed.push(...gone.removed),
     marked: (id) => marked.push(id),
@@ -380,11 +409,6 @@ function exitOf(reading: Reading): CommandExit | null {
   return null;
 }
 
-/** Whether a person is behind an actor, rather than nobody, as behind an NPC. */
-function isPerson(state: StateReader, actor: InstanceId): boolean {
-  return instanceIn(state, actor).made.from === 'visitor';
-}
-
 /**
  * Who reads what a reading says, and whom it is heard from: the actor
  * where a person acts; where an NPC acts, whoever would hear its `tell`,
@@ -397,7 +421,13 @@ function hearersOf(
 ): { readonly to: readonly InstanceId[]; readonly speaker: InstanceId | null } {
   return isPerson(state, actor)
     ? { to: [actor], speaker: null }
-    : { to: audienceOf(state, actor, participants), speaker: actor };
+    : {
+        to: toldToPlace(state, actor, [
+          actor,
+          ...participants.map((participant) => participant.id),
+        ]),
+        speaker: actor,
+      };
 }
 
 /** What a participant's kind runs for the role it plays in this verb, in composition order. */
@@ -540,22 +570,6 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
   if (!instanceIn(state, container).kind.containsActors)
     throw new Error(`\`${actor}\` is in \`${container}\`, which holds no actors.`);
   return container;
-}
-
-/**
- * Whoever would hear an NPC's `tell` (the spec's Other people › Who hears
- * it): the actors directly in its place, NPCs included, less the NPC and
- * every participant, in contents order. B30 says what reaches an NPC.
- */
-function audienceOf(
-  state: StateReader,
-  npc: InstanceId,
-  participants: readonly Participant[],
-): InstanceId[] {
-  const left = new Set([npc, ...participants.map((participant) => participant.id)]);
-  return state
-    .children(placeOf(state, npc))
-    .filter((id) => !left.has(id) && isActor(instanceIn(state, id).kind));
 }
 
 function instanceIn(state: StateReader, id: InstanceId): Instance {

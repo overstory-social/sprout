@@ -1,0 +1,14 @@
+// The spec's lever: the actor reads one line, everyone else in the hall
+// another, and the bell below answers what the lever sets going.
+kind Lever {
+  :thrown false
+
+  as target for pull {
+    do {
+      self.set(:thrown, true)
+      say  "The lever gives with a sound like a held breath."
+      tell "{actor} pulls the lever, and somewhere below, water moves."
+      broadcast :rang
+    }
+  }
+}

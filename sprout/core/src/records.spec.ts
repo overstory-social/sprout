@@ -39,20 +39,28 @@ describe('the records', () => {
     expect(RecordedCaps.safeParse({ ...caps, exitsPerPlace: null }).success).toBe(false);
   });
 
-  it('a microworld keeps its recorded caps, whether the host excepted it, and what it blessed', () => {
+  it('a microworld keeps its recorded caps and whether the host excepted it, and not what it blessed', () => {
     expect(Object.keys(MicroworldRecord.shape)).toEqual(
-      expect.arrayContaining(['caps', 'excepted', 'blessed']),
+      expect.arrayContaining(['caps', 'excepted']),
     );
     expect(Object.keys(MicroworldRecord.shape)).not.toContain('limits');
+    expect(Object.keys(MicroworldRecord.shape)).not.toContain('blessed');
   });
 
-  it('keeps what the host blessed as library hashes, and nothing that is not one', () => {
-    const blessed = MicroworldRecord.shape.blessed;
-    expect(blessed.parse([...DEFAULT_BLESSED])).toEqual([...DEFAULT_BLESSED]);
-    expect(blessed.parse([])).toEqual([]);
-    for (const hash of ['sprout', 'A'.repeat(64), 'a'.repeat(63)]) {
-      expect(blessed.safeParse([hash]).success).toBe(false);
-    }
+  it('reads a stored microworld that lists what was blessed at publish, without the list', () => {
+    const record = {
+      id: 'shop',
+      archive: { files: [], manifest: null },
+      stamp: 'stamp-1',
+      level: 1,
+      extensions: [],
+      caps: DEFAULT_LIMITS.caps,
+      excepted: false,
+      loadedAt: new Date('2026-09-18T12:00:00Z'),
+    };
+    const read = MicroworldRecord.parse({ ...record, blessed: [...DEFAULT_BLESSED] });
+    expect(read).toEqual(record);
+    expect('blessed' in read).toBe(false);
   });
 
   it('every record is keyed by its microworld; an action carries no actor', () => {

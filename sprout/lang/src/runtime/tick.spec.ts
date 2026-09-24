@@ -11,7 +11,7 @@ import { occupiedPlaces, tickTurn, type Tick, type TickTurn } from './tick.js';
 import type { TurnHost } from './turn.js';
 
 // A moor that counts its ticks and gusts once more than thirty seconds
-// have passed, telling its flag; a flag whose own `:tick` handler the
+// have passed, telling whoever stands on it and its flag; a flag whose own `:tick` handler the
 // tick never reaches; a hut on the moor, a place of its own; a cellar
 // that does nothing on a tick; a kennel
 // holding only a dog. The moor keeps its last gap, which holds at most
@@ -45,6 +45,7 @@ message :gust
     self.adjust(:since_gust, elapsed)
     if (self.get(:since_gust) > 30) {
       self.set(:since_gust, 0)
+      tell "The wind picks up in the eaves."
       broadcast :gust
     }
   }
@@ -145,6 +146,20 @@ describe('a tick turn', () => {
     expect(held(gusty.state, FLAG, 'flaps')).toBe(1);
     // The tick is one event and the gust it broadcast another.
     expect(gusty.value.drained.events).toBe(2);
+  });
+
+  it('tells the place’s occupants what its handler tells, and nobody in the hut on it', () => {
+    const state = weather([
+      [MARTA, MOOR],
+      [INES, HUT],
+    ]);
+    const marta = [...state.visitors.values()].find((one) => one.visit === MARTA)!.instance;
+    const first = committed(tickTurn(state, HOST, tick(MOOR, 0)));
+    expect(first.value.drained.said).toEqual([]);
+    const gusty = committed(tickTurn(first.state, HOST, tick(MOOR, 40)));
+    expect(
+      gusty.value.drained.said.map((said) => [said.effect, said.by, said.to, said.speaker]),
+    ).toEqual([['told', MOOR, [marta], null]]);
   });
 
   it('commits a tick to a place with no `:tick` handler, which does nothing but record it', () => {
