@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "51c11a09e9c545ff62c3b68446343f63cedc481dceaa6e020db11d84ec0a98b9"
+      "sha": "ea58a82a45588ac8eb0fea93f2ebbff96d3660cc9d9e6c12dd086a83628e451a"
     }
   ],
   "files": ["world.sprout", "person.sprout", "room.sprout", "lamp.sprout", "stool.sprout"]

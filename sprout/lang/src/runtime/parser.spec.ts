@@ -1,6 +1,7 @@
 // A typed line read in the corpus world `good/grammar`: every line comes
 // to exactly one reading or one of the world's answers, in the world's
-// words, and what a line may cost is charged to the turn's steps. The
+// words, the same for the same seed, and what a line may cost is charged
+// to the turn's steps. The
 // areas' own rules are in `parser/*.spec.ts`.
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -26,6 +27,7 @@ import {
   LAMP,
   LAMP_OIL,
   PEBBLE_A,
+  PEBBLE_B,
   stepBudget,
   study,
   STUDY,
@@ -35,6 +37,7 @@ import {
 } from '../fixtures/parser.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { commandTurn } from './command.js';
+import { Draws, SEED_MAX } from './draws.js';
 import { liveTree } from './live.js';
 import { rangeOf } from './range.js';
 import { parseCommand, type CommandOutcome } from './parser.js';
@@ -172,8 +175,9 @@ describe('a line read as a reading', () => {
       verb: 'study.unlock',
       bindings: { target: { object: DOOR } },
     });
-    // A gong answers and is no key, so the phrase does not match.
-    expect(answered(typed(one, 'unlock door with gong')).answer).toBe('unknown');
+    // A gong answers and is no key, so the phrase does not match; `unlock [target]`
+    // reads, and nothing is called "door with gong".
+    expect(answered(typed(one, 'unlock door with gong')).answer).toBe('not_here');
   });
 
   it('fills a set role with a run split on `and` and commas, in the order typed, duplicates collapsed', () => {
@@ -227,7 +231,7 @@ describe('a line read as a reading', () => {
     expect(understood(typed(one, 'give gong to marta')).bindings['recipient']).toEqual({
       object: marta,
     });
-    expect(answered(typed(one, 'give gong to b')).answer).toBe('unknown');
+    expect(answered(typed(one, 'give gong to b')).answer).toBe('not_here');
   });
 });
 
@@ -249,9 +253,32 @@ describe('what a thing answers to', () => {
   });
 
   it('takes the nearest of things written alike, since no answer could tell them apart', () => {
-    expect(understood(typed(study(), 'take pebble')).bindings['target']).toEqual({
-      object: PEBBLE_A,
-    });
+    // The second pebble in the visitor's hands is nearer than the first on the floor.
+    const one = study();
+    one.draft.place(PEBBLE_B, one.people[0]!);
+    for (let seed = 0; seed < 16; seed++) {
+      expect(understood(typed(one, 'take pebble', EXITS, seed)).bindings['target']).toEqual({
+        object: PEBBLE_B,
+      });
+    }
+    // One in the open chest is farther than one on the floor beside it.
+    const chested = openChest(study());
+    chested.draft.place(PEBBLE_B, CHEST);
+    for (let seed = 0; seed < 16; seed++) {
+      expect(understood(typed(chested, 'take pebble', EXITS, seed)).bindings['target']).toEqual({
+        object: PEBBLE_A,
+      });
+    }
+  });
+
+  it('draws from the turn’s seed among things written alike and equally near', () => {
+    const meant = (seed: number): Bound | undefined =>
+      understood(typed(study(), 'take pebble', EXITS, seed)).bindings['target'];
+    const seeds = Array.from({ length: 32 }, (_, seed) => seed);
+    for (const seed of seeds) expect(meant(seed), `seed ${seed}`).toEqual(meant(seed));
+    expect(new Set(seeds.map((seed) => JSON.stringify(meant(seed))))).toEqual(
+      new Set([PEBBLE_A, PEBBLE_B].map((object) => JSON.stringify({ object }))),
+    );
   });
 });
 
@@ -288,26 +315,42 @@ describe('the answers', () => {
     ]);
   });
 
-  it('names nothing out of range: a noun nothing in range answers to is `unknown`', () => {
+  it("says `not_here`, in the world's words, of a noun nothing in range answers to, naming nothing", () => {
     const one = study();
-    // The coin is in the shut chest, and the barrel in another place.
-    for (const line of ['take coin', 'juggle gong and the coin', 'x the barrel', 'take barrel']) {
-      const unknown = answered(typed(one, line));
-      expect(unknown.answer, line).toBe('unknown');
-      expect(words(unknown), line).toBe('That is not something you can do here.');
-      expect([...unknown.bindings.keys()].sort(), line).toEqual(['actor', 'here']);
+    // The coin is in the shut chest, the barrel in another place, and nothing is a unicorn.
+    const lines = [
+      'take coin',
+      'juggle gong and the coin',
+      'x the barrel',
+      'take barrel',
+      'take unicorn',
+      'take brass key please',
+    ];
+    for (const line of lines) {
+      const none = answered(typed(one, line));
+      expect(none.answer, line).toBe('not_here');
+      expect(words(none), line).toBe('You see nothing like that here.');
+      expect(none.bindings.get('actor'), line).toEqual({ binds: 'object', id: one.people[0] });
+      expect(none.bindings.get('here'), line).toEqual({ binds: 'object', id: HALL });
+      expect([...none.bindings.keys()].sort(), line).toEqual(['actor', 'here']);
+      expect(none.choices, line).toEqual([]);
     }
+  });
+
+  it('asks `which` before saying `not_here`, where one phrase asks and another names nothing', () => {
+    // `unlock [target] with [tool]` asks which key; `unlock [target]` finds no "door with key".
+    expect(answered(typed(study(), 'unlock door with key')).answer).toBe('which');
   });
 
   it('names what a lid held once it is open', () => {
     const open = openChest(study());
     expect(understood(typed(open, 'take coin')).bindings).toEqual({ target: { object: COIN } });
-    expect(answered(typed(open, 'x the barrel')).answer).toBe('unknown');
+    expect(answered(typed(open, 'x the barrel')).answer).toBe('not_here');
   });
 
-  it("says `unknown`, in the world's words, of anything else, the empty line included", () => {
+  it("says `unknown`, in the world's words, of a line no phrase reads, the empty line included", () => {
     const one = study();
-    for (const line of ['', '   ', 'dance', 'take unicorn', 'take', 'take brass key please', ',']) {
+    for (const line of ['', '   ', 'dance', 'take', 'juggle gong and', 'juggle , gong', ',']) {
       const unknown = answered(typed(one, line));
       expect(unknown.answer, line).toBe('unknown');
       expect(words(unknown)).toBe('That is not something you can do here.');
@@ -375,6 +418,7 @@ describe('the parser a command turn reads through', () => {
       catalogue: CATALOGUE,
       passes: () => true,
       budget,
+      draws: new Draws(7),
       nicknames: new Map([...state.visitors.values()].map((v) => [v.instance, v.nickname])),
     });
     const parsed = parseCommand(
@@ -406,6 +450,7 @@ describe('the parser a command turn reads through', () => {
       catalogue: WAYS_CATALOGUE,
       passes: () => true,
       budget: new Budget(DEFAULT_LIMITS.budgets),
+      draws: new Draws(7),
       nicknames: new Map<InstanceId, string>(),
     };
     for (const line of ['north', 'go north', 'deeper into the dark']) {
@@ -441,19 +486,20 @@ describe('every line has exactly one outcome (generated)', () => {
       const line = Array.from({ length: c.below(7) }, () => c.one(VOCABULARY)).join(
         c.one([' ', '  ', ' , ']),
       );
+      const seed = c.below(SEED_MAX);
       const one = study(['Marta B', 'Pip'], new Budget({ ...DEFAULT_LIMITS.budgets, steps: 1e9 }));
       let outcome: CommandOutcome | undefined;
-      expect(() => (outcome = typed(one, line)), line).not.toThrow();
+      expect(() => (outcome = typed(one, line, EXITS, seed)), line).not.toThrow();
       const kinds = ['understood' in outcome! ? 'understood' : outcome!.answer];
       expect(kinds, line).toHaveLength(1);
-      expect(['understood', 'which', 'unknown'], line).toContain(kinds[0]);
+      expect(['understood', 'which', 'not_here', 'unknown'], line).toContain(kinds[0]);
       if ('understood' in outcome!) continue;
       expect('passage' in outcome!.said, line).toBe(true);
       if (outcome!.answer !== 'which') continue;
       // A `which` offers two or more, and typing any offered line asks it no more.
       expect(outcome!.choices.length, line).toBeGreaterThan(1);
       for (const choice of outcome!.choices) {
-        const again = typed(one, choice.line);
+        const again = typed(one, choice.line, EXITS, seed);
         const same =
           !('understood' in again) &&
           again.answer === 'which' &&
@@ -463,11 +509,11 @@ describe('every line has exactly one outcome (generated)', () => {
     }
   });
 
-  it("never names an object outside the visitor's range, the chest shut or open", () => {
+  it("never names an object outside the visitor's range, the chest shut or open, whatever the seed", () => {
     const c = chooser(102);
-    // A verb's phrase, then words that are mostly nouns, near and far.
+    // A verb's phrase, then words that are mostly nouns, near and far, and alike.
     const verbs = ['take', 'x the', 'juggle', 'give', 'unlock door with', ''];
-    const nouns = ['coin', 'the coin', 'barrel', 'chest', 'gong', 'key', 'and', ','];
+    const nouns = ['coin', 'the coin', 'barrel', 'chest', 'gong', 'key', 'pebble', 'and', ','];
     let coinNamed = 0;
     for (let run = 0; run < 400; run++) {
       const tail = Array.from({ length: 1 + c.below(4) }, () =>
@@ -477,7 +523,7 @@ describe('every line has exactly one outcome (generated)', () => {
       const one = study(['Marta B', 'Pip'], new Budget({ ...DEFAULT_LIMITS.budgets, steps: 1e9 }));
       if (c.below(2) === 0) openChest(one);
       const range = rangeIn(one);
-      for (const id of named(typed(one, line))) {
+      for (const id of named(typed(one, line, EXITS, c.below(SEED_MAX)))) {
         expect(range.has(id), `${line}: ${id}`).toBe(true);
         if (id === COIN) coinNamed++;
       }
@@ -499,11 +545,12 @@ describe('every line has exactly one outcome (generated)', () => {
     }
   });
 
-  it('reads the same line to the same outcome every time', () => {
+  it('reads the same line to the same outcome every time for the same seed', () => {
     const c = chooser(54);
     for (let run = 0; run < 50; run++) {
       const line = Array.from({ length: 1 + c.below(5) }, () => c.one(VOCABULARY)).join(' ');
-      expect(typed(study(), line), line).toEqual(typed(study(), line));
+      const seed = c.below(SEED_MAX);
+      expect(typed(study(), line, EXITS, seed), line).toEqual(typed(study(), line, EXITS, seed));
     }
   });
 

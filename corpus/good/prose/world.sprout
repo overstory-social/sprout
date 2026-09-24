@@ -6,7 +6,7 @@ world prose is sprout.World {
   visitors are Person
   visitors arrive at composing_room
 
-  passage unreachable { {thing} is out of reach from where you stand. }
+  passage not_here { Nothing in {here} answers to that. }
 
   object composing_room is sprout.Place {
     prose "composing_room.prose"

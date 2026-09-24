@@ -10,6 +10,7 @@ import { compiledWorld } from './bundle.js';
 import { turn, type Turn } from './reading.js';
 import { passRules } from '../runtime/passes.js';
 import { Budget } from '../runtime/budget.js';
+import { Draws } from '../runtime/draws.js';
 import { readCommand, type CommandContext, type CommandOutcome } from '../runtime/parser.js';
 import type { CommandExit } from '../runtime/parser/exits.js';
 import { declaredId, type InstanceId } from '../runtime/ids.js';
@@ -215,8 +216,11 @@ export function study(nicknames: readonly string[] = ['Marta B'], budget?: Budge
   return { ...one, nicknames: new Map(one.people.map((id, at) => [id, nicknames[at]!])) };
 }
 
-/** What reading a line reads, in `one`, with the hall's exits and the pass rules its kinds write. */
-export function commandContext(one: Study, exits = EXITS): CommandContext {
+/**
+ * What reading a line reads, in `one`, with the hall's exits, the pass
+ * rules its kinds write, and a stream of draws from `seed`.
+ */
+export function commandContext(one: Study, exits = EXITS, seed = 7): CommandContext {
   const { draft, catalogue, budget } = one;
   const passes = passRules({
     state: draft,
@@ -225,12 +229,13 @@ export function commandContext(one: Study, exits = EXITS): CommandContext {
     budget,
     names: catalogue.names,
   });
-  return { state: draft, catalogue, budget, passes, nicknames: one.nicknames, exits };
+  const draws = new Draws(seed);
+  return { state: draft, catalogue, budget, draws, passes, nicknames: one.nicknames, exits };
 }
 
-/** `line`, as the first visitor in `one` typed it. */
-export function typed(one: Study, line: string, exits = EXITS): CommandOutcome {
-  return readCommand(line, one.people[0]!, commandContext(one, exits));
+/** `line`, as the first visitor in `one` typed it, in a turn of `seed`. */
+export function typed(one: Study, line: string, exits = EXITS, seed = 7): CommandOutcome {
+  return readCommand(line, one.people[0]!, commandContext(one, exits, seed));
 }
 
 /** A budget of the host's figures with `steps` in place of its step budget. */
