@@ -1,6 +1,7 @@
 // @overstory/sprout-cli — the Sprout command line: init, check, and the
-// inspectors parse and view, on a microworld folder. Exported so a spec,
-// or another tool, can drive the commands without a process.
+// inspectors parse and view, on a microworld folder, and the generated
+// skill. Exported so a spec, or another tool, can drive the commands
+// without a process.
 
 export * from './check.js';
 export * from './cli.js';

@@ -4,6 +4,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { generateSkill } from '@overstory/sprout/lang';
+
 import { USAGE, main, parseArgs } from './cli.js';
 import { captured, LANE, worldFolder } from './testing.js';
 
@@ -29,6 +31,14 @@ describe('main', () => {
     const bad = captured();
     expect(main(['frobnicate'], bad)).toBe(1);
     expect(bad.err()).toContain('no such command "frobnicate"');
+  });
+
+  it('skill prints the reference this compiler generates, with the usage of this command line in it', () => {
+    const io = captured();
+    expect(main(['skill'], io)).toBe(0);
+    expect(io.out()).toBe(generateSkill({ usage: USAGE }));
+    expect(io.out()).toContain(`## Checking what you wrote\n\n\`\`\`text\n${USAGE}\`\`\``);
+    expect(io.err()).toBe('');
   });
 
   it('init then check: what init writes passes', () => {

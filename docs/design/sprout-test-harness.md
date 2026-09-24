@@ -60,6 +60,11 @@ compiler's words, which the PR explains, or a regression. A `good/` world
 may also carry an `expected.txt`, pinning its warnings the same way; a
 `good/` world without one only has to pass.
 
+`corpus/skill/SKILL.md` is the page `sprout skill` prints, the generated
+skill, pinned the same way: every table it is read from, every example
+it compiles and every message it quotes is in it, so a change to any of
+them shows as a diff of the page, read like any other.
+
 ### 3. Invariants over generated input
 
 Where the code recovers, resynchronises or otherwise decides what to do

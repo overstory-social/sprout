@@ -23,7 +23,7 @@ Two packages, one version:
 | package                 | what                                                                                                                                                                  |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@overstory/sprout`     | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records, memory store and turns; `./conformance`) · `./store-sql` · `./store-document` |
-| `@overstory/sprout-cli` | `sprout init · check · parse · view` on a microworld folder                                                                                                           |
+| `@overstory/sprout-cli` | `sprout init · check · parse · view` on a microworld folder, and `sprout skill`                                                                                       |
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
@@ -53,13 +53,13 @@ sprout/lang/src
   syntax/    the lexer, the AST, the parser
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, verbs, the world, actors, what an extension is
   check/     bindings and the expression checker
-  bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
+  bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling, the generated skill
   runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, nickname admission, the engine verbs' answers, an extension's values and statements run, a turn's effects, and a visitor's view
   prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
 sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
 sprout/store-sql  sprout/store-document   the two store adapters
-cli/src           init and check, and the inspectors: parse (what a world accepts) and view (what a visitor is offered)
-corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page
+cli/src           init and check, the inspectors: parse (what a world accepts) and view (what a visitor is offered), and skill
+corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/design/      the spec, the working notes, the backlog, the reviews
 ```
 
@@ -69,7 +69,7 @@ docs/design/      the spec, the working notes, the backlog, the reviews
 npm ci
 npm run gate      # before every commit: no conflict markers, lint, prettier, builds, every suite, spec typechecks, the corpus
 npm run e2e       # before opening a PR: install both tarballs into an empty folder, init and check
-npm run check     # the corpus alone; `node scripts/check-corpus.mjs --write` regenerates its pages
+npm run check     # the corpus and the skill; `node scripts/check-corpus.mjs --write` regenerates their pages
 ```
 
 There is no CI: the gate and e2e run locally, a PR carries their receipts,
