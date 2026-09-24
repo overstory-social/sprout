@@ -7,10 +7,11 @@
 // The set is the host's, as its limits are. What is here is the one
 // entry a host starts from, the standard library as it travels with the
 // CLI, so that using it costs an author nothing (the spec's Limits ›
-// Static caps). The exemption is granted at publish and recorded in the
-// bundle, beside each library; a load honours what was recorded.
+// Static caps). Nothing records it: a publish and every load read what
+// the host blesses at that moment, so a hash blessed since publish is
+// exempt and one unblessed since is charged again.
 
-import { libraryHash, type Bundle } from './bundle.js';
+import { libraryHash } from './bundle.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
 
 /** A library content hash as `libraryHash` writes it: SHA-256, in lower-case hex. */
@@ -59,15 +60,4 @@ function checked(hash: string): string {
     throw new BlessedError(hash, 'is not a library hash: 64 lower-case hexadecimal digits.');
   }
   return hash;
-}
-
-/**
- * The library hashes a bundle records the host as having blessed, in
- * order and without repeats: what a host keeps of a publish, to honour at
- * the next load.
- */
-export function blessedIn(bundle: Bundle): string[] {
-  return [
-    ...new Set(bundle.libraries.filter((library) => library.blessed).map((l) => l.hash)),
-  ].sort();
 }

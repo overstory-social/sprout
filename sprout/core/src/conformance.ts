@@ -1,4 +1,4 @@
-import { DEFAULT_BLESSED, DEFAULT_LIMITS, readStoredWorld } from '@overstory/sprout/lang';
+import { DEFAULT_LIMITS, readStoredWorld } from '@overstory/sprout/lang';
 
 import {
   emptyState,
@@ -66,7 +66,6 @@ const microworld = (id: string): MicroworldRecord => ({
   extensions: [],
   caps: DEFAULT_LIMITS.caps,
   excepted: false,
-  blessed: [...DEFAULT_BLESSED],
   loadedAt: NOW,
 });
 
