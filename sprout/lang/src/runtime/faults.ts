@@ -94,7 +94,8 @@ export function worldSpeech(state: StateReader, name: FaultPassage): Speech {
 
 /**
  * What `actor` is told of a fault: the world's `fault`, from the world,
- * rendered with `actor` and, where the actor stands somewhere, `here`.
+ * rendered with `actor` and `here` (the spec's Faults). A command's actor
+ * stands where the abandoned turn found them, so `here` is always theirs.
  */
 export function faultTold(state: StateReader, actor: InstanceId): Said {
   const bindings = new Map<string, Evaluated>([['actor', boundObject(actor)]]);

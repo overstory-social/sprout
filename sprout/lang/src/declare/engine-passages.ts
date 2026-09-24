@@ -27,7 +27,7 @@ export const WORLD_LINES: readonly EnginePassage[] = [
   { name: 'nothing_happens', binds: ACTING },
   { name: 'unremarkable', binds: { thing: 'object' } },
   { name: 'unseen', binds: {} },
-  { name: 'fault', binds: { actor: 'actor' } },
+  { name: 'fault', binds: ACTING },
   { name: 'missing', binds: {} },
   { name: 'displaced', binds: {} },
   { name: 'inside_itself', binds: { item: 'object' } },

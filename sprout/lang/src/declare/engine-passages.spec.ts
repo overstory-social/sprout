@@ -26,8 +26,7 @@ describe('the lines the engine says for itself', () => {
     const binds = Object.fromEntries(WORLD_LINES.map((line) => [line.name, line.binds]));
     expect(binds.unknown).toEqual({ actor: 'actor', here: 'object' });
     expect(binds.nothing_happens).toEqual({ actor: 'actor', here: 'object' });
-    // A fault's actor may stand nowhere, so `here` is not promised.
-    expect(binds.fault).toEqual({ actor: 'actor' });
+    expect(binds.fault).toEqual({ actor: 'actor', here: 'object' });
     for (const bare of ['unseen', 'missing', 'displaced']) expect(binds[bare], bare).toEqual({});
   });
 });

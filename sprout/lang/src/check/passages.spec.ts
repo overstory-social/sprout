@@ -243,10 +243,11 @@ describe('the engine says its own lines with what it binds for each', () => {
     expect(checked(`kind Loud { passage nothing_happens { {actor} shrugs in {here}. } }`)).toEqual(
       [],
     );
-    expect(checked(`kind Loud { passage fault { {here} shakes. } }`)).toEqual([
+    expect(checked(`kind Loud { passage fault { {actor} feels {here} shake. } }`)).toEqual([]);
+    expect(checked(`kind Loud { passage unseen { {here} shakes. } }`)).toEqual([
       [
-        'shop.sprout:4:30',
-        'The engine says `fault` with `{actor}` bound, and nothing is called `here` there.',
+        'shop.sprout:4:31',
+        'The engine says `unseen` with nothing bound, and nothing is called `here` there.',
       ],
     ]);
   });
