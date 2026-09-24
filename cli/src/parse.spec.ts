@@ -60,9 +60,24 @@ sprout.drop (target)
   drop [target]
   put down [target]
 
+sprout.put (item, container: sprout.Container)
+  put [item] in [container]
+  put [item] into [container]
+
 sprout.give (item, recipient: sprout.Actor)
   give [item] to [recipient]
   hand [item] to [recipient]
+
+sprout.open (target: sprout.Container)
+  open [target]
+
+sprout.close (target: sprout.Container)
+  close [target]
+  shut [target]
+
+sprout.unlock (target: sprout.Lockable, tool)
+  unlock [target] with [tool]
+  use [tool] on [target]
 
 sprout.ask (target, topic: symbol optional)
   ask [target] about [topic]

@@ -132,6 +132,9 @@ describe('what a compiled bundle carries', () => {
       ['sprout', 'Place', ['sprout.Place']],
       ['sprout', 'Actor', ['sprout.Actor']],
       ['sprout', 'Visitor', ['sprout.Actor', 'sprout.Visitor']],
+      ['sprout', 'Fixture', ['sprout.Fixture']],
+      ['sprout', 'Container', ['sprout.Container']],
+      ['sprout', 'Lockable', ['sprout.Lockable']],
     ]);
     expect(carried!.objects.map((o) => [o.name, o.kind.order, o.container])).toEqual([
       ['hall', ['sprout.Place', 'printers_shop.hall'], []],
@@ -217,9 +220,16 @@ describe('what a compiled bundle carries', () => {
       'Place',
       'take',
       'drop',
+      'put',
       'give',
       'Actor',
       'Visitor',
+      'Fixture',
+      'open',
+      'close',
+      'Container',
+      'unlock',
+      'Lockable',
       'ask',
     ]);
     // The word set holds what the grammar reads: here, the hall and the

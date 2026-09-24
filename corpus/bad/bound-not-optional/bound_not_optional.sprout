@@ -4,10 +4,3 @@ world bound_not_optional is sprout.World {
 
   object hall is sprout.Place
 }
-
-verb unlock {
-  role target
-  role tool
-  "unlock [target] with [tool]"
-  "unlock [target]"
-}

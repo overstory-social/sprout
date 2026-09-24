@@ -12,6 +12,7 @@ import { compileBundle } from './compile/compile.js';
 import { checkShape } from './compile/first-tier.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
 import { locationOf, SourceFile } from '../source/source.js';
+import { INES, MARTA, playedAll, workshop } from '../fixtures/workshop.js';
 
 /**
  * A world with nothing of its own but a place to arrive at and a kind
@@ -69,6 +70,39 @@ function verbsByFile(): Map<string, ResolvedVerb[]> {
   return byFile;
 }
 
+/** The library's own kind called `name`, as a compiled world carries it. */
+function libraryKind(name: string) {
+  const kind = compiled().bundle!.kindLookup.qualified('sprout', name);
+  expect(kind, name).not.toBeNull();
+  return kind!;
+}
+
+/** Each play `kind` runs, as `as role for verb` with the parts its body writes, and who wrote it. */
+function playsOf(name: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, plays] of libraryKind(name).plays) {
+    out[key] = plays
+      .map((play) => {
+        const parts = [play.declaration.permit && 'permit', play.declaration.do && 'do'];
+        return `${play.origin}: ${parts.filter(Boolean).join(' ')}`;
+      })
+      .join(', ');
+  }
+  return out;
+}
+
+/** Each of `names`' passages on `kind`: its words, after checking it is the library's and yields. */
+function defaultLines(name: string, names: readonly string[]): Record<string, string> {
+  const kind = libraryKind(name);
+  return Object.fromEntries(
+    names.map((line) => {
+      const passage = kind.passages.get(line)!;
+      expect(passage, line).toMatchObject({ origin: `sprout.${name}`, yields: true });
+      return [line, passage.body.text.trim()];
+    }),
+  );
+}
+
 /** A verb's roles as `name:filler`, with `?` on an optional one and `*` on a set. */
 function rolesOf(verb: ResolvedVerb): string[] {
   return verb.roles.map((role) => {
@@ -97,7 +131,7 @@ describe('the standard library', () => {
     }
   });
 
-  it('declares exactly `World`, `Place`, `Actor` and `Visitor`, the engine’s verbs, the actor’s, and `ask`', () => {
+  it('declares exactly the worked microworld’s library, each kind beside the verbs it plays', () => {
     const declared = STANDARD_LIBRARY.files.map((file) => [
       file.name,
       checkShape(file).declarations.map((d) => `${d.kind} ${d.name.text}`),
@@ -106,8 +140,11 @@ describe('the standard library', () => {
       ['sprout/world.sprout', ['kind World']],
       ['sprout/engine.sprout', ENGINE_VERBS.map((name) => `verb ${name}`)],
       ['sprout/place.sprout', ['kind Place']],
-      ['sprout/actor.sprout', ['verb take', 'verb drop', 'verb give', 'kind Actor']],
+      ['sprout/actor.sprout', ['verb take', 'verb drop', 'verb put', 'verb give', 'kind Actor']],
       ['sprout/visitor.sprout', ['kind Visitor']],
+      ['sprout/fixture.sprout', ['kind Fixture']],
+      ['sprout/container.sprout', ['verb open', 'verb close', 'kind Container']],
+      ['sprout/lockable.sprout', ['verb unlock', 'kind Lockable']],
       ['sprout/talk.sprout', ['verb ask']],
     ]);
   });
@@ -131,12 +168,137 @@ describe('the standard library', () => {
     expect(phrases('go')).toContain('[way]');
   });
 
-  it('gives the actor `take`, `drop` and `give`, the recipient an actor, and none of them optional', () => {
+  it('gives the actor `take`, `drop`, `put` and `give`, the container a container, the recipient an actor, and none of them optional', () => {
     const actor = verbsByFile().get('sprout/actor.sprout')!;
     expect(Object.fromEntries(actor.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
       take: ['target:open'],
       drop: ['target:open'],
+      put: ['item:open', 'container:sprout.Container'],
       give: ['item:open', 'recipient:sprout.Actor'],
+    });
+  });
+
+  it('gives a container `open` and `close`, and a lock `unlock` with a tool no phrase leaves out', () => {
+    const verbs = [
+      ...verbsByFile().get('sprout/container.sprout')!,
+      ...verbsByFile().get('sprout/lockable.sprout')!,
+    ];
+    expect(Object.fromEntries(verbs.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
+      open: ['target:sprout.Container'],
+      close: ['target:sprout.Container'],
+      unlock: ['target:sprout.Lockable', 'tool:open'],
+    });
+    const unlock = verbs.find((verb) => verb.name === 'unlock')!;
+    expect(unlock.phrases.map((phrase) => phrase.text)).toEqual([
+      'unlock [target] with [tool]',
+      'use [tool] on [target]',
+    ]);
+  });
+
+  it('gives `sprout.Actor` the actor’s part in `take`, `drop`, `put` and `give`, each a permit and a do', () => {
+    expect(playsOf('Actor')).toEqual({
+      'as actor for sprout.take': 'sprout.Actor: permit do',
+      'as actor for sprout.drop': 'sprout.Actor: permit do',
+      'as actor for sprout.put': 'sprout.Actor: permit do',
+      'as actor for sprout.give': 'sprout.Actor: permit do',
+    });
+    expect(
+      defaultLines('Actor', [
+        'taken',
+        'takes',
+        'dropped',
+        'drops',
+        'put_in',
+        'puts_in',
+        'given',
+        'received',
+        'gives',
+        'not_carried',
+        'not_held',
+      ]),
+    ).toEqual({
+      taken: 'You take {target}.',
+      takes: '{actor} takes {target}.',
+      dropped: 'You put {target} down.',
+      drops: '{actor} puts {target} down.',
+      put_in: 'You put {item} in {container}.',
+      puts_in: '{actor} puts {item} in {container}.',
+      given: 'You give {item} to {recipient}.',
+      received: '{actor} gives you {item}.',
+      gives: '{actor} gives {item} to {recipient}.',
+      not_carried: 'You are not holding {target}.',
+      not_held: 'You are not holding {item}.',
+    });
+  });
+
+  it('makes `sprout.Fixture` a `depart` guard and a passage, and nothing else', () => {
+    const fixture = libraryKind('Fixture');
+    expect(fixture).toMatchObject({ contains: false, containsActors: false });
+    expect(fixture.properties.size).toBe(0);
+    expect(fixture.plays.size).toBe(0);
+    expect(fixture.passes).toMatchObject({ any: null, messages: new Map() });
+    expect(fixture.guards.depart.map((one) => one.origin)).toEqual(['sprout.Fixture']);
+    expect(fixture.guards.depart[0]!.declaration.parameters.map((p) => p.text)).toEqual(['to']);
+    expect([...fixture.guards.release, ...fixture.guards.accept]).toEqual([]);
+    expect(defaultLines('Fixture', ['immovable'])).toEqual({
+      immovable: '{self} is not something you can pick up.',
+    });
+    expect([...fixture.passages.keys()]).toEqual(['immovable']);
+  });
+
+  it('gives `sprout.Container` a lid, open by default, a capacity of 8, and a pass rule that reads the lid', () => {
+    const container = libraryKind('Container');
+    expect(container).toMatchObject({ contains: true, containsActors: false });
+    expect([...container.properties.keys()]).toEqual(['open', 'capacity']);
+    const open = container.properties.get('open')!;
+    const capacity = container.properties.get('capacity')!;
+    expect([open.type.type, open.declaration.default]).toMatchObject([
+      'boolean',
+      { kind: 'boolean', value: true },
+    ]);
+    expect([capacity.type.type, capacity.declaration.default]).toMatchObject([
+      'integer',
+      { kind: 'integer', value: 8 },
+    ]);
+    // Not a constant: whether a message is let in is whatever `:open` says then.
+    const any = container.passes.any!;
+    expect(any.origin).toBe('sprout.Container');
+    expect(any.declaration.rule.kind).not.toBe('boolean');
+    expect(container.guards.accept.map((one) => one.origin)).toEqual(['sprout.Container']);
+    expect([...container.guards.depart, ...container.guards.release]).toEqual([]);
+    expect(playsOf('Container')).toEqual({
+      'as target for sprout.open': 'sprout.Container: permit do',
+      'as target for sprout.close': 'sprout.Container: permit do',
+    });
+    expect(
+      defaultLines('Container', ['shut', 'full', 'opened', 'opens', 'closed', 'closes']),
+    ).toEqual({
+      shut: '{self} is shut.',
+      full: 'There is no room in {self}.',
+      opened: 'You open {self}.',
+      opens: '{actor} opens {self}.',
+      closed: 'You shut {self}.',
+      closes: '{actor} shuts {self}.',
+    });
+  });
+
+  it('gives `sprout.Lockable` a lock, locked by default, no pass rule, and a permit on the library’s `open`', () => {
+    const lockable = libraryKind('Lockable');
+    expect(lockable).toMatchObject({ contains: false, containsActors: false });
+    expect([...lockable.properties.keys()]).toEqual(['locked']);
+    expect(lockable.properties.get('locked')!.declaration.default).toMatchObject({
+      kind: 'boolean',
+      value: true,
+    });
+    expect(lockable.passes).toMatchObject({ any: null, messages: new Map() });
+    expect(playsOf('Lockable')).toEqual({
+      'as target for sprout.unlock': 'sprout.Lockable: permit do',
+      // Only a permit: what opening does is the container's.
+      'as target for sprout.open': 'sprout.Lockable: permit',
+    });
+    expect(defaultLines('Lockable', ['unlocked', 'unlocks'])).toEqual({
+      unlocked: 'The lock turns over.',
+      unlocks: '{actor} unlocks {self}.',
     });
   });
 
@@ -179,7 +341,10 @@ describe('the standard library', () => {
     expect([...visitor.composes].sort()).toEqual(['sprout.Actor', 'sprout.Visitor']);
     expect([...visitor.properties.keys()]).toEqual([...actor.properties.keys()]);
     expect([...visitor.passages.keys()]).toEqual([...actor.passages.keys()]);
-    expect(visitor.plays.size).toBe(0);
+    expect([...visitor.plays.keys()]).toEqual([...actor.plays.keys()]);
+    for (const plays of visitor.plays.values()) {
+      expect(plays.map((play) => play.origin)).toEqual(['sprout.Actor']);
+    }
     for (const guard of ['depart', 'release', 'accept'] as const) {
       expect(visitor.guards[guard].map((one) => one.origin)).toEqual(['sprout.Actor']);
     }
@@ -239,10 +404,21 @@ describe('the standard library', () => {
       hands_full: '{self} cannot carry any more.',
     });
     expect([...actor.passages.keys()].sort()).toEqual([
+      'dropped',
+      'drops',
+      'given',
+      'gives',
       'hands_full',
       'held_fast',
       'inventory',
+      'not_carried',
+      'not_held',
       'not_yours',
+      'put_in',
+      'puts_in',
+      'received',
+      'taken',
+      'takes',
     ]);
   });
 
@@ -316,7 +492,97 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '7a5954b9fe180b1e30f28d1b6448b81d247baf3da73c0e78479d126592666084',
+      '3471a289f05f96a6f62f34418f3fdd07d6b613cc501efe6d06fe9d1fa076b510',
     );
+  });
+});
+
+describe('the standard library, played', () => {
+  /** What each command was read as, by whom, played one after another from the workshop. */
+  const readIn = (...commands: (readonly [typeof MARTA, string])[]) =>
+    playedAll(workshop(), commands).map((turn) => turn.read);
+
+  it('takes and drops through one move and two lines, the actor told and the room told', () => {
+    expect(
+      readIn([MARTA, 'take pin'], [MARTA, 'take pin'], [MARTA, 'drop pin'], [MARTA, 'drop pin']),
+    ).toEqual([
+      { Marta: ['You take a pin.'], Ines: ['Marta takes a pin.'] },
+      { Marta: ['You already have it.'] },
+      { Marta: ['You put a pin down.'], Ines: ['Marta puts a pin down.'] },
+      { Marta: ['You are not holding a pin.'] },
+    ]);
+  });
+
+  it('leaves a fixture where it stands, saying why', () => {
+    expect(readIn([MARTA, 'pick up anvil'])).toEqual([
+      { Marta: ['An anvil is not something you can pick up.'] },
+    ]);
+  });
+
+  it('puts into an open container what the actor holds, until it is full', () => {
+    expect(
+      readIn(
+        [MARTA, 'put pin in crate'],
+        [MARTA, 'take pin'],
+        [MARTA, 'take key'],
+        [MARTA, 'put pin into crate'],
+        [MARTA, 'put key in crate'],
+      ),
+    ).toEqual([
+      { Marta: ['You are not holding a pin.'] },
+      { Marta: ['You take a pin.'], Ines: ['Marta takes a pin.'] },
+      { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
+      { Marta: ['You put a pin in a crate.'], Ines: ['Marta puts a pin in a crate.'] },
+      { Marta: ['There is no room in a crate.'] },
+    ]);
+  });
+
+  it('keeps a locked container shut until the tool its world names unlocks it', () => {
+    expect(
+      readIn(
+        [MARTA, 'take pin'],
+        [MARTA, 'put pin in chest'],
+        [MARTA, 'open chest'],
+        [MARTA, 'unlock chest with pin'],
+        [MARTA, 'take key'],
+        [MARTA, 'use key on chest'],
+        [MARTA, 'unlock chest with key'],
+        [MARTA, 'open chest'],
+        [MARTA, 'open chest'],
+        [MARTA, 'put pin in chest'],
+        [MARTA, 'shut chest'],
+        [MARTA, 'close chest'],
+      ).slice(1),
+    ).toEqual([
+      { Marta: ['A chest is shut.'] },
+      { Marta: ['It is locked.'] },
+      { Marta: ['That does not fit the lock.'] },
+      { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
+      { Marta: ['The lock turns over.'], Ines: ['Marta unlocks a chest.'] },
+      { Marta: ['It is already unlocked.'] },
+      { Marta: ['You open a chest.'], Ines: ['Marta opens a chest.'] },
+      { Marta: ['It is already open.'] },
+      { Marta: ['You put a pin in a chest.'], Ines: ['Marta puts a pin in a chest.'] },
+      { Marta: ['You shut a chest.'], Ines: ['Marta shuts a chest.'] },
+      { Marta: ['It is already shut.'] },
+    ]);
+  });
+
+  it('gives from one person to another, the recipient told apart from the room', () => {
+    expect(
+      readIn(
+        [MARTA, 'give key to ines'],
+        [MARTA, 'take key'],
+        [MARTA, 'hand key to ines'],
+        [INES, 'inventory'],
+        [MARTA, 'inventory'],
+      ),
+    ).toEqual([
+      { Marta: ['You are not holding a key.'] },
+      { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
+      { Marta: ['You give a key to Ines.'], Ines: ['Marta gives you a key.'] },
+      { Ines: ['You are carrying a key.'] },
+      { Marta: ['You are carrying nothing.'] },
+    ]);
   });
 });

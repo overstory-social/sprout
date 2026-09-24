@@ -180,9 +180,16 @@ describe('the first tier reads every file in the bundle', () => {
       'Place',
       'take',
       'drop',
+      'put',
       'give',
       'Actor',
       'Visitor',
+      'Fixture',
+      'open',
+      'close',
+      'Container',
+      'unlock',
+      'Lockable',
       'ask',
     ]);
   });

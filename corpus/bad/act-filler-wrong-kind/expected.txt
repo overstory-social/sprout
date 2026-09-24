@@ -1,4 +1,4 @@
-cat.sprout:4:30  `target` of `unlock` is filled by a `Lockable`, and `actor` is a `sprout.Actor`.
-                 Read it as one first: `if (actor.is(Lockable)) { act unlock (target: actor) }`.
+cat.sprout:4:30  `target` of `unlock` is filled by a `sprout.Lockable`, and `actor` is a `sprout.Actor`.
+                 Read it as one first: `if (actor.is(sprout.Lockable)) { act unlock (target: actor) }`.
 
 refused: 1 problem

@@ -1,7 +1,7 @@
-// `"unlock [target]"` leaves the tool out, so a body reads it only once
+// `"pry [target]"` leaves the tool out, so a body reads it only once
 // `bound` has said it is there.
 kind Warded {
-  as target for unlock {
+  as target for pry {
     permit {
       if (!tool.is(Key)) { refuse "That is not a key." }
     }

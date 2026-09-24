@@ -1,0 +1,3 @@
+// The key to the type case: a thing like any other, carried off with the
+// library's `take`.
+kind Quoin { }

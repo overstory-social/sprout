@@ -7,5 +7,4 @@ world chance_in_permit_passage is sprout.World {
   }
 }
 
-verb unlock { role target  "unlock [target]" }
 verb peer { role target  "peer at [target]" }

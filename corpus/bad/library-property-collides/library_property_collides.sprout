@@ -1,0 +1,8 @@
+world library_property_collides is sprout.World {
+  visitors are Creature
+  visitors arrive at shop
+
+  object shop is sprout.Place {
+    object bed is Bed
+  }
+}

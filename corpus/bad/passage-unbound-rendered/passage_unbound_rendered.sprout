@@ -6,4 +6,3 @@ world passage_unbound_rendered is sprout.World {
     object crate is Crate
   }
 }
-verb open { role target  "open [target]" }

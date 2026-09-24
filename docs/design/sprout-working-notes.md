@@ -274,6 +274,11 @@ Found while building the inspector (B51):
 - **352. Two offers typed alike.** The view gives one reading for each way its roles fill, typed by the verb's first phrase that fits, and two things written alike (the study's two pebbles) give two offers typed by the same line, `take pebble` twice, which the view does not tell apart and which, typed, the parser answers with `which`. Built: listed as the view gives them, twice. The alternatives: an offer carries what fills each role, so a client can tell them apart; an offer is typed in the words a `which` would offer for it; or offers typed alike are one offer.
 - **353. What a visitor kind's body holds.** Objects says every instance of a kind, "declared or spawned", starts with its own copy of each object its kind's body holds, and a visitor is neither: `kind Walker is sprout.Visitor { object satchel is Satchel }` compiles, and a visitor arrives carrying nothing, since arrival makes the visitor with none of its kind's contents. Not built here: the inspector shows what arrival gives. The alternatives: a visitor arrives with its kind's contents, as a spawn is made with them, the first time and never again; or the compiler refuses an object in the body of a kind that composes `sprout.Visitor`, as it refuses spawning one.
 
+Found while building the standard library (B48):
+
+- **370. The file `sprout.Lockable` is written in.** The worked microworld heads it `// sprout/lock.sprout`, and Files puts a kind in the file named for it, which refuses a `kind Lockable` in `lock.sprout` ("Move `kind Lockable` to a file of its own called `lockable.sprout`."). Built: `sprout/lockable.sprout`, the rest of the library as the worked microworld writes it, declaration for declaration. Proposed: the worked microworld's heading reads `// sprout/lockable.sprout`.
+- **371. When `sprout.Actor`'s `held_fast` is said.** The library's `depart (to) { if (mover != self) { refuse held_fast } }` reads as the answer to `take ines`, and the engine refuses an actor moved into what holds no actors before any guard is asked, in its fixed words (see "An actor moved into something that does not hold actors"), so `take ines` reads "Ines cannot stand in you." and `held_fast` is said only when someone moves an actor into a place, as an NPC's `move` might. Built: as the move's order stands; nothing in the library changed. The alternatives: the actor's `depart` is asked before the structural refusal, so a person taken reads `held_fast`; or `held_fast` leaves the library as a line no command can reach.
+
 **Decided 2026-09-24, morning**, now in the spec except where an entry says otherwise:
 
 - 125: a passage nothing says, and the engine does not, is checked with its own `self` alone, as built. No spec change.
@@ -580,14 +585,14 @@ Found while resolving verbs across libraries (B23), each decided the narrow way 
 - **A value role in the target's place.** Optional, as a value tool is: Value roles gives the reason for tools, that what a visitor types is never one of a closed set until checked, and it holds for the target as well. The first tier's rule that the target is never optional is about `optional` as written.
 - **An `exit` role.** Optional only where a phrase leaves it out, as a thing role is, which the standard library's `go` never does: the directions and labels are a closed set.
 - **A role whose kind was declared and could not be composed.** Nothing more is said of it, since the composition's refusal already has; the role fills nothing, as an absent kind's does.
-- **`put` in the standard library.** It names `Container`, which no library file declares yet, so it waits for `sprout/container.sprout` (B48). `take`, `drop`, `give` and the engine verbs' phrases are there now, with nothing yet playing them; `ask` is in `sprout/talk.sprout`.
+- **`put` in the standard library.** It names `Container`, which no library file declares yet, so it waits for `sprout/container.sprout` (B48). `take`, `drop`, `give` and the engine verbs' phrases are there now, with nothing yet playing them; `ask` is in `sprout/talk.sprout`. *Built (B48):* `put`, with `sprout.Container`, and every role body and passage the worked microworld's library writes (Open 370, 371).
 
 Asked ahead of building the two passes (B24), 2026-09-23:
 
 - **Declared order.** The actor first, then the verb's roles as declared (the target, then the tools; a set role's fillers in typed order), and within one participant its kind's contributions in closure order, the composer's own last. Proposed; awaiting Eric, and built so, as The two passes, Set roles and How members combine read.
 - **`allow` in a `permit`, `refuse` in a `do`.** Proposed: the first accepted, since a `permit` has a guard's shape; the second refused. Awaiting Eric.
 - **An NPC actor's `say`.** Decided 2026-09-23, now under Acting: it comes from the NPC, heard by whoever would hear its `tell`, as *the cat says "miaow"*. How the line is framed (a stock passage on `sprout.World`, or fixed words), and whether `nothing_happens` is told the same way for an NPC's reading that said nothing, are open; B30 carries who hears it.
-- **The warning for a verb no object plays a role for.** Waits for B48, which brings the library's role bodies, so it does not fire for `take`, `drop` and `give` in every world. Decided 2026-09-23.
+- **The warning for a verb no object plays a role for.** Waits for B48, which brings the library's role bodies, so it does not fire for `take`, `drop` and `give` in every world. Decided 2026-09-23. *B48:* the library's verbs are all played now; the warning itself is B50's, with the rest of the warning list.
 
 Found while reading, checking and composing the roles a kind plays (B24), each decided the narrow way and awaiting Eric:
 

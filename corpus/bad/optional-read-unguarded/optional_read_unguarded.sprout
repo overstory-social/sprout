@@ -5,9 +5,9 @@ world optional_read_unguarded is sprout.World {
   object hall is sprout.Place
 }
 
-verb unlock {
+verb pry {
   role target
   role tool
-  "unlock [target] with [tool]"
-  "unlock [target]"
+  "pry [target] with [tool]"
+  "pry [target]"
 }

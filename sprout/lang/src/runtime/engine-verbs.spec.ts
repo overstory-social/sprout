@@ -93,7 +93,9 @@ describe('what the engine answers a command, once the queue is empty', () => {
     for (const typed of ['go north', 'look', 'examine lamp', 'inventory', 'wait', 'help']) {
       expect(line, typed).toContain(typed);
     }
-    expect(line.endsWith('give pin to cat.')).toBe(true);
+    // `sprout.Actor` refuses to drop or give what it does not hold, and Marta holds nothing.
+    expect(line.endsWith('take pin.')).toBe(true);
+    expect(line).not.toMatch(/\b(drop|give|put) /);
     const [answer] = answersOf(typedIn(state, MARTA, '?'));
     expect(answer !== undefined && 'said' in answer && answer.said.effect).toBe('notice');
   });

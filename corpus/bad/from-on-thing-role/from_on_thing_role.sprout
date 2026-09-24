@@ -4,10 +4,3 @@ world from_on_thing_role is sprout.World {
 
   object hall is sprout.Place
 }
-
-verb unlock {
-  role target
-  role tool
-  "unlock [target] with [tool]"
-  "unlock [target]"
-}
