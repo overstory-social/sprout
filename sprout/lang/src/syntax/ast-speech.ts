@@ -1,10 +1,12 @@
 // What the compiler builds from the statements that put words in front of
-// a reader: `say`, `tell` and `text` (the spec's Prose; Other people ›
-// Who hears it). Every node keeps the rule `ast.ts` states: a `kind` and
-// an `at`.
+// a reader, `say`, `tell` and `text`, and from the `describe` whose words
+// `text` gives (the spec's Prose; Other people › Who hears it; Kinds ›
+// Prose does not compose). Every node keeps the rule `ast.ts` states: a
+// `kind` and an `at`.
 
 import type { Node } from '../source/nodes.js';
-import type { Ident, ObjectPath } from './ast.js';
+import type { Span } from '../source/source.js';
+import type { Block, Ident, ObjectPath } from './ast.js';
 import type { ProseLiteral } from './ast-prose.js';
 
 /**
@@ -33,4 +35,20 @@ export interface TellStatement extends Node {
 export interface TextStatement extends Node {
   readonly kind: 'text';
   readonly said: ProseLiteral | Ident;
+}
+
+/**
+ * `describe { text greeting }` — what whoever looks at the thing reads: a
+ * block of statements that only read, and give their words with `text`
+ * (the spec's Prose; Engine verbs). A thing has one.
+ */
+export interface DescribeDeclaration extends Node {
+  readonly kind: 'describe';
+  readonly body: Block;
+}
+
+/** The span of a describe's own word, where a diagnostic about the whole of one points. */
+export function describeWord(declaration: DescribeDeclaration): Span {
+  const at = declaration.at;
+  return at.source.span(at.start, at.start + 'describe'.length);
 }

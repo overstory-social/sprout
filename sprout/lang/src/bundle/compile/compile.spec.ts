@@ -69,6 +69,32 @@ describe('what a compiled bundle carries', () => {
     ]);
   });
 
+  it('refuses at publish a description its gone `.prose` file leaves empty, and loads it with its gaps', () => {
+    const files = [
+      file('world.sprout', `${WORLD_LINE.replace(' }', ' object mirror is Mirror }')}`),
+      ...worldFiles(WORLD_TEXT).slice(1),
+      file(
+        'mirror.sprout',
+        'kind Mirror {\n  prose "mirror.prose"\n  describe { text greeting }\n}\n',
+      ),
+      file('mirror.prose', 'passage greeting { Hi. }\n'),
+    ];
+    const publish = compileBundle(world({ files, withheld: ['mirror.prose'] }));
+    expect(refusals(publish.diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'mirror.sprout:3:3',
+        "This `describe` says nothing while `Mirror`'s `.prose` file is absent: every `text` in it names a passage that file holds.",
+      ],
+      ['sprout.json:9:3', 'The file "mirror.prose" is being withheld.'],
+    ]);
+    const load = compileBundle(world({ files, withheld: ['mirror.prose'] }), { mode: 'load' });
+    expect(refusals(load.diagnostics)).toEqual([]);
+    expect(load.bundle!.absent.map((gap) => [gap.what, gap.kind])).toEqual([
+      ['mirror.prose', 'file'],
+      ['greeting', 'passage'],
+    ]);
+  });
+
   it('records the caps it was checked against, for a host that loads it later to decide', () => {
     const limits = limitsFrom({ caps: { optionsPerEnum: 12, places: 40 } });
     expect(compileBundle(world(), { limits }).bundle!.caps).toEqual(limits.caps);

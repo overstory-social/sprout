@@ -1,0 +1,16 @@
+{
+  "name": "describe_prose_gone",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "7a5954b9fe180b1e30f28d1b6448b81d247baf3da73c0e78479d126592666084"
+    }
+  ],
+  "files": ["world.sprout", "person.sprout", "mirror.sprout", "mirror.prose"]
+}

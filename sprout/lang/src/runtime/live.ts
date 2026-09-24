@@ -9,6 +9,10 @@
 // carries a kind to decode it against. The climb is a loop, never
 // recursion, since nesting has no cap, and it stops at a container it has
 // already passed, so stored state that closes a ring is simply not live.
+//
+// A place is live, not the world, and holds actors now: a place that is
+// destroyed, absent, or whose kind no longer declares `contains actors`
+// is gone for whoever stood in it (What absent means; Destroying).
 
 import type { InstanceId } from './ids.js';
 import type { LiveTree } from './range.js';
@@ -34,4 +38,16 @@ export function liveTree(reader: StateReader): LiveTree<InstanceId> {
     containerOf: (node) =>
       isLive(reader, node) ? (reader.instance(node)?.container ?? null) : null,
   };
+}
+
+/** Whether `id` is a place a visitor can stand in now: live, not the world, and holding actors. */
+export function isPlace(reader: StateReader, id: InstanceId): boolean {
+  if (id === reader.world || !isLive(reader, id)) return false;
+  return reader.instance(id)?.kind.containsActors === true;
+}
+
+/** Whether `actor` stands in a place now; one whose place is gone, or who is away, does not. */
+export function standsInPlace(reader: StateReader, actor: InstanceId): boolean {
+  const container = reader.instance(actor)?.container ?? null;
+  return container !== null && isPlace(reader, container);
 }

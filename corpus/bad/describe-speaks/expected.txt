@@ -1,0 +1,13 @@
+lamp.sprout:4:5  `say` speaks to the one acting, and a `describe` is read by whoever looks.
+                 Write `text` in its place, as in `text "A lever, waist high."`.
+
+lamp.sprout:5:5  `tell` speaks to the room, and a `describe` is read by whoever looks, and only reads.
+                 Write `text` for the words the one looking reads; tell the room from a `do` or a handler.
+
+lamp.sprout:6:5  `refuse` decides, and a `describe` only says what is there.
+                 Move it to a `permit` or a guard, which decide; here, give the words with `text`.
+
+lamp.sprout:7:5  `allow` decides, and a `describe` only says what is there.
+                 Take it out: a `describe` gives its words with `text`.
+
+refused: 4 problems

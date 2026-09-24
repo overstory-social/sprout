@@ -247,6 +247,7 @@ export function toldBy(
   const done = turn.value;
   if ('answered' in done) return [shown(done.answered)];
   if ('refused' in done) return [{ to: [actor], words: words(done.refused.said) }];
+  if ('displaced' in done) return [shown(done.displaced.told)];
   return [...done.acted.said, ...done.drained.said].map(shown);
 }
 

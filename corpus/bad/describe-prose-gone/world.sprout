@@ -1,0 +1,10 @@
+// The `.prose` file a describe's every `text` names is not here, so
+// the description would say nothing.
+world describe_prose_gone is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object mirror is Mirror
+  }
+}

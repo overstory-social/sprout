@@ -1,0 +1,8 @@
+kind Lamp {
+  describe {
+    if (chance(2)) { text "The lamp flickers." } else { text "The lamp burns." }
+    text "{one of}It hums.{or}It ticks.{/one of}"
+    text wick
+  }
+  passage wick { {one of}The wick is short.{or}The wick is long.{/one of} }
+}

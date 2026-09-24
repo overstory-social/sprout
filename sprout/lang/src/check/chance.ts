@@ -1,12 +1,12 @@
 // Where chance is forbidden (the spec's Chance › Where chance is
 // forbidden; The compiler › What it refuses). A body that decides or is
 // polled draws nothing: a consent guard and a `permit`, asked as part of
-// a decision they must not change; an exit's `when`, asked to build what
-// a visitor can see and go; a pass rule, asked whenever range is walked,
-// a poll's among it; and a line the engine says in a poll. A passage said
-// or rendered from one of them is held to the same rule, and the refusal
-// falls where it is said, since the passage may vary freely wherever else
-// it is said. B31 adds a `describe`.
+// a decision they must not change; a `describe`, run whenever anyone
+// looks; an exit's `when`, asked to build what a visitor can see and go;
+// a pass rule, asked whenever range is walked, a poll's among it; and a
+// line the engine says in a poll. A passage said or rendered from one of
+// them is held to the same rule, and the refusal falls where it is said,
+// since the passage may vary freely wherever else it is said.
 
 import type { Expr, GuardName } from '../syntax/ast.js';
 import type { Prose, ProseIf } from '../syntax/ast-prose.js';
@@ -17,6 +17,7 @@ import type { Span } from '../source/source.js';
 export type Undrawn =
   | { readonly by: 'guard'; readonly guard: GuardName }
   | { readonly by: 'permit' }
+  | { readonly by: 'describe' }
   | { readonly by: 'when' }
   | { readonly by: 'pass'; readonly written: string }
   | { readonly by: 'poll'; readonly line: string };
@@ -42,6 +43,11 @@ function words(undrawn: Undrawn): { readonly what: string; readonly why: string 
       return {
         what: 'a `permit`',
         why: 'a `permit` is asked as part of a decision it must not change',
+      };
+    case 'describe':
+      return {
+        what: 'a `describe`',
+        why: 'it is run whenever anyone looks, so a roll would change the thing while nobody acts',
       };
     case 'when':
       return {

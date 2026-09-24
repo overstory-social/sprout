@@ -1,0 +1,4 @@
+press.sprout:1:21  `Press` gets a `describe` from both `Iron` and `Wood`, and a thing has one voice.
+                   Write `describe { … }` in `Press`, with the one paragraph both should make.
+
+refused: 1 problem

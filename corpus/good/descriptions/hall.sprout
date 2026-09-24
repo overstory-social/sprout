@@ -1,0 +1,9 @@
+kind Hall is sprout.Place {
+  prose "hall.prose"
+  describe {
+    let crowded = self.count > 5
+    text arrival
+    if (crowded) { text "It is crowded in here." }
+    if (actor.is(Person)) { text "{actor}, you are expected." }
+  }
+}

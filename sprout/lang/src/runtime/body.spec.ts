@@ -11,6 +11,7 @@ import { SourceFile } from '../source/source.js';
 import type { Performed } from './act.js';
 import {
   runBody,
+  speechOf,
   ValueOutOfRange,
   type ActSink,
   type Proposed,
@@ -541,6 +542,18 @@ describe('the two modes', () => {
     const sink = { say: (spoken: Spoken) => heard.push(spoken) } as unknown as ActSink;
     runBody(block, frameOf(one, COUNTER, new Budget(DEFAULT_LIMITS.budgets)), 'act', sink);
     expect(heard.map((spoken) => spoken.said)).toEqual([{ absent: 'gone' }]);
+  });
+
+  it('gives the words a statement says, a `text` among them, as `speechOf` reads them', () => {
+    const one = turn();
+    const frame = frameOf(one, COUNTER, new Budget(DEFAULT_LIMITS.budgets));
+    const read = (text: string) =>
+      parseStatement(new SourceFile('b.sprout', text), new Diagnostics())!;
+    const quoted = read('text "Hi."');
+    const absent = read('text gone');
+    if (quoted.kind !== 'text' || absent.kind !== 'text') throw new Error('not a `text`');
+    expect(speechOf(quoted, frame)).toMatchObject({ text: 'Hi.', library: 'shop' });
+    expect(speechOf(absent, frame)).toEqual({ absent: 'gone' });
   });
 
   it('throws an engine error for `text`, which only a `describe` gives', () => {

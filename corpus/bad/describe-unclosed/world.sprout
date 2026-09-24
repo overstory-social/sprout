@@ -1,0 +1,8 @@
+// A describe never closed ends where the next member starts, and that
+// member is kept.
+world describe_unclosed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

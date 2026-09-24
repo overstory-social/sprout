@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "ea58a82a45588ac8eb0fea93f2ebbff96d3660cc9d9e6c12dd086a83628e451a"
+      "sha": "7a5954b9fe180b1e30f28d1b6448b81d247baf3da73c0e78479d126592666084"
     }
   ],
   "files": ["world.sprout", "creature.sprout", "person.sprout", "cat.sprout"]

@@ -13,7 +13,12 @@ import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
 import type { VerbDeclaration } from './ast-verbs.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
-import type { SayStatement, TellStatement, TextStatement } from './ast-speech.js';
+import type {
+  DescribeDeclaration,
+  SayStatement,
+  TellStatement,
+  TextStatement,
+} from './ast-speech.js';
 
 /** A name as written: an identifier, an enum's option, a kind's name. */
 export interface Ident extends Node {
@@ -726,7 +731,8 @@ export type KindMember =
   | HandlerDeclaration
   | HookDeclaration
   | PassDeclaration
-  | GrammarDeclaration;
+  | GrammarDeclaration
+  | DescribeDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

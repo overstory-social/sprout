@@ -12,7 +12,8 @@ import { Budget } from './budget.js';
 import { Draws } from './draws.js';
 import { IntegerOverflow } from './evaluate.js';
 import type { InstanceId } from './ids.js';
-import { consentPass, participantsOf, runReading } from './reading.js';
+import { answeredByEngine, consentPass, participantsOf, runReading } from './reading.js';
+import { HALL as STUDY_HALL, LAMP as STUDY_LAMP, STUDY } from '../fixtures/describe.js';
 import { readerOf } from './state.js';
 import { MEADOW, MOUTH, WAYS, YARD as WAYS_YARD } from '../fixtures/exits.js';
 import {
@@ -24,6 +25,7 @@ import {
   HALL,
   KEY,
   lines,
+  NOTHING,
   LOCK,
   reading,
   refused,
@@ -258,5 +260,36 @@ describe('a reading of the engine’s `go`', () => {
     ]);
     expect(one.draft.instance(walker)!.container).toBe(WAYS_YARD);
     expect(one.draft.instance(walker)!.properties.get('walked')).toBe(0);
+  });
+});
+
+describe('a reading the engine answers', () => {
+  it('is one of the standard library’s `look`, `examine`, `inventory` and `help`, and no other', () => {
+    const verb = (library: string, name: string) => STUDY.verbs.qualified(library, name)!;
+    for (const name of ['look', 'examine', 'inventory', 'help']) {
+      expect(answeredByEngine(verb('sprout', name)), name).toBe(true);
+    }
+    for (const name of ['go', 'wait', 'take']) {
+      expect(answeredByEngine(verb('sprout', name)), name).toBe(false);
+    }
+    expect(answeredByEngine(verb('study', 'pull'))).toBe(false);
+  });
+
+  it('is not answered with `nothing_happens`, since the engine answers it once the queue is empty', () => {
+    const one = turn(STUDY, [STUDY_HALL]);
+    const looker = one.people[0]!;
+    for (const [name, bindings] of [
+      ['look', {}],
+      ['examine', { target: { object: STUDY_LAMP } }],
+      ['inventory', {}],
+      ['help', {}],
+    ] as const) {
+      const done = acted(
+        runReading(reading(STUDY, name, looker, bindings, 'sprout'), contextOf(one)),
+      );
+      expect(done.said, name).toEqual([]);
+    }
+    const waited = acted(runReading(reading(STUDY, 'wait', looker, {}, 'sprout'), contextOf(one)));
+    expect(waited.said.map((line) => words(line.said))).toEqual([NOTHING]);
   });
 });
