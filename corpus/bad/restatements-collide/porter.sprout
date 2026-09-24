@@ -1,0 +1,4 @@
+// A porter carries twelve, and restates the same `:capacity` for itself.
+kind Porter is sprout.Actor {
+  :capacity 12
+}

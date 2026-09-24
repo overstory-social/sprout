@@ -1,0 +1,3 @@
+// The world's own `Visitor` composes the library's `sprout.Visitor`, so it
+// plainly means both, and taking the name is not warned.
+kind Visitor is Creature, sprout.Visitor { }

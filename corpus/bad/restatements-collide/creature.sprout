@@ -1,0 +1,5 @@
+// A creature's hands hold four things, which restates `sprout.Actor`'s
+// `:capacity` and makes `Creature` its origin.
+kind Creature is sprout.Actor {
+  :capacity 4
+}

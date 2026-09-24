@@ -1,5 +1,1 @@
-// `Creature`'s `:capacity` and the one `sprout.Visitor` brings from
-// `sprout.Actor` are two claims on one slot, so a person restates it.
-kind Person is Creature, sprout.Visitor {
-  :capacity 4
-}
+kind Person is Creature, sprout.Visitor { }
