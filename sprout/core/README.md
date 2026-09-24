@@ -23,6 +23,16 @@ fault writes nothing of the world; a poll reads a snapshot and takes no
 lock. `runView` polls a visitor's view, and a `ViewCache` keeps each one
 until a committed turn's `stale` names its visitor (`views.ts`).
 
+Conversation between visitors is the host's, beside the world and never
+in it (the spec's _The host contract › Conversation_): `runConversation`
+checks a line against the host's `ConversationRules` (a length cap and a
+pace, each unbounded where unset), a `ConversationPace` and the host's
+`moderate`, and gives back who stands in the speaker's place to read it,
+or a refusal with words the speaker is shown (`conversation.ts`). It
+runs no turn, writes nothing of the world, appends nothing to the log
+and stores nothing; delivering it, beside the world's words, is the
+host's.
+
 Every write turn appends its entry to the world's event log in the same
 transaction (the spec's _The runtime › The log_): its inputs and seed,
 its budgets, what it said and any fault; so does every publish
