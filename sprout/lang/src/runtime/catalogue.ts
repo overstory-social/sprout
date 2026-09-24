@@ -3,9 +3,9 @@
 // and a visitor are made of, the kinds a spawn may name and what each
 // gives its instances, every kind as a body finds it by name, every verb
 // and the phrases a visitor may type, where visitors arrive, the word
-// set a nickname is admitted against, and the host's caps that stored
-// values are read under. Built once per load, and read by every rule
-// that reconciles stored state with source.
+// set a nickname is admitted against, the extensions it pins, and the
+// host's caps that stored values are read under. Built once per load,
+// and read by every rule that reconciles stored state with source.
 //
 // Every placement in the declared tree is here, what a kind gave a
 // declared object and one whose kind is absent included, so that what it
@@ -14,6 +14,7 @@
 // the order they were declared.
 
 import type { Bundle } from '../bundle/bundle.js';
+import type { PinnedExtension } from '../declare/extensions.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import { isVisitorKind } from '../declare/actors.js';
 import type { KindContents } from '../declare/contents.js';
@@ -77,6 +78,12 @@ export interface Catalogue {
   /** The bundle's word set, which a nickname is admitted against. */
   readonly words: ReadonlySet<string>;
   /**
+   * The extensions the world pins, by name, each with what the host
+   * supplies for it: what an extension's statement runs, and, where one
+   * is absent, what a visitor is told on entry.
+   */
+  readonly extensions: ReadonlyMap<string, PinnedExtension>;
+  /**
    * The caps the host runs the world under now, which stored values are
    * read under: its own, or for a world it made an exception for, those
    * the exception granted, which that load's bundle records.
@@ -121,6 +128,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     optionSlots: bundle.optionSlots,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
     words: new Set(bundle.words),
+    extensions: new Map(bundle.extensions.map((pinned) => [pinned.name, pinned])),
     caps,
   };
 }

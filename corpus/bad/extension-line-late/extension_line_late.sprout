@@ -1,0 +1,10 @@
+// A file names the extensions it uses at its top, before anything it
+// declares, so a reader knows what the file leans on before reading it.
+world extension_line_late is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+extension media 1

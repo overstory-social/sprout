@@ -142,6 +142,7 @@ function said(outcome: 'allow' | Refusal): string {
   if (outcome === 'allow') return 'allow';
   if ('text' in outcome.said) return `"${outcome.said.text}"`;
   if ('absent' in outcome.said) return `absent ${outcome.said.absent}`;
+  if ('recorded' in outcome.said) return `recorded ${outcome.said.recorded.transcript}`;
   const { passage } = outcome.said;
   return `${passage.origin} ${passage.name}: ${passage.body.text.trim()}`;
 }

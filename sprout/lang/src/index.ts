@@ -1,7 +1,8 @@
 // @overstory/sprout/lang — the Sprout language: where a thing was written
 // and what the compiler says about it, the syntax and its parser, the
-// declarations and their types, the checker, the closed bundle a
-// microworld compiles to, and the runtime's meter, values, range, ids,
+// declarations and their types, what an extension a host installs is,
+// the checker, the closed bundle a microworld compiles to, and the
+// runtime's meter, values, range, ids,
 // state, stored and live, the evaluator a guard runs on, the move
 // through consent, the queue, the turns they all run in and the effects
 // they give, and the parser that reads a typed command; and prose,
@@ -21,6 +22,8 @@ export * from './syntax/ast.js';
 export * from './syntax/ast-prose.js';
 export * from './syntax/ast-speech.js';
 export * from './syntax/ast-grammar.js';
+export * from './syntax/ast-extensions.js';
+export * from './syntax/ast-events.js';
 export * from './syntax/parse.js';
 
 export * from './declare/types.js';
@@ -40,6 +43,7 @@ export * from './declare/directions.js';
 export * from './declare/grammar.js';
 export * from './declare/describe.js';
 export * from './declare/world.js';
+export * from './declare/extensions.js';
 
 export * from './check/bindings.js';
 export * from './check/check.js';
@@ -82,6 +86,9 @@ export * from './runtime/view.js';
 export * from './runtime/engine-verbs.js';
 export * from './runtime/bus.js';
 export * from './runtime/faults.js';
+export * from './runtime/extension-fault.js';
+export * from './runtime/extension-values.js';
+export * from './runtime/extension-statements.js';
 export * from './runtime/draws.js';
 export * from './runtime/effects.js';
 export * from './runtime/turn.js';

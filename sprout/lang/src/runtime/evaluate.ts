@@ -35,6 +35,7 @@ import type { NameTable } from '../check/names.js';
 import { reachedByName } from './named.js';
 import type { PassRule } from './range.js';
 import { defaultOf, type Value } from './values.js';
+import { ExtensionValue, sameExtension } from './extension-values.js';
 import type { Draw } from './draws.js';
 
 /**
@@ -217,6 +218,9 @@ function same(a: Evaluated, b: Evaluated): boolean {
   if (a.binds === 'value' && b.binds === 'value') {
     if (a.value instanceof SproutList || b.value instanceof SproutList) {
       throw unchecked('two lists compared with `==`');
+    }
+    if (a.value instanceof ExtensionValue && b.value instanceof ExtensionValue) {
+      return sameExtension(a.value, b.value);
     }
     return a.value === b.value;
   }

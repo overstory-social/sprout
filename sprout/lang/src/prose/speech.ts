@@ -31,6 +31,11 @@ export interface Line {
 export function renderFor(line: Line, reader: InstanceId, context: RenderContext): string[] {
   const { said } = line;
   if ('absent' in said) return [];
+  if ('recorded' in said) {
+    // An extension's effect reads, on a text client, as its transcript line.
+    const { transcript } = said.recorded;
+    return charged(context, reader, [...transcript].length) ? [transcript] : [];
+  }
   const draws = context.draws?.of(line) ?? null;
   const rendered =
     'passage' in said

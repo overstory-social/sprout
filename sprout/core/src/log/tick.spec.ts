@@ -23,7 +23,13 @@ describe('a tick in the log', () => {
   it('keeps a dropped tick’s fault, and nothing it said', () => {
     const dropped: Faulted = {
       committed: false,
-      fault: { name: 'BudgetExhausted', detail: 'steps', object: HALL, engine: false },
+      fault: {
+        name: 'BudgetExhausted',
+        detail: 'steps',
+        object: HALL,
+        engine: false,
+        extension: null,
+      },
     };
     expect(tickEntry(tick, host, dropped)).toMatchObject({
       fault: { name: 'BudgetExhausted', object: HALL },
@@ -34,7 +40,7 @@ describe('a tick in the log', () => {
   it('hands back the tick, its place an id of the world, and refuses one of another', () => {
     const entry = tickEntry(tick, host, {
       committed: false,
-      fault: { name: 'X', detail: '', object: null, engine: true },
+      fault: { name: 'X', detail: '', object: null, engine: true, extension: null },
     });
     expect(tickOf('tally', entry)).toEqual(tick);
     expect(() => tickOf('tally', { ...entry, place: 'bakery.oven' })).toThrow(

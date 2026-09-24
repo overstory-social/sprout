@@ -2,7 +2,9 @@
 // › Turns, The view, Faults). A poll reads the last committed state with
 // no lock, under the poll's own step budget, draws nothing and writes
 // nothing; what it derives (`runtime/view.ts`) is rendered here with the
-// visitor as its one reader. A poll that faults yields a view whose
+// visitor as its one reader, what the place's description records of
+// extensions beside its words (the spec's Extensions › What an extension
+// may add). A poll that faults yields a view whose
 // description is the world's `unseen` and which offers nothing else, its
 // fault laid against the place whose description the poll was deriving
 // where the fault names no object of its own, and given back beside the
@@ -10,6 +12,8 @@
 // is valid until a committed write turn names its visitor stale.
 
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
+import type { Plain } from '../declare/extensions.js';
+import type { Said } from '../runtime/reading.js';
 import { DISPLACED_STOCK, displacedLine } from '../runtime/arrival.js';
 import { stockLine, type Fault } from '../runtime/faults.js';
 import type { InstanceId, VisitKey } from '../runtime/ids.js';
@@ -53,10 +57,24 @@ export interface SeenReading {
   readonly options: readonly SeenOptions[];
 }
 
+/**
+ * What an extension's statement in the place's description recorded into
+ * the view: its payload for a client that can use it, and the transcript
+ * line a text-only client shows instead.
+ */
+export interface SeenEffect {
+  readonly extension: string;
+  readonly statement: string;
+  readonly payload: Plain;
+  readonly transcript: string;
+}
+
 /** A view as its visitor reads it. */
 export interface SeenView {
   /** The place's description, as paragraphs. */
   readonly description: readonly string[];
+  /** What the description's extension statements recorded, in order. */
+  readonly effects: readonly SeenEffect[];
   readonly exits: readonly CommandExit[];
   readonly occupants: readonly SeenThing[];
   readonly carried: readonly SeenThing[];
@@ -126,6 +144,7 @@ export function renderView(view: View, context: RenderContext): SeenView {
   const named = (id: InstanceId): SeenThing => ({ id, name: objectWords(id, actor, context) });
   return {
     description: renderDescription(view.description, context).paragraphs,
+    effects: view.description.recorded.flatMap((line) => seenEffect(line, actor, context)),
     exits: view.exits,
     occupants: view.occupants.map(named),
     carried: view.carried.map(named),
@@ -143,6 +162,14 @@ function seenReading(reading: ViewReading, actor: InstanceId, context: RenderCon
   };
 }
 
+/** One recorded effect as the visitor is shown it, its transcript charged to what they may read; none where it does not fit. */
+function seenEffect(line: Said, actor: InstanceId, context: RenderContext): SeenEffect[] {
+  if (!('recorded' in line.said)) return [];
+  const { extension, statement, payload } = line.said.recorded;
+  const [transcript] = renderFor(line, actor, context);
+  return transcript === undefined ? [] : [{ extension, statement, payload, transcript }];
+}
+
 function seenOptions(options: RoleOptions): SeenOptions {
   if (options.takes === 'integer') return options;
   return {
@@ -154,5 +181,5 @@ function seenOptions(options: RoleOptions): SeenOptions {
 
 /** A view that says `description` and offers nothing else. */
 function onlySaying(description: readonly string[]): SeenView {
-  return { description, exits: [], occupants: [], carried: [], readings: [] };
+  return { description, effects: [], exits: [], occupants: [], carried: [], readings: [] };
 }

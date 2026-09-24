@@ -21,6 +21,7 @@
 import type { EnumDeclaration } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
+import { NO_EXTENSIONS, type PinnedExtensions } from './extensions.js';
 
 /** The standard library's namespace, in scope in every microworld. */
 export const SPROUT = 'sprout';
@@ -154,9 +155,18 @@ export function checkEnumDeclaration(
   }
 }
 
-/** Every enum the bundle declares, by library and name. */
+/**
+ * Every enum the bundle declares, by library and name, with the
+ * extensions it pins beside them: the two things a written type that is
+ * not a built-in one may name.
+ */
 export class EnumTable {
   private readonly byQualified = new Map<string, DeclaredEnum>();
+
+  constructor(
+    /** The extensions the bundle pins, whose types `media.Image` names. */
+    readonly extensions: PinnedExtensions = NO_EXTENSIONS,
+  ) {}
 
   /**
    * Add a library's declarations. Two enums of one name in one library

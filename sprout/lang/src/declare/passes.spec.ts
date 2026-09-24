@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KindDeclaration, KindMember } from '../syntax/ast.js';
-import { writtenPass } from '../syntax/ast.js';
+import { writtenPass } from '../syntax/ast-events.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { parseDeclarations } from '../syntax/parse.js';

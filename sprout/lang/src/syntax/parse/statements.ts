@@ -5,7 +5,8 @@
 // something). `say`, `tell` and `text`, and the words `refuse` takes, are
 // read in `speech.ts`, `act` in `act.ts`, `connect` in `connect.ts`,
 // `send` and `broadcast` in `sends.ts`, `destroy self` and `finally
-// destroy self` in `destroy.ts`, and `wake` in `wake.ts`, and each is
+// destroy self` in `destroy.ts`, `wake` in `wake.ts`, and an extension's
+// statement, `media.show(…)`, in `extensions.ts`, and each is
 // registered here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
 // statement that also yields a binding.
@@ -44,6 +45,7 @@ import { destroyStatement, finallyStatement } from './destroy.js';
 import { wakeStatement } from './wake.js';
 import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
 import { skipBracketed } from './recovery.js';
+import { atExtensionStatement, extensionStatement } from './extensions.js';
 
 /**
  * What a block is read inside. Its fields say what no statement can see
@@ -107,6 +109,7 @@ export function statement(p: Parser, within: Enclosing = onItsOwn()): Statement 
     const reader = STATEMENTS.get(token.text);
     if (reader !== undefined) return reader(p, within);
     if (token.text === 'else') return danglingElse(p, within);
+    if (atExtensionStatement(p)) return extensionStatement(p);
     if (!isReserved(token.text)) return expressionStatement(p);
   }
   notAStatement(p, token);

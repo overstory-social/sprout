@@ -27,7 +27,7 @@ describe('a visitor’s exit in the log', () => {
 
   it('keeps a fault, and what the quiet departure after it said', async () => {
     const quietly = await departed();
-    const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false };
+    const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false, extension: null };
     const entry = departureEntry(departure, host, { committed: false, fault, quietly });
     expect(entry.fault).toEqual(fault);
     expect(entry.effects.map((e) => e.paragraphs)).toEqual(

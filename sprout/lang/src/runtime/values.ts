@@ -1,9 +1,10 @@
 // What a property holds while the world runs (the spec's Properties,
 // types and values › The types, Lists).
 //
-// A value is a boolean, an integer, a string, an option or a list, and
-// never an object: there is no object-valued property, so nothing a
-// value holds can dangle. An option is its bare name, `oak`, because the
+// A value is a boolean, an integer, a string, an option, a list or a
+// value of an extension's type (`extension-values.ts`), and never an
+// object: there is no object-valued property, so nothing a value holds
+// can dangle. An option is its bare name, `oak`, because the
 // enum it belongs to is always known from the type it is held under.
 // Whether a value fits a type is the one question stored state asks of
 // it (the spec's The runtime › State): a value that no longer fits is
@@ -15,14 +16,15 @@ import type { ResolvedProperty } from '../declare/properties.js';
 import { qualifiedName } from '../declare/enums.js';
 import { sameType, showType, type ValueType } from '../declare/types.js';
 import { SproutList } from './lists.js';
+import { ExtensionValue, extensionLiteral } from './extension-values.js';
 
 /** A run-time value: what a property holds, what a list holds. An option is its bare name, as lists already hold it. */
-export type Value = boolean | number | string | SproutList;
+export type Value = boolean | number | string | SproutList | ExtensionValue;
 
 /**
  * A type's identity as stored state records it: `boolean`, `integer`,
- * `string`, an enum's qualified name, or a list's element key in
- * brackets. An integer's range is not part of it, as it is not part of
+ * `string`, an enum's qualified name, a list's element key in brackets,
+ * or an extension's type as written, `media.Image`. An integer's range is not part of it, as it is not part of
  * a type's identity.
  */
 export function typeKey(type: ValueType): string {
@@ -35,6 +37,8 @@ export function typeKey(type: ValueType): string {
       return qualifiedName(type.of.library, type.of.name);
     case 'list':
       return `[${typeKey(type.element)}]`;
+    case 'extension':
+      return showType(type);
   }
 }
 
@@ -65,6 +69,8 @@ export function fits(type: ValueType, value: Value, caps: StaticCaps): boolean {
         value.count <= caps.listElements &&
         value.elements.every((element) => fits(type.element, element, caps))
       );
+    case 'extension':
+      return value instanceof ExtensionValue && sameType(value.type, type);
   }
 }
 
@@ -81,8 +87,9 @@ function literalValue(type: ValueType, literal: Literal, caps: StaticCaps): Valu
   switch (literal.kind) {
     case 'boolean':
     case 'integer':
-    case 'string':
       return literal.value;
+    case 'string':
+      return type.type === 'extension' ? extensionLiteral(type, literal.value) : literal.value;
     case 'option-literal':
       return literal.name.text;
     case 'list-literal': {

@@ -41,6 +41,7 @@ import { VerbNames, type OnUnknownVerb } from '../declare/roles.js';
 import type { OnUnknownMessage } from '../declare/handlers.js';
 import { placeObjects, type ObjectTree } from '../declare/tree.js';
 import { absenceRule, type Absent, type ReferenceKind } from './absent.js';
+import { NO_EXTENSIONS, type PinnedExtensions } from '../declare/extensions.js';
 
 /** What the tables need from a compile: somewhere to say things, and the mode's answer to a gap. */
 export interface DeclarationReport {
@@ -87,12 +88,14 @@ export function resolveDeclarations(
   byLibrary: ReadonlyMap<string, readonly Declaration[]>,
   world: WorldNames,
   report: DeclarationReport,
+  extensions: PinnedExtensions = NO_EXTENSIONS,
 ): DeclarationTables {
   const { diagnostics } = report;
 
   // An enum's identity is its library and its name, so two of one name
-  // in one library collide and two in different libraries do not.
-  const enums = new EnumTable();
+  // in one library collide and two in different libraries do not. The
+  // extensions the world pins sit beside them, for `media.Image`.
+  const enums = new EnumTable(extensions);
   for (const [library, declared] of byLibrary) {
     enums.add(
       library,

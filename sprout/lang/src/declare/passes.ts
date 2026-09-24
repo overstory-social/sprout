@@ -6,8 +6,8 @@
 // container that relays and one that refuses cannot both be its policy.
 // A rule is keyed by `messageKey`, resolved from the library that wrote it.
 
-import type { KindExpr, KindMember, PassDeclaration } from '../syntax/ast.js';
-import { writtenPass } from '../syntax/ast.js';
+import type { KindExpr, KindMember } from '../syntax/ast.js';
+import { writtenPass, type PassDeclaration } from '../syntax/ast-events.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { namedMessage, type MessageSetting } from './handlers.js';
 import { messageKey } from './messages.js';

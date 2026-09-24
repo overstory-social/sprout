@@ -6,7 +6,8 @@
 // condition in brackets. What the condition may read, and that it is a
 // boolean, is the checker's.
 
-import type { Ident, PassDeclaration } from '../ast.js';
+import type { Ident } from '../ast.js';
+import type { PassDeclaration } from '../ast-events.js';
 import type { Token } from '../lexer.js';
 import { spanning } from '../../source/source.js';
 import { expression } from './expressions.js';

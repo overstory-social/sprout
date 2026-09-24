@@ -4,7 +4,13 @@ import { HALL } from '../fixtures/tally.js';
 import { PollFaultEntry, pollFaultEntry } from './poll-fault.js';
 
 describe('a poll’s fault in the log', () => {
-  const fault = { name: 'BudgetExhausted', detail: 'pollSteps', object: HALL, engine: false };
+  const fault = {
+    name: 'BudgetExhausted',
+    detail: 'pollSteps',
+    object: HALL,
+    engine: false,
+    extension: null,
+  };
 
   it('keeps the fault, against the object it names, and the instant of the poll', () => {
     const entry = pollFaultEntry(fault, 12);

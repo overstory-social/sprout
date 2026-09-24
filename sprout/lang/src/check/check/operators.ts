@@ -4,7 +4,8 @@
 // takes booleans, `<` takes integers, and a comparison takes two of the
 // same type — and an integer literal outside the other side's declared
 // range is refused, because the comparison is then decided before the
-// world runs.
+// world runs. An extension's type is compared only where the extension
+// says it compares.
 
 import type { BinaryOperator, Expr, SymbolExpr } from '../../syntax/ast.js';
 import { showBindingType, valueOf, type BindingType } from '../bindings.js';
@@ -177,6 +178,15 @@ export function identityType(
     right.binds === 'value' &&
     sameType(leftType.type, right.type)
   ) {
+    const type = leftType.type;
+    if (type.type === 'extension' && type.definition?.compares === false) {
+      context.diagnostics.refuse(
+        expr.at,
+        `\`${showType(type)}\` is not compared with \`${expr.operator}\`: the extension \`${type.extension}\` says so.`,
+        'Compare something the value is kept beside instead, such as a property of your own.',
+      );
+      return null;
+    }
     return refuseLiteralOutsideRange(expr.operator, expr, leftType, right, context)
       ? null
       : valueOf(BOOLEAN);

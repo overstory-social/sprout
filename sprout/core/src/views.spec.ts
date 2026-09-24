@@ -148,6 +148,7 @@ describe('a view polled against a store', () => {
             detail: polled.fault!.detail,
             object: HALL,
             engine: false,
+            extension: null,
           },
         },
       },

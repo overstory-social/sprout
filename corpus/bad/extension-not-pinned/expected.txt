@@ -1,0 +1,4 @@
+painting.sprout:3:11  The manifest does not pin the extension `media`.
+                      Pin it in the manifest, as in `"extensions": [{ "name": "media", "major": 1 }]`.
+
+refused: 1 problem

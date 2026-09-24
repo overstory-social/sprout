@@ -225,6 +225,7 @@ export function setOn(one: Turn, id: InstanceId, values: Record<string, Value>):
 export function words(said: PermitRefusal['said']): string {
   if ('text' in said) return said.text;
   if ('absent' in said) return `absent ${said.absent}`;
+  if ('recorded' in said) return `recorded ${said.recorded.transcript}`;
   return `${said.passage.origin} ${said.passage.name}: ${said.passage.body.text.trim()}`;
 }
 

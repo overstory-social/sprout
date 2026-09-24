@@ -38,7 +38,9 @@
 // cap on spawns over time. How many people may stand in one place is
 // the host's too (The host contract › Enforcement): the spec gives it no
 // figure, so it is unbounded until a host sets one, and a move that would
-// pass it is refused in the engine's words rather than faulted.
+// pass it is refused in the engine's words rather than faulted. The
+// effects extensions record in a turn are capped with no figure either
+// (Extensions › Trust), so they too are unbounded until a host sets one.
 //
 // A bundle records the static caps it was checked against, and a load
 // compares them with the host's own (`capsExceeding`): a world checked
@@ -123,6 +125,12 @@ export interface RuntimeBudgets {
    */
   readonly peoplePerPlace: number | null;
   /**
+   * Effects the statements of extensions may record in one turn, a poll's
+   * among them. The spec caps them and gives no figure (Extensions ›
+   * Trust): the host says, or nothing does.
+   */
+  readonly extensionEffects: number | null;
+  /**
    * The wall-clock backstop, in milliseconds. The spec gives no figure:
    * it is a backstop against something the step budget failed to catch,
    * logged loudly when it fires, and never load-bearing. `null` until a
@@ -171,6 +179,7 @@ export const DEFAULT_LIMITS: Limits = {
     shortestWakeSeconds: 60,
     pendingWakesPerObject: 1,
     peoplePerPlace: null,
+    extensionEffects: null,
     wallClockMs: null,
   },
 };
@@ -374,6 +383,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     bounds: 'people standing in one place at once, a move that would bring one more in refused',
   },
   {
+    name: 'extensionEffects',
+    kind: 'budget',
+    scope: 'turn',
+    exceeded: 'fault',
+    bounds: 'effects the statements of extensions record in one turn',
+  },
+  {
     name: 'wallClockMs',
     kind: 'budget',
     scope: 'turn',
@@ -400,6 +416,7 @@ const UNBOUNDABLE = new Set<LimitName>([
   'files',
   'sourceBytes',
   'peoplePerPlace',
+  'extensionEffects',
   'wallClockMs',
 ]);
 

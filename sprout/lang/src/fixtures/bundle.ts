@@ -11,6 +11,7 @@ import { compileBundle, type BundleResult } from '../bundle/compile/compile.js';
 import { DEFAULT_LIMITS, type Limits } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { fileNamedFor } from '../declare/file-names.js';
+import type { Extension } from '../declare/extensions.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 import type { KindDeclaration } from '../syntax/ast.js';
@@ -22,6 +23,10 @@ export interface WorldOptions {
   /** Files the host holds back; they read as absent at load. */
   readonly withheld?: readonly string[];
   readonly limits?: Limits;
+  /** The extensions the manifest pins, none unless a case says so. */
+  readonly pins?: Manifest['extensions'];
+  /** The extensions the host installed, none unless a case says so. */
+  readonly installed?: readonly Extension[];
 }
 
 /** `text` with everything outside `[start, end)` blanked and its lines kept, so what stays reads at its own line and column. */
@@ -98,7 +103,7 @@ export function compileWorld(
     author: 'Eric Eslinger',
     license: 'MIT',
     level: 1,
-    extensions: [],
+    extensions: options.pins ?? [],
     libraries: [{ name: STANDARD_LIBRARY.name, version: STANDARD_LIBRARY.version, sha }],
     files: Object.keys(laid),
   };
@@ -113,6 +118,7 @@ export function compileWorld(
     {
       mode: options.mode ?? 'publish',
       limits: options.limits ?? DEFAULT_LIMITS,
+      extensions: options.installed ?? [],
     },
   );
 }

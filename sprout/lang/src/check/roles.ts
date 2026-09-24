@@ -36,6 +36,7 @@ import type { ActSetting, CheckContext, MessageSetting } from './check.js';
 import type { NameScope } from './names.js';
 import { checkBlock } from './blocks.js';
 import type { SpeechBook } from './speech.js';
+import type { PinnedExtensions } from '../declare/extensions.js';
 
 /** Where a play is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
 export interface PlaySetting {
@@ -50,6 +51,8 @@ export interface PlaySetting {
   readonly messages?: MessageSetting;
   /** Where what the body says is recorded. */
   readonly speech?: SpeechBook;
+  /** The extensions the bundle pins, whose statements the body may write. */
+  readonly extensions?: PinnedExtensions;
 }
 
 /**
@@ -92,6 +95,7 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     acting: { verbs: setting.verbs },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
+    ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),
     ...(setting.speech === undefined
       ? {}
       : { speech: { ...setting.speech, body: play.declaration } }),

@@ -158,6 +158,8 @@ export class Parser {
    * per bracket.
    */
   readonly unclosedBrackets = new Set<number>();
+  /** The extensions the file names at its top, whose statements `media.show(…)` writes. */
+  readonly extensions = new Set<string>();
 
   constructor(
     readonly source: SourceFile,

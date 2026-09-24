@@ -9,8 +9,10 @@
 // `accept`, with the world as `from`; then the place is sent `:entered`,
 // the visitor `:moved`, the place's range `arrives` and `:arrived`, and
 // the visitor reads the place's description once the queue is empty.
-// What it says is one sequence of effects: `displaced`, where it is told,
-// the place's `arrives`, what the queue said, then the description.
+// What it says is one sequence of effects: the world's `missing`, where
+// the world pins an extension this host does not supply (Extensions ›
+// Activation and absence), `displaced`, where it is told, the place's
+// `arrives`, what the queue said, then the description.
 //
 // Two invariants. An arrival is a write turn, so a fault abandons all of
 // it; a visitor the place refuses, or a world that admits no one, writes
@@ -75,6 +77,10 @@ export const ENTRY_FAILED = 'Something went wrong as you arrived, and you have n
 /** The stock line for a world whose standard library leaves `displaced` out. */
 export const DISPLACED_STOCK = 'The place you were standing is gone.';
 
+/** The stock line for a world whose standard library leaves `missing` out. */
+export const MISSING_STOCK =
+  'This world uses something this host does not provide, and will be missing some of itself.';
+
 /** Where a visitor came in, and what the engine sends and says of it. */
 export interface Entered {
   readonly place: InstanceId;
@@ -96,7 +102,9 @@ export interface Admitted {
   readonly instance: InstanceId;
   /** Whether the visit was one the world had seen. */
   readonly returning: boolean;
-  /** The world's `displaced`, told first, where the place the visitor stood in is gone. */
+  /** The world's `missing`, told first, where the world pins an extension this host does not supply. */
+  readonly missing: Said | null;
+  /** The world's `displaced`, told next, where the place the visitor stood in is gone. */
   readonly displaced: Said | null;
   readonly entered: Entered;
   /** What the queue did from the entry on. */
@@ -207,6 +215,7 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
         visit: arrival.visit,
         instance: id,
         returning: record !== undefined,
+        missing: missesExtensions(catalogue) ? missingLine(draft, id) : null,
         displaced: gone ? displacedLine(draft, id) : null,
         entered: entry,
         drained,
@@ -231,6 +240,7 @@ function arrivalSpeaking(done: Admitted | { readonly refused: Said }): Speaking 
   return {
     actor: done.instance,
     lines: [
+      ...(done.missing === null ? [] : [{ said: done.missing }]),
       ...(done.displaced === null ? [] : [{ said: done.displaced }]),
       ...saidLines(done.entered.said),
       ...saidLines(done.drained.said),
@@ -349,6 +359,25 @@ export function displace(turn: WriteTurn, visit: VisitKey): Displaced {
     entry,
     drained,
     answers: answersAfter(turn, [...entry.notices, ...drained.notices]),
+  };
+}
+
+/** Whether the world pins an extension the host does not supply at its major, which a visitor is told on entry. */
+export function missesExtensions(catalogue: Catalogue): boolean {
+  return [...catalogue.extensions.values()].some((pinned) => pinned.installed === null);
+}
+
+/** The world's `missing`, from the world, to `visitor`, rendered with nothing bound (the spec's bindings table). */
+export function missingLine(state: StateReader, visitor: InstanceId): Said {
+  const passage = state.instance(state.world)?.kind.passages.get('missing');
+  const said: Speech = passage === undefined ? engineLine(MISSING_STOCK) : { passage };
+  return {
+    effect: 'notice',
+    to: [visitor],
+    by: state.world,
+    speaker: null,
+    said,
+    bindings: new Map(),
   };
 }
 

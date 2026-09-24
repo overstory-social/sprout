@@ -18,7 +18,8 @@
 import { libraryOf } from '../declare/enums.js';
 import type { KindRef } from '../declare/kinds.js';
 import { messageKey } from '../declare/messages.js';
-import type { Block, Parameters } from '../syntax/ast.js';
+import type { Block } from '../syntax/ast.js';
+import type { Parameters } from '../syntax/ast-events.js';
 import { runBody } from './body.js';
 import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.js';
 import type { InstanceId } from './ids.js';
@@ -108,6 +109,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
         heardBy: () => [],
         speaker: null,
         leftOut: [],
+        records: 'as-told',
       });
       runBody(body.block, frameFor(sent, body, context), 'act', sink);
       said.push(...acted.said);

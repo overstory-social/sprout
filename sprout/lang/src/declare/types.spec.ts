@@ -19,7 +19,10 @@ import {
   STRING,
   typeOfLiteral,
   type ValueType,
+  parameterType,
 } from './types.js';
+import { pinExtensions } from './extensions.js';
+import { IMAGE, MEDIA, SHOW } from '../fixtures/extensions.js';
 
 /** The enums this suite resolves against, declared the way a world declares them. */
 function table(): EnumTable {
@@ -297,5 +300,122 @@ describe('a literal describes itself the way a person would', () => {
     expect(describeLiteral(literalOf(':a "x"'))).toBe('text in quotes');
     expect(describeLiteral(literalOf(':a oak'))).toBe('`oak`');
     expect(describeLiteral(literalOf(':a [oak]'))).toBe('a list');
+  });
+});
+
+// --- an extension's types --------------------------------------------------
+
+/** A property written in a file that names `media` at its top where `named`, resolved against a host that has `media` or not. */
+function extensionTyped(text: string, named = true, installed = [MEDIA]) {
+  const source = new SourceFile('lamp.sprout', text);
+  const diagnostics = new Diagnostics();
+  const declared = parseProperty(source, diagnostics)!;
+  const pinned = pinExtensions([{ name: 'media', major: 2 }], installed);
+  const enums = new EnumTable({
+    pinned,
+    named: new Map(named ? [[source, new Set(['media'])]] : []),
+  });
+  const type = resolveType(declared.type!, enums, 'printers_shop', diagnostics);
+  const accepted = type !== null && checkLiteral(type, declared.default!, diagnostics);
+  return {
+    type,
+    accepted,
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+  };
+}
+
+describe('a type an extension adds', () => {
+  it('resolves by the extension’s name and its own, and says so in words', () => {
+    const { type, accepted, said } = extensionTyped(':image media.Image default "lamp.png"');
+    expect(said).toEqual([]);
+    expect(accepted).toBe(true);
+    expect(type).toEqual({
+      type: 'extension',
+      extension: 'media',
+      name: 'Image',
+      definition: IMAGE,
+    });
+    expect(showType(type!)).toBe('media.Image');
+    expect(sameType(type!, { ...type!, definition: null } as ValueType)).toBe(true);
+    expect(sameType(type!, { ...type!, name: 'Sound' } as ValueType)).toBe(false);
+  });
+
+  it('is refused in a file that does not name its extension, saying what to write', () => {
+    expect(extensionTyped(':image media.Image default "lamp.png"', false).said).toEqual([
+      [
+        'lamp.sprout:1:8',
+        '`media.Image` is a type of the extension `media`, which this file does not name.',
+        'Write `extension media 2` at the top of the file.',
+      ],
+    ]);
+  });
+
+  it('is refused where the extension adds no such type, naming the ones it does', () => {
+    expect(extensionTyped(':image media.Picture default "lamp.png"').said).toEqual([
+      [
+        'lamp.sprout:1:8',
+        'The extension `media` has no type `Picture`.',
+        'Its types: `media.Image`, `media.Sound`.',
+      ],
+    ]);
+  });
+
+  it('is never a list’s element', () => {
+    expect(extensionTyped(':images [media.Image] default []').said).toEqual([
+      [
+        'lamp.sprout:1:9',
+        "A list does not hold `media.Image`, which is an extension's type.",
+        'Declare one property of it for each value the kind holds.',
+      ],
+    ]);
+  });
+
+  it('takes as its literal text in quotes that the extension reads, refused in its words', () => {
+    expect(extensionTyped(':image media.Image default "lamp.gif"').said).toEqual([
+      [
+        'lamp.sprout:1:28',
+        '"lamp.gif" is not a picture: a picture\'s name ends in .png.',
+        'Write the name of a picture, as in "cat.png".',
+      ],
+    ]);
+    expect(extensionTyped(':image media.Image default 3').said).toEqual([
+      [
+        'lamp.sprout:1:28',
+        'This holds media.Image, and the number 3 is not one.',
+        'Write it as text in quotes, which the extension `media` reads.',
+      ],
+    ]);
+  });
+
+  it('resolves with no definition where the extension is absent, and holds its literal unread', () => {
+    const { type, accepted, said } = extensionTyped(
+      ':image media.Image default "anything"',
+      true,
+      [],
+    );
+    expect(said).toEqual([]);
+    expect(accepted).toBe(true);
+    expect(type).toEqual({
+      type: 'extension',
+      extension: 'media',
+      name: 'Image',
+      definition: null,
+    });
+  });
+});
+
+describe('an argument of an extension’s statement', () => {
+  it('is typed as the language’s value, or as one of the extension’s own types', () => {
+    const [image, caption] = SHOW.parameters;
+    expect(parameterType(MEDIA, image!)).toEqual({
+      type: 'extension',
+      extension: 'media',
+      name: 'Image',
+      definition: IMAGE,
+    });
+    expect(parameterType(MEDIA, caption!)).toEqual(STRING);
+    expect(parameterType(MEDIA, { name: 'on', type: 'boolean' })).toEqual(BOOLEAN);
+    expect(parameterType(MEDIA, { name: 'n', type: 'integer' })).toEqual(integer());
+    expect(parameterType(MEDIA, { name: 'x', type: { type: 'Map' } })).toBeNull();
   });
 });

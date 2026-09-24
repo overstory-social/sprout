@@ -132,6 +132,17 @@ describe('the other budgets a turn spends', () => {
     expect(() => budget.spawn()).toThrow(BudgetExhausted);
   });
 
+  it('counts the effects extensions record, against the host’s cap, and bounds none where it sets none', () => {
+    const budget = small({ extensionEffects: 1 });
+    budget.record();
+    expect(() => budget.record()).toThrow(
+      'extensionEffects: one turn may record 1 effects of extensions.',
+    );
+    const unbounded = small({});
+    for (let i = 0; i < 1000; i++) unbounded.record();
+    expect(unbounded.exhausted).toBeNull();
+  });
+
   it('checks a set role against how many objects it bound', () => {
     const budget = small({ setRoleObjects: 2 });
     budget.setRole(2);
