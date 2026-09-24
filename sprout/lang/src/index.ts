@@ -70,3 +70,6 @@ export * from './runtime/turn.js';
 export * from './runtime/command.js';
 export * from './runtime/time.js';
 export * from './runtime/tick.js';
+export * from './runtime/wakes.js';
+export * from './runtime/wake.js';
+export * from './runtime/maintenance.js';

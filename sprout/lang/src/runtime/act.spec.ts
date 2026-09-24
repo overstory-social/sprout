@@ -117,7 +117,7 @@ function turn(people = 1, budget = new Budget(DEFAULT_LIMITS.budgets)): Turn {
   });
   const passes = (container: InstanceId) =>
     container === WORLD_ID ? WORLD_PASSES_ANYTHING : container !== at('hall', 'box');
-  return { context: { draft, catalogue, passes, budget, mayHold: null }, people: ids };
+  return { context: { draft, catalogue, passes, budget, mayHold: null, now: 0 }, people: ids };
 }
 
 /** A visitor's typed command, run: `verb` done to the cat, or to nothing. */

@@ -1,0 +1,22 @@
+kiln.sprout:7:9    `wake` does not say when.
+                   Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.
+
+kiln.sprout:8:15   A wake counts in `hours`, always written that way.
+                   Write `wake in 1 hours`.
+
+kiln.sprout:9:14   `wake in 3` does not say seconds, minutes or hours.
+                   Write `wake in 3 hours`, `wake in 3 minutes` or `wake in 3 seconds`.
+
+kiln.sprout:10:13  How long a wake waits is a whole number, written out.
+                   Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.
+
+kiln.sprout:11:15  `wake in 2` does not say seconds, minutes or hours.
+                   Write `wake in 2 hours`, `wake in 2 minutes` or `wake in 2 seconds`.
+
+world.sprout:6:20  Nothing here is a `Kiln`.
+                   Declare it with `kind Kiln { … }`, or check the spelling of a kind this world or a library it uses declares.
+
+world.sprout:10:9  Nothing handles `:stir`, so sending it does nothing.
+                   Write `on :stir { … }` in the kind that should hear it, or take the message out.
+
+refused: 6 problems

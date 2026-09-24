@@ -105,9 +105,9 @@ export interface RuntimeBudgets {
   readonly setRoleObjects: number;
   /** Spawns in one turn. */
   readonly spawnsPerTurn: number;
-  /** The shortest wake a world may ask for, in seconds — the host's floor to raise. */
+  /** The shortest wake, in seconds — the host's floor to raise: a `wake` asked for sooner waits this long. */
   readonly shortestWakeSeconds: number;
-  /** Wakes one object may have pending, held across turns; a `wake` past it faults, which B36 enforces. */
+  /** Wakes one object may have pending, held across turns; a `wake` past it faults. */
   readonly pendingWakesPerObject: number;
   /**
    * The wall-clock backstop, in milliseconds. The spec gives no figure:
@@ -161,8 +161,11 @@ export const DEFAULT_LIMITS: Limits = {
   },
 };
 
-/** What exceeding a limit does: refuse the world at compile, or fault the turn at run time. */
-export type WhenExceeded = 'refusal' | 'fault';
+/**
+ * What going past a limit does: refuse the world at compile, fault the
+ * turn at run time, or, for a floor, raise what was asked to it.
+ */
+export type WhenExceeded = 'refusal' | 'fault' | 'raised';
 
 /** What a limit is counted against. */
 export type LimitScope =
@@ -337,8 +340,8 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     name: 'shortestWakeSeconds',
     kind: 'budget',
     scope: 'object',
-    exceeded: 'fault',
-    bounds: 'the shortest wake a world may ask for, the host floor',
+    exceeded: 'raised',
+    bounds: 'the shortest wake, the host’s floor, which a sooner one is raised to',
   },
   {
     name: 'pendingWakesPerObject',

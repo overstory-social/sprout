@@ -3,10 +3,11 @@
 // written as a statement (the spec's Movement and consent; Prose;
 // Properties › Naming a value; The world model › Spawning, Destroying;
 // Verbs › Moving something). `act` is read in `act.ts`, `send` and
-// `broadcast` in `sends.ts`, and `destroy self` and `finally destroy
-// self` in `destroy.ts`, and each is registered here with the rest. A `let` is here rather than with
-// expressions because its value may be a statement: `spawn` is the one
-// statement that also yields a binding.
+// `broadcast` in `sends.ts`, `destroy self` and `finally destroy self` in
+// `destroy.ts`, and `wake` in `wake.ts`, and each is registered here with
+// the rest. A `let` is here rather than with expressions because its
+// value may be a statement: `spawn` is the one statement that also yields
+// a binding.
 //
 // Each reader takes its statement or refuses it once, having said what to
 // write instead; nothing is guessed. A statement that could not be read
@@ -39,6 +40,7 @@ import { objectPath } from './paths.js';
 import { actStatement } from './act.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
+import { wakeStatement } from './wake.js';
 import { skipBracketed } from './recovery.js';
 
 /**
@@ -90,6 +92,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['act', actStatement],
   ['send', sendStatement],
   ['broadcast', broadcastStatement],
+  ['wake', wakeStatement],
 ]);
 
 /** One statement, or null having said why it is not one. */

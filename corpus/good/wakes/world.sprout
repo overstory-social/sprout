@@ -1,0 +1,17 @@
+// Wakes: a kiln fired by a visitor asks to be woken three hours on and
+// cools when it is; and a seedling, warmed by the same firing, that
+// grows by however long actually passed each time it wakes rather than
+// by counting its wakes, and asks again until it is grown.
+world wakes is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object kiln is Kiln
+    object seedling is Seedling
+  }
+}
+
+enum Firing { cool, firing }
+
+verb fire { role target  "fire [target]" }

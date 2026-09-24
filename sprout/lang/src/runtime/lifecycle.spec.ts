@@ -95,6 +95,7 @@ function context(
     passes: passing(),
     budget: new Budget(DEFAULT_LIMITS.budgets),
     mayHold: null,
+    now: 0,
     ...over,
   };
 }

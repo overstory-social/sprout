@@ -30,15 +30,15 @@ export class Ticker {
 
   /**
    * Tick every place of `microworldId` a visitor stands in, as at `now`,
-   * each turn with the inputs `inputs` gives its place. Resolves once every
-   * tick this round asked for has run.
+   * each turn with the seed and bound `inputs` gives its place. Resolves
+   * once every tick this round asked for has run.
    */
   async round(
     store: SproutStore,
     microworldId: string,
     host: TurnHost,
     now: HostSeconds,
-    inputs: (place: InstanceId) => WriteInputs,
+    inputs: (place: InstanceId) => Omit<WriteInputs, 'now'>,
   ): Promise<Ticking[]> {
     const places = occupiedPlaces(await committedState(store, microworldId, host));
     const waiting = this.waitingIn(microworldId);

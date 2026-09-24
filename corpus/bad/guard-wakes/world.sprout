@@ -1,0 +1,10 @@
+world guard_wakes is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object crate is Crate
+  }
+}
+
+verb pack { role target  "pack [target]" }

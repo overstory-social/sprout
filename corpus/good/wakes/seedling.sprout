@@ -1,0 +1,20 @@
+// Written against `elapsed`, so a wake delivered late, after an absence,
+// grows the seedling as far as the time that passed, in one step, and it
+// asks again only until ten hours' growth is in.
+kind Seedling {
+  :growing 0 min 0 max 36000
+
+  as target for fire {
+    do {
+      wake in 40 minutes
+      say "The seedling leans toward the warmth."
+    }
+  }
+
+  on :woke (elapsed) {
+    self.adjust(:growing, elapsed)
+    if (self.get(:growing) < 36000) {
+      wake in 2 hours
+    }
+  }
+}

@@ -1,20 +1,22 @@
 // Running a body's block (the spec's Verbs › The two passes, Moving
 // something, Acting; Movement and consent › Guards are read-only;
 // Properties › What the compiler checks, Lists, Per-actor memory; The
-// world model › Spawning, Destroying; Prose; Limits › Runtime budgets).
+// world model › Spawning, Destroying; Time › Wakes; Prose; Limits ›
+// Runtime budgets).
 //
 // One runner, in two modes. A guard and a `permit` decide: they read, and
 // end in `allow`, in `refuse`, or by reaching their end. A `do` acts: it
-// writes `self` through the turn's draft, spawns, destroys, moves, acts and
-// says, and a refused `move` or `act` ends it there. Each mode holds
-// exactly what `check/blocks.ts` lets its bodies hold, so anything else
-// reaching it is the engine's defect, thrown as a plain `Error`. Every statement executed is one step and every
-// expression node one more. A `set` or `remember` of a value its property
-// cannot hold faults, an `adjust` clamps, and adding a new element to a
-// full list faults. A `send` or a `broadcast` queues what it sends, and
-// a write that changes a property its kind watches queues the hook, which
-// the bus delivers once the body has ended. Nothing is rendered: B29
-// renders what is said, and B30 brings `tell`.
+// writes `self` through the turn's draft, spawns, destroys, moves, acts,
+// asks to be woken and says, and a refused `move` or `act` ends it there.
+// Each mode holds exactly what `check/blocks.ts` lets its bodies hold, so
+// anything else reaching it is the engine's defect, thrown as a plain
+// `Error`. Every statement executed is one step and every expression node
+// one more. A `set` or `remember` of a value its property cannot hold
+// faults, an `adjust` clamps, and adding a new element to a full list
+// faults. A `send` or a `broadcast` queues what it sends, and a write that
+// changes a property its kind watches queues the hook, which the bus
+// delivers once the body has ended. Nothing is rendered: B29 renders what
+// is said, and B30 brings `tell`.
 
 import type {
   Block,
@@ -54,6 +56,7 @@ import { reachMessage, type DeclaredMessage } from '../declare/messages.js';
 import { writtenPath } from '../syntax/ast.js';
 import type { Instance } from './state.js';
 import { defaultOf, fits, type Value } from './values.js';
+import { askToWake } from './wakes.js';
 
 /** What a `say` or a `refuse` gives: a passage as it applies on the speaker's kind, or the words quoted. */
 export type Speech = { readonly passage: ResolvedPassage } | { readonly text: string };
@@ -237,6 +240,9 @@ function runStatement(
       sink.sent(broadcastFrom(sendingIn(sink, frame), frame.self, declared, value));
       return 'end';
     }
+    case 'wake':
+      askToWake(acting(run, '`wake`').lifecycle, frame.self, statement);
+      return 'end';
     case 'say':
       acting(run, '`say`').say({
         by: frame.self,
