@@ -1,0 +1,5 @@
+// A boolean in a slot.
+kind Mirror {
+  :lit false
+  passage greeting { The glass is lit: {self.get(:lit)}. }
+}

@@ -1,0 +1,5 @@
+// A passage read off something that is not a thing.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { {self.get(:mood).shine} }
+}

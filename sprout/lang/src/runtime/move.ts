@@ -9,8 +9,8 @@
 // fault or a refusal leaves the draft as it was, and the one write is
 // `Draft.place`, which puts the thing last in its new container. And what
 // the engine then tells the world is returned rather than queued or said:
-// the messages for the queue (`bus.ts`), and the notices a place speaks for B29 to
-// render (B31 describes the place to the one who moved). A move is
+// the messages for the queue (`bus.ts`), and the notices a place speaks,
+// for `prose/` to render (B31 describes the place to the one who moved). A move is
 // charged for what it runs, its range walks and its guards' bodies, and
 // nothing for itself: the statement that proposed it is its body's step.
 
@@ -23,7 +23,8 @@ import type { Catalogue } from './catalogue.js';
 import type { Draft } from './draft.js';
 import { boundObject, type Evaluated } from './evaluate.js';
 import { runGuard, type Refusal } from './guards.js';
-import { declaredPathOf, type InstanceId } from './ids.js';
+import type { InstanceId } from './ids.js';
+import { engineLine } from './engine-lines.js';
 import type { EngineSend } from './lifecycle.js';
 import { isLive, liveTree } from './live.js';
 import { rangeOf, reaches, type PassRule, type RangeContext } from './range.js';
@@ -70,7 +71,7 @@ export interface EngineRefused {
   readonly engine: EngineRefusal;
   /** For a thing inside itself, the world's `inside_itself` as it applies on the world's kind. */
   readonly said: Speech;
-  /** `item` for `inside_itself`; none for fixed words. */
+  /** `item` for `inside_itself`; `item` and `to` for the fixed words. */
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
@@ -79,6 +80,9 @@ export type Refused = { readonly refusal: Refusal } | EngineRefused;
 
 /** The world's line for a move that would make a container hold itself (the spec's After the move). */
 const INSIDE_ITSELF = 'inside_itself';
+
+/** The engine's fixed words for an actor moved into what holds no actors, a one-line passage of `item` and `to`. */
+const NOT_A_PLACE = engineLine('{item} cannot stand in {to}.');
 
 /**
  * What the engine sends everything in range of a place an actor left or
@@ -208,8 +212,11 @@ export function moveInstance(
   if (actor && !holdsActors(draft, to)) {
     return {
       engine: 'not-a-place',
-      said: { text: `${nameOf(draft, item)} cannot stand in ${nameOf(draft, to)}.` },
-      bindings: new Map(),
+      said: NOT_A_PLACE,
+      bindings: new Map([
+        ['item', boundObject(item)],
+        ['to', boundObject(to)],
+      ]),
     };
   }
 
@@ -328,15 +335,4 @@ function within(draft: Draft, node: InstanceId, outer: InstanceId): boolean {
 /** Whether `id`'s kind declares `contains actors`: whether it is a place. */
 function holdsActors(draft: Draft, id: InstanceId): boolean {
   return draft.instance(id)?.kind.containsActors === true;
-}
-
-/**
- * An object as the engine's own refusals name it until B29 renders
- * names: a declared object by its identifier, the world by its name, and
- * anything made while the world runs by its kind's name.
- */
-function nameOf(draft: Draft, id: InstanceId): string {
-  const path = declaredPathOf(draft.world, id);
-  if (path !== null) return path.at(-1) ?? draft.world;
-  return draft.instance(id)?.kind.name ?? id;
 }

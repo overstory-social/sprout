@@ -1,0 +1,7 @@
+world prose_slot_in_slot is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+enum Mood { drowsy, bone_dry }

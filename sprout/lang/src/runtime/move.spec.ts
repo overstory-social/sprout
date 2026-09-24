@@ -177,9 +177,9 @@ function said(outcome: Moved | Refused): string {
 
 /** Words quoted, or a passage by its origin, its name and what it says. */
 function wordsOf(said: Speech): string {
-  return 'text' in said
-    ? `"${said.text}"`
-    : `${said.passage.origin} ${said.passage.name}: ${said.passage.body.text.trim()}`;
+  if ('text' in said) return `"${said.text}"`;
+  if ('absent' in said) return `absent ${said.absent}`;
+  return `${said.passage.origin} ${said.passage.name}: ${said.passage.body.text.trim()}`;
 }
 
 function refusalOf(outcome: Moved | Refused): Refusal {
@@ -282,7 +282,7 @@ describe('guards composed into one kind', () => {
   it('speak in run order: the first composed kind’s refusal is the one read', () => {
     const { draft, visitor } = turn();
     const refusal = refusalOf(moveInstance(context(draft), visitor, URN, TRAY));
-    expect(refusal).toEqual({
+    expect(refusal).toMatchObject({
       guard: 'depart',
       by: URN,
       origin: 'keep.Heavy',
@@ -365,18 +365,22 @@ describe('the engine’s own refusals', () => {
     // Marta's own `depart` refuses a mover other than her, and is not what speaks.
     const { draft, visitor } = turn();
     const before = snapshot(draft);
-    expect(moveInstance(context(draft), visitor, MARTA, TRAY)).toEqual({
+    // The engine's fixed words name the actor and where it was to go.
+    expect(moveInstance(context(draft), visitor, MARTA, TRAY)).toMatchObject({
       engine: 'not-a-place',
-      said: { text: 'marta cannot stand in tray.' },
-      bindings: new Map(),
+      said: { text: '{item} cannot stand in {to}.' },
+      bindings: new Map([
+        ['item', boundObject(MARTA)],
+        ['to', boundObject(TRAY)],
+      ]),
     });
     // The world holds things and not people.
     expect(said(moveInstance(context(draft), visitor, MARTA, WORLD_ID))).toBe(
-      'engine not-a-place: "marta cannot stand in keep."',
+      'engine not-a-place: "{item} cannot stand in {to}."',
     );
     // Nor does another actor: a person is not carried.
     expect(said(moveInstance(context(draft), visitor, MARTA, visitor))).toBe(
-      'engine not-a-place: "marta cannot stand in Person."',
+      'engine not-a-place: "{item} cannot stand in {to}."',
     );
     expect(snapshot(draft)).toBe(before);
   });

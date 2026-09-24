@@ -1,0 +1,7 @@
+kind Cabinet {
+  contains
+  passage listing {
+    {if self.count == 1}One thing{else}{self.count} things{/if} inside:
+    {for thing in self}{thing}{if $last}.{else}, {/if}{/for}
+  }
+}

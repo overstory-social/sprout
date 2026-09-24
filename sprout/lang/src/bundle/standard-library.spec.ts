@@ -4,6 +4,7 @@ import type { Declaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { kindName } from '../declare/kinds.js';
 import { ENGINE_VERBS, type ResolvedVerb } from '../declare/verbs.js';
+import { PLACE_LINES, WORLD_LINES } from '../declare/engine-passages.js';
 import { ABSENT_TABLE } from './absent.js';
 import { resolveDeclarations } from './declarations.js';
 import { libraryHash, type LibrarySource, type Manifest } from './bundle.js';
@@ -283,6 +284,15 @@ describe('the standard library', () => {
     for (const passage of world.passages.values()) {
       expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
     }
+  });
+
+  it('writes exactly the lines the engine says, on the world and on a place', () => {
+    const bundle = compiled().bundle!;
+    const place = bundle.kindLookup.qualified('sprout', 'Place')!;
+    expect([...bundle.world!.passages.keys()].sort()).toEqual(
+      WORLD_LINES.map((line) => line.name).sort(),
+    );
+    expect([...place.passages.keys()].sort()).toEqual(PLACE_LINES.map((line) => line.name).sort());
   });
 
   it('hashes to the value every manifest pins, so a change to it is read, not absorbed', () => {

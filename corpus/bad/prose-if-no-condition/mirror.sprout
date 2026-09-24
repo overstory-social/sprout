@@ -1,0 +1,5 @@
+// An `{if}` with nothing to test.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { {if}Asleep.{/if} }
+}

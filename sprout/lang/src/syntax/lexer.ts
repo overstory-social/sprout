@@ -14,8 +14,8 @@
 // Passages) and is not read by the rules of the code around it: an
 // apostrophe or a `?` would be refused, and every recovery walk would
 // count the braces of its slots. So the body is one `passage-body` token
-// holding its text whole, and B29 reads what it says. What opens one is
-// decided here, from the tokens already read rather than from the
+// holding its text whole, and `parse/prose.ts` reads what it says. What
+// opens one is decided here, from the tokens already read rather than from the
 // parser, because a parser looking ahead for a closing bracket reads
 // past a passage before any reader has asked for it.
 
@@ -129,6 +129,12 @@ const isKindRest = (ch: string): boolean => isNameRest(ch) || isUpper(ch);
  * was given and reading carries on, so a file with three bad characters
  * reports three times rather than once.
  */
+/** A stretch of a file to read on its own, as a slot inside prose is read. */
+export interface LexerWindow {
+  readonly start: number;
+  readonly end: number;
+}
+
 export class Lexer {
   private at = 0;
   private readonly ahead: Token[] = [];
@@ -147,10 +153,24 @@ export class Lexer {
   /** Whether a comment or a passage body never closed took the rest of the file. */
   private swallowed = false;
 
+  /** The text read: the file's, cut at the end of the window where there is one, so every offset is the file's. */
+  private readonly text: string;
+  /** Whether `$first` and its kind are names, as they are inside a passage's slots. */
+  private readonly prose: boolean;
+
+  /**
+   * @param window the part of the file to read, where it is not the whole:
+   *   a slot of a passage or of quoted text, whose `$` names are read as names
+   */
   constructor(
     readonly source: SourceFile,
     private readonly diagnostics: Diagnostics,
-  ) {}
+    window?: LexerWindow,
+  ) {
+    this.text = window === undefined ? source.text : source.text.slice(0, window.end);
+    this.at = window?.start ?? 0;
+    this.prose = window !== undefined;
+  }
 
   /** The next token, consuming it. At the end of the file, the `end` token, for ever. */
   next(): Token {
@@ -205,7 +225,7 @@ export class Lexer {
    * first `*\/` closes one however many `/*` it holds.
    */
   private skipBlanks(): void {
-    const text = this.source.text;
+    const text = this.text;
     for (;;) {
       while (this.at < text.length && /\s/.test(text[this.at]!)) this.at++;
       if (text[this.at] === '/' && text[this.at + 1] === '/') {
@@ -255,7 +275,7 @@ export class Lexer {
     }
     const header = this.header;
     if (header === null) return;
-    const sameLine = !this.source.text.slice(header.end, token.at.start).includes('\n');
+    const sameLine = !this.text.slice(header.end, token.at.start).includes('\n');
     if (!HEADER_KINDS.has(token.kind) || !sameLine || header.words >= HEADER_WORDS) {
       this.header = null;
       return;
@@ -269,7 +289,7 @@ export class Lexer {
   }
 
   private readToken(): Token {
-    const text = this.source.text;
+    const text = this.text;
     for (;;) {
       this.skipBlanks();
       const start = this.at;
@@ -278,6 +298,15 @@ export class Lexer {
       const ch = text[start]!;
 
       if (ch === '"') return this.readString(start);
+
+      // `$first`, `$last`, `$index` and `$count` inside a passage's
+      // slots (the spec's Prose › Conditionals and loops).
+      if (ch === '$' && this.prose && isLower(text[start + 1] ?? '')) {
+        let end = start + 1;
+        while (end < text.length && isNameRest(text[end]!)) end++;
+        this.at = end;
+        return this.token('name', start, end);
+      }
 
       if (ch === ':' && isLower(text[start + 1] ?? '')) {
         let end = start + 1;
@@ -339,7 +368,7 @@ export class Lexer {
    * unescaped `{` is an ordinary character here; only a passage reads it.
    */
   private readString(start: number): Token {
-    const source = this.source.text;
+    const source = this.text;
     let i = start + 1;
     let value = '';
     while (i < source.length) {
@@ -384,7 +413,7 @@ export class Lexer {
    * closed is refused once, at its opening, and takes the rest of the file.
    */
   private readPassageBody(open: number): Token {
-    const text = this.source.text;
+    const text = this.text;
     const name = this.header?.name ?? null;
     let depth = 0;
     let quoted = false;

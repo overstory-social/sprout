@@ -1,0 +1,19 @@
+kind Press {
+  prose "press.prose"
+  :mood   Mood default drowsy
+  :sheets 3 min 0 max 9
+  :moods  [Mood] default [bone_dry, drowsy]
+
+  as target for ink {
+    permit {
+      if (self.get(:sheets) == 0) { refuse "{self} has no paper to take the ink." }
+    }
+    do {
+      if (tools.count > 0) { say inked_with } else { say inked }
+    }
+  }
+
+  as target for peer {
+    do { say "{self} looks {self.get(:mood)} and holds {self.get(:sheets)} sheets. \{Its maker} would be proud." }
+  }
+}

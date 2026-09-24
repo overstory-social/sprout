@@ -1,0 +1,4 @@
+// `bound` asked of a loop's own name.
+kind Mirror {
+  passage greeting { {if bound $first}The first.{/if} }
+}

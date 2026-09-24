@@ -1,0 +1,6 @@
+world prose_slot_boolean is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

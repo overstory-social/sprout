@@ -1,0 +1,4 @@
+mirror.sprout:4:9  `prose` names a `.prose` file, and "mirror.txt" is not one.
+                   Write the file’s whole name, as in `prose "mirror.prose"`.
+
+refused: 1 problem

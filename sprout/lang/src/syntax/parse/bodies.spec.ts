@@ -50,7 +50,7 @@ type Owner = (typeof OWNERS)[number];
 
 /** The members every body holds, with `holds` first where the owner says one more, and `grammar` where it is a thing's. */
 const membersOf = (owner: Owner): string =>
-  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`without\`, ${owner.holds === null ? '`grammar`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`prose\`, \`without\`, ${owner.holds === null ? '`grammar`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
 
 /**
  * The declaration a file's text opened with: a world or a kind, or, for
@@ -294,7 +294,14 @@ describe('a body never closed', () => {
   it('names the passage it ends with, whose slot may have taken its `}`', () => {
     const text = 'kind K {\n  passage greeting { A {slot.\n  }\n}\nenum Ward { oak }\n';
     const { declarations, refusals } = read(text, 'k.sprout');
+    // The slot that took the passage's `}` reads on past its line, and
+    // what it reads is said where it stands.
     expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'k.sprout:3:3',
+        'A dot needs the name of something to read after it.',
+        'Write what to read, as in `self.count` or `self.get(:wear)`.',
+      ],
       [
         'k.sprout:5:1',
         '`K` is never closed.',

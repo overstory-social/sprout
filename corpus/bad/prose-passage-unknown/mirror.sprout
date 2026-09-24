@@ -1,0 +1,6 @@
+// A passage the kind does not have.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { {self.gretting} }
+  passage shine { It shines. }
+}

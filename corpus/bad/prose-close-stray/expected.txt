@@ -1,0 +1,4 @@
+mirror.sprout:4:47  `{/if}` closes no `{if}`.
+                    Take it out, or open the block it closes before it.
+
+refused: 1 problem

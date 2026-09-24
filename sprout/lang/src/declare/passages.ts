@@ -34,7 +34,7 @@ export interface ResolvedPassage {
   readonly origin: string;
   /** Whether it was written `default`, and so gives way to any other source's. */
   readonly yields: boolean;
-  /** Its words, carried whole; reading the slots in them is the prose reader's. */
+  /** Its words, as written and as the prose they read as. */
   readonly body: PassageBody;
   /** Where its name was written. */
   readonly at: Span;

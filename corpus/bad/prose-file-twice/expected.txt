@@ -1,0 +1,7 @@
+glass.prose:1:1    No kind points at "glass.prose", so nothing says its passages.
+                   Write `prose "glass.prose"` in the kind whose words these are, or take the file out.
+
+mirror.sprout:5:3  `Mirror` points at a `.prose` file twice.
+                   A kind's longer passages live in one file: keep one `prose` line in `Mirror`.
+
+refused: 1 problem

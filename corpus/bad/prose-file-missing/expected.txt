@@ -1,0 +1,4 @@
+mirror.sprout:4:9  `Mirror` points at "mirorr.prose", and no such file is in this world.
+                   Add "mirorr.prose" and name it among the world’s files, or take the `prose` line out.
+
+refused: 1 problem

@@ -1,0 +1,4 @@
+mirror.sprout:4:32  `{for … in}` walks what a thing holds, and this is integer 0 to 9.
+                    Walk a list or a role marked `many` with `{for x of …}`.
+
+refused: 1 problem

@@ -13,8 +13,9 @@
 // cannot hold faults, an `adjust` clamps, and adding a new element to a
 // full list faults. A `send` or a `broadcast` queues what it sends, and
 // a write that changes a property its kind watches queues the hook, which
-// the bus delivers once the body has ended. Nothing is rendered: B29
-// renders what is said, and B30 brings `tell`.
+// the bus delivers once the body has ended. What is said is carried
+// unrendered, with the names in scope, for `prose/` to render for each
+// reader; B30 brings `tell`.
 
 import type {
   Block,
@@ -30,6 +31,7 @@ import type {
 import { qualifiedName } from '../declare/enums.js';
 import { kindName } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
+import type { Prose } from '../syntax/ast-prose.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import { showType } from '../declare/types.js';
 import {
@@ -57,8 +59,18 @@ import { writtenPath } from '../syntax/ast.js';
 import type { Instance } from './state.js';
 import { defaultOf, fits, type Value } from './values.js';
 
-/** What a `say` or a `refuse` gives: a passage as it applies on the speaker's kind, or the words quoted. */
-export type Speech = { readonly passage: ResolvedPassage } | { readonly text: string };
+/**
+ * What a `say` or a `refuse` gives: a passage as it applies on the
+ * speaker's kind; the words quoted, as written and as the one-line
+ * passage they read as, with the library whose body said them, where a
+ * kind their slots name is read from; or, in a world loaded without the `.prose` file
+ * that held it, the name of a passage that is absent, which renders
+ * nothing (the spec's The compiler › What absent means).
+ */
+export type Speech =
+  | { readonly passage: ResolvedPassage }
+  | { readonly text: string; readonly prose: Prose; readonly library: string }
+  | { readonly absent: string };
 
 /** Whether a body decides, as a guard and a `permit` do, or acts, as a `do` does. */
 export type BodyMode = 'decide' | 'act';
@@ -274,18 +286,19 @@ function runIf(statement: IfStatement, frame: Frame, run: Run): Ended {
   }
 }
 
-/** `say` or `refuse` with words in quotes, or a passage as the speaker's kind has it, so a composer's own line replaces a default. */
+/**
+ * `say` or `refuse` with words in quotes, or a passage as the speaker's
+ * kind has it, so a composer's own line replaces a default. A passage
+ * the kind does not have is one whose `.prose` file the world was loaded
+ * without, since the checker refuses any other.
+ */
 function speech(statement: RefuseStatement | SayStatement, frame: Frame): Speech {
   const said = statement.said;
-  if (said.kind === 'string') return { text: said.value };
-  const passage = frame.state.instance(frame.self)?.kind.passages.get(said.text);
-  if (passage === undefined) {
-    const verb = statement.kind === 'say' ? 'says' : 'refuses with';
-    throw new Error(
-      `\`${frame.self}\` ${verb} the passage \`${said.text}\`, which its kind does not have; the checker refuses that.`,
-    );
+  if (said.kind === 'prose-literal') {
+    return { text: said.value, prose: said.prose, library: frame.library };
   }
-  return { passage };
+  const passage = frame.state.instance(frame.self)?.kind.passages.get(said.text);
+  return passage === undefined ? { absent: said.text } : { passage };
 }
 
 /**

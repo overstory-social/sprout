@@ -1,0 +1,6 @@
+// A loop variable named as a loop's own names are.
+kind Mirror {
+  :mood Mood default drowsy
+  contains
+  passage greeting { {for $first in self}{$first}{/for} }
+}

@@ -648,3 +648,29 @@ describe("a passage's body is one token, holding its words whole", () => {
     }
   });
 });
+
+describe('a window of a file, as a slot of prose is read', () => {
+  it('reads only its stretch, at the file’s own offsets, `$` names among its names', () => {
+    const source = new SourceFile('lines.prose', 'Before {$index == self.count} after.');
+    const diagnostics = new Diagnostics();
+    const lexer = new Lexer(source, diagnostics, { start: 8, end: 28 });
+    const tokens: Token[] = [];
+    for (let token = lexer.next(); token.kind !== 'end'; token = lexer.next()) tokens.push(token);
+    expect(diagnostics.all).toEqual([]);
+    expect(tokens.map((t) => `${t.kind}:${t.text}`)).toEqual([
+      'name:$index',
+      'punct:==',
+      'name:self',
+      'punct:.',
+      'name:count',
+    ]);
+    expect(tokens.map((t) => textOf(t.at))).toEqual(['$index', '==', 'self', '.', 'count']);
+  });
+
+  it('refuses a `$` in source, where no loop binds one', () => {
+    const { diagnostics } = read('$index');
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'Sprout does not use the character "$".',
+    ]);
+  });
+});

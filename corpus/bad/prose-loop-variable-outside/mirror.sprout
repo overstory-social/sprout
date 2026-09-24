@@ -1,0 +1,4 @@
+// A loop's own name outside any loop.
+kind Mirror {
+  passage greeting { {if $last}The last.{/if} }
+}

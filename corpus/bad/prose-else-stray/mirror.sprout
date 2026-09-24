@@ -1,0 +1,5 @@
+// An `{else}` outside any `{if}`.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { Nothing in it looks back. {else} Something does. }
+}

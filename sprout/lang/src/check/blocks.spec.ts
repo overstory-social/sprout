@@ -8,6 +8,22 @@ import { integer } from '../declare/types.js';
 import { bodyOf, KEY, VESSEL, at } from '../fixtures/check.js';
 import { roleBinding, valueOf } from './bindings.js';
 import { checkBlock, type BodyKind } from './blocks.js';
+import { PassageSites } from './speech.js';
+import type { ResolvedPassage } from '../declare/passages.js';
+import { readProseText } from '../fixtures/parse.js';
+
+/** A passage `full` for a kind to have, as composing resolves one. */
+const FULL: ResolvedPassage = (() => {
+  const { prose, source } = readProseText('No room.');
+  const at = source.span(0, 0);
+  return {
+    name: 'full',
+    origin: 'shop.Vessel',
+    yields: false,
+    body: { kind: 'passage-body', at, text: 'No room.', prose },
+    at,
+  };
+})();
 
 /** The block a play writes, as `permit { … }` holds it. The parse must succeed. */
 function blockOf(statements: string): Block {
@@ -194,6 +210,51 @@ describe('a guard or a `permit` sends nothing', () => {
     ]);
     expect(check('send self :creak', PERMIT).map(([, m]) => m)).toEqual([
       '`send` sends a message, and a `permit` only reads and decides.',
+    ]);
+  });
+});
+
+describe('what a body says is prose, checked where it stands or where it is said from', () => {
+  /** `statements` checked in a `do` of a vessel whose kind has the passage `full`, recording what it says. */
+  function speaking(statements: string, absent?: (name: string) => boolean) {
+    const withFull = { ...VESSEL, passages: new Map([['full', FULL]]) };
+    const context = bodyOf(withFull);
+    const sites = new PassageSites();
+    const body = { kind: 'play', at: at('self') };
+    const speech = {
+      sites,
+      body,
+      ...(absent === undefined ? {} : { absent: (_: unknown, name: string) => absent(name) }),
+    };
+    checkBlock(blockOf(statements), { ...context, speech }, DO);
+    return {
+      said: context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message]),
+      sites: sites.of(body),
+      rendered: sites.rendered,
+    };
+  }
+
+  it('checks words in quotes as a one-line passage, in the scope they stand in', () => {
+    expect(speaking('say "You fill {self}, {actor} watching."').said).toEqual([]);
+    expect(speaking('say "{self.get(:inked)}"').said).toEqual([
+      ['b.sprout:3:11', 'This slot is true or false, and a passage says what that means in words.'],
+    ]);
+    expect(speaking('let n = self.count\n    say "{n} {nothing}"').said).toEqual([
+      ['b.sprout:4:15', 'Nothing here is called `nothing`.'],
+    ]);
+  });
+
+  it('records a passage said by name, with what is in reach where it is said', () => {
+    const { said, sites } = speaking('let n = self.count\n    say full');
+    expect(said).toEqual([]);
+    expect(sites.map((site) => site.name)).toEqual(['full']);
+    expect(sites[0]!.scope.names().sort()).toEqual(['actor', 'here', 'n', 'self']);
+  });
+
+  it('leaves a passage its kind lacks to be told of where its `.prose` file is gone, and refuses it otherwise', () => {
+    expect(speaking('say ful', (name) => name === 'ful').said).toEqual([]);
+    expect(speaking('say ful').said.map(([, message]) => message)).toEqual([
+      '`Vessel` has no passage `ful`. Did you mean `full`?',
     ]);
   });
 });

@@ -1,0 +1,9 @@
+world prose_for_in_unknown is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object press is Press
+  }
+}
+verb work { role target  role tool  "work [target] with [tool]" }

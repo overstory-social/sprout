@@ -3,7 +3,7 @@
 // › Where types come from): the world's `unknown`, `unreachable` and
 // `which` passages, with `thing` or `candidates` bound as the bindings
 // table types them, and `actor` and `here` as every passage the engine
-// speaks to an actor has them. Nothing is rendered here: B29 renders.
+// speaks to an actor has them. Nothing is rendered here: `prose/` renders.
 // A `which` also carries, for each candidate, the line to type again to
 // mean it, so the question is answered with a command and the parser
 // keeps nothing between turns.

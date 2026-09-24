@@ -1,12 +1,13 @@
 // The bodies a bundle's kinds write, checked against the kinds they belong
-// to (the spec's The compiler › Two tiers: everything typed needs the
-// whole bundle). Every composed kind is checked for what it wrote itself —
-// a named kind, an object's anonymous kind, the world — and nothing is
-// checked twice for being composed: a kind's guard or play is checked
-// once, against the kind that wrote it: a consent guard, a role's `permit`
-// and `do`, a handler, a hook, a pass rule, and an exit's destination
-// and guard. Each body's names resolve from where it is written, and what
-// each reaches is recorded.
+// to, and then every passage against the bodies that say it (the spec's
+// The compiler › Two tiers: everything typed needs the whole bundle,
+// `actor` reachability through passages among it). Every composed kind is
+// checked for what it wrote itself — a named kind, an object's anonymous
+// kind, the world — and nothing is checked twice for being composed: a
+// kind's guard or play is checked once, against the kind that wrote it: a
+// consent guard, a role's `permit` and `do`, a handler, a hook, a pass
+// rule, and an exit's destination and guard. Each body's names resolve
+// from where it is written, and what each reaches is recorded.
 
 import { GUARD_NAMES } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
@@ -19,6 +20,9 @@ import { checkExit } from '../../check/exits.js';
 import type { MessageSetting } from '../../check/check.js';
 import type { Named, NameSource, Vantage } from '../../declare/names.js';
 import type { Node } from '../../source/nodes.js';
+import type { Span } from '../../source/source.js';
+import { checkPassages } from '../../check/passages.js';
+import { PassageSites } from '../../check/speech.js';
 
 /** What every body is checked against: the kinds, verbs and messages, and where names resolve. */
 export interface BodySetting {
@@ -32,6 +36,11 @@ export interface BodySetting {
   readonly world: KindRef | null;
   /** Where every name a body resolves is recorded, for the runtime. */
   readonly names: Map<Node, Named>;
+  /**
+   * Told of a passage a body names that its kind lacks because the
+   * `.prose` file that held it is absent: true where it has been told.
+   */
+  readonly absentPassage?: (self: KindRef, name: string, at: Span) => boolean;
 }
 
 /** A kind whose own bodies are checked, and where they are written. */
@@ -40,15 +49,31 @@ export interface Written {
   readonly vantage: Vantage;
 }
 
-/** Check every body each of `composed` wrote itself, against it, its names resolved from its vantage. */
-export function checkBodies(composed: readonly Written[], base: BodySetting): void {
+/**
+ * Check every body each of `composed` wrote itself, against it, its names
+ * resolved from its vantage, then every passage; give back the slots that
+ * render an option, which the runtime humanises.
+ */
+export function checkBodies(composed: readonly Written[], base: BodySetting): ReadonlySet<Node> {
+  const sites = new PassageSites();
+  const speech = {
+    sites,
+    ...(base.absentPassage === undefined ? {} : { absent: base.absentPassage }),
+  };
+  const namesOf = (vantage: Vantage) => ({
+    source: base.source,
+    vantage,
+    world: base.world,
+    table: base.names,
+  });
   for (const { kind, vantage } of composed) {
     const setting = {
       kinds: base.kinds,
       verbs: base.verbs,
       diagnostics: base.diagnostics,
       messages: base.messages,
-      names: { source: base.source, vantage, world: base.world, table: base.names },
+      names: namesOf(vantage),
+      speech,
     };
     const own = kindName(kind);
     for (const name of GUARD_NAMES) {
@@ -73,4 +98,11 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): vo
     }
     for (const exit of kind.exits) if (exit.origin === own) checkExit(exit, kind, setting);
   }
+  checkPassages({
+    speakers: composed.map(({ kind, vantage }) => ({ kind, names: namesOf(vantage) })),
+    kinds: base.kinds,
+    diagnostics: base.diagnostics,
+    sites,
+  });
+  return sites.options;
 }

@@ -1,0 +1,5 @@
+// A slot with nothing in it renders nothing, and is refused.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { The glass holds {} and nothing else. }
+}

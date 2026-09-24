@@ -1,0 +1,6 @@
+// A `{for}` with neither `in` nor `of`.
+kind Mirror {
+  :mood Mood default drowsy
+  contains
+  passage greeting { {for thing self}{thing}{/for} }
+}
