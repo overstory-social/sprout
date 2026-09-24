@@ -4,7 +4,8 @@
 // draft over the last committed state, under a budget of its own, and
 // either commits, giving the next state, the change set a store writes
 // and who now holds a stale view, or faults: the draft is dropped, and the
-// world is exactly as it was. A poll reads the committed state itself,
+// world is exactly as it was. Every draw it makes comes from one stream
+// begun from its seed. A poll reads the committed state itself,
 // under the poll's own step budget; it can write nothing, draws no seed,
 // and one that faults yields the world's `unseen`.
 //
@@ -20,6 +21,7 @@ import type { Speech } from './body.js';
 import { Budget, type TurnKind } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { changesBetween, Draft, storedChanges, type StoredChanges } from './draft.js';
+import { Draws } from './draws.js';
 import { faultOf, worldSpeech, type Fault } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
@@ -46,7 +48,7 @@ export interface TurnHost {
 
 /** What the host gives one write turn, and records beside it (the spec's The log). */
 export interface WriteInputs {
-  /** The seed the host drew for this turn, which every draw it makes comes from (B33). */
+  /** The seed the host drew for this turn, a whole number from 0 to `SEED_MAX`, which every draw it makes comes from. */
   readonly seed: number;
   /** The most instances the host will store for this world this turn; null where it sets no bound. */
   readonly mayHold: number | null;
@@ -54,7 +56,7 @@ export interface WriteInputs {
   readonly now: HostSeconds;
 }
 
-/** A write turn as its body sees it: its kind and seed, and what a body reads and writes through. */
+/** A write turn as its body sees it: its kind and seed, and what a body reads, writes and draws through. */
 export interface WriteTurn extends LifecycleContext {
   readonly kind: WriteTurnKind;
   readonly seed: number;
@@ -96,17 +98,27 @@ export function writeTurn<T>(
   inputs: WriteInputs,
   body: (turn: WriteTurn) => T,
 ): Written<T> {
-  return writeUnder(new Budget(host.budgets, kind, host.clock), state, kind, host, inputs, body);
+  const shared = {
+    budget: new Budget(host.budgets, kind, host.clock),
+    draws: new Draws(inputs.seed),
+  };
+  return writeUnder(shared, state, kind, host, inputs, body);
+}
+
+/** What every part of one write turn shares: the budget it is charged to and its one stream of draws. */
+export interface TurnShared {
+  readonly budget: Budget;
+  readonly draws: Draws;
 }
 
 /**
- * Run `body` as `writeTurn` does, charged to `budget`: a maintenance
- * turn's catch-up runs each wake so, under the one budget the turn has.
- * An instant that is not whole host seconds is the host's defect, thrown
- * before the turn opens.
+ * Run `body` as `writeTurn` does, charged to `shared`'s budget and drawing
+ * from its stream: a maintenance turn's catch-up runs each wake so, under
+ * the one budget and the one seed the turn has. An instant that is not
+ * whole host seconds is the host's defect, thrown before the turn opens.
  */
 export function writeUnder<T>(
-  budget: Budget,
+  shared: TurnShared,
   state: WorldState,
   kind: WriteTurnKind,
   host: TurnHost,
@@ -114,6 +126,7 @@ export function writeUnder<T>(
   body: (turn: WriteTurn) => T,
 ): Written<T> {
   const now = hostSeconds(inputs.now, 'a turn’s time');
+  const { budget, draws } = shared;
   const draft = new Draft(state);
   const { catalogue } = host;
   const passes = passRules({
@@ -131,6 +144,7 @@ export function writeUnder<T>(
       catalogue,
       passes,
       budget,
+      draws,
       mayHold: inputs.mayHold,
       now,
     });

@@ -16,11 +16,13 @@ import { Draft } from './draft.js';
 import { saveWorld } from './load.js';
 import type { WorldState } from './state.js';
 import { Budget } from './budget.js';
+import { Draws } from './draws.js';
 import {
   committedOver,
   pollTurn,
   writeTurn,
   writeUnder,
+  type TurnShared,
   type WriteTurn,
   type WriteTurnKind,
 } from './turn.js';
@@ -107,6 +109,20 @@ describe('a write turn', () => {
     }
   });
 
+  it('draws from a stream its seed begins, fresh for each turn, and refuses a seed that is not one', () => {
+    const drawn = (seed: number) => {
+      const written = writeTurn(belfry(), 'command', belfryHost(), { ...inputs, seed }, (turn) =>
+        [6, 6, 100].map((n) => turn.draws.below(n)),
+      );
+      if (!written.committed) throw new Error(written.fault.detail);
+      return written.value;
+    };
+    const expected = new Draws(41);
+    expect(drawn(41)).toEqual([6, 6, 100].map((n) => expected.below(n)));
+    expect(drawn(41)).toEqual(drawn(41));
+    expect(() => drawn(2 ** 32)).toThrow(/is not a seed/);
+  });
+
   it('reads through the containers’ own pass rules, and a draft over the state it was given', () => {
     const state = belfry();
     const written = writeTurn(state, 'command', belfryHost(), inputs, (turn) => ({
@@ -126,17 +142,38 @@ describe('a write turn', () => {
 describe('a write turn in parts', () => {
   it('charges every part run under one budget to it, so a later part has what the earlier left', () => {
     const budget = new Budget({ ...DEFAULT_LIMITS.budgets, steps: 15 }, 'maintenance');
+    const shared = { budget, draws: new Draws(inputs.seed) };
     const host = belfryHost();
-    const first = writeUnder(budget, belfry(), 'maintenance', host, inputs, (turn) => {
+    const first = writeUnder(shared, belfry(), 'maintenance', host, inputs, (turn) => {
       turn.budget.spend(10);
       return turn.budget === budget;
     });
     if (!first.committed) throw new Error(first.fault.detail);
     expect(first.value).toBe(true);
-    const second = writeUnder(budget, first.state, 'maintenance', host, inputs, (turn) => {
+    const second = writeUnder(shared, first.state, 'maintenance', host, inputs, (turn) => {
       turn.budget.spend(10);
     });
     expect(second).toMatchObject({ committed: false, fault: { name: 'BudgetExhausted' } });
+  });
+
+  it('draws every part from the one stream its seed begins, so no part repeats another’s draws', () => {
+    const host = belfryHost();
+    const drawnIn = (shared: TurnShared, state: WorldState) =>
+      writeUnder(shared, state, 'maintenance', host, inputs, (turn) =>
+        Array.from({ length: 8 }, () => turn.draws.below(1000)),
+      );
+    const shared = {
+      budget: new Budget(DEFAULT_LIMITS.budgets, 'maintenance'),
+      draws: new Draws(inputs.seed),
+    };
+    const first = drawnIn(shared, belfry());
+    if (!first.committed) throw new Error(first.fault.detail);
+    const second = drawnIn(shared, first.state);
+    if (!second.committed) throw new Error(second.fault.detail);
+    const whole = new Draws(inputs.seed);
+    const one = Array.from({ length: 16 }, () => whole.below(1000));
+    expect([...first.value, ...second.value]).toEqual(one);
+    expect(second.value).not.toEqual(first.value);
   });
 
   it('commits as one turn what its parts did, against the state the first opened on', () => {
@@ -183,12 +220,13 @@ describe('a poll', () => {
     expect(seen).toEqual({ faulted: false, view: false });
   });
 
-  it('has nothing to write with', () => {
+  it('has nothing to write with, and nothing to draw from', () => {
     const polled = pollTurn(belfry(), belfryHost(), (turn) => ({
       draft: turn.state instanceof Draft,
       writes: 'write' in turn.state || 'place' in turn.state,
+      draws: 'draws' in turn,
     }));
-    expect(polled).toEqual({ faulted: false, view: { draft: false, writes: false } });
+    expect(polled).toEqual({ faulted: false, view: { draft: false, writes: false, draws: false } });
   });
 
   it('yields the world’s `unseen` when its look faults', () => {

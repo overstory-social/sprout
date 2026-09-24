@@ -51,6 +51,7 @@ import { arrivalPlace } from './arrival.js';
 import { checkBodies } from './bodies.js';
 import { warnDestroyingDeclared } from './destroyed.js';
 import { warnUnsentAndUnhandled } from './events.js';
+import { warnUnsaid } from './unsaid.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
 import { attachProse } from './prose.js';
@@ -213,6 +214,16 @@ export function compileBundle(
     namespace: manifest.namespace,
     diagnostics: report.diagnostics,
   });
+  // A refused bundle is missing what was refused, so nothing is said of
+  // what its verbs' plays leave unsaid.
+  if (!report.diagnostics.refused) {
+    warnUnsaid({
+      kinds: everyKind,
+      verbs: tables.verbs.all(),
+      namespace: manifest.namespace,
+      diagnostics: report.diagnostics,
+    });
+  }
 
   // The kinds, objects and places caps count what resolved, on the same
   // footing as the source and file caps, and so refuse at load too.

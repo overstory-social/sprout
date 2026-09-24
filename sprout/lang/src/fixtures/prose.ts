@@ -17,6 +17,8 @@ import { newInstance } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
 import type { RenderContext } from '../prose/render.js';
 import { renderFor } from '../prose/speech.js';
+import { LineDraws } from '../prose/line-draws.js';
+import { Draws } from '../runtime/draws.js';
 import { compiledWorld } from './bundle.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
@@ -24,7 +26,8 @@ const CAPS = DEFAULT_LIMITS.caps;
 /**
  * A mill with a yard holding a press whose passages live in `press.prose`,
  * a crate holding an apple and two ribs, a brass key, an oak door, and an
- * echo whose passage renders itself.
+ * echo whose `ring` renders itself and whose `call`, `calls` and `toss`
+ * draw.
  */
 export const MILL: Bundle = compiledWorld('mill', {
   'world.sprout': [
@@ -65,7 +68,13 @@ export const MILL: Bundle = compiledWorld('mill', {
     '  :moods [Mood] default [bone_dry, drowsy]',
     '  as target for ink { do { say inked } }',
     '}',
-    'kind Echo { passage ring { {self.ring} } }',
+    'kind Echo {',
+    '  passage ring { {self.ring} }',
+    '  passage call { {one of}Hello{or}Halloo{or}Who is there{/one of}, {actor}. }',
+    '  passage calls { {for t of tools}{one of}ah{or}oh{/one of}{if !$last} {/if}{/for} }',
+    '  passage toss { {if chance(2)}Heads{else}Tails{/if}, and {self.call} }',
+    '  as target for ink { do { say call  say calls  say toss } }',
+    '}',
     '',
   ].join('\n'),
   'press.prose': [
@@ -108,8 +117,8 @@ export interface ProseTurn {
   readonly draft: Draft;
 }
 
-/** A fresh turn over the mill with Marta standing in the yard. */
-export function proseTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets): ProseTurn {
+/** A fresh turn over the mill with Marta standing in the yard, drawing from `seed`. */
+export function proseTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets, seed = 7): ProseTurn {
   const catalogue = catalogueOf(MILL, CAPS);
   const draft = new Draft(initialState(catalogue));
   const marta = newInstance(
@@ -130,6 +139,7 @@ export function proseTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets): Pro
       budget: new Budget(budgets),
       passes: (container) => (container === draft.world ? WORLD_PASSES_ANYTHING : true),
       nicknames: new Map([[marta.id, 'Marta']]),
+      draws: new LineDraws(new Draws(seed)),
     },
   };
 }

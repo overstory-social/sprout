@@ -117,6 +117,57 @@ describe('a deciding body only reads and decides', () => {
   });
 });
 
+describe('a deciding body draws nothing', () => {
+  it('refuses `chance`, `random` and `{one of}` in a guard, naming the guard', () => {
+    expect(
+      check(
+        'if (chance(2)) { refuse "No." }\n    let n = random(6)\n    refuse "{one of}No.{or}Not now.{/one of}"',
+        GUARD,
+      ),
+    ).toEqual([
+      [
+        'b.sprout:3:9',
+        '`depart` may not use `chance`: a guard is asked as part of a decision it must not change.',
+      ],
+      [
+        'b.sprout:4:13',
+        '`depart` may not use `random`: a guard is asked as part of a decision it must not change.',
+      ],
+      [
+        'b.sprout:5:13',
+        '`depart` may not use `{one of}`: a guard is asked as part of a decision it must not change.',
+      ],
+    ]);
+  });
+
+  it('refuses them in a `permit`, inside every branch', () => {
+    expect(check('if (self.count > 1) { if (random(3) == 0) { allow } }', PERMIT)).toEqual([
+      [
+        'b.sprout:3:31',
+        'A `permit` may not use `random`: a `permit` is asked as part of a decision it must not change.',
+      ],
+    ]);
+  });
+
+  it('refuses a `tell` or `text` that draws once, for standing there at all, and not again for drawing', () => {
+    expect(check('tell "{one of}Hi.{or}Ho.{/one of}"', GUARD)).toEqual([
+      ['b.sprout:3:5', '`tell` speaks, and `depart` only reads and decides.'],
+    ]);
+    expect(check('tell self "{one of}Hi.{or}Ho.{/one of}"', PERMIT)).toEqual([
+      ['b.sprout:3:5', '`tell` speaks, and a `permit` only decides.'],
+    ]);
+    expect(check('text "{one of}Hi.{or}Ho.{/one of}"', GUARD)).toEqual([
+      ['b.sprout:3:5', '`text` gives a `describe` its words, and this is `depart`.'],
+    ]);
+  });
+
+  it('takes them in a `do`', () => {
+    expect(
+      check('if (chance(2)) { say "{one of}Yes.{or}Aye.{/one of}" }\n    let n = random(6)', DO),
+    ).toEqual([]);
+  });
+});
+
 describe('a `do` acts', () => {
   it('takes the writes, `say`, `spawn`, `destroy`, `move`, `wake` and a `let` naming a spawn', () => {
     expect(
@@ -199,6 +250,16 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
     expect(
       check('self.set(:inked, true)\n    spawn Vessel in self\n    destroy self', HANDLER),
     ).toEqual([]);
+  });
+
+  it('tells, the place or one it has bound, and never gives a `describe`’s `text`', () => {
+    expect(check('tell "Hi."\n    tell self "Hi."', HANDLER)).toEqual([]);
+    expect(check('tell "Hi."\n    text "Hi."', DO).map(([, m]) => m)).toEqual([
+      '`text` gives a `describe` its words, and this is a `do`.',
+    ]);
+    expect(check('tell "Hi."', GUARD).map(([, m]) => m)).toEqual([
+      '`tell` speaks, and `depart` only reads and decides.',
+    ]);
   });
 
   it('refuses `say`, `refuse` and `allow`, naming the handler', () => {

@@ -123,8 +123,9 @@ describe('an NPC acting', () => {
       runReading(reading(YARD, 'nudge', CAT, { target: { object: marta! } }), contextOf(one)),
     );
     expect(said.said).toHaveLength(1);
-    // The actors directly in the hall in contents order: the dog, then Ivo.
-    expect(said.said[0]).toMatchObject({ to: [DOG, ivo], by: marta, speaker: CAT });
+    // The people directly in the hall, in contents order: Ivo; the dog is an
+    // NPC, and reads nothing.
+    expect(said.said[0]).toMatchObject({ to: [ivo], by: marta, speaker: CAT });
   });
 
   it('has no output where its reading said nothing, since nobody is behind it to answer', () => {

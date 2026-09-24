@@ -7,10 +7,12 @@ import {
   BUS,
   DOG,
   eventTurn,
+  GEM,
   held,
   LAMP,
   MATCH,
   MOTH,
+  STRAY,
   TIDIER,
   WICK,
   type EventTurn,
@@ -18,6 +20,7 @@ import {
 import type { DeclaredMessage } from '../declare/messages.js';
 import { BudgetExhausted } from './budget.js';
 import { drain, type Queued } from './bus.js';
+import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import { runReading, type Acted } from './reading.js';
 import type { AuthoredSend } from './sends.js';
@@ -67,6 +70,17 @@ describe('the queue drains', () => {
     );
     expect(held(one, BELL, 'waited')).toBe(17);
     expect(drained.events).toBe(2);
+  });
+
+  it('runs a handler with the turn’s draws, in the order the queue delivers', () => {
+    const one = eventTurn();
+    const expected = new Draws(7);
+    const tolls: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      drain(queued(sent('roll', BELL, BELL)), context(one));
+      tolls.push(held(one, BELL, 'toll') as number);
+    }
+    expect(tolls).toEqual(Array.from({ length: 5 }, () => expected.below(6)));
   });
 
   it('queues a hook once per change, and not for a write that changes nothing', () => {
@@ -140,6 +154,17 @@ describe('the queue drains', () => {
     expect(drained.said).toHaveLength(1);
     expect(drained.said[0]).toMatchObject({ effect: 'refused', to: [], speaker: null });
     expect(held(one, TIDIER, 'tried')).toBe(false);
+  });
+
+  it('tells a handler’s words to the people in its place, nobody left out, since no reading runs', () => {
+    const one = eventTurn();
+    const drained = drain(queued(sent('rang', GEM, BELL), sent('rang', STRAY, BELL)), context(one));
+    // The gem in the shut chest is heard in the hall; the stray in the
+    // empty yard is heard by nobody, and is still what it told.
+    expect(drained.said.map((said) => [said.effect, said.by, said.to, said.speaker])).toEqual([
+      ['told', GEM, [one.visitor], null],
+      ['told', STRAY, [], null],
+    ]);
   });
 
   it('hands the light down a kind’s own copy, named from the kind’s body', () => {

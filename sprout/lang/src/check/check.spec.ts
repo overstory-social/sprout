@@ -196,7 +196,10 @@ describe('it never guesses, and never dies', () => {
       'self.get()',
       ':wet',
       'Key',
-      'chance(4)',
+      'chance(0)',
+      'random(self.get(:inked))',
+      'chance()',
+      'roll(4)',
     ];
     for (const text of texts) {
       const context = vessel();

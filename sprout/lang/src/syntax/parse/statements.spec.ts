@@ -9,7 +9,6 @@ import { chooser, readStatement, shape, type Chooser } from '../../fixtures/pars
 import { Lexer } from '../lexer.js';
 import { DECLARATION_READERS } from './declarations.js';
 import { DEEPEST, Parser } from './parser.js';
-import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import {
   block,
   letStatement,
@@ -535,7 +534,7 @@ describe('a statement', () => {
   });
 
   it('refuses a word that starts none, naming the ones it reads', () => {
-    for (const text of ['tell takes', '4 + 1', 'Cup in self', '"text"']) {
+    for (const text of ['with takes', '4 + 1', 'Cup in self', '"text"']) {
       const { statement, refusals } = readStatement(text);
       expect(statement, text).toBeNull();
       expect(refusals, text).toHaveLength(1);
@@ -543,7 +542,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `say`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast` and `wake`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast` and `wake`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -698,67 +697,5 @@ describe('a statement never vanishes silently', () => {
       'spawn',
       'wake',
     ]);
-  });
-});
-
-describe('`say` speaks to the actor, in quotes or in a passage', () => {
-  it('reads the words in quotes, or a passage’s name', () => {
-    const quoted = readStatement('say "The bolt slides back."');
-    expect(quoted.refusals).toEqual([]);
-    expect(quoted.statement).toMatchObject({
-      kind: 'say',
-      said: { kind: 'prose-literal', value: 'The bolt slides back.' },
-    });
-    expect(unspanned(quoted.statement!)).toEqual([]);
-    const named = readStatement('say taken');
-    expect(named.statement).toMatchObject({ kind: 'say', said: { kind: 'ident', text: 'taken' } });
-  });
-
-  it('reads words in quotes as a one-line passage, whose slots are the file’s to point at', () => {
-    const { statement, refusals } = readStatement('say "You take {target}. \\{ is a brace."');
-    expect(refusals).toEqual([]);
-    if (statement?.kind !== 'say' || statement.said.kind !== 'prose-literal') {
-      return expect.unreachable('a `say` in quotes was written');
-    }
-    const { pieces } = statement.said.prose;
-    expect(pieces.map((piece) => piece.kind)).toEqual(['prose-words', 'prose-slot', 'prose-words']);
-    const slot = pieces[1]!;
-    expect(textOf(slot.at)).toBe('{target}');
-    expect(pieces[2]).toMatchObject({ text: '. { is a brace.' });
-  });
-
-  it('holds words in quotes to the host’s cap on a literal line, counted as they mean', () => {
-    const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 10 };
-    const fits = readStatement('say "0123456\\"89"', caps);
-    expect(fits.refusals).toEqual([]);
-    const long = readStatement('say "0123456789a"', caps);
-    expect(long.refusals.map((d) => [d.message, d.remedy])).toEqual([
-      [
-        'This line is 11 characters long, and 10 is as long as a `say` in quotes may be.',
-        'Put the words in a passage, which has no length cap of its own, and say it by name, as in `say greeting`.',
-      ],
-    ]);
-    expect(long.statement?.kind).toBe('say');
-  });
-
-  it('refuses a `say` with nothing to say, or a reading where the words go', () => {
-    for (const [text, at] of [
-      ['say', 'body.sprout:1:4'],
-      ['say self.get(:x)', 'body.sprout:1:4'],
-      ['say 4', 'body.sprout:1:5'],
-    ] as const) {
-      const { statement, refusals } = readStatement(text);
-      expect(statement, text).toBeNull();
-      expect(
-        refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-        text,
-      ).toEqual([
-        [
-          at,
-          '`say` says something.',
-          'Write the words in quotes, as in `say "The bolt slides back."`, or name a passage, as in `say taken`.',
-        ],
-      ]);
-    }
   });
 });

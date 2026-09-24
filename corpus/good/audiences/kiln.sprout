@@ -1,0 +1,17 @@
+// The spec's kiln: fired by someone, cooled by a wake nobody performs.
+kind Kiln {
+  :hot false
+
+  as target for fire {
+    do {
+      self.set(:hot, true)
+      wake in 3 hours
+      say "The chamber takes the flame."
+    }
+  }
+
+  on :woke (elapsed) {
+    self.set(:hot, false)
+    tell "The kiln ticks as it cools."
+  }
+}

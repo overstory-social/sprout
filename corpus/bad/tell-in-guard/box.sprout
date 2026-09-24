@@ -1,0 +1,7 @@
+kind Box {
+  contains
+  accept (item, from) {
+    tell "Something drops into the box."
+    allow
+  }
+}

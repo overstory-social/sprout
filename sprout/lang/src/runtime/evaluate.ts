@@ -13,10 +13,17 @@
 // It only reads. `bound tool` asks whether the frame binds the name, which
 // is how a role's body tells a tool it was given from one it was not; an
 // identifier is what the checker resolved it to, and faults where that is
-// not in range (`named.ts`).
-// `chance` and `random` are B33's.
+// not in range (`named.ts`). `chance` and `random` draw from the frame's
+// stream (`draws.ts`), which only a body that acts in a write turn has.
 
-import type { BinaryOperator, CallExpr, Expr, KindExpr, MemberExpr } from '../syntax/ast.js';
+import type {
+  BinaryOperator,
+  CallExpr,
+  Expr,
+  FreeCallExpr,
+  KindExpr,
+  MemberExpr,
+} from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { INTEGER_MAX, INTEGER_MIN } from '../declare/types.js';
@@ -28,6 +35,7 @@ import type { NameTable } from '../check/names.js';
 import { reachedByName } from './named.js';
 import type { PassRule } from './range.js';
 import { defaultOf, type Value } from './values.js';
+import type { Draw } from './draws.js';
 
 /**
  * What a name is bound to, and what an expression evaluates to: a value,
@@ -58,6 +66,8 @@ export interface Frame {
   readonly names: NameTable;
   /** What the turn's containers let through, which reading through a name asks. */
   readonly passes: PassRule<InstanceId>;
+  /** The turn's draws, where the body acts in a write turn; a deciding body and a poll have none. */
+  readonly draws?: Draw;
 }
 
 /**
@@ -128,9 +138,27 @@ function leaf(expr: Expr, frame: Frame): Evaluated {
     case 'kind-expr':
       throw unchecked('a kind standing as a value');
     case 'free-call':
-      throw unchecked(`\`${expr.name.text}(…)\`, which B33 brings,`);
+      return drawn(expr, frame);
     default:
       throw unchecked(`a ${expr.kind} at the bottom of a spine`);
+  }
+}
+
+/** `chance(n)`, true one time in n, or `random(n)`, from 0 to n − 1, drawn from the frame's stream. */
+function drawn(expr: FreeCallExpr, frame: Frame): Evaluated {
+  const written = expr.arguments[0];
+  if (expr.arguments.length !== 1 || written?.kind !== 'integer') {
+    throw unchecked(`\`${expr.name.text}\` given what is not one number written out`);
+  }
+  if (frame.draws === undefined) throw unchecked(`\`${expr.name.text}\` where nothing draws`);
+  const value = frame.draws.below(written.value);
+  switch (expr.name.text) {
+    case 'chance':
+      return boundValue(value === 0);
+    case 'random':
+      return boundValue(value);
+    default:
+      throw unchecked(`\`${expr.name.text}(…)\``);
   }
 }
 

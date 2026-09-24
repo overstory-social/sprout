@@ -1,0 +1,3 @@
+kind Rope {
+  on :spawned (from) { broadcast :rang }
+}

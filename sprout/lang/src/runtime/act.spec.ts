@@ -20,6 +20,7 @@ import {
   type Said,
 } from './reading.js';
 import { newInstance } from './state.js';
+import { Draws } from './draws.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
 
@@ -117,7 +118,10 @@ function turn(people = 1, budget = new Budget(DEFAULT_LIMITS.budgets)): Turn {
   });
   const passes = (container: InstanceId) =>
     container === WORLD_ID ? WORLD_PASSES_ANYTHING : container !== at('hall', 'box');
-  return { context: { draft, catalogue, passes, budget, mayHold: null, now: 0 }, people: ids };
+  return {
+    context: { draft, catalogue, passes, budget, draws: new Draws(7), mayHold: null, now: 0 },
+    people: ids,
+  };
 }
 
 /** A visitor's typed command, run: `verb` done to the cat, or to nothing. */
@@ -213,8 +217,9 @@ describe('an `act` run where it stands', () => {
     const one = turn(2);
     const [marta, ivo] = one.people;
     expect(lines(acted(typed(one, 'pet')))).toEqual([
-      // The cat's own reading: its participants, the cat and Marta, do not hear it.
-      { effect: 'said', by: CAT, to: [DOG, ivo], speaker: CAT, words: 'purr' },
+      // The cat's own reading: its participants, the cat and Marta, do not hear
+      // it, and the dog, an NPC, reads nothing.
+      { effect: 'said', by: CAT, to: [ivo], speaker: CAT, words: 'purr' },
       // Then the rest of the cat's `do` in Marta's command, said to her.
       { effect: 'said', by: CAT, to: [marta], speaker: null, words: 'after' },
     ]);
@@ -228,7 +233,7 @@ describe('an `act` run where it stands', () => {
       {
         effect: 'refused',
         by: marta,
-        to: [DOG, ivo],
+        to: [ivo],
         speaker: CAT,
         words: 'You pull your hand away.',
       },

@@ -9,6 +9,7 @@
 // renders nothing between two blank lines leaves no paragraph behind.
 
 import type { Node } from '../source/nodes.js';
+import type { Span } from '../source/source.js';
 import type { Expr, Ident, KindExpr } from './ast.js';
 
 /** Words, as written: escapes resolved, spaces and single line breaks kept for the renderer to reflow. */
@@ -63,8 +64,19 @@ export interface ProseFor extends Node {
   readonly body: Prose;
 }
 
+/**
+ * `{one of}…{or}…{/one of}` — the blocks one of which renders,
+ * picked uniformly by the turn's draws (the spec's Chance › The forms).
+ */
+export interface ProseOneOf extends Node {
+  readonly kind: 'prose-one-of';
+  /** The `{one of}` tag itself, where a refusal of the choice points. */
+  readonly opened: Span;
+  readonly choices: readonly Prose[];
+}
+
 export type ProsePiece =
-  ProseWords | ProseParagraph | ProseNewline | ProseSlot | ProseIf | ProseFor;
+  ProseWords | ProseParagraph | ProseNewline | ProseSlot | ProseIf | ProseFor | ProseOneOf;
 
 /** A run of prose: a passage's whole body, a line in quotes, or a block's inside. */
 export interface Prose extends Node {

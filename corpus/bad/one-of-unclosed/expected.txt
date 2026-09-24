@@ -1,0 +1,7 @@
+cat.sprout:3:20  This `{one of}` is never closed.
+                 Add `{/one of}` where its last choice ends.
+
+cat.sprout:4:34  `{/one of}` closes no `{one of}`.
+                 Take it out, or open the block it closes before it.
+
+refused: 2 problems

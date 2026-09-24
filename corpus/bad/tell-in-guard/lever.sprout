@@ -1,0 +1,6 @@
+kind Lever {
+  as target for pull {
+    permit { tell "{actor} reaches for the lever." }
+    do { say "It gives." }
+  }
+}

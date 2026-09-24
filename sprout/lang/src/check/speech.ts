@@ -1,16 +1,18 @@
 // Where a passage is said from, as the checker meets it (the spec's Prose
-// › Passages; The compiler › Two tiers: `actor` reachability through
-// passages). A passage may use the bindings of the body that invokes it,
-// so it can only be checked against each place it is invoked from: a body
-// records every `say` or `refuse` of a passage by name, with what was in
-// scope there, and every slot that renders another object's passage, and
-// `passages.ts` checks each passage those reach once the bundle's bodies
-// have all been read.
+// › Passages; Chance › Where chance is forbidden; The compiler › Two
+// tiers: `chance` and `actor` reachability through passages). A passage
+// may use the bindings of the body that invokes it, so it can only be
+// checked against each place it is invoked from: a body records every
+// `say` or `refuse` of a passage by name, with what was in scope there
+// and whether it may draw, and every slot that renders another object's
+// passage, and `passages.ts` checks each passage those reach once the
+// bundle's bodies have all been read.
 
 import type { KindRef } from '../declare/kinds.js';
 import type { Node } from '../source/nodes.js';
 import type { Span } from '../source/source.js';
 import type { Scope } from './bindings.js';
+import type { Undrawn } from './chance.js';
 
 /** A statement in a body that names a passage of its own kind: `say taken`, `refuse full`. */
 export interface PassageSaid {
@@ -19,6 +21,8 @@ export interface PassageSaid {
   readonly at: Span;
   /** What was in reach where it was said, `self` among it. */
   readonly scope: Scope;
+  /** Why the body that said it draws nothing, where it decides; null where it acts. */
+  readonly undrawn: Undrawn | null;
 }
 
 /** A slot rendering another object's passage: `{pot.greeting}`. */
@@ -30,6 +34,8 @@ export interface PassageRendered {
   readonly kind: KindRef;
   /** What the passage it renders is run with: `actor` and `here`, where they are bound where the slot is. */
   readonly scope: Scope;
+  /** Why the prose the slot is in draws nothing, where it does not; null where it may draw. */
+  readonly undrawn: Undrawn | null;
 }
 
 /** What checking prose records: each slot rendering another object's passage, and each rendering an option. */

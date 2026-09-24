@@ -1,0 +1,13 @@
+die.sprout:6:18  `chance` is given a number above zero, and this is 0.
+                 Write the number itself, as in `chance(3)`, which is true one time in three.
+
+die.sprout:7:30  `random` is given a number written out, and this is worked out.
+                 Write the number itself, as in `random(6)`, which is a number from 0 to 5.
+
+die.sprout:8:24  6 is outside 0 to 5, so this is always false.
+                 Write a whole number from 0 to 5, or take the comparison out.
+
+die.sprout:9:11  Sprout does not know how to read `roll` here.
+                 The calls written with nothing before them are `chance(…)` and `random(…)`; a reading is written on what it reads, as in `self.get(:wear)`.
+
+refused: 4 problems

@@ -13,6 +13,7 @@ import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
 import type { VerbDeclaration } from './ast-verbs.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
+import type { SayStatement, TellStatement, TextStatement } from './ast-speech.js';
 
 /** A name as written: an identifier, an enum's option, a kind's name. */
 export interface Ident extends Node {
@@ -218,10 +219,10 @@ export interface CallExpr extends Node {
 }
 
 /**
- * `chance(30)`, `random(6)` — a call with no receiver. The parser reads
- * the shape so that a diagnostic can be about the name rather than
- * about a bracket; which names are readable is the checker's table, and
- * it is empty until B33 adds chance to it.
+ * `chance(30)`, `random(6)` — a call with no receiver, which is a draw
+ * (the spec's Chance › The forms). The parser reads the shape of any
+ * name so that a diagnostic can be about the name rather than about a
+ * bracket; which names draw is the checker's.
  */
 export interface FreeCallExpr extends Node {
   readonly kind: 'free-call';
@@ -404,16 +405,6 @@ export interface RefuseStatement extends Node {
   readonly said: ProseLiteral | Ident;
 }
 
-/**
- * `say "The bolt slides back."` or `say taken` — words for the actor, in
- * quotes or in a passage of the kind that writes it, named (the spec's
- * Prose). Where one may stand is the checker's.
- */
-export interface SayStatement extends Node {
-  readonly kind: 'say';
-  readonly said: ProseLiteral | Ident;
-}
-
 /** `allow` — a guard's consent, said before its end (the spec's Movement and consent). */
 export interface AllowStatement extends Node {
   readonly kind: 'allow';
@@ -443,6 +434,8 @@ export type Statement =
   | RefuseStatement
   | AllowStatement
   | SayStatement
+  | TellStatement
+  | TextStatement
   | ExpressionStatement;
 
 // --- the world ------------------------------------------------------------
