@@ -1,5 +1,5 @@
-// The workshop the standard library's own specs play turns in: nothing
-// of its own but what composes the library's kinds, so what a turn says
+// The workshop `runtime/command.spec.ts` plays the standard library in:
+// nothing of its own but what composes the library's kinds, so what a turn says
 // is the library's words. The chest is a `sprout.Container` and a
 // `sprout.Lockable`, shut and locked, and only the key fits it; the
 // crate is an open container that holds one thing; the anvil is a

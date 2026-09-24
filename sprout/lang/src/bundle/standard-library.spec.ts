@@ -12,7 +12,6 @@ import { compileBundle } from './compile/compile.js';
 import { checkShape } from './compile/first-tier.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
 import { locationOf, SourceFile } from '../source/source.js';
-import { INES, MARTA, playedAll, workshop } from '../fixtures/workshop.js';
 
 /**
  * A world with nothing of its own but a place to arrive at and a kind
@@ -494,95 +493,5 @@ describe('the standard library', () => {
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
       '3471a289f05f96a6f62f34418f3fdd07d6b613cc501efe6d06fe9d1fa076b510',
     );
-  });
-});
-
-describe('the standard library, played', () => {
-  /** What each command was read as, by whom, played one after another from the workshop. */
-  const readIn = (...commands: (readonly [typeof MARTA, string])[]) =>
-    playedAll(workshop(), commands).map((turn) => turn.read);
-
-  it('takes and drops through one move and two lines, the actor told and the room told', () => {
-    expect(
-      readIn([MARTA, 'take pin'], [MARTA, 'take pin'], [MARTA, 'drop pin'], [MARTA, 'drop pin']),
-    ).toEqual([
-      { Marta: ['You take a pin.'], Ines: ['Marta takes a pin.'] },
-      { Marta: ['You already have it.'] },
-      { Marta: ['You put a pin down.'], Ines: ['Marta puts a pin down.'] },
-      { Marta: ['You are not holding a pin.'] },
-    ]);
-  });
-
-  it('leaves a fixture where it stands, saying why', () => {
-    expect(readIn([MARTA, 'pick up anvil'])).toEqual([
-      { Marta: ['An anvil is not something you can pick up.'] },
-    ]);
-  });
-
-  it('puts into an open container what the actor holds, until it is full', () => {
-    expect(
-      readIn(
-        [MARTA, 'put pin in crate'],
-        [MARTA, 'take pin'],
-        [MARTA, 'take key'],
-        [MARTA, 'put pin into crate'],
-        [MARTA, 'put key in crate'],
-      ),
-    ).toEqual([
-      { Marta: ['You are not holding a pin.'] },
-      { Marta: ['You take a pin.'], Ines: ['Marta takes a pin.'] },
-      { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
-      { Marta: ['You put a pin in a crate.'], Ines: ['Marta puts a pin in a crate.'] },
-      { Marta: ['There is no room in a crate.'] },
-    ]);
-  });
-
-  it('keeps a locked container shut until the tool its world names unlocks it', () => {
-    expect(
-      readIn(
-        [MARTA, 'take pin'],
-        [MARTA, 'put pin in chest'],
-        [MARTA, 'open chest'],
-        [MARTA, 'unlock chest with pin'],
-        [MARTA, 'take key'],
-        [MARTA, 'use key on chest'],
-        [MARTA, 'unlock chest with key'],
-        [MARTA, 'open chest'],
-        [MARTA, 'open chest'],
-        [MARTA, 'put pin in chest'],
-        [MARTA, 'shut chest'],
-        [MARTA, 'close chest'],
-      ).slice(1),
-    ).toEqual([
-      { Marta: ['A chest is shut.'] },
-      { Marta: ['It is locked.'] },
-      { Marta: ['That does not fit the lock.'] },
-      { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
-      { Marta: ['The lock turns over.'], Ines: ['Marta unlocks a chest.'] },
-      { Marta: ['It is already unlocked.'] },
-      { Marta: ['You open a chest.'], Ines: ['Marta opens a chest.'] },
-      { Marta: ['It is already open.'] },
-      { Marta: ['You put a pin in a chest.'], Ines: ['Marta puts a pin in a chest.'] },
-      { Marta: ['You shut a chest.'], Ines: ['Marta shuts a chest.'] },
-      { Marta: ['It is already shut.'] },
-    ]);
-  });
-
-  it('gives from one person to another, the recipient told apart from the room', () => {
-    expect(
-      readIn(
-        [MARTA, 'give key to ines'],
-        [MARTA, 'take key'],
-        [MARTA, 'hand key to ines'],
-        [INES, 'inventory'],
-        [MARTA, 'inventory'],
-      ),
-    ).toEqual([
-      { Marta: ['You are not holding a key.'] },
-      { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
-      { Marta: ['You give a key to Ines.'], Ines: ['Marta gives you a key.'] },
-      { Ines: ['You are carrying a key.'] },
-      { Marta: ['You are carrying nothing.'] },
-    ]);
   });
 });
