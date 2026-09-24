@@ -7,10 +7,12 @@ import {
   BUS,
   DOG,
   eventTurn,
+  GEM,
   held,
   LAMP,
   MATCH,
   MOTH,
+  STRAY,
   TIDIER,
   WICK,
   type EventTurn,
@@ -140,6 +142,17 @@ describe('the queue drains', () => {
     expect(drained.said).toHaveLength(1);
     expect(drained.said[0]).toMatchObject({ effect: 'refused', to: [], speaker: null });
     expect(held(one, TIDIER, 'tried')).toBe(false);
+  });
+
+  it('tells a handler’s words to the people in its place, nobody left out, since no reading runs', () => {
+    const one = eventTurn();
+    const drained = drain(queued(sent('rang', GEM, BELL), sent('rang', STRAY, BELL)), context(one));
+    // The gem in the shut chest is heard in the hall; the stray in the
+    // empty yard is heard by nobody, and is still what it told.
+    expect(drained.said.map((said) => [said.effect, said.by, said.to, said.speaker])).toEqual([
+      ['told', GEM, [one.visitor], null],
+      ['told', STRAY, [], null],
+    ]);
   });
 
   it('hands the light down a kind’s own copy, named from the kind’s body', () => {

@@ -6,33 +6,27 @@
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
 // `refuse`, and a write, a `spawn`, a `destroy`, a `move`, a `connect`,
-// an `act`, a `wake` or a `say` in one is refused, since the engine asks
-// it before anything happens and it must not change the world underneath
-// the decision it is part of. A `do` acts: it writes, spawns, destroys,
-// moves, connects, acts, asks to be woken and speaks, and `refuse` and
-// `allow` are refused there, since the deciding was done. A handler or a hook acts as a `do` does, but nobody is acting,
-// so it neither speaks with `say` nor refuses. `if (x.is(K))` narrows
+// an `act`, a `wake` or words for a reader in one is refused, since the
+// engine asks it before anything happens and it must not change the world
+// underneath the decision it is part of. A `do` acts: it writes, spawns,
+// destroys, moves, connects, acts, asks to be woken and speaks, and
+// `refuse` and `allow` are refused there, since the deciding was done. A
+// handler or a hook acts as a `do` does, but nobody is acting, so it tells
+// rather than says, and never refuses. Who each of `say`, `tell` and
+// `text` speaks to is `audiences.ts`'s. `if (x.is(K))` narrows
 // `x`, and `if (bound tool)` binds `tool`, for the branch each guards.
 // Statements after an `allow` or a `refuse` are accepted and never run.
 
-import type {
-  Block,
-  CallExpr,
-  IfStatement,
-  RefuseStatement,
-  SayStatement,
-  Statement,
-} from '../syntax/ast.js';
+import type { Block, CallExpr, IfStatement, Statement } from '../syntax/ast.js';
 import type { GuardName } from '../syntax/ast.js';
 import type { Span } from '../source/source.js';
-import { nearestOption } from '../declare/enums.js';
 import { branchScope, checkCondition, isEffect, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { checkAct } from './act.js';
 import { checkConnect } from './exits.js';
 import { checkBroadcast, checkSend } from './sends.js';
-import { checkProse } from './prose.js';
 import { checkWake } from './wake.js';
+import { checkPassage, checkSpoken } from './audiences.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
 export type BodyKind =
@@ -69,8 +63,9 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
       else if (!decides) acts(statement.at, 'allow', context);
       return;
     case 'say':
-      if (kind.body === 'do') checkPassage(statement, context);
-      else refuseSay(statement, context, kind);
+    case 'tell':
+    case 'text':
+      checkSpoken(statement, context, kind);
       return;
     case 'spawn':
       if (decides) readOnly('spawn', statement.at, context, kind);
@@ -133,45 +128,6 @@ function checkIf(statement: IfStatement, context: CheckContext, kind: BodyKind):
   }
 }
 
-/**
- * `refuse full` or `say taken` names a passage of the kind that wrote the
- * body, which is recorded with what is in scope here, for the passage to
- * be checked against; words in quotes are a one-line passage, checked
- * here and now.
- */
-function checkPassage(statement: RefuseStatement | SayStatement, context: CheckContext): void {
-  const said = statement.said;
-  const speech = context.speech;
-  if (said.kind === 'prose-literal') {
-    if (speech !== undefined) checkProse(said.prose, context, speech.sites);
-    else checkProse(said.prose, context, { render: () => {}, option: () => {} });
-    return;
-  }
-  const self = context.self;
-  if (self === null) return;
-  if (self.passages.has(said.text)) {
-    if (speech !== undefined && speech.body !== null) {
-      speech.sites.said(speech.body, {
-        name: said.text,
-        at: said.at,
-        scope: context.scope.carried(),
-      });
-    }
-    return;
-  }
-  if (speech?.absent?.(self, said.text, said.at) === true) return;
-  const word = statement.kind;
-  const quoted = word === 'refuse' ? '"No room here."' : '"The bolt slides back."';
-  const meant = nearestOption(said.text, [...self.passages.keys()]);
-  context.diagnostics.refuse(
-    said.at,
-    `\`${self.name}\` has no passage \`${said.text}\`.${meant === null ? '' : ` Did you mean \`${meant}\`?`}`,
-    meant === null
-      ? `Write \`passage ${said.text} { … }\` in \`${self.name}\`, or give the words in quotes, as in \`${word} ${quoted}\`.`
-      : `Write \`${word} ${meant}\`, or write \`passage ${said.text} { … }\` in \`${self.name}\`.`,
-  );
-}
-
 /** What a remedy tells an author to do with what a deciding body may not do. */
 function readOnlyRemedy(kind: BodyKind): string {
   return kind.body === 'guard'
@@ -220,32 +176,6 @@ function refuseWrite(call: CallExpr, context: CheckContext, kind: BodyKind): voi
   );
 }
 
-/** `say` where nobody is spoken to: a guard, a `permit`, which only decides, or a handler. */
-function refuseSay(statement: SayStatement, context: CheckContext, kind: BodyKind): void {
-  const at = spanOfWord(statement);
-  if (kind.body === 'handler') {
-    context.diagnostics.refuse(
-      at,
-      `\`say\` has nobody to speak to inside \`${kind.written}\`.`,
-      'Use `tell` to speak to the room, or `tell p` to one person.',
-    );
-    return;
-  }
-  if (kind.body === 'guard') {
-    context.diagnostics.refuse(
-      at,
-      `\`say\` has nobody to speak to inside \`${kind.guard}\`.`,
-      "It belongs in a role's `do`.",
-    );
-    return;
-  }
-  context.diagnostics.refuse(
-    at,
-    '`say` speaks, and a `permit` only decides.',
-    'Move it to `do`, or make it the words of a `refuse`.',
-  );
-}
-
 /**
  * `refuse` or `allow` in a handler or a hook, which decides by writing or
  * not writing: a queued message has no one to answer (the spec's Handlers
@@ -275,10 +205,4 @@ function acts(at: Span, word: 'refuse' | 'allow', context: CheckContext): void {
       ? 'Move it to `permit`, where the deciding is done.'
       : 'Take it out: a `do` runs once every `permit` has allowed.',
   );
-}
-
-/** The span of a `say`'s own word, where a refusal of the statement points. */
-function spanOfWord(statement: SayStatement): Span {
-  const at = statement.at;
-  return at.source.span(at.start, at.start + 'say'.length);
 }

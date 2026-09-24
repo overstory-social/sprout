@@ -1,0 +1,7 @@
+lever.sprout:4:7   `text` gives a `describe` its words, and this is a `do`.
+                   Use `say` to speak to the actor, or `tell` to speak to the room.
+
+lever.sprout:9:15  `text` gives a `describe` its words, and this is `on :creak`.
+                   Use `tell` to speak to the room, or `tell p` to one person.
+
+refused: 2 problems

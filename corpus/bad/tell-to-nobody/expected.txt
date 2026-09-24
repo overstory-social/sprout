@@ -1,0 +1,10 @@
+lever.sprout:6:12  `hall` is an object of the world, which is never a person, so nobody would read what it is told.
+                   Tell someone a body has bound, as `self` in a role a person plays or `item` in `on :entered (item, from)`, or tell the place, as in `tell "{actor} pulls the lever."`.
+
+lever.sprout:7:12  `hands` holds several things, and `tell hands` speaks to one person.
+                   Tell one person a body has bound, as in `tell actor "…"`, or tell the place, as in `tell "{actor} pulls the lever."`.
+
+lever.sprout:8:12  `tell` speaks to one person, and `n` is integer.
+                   Tell one person a body has bound, as in `tell actor "…"`, or tell the place, as in `tell "{actor} pulls the lever."`.
+
+refused: 3 problems

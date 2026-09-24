@@ -1,0 +1,10 @@
+kind Lever {
+  as target for pull {
+    do {
+      say "It gives."
+      tell
+      self.set(:n, 1)
+    }
+  }
+  :n 0 min 0 max 9
+}

@@ -1,0 +1,12 @@
+// A guard and a `permit` only read and decide, so neither tells anyone
+// anything: the words belong in a handler, a `do`, or a `refuse`.
+world tell_in_guard is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lever is Lever
+    object box is Box
+  }
+}
+verb pull { role target  "pull [target]" }

@@ -1,0 +1,13 @@
+// A cat is a creature with nobody behind it. Someone arriving is nuzzled:
+// its `say` is heard from it by the rest of the room, and the one it
+// nuzzles is told.
+kind Cat is Creature {
+  on :arrived (who, from) { act nuzzle (target: who) }
+
+  as actor for nuzzle {
+    do {
+      say "Mrrp."
+      tell target "{actor} winds around your ankles."
+    }
+  }
+}

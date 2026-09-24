@@ -1,7 +1,7 @@
 // The garden the wake specs are written about, and what they run a wake
 // with. A rose grows a stage each time it wakes, keeping every second it
 // is handed, and asks again until it is grown; a candle goes out when it
-// wakes; a fuse keeps its `elapsed` and holds at most 3, so any real
+// wakes, and tells whoever is there; a fuse keeps its `elapsed` and holds at most 3, so any real
 // wait faults it; a pod destroys itself when it wakes, and the seed
 // inside it goes with it. A visitor may carry a candle of their own.
 // `runtime/wakes.spec.ts`, `runtime/wake.spec.ts` and
@@ -46,7 +46,10 @@ export const GARDEN = compiledWorld('garden', {
 `,
   'candle.sprout': `kind Candle {
   :lit true
-  on :woke { self.set(:lit, false) }
+  on :woke {
+    self.set(:lit, false)
+    tell "{self} gutters out."
+  }
 }
 `,
   'fuse.sprout': `kind Fuse {

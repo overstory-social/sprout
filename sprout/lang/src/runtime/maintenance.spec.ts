@@ -36,6 +36,15 @@ describe('a maintenance turn', () => {
     expect(heldIn(turn.state, ROSE, 'stage')).toBe(1);
   });
 
+  it('does not narrate: what a wake tells is dropped, with someone there to hear it', () => {
+    const { state } = garden([[CANDLE, 0, 100]], 'bed');
+    const turn = maintenanceTurn(state, HOST, at(86_400));
+    expect(objects(turn.value.delivered)).toEqual([CANDLE]);
+    expect(heldIn(turn.state, CANDLE, 'lit')).toBe(false);
+    // The candle told the bed it guttered; what catch-up gives back holds none of it.
+    expect(Object.keys(turn.value).sort()).toEqual(['abandoned', 'delivered', 'faulted']);
+  });
+
   it('leaves a wake a delivered one asks for to live time, though it is due already', () => {
     const { state } = garden([[ROSE, 0, 7200]]);
     const turn = maintenanceTurn(state, HOST, at(86_400));

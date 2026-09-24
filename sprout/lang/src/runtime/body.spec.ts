@@ -9,7 +9,14 @@ import { parseStatement } from '../syntax/parse.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 import type { Performed } from './act.js';
-import { runBody, ValueOutOfRange, type ActSink, type Proposed, type Spoken } from './body.js';
+import {
+  runBody,
+  ValueOutOfRange,
+  type ActSink,
+  type Proposed,
+  type Spoken,
+  type Told,
+} from './body.js';
 import { Budget } from './budget.js';
 import { catalogueOf, type Catalogue } from './catalogue.js';
 import { Draft } from './draft.js';
@@ -44,6 +51,7 @@ const VERBS = [
   'ring',
   'dig',
   'rest',
+  'announce',
 ];
 
 /**
@@ -90,6 +98,7 @@ const bundle = compiledWorld('shop', {
     '  as target for lug    { do { self.set(:n, 4)  if (self.get(:n) > 0) { move actor to self  say "Inside." }  say "After." } }',
     '  as target for sink   { do { destroy self  move actor to self  say "Sunk." } }',
     '  as target for rest   { do { wake in 2 minutes  say "Resting." } }',
+    '  as target for announce { do { tell "{actor} rings {self}."  let a = 1  tell actor done  tell self "Rung." } }',
     '  as target for ring   { do { send hall.counter.pin :knock  send hall.cat :tally with self.get(:n)  send hall.near :knock  send yard.far :knock  broadcast :knock } }',
     '}',
     'message :knock',
@@ -124,6 +133,7 @@ const PIT = id('hall', 'pit');
 /** What an acting body did, as the sink heard it. */
 interface Heard {
   readonly spoken: Spoken[];
+  readonly told: Told[];
   readonly sends: Sent[];
   readonly destroyed: Destroyed[];
   readonly marked: InstanceId[];
@@ -197,7 +207,15 @@ function act(
   answer: (nth: number) => Proposed = () => 'done',
 ): Heard {
   let proposed = 0;
-  const heard: Heard = { spoken: [], sends: [], destroyed: [], marked: [], moves: [], acts: [] };
+  const heard: Heard = {
+    spoken: [],
+    told: [],
+    sends: [],
+    destroyed: [],
+    marked: [],
+    moves: [],
+    acts: [],
+  };
   const sink: ActSink = {
     lifecycle: {
       draft: turn.draft,
@@ -208,6 +226,7 @@ function act(
       now: 0,
     },
     say: (spoken) => heard.spoken.push(spoken),
+    tell: (told) => heard.told.push(told),
     sent: (sends) => heard.sends.push(...sends),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
     marked: (marked) => heard.marked.push(marked),
@@ -294,6 +313,22 @@ describe('what a `do` writes', () => {
 });
 
 describe('what a `do` says, spawns and destroys', () => {
+  it('tells the place, or the one it names as evaluated, with the names in scope, in body order', () => {
+    const one = turn();
+    const heard = act(one, COUNTER, 'announce');
+    expect(heard.spoken).toEqual([]);
+    expect(heard.told.map((told) => [told.by, told.one, words(told)])).toEqual([
+      [COUNTER, null, '{actor} rings {self}.'],
+      [COUNTER, one.visitor, 'shop.Counter done: Done.'],
+      [COUNTER, COUNTER, 'Rung.'],
+    ]);
+    expect(heard.told.map((told) => [...told.bindings.keys()])).toEqual([
+      ['actor', 'here'],
+      ['actor', 'here', 'a'],
+      ['actor', 'here', 'a'],
+    ]);
+  });
+
   it("says words in quotes, and a passage as `self`'s kind has it, a composer's own over a default", () => {
     const one = turn();
     const plain = act(one, COUNTER, 'speak').spoken;
@@ -504,6 +539,16 @@ describe('the two modes', () => {
     const sink = { say: (spoken: Spoken) => heard.push(spoken) } as unknown as ActSink;
     runBody(block, frameOf(one, COUNTER, new Budget(DEFAULT_LIMITS.budgets)), 'act', sink);
     expect(heard.map((spoken) => spoken.said)).toEqual([{ absent: 'gone' }]);
+  });
+
+  it('throws an engine error for `text`, which only a `describe` gives', () => {
+    const one = turn();
+    const text = parseStatement(new SourceFile('b.sprout', 'text "Hi."'), new Diagnostics())!;
+    const block: Block = { kind: 'block', at: text.at, statements: [text] };
+    const sink = {} as ActSink;
+    expect(() =>
+      runBody(block, frameOf(one, COUNTER, new Budget(DEFAULT_LIMITS.budgets)), 'act', sink),
+    ).toThrow('`text` reached a body');
   });
 
   it('throws an engine error, not a fault, for an effect in a body that decides', () => {

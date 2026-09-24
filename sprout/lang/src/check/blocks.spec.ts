@@ -201,6 +201,16 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
     ).toEqual([]);
   });
 
+  it('tells, the place or one it has bound, and never gives a `describe`’s `text`', () => {
+    expect(check('tell "Hi."\n    tell self "Hi."', HANDLER)).toEqual([]);
+    expect(check('tell "Hi."\n    text "Hi."', DO).map(([, m]) => m)).toEqual([
+      '`text` gives a `describe` its words, and this is a `do`.',
+    ]);
+    expect(check('tell "Hi."', GUARD).map(([, m]) => m)).toEqual([
+      '`tell` speaks, and `depart` only reads and decides.',
+    ]);
+  });
+
   it('refuses `say`, `refuse` and `allow`, naming the handler', () => {
     expect(check('say "Hi."\n    refuse "No."\n    allow', HANDLER).map(([, m]) => m)).toEqual([
       '`say` has nobody to speak to inside `on :gust`.',

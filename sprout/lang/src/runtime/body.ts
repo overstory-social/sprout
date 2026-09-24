@@ -7,17 +7,18 @@
 // One runner, in two modes. A guard and a `permit` decide: they read, and
 // end in `allow`, in `refuse`, or by reaching their end. A `do` acts: it
 // writes `self` through the turn's draft, its links included, spawns,
-// destroys, moves, acts, asks to be woken and says, and a refused `move`
-// or `act` ends it there. Each mode holds exactly what `check/blocks.ts`
-// lets its bodies hold, so anything else reaching it is the engine's
-// defect, thrown as a plain `Error`. Every statement executed is one step
-// and every expression node one more. A `set` or `remember` of a value
-// its property cannot hold faults, an `adjust` clamps, and adding a new
-// element to a full list faults. A `send` or a `broadcast` queues what it
-// sends, and a write that changes a property its kind watches queues the
-// hook, which the bus delivers once the body has ended. What is said is
-// carried unrendered, with the names in scope, for `prose/` to render for
-// each reader; B30 brings `tell`.
+// destroys, moves, acts, asks to be woken, says and tells, and a refused
+// `move` or `act` ends it there. Each mode holds exactly what
+// `check/blocks.ts` lets its bodies hold, so anything else reaching it is
+// the engine's defect, thrown as a plain `Error`. Every statement executed
+// is one step and every expression node one more. A `set` or `remember`
+// of a value its property cannot hold faults, an `adjust` clamps, and
+// adding a new element to a full list faults. A `send` or a `broadcast`
+// queues what it sends, and a write that changes a property its kind
+// watches queues the hook, which the bus delivers once the body has ended.
+// What is said and told is carried unrendered, with the names in scope,
+// for `prose/` to render for each reader; who reads it is the sink's to
+// say.
 
 import type {
   Block,
@@ -26,10 +27,10 @@ import type {
   IfStatement,
   ObjectPath,
   RefuseStatement,
-  SayStatement,
   SpawnStatement,
   Statement,
 } from '../syntax/ast.js';
+import type { SayStatement, TellStatement } from '../syntax/ast-speech.js';
 import { qualifiedName } from '../declare/enums.js';
 import { kindName } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
@@ -63,7 +64,7 @@ import { defaultOf, fits, type Value } from './values.js';
 import { askToWake } from './wakes.js';
 
 /**
- * What a `say` or a `refuse` gives: a passage as it applies on the
+ * What a `say`, a `tell` or a `refuse` gives: a passage as it applies on the
  * speaker's kind; the words quoted, as written and as the one-line
  * passage they read as, with the library whose body said them, where a
  * kind their slots name is read from; or, in a world loaded without the `.prose` file
@@ -84,7 +85,7 @@ export type Ended = 'end' | 'allow' | { readonly refused: Speech };
 /** What came of a `move` or an `act` a body ran: done, or refused, which ends the body. */
 export type Proposed = 'done' | 'refused';
 
-/** One `say`, as the body said it. */
+/** One `say` or `tell`, as the body said it. */
 export interface Spoken {
   /** The object whose body said it: `self` when it renders. */
   readonly by: InstanceId;
@@ -93,11 +94,18 @@ export interface Spoken {
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
+/** One `tell`, as the body said it: to the teller's place, or to the one it named. */
+export interface Told extends Spoken {
+  /** Who was named after `tell`; null where it was said to the place. */
+  readonly one: InstanceId | null;
+}
+
 /** Where an acting body's effects go, and what its spawns and writes reach. */
 export interface ActSink {
   /** The turn's draft, kinds, pass rules, budget and the host's bound on instances. */
   readonly lifecycle: LifecycleContext;
   say(spoken: Spoken): void;
+  tell(told: Told): void;
   /** What a spawn tells the world, and what a `send` or a `broadcast` queues, in body order. */
   sent(sends: readonly Sent[]): void;
   /** `self` removed with everything it held, at the end of the body that ran `destroy self`. */
@@ -274,6 +282,18 @@ function runStatement(
         bindings: new Map(bindings),
       });
       return 'end';
+    case 'tell':
+      acting(run, '`tell`').tell({
+        by: frame.self,
+        one: statement.to === null ? null : objectAt(statement.to, frame),
+        said: speech(statement, frame),
+        bindings: new Map(bindings),
+      });
+      return 'end';
+    case 'text':
+      throw new Error(
+        '`text` reached a body, and only a `describe` gives words so; the checker refuses it.',
+      );
     case 'expression-statement':
       write(statement.expression, frame, acting(run, 'a write'));
       return 'end';
@@ -293,12 +313,12 @@ function runIf(statement: IfStatement, frame: Frame, run: Run): Ended {
 }
 
 /**
- * `say` or `refuse` with words in quotes, or a passage as the speaker's
+ * `say`, `tell` or `refuse` with words in quotes, or a passage as the speaker's
  * kind has it, so a composer's own line replaces a default. A passage
  * the kind does not have is one whose `.prose` file the world was loaded
  * without, since the checker refuses any other.
  */
-function speech(statement: RefuseStatement | SayStatement, frame: Frame): Speech {
+function speech(statement: RefuseStatement | SayStatement | TellStatement, frame: Frame): Speech {
   const said = statement.said;
   if (said.kind === 'prose-literal') {
     return { text: said.value, prose: said.prose, library: frame.library };

@@ -39,6 +39,11 @@ describe('a wake turn', () => {
     expect(wakesOf(turn.state, CANDLE)).toEqual([]);
     expect(turn.changes.upsert.find((r) => r.id === CANDLE)?.wakes).toEqual([]);
     expect(turn.value.drained.events).toBe(1);
+    // Told live, to whoever stands in the candle's place.
+    const marta = [...state.visitors.values()][0]!.instance;
+    expect(turn.value.drained.said.map((said) => [said.effect, said.by, said.to])).toEqual([
+      ['told', CANDLE, [marta]],
+    ]);
     expect(turn.stale).toEqual([MARTA]);
   });
 
