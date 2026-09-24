@@ -367,6 +367,12 @@ describe('a restatement is written out for a remedy as the author would write it
     expect(restatementOf(declare(':note "a \\{line}"').resolved!)).toBe('`:note "a \\{line}"`');
   });
 
+  it('never quotes a default the compiler refuses, writing a plain value of the type instead', () => {
+    expect(restatementOf(declare(':state Drying default "wet"').resolved!)).toBe('`:state wet`');
+    expect(restatementOf(declare(':state Drying default damp').resolved!)).toBe('`:state wet`');
+    expect(restatementOf(declare(':lit boolean default 3').resolved!)).toBe('`:lit false`');
+  });
+
   it('writes a remembered one inside a `remembers` block', () => {
     const diagnostics = new Diagnostics();
     const declared = parseRemembers(

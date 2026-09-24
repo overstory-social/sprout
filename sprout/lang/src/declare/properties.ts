@@ -174,17 +174,45 @@ export function restateProperty(
 
 /**
  * How to restate a property, written out for a remedy: `:open true`, or
- * `remembers { :opened false }`. The default shown is `preferred` when it
- * is a value of the property's type, and the property's own otherwise.
+ * `remembers { :opened false }`. The default shown is `preferred` where it
+ * is a value of the property's type, else the property's own where that
+ * is, else a plain value of the type, since a remedy never quotes what the
+ * compiler refuses.
  */
 export function restatementOf(
   property: ResolvedProperty,
   preferred: Literal | null = null,
 ): string {
-  const fits = preferred !== null && checkLiteral(property.type, preferred, new Diagnostics());
-  const literal = fits ? preferred : property.declaration.default!;
-  const value = literal.at.source.text.slice(literal.at.start, literal.at.end);
+  const own = property.declaration.default!;
+  const literal = [preferred, own].find(
+    (one): one is Literal => one !== null && checkLiteral(property.type, one, new Diagnostics()),
+  );
+  const value =
+    literal === undefined
+      ? plainValueOf(property.type)
+      : literal.at.source.text.slice(literal.at.start, literal.at.end);
+  if (value === null) {
+    return `\`:${property.name}\` with a default that is ${showType(property.type)}`;
+  }
   return property.remembered
     ? `\`remembers { :${property.name} ${value} }\``
     : `\`:${property.name} ${value}\``;
+}
+
+/** A value of `type` as a default is written, or null where the type has no literal of its own. */
+function plainValueOf(type: ValueType): string | null {
+  switch (type.type) {
+    case 'boolean':
+      return 'false';
+    case 'integer':
+      return String(type.min <= 0 && type.max >= 0 ? 0 : type.min);
+    case 'string':
+      return '""';
+    case 'symbol':
+      return type.of.options[0] ?? null;
+    case 'list':
+      return '[]';
+    case 'extension':
+      return null;
+  }
 }
