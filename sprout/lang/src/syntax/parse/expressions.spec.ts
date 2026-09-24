@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { locationOf, textOf } from '../../source/source.js';
-import { readExpression } from '../../fixtures/parse.js';
+import { shape } from '../../fixtures/parse.js';
+import { readWith } from '../../fixtures/readers.js';
+import { expression } from './expressions.js';
+
+/** One expression, read by `expression` from the start of `text`, and its shape. */
+function readExpression(text: string) {
+  const { read, refusals } = readWith(expression, text, { name: 'body.sprout' });
+  return { expr: read, shape: shape(read), refusals };
+}
 
 describe('an expression', () => {
   it('reads every expression the spec writes', () => {
@@ -134,6 +142,19 @@ describe('a statement is not something to read', () => {
         'Write it on its own line, as in `move target to self`.',
       );
     }
+  });
+
+  it('refuses `act` where a value is wanted, once, with everything it holds', () => {
+    const { expr, refusals } = readExpression('act nuzzle (target: p, tool: q)');
+    expect(expr).toBeNull();
+    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'body.sprout:1:1',
+        '`act` performs a verb, and is not something to read.',
+        'Write it on its own line, as in `act nuzzle (target: p)`.',
+      ],
+    ]);
+    expect(textOf(refusals[0]!.at)).toBe('act nuzzle (target: p, tool: q)');
   });
 
   it('reads nothing where it stood', () => {

@@ -6,10 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
-import { SourceFile } from '../../source/source.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { parserOver as over } from '../../fixtures/readers.js';
 import {
   closedBracketRun,
   closesAhead,
@@ -21,11 +18,7 @@ import {
 } from './recovery.js';
 
 /** A parser over some text, for calling a recovery function directly. */
-function parserOver(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('r.sprout', text), diagnostics, DECLARATION_READERS);
-  return { p, diagnostics };
-}
+const parserOver = (text: string) => over(text, { name: 'r.sprout' });
 
 describe('separator', () => {
   it('reads the end of the file as `end`', () => {

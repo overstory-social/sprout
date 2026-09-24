@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { readWorld } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { parserOver } from '../../fixtures/readers.js';
 import { objectPath } from './paths.js';
 
 /** Read a path from the start of `text`, and what comes after it. */
 function path(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('p.sprout', text), diagnostics, DECLARATION_READERS);
+  const { p, diagnostics } = parserOver(text, { name: 'p.sprout' });
   const read = objectPath(p, p.next());
   return {
     read,
@@ -130,27 +126,5 @@ describe('a path written wrong is refused at the step it is about', () => {
         [at, 'A path is written without spaces around its dots.', 'Write `kiln.shelf`.'],
       ]);
     }
-  });
-});
-
-describe('where paths are written', () => {
-  it('is where a world’s visitors arrive', () => {
-    const { world, refusals } = readWorld(
-      'world w is sprout.World {\n  visitors are P\n  visitors arrive at house.hall\n}',
-    );
-    expect(refusals).toEqual([]);
-    const arrive = world!.kind === 'world' ? world!.members[1]! : null;
-    expect(arrive!.kind).toBe('visitors-arrive-at');
-    expect(textOf(arrive!.at)).toBe('visitors arrive at house.hall');
-  });
-
-  it('is refused where a world’s visitors arrive, and the member after it still read', () => {
-    const { world, refusals } = readWorld(
-      'world w is sprout.World {\n  visitors arrive at house.\n  :season 1\n}',
-    );
-    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['w.sprout:2:27', 'This path ends in a dot.'],
-    ]);
-    expect(world!.kind === 'world' ? world!.members.map((m) => m.kind) : []).toEqual(['property']);
   });
 });

@@ -1,18 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
+import { locationOf, textOf } from '../../source/source.js';
 import { shape } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { parserOver } from '../../fixtures/readers.js';
 import { readTag, type Tag } from './prose-tags.js';
 
 /** The one tag `text` is, read where it stands in a line of prose around it. */
 function tag(text: string) {
   const line = `Before ${text} after.`;
-  const source = new SourceFile('lines.prose', line);
-  const diagnostics = new Diagnostics();
-  const p = new Parser(source, diagnostics, DECLARATION_READERS);
+  const { p, source, diagnostics } = parserOver(line, { name: 'lines.prose' });
   const start = 'Before '.length;
   const read = readTag(p, {
     at: source.span(start, start + text.length),

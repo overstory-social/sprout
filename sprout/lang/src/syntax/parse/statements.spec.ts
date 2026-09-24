@@ -5,24 +5,35 @@ import { writtenPath } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { chooser, readStatement, shape, type Chooser } from '../../fixtures/parse.js';
+import { chooser, shape, type Chooser } from '../../fixtures/parse.js';
+import { readWith as over } from '../../fixtures/readers.js';
 import { Lexer } from '../lexer.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { DEEPEST, Parser } from './parser.js';
+import { DEEPEST, type Parser } from './parser.js';
 import {
   block,
   letStatement,
   moveStatement,
+  notAStatement,
   onItsOwn,
   spawnStatement,
   statement,
 } from './statements.js';
 
 /** One reader, run over a string on its own. */
-function readWith<T>(read: (p: Parser) => T, text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
-  return { read: read(p), refusals: diagnostics.refusals, done: p.done };
+const readWith = <T>(read: (p: Parser) => T, text: string) =>
+  over(read, text, { name: 'body.sprout' });
+
+/**
+ * One statement, read by `statement` outside any body; anything written
+ * after one that read is refused as the next statement would be.
+ */
+function readStatement(text: string) {
+  const { read, refusals, diagnostics } = readWith((p) => {
+    const one = statement(p);
+    if (one !== null && !p.done) notAStatement(p, p.peek());
+    return one;
+  }, text);
+  return { statement: read, diagnostics, refusals };
 }
 
 /** What a `let` names, as a shape, where it names an expression. */

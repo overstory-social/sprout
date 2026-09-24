@@ -1,0 +1,10 @@
+// The bell summons a coach, and nothing declares one: every coach is
+// spawned.
+kind Bell {
+  as target for ring {
+    do {
+      spawn Coach in here
+      say "A coach rattles up to the door."
+    }
+  }
+}

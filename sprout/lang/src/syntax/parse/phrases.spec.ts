@@ -1,20 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PhraseDeclaration, VerbDeclaration } from '../ast-verbs.js';
-import { Diagnostics } from '../../source/diagnostics.js';
+import type { PhraseDeclaration } from '../ast-verbs.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { chooser, read } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { chooser } from '../../fixtures/parse.js';
+import { parserOver, readWith } from '../../fixtures/readers.js';
 import { lowerCase, meantOf, phrase } from './phrases.js';
 
 /** One phrase, read on its own from the quoted text given. */
 function readPhrase(quoted: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('p.sprout', quoted), diagnostics, DECLARATION_READERS);
-  const read = phrase(p);
-  return { read, refusals: diagnostics.refusals };
+  const { read, refusals } = readWith(phrase, quoted, { name: 'p.sprout' });
+  return { read, refusals };
 }
 
 /** A phrase's parts as short words: a slot in brackets, words as they mean. */
@@ -104,16 +100,6 @@ describe('what a phrase’s slots may not be, refused at the slot', () => {
   it('a `]` that closes no slot', () => {
     expect(said('"take target] now"')).toEqual(['p.sprout:1:13 This `]` closes no slot.']);
   });
-
-  it('costs the phrase it is in and nothing else in the verb', () => {
-    const { declarations, refusals } = read(
-      'verb take { role target  "take [Target]"  "get [target]" }',
-      'v.sprout',
-    );
-    expect(refusals).toHaveLength(1);
-    const [take] = declarations as VerbDeclaration[];
-    expect(take!.phrases.map((p) => p.text)).toEqual(['get [target]']);
-  });
 });
 
 describe('what a phrase means is the lexer’s own reading of its quotes', () => {
@@ -123,8 +109,7 @@ describe('what a phrase means is the lexer’s own reading of its quotes', () =>
     for (let i = 0; i < 400; i++) {
       const body = Array.from({ length: c.below(12) }, () => c.one(pieces)).join('');
       const quoted = `"${body}"`;
-      const diagnostics = new Diagnostics();
-      const p = new Parser(new SourceFile('p.sprout', quoted), diagnostics, DECLARATION_READERS);
+      const { p } = parserOver(quoted, { name: 'p.sprout' });
       const token = p.peek();
       const meant = meantOf(p, token);
       expect(meant.map((m) => m.ch).join(''), quoted).toBe(token.text);

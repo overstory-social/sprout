@@ -1,14 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { writtenPath, type KindDeclaration, type KindMember } from '../ast.js';
+import { writtenPath, type KindDeclaration } from '../ast.js';
 import type { GrammarDeclaration, GrammarLine } from '../ast-grammar.js';
 import { unspanned } from '../../source/nodes.js';
-import { Diagnostics } from '../../source/diagnostics.js';
-import { locationOf, SourceFile } from '../../source/source.js';
+import { locationOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
+import { inKindBody, readWith, rest } from '../../fixtures/readers.js';
 import { grammar } from './grammar.js';
-import { Parser } from './parser.js';
 
+/**
+ * The grammar block `members` starts with, read by `grammar` in the body
+ * of `kind Case`, what it left for the body's next member, and what was said.
+ */
+function readGrammar(members: string) {
+  const { p, diagnostics, startsMember } = inKindBody(members, 'Case');
+  const block = grammar(p, startsMember);
+  return {
+    blocks: block === null ? [] : [block],
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+  };
+}
+
+/** The members of `kind Case`, its body read whole, and what was said. */
 function readKind(members: string) {
   const { declarations, refusals } = read(`kind Case {\n  ${members}\n}\n`, 'k.sprout');
   const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
@@ -43,7 +57,7 @@ describe('a grammar block', () => {
       'grammar { name "brass key"  article a  nouns "brass" "key ring" }',
       'grammar {\n    nouns "brass" "key ring"\n    article a\n    name "brass key"\n  }',
     ]) {
-      const { blocks, said } = readKind(text);
+      const { blocks, said } = readGrammar(text);
       expect(said, text).toEqual([]);
       expect(unspanned(blocks)).toEqual([]);
       expect(blocks[0]!.lines.map(written).sort()).toEqual([
@@ -56,27 +70,27 @@ describe('a grammar block', () => {
 
   it('reads every article a grammar block may declare', () => {
     for (const article of ['a', 'an', 'the', 'none']) {
-      const { blocks, said } = readKind(`grammar { article ${article} }`);
+      const { blocks, said } = readGrammar(`grammar { article ${article} }`);
       expect(said).toEqual([]);
       expect(blocks[0]!.lines.map(written)).toEqual([`article ${article}`]);
     }
   });
 
   it('is read by `grammar` directly, spanning its word to its brace', () => {
-    const diagnostics = new Diagnostics();
     const text = 'grammar { name "lamp" }';
-    const p = new Parser(new SourceFile('k.sprout', text), diagnostics, new Map());
-    const made = grammar(p, () => false);
-    expect(diagnostics.refusals).toEqual([]);
+    const { read: made, refusals } = readWith((p) => grammar(p, () => false), text, {
+      readers: new Map(),
+    });
+    expect(refusals).toEqual([]);
     expect([made?.at.start, made?.at.end]).toEqual([0, text.length]);
   });
 
   it('holds an empty block, which says nothing', () => {
-    expect(readKind('grammar { }').blocks[0]!.lines).toEqual([]);
+    expect(readGrammar('grammar { }').blocks[0]!.lines).toEqual([]);
   });
 
   it('refuses a block with no braces, keeping the body after it', () => {
-    const { said, members } = readKind('grammar\n  :lit false');
+    const { said, blocks, rest } = readGrammar('grammar\n  :lit false');
     expect(said).toEqual([
       [
         'k.sprout:3:3',
@@ -84,11 +98,12 @@ describe('a grammar block', () => {
         'Write `grammar { name "brass key"  article a  nouns "brass" }`.',
       ],
     ]);
-    expect(members.map((m: KindMember) => m.kind)).toEqual(['property']);
+    expect(blocks).toEqual([]);
+    expect(rest).toBe(':lit false\n}\n');
   });
 
   it('refuses a name without its quotes, offering them', () => {
-    expect(readKind('grammar { name brass_key }').said).toEqual([
+    expect(readGrammar('grammar { name brass_key }').said).toEqual([
       [
         'k.sprout:2:18',
         '`name` is followed by the name in quotes.',
@@ -98,7 +113,7 @@ describe('a grammar block', () => {
   });
 
   it('refuses an article it does not know, and nouns with none in quotes', () => {
-    expect(readKind('grammar { article teh  nouns }').said).toEqual([
+    expect(readGrammar('grammar { article teh  nouns }').said).toEqual([
       [
         'k.sprout:2:21',
         '`article` is followed by `a`, `an`, `the` or `none`.',
@@ -113,7 +128,7 @@ describe('a grammar block', () => {
   });
 
   it('refuses a line it does not read once, stepping over the rest of it', () => {
-    const { said, blocks } = readKind(
+    const { said, blocks } = readGrammar(
       'grammar {\n    door north "to the yard" -> hall\n    name "lamp"\n  }',
     );
     expect(said).toEqual([
@@ -127,7 +142,7 @@ describe('a grammar block', () => {
   });
 
   it('reads exits and links among its lines, in the order written', () => {
-    const { blocks, said } = readKind(
+    const { blocks, said } = readGrammar(
       'grammar {\n    exit north "deeper" -> hall when (!self.get(:lit))\n    link back "back"\n    exit up "up" -> kiln.loft\n  }',
     );
     expect(said).toEqual([]);
@@ -139,13 +154,14 @@ describe('a grammar block', () => {
   });
 
   it('ends a block never closed where the body’s next member starts', () => {
-    const { said, members } = readKind('grammar { name "lamp"\n  :lit false');
+    const { said, blocks, rest } = readGrammar('grammar { name "lamp"\n  :lit false');
     expect(said[0]).toEqual([
       'k.sprout:3:3',
       'This grammar block is never closed.',
       'Add a } after its last line.',
     ]);
-    expect(members.map((m: KindMember) => m.kind)).toEqual(['grammar', 'property']);
+    expect(blocks[0]!.lines.map(written)).toEqual(['name lamp']);
+    expect(rest).toBe(':lit false\n}\n');
   });
 });
 

@@ -1,26 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Declaration, KindDeclaration, ObjectDeclaration, WorldDeclaration } from '../ast.js';
-import { Diagnostics } from '../../source/diagnostics.js';
+import type { ObjectDeclaration, KindDeclaration } from '../ast.js';
+import type { Diagnostic } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { read } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { atMember, parserOver as over, readBody, readWith, rest } from '../../fixtures/readers.js';
 import { kindDeclaration, objectDeclaration, topLevelObject } from './kinds.js';
-import { Parser } from './parser.js';
 
 /** A parser over `text`, for calling one reader directly. */
-function parserOver(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('k.sprout', text), diagnostics, DECLARATION_READERS);
-  return { p, diagnostics };
-}
+const parserOver = (text: string) => over(text, { name: 'k.sprout' });
 
-/** The one kind a file declares, and what was said reading it. */
+/** The kind `text` starts with, read by `kindDeclaration`, what it left, and what was said. */
 function readKind(text: string) {
-  const { declarations, refusals } = read(text, 'k.sprout');
-  const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
-  return { kind, declarations, refusals };
+  const { read: kind, p, refusals } = readWith(kindDeclaration, text, { name: 'k.sprout' });
+  return { kind, rest: rest(p), refusals };
 }
 
 /**
@@ -29,12 +22,24 @@ function readKind(text: string) {
  */
 const inWorld = (text: string): string => `world w is sprout.World {\n${text}\n}\n`;
 
-/** The objects the world's body holds, and what was said reading them. */
+/**
+ * The objects `text` starts with, read one after another by
+ * `objectDeclaration` where a world's body holds them, up to the first
+ * that could not be read; what they left for the body, and what was said.
+ */
 function readObjects(text: string) {
-  const { declarations, refusals } = read(inWorld(text), 'k.sprout');
-  const world = declarations.find((d): d is WorldDeclaration => d.kind === 'world');
-  return { objects: world?.objects ?? [], object: world?.objects[0], declarations, refusals };
+  const { p, diagnostics } = atMember(inWorld(text), inWorld('').indexOf('\n') + 1, 'w', {
+    name: 'k.sprout',
+  });
+  const objects: ObjectDeclaration[] = [];
+  let read: ObjectDeclaration | null = null;
+  while (p.at('name', 'object') && (read = objectDeclaration(p, true)) !== null) objects.push(read);
+  return { objects, object: objects[0], rest: rest(p), refusals: diagnostics.refusals };
 }
+
+/** Each refusal as its place, its words and its remedy. */
+const placed = (refusals: readonly Diagnostic[]) =>
+  refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
 
 /** What a declaration composes, as written. */
 const composed = (declared: KindDeclaration | ObjectDeclaration): string[] =>
@@ -45,9 +50,6 @@ const composed = (declared: KindDeclaration | ObjectDeclaration): string[] =>
 /** Its members as words: a property by its name, the rest by what they are. */
 const membersOf = (declared: KindDeclaration | ObjectDeclaration): string[] =>
   declared.members.map((m) => (m.kind === 'property' ? `:${m.name.text}` : m.kind));
-
-const names = (declarations: readonly Declaration[]): string[] =>
-  declarations.map((d) => d.name.text);
 
 describe('a kind declaration', () => {
   it('composes nothing where no `is` follows its name', () => {
@@ -98,10 +100,11 @@ describe('a kind declaration', () => {
   });
 
   it('spans from `kind` to its closing brace, with every node spanned', () => {
-    const { kind, declarations } = readKind('kind Crate is sprout.Container { contains }\n');
+    const { kind, rest } = readKind('kind Crate is sprout.Container { contains }\n');
     expect(textOf(kind!.at)).toBe('kind Crate is sprout.Container { contains }');
     expect(textOf(kind!.composes[0]!.at)).toBe('sprout.Container');
-    expect(unspanned(declarations)).toEqual([]);
+    expect(unspanned(kind)).toEqual([]);
+    expect(rest).toBe('');
   });
 });
 
@@ -117,14 +120,14 @@ describe('an object declaration', () => {
   });
 
   it('holds a body, which is an anonymous kind for that object alone', () => {
-    const { object, declarations, refusals } = readObjects(
+    const { object, refusals } = readObjects(
       'object cabinet is sprout.Container, Heavy {\n  :capacity 4\n  remembers { :opened false }\n  contains\n}',
     );
     expect(refusals).toEqual([]);
     expect(composed(object!)).toEqual(['sprout.Container', 'Heavy']);
     expect(membersOf(object!)).toEqual([':capacity', 'remembers', 'contains']);
     expect(textOf(object!.at).endsWith('}')).toBe(true);
-    expect(unspanned(declarations)).toEqual([]);
+    expect(unspanned(object)).toEqual([]);
   });
 
   it('holds the objects written in its body, which is their container', () => {
@@ -139,10 +142,11 @@ describe('an object declaration', () => {
   });
 
   it('reads one after another, with a body or without', () => {
-    const { objects, refusals } = readObjects(
+    const { objects, refusals, rest } = readObjects(
       'object key is Key\nobject shelf is Shelf { contains }\nobject lamp is Lamp',
     );
     expect(refusals).toEqual([]);
+    expect(rest).toBe('}\n');
     expect(objects.map((o) => o.name.text)).toEqual(['key', 'shelf', 'lamp']);
   });
 
@@ -156,7 +160,7 @@ describe('an object declaration', () => {
 
   it('counts each body it opens against the parser’s own depth', () => {
     const deep = 'object o is K { '.repeat(200) + '}'.repeat(200);
-    const { refusals } = readObjects(deep);
+    const { refusals } = readWith((p) => objectDeclaration(p, true), deep);
     expect(refusals.map((d) => d.message)).toEqual(['This is nested too deep to read.']);
   });
 });
@@ -181,29 +185,31 @@ describe('an object at a file’s top level', () => {
   });
 
   it('says what is wrong inside it too, and costs nothing after it', () => {
-    const { declarations, refusals } = read(
+    const { p, refusals } = readWith(
+      topLevelObject,
       'object bench is Bench {\n  nonsense\n}\nenum Ward { oak }\n',
     );
     expect(refusals.map((d) => d.message)).toEqual([
       'An object is not made of `nonsense`.',
       '`bench` is written outside the world, and an object is written inside what holds it.',
     ]);
-    expect(names(declarations)).toEqual(['Ward']);
+    expect(rest(p)).toBe('enum Ward { oak }\n');
   });
 
   it('is not refused as one where its name could not be read, which is said instead', () => {
-    const { declarations, refusals } = read('object\nenum Ward { oak }\n');
+    const { p, refusals } = readWith(topLevelObject, 'object\nenum Ward { oak }\n');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['ward.sprout:2:1', 'An object needs a name.'],
     ]);
-    expect(names(declarations)).toEqual(['Ward']);
+    expect(rest(p)).toBe('enum Ward { oak }\n');
   });
 });
 
 describe('what is refused, where, and what the author is told to write', () => {
-  /** Each refusal as its place, its words and its remedy. */
-  const said = (text: string) =>
-    read(text, 'k.sprout').refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  /** Each refusal reading the kind `text` starts with, as its place, its words and its remedy. */
+  const said = (text: string) => placed(readKind(text).refusals);
+  /** The same, for the objects `text` starts with in a world's body. */
+  const saidOfObjects = (text: string) => placed(readObjects(text).refusals);
 
   it('a kind with no name, or one that does not start with a capital', () => {
     const remedy =
@@ -257,7 +263,7 @@ describe('what is refused, where, and what the author is told to write', () => {
     ]);
     expect(composed(kind!)).toEqual(['sprout.Container']);
     expect(membersOf(kind!)).toEqual(['contains']);
-    expect(said(inWorld('object bench: Bench, Heavy'))).toEqual([
+    expect(saidOfObjects('object bench: Bench, Heavy')).toEqual([
       [
         'k.sprout:2:13',
         'An object composes its kinds with `is`, not a colon.',
@@ -286,16 +292,16 @@ describe('what is refused, where, and what the author is told to write', () => {
 
   it('an object with no name, or a capitalised one', () => {
     const remedy = "An object's name is a lower-case word: `object bench is Bench { … }`.";
-    expect(said(inWorld('object is Bench'))).toEqual([
+    expect(saidOfObjects('object is Bench')).toEqual([
       ['k.sprout:2:8', 'An object needs a name.', remedy],
     ]);
-    expect(said(inWorld('object Bench is Bench'))).toEqual([
+    expect(saidOfObjects('object Bench is Bench')).toEqual([
       ['k.sprout:2:8', 'An object needs a name.', remedy],
     ]);
-    // The body's next `remembers` block is not the name, and is read.
-    expect(said(inWorld('object remembers { :a 0 }'))).toEqual([
-      ['k.sprout:2:8', 'An object needs a name.', remedy],
-    ]);
+    // The body's next `remembers` block is not the name, and is left to the body.
+    const before = readObjects('object remembers { :a 0 }');
+    expect(placed(before.refusals)).toEqual([['k.sprout:2:8', 'An object needs a name.', remedy]]);
+    expect(before.rest).toBe('remembers { :a 0 }\n}\n');
   });
 
   it('an object that names what holds it, which is read and refused at `in`', () => {
@@ -308,7 +314,7 @@ describe('what is refused, where, and what the author is told to write', () => {
       ],
     ]);
     expect(membersOf(object!)).toEqual([':worn']);
-    expect(said(inWorld('object cushion is Bench in { }'))).toEqual([
+    expect(saidOfObjects('object cushion is Bench in { }')).toEqual([
       [
         'k.sprout:2:25',
         'An object does not name what holds it: the body it is written in is its container.',
@@ -323,9 +329,11 @@ describe('what is refused, where, and what the author is told to write', () => {
     );
     expect(refusals.map((d) => d.message)).toEqual(['An object is not made of `visitors`.']);
     expect(membersOf(object!)).toEqual([':worn']);
-    expect(said('world w is sprout.World {\n  object bench is Bench {\n    contains')).toEqual([
+    const text = 'world w is sprout.World {\n  object bench is Bench {\n    contains';
+    const unclosed = atMember(text, text.indexOf('object'), 'w', { name: 'k.sprout' });
+    expect(objectDeclaration(unclosed.p, true)).toBeNull();
+    expect(placed(unclosed.diagnostics.refusals)).toEqual([
       ['k.sprout:3:13', '`bench` is never closed.', 'Add a } after what the object is made of.'],
-      ['k.sprout:3:13', '`w` is never closed.', 'Add a } after what the world is made of.'],
     ]);
   });
 });
@@ -340,8 +348,8 @@ describe('a broken kind or object costs that declaration, not the file', () => {
       'kind Crate is 4 { }',
       'kind Crate { nonsense }',
     ]) {
-      const { declarations, refusals } = read(`${broken}\nenum Ward { oak }\n`);
-      expect(names(declarations), broken).toContain('Ward');
+      const { rest, refusals } = readKind(`${broken}\nenum Ward { oak }\n`);
+      expect(rest, broken).toBe('enum Ward { oak }\n');
       expect(
         refusals.map((d) => d.message),
         broken,
@@ -371,11 +379,17 @@ describe('a broken kind or object costs that declaration, not the file', () => {
         ['A path is written without spaces around its dots.', IN],
       ],
     ] as const) {
-      const { objects, refusals } = readObjects(`${broken}\nobject lamp is Lamp`);
+      // The body steps over what a refused object leaves, to its next member.
+      const { objects, refusals } = readBody(inWorld(`${broken}\nobject lamp is Lamp`), 'world');
       expect(
         objects.map((o) => o.name.text),
         broken,
       ).toContain('lamp');
+      // What is said is the object reader's own: the body adds nothing to it.
+      expect(
+        readObjects(broken).refusals.map((d) => d.message),
+        broken,
+      ).toEqual(refusals.map((d) => d.message));
       const messages = refusals.map((d) => d.message);
       if (also.length === 0) expect(messages, broken).toHaveLength(1);
       else expect(messages, broken).toEqual(also);
@@ -383,16 +397,17 @@ describe('a broken kind or object costs that declaration, not the file', () => {
   });
 
   it('ends a body at a declaration written inside it, and keeps that declaration', () => {
-    for (const [text, owner] of [
-      ['kind Crate {\n  enum Inner { oak }\n}\n', 'Crate'],
-      [inWorld('object bench is Bench {\n  kind Inner { }\n}'), 'bench'],
+    const kind = readKind('kind Crate {\n  enum Inner { oak }\n}\n');
+    const object = readObjects('object bench is Bench {\n  kind Inner { }\n}');
+    for (const [{ refusals, rest }, owner, inner] of [
+      [kind, 'Crate', 'enum Inner { oak }\n}\n'],
+      [object, 'bench', 'kind Inner { }\n}\n}\n'],
     ] as const) {
-      const { declarations, refusals } = read(text);
       expect(
         refusals.map((d) => d.message),
-        text,
+        owner,
       ).toContain(`\`${owner}\` is never closed.`);
-      expect(names(declarations), text).toContain('Inner');
+      expect(rest, owner).toBe(inner);
     }
   });
 });

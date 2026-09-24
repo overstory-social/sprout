@@ -1,18 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { readStatement } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { readWith as over, rest } from '../../fixtures/readers.js';
+import type { Parser } from './parser.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
 
 /** One reader, run over a string on its own. */
-function readWith<T>(read: (p: Parser) => T, text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
-  return { read: read(p), refusals: diagnostics.refusals, p };
-}
+const readWith = <T>(read: (p: Parser) => T, text: string) =>
+  over(read, text, { name: 'body.sprout' });
 
 describe('`destroy self` is the only form', () => {
   it('reads it, spanning both words', () => {
@@ -23,8 +18,8 @@ describe('`destroy self` is the only form', () => {
   });
 
   it('says what is missing when nothing follows', () => {
-    const { statement, refusals } = readStatement('destroy');
-    expect(statement).toBeNull();
+    const { read, refusals } = readWith(destroyStatement, 'destroy');
+    expect(read).toBeNull();
     expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
         'body.sprout:1:8',
@@ -43,8 +38,8 @@ describe('`destroy self` is the only form', () => {
       ['destroy Cup', 'Cup'],
       ['destroy 3', '3'],
     ] as const) {
-      const { statement, refusals } = readStatement(text);
-      expect(statement, text).toBeNull();
+      const { read, refusals } = readWith(destroyStatement, text);
+      expect(read, text).toBeNull();
       expect(
         refusals.map((d) => [textOf(d.at), d.message, d.remedy]),
         text,
@@ -61,22 +56,12 @@ describe('`destroy self` is the only form', () => {
 
 describe('`finally destroy self` waits for the queue to empty', () => {
   it('is a `destroy` marked `finally`, spanning both words', () => {
-    const { statement, refusals } = readStatement('finally destroy self');
+    const { read, refusals, p } = readWith(finallyStatement, 'finally destroy self\nsay "Bye."');
     expect(refusals).toEqual([]);
-    expect(statement).toMatchObject({ kind: 'destroy', finally: true });
-    expect(textOf(statement!.at)).toBe('finally destroy self');
-    expect(readStatement('destroy self').statement).toMatchObject({ finally: false });
-  });
-
-  it('is read by its own reader, directly', () => {
-    const diagnostics = new Diagnostics();
-    const p = new Parser(
-      new SourceFile('body.sprout', 'finally destroy self'),
-      diagnostics,
-      DECLARATION_READERS,
-    );
-    expect(finallyStatement(p)).toMatchObject({ kind: 'destroy', finally: true });
-    expect(diagnostics.refusals).toEqual([]);
+    expect(read).toMatchObject({ kind: 'destroy', finally: true });
+    expect(textOf(read!.at)).toBe('finally destroy self');
+    expect(rest(p)).toBe('say "Bye."');
+    expect(readWith(destroyStatement, 'destroy self').read).toMatchObject({ finally: false });
   });
 
   it('refuses anything but `destroy self` after `finally`', () => {
@@ -84,7 +69,7 @@ describe('`finally destroy self` waits for the queue to empty', () => {
       ['finally', 'body.sprout:1:8'],
       ['finally say "Bye."', 'body.sprout:1:9'],
     ] as const) {
-      const { refusals } = readStatement(text);
+      const { refusals } = readWith(finallyStatement, text);
       expect(
         refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
         text,
@@ -96,8 +81,8 @@ describe('`finally destroy self` waits for the queue to empty', () => {
         ],
       ]);
     }
-    expect(readStatement('finally destroy lamp').refusals.map((d) => d.message)).toEqual([
-      '`destroy` removes only the object whose body runs it.',
-    ]);
+    expect(
+      readWith(finallyStatement, 'finally destroy lamp').refusals.map((d) => d.message),
+    ).toEqual(['`destroy` removes only the object whose body runs it.']);
   });
 });

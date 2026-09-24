@@ -1,28 +1,50 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EnumDeclaration } from '../ast.js';
+import type { EnumDeclaration, WorldDeclaration } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
-import {
-  DECLARATIONS,
-  DEEPEST,
-  parseDeclarations,
-  parseExpression,
-  parseProperty,
-  parseRemembers,
-} from '../parse.js';
+import { DECLARATIONS } from '../parse.js';
 import { SourceFile } from '../../source/source.js';
-import { read, optionsOf, readProperty, readExpression, readWorld } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { optionsOf, shape } from '../../fixtures/parse.js';
+import { parserOver, readWith } from '../../fixtures/readers.js';
+import { DECLARATION_READERS, file } from './declarations.js';
+import { expression } from './expressions.js';
+import { atMemberOrClose, DEEPEST, Parser, punct } from './parser.js';
+import { property } from './properties.js';
+import { remembers } from './remembers.js';
 
 /** The parser's own depth bound, refused in the same words wherever it is met. */
 const TOO_DEEP = 'This is nested too deep to read.';
 
-/** A property, for the specs about depth that are written as one. */
-function readExpressionOf(text: string) {
-  const diagnostics = new Diagnostics();
-  parseProperty(new SourceFile('k.sprout', text), diagnostics);
-  return { refusals: diagnostics.refusals };
+/** A `remembers` block read on its own, where nothing but the end of the file ends it. */
+const rememberBlock = (p: Parser) => remembers(p, () => false);
+
+/** `reader` over `text` in the file `k.sprout`, telling `diagnostics` what it says. */
+const over = <T>(reader: (p: Parser) => T, text: string, diagnostics: Diagnostics): T =>
+  reader(parserOver(text, { name: 'k.sprout', diagnostics }).p);
+
+/** Every declaration in `text`, and what was said. */
+function read(text: string) {
+  const { read: declarations, refusals } = readWith(file, text);
+  return { declarations, refusals };
+}
+
+/** The world `text` declares, among everything it declares, and what was said. */
+function readWorld(text: string) {
+  const { declarations, refusals } = read(text);
+  const world = declarations.find((d): d is WorldDeclaration => d.kind === 'world');
+  return { world, declarations, refusals };
+}
+
+/** One property, read by `property`. */
+function readProperty(text: string) {
+  const { read: declared, refusals } = readWith(property, text, { name: 'k.sprout' });
+  return { declared, refusals };
+}
+
+/** One expression, read by `expression`, and its shape. */
+function readExpression(text: string) {
+  const { read: expr, refusals } = readWith(expression, text, { name: 'body.sprout' });
+  return { expr, shape: shape(expr), refusals };
 }
 
 describe('a lexical problem is reported once, and the parser reads around it', () => {
@@ -48,7 +70,7 @@ describe('a character the lexer stepped over is not reported again as a missing 
 
   it('says only what the lexer said, inside a list', () => {
     const diagnostics = new Diagnostics();
-    parseProperty(new SourceFile('k.sprout', ':a [Ward] default [oak % silver]'), diagnostics);
+    over(property, ':a [Ward] default [oak % silver]', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "%".',
     ]);
@@ -56,7 +78,7 @@ describe('a character the lexer stepped over is not reported again as a missing 
 
   it('says only what the lexer said, inside a `remembers` block', () => {
     const diagnostics = new Diagnostics();
-    parseRemembers(new SourceFile('k.sprout', 'remembers { :a 0 %\n  :b 1 }'), diagnostics);
+    over(rememberBlock, 'remembers { :a 0 %\n  :b 1 }', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "%".',
     ]);
@@ -170,10 +192,7 @@ describe('a stepped-over character beside a separator that is, or is not, there'
 
   it('keeps every element of a list whose separator sits beside the character', () => {
     const diagnostics = new Diagnostics();
-    const declared = parseProperty(
-      new SourceFile('k.sprout', ':a [Ward] default [oak % , silver]'),
-      diagnostics,
-    );
+    const declared = over(property, ':a [Ward] default [oak % , silver]', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "%".',
     ]);
@@ -183,10 +202,7 @@ describe('a stepped-over character beside a separator that is, or is not, there'
 
   it('keeps every entry of a `remembers` block beside the character', () => {
     const diagnostics = new Diagnostics();
-    const declared = parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a 0 % :b 1 }'),
-      diagnostics,
-    );
+    const declared = over(rememberBlock, 'remembers { :a 0 % :b 1 }', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "%".',
     ]);
@@ -296,10 +312,7 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
   it('as the name of a remembered property', () => {
     for (const word of DECLARATIONS) {
       const diagnostics = new Diagnostics();
-      const remembered = parseRemembers(
-        new SourceFile('k.sprout', `remembers { :${word} 1 :keep 2 }`),
-        diagnostics,
-      );
+      const remembered = over(rememberBlock, `remembers { :${word} 1 :keep 2 }`, diagnostics);
       expect(diagnostics.refusals, word).toEqual([]);
       expect(
         remembered?.properties.map((p) => p.name.text),
@@ -395,16 +408,13 @@ describe('the parser bounds its own recursion, and nothing else does', () => {
 
   it('says so once for a list too', () => {
     const diagnostics = new Diagnostics();
-    parseProperty(new SourceFile('k.sprout', ':x ' + '['.repeat(2000) + 'oak'), diagnostics);
+    over(property, ':x ' + '['.repeat(2000) + 'oak', diagnostics);
     expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(1);
   });
 
   it('says so once for a `remembers` block too, which reads on past an entry', () => {
     const diagnostics = new Diagnostics();
-    parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a ' + '['.repeat(2000) + 'oak }'),
-      diagnostics,
-    );
+    over(rememberBlock, 'remembers { :a ' + '['.repeat(2000) + 'oak }', diagnostics);
     expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(1);
   });
 
@@ -416,12 +426,13 @@ describe('the parser bounds its own recursion, and nothing else does', () => {
     // is still owed, so stopping at the first too-deep item would say
     // the depth once and drop everything else that was wrong.
     const deep = '['.repeat(DEEPEST + 1);
-    const inside = readExpressionOf(`:x [${deep}oak, Zeta]`).refusals.map((d) => d.message);
+    const inside = readProperty(`:x [${deep}oak, Zeta]`).refusals.map((d) => d.message);
     expect(inside.filter((m) => m === TOO_DEEP)).toHaveLength(1);
 
     const diagnostics = new Diagnostics();
-    const after = parseRemembers(
-      new SourceFile('k.sprout', `remembers { :a ${deep}oak${']'.repeat(DEEPEST + 1)} b c: 1 }`),
+    const after = over(
+      rememberBlock,
+      `remembers { :a ${deep}oak${']'.repeat(DEEPEST + 1)} b c: 1 }`,
       diagnostics,
     );
     const said = diagnostics.refusals.map((d) => d.message);
@@ -433,13 +444,11 @@ describe('the parser bounds its own recursion, and nothing else does', () => {
   it('gives each declaration its own account of being too deep', () => {
     const diagnostics = new Diagnostics();
     const deep = '['.repeat(DEEPEST + 1);
-    parseDeclarations(
-      new SourceFile(
-        'k.sprout',
-        `message :a with ${deep}Ward
+    over(
+      file,
+      `message :a with ${deep}Ward
 message :b with ${deep}Ward
 `,
-      ),
       diagnostics,
     );
     expect(diagnostics.refusals.filter((d) => d.message === TOO_DEEP)).toHaveLength(2);
@@ -468,11 +477,9 @@ message :b with ${deep}Ward
 
     // The same shape in a `remembers` block.
     const diagnostics = new Diagnostics();
-    const remembered = parseRemembers(
-      new SourceFile(
-        'k.sprout',
-        'remembers { :a ' + '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1) + ' :b 3 }',
-      ),
+    const remembered = over(
+      rememberBlock,
+      'remembers { :a ' + '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1) + ' :b 3 }',
       diagnostics,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
@@ -485,8 +492,9 @@ message :b with ${deep}Ward
     // own, a mistake the author did not make.
     const type = '['.repeat(DEEPEST + 1) + 'Ward' + ']'.repeat(DEEPEST + 1);
     const diagnostics = new Diagnostics();
-    const remembered = parseRemembers(
-      new SourceFile('k.sprout', `remembers { :a ${type} default oak :b 3 }`),
+    const remembered = over(
+      rememberBlock,
+      `remembers { :a ${type} default oak :b 3 }`,
       diagnostics,
     );
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['b']);
@@ -503,10 +511,7 @@ message :b with ${deep}Ward
     const type = '['.repeat(DEEPEST + 1) + 'Ward' + ']'.repeat(DEEPEST + 1);
     for (const tail of ['default oak', 'default [oak, silver]', 'default 0 min 0 max 9']) {
       const diagnostics = new Diagnostics();
-      const remembered = parseRemembers(
-        new SourceFile('k.sprout', `remembers { :a ${type} ${tail} :b 3 }`),
-        diagnostics,
-      );
+      const remembered = over(rememberBlock, `remembers { :a ${type} ${tail} :b 3 }`, diagnostics);
       expect(
         remembered!.properties.map((p) => p.name.text),
         tail,
@@ -521,10 +526,7 @@ message :b with ${deep}Ward
   it('steps over a VALUE and a bracketed expression the same way', () => {
     const value = '['.repeat(DEEPEST + 1) + 'oak' + ']'.repeat(DEEPEST + 1);
     const list = new Diagnostics();
-    const remembered = parseRemembers(
-      new SourceFile('k.sprout', `remembers { :a ${value} :b 3 }`),
-      list,
-    );
+    const remembered = over(rememberBlock, `remembers { :a ${value} :b 3 }`, list);
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
     expect(list.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
 
@@ -541,10 +543,7 @@ message :b with ${deep}Ward
     // real closers behind, which is what the skip exists to prevent.
     const trap = '['.repeat(DEEPEST + 1) + 'message foo' + ']'.repeat(DEEPEST + 1);
     const diagnostics = new Diagnostics();
-    const remembered = parseRemembers(
-      new SourceFile('k.sprout', `remembers { :a ${trap} :c 3 }`),
-      diagnostics,
-    );
+    const remembered = over(rememberBlock, `remembers { :a ${trap} :c 3 }`, diagnostics);
     expect(remembered!.properties.map((p) => p.name.text)).toEqual(['a', 'c']);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
 
@@ -552,10 +551,7 @@ message :b with ${deep}Ward
     // trapped word: `A message needs a name.` about content the author
     // never wrote as one is worse than saying nothing.
     const atFile = new Diagnostics();
-    const declared = parseDeclarations(
-      new SourceFile('k.sprout', `message :first with ${trap}\nmessage :second\n`),
-      atFile,
-    );
+    const declared = over(file, `message :first with ${trap}\nmessage :second\n`, atFile);
     expect(declared.map((d) => d.name.text)).toEqual(['second']);
     expect(atFile.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
   });
@@ -565,11 +561,9 @@ message :b with ${deep}Ward
     // bracket that was never closed does not take the rest of the file
     // with it.
     const diagnostics = new Diagnostics();
-    const declared = parseDeclarations(
-      new SourceFile(
-        'k.sprout',
-        `message :a with ${'['.repeat(DEEPEST + 2)}Ward\nmessage :b with ${'['.repeat(DEEPEST + 2)}Ward\n`,
-      ),
+    const declared = over(
+      file,
+      `message :a with ${'['.repeat(DEEPEST + 2)}Ward\nmessage :b with ${'['.repeat(DEEPEST + 2)}Ward\n`,
       diagnostics,
     );
     expect(declared).toHaveLength(0);
@@ -623,7 +617,7 @@ message :b with ${deep}Ward
   });
 
   it('never throws, however deep or however long', () => {
-    // `parseExpression` directly, not `readExpression`: `shape()`
+    // `expression` alone, not `readExpression`: `shape()`
     // walks the tree by recursion, and a chain of fifty thousand terms
     // would overflow the SPEC rather than the parser.
     //
@@ -641,10 +635,7 @@ message :b with ${deep}Ward
       '!'.repeat(50_000) + 'a',
       'a' + '.f(a'.repeat(50_000) + ')'.repeat(50_000),
     ]) {
-      expect(
-        () => parseExpression(new SourceFile('body.sprout', text), new Diagnostics()),
-        text.slice(0, 16),
-      ).not.toThrow();
+      expect(() => readWith(expression, text), text.slice(0, 16)).not.toThrow();
     }
 
     // And the bracket kinds a property is written with, which reach the
@@ -654,20 +645,101 @@ message :b with ${deep}Ward
       `:x ${'['.repeat(20_000)}${']'.repeat(20_000)}`,
       `:x ${'['.repeat(20_000)}Ward`,
     ]) {
-      expect(
-        () => parseProperty(new SourceFile('k.sprout', text), new Diagnostics()),
-        text.slice(0, 16),
-      ).not.toThrow();
+      expect(() => over(property, text, new Diagnostics()), text.slice(0, 16)).not.toThrow();
     }
   });
 });
 
+describe('the context every reader takes', () => {
+  const at = (text: string) => parserOver(text).p;
+
+  it('takes a token only where it is the one asked for, and names what it took', () => {
+    const p = at('lamp is Lamp');
+    expect(p.take('name', 'is')).toBeNull();
+    const lamp = p.take('name')!;
+    expect(p.ident(lamp)).toEqual({ kind: 'ident', at: lamp.at, text: 'lamp' });
+    expect(p.at('name', 'is')).toBe(true);
+    expect([p.here().start, p.here().end]).toEqual([5, 5]);
+  });
+
+  it('tells one mark from another, and a mark from a word', () => {
+    const p = at('{ x');
+    expect(punct(p.peek(), '{')).toBe(true);
+    expect(punct(p.peek(), '}')).toBe(false);
+    expect(punct(p.peek(1), 'x')).toBe(false);
+  });
+
+  it('knows a list’s end by the next member, a block member’s brace, or the body’s close', () => {
+    for (const [text, ends] of [
+      [':lit true', true],
+      ['remembers { :a 0 }', true],
+      ['}', true],
+      ['oak, silver', false],
+      ['remembers', false],
+    ] as const) {
+      expect(atMemberOrClose(at(text)), text).toBe(ends);
+    }
+  });
+
+  it('starts a declaration only at a word with that declaration’s own opening', () => {
+    for (const [text, starts] of [
+      ['enum Ward { oak }', true],
+      ['enum { oak }', true],
+      ['enum, silver', false],
+      ['message :stir', true],
+      ['message foo', false],
+      ['kind Crate is sprout.Container { }', true],
+      ['kind crate { }', false],
+      ['object bench is Bench', true],
+      ['object bench', false],
+      ['verb take { }', true],
+      ['world w is sprout.World { }', true],
+      ['world: v.X { }', false],
+      ['link take { }', false],
+    ] as const) {
+      expect(at(text).atDeclarationStart(), text).toBe(starts);
+    }
+    expect(at('oak message :stir').atDeclarationStart(1)).toBe(true);
+  });
+
+  it('stops recovery at any word it reads that a closer or the file’s end does not follow', () => {
+    for (const [text, stops] of [
+      ['message foo', true],
+      ['world: v.X { }', true],
+      ['enum Ward', true],
+      ['message', false],
+      ['message }', false],
+      ['message, silver', false],
+      ['link foo', false],
+    ] as const) {
+      expect(at(text).atRecoveryStop(), text).toBe(stops);
+    }
+  });
+
+  it('goes one deeper up to its bound, and says it is too deep once until told to say it again', () => {
+    const { p, diagnostics } = parserOver('(');
+    for (let level = 0; level < DEEPEST; level++) expect(p.deeper(p.here())).toBe(true);
+    expect(p.depth).toBe(DEEPEST);
+    expect(p.deeper(p.here())).toBe(false);
+    expect(p.deeper(p.here(), 'Take some of the signs out.')).toBe(false);
+    expect(diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [TOO_DEEP, 'Take some of the brackets out.'],
+    ]);
+    p.tooDeepReported = false;
+    p.reportTooDeep(p.here(), 'Take some of the signs out.');
+    expect(diagnostics.refusals.map((d) => d.remedy)).toEqual([
+      'Take some of the brackets out.',
+      'Take some of the signs out.',
+    ]);
+  });
+});
+
 describe('what the parser says about the passages the lexer hands it', () => {
-  const over = (text: string) =>
+  const parserAt = (text: string) =>
     new Parser(new SourceFile('k.sprout', text), new Diagnostics(), DECLARATION_READERS);
 
   it("describes a passage's body as words, never by the prose it holds", () => {
-    const p = over('passage greeting { Hello, {actor}. }');
+    const p = parserAt('passage greeting { Hello, {actor}. }');
     expect(p.describe(p.peek(2))).toBe("a passage's words in braces");
   });
 
@@ -678,7 +750,7 @@ describe('what the parser says about the passages the lexer hands it', () => {
       ['passage greeting { Hello. }', false],
       ['%', false],
     ] as const) {
-      const p = over(text);
+      const p = parserAt(text);
       while (!p.done) p.next();
       expect(p.swallowedRest, text).toBe(swallowed);
     }

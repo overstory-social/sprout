@@ -4,18 +4,32 @@ import type { KindDeclaration, PlayDeclaration, Statement } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
-import { OWNERS, ownedBy, WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
+import { WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
+import { atMember, inKindBody, rest } from '../../fixtures/readers.js';
+import { play } from './roles.js';
+import { without } from './without.js';
+import { worldMembers } from './world.js';
 
-/** The plays a kind's body holds, and everything said, as location, message and remedy. */
+/**
+ * The plays `members` starts with, and the `without`s among them, each
+ * read by its own reader in the body of `kind Key`; what they left for
+ * the body, and everything said, as location, message and remedy.
+ */
 function readPlays(members: string) {
-  const { declarations, refusals } = read(`kind Key {\n  ${members}\n}\n`, 'k.sprout');
-  const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
-  const plays = (kind?.members ?? []).filter((m): m is PlayDeclaration => m.kind === 'play');
+  const { p, diagnostics, startsMember } = inKindBody(members, 'Key');
+  const plays: PlayDeclaration[] = [];
+  for (;;) {
+    if (p.at('name', 'without')) without(p, startsMember);
+    else if (p.at('name', 'as')) {
+      const one = play(p, 'Key', startsMember);
+      if (one !== null) plays.push(one);
+    } else break;
+  }
   return {
-    kind,
     plays,
-    said: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-    messages: refusals.map((d) => d.message),
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    messages: diagnostics.refusals.map((d) => d.message),
   };
 }
 
@@ -30,9 +44,10 @@ const KEY_PLAY = `as tool for unlock {
 
 describe('a play', () => {
   it('is read as the spec writes one: its role, its verb, a `permit` and a `do`', () => {
-    const { plays, said, kind } = readPlays(KEY_PLAY);
+    const { plays, said, rest } = readPlays(KEY_PLAY);
     expect(said).toEqual([]);
-    expect(unspanned(kind!)).toEqual([]);
+    expect(rest).toBe('}\n');
+    expect(unspanned(plays)).toEqual([]);
     const [play] = plays;
     expect(play!.head.role.text).toBe('tool');
     expect(play!.head.verb.text).toBe('unlock');
@@ -77,20 +92,13 @@ describe('a play', () => {
   });
 
   it('is read in a world, a kind and an object alike', () => {
-    for (const owner of OWNERS) {
-      const { declarations, refusals } = read(
-        `${owner.open}\n  as target for pull { do { } }\n${owner.close}\n`,
-        'w.sprout',
-      );
-      expect(
-        refusals.map((d) => d.message),
-        owner.kind,
-      ).toEqual([]);
-      expect(
-        ownedBy(owner, declarations)!.members.map((m) => m.kind),
-        owner.kind,
-      ).toEqual(['play']);
-    }
+    // A kind's body and an object's are read by one table of members, and the world's by its own.
+    const written = 'as target for pull { do { } }';
+    const kind = atMember(written, 0, 'Key');
+    expect(kind.readers.get('as')!()).toMatchObject({ kind: 'play' });
+    const { p, diagnostics } = atMember(written, 0);
+    expect(worldMembers(p, 'w').get('as')!()).toMatchObject({ kind: 'play' });
+    expect([...kind.diagnostics.refusals, ...diagnostics.refusals]).toEqual([]);
   });
 });
 
@@ -178,7 +186,7 @@ describe('what a play’s head and body refuse, where, and what to write', () =>
   }
 
   it('is never closed where the body’s next member starts inside it, said there, and the member kept', () => {
-    const { kind, said } = readPlays('as target for pull { do { }\n  :open true');
+    const { rest, said } = readPlays('as target for pull { do { }\n  :open true');
     expect(said).toEqual([
       [
         'k.sprout:3:3',
@@ -186,28 +194,21 @@ describe('what a play’s head and body refuse, where, and what to write', () =>
         'Add a } after what it holds. Every { inside it, after a `permit`, a `do`, an `if` or an `else`, needs its own }.',
       ],
     ]);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['property']);
+    expect(rest).toBe(':open true\n}\n');
   });
 
   it('leaves the file’s end to the body, which says it is never closed once', () => {
-    const { refusals } = read('kind Key {\n  as target for pull { do { }\n', 'k.sprout');
-    expect(refusals.map((d) => d.message)).toEqual(['`Key` is never closed.']);
-  });
-
-  it('is written after a stray `}` as one member, its own braces stepped over', () => {
-    const { refusals } = read(
-      'kind Key {\n  }\n  as target for pull { do { self.set(:open, true) } }\n}\n',
-      'k.sprout',
-    );
-    expect(refusals.map((d) => d.message)).toEqual([
-      '`as target for pull` is written after the `}` that ends `Key`.',
-    ]);
+    const text = 'kind Key {\n  as target for pull { do { }\n';
+    const { p, diagnostics, startsMember } = atMember(text, text.indexOf('as'), 'Key');
+    play(p, 'Key', startsMember);
+    expect(diagnostics.refusals).toEqual([]);
+    expect(p.done).toBe(true);
   });
 
   it('is not what a `without` with nothing in it leaves out', () => {
-    const { kind, messages } = readPlays('without\n  as target for pull { do { } }');
+    const { plays, messages } = readPlays('without\n  as target for pull { do { } }');
     expect(messages).toEqual(['`without` does not say what to leave out.']);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['play']);
+    expect(plays.map((m) => m.kind)).toEqual(['play']);
   });
 });
 

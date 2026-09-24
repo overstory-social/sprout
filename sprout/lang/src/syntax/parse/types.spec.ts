@@ -1,11 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, Literal } from '../ast.js';
-import { Diagnostics } from '../../source/diagnostics.js';
-import { parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { DEFAULT_LIMITS } from '../../bundle/limits.js';
-import { read, readProperty } from '../../fixtures/parse.js';
+import type { Literal } from '../ast.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { DEFAULT_LIMITS, type StaticCaps } from '../../bundle/limits.js';
+import { atMember, readWith, rest } from '../../fixtures/readers.js';
+import { file } from './declarations.js';
+import type { Parser } from './parser.js';
+import { property } from './properties.js';
+import { remembers } from './remembers.js';
+import { atFraction, atType, literal, skipValue, typeExpr } from './types.js';
+
+/** A `remembers` block read on its own, where nothing but the end of the file ends it. */
+const rememberBlock = (p: Parser) => remembers(p, () => false);
+
+/** `reader` over `text` in the file `k.sprout`: what it read, the parser it left, and what was said. */
+const run = <T>(reader: (p: Parser) => T, text: string, caps?: StaticCaps) =>
+  readWith(reader, text, { name: 'k.sprout', caps });
+
+/** A value, read by `literal`, what it left, and what was said. */
+function readValue(text: string, caps?: StaticCaps) {
+  const { read, p, refusals } = run(literal, text, caps);
+  return { value: read, rest: rest(p), refusals };
+}
+
+/** One property, read by `property`, for what a type or a value leaves to the property around it. */
+function readProperty(text: string) {
+  const { read, refusals } = run(property, text);
+  return { declared: read, refusals };
+}
+
+/** Every declaration in `text`, and what was said. */
+function read(text: string) {
+  const { read: declarations, refusals } = readWith(file, text);
+  return { declarations, refusals };
+}
 
 /** The option names a list default holds, gathered at any depth. */
 function optionsOf(literal: Literal | null | undefined): string[] {
@@ -24,17 +52,11 @@ function leavesOf(literal: Literal | null | undefined): (number | string | boole
 }
 
 describe('a file that runs out is explained once, not once per bracket', () => {
-  const diagnose = (
-    text: string,
-    fn: (source: SourceFile, diagnostics: Diagnostics) => unknown = parseProperty,
-  ): string[] => {
-    const diagnostics = new Diagnostics();
-    fn(new SourceFile('k.sprout', text), diagnostics);
-    return diagnostics.all.map((d) => d.message);
-  };
+  const diagnose = (text: string, reader: (p: Parser) => unknown = literal): string[] =>
+    run(reader, text).diagnostics.all.map((d) => d.message);
 
   it('says a nested unclosed list is unclosed once, however deep it is', () => {
-    for (const text of [':x [oak,[Zeta', ':x [oak, [oak2, [Zeta', ':x [a, [b, [c, [Zeta']) {
+    for (const text of ['[oak,[Zeta', '[oak, [oak2, [Zeta', '[a, [b, [c, [Zeta']) {
       const said = diagnose(text);
       expect(
         said.filter((m) => m === 'This list is never closed.'),
@@ -44,19 +66,19 @@ describe('a file that runs out is explained once, not once per bracket', () => {
   });
 
   it('does not add the outer construct’s own complaint on top of the inner one', () => {
-    expect(diagnose('remembers { :a [oak,[Zeta', parseRemembers)).toEqual([
+    expect(diagnose('remembers { :a [oak,[Zeta', rememberBlock)).toEqual([
       '`Zeta`, which starts with a capital is not a value.',
       'This list is never closed.',
     ]);
   });
 
   it('still says so once where the list itself is the one that ran out', () => {
-    expect(diagnose(':x [oak')).toEqual(['This list is never closed.']);
-    expect(diagnose(':x [oak, Zeta')).toEqual([
+    expect(diagnose('[oak')).toEqual(['This list is never closed.']);
+    expect(diagnose('[oak, Zeta')).toEqual([
       '`Zeta`, which starts with a capital is not a value.',
       'This list is never closed.',
     ]);
-    expect(diagnose('remembers { :a 0', parseRemembers)).toEqual([
+    expect(diagnose('remembers { :a 0', rememberBlock)).toEqual([
       'This `remembers` block is never closed.',
     ]);
   });
@@ -102,20 +124,23 @@ describe('invariants over generated input, brackets included', () => {
     }
   }
 
-  const readers: [string, (s: SourceFile, d: Diagnostics) => unknown][] = [
-    ['parseDeclarations', parseDeclarations],
-    ['parseProperty', parseProperty],
-    ['parseRemembers', parseRemembers],
+  const readers: [string, (p: Parser) => unknown][] = [
+    ['typeExpr', typeExpr],
+    ['literal', literal],
+    ['property', property],
+    ['remembers', rememberBlock],
+    ['file', file],
   ];
 
-  for (const [name, read] of readers) {
+  for (const [name, reader] of readers) {
     it(`${name} never throws, and never says one thing twice in one place`, () => {
       for (const text of generated(600)) {
-        const diagnostics = new Diagnostics();
-        const source = new SourceFile('fuzz.sprout', text);
-        expect(() => read(source, diagnostics), text).not.toThrow();
+        let said: ReturnType<typeof run>['diagnostics'] | undefined;
+        expect(() => {
+          said = run(reader, text).diagnostics;
+        }, text).not.toThrow();
         const seen = new Set<string>();
-        for (const problem of diagnostics.all) {
+        for (const problem of said!.all) {
           const key = `${problem.message}@${problem.at.start}-${problem.at.end}`;
           expect(seen.has(key), `${text}\n  repeated: ${problem.message}`).toBe(false);
           seen.add(key);
@@ -166,11 +191,8 @@ describe('invariants over generated input, brackets included', () => {
 
   it('gives the same answer for the same source, every time', () => {
     for (const text of generated(200, 7)) {
-      const source = new SourceFile('fuzz.sprout', text);
-      const once = new Diagnostics();
-      const twice = new Diagnostics();
-      parseDeclarations(source, once);
-      parseDeclarations(new SourceFile('fuzz.sprout', text), twice);
+      const once = run(file, text).diagnostics;
+      const twice = run(file, text).diagnostics;
       expect(
         twice.all.map((d) => d.message),
         text,
@@ -223,13 +245,9 @@ describe('brackets inside brackets with something unreadable at the bottom, enum
   }
 
   const readings = (text: string): { property: string[]; remembers: string[] } => {
-    const property = new Diagnostics();
-    const remembers = new Diagnostics();
-    parseProperty(new SourceFile('k.sprout', text), property);
-    parseRemembers(new SourceFile('k.sprout', text), remembers);
     return {
-      property: property.all.map((d) => d.message),
-      remembers: remembers.all.map((d) => d.message),
+      property: run(property, text).diagnostics.all.map((d) => d.message),
+      remembers: run(rememberBlock, text).diagnostics.all.map((d) => d.message),
     };
   };
 
@@ -252,9 +270,8 @@ describe('brackets inside brackets with something unreadable at the bottom, enum
 
   it('says nothing twice in one place, at any depth', () => {
     for (const { text, what } of shapes()) {
-      for (const read of [parseProperty, parseRemembers]) {
-        const diagnostics = new Diagnostics();
-        read(new SourceFile('k.sprout', text), diagnostics);
+      for (const reader of [property, rememberBlock] as ((p: Parser) => unknown)[]) {
+        const { diagnostics } = run(reader, text);
         const seen = new Set<string>();
         for (const problem of diagnostics.all) {
           const key = `${problem.message}@${problem.at.start}-${problem.at.end}`;
@@ -277,10 +294,9 @@ describe('brackets inside brackets with something unreadable at the bottom, enum
     for (let depth = 1; depth <= 4; depth++) {
       const open = Array.from({ length: depth }, (_, i) => `[oak${i}, `).join('');
       for (const bad of BAD) {
-        const text = `:x ${open}${bad}, last${']'.repeat(depth)}`;
-        const diagnostics = new Diagnostics();
-        const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
-        expect(declared, `${text} gave back nothing`).not.toBeNull();
+        const text = `${open}${bad}, last${']'.repeat(depth)}`;
+        expect(readValue(text).value, `${text} gave back nothing`).not.toBeNull();
+        expect(readProperty(`:x ${text}`).declared, `:x ${text} gave back nothing`).not.toBeNull();
       }
     }
   });
@@ -288,24 +304,24 @@ describe('brackets inside brackets with something unreadable at the bottom, enum
 
 describe('a list is bounded by what the host allows', () => {
   const allowed = DEFAULT_LIMITS.caps.listElements;
-  const list = (many: number) =>
-    `:x [Ward] default [${Array.from({ length: many }, (_, i) => `e${i}`).join(', ')}]`;
+  const list = (many: number) => `[${Array.from({ length: many }, (_, i) => `e${i}`).join(', ')}]`;
 
   it('reads a list up to the cap, and refuses one past it', () => {
-    expect(readProperty(list(allowed)).declared).not.toBeNull();
-    expect(readProperty(list(allowed + 1)).declared).toBeNull();
+    expect(readValue(list(allowed)).value).not.toBeNull();
+    expect(readValue(list(allowed + 1)).value).toBeNull();
+    expect(readProperty(`:x [Ward] default ${list(allowed + 1)}`).declared).toBeNull();
   });
 
   it('refuses rather than keeping the first few, because a silent drop is the one thing it must not be', () => {
-    const { declared, refusals } = readProperty(list(allowed + 4));
-    expect(declared).toBeNull();
+    const { value, refusals } = readValue(list(allowed + 4));
+    expect(value).toBeNull();
     expect(refusals.map((d) => d.message)).toContain(`A list holds at most ${allowed} things.`);
   });
 
   it('points at the element that breaks it, not at the list', () => {
     // The span, not only the words: a report at the opening bracket
     // would say the right thing about the wrong place.
-    const { refusals } = readProperty(list(allowed + 1));
+    const { refusals } = readValue(list(allowed + 1));
     const cap = refusals.find((d) => d.message.startsWith('A list holds at most'))!;
     expect(textOf(cap.at)).toBe(`e${allowed}`);
   });
@@ -316,56 +332,46 @@ describe('a list is bounded by what the host allows', () => {
     // the first list and drop the second in silence, which is the one
     // thing a full list must never do.
     const caps = { ...DEFAULT_LIMITS.caps, listElements: 3 };
-    const diagnostics = new Diagnostics();
-    parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a [1, 2, 3, 4] :b [5, 6, 7, 8] }'),
-      diagnostics,
-      caps,
-    );
-    expect(
-      diagnostics.refusals.filter((d) => d.message.startsWith('A list holds at most')),
-    ).toHaveLength(2);
+    const { refusals } = run(rememberBlock, 'remembers { :a [1, 2, 3, 4] :b [5, 6, 7, 8] }', caps);
+    expect(refusals.filter((d) => d.message.startsWith('A list holds at most'))).toHaveLength(2);
   });
 
   it('says it once, and still says what else is wrong inside', () => {
-    const over = `:x [Ward] default [${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
-    const said = readProperty(over).refusals.map((d) => d.message);
+    const over = `[${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
+    const said = readValue(over).refusals.map((d) => d.message);
     expect(said.filter((m) => m.startsWith('A list holds at most'))).toHaveLength(1);
     expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
   });
 
   it('takes the bound from the host rather than a number of its own', () => {
     const caps = { ...DEFAULT_LIMITS.caps, listElements: 2 };
-    expect(readProperty(list(2), caps).declared).not.toBeNull();
-    const { declared, refusals } = readProperty(list(3), caps);
-    expect(declared).toBeNull();
+    expect(readValue(list(2), caps).value).not.toBeNull();
+    const { value, refusals } = readValue(list(3), caps);
+    expect(value).toBeNull();
     expect(refusals.map((d) => d.message)).toContain('A list holds at most 2 things.');
   });
 });
 
 describe('a type is not taken from the next declaration', () => {
   it('says the type is missing where `object` starts an object, though it names a type too', () => {
-    // The object after it is read as the file's, and refused there, since
-    // an object is written inside what holds it.
-    const { declarations, refusals } = read(
-      'message :m with\nobject bench is Bench\nmessage :n with object\n',
-    );
+    // The object after it is the file's, to read and refuse there.
+    const { read: type, p, refusals } = run(typeExpr, '\nobject bench is Bench\n');
+    expect(type).toBeNull();
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['ward.sprout:2:1', '`object` starts a declaration, so the type before it is missing.'],
-      [
-        'ward.sprout:2:1',
-        '`bench` is written outside the world, and an object is written inside what holds it.',
-      ],
+      ['k.sprout:2:1', '`object` starts a declaration, so the type before it is missing.'],
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['n']);
+    expect(rest(p)).toBe('object bench is Bench\n');
+    // Where no declaration follows, `object` is the type it names.
+    expect(run(typeExpr, 'object\n').read).toMatchObject({ name: { text: 'object' } });
   });
 
   it('says the same where it is an enum that follows', () => {
-    const { declarations, refusals } = read('message :m with\nenum Ward { oak }\n');
+    const { read: type, p, refusals } = run(typeExpr, '\nenum Ward { oak }\n');
+    expect(type).toBeNull();
     expect(refusals.map((d) => d.message)).toEqual([
       '`enum` starts a declaration, so the type before it is missing.',
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+    expect(rest(p)).toBe('enum Ward { oak }\n');
   });
 });
 
@@ -374,43 +380,44 @@ describe('a value abandoned to recovery does not step into the next declaration'
     // `:x true max -` fails at its bound and steps over what is left
     // of it; that step must stop at `kind`, the next declaration's own
     // word, or `Omega` vanishes with nothing said about it.
-    const { declarations, refusals } = read(
-      'world w is sprout.World {\n  :x true max -\nkind Omega { }\n',
-    );
-    expect(refusals.map((d) => d.message)).toContain('A max is a whole number.');
-    expect(refusals.map((d) => d.message)).toContain('`w` is never closed.');
-    expect(declarations.map((d) => d.name.text)).toContain('Omega');
+    const { read: declared, p, refusals } = run(property, ':x true max -\nkind Omega { }\n');
+    expect(declared).toBeNull();
+    expect(refusals.map((d) => d.message)).toEqual(['A max is a whole number.']);
+    expect(rest(p)).toBe('kind Omega { }\n');
+    const skipped = run(skipValue, '- oak\nkind Omega { }\n').p;
+    expect(rest(skipped)).toBe('kind Omega { }\n');
   });
 });
 
 describe('an unclosed list stops at what follows it, not the file', () => {
+  /** The list a world's property `:a` starts, read by `literal` where the world's body holds it. */
+  const inWorld = (text: string) => {
+    const { p, diagnostics } = atMember(text, text.indexOf('['), 'w');
+    const value = literal(p);
+    return { value, rest: rest(p), refusals: diagnostics.refusals };
+  };
+
   it('refuses it once at the member written after it, and keeps that member', () => {
-    const { declarations, refusals } = read('world w is sprout.World {\n  :a [oak\n  :b 1\n}\n');
+    const { value, rest, refusals } = inWorld('world w is sprout.World {\n  :a [oak\n  :b 1\n}\n');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['ward.sprout:3:3', 'This list is never closed.'],
     ]);
-    const world = declarations.find((d) => d.kind === 'world');
-    expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
-      'b',
-    ]);
+    expect(value).toBeNull();
+    expect(rest).toBe(':b 1\n}\n');
   });
 
   it('refuses it once at the body’s own `}` when nothing else follows', () => {
-    const { declarations, refusals } = read('world w is sprout.World {\n  :a [oak\n}\n');
+    const { rest, refusals } = inWorld('world w is sprout.World {\n  :a [oak\n}\n');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['ward.sprout:3:1', 'This list is never closed.'],
     ]);
-    const world = declarations.find((d) => d.kind === 'world');
-    expect(world?.members).toEqual([]);
+    expect(rest).toBe('}\n');
   });
 
   it('says so once, however deep it is nested, when a member follows', () => {
-    const { declarations, refusals } = read('world w is sprout.World {\n  :a [[oak\n  :b 1\n}\n');
+    const { rest, refusals } = inWorld('world w is sprout.World {\n  :a [[oak\n  :b 1\n}\n');
     expect(refusals.map((d) => d.message)).toEqual(['This list is never closed.']);
-    const world = declarations.find((d) => d.kind === 'world');
-    expect(world?.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
-      'b',
-    ]);
+    expect(rest).toBe(':b 1\n}\n');
   });
 });
 
@@ -418,12 +425,9 @@ describe('a guard after a list default is the next member, not more of the list'
   it('keeps the guard whole after a list closed where it should be, and one closed early', () => {
     for (const list of ['[oak, silver]', '[oak, ], silver]']) {
       const text = `kind K {\n  :x [Ward] default ${list}\n  accept (item, from) { allow }\n}`;
-      const { declarations } = read(text);
-      const kind = declarations[0] as KindDeclaration;
-      expect(
-        kind.members.map((m) => m.kind),
-        list,
-      ).toEqual(['property', 'guard']);
+      const { p } = atMember(text, text.indexOf(list), 'K');
+      expect(literal(p), list).not.toBeNull();
+      expect(rest(p), list).toBe('accept (item, from) { allow }\n}');
     }
   });
 });
@@ -434,8 +438,7 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
     // nothing before a `]` can tell a stray one from its own — but the
     // second `]` right after it is the mistake: `brass` and `tin` are
     // named rather than left for whatever reads next to lose.
-    const text = ':x [[Ward]] default [[oak, silver, ]], [brass, tin]]';
-    const { declared, refusals } = readProperty(text);
+    const { value, refusals } = readValue('[[oak, silver, ]], [brass, tin]]');
     expect(refusals.map((d) => d.message)).toEqual([
       '`brass` and `tin` are written after the `]` that ends this list.',
     ]);
@@ -443,7 +446,7 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
       'Everything the list holds goes inside its brackets. Take out the `]` that ends it too early.',
     );
     expect(textOf(refusals[0]!.at)).toBe('brass');
-    expect(optionsOf(declared?.default)).toEqual(['oak', 'silver']);
+    expect(optionsOf(value)).toEqual(['oak', 'silver']);
   });
 
   it('says nothing else about the property once it has named them', () => {
@@ -453,33 +456,29 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
   });
 
   it('does the same for a single-level list, one `]` early', () => {
-    const text = ':x [Ward] default [oak, ], silver]';
-    const { declared, refusals } = readProperty(text);
+    const { value, refusals } = readValue('[oak, ], silver]');
     expect(refusals.map((d) => d.message)).toEqual([
       '`silver` is written after the `]` that ends this list.',
     ]);
-    expect(optionsOf(declared?.default)).toEqual(['oak']);
+    expect(optionsOf(value)).toEqual(['oak']);
   });
 
   it('names integers, signed ones included, the same way for an integer list of lists', () => {
-    const text = ':x [[integer]] default [[1, 2, ]], [-3, 4]]';
-    const { declared, refusals } = readProperty(text);
+    const { value, refusals } = readValue('[[1, 2, ]], [-3, 4]]');
     expect(refusals.map((d) => d.message)).toEqual([
       '`-3` and `4` are written after the `]` that ends this list.',
     ]);
-    expect(leavesOf(declared?.default)).toEqual([1, 2]);
+    expect(leavesOf(value)).toEqual([1, 2]);
   });
 
   it('names strings and true/false the same way', () => {
-    const text = ':x [[string]] default [["a", "b", ]], ["c", "d"]]';
-    const { declared, refusals } = readProperty(text);
+    const { value, refusals } = readValue('[["a", "b", ]], ["c", "d"]]');
     expect(refusals.map((d) => d.message)).toEqual([
       '`"c"` and `"d"` are written after the `]` that ends this list.',
     ]);
-    expect(leavesOf(declared?.default)).toEqual(['a', 'b']);
+    expect(leavesOf(value)).toEqual(['a', 'b']);
 
-    const bools = ':x [[boolean]] default [[true, false, ]], [true]]';
-    const said = readProperty(bools).refusals.map((d) => d.message);
+    const said = readValue('[[true, false, ]], [true]]').refusals.map((d) => d.message);
     expect(said).toEqual(['`true` is written after the `]` that ends this list.']);
   });
 
@@ -487,7 +486,7 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
     // `:visits` is the next property of the block, however this list
     // closed.
     const text = 'remembers { :tags [oak, ], silver] :visits 0 }';
-    const { declared, refusals } = parseRemembersInto(text);
+    const { read: declared, refusals } = run(rememberBlock, text);
     expect(declared?.properties.map((p) => p.name.text)).toEqual(['tags', 'visits']);
     expect(refusals.map((d) => d.message)).toEqual([
       '`silver` is written after the `]` that ends this list.',
@@ -500,27 +499,60 @@ describe('a stray `]` inside a list default does not lose what it closed too ear
     // after it, no comma between them, is never two elements of THIS
     // list either. The list's own close is genuine, not stray.
     const text = 'remembers { :echo [oak] faulty "x" }';
-    const { declared, refusals } = parseRemembersInto(text);
+    const { read: declared, refusals } = run(rememberBlock, text);
     expect(declared?.properties.map((p) => p.name.text)).toEqual(['echo']);
     expect(optionsOf(declared?.properties[0]?.default)).toEqual(['oak']);
     expect(refusals.map((d) => d.message)).toEqual([
       'A `remembers` block holds properties, and `faulty` is not one.',
     ]);
-    const body = read('kind K {\n  :tags [Ward] default [oak] faulty "x"\n  :after 1\n}');
-    expect(body.refusals.map((d) => d.message)).toEqual(['A kind is not made of `faulty`.']);
+    const inBody = readValue('[oak] faulty "x"\n  :after 1');
+    expect(inBody.refusals).toEqual([]);
+    expect(inBody.rest).toBe('faulty "x"\n  :after 1');
   });
 
   it('names a bare word after the `]` as more of the list where no value follows it', () => {
-    const text = ':tags [Ward] default [oak, ], silver, gold]';
-    const { refusals } = readProperty(text);
+    const { refusals } = readValue('[oak, ], silver, gold]');
     expect(refusals.map((d) => d.message)).toEqual([
       '`silver` and `gold` are written after the `]` that ends this list.',
     ]);
   });
 });
 
-function parseRemembersInto(text: string) {
-  const diagnostics = new Diagnostics();
-  const declared = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
-  return { declared, refusals: diagnostics.refusals };
-}
+describe('what a type or a value starts with', () => {
+  it('is a type where a capital, a built-in word or a bracket of one comes next', () => {
+    for (const [text, is] of [
+      ['Ward', true],
+      ['sprout.Ward', true],
+      ['integer', true],
+      ['[[Ward]]', true],
+      ['oak', false],
+      ['[oak]', false],
+      ['4', false],
+    ] as const) {
+      expect(atType(run(() => null, text).p), text).toBe(is);
+    }
+  });
+
+  it('reads the types the spec writes, down to their spans', () => {
+    for (const text of ['boolean', 'Ward', 'sprout.Ward', '[Ward]', '[[integer]]']) {
+      const { read: type, p, refusals } = run(typeExpr, text);
+      expect(refusals, text).toEqual([]);
+      expect(textOf(type!.at), text).toBe(text);
+      expect(p.done, text).toBe(true);
+    }
+  });
+
+  it('refuses a fraction where a whole number is read, and steps over it', () => {
+    /** Whether a fraction follows the whole number `text` starts with. */
+    const afterNumber = (text: string) =>
+      run((p) => {
+        p.next();
+        return atFraction(p);
+      }, text);
+    const { read: fraction, p, refusals } = afterNumber('1.5 :next');
+    expect(fraction).toBe(true);
+    expect(refusals.map((d) => d.message)).toEqual(['Sprout has no fractions.']);
+    expect(rest(p)).toBe(':next');
+    expect(afterNumber('1 :next').read).toBe(false);
+  });
+});

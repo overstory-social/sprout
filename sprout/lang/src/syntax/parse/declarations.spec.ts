@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EnumDeclaration } from '../ast.js';
-import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { DECLARATIONS, parseDeclarations, parseProperty, parseRemembers } from '../parse.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { read, optionsOf } from '../../fixtures/parse.js';
+import { DECLARATIONS } from '../parse.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { optionsOf } from '../../fixtures/parse.js';
+import { readWith } from '../../fixtures/readers.js';
+import { DECLARATION_READERS, file } from './declarations.js';
+
+/** Every declaration `file` reads from `text`, and what was said. */
+function read(text: string) {
+  const { read: declarations, refusals } = readWith(file, text, { name: 'ward.sprout' });
+  return { declarations, refusals };
+}
 
 describe('an enum declaration', () => {
   it('reads as its name and its options', () => {
@@ -89,8 +96,7 @@ describe('an enum declaration', () => {
 });
 
 describe('every node carries the span of what it was built from', () => {
-  const source = new SourceFile('ward.sprout', 'enum Ward { oak, silver }\n');
-  const declarations = parseDeclarations(source, new Diagnostics());
+  const { declarations } = read('enum Ward { oak, silver }\n');
   const ward = declarations[0] as EnumDeclaration;
 
   it('keeps the rule every node keeps', () => expect(unspanned(declarations)).toEqual([]));
@@ -278,6 +284,10 @@ describe('what the parser refuses, and where it says so', () => {
       expect(read('nonsense').refusals[0]!.remedy).toContain(`\`${word}\``);
     }
   });
+
+  it('reads each declaration by the one table of the words that start one', () => {
+    expect([...DECLARATION_READERS.keys()].sort()).toEqual([...DECLARATIONS].sort());
+  });
 });
 
 describe('a declaration it cannot read costs that declaration, not the file', () => {
@@ -401,98 +411,6 @@ describe('one mistake is said once, and said truly', () => {
     expect(refusals).toHaveLength(1);
     expect(declarations).toEqual([]);
   });
-
-  it('says a list type names one element type, rather than blaming the bracket', () => {
-    const diagnostics = new Diagnostics();
-    parseProperty(new SourceFile('k.sprout', ':x [Ward, oak]'), diagnostics);
-    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'A list type names one element type.',
-    ]);
-  });
-
-  it('keeps the entry after one whose type it could not read, and says nothing else', () => {
-    // A refused type takes the whole property with it: its brackets, so
-    // no closer is left for the block to end early on, and its
-    // default, so `default` and `oak` are not read as entries of their
-    // own and answered for as if the author had written them that way.
-    const diagnostics = new Diagnostics();
-    const declared = parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a [Ward, oak] default silver :b 3 }'),
-      diagnostics,
-    );
-    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'A list type names one element type.',
-    ]);
-    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
-  });
-
-  it('steps over however the default of such a property was written', () => {
-    const tails = ['default oak', 'default -3', 'default 1.5', 'default "x"', 'default [oak]'];
-    for (const tail of tails) {
-      const diagnostics = new Diagnostics();
-      const declared = parseRemembers(
-        new SourceFile('k.sprout', `remembers { :a [Ward, oak] ${tail} :b 3 }`),
-        diagnostics,
-      );
-      expect(
-        diagnostics.refusals.map((d) => d.message),
-        tail,
-      ).toEqual(['A list type names one element type.']);
-      expect(
-        declared!.properties.map((p) => p.name.text),
-        tail,
-      ).toEqual(['b']);
-    }
-
-    // And a property that ends where its default should have been takes
-    // nothing with it: `b` is the next entry, not the missing value.
-    const diagnostics = new Diagnostics();
-    const declared = parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a [Ward, oak] default :b 3 }'),
-      diagnostics,
-    );
-    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
-  });
-
-  it('says Sprout has no fractions, rather than blaming the comma after one', () => {
-    const diagnostics = new Diagnostics();
-    const declared = parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a 1.5 :b 2 }'),
-      diagnostics,
-    );
-    expect(diagnostics.refusals.map((d) => d.message)).toEqual(['Sprout has no fractions.']);
-    // And the entry after the broken one is still read.
-    expect(declared!.properties.map((p) => p.name.text)).toEqual(['b']);
-  });
-
-  it('reads a list past an element it could not read, as the enum does', () => {
-    const diagnostics = new Diagnostics();
-    parseProperty(new SourceFile('k.sprout', ':x [Ward] default [oak silver brass]'), diagnostics);
-    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'A list needs a comma between its elements.',
-      'A list needs a comma between its elements.',
-    ]);
-  });
-
-  it('reads a property’s bounds in either order without its span going short', () => {
-    // The span ends at whichever bound was written last; a span that
-    // stopped short would suppress a real missing comma one level up.
-    // The two readings have to agree.
-    const read1 = new Diagnostics();
-    const read2 = new Diagnostics();
-    parseRemembers(new SourceFile('k.sprout', 'remembers { :a 0 max 1 min % 2 :b 3 }'), read1);
-    parseRemembers(new SourceFile('k.sprout', 'remembers { :a 0 min 1 max % 2 :b 3 }'), read2);
-    expect(read1.refusals.map((d) => d.message)).toEqual(read2.refusals.map((d) => d.message));
-    expect(read1.refusals.map((d) => d.message)).toEqual([
-      'Sprout does not use the character "%".',
-    ]);
-  });
-
-  it('spans a property to its last bound, whichever order they came in', () => {
-    const diagnostics = new Diagnostics();
-    const declared = parseProperty(new SourceFile('k.sprout', ':x 0 max 1 min 2'), diagnostics);
-    expect(textOf(declared!.at)).toBe(':x 0 max 1 min 2');
-  });
 });
 
 describe('what recovery says, and what it keeps', () => {
@@ -508,38 +426,6 @@ describe('what recovery says, and what it keeps', () => {
     const { refusals } = read('enum Ward { oak, 4');
     const unclosed = refusals.find((d) => d.message === '`Ward` is never closed.')!;
     expect(locationOf(unclosed.at)).toBe('ward.sprout:1:19');
-  });
-
-  it('keeps a well-formed element that follows one it could not read', () => {
-    for (const text of [':x [oak, Zeta silver]', ':x [oak, Zeta, silver]']) {
-      const diagnostics = new Diagnostics();
-      const declared = parseProperty(new SourceFile('k.sprout', text), diagnostics);
-      expect(diagnostics.refusals, text).toHaveLength(1);
-      const value = declared!.default!;
-      expect(value.kind === 'list-literal' && value.elements.length, text).toBe(2);
-    }
-  });
-
-  it('steps over the rest of a malformed `remembers` entry rather than re-reading it as a new one', () => {
-    // `b c: 1` is no property at all: recovery steps over all of it, up
-    // to the next property or the block's close, and says one thing.
-    const diagnostics = new Diagnostics();
-    const declared = parseRemembers(
-      new SourceFile('k.sprout', 'remembers { :a 0 b c: 1 }'),
-      diagnostics,
-    );
-    expect(diagnostics.refusals).toHaveLength(1);
-    expect(declared!.properties.map((p) => p.name.text)).toEqual(['a']);
-  });
-
-  it('never loops on an item it cannot read and cannot step over', () => {
-    for (const text of [':x [Zeta]', ':x [Zeta Zeta Zeta]', 'remembers { Zeta }', ':x [,,,]']) {
-      expect(() => {
-        const diagnostics = new Diagnostics();
-        parseProperty(new SourceFile('k.sprout', text), diagnostics);
-        parseRemembers(new SourceFile('k.sprout', text), new Diagnostics());
-      }, text).not.toThrow();
-    }
   });
 
   it('names in its message exactly the declarations it reads, both ways round', () => {
