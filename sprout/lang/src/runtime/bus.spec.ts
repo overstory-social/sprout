@@ -21,6 +21,7 @@ import { drain, type Queued } from './bus.js';
 import type { InstanceId } from './ids.js';
 import { runReading, type Acted } from './reading.js';
 import type { AuthoredSend } from './sends.js';
+import type { TimeSend } from './time.js';
 import type { Value } from './values.js';
 
 const message = (name: string): DeclaredMessage => BUS.messages.qualified('bus', name)!;
@@ -51,6 +52,21 @@ describe('the queue drains', () => {
     // The lamp answered its sender.
     expect(held(one, BELL, 'answers')).toBe(1);
     expect(drained.events).toBe(3);
+  });
+
+  it('passes a tick or a wake the seconds it carries, as its `elapsed`', () => {
+    const one = eventTurn();
+    const time = (message: 'tick' | 'woke', elapsed: number): TimeSend => ({
+      message,
+      recipient: BELL,
+      elapsed,
+    });
+    const drained = drain(
+      { sends: [time('tick', 7), time('woke', 5)], destroyed: [], marked: [] },
+      context(one),
+    );
+    expect(held(one, BELL, 'waited')).toBe(17);
+    expect(drained.events).toBe(2);
   });
 
   it('queues a hook once per change, and not for a write that changes nothing', () => {

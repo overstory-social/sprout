@@ -19,6 +19,7 @@ import { isLive, liveTree } from './live.js';
 import type { PlaceSend } from './move.js';
 import { rangeOf, reaches, type PassRule } from './range.js';
 import type { StateReader } from './state.js';
+import type { TimeSend } from './time.js';
 import type { Value } from './values.js';
 
 /** A message an object's body sent, to one recipient. */
@@ -44,7 +45,7 @@ export interface ChangedSend {
 }
 
 /** Everything queued: what the engine sends for itself, what bodies send, and hooks. */
-export type Sent = EngineSend | PlaceSend | AuthoredSend | ChangedSend;
+export type Sent = EngineSend | PlaceSend | TimeSend | AuthoredSend | ChangedSend;
 
 /** What a send reads: the turn's state, the pass rules, and the meter its walk is charged to. */
 export interface SendContext {

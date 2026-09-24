@@ -2,12 +2,15 @@ import {
   commandTurn,
   loadWorld,
   pollTurn,
+  tickTurn,
   writeTurn,
   type CommandHost,
   type CommandTurn,
   type Command,
   type Polled,
   type PollTurn,
+  type Tick,
+  type TickTurn,
   type TurnHost,
   type WorldState,
   type WriteInputs,
@@ -27,7 +30,7 @@ import type { SproutStore } from './store.js';
 // fault writes nothing of the world. A poll reads a snapshot and takes no
 // lock. Each is safe to run twice, as the port's re-run rule asks, since
 // a turn is a function of the state it read and its inputs. Recording a
-// turn in the log is B40's.
+// turn in the log is B40's; when to tick is `ticks.ts`'s.
 
 /** The stored state, read against the bundle the host runs. */
 function loaded(stored: StoredState, host: TurnHost): WorldState {
@@ -62,6 +65,33 @@ export function runCommand(
     if (turn.committed) await tx.putState(turn.changes);
     return turn;
   });
+}
+
+/**
+ * Run `tick` as one tick turn on `microworldId`, under its lock. A tick
+ * that faulted is dropped, and one whose place is empty by then does not
+ * run; neither writes anything.
+ */
+export function runTick(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+  tick: Tick,
+): Promise<TickTurn> {
+  return store.transaction(microworldId, async (tx) => {
+    const turn = tickTurn(loaded(await tx.state(), host), host, tick);
+    if (turn.committed) await tx.putState(turn.changes);
+    return turn;
+  });
+}
+
+/** The last committed state of `microworldId`, read against the bundle the host runs, with no lock. */
+export function committedState(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+): Promise<WorldState> {
+  return store.read(microworldId, async (tx) => loaded(await tx.state(), host));
 }
 
 /** Run `look` as a poll of `microworldId`, on the last committed state, with no lock. */
