@@ -75,3 +75,9 @@ export function idForm(world: string, id: string): 'world' | 'declared' | 'minte
     ? 'declared'
     : null;
 }
+
+/** A stored string as an id under `world`, as a log hands one back; a string of no form of the world's is refused. */
+export function storedId(world: string, id: string): InstanceId {
+  if (idForm(world, id) === null) throw new Error(`\`${id}\` is not an id in \`${world}\`.`);
+  return id as InstanceId;
+}

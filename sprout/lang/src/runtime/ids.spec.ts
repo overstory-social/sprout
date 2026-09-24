@@ -7,6 +7,7 @@ import {
   idForm,
   isMinted,
   mintedId,
+  storedId,
   visitKey,
   type InstanceId,
 } from './ids.js';
@@ -88,6 +89,14 @@ describe('which form a stored string is', () => {
     ]) {
       expect(idForm(WORLD, not), not).toBeNull();
     }
+  });
+
+  it('brands a string of one of the forms as an id, and refuses any other', () => {
+    for (const id of ['printers_shop', 'printers_shop.kiln', 'printers_shop#3']) {
+      expect(storedId(WORLD, id)).toBe(id);
+    }
+    expect(() => storedId(WORLD, 'bakery.oven')).toThrow(/not an id in `printers_shop`/);
+    expect(() => storedId(WORLD, 'printers_shop#0')).toThrow();
   });
 });
 

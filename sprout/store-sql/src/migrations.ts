@@ -21,7 +21,7 @@ export interface SqlMigration {
 }
 
 /** The schema version the current export produces; `sprout.meta` records it. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const migrations: readonly SqlMigration[] = [
   {
@@ -186,6 +186,24 @@ CREATE TABLE sprout.tombstone (
   microworld_id text NOT NULL,
   id text NOT NULL,
   PRIMARY KEY (microworld_id, id)
+);
+`,
+  },
+  {
+    name: 'sprout/003_log.sql',
+    sql: `-- @overstory/sprout-store-sql 003 (schema version 3): the event log. The
+-- action table held a per-turn record this runtime does not write, and goes
+-- with what it held.
+DROP TABLE sprout.action;
+UPDATE sprout.meta SET value = '3' WHERE key = 'schema_version';
+
+-- LogEntry: one world's log, numbered from 1 in the order appended, each
+-- entry whole as JSON. Kept whole, since a replay needs every turn.
+CREATE TABLE sprout.log (
+  microworld_id text NOT NULL,
+  seq bigint NOT NULL,
+  entry jsonb NOT NULL,
+  PRIMARY KEY (microworld_id, seq)
 );
 `,
   },
