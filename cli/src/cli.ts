@@ -8,9 +8,10 @@ import { initWorld } from './init.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { playScript } from './play.js';
 import { catalogueFor, standIn, type StandOptions } from './stand.js';
+import { runTests, testFiles } from './test.js';
 import { inspectView } from './view.js';
 
-// The `sprout` command: five verbs on a microworld folder, and `skill`,
+// The `sprout` command: six verbs on a microworld folder, and `skill`,
 // the builder's reference this compiler generates from its own tables.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true. The
 // first bare word is the command, the next the path. Playing
@@ -27,6 +28,9 @@ export const USAGE = `sprout — a Sprout microworld on the command line
                                       what a visitor standing there is shown and could type
   sprout play dir script              play a script of typed lines and host events through real turns;
                                       the transcript, each line followed by what every reader read
+  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
+                                      with what the world should say indented under a line, the whole line or its
+                                      words alone, in order; what failed and what the world said; exit 1 on a failure
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
 `;
@@ -132,6 +136,14 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number {
         const text = readFileSync(script === '-' ? 0 : script, 'utf8');
         say(playScript(checked, text, script === '-' ? 'the script' : basename(script)).page);
         return 0;
+      }
+      case 'test': {
+        const [dir = '.', ...named] = positional;
+        const checked = compiled(dir, say);
+        if (checked === null) return 1;
+        const tested = runTests(checked, testFiles(dir, named));
+        say(tested.page);
+        return tested.ok ? 0 : 1;
       }
       case 'skill':
         say(generateSkill({ usage: USAGE }));

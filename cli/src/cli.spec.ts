@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -41,12 +41,12 @@ describe('main', () => {
     expect(io.err()).toBe('');
   });
 
-  it('init then check: what init writes passes', () => {
+  it('init then check and test: what init writes passes both', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-cli-')), 'shed');
     const init = captured();
     expect(main(['init', dir, '--author', 'marta'], init)).toBe(0);
     expect(init.out()).toBe(
-      `wrote ${dir}/sprout.json\nwrote ${dir}/shed.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/README.md\n`,
+      `wrote ${dir}/sprout.json\nwrote ${dir}/shed.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/tests/arrival.txt\nwrote ${dir}/README.md\n`,
     );
     expect(JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'))).toMatchObject({
       name: 'shed',
@@ -56,6 +56,9 @@ describe('main', () => {
     const check = captured();
     expect(main(['check', dir], check)).toBe(0);
     expect(check.out()).toBe('ok: 3 declarations in 2 files\n');
+    const test = captured();
+    expect(main(['test', dir], test)).toBe(0);
+    expect(test.out()).toBe('arrival.txt: passed, 1 expected line said\n\n1 test: passed\n');
   });
 
   it('check --json on a broken world fails and names the problem by file, line and column', () => {
@@ -137,5 +140,27 @@ describe('main', () => {
     const bad = captured();
     expect(main(['play', dir, script], bad)).toBe(1);
     expect(bad.err()).toMatch(/^sprout: walk\.txt:1: a line is what someone types/);
+  });
+
+  it('test runs the world’s own tests and exits 1 on a failure, printing what the world said instead', () => {
+    const dir = worldFolder('lane', LANE);
+    mkdirSync(join(dir, 'tests'));
+    writeFileSync(
+      join(dir, 'tests', 'walk.txt'),
+      '@arrive Marta\nMarta> go in\n  Tools hang in rows.\n',
+    );
+    const io = captured();
+    expect(main(['test', dir], io)).toBe(0);
+    expect(io.out()).toBe('walk.txt: passed, 1 expected line said\n\n1 test: passed\n');
+    const other = join(mkdtempSync(join(tmpdir(), 'sprout-test-')), 'shed.txt');
+    writeFileSync(other, '@arrive Marta\nMarta> go in\n  A muddy yard.\n');
+    const failing = captured();
+    expect(main(['test', dir, other], failing)).toBe(1);
+    expect(failing.out()).toMatch(
+      /^shed\.txt: failed\n {2}line 2, after `Marta> go in`, the world did not say:\n {4}A muddy yard\.\n {2}it said:\n {4}Marta \(described\): Tools hang in rows\.\n[^]*\n1 test: 0 passed, 1 failed\n$/,
+    );
+    const none = captured();
+    expect(main(['test', worldFolder('lane', LANE)], none)).toBe(1);
+    expect(none.err()).toMatch(/^sprout: no tests in .*tests: write a script there/);
   });
 });

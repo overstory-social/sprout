@@ -80,6 +80,18 @@ end to end, and where one plays in a way the spec did not mean, the
 transcript pins what happens and the working notes' Open list says why
 (the group "Found while playing the worked microworld").
 
+### 2b. A world's own tests
+
+A world may also carry `tests/*.txt`, which are what an author writes
+and runs with `sprout test`: the same scripts, with only the lines the
+author expects indented under a line, whole or as the words alone, each
+of which must be among what the line made in the order written. A turn
+that faults fails the test unless its fault is written under it.
+`npm run check` runs `sprout test` on every `good/` world with a `tests/`
+folder and requires it to pass; the page a failing test prints is pinned
+in `cli/src/test.spec.ts`. The worked microworld carries tests written
+the way an author would, and its transcripts pass as tests too.
+
 ### 3. Invariants over generated input
 
 Where the code recovers, resynchronises or otherwise decides what to do
@@ -114,13 +126,11 @@ runs the installed CLI: `init` a world, `check` it, and `check` a corpus
 world. It proves the published packages work from outside the repository,
 which nothing else does. It also checks the worked microworld and plays
 each of its transcripts from the installed CLI, comparing what it prints
-to the golden.
+to the golden, runs its tests and its transcripts as tests, which pass,
+and a test that must fail.
 
 ## Still to build
 
-- **An author-facing test format** (B52): the same idea an author can
-  write in a world's own folder — "after `light torch`, expect this line" —
-  and run with `sprout test`. Golden transcripts are what it is built on.
 - **Replay determinism**: a log recorded once and replayed against the same
   bundle produces byte-identical effects. A property test over random
   command sequences on the worked microworld, once B34 and B40 exist.
