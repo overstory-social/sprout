@@ -32,7 +32,7 @@ describe('a maintenance turn', () => {
     ]);
     const turn = maintenanceTurn(state, HOST, at(86_400));
     expect(objects(turn.value.delivered)).toEqual([CANDLE, ROSE]);
-    expect(turn.value).toMatchObject({ faulted: null, abandoned: [] });
+    expect(turn.value).toMatchObject({ faulted: [], abandoned: [] });
     expect(heldIn(turn.state, CANDLE, 'lit')).toBe(false);
     // The rose is handed the whole absence, not stepped through it.
     expect(heldIn(turn.state, ROSE, 'grown')).toBe(86_400);
@@ -90,31 +90,65 @@ describe('a maintenance turn', () => {
     ]);
     const turn = maintenanceTurn(state, HOST, at(1000));
     expect(objects(turn.value.delivered)).toEqual([POD]);
-    expect(turn.value).toMatchObject({ faulted: null, abandoned: [] });
+    expect(turn.value).toMatchObject({ faulted: [], abandoned: [] });
   });
 
-  it('on a fault, keeps what came before, consumes the wake that faulted, and leaves the rest pending', () => {
+  it('on a fault, consumes the wake that faulted and still delivers the other objects’', () => {
     const { state } = garden([
       [CANDLE, 0, 100],
       [FUSE, 0, 200],
       [ROSE, 0, 300],
     ]);
     const turn = maintenanceTurn(state, HOST, at(1000));
-    expect(objects(turn.value.delivered)).toEqual([CANDLE]);
-    expect(turn.value.faulted?.wake.object).toBe(FUSE);
-    expect(turn.value.faulted?.fault).toMatchObject({ name: 'ValueOutOfRange', engine: false });
-    expect(objects(turn.value.abandoned)).toEqual([ROSE]);
+    expect(objects(turn.value.delivered)).toEqual([CANDLE, ROSE]);
+    expect(turn.value.faulted.map((f) => f.wake.object)).toEqual([FUSE]);
+    expect(turn.value.faulted[0]!.fault).toMatchObject({ name: 'ValueOutOfRange', engine: false });
+    expect(turn.value.abandoned).toEqual([]);
     expect(heldIn(turn.state, CANDLE, 'lit')).toBe(false);
+    // What the faulted part wrote is abandoned; its wake is gone all the same.
     expect(heldIn(turn.state, FUSE, 'burnt')).toBe(0);
     expect(wakesOf(turn.state, FUSE)).toEqual([]);
-    expect(wakesOf(turn.state, ROSE).map((w) => w.dueAt)).toEqual([300]);
-    expect(heldIn(turn.state, ROSE, 'stage')).toBe(0);
+    expect(heldIn(turn.state, ROSE, 'stage')).toBe(1);
+    expect(heldIn(turn.state, ROSE, 'grown')).toBe(1000);
   });
 
-  it('charges every part to the one budget the turn has, so a long catch-up stops where it runs out', () => {
+  it('leaves the faulted object’s own later due wakes pending, and delivers past every fault', () => {
+    const { state } = garden([
+      [FUSE, 0, 100],
+      [FUSE, 0, 150],
+      [CANDLE, 0, 200],
+      [BULB, 0, 250],
+    ]);
+    const second = wakesOf(state, FUSE)[1]!;
+    const turn = maintenanceTurn(state, HOST, at(1000));
+    expect(turn.value.faulted.map((f) => [f.wake.object, f.wake.dueAt])).toEqual([[FUSE, 100]]);
+    expect(wakesOf(turn.state, FUSE)).toEqual([second]);
+    expect(objects(turn.value.delivered)).toEqual([CANDLE, BULB]);
+    expect(turn.value.abandoned).toEqual([]);
+  });
+
+  it('carries the one stream on past a faulted part, so a replay draws the same', () => {
+    // The fuse faults between the bulb and the lamp; the lamp's draw is the second.
+    const { state } = garden([
+      [BULB, 0, 100],
+      [FUSE, 0, 150],
+      [LAMP, 0, 200],
+    ]);
+    const turn = maintenanceTurn(state, HOST, at(1000));
+    expect(objects(turn.value.delivered)).toEqual([BULB, LAMP]);
+    const expected = new Draws(11);
+    expect([heldIn(turn.state, BULB, 'glow'), heldIn(turn.state, LAMP, 'glow')]).toEqual([
+      expected.below(1000),
+      expected.below(1000),
+    ]);
+    expect(maintenanceTurn(state, HOST, at(1000))).toEqual(turn);
+  });
+
+  it('charges every part to the one budget the turn has, and abandons the rest once it is spent', () => {
     const { state } = garden([
       [CANDLE, 0, 100],
       [SEED, 0, 200],
+      [ROSE, 0, 300],
     ]);
     // The fewest steps one candle's wake needs, which leave none for a second.
     const under = (steps: number): TurnHost => ({
@@ -123,14 +157,17 @@ describe('a maintenance turn', () => {
     });
     const alone = garden([[CANDLE, 0, 100]]).state;
     let steps = 1;
-    while (maintenanceTurn(alone, under(steps), at(1000)).value.faulted !== null) steps += 1;
-    const tight = under(steps);
-    const turn = maintenanceTurn(state, tight, at(1000));
+    while (maintenanceTurn(alone, under(steps), at(1000)).value.faulted.length > 0) steps += 1;
+    const turn = maintenanceTurn(state, under(steps), at(1000));
     expect(objects(turn.value.delivered)).toEqual([CANDLE]);
-    expect(turn.value.faulted).toMatchObject({
-      wake: { object: SEED },
-      fault: { name: 'BudgetExhausted' },
-    });
+    expect(turn.value.faulted).toMatchObject([
+      { wake: { object: SEED }, fault: { name: 'BudgetExhausted' } },
+    ]);
+    expect(wakesOf(turn.state, SEED)).toEqual([]);
+    // Nothing more can run under a spent budget, so the rose is not faulted too: it waits.
+    expect(objects(turn.value.abandoned)).toEqual([ROSE]);
+    expect(wakesOf(turn.state, ROSE).map((w) => w.dueAt)).toEqual([300]);
+    expect(heldIn(turn.state, ROSE, 'stage')).toBe(0);
   });
 
   it('draws every part from the turn’s one seed, each wake on from where the last left off', () => {
@@ -156,7 +193,7 @@ describe('a maintenance turn', () => {
       [ROSE, 0, 5000],
     ]);
     const turn = maintenanceTurn(state, HOST, at(1000));
-    expect(turn.value).toEqual({ delivered: [], faulted: null, abandoned: [] });
+    expect(turn.value).toEqual({ delivered: [], faulted: [], abandoned: [] });
     expect(turn.changes).toEqual({
       serial: state.serial,
       upsert: [],

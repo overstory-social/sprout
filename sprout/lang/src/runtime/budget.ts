@@ -55,6 +55,7 @@ export class Budget {
   private nextClockCheck = CLOCK_STRIDE;
   private readonly output = new Map<string, number>();
   private readonly deadline: number | null;
+  private outOf: RuntimeBudgetName | null = null;
 
   /** How many steps this turn may spend: a poll has its own figure. */
   readonly allowedSteps: number;
@@ -84,6 +85,15 @@ export class Budget {
     return this.events;
   }
 
+  /**
+   * The figure every part of a turn charges — steps, events or the wall
+   * clock — once it has run out, and null before: nothing more can run
+   * under this budget then. The other figures bound only what charges them.
+   */
+  get exhausted(): RuntimeBudgetName | null {
+    return this.outOf;
+  }
+
   /** Spawns made so far this turn. */
   get spentSpawns(): number {
     return this.spawns;
@@ -107,6 +117,7 @@ export class Budget {
   spend(steps = 1): void {
     this.steps += steps;
     if (this.steps > this.allowedSteps) {
+      this.outOf = this.kind === 'poll' ? 'pollSteps' : 'steps';
       throw new BudgetExhausted(
         this.kind === 'poll' ? 'pollSteps' : 'steps',
         this.allowedSteps,
@@ -116,6 +127,7 @@ export class Budget {
     if (this.deadline !== null && this.steps >= this.nextClockCheck) {
       this.nextClockCheck = this.steps + CLOCK_STRIDE;
       if (this.now!() > this.deadline) {
+        this.outOf = 'wallClockMs';
         throw new BudgetExhausted(
           'wallClockMs',
           this.limits.wallClockMs!,
@@ -142,6 +154,7 @@ export class Budget {
   event(): void {
     this.events += 1;
     if (this.events > this.limits.events) {
+      this.outOf = 'events';
       throw new BudgetExhausted(
         'events',
         this.limits.events,
