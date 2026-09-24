@@ -2,8 +2,9 @@
 // take (the spec's Prose; Other people › Who hears it): `say`, `tell`,
 // `tell <x>` and `text`, each followed by words in quotes, a one-line
 // passage, or a passage's name; `refuse` takes its words the same way.
-// Words in quotes after `say`, `tell` or `text` are held to the host's cap
-// on a literal line (Limits › Static caps), which a passage is not.
+// Words in quotes after `say`, `tell`, `text` or `refuse` are held to the
+// host's cap on a literal line (Limits › Static caps), which a passage is
+// not.
 //
 // `tell` names who is told only where a second word or words in quotes
 // follow the first on its line, so `tell pulled` is a passage said to the
@@ -106,7 +107,7 @@ function capped(p: Parser, said: Said | null, word: Word, lead: string): Said | 
 
 /** What `refuse` says: the words in quotes, or the name of a passage. */
 export function refusal(p: Parser, keyword: Token, within: Enclosing): Said | null {
-  return spoken(p, keyword.at, within, 'refuse', 'refuse');
+  return capped(p, spoken(p, keyword.at, within, 'refuse', 'refuse'), 'refuse', 'refuse');
 }
 
 /**

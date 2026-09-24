@@ -1,0 +1,6 @@
+// A wick draws on the oil nearest it: the oil its own lantern holds, for
+// every lantern, declared or made.
+kind Wick {
+  :trimmed true
+  on :kindle { send oil :kindle }
+}

@@ -1,0 +1,14 @@
+// Opening the cupboard makes a lantern inside it, whose `lamp` is the
+// hall's, the nearest round the cupboard, and kindles the beacon in the world,
+// which the world's name fixes from anywhere.
+kind Cupboard {
+  contains
+
+  as target for open {
+    do {
+      spawn Lantern in self
+      send instance_scope.beacon :kindle
+      say "A lantern is waiting on the top shelf."
+    }
+  }
+}

@@ -4,9 +4,11 @@
 // about).
 //
 // An exit or a link is declared only on a place, since only a place holds
-// visitors. An exit's destination is named from where its body is
-// written, as any name in that body is, and must be a place other than
-// the world. Its `when` is a condition over `self`, the place, read-only
+// visitors. An exit's destination is named as any name in its body is,
+// and must be a place other than the world; in a kind's body, where each
+// instance's place decides which object it is, one of those it could be
+// must be a place, and the run leads nowhere through one that is not. Its
+// `when` is a condition over `self`, the place, read-only
 // and pure as a pass rule's is: nobody is acting while it is polled, so
 // `actor` and `here` are not bound. `connect` assigns one of `self`'s
 // links, named by its direction, to a binding: a link leads only where
@@ -18,7 +20,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
-import { actorBinding, hereBinding, Scope, selfBinding, showBindingType } from './bindings.js';
+import { Scope, selfBinding, showBindingType } from './bindings.js';
 import { typeOf, type CheckContext } from './check.js';
 import { dottedType, type NameScope } from './names.js';
 import { pathType } from './statements.js';
@@ -78,6 +80,18 @@ function checkDestination(path: ObjectPath, self: KindRef, setting: ExitSetting)
     );
     return false;
   }
+  const named = names.table.get(path);
+  if (named?.names === 'placed') {
+    // Which object it is is each instance's; refused only where none it could be holds actors.
+    const reached = named.candidates.filter((one) => one.steps.length === path.parts.length);
+    if (reached.some((one) => one.kind === null || one.kind.containsActors)) return true;
+    diagnostics.refuse(
+      path.at,
+      `Nothing called \`${written}\` holds actors, so nobody could stand where this exit leads.`,
+      `Lead it to a place: ${A_PLACE}.`,
+    );
+    return false;
+  }
   if (type.binds !== 'object' || type.kind === null || type.kind.containsActors) return true;
   diagnostics.refuse(
     path.at,
@@ -96,17 +110,14 @@ function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
   const { diagnostics } = setting;
   const scope = Scope.root();
   scope.introduce(selfBinding(self, when.at), diagnostics);
-  for (const [name, binding] of [
-    ['actor', actorBinding(null, when.at)],
-    ['here', hereBinding(when.at)],
-  ] as const) {
+  for (const name of ['actor', 'here']) {
     const words = {
       message: `\`${name}\` is not bound in an exit's \`when\`: it is asked of the place, whoever looks.`,
       remedy:
         'Read the place through `self`, as in `when (self.get(:lit))`, or a thing by its name.',
     };
     scope.withhold(
-      { name, at: binding.at, unread: words, bound: { bindable: false, words } },
+      { name, at: when.at, unread: words, bound: { bindable: false, words } },
       diagnostics,
     );
   }

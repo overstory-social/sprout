@@ -1,0 +1,9 @@
+// A shelf that says no when full, at more length than a line may have.
+kind Shelf {
+  contains
+  :capacity 3 min 0 max 9
+
+  accept (item, from) {
+    if (self.count >= self.get(:capacity)) { refuse "The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full. The shelf is full." }
+  }
+}

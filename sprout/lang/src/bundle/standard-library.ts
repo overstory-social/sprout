@@ -23,7 +23,7 @@ kind World {
   contains
 
   passage unknown default         { That is not something you can do here. }
-  passage unreachable default     { You cannot reach {thing} from here. }
+  passage not_here default        { You see nothing like that here. }
   passage which default           { Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for} }
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }

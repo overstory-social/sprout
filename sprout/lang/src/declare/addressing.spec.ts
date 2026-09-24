@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CONNECTORS,
+  defaultArticle,
   defaultNouns,
   DETERMINERS,
   humanisedIdentifier,
@@ -42,6 +43,23 @@ describe('what a thing is called where nothing says', () => {
     expect(humanisedKind('Lamp')).toBe('lamp');
     expect(humanisedKind('TVSet')).toBe('tv set');
     expect(humanisedKind('Room2B')).toBe('room2 b');
+  });
+
+  it('takes `a`, and `an` before a name whose first letter is a, e, i, o or u in either case', () => {
+    expect(['apple', 'Echo', 'iron key', 'Oskar', 'urn'].map(defaultArticle)).toEqual([
+      'an',
+      'an',
+      'an',
+      'an',
+      'an',
+    ]);
+    expect(['brass key', 'yew', 'hour', '', '1 coin'].map(defaultArticle)).toEqual([
+      'a',
+      'a',
+      'a',
+      'a',
+      'a',
+    ]);
   });
 
   it('answers to its full name and the last word of it', () => {

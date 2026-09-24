@@ -1,4 +1,5 @@
 // A body names things in reach of where it is written; a misspelt one is a
-// name nothing here answers to. From a kind's body, that is what the world's
-// body holds, and anything deeper by its path.
+// name nothing here answers to. From a kind's body, that is any object the
+// world declares, since an instance may sit anywhere, and anything deeper by
+// its path.
 message :lit with boolean

@@ -8,10 +8,10 @@ import type { KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 import { parseDeclarations } from '../syntax/parse.js';
-import { resolveContents } from '../declare/contents.js';
+import { contentAt, resolveContents } from '../declare/contents.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable } from '../declare/kinds.js';
-import type { NameSource } from '../declare/names.js';
+import type { NameSource, Vantage } from '../declare/names.js';
 import { resolveObjects } from '../declare/objects.js';
 import { placeObjects } from '../declare/tree.js';
 
@@ -62,4 +62,23 @@ export function nameSource(text: string = SHOP_TEXT): NameSource & { kinds: Kind
     throw new Error(diagnostics.refusals.map((d) => d.message).join('\n'));
   }
   return { tree, contents, kinds };
+}
+
+/**
+ * The vantage of `giver`'s body, or of the content it writes at `path`,
+ * with what the instance running it is made of; throws where either is
+ * not in `source`.
+ */
+export function inKind(
+  source: ReturnType<typeof nameSource>,
+  giver: string,
+  ...path: string[]
+): Vantage {
+  const dot = giver.lastIndexOf('.');
+  const self =
+    path.length === 0
+      ? source.kinds.qualified(giver.slice(0, dot), giver.slice(dot + 1))
+      : (contentAt(source.contents, giver, path)?.kind ?? null);
+  if (self === null) throw new Error(`\`${giver}\` writes nothing at \`${path.join('.')}\`.`);
+  return { in: 'kind', giver, path, self };
 }

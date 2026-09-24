@@ -33,6 +33,11 @@ export function humanisedKind(kind: string): string {
     .toLowerCase();
 }
 
+/** The article a name takes where none is written: `a`, and `an` before a name beginning with a vowel (the spec's Addressing and display). */
+export function defaultArticle(name: string): 'a' | 'an' {
+  return /^[aeiou]/i.test(name) ? 'an' : 'a';
+}
+
 /** The nouns a name gives by default: the full name and its last word (the spec's Addressing and display). */
 export function defaultNouns(name: string): string[] {
   const words = typedWords(name);

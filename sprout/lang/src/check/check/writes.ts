@@ -26,7 +26,7 @@ export function effectCall(
 ): true | null {
   if (method.text === 'remember') {
     if (!arity(method, args, 2, context)) return null;
-    if (!remembers(type, method.at, context)) return null;
+    if (!remembers(type, method.at, context, receiver)) return null;
     const named = propertyName(args[0]!, context);
     if (named === null) return null;
     const property = ownMemory(named, context);
@@ -40,7 +40,7 @@ export function effectCall(
   // the one a receiver other than `self` may reach.
   if (method.text === 'adjust' && receiver.kind === 'binding' && receiver.name.text !== 'self') {
     if (!arity(method, args, 2, context)) return null;
-    if (!remembers(type, method.at, context)) return null;
+    if (!remembers(type, method.at, context, receiver)) return null;
     const named = propertyName(args[0]!, context);
     if (named === null) return null;
     const property = ownMemory(named, context);

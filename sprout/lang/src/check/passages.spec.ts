@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { KindDeclaration } from '../syntax/ast.js';
 import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import { GUARD_NAMES } from '../syntax/ast.js';
-import { Diagnostics } from '../source/diagnostics.js';
+import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from '../declare/enums.js';
 import { kindName, KindTable } from '../declare/kinds.js';
+import { hereKindOf } from '../declare/places.js';
 import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkGuard } from './guards.js';
@@ -20,7 +21,7 @@ const SPROUT_TEXT = `kind Actor { contains }
 kind Visitor is Actor { }
 kind World {
   contains
-  passage unreachable default { You cannot reach {thing} from here. }
+  passage not_here default { You see nothing like that here. }
   passage fault default { Something has gone wrong. }
 }
 kind Place { contains actors  passage arrives default { {item} arrives. } }
@@ -33,10 +34,10 @@ verb peer { role target  "peer at [target]" }
 
 /**
  * Every body in `text` checked against the kind that wrote it, recording
- * what each says, and then every passage against where it is said. What
- * was said, as location and message.
+ * what each says, and then every passage against where it is said: what
+ * was said, in order.
  */
-function checked(text: string): string[][] {
+function diagnosed(text: string): Diagnostic[] {
   const setup = new Diagnostics();
   const sprout = parseDeclarations(new SourceFile('sprout.sprout', SPROUT_TEXT), setup);
   const shop = parseDeclarations(new SourceFile('shop.sprout', `${VERBS}${text}`), setup);
@@ -70,9 +71,10 @@ function checked(text: string): string[][] {
 
   const diagnostics = new Diagnostics();
   const sites = new PassageSites();
+  const here = hereKindOf(kinds.all(), kinds);
   for (const kind of kinds.all()) {
     const own = kindName(kind);
-    const setting = { kinds, verbs, diagnostics, speech: { sites } };
+    const setting = { kinds, here, verbs, diagnostics, speech: { sites } };
     for (const name of GUARD_NAMES) {
       for (const guard of kind.guards[name]) {
         if (guard.origin === own) checkGuard(guard.declaration, kind, setting);
@@ -82,9 +84,52 @@ function checked(text: string): string[][] {
       for (const play of plays) if (play.origin === own) checkPlay(play, kind, setting);
     }
   }
-  checkPassages({ speakers: kinds.all().map((kind) => ({ kind })), kinds, diagnostics, sites });
-  return diagnostics.sorted().map((d) => [locationOf(d.at), d.message]);
+  checkPassages({
+    speakers: kinds.all().map((kind) => ({ kind })),
+    kinds,
+    here,
+    diagnostics,
+    sites,
+  });
+  return diagnostics.sorted();
 }
+
+/** What was said of `text`, as location and message. */
+const checked = (text: string): string[][] =>
+  diagnosed(text).map((d) => [locationOf(d.at), d.message]);
+
+/** The remedy of each thing said of `text`. */
+const remediesOf = (text: string): string[] => diagnosed(text).map((d) => d.remedy ?? '');
+
+describe('`here` is a `sprout.Place` where every kind holding actors composes it', () => {
+  it('walks and counts `here` without narrowing it, in a body and in a line the engine says', () => {
+    expect(
+      checked(`kind Hand is sprout.Actor {
+  :seen 0 min 0 max 99
+  as actor for take { do { self.set(:seen, here.count)  say look } }
+  passage look { {for thing in here}{thing}{/for} }
+}
+kind Loud { passage fault { {for thing in here}{thing} shakes.{/for} } }
+kind Hall is sprout.Place { }`),
+    ).toEqual([]);
+  });
+
+  it('is the object type where a kind holds actors without composing it, and says which', () => {
+    const text = `kind Hand is sprout.Actor {
+  as actor for take { do { say look } }
+  passage look { {for thing in here}{thing}{/for} }
+}
+kind Loud { passage fault { {for thing in here}{thing} shakes.{/for} } }
+kind Room { contains actors }`;
+    expect(checked(text)).toEqual([
+      ['shop.sprout:6:32', 'Sprout does not know whether this holds anything.'],
+      ['shop.sprout:8:43', 'Sprout does not know whether this holds anything.'],
+    ]);
+    const remedy =
+      '`Room` holds actors without composing `sprout.Place`, so `here` may be a place that is not one: compose `sprout.Place` into `Room`, or narrow `here` first with `is()`.';
+    expect(remediesOf(text)).toEqual([remedy, remedy]);
+  });
+});
 
 describe('a passage uses the bindings of the body that says it', () => {
   it('renders a role where the body saying it plays that verb', () => {
@@ -244,6 +289,13 @@ describe('the engine says its own lines with what it binds for each', () => {
       [],
     );
     expect(checked(`kind Loud { passage fault { {actor} feels {here} shake. } }`)).toEqual([]);
+    expect(checked(`kind Loud { passage not_here { {actor} looks round {here}. } }`)).toEqual([]);
+    expect(checked(`kind Loud { passage not_here { No {thing} here. } }`)).toEqual([
+      [
+        'shop.sprout:4:36',
+        'The engine says `not_here` with `{actor}` and `{here}` bound, and nothing is called `thing` there.',
+      ],
+    ]);
     expect(checked(`kind Loud { passage unseen { {here} shakes. } }`)).toEqual([
       [
         'shop.sprout:4:31',

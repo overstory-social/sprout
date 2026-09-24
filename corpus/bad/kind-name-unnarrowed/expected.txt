@@ -1,0 +1,4 @@
+lantern.sprout:7:16  `lamp` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot read a property from it.
+                     Name it with `let` and narrow that, as in `let found = lamp` and then `if (found.is(Lamp)) { … }`; a passage said inside the branch may read `found` too.
+
+refused: 1 problem

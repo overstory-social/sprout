@@ -71,6 +71,19 @@ describe('an exit, against the whole bundle', () => {
     ]);
   });
 
+  it('in a kind’s body, refuses a destination only where nothing of its name is a place', () => {
+    const cell = (to: string) => ({
+      'cell.sprout': `kind Cell is sprout.Place { grammar { exit out "out" -> ${to} } }\n`,
+    });
+    expect(said('', cell('shelf')).map((one) => one.slice(2))).toEqual([
+      [
+        'Nothing called `shelf` holds actors, so nobody could stand where this exit leads.',
+        'Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.',
+      ],
+    ]);
+    expect(said('', cell('shop'))).toEqual([]);
+  });
+
   it('refuses an exit or a link on something that is not a place', () => {
     const shelf = {
       'shelf.sprout': 'kind Shelf { contains grammar { exit out "off" -> yard  link up "up" } }\n',
@@ -136,7 +149,7 @@ describe('an exit, against the whole bundle', () => {
       diagnostics,
       names: {
         source: { tree: bundle!.tree, contents: bundle!.contents },
-        vantage: { in: 'kind' as const, giver: kindName(cell), path: [] },
+        vantage: { in: 'kind' as const, giver: kindName(cell), path: [], self: cell },
         world: bundle!.world,
         table,
       },
@@ -144,10 +157,16 @@ describe('an exit, against the whole bundle', () => {
     expect(cell.exits.map((exit) => checkExit(exit, cell, setting))).toEqual([true, true]);
     expect(diagnostics.all).toEqual([]);
     const exit = cell.exits[0]!.line;
+    // A kind has no place, so which `yard` its exit leads to is each instance's.
     expect(exit.kind === 'grammar-exit' && table.get(exit.destination)).toEqual({
-      names: 'declared',
-      path: ['yard'],
-      kind: expect.anything(),
+      names: 'placed',
+      candidates: [
+        {
+          steps: [{ in: 'tree', path: ['yard'] }],
+          kind: expect.anything(),
+          declaration: expect.anything(),
+        },
+      ],
     });
   });
 });

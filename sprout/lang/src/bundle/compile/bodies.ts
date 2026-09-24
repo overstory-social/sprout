@@ -12,6 +12,7 @@
 import { GUARD_NAMES } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { kindName, type KindLookup, type KindRef } from '../../declare/kinds.js';
+import type { HereKind } from '../../declare/places.js';
 import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
@@ -27,6 +28,8 @@ import { PassageSites } from '../../check/speech.js';
 /** What every body is checked against: the kinds, verbs and messages, and where names resolve. */
 export interface BodySetting {
   readonly kinds: KindLookup;
+  /** What `here` is typed as, over every composed kind in the world. */
+  readonly here: HereKind;
   readonly verbs: VerbTable;
   readonly diagnostics: Diagnostics;
   readonly messages: MessageSetting;
@@ -69,6 +72,7 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Re
   for (const { kind, vantage } of composed) {
     const setting = {
       kinds: base.kinds,
+      here: base.here,
       verbs: base.verbs,
       diagnostics: base.diagnostics,
       messages: base.messages,
@@ -101,6 +105,7 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Re
   checkPassages({
     speakers: composed.map(({ kind, vantage }) => ({ kind, names: namesOf(vantage) })),
     kinds: base.kinds,
+    here: base.here,
     diagnostics: base.diagnostics,
     sites,
   });

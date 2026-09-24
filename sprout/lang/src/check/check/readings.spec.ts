@@ -48,9 +48,15 @@ describe('what the compiler checks — the table, row by row', () => {
 
   it('`x.get(:p)` — `x` is not of object type', () => {
     const open = vessel();
-    const refused = read('here.get(:capacity)', open);
+    const refused = read('target.get(:capacity)', open);
     expect(refused.type).toBeNull();
     expect(refused.said.join(' ')).toContain('Narrow it first');
+  });
+
+  it('reads `here` as `sprout.Place`, which holds things and declares no property of its own', () => {
+    expect(shapeOf('here.count', vessel())).toBe('integer');
+    const refused = read('here.get(:capacity)', vessel());
+    expect(refused.said).toEqual(['`sprout.Place` has no `:capacity`. It has nothing.']);
   });
 
   it('`x.recall(:p)` — `x` composes `sprout.Actor`, `p` in `self`’s `remembers` block', () => {
@@ -219,9 +225,19 @@ describe('the readings, asked directly', () => {
     const context = bodyOf(PRINTER);
     const written = call('actor.recall(:visits)');
     expect(
-      showBindingType(recallCall(objectOf(PRINTER), written.method, written.arguments, context)!),
+      showBindingType(
+        recallCall(
+          written.receiver,
+          objectOf(PRINTER),
+          written.method,
+          written.arguments,
+          context,
+        )!,
+      ),
     ).toBe('integer 0 to 99');
-    expect(recallCall(objectOf(KEY), written.method, written.arguments, context)).toBeNull();
+    expect(
+      recallCall(written.receiver, objectOf(KEY), written.method, written.arguments, context),
+    ).toBeNull();
     expect(saidBy(context).join(' ')).toContain(`Only a kind composing \`${ACTOR}\` is.`);
   });
 
