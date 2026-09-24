@@ -116,7 +116,6 @@ describe.skipIf(!url)('sqlStore on a real Postgres (contention)', () => {
         extensions: [],
         caps: CAPS,
         excepted: false,
-        blessed: [],
         loadedAt: new Date('2026-09-18T12:00:00Z'),
       }),
     );

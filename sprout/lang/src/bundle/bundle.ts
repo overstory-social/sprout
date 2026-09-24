@@ -122,18 +122,17 @@ export interface MicroworldSource {
   readonly withheld?: readonly string[];
 }
 
-/** A library in a bundle: its source, the hash of it, and whether the host blessed that hash. */
+/**
+ * A library in a bundle: its source and the hash of it. Whether the host
+ * blesses that hash is not recorded: it is the host's, read at every
+ * compile (the spec's What compiling produces).
+ */
 export interface VendoredLibrary extends LibrarySource {
-  /** The content hash of its files. A modified copy hashes differently and is the author's own source. */
-  readonly hash: string;
   /**
-   * Whether the host blessed this hash at publish. Blessing is a quota
-   * decision, not a safety one: it changes only whether these bytes
-   * count against the author's caps. It is recorded here so that a
-   * library later un-blessed does not retroactively push a published
-   * world over its limits.
+   * The content hash of its files, which a host's blessed set is keyed
+   * on. A modified copy hashes differently and is the author's own source.
    */
-  readonly blessed: boolean;
+  readonly hash: string;
   /** What its source weighs in UTF-8 bytes. */
   readonly bytes: number;
 }

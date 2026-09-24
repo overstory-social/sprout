@@ -238,3 +238,56 @@ describe('a meter holds no figure of its own', () => {
     ]).toEqual([0, 0, 0, 0]);
   });
 });
+
+describe('a figure every part of a turn charges stays spent once it runs out', () => {
+  const faults = (run: () => unknown) => expect(run).toThrow(BudgetExhausted);
+
+  it('is none before anything runs out', () => {
+    expect(new Budget(budgets).exhausted).toBeNull();
+  });
+
+  it('names steps, a poll’s steps and events once each is spent', () => {
+    const steps = small({ steps: 1 });
+    steps.spend();
+    expect(steps.exhausted).toBeNull();
+    faults(() => steps.spend());
+    expect(steps.exhausted).toBe('steps');
+
+    const poll = small({ pollSteps: 1 }, 'poll');
+    faults(() => poll.spend(2));
+    expect(poll.exhausted).toBe('pollSteps');
+
+    const events = small({ events: 1 });
+    events.event();
+    faults(() => events.event());
+    expect(events.exhausted).toBe('events');
+  });
+
+  it('names the wall clock once the backstop fires', () => {
+    let now = 0;
+    const limits = limitsFrom({ budgets: { wallClockMs: 5 } }).budgets;
+    const budget = new Budget(limits, 'command', () => now);
+    now = 10;
+    faults(() => {
+      for (;;) budget.spend();
+    });
+    expect(budget.exhausted).toBe('wallClockMs');
+  });
+
+  it('leaves out a figure that bounds only what charges it', () => {
+    const budget = small({
+      spawnsPerTurn: 1,
+      output: 1,
+      passageDepth: 1,
+      cascadeDepth: 1,
+      setRoleObjects: 1,
+    });
+    budget.spawn();
+    faults(() => budget.spawn());
+    faults(() => budget.say('a', 2));
+    faults(() => budget.passage(() => budget.passage(() => null)));
+    faults(() => budget.cascadeTo(2));
+    faults(() => budget.setRole(2));
+    expect(budget.exhausted).toBeNull();
+  });
+});

@@ -1,7 +1,8 @@
 // What a bundle weighs against the host's limits and which level it is
-// accepted at (the spec's Limits): blessed library source costs the author
-// nothing, a fork costs them everything, and the level is the highest of
-// any part's.
+// accepted at (the spec's Limits; Host › Two decisions): library source
+// the host blesses now costs the author nothing, at publish and at every
+// load, a fork costs them everything, and the level is the highest of any
+// part's.
 
 import { describe, expect, it } from 'vitest';
 
@@ -60,14 +61,11 @@ function weighed(
     libraries: [library],
   };
   const report = new Report('publish', source.manifestFile.span(0, 0));
-  const usable = checkLibraries(
-    source,
-    options.blessed === true ? new Set([sha]) : new Set(),
-    report,
-  );
+  const usable = checkLibraries(source, report);
   const weight = weighBundle(
     source,
     usable,
+    options.blessed === true ? new Set([sha]) : new Set(),
     new Set(['kiln.sprout']),
     limitsFrom({ caps: options.caps ?? {} }).caps,
     options.compilerLevel ?? 1,
@@ -164,6 +162,60 @@ describe('blessed library source costs the author nothing, and a fork costs them
     const big = file('big.prose', `passage big { ${'x'.repeat(1_000_000)} }`);
     const files = [big, ...worldFiles(WORLD_LINE)];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
+  });
+});
+
+describe('a load honours what the host blesses now, both ways', () => {
+  // The world's own source fits in OWN_BYTES; the standard library beside it does not.
+  const limits = limitsFrom({ caps: { sourceBytes: OWN_BYTES } });
+  const published = compileBundle(world(), { limits, blessed: new Set([SPROUT_SHA]) }).bundle!;
+  const recorded = { caps: published.caps, excepted: false };
+  const overSource = /^This world is \d+ bytes of source, and \d+ is as much as it may be\.$/;
+  const loaded = (blessed: ReadonlySet<string>, source: MicroworldSource = world()) =>
+    compileBundle(source, { mode: 'load', limits, blessed, recorded });
+
+  it('records nothing of the blessing in the bundle, whose hash is the same either way', () => {
+    const unblessed = compileBundle(world(), { blessed: new Set() }).bundle!;
+    expect(Object.keys(published.libraries[0]!)).not.toContain('blessed');
+    expect(Object.keys(published)).not.toContain('blessed');
+    expect(unblessed.hash).toBe(published.hash);
+    expect(unblessed.libraries).toEqual(published.libraries);
+  });
+
+  it('exempts a library the host blessed since publish', () => {
+    const unblessed = compileBundle(world(), { blessed: new Set() }).bundle!;
+    const { bundle, diagnostics } = loaded(new Set([SPROUT_SHA]), world());
+    expect(unblessed.size.sourceBytes).toBeGreaterThan(OWN_BYTES);
+    expect(refusals(diagnostics)).toEqual([]);
+    expect(bundle!.size.sourceBytes).toBe(OWN_BYTES);
+  });
+
+  it('charges a library the host unblessed since publish, and refuses the load as it would any world over its caps', () => {
+    const load = loaded(new Set());
+    const publish = compileBundle(world(), { limits, blessed: new Set() });
+    expect(load.bundle).toBeNull();
+    expect(refusals(load.diagnostics).map((d) => d.message)).toEqual([
+      expect.stringMatching(overSource),
+    ]);
+    expect(refusals(load.diagnostics)).toEqual(refusals(publish.diagnostics));
+  });
+
+  it('charges a modified copy, whose hash is not the one the host blesses', () => {
+    const fork = {
+      ...STANDARD_LIBRARY,
+      files: STANDARD_LIBRARY.files.map((f, i) =>
+        i === 0 ? file(f.name, `${f.text}\n// forked\n`) : f,
+      ),
+    };
+    const forked = world({
+      libraries: [fork],
+      manifest: { libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(fork) }] },
+    });
+    const { bundle, diagnostics } = loaded(new Set([SPROUT_SHA]), forked);
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((d) => d.message)).toEqual([
+      expect.stringMatching(overSource),
+    ]);
   });
 });
 
