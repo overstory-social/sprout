@@ -147,7 +147,7 @@ function renderedPassage(
     context.diagnostics.refuse(
       member.at,
       'Sprout does not know what this is, so it cannot render one of its passages.',
-      'Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
+      type.remedy ?? 'Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
     );
     return;
   }
@@ -265,7 +265,7 @@ function walkable(type: BindingType, over: Expr, context: CheckContext): boolean
       : type.kind === null
         ? [
             'Sprout does not know whether this holds anything.',
-            'Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',
+            type.remedy ?? 'Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',
           ]
         : [
             `\`${shownName(kindName(type.kind), context.from)}\` holds nothing, so there is nothing to walk.`,

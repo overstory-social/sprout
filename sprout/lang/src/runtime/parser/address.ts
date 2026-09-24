@@ -3,11 +3,13 @@
 // Slots). Its composed grammar block says what it writes, and the rest is
 // the defaults: a thing's name is its identifier humanised, or its kind's
 // name humanised where it has no identifier, as a spawn has none; its
-// article is `a`; and it answers to its full name, the last word of it,
+// article is `a`, or `an` before a name beginning with a vowel; and it
+// answers to its full name, the last word of it,
 // its identifier and every noun its closure writes. A visitor is called
 // by their nickname, with no article, and answers to the whole of it.
 
 import {
+  defaultArticle,
   defaultNouns,
   humanisedIdentifier,
   humanisedKind,
@@ -47,7 +49,11 @@ export function addressOf(instance: Instance, context: AddressContext): Address 
     (identifier === null ? humanisedKind(instance.kind.name) : humanisedIdentifier(identifier));
   const nouns = defaultNouns(name).map(typedWords);
   if (identifier !== null) nouns.push(typedWords(humanisedIdentifier(identifier)));
-  return { name, article: grammar.article?.value ?? 'a', nouns: once([...nouns, ...written]) };
+  return {
+    name,
+    article: grammar.article?.value ?? defaultArticle(name),
+    nouns: once([...nouns, ...written]),
+  };
 }
 
 /** The identifier a thing was declared by, or null for a spawn, which has none. */

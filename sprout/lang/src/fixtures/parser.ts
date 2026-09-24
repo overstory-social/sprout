@@ -62,6 +62,7 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
     '',
     '  object cellar is sprout.Place {',
     '    object barrel is Barrel',
+    '    object ukulele is Coin { grammar { article a } }',
     '  }',
     '}',
     '',
@@ -192,6 +193,7 @@ export const [
 ];
 export const COIN = IN('hall', 'chest', 'coin');
 export const BARREL = IN('cellar', 'barrel');
+export const UKULELE = IN('cellar', 'ukulele');
 
 /** The exits a case says apply in the hall. */
 export const EXITS: readonly CommandExit[] = [

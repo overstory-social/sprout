@@ -10,6 +10,7 @@
 import type { Ident } from '../syntax/ast.js';
 import { isObjectBinding, type Binding, type ObjectBinding } from '../check/bindings.js';
 import type { KindRef } from '../declare/kinds.js';
+import type { HereKind } from '../declare/places.js';
 import { NO_GRAMMAR } from '../declare/grammar.js';
 import { NO_PASS_RULES } from '../declare/passes.js';
 import { NO_GUARDS } from '../declare/guards.js';
@@ -98,6 +99,17 @@ export const CONTAINER = kind('sprout', 'Container');
 export const VESSEL = kind('printers_shop', 'Vessel', 'sprout.Container');
 export const LOCKABLE = kind('sprout', 'Lockable');
 export const VISITOR = kind('printers_shop', 'Printer', 'sprout.Actor', 'sprout.Visitor');
+export const PLACE: KindRef = { ...kind('sprout', 'Place'), contains: true, containsActors: true };
+export const ROOM: KindRef = {
+  ...kind('printers_shop', 'Room'),
+  contains: true,
+  containsActors: true,
+};
+
+/** `here` where every place composes `sprout.Place`. */
+export const HERE_PLACE: HereKind = { place: PLACE, unlike: null };
+/** `here` where the standard library's `sprout.Place` is absent. */
+export const HERE_UNKNOWN: HereKind = { place: null, unlike: null };
 
 export const MESSAGES = (() => {
   const table = new MessageTable();

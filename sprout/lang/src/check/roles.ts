@@ -17,6 +17,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import { textOf, type Span } from '../source/source.js';
 import { readable } from '../source/words.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import type { HereKind } from '../declare/places.js';
 import { SPROUT } from '../declare/enums.js';
 import { ACTOR, isActor } from '../declare/actors.js';
 import { ACTOR_ROLE, type ResolvedPlay } from '../declare/roles.js';
@@ -39,6 +40,8 @@ import type { SpeechBook } from './speech.js';
 /** Where a play is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
 export interface PlaySetting {
   readonly kinds: KindLookup;
+  /** What `here` is typed as in this world. */
+  readonly here: HereKind;
   readonly verbs: ActSetting['verbs'];
   readonly diagnostics: Diagnostics;
   /** Where the body's identifiers resolve from; with none, only bindings are names. */
@@ -76,7 +79,7 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
   scope.introduce(selfBinding(self, head.at), diagnostics);
   const actor = setting.kinds.qualified(SPROUT, 'Actor');
   scope.introduce(actorBinding(actor, head.at), diagnostics);
-  scope.introduce(hereBinding(head.at), diagnostics);
+  scope.introduce(hereBinding(setting.here, head.at), diagnostics);
   for (const role of verb.roles) bindRole(role, play, verb, self, scope, diagnostics);
 
   const context: CheckContext = {

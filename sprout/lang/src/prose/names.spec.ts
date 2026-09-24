@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BRASS_KEY, CRATE, OAK_DOOR, PRESS, proseTurn } from '../fixtures/prose.js';
+import { BRASS_KEY, CRATE, ECHO, OAK_DOOR, PRESS, proseTurn } from '../fixtures/prose.js';
 import { objectWords } from './names.js';
 
 describe('an object in prose is its article and its name, or “you” to itself', () => {
@@ -16,9 +16,10 @@ describe('an object in prose is its article and its name, or “you” to itself
     expect(objectWords(turn.marta, BRASS_KEY, turn.context)).toBe('Marta');
   });
 
-  it('writes the article its grammar gives it, `a` where none is written', () => {
+  it('writes the article its grammar gives it, `a` where none is written and `an` before a vowel', () => {
     const turn = proseTurn();
     expect(objectWords(BRASS_KEY, turn.marta, turn.context)).toBe('a brass key');
+    expect(objectWords(ECHO, turn.marta, turn.context)).toBe('an echo');
     expect(objectWords(OAK_DOOR, turn.marta, turn.context)).toBe('an oak door');
     expect(objectWords(CRATE, turn.marta, turn.context)).toBe('the crate');
   });
