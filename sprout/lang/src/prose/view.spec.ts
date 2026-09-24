@@ -148,8 +148,8 @@ describe('rendering a view', () => {
       ],
       [PURSE],
     );
-    const context = { ...pollingIn(state), draws: null };
     const ines = actorOf(state, INES);
+    const context = { ...pollingIn(state), draws: null, actor: ines };
     const seen = renderView(viewOf(ines, context), context);
     expect(seen.occupants.map((one) => one.name)).toEqual(['a guard', 'a sentry', 'Marta']);
     expect(seen.carried).toEqual([]);
