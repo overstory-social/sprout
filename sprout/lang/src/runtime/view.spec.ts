@@ -48,6 +48,19 @@ describe('a visitor’s view', () => {
     ]);
   });
 
+  it('lists a link that is set, by its label and with no direction, and offers `go` by that label', () => {
+    const unset = gatehouse([[MARTA, 'Marta', TOWER]]);
+    const bare = viewOf(actorOf(unset, MARTA), pollingIn(unset));
+    expect(bare.exits).toEqual([]);
+    expect(bare.readings.some((one) => one.typed.startsWith('go '))).toBe(false);
+
+    const state = gatehouse([[MARTA, 'Marta', TOWER]], [], [], [[TOWER, 'stair', YARD]]);
+    const view = viewOf(actorOf(state, MARTA), pollingIn(state));
+    expect(view.exits).toEqual([{ direction: null, label: 'down the back stair', to: YARD }]);
+    const going = view.readings.filter((one) => one.reading.verb.name === 'go');
+    expect(going.map((one) => one.typed)).toEqual(['go down the back stair']);
+  });
+
   it('names every other actor standing there, in contents order, and nobody elsewhere or away', () => {
     const state = gatehouse([
       [MARTA, 'Marta', YARD],

@@ -17,8 +17,13 @@ import { saveWorld } from './load.js';
 import type { WorldState } from './state.js';
 import { Budget } from './budget.js';
 import { Draws } from './draws.js';
+import { boundObject } from './evaluate.js';
+import { engineLine } from './engine-lines.js';
+import type { InstanceId } from './ids.js';
+import type { Said } from './reading.js';
 import {
   committedOver,
+  effectsOver,
   pollTurn,
   writeTurn,
   writeUnder,
@@ -198,6 +203,126 @@ describe('a write turn in parts', () => {
     expect(whole.changes.upsert.map((record) => record.id)).toEqual([BELL]);
     expect(whole.changes.serial).toBe(state.serial + 1);
     expect(whole.stale).toEqual([MARTA]);
+    // Made of parts, as catch-up is, it says nothing.
+    expect(whole.effects).toEqual([]);
+  });
+});
+
+describe('what a write turn says', () => {
+  /** A line from `by` to `to`, in the engine's words, with `{actor}` bound to `actor`. */
+  const line = (
+    by: InstanceId,
+    to: readonly InstanceId[],
+    text: string,
+    actor: InstanceId,
+  ): Said => ({
+    effect: 'told',
+    to,
+    by,
+    speaker: null,
+    said: engineLine(text),
+    bindings: new Map([['actor', boundObject(actor)]]),
+  });
+
+  it('is rendered as its effects once its body is done, one for each reader in the order named', () => {
+    const state = belfry([MARTA, INES]);
+    const [marta, ines] = [actorOf(state, MARTA), actorOf(state, INES)];
+    const written = writeTurn(
+      state,
+      'command',
+      belfryHost(),
+      inputs,
+      (turn) => {
+        const said = line(BELL, [ines, marta], '{self} rings for {actor}.', marta);
+        strike(turn);
+        return said;
+      },
+      (said) => ({ actor: marta, lines: [{ said }] }),
+    );
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(
+      written.effects.map((one) => [one.visit, one.to, one.from, one.actor, one.paragraphs]),
+    ).toEqual([
+      [INES, ines, BELL, marta, [`A bell rings for ${MARTA}.`]],
+      [MARTA, marta, BELL, marta, ['A bell rings for you.']],
+    ]);
+  });
+
+  it('reads the state the turn left, so a line said before a write renders what was written', () => {
+    const state = belfry([MARTA]);
+    const marta = actorOf(state, MARTA);
+    const written = writeTurn(
+      state,
+      'command',
+      belfryHost(),
+      inputs,
+      (turn) => {
+        const said = line(marta, [marta], 'Done {self.get(:done)} times.', marta);
+        const me = turn.draft.instance(marta)!;
+        turn.draft.write({ ...me, properties: new Map([...me.properties, ['done', 3]]) });
+        return said;
+      },
+      (said) => ({ actor: marta, lines: [{ said }] }),
+    );
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(written.effects.map((one) => one.paragraphs)).toEqual([['Done 3 times.']]);
+  });
+
+  it('is nothing unless the turn says what it said', () => {
+    const written = writeTurn(belfry(), 'tick', belfryHost(), inputs, strike);
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(written.effects).toEqual([]);
+  });
+
+  it('names a visitor who arrived in the turn by the nickname the turn gave them', () => {
+    const state = belfry([MARTA]);
+    const marta = actorOf(state, MARTA);
+    const written = writeTurn(
+      state,
+      'arrival',
+      belfryHost(),
+      inputs,
+      (turn) => {
+        turn.draft.putVisitor({ ...turn.draft.visitor(MARTA)!, nickname: 'Mar' });
+        return line(BELL, [marta], 'Hello, {actor}.', marta);
+      },
+      (said) => ({ actor: marta, lines: [{ said }] }),
+    );
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(written.effects.map((one) => one.paragraphs)).toEqual([['Hello, you.']]);
+  });
+
+  it('faults the turn, keeping nothing, where a reader would read more than the host allows', () => {
+    const state = belfry([MARTA]);
+    const marta = actorOf(state, MARTA);
+    const host = belfryHost({ ...DEFAULT_LIMITS.budgets, output: 8 });
+    const written = writeTurn(
+      state,
+      'command',
+      host,
+      inputs,
+      (turn) => {
+        strike(turn);
+        return line(BELL, [marta], 'The bell rings out.', marta);
+      },
+      (said) => ({ actor: marta, lines: [{ said }] }),
+    );
+    expect(written).toMatchObject({ committed: false, fault: { name: 'BudgetExhausted' } });
+  });
+
+  it('is rendered over the committed state under a fresh budget and stream, for a turn that faulted', () => {
+    const state = belfry([MARTA, INES]);
+    const [marta, ines] = [actorOf(state, MARTA), actorOf(state, INES)];
+    const told = line(STONE, [marta, ines], '{one of}Oh.{or}Ah.{or}Eh.{/one of}', marta);
+    const effects = effectsOver(state, 'command', belfryHost(), inputs, {
+      actor: marta,
+      lines: [{ said: told }],
+    });
+    const word = ['Oh.', 'Ah.', 'Eh.'][new Draws(inputs.seed).below(3)]!;
+    expect(effects.map((one) => [one.visit, one.from, one.paragraphs])).toEqual([
+      [MARTA, STONE, [word]],
+      [INES, STONE, [word]],
+    ]);
   });
 });
 

@@ -109,8 +109,8 @@ const bundle = compiledWorld('shop', {
     'kind Loud is Counter { passage done { Done, loudly. } }',
     'kind Pit {',
     '  contains actors',
-    '  grammar { link down "down into the dark" }',
-    '  as target for dig { do { let hole = spawn Pit in self  connect down to hole  connect down to hole  say "Dug." } }',
+    '  grammar { link below "down into the dark" }',
+    '  as target for dig { do { let hole = spawn Pit in self  connect below to hole  connect below to hole  say "Dug." } }',
     '}',
     'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
     'kind Pet is Creature {',
@@ -456,8 +456,8 @@ describe('what a `do` connects', () => {
     const heard = act(one, PIT, 'dig');
     const links = [...one.draft.instance(PIT)!.links];
     expect(links).toHaveLength(1);
-    const [direction, hole] = links[0]!;
-    expect(direction).toBe('down');
+    const [name, hole] = links[0]!;
+    expect(name).toBe('below');
     expect(one.draft.instance(hole)!.container).toBe(PIT);
     expect(heard.spoken.map(words)).toEqual(['Dug.']);
   });

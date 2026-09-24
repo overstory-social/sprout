@@ -13,8 +13,8 @@ world exits_too_many is sprout.World {
       exit west  "west" -> yard
       exit up    "up" -> yard
       exit down  "down" -> yard
-      link in    "in"
-      link out   "out"
+      link inward  "in"
+      link outward "out"
     }
   }
 }

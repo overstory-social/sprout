@@ -33,10 +33,11 @@ libraries, passages and the `.prose` files they live in) and checks the
 expressions Phase 1 defined, the prose every passage holds and each
 `describe`; the runtime reads a visitor's typed line as a reading, runs it
 as a turn, answers the engine verbs (`go`, `look`, `examine`, `inventory`,
-`wait`, `help`), renders what is said, told and described once for
-each person who reads it, and polls a visitor's view: their place, its
-exits, who is there, what they carry, and every reading they could make.
-Everything else lands one backlog item at a time;
+`wait`, `help`), gives back what every turn said as one ordered
+sequence of effects, each rendered for the one person who reads it, and
+polls a visitor's view: their place, its ways out, who is there, what
+they carry, and every reading they could make. Everything else lands one
+backlog item at a time;
 see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.
@@ -50,8 +51,8 @@ sprout/lang/src
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, verbs, the world, actors
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
-  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, the engine verbs' answers, and a visitor's view
-  prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, the view as its visitor reads it
+  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, the engine verbs' answers, a turn's effects, and a visitor's view
+  prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
 sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check

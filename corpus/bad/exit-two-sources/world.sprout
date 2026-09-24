@@ -1,10 +1,10 @@
-// One place says where a direction leads: two kinds that each lead out
-// cannot both, and the composer says which.
+// One place says where a direction leads: an object made of two kinds
+// that each lead out cannot take both, and says which with its own.
 world exit_two_sources is sprout.World {
   visitors are Person
   visitors arrive at yard
 
-  object yard is Porch
+  object yard is FrontDoor, BackDoor
   object street is sprout.Place { }
   object lane is sprout.Place { }
 }

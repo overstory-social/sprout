@@ -24,8 +24,8 @@ function blockOf(text: string) {
 }
 
 describe('`connect`', () => {
-  it('reads a link by its direction and what it leads to', () => {
-    for (const text of ['connect north to cell', 'connect south to from', 'connect up to a.b']) {
+  it('reads a link by its name and what it leads to', () => {
+    for (const text of ['connect onward to cell', 'connect back to from', 'connect way_3 to a.b']) {
       const { statement, refusals } = readStatement(text);
       expect(refusals, text).toEqual([]);
       expect(unspanned(statement), text).toEqual([]);
@@ -38,7 +38,7 @@ describe('`connect`', () => {
   it('is read by its own reader', () => {
     const diagnostics = new Diagnostics();
     const p = new Parser(
-      new SourceFile('body.sprout', 'connect north to cell'),
+      new SourceFile('body.sprout', 'connect onward to cell'),
       diagnostics,
       DECLARATION_READERS,
     );
@@ -51,25 +51,25 @@ describe('`connect`', () => {
       [
         'body.sprout:1:8',
         '`connect` does not say which link it assigns.',
-        "Name one of `self`'s links by its direction, and what it leads to, as in `connect north to cell`.",
+        "Name one of `self`'s links, and what it leads to, as in `connect onward to cell`.",
       ],
     ]);
-    expect(said('connect North to cell')[0]!.slice(1)).toEqual([
-      '`North` starts with a capital, and a link is named by its direction, in lower case.',
-      "Name one of `self`'s links by its direction, and what it leads to, as in `connect north to cell`.",
+    expect(said('connect Onward to cell')[0]!.slice(1)).toEqual([
+      "`Onward` starts with a capital, and a link's name is written in lower case.",
+      "Name one of `self`'s links, and what it leads to, as in `connect onward to cell`.",
     ]);
-    expect(said('connect north cell')).toEqual([
+    expect(said('connect onward cell')).toEqual([
       [
-        'body.sprout:1:14',
-        '`connect north` does not say where the link leads.',
-        'Write `to` and the place: `connect north to cell`.',
+        'body.sprout:1:15',
+        '`connect onward` does not say where the link leads.',
+        'Write `to` and the place: `connect onward to cell`.',
       ],
     ]);
-    expect(said('connect north to')).toEqual([
+    expect(said('connect onward to')).toEqual([
       [
-        'body.sprout:1:17',
-        'After `to` comes the place `north` leads to.',
-        'Name a binding that holds it, as in `connect north to cell` after `let cell = spawn …`.',
+        'body.sprout:1:18',
+        'After `to` comes the place `onward` leads to.',
+        'Name a binding that holds it, as in `connect onward to cell` after `let cell = spawn …`.',
       ],
     ]);
   });
@@ -85,7 +85,7 @@ describe('`connect`', () => {
 const FOLLOWING = [
   ['say "after"', 'say'],
   ['move target to self', 'move'],
-  ['connect north to cell', 'connect'],
+  ['connect onward to cell', 'connect'],
   ['if (a) { self.set(:n, 1) }', 'if'],
   ['let n = 1', 'let'],
 ] as const;
@@ -103,7 +103,7 @@ describe('a `connect` never vanishes silently, and never takes what follows it',
   it('over generated ones, whole and with any one token taken out', () => {
     const c = chooser(20_260_924);
     for (let i = 0; i < 200; i++) {
-      const text = `connect ${c.one(['north', 'south', 'up', 'in'])} to ${c.one(['cell', 'from', 'self', 'a.b'])}`;
+      const text = `connect ${c.one(['onward', 'back', 'way_3', 'deeper'])} to ${c.one(['cell', 'from', 'self', 'a.b'])}`;
       expect(readStatement(text).refusals, text).toEqual([]);
       for (const dropped of tokensOf(text)) {
         const word = text.slice(dropped.start, dropped.end);
@@ -125,8 +125,8 @@ describe('a `connect` never vanishes silently, and never takes what follows it',
     const c = chooser(28);
     const DEFECTIVE = [
       'connect',
-      'connect north',
-      'connect north to',
+      'connect onward',
+      'connect onward to',
       'connect to cell',
       'connect 4',
     ];

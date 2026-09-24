@@ -12,6 +12,7 @@ import type { Budget } from './budget.js';
 import { SproutList } from './lists.js';
 import { participantsOf, type Reading } from './reading.js';
 import type { StateReader } from './state.js';
+import type { Value } from './values.js';
 
 /** A whole-number range, both ends included. */
 export interface OptionRange {
@@ -86,7 +87,7 @@ function rangeOf(narrowing: RoleNarrowing): OptionRange | null {
 /** The options a symbol role's `from` hears: what its list property holds now, in order. */
 function heldOptions(
   narrowing: RoleNarrowing,
-  properties: ReadonlyMap<string, unknown>,
+  properties: ReadonlyMap<string, Value>,
 ): readonly string[] {
   if (narrowing.narrows !== 'property') return [];
   const held = properties.get(narrowing.property.name);

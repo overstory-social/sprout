@@ -1,7 +1,8 @@
 // The gatehouse the view specs poll, one kind per file, and the committed
 // state they poll it in. The yard is described by whether its gate is
 // open, which is also whether its north exit applies; up the ladder is the
-// tower, always. Two guards stand in the yard and hear the topics they
+// tower, always, and the tower's link `stair` leads wherever a spec
+// connects it, and nowhere until then. Two guards stand in the yard and hear the topics they
 // know when asked, and one refuses to witness a vouching; a keypad hears
 // a code from 1 to 12, and a dial hears a notch within its own property's
 // range. A pebble lies in the yard and a coin in a purse there, for a
@@ -18,6 +19,7 @@ import { catalogueOf } from '../runtime/catalogue.js';
 import { Draft } from '../runtime/draft.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
 import { initialState } from '../runtime/load.js';
+import { renderEffects } from '../prose/effects.js';
 import type { OfferContext } from '../runtime/offers.js';
 import { newInstance, nicknamesIn, readerOf, type WorldState } from '../runtime/state.js';
 import type { TurnHost } from '../runtime/turn.js';
@@ -43,6 +45,7 @@ export const GATEHOUSE: Bundle = compiledWorld('gatehouse', {
     object purse is Purse { object coin is Pebble }
   }
   object tower is sprout.Place {
+    grammar { link stair "down the back stair" }
     describe { text "Wind, and a long view." }
   }
 }
@@ -113,6 +116,7 @@ export const GATE_CATALOGUE = catalogueOf(GATEHOUSE, DEFAULT_LIMITS.caps);
 export const gateHost = (pollSteps = DEFAULT_LIMITS.budgets.pollSteps): TurnHost => ({
   catalogue: GATE_CATALOGUE,
   budgets: { ...DEFAULT_LIMITS.budgets, pollSteps },
+  render: renderEffects,
 });
 
 export const MARTA: VisitKey = visitKey('v-marta');
@@ -123,12 +127,14 @@ export type Standing = readonly (readonly [VisitKey, string, InstanceId | null])
 
 /**
  * The gatehouse as committed: each visitor standing where given, then
- * each thing in `handed` moved into Marta's hands, then `set` written.
+ * each thing in `handed` moved into Marta's hands, then `set` written,
+ * then each link in `connected` set.
  */
 export function gatehouse(
   standing: Standing = [[MARTA, 'Marta', YARD]],
   handed: readonly InstanceId[] = [],
   set: readonly (readonly [InstanceId, string, Value])[] = [],
+  connected: readonly (readonly [InstanceId, string, InstanceId])[] = [],
 ): WorldState {
   const draft = new Draft(initialState(GATE_CATALOGUE));
   for (const [visit, nickname, where] of standing) {
@@ -151,6 +157,10 @@ export function gatehouse(
   for (const [id, name, value] of set) {
     const instance = draft.instance(id)!;
     draft.write({ ...instance, properties: new Map(instance.properties).set(name, value) });
+  }
+  for (const [id, name, to] of connected) {
+    const instance = draft.instance(id)!;
+    draft.write({ ...instance, links: new Map(instance.links).set(name, to) });
   }
   return draft.commit().state;
 }

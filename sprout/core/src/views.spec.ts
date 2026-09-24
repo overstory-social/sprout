@@ -10,6 +10,7 @@ import {
   libraryHash,
   newInstance,
   parseCommand,
+  renderEffects,
   SourceFile,
   STANDARD_LIBRARY,
   storedChanges,
@@ -77,7 +78,12 @@ if (bundle === null) throw new Error('the lamplight does not compile');
 const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
 const HALL = declaredId('lamplight', ['hall']);
 const MARTA = visitKey('v-marta');
-const host: CommandHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, parse: parseCommand };
+const host: CommandHost = {
+  catalogue,
+  budgets: DEFAULT_LIMITS.budgets,
+  parse: parseCommand,
+  render: renderEffects,
+};
 const light = { visit: MARTA, text: 'light lamp', seed: 1, mayHold: null, now: 0 };
 
 /** A store holding the lamplight with Marta standing in the hall. */

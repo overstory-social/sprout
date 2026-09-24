@@ -44,6 +44,17 @@ describe('a wake turn', () => {
     expect(turn.value.drained.said.map((said) => [said.effect, said.by, said.to])).toEqual([
       ['told', CANDLE, [marta]],
     ]);
+    // Rendered as the wake's one effect, which nobody acted to cause.
+    expect(turn.effects).toEqual([
+      {
+        kind: 'told',
+        from: CANDLE,
+        actor: null,
+        to: marta,
+        visit: MARTA,
+        paragraphs: ['A candle gutters out.'],
+      },
+    ]);
     expect(turn.stale).toEqual([MARTA]);
   });
 
@@ -107,6 +118,8 @@ describe('a wake turn', () => {
     expect(turn.consumed.changes.upsert.map((r) => r.id)).toEqual([FUSE]);
     expect(turn.consumed.changes.serial).toBe(state.serial);
     expect(turn.consumed.stale).toEqual([MARTA]);
+    // Nobody is told of a wake's fault, since nobody acted.
+    expect(turn.consumed.effects).toEqual([]);
   });
 
   it('runs under the wake’s own budget, and a wake that spends it is consumed', () => {

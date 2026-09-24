@@ -16,7 +16,7 @@ import {
   typedIn,
 } from '../fixtures/describe.js';
 import { NOTHING, words } from '../fixtures/reading.js';
-import { engineAnswers } from './engine-verbs.js';
+import { arrivalsRead, engineAnswers } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
 import type { Notice } from './move.js';
 import type { Reading } from './reading.js';
@@ -140,5 +140,36 @@ describe('what the engine answers a command, once the queue is empty', () => {
       [LOFT, ines],
       [HALL, marta],
     ]);
+  });
+});
+
+describe('the places people arrived in, as they read them', () => {
+  const described = (place: InstanceId, who: InstanceId): Notice => ({
+    notice: 'described',
+    place,
+    audience: [who],
+  });
+
+  it('are in the order the moves were made, and leave out every other notice', () => {
+    const state = study([
+      [MARTA, HALL, 'Marta'],
+      [INES, LOFT, 'Ines'],
+    ]);
+    const [marta, ines] = [actorOf(state, MARTA), actorOf(state, INES)];
+    const read = arrivalsRead([described(LOFT, ines), described(HALL, marta)], lookingAt(state));
+    expect(
+      read.map((one) => ('description' in one ? [one.description.of, one.description.to] : 'said')),
+    ).toEqual([
+      [LOFT, ines],
+      [HALL, marta],
+    ]);
+  });
+
+  it('are nothing for an NPC, or for someone a later move carried on', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    expect(arrivalsRead([described(HALL, CAT), described(LOFT, marta)], lookingAt(state))).toEqual(
+      [],
+    );
   });
 });

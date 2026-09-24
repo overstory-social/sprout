@@ -18,7 +18,8 @@ import { ValueOutOfRange, type Speech } from './body.js';
 import { engineLine } from './engine-lines.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow, type Evaluated } from './evaluate.js';
-import type { InstanceId } from './ids.js';
+import type { Effect } from './effects.js';
+import type { InstanceId, VisitKey } from './ids.js';
 import { LifecycleFault } from './lifecycle.js';
 import { ConnectFault } from './links.js';
 import { ListFull } from './lists.js';
@@ -119,5 +120,21 @@ export function faultTold(state: StateReader, actor: InstanceId): Said {
     speaker: null,
     said: gone ? engineLine(STOCK.fault) : worldSpeech(state, 'fault'),
     bindings,
+  };
+}
+
+/**
+ * The stock line for a fault, from the world, to `actor`, as the effect
+ * it is: told where the world's own words cannot be rendered, and made
+ * without rendering, since it names nothing, so a fault is never silent.
+ */
+export function stockFaultEffect(state: StateReader, actor: InstanceId, visit: VisitKey): Effect {
+  return {
+    kind: 'notice',
+    from: state.world,
+    actor,
+    to: actor,
+    visit,
+    paragraphs: [STOCK.fault],
   };
 }

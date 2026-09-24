@@ -2,7 +2,9 @@
 // host contract › Time). One due wake is delivered as a turn of its own:
 // it comes off its object's list, the object is sent `:woke (elapsed)`,
 // and the queue drains from there. `elapsed` is the seconds since the
-// wake was asked for, which may be more than was asked.
+// wake was asked for, which may be more than was asked. What the queue
+// says is the turn's effects, then the place each person a handler moved
+// arrived in, as they read it; nobody acted, so they carry no actor.
 //
 // A wake that faults is consumed and logged, not retried: the turn is
 // abandoned like every write turn, and then the wake alone is taken off
@@ -11,8 +13,11 @@
 // wake is due is the host's defect, thrown before the turn opens.
 
 import { drain, type Drained } from './bus.js';
+import { saidLines, type Unrendered } from './effects.js';
+import { arrivalsRead } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
 import { isLive } from './live.js';
+import { turnState } from './reading.js';
 import { readerOf, type WorldState } from './state.js';
 import { elapsedSince, hostSeconds, type TimeSend } from './time.js';
 import {
@@ -40,6 +45,8 @@ export interface Woke {
   readonly elapsed: number;
   /** What the queue did from the wake on. */
   readonly drained: Drained;
+  /** The place each person a handler moved between places arrived in, as they read it. */
+  readonly answers: readonly Unrendered[];
 }
 
 /** A wake that faulted: its turn abandoned, and the wake consumed in a turn of its own. */
@@ -70,10 +77,19 @@ export function wakeTurn(state: WorldState, host: TurnHost, wake: Wake): WakeTur
     throw new Error(`\`${wake.object}\`'s wake is due at ${pending.dueAt}, and it is only ${now}.`);
   }
   const elapsed = elapsedSince(pending.askedAt, now);
-  const woken = writeTurn<Woke>(state, 'wake', host, wake, (turn) => ({
-    elapsed,
-    drained: deliverWake(turn, pending, elapsed),
-  }));
+  const woken = writeTurn<Woke>(
+    state,
+    'wake',
+    host,
+    wake,
+    (turn) => {
+      const drained = deliverWake(turn, pending, elapsed);
+      const { draft, catalogue, budget, passes } = turn;
+      const read = { state: turnState(draft), catalogue, budget, passes };
+      return { elapsed, drained, answers: arrivalsRead(drained.notices, read) };
+    },
+    (done) => ({ actor: null, lines: [...saidLines(done.drained.said), ...done.answers] }),
+  );
   if (woken.committed) return woken;
   return { ...woken, consumed: consumeWake(state, 'wake', host, wake, pending) };
 }

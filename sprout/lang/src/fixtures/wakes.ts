@@ -18,6 +18,7 @@ import { newInstance, type PendingWake, type WorldState } from '../runtime/state
 import type { TurnHost } from '../runtime/turn.js';
 import type { Value } from '../runtime/values.js';
 import { compiledWorld } from './bundle.js';
+import { renderEffects } from '../prose/effects.js';
 
 export const GARDEN = compiledWorld('garden', {
   'world.sprout': `world garden is sprout.World {
@@ -73,7 +74,11 @@ export const GARDEN = compiledWorld('garden', {
 });
 
 export const CATALOGUE = catalogueOf(GARDEN, DEFAULT_LIMITS.caps);
-export const HOST: TurnHost = { catalogue: CATALOGUE, budgets: DEFAULT_LIMITS.budgets };
+export const HOST: TurnHost = {
+  catalogue: CATALOGUE,
+  budgets: DEFAULT_LIMITS.budgets,
+  render: renderEffects,
+};
 const at = (...path: string[]): InstanceId => declaredId('garden', path);
 export const BED = at('bed');
 export const ROSE = at('bed', 'rose');

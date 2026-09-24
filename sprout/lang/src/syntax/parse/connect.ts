@@ -1,5 +1,5 @@
-// `connect north to cell`, read (the spec's Verbs › Links, for space that
-// does not exist yet): the word, the direction of one of `self`'s links,
+// `connect onward to cell`, read (the spec's Verbs › Links, for space
+// that does not exist yet): the word, the name of one of `self`'s links,
 // `to`, and what it leads to. Which links `self` has, and that the
 // destination is a binding holding a place, are the checker's.
 //
@@ -12,9 +12,9 @@ import { punct, type Parser } from './parser.js';
 import { objectPath } from './paths.js';
 import { notAStatement, onItsOwn, startsNext, type Enclosing } from './statements.js';
 
-const EXAMPLE = '`connect north to cell`';
+const EXAMPLE = '`connect onward to cell`';
 
-/** `connect north to cell`. Null having said why. */
+/** `connect onward to cell`. Null having said why. */
 export function connectStatement(
   p: Parser,
   within: Enclosing = onItsOwn(),
@@ -36,9 +36,9 @@ export function connectStatement(
     p.diagnostics.refuse(
       stray ? head.at : p.source.span(keyword.at.end),
       head.kind === 'kind'
-        ? `\`${head.text}\` starts with a capital, and a link is named by its direction, in lower case.`
+        ? `\`${head.text}\` starts with a capital, and a link's name is written in lower case.`
         : '`connect` does not say which link it assigns.',
-      `Name one of \`self\`'s links by its direction, and what it leads to, as in ${EXAMPLE}.`,
+      `Name one of \`self\`'s links, and what it leads to, as in ${EXAMPLE}.`,
     );
     return null;
   }

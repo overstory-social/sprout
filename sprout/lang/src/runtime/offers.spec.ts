@@ -13,7 +13,15 @@ import {
   PIN,
   study,
 } from '../fixtures/describe.js';
+import {
+  CATALOGUE as WAYS_CATALOGUE,
+  MARTA as WAYS_MARTA,
+  MOUTH,
+  ways,
+  YARD,
+} from '../fixtures/exits.js';
 import { words } from '../fixtures/reading.js';
+import { Draft } from './draft.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { offersTo } from './offers.js';
@@ -63,6 +71,24 @@ describe('what an actor is offered', () => {
     expect(typedBy(study()).filter((one) => one.startsWith('go '))).toEqual(['go north']);
     const up = study([[MARTA, LOFT, 'Marta']]);
     expect(typedBy(up).filter((one) => one.startsWith('go '))).toEqual(['go down']);
+  });
+
+  it('fills `go`’s way with each link that applies, by its label, since a link has no direction', () => {
+    const draft = new Draft(ways([[WAYS_MARTA, MOUTH]]));
+    draft.write({ ...draft.instance(MOUTH)!, links: new Map([['back', YARD]]) });
+    const state = draft.commit().state;
+    const marta = state.visitors.get(WAYS_MARTA)!.instance!;
+    const offered = offersTo(marta, {
+      state: new Draft(state),
+      catalogue: WAYS_CATALOGUE,
+      budget: new Budget(DEFAULT_LIMITS.budgets, 'poll'),
+      passes: () => true,
+      nicknames: new Map(),
+    }).map((offer) => offer.typed);
+    expect(offered.filter((one) => one.startsWith('go '))).toEqual([
+      'go the way you came',
+      'go up',
+    ]);
   });
 
   it('leaves a value role unbound, typed `…`, since only a participant’s `from` hears a value', () => {

@@ -1,0 +1,16 @@
+// A link is named by a word of the author's: not a direction, so `go
+// north` never means a link, not a word of the language, and starting
+// with a letter.
+world link_not_a_name is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      link north "deeper into the dark"
+      link in    "into the wardrobe"
+      link when  "whenever it opens"
+      link _     "somewhere"
+    }
+  }
+}

@@ -1,9 +1,9 @@
 // A visitor's view, derived (the spec's The runtime › The view). What a
 // poll gives a visitor standing in a place: that place's description with
-// them as `actor`; the exits that apply, with their labels; the other
-// actors standing there; what they carry; and every reading the parser
-// could build from what is in range, with its consent pass's answer and
-// the options of each value role. It only reads, and is charged to the
+// them as `actor`; each way out that applies, an exit by direction and a
+// link by its label; the other actors standing there; what they carry;
+// and every reading the parser could build from what is in range, with
+// its consent pass's answer and the options of each value role. It only reads, and is charged to the
 // poll's steps, the description first; nothing here is rendered, which
 // is `prose/view.ts`'s.
 
@@ -27,7 +27,11 @@ export interface View {
   readonly actor: InstanceId;
   readonly place: InstanceId;
   readonly description: Description;
-  /** The exits that apply, one for each direction that has one, in the order the place's kind answers them. */
+  /**
+   * Each way out that applies: an exit by direction, a link by its label;
+   * one for each direction that has one and each link set, in the order
+   * the place's kind answers them.
+   */
   readonly exits: readonly CommandExit[];
   /** Every other actor standing in the place, visitor or not, in contents order. */
   readonly occupants: readonly InstanceId[];
