@@ -143,10 +143,8 @@ export interface ParsedLine {
  */
 export function parseLine(line: string, standing: Standing): ParsedLine {
   const { state, host, place } = standing;
-  const { budgets } = host;
-  const commandSteps = { ...host, budgets: { ...budgets, pollSteps: budgets.steps } };
   const where = `in ${pathOf(state.world, place)}, "${line}"`;
-  const polled = pollTurn(state, commandSteps, (turn) => readLine(line, standing, turn));
+  const polled = pollTurn(state, host, (turn) => readLine(line, standing, turn), 'command');
   if (!polled.faulted) return { ok: true, page: `${where} ${polled.view}` };
   const { fault } = polled;
   return {

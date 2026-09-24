@@ -150,6 +150,8 @@ refused by a crate (yard.crate) as target, in lane.Crate's permit:
     const starved = { ...standing, host: { ...standing.host, budgets: { ...budgets, steps: 3 } } };
     const parsed = read('take key', starved);
     expect(parsed.ok).toBe(false);
-    expect(parsed.page).toMatch(/^in yard, "take key" faults as its turn would, BudgetExhausted: /);
+    expect(parsed.page).toBe(
+      'in yard, "take key" faults as its turn would, BudgetExhausted: steps: a command turn may take 3 steps.\n',
+    );
   });
 });
