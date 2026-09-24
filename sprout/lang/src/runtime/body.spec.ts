@@ -20,6 +20,7 @@ import type { Sent } from './sends.js';
 import { ListFull, SproutList } from './lists.js';
 import { initialState } from './load.js';
 import { newInstance } from './state.js';
+import { Draws } from './draws.js';
 import { WakeFault } from './wakes.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
@@ -204,6 +205,7 @@ function act(
       catalogue: turn.catalogue,
       passes: (container) => (container === WORLD_ID ? WORLD_PASSES_ANYTHING : true),
       budget,
+      draws: new Draws(7),
       mayHold: null,
       now: 0,
     },

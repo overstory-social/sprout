@@ -1,0 +1,16 @@
+kind Coin {
+  :face 0 min 0 max 5
+  :heads 0 min 0 max 99
+  :flips 0 min 0 max 99
+  changed :flips {
+    if (chance(2)) { self.adjust(:heads, 1) }
+  }
+  as target for flip {
+    do {
+      self.set(:face, random(6))
+      self.adjust(:flips, 1)
+      if (random(6) == 5) { say "The coin lands on its edge, and stays there." }
+      else { say "{one of}It spins, and falls.{or}It rings on the stone.{/one of} It shows {self.get(:face)}." }
+    }
+  }
+}

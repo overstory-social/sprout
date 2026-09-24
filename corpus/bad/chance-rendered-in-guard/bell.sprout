@@ -1,0 +1,3 @@
+kind Bell {
+  passage ring { Ding {random(3)}. }
+}

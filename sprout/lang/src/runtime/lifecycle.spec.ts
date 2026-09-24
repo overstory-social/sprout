@@ -19,6 +19,7 @@ import { isLive } from './live.js';
 import { initialState, loadWorld, saveWorld } from './load.js';
 import type { PassRule } from './range.js';
 import { newInstance, type Instance, type WorldState } from './state.js';
+import { Draws } from './draws.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
 
@@ -94,6 +95,7 @@ function context(
     catalogue,
     passes: passing(),
     budget: new Budget(DEFAULT_LIMITS.budgets),
+    draws: new Draws(7),
     mayHold: null,
     now: 0,
     ...over,

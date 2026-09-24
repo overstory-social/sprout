@@ -1,0 +1,4 @@
+lock.sprout:4:42  The passage `stuck` uses `{one of}`, and it is said from a `permit`, which may not: a `permit` is asked as part of a decision it must not change.
+                  Say words here that do not vary, or keep the variation on a property a `do` or a tick sets, and read that in an `{if}`.
+
+refused: 1 problem

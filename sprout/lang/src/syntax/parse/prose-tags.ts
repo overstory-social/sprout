@@ -1,6 +1,7 @@
 // What one tag in prose says (the spec's Prose › Slots, Conditionals and
-// loops): a slot, `{if c}`, `{else}`, `{else if c}`, `{for x in c}`,
-// `{for x: Kind in c}`, `{for x of l}`, or a close. What a slot or a
+// loops; Chance › The forms): a slot, `{if c}`, `{else}`, `{else if c}`,
+// `{for x in c}`, `{for x: Kind in c}`, `{for x of l}`, `{one of}`, `{or}`,
+// or a close. What a slot or a
 // condition says is an expression, read by the expression reader over
 // that stretch of the file alone, so its spans are the file's and
 // `$first` and the rest are names there. A condition takes no
@@ -31,14 +32,19 @@ export type Tag =
       readonly walks: 'in' | 'of';
       readonly over: Expr;
     }
-  | { readonly tag: 'close'; readonly at: Span; readonly closes: 'if' | 'for' }
-  /** `{one of}`, `{or}` or `{/one of}`, which choose at random under Chance. */
-  | { readonly tag: 'chance'; readonly at: Span; readonly written: string }
+  | { readonly tag: 'close'; readonly at: Span; readonly closes: Closes }
+  /** `{one of}`, which opens a choice. */
+  | { readonly tag: 'one-of'; readonly at: Span }
+  /** `{or}`, which ends one choice of a `{one of}` and starts the next. */
+  | { readonly tag: 'or'; readonly at: Span }
   /**
    * An `{if …}`, `{else if …}` or `{for …}` whose header was refused: it
    * still opens its block, so its close is its own and not a stray.
    */
   | { readonly tag: 'broken'; readonly at: Span; readonly opens: 'if' | 'else' | 'for' };
+
+/** What a close closes, as it is written after the slash. */
+export type Closes = 'if' | 'for' | 'one of';
 
 /** A tag as the scan found it: the whole of it, and where its inside starts and ends. */
 export interface TagSpan {
@@ -68,12 +74,13 @@ export function readTag(p: Parser, span: TagSpan): Tag | null {
 
   if (trimmed.startsWith('/')) {
     const closes = trimmed.slice(1).trim().replace(/\s+/g, ' ');
-    if (closes === 'if' || closes === 'for') return { tag: 'close', at, closes };
-    if (closes === 'one of') return { tag: 'chance', at, written: '{/one of}' };
+    if (closes === 'if' || closes === 'for' || closes === 'one of') {
+      return { tag: 'close', at, closes };
+    }
     p.diagnostics.refuse(
       at,
       `\`{${trimmed}}\` closes nothing a passage opens.`,
-      "A passage's blocks close with `{/if}` and `{/for}`.",
+      "A passage's blocks close with `{/if}`, `{/for}` and `{/one of}`.",
     );
     return null;
   }
@@ -88,10 +95,8 @@ export function readTag(p: Parser, span: TagSpan): Tag | null {
   }
   if (wordAlone && word === 'else') return elseTag(p, span, after);
   if (wordAlone && word === 'for') return forTag(p, span, after);
-  if (word === 'or' && rest.length === 0) return { tag: 'chance', at, written: '{or}' };
-  if (word === 'one' && rest.replace(/\s+/g, ' ') === 'of') {
-    return { tag: 'chance', at, written: '{one of}' };
-  }
+  if (word === 'or' && rest.length === 0) return { tag: 'or', at };
+  if (word === 'one' && rest.replace(/\s+/g, ' ') === 'of') return { tag: 'one-of', at };
 
   const expr = expressionIn(p, from, span.end);
   return expr === null ? null : { tag: 'slot', at, expr };

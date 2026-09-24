@@ -1,0 +1,18 @@
+// Chance: `{one of}` in prose, `chance` and `random` in an expression,
+// in a `do`, a handler and a hook, and in a passage those say. A cat whose
+// sleep is changed by a tick, not by the die, so two visitors in the
+// yard see the same cat; a coin that lands on a face and counts heads.
+world chance is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is Yard {
+    object cat is Cat
+    object coin is Coin
+  }
+}
+
+verb pet  { role target  "pet [target]" }
+verb flip { role target  "flip [target]" }
+
+message :stir

@@ -1,0 +1,7 @@
+// A guard that rolls: it is asked as part of a decision.
+kind Crate {
+  contains
+  accept (item, from) {
+    if (chance(2)) { refuse "{one of}No room.{or}It is full.{/one of}" }
+  }
+}

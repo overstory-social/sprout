@@ -139,6 +139,7 @@ export function checkPass(pass: ResolvedPass, self: KindRef, setting: HandlerSet
     self,
     diagnostics,
     ...(setting.names === undefined ? {} : { names: setting.names }),
+    undrawn: { by: 'pass', written: writtenPass(pass.declaration) },
   };
   const rule = pass.declaration.rule;
   const type = typeOf(rule, context);

@@ -6,6 +6,7 @@ import { CANDLE, CATALOGUE, FUSE, garden, POD, ROSE, SEED, wakesOf } from '../fi
 import type { WakeStatement } from '../syntax/ast.js';
 import { Budget } from './budget.js';
 import { Draft } from './draft.js';
+import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
 import type { WorldState } from './state.js';
@@ -26,6 +27,7 @@ function context(state: WorldState, now: number, budgets: RuntimeBudgets = DEFAU
     catalogue: CATALOGUE,
     passes: () => true,
     budget: new Budget(budgets),
+    draws: new Draws(7),
     mayHold: null,
     now,
   };

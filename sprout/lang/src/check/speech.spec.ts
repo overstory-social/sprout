@@ -14,9 +14,9 @@ describe('where passages are said from, recorded as bodies are checked', () => {
       { kind: 'guard', at: at('item') },
     ];
     const scope = bodyOf(VESSEL).scope;
-    sites.said(one, { name: 'taken', at: at('target'), scope });
-    sites.said(one, { name: 'dropped', at: at('tool'), scope });
-    sites.said(two, { name: 'full', at: at('item'), scope });
+    sites.said(one, { name: 'taken', at: at('target'), scope, undrawn: null });
+    sites.said(one, { name: 'dropped', at: at('tool'), scope, undrawn: null });
+    sites.said(two, { name: 'full', at: at('item'), scope, undrawn: { by: 'permit' } });
     expect(sites.of(one).map((site) => site.name)).toEqual(['taken', 'dropped']);
     expect(sites.of(two).map((site) => site.name)).toEqual(['full']);
     expect(sites.of({ kind: 'handler', at: at('here') })).toEqual([]);
@@ -26,7 +26,13 @@ describe('where passages are said from, recorded as bodies are checked', () => {
     const sites = new PassageSites();
     const { prose } = readProseText('{a} {b}');
     const [slot] = prose.pieces;
-    sites.render({ name: 'greeting', at: at('thing'), kind: VESSEL, scope: Scope.root() });
+    sites.render({
+      name: 'greeting',
+      at: at('thing'),
+      kind: VESSEL,
+      scope: Scope.root(),
+      undrawn: null,
+    });
     sites.option(slot!);
     sites.option(slot!);
     expect(sites.rendered.map((site) => site.name)).toEqual(['greeting']);

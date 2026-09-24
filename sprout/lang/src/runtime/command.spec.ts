@@ -5,6 +5,7 @@ import {
   actorOf,
   BELL,
   belfry,
+  COIN,
   belfryHost,
   DOG,
   DRUM,
@@ -33,6 +34,7 @@ import {
   YARD,
 } from '../fixtures/exits.js';
 import { commandTurn, type CommandTurn, type Parser } from './command.js';
+import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import { saveWorld } from './load.js';
 import type { WorldState } from './state.js';
@@ -201,6 +203,47 @@ describe('no command turn ends with nothing said to the one who typed it', () =>
         ).toBe(true);
       }
     }
+  });
+});
+
+describe('a command turn draws from its seed', () => {
+  /** What flipping the coin under `seed` left and said. */
+  const flipped = (seed: number) => {
+    const state = belfry();
+    const turn = committed(commandTurn(state, belfryHost(), typed(MARTA, 'flip coin', seed)));
+    return {
+      face: heldIn(turn.state, COIN, 'face'),
+      heads: heldIn(turn.state, COIN, 'heads'),
+      said: toldBy(turn, actorOf(state, MARTA)).map((line) => line.words),
+    };
+  };
+
+  it('does the same, to the last draw, for the same seed', () => {
+    for (let seed = 0; seed < 25; seed++)
+      expect(flipped(seed), String(seed)).toEqual(flipped(seed));
+  });
+
+  it('draws in the order the turn runs, from the seed alone', () => {
+    const draws = new Draws(314);
+    const face = draws.below(6);
+    const heads = draws.below(2) === 0 ? 1 : 0;
+    expect(flipped(314)).toMatchObject({ face, heads });
+  });
+
+  it('keeps every draw within its bound, and varies with the seed', () => {
+    const seen = Array.from({ length: 60 }, (_, seed) => flipped(seed * 7919));
+    for (const { face, heads } of seen) {
+      expect(face).toBeGreaterThanOrEqual(0);
+      expect(face).toBeLessThanOrEqual(5);
+      expect([0, 1]).toContain(heads);
+    }
+    expect(new Set(seen.map(({ face }) => face)).size).toBeGreaterThan(1);
+  });
+
+  it('refuses a seed that is not one before the turn opens, as the host’s defect', () => {
+    expect(() => commandTurn(belfry(), belfryHost(), typed(MARTA, 'flip coin', -1))).toThrow(
+      /is not a seed/,
+    );
   });
 });
 

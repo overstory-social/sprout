@@ -252,3 +252,88 @@ describe('the engine says its own lines with what it binds for each', () => {
     ]);
   });
 });
+
+describe('a passage said where nothing draws may not draw', () => {
+  const GUARD_WHY = 'a guard is asked as part of a decision it must not change';
+
+  it('is refused where a guard says it, and taken where a `do` says it', () => {
+    const said = checked(`kind Crate {
+  contains
+  accept (item, from) { if (self.count > 1) { refuse full } }
+  as target for peer { do { say full } }
+  passage full { {one of}No room.{or}It is full.{/one of} }
+}`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:6:54',
+        `The passage \`full\` uses \`{one of}\`, and it is said from \`accept\`, which may not: ${GUARD_WHY}.`,
+      ],
+    ]);
+  });
+
+  it('is refused where a `permit` says it, for a draw in a condition or a slot', () => {
+    const said = checked(`kind Lock {
+  as target for unlock { permit { refuse stuck } }
+  as target for peer { permit { refuse jammed } }
+  passage stuck { {if chance(2)}Stuck.{else}Jammed.{/if} }
+  passage jammed { Jammed {random(3)} times. }
+}`);
+    expect(said.map(([at, message]) => [at, message!.split(',')[0]])).toEqual([
+      ['shop.sprout:5:42', 'The passage `stuck` uses `chance`'],
+      ['shop.sprout:6:40', 'The passage `jammed` uses `random`'],
+    ]);
+  });
+
+  it('follows a slot to the passage it renders, and refuses where the slot is', () => {
+    const said = checked(`kind Bell { passage ring { {one of}Ding.{or}Dong.{/one of} } }
+kind Tower {
+  contains
+  accept (item, from) { refuse "{for b: Bell in self}{b.ring}{/for}" }
+  as target for peer { do { say "{for b: Bell in self}{b.ring}{/for}" } }
+}`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:7:57',
+        `The passage \`ring\` uses \`{one of}\`, and it is rendered from \`accept\`, which may not: ${GUARD_WHY}.`,
+      ],
+    ]);
+  });
+
+  it('follows a passage said from a guard through the slots it renders', () => {
+    const said = checked(`kind Bell { passage ring { Ding {random(2)}. } }
+kind Tower {
+  contains
+  accept (item, from) { refuse full }
+  passage full { {for b: Bell in self}{b.ring}{/for} }
+}`);
+    expect(said.map(([at, message]) => [at, message!.split(',')[0]])).toEqual([
+      ['shop.sprout:8:42', 'The passage `ring` uses `random`'],
+    ]);
+  });
+
+  it('refuses a draw in a line a poll says, at the draw, and takes one in a line a command says', () => {
+    expect(
+      checked(`kind Loud { passage unseen { {one of}Too much.{or}A blur.{/one of} } }`),
+    ).toEqual([
+      [
+        'shop.sprout:4:30',
+        "The world's `unseen` may not use `{one of}`: a poll says it, and a poll draws nothing.",
+      ],
+    ]);
+    expect(
+      checked(
+        `kind Loud { passage nothing_happens { {one of}Nothing.{or}Still nothing.{/one of} } }`,
+      ),
+    ).toEqual([]);
+  });
+
+  it('says a passage said from two deciding bodies once for each place it is said', () => {
+    const said = checked(`kind Crate {
+  contains
+  accept (item, from) { refuse full }
+  depart (to) { refuse full }
+  passage full { {if chance(2)}Full.{/if} }
+}`);
+    expect(said.map(([at]) => at)).toEqual(['shop.sprout:6:32', 'shop.sprout:7:24']);
+  });
+});

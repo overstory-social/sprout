@@ -1,0 +1,12 @@
+// A draw is given one number above zero, written out.
+kind Die {
+  :face 0 min 0 max 5
+  as target for roll {
+    do {
+      if (chance(0)) { say "Never." }
+      self.set(:face, random(self.get(:face)))
+      if (random(6) == 6) { say "Never either." }
+      if (roll(6)) { say "No such thing." }
+    }
+  }
+}

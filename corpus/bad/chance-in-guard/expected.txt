@@ -1,0 +1,7 @@
+crate.sprout:5:9   `accept` may not use `chance`: a guard is asked as part of a decision it must not change.
+                   Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+crate.sprout:5:30  `accept` may not use `{one of}`: a guard is asked as part of a decision it must not change.
+                   Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+refused: 2 problems

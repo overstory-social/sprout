@@ -1,4 +1,4 @@
 mirror.sprout:4:47  `{/while}` closes nothing a passage opens.
-                    A passage's blocks close with `{/if}` and `{/for}`.
+                    A passage's blocks close with `{/if}`, `{/for}` and `{/one of}`.
 
 refused: 1 problem

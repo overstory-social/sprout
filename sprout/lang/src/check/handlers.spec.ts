@@ -211,4 +211,24 @@ describe('a pass rule', () => {
   it('binds nothing but `self`', () => {
     expect(checked('kind Case { contains  pass any (actor == self) }').messages).toHaveLength(1);
   });
+
+  it('draws nothing, since a poll asks it too', () => {
+    expect(checked('kind Case { contains  pass :illuminating (chance(2)) }').said).toEqual([
+      [
+        'shop.sprout:5:43',
+        '`pass :illuminating` may not use `chance`: a pass rule is asked whenever range is walked, by a poll too, and a poll draws nothing.',
+        'Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.',
+      ],
+    ]);
+  });
+});
+
+describe('a handler and a hook may draw', () => {
+  it('takes `chance` and `random` where nobody decides', () => {
+    expect(
+      checked(
+        'kind Cat { :mood 0 min 0 max 5  on :tick (e) { if (chance(8)) { self.set(:mood, random(6)) } }  changed :mood { if (random(2) == 1) { self.set(:mood, 0) } } }',
+      ).said,
+    ).toEqual([]);
+  });
 });

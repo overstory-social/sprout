@@ -18,6 +18,7 @@ import {
 import type { DeclaredMessage } from '../declare/messages.js';
 import { BudgetExhausted } from './budget.js';
 import { drain, type Queued } from './bus.js';
+import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import { runReading, type Acted } from './reading.js';
 import type { AuthoredSend } from './sends.js';
@@ -67,6 +68,17 @@ describe('the queue drains', () => {
     );
     expect(held(one, BELL, 'waited')).toBe(17);
     expect(drained.events).toBe(2);
+  });
+
+  it('runs a handler with the turn’s draws, in the order the queue delivers', () => {
+    const one = eventTurn();
+    const expected = new Draws(7);
+    const tolls: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      drain(queued(sent('roll', BELL, BELL)), context(one));
+      tolls.push(held(one, BELL, 'toll') as number);
+    }
+    expect(tolls).toEqual(Array.from({ length: 5 }, () => expected.below(6)));
   });
 
   it('queues a hook once per change, and not for a write that changes nothing', () => {
