@@ -9,8 +9,9 @@
 // that cannot be decoded, because its object, its kind or its file is
 // absent, is kept dormant and saved back exactly as it was read, so a file
 // restored brings its objects back as they were. Links, wakes and ticks
-// are kept as stored: B28 reconciles link names, and B36 wakes against
-// the host's cap. A visitor whose place is gone keeps its record; B42
+// are kept as stored: a link its kind no longer declares applies nowhere
+// and is kept, so a line restored brings it back; B36 reconciles wakes
+// against the host's cap. A visitor whose place is gone keeps its record; B42
 // applies the absent table's rows when they next arrive.
 //
 // A tombstone is kept as stored, and a declared object with one is never

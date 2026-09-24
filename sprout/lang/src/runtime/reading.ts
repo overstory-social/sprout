@@ -8,7 +8,9 @@
 // declares its roles, and each runs every play its kind composes for that
 // role, in composition order. The consent pass runs every `permit`, only
 // reading, and the first refusal is the reading's whole outcome; the
-// effect pass then runs every `do` in the same order. What a `do` says,
+// effect pass then runs every `do` in the same order; in a reading of the
+// engine's `go` it first moves the actor through the exit named, and a
+// refusal of that move ends the pass (Engine verbs). What a `do` says,
 // and the refusal of a `move` it proposes, reach the actor, or, where the
 // actor is an NPC, whoever would hear its `tell`, from it, and a refused
 // `move` or `act` ends the `do` that ran it, not the pass; a person's
@@ -25,14 +27,14 @@ import { libraryOf } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
 import { readingOfAct } from './act.js';
-import { runBody, type ActSink, type Speech } from './body.js';
+import { runBody, type ActSink, type Proposed, type Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
 import { SproutList } from './lists.js';
-import { moveInstance, type Notice } from './move.js';
+import { moveInstance, type Notice, type Reach } from './move.js';
 import type { Sent } from './sends.js';
 import type { Instance, StateReader } from './state.js';
 import type { PassRule } from './range.js';
@@ -205,9 +207,13 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   const person = isPerson(state, reading.actor);
   const heardBy = (): readonly InstanceId[] => hearersOf(state, reading.actor, participants).to;
   const speaker = person ? null : reading.actor;
-  const { sink, acted } = actingSink(context, depth, heardBy, speaker);
+  const { sink, acted, propose } = actingSink(context, depth, heardBy, speaker);
   const { said } = acted;
-  for (const participant of participants) {
+  // `go` is the engine's: its move is the reading's first effect, and a
+  // refusal of it, said as a refused `move` is, ends the pass.
+  const way = exitOf(reading);
+  const went = way === null ? null : propose(reading.actor, reading.actor, way.to, 'exit');
+  for (const participant of went === 'refused' ? [] : participants) {
     const self = draft.instance(participant.id);
     if (self === undefined) continue;
     for (const play of playsFor(reading, participant, self)) {
@@ -227,7 +233,9 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   // Only a person's own command is answered: an NPC's reading that says
   // nothing has no output, and a reading performed by `act` is answered,
   // if at all, as part of the reading it stands in.
-  const answered = !person || depth > 0 || said.some((line) => line.to.includes(reading.actor));
+  // Whoever went reads where they arrived (the spec's Engine verbs).
+  const answered =
+    !person || depth > 0 || went === 'done' || said.some((line) => line.to.includes(reading.actor));
   if (!answered) {
     const world = instanceIn(state, state.world);
     const passage = world.kind.passages.get(NOTHING_HAPPENS);
@@ -285,7 +293,12 @@ export function actingSink(
   depth: number,
   heardBy: () => readonly InstanceId[],
   speaker: InstanceId | null,
-): { readonly sink: ActSink; readonly acted: Acting } {
+): {
+  readonly sink: ActSink;
+  readonly acted: Acting;
+  /** A move `mover` proposes, reaching `to` as `reach` says, said or kept as the sink's `move` is. */
+  readonly propose: (mover: InstanceId, item: InstanceId, to: InstanceId, reach: Reach) => Proposed;
+} {
   const { draft } = context;
   const state = turnState(draft);
   const said: Said[] = [];
@@ -293,35 +306,36 @@ export function actingSink(
   const notices: Notice[] = [];
   const destroyed: InstanceId[] = [];
   const marked: InstanceId[] = [];
+  const propose = (mover: InstanceId, item: InstanceId, to: InstanceId, reach: Reach): Proposed => {
+    const outcome = moveInstance(context, mover, item, to, reach);
+    if ('refusal' in outcome) {
+      const { by, said: words, bindings } = outcome.refusal;
+      said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
+      return 'refused';
+    }
+    if ('engine' in outcome) {
+      const { said: words, bindings } = outcome;
+      said.push({
+        effect: 'refused',
+        to: heardBy(),
+        by: draft.world,
+        speaker,
+        said: words,
+        bindings,
+      });
+      return 'refused';
+    }
+    sends.push(...outcome.sends);
+    notices.push(...outcome.notices);
+    return 'done';
+  };
   const sink: ActSink = {
     lifecycle: context,
     say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
     sent: (more) => sends.push(...more),
     destroyed: (gone) => destroyed.push(...gone.removed),
     marked: (id) => marked.push(id),
-    move: (mover, item, to) => {
-      const outcome = moveInstance(context, mover, item, to);
-      if ('refusal' in outcome) {
-        const { by, said: words, bindings } = outcome.refusal;
-        said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
-        return 'refused';
-      }
-      if ('engine' in outcome) {
-        const { said: words, bindings } = outcome;
-        said.push({
-          effect: 'refused',
-          to: heardBy(),
-          by: draft.world,
-          speaker,
-          said: words,
-          bindings,
-        });
-        return 'refused';
-      }
-      sends.push(...outcome.sends);
-      notices.push(...outcome.notices);
-      return 'done';
-    },
+    move: (mover, item, to) => propose(mover, item, to, 'range'),
     act: (actor, performed) => {
       // An `act` runs one deeper than the reading or the event it stands in.
       context.budget.cascadeTo(depth + 1);
@@ -341,7 +355,7 @@ export function actingSink(
       return 'done';
     },
   };
-  return { sink, acted: { said, sends, notices, destroyed, marked } };
+  return { sink, acted: { said, sends, notices, destroyed, marked }, propose };
 }
 
 /**
@@ -355,6 +369,15 @@ export function runReading(reading: Reading, context: ReadingContext, depth = 0)
     if ('set' in bound) budget.setRole(bound.set.length);
   const refused = consentPass(reading, { state: draft, catalogue, budget, passes });
   return refused === null ? effectPass(reading, context, depth) : { refused };
+}
+
+/** The exit a reading of the engine's `go` takes, or null for any other reading. */
+function exitOf(reading: Reading): CommandExit | null {
+  for (const role of reading.verb.roles) {
+    const bound = role.filler?.fills === 'exit' ? boundOf(reading, role) : undefined;
+    if (bound !== undefined && 'exit' in bound) return bound.exit;
+  }
+  return null;
 }
 
 /** Whether a person is behind an actor, rather than nobody, as behind an NPC. */
@@ -433,7 +456,7 @@ function roleIn(
   play: ResolvedPlay,
   self: Instance,
 ): Evaluated | null {
-  // Only the engine's `go` has an exit role, and what an exit binds is B28's.
+  // An exit is the engine's to take, and binds nothing in a play.
   if (role.filler?.fills === 'exit') return null;
   const bound = boundOf(reading, role);
   if (role.many)
@@ -452,9 +475,14 @@ function boundOf(reading: Reading, role: ResolvedRole): Bound | undefined {
   const bound = reading.bindings.get(role.name);
   if (bound === undefined) return undefined;
   const fills = role.filler?.fills;
-  if (fills === 'exit')
-    throw new Error("an exit reached a reading, and what an exit binds is B28's.");
-  const takes = fills === 'symbol' || fills === 'integer' ? 'value' : role.many ? 'set' : 'object';
+  const takes =
+    fills === 'exit'
+      ? 'exit'
+      : fills === 'symbol' || fills === 'integer'
+        ? 'value'
+        : role.many
+          ? 'set'
+          : 'object';
   if (!(takes in bound)) {
     throw new Error(
       `a reading of \`${reading.verb.name}\` fills \`${role.name}\` with what it does not take.`,

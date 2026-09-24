@@ -1,0 +1,14 @@
+// An exit leads in a direction of the closed set, written out: the spec's
+// own `through` is none of them, and `n` is how a visitor types `north`.
+world exit_not_a_direction is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit through "through the fur coats" -> narnia
+      exit n       "north to the meadow"   -> narnia
+    }
+  }
+  object narnia is sprout.Place { }
+}

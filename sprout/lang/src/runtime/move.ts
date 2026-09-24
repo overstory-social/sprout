@@ -138,16 +138,26 @@ export interface Moved {
 }
 
 /**
+ * How a move reaches its destination: through the mover's range, as a
+ * `move` does, or through an exit, which joins one place to another
+ * however far apart they sit (the spec's Places inside places), so the
+ * destination's range is not asked.
+ */
+export type Reach = 'range' | 'exit';
+
+/**
  * Move `item` into `to`, as `mover` proposes: the faults, then the
  * engine's refusals, then the three parties' guards, then the one write.
  * Faults, writing nothing, when the item is the world or an away visitor,
- * the item or `to` is out of `mover`'s range, or `to` holds nothing.
+ * the item is out of `mover`'s range, `to` is not live or, reached
+ * through range, out of it, or `to` holds nothing.
  */
 export function moveInstance(
   context: MoveContext,
   mover: InstanceId,
   item: InstanceId,
   to: InstanceId,
+  reach: Reach = 'range',
 ): Moved | Refused {
   const { draft, catalogue, passes, budget } = context;
 
@@ -170,7 +180,7 @@ export function moveInstance(
       `\`${item}\` is out of range of \`${mover}\`, so it could not be moved.`,
     );
   }
-  if (!isLive(draft, to) || !reaches(range, mover, to, 'any')) {
+  if (!isLive(draft, to) || (reach === 'range' && !reaches(range, mover, to, 'any'))) {
     throw new MoveFault(
       'out-of-range',
       to,

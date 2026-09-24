@@ -1,4 +1,5 @@
-// A grammar block holds `name`, `article` and `nouns`, each as it is written.
+// A grammar block holds `name`, `article`, `nouns`, `exit` and `link`, each
+// as it is written.
 world grammar_lines is sprout.World {
   visitors are Person
   visitors arrive at hall
@@ -9,7 +10,7 @@ world grammar_lines is sprout.World {
         name brass_key
         article teh
         nouns
-        exit north "to the yard" -> hall
+        door north "to the yard" -> hall
       }
     }
     object lamp is Key {

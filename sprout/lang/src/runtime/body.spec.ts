@@ -38,6 +38,7 @@ const VERBS = [
   'lug',
   'sink',
   'ring',
+  'dig',
 ];
 
 /**
@@ -53,6 +54,7 @@ const bundle = compiledWorld('shop', {
     '    object near is Heeds',
     '    object loud is Loud',
     '    object cat is Pet',
+    '    object pit is Pit',
     '  }',
     '  object yard is Room { object far is Heeds }',
     '}',
@@ -88,6 +90,11 @@ const bundle = compiledWorld('shop', {
     'message :tally with integer',
     'kind Heeds { on :knock { } on :tally (_, n) { } }',
     'kind Loud is Counter { passage done { Done, loudly. } }',
+    'kind Pit {',
+    '  contains actors',
+    '  grammar { link down "down into the dark" }',
+    '  as target for dig { do { let hole = spawn Pit in self  connect down to hole  connect down to hole  say "Dug." } }',
+    '}',
     'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
     'kind Pet is Creature {',
     '  as target for poke  { do { act nuzzle (target: actor, toys: here)  say "After." } }',
@@ -106,6 +113,7 @@ const PIN = id('hall', 'counter', 'pin');
 const CAT = id('hall', 'cat');
 const NEAR = id('hall', 'near');
 const FAR = id('yard', 'far');
+const PIT = id('hall', 'pit');
 
 /** What an acting body did, as the sink heard it. */
 interface Heard {
@@ -367,6 +375,19 @@ describe('what a `do` moves', () => {
     expect(heard.spoken).toEqual([]);
     expect(heard.destroyed).toHaveLength(1);
     expect(one.draft.instance(COUNTER)).toBeUndefined();
+  });
+});
+
+describe('what a `do` connects', () => {
+  it('writes `self`’s link to what the binding holds, replacing where it led, and goes on', () => {
+    const one = turn();
+    const heard = act(one, PIT, 'dig');
+    const links = [...one.draft.instance(PIT)!.links];
+    expect(links).toHaveLength(1);
+    const [direction, hole] = links[0]!;
+    expect(direction).toBe('down');
+    expect(one.draft.instance(hole)!.container).toBe(PIT);
+    expect(heard.spoken.map(words)).toEqual(['Dug.']);
   });
 });
 

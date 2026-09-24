@@ -1,9 +1,11 @@
 // `grammar { name "brass key"  article a  nouns "brass" }`, as a kind or
 // an object writes one (the spec's Names › Addressing and display,
-// Articles). The block holds lines, each led by its word: `name` and one
-// name in quotes, `article` and one of `a`, `an`, `the` or `none`, and
-// `nouns` and one or more nouns in quotes. What the lines mean together,
-// and what they may not say, is `declare/grammar.ts`'s.
+// Articles; Verbs › Exits, Links). The block holds lines, each led by its
+// word: `name` and one name in quotes, `article` and one of `a`, `an`,
+// `the` or `none`, `nouns` and one or more nouns in quotes, and a place's
+// `exit` and `link` lines, which `exits.ts` reads. What the lines mean
+// together, and what they may not say, is `declare/grammar.ts`'s and
+// `declare/exits.ts`'s.
 //
 // A line that could not be read costs that line, and the block keeps the
 // rest; a block never closed ends where the body's next member starts.
@@ -17,14 +19,14 @@ import {
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { readable } from '../../source/words.js';
+import { exitLine, linkLine, stepOverToken, type LineEnds } from './exits.js';
 import { type Parser } from './parser.js';
-import { stepPast } from './recovery.js';
 
 /** How a block is written, for a remedy. */
 const EXAMPLE = 'grammar { name "brass key"  article a  nouns "brass" }';
 
 /** The words a line of the block begins with. */
-const LINE_WORDS = ['name', 'article', 'nouns'] as const;
+const LINE_WORDS = ['name', 'article', 'nouns', 'exit', 'link'] as const;
 
 function isLineWord(word: string): boolean {
   return (LINE_WORDS as readonly string[]).includes(word);
@@ -79,11 +81,11 @@ export function grammar(
         `It holds ${readable([...LINE_WORDS])}, as in \`${EXAMPLE}\`.`,
       );
       // The rest of the line it starts is its own, up to the block's next line.
-      do stepPast(p);
+      do stepOverToken(p);
       while (!atLineEnd(p, startsMember));
       continue;
     }
-    const line = grammarLine(p);
+    const line = grammarLine(p, { atLineEnd: (at) => atLineEnd(at, startsMember) });
     if (line !== null) {
       lines.push(line);
       last = line.at;
@@ -100,7 +102,9 @@ function atLineEnd(p: Parser, startsMember: (token: Token) => boolean): boolean 
 }
 
 /** One line of the block, its word next; null having said why. */
-function grammarLine(p: Parser): GrammarLine | null {
+function grammarLine(p: Parser, ends: LineEnds): GrammarLine | null {
+  if (p.at('name', 'exit')) return exitLine(p, ends);
+  if (p.at('name', 'link')) return linkLine(p, ends);
   const word = p.next();
   switch (word.text) {
     case 'name': {

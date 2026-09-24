@@ -1,0 +1,4 @@
+world.sprout:8:23  This exit's label is empty, and it is what a visitor reads and types for the way out.
+                   Write where it goes, as in `exit in "out to the yard"`.
+
+refused: 1 problem

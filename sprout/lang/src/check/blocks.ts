@@ -5,11 +5,11 @@
 // Prose; The compiler › What it refuses).
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
-// `refuse`, and a write, a `spawn`, a `destroy`, a `move`, an `act` or a
-// `say` in one is refused, since the engine asks it before anything
+// `refuse`, and a write, a `spawn`, a `destroy`, a `move`, a `connect`,
+// an `act` or a `say` in one is refused, since the engine asks it before anything
 // happens and it must not change the world underneath the decision it is
-// part of. A `do` acts: it writes, spawns, destroys, moves, acts and
-// speaks, and `refuse` and `allow` are refused there, since the deciding
+// part of. A `do` acts: it writes, spawns, destroys, moves, connects,
+// acts and speaks, and `refuse` and `allow` are refused there, since the deciding
 // was done. A handler or a hook acts as a `do` does, but nobody is acting,
 // so it neither speaks with `say` nor refuses. `if (x.is(K))` narrows
 // `x`, and `if (bound tool)` binds `tool`, for the branch each guards.
@@ -31,6 +31,7 @@ import type { Binding, Scope } from './bindings.js';
 import { checkCondition, isEffect, narrowingOf, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { checkAct } from './act.js';
+import { checkConnect } from './exits.js';
 import { checkBroadcast, checkSend } from './sends.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
@@ -82,6 +83,10 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'move':
       if (decides) readOnly('move', statement.at, context, kind);
       else checkMove(statement, context);
+      return;
+    case 'connect':
+      if (decides) readOnly('connect', statement.at, context, kind);
+      else checkConnect(statement, context);
       return;
     case 'act':
       if (decides) readOnly('act', statement.at, context, kind);
@@ -176,12 +181,13 @@ const CHANGES = {
   spawn: '`spawn` makes a new thing',
   destroy: '`destroy self` removes something',
   move: '`move` moves something',
+  connect: '`connect` writes where a link leads',
   act: '`act` performs a verb',
   send: '`send` sends a message',
   broadcast: '`broadcast` sends a message',
 } as const;
 
-/** `spawn`, `destroy self`, `move`, `act`, `send` or `broadcast` where a guard or a `permit` decides. */
+/** `spawn`, `destroy self`, `move`, `connect`, `act`, `send` or `broadcast` where a guard or a `permit` decides. */
 function readOnly(
   what: keyof typeof CHANGES,
   at: Span,

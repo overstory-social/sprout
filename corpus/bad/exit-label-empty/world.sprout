@@ -1,0 +1,11 @@
+// A label is what a visitor reads on a chip and may type back, so it is
+// never empty.
+world exit_label_empty is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { exit in "" -> shop }
+  }
+  object shop is sprout.Place { }
+}

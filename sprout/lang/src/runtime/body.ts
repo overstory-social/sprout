@@ -1,12 +1,12 @@
 // Running a body's block (the spec's Verbs › The two passes, Moving
-// something, Acting; Movement and consent › Guards are read-only;
+// something, Acting, Links; Movement and consent › Guards are read-only;
 // Properties › What the compiler checks, Lists, Per-actor memory; The
 // world model › Spawning, Destroying; Prose; Limits › Runtime budgets).
 //
 // One runner, in two modes. A guard and a `permit` decide: they read, and
 // end in `allow`, in `refuse`, or by reaching their end. A `do` acts: it
-// writes `self` through the turn's draft, spawns, destroys, moves, acts and
-// says, and a refused `move` or `act` ends it there. Each mode holds
+// writes `self` through the turn's draft, its links included, spawns,
+// destroys, moves, acts and says, and a refused `move` or `act` ends it there. Each mode holds
 // exactly what `check/blocks.ts` lets its bodies hold, so anything else
 // reaching it is the engine's defect, thrown as a plain `Error`. Every statement executed is one step and every
 // expression node one more. A `set` or `remember` of a value its property
@@ -48,6 +48,8 @@ import {
 } from './lifecycle.js';
 import { sameValue, SproutList } from './lists.js';
 import type { Performed } from './act.js';
+import { isDirection } from '../declare/exits.js';
+import { connectLink } from './links.js';
 import { objectNamed, reachedByName } from './named.js';
 import { broadcastFrom, sendTo, type Sent } from './sends.js';
 import { reachMessage, type DeclaredMessage } from '../declare/messages.js';
@@ -201,6 +203,16 @@ function runStatement(
       const item = objectAt(statement.thing, frame);
       const to = objectAt(statement.destination, frame);
       if (sink.move(frame.self, item, to) === 'refused') run.stopped = 'refused';
+      return 'end';
+    }
+    case 'connect': {
+      const sink = acting(run, '`connect`');
+      const direction = statement.link.text;
+      if (!isDirection(direction)) {
+        throw new Error(`\`connect ${direction}\` reached the runtime; the checker refuses it.`);
+      }
+      const to = objectAt(statement.destination, frame);
+      connectLink(sink.lifecycle.draft, frame.self, direction, to);
       return 'end';
     }
     case 'act': {

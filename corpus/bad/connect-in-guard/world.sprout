@@ -1,0 +1,7 @@
+// A guard only reads and decides, and connecting a link writes.
+world connect_in_guard is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is Cell
+}

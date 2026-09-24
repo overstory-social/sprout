@@ -2,9 +2,10 @@
 // that change what exists, `spawn` and `destroy`; `move`; and a call
 // written as a statement (the spec's Movement and consent; Prose;
 // Properties › Naming a value; The world model › Spawning, Destroying;
-// Verbs › Moving something). `act` is read in `act.ts`, `send` and
-// `broadcast` in `sends.ts`, and `destroy self` and `finally destroy
-// self` in `destroy.ts`, and each is registered here with the rest. A `let` is here rather than with
+// Verbs › Moving something). `act` is read in `act.ts`, `connect` in
+// `connect.ts`, `send` and `broadcast` in `sends.ts`, and `destroy self`
+// and `finally destroy self` in `destroy.ts`, and each is registered
+// here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
 // statement that also yields a binding.
 //
@@ -37,6 +38,7 @@ import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
 import { objectPath } from './paths.js';
 import { actStatement } from './act.js';
+import { connectStatement } from './connect.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
 import { skipBracketed } from './recovery.js';
@@ -87,6 +89,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['destroy', (p) => destroyStatement(p)],
   ['finally', (p) => finallyStatement(p)],
   ['move', moveStatement],
+  ['connect', connectStatement],
   ['act', actStatement],
   ['send', sendStatement],
   ['broadcast', broadcastStatement],

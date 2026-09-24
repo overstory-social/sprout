@@ -27,10 +27,11 @@ Two packages, one version:
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
-of, kinds and objects with their composition and grammar blocks, and verbs
-with their roles resolved across libraries) and checks the expressions
-Phase 1 defined; the runtime reads a visitor's typed line as a reading, and
-runs it as a turn. Everything else — prose, exits, the view — lands one
+of, kinds and objects with their composition and grammar blocks, a
+place's exits and links, and verbs with their roles resolved across
+libraries) and checks the expressions Phase 1 defined; the runtime reads a
+visitor's typed line as a reading, `go` among them, and runs it as a turn.
+Everything else — prose, the view — lands one
 backlog item at a time; see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.

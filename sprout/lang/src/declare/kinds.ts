@@ -15,6 +15,7 @@ import type { Plays } from './roles.js';
 import type { Handlers, Hooks } from './handlers.js';
 import type { PassRules } from './passes.js';
 import type { ComposedGrammar } from './grammar.js';
+import type { ResolvedExit } from './exits.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import {
   composeKind,
@@ -97,6 +98,12 @@ export interface KindRef {
    * every source's nouns.
    */
   readonly grammar: ComposedGrammar;
+  /**
+   * Its exits and links, direction by direction, each direction's in the
+   * order its guards are tried (the spec's Exits, An exit may be
+   * conditional): one source's per direction, its own replacing any.
+   */
+  readonly exits: readonly ResolvedExit[];
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**

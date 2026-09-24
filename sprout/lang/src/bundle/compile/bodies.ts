@@ -4,8 +4,9 @@
 // a named kind, an object's anonymous kind, the world — and nothing is
 // checked twice for being composed: a kind's guard or play is checked
 // once, against the kind that wrote it: a consent guard, a role's `permit`
-// and `do`, a handler, a hook and a pass rule. Each body's names resolve
-// from where it is written, and what each reaches is recorded.
+// and `do`, a handler, a hook, a pass rule, and an exit's destination
+// and guard. Each body's names resolve from where it is written, and what
+// each reaches is recorded.
 
 import { GUARD_NAMES } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
@@ -14,6 +15,7 @@ import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
 import { checkHandler, checkHook, checkPass } from '../../check/handlers.js';
+import { checkExit } from '../../check/exits.js';
 import type { MessageSetting } from '../../check/check.js';
 import type { Named, NameSource, Vantage } from '../../declare/names.js';
 import type { Node } from '../../source/nodes.js';
@@ -69,5 +71,6 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): vo
     for (const pass of [...(any === null ? [] : [any]), ...messages.values()]) {
       if (pass.origin === own) checkPass(pass, kind, setting);
     }
+    for (const exit of kind.exits) if (exit.origin === own) checkExit(exit, kind, setting);
   }
 }

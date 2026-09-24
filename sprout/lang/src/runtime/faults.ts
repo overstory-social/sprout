@@ -1,9 +1,9 @@
 // What a fault is, and the world's words for one (the spec's The runtime
 // › Faults, The view). Anything a turn's body throws is a fault and
 // abandons the turn's transaction: a rule the language names — a budget
-// spent, a spawn, a move or an `act` that could not be made, a name that
-// reaches nothing, a value its property cannot hold, an integer out of
-// range, a full list — or a defect of the engine's own, which is told the
+// spent, a spawn, a move, a `connect` or an `act` that could not be made,
+// a name that reaches nothing, a value its property cannot hold, an
+// integer out of range, a full list — or a defect of the engine's own, which is told the
 // same way, since no turn ends with nothing said, and is marked for the
 // host to report loudly.
 //
@@ -19,6 +19,7 @@ import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow, type Evaluated } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import { LifecycleFault } from './lifecycle.js';
+import { ConnectFault } from './links.js';
 import { ListFull } from './lists.js';
 import { MoveFault } from './move.js';
 import { DestroyedReference, NameOutOfRange } from './named.js';
@@ -68,6 +69,7 @@ function objectOf(error: Error): InstanceId | null | undefined {
   if (
     error instanceof LifecycleFault ||
     error instanceof MoveFault ||
+    error instanceof ConnectFault ||
     error instanceof ActFault ||
     error instanceof DestroyedReference ||
     error instanceof NameOutOfRange

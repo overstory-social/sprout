@@ -1,0 +1,22 @@
+// `connect` names one of `self`'s links by its direction, `to`, and what
+// it leads to; each written wrong is refused once.
+world connect_lines is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { link north "deeper into the dark" }
+    as target for dig {
+      do {
+        let cell = spawn sprout.Place in self
+        connect
+        connect north cell
+        connect north to
+        connect North to cell
+        say "The wall gives."
+      }
+    }
+  }
+}
+
+verb dig { role target  "dig [target]" }
