@@ -39,7 +39,8 @@ INSERT INTO sprout.meta (key, value) VALUES ('schema_version', '1');
 
 -- MicroworldRecord: the archive as last loaded (files + manifest), its
 -- content stamp, the language level, the extensions, the caps it was
--- checked against at publish and whether the host excepted it — as JSON.
+-- checked against at publish, whether the host excepted it and the
+-- libraries it blessed then — as JSON.
 CREATE TABLE sprout.microworld (
   id text PRIMARY KEY,
   record jsonb NOT NULL,
