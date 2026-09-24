@@ -19,7 +19,7 @@ import {
   vessel,
   warded,
 } from '../../fixtures/check.js';
-import { bindingType, FREE_CALLS, leafType } from './leaves.js';
+import { bindingType, leafType } from './leaves.js';
 
 describe('the names a statement reads through', () => {
   const written = (text: string) =>
@@ -49,10 +49,10 @@ describe('it never guesses, and never dies', () => {
     expect(saidBy(bare).join(' ')).toContain('is a kind, not a value');
   });
 
-  it('refuses a free call, because `chance` and `random` are not read yet', () => {
+  it('refuses a free call that is not a draw, and a draw not given one number written out', () => {
     const context = vessel();
-    expect(read('chance(30)', context).type).toBeNull();
-    expect(context.diagnostics.refusals[0]!.message).toContain('`chance`');
+    expect(read('roll(30)', context).type).toBeNull();
+    expect(context.diagnostics.refusals[0]!.message).toContain('`roll`');
   });
 
   it('suggests a name in reach when one is misspelt', () => {
@@ -78,13 +78,14 @@ describe('the bottom of a spine, asked directly', () => {
     expect(context.diagnostics.refusals).toEqual([]);
   });
 
-  it('reads no free call yet, and says so for every one', () => {
-    // B33 fills the table with `chance` and `random`.
-    expect(FREE_CALLS.size).toBe(0);
+  it('types a free call as the draw it is, and refuses any other', () => {
     const context = checking(vessel());
-    expect(leafType(expression('random(6)'), context)).toBeNull();
+    expect(leafType(expression('random(6)'), context)).toEqual(valueOf(integer(0, 5)));
+    expect(leafType(expression('chance(3)'), context)).toEqual(valueOf(BOOLEAN));
+    expect(saidBy(context)).toEqual([]);
+    expect(leafType(expression('roll(6)'), context)).toBeNull();
     expect(saidBy(context)).toEqual([
-      'Sprout does not know how to read `random` here. This compiler reads nothing.',
+      'Sprout does not know how to read `roll` here. The calls written with nothing before them are `chance(…)` and `random(…)`; a reading is written on what it reads, as in `self.get(:wear)`.',
     ]);
   });
 });

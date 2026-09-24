@@ -1,0 +1,6 @@
+world restatements_collide is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place
+}

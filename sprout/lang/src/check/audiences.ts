@@ -78,6 +78,7 @@ export function checkPassage(
         name: said.text,
         at: said.at,
         scope: context.scope.carried(),
+        undrawn: context.undrawn ?? null,
       });
     }
     return;

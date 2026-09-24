@@ -2,12 +2,8 @@
 // written where a value is wanted but is not one (the spec's Properties ›
 // Where types come from, What the compiler checks). A name withheld where
 // it stands is refused with why; a bare option names no enum on its own,
-// a kind is not a value, and a free call is not read yet — each is
-// refused with what to write instead.
-//
-// `FREE_CALLS` is the empty table B33 fills with `chance` and `random`;
-// the parser reads their shape so the refusal can name the word rather
-// than complain about a bracket.
+// and a kind is not a value — each is refused with what to write
+// instead. A free call is a draw, typed by `draws.ts`.
 
 import type { BoundExpr, Expr, Ident } from '../../syntax/ast.js';
 import { describeOrigin, valueOf, type BindingType } from '../bindings.js';
@@ -16,11 +12,9 @@ import { nearestOption } from '../../declare/enums.js';
 import { BOOLEAN, integer, STRING } from '../../declare/types.js';
 import { readable } from '../../source/words.js';
 import type { CheckContext, Checker } from './checker.js';
+import { drawType } from './draws.js';
 import { identityType } from './operators.js';
 import { identifiersInReach, identifierType } from '../names.js';
-
-/** The free calls this compiler reads. B33 fills it with `chance` and `random`. */
-export const FREE_CALLS: ReadonlySet<string> = new Set<string>();
 
 /** The type at the bottom of a spine, or null having said why it has none. */
 export function leafType(expr: Expr, context: Checker): BindingType | null {
@@ -55,12 +49,7 @@ export function leafType(expr: Expr, context: Checker): BindingType | null {
       );
       return null;
     case 'free-call':
-      context.diagnostics.refuse(
-        expr.name.at,
-        `Sprout does not know how to read \`${expr.name.text}\` here.`,
-        `This compiler reads ${readable([...FREE_CALLS])}.`,
-      );
-      return null;
+      return drawType(expr, context);
     default:
       // A unary, member or call never reaches here: the spine walk
       // stops above it and `aboveType` types it. A binary reaches here

@@ -1,0 +1,11 @@
+world chance_in_permit_passage is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object lock is Lock
+  }
+}
+
+verb unlock { role target  "unlock [target]" }
+verb peer { role target  "peer at [target]" }

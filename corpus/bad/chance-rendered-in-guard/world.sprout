@@ -1,0 +1,10 @@
+world chance_rendered_in_guard is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object tower is Tower {
+      object bell is Bell
+    }
+  }
+}

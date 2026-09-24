@@ -11,6 +11,7 @@
 // earlier parts did stands, and the visitor is admitted either way.
 
 import { Budget } from './budget.js';
+import { Draws } from './draws.js';
 import type { Fault } from './faults.js';
 import type { WorldState } from './state.js';
 import { elapsedSince, hostSeconds } from './time.js';
@@ -46,7 +47,11 @@ export function maintenanceTurn(
 ): Committed<CaughtUp> {
   const now = hostSeconds(inputs.now, 'a maintenance turn’s time');
   const due = onePerObject(dueWakes(state, now));
-  const budget = new Budget(host.budgets, 'maintenance', host.clock);
+  // Every part is charged to the one budget and draws from the one seed.
+  const shared = {
+    budget: new Budget(host.budgets, 'maintenance', host.clock),
+    draws: new Draws(inputs.seed),
+  };
   const delivered: DueWake[] = [];
   let at = state;
   for (const [i, listed] of due.entries()) {
@@ -54,7 +59,7 @@ export function maintenanceTurn(
     const wake = pendingWake(at, listed.object, listed.serial);
     if (wake === null) continue;
     const elapsed = elapsedSince(wake.askedAt, now);
-    const part = writeUnder(budget, at, 'maintenance', host, inputs, (turn) => {
+    const part = writeUnder(shared, at, 'maintenance', host, inputs, (turn) => {
       deliverWake(turn, wake, elapsed);
     });
     if (part.committed) {

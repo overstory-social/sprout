@@ -17,6 +17,7 @@ import type { NameScope } from '../names.js';
 import type { MessageLookup } from '../../declare/messages.js';
 import type { OnUnknownMessage } from '../../declare/handlers.js';
 import type { SpeechSetting } from '../speech.js';
+import type { Undrawn } from '../chance.js';
 
 /** What a body is being read inside. */
 export interface CheckContext {
@@ -43,6 +44,8 @@ export interface CheckContext {
   readonly messages?: MessageSetting;
   /** Where what the body says is recorded, for the passages it says to be checked against. */
   readonly speech?: SpeechSetting;
+  /** Why the body draws nothing, where it decides or is polled: `chance` and `{one of}` are refused. */
+  readonly undrawn?: Undrawn;
 }
 
 /** The messages a body's sends reach, and what is told of one nothing declares. */
@@ -74,6 +77,7 @@ export function checkerOf(
     diagnostics: context.diagnostics,
     ...(context.verb === undefined ? {} : { verb: context.verb }),
     ...(context.names === undefined ? {} : { names: context.names }),
+    ...(context.undrawn === undefined ? {} : { undrawn: context.undrawn }),
     typeOf: (expr) => walk(expr, checker),
   };
   return checker;

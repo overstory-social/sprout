@@ -25,6 +25,7 @@ import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './st
 import { checkAct } from './act.js';
 import { checkConnect } from './exits.js';
 import { checkBroadcast, checkSend } from './sends.js';
+import type { Undrawn } from './chance.js';
 import { checkWake } from './wake.js';
 import { checkPassage, checkSpoken } from './audiences.js';
 
@@ -38,8 +39,19 @@ export type BodyKind =
 
 /** A block, in a scope of its own, as the body it belongs to allows. */
 export function checkBlock(block: Block, outer: CheckContext, kind: BodyKind): void {
-  const context: CheckContext = { ...outer, scope: outer.scope.inner() };
+  const undrawn = undrawnBy(kind);
+  const context: CheckContext = {
+    ...outer,
+    scope: outer.scope.inner(),
+    ...(undrawn === null ? {} : { undrawn }),
+  };
   for (const statement of block.statements) checkStatement(statement, context, kind);
+}
+
+/** Why a deciding body draws nothing (the spec's Chance › Where chance is forbidden); null for one that acts. */
+function undrawnBy(kind: BodyKind): Undrawn | null {
+  if (kind.body === 'guard') return { by: 'guard', guard: kind.guard };
+  return kind.body === 'permit' ? { by: 'permit' } : null;
 }
 
 function checkStatement(statement: Statement, context: CheckContext, kind: BodyKind): void {

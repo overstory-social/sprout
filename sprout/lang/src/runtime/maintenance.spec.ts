@@ -3,17 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import {
   asked,
+  BULB,
   CANDLE,
   FUSE,
   garden,
   heldIn,
   HOST,
+  LAMP,
   MARTA,
   POD,
   ROSE,
   SEED,
   wakesOf,
 } from '../fixtures/wakes.js';
+import { Draws } from './draws.js';
 import { saveWorld } from './load.js';
 import { maintenanceTurn } from './maintenance.js';
 import type { TurnHost } from './turn.js';
@@ -137,6 +140,22 @@ describe('a maintenance turn', () => {
       wake: { object: SEED },
       fault: { name: 'BudgetExhausted' },
     });
+  });
+
+  it('draws every part from the turn’s one seed, each wake on from where the last left off', () => {
+    const { state } = garden([
+      [BULB, 0, 100],
+      [LAMP, 0, 200],
+    ]);
+    const turn = maintenanceTurn(state, HOST, at(86_400));
+    expect(objects(turn.value.delivered)).toEqual([BULB, LAMP]);
+    const expected = new Draws(11);
+    expect([heldIn(turn.state, BULB, 'glow'), heldIn(turn.state, LAMP, 'glow')]).toEqual([
+      expected.below(1000),
+      expected.below(1000),
+    ]);
+    const again = maintenanceTurn(state, HOST, at(86_400));
+    expect(heldIn(again.state, LAMP, 'glow')).toBe(heldIn(turn.state, LAMP, 'glow'));
   });
 
   it('commits nothing but the serial it read when nothing is due, and leaves out what is not in the tree', () => {

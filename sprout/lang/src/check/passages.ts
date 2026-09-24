@@ -14,7 +14,10 @@
 // reaches, with what the engine binds for that line. A passage said from
 // nowhere is checked with `self` alone. A name a passage renders that is
 // bound nowhere it is said from is refused where it is said, and nothing
-// more is said of that passage from there.
+// more is said of that passage from there. A passage said or rendered
+// from a body that draws nothing, or a line the engine says in a poll,
+// may not draw either (`chance.ts`), and a draw in it is refused where it
+// is said, as a name it lacks is.
 
 import type { Expr } from '../syntax/ast.js';
 import type { Prose, ProseIf, ProsePiece } from '../syntax/ast-prose.js';
@@ -47,6 +50,7 @@ import { nameFrom } from '../declare/names.js';
 import { SPROUT } from '../declare/enums.js';
 import { checkProse } from './prose.js';
 import type { PassageRendered, PassageSites } from './speech.js';
+import { firstDraw, refuseDraw, refuseDrawingPassage, type Undrawn } from './chance.js';
 
 /** A composed kind whose passages are checked, and where names in them resolve from. */
 export interface Speaker {
@@ -76,6 +80,8 @@ interface Saying {
   /** The invoking scope, `self` left out: the passage's own is its writer's. */
   readonly scope: Scope;
   readonly from: From;
+  /** Why it is said where nothing draws; null where it may draw. */
+  readonly undrawn: Undrawn | null;
 }
 
 /** Check every passage the setting's kinds have against every place it is said from. */
@@ -87,7 +93,12 @@ export function checkPassages(setting: PassageSetting): void {
       for (const site of setting.sites.of(body)) {
         const passage = kind.passages.get(site.name);
         if (passage !== undefined) {
-          say(run, { passage, scope: site.scope, from: { from: 'said', at: site.at } });
+          say(run, {
+            passage,
+            scope: site.scope,
+            from: { from: 'said', at: site.at },
+            undrawn: site.undrawn,
+          });
         }
       }
     }
@@ -95,7 +106,9 @@ export function checkPassages(setting: PassageSetting): void {
       const passage = kind.passages.get(line.name);
       if (passage !== undefined) {
         const scope = engineScope(line, passage.at, setting.kinds);
-        say(run, { passage, scope, from: { from: 'engine', line } });
+        const undrawn: Undrawn | null =
+          line.polled === true ? { by: 'poll', line: line.name } : null;
+        say(run, { passage, scope, from: { from: 'engine', line }, undrawn });
       }
     }
   }
@@ -104,7 +117,7 @@ export function checkPassages(setting: PassageSetting): void {
   for (const { kind } of setting.speakers) {
     for (const passage of kind.passages.values()) {
       if (!run.reached.has(passage)) {
-        say(run, { passage, scope: Scope.root(), from: { from: 'nowhere' } });
+        say(run, { passage, scope: Scope.root(), from: { from: 'nowhere' }, undrawn: null });
       }
     }
   }
@@ -176,7 +189,12 @@ function rendered(run: Run, site: PassageRendered): void {
     if (!composesKind(kind, site.kind)) continue;
     const passage = kind.passages.get(site.name);
     if (passage !== undefined) {
-      say(run, { passage, scope: site.scope, from: { from: 'rendered', at: site.at } });
+      say(run, {
+        passage,
+        scope: site.scope,
+        from: { from: 'rendered', at: site.at },
+        undrawn: site.undrawn,
+      });
     }
   }
 }
@@ -184,7 +202,7 @@ function rendered(run: Run, site: PassageRendered): void {
 /** Check what is queued, each passage once for each scope it is said in. */
 function drain(run: Run): void {
   for (let saying = run.queue.pop(); saying !== undefined; saying = run.queue.pop()) {
-    const key = signature(saying.scope);
+    const key = `${signature(saying.scope)}|${undrawnKey(saying.undrawn)}`;
     const done = run.done.get(saying.passage) ?? new Set<string>();
     if (done.has(key)) continue;
     done.add(key);
@@ -193,8 +211,25 @@ function drain(run: Run): void {
   }
 }
 
+/** Where a saying may not draw, as a key two sayings from the same kind of body share. */
+function undrawnKey(undrawn: Undrawn | null): string {
+  if (undrawn === null) return '';
+  switch (undrawn.by) {
+    case 'guard':
+      return `guard ${undrawn.guard}`;
+    case 'permit':
+      return 'permit';
+    case 'when':
+      return 'when';
+    case 'pass':
+      return `pass ${undrawn.written}`;
+    case 'poll':
+      return `poll ${undrawn.line}`;
+  }
+}
+
 /** One passage in one scope, with its writer as `self`. */
-function checkSaying(run: Run, { passage, scope, from }: Saying): void {
+function checkSaying(run: Run, { passage, scope, from, undrawn }: Saying): void {
   const speaker = run.writers.get(passage);
   // A passage whose writer did not compose has been said of already.
   if (speaker === undefined) return;
@@ -208,6 +243,7 @@ function checkSaying(run: Run, { passage, scope, from }: Saying): void {
     self,
     diagnostics,
     ...(speaker.names === undefined ? {} : { names: speaker.names }),
+    ...(undrawn === null ? {} : { undrawn }),
   };
   if (from.from !== 'nowhere') {
     const missing = unbound(passage.body.prose, context);
@@ -216,6 +252,7 @@ function checkSaying(run: Run, { passage, scope, from }: Saying): void {
       return;
     }
   }
+  if (undrawn !== null && refusedDraw(run, passage, from, undrawn)) return;
   const sites: PassageRendered[] = [];
   checkProse(passage.body.prose, context, {
     render: (site) => sites.push(site),
@@ -223,6 +260,22 @@ function checkSaying(run: Run, { passage, scope, from }: Saying): void {
   });
   for (const diagnostic of diagnostics.all) tell(run, diagnostic);
   for (const site of sites) rendered(run, site);
+}
+
+/**
+ * A draw in a passage said where nothing draws: refused where it is said
+ * or rendered, or, for a line the engine says, at the draw. True where
+ * one was refused, and nothing more is said of the passage from there.
+ */
+function refusedDraw(run: Run, passage: ResolvedPassage, from: From, undrawn: Undrawn): boolean {
+  const drawn = firstDraw(passage.body.prose);
+  if (drawn === null) return false;
+  const diagnostics = new Diagnostics();
+  if (from.from === 'said' || from.from === 'rendered') {
+    refuseDrawingPassage(passage.name, drawn, from.from, from.at, undrawn, diagnostics);
+  } else refuseDraw(drawn, undrawn, diagnostics);
+  for (const diagnostic of diagnostics.all) tell(run, diagnostic);
+  return true;
 }
 
 /** Each diagnostic once, however many places the passage it is about is said from. */
@@ -330,13 +383,14 @@ function namesAnObject(name: string, names: NameScope | undefined): boolean {
   return naming.names !== 'missing' && naming.names !== 'world-inside';
 }
 
-/** Every piece of prose, blocks' insides and each link of an `{if}` chain included. */
+/** Every piece of prose, blocks' insides, each choice and each link of an `{if}` chain included. */
 function walkProse(prose: Prose, visit: (piece: ProsePiece) => void): void {
   const stack: Prose[] = [prose];
   while (stack.length > 0) {
     for (const piece of stack.pop()!.pieces) {
       visit(piece);
       if (piece.kind === 'prose-for') stack.push(piece.body);
+      if (piece.kind === 'prose-one-of') stack.push(...piece.choices);
       if (piece.kind !== 'prose-if') continue;
       stack.push(piece.then);
       let otherwise: ProseIf['otherwise'] = piece.otherwise;

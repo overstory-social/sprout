@@ -1,0 +1,18 @@
+kind Cat {
+  :asleep false
+  on :stir { self.set(:asleep, !self.get(:asleep)) }
+  as target for pet {
+    do { say petted }
+  }
+  passage petted {
+    {if self.get(:asleep)}
+    The cat is asleep, or doing a convincing impression of it.
+    {else}
+    {one of}
+    The cat considers you, and declines to be interested.
+    {or}
+    The cat's tail moves once, which is not agreement.
+    {/one of}
+    {/if}
+  }
+}

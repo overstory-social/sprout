@@ -1,0 +1,7 @@
+cat.sprout:3:18  This `{one of}` has one choice, so it would say it every time.
+                 Write another choice after an `{or}`, or take out `{one of}` and `{/one of}` and keep the words.
+
+cat.sprout:4:34  `{or}` separates the choices of a `{one of}`, directly inside it.
+                 Write it between `{one of}` and the `{/one of}` that closes it, outside any `{if}` or `{for}` in the choice.
+
+refused: 2 problems

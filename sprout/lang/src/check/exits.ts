@@ -89,7 +89,8 @@ function checkDestination(path: ObjectPath, self: KindRef, setting: ExitSetting)
 
 /**
  * An exit's `when`: a boolean over `self`, with `actor` and `here`
- * withheld; the literal `false`, which never holds, is warned about.
+ * withheld, that draws nothing; the literal `false`, which never holds,
+ * is warned about.
  */
 function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
   const { diagnostics } = setting;
@@ -116,6 +117,7 @@ function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
     self,
     diagnostics,
     names: setting.names,
+    undrawn: { by: 'when' },
   };
   const type = typeOf(when, context);
   if (type === null) return false;

@@ -38,8 +38,10 @@ function kindOf(read: Tag | null): string {
       return `for ${read.variable.text}${read.filter === null ? '' : `: ${read.filter.name.text}`} ${read.walks} ${shape(read.over)}`;
     case 'close':
       return `close ${read.closes}`;
-    case 'chance':
-      return `chance ${read.written}`;
+    case 'one-of':
+      return 'one of';
+    case 'or':
+      return 'or';
     case 'broken':
       return `broken ${read.opens}`;
     case 'else':
@@ -73,12 +75,18 @@ describe('a tag says what it is by its first word', () => {
     expect(kindOf(tag('{for key of self.get(:keys)}').read)).toBe('for key of self.get(:keys)');
   });
 
-  it('reads the closes, and the words of a choice, which are Chance’s', () => {
+  it('reads the closes, and the words of a choice', () => {
     expect(kindOf(tag('{/if}').read)).toBe('close if');
     expect(kindOf(tag('{/ for }').read)).toBe('close for');
-    expect(kindOf(tag('{one of}').read)).toBe('chance {one of}');
-    expect(kindOf(tag('{or}').read)).toBe('chance {or}');
-    expect(kindOf(tag('{/one  of}').read)).toBe('chance {/one of}');
+    expect(kindOf(tag('{one of}').read)).toBe('one of');
+    expect(kindOf(tag('{ one \n of }').read)).toBe('one of');
+    expect(kindOf(tag('{or}').read)).toBe('or');
+    expect(kindOf(tag('{/one  of}').read)).toBe('close one of');
+  });
+
+  it('reads `or` and `one of` with more after them as slots, which the checker types', () => {
+    expect(kindOf(tag('{or more}').read)).toBe('null');
+    expect(kindOf(tag('{one}').read)).toBe('slot one');
   });
 
   it('reads a word that only begins like a block’s as a slot', () => {

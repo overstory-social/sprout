@@ -1,22 +1,22 @@
 // Prose, read: a passage's body and a line in quotes, as the blocks and
 // slots they hold (the spec's Prose › Passages, Slots, Conditionals and
-// loops). `prose-scan.ts` cuts the words from the tags and `prose-tags.ts`
-// reads each tag; this puts them together, each `{if}` and `{for}` around
-// what it guards up to its close.
+// loops; Chance › The forms). `prose-scan.ts` cuts the words from the
+// tags and `prose-tags.ts` reads each tag; this puts them together, each
+// `{if}`, `{for}` and `{one of}` around what it guards up to its close.
 //
 // Reading recovers as the source parser does: a tag that cannot be read
 // costs itself; a close, `{else}` or `{or}` that no open block takes is
 // refused and stepped over; and a block a close for an enclosing block
 // reaches first is refused as never closed and ended there, so the words
-// around every mistake are still read and each mistake is said once.
-// `{one of}` is Chance's, which this compiler does not read; the choice
-// it opens is refused once and stepped over to its `{/one of}`.
+// around every mistake are still read and each mistake is said once. A
+// `{one of}` holds two or more choices, each ended by an `{or}` written
+// directly inside it or by its `{/one of}`.
 
-import type { Prose, ProseFor, ProseIf, ProsePiece } from '../ast-prose.js';
+import type { Prose, ProseFor, ProseIf, ProseOneOf, ProsePiece } from '../ast-prose.js';
 import { DEEPEST, type Parser } from './parser.js';
 import { spanning, type Span } from '../../source/source.js';
 import { scanProse, type Scanned } from './prose-scan.js';
-import { readTag, type Tag } from './prose-tags.js';
+import { readTag, type Closes, type Tag } from './prose-tags.js';
 
 /** Prose from `start` to `end` of the file `p` reads. */
 export function readProse(p: Parser, start: number, end: number): Prose {
@@ -27,7 +27,7 @@ export function readProse(p: Parser, start: number, end: number): Prose {
 }
 
 /** Which part of which block reading is inside. */
-type Open = 'if' | 'else' | 'for';
+type Open = 'if' | 'else' | 'for' | 'one of';
 
 /** Where reading has got to in one run of prose. */
 interface Reader {
@@ -43,13 +43,15 @@ interface Reader {
 }
 
 /** Whether a close for `closes` is one an open block takes. */
-function closedByOpen(r: Reader, closes: 'if' | 'for'): boolean {
-  return r.open.some((open) => (closes === 'for' ? open === 'for' : open !== 'for'));
+function closedByOpen(r: Reader, closes: Closes): boolean {
+  return r.open.some((open) =>
+    closes === 'if' ? open === 'if' || open === 'else' : open === closes,
+  );
 }
 
 /**
- * Pieces up to the end of the prose, or up to a close or an `{else}` an
- * open block takes, which is left in `pending` for it.
+ * Pieces up to the end of the prose, or up to a close, an `{else}` or an
+ * `{or}` an open block takes, which is left in `pending` for it.
  */
 function sequence(r: Reader): ProsePiece[] {
   const pieces: ProsePiece[] = [];
@@ -123,9 +125,21 @@ function sequence(r: Reader): ProsePiece[] {
         }
         break;
       }
-      case 'chance':
-        refuseChance(r, tag.at, tag.written);
-        if (tag.written === '{one of}') skipChoice(r);
+      case 'one-of': {
+        const read = nested(r, 'one of', tag.at, () => oneOfBlock(r, tag.at));
+        if (read !== null) pieces.push(read);
+        break;
+      }
+      case 'or':
+        if (r.open.at(-1) === 'one of') {
+          r.pending = tag;
+          return pieces;
+        }
+        r.p.diagnostics.refuse(
+          tag.at,
+          '`{or}` separates the choices of a `{one of}`, directly inside it.',
+          'Write it between `{one of}` and the `{/one of}` that closes it, outside any `{if}` or `{for}` in the choice.',
+        );
         break;
     }
     // A block inside ended at a close that is for a block around this
@@ -203,6 +217,28 @@ function forBlock(r: Reader, tag: Extract<Tag, { tag: 'for' }>): ProseFor {
   };
 }
 
+/**
+ * `{one of}` through each `{or}` to its `{/one of}`. One with a single
+ * choice is refused, since it would say it every time, and is kept, so
+ * what the choice holds is still read.
+ */
+function oneOfBlock(r: Reader, opened: Span): ProseOneOf {
+  const choices = [run(r, opened)];
+  for (let next = r.pending; next?.tag === 'or'; next = r.pending) {
+    r.pending = null;
+    choices.push(run(r, next.at));
+  }
+  const closed = closeOf(r, opened, 'one of');
+  if (choices.length === 1) {
+    r.p.diagnostics.refuse(
+      opened,
+      'This `{one of}` has one choice, so it would say it every time.',
+      'Write another choice after an `{or}`, or take out `{one of}` and `{/one of}` and keep the words.',
+    );
+  }
+  return { kind: 'prose-one-of', at: spanning(opened, closed), opened, choices };
+}
+
 /** A block's inside, from the tag that opened it to what stops it. */
 function run(r: Reader, opened: Span): Prose {
   const pieces = sequence(r);
@@ -215,25 +251,26 @@ function run(r: Reader, opened: Span): Prose {
  * waiting. Where it is not, the block is refused as never closed and
  * ended there, and what is waiting is left for the block around it.
  */
-function closeOf(r: Reader, opened: Span, closes: 'if' | 'for'): Span {
+function closeOf(r: Reader, opened: Span, closes: Closes): Span {
   const next = r.pending;
   if (next?.tag === 'close' && next.closes === closes) {
     r.pending = null;
     return next.at;
   }
-  r.p.diagnostics.refuse(
-    opened,
-    `This \`{${closes}}\` is never closed.`,
-    closes === 'if'
-      ? 'Add `{/if}` where the words it guards end.'
-      : 'Add `{/for}` where the words it repeats end.',
-  );
+  r.p.diagnostics.refuse(opened, `This \`{${closes}}\` is never closed.`, NEVER_CLOSED[closes]);
   return opened;
 }
 
+/** What to write where a block is never closed. */
+const NEVER_CLOSED: Readonly<Record<Closes, string>> = {
+  if: 'Add `{/if}` where the words it guards end.',
+  for: 'Add `{/for}` where the words it repeats end.',
+  'one of': 'Add `{/one of}` where its last choice ends.',
+};
+
 /**
  * A block too deep to read, stepped over past the close that ends it,
- * each `{if}` and `{for}` inside it counted and nothing in it read.
+ * each `{if}`, `{for}` and `{one of}` inside it counted and nothing in it read.
  */
 function skipBlock(r: Reader): void {
   let open = 1;
@@ -242,28 +279,7 @@ function skipBlock(r: Reader): void {
     r.at += 1;
     if (item.item !== 'tag') continue;
     const inside = r.p.source.text.slice(item.start, item.end).trim();
-    if (/^(if|for)(\s|$)/.test(inside)) open += 1;
-    else if (/^\/\s*(if|for)\s*$/.test(inside)) open -= 1;
+    if (/^((if|for)(\s|$)|one\s+of$)/.test(inside)) open += 1;
+    else if (/^\/\s*(if|for|one\s+of)\s*$/.test(inside)) open -= 1;
   }
-}
-
-/** The words of a `{one of}` already refused, stepped over to its `{/one of}`. */
-function skipChoice(r: Reader): void {
-  let open = 1;
-  while (r.at < r.scanned.length && open > 0) {
-    const item = r.scanned[r.at]!;
-    r.at += 1;
-    if (item.item !== 'tag') continue;
-    const inside = r.p.source.text.slice(item.start, item.end).trim().replace(/\s+/g, ' ');
-    if (inside === 'one of') open += 1;
-    else if (inside === '/one of') open -= 1;
-  }
-}
-
-function refuseChance(r: Reader, at: Span, written: string): void {
-  r.p.diagnostics.refuse(
-    at,
-    `\`${written}\` is not something this compiler reads.`,
-    "A passage's blocks are `{if …}` and `{for …}`. Write one line in place of the choice.",
-  );
 }

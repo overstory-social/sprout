@@ -11,6 +11,8 @@
 // `{for x in c}` walks a container, `{for x: K in c}` the contents
 // composing `K`, typed so, and `{for x of l}` a list or a set role; each
 // binds `$first`, `$last`, `$index` and `$count` inside, and nowhere else.
+// Each choice of a `{one of}` is checked as a block of its own, and the
+// choice is refused where the prose draws nothing (`chance.ts`).
 
 import type { Expr } from '../syntax/ast.js';
 import {
@@ -19,6 +21,7 @@ import {
   type Prose,
   type ProseFor,
   type ProseIf,
+  type ProseOneOf,
   type ProseSlot,
 } from '../syntax/ast-prose.js';
 import { nearestOption, shownName } from '../declare/enums.js';
@@ -38,6 +41,7 @@ import { branchScope, checkCondition, resolveKind, typeOf, type CheckContext } f
 import { kindName } from '../declare/kinds.js';
 import { EFFECTS } from './check/writes.js';
 import type { ProseRecord } from './speech.js';
+import { refuseDraw } from './chance.js';
 
 /** Check `prose` in `context`'s scope, recording each passage a slot renders and each option it renders. */
 export function checkProse(prose: Prose, context: CheckContext, rendered: ProseRecord): void {
@@ -77,6 +81,9 @@ function pieces(prose: Prose, context: CheckContext, rendered: ProseRecord): voi
         break;
       case 'prose-for':
         checkFor(piece, context, rendered);
+        break;
+      case 'prose-one-of':
+        checkOneOf(piece, context, rendered);
         break;
       default:
         break;
@@ -157,7 +164,13 @@ function renderedPassage(
     );
     return;
   }
-  rendered.render({ name: member.text, at: member.at, kind, scope: personOf(context.scope) });
+  rendered.render({
+    name: member.text,
+    at: member.at,
+    kind,
+    scope: personOf(context.scope),
+    undrawn: context.undrawn ?? null,
+  });
 }
 
 /** What a passage rendered from here is run with: `actor` and `here`, where they are bound. */
@@ -181,6 +194,16 @@ function checkIf(block: ProseIf, context: CheckContext, rendered: ProseRecord): 
       return;
     }
     link = otherwise;
+  }
+}
+
+/** `{one of}…{or}…{/one of}`: refused where nothing may draw, and each choice checked in a scope of its own. */
+function checkOneOf(block: ProseOneOf, context: CheckContext, rendered: ProseRecord): void {
+  if (context.undrawn !== undefined) {
+    refuseDraw({ written: '{one of}', at: block.opened }, context.undrawn, context.diagnostics);
+  }
+  for (const choice of block.choices) {
+    pieces(choice, { ...context, scope: context.scope.inner() }, rendered);
   }
 }
 

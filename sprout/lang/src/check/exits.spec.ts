@@ -102,6 +102,13 @@ describe('an exit, against the whole bundle', () => {
     ]);
   });
 
+  it('refuses a `when` that draws, since it is asked to show the ways out', () => {
+    expect(said('exit in "in" -> shop when (chance(2))')[0]!.slice(2)).toEqual([
+      "An exit's `when` may not use `chance`: it is asked to show a visitor the ways out, so a roll would offer a way that vanishes when taken.",
+      'Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.',
+    ]);
+  });
+
   it('warns about a `when` that is the literal `false`, which never holds', () => {
     expect(said('exit in "in" -> shop when (false)')).toEqual([
       [

@@ -16,6 +16,8 @@ import {
 } from '../fixtures/prose.js';
 import { reflow } from './reflow.js';
 import { renderProse } from './render.js';
+import { Draws } from '../runtime/draws.js';
+import { chooser } from '../fixtures/parse.js';
 
 /** `name` of `by`, rendered for `reader` and laid out, charging nothing to output. */
 function rendered(
@@ -27,7 +29,7 @@ function rendered(
 ): string[] {
   const passage = turn.draft.instance(by)!.kind.passages.get(name)!;
   const voice = { self: by, library: 'mill', bindings: new Map(Object.entries(bindings)) };
-  return reflow(renderProse(passage.body.prose, voice, reader, turn.context));
+  return reflow(renderProse(passage.body.prose, voice, reader, turn.context, null));
 }
 
 describe('a slot renders what it reads', () => {
@@ -114,7 +116,7 @@ describe('rendering is charged, and bounded, as a body is', () => {
     const voice = { self: ECHO, library: 'mill', bindings: new Map() };
     let thrown: unknown;
     try {
-      renderProse(passage.body.prose, voice, turn.marta, turn.context);
+      renderProse(passage.body.prose, voice, turn.marta, turn.context, null);
     } catch (error) {
       thrown = error;
     }
@@ -126,5 +128,67 @@ describe('rendering is charged, and bounded, as a body is', () => {
   it('faults at the step budget, however much there is to walk', () => {
     const turn = proseTurn({ ...DEFAULT_LIMITS.budgets, steps: 5 });
     expect(() => rendered(turn, CRATE, 'listing', turn.marta)).toThrow(BudgetExhausted);
+  });
+});
+
+describe('a `{one of}` renders one of its choices, drawn', () => {
+  const CALLS = ['Hello, you.', 'Halloo, you.', 'Who is there, you.'];
+  const actor = (turn: ProseTurn) => ({ actor: boundObject(turn.marta) });
+
+  /** `name` of the echo for Marta, drawing from `draws`. */
+  const drawnWith = (turn: ProseTurn, name: string, draws: Draws | null, bindings = {}) => {
+    const passage = turn.draft.instance(ECHO)!.kind.passages.get(name)!;
+    const voice = {
+      self: ECHO,
+      library: 'mill',
+      bindings: new Map(Object.entries({ ...actor(turn), ...bindings })),
+    };
+    return reflow(renderProse(passage.body.prose, voice, turn.marta, turn.context, draws));
+  };
+
+  it('renders the choice the draw names, one step for the choosing', () => {
+    const turn = proseTurn();
+    const draws = new Draws(7);
+    const expected = new Draws(7);
+    for (let i = 0; i < 10; i++) {
+      expect(drawnWith(turn, 'call', draws)).toEqual([CALLS[expected.below(3)]]);
+    }
+    const before = turn.context.budget.spentSteps;
+    drawnWith(turn, 'call', new Draws(7));
+    expect(turn.context.budget.spentSteps - before).toBeGreaterThanOrEqual(1);
+  });
+
+  it('draws again for each time a loop comes round, and in a passage a slot renders', () => {
+    const turn = proseTurn();
+    const tools = { binds: 'set', ids: [BRASS_KEY, OAK_DOOR, CRATE, PRESS] } as const;
+    const draws = new Draws(12);
+    const [calls] = drawnWith(turn, 'calls', draws, { tools });
+    expect(calls!.split(' ')).toHaveLength(4);
+    expect(draws.drawn).toBe(4);
+    const tossed = new Draws(12);
+    const [toss] = drawnWith(turn, 'toss', tossed);
+    expect(tossed.drawn).toBe(2);
+    expect(toss).toMatch(/^(Heads|Tails), and (Hello|Halloo|Who is there), you\.$/);
+  });
+
+  it('renders the same for the same seed, and reaches every choice across seeds', () => {
+    const turn = proseTurn();
+    const run = (seed: number) => drawnWith(turn, 'call', new Draws(seed));
+    expect(run(99)).toEqual(run(99));
+    const seen = new Set(Array.from({ length: 60 }, (_, seed) => run(seed)[0]));
+    expect([...seen].sort()).toEqual([...CALLS].sort());
+  });
+
+  it('renders only a choice it holds, whatever the seed', () => {
+    const turn = proseTurn();
+    const c = chooser(5);
+    for (let i = 0; i < 200; i++) {
+      expect(CALLS).toContain(drawnWith(turn, 'call', new Draws(c.below(4_000_000_000)))[0]);
+    }
+  });
+
+  it('is the engine’s defect where nothing draws, which the checker refuses', () => {
+    const turn = proseTurn();
+    expect(() => drawnWith(turn, 'call', null)).toThrow(/where nothing draws/);
   });
 });

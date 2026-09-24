@@ -219,10 +219,10 @@ export interface CallExpr extends Node {
 }
 
 /**
- * `chance(30)`, `random(6)` — a call with no receiver. The parser reads
- * the shape so that a diagnostic can be about the name rather than
- * about a bracket; which names are readable is the checker's table, and
- * it is empty until B33 adds chance to it.
+ * `chance(30)`, `random(6)` — a call with no receiver, which is a draw
+ * (the spec's Chance › The forms). The parser reads the shape of any
+ * name so that a diagnostic can be about the name rather than about a
+ * bracket; which names draw is the checker's.
  */
 export interface FreeCallExpr extends Node {
   readonly kind: 'free-call';

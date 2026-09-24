@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { boundObject, BRASS_KEY, OAK_DOOR, PRESS, proseTurn } from '../fixtures/prose.js';
+import { Draws } from '../runtime/draws.js';
 import { engineLine } from '../runtime/engine-lines.js';
 import type { InstanceId } from '../runtime/ids.js';
 import type { Said } from '../runtime/reading.js';
 import { renderHeard } from './heard.js';
+import { LineDraws } from './line-draws.js';
 
 /** A line `by` the press, read by `to`, in words the engine reads as a one-line passage. */
 function line(
@@ -72,5 +74,33 @@ describe('a line an NPC says', () => {
     const [heard] = renderHeard(line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta), turn.context);
     expect(heard!.paragraphs).toEqual(['An oak door says "Miaow."']);
     expect(turn.context.budget.spentOutput(BRASS_KEY)).toBe([...heard!.paragraphs[0]!].length);
+  });
+});
+
+describe('a `tell` in quotes that draws', () => {
+  const CALLS = ['Hello', 'Halloo', 'Who is there'];
+
+  it('is drawn once, and every reader reads that one draw', () => {
+    const reached = new Set<string>();
+    for (let seed = 0; seed < 40; seed++) {
+      const turn = proseTurn();
+      const draws = new Draws(seed);
+      const context = { ...turn.context, draws: new LineDraws(draws) };
+      const told = line(
+        '{one of}Hello{or}Halloo{or}Who is there{/one of}, {actor}.',
+        [turn.marta, BRASS_KEY, OAK_DOOR],
+        null,
+        turn.marta,
+      );
+      const call = CALLS[new Draws(seed).below(3)]!;
+      reached.add(call);
+      expect(renderHeard(told, context), String(seed)).toEqual([
+        { reader: turn.marta, paragraphs: [`${call}, you.`] },
+        { reader: BRASS_KEY, paragraphs: [`${call}, Marta.`] },
+        { reader: OAK_DOOR, paragraphs: [`${call}, Marta.`] },
+      ]);
+      expect(draws.drawn, String(seed)).toBe(1);
+    }
+    expect(reached.size).toBe(CALLS.length);
   });
 });

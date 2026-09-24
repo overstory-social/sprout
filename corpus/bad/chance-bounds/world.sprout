@@ -1,0 +1,10 @@
+world chance_bounds is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object die is Die
+  }
+}
+
+verb roll { role target  "roll [target]" }
