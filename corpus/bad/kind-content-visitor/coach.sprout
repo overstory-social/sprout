@@ -1,0 +1,7 @@
+// A coach holds actors and brings its driver, an NPC. It may not bring a
+// passenger made of `Person`, though no coach is declared: nothing
+// declares a visitor, and each one is a person who arrives.
+kind Coach is sprout.Place {
+  object driver is Creature
+  object passenger is Person
+}

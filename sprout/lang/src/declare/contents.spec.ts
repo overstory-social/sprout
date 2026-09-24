@@ -16,17 +16,32 @@ import {
   type KindContents,
 } from './contents.js';
 
-/** The kinds `text` declares in the library `shop`, composed, and what their bodies give. */
-function contentsOf(text: string) {
+/** What a person and an NPC are made of, as the standard library declares them. */
+const ACTORS = 'kind Actor { contains }\nkind Visitor is Actor { }';
+
+/**
+ * The kinds `text` declares in the library `shop`, composed, and what
+ * their bodies give; `sprout` is what the standard library declares, where
+ * the fixture needs it.
+ */
+function contentsOf(text: string, sprout = '') {
   const diagnostics = new Diagnostics();
-  const declared = parseDeclarations(new SourceFile('shop.sprout', text), diagnostics);
-  expect(diagnostics.refusals, 'the fixture parses').toEqual([]);
   const kinds = new KindTable();
-  const own = declared.filter((d): d is KindDeclaration => d.kind === 'kind');
-  kinds.add('shop', own, diagnostics);
+  const byLibrary = new Map<string, KindDeclaration[]>();
+  for (const [library, written] of [
+    ['sprout', sprout],
+    ['shop', text],
+  ] as const) {
+    if (written === '') continue;
+    const declared = parseDeclarations(new SourceFile(`${library}.sprout`, written), diagnostics);
+    const own = declared.filter((d): d is KindDeclaration => d.kind === 'kind');
+    byLibrary.set(library, own);
+    kinds.add(library, own, diagnostics);
+  }
+  expect(diagnostics.refusals, 'the fixture parses').toEqual([]);
   const enums = new EnumTable();
   kinds.resolve('shop', enums, diagnostics);
-  const contents = resolveContents(new Map([['shop', own]]), {
+  const contents = resolveContents(byLibrary, {
     enums,
     kinds,
     world: 'shop',
@@ -115,6 +130,39 @@ describe('what a kind’s body may not give', () => {
     expect(said).toEqual([['shop.sprout:4:10', '`Lantern` holds two objects called `wick`.']]);
     expect(contents.get('shop.Lantern')).toHaveLength(1);
     expect(contentAt(contents, 'shop.Lantern', ['wick'])?.kind?.properties.has('x')).toBe(false);
+  });
+
+  it('refuses an object made for a person at its name, at any depth, and gives it to no one', () => {
+    const { contents, said } = contentsOf(
+      [
+        'kind Person is sprout.Visitor { }',
+        'kind Creature is sprout.Actor { }',
+        'kind Hutch { contains',
+        '  object guest is Person',
+        '  object rabbit is Creature',
+        '  object box is Hutch2 { contains object gent is sprout.Visitor }',
+        '}',
+        'kind Hutch2 { }',
+      ].join('\n'),
+      ACTORS,
+    );
+    const words = (name: string) =>
+      `\`${name}\` composes \`sprout.Visitor\`, what a person is made of, and nothing declares a visitor: each one is a person who arrives.`;
+    expect(said).toEqual([
+      ['shop.sprout:4:10', words('guest')],
+      ['shop.sprout:6:42', words('gent')],
+    ]);
+    expect(names(contents.get('shop.Hutch')!)).toEqual(['rabbit', 'box']);
+    expect(contentAt(contents, 'shop.Hutch', ['box'])?.holds).toEqual([]);
+  });
+
+  it('refuses nothing for an NPC, which stands where each instance lets it', () => {
+    const { contents, said } = contentsOf(
+      'kind Creature is sprout.Actor { }\nkind Hutch { contains object rabbit is Creature }',
+      ACTORS,
+    );
+    expect(said).toEqual([]);
+    expect(names(contents.get('shop.Hutch')!)).toEqual(['rabbit']);
   });
 
   it('gives nothing for a kind that could not be composed', () => {
