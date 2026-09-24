@@ -128,8 +128,8 @@ describe('what a compiled bundle carries', () => {
   });
 
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
-    // The union grows as the syntax lands; B27 fills the word set. An
-    // object is not among them: it is in the world's body.
+    // The union grows as the syntax lands. An object is not among them:
+    // it is in the world's body.
     expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
       'printers_shop',
       'Season',
@@ -149,7 +149,13 @@ describe('what a compiled bundle carries', () => {
       'Visitor',
       'ask',
     ]);
-    expect(bundle!.words).toEqual([]);
+    // The word set holds what the grammar reads: here, the hall and the
+    // phrases, directions and articles, and no kind the world or a
+    // person is made of, since nothing spawns one.
+    expect(bundle!.words).toContain('hall');
+    expect(bundle!.words).toContain('take');
+    expect(bundle!.words).not.toContain('world');
+    expect(bundle!.words).not.toContain('person');
   });
 });
 

@@ -1,0 +1,4 @@
+// Every key answers to `metal` as well as to its own name.
+kind Key {
+  grammar { nouns "metal" }
+}

@@ -37,12 +37,18 @@ import type { Sent } from './sends.js';
 import type { Instance, StateReader } from './state.js';
 import type { PassRule } from './range.js';
 import type { Value } from './values.js';
+import type { CommandExit } from './command/exits.js';
 
-/** What fills one role of a reading: a thing, the things a set role names in typed order, or a value the visitor named. */
+/**
+ * What fills one role of a reading: a thing, the things a set role names
+ * in typed order, a value the visitor named, or the exit a visitor named
+ * for the engine's `go`.
+ */
 export type Bound =
   | { readonly object: InstanceId }
   | { readonly set: readonly InstanceId[] }
-  | { readonly value: Value };
+  | { readonly value: Value }
+  | { readonly exit: CommandExit };
 
 /** One understood command, or one `act`: a verb, who performs it, and what fills its roles. */
 export interface Reading {
@@ -152,7 +158,7 @@ export function participantsOf(reading: Reading): Participant[] {
   }
   for (const role of reading.verb.roles) {
     const bound = boundOf(reading, role);
-    if (bound === undefined || 'value' in bound) continue;
+    if (bound === undefined || 'value' in bound || 'exit' in bound) continue;
     if ('object' in bound) participants.push({ id: bound.object, role: role.name });
     else for (const id of bound.set) participants.push({ id, role: role.name });
   }
@@ -428,7 +434,8 @@ function roleIn(
   const bound = boundOf(reading, role);
   if (role.many)
     return { binds: 'set', ids: bound !== undefined && 'set' in bound ? bound.set : [] };
-  if (role.name === participant.role || bound === undefined || 'set' in bound) return null;
+  if (role.name === participant.role || bound === undefined) return null;
+  if ('set' in bound || 'exit' in bound) return null;
   if ('object' in bound) return boundObject(bound.object);
   const narrowing = play.narrows.get(role.name);
   return narrowing !== undefined && hears(narrowing, bound.value, self)
@@ -450,6 +457,26 @@ function boundOf(reading: Reading, role: ResolvedRole): Bound | undefined {
     );
   }
   return bound;
+}
+
+/**
+ * Whether any participant of `reading` hears `value` for the value role
+ * `role`: some play of theirs narrows it with a `from` that holds it now
+ * (the spec's A role-player narrows its own options).
+ */
+export function heardBy(
+  reading: Reading,
+  role: ResolvedRole,
+  value: Value,
+  state: StateReader,
+): boolean {
+  return participantsOf(reading).some((participant) => {
+    const self = instanceIn(state, participant.id);
+    return playsFor(reading, participant, self).some((play) => {
+      const narrowing = play.narrows.get(role.name);
+      return narrowing !== undefined && hears(narrowing, value, self);
+    });
+  });
 }
 
 /**

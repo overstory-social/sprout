@@ -1,0 +1,7 @@
+world.sprout:7:28  `token` gets its `name` from both `Brass` and `Coin`, and a thing has one.
+                   Write `grammar { name "…" }` in `token` to say what it is called.
+
+world.sprout:7:28  `token` gets its `article` from both `Brass` and `Coin`, and a thing has one.
+                   Write `grammar { article … }` in `token` to say which it is written with.
+
+refused: 2 problems

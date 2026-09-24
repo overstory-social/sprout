@@ -36,6 +36,15 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(catalogue.declared.get(id('hall'))!.container).toBe(catalogue.world);
   });
 
+  it('holds every phrase a visitor may type, the standard library’s among them', () => {
+    const verbs = catalogue.phrases.map(({ verb }) => `${verb.library}.${verb.name}`);
+    for (const verb of ['sprout.take', 'sprout.look', 'sprout.go']) expect(verbs).toContain(verb);
+    expect(catalogue.phrases.find(({ verb }) => verb.name === 'take')!.parts).toEqual([
+      { words: ['take'] },
+      { slot: 0 },
+    ]);
+  });
+
   it('ranks siblings in the order they were declared', () => {
     const rank = (...path: string[]) => catalogue.declared.get(id(...path))!.rank;
     expect(rank('hall')).toBeLessThan(rank('yard'));

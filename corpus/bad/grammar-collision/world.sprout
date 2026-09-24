@@ -1,0 +1,9 @@
+// Two kinds that each name a thing, or each give it an article, collide in whatever composes both.
+world grammar_collision is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object token is Brass, Coin
+  }
+}

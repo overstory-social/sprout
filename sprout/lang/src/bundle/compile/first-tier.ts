@@ -12,6 +12,7 @@ import type { Declaration } from '../../syntax/ast.js';
 import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration } from '../../declare/enums.js';
+import { checkGrammar } from '../../declare/grammar.js';
 import { checkKindFiles } from '../../declare/kind-files.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
@@ -33,10 +34,11 @@ export interface ShapeResult {
  * The first tier: one file, checked alone for its shape. Today that is
  * its syntax, the options cap, a verb's roles and phrases and its caps,
  * `sprout.World` written on the world and nowhere else, an object
- * naming a kind, and each kind in the file named for it; the rest of the
- * caps that apply to a definition on its own, its declarations agreeing
- * with themselves and every write going to `self` join it as the syntax
- * that expresses them lands. The caps are the host's, as every limit is.
+ * naming a kind, a body's grammar lines and their caps, and each kind in
+ * the file named for it; the rest of the caps that apply to a definition
+ * on its own, its declarations agreeing with themselves and every write
+ * going to `self` join it as the syntax that expresses them lands. The
+ * caps are the host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
   const { declarations, diagnostics, layout } = readShape(file, caps);
@@ -57,7 +59,7 @@ function readShape(
       checkEnumDeclaration(declared, using.optionsPerEnum, diagnostics);
     }
     // A verb's roles and phrases agree with each other or not on their
-    // own, and its caps are the host's.
+    // own, and its caps are the host's; so do a grammar block's lines.
     if (declared.kind === 'verb') {
       checkVerbDeclaration(declared, using, diagnostics);
     }
@@ -68,14 +70,17 @@ function readShape(
       checkWorldDeclaration(declared, diagnostics);
       for (const { declaration } of objectsIn(declared)) {
         checkKindDeclaration(declaration, diagnostics);
+        checkGrammar(declaration, using, diagnostics);
       }
     }
     // As it does whether a kind or an object wrote it, which anything
     // but a world may not, and whether an object named a kind at all.
     if (declared.kind === 'kind') {
       checkKindDeclaration(declared, diagnostics);
+      checkGrammar(declared, using, diagnostics);
       for (const { declaration } of objectsIn(declared)) {
         checkKindDeclaration(declaration, diagnostics);
+        checkGrammar(declaration, using, diagnostics);
       }
     }
   }

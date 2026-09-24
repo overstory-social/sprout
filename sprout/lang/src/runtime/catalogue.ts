@@ -1,15 +1,16 @@
 // What one bundle says about the instances a world may hold (the spec's
 // The runtime › State): every declared object by its id, what the world
 // and a visitor are made of, the kinds a spawn may name and what each
-// gives its instances, every kind as a body finds it by name, every verb,
-// where visitors arrive, and the host's caps that stored values are read
-// under. Built once per load, and read by every
-// rule that reconciles stored state with source.
+// gives its instances, every kind as a body finds it by name, every verb
+// and the phrases a visitor may type, where visitors arrive, and the
+// host's caps that stored values are read under. Built once per load,
+// and read by every rule that reconciles stored state with source.
 //
 // Every placement in the declared tree is here, what a kind gave a
 // declared object and one whose kind is absent included, so that what it
-// holds keeps its declared container and its rank. A declared object's rank is its position in one walk of the
-// tree, which keeps siblings in the order they were declared.
+// holds keeps its declared container and its rank. A declared object's
+// rank is its position in one walk of the tree, which keeps siblings in
+// the order they were declared.
 
 import type { Bundle } from '../bundle/bundle.js';
 import type { StaticCaps } from '../bundle/limits.js';
@@ -22,6 +23,7 @@ import type { VerbLookup } from '../declare/verbs.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
 import { declaredId, type InstanceId } from './ids.js';
+import { typedPhrasesOf, type TypedPhrase } from './command/phrases.js';
 
 /** One object the tree places. */
 export interface DeclaredEntry {
@@ -60,6 +62,8 @@ export interface Catalogue {
   readonly lookup: KindLookup;
   /** Every verb the bundle declares, which an `act` reaches by name. */
   readonly verbs: VerbLookup;
+  /** Every phrase a visitor may type, in the order the command parser tries them. */
+  readonly phrases: readonly TypedPhrase[];
   /** Every message the bundle declares, which a send's message is reached in. */
   readonly messages: MessageLookup;
   /** What each identifier and path a body writes names. */
@@ -105,6 +109,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     contents: bundle.contents,
     lookup: bundle.kindLookup,
     verbs: bundle.verbs,
+    phrases: typedPhrasesOf(bundle.verbs.all(), name),
     messages: bundle.messages,
     names: bundle.names,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),

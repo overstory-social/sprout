@@ -1,0 +1,208 @@
+// A line a visitor typed, read as a reading (the spec's Verbs › Slots,
+// Set roles, Value roles, Engine verbs; Names › Addressing and display,
+// Articles, Nicknames; Limits › Runtime budgets). The modules in
+// `command/` are its areas: the phrases a visitor may type, what a thing
+// is called, where slots fall, what a noun names, and the answers.
+//
+// Every line has exactly one outcome: a reading, or one of the world's
+// answers, `which`, `unreachable` or `unknown`, never nothing. Phrases
+// are tried in order and the first reading wins; failing one, the first
+// `which` asked; failing that, a noun that names something the actor
+// cannot reach is `unreachable`, and anything else is `unknown`. Every
+// noun tried, every way of placing the slots and every object a range
+// walk visits is a step, so a line that costs too much to read faults the
+// turn as any other work would.
+
+import { typedWords } from '../declare/addressing.js';
+import type { ResolvedRole } from '../declare/verbs.js';
+import type { Budget } from './budget.js';
+import type { Catalogue } from './catalogue.js';
+import type { InstanceId } from './ids.js';
+import { liveTree } from './live.js';
+import { rangeOf, type PassRule } from './range.js';
+import type { Bound, Reading } from './reading.js';
+import type { StateReader } from './state.js';
+import { addressOf, type AddressContext } from './command/address.js';
+import { answer, type Answer, type Choice } from './command/answers.js';
+import type { CommandExit } from './command/exits.js';
+import { fillSlot, valueOf, type Filled } from './command/fill.js';
+import { slotSpans, type SlotSpan } from './command/match.js';
+import { nounIn, type Candidate } from './command/nouns.js';
+import type { TypedPhrase } from './command/phrases.js';
+
+/** What reading a line reads: the turn's state, the bundle, the pass rules and the meter. */
+export interface CommandContext {
+  readonly state: StateReader;
+  readonly catalogue: Catalogue;
+  readonly budget: Budget;
+  readonly passes: PassRule<InstanceId>;
+  /** Each visitor's nickname, by the instance that is them. */
+  readonly nicknames: ReadonlyMap<InstanceId, string>;
+  /** The exits that apply where the actor stands, in the order the place declares them. */
+  readonly exits: readonly CommandExit[];
+}
+
+/** A line's one outcome: understood as a reading, or answered. */
+export type CommandOutcome = { readonly understood: Reading } | Answer;
+
+/** A slot of one phrase that named nothing the actor can reach, kept for `unreachable`. */
+interface Unreached {
+  readonly role: ResolvedRole;
+  readonly words: readonly string[];
+}
+
+/** `line`, typed by `actor`, as a reading or the world's answer to it. */
+export function readCommand(
+  line: string,
+  actor: InstanceId,
+  context: CommandContext,
+): CommandOutcome {
+  const { state, catalogue, budget } = context;
+  const here = placeOf(state, actor);
+  const words = typedWords(line);
+  if (words.length === 0) return answer(state, 'unknown', actor, here);
+
+  const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
+  const tree = liveTree(state);
+  const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
+  const candidates = candidatesOf(
+    state,
+    range.reached.map(({ node }) => node),
+    addressing,
+  );
+  const fill = { candidates, exits: context.exits, budget };
+
+  let which: Answer | null = null;
+  const unreached: Unreached[] = [];
+  for (const phrase of catalogue.phrases) {
+    const filled = new Map<string, Filled>();
+    const fillOf = (span: SlotSpan): Filled => {
+      const key = `${span.role}:${span.start}:${span.end}`;
+      let found = filled.get(key);
+      if (found === undefined) {
+        found = fillSlot(phrase.verb.roles[span.role]!, words.slice(span.start, span.end), fill);
+        filled.set(key, found);
+      }
+      return found;
+    };
+    for (const spans of slotSpans(phrase.parts, words)) {
+      budget.spend();
+      const fills = spans.map(fillOf);
+      if (fills.some((one) => one.fills === 'unfit')) continue;
+      const asked = spans.findIndex((_, at) => fills[at]!.fills === 'which');
+      if (asked >= 0) {
+        which ??= whichAnswer(
+          context,
+          actor,
+          here,
+          words,
+          spans[asked]!,
+          fills[asked]!,
+          addressing,
+        );
+        continue;
+      }
+      const missing = spans.findIndex((_, at) => fills[at]!.fills === 'nothing');
+      if (missing >= 0) {
+        const span = spans[missing]!;
+        const noun = fills[missing]!;
+        if (noun.fills === 'nothing') {
+          const start = span.start + noun.start;
+          unreached.push({
+            role: phrase.verb.roles[span.role]!,
+            words: words.slice(start, span.start + noun.end),
+          });
+        }
+        continue;
+      }
+      return { understood: readingOf(phrase, actor, spans, fills, context) };
+    }
+  }
+  if (which !== null) return which;
+
+  // Nothing the actor can reach was named: something further off is.
+  if (unreached.length > 0) {
+    const beyond = rangeOf({ tree, passes: () => true, budget }, actor, 'any')
+      .reached.map(({ node }) => node)
+      .filter((node) => !range.within.has(node));
+    const far = candidatesOf(state, beyond, addressing);
+    for (const { role, words: named } of unreached) {
+      const found = nounIn(named, role, far, budget);
+      const thing =
+        found.found === 'one' ? found.id : found.found === 'which' ? found.candidates[0] : null;
+      if (thing !== null && thing !== undefined) {
+        return answer(state, 'unreachable', actor, here, { thing });
+      }
+    }
+  }
+  return answer(state, 'unknown', actor, here);
+}
+
+/** What may be named among `nodes`, nearest first: every live thing but the world. */
+function candidatesOf(
+  state: StateReader,
+  nodes: readonly InstanceId[],
+  addressing: AddressContext,
+): Candidate[] {
+  return nodes.flatMap((node) => {
+    const instance = node === state.world ? undefined : state.instance(node);
+    return instance === undefined ? [] : [{ instance, address: addressOf(instance, addressing) }];
+  });
+}
+
+/** The reading one placement of a phrase's slots makes, every slot filled. */
+function readingOf(
+  phrase: TypedPhrase,
+  actor: InstanceId,
+  spans: readonly SlotSpan[],
+  fills: readonly Filled[],
+  context: CommandContext,
+): Reading {
+  const { verb } = phrase;
+  const bindings = new Map<string, Bound>();
+  const values: { role: ResolvedRole; words: readonly string[] }[] = [];
+  spans.forEach((span, at) => {
+    const role = verb.roles[span.role]!;
+    const filled = fills[at]!;
+    if (filled.fills === 'bound') bindings.set(role.name, filled.bound);
+    else if (filled.fills === 'words') values.push({ role, words: filled.words });
+  });
+  // A value is bound once the things are, since who hears it depends on them.
+  const things: Reading = { verb, actor, bindings: new Map(bindings) };
+  for (const { role, words } of values) {
+    const value = valueOf(role, words, things, context.state);
+    if (value !== null) bindings.set(role.name, { value });
+  }
+  for (const bound of bindings.values())
+    if ('set' in bound) context.budget.setRole(bound.set.length);
+  return { verb, actor, bindings };
+}
+
+/** The `which` one ambiguous slot asks, each candidate with the line that means it. */
+function whichAnswer(
+  context: CommandContext,
+  actor: InstanceId,
+  here: InstanceId,
+  words: readonly string[],
+  span: SlotSpan,
+  filled: Filled,
+  addressing: AddressContext,
+): Answer {
+  if (filled.fills !== 'which') return answer(context.state, 'which', actor, here);
+  const start = span.start + filled.start;
+  const end = span.start + filled.end;
+  const choices: Choice[] = filled.candidates.map((id) => {
+    const instance = context.state.instance(id)!;
+    const name = typedWords(addressOf(instance, addressing).name);
+    const line = [...words.slice(0, start), ...name, ...words.slice(end)];
+    return { id, line: line.join(' ').replaceAll(' ,', ',') };
+  });
+  return answer(context.state, 'which', actor, here, { choices });
+}
+
+/** The actor's place: its container, since an actor is only ever inside something that holds actors. */
+function placeOf(state: StateReader, actor: InstanceId): InstanceId {
+  const container = state.instance(actor)?.container ?? null;
+  if (container === null) throw new Error(`\`${actor}\` is not in the world, and types nothing.`);
+  return container;
+}
