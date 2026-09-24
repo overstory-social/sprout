@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  HandlerDeclaration,
-  HookDeclaration,
-  KindDeclaration,
-  KindMember,
-  WithoutDeclaration,
-} from '../ast.js';
+import type { KindDeclaration, KindMember, WithoutDeclaration } from '../ast.js';
+import type { HandlerDeclaration, HookDeclaration } from '../ast-events.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';

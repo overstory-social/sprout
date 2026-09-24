@@ -14,7 +14,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { ResolvedHandler, ResolvedHook } from '../declare/handlers.js';
 import type { ResolvedPass } from '../declare/passes.js';
-import { writtenPass } from '../syntax/ast.js';
+import { writtenPass } from '../syntax/ast-events.js';
 import { nearestOption } from '../declare/enums.js';
 import {
   engineParameters,

@@ -10,7 +10,7 @@
 // may be moved is `runtime/move.ts`'s.
 
 import type { KindDeclaration, KindExpr, KindMember } from '../syntax/ast.js';
-import { writtenPass } from '../syntax/ast.js';
+import { writtenPass } from '../syntax/ast-events.js';
 import type { Span } from '../source/source.js';
 import { onceEach, type Diagnostics } from '../source/diagnostics.js';
 import { qualifiedName, SPROUT } from './enums.js';
