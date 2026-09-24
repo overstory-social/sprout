@@ -9,6 +9,7 @@ import {
   codeUnitOrder,
   contentsOrder,
   newInstance,
+  nicknamesIn,
   readerOf,
   type Instance,
   type WorldState,
@@ -148,5 +149,10 @@ describe('a reader of committed state', () => {
     expect(reader.instance(minted(3))).toBeUndefined();
     expect(reader.children(jar.id)).toEqual([]);
     expect(reader.visitor(visitKey('v-2'))).toBeUndefined();
+  });
+
+  it('names each visitor by the instance that is them, present or away', () => {
+    expect(nicknamesIn(state)).toEqual(new Map([[minted(1), 'Marta']]));
+    expect(nicknamesIn({ ...state, visitors: new Map() })).toEqual(new Map());
   });
 });

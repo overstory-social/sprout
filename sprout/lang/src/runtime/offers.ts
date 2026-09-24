@@ -24,6 +24,7 @@ import {
 } from './reading.js';
 import { exitsFrom } from './exits.js';
 import { addressOf, type AddressContext } from './parser/address.js';
+import type { CommandExit } from './parser/exits.js';
 import { fits } from './parser/nouns.js';
 import type { TypedPhrase } from './parser/phrases.js';
 import type { Instance } from './state.js';
@@ -45,8 +46,17 @@ export interface Offer {
 /** One way to fill one role: bound, with the words that type it, or left unbound. */
 type Filling = { readonly bound: Bound; readonly words: string } | null;
 
-/** Every reading `actor` could type where they stand, in the order the parser tries the verbs. */
-export function offersTo(actor: InstanceId, context: OfferContext): Offer[] {
+/**
+ * Every reading `actor` could type where they stand, in the order the
+ * parser tries the verbs; `go` by each of `exits`, the exits and links
+ * that apply on their place, asked here where the caller has not asked
+ * them already.
+ */
+export function offersTo(
+  actor: InstanceId,
+  context: OfferContext,
+  exits?: readonly CommandExit[],
+): Offer[] {
   const { state, budget, passes } = context;
   const here = state.instance(actor)?.container ?? null;
   if (here === null) throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
@@ -56,14 +66,14 @@ export function offersTo(actor: InstanceId, context: OfferContext): Offer[] {
     const instance = node === state.world || node === actor ? undefined : state.instance(node);
     return instance === undefined ? [] : [instance];
   });
-  const exits = exitsFrom(here, context);
+  const ways = exits ?? exitsFrom(here, context);
 
   const offers: Offer[] = [];
   for (const [verb, phrases] of byVerb(context.catalogue.phrases)) {
     const each = verb.roles.map((role): Filling[] => {
       if (role.filler?.fills === 'exit') {
         // A link has no direction, and is typed by its label.
-        return exits.map((exit) => ({
+        return ways.map((exit) => ({
           bound: { exit },
           words: exit.direction ?? typedWords(exit.label).join(' '),
         }));

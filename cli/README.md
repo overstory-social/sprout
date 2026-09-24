@@ -6,8 +6,7 @@ npx sprout check shed
 ```
 
 The Sprout command line on a microworld folder: `sprout.json` beside the
-world's `.sprout` and `.prose` files. `play` and `serve` return when the
-runtime does (B34, B37).
+world's `.sprout` and `.prose` files. `play` and `serve` are not built.
 
 | command                            | does                                                                                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |

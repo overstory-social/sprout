@@ -23,8 +23,8 @@
 // the effect pass says, tells and sends is kept in body order, what a
 // place says of an actor moved between two among it as the move is made.
 // Nothing is rendered here: the turn renders what is said once its work
-// is done (`effects.ts`), `bus.ts` drains the queue after, and B37 polls
-// the consent pass alone.
+// is done (`effects.ts`), `bus.ts` drains the queue after, and a poll
+// runs the consent pass alone.
 
 import { libraryOf, SPROUT } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
