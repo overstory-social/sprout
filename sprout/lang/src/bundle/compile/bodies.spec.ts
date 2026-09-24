@@ -101,6 +101,16 @@ kind Both is Brass, Iron { }`),
     ).toEqual([['shop.sprout:2:54', '`self.set` writes, and a `permit` only reads and decides.']]);
   });
 
+  it('says a problem in a composed exit once, against the kind that wrote it', () => {
+    expect(
+      checked(`kind Doorway { grammar { exit out "out" -> yard } }
+kind Hall is Doorway { contains actors }
+kind Porch is Doorway { contains actors }`),
+    ).toEqual([
+      ['shop.sprout:1:31', '`Doorway` is not a place, so nobody stands in it to take a way out.'],
+    ]);
+  });
+
   it('reads a play’s passage on the kind that wrote it', () => {
     expect(
       checked(`verb pull { role target  "pull [target]" }

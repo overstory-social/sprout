@@ -1,0 +1,7 @@
+world.sprout:9:12   `through` is not a direction. A way out leads `north`, `south`, `east`, `west`, `northeast`, `northwest`, `southeast`, `southwest`, `up`, `down`, `in` or `out`.
+                    Write one of those, and say the rest in the label, as in `exit in "through the fur coats" -> narnia`.
+
+world.sprout:10:12  `n` is how a visitor types `north`, and source writes the direction out.
+                    Write `exit north "north to the meadow" -> narnia`.
+
+refused: 2 problems

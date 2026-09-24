@@ -195,8 +195,8 @@ export const BARREL = IN('cellar', 'barrel');
 
 /** The exits a case says apply in the hall. */
 export const EXITS: readonly CommandExit[] = [
-  { direction: 'north', label: 'into the yard' },
-  { direction: 'down', label: 'down the cellar stair' },
+  { direction: 'north', label: 'into the yard', to: CELLAR },
+  { direction: 'down', label: 'down the cellar stair', to: CELLAR },
 ];
 
 /** A study with a visitor in the hall for each nickname given, in that order. */

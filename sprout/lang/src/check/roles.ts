@@ -115,7 +115,7 @@ function bindRole(
   const name = role.name;
   const narrowing = play.narrows.get(name) ?? null;
   const filler = role.filler ?? { fills: 'open' as const };
-  // Only the engine's `go` has an exit role, and what an exit binds is B28's.
+  // An exit is the engine's to take, and binds nothing in a play.
   if (filler.fills === 'exit') return;
 
   const thing = filler.fills === 'kind' || filler.fills === 'open';

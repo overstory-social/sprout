@@ -28,6 +28,7 @@ import type { StateReader } from './state.js';
 import { addressOf, type AddressContext } from './parser/address.js';
 import { answer, type Answer, type Choice } from './parser/answers.js';
 import type { CommandExit } from './parser/exits.js';
+import { exitsFrom } from './exits.js';
 import { fillSlot, valueOf, type Filled } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import type { Candidate } from './parser/nouns.js';
@@ -173,12 +174,13 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 }
 
 /**
- * The parser a command turn reads through: `readCommand`, with an answer
- * said to the actor as a notice from the world. The exits that apply are
- * B28's to give; until then a direction names none.
+ * The parser a command turn reads through: `readCommand`, over the exits
+ * that apply where the actor stands, with an answer said to the actor as
+ * a notice from the world.
  */
 export const parseCommand: Parser = (text, actor, context) => {
-  const outcome = readCommand(text, actor, { ...context, exits: [] });
+  const exits = exitsFrom(placeOf(context.state, actor), context);
+  const outcome = readCommand(text, actor, { ...context, exits });
   if ('understood' in outcome) return { reading: outcome.understood };
   const { said, bindings, choices } = outcome;
   return {

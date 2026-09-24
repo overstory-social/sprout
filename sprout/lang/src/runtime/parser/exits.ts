@@ -2,15 +2,17 @@
 // direction, written out or abbreviated, or the label of an exit typed as
 // an alias for its direction, so what a screen reader speaks can be
 // spoken back. Only the exits that apply where the actor stands are
-// asked; which those are, and what taking one does, is B28's.
+// asked, which `runtime/exits.ts` says.
 
 import { typedWords } from '../../declare/addressing.js';
 import { directionOf, type Direction } from '../../declare/directions.js';
+import type { InstanceId } from '../ids.js';
 
-/** One exit that applies where the actor stands: its direction and its label. */
+/** One exit that applies where the actor stands: its direction, its label, and the place it leads to. */
 export interface CommandExit {
   readonly direction: Direction;
   readonly label: string;
+  readonly to: InstanceId;
 }
 
 /**

@@ -18,7 +18,20 @@ import {
   toldBy,
   typed,
 } from '../fixtures/turns.js';
-import { NOTHING } from '../fixtures/reading.js';
+import { NOTHING, words } from '../fixtures/reading.js';
+import {
+  INES as INES_WAYS,
+  LADDER,
+  LAMP,
+  LOFT,
+  MARTA as MARTA_WAYS,
+  MEADOW,
+  MOUTH,
+  SHOP,
+  ways,
+  waysHost,
+  YARD,
+} from '../fixtures/exits.js';
 import { commandTurn, type CommandTurn, type Parser } from './command.js';
 import type { InstanceId } from './ids.js';
 import { saveWorld } from './load.js';
@@ -186,6 +199,173 @@ describe('no command turn ends with nothing said to the one who typed it', () =>
           lines.some((line) => line.to.includes(marta)),
           `\`${text}\` said nothing to its actor`,
         ).toBe(true);
+      }
+    }
+  });
+});
+
+// --- `go` --------------------------------------------------------------------
+
+describe('`go`, through a command turn', () => {
+  const walk = (state: WorldState, text: string) =>
+    committed(commandTurn(state, waysHost(), typed(MARTA_WAYS, text)));
+  const marta = (state: WorldState) => actorOf(state, MARTA_WAYS);
+  const standing = (state: WorldState, id: InstanceId) => state.instances.get(id)!.container;
+  /** What a turn told its actor: each line's words, and each place described to them. */
+  const told = (turn: ReturnType<typeof walk>, actor: InstanceId) => {
+    const done = turn.value;
+    if ('answered' in done) return [words(done.answered.said)];
+    if ('refused' in done) return [words(done.refused.said)];
+    return [
+      ...[...done.acted.said, ...done.drained.said]
+        .filter((line) => line.to.includes(actor))
+        .map((line) => words(line.said)),
+      ...done.acted.notices
+        .filter((notice) => notice.notice === 'described' && notice.audience.includes(actor))
+        .map((notice) => `described ${notice.place}`),
+    ];
+  };
+
+  it('moves the actor through the exit a direction, its abbreviation or its label names', () => {
+    for (const text of [
+      'north',
+      'n',
+      'go north',
+      'walk n',
+      'deeper into the dark',
+      'go Deeper Into The Dark',
+    ]) {
+      const state = ways();
+      const turn = walk(state, text);
+      expect(standing(turn.state, marta(state)), text).toBe(MOUTH);
+      // The one who went reads where they arrived, and nothing else is said.
+      expect(told(turn, marta(state)), text).toEqual([`described ${MOUTH}`]);
+    }
+  });
+
+  it('takes the exit that applies: the next in its direction once the first no longer holds', () => {
+    const state = ways(undefined, [[LAMP, 'lit', true]]);
+    expect(standing(walk(state, 'north').state, marta(state))).toBe(MEADOW);
+  });
+
+  it('crosses into a place inside another, which the actor’s range never reaches', () => {
+    const state = ways();
+    expect(standing(walk(state, 'up').state, marta(state))).toBe(LOFT);
+  });
+
+  it('answers a way that does not apply as it answers any word it does not know', () => {
+    for (const [text, state] of [
+      ['south', ways()],
+      ['go west', ways()],
+      ['up', ways([[MARTA_WAYS, SHOP]])],
+    ] as const) {
+      const turn = walk(state, text);
+      expect(told(turn, marta(state)), text).toEqual([
+        'sprout.World unknown: That is not something you can do here.',
+      ]);
+      expect(standing(turn.state, marta(state)), text).toBe(standing(state, marta(state)));
+    }
+    const down = ways([[MARTA_WAYS, SHOP]], [[LADDER, 'down', true]]);
+    expect(standing(walk(down, 'up').state, marta(down))).toBe(LOFT);
+  });
+
+  it('says the destination’s refusal, as a refused `move` is said, and moves nobody', () => {
+    const state = ways(undefined, [
+      [LAMP, 'lit', true],
+      [MEADOW, 'shut', true],
+    ]);
+    const turn = walk(state, 'north');
+    expect(told(turn, marta(state))).toEqual(['The gate is shut.']);
+    expect(standing(turn.state, marta(state))).toBe(YARD);
+    // The refusal ends the pass: the walker's own part does not count the way.
+    expect(turn.state.instances.get(marta(state))!.properties.get('walked')).toBe(0);
+  });
+
+  it('runs the actor’s own part of `go`: its `permit` may refuse, and its `do` runs once the move is made', () => {
+    const tired = ways();
+    const draft = tired.instances.get(marta(tired))!;
+    const state: WorldState = {
+      ...tired,
+      instances: new Map(tired.instances).set(draft.id, {
+        ...draft,
+        properties: new Map(draft.properties).set('tired', true),
+      }),
+    };
+    const turn = walk(state, 'north');
+    expect(told(turn, marta(state))).toEqual(['You are too tired to walk.']);
+    expect(standing(turn.state, marta(state))).toBe(YARD);
+    const went = walk(ways(), 'north');
+    expect(went.state.instances.get(marta(ways()))!.properties.get('walked')).toBe(1);
+  });
+
+  it('tells the places either side, as any move between two places does', () => {
+    const state = ways([
+      [MARTA_WAYS, YARD],
+      [INES_WAYS, MOUTH],
+    ]);
+    const turn = walk(state, 'north');
+    const done = turn.value;
+    if (!('acted' in done)) throw new Error('the turn did not act');
+    expect(
+      done.acted.notices.map((notice) => [notice.notice, notice.place, notice.audience]),
+    ).toEqual([
+      ['leaves', YARD, []],
+      ['arrives', MOUTH, [actorOf(state, INES_WAYS)]],
+      ['described', MOUTH, [marta(state)]],
+    ]);
+  });
+
+  it('follows a link once the world connects it, and the way back the new place connected', () => {
+    let state = ways([[MARTA_WAYS, MOUTH]]);
+    expect(told(walk(state, 'north'), marta(state))).toEqual([
+      'sprout.World unknown: That is not something you can do here.',
+    ]);
+    const dug = walk(state, 'dig turning of the maze');
+    expect(told(dug, marta(state))).toEqual(['The stones give, and a gap opens into more dark.']);
+    state = dug.state;
+    const on = walk(state, 'north');
+    const cell = standing(on.state, marta(state))!;
+    expect(on.state.instances.get(cell)!.made).toEqual({ from: 'spawned', kind: 'ways.MazeCell' });
+    expect(standing(walk(on.state, 'the way you came').state, marta(state))).toBe(MOUTH);
+    // Every turning leads up to the yard, as its kind writes it.
+    expect(standing(walk(on.state, 'up').state, marta(state))).toBe(YARD);
+  });
+
+  it('tells its actor something for every line typed, directions and labels among them', () => {
+    const texts = [
+      'north',
+      'south',
+      'east',
+      'west',
+      'up',
+      'down',
+      'in',
+      'out',
+      'n',
+      'u',
+      'go',
+      'go nowhere',
+      'into the shop',
+      'dig turning of the maze',
+      'toward a grey light',
+    ];
+    for (const [where, set] of [
+      [YARD, []],
+      [
+        YARD,
+        [
+          [LAMP, 'lit', true],
+          [MEADOW, 'shut', true],
+        ],
+      ],
+      [SHOP, []],
+      [MOUTH, []],
+    ] as const) {
+      const state = ways([[MARTA_WAYS, where]], set);
+      for (const text of texts) {
+        expect(told(walk(state, text), marta(state)).length, `${text} in ${where}`).toBeGreaterThan(
+          0,
+        );
       }
     }
   });

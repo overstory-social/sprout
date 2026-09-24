@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { compiledWorld } from '../fixtures/bundle.js';
 import { STUDY } from '../fixtures/parser.js';
+import { WAYS } from '../fixtures/exits.js';
 import { wordSetOf } from './words.js';
 
 describe('the world’s word set', () => {
@@ -20,6 +21,14 @@ describe('the world’s word set', () => {
     expect(words.has('place')).toBe(true);
     expect(words.has('person')).toBe(false);
     expect(words.has('world')).toBe(false);
+  });
+
+  it('holds each word of every exit’s and link’s label', () => {
+    const ways = new Set(WAYS.words);
+    for (const word of ['toward', 'grey', 'light', 'daylight', 'deeper', 'dark', 'came']) {
+      expect(ways.has(word), word).toBe(true);
+    }
+    expect(words.has('daylight')).toBe(false);
   });
 
   it('holds the directions and their abbreviations, the articles, determiners and connectors', () => {

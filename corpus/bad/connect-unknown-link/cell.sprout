@@ -1,0 +1,10 @@
+kind Cell is sprout.Place {
+  grammar { link north "deeper into the dark" }
+  as target for dig {
+    do {
+      let cell = spawn Cell in self
+      connect down to cell
+      say "The floor gives."
+    }
+  }
+}

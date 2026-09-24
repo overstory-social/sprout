@@ -103,6 +103,15 @@ describe('a deciding body only reads and decides', () => {
     ]);
   });
 
+  it('refuses a `connect`, which writes where a link leads', () => {
+    expect(check('connect north to self', GUARD)).toEqual([
+      ['b.sprout:3:5', '`connect` writes where a link leads, and a guard only reads and decides.'],
+    ]);
+    expect(check('connect north to self', PERMIT)[0]![1]).toBe(
+      '`connect` writes where a link leads, and a `permit` only reads and decides.',
+    );
+  });
+
   it('takes `refuse` and `allow`', () => {
     expect(check('if (self.count > 1) { refuse "Full." } else { allow }', PERMIT)).toEqual([]);
   });
@@ -130,6 +139,16 @@ describe('a `do` acts', () => {
     expect(check('act purr ()', DO)).toEqual([
       ['b.sprout:3:5', 'Only an actor acts, and `Vessel` does not compose `sprout.Actor`.'],
       ['b.sprout:3:9', 'Nothing declares a verb `purr`.'],
+    ]);
+  });
+
+  it('checks a `connect` as a statement, against the links `self` has', () => {
+    expect(check('connect north to self', DO)).toEqual([
+      ['b.sprout:3:13', '`Vessel` has no link `north`, so there is nothing to connect.'],
+      [
+        'b.sprout:3:22',
+        '`Vessel` does not hold actors, so nobody could stand where this link leads.',
+      ],
     ]);
   });
 

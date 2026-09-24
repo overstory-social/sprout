@@ -186,6 +186,18 @@ describe('a composed grammar', () => {
     });
   });
 
+  it('checks a body’s exits and links with its other lines, in the first tier', () => {
+    expect(
+      checked('kind Wardrobe { grammar { name "wardrobe"  exit through "coats" -> narnia } }'),
+    ).toEqual([
+      [
+        'k.sprout:1:49',
+        '`through` is not a direction. A way out leads `north`, `south`, `east`, `west`, `northeast`, `northwest`, `southeast`, `southwest`, `up`, `down`, `in` or `out`.',
+        'Write one of those, and say the rest in the label, as in `exit in "coats" -> narnia`.',
+      ],
+    ]);
+  });
+
   it('is nothing at all where no source writes a line', () => {
     const { members } = parsed('kind Plain { :a 1 }').kinds[0]!;
     expect(ownGrammar(members, 'shop.Plain')).toEqual(NO_GRAMMAR);

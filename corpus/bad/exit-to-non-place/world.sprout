@@ -1,0 +1,14 @@
+// An exit leads somewhere a visitor can stand: a shelf holds things, and
+// not people; the world holds the places.
+world exit_to_non_place is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit up "onto the shelf" -> shelf
+      exit out "out of everything" -> exit_to_non_place
+    }
+    object shelf is Shelf
+  }
+}
