@@ -1,4 +1,4 @@
-world.sprout:10:27  An object does not name what holds it: the body it is written in is its container.
-                    Take out `in composing_room.bench`, and write `object cushion …` inside the braces of `composing_room.bench`.
+object_names_container.sprout:10:27  An object does not name what holds it: the body it is written in is its container.
+                                     Take out `in composing_room.bench`, and write `object cushion …` inside the braces of `composing_room.bench`.
 
 refused: 1 problem

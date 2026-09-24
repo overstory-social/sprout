@@ -8,7 +8,7 @@
 
 import { libraryHash, type LibrarySource, type Manifest } from '../bundle/bundle.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
-import { kindFileName } from '../declare/kind-files.js';
+import { fileNamedFor } from '../declare/file-names.js';
 import { SourceFile } from '../source/source.js';
 import type { Diagnostic } from '../source/diagnostics.js';
 
@@ -26,7 +26,7 @@ export const MANIFEST = [
   '  "level": 1,',
   '  "extensions": [{ "name": "media", "major": 2 }],',
   `  "libraries": [{ "name": "sprout", "version": "0.1.0", "sha": "${SPROUT_SHA}" }],`,
-  '  "files": ["world.sprout", "person.sprout"]',
+  '  "files": ["printers_shop.sprout", "person.sprout"]',
   '}',
   '',
 ].join('\n');
@@ -50,14 +50,14 @@ export const WORLD_TEXT = `${WORLD_LINE}\nenum Season { spring, summer, autumn, 
 export const OWN_BYTES = WORLD_TEXT.length + PERSON.text.length;
 
 /**
- * `world.sprout` holding `text`, `person.sprout`, and each of `kinds` in
+ * `printers_shop.sprout` holding `text`, `person.sprout`, and each of `kinds` in
  * the file named for it, as every kind is declared.
  */
 export function worldFiles(text: string, ...kinds: string[]): SourceFile[] {
   return [
-    file('world.sprout', text),
+    file('printers_shop.sprout', text),
     PERSON,
-    ...kinds.map((kind) => file(kindFileName(/kind (\w+)/.exec(kind)![1]!), kind)),
+    ...kinds.map((kind) => file(fileNamedFor(/kind (\w+)/.exec(kind)![1]!), kind)),
   ];
 }
 

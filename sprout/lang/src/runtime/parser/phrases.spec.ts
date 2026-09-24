@@ -4,7 +4,7 @@ import { compiledWorld } from '../../fixtures/bundle.js';
 import { typedPhrasesOf, type TypedPhrase } from './phrases.js';
 
 const SHOP = compiledWorld('shop', {
-  'world.sprout': [
+  'shop.sprout': [
     'world shop is sprout.World { visitors are Person visitors arrive at hall',
     '  object hall is sprout.Place',
     '}',

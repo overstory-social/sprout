@@ -1,13 +1,13 @@
-world.sprout:12:16  `connect` does not say which link it assigns.
-                    Name one of `self`'s links, and what it leads to, as in `connect onward to cell`.
+connect_lines.sprout:12:16  `connect` does not say which link it assigns.
+                            Name one of `self`'s links, and what it leads to, as in `connect onward to cell`.
 
-world.sprout:13:23  `connect onward` does not say where the link leads.
-                    Write `to` and the place: `connect onward to cell`.
+connect_lines.sprout:13:23  `connect onward` does not say where the link leads.
+                            Write `to` and the place: `connect onward to cell`.
 
-world.sprout:14:26  After `to` comes the place `onward` leads to.
-                    Name a binding that holds it, as in `connect onward to cell` after `let cell = spawn …`.
+connect_lines.sprout:14:26  After `to` comes the place `onward` leads to.
+                            Name a binding that holds it, as in `connect onward to cell` after `let cell = spawn …`.
 
-world.sprout:15:17  `Onward` starts with a capital, and a link's name is written in lower case.
-                    Name one of `self`'s links, and what it leads to, as in `connect onward to cell`.
+connect_lines.sprout:15:17  `Onward` starts with a capital, and a link's name is written in lower case.
+                            Name one of `self`'s links, and what it leads to, as in `connect onward to cell`.
 
 refused: 4 problems

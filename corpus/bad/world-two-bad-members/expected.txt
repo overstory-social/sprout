@@ -1,10 +1,10 @@
-world.sprout:4:15  A min is a whole number.
-                   Write `min 0`, or leave it out.
+w.sprout:4:15  A min is a whole number.
+               Write `min 0`, or leave it out.
 
-world.sprout:5:14  `Ward.` cannot name `Iron`, which starts with a capital.
-                   An option is a lower-case word, as in `:ward Ward.iron`.
+w.sprout:5:14  `Ward.` cannot name `Iron`, which starts with a capital.
+               An option is a lower-case word, as in `:ward Ward.iron`.
 
-world.sprout:6:16  `:opens` writes a dot after a type that has no options.
-                   Only an enum names its option after a dot, as in `:ward Ward.iron`. Write `default` and the value instead.
+w.sprout:6:16  `:opens` writes a dot after a type that has no options.
+               Only an enum names its option after a dot, as in `:ward Ward.iron`. Write `default` and the value instead.
 
 refused: 3 problems

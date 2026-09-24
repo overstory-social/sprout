@@ -15,7 +15,7 @@ import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration } from '../../declare/enums.js';
 import { checkGrammar } from '../../declare/grammar.js';
-import { checkKindFiles } from '../../declare/kind-files.js';
+import { checkKindFiles } from '../../declare/file-names.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';

@@ -1,10 +1,10 @@
-world.sprout:10:12  `link` is followed by its name, a word of your own, then its label in quotes.
-                    Write `link onward "deeper into the dark"`.
+link_lines.sprout:10:12  `link` is followed by its name, a word of your own, then its label in quotes.
+                         Write `link onward "deeper into the dark"`.
 
-world.sprout:11:12  `Onward` starts with a capital, and a link's name is written in lower case.
-                    Write `link onward …`, as in `link onward "deeper into the dark"`.
+link_lines.sprout:11:12  `Onward` starts with a capital, and a link's name is written in lower case.
+                         Write `link onward …`, as in `link onward "deeper into the dark"`.
 
-world.sprout:12:16  `link back` is followed by its label in quotes: what a visitor reads, and may type, for the way out.
-                    Write the label after the name, as in `link back "deeper into the dark"`.
+link_lines.sprout:12:16  `link back` is followed by its label in quotes: what a visitor reads, and may type, for the way out.
+                         Write the label after the name, as in `link back "deeper into the dark"`.
 
 refused: 3 problems

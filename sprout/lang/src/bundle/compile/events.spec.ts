@@ -16,7 +16,7 @@ import { Report } from './report.js';
 function warned(own: string, lib = ''): string[] {
   const parsing = new Diagnostics();
   const byLibrary = new Map<string, Declaration[]>([
-    ['shop', parseDeclarations(new SourceFile('world.sprout', own), parsing)],
+    ['shop', parseDeclarations(new SourceFile('shop.sprout', own), parsing)],
     ['lib', parseDeclarations(new SourceFile('lib.sprout', lib), parsing)],
     ['sprout', STANDARD_LIBRARY.files.flatMap((file) => parseDeclarations(file, parsing))],
   ]);
@@ -46,8 +46,8 @@ describe('a message nothing handles, and a handler nothing sends to', () => {
     expect(
       warned('message :stir\nmessage :creak\nkind Cat { on :stir { send self :creak } }'),
     ).toEqual([
-      'world.sprout:3:15 Nothing sends `:stir`, so `on :stir` never runs. Send it with `send <thing> :stir` or `broadcast :stir`, or take the handler out.',
-      'world.sprout:2:9 Nothing handles `:creak`, so sending it does nothing. Write `on :creak { … }` in the kind that should hear it, or take the message out.',
+      'shop.sprout:3:15 Nothing sends `:stir`, so `on :stir` never runs. Send it with `send <thing> :stir` or `broadcast :stir`, or take the handler out.',
+      'shop.sprout:2:9 Nothing handles `:creak`, so sending it does nothing. Write `on :creak { … }` in the kind that should hear it, or take the message out.',
     ]);
   });
 

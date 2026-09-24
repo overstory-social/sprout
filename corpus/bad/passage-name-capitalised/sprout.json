@@ -12,5 +12,5 @@
       "sha": "7a5954b9fe180b1e30f28d1b6448b81d247baf3da73c0e78479d126592666084"
     }
   ],
-  "files": ["world.sprout", "creature.sprout", "mirror.sprout"]
+  "files": ["passage_name_capitalised.sprout", "creature.sprout", "mirror.sprout"]
 }

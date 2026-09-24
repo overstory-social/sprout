@@ -162,7 +162,7 @@ describe('the engine’s own refusals', () => {
   it('refuse a thing going into itself in the world’s own words, where it writes them', () => {
     const own = catalogueOf(
       compiledWorld('den', {
-        'world.sprout': [
+        'den.sprout': [
           'world den is sprout.World { contains visitors are Pup visitors arrive at lair',
           '  passage inside_itself { {item} will not fold into itself. }',
           '  object lair is sprout.Place {',

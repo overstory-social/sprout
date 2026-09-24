@@ -66,16 +66,16 @@ describe('the first tier reads one file alone, for its shape', () => {
     // resolved — so it belongs to the tier an editor runs on each
     // keystroke.
     const { diagnostics } = checkShape(
-      file('world.sprout', 'world shop {\n  visitors are Creature\n}\n'),
+      file('shop.sprout', 'world shop {\n  visitors are Creature\n}\n'),
     );
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]!.message).toBe('`shop` does not compose `sprout.World`.');
-    expect(locationOf(diagnostics[0]!.at)).toBe('world.sprout:1:7');
+    expect(locationOf(diagnostics[0]!.at)).toBe('shop.sprout:1:7');
   });
 
   it('takes the world that writes it', () => {
     const { declarations, diagnostics } = checkShape(
-      file('world.sprout', 'world shop is sprout.World {\n  visitors are Creature\n}\n'),
+      file('shop.sprout', 'world shop is sprout.World {\n  visitors are Creature\n}\n'),
     );
     expect(diagnostics).toEqual([]);
     expect(declarations.map((d) => d.kind)).toEqual(['world']);
@@ -91,14 +91,14 @@ describe('the first tier reads one file alone, for its shape', () => {
     ]);
     const { declarations, diagnostics } = checkShape(
       file(
-        'world.sprout',
+        'shop.sprout',
         'world shop is sprout.World {\n  object bench is sprout.World\n  object hall is Room {\n    object lamp { }\n  }\n}\n',
       ),
     );
     expect(declarations.map((d) => d.kind)).toEqual(['world']);
     expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['world.sprout:2:19', '`bench` composes `sprout.World`, which only a world may.'],
-      ['world.sprout:4:12', '`lamp` does not say what kind of thing it is.'],
+      ['shop.sprout:2:19', '`bench` composes `sprout.World`, which only a world may.'],
+      ['shop.sprout:4:12', '`lamp` does not say what kind of thing it is.'],
     ]);
   });
 
@@ -120,7 +120,7 @@ describe('the first tier reads one file alone, for its shape', () => {
       checkShape(file('crate.sprout', 'kind Crate is sprout.Container { }\n')).diagnostics,
     ).toEqual([]);
     expect(
-      checkShape(file('world.sprout', 'world shop is sprout.World { object box is Crate }\n'))
+      checkShape(file('shop.sprout', 'world shop is sprout.World { object box is Crate }\n'))
         .diagnostics,
     ).toEqual([]);
   });
@@ -163,7 +163,7 @@ describe('the first tier reads every file in the bundle', () => {
   }
 
   it('gives back every declaration, by the library it is declared in', () => {
-    const { tier, report } = read([file('world.sprout', 'enum Season { spring }')]);
+    const { tier, report } = read([file('shop.sprout', 'enum Season { spring }')]);
     expect(report.diagnostics.all).toEqual([]);
     expect(tier.ownFileRefused).toBe(false);
     expect([...tier.byLibrary.keys()]).toEqual(['shop', 'sprout']);
@@ -188,21 +188,21 @@ describe('the first tier reads every file in the bundle', () => {
   });
 
   it('refuses a world file that does not compile at publish, and says it was the world’s', () => {
-    const { tier, report } = read([file('world.sprout', '%')]);
+    const { tier, report } = read([file('shop.sprout', '%')]);
     expect(tier.ownFileRefused).toBe(true);
     expect(tier.byLibrary.has('shop')).toBe(false);
-    expect(report.diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['world.sprout:1:1']);
+    expect(report.diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:1']);
   });
 
   it('reads such a file as absent at load, keeping what it said as warnings', () => {
     const { tier, report } = read(
-      [file('world.sprout', '%'), file('ok.sprout', 'enum A { b }')],
+      [file('shop.sprout', '%'), file('ok.sprout', 'enum A { b }')],
       'load',
     );
     expect(tier.ownFileRefused).toBe(true);
     expect(tier.byLibrary.get('shop')!.map((d) => d.name.text)).toEqual(['A']);
     expect(report.absent.map((a) => [a.what, a.kind, a.reason])).toEqual([
-      ['world.sprout', 'file', 'broken'],
+      ['shop.sprout', 'file', 'broken'],
     ]);
     expect(report.diagnostics.refusals).toEqual([]);
     expect(report.diagnostics.all.map((d) => d.severity)).toEqual(['warning']);
@@ -215,13 +215,13 @@ describe('the first tier reads every file in the bundle', () => {
 describe('the whole bundle is read, the world’s files and its libraries alike', () => {
   it('refuses a syntax problem in the world’s own source, naming the file', () => {
     const files = [
-      file('other.sprout', WORLD_LINE),
+      file('printers_shop.sprout', WORLD_LINE),
       PERSON,
-      file('world.sprout', 'enum Season { spring }\n%\n'),
+      file('shop.sprout', 'enum Season { spring }\n%\n'),
     ];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
-    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('world.sprout:2:1');
+    expect(locationOf(refusals(diagnostics)[0]!.at)).toBe('shop.sprout:2:1');
   });
 
   it('refuses a syntax problem in a vendored library too, because they compile together', () => {

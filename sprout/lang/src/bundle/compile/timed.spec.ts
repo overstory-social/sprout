@@ -17,7 +17,7 @@ import { Report } from './report.js';
 function warned(own: string, lib = ''): string[] {
   const parsing = new Diagnostics();
   const byLibrary = new Map<string, Declaration[]>([
-    ['shop', parseDeclarations(new SourceFile('world.sprout', own), parsing)],
+    ['shop', parseDeclarations(new SourceFile('shop.sprout', own), parsing)],
     ['lib', parseDeclarations(new SourceFile('lib.sprout', lib), parsing)],
     ['sprout', STANDARD_LIBRARY.files.flatMap((file) => parseDeclarations(file, parsing))],
   ]);

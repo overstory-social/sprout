@@ -21,7 +21,7 @@ import { compiledWorld } from './bundle.js';
 import { renderEffects } from '../prose/effects.js';
 
 export const GARDEN = compiledWorld('garden', {
-  'world.sprout': `world garden is sprout.World {
+  'garden.sprout': `world garden is sprout.World {
   visitors are Person
   visitors arrive at bed
 

@@ -29,7 +29,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
     level: 1,
     extensions: [],
     libraries: [{ name: 'sprout', version: STANDARD_LIBRARY.version, sha }],
-    files: ['world.sprout', 'person.sprout', 'yard.sprout'],
+    files: ['shed.sprout', 'person.sprout', 'yard.sprout'],
   };
   return compileBundle(
     {
@@ -37,7 +37,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
       manifest,
       files: [
         new SourceFile(
-          'world.sprout',
+          'shed.sprout',
           'world shed is sprout.World { visitors are Person visitors arrive at yard object yard is Yard }\n',
         ),
         new SourceFile('person.sprout', 'kind Person is sprout.Visitor { }\n'),

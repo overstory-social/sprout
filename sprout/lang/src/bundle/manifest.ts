@@ -36,7 +36,7 @@ const EXAMPLES: Readonly<Record<string, string>> = {
   level: '"level": 1',
   extensions: '"extensions": [{ "name": "media", "major": 1 }], or leave it out',
   libraries: '"libraries": [{ "name": "sprout", "version": "1.0.0", "sha": "…" }], or leave it out',
-  files: '"files": ["world.sprout"]',
+  files: '"files": ["printers_shop.sprout"]',
 };
 
 /** One sentence about what is wrong with a field, for someone who is not a programmer. */

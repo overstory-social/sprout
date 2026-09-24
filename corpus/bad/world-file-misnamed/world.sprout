@@ -1,0 +1,8 @@
+// The world is declared in the file named for its name, and `world.sprout`
+// is named for a world called `world`.
+world world_file_misnamed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

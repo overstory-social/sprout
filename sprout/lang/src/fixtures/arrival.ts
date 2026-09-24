@@ -24,7 +24,7 @@ import type { Value } from '../runtime/values.js';
 import { renderEffects } from '../prose/effects.js';
 
 export const HARBOUR_FILES: Readonly<Record<string, string>> = {
-  'world.sprout': `world harbour is sprout.World {
+  'harbour.sprout': `world harbour is sprout.World {
   visitors are Person
   visitors arrive at quay
 

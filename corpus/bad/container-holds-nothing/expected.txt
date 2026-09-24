@@ -1,4 +1,4 @@
-world.sprout:8:14  `bench` holds nothing, so `cushion` cannot be in it.
-                   Move `cushion` out of `bench`'s braces into something that holds things, or let `bench` hold things by writing `contains` in its body.
+container_holds_nothing.sprout:8:14  `bench` holds nothing, so `cushion` cannot be in it.
+                                     Move `cushion` out of `bench`'s braces into something that holds things, or let `bench` hold things by writing `contains` in its body.
 
 refused: 1 problem

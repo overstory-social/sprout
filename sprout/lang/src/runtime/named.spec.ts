@@ -155,7 +155,7 @@ describe('what a name a body wrote reaches while the world runs', () => {
  * kind's body, and its wick names the lantern's `oil` from its own.
  */
 const LAMPS: Bundle = compiledWorld('lamps', {
-  'world.sprout': `world lamps is sprout.World {
+  'lamps.sprout': `world lamps is sprout.World {
   visitors are Person
   visitors arrive at hall
 

@@ -1,7 +1,7 @@
-world.sprout:10:12  `lamp` hides the `lamp` directly in the world: inside `shop_floor`, a bare `lamp` now means this one.
-                    Write `hidden_name.lamp` where the outer one is meant, or give this one another name.
+hidden_name.sprout:10:12  `lamp` hides the `lamp` directly in the world: inside `shop_floor`, a bare `lamp` now means this one.
+                          Write `hidden_name.lamp` where the outer one is meant, or give this one another name.
 
-world.sprout:17:14  `key` hides `shop_floor.key`: inside `shop_floor.red_chest`, a bare `key` now means this one.
-                    Write `shop_floor.key` where the outer one is meant, or give this one another name.
+hidden_name.sprout:17:14  `key` hides `shop_floor.key`: inside `shop_floor.red_chest`, a bare `key` now means this one.
+                          Write `shop_floor.key` where the outer one is meant, or give this one another name.
 
 ok: 13 declarations in 4 files, 2 warnings

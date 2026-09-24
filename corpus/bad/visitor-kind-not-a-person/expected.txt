@@ -1,4 +1,4 @@
-world.sprout:5:16  `Creature` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.
-                   Write `kind Person is Creature, sprout.Visitor { }` and `visitors are Person`, so a person has what `Creature` gives.
+visitor_kind_not_a_person.sprout:5:16  `Creature` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.
+                                       Write `kind Person is Creature, sprout.Visitor { }` and `visitors are Person`, so a person has what `Creature` gives.
 
 refused: 1 problem

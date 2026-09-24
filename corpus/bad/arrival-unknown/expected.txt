@@ -1,4 +1,4 @@
-world.sprout:4:22  Nothing here is called `hal`. Did you mean `hall`?
-                   Write `visitors arrive at hall`, or declare an object called `hal`.
+arrival_unknown.sprout:4:22  Nothing here is called `hal`. Did you mean `hall`?
+                             Write `visitors arrive at hall`, or declare an object called `hal`.
 
 refused: 1 problem

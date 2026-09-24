@@ -1,7 +1,7 @@
-creature.sprout:1:18  Nothing here is a `sprout.Visitor`.
-                      Check the spelling, and that the world uses the library `sprout` and it declares `Visitor`.
+creature.sprout:1:18                Nothing here is a `sprout.Visitor`.
+                                    Check the spelling, and that the world uses the library `sprout` and it declares `Visitor`.
 
-world.sprout:3:33     `sprout.World` is not here, because the library `sprout` is not.
-                      Every world composes `sprout.World` from the library `sprout`: name it among the manifest's libraries and vendor it with the world, as `sprout init` does.
+library_sprout_unnamed.sprout:3:33  `sprout.World` is not here, because the library `sprout` is not.
+                                    Every world composes `sprout.World` from the library `sprout`: name it among the manifest's libraries and vendor it with the world, as `sprout init` does.
 
 refused: 2 problems

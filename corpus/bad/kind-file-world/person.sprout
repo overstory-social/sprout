@@ -1,4 +1,4 @@
-// The world is not declared in a kind's file.
+// The world is declared in the file named for it, never in a kind's file.
 kind Person is sprout.Visitor { }
 
 world kind_file_world is sprout.World {

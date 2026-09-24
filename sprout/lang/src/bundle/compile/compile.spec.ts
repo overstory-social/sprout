@@ -28,7 +28,7 @@ describe('what a compiled bundle carries', () => {
   it('holds each slot of prose that renders an option, wherever the slot is written', () => {
     const files = [
       file(
-        'world.sprout',
+        'printers_shop.sprout',
         worldLine(
           'passage season { {self.get(:season)} and {self.get(:note)}. } :season Season default autumn :note "x"',
         ),
@@ -36,8 +36,11 @@ describe('what a compiled bundle carries', () => {
       ...worldFiles(WORLD_TEXT).slice(1),
     ];
     const withEnum = files.map((one) =>
-      one.name === 'world.sprout'
-        ? file('world.sprout', `${one.text}\nenum Season { spring, summer, autumn, winter }`)
+      one.name === 'printers_shop.sprout'
+        ? file(
+            'printers_shop.sprout',
+            `${one.text}\nenum Season { spring, summer, autumn, winter }`,
+          )
         : one,
     );
     const compiled = compileBundle(world({ files: withEnum }));
@@ -49,7 +52,7 @@ describe('what a compiled bundle carries', () => {
 
   it('reads a passage its kind lacks at load as a gap where its `.prose` file is gone, and refuses it at publish once', () => {
     const files = [
-      file('world.sprout', `${WORLD_LINE}\nverb peer { role target  "peer at [target]" }`),
+      file('printers_shop.sprout', `${WORLD_LINE}\nverb peer { role target  "peer at [target]" }`),
       ...worldFiles(WORLD_TEXT).slice(1),
       file(
         'mirror.sprout',
@@ -71,7 +74,7 @@ describe('what a compiled bundle carries', () => {
 
   it('refuses at publish a description its gone `.prose` file leaves empty, and loads it with its gaps', () => {
     const files = [
-      file('world.sprout', `${WORLD_LINE.replace(' }', ' object mirror is Mirror }')}`),
+      file('printers_shop.sprout', `${WORLD_LINE.replace(' }', ' object mirror is Mirror }')}`),
       ...worldFiles(WORLD_TEXT).slice(1),
       file(
         'mirror.sprout',
@@ -286,10 +289,10 @@ describe('a compile checks the bodies of kinds, objects and the world', () => {
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
       [
-        'world.sprout:4:17',
+        'printers_shop.sprout:4:17',
         '`destroy self` removes something, and a guard only reads and decides.',
       ],
-      ['world.sprout:6:56', '`crate` has no passage `gone`.'],
+      ['printers_shop.sprout:6:56', '`crate` has no passage `gone`.'],
     ]);
   });
 
@@ -359,13 +362,13 @@ describe('a compile refuses actors where the spec has none', () => {
         refusals(diagnostics).map((d) => [locationOf(d.at), d.message]),
         mode,
       ).toEqual([
-        ['world.sprout:5:38', '`basket` holds no actors, so `cat` cannot stand in it.'],
+        ['printers_shop.sprout:5:38', '`basket` holds no actors, so `cat` cannot stand in it.'],
         [
-          'world.sprout:6:12',
+          'printers_shop.sprout:6:12',
           '`guest` composes `sprout.Visitor`, what a person is made of, and nothing declares a visitor: each one is a person who arrives.',
         ],
         [
-          'world.sprout:9:10',
+          'printers_shop.sprout:9:10',
           '`printers_shop` is the world, which holds no actors, so `ghost` cannot stand directly in it.',
         ],
       ]);

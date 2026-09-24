@@ -1,4 +1,4 @@
-world.sprout:7:3  This `remembers` block is never closed.
-                  Add a } after what it remembers.
+remembers_unclosed_before_member.sprout:7:3  This `remembers` block is never closed.
+                                             Add a } after what it remembers.
 
 refused: 1 problem

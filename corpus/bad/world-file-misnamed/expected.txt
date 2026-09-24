@@ -1,0 +1,4 @@
+world.sprout:3:7  The world `world_file_misnamed` is declared in `world.sprout`, and the world is declared in the file named for it.
+                  Move `world world_file_misnamed` to a file called `world_file_misnamed.sprout`, and name that file in the manifest's files.
+
+refused: 1 problem

@@ -81,14 +81,17 @@ ${extra}
         d.message,
       ]),
     ).toEqual([
-      ['world.sprout:5:12', 'This world declares 2 objects, and 1 is as many as it may have.'],
+      [
+        'printers_shop.sprout:5:12',
+        'This world declares 2 objects, and 1 is as many as it may have.',
+      ],
     ]);
     const places = ownWith('  object press_room is Room');
     const { diagnostics } = compileBundle(world({ files: places }), {
       limits: limitsFrom({ caps: { places: 1 } }),
     });
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['world.sprout:7:10', 'This world has 2 places, and 1 is as many as it may have.'],
+      ['printers_shop.sprout:7:10', 'This world has 2 places, and 1 is as many as it may have.'],
     ]);
   });
 

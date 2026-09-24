@@ -68,7 +68,7 @@ describe('a `tell` in a reading', () => {
  * to whoever it is rung for.
  */
 const TOWN = compiledWorld('town', {
-  'world.sprout': [
+  'town.sprout': [
     'world town is sprout.World { visitors are Person visitors arrive at inn',
     '  object inn is Inn { object bell is Bell }',
     '  object mill is Mill { }',

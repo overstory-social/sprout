@@ -1,4 +1,4 @@
-world.sprout:5:3  A world is not made of `describe`.
-                  It holds its properties, `remembers`, `visitors`, `contains`, `passage`, `prose`, `without`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.
+describe_in_world.sprout:5:3  A world is not made of `describe`.
+                              It holds its properties, `remembers`, `visitors`, `contains`, `passage`, `prose`, `without`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.
 
 refused: 1 problem

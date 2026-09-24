@@ -26,7 +26,7 @@ import type { Value } from '../runtime/values.js';
 import { Draws } from '../runtime/draws.js';
 
 export const BUS: Bundle = compiledWorld('bus', {
-  'world.sprout': `world bus is sprout.World {
+  'bus.sprout': `world bus is sprout.World {
   visitors are Person
   visitors arrive at hall
 

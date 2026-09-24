@@ -1,7 +1,7 @@
-world.sprout:9:71   `brass_key` writes more than 8 nouns, and 8 is as many as a thing may have.
-                    Keep the ones a visitor is most likely to type: its name and the last word of it are nouns already.
+grammar_caps.sprout:9:71   `brass_key` writes more than 8 nouns, and 8 is as many as a thing may have.
+                           Keep the ones a visitor is most likely to type: its name and the last word of it are nouns already.
 
-world.sprout:10:15  `supercalifragilisticexpialidociouslyoddandlong` is 46 characters long, and 40 is as long as a word a thing answers to may be.
-                    Use a shorter word: it is one a visitor types.
+grammar_caps.sprout:10:15  `supercalifragilisticexpialidociouslyoddandlong` is 46 characters long, and 40 is as long as a word a thing answers to may be.
+                           Use a shorter word: it is one a visitor types.
 
 refused: 2 problems

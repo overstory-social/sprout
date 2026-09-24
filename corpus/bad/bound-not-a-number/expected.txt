@@ -1,4 +1,4 @@
-world.sprout:4:15  A min is a whole number.
-                   Write `min 0`, or leave it out.
+bound_not_a_number.sprout:4:15  A min is a whole number.
+                                Write `min 0`, or leave it out.
 
 refused: 1 problem

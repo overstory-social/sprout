@@ -33,7 +33,7 @@ import {
  * depart, though it clangs when anyone tries.
  */
 const DEPOT = compiledWorld('depot', {
-  'world.sprout': [
+  'depot.sprout': [
     'world depot is sprout.World { contains visitors are Person visitors arrive at yard',
     '  object yard is sprout.Place {',
     '    object cart is Cart',

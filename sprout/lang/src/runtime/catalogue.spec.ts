@@ -64,7 +64,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
   it('ranks by the order written, not by name', () => {
     const reversed = {
       ...SHOP,
-      'world.sprout': SHOP['world.sprout']!.replace(
+      'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
         'object jar is Jar\n      object cup is Jar',
         'object cup is Jar\n      object jar is Jar',
       ),
@@ -78,7 +78,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
     const lanterns = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace(
+        'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
           'object jar is Jar',
           'object jar is Jar object lantern is Lantern',
         ),
@@ -115,7 +115,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
 
   it('carries the slots of prose that render an option, as the bundle holds them', () => {
     const bundle = compiledWorld('mill', {
-      'world.sprout': [
+      'mill.sprout': [
         'world mill is sprout.World { visitors are Person visitors arrive at yard',
         '  object yard is sprout.Place',
         '  passage season { It is {self.get(:season)}. }',
@@ -203,7 +203,10 @@ describe('a catalogue of a world loaded with a gap', () => {
   it('has no arrival for a world that admits no one', () => {
     const closed = {
       ...SHOP,
-      'world.sprout': SHOP['world.sprout']!.replace('arrive at hall', 'arrive at box'),
+      'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
+        'arrive at hall',
+        'arrive at box',
+      ),
     };
     const bundle = compiledWorld('printers_shop', closed, {
       mode: 'load',

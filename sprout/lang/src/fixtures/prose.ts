@@ -30,7 +30,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * draw.
  */
 export const MILL: Bundle = compiledWorld('mill', {
-  'world.sprout': [
+  'mill.sprout': [
     'world mill is sprout.World { contains visitors are Person visitors arrive at yard',
     '  object yard is sprout.Place {',
     '    object press is Press',

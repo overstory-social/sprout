@@ -16,7 +16,7 @@ import { Report } from './report.js';
 function said(own: string): readonly Diagnostic[] {
   const parsing = new Diagnostics();
   const byLibrary = new Map<string, Declaration[]>([
-    ['shop', parseDeclarations(new SourceFile('world.sprout', own), parsing)],
+    ['shop', parseDeclarations(new SourceFile('shop.sprout', own), parsing)],
     ['sprout', STANDARD_LIBRARY.files.flatMap((file) => parseDeclarations(file, parsing))],
   ]);
   expect(

@@ -27,7 +27,7 @@ function said(lines: string, more: Readonly<Record<string, string>> = {}) {
     '',
   ].join('\n');
   const { diagnostics } = compileWorld('ways', {
-    'world.sprout': world,
+    'ways.sprout': world,
     'lamp.sprout': 'kind Lamp { :lit false :fuel 3 }\n',
     'shelf.sprout': 'kind Shelf { contains }\n',
     ...PERSON,
@@ -49,7 +49,7 @@ describe('an exit, against the whole bundle', () => {
     expect(said('exit in "in" -> shpo')).toEqual([
       [
         'refusal',
-        'world.sprout:4:59',
+        'ways.sprout:4:59',
         'Nothing here is called `shpo`. Did you mean `shop`?',
         'In reach: `lamp`, `shelf`, `yard`, `shop` and `ways`.',
       ],
@@ -60,7 +60,7 @@ describe('an exit, against the whole bundle', () => {
     expect(said('exit in "onto the shelf" -> shelf')).toEqual([
       [
         'refusal',
-        'world.sprout:4:71',
+        'ways.sprout:4:71',
         '`shelf` does not hold actors, so nobody could stand where this exit leads.',
         'Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.',
       ],
@@ -127,7 +127,7 @@ describe('an exit, against the whole bundle', () => {
     expect(said('exit in "in" -> shop when (false)')).toEqual([
       [
         'warning',
-        'world.sprout:4:70',
+        'ways.sprout:4:70',
         "This exit's `when` is `false`, so the exit never applies.",
         'Give it a condition that can hold, or take the exit out.',
       ],
@@ -136,7 +136,7 @@ describe('an exit, against the whole bundle', () => {
 
   it('is checked by `checkExit` against the kind that wrote it, its names recorded', () => {
     const { bundle } = compileWorld('ways', {
-      'world.sprout':
+      'ways.sprout':
         'world ways is sprout.World { visitors are Person visitors arrive at yard object yard is Cell }\n',
       'cell.sprout':
         'kind Cell is sprout.Place { grammar { exit up "up" -> yard  link onward "x" } }\n',
@@ -174,7 +174,7 @@ describe('an exit, against the whole bundle', () => {
 
 describe('`connect`', () => {
   const { bundle } = compileWorld('maze', {
-    'world.sprout':
+    'maze.sprout':
       'world maze is sprout.World { visitors are Person visitors arrive at hall object hall is Cell object stone is Stone }\n',
     'cell.sprout': 'kind Cell is sprout.Place { grammar { link onward "on"  link back "back" } }\n',
     'stone.sprout': 'kind Stone { }\n',
@@ -231,7 +231,7 @@ describe('`connect`', () => {
   it('names the writing body’s own links: a composed kind’s in a kind, and a named kind’s in an object', () => {
     const body = 'on :spawned (from) { connect onward to from }';
     const { diagnostics } = compileWorld('maze', {
-      'world.sprout': `world maze is sprout.World { visitors are Person visitors arrive at hall object hall is Cell { ${body} } }\n`,
+      'maze.sprout': `world maze is sprout.World { visitors are Person visitors arrive at hall object hall is Cell { ${body} } }\n`,
       'cell.sprout': 'kind Cell is sprout.Place { grammar { link onward "on" } }\n',
       'deep.sprout': `kind Deep is Cell { ${body} }\n`,
       ...PERSON,

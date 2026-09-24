@@ -13,7 +13,7 @@
     }
   ],
   "files": [
-    "world.sprout",
+    "kind_contents_actors.sprout",
     "creature.sprout",
     "thing.sprout",
     "hutch.sprout",

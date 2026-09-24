@@ -1,7 +1,7 @@
-chest.sprout:2:15  Nothing here is a `Wodden`. Did you mean `Wooden`?
-                   Write `Wooden`, or declare `Wodden` with `kind Wodden { … }`.
+chest.sprout:2:15         Nothing here is a `Wodden`. Did you mean `Wooden`?
+                          Write `Wooden`, or declare `Wodden` with `kind Wodden { … }`.
 
-world.sprout:6:29  Nothing here is a `Heavy`.
-                   Declare it with `kind Heavy { … }`, or check the spelling of a kind this world or a library it uses declares.
+kind_unknown.sprout:6:29  Nothing here is a `Heavy`.
+                          Declare it with `kind Heavy { … }`, or check the spelling of a kind this world or a library it uses declares.
 
 refused: 2 problems

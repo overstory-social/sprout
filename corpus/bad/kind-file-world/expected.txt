@@ -1,4 +1,4 @@
-person.sprout:4:7  The world `kind_file_world` shares `person.sprout` with `Person`, and a kind's file holds no world.
-                   Move the world to a file with no kind in it, such as `world.sprout`.
+person.sprout:4:7  The world `kind_file_world` is declared in `person.sprout`, and the world is declared in the file named for it.
+                   Move `world kind_file_world` to a file called `kind_file_world.sprout`, and name that file in the manifest's files.
 
 refused: 1 problem

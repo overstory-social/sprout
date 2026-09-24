@@ -62,8 +62,8 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     expect([...loaded.bundle!.tree.placed.keys()]).toEqual(['hall', 'box', 'box.tin']);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
       [
-        ['Crate', 'kind-in-composition', 'missing', 'world.sprout:1:125'],
-        ['sprout.Ward', 'kind-in-composition', 'missing', 'world.sprout:2:17'],
+        ['Crate', 'kind-in-composition', 'missing', 'printers_shop.sprout:1:125'],
+        ['sprout.Ward', 'kind-in-composition', 'missing', 'printers_shop.sprout:2:17'],
       ],
     );
     expect(warnings(loaded.diagnostics)[0]!.message).toBe(
@@ -85,7 +85,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
-      [['Lockabel', 'kind-in-role', 'missing', 'world.sprout:2:28']],
+      [['Lockabel', 'kind-in-role', 'missing', 'printers_shop.sprout:2:28']],
     );
     expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
       // Nothing plays a role in it at all, so nothing says anything for it either.
@@ -173,7 +173,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
 
   it('runs a world a file of which the manifest names and did not arrive', () => {
     const { bundle } = compileBundle(
-      world({ manifest: { files: ['world.sprout', 'kiln.prose'] } }),
+      world({ manifest: { files: ['printers_shop.sprout', 'kiln.prose'] } }),
       load,
     );
     expect(bundle).not.toBeNull();
@@ -234,7 +234,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   it('warns rather than refuses about a file the manifest does not name', () => {
     const files = [...worldFiles(WORLD_TEXT), file('kiln.sprout', 'enum Kiln { cold }')];
     const { bundle } = compileBundle(
-      world({ files, manifest: { files: ['world.sprout', 'person.sprout'] } }),
+      world({ files, manifest: { files: ['printers_shop.sprout', 'person.sprout'] } }),
       load,
     );
     expect(bundle).not.toBeNull();

@@ -1,4 +1,4 @@
-world.sprout:4:16  `:wear` writes a dot after a type that has no options.
-                   Only an enum names its option after a dot, as in `:ward Ward.iron`. Write `default` and the value instead.
+default_dot_misplaced.sprout:4:16  `:wear` writes a dot after a type that has no options.
+                                   Only an enum names its option after a dot, as in `:ward Ward.iron`. Write `default` and the value instead.
 
 refused: 1 problem

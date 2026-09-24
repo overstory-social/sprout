@@ -1,4 +1,4 @@
-world.sprout:4:19  `:ward` says its default twice.
-                   `Ward.iron` already says what it starts at. Remove the `default` after it.
+default_twice.sprout:4:19  `:ward` says its default twice.
+                           `Ward.iron` already says what it starts at. Remove the `default` after it.
 
 refused: 1 problem

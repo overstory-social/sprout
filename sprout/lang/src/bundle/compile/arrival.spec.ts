@@ -19,7 +19,7 @@ import { file, refusals, warnings, world, WORLD_LINE, worldFiles } from '../../f
 function arriving(own: string, mode: 'publish' | 'load' = 'publish') {
   const parsing = new Diagnostics();
   const byLibrary = new Map<string, Declaration[]>([
-    ['shop', parseDeclarations(new SourceFile('world.sprout', own), parsing)],
+    ['shop', parseDeclarations(new SourceFile('shop.sprout', own), parsing)],
     ['sprout', STANDARD_LIBRARY.files.flatMap((file) => parseDeclarations(file, parsing))],
   ]);
   expect(parsing.refusals.map((d) => d.message)).toEqual([]);
@@ -46,7 +46,7 @@ describe('where visitors arrive, as a compile records it', () => {
       const itself = arriving(at('shop').replace('{', '{ contains actors'), mode);
       expect(itself.path, mode).toBeNull();
       expect(itself.said, mode).toEqual([
-        'world.sprout:1:65 `shop` is the world itself, and visitors arrive in a place inside it.',
+        'shop.sprout:1:65 `shop` is the world itself, and visitors arrive in a place inside it.',
       ]);
       expect(itself.absent, mode).toEqual([]);
     }
@@ -55,7 +55,7 @@ describe('where visitors arrive, as a compile records it', () => {
   it('refuses a place nothing answers to at publish, and records it at load', () => {
     expect(arriving(at('hal'))).toEqual({
       path: null,
-      said: ['world.sprout:1:49 Nothing here is called `hal`. Did you mean `hall`?'],
+      said: ['shop.sprout:1:49 Nothing here is called `hal`. Did you mean `hall`?'],
       absent: [],
     });
     const loaded = arriving(at('hal'), 'load');
@@ -102,7 +102,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
-        'world.sprout:1:58',
+        'printers_shop.sprout:1:58',
         'Nothing here is called `hal`. Did you mean `hall`?',
         'Write `visitors arrive at hall`, or declare an object called `hal`.',
       ],
@@ -114,7 +114,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     expect(refusals(diagnostics)).toEqual([]);
     expect(bundle!.arrival).toBeNull();
     expect(bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual([
-      ['hal', 'place-of-arrival', 'missing', 'world.sprout:1:58'],
+      ['hal', 'place-of-arrival', 'missing', 'printers_shop.sprout:1:58'],
     ]);
     expect(warnings(diagnostics).map((d) => d.message)).toEqual([
       'Nothing here is called `hal`. Did you mean `hall`? The world does not admit anyone; entry fails as a host matter, the way a crash does, and the host says so outside the world.',
@@ -150,7 +150,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
         mode,
       ).toEqual([
         [
-          'world.sprout:1:94',
+          'printers_shop.sprout:1:94',
           '`printers_shop` is the world itself, and visitors arrive in a place inside it.',
           'Name a place in the world, as in `visitors arrive at hall`.',
         ],
@@ -191,7 +191,7 @@ describe('the bundle knows where visitors arrive, read from the world’s one de
     expect(published.bundle).toBeNull();
     expect(
       refusals(published.diagnostics).map((d) => [locationOf(d.at), d.message]),
-    ).toContainEqual(['world.sprout:1:58', 'Nothing here is called `yard`.']);
+    ).toContainEqual(['printers_shop.sprout:1:58', 'Nothing here is called `yard`.']);
     // At load the file is absent, and so is the place.
     const loaded = compileBundle(world({ files }), load);
     expect(loaded.bundle!.absent.map((a) => a.kind)).toEqual(['file', 'place-of-arrival']);
