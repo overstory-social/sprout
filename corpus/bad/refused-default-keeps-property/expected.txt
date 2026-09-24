@@ -1,0 +1,7 @@
+kiln.sprout:2:23  `:hatch` holds one of open, closed, and "closed" is text in quotes.
+                  Write `closed`, without quotes.
+
+kiln.sprout:3:39  `:warmed` holds true or false, and 0 is a number.
+                  Write `true` or `false`.
+
+refused: 2 problems

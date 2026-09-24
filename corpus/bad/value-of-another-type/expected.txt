@@ -14,6 +14,6 @@ kiln.sprout:10:20  `:lit` holds true or false, and 1 is a number.
                    Write `true` or `false`, or a condition, as in `self.get(:open)`.
 
 kiln.sprout:11:14  `Kiln` has no `:vent`.
-                   It has `:door` and `:lit`: name one of those, or declare `:vent` in `Kiln` with its default.
+                   It has `:door`, `:lit` and `:hatch`: name one of those, or declare `:vent` in `Kiln` with its default.
 
 refused: 6 problems

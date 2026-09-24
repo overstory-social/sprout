@@ -46,9 +46,10 @@ export interface ResolvedProperty {
 }
 
 /**
- * Work out what a property declares, or refuse it. Returns null when it
- * could not be resolved, having said why — the caller drops it rather
- * than carrying a property whose type nobody knows.
+ * Work out what a property declares, refusing what is wrong in it. Null
+ * only when its type could not be resolved, having said why; a refused
+ * default keeps the property, so its uses are checked against its type
+ * and the one mistake is said once, at the default.
  */
 export function resolveProperty(
   declared: PropertyDeclaration,
@@ -87,8 +88,7 @@ export function resolveProperty(
     type = integer(min, max);
   }
 
-  if (!checkLiteral(type, declared.default!, diagnostics, `\`:${declared.name.text}\` holds`))
-    return null;
+  checkLiteral(type, declared.default!, diagnostics, `\`:${declared.name.text}\` holds`);
   return { name: declared.name.text, type, remembered, origin, declaration: declared };
 }
 

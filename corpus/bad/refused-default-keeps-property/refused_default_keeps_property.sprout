@@ -1,0 +1,9 @@
+// A default of another type is refused once, at the default. The
+// property keeps its name and the type it declares, so every use of it
+// is checked against that type and nothing more is said of it.
+world refused_default_keeps_property is sprout.World {
+  visitors are Person
+  visitors arrive at kiln
+
+  object kiln is Kiln
+}

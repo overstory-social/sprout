@@ -1,0 +1,13 @@
+kind Kiln is sprout.Place {
+  :hatch Door default "closed"
+  remembers { :warmed boolean default 0 }
+
+  on :entered (item, from) {
+    if (self.get(:hatch) == :closed) { tell "The hatch is shut." }
+    self.set(:hatch, :open)
+    if (item.is(Person)) {
+      if (item.recall(:warmed)) { tell "The kiln is warm." }
+      item.remember(:warmed, true)
+    }
+  }
+}
