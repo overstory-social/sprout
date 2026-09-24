@@ -21,6 +21,7 @@ import type { ResolvedPassage } from '../declare/passages.js';
 import type { Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
+import { FULL, turnedAway } from './crowd.js';
 import type { Draft } from './draft.js';
 import { boundObject, type Evaluated } from './evaluate.js';
 import { runGuard, type Refusal } from './guards.js';
@@ -62,10 +63,11 @@ export interface MoveContext {
 
 /**
  * The engine's own refusals, asked before any guard: a thing going
- * inside itself (Movement and consent › After the move), and an actor
- * going into something that does not hold actors.
+ * inside itself (Movement and consent › After the move), an actor
+ * going into something that does not hold actors, and a person going
+ * into a place the host's `peoplePerPlace` says is full (`crowd.ts`).
  */
-export type EngineRefusal = 'inside-itself' | 'not-a-place';
+export type EngineRefusal = 'inside-itself' | 'not-a-place' | 'full';
 
 /** The engine's refusal of a move, with the words the actor reads and the bindings they render with. */
 export interface EngineRefused {
@@ -153,7 +155,8 @@ export type Reach = 'range' | 'exit';
 
 /**
  * Move `item` into `to`, as `mover` proposes: the faults, then the
- * engine's refusals, then the three parties' guards, then the one write.
+ * engine's refusals, the host's bound on a crowd among them, then the
+ * three parties' guards, then the one write.
  * Faults, writing nothing, when the item is the world or an away visitor,
  * the item is out of `mover`'s range, `to` is not live or, reached
  * through range, out of it, or `to` holds nothing.
@@ -215,6 +218,17 @@ export function moveInstance(
     return {
       engine: 'not-a-place',
       said: NOT_A_PLACE,
+      bindings: new Map([
+        ['item', boundObject(item)],
+        ['to', boundObject(to)],
+      ]),
+    };
+  }
+
+  if (turnedAway(draft, item, to, budget.limits.peoplePerPlace)) {
+    return {
+      engine: 'full',
+      said: FULL,
       bindings: new Map([
         ['item', boundObject(item)],
         ['to', boundObject(to)],

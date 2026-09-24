@@ -53,6 +53,19 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
     expect(DEFAULT_LIMITS.budgets.wallClockMs).toBeNull();
   });
 
+  it('invents no figure for how many people may stand in one place, which the host bounds', () => {
+    // The spec's The host contract › Enforcement: the crowd is the host's
+    // to bound, and a host that sets nothing leaves it unbounded.
+    expect(DEFAULT_LIMITS.budgets.peoplePerPlace).toBeNull();
+    expect(limitsFrom({ budgets: { peoplePerPlace: 12 } }).budgets.peoplePerPlace).toBe(12);
+    expect(() => limitsFrom({ budgets: { peoplePerPlace: 0 } })).toThrow(/at least 1/);
+    expect(LIMIT_TABLE.find((l) => l.name === 'peoplePerPlace')).toMatchObject({
+      kind: 'budget',
+      scope: 'place',
+      exceeded: 'move-refused',
+    });
+  });
+
   it('has no cap on statements in a body, because the step budget does that work', () => {
     expect(Object.keys(DEFAULT_LIMITS.caps)).not.toContain('statementsPerBody');
     expect(LIMIT_TABLE.map((l) => String(l.name))).not.toContain('statementsPerBody');
@@ -102,12 +115,18 @@ describe('every limit says what it is and what exceeding it means', () => {
     }
   });
 
-  it('describes every runtime budget, as a fault, but the wake floor, which raises what is asked', () => {
+  it('describes every runtime budget, as a fault, but the wake floor and the crowd', () => {
+    // The wake floor raises what is asked to it, and a full place refuses
+    // the move that would bring one more person in.
+    const otherwise: Partial<Record<RuntimeBudgetName, string>> = {
+      shortestWakeSeconds: 'raised',
+      peoplePerPlace: 'move-refused',
+    };
     for (const name of Object.keys(DEFAULT_LIMITS.budgets) as RuntimeBudgetName[]) {
       const row = LIMIT_TABLE.find((l) => l.name === name);
       expect(row, `${name} has no row in LIMIT_TABLE`).toBeDefined();
       expect(row!.kind).toBe('budget');
-      expect(row!.exceeded, name).toBe(name === 'shortestWakeSeconds' ? 'raised' : 'fault');
+      expect(row!.exceeded, name).toBe(otherwise[name] ?? 'fault');
     }
   });
 

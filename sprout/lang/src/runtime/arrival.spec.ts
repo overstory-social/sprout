@@ -16,6 +16,7 @@ import {
   WORLD,
   whereIs,
 } from '../fixtures/arrival.js';
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { words } from '../fixtures/reading.js';
 import {
   arrivalTurn,
@@ -262,5 +263,44 @@ describe('the world’s `displaced`', () => {
     expect(line).toMatchObject({ effect: 'notice', to: [marta], by: WORLD, speaker: null });
     expect(words(line.said)).toBe(DISPLACED);
     expect(line.bindings.size).toBe(0);
+  });
+});
+
+describe('a place the host says is full', () => {
+  const crowded = (people: number) => ({
+    ...harbourHost(),
+    budgets: { ...DEFAULT_LIMITS.budgets, peoplePerPlace: people },
+  });
+  const FULL = 'There is no room in {to} for {item}.';
+
+  it('turns a new visitor away in the engine’s words, before its `accept` is asked, writing nothing', () => {
+    // The quay is closed too, and its own refusal is not the one read.
+    const state = harbour([{ visit: INES, in: QUAY }], [[QUAY, 'closed', true]]);
+    const turn = arrivalTurn(state, crowded(1), arriving(MARTA));
+    if (turn.committed || !('refused' in turn)) throw new Error('not refused');
+    expect(turn.refused).toMatchObject({ effect: 'refused', by: WORLD, speaker: null });
+    expect(words(turn.refused.said)).toBe(FULL);
+    const reader = turn.refused.to[0]!;
+    expect([...turn.refused.bindings.keys()]).toEqual(['item', 'to']);
+    expect(turn.refused.bindings.get('item')).toMatchObject({ id: reader });
+    expect(turn.refused.bindings.get('to')).toMatchObject({ id: QUAY });
+    expect(state.visitors.has(MARTA)).toBe(false);
+  });
+
+  it('admits a visitor while there is room, an NPC taking none of it', () => {
+    // The gull stands on the quay; only Ines counts.
+    const state = harbour([{ visit: INES, in: QUAY }]);
+    const done = admitted(arrivalTurn(state, crowded(2), arriving(MARTA)));
+    expect(whereIs(done.state, MARTA)).toBe(QUAY);
+  });
+
+  it('sends a returning visitor whose last place is full to where visitors arrive', () => {
+    const state = harbour([
+      { visit: MARTA, away: LOFT },
+      { visit: INES, in: LOFT },
+    ]);
+    const done = admitted(arrivalTurn(state, crowded(1), arriving(MARTA)));
+    expect(whereIs(done.state, MARTA)).toBe(QUAY);
+    expect(done.displaced).toBeNull();
   });
 });

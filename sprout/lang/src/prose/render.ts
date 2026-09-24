@@ -41,6 +41,11 @@ export interface RenderContext extends Naming {
   readonly passes: PassRule<InstanceId>;
   /** Each line's draws in a write turn; null in a poll, which draws nothing. */
   readonly draws: LineDraws | null;
+  /**
+   * The turn's actor, whose output past the host's figure faults the turn;
+   * anyone else's cuts them short (`output.ts`). Null where nobody acted.
+   */
+  readonly actor: InstanceId | null;
 }
 
 /** Who speaks prose: its `self`, the library whose kind wrote it, and every other name it renders with. */
