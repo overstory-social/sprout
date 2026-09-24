@@ -22,7 +22,7 @@
 // reaches `x` where `x` is in the teller's range (`audience.ts`). What
 // the effect pass says, tells and sends is kept in body order. Nothing is
 // rendered here: `prose/` renders what is said for each reader, `bus.ts`
-// drains the queue after, and B37 polls the consent pass alone.
+// drains the queue after, and a poll runs the consent pass alone.
 
 import { libraryOf, SPROUT } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';

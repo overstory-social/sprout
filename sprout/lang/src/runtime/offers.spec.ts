@@ -106,6 +106,17 @@ describe('what an actor is offered', () => {
     expect(() => offersTo(actorOf(state, MARTA), context)).toThrow(BudgetExhausted);
   });
 
+  it('offers `go` by the exits it is handed, where its caller has asked them already', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    const ways = (offers: ReturnType<typeof offersTo>) =>
+      offers.filter((offer) => offer.typed.startsWith('go ')).map((offer) => offer.typed);
+    expect(ways(offersTo(marta, lookingAt(state)))).toEqual(['go north']);
+    const handed = [{ direction: 'down' as const, label: 'down the well', to: LOFT }];
+    expect(ways(offersTo(marta, lookingAt(state), handed))).toEqual(['go down']);
+    expect(ways(offersTo(marta, lookingAt(state), []))).toEqual([]);
+  });
+
   it('is asked of one who stands somewhere', () => {
     const state = study();
     expect(() => offersTo(state.world, lookingAt(state))).toThrow(/is away/);

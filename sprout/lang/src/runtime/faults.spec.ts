@@ -6,7 +6,7 @@ import { ActFault } from './act.js';
 import { ValueOutOfRange } from './body.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow } from './evaluate.js';
-import { faultOf, faultTold, worldSpeech } from './faults.js';
+import { faultOf, faultTold, stockLine, worldSpeech } from './faults.js';
 import { LifecycleFault } from './lifecycle.js';
 import { ListFull } from './lists.js';
 import { MoveFault } from './move.js';
@@ -97,6 +97,13 @@ describe('the world’s words for a fault', () => {
     expect(worldSpeech(bare, 'unseen')).toMatchObject({
       text: 'Something here is too much to take in.',
     });
+  });
+
+  it('give the stock line itself for a caller that must say it with nothing to render with', () => {
+    expect(stockLine('unseen')).toBe('Something here is too much to take in.');
+    expect(stockLine('fault')).toBe(
+      'Something in this world has gone wrong, and nothing has changed.',
+    );
   });
 
   it('are told to the actor alone, from the world, as a notice, with `actor` and `here` bound', () => {

@@ -33,7 +33,7 @@ import {
   type Reading,
   type Said,
 } from './reading.js';
-import { readerOf, type StateReader, type WorldState } from './state.js';
+import { nicknamesIn, readerOf, type StateReader, type WorldState } from './state.js';
 import {
   writeTurn,
   type Committed,
@@ -150,11 +150,6 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
     return { acted: outcome, drained, answers };
   });
   return written.committed ? written : { ...written, told: faultTold(committed, actor) };
-}
-
-/** Each visitor's nickname, by the instance that is them. */
-function nicknamesIn(state: WorldState): ReadonlyMap<InstanceId, string> {
-  return new Map([...state.visitors.values()].map((one) => [one.instance, one.nickname]));
 }
 
 /** The instance `visit` acts as, which must stand somewhere in the world. */
