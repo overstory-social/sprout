@@ -1,0 +1,4 @@
+mirror.sprout:5:30  A kind picks out what a container holds, and `of` walks a list or a set role whole.
+                    Write `{for m: Mirror in <container>}`, or leave the kind out: `{for m of <list>}`.
+
+refused: 1 problem

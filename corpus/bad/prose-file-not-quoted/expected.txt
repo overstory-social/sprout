@@ -1,0 +1,4 @@
+mirror.sprout:4:8  `prose` names the file its passages are in, in quotes.
+                   Write `prose "mirror.prose"`, naming a `.prose` file of this world.
+
+refused: 1 problem

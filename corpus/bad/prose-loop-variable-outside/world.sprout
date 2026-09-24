@@ -1,0 +1,6 @@
+world prose_loop_variable_outside is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

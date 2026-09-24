@@ -1,0 +1,4 @@
+mirror.prose:2:1  A `.prose` file holds passages, and nothing else.
+                  Write each as `passage greeting { … }`. What a kind is made of belongs in its `.sprout` file.
+
+refused: 1 problem

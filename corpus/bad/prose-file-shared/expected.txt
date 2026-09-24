@@ -1,0 +1,4 @@
+mirror.sprout:4:9  "mirror.prose" holds `Lamp`'s passages, and a file's passages belong to one kind.
+                   Give `Mirror` a `.prose` file of its own, or write its passages in its braces.
+
+refused: 1 problem

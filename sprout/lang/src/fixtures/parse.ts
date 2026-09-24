@@ -8,10 +8,11 @@ import {
   parseDeclarations,
   parseExpression,
   parseProperty,
+  parseProse,
   parseStatement,
 } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
-import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { DEFAULT_LIMITS, type StaticCaps } from '../bundle/limits.js';
 
 export function read(text: string, name = 'ward.sprout') {
   const diagnostics = new Diagnostics();
@@ -75,10 +76,18 @@ export function readWorld(text: string) {
   };
 }
 
-export function readStatement(text: string) {
+export function readStatement(text: string, caps?: StaticCaps) {
   const diagnostics = new Diagnostics();
-  const statement = parseStatement(new SourceFile('body.sprout', text), diagnostics);
+  const statement = parseStatement(new SourceFile('body.sprout', text), diagnostics, caps);
   return { statement, diagnostics, refusals: diagnostics.refusals };
+}
+
+/** Prose read on its own, as the words of a one-line passage: the whole of `text`. */
+export function readProseText(text: string) {
+  const diagnostics = new Diagnostics();
+  const source = new SourceFile('lines.prose', text);
+  const prose = parseProse(source, diagnostics);
+  return { prose, source, diagnostics, refusals: diagnostics.refusals };
 }
 
 /** mulberry32: a fixed stream of choices, so every failure reproduces from the source it prints. */

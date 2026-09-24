@@ -11,8 +11,8 @@
 //
 // Nothing here renders. A refusal carries the passage it names, looked up
 // on the refusing instance's kind at run time so that a composer's own
-// line replaces a library default, or the words it quoted; B29 renders
-// either.
+// line replaces a library default, or the words it quoted; `prose/`
+// renders either.
 
 import type { GuardName } from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';

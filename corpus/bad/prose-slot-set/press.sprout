@@ -1,0 +1,6 @@
+// A whole set role in a slot.
+kind Press {
+  as target for work {
+    do { say "You work {self} with {tools}." }
+  }
+}

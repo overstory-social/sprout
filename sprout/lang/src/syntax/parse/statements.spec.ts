@@ -9,6 +9,7 @@ import { chooser, readStatement, shape, type Chooser } from '../../fixtures/pars
 import { Lexer } from '../lexer.js';
 import { DECLARATION_READERS } from './declarations.js';
 import { DEEPEST, Parser } from './parser.js';
+import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import {
   block,
   letStatement,
@@ -450,7 +451,7 @@ describe('`if`, `refuse` and `allow`', () => {
 
   it('reads `refuse` with words in quotes or a passage’s name', () => {
     for (const [text, said] of [
-      ['refuse "No room here."', 'string'],
+      ['refuse "No room here."', 'prose-literal'],
       ['refuse full', 'ident'],
     ] as const) {
       const { statement, refusals } = readStatement(text);
@@ -706,11 +707,38 @@ describe('`say` speaks to the actor, in quotes or in a passage', () => {
     expect(quoted.refusals).toEqual([]);
     expect(quoted.statement).toMatchObject({
       kind: 'say',
-      said: { kind: 'string', value: 'The bolt slides back.' },
+      said: { kind: 'prose-literal', value: 'The bolt slides back.' },
     });
     expect(unspanned(quoted.statement!)).toEqual([]);
     const named = readStatement('say taken');
     expect(named.statement).toMatchObject({ kind: 'say', said: { kind: 'ident', text: 'taken' } });
+  });
+
+  it('reads words in quotes as a one-line passage, whose slots are the file’s to point at', () => {
+    const { statement, refusals } = readStatement('say "You take {target}. \\{ is a brace."');
+    expect(refusals).toEqual([]);
+    if (statement?.kind !== 'say' || statement.said.kind !== 'prose-literal') {
+      return expect.unreachable('a `say` in quotes was written');
+    }
+    const { pieces } = statement.said.prose;
+    expect(pieces.map((piece) => piece.kind)).toEqual(['prose-words', 'prose-slot', 'prose-words']);
+    const slot = pieces[1]!;
+    expect(textOf(slot.at)).toBe('{target}');
+    expect(pieces[2]).toMatchObject({ text: '. { is a brace.' });
+  });
+
+  it('holds words in quotes to the host’s cap on a literal line, counted as they mean', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 10 };
+    const fits = readStatement('say "0123456\\"89"', caps);
+    expect(fits.refusals).toEqual([]);
+    const long = readStatement('say "0123456789a"', caps);
+    expect(long.refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        'This line is 11 characters long, and 10 is as long as a `say` in quotes may be.',
+        'Put the words in a passage, which has no length cap of its own, and say it by name, as in `say greeting`.',
+      ],
+    ]);
+    expect(long.statement?.kind).toBe('say');
   });
 
   it('refuses a `say` with nothing to say, or a reading where the words go', () => {

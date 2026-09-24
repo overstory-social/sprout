@@ -1,0 +1,5 @@
+// A whole list in a slot.
+kind Mirror {
+  :moods [Mood] default [drowsy]
+  passage greeting { Moods: {self.get(:moods)}. }
+}

@@ -1,0 +1,5 @@
+// A walk of a list over what is not one.
+kind Mirror {
+  contains
+  passage greeting { {for t of self}{t}{/for} }
+}

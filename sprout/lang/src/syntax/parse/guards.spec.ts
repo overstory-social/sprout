@@ -33,7 +33,9 @@ function shapeOf(statement: Statement): string {
       return `if ${then} else ${shapeOf(otherwise)}`;
     }
     case 'refuse':
-      return statement.said.kind === 'string' ? 'refuse "…"' : `refuse ${statement.said.text}`;
+      return statement.said.kind === 'prose-literal'
+        ? 'refuse "…"'
+        : `refuse ${statement.said.text}`;
     default:
       return statement.kind;
   }

@@ -1,0 +1,5 @@
+// A passage only reads.
+kind Mirror {
+  :lit false
+  passage greeting { {self.set(:lit, true)} }
+}

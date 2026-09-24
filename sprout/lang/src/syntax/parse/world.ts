@@ -22,6 +22,7 @@ import { composition, kindName } from './composition.js';
 import { without } from './without.js';
 import { objectDeclaration } from './kinds.js';
 import { passage } from './passages.js';
+import { proseFile } from './prose-file.js';
 import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
 
@@ -74,6 +75,7 @@ function worldMembers(p: Parser, owner: string): MemberReaders<WorldMember | Obj
   readers.set('visitors', () => visitors(p));
   readers.set('contains', () => contains(p));
   readers.set('passage', () => passage(p, readers));
+  readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);

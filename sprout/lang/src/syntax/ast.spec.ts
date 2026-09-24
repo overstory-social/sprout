@@ -103,6 +103,12 @@ describe('a passage is a member whose body is carried as written', () => {
       'passage',
       'ident',
       'passage-body',
+      'prose',
+      'prose-words',
+      'prose-slot',
+      'binding',
+      'ident',
+      'prose-words',
     ]);
   });
 

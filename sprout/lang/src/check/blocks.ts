@@ -18,7 +18,6 @@
 import type {
   Block,
   CallExpr,
-  Expr,
   IfStatement,
   RefuseStatement,
   SayStatement,
@@ -27,11 +26,11 @@ import type {
 import type { GuardName } from '../syntax/ast.js';
 import type { Span } from '../source/source.js';
 import { nearestOption } from '../declare/enums.js';
-import type { Binding, Scope } from './bindings.js';
-import { checkCondition, isEffect, narrowingOf, type CheckContext } from './check.js';
+import { branchScope, checkCondition, isEffect, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { checkAct } from './act.js';
 import { checkBroadcast, checkSend } from './sends.js';
+import { checkProse } from './prose.js';
 import { checkWake } from './wake.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
@@ -129,29 +128,33 @@ function checkIf(statement: IfStatement, context: CheckContext, kind: BodyKind):
   }
 }
 
-/** The scope a condition, checked already, opens for the branch it guards. */
-function branchScope(condition: Expr, context: CheckContext): Scope {
-  const narrowing = narrowingOf(condition, context);
-  if (narrowing !== null) return context.scope.narrowing(narrowing.binding, narrowing.kind);
-  const bound = boundOf(condition, context);
-  return bound === null ? context.scope : context.scope.bounding(bound);
-}
-
-/** `bound tool` written as a whole condition: the binding `tool` has in the branch it guards. */
-function boundOf(condition: Expr, context: CheckContext): Binding | null {
-  if (condition.kind !== 'bound') return null;
-  const withheld = context.scope.withheld(condition.name.text);
-  return withheld !== null && withheld.bound.bindable ? withheld.bound.binding : null;
-}
-
 /**
  * `refuse full` or `say taken` names a passage of the kind that wrote the
- * body; words in quotes need nothing.
+ * body, which is recorded with what is in scope here, for the passage to
+ * be checked against; words in quotes are a one-line passage, checked
+ * here and now.
  */
 function checkPassage(statement: RefuseStatement | SayStatement, context: CheckContext): void {
   const said = statement.said;
+  const speech = context.speech;
+  if (said.kind === 'prose-literal') {
+    if (speech !== undefined) checkProse(said.prose, context, speech.sites);
+    else checkProse(said.prose, context, { render: () => {}, option: () => {} });
+    return;
+  }
   const self = context.self;
-  if (said.kind === 'string' || self === null || self.passages.has(said.text)) return;
+  if (self === null) return;
+  if (self.passages.has(said.text)) {
+    if (speech !== undefined && speech.body !== null) {
+      speech.sites.said(speech.body, {
+        name: said.text,
+        at: said.at,
+        scope: context.scope.carried(),
+      });
+    }
+    return;
+  }
+  if (speech?.absent?.(self, said.text, said.at) === true) return;
   const word = statement.kind;
   const quoted = word === 'refuse' ? '"No room here."' : '"The bolt slides back."';
   const meant = nearestOption(said.text, [...self.passages.keys()]);

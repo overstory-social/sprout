@@ -1,0 +1,6 @@
+// A slot in quoted words never closed.
+kind Lever {
+  as target for pull {
+    do { say "You pull {self." }
+  }
+}

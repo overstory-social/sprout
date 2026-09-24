@@ -215,6 +215,7 @@ export function setOn(one: Turn, id: InstanceId, values: Record<string, Value>):
 /** What a line said: the quoted words, or a passage's origin, name and words. */
 export function words(said: PermitRefusal['said']): string {
   if ('text' in said) return said.text;
+  if ('absent' in said) return `absent ${said.absent}`;
   return `${said.passage.origin} ${said.passage.name}: ${said.passage.body.text.trim()}`;
 }
 

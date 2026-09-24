@@ -1,0 +1,4 @@
+mirror.sprout:4:32  `{for … of}` walks a list or a set role, and this is `Mirror`.
+                    To walk what it holds, write `{for t in …}`.
+
+refused: 1 problem

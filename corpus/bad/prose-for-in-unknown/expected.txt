@@ -1,0 +1,4 @@
+press.sprout:4:25  Sprout does not know whether this holds anything.
+                   Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.
+
+refused: 1 problem

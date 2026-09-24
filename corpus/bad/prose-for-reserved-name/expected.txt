@@ -1,0 +1,4 @@
+mirror.sprout:5:27  `say` is a word of the language, so it cannot name what a loop walks.
+                    Choose another word, as in `{for thing in self}`.
+
+refused: 1 problem

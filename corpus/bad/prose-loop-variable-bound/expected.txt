@@ -1,0 +1,4 @@
+mirror.sprout:3:32  `$first` is a loop's own, and `bound` asks about a verb's tool.
+                    Take the `bound` out.
+
+refused: 1 problem

@@ -90,10 +90,11 @@ describe('the world’s words for a fault', () => {
           ? { ...world, kind: { ...world.kind, passages: new Map() } }
           : committed.instance(id),
     };
-    expect(worldSpeech(bare, 'fault')).toEqual({
+    expect(worldSpeech(bare, 'fault')).toMatchObject({
       text: 'Something in this world has gone wrong, and nothing has changed.',
+      library: 'sprout',
     });
-    expect(worldSpeech(bare, 'unseen')).toEqual({
+    expect(worldSpeech(bare, 'unseen')).toMatchObject({
       text: 'Something here is too much to take in.',
     });
   });

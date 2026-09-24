@@ -1,0 +1,4 @@
+// A walk of contents over what holds nothing.
+kind Mirror {
+  passage greeting { {for t in self}{t}{/for} }
+}

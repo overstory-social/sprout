@@ -141,6 +141,7 @@ function ask(guard: GuardName, asked: Asked): 'allow' | Refusal {
 function said(outcome: 'allow' | Refusal): string {
   if (outcome === 'allow') return 'allow';
   if ('text' in outcome.said) return `"${outcome.said.text}"`;
+  if ('absent' in outcome.said) return `absent ${outcome.said.absent}`;
   const { passage } = outcome.said;
   return `${passage.origin} ${passage.name}: ${passage.body.text.trim()}`;
 }
@@ -173,7 +174,7 @@ describe('how a guard ends', () => {
       mover: visitor,
       parameters: [visitor, HALL],
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       guard: 'accept',
       by: BIN,
       origin: 'keep.Crate',

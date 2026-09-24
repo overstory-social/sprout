@@ -16,6 +16,7 @@ import type { Diagnostics } from '../../source/diagnostics.js';
 import type { NameScope } from '../names.js';
 import type { MessageLookup } from '../../declare/messages.js';
 import type { OnUnknownMessage } from '../../declare/handlers.js';
+import type { SpeechSetting } from '../speech.js';
 
 /** What a body is being read inside. */
 export interface CheckContext {
@@ -40,6 +41,8 @@ export interface CheckContext {
   readonly names?: NameScope;
   /** The messages a `send` or a `broadcast` may name, where the body may hold one. */
   readonly messages?: MessageSetting;
+  /** Where what the body says is recorded, for the passages it says to be checked against. */
+  readonly speech?: SpeechSetting;
 }
 
 /** The messages a body's sends reach, and what is told of one nothing declares. */

@@ -29,6 +29,8 @@ import type {
   Statement,
 } from '../ast.js';
 import { writtenPath } from '../ast.js';
+import type { ProseLiteral } from '../ast-prose.js';
+import { readProse } from './prose.js';
 import type { Token } from '../lexer.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
@@ -360,11 +362,24 @@ function refuseStatement(p: Parser, within: Enclosing): RefuseStatement | null {
   return said === null ? null : { kind: 'refuse', at: spanning(keyword.at, said.at), said };
 }
 
-/** `say "The bolt slides back."` or `say taken` — read as `refuse` is. */
+/**
+ * `say "The bolt slides back."` or `say taken` — read as `refuse` is, and
+ * words in quotes held to the host's cap on a literal line (the spec's
+ * Limits › Static caps), which a passage is not.
+ */
 function sayStatement(p: Parser, within: Enclosing): SayStatement | null {
   const keyword = p.next();
   const said = wordsOrPassage(p, keyword, within, 'say', '"The bolt slides back."', 'taken');
-  return said === null ? null : { kind: 'say', at: spanning(keyword.at, said.at), said };
+  if (said === null) return null;
+  const cap = p.caps.literalCharacters;
+  if (said.kind === 'prose-literal' && [...said.value].length > cap) {
+    p.diagnostics.refuse(
+      said.at,
+      `This line is ${[...said.value].length} characters long, and ${cap} is as long as a \`say\` in quotes may be.`,
+      'Put the words in a passage, which has no length cap of its own, and say it by name, as in `say greeting`.',
+    );
+  }
+  return { kind: 'say', at: spanning(keyword.at, said.at), said };
 }
 
 /**
@@ -384,7 +399,7 @@ function wordsOrPassage(
   const token = p.peek();
   if (token.kind === 'string') {
     p.next();
-    return { kind: 'string', at: token.at, value: token.text };
+    return proseLiteral(p, token);
   }
   // A word the next statement or member starts with, or a property's
   // name on a line of its own, is not this one's: it is left to be
@@ -410,6 +425,18 @@ function wordsOrPassage(
     `Write the words in quotes, as in \`${word} ${quoted}\`, or name ${passage}, as in \`${word} ${named}\`.`,
   );
   return null;
+}
+
+/**
+ * Words in quotes as a one-line passage, which carries slots (the spec's
+ * Prose › Passages). A line never closed has been refused where it was
+ * read, and its words are read to where it stops.
+ */
+function proseLiteral(p: Parser, token: Token): ProseLiteral {
+  const { start, end } = token.at;
+  const closed = end - start >= 2 && p.source.text[end - 1] === '"';
+  const prose = readProse(p, start + 1, closed ? end - 1 : end);
+  return { kind: 'prose-literal', at: token.at, value: token.text, prose };
 }
 
 /** `allow` — the word alone. */

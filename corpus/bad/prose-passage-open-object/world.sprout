@@ -1,0 +1,9 @@
+world prose_passage_open_object is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object press is Press
+  }
+}
+verb work { role target  role tool  "work [target] with [tool]" }

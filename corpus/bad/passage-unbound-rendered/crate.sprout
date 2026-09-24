@@ -1,0 +1,6 @@
+// A passage a slot renders is given `actor` and `here`, and nothing else.
+kind Crate {
+  contains
+  as target for open { do { say "{self.inside}" } }
+  passage inside { Inside, {target} waits. }
+}

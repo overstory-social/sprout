@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EnumDeclaration } from './ast.js';
-import { DECLARATIONS, parseStatement } from './parse.js';
+import { DECLARATIONS, parseProse, parseProseFile, parseStatement } from './parse.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { read, optionsOf } from '../fixtures/parse.js';
@@ -221,6 +221,33 @@ describe('one statement, read on its own', () => {
   it('says nothing more about what follows a statement it could not read', () => {
     expect(statement('spawn cup in self').said).toEqual([
       's.sprout:1:7 `cup` is not the name of a kind.',
+    ]);
+  });
+});
+
+describe('prose, read on its own', () => {
+  it('reads a `.prose` file for its passages, and nothing else', () => {
+    const diagnostics = new Diagnostics();
+    const passages = parseProseFile(
+      new SourceFile('m.prose', 'passage a { A. }\n:b 1\npassage c default { C. }'),
+      diagnostics,
+    );
+    expect(passages.map((one) => one.name.text)).toEqual(['a', 'c']);
+    expect(diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['m.prose:2:1']);
+  });
+
+  it('reads the whole of a text as a one-line passage’s words', () => {
+    const diagnostics = new Diagnostics();
+    const prose = parseProse(
+      new SourceFile('the engine', '{item} cannot stand in {to}.'),
+      diagnostics,
+    );
+    expect(diagnostics.all).toEqual([]);
+    expect(prose.pieces.map((piece) => piece.kind)).toEqual([
+      'prose-slot',
+      'prose-words',
+      'prose-slot',
+      'prose-words',
     ]);
   });
 });

@@ -1,0 +1,4 @@
+mirror.sprout:5:27  `$first` is one of a loop's own names, so it cannot name what the loop walks.
+                    Choose another word, as in `{for thing in self}`.
+
+refused: 1 problem

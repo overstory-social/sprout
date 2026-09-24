@@ -4,9 +4,10 @@
 // microworld compiles to, and the runtime's meter, values, range, ids,
 // state, stored and live, the evaluator a guard runs on, the move
 // through consent, the queue, the turns they all run in, and the parser
-// that reads a typed command. It imports zod and nothing else
-// (boundary.spec.ts holds that line), so a host plugs it in and the
-// language never learns whose world it is running in.
+// that reads a typed command; and prose, rendered for each reader. It
+// imports zod and nothing else (boundary.spec.ts holds that line), so a
+// host plugs it in and the language never learns whose world it is
+// running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -16,6 +17,7 @@ export * from './source/sha256.js';
 export * from './syntax/lexer.js';
 export * from './syntax/reserved.js';
 export * from './syntax/ast.js';
+export * from './syntax/ast-prose.js';
 export * from './syntax/ast-grammar.js';
 export * from './syntax/parse.js';
 
@@ -82,3 +84,8 @@ export * from './runtime/tick.js';
 export * from './runtime/wakes.js';
 export * from './runtime/wake.js';
 export * from './runtime/maintenance.js';
+
+export * from './prose/names.js';
+export * from './prose/reflow.js';
+export * from './prose/render.js';
+export * from './prose/speech.js';

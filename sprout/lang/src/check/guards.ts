@@ -14,6 +14,7 @@ import { guardParameterBinding, moverBinding, Scope, selfBinding } from './bindi
 import type { CheckContext, MessageSetting } from './check.js';
 import type { NameScope } from './names.js';
 import { checkBlock } from './blocks.js';
+import type { SpeechBook } from './speech.js';
 
 /** Where a guard is read: the kinds in scope and somewhere to say what is wrong. */
 export interface GuardSetting {
@@ -23,6 +24,8 @@ export interface GuardSetting {
   readonly names?: NameScope;
   /** The messages a send in the body reaches. */
   readonly messages?: MessageSetting;
+  /** Where what the body says is recorded. */
+  readonly speech?: SpeechBook;
 }
 
 /**
@@ -47,6 +50,7 @@ export function checkGuard(guard: GuardDeclaration, self: KindRef, setting: Guar
     diagnostics,
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
+    ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: guard } }),
   };
   checkBlock(guard.body, context, { body: 'guard', guard: guard.guard });
   return diagnostics.refusals.length === before;

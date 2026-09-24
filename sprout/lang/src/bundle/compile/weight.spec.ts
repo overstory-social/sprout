@@ -159,9 +159,9 @@ describe('blessed library source costs the author nothing, and a fork costs them
   });
 
   it('bounds nothing the host did not bound', () => {
-    // A .prose file, because a megabyte of source would be a megabyte
-    // of parse errors and this test is about the cap, not the parser.
-    const big = file('big.prose', 'x'.repeat(1_000_000));
+    // One passage, because a megabyte of source would be a megabyte of
+    // parse errors and this test is about the cap, not the parser.
+    const big = file('big.prose', `passage big { ${'x'.repeat(1_000_000)} }`);
     const files = [big, ...worldFiles(WORLD_LINE)];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });

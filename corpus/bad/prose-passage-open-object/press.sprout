@@ -1,0 +1,6 @@
+// A passage read off a role of no kind.
+kind Press {
+  as target for work {
+    do { say "{tool.shine}" }
+  }
+}

@@ -1,0 +1,8 @@
+// A `.prose` file no kind points at compiles, and is warned about:
+// nothing can say its passages.
+world prose_unpointed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

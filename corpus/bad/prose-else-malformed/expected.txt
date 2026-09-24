@@ -1,0 +1,4 @@
+mirror.sprout:4:60  `{else}` is written alone, or as `{else if …}`.
+                    Write `{else}`, or `{else if <condition>}`.
+
+refused: 1 problem

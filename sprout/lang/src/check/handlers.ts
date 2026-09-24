@@ -29,6 +29,7 @@ import {
 } from './bindings.js';
 import { typeOf, type ActSetting, type CheckContext, type MessageSetting } from './check.js';
 import type { NameScope } from './names.js';
+import type { SpeechBook } from './speech.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a handler, a hook or a pass rule is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
@@ -40,6 +41,8 @@ export interface HandlerSetting {
   readonly names?: NameScope;
   /** The messages a send in the body reaches. */
   readonly messages?: MessageSetting;
+  /** Where what the body says is recorded. */
+  readonly speech?: SpeechBook;
 }
 
 /**
@@ -69,7 +72,7 @@ export function checkHandler(
           diagnostics,
         );
   const written = `on :${declaration.message.text}`;
-  checkBody(declaration.body, written, self, parameters, setting);
+  checkBody(declaration, written, self, parameters, setting);
   return diagnostics.refusals.length === before;
 }
 
@@ -117,7 +120,7 @@ export function checkHook(hook: ResolvedHook, self: KindRef, setting: HandlerSet
       parameters.push(wasBinding(was.text, property, was.at));
     }
   }
-  checkBody(declaration.body, written, self, parameters, setting);
+  checkBody(declaration, written, self, parameters, setting);
   return diagnostics.refusals.length === before;
 }
 
@@ -155,13 +158,14 @@ export function checkPass(pass: ResolvedPass, self: KindRef, setting: HandlerSet
  * `actor` and `here` withheld, where a parameter does not take the name.
  */
 function checkBody(
-  body: ResolvedHandler['declaration']['body'],
+  declaration: ResolvedHandler['declaration'] | ResolvedHook['declaration'],
   written: string,
   self: KindRef,
   parameters: readonly Binding[],
   setting: HandlerSetting,
 ): void {
   const { diagnostics } = setting;
+  const body = declaration.body;
   const scope = Scope.root();
   scope.introduce(selfBinding(self, body.at), diagnostics);
   for (const parameter of parameters) scope.introduce(parameter, diagnostics);
@@ -189,6 +193,7 @@ function checkBody(
     acting: { verbs: setting.verbs },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
+    ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: declaration } }),
   };
   checkBlock(body, context, { body: 'handler', written });
 }

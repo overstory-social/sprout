@@ -1,0 +1,18 @@
+// The press's longer words, said from its plays, so `actor` and `tools`
+// are in reach where each is said.
+passage inked {
+  {actor} beats the ink over the forme until it shines.
+}
+
+passage inked_with {
+  You ink {self} with
+  {for tool of tools}{tool}{if $last}.{else if $index == 1} and {else}, {/if}{/for}
+
+  {if self.get(:sheets) > 5}
+  There is paper enough for a long run.
+  {else if self.get(:sheets) > 0}
+  There is paper for a few pulls.
+  {else}
+  There is no paper at all.
+  {/if}\nIt has been {for m of self.get(:moods)}{m}{if !$last}, then {/if}{/for}.
+}

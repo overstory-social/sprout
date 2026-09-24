@@ -1,0 +1,4 @@
+mirror.sprout:4:39  Only a thing in the world has passages, and this is Mood.
+                    Name a binding that holds a thing in the world, as in `{pot.greeting}`.
+
+refused: 1 problem
