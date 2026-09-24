@@ -1,4 +1,4 @@
 cat.sprout:5:34  `target` is named twice in `act nuzzle (…)`.
-                 Name each role once.
+                 Take this `target: …` out, and give the role one thing to fill it.
 
 refused: 1 problem

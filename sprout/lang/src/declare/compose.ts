@@ -559,7 +559,7 @@ function composedKinds(composer: Composer, context: ComposeContext): Composed[] 
       diagnostics.refuse(
         written.at,
         `\`${composer.name}\` composes \`${writtenKind(written)}\` twice.`,
-        'Compose it once.',
+        `Take this \`${writtenKind(written)}\` out: once is enough.`,
       );
       continue;
     }

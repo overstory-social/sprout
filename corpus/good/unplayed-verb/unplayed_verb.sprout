@@ -1,0 +1,24 @@
+// A verb nothing in the world plays a part in answers every command with
+// the world's `nothing_happens`, and a role nothing can fill, or a value
+// role nothing narrows, is never bound: each is warned about where it is
+// written, and the world still runs.
+world unplayed_verb is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lid is Lid
+    object guard is Guard
+  }
+}
+
+// Nothing plays a part in `polish`, which a visitor types, or in `hum`,
+// which only an `act` performs.
+verb polish { role target  "polish [target]" }
+verb hum { role target }
+
+// A lid plays `pry`, and nothing in the world is a crowbar.
+verb pry { role target  role tool: Crowbar  "pry [target] with [tool]" }
+
+// A guard plays `quiz`, and never says which topics it hears.
+verb quiz { role target  role topic: symbol  "quiz [target] about [topic]" }

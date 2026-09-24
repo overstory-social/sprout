@@ -1,0 +1,13 @@
+kind Kiln is sprout.Place {
+  :door Door default open
+  :lit false
+  :hatch Door default "closed"
+
+  on :entered (item, from) {
+    if (self.get(:door) == "closed") { tell "The kiln is shut." }
+    self.set(:door, "open")
+    self.set(:door, closed)
+    self.set(:lit, 1)
+    self.set(:vent, true)
+  }
+}

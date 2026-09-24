@@ -1,0 +1,16 @@
+{
+  "name": "value_of_another_type",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "3471a289f05f96a6f62f34418f3fdd07d6b613cc501efe6d06fe9d1fa076b510"
+    }
+  ],
+  "files": ["value_of_another_type.sprout", "person.sprout", "kiln.sprout", "door.sprout"]
+}

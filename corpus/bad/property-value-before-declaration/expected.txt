@@ -1,4 +1,4 @@
-property_value_before_declaration.sprout:2:11  `:wet`, which is a property or a message is not a value.
+property_value_before_declaration.sprout:2:11  `:wet`, which is a property or a message, is not a value.
                                                Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.
 
 property_value_before_declaration.sprout:3:1   `:wet` has no value where one should be.

@@ -357,6 +357,44 @@ bench.sprout:8:14  `lamp` hides `hall.lamp`: inside `hall.cupboard`, a bare `lam
                    Write `hall.lamp` where the outer one is meant, or give this one another name.
 ```
 
+### A verb no object plays a role for
+
+`lever.sprout`:
+
+```sprout
+kind Lever { }
+
+verb pull { role target  "pull [target]" }
+```
+
+```text
+lever.sprout:3:6  Nothing in this world plays a part in `pull`, so typing it is answered with the world's `nothing_happens`.
+                  Give the kind of what it is done to a part, as in `as target for pull { do { say "…" } }`.
+```
+
+### A role in a verb nothing fills
+
+`lid.sprout`:
+
+```sprout
+kind Lid {
+  as target for pry { do { say "The lid gives with a crack." } }
+}
+
+verb pry { role target  role tool: Crowbar  "pry [target] with [tool]" }
+```
+
+`crowbar.sprout`:
+
+```sprout
+kind Crowbar { }
+```
+
+```text
+lid.sprout:5:36  Nothing in this world is a `Crowbar`, so nothing can be `pry`'s `tool`.
+                 Put one in a place, as in `object crowbar is Crowbar`, or `spawn Crowbar` where one should appear; or give `tool` a kind something here is made of.
+```
+
 ### A verb nothing that takes part in ever `say`s for
 
 `bell.sprout`:
@@ -373,6 +411,26 @@ kind Bell {
 ```text
 bell.sprout:1:6  Nothing that takes part in `ring` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.
                  Say what happens in a role's `do`, as in `as target for ring { do { say "…" } }`.
+```
+
+### A passage on an object or the world that nothing invokes
+
+`bench.sprout`:
+
+```sprout
+world bench is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    passage arrive { Someone comes in out of the rain. }
+  }
+}
+```
+
+```text
+bench.sprout:6:13  Nothing says `arrive`, and nothing `hall` is made of has a passage of that name for it to replace. Did you mean `arrives`?
+                   Write `passage arrives { … }` to replace that line, or say this one by name where it should be heard, as in `say arrive` in a role's `do`.
 ```
 
 ### An exit whose `when` is `false`
@@ -562,8 +620,8 @@ kind Kiln {
 ```
 
 ```text
-kiln.sprout:5:18  This compares Door with string.
-                  Two things are compared only where they are the same type.
+kiln.sprout:5:37  `:door` holds one of open, closed, and "closed" is text in quotes.
+                  Write `:closed`, without quotes.
 ```
 
 ### A symbol that is not one of its enum’s options

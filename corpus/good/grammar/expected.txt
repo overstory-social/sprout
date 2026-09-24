@@ -1,0 +1,7 @@
+verbs.sprout:3:6  `unlock` hides `sprout.unlock`: a bare `unlock` in this world is now yours.
+                  Where the library's `unlock` is still meant, give yours another name.
+
+verbs.sprout:4:6  Nothing in this world plays a part in `juggle`, so typing it is answered with the world's `nothing_happens`.
+                  Give the kind of what it is done to a part, as in `as things for juggle { do { say "…" } }`.
+
+ok: 33 declarations in 14 files, 2 warnings

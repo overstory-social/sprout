@@ -222,7 +222,7 @@ describe('a header that cannot be read is refused at its defect, and costs nothi
     [
       'passage 4 { Hello. }',
       'k.sprout:2:11',
-      'the number 4 cannot name a passage.',
+      'The number 4 cannot name a passage.',
       "A passage's name is a lower-case word: `passage greeting { … }`.",
     ],
     [

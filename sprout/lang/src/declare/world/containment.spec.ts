@@ -64,8 +64,8 @@ describe('containment is a declaration, and a place is whatever holds actors', (
   it('takes either of them twice, and both together, in silence', () => {
     // *How members combine* calls these two idempotent, so saying what
     // is already true is not a mistake — unlike a property, which a
-    // world is refused for declaring twice. Whether a redundant one is
-    // worth a warning is B50's, which owns the list of warnings.
+    // world is refused for declaring twice. What it warns about lists no
+    // warning for a redundant one.
     //
     // And repeating one says no more than writing it once did: two
     // plain `contains` still do not make a place, whichever order they

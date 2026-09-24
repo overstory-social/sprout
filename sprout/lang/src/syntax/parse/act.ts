@@ -111,7 +111,7 @@ function actRole(p: Parser, within: Enclosing, verb: string): ActRole | null {
   if (name.kind !== 'name') {
     p.diagnostics.refuse(
       name.at,
-      `Inside \`act ${verb} (…)\` each role is named before what fills it, and ${p.describe(name)} is not a role's name.`,
+      `Inside \`act ${verb} (…)\` each role is named before what fills it, and ${p.subject(name, false)} is not a role's name.`,
       `Write \`<role>: <what fills it>\`, as in ${EXAMPLE}.`,
     );
     return null;

@@ -67,7 +67,7 @@ describe('a file that runs out is explained once, not once per bracket', () => {
 
   it('does not add the outer construct’s own complaint on top of the inner one', () => {
     expect(diagnose('remembers { :a [oak,[Zeta', rememberBlock)).toEqual([
-      '`Zeta`, which starts with a capital is not a value.',
+      '`Zeta`, which starts with a capital, is not a value.',
       'This list is never closed.',
     ]);
   });
@@ -75,7 +75,7 @@ describe('a file that runs out is explained once, not once per bracket', () => {
   it('still says so once where the list itself is the one that ran out', () => {
     expect(diagnose('[oak')).toEqual(['This list is never closed.']);
     expect(diagnose('[oak, Zeta')).toEqual([
-      '`Zeta`, which starts with a capital is not a value.',
+      '`Zeta`, which starts with a capital, is not a value.',
       'This list is never closed.',
     ]);
     expect(diagnose('remembers { :a 0', rememberBlock)).toEqual([
@@ -340,7 +340,7 @@ describe('a list is bounded by what the host allows', () => {
     const over = `[${Array.from({ length: allowed + 4 }, (_, i) => `e${i}`).join(', ')}, Zeta]`;
     const said = readValue(over).refusals.map((d) => d.message);
     expect(said.filter((m) => m.startsWith('A list holds at most'))).toHaveLength(1);
-    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital is not a value.');
+    expect(said.join(' ')).toContain('`Zeta`, which starts with a capital, is not a value.');
   });
 
   it('takes the bound from the host rather than a number of its own', () => {

@@ -9,11 +9,26 @@
 
 import type { BinaryOperator, Expr, SymbolExpr } from '../../syntax/ast.js';
 import { showBindingType, valueOf, type BindingType } from '../bindings.js';
-import { BOOLEAN, integer, sameType, showType, type ValueType } from '../../declare/types.js';
+import {
+  BOOLEAN,
+  integer,
+  remedyFor,
+  sameType,
+  showType,
+  type ValueType,
+} from '../../declare/types.js';
 import type { Span } from '../../source/source.js';
 import type { CheckContext, Checker } from './checker.js';
 import { callType, memberType } from './readings.js';
-import { isValue, option, writtenNumber } from './values.js';
+import {
+  bareOption,
+  describeBinding,
+  describeKind,
+  describeGiven,
+  isValue,
+  option,
+  writtenNumber,
+} from './values.js';
 
 /** The type of `expr`, one step above `below`, the type of what it is written on. */
 export function aboveType(expr: Expr, below: BindingType, context: Checker): BindingType | null {
@@ -149,6 +164,7 @@ export function identityType(
   if (rightOption) {
     return option(expr.right as SymbolExpr, leftType, context) ? valueOf(BOOLEAN) : null;
   }
+  if (bareOption(expr.right, leftType, context)) return null;
   const right = context.typeOf(expr.right);
   if (right === null) return null;
 
@@ -191,12 +207,52 @@ export function identityType(
       ? null
       : valueOf(BOOLEAN);
   }
+  refuseMismatch(expr, leftType, right, context);
+  return null;
+}
+
+/**
+ * Two sides of different types. Where one side is a value and the other a
+ * literal, the literal is what to rewrite, and the remedy says how.
+ */
+function refuseMismatch(
+  expr: Expr & { readonly kind: 'binary' },
+  left: BindingType,
+  right: BindingType,
+  context: CheckContext,
+): void {
+  const literal = (side: Expr): boolean =>
+    side.kind === 'string' || side.kind === 'integer' || side.kind === 'boolean';
+  const [held, heldType, given, givenType] = literal(expr.right)
+    ? [expr.left, left, expr.right, right]
+    : [expr.right, right, expr.left, left];
+  if (
+    literal(given) &&
+    !literal(held) &&
+    heldType.binds === 'value' &&
+    heldType.type.type !== 'list'
+  ) {
+    context.diagnostics.refuse(
+      given.at,
+      `${subjectOf(held)} holds ${describeBinding(heldType)}, and ${describeGiven(given, givenType)}.`,
+      remedyFor(heldType.type, given.kind === 'string' ? given.value : null, 'expression'),
+    );
+    return;
+  }
   context.diagnostics.refuse(
     expr.at,
-    `This compares ${showBindingType(leftType)} with ${showBindingType(right)}.`,
-    'Two things are compared only where they are the same type.',
+    `This compares ${describeKind(left)} with ${describeKind(right)}, and two things are compared only where they are of one type.`,
+    'Compare like with like: two numbers, two options of one enum, two things that are true or false, or two things in the world.',
   );
-  return null;
+}
+
+/** What a side holds, as a refusal names it: `` `:door` `` for a reading of `:door`, else `This`. */
+function subjectOf(side: Expr): string {
+  if (side.kind === 'call' && side.method.text === 'get') {
+    const named = side.arguments[0];
+    if (named?.kind === 'symbol-expr') return `\`:${named.name.text}\``;
+  }
+  return 'This';
 }
 
 /**

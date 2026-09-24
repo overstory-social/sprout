@@ -1,7 +1,7 @@
 exit_unknown_target.sprout:8:34  Nothing here is called `shpo`. Did you mean `shop`?
                                  In reach: `yard`, `shop` and `exit_unknown_target`.
 
-exit_unknown_target.sprout:9:40  Nothing in `shop` is called `lofft`.
+exit_unknown_target.sprout:9:40  Nothing in `shop` is called `lofft`. Did you mean `loft`?
                                  Name something written in the body of `shop`.
 
 refused: 2 problems

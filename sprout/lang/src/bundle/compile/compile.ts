@@ -32,7 +32,8 @@
 // pins, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
 // bodies every kind writes, which of them destroy a declared object, and
-// what they leave unsent, unhandled, untimed or unsaid.
+// what they leave unsent, unhandled, untimed, unheard, unplayed, unfilled
+// or unsaid.
 
 import type { KindDeclaration } from '../../syntax/ast.js';
 import type { CompileMode } from '../absent.js';
@@ -52,11 +53,14 @@ import { hereKindOf } from '../../declare/places.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
-import { checkBodies } from './bodies.js';
+import { checkBodies, type Written } from './bodies.js';
+import { warnUnheard } from './unheard.js';
 import { warnDestroyingDeclared } from './destroyed.js';
 import { warnUnsentAndUnhandled } from './events.js';
 import { warnUntimed } from './timed.js';
 import { warnUnsaid } from './unsaid.js';
+import { warnUnplayed } from './unplayed.js';
+import { spawnedKinds } from './written.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
 import { attachProse } from './prose.js';
@@ -179,64 +183,62 @@ export function compileBundle(
   // Every body, against the kind that wrote it: a kind's content once,
   // however many instances hold a copy.
   const names = new Map<Node, Named>();
-  const optionSlots = checkBodies(
-    [
-      ...tables.kinds.all().map((kind) => ({
-        kind,
-        vantage: { in: 'kind' as const, giver: kindName(kind), path: [], self: kind },
-      })),
-      ...everyContent(tables.contents).flatMap(({ kind, giver, path }) =>
-        kind === null ? [] : [{ kind, vantage: { in: 'kind' as const, giver, path, self: kind } }],
-      ),
-      ...tables.composed.flatMap((object) => {
-        const placement = tables.tree.placements.get(object);
-        return object.kind === null || object.giver !== null || placement === undefined
-          ? []
-          : [{ kind: object.kind, vantage: { in: 'tree' as const, path: placement.path } }];
-      }),
-      ...(world === null ? [] : [{ kind: world, vantage: { in: 'tree' as const, path: [] } }]),
-    ],
-    {
-      kinds: tables.kinds,
-      here: hereKindOf(everyKind, tables.kinds),
-      verbs: tables.verbs,
-      diagnostics: report.diagnostics,
-      messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
-      source: { tree: tables.tree, contents: tables.contents },
-      world,
-      names,
-      extensions,
-      absentPassage: (self, name, at) => {
-        if (![...self.composes].some((identity) => gone.has(identity))) return false;
-        // At publish the file's absence is the one refusal; at load each
-        // passage it held is a gap where it is said.
-        if (report.mode === 'publish') return true;
-        report.gap(
-          {
-            what: name,
-            kind: 'passage',
-            reason: 'missing',
-            at,
-            consequence: absenceRule('passage').consequence,
-          },
-          `\`${self.name}\` has no passage \`${name}\` while its \`.prose\` file is absent.`,
-          'Restore the file, or give the words here in quotes.',
-        );
-        return true;
-      },
-      emptiedDescribe: (self, describe) => {
-        // At load each passage it names is a gap already; at publish the
-        // description is refused for what the file's absence leaves it.
-        if (report.mode !== 'publish') return;
-        if (![...self.composes].some((identity) => gone.has(identity))) return;
-        report.diagnostics.refuse(
-          describeWord(describe),
-          `This \`describe\` says nothing while \`${self.name}\`'s \`.prose\` file is absent: every \`text\` in it names a passage that file holds.`,
-          'Restore the file, or give the description words of its own in quotes, as in `text "A lever, waist high."`.',
-        );
-      },
+  const written: Written[] = [
+    ...tables.kinds.all().map((kind) => ({
+      kind,
+      vantage: { in: 'kind' as const, giver: kindName(kind), path: [], self: kind },
+    })),
+    ...everyContent(tables.contents).flatMap(({ kind, giver, path }) =>
+      kind === null ? [] : [{ kind, vantage: { in: 'kind' as const, giver, path, self: kind } }],
+    ),
+    ...tables.composed.flatMap((object) => {
+      const placement = tables.tree.placements.get(object);
+      return object.kind === null || object.giver !== null || placement === undefined
+        ? []
+        : [{ kind: object.kind, vantage: { in: 'tree' as const, path: placement.path } }];
+    }),
+    ...(world === null ? [] : [{ kind: world, vantage: { in: 'tree' as const, path: [] } }]),
+  ];
+  const { optionSlots, unheard } = checkBodies(written, {
+    kinds: tables.kinds,
+    here: hereKindOf(everyKind, tables.kinds),
+    verbs: tables.verbs,
+    diagnostics: report.diagnostics,
+    messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
+    source: { tree: tables.tree, contents: tables.contents },
+    world,
+    names,
+    extensions,
+    absentPassage: (self, name, at) => {
+      if (![...self.composes].some((identity) => gone.has(identity))) return false;
+      // At publish the file's absence is the one refusal; at load each
+      // passage it held is a gap where it is said.
+      if (report.mode === 'publish') return true;
+      report.gap(
+        {
+          what: name,
+          kind: 'passage',
+          reason: 'missing',
+          at,
+          consequence: absenceRule('passage').consequence,
+        },
+        `\`${self.name}\` has no passage \`${name}\` while its \`.prose\` file is absent.`,
+        'Restore the file, or give the words here in quotes.',
+      );
+      return true;
     },
-  );
+    emptiedDescribe: (self, describe) => {
+      // At load each passage it names is a gap already; at publish the
+      // description is refused for what the file's absence leaves it.
+      if (report.mode !== 'publish') return;
+      if (![...self.composes].some((identity) => gone.has(identity))) return;
+      report.diagnostics.refuse(
+        describeWord(describe),
+        `This \`describe\` says nothing while \`${self.name}\`'s \`.prose\` file is absent: every \`text\` in it names a passage that file holds.`,
+        'Restore the file, or give the description words of its own in quotes, as in `text "A lever, waist high."`.',
+      );
+    },
+  });
   warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
   warnUnsentAndUnhandled({
     kinds: everyKind,
@@ -253,11 +255,34 @@ export function compileBundle(
     diagnostics: report.diagnostics,
   });
   // A refused bundle is missing what was refused, so nothing is said of
-  // what its verbs' plays leave unsaid.
+  // the passages nothing says, or of what its verbs' plays leave
+  // unplayed, unfilled or unsaid.
   if (!report.diagnostics.refused) {
-    warnUnsaid({
+    warnUnheard({
+      written,
+      unheard,
+      kinds: tables.kinds,
+      namespace: manifest.namespace,
+      diagnostics: report.diagnostics,
+    });
+    const unplayed = warnUnplayed({
+      takingPart: [
+        ...new Set([
+          ...tables.composed.flatMap(({ kind }) => (kind === null ? [] : [kind])),
+          ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
+          ...(world === null ? [] : [world]),
+          ...(visitor === null ? [] : [visitor]),
+          ...spawnedKinds(everyKind, tables.kinds).map(({ kind }) => kind),
+        ]),
+      ],
       kinds: everyKind,
       verbs: tables.verbs.all(),
+      namespace: manifest.namespace,
+      diagnostics: report.diagnostics,
+    });
+    warnUnsaid({
+      kinds: everyKind,
+      verbs: tables.verbs.all().filter((verb) => !unplayed.has(verb)),
       namespace: manifest.namespace,
       diagnostics: report.diagnostics,
     });

@@ -86,7 +86,7 @@ function notAnEntry(p: Parser, token: Token): void {
   }
   p.diagnostics.refuse(
     token.at,
-    `A \`remembers\` block holds properties, and ${p.describe(token)} is not one.`,
+    `A \`remembers\` block holds properties, and ${p.subject(token, false)} is not one.`,
     token.kind === 'name'
       ? `Write \`:${token.text}\` and its value, as a property is written.`
       : 'Write each entry as a property is, with the colon before its name: `:visits 0`.',

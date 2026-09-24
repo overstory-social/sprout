@@ -87,7 +87,8 @@ export function resolveProperty(
     type = integer(min, max);
   }
 
-  if (!checkLiteral(type, declared.default!, diagnostics)) return null;
+  if (!checkLiteral(type, declared.default!, diagnostics, `\`:${declared.name.text}\` holds`))
+    return null;
   return { name: declared.name.text, type, remembered, origin, declaration: declared };
 }
 
@@ -166,7 +167,8 @@ export function restateProperty(
     return { ...written, type: composed.type };
   }
 
-  if (!checkLiteral(composed.type, declared.default!, diagnostics)) return null;
+  if (!checkLiteral(composed.type, declared.default!, diagnostics, `\`:${name}\` holds`))
+    return null;
   return { name, type: composed.type, remembered, origin, declaration: declared };
 }
 

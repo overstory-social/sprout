@@ -86,8 +86,8 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
       [['Lever', 'kind-in-role', 'missing', 'printers_shop.sprout:2:25']],
     );
     expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
-      // Nothing plays a role in it at all, so nothing says anything for it either.
-      "Nothing that takes part in `pry` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.",
+      // Nothing plays a part in it at all, which is said once, at its name.
+      "Nothing in this world plays a part in `pry`, so typing it is answered with the world's `nothing_happens`.",
       'Nothing here is a `Lever`. Nothing fills the role; the verb’s phrases do not match.',
     ]);
     // At publish the same is a refusal, with what to write instead.

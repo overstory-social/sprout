@@ -301,4 +301,15 @@ export class Parser {
         return `\`${token.text}\``;
     }
   }
+
+  /**
+   * A token described as what a sentence is about, a verb to follow: a
+   * trailing clause closed with a comma, and a capital where it `starts`
+   * the sentence.
+   */
+  subject(token: Token, starts: boolean): string {
+    const described = this.describe(token);
+    const closed = token.kind === 'kind' || token.kind === 'symbol' ? `${described},` : described;
+    return starts ? `${closed.charAt(0).toUpperCase()}${closed.slice(1)}` : closed;
+  }
 }

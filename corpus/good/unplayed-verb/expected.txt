@@ -1,0 +1,13 @@
+unplayed_verb.sprout:17:6   Nothing in this world plays a part in `polish`, so typing it is answered with the world's `nothing_happens`.
+                            Give the kind of what it is done to a part, as in `as target for polish { do { say "…" } }`.
+
+unplayed_verb.sprout:18:6   Nothing in this world plays a part in `hum`, so `act hum` does nothing.
+                            Give the kind of what it is done to a part, as in `as target for hum { do { say "…" } }`.
+
+unplayed_verb.sprout:21:36  Nothing in this world is a `Crowbar`, so nothing can be `pry`'s `tool`.
+                            Put one in a place, as in `object crowbar is Crowbar`, or `spawn Crowbar` where one should appear; or give `tool` a kind something here is made of.
+
+unplayed_verb.sprout:24:31  Nothing that plays a part in `quiz` says which options `topic` takes, so it is never bound.
+                            Say it with `from` in the body of a part that hears it, as in `as target for quiz { topic from :<a list property> … }`.
+
+ok: 12 declarations in 5 files, 4 warnings

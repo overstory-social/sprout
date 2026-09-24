@@ -125,7 +125,7 @@ export function parseRemembers(
   if (!p.at('name', 'remembers')) {
     p.diagnostics.refuse(
       p.peek().at,
-      `This is not a \`remembers\` block, and ${p.describe(p.peek())} does not start one.`,
+      `This is not a \`remembers\` block, and ${p.subject(p.peek(), false)} does not start one.`,
       'Write `remembers { :visits 0 }`.',
     );
     return null;

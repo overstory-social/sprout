@@ -1,0 +1,10 @@
+// A value of another type is refused at the value, in words that say
+// what the property holds and what to write instead: an option written
+// as text in quotes, or without its colon, and a number where true or
+// false belongs.
+world value_of_another_type is sprout.World {
+  visitors are Person
+  visitors arrive at kiln
+
+  object kiln is Kiln
+}

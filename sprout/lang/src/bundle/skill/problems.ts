@@ -59,6 +59,26 @@ export const WARNING_TABLE: readonly ProblemEntry[] = [
     ),
   },
   {
+    about: 'A verb no object plays a role for',
+    snippet: kind(
+      'lever.sprout',
+      'kind Lever { }\n\nverb pull { role target  "pull [target]" }\n',
+      'lever',
+      'Lever',
+    ),
+  },
+  {
+    about: 'A role in a verb nothing fills',
+    snippet: {
+      files: {
+        'lid.sprout':
+          'kind Lid {\n  as target for pry { do { say "The lid gives with a crack." } }\n}\n\nverb pry { role target  role tool: Crowbar  "pry [target] with [tool]" }\n',
+        'crowbar.sprout': 'kind Crowbar { }\n',
+      },
+      hall: '    object lid is Lid',
+    },
+  },
+  {
     about: 'A verb nothing that takes part in ever `say`s for',
     snippet: kind(
       'bell.sprout',
@@ -66,6 +86,10 @@ export const WARNING_TABLE: readonly ProblemEntry[] = [
       'bell',
       'Bell',
     ),
+  },
+  {
+    about: 'A passage on an object or the world that nothing invokes',
+    snippet: { hall: '    passage arrive { Someone comes in out of the rain. }' },
   },
   {
     about: 'An exit whose `when` is `false`',
