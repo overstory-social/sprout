@@ -9,12 +9,13 @@
 //
 // Reading typed words is the parser's, reached through `Parser`, which
 // `parser.ts` fills: the turn hands it the words, who typed them, each
-// visitor's nickname and the turn's state and meter, and it gives back
+// visitor's nickname and the turn's state, meter and draws, and it gives back
 // the reading they make, or a line said to the actor in place of one, as
 // an unknown word or a `which` is answered.
 
 import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
+import type { Draw } from './draws.js';
 import type { Catalogue } from './catalogue.js';
 import { faultTold } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
@@ -30,13 +31,15 @@ import {
   type WriteInputs,
 } from './turn.js';
 
-/** What the parser reads while it parses: the turn's state before anything is written, and the turn's meter. */
+/** What the parser reads while it parses: the turn's state before anything is written, its meter and its draws. */
 export interface ParseContext {
   readonly state: StateReader;
   readonly catalogue: Catalogue;
   readonly passes: PassRule<InstanceId>;
   /** Parsing is charged to the turn's steps: a command too costly to read faults (Limits › Runtime budgets). */
   readonly budget: Budget;
+  /** The turn's stream, the first draws the turn makes: a tie among things written alike (the spec's Spawning). */
+  readonly draws: Draw;
   /** Each visitor's nickname, by the instance that is them, which is how a person is named (Names › Nicknames). */
   readonly nicknames: ReadonlyMap<InstanceId, string>;
 }
@@ -87,12 +90,13 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
   const committed = readerOf(state);
   const actor = presentActor(committed, command.visit);
   const written = writeTurn<Commanded>(state, 'command', host, command, (turn) => {
-    const { draft, catalogue, passes, budget } = turn;
+    const { draft, catalogue, passes, budget, draws } = turn;
     const parsed = host.parse(command.text, actor, {
       state: draft,
       catalogue,
       passes,
       budget,
+      draws,
       nicknames: nicknamesIn(state),
     });
     if ('answered' in parsed) {

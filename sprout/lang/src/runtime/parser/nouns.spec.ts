@@ -13,15 +13,17 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
+import { Draws } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
 import { answersTo, fits, forms, nounIn, nounsOfRun, runIn, type Candidate } from './nouns.js';
 
 const one = study();
 const context = { world: one.draft.world, nicknames: one.nicknames };
-const candidate = (id: InstanceId): Candidate => {
+/** `id` as a noun may name it, everything in the hall equally near unless a case says otherwise. */
+const candidate = (id: InstanceId, near = 2): Candidate => {
   const instance = one.draft.instance(id)!;
-  return { instance, address: addressOf(instance, context) };
+  return { instance, address: addressOf(instance, context), near };
 };
 const HERE = [BRASS_KEY, IRON_KEY, LAMP, GONG, PEBBLE_A, PEBBLE_B, DOOR].map(candidate);
 const role = (verb: string, name: string, library = 'study'): ResolvedRole =>
@@ -29,7 +31,9 @@ const role = (verb: string, name: string, library = 'study'): ResolvedRole =>
 const TAKE = role('take', 'target', 'sprout');
 const TOOL = role('unlock', 'tool');
 const THINGS = role('juggle', 'things');
-const noun = (line: string, as = TAKE) => nounIn(typedWords(line), as, HERE, one.budget);
+const draws = new Draws(7);
+const within = { budget: one.budget, draws };
+const noun = (line: string, as = TAKE) => nounIn(typedWords(line), as, HERE, within);
 
 describe('what a noun names', () => {
   it('is tried as typed and without a leading article or determiner', () => {
@@ -53,9 +57,40 @@ describe('what a noun names', () => {
     expect(noun('key')).toEqual({ found: 'which', candidates: [BRASS_KEY, IRON_KEY] });
   });
 
-  it('prefers what was named in full, and takes the nearest of things written alike', () => {
+  it('prefers what was named in full', () => {
     expect(noun('lamp')).toEqual({ found: 'one', id: LAMP });
-    expect(noun('pebble')).toEqual({ found: 'one', id: PEBBLE_A });
+  });
+
+  it('takes the nearest of things written alike, drawing nothing', () => {
+    const fresh = new Draws(7);
+    const nearer = [candidate(PEBBLE_A), candidate(PEBBLE_B, 1)];
+    const found = nounIn(['pebble'], TAKE, nearer, { budget: one.budget, draws: fresh });
+    expect(found).toEqual({ found: 'one', id: PEBBLE_B });
+    expect(fresh.drawn).toBe(0);
+  });
+
+  it('draws from the turn’s seed among things written alike and equally near, one step', () => {
+    const alike = [candidate(PEBBLE_A), candidate(PEBBLE_B)];
+    const taken = (seed: number) => {
+      const stream = new Draws(seed);
+      const before = one.budget.spentSteps;
+      const found = nounIn(['pebble'], TAKE, alike, { budget: one.budget, draws: stream });
+      expect(one.budget.spentSteps - before, `seed ${seed}`).toBe(alike.length + 1);
+      expect(stream.drawn, `seed ${seed}`).toBe(1);
+      return found.found === 'one' ? found.id : null;
+    };
+    const seeds = Array.from({ length: 32 }, (_, seed) => seed);
+    for (const seed of seeds) expect(taken(seed), `seed ${seed}`).toBe(taken(seed));
+    // Either may be meant, as the seed decides, and never anything else.
+    expect(new Set(seeds.map(taken))).toEqual(new Set([PEBBLE_A, PEBBLE_B]));
+  });
+
+  it('draws nothing where one thing answers or the visitor is asked which', () => {
+    const fresh = new Draws(7);
+    const context = { budget: one.budget, draws: fresh };
+    nounIn(['gong'], TAKE, HERE, context);
+    nounIn(['key'], TAKE, HERE, context);
+    expect(fresh.drawn).toBe(0);
   });
 
   it('is unfit where what answers cannot fill the role, and nothing where nothing answers', () => {
@@ -74,7 +109,7 @@ describe('what a noun names', () => {
 });
 
 describe('what a set role’s run names', () => {
-  const run = (line: string) => runIn(typedWords(line), THINGS, HERE, one.budget);
+  const run = (line: string) => runIn(typedWords(line), THINGS, HERE, within);
 
   it('splits on `and` and commas, a comma before `and` one split', () => {
     const at = (line: string) =>

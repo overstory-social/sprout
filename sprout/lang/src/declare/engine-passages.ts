@@ -1,8 +1,8 @@
 // The passages the engine says for itself, and what it binds when it
 // does (the spec's A worked microworld › The standard library it needs;
 // Properties › Where types come from: `thing` in the world's
-// `unreachable` and `unremarkable`, `candidates` in its `which`). The
-// world's lines are said on the world's kind, a place's notices on the
+// `unremarkable`, `candidates` in its `which`). The world's lines are
+// said on the world's kind, a place's notices on the
 // place's, and a passage the engine says is checked against exactly what
 // the engine binds where it says it: the person acting and their place,
 // as `actor` and `here` are in a body that binds them, an object, or a set
@@ -26,7 +26,7 @@ const ACTING = { actor: 'actor', here: 'here' } as const;
 /** The world's own lines, said on the world's composed kind. */
 export const WORLD_LINES: readonly EnginePassage[] = [
   { name: 'unknown', binds: ACTING },
-  { name: 'unreachable', binds: { ...ACTING, thing: 'object' } },
+  { name: 'not_here', binds: ACTING },
   { name: 'which', binds: { ...ACTING, candidates: 'set' } },
   { name: 'nothing_happens', binds: ACTING },
   { name: 'unremarkable', binds: { thing: 'object' }, polled: true },

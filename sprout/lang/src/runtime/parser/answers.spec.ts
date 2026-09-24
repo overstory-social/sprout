@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BRASS_KEY, COIN, HALL, IRON_KEY, study } from '../../fixtures/parser.js';
+import { BRASS_KEY, HALL, IRON_KEY, study } from '../../fixtures/parser.js';
 import type { StateReader } from '../state.js';
 import { answer } from './answers.js';
 
@@ -24,14 +24,15 @@ describe('the world’s answers to a line it could not run', () => {
     expect(unknown.choices).toEqual([]);
   });
 
-  it('says `unreachable` with the thing it names bound as `thing`', () => {
-    const far = answer(one.draft, 'unreachable', actor, HALL, { thing: COIN });
-    expect(text(far.said)).toEqual([
+  it('says `not_here` in the world’s words, with `actor` and `here` bound and nothing it names', () => {
+    const none = answer(one.draft, 'not_here', actor, HALL);
+    expect(text(none.said)).toEqual([
       'sprout.World',
-      'unreachable',
-      'You cannot reach {thing} from here.',
+      'not_here',
+      'You see nothing like that here.',
     ]);
-    expect(far.bindings.get('thing')).toEqual({ binds: 'object', id: COIN });
+    expect([...none.bindings.keys()]).toEqual(['actor', 'here']);
+    expect(none.choices).toEqual([]);
   });
 
   it('asks `which` with the candidates bound as a set, in the order offered', () => {
@@ -39,7 +40,7 @@ describe('the world’s answers to a line it could not run', () => {
       { id: BRASS_KEY, line: 'take brass key' },
       { id: IRON_KEY, line: 'take iron key' },
     ];
-    const which = answer(one.draft, 'which', actor, HALL, { choices });
+    const which = answer(one.draft, 'which', actor, HALL, choices);
     expect(text(which.said)).toEqual([
       'sprout.World',
       'which',

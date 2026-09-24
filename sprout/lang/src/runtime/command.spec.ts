@@ -230,6 +230,16 @@ describe('a command turn draws from its seed', () => {
     expect(flipped(314)).toMatchObject({ face, heads });
   });
 
+  it('hands the parser the turn’s stream, so the parser’s draws are the turn’s first', () => {
+    let first: number | null = null;
+    const drawing: Parser = (text, actor, context) => {
+      first = context.draws.below(1000);
+      return parseBelfry(text, actor, context);
+    };
+    committed(run(belfry(), 'ring bell', undefined, drawing));
+    expect(first).toBe(new Draws(7).below(1000));
+  });
+
   it('keeps every draw within its bound, and varies with the seed', () => {
     const seen = Array.from({ length: 60 }, (_, seed) => flipped(seed * 7919));
     for (const { face, heads } of seen) {
