@@ -20,7 +20,7 @@ import { declaredId, type InstanceId } from '../runtime/ids.js';
  * `runtime/parser.spec.ts` holds the two to each other.
  */
 export const STUDY_FILES: Readonly<Record<string, string>> = {
-  'world.sprout': [
+  'study.sprout': [
     '// What a thing is called and answers to, and the words a visitor types',
     '// for it: names and articles written and left to their defaults, nouns',
     "// added by an object and by its kind, a kind's name given to every",

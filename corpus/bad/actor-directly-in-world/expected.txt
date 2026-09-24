@@ -1,4 +1,4 @@
-world.sprout:9:10  `actor_directly_in_world` is the world, which holds no actors, so `ghost` cannot stand directly in it.
-                   Write `ghost` inside the braces of a place in the world, such as `hall`.
+actor_directly_in_world.sprout:9:10  `actor_directly_in_world` is the world, which holds no actors, so `ghost` cannot stand directly in it.
+                                     Write `ghost` inside the braces of a place in the world, such as `hall`.
 
 refused: 1 problem

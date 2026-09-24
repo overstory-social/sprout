@@ -13,7 +13,7 @@
     }
   ],
   "files": [
-    "world.sprout",
+    "composition.sprout",
     "creature.sprout",
     "wooden.sprout",
     "room.sprout",

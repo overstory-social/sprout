@@ -18,7 +18,7 @@ after B12.
 import { compileBundle, renderDiagnostics, SourceFile } from '@overstory/sprout/lang';
 
 const { bundle, diagnostics } = compileBundle(
-  { manifestFile, manifest, files: [new SourceFile('world.sprout', text)], libraries: [] },
+  { manifestFile, manifest, files: [new SourceFile('printers_shop.sprout', text)], libraries: [] },
   { mode: 'publish' },
 );
 if (bundle === null) console.error(renderDiagnostics(diagnostics));

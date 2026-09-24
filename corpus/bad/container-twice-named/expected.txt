@@ -1,4 +1,4 @@
-world.sprout:9:14  `hall.chest` holds two objects called `key`.
-                   Give one of them another name, or remove it.
+container_twice_named.sprout:9:14  `hall.chest` holds two objects called `key`.
+                                   Give one of them another name, or remove it.
 
 refused: 1 problem

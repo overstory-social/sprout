@@ -10,7 +10,7 @@ const GOOD = {
   author: 'marta',
   license: 'MIT',
   level: 1,
-  files: ['world.sprout'],
+  files: ['shop.sprout'],
 };
 
 function read(text: string) {

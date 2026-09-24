@@ -13,7 +13,7 @@ function compiled(
   options: { mode?: 'load'; withheld?: string[] } = {},
 ) {
   const all = [
-    file('world.sprout', `${WORLD_LINE}\n`),
+    file('printers_shop.sprout', `${WORLD_LINE}\n`),
     PERSON,
     ...Object.entries(files).map(([name, text]) => file(name, text)),
   ];

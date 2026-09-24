@@ -86,7 +86,7 @@ describe('the world’s word set', () => {
     expect(fixed).toContain('north');
     expect(fixed).not.toContain('take');
     const shop = compiledWorld('shop', {
-      'world.sprout':
+      'shop.sprout':
         'world shop is sprout.World { visitors are Person visitors arrive at hall\n  object hall is sprout.Place { object old_bench is Bench }\n}\n',
       'person.sprout': 'kind Person is sprout.Visitor { }\n',
       'bench.sprout': 'kind Bench { grammar { nouns "seat" } }\n',

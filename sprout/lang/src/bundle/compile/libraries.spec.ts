@@ -17,16 +17,7 @@ import { checkLibraries } from './libraries.js';
 import { atKey } from './manifest-fields.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
-import {
-  file,
-  MANIFEST,
-  PERSON,
-  refusals,
-  SPROUT_SHA,
-  warnings,
-  world,
-  WORLD_LINE,
-} from '../../fixtures/compile.js';
+import { file, MANIFEST, refusals, SPROUT_SHA, warnings, world } from '../../fixtures/compile.js';
 
 const SHA = libraryHash(STANDARD_LIBRARY);
 const PIN = { name: 'sprout', version: '0.1.0', sha: SHA };
@@ -263,7 +254,31 @@ describe('the manifest records every library by version and by the hash of its s
   });
 
   it('lets a library and the world share a file name, since they are different source', () => {
-    const files = [file('ward.sprout', `${WORLD_LINE}\nenum Mine { one }`), PERSON];
-    expect(compileBundle(world({ files })).bundle).not.toBeNull();
+    const spare: LibrarySource = {
+      name: 'ericworld',
+      version: '0.1.0',
+      level: 1,
+      files: [file('printers_shop.sprout', 'enum Spare { one }')],
+    };
+    const { bundle, diagnostics } = compileBundle(
+      world({
+        libraries: [STANDARD_LIBRARY, spare],
+        manifest: {
+          libraries: [
+            { name: 'sprout', version: '0.1.0', sha: SPROUT_SHA },
+            { name: 'ericworld', version: '0.1.0', sha: libraryHash(spare) },
+          ],
+        },
+      }),
+    );
+    expect(refusals(diagnostics)).toEqual([]);
+    const read = bundle!.definitions.filter(
+      (d) => d.name.at.source.name === 'printers_shop.sprout',
+    );
+    expect(read.map((d) => `${d.kind} ${d.name.text}`)).toEqual([
+      'world printers_shop',
+      'enum Season',
+      'enum Spare',
+    ]);
   });
 });

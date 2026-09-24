@@ -1,4 +1,4 @@
-world.sprout:6:22  `arrival_at_world` is the world itself, and visitors arrive in a place inside it.
-                   Name a place in the world, as in `visitors arrive at hall`.
+arrival_at_world.sprout:6:22  `arrival_at_world` is the world itself, and visitors arrive in a place inside it.
+                              Name a place in the world, as in `visitors arrive at hall`.
 
 refused: 1 problem

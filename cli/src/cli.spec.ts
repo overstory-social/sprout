@@ -36,12 +36,12 @@ describe('main', () => {
     const init = captured();
     expect(main(['init', dir, '--author', 'marta'], init)).toBe(0);
     expect(init.out()).toBe(
-      `wrote ${dir}/sprout.json\nwrote ${dir}/world.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/README.md\n`,
+      `wrote ${dir}/sprout.json\nwrote ${dir}/shed.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/README.md\n`,
     );
     expect(JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'))).toMatchObject({
       name: 'shed',
       author: 'marta',
-      files: ['world.sprout', 'person.sprout'],
+      files: ['shed.sprout', 'person.sprout'],
     });
     const check = captured();
     expect(main(['check', dir], check)).toBe(0);

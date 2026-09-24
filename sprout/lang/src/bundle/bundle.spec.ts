@@ -36,10 +36,10 @@ const manifest: Manifest = {
   level: 1,
   extensions: [{ name: 'media', major: 2 }],
   libraries: [{ name: 'sprout', version: '1.0.0', sha: libraryHash(sprout) }],
-  files: ['world.sprout'],
+  files: ['printers_shop.sprout'],
 };
 
-const own = [file('world.sprout', 'world printers_shop is sprout.World { contains }')];
+const own = [file('printers_shop.sprout', 'world printers_shop is sprout.World { contains }')];
 
 describe('the language level', () => {
   it('starts at 1, because nothing here is shaped by what came before it', () => {
@@ -110,7 +110,7 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
     expect(
       bundleHashOf(
         manifest,
-        [file('world.sprout', 'world x is sprout.World { }')],
+        [file('printers_shop.sprout', 'world x is sprout.World { }')],
         [vendored(sprout)],
       ),
     ).not.toBe(hash);
@@ -135,7 +135,7 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
       { ...manifest, extensions: [] },
       { ...manifest, extensions: [{ name: 'media', major: 3 }] },
       { ...manifest, libraries: [] },
-      { ...manifest, files: ['world.sprout', 'kiln.prose'] },
+      { ...manifest, files: ['printers_shop.sprout', 'kiln.prose'] },
     ] satisfies Manifest[]) {
       expect(bundleHashOf(changed, own, [vendored(sprout)]), changed.version).not.toBe(hash);
     }
@@ -165,7 +165,7 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
         { name: 'sprout', version: '1.0.0', sha: 'a'.repeat(64) },
         { name: 'ericworld', version: '0.1.0', sha: 'b'.repeat(64) },
       ],
-      files: ['world.sprout', 'kiln.sprout'],
+      files: ['printers_shop.sprout', 'kiln.sprout'],
     };
     const reversed: Manifest = {
       ...two,

@@ -27,7 +27,7 @@ import type { Value } from '../runtime/values.js';
 import { compiledWorld } from './bundle.js';
 
 export const GATEHOUSE: Bundle = compiledWorld('gatehouse', {
-  'world.sprout': `world gatehouse is sprout.World {
+  'gatehouse.sprout': `world gatehouse is sprout.World {
   visitors are Person
   visitors arrive at yard
   passage unseen { Too much {if true}happens{/if} here to take in. }

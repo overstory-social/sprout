@@ -18,7 +18,7 @@ import type { TurnHost } from './turn.js';
 // holding only a dog. The moor keeps its last gap, which holds at most
 // 1,000 seconds, so a tick after a longer one faults.
 const WEATHER = compiledWorld('weather', {
-  'world.sprout': `world weather is sprout.World {
+  'weather.sprout': `world weather is sprout.World {
   visitors are Person
   visitors arrive at moor
 

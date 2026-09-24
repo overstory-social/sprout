@@ -1,4 +1,4 @@
-world.sprout:5:16  `sprout.Visitor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.
-                   Declare one that composes `sprout.Visitor`, as `kind Person is sprout.Visitor { … }`, and write `visitors are Person`.
+visitor_kind_sprout_visitor.sprout:5:16  `sprout.Visitor` belongs to the library `sprout`. A world's visitors are made of a kind of its own.
+                                         Declare one that composes `sprout.Visitor`, as `kind Person is sprout.Visitor { … }`, and write `visitors are Person`.
 
 refused: 1 problem

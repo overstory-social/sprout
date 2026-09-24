@@ -27,7 +27,7 @@ import { words } from './reading.js';
 import { renderEffects } from '../prose/effects.js';
 
 export const BELFRY: Bundle = compiledWorld('belfry', {
-  'world.sprout': `world belfry is sprout.World {
+  'belfry.sprout': `world belfry is sprout.World {
   visitors are Person
   visitors arrive at hall
 

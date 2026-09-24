@@ -1,4 +1,4 @@
-world.sprout:8:14  `basket` holds no actors, so `cat` cannot stand in it.
-                   Write `cat` inside the braces of a place, or make `basket` one: compose `sprout.Place`, or write `contains actors` in its body.
+actor_in_what_holds_no_actors.sprout:8:14  `basket` holds no actors, so `cat` cannot stand in it.
+                                           Write `cat` inside the braces of a place, or make `basket` one: compose `sprout.Place`, or write `contains actors` in its body.
 
 refused: 1 problem

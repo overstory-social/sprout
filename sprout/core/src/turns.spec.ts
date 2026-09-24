@@ -44,7 +44,7 @@ import {
 // and a wake sets it to the seconds it waited, which it holds only up to
 // 99.
 const FILES: Record<string, string> = {
-  'world.sprout': `world tally is sprout.World {
+  'tally.sprout': `world tally is sprout.World {
   visitors are Person
   visitors arrive at hall
   object hall is sprout.Place {

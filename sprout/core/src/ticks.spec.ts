@@ -27,7 +27,7 @@ import { Ticker, type Ticking } from './ticks.js';
 // Two moors that keep the gap each tick hands them, which holds at most
 // 1,000 seconds, and a cellar nobody stands in; one kind per file.
 const FILES: Record<string, string> = {
-  'world.sprout': `world heath is sprout.World {
+  'heath.sprout': `world heath is sprout.World {
   visitors are Person
   visitors arrive at north
   object north is Moor { }

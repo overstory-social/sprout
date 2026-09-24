@@ -13,8 +13,8 @@
     }
   ],
   "files": [
-    "world.sprout",
     "verbs.sprout",
+    "phrases.sprout",
     "potter.sprout",
     "lockable.sprout",
     "clay.sprout",

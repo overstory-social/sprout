@@ -1,4 +1,4 @@
-world.sprout:8:26  `yard` gets a link `onward` from both `Burrow` and `Tunnel`, and `connect onward` could not say which it means.
-                   Write `yard`'s own `link onward "…"` to say which applies.
+link_two_sources.sprout:8:26  `yard` gets a link `onward` from both `Burrow` and `Tunnel`, and `connect onward` could not say which it means.
+                              Write `yard`'s own `link onward "…"` to say which applies.
 
 refused: 1 problem

@@ -34,7 +34,7 @@ import { compiledWorld } from './bundle.js';
 import { renderEffects } from '../prose/effects.js';
 
 export const STUDY: Bundle = compiledWorld('study', {
-  'world.sprout': `world study is sprout.World {
+  'study.sprout': `world study is sprout.World {
   visitors are Person
   visitors arrive at hall
 

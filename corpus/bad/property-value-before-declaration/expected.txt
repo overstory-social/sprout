@@ -1,10 +1,10 @@
-world.sprout:2:11  `:wet`, which is a property or a message is not a value.
-                   Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.
+property_value_before_declaration.sprout:2:11  `:wet`, which is a property or a message is not a value.
+                                               Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.
 
-world.sprout:3:1   `:wet` has no value where one should be.
-                   Write an option of the type, or a literal, before the next declaration.
+property_value_before_declaration.sprout:3:1   `:wet` has no value where one should be.
+                                               Write an option of the type, or a literal, before the next declaration.
 
-world.sprout:3:1   `property_value_before_declaration` is never closed.
-                   Add a } after what the world is made of.
+property_value_before_declaration.sprout:3:1   `property_value_before_declaration` is never closed.
+                                               Add a } after what the world is made of.
 
 refused: 3 problems

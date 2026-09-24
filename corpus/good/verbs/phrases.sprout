@@ -1,0 +1,38 @@
+// An open tool, which `"unlock [target]"` leaves out, so it is optional.
+verb unlock {
+  role target: Lockable
+  role tool
+  "unlock [target] with [tool]"
+  "use [tool] on [target]"
+  "unlock [target]"
+}
+
+// A set role, filled by every rib named in one run; a phrase that leaves
+// it out binds the empty set.
+verb work {
+  role target: Clay
+  role tools: Rib many
+  "work [target] with [tools]"
+  "work [target]"
+}
+
+// Value roles: an option the visitor names, and a number.
+verb ask { role target  role topic: symbol  "ask [target] about [topic]"  "ask [target] [topic]" }
+verb dial { role target  role setting: integer  "set [target] to [setting]" }
+
+// No phrases, so only `act` performs it, and it says which tool may be
+// left unnamed.
+verb nuzzle {
+  role target: sprout.Actor
+  role gift optional
+}
+
+// No roles, so only the actor plays it.
+verb stretch { "stretch"  "stretch out" }
+
+// Roles and phrases in any order, and an escape in a phrase.
+verb shout {
+  "shout at [target]"
+  role target
+  "yell \"hey\" at [target]"
+}

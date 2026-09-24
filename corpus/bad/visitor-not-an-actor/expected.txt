@@ -1,4 +1,4 @@
-world.sprout:4:16  `Hall` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.
-                   Write `kind Person is sprout.Visitor { … }` and `visitors are Person`, or name a kind that composes `sprout.Visitor`.
+visitor_not_an_actor.sprout:4:16  `Hall` does not compose `sprout.Visitor`, and a world's visitors are made of a kind that does.
+                                  Write `kind Person is sprout.Visitor { … }` and `visitors are Person`, or name a kind that composes `sprout.Visitor`.
 
 refused: 1 problem

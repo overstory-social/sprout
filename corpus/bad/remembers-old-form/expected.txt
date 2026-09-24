@@ -1,4 +1,4 @@
-world.sprout:8:5  What an object remembers is written as a `remembers` block, with no colon before `remembers` and its properties in braces.
-                  Write `remembers { :handled false :visits 0 min 0 max 99 }`.
+remembers_old_form.sprout:8:5  What an object remembers is written as a `remembers` block, with no colon before `remembers` and its properties in braces.
+                               Write `remembers { :handled false :visits 0 min 0 max 99 }`.
 
 refused: 1 problem

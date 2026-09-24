@@ -32,7 +32,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * cat's range; a person waves by performing a bow.
  */
 const DEN = compiledWorld('den', {
-  'world.sprout': [
+  'den.sprout': [
     'world den is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is Room {',
     '    object cat is Cat',

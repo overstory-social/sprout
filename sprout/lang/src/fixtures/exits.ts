@@ -27,7 +27,7 @@ import type { Value } from '../runtime/values.js';
 import { renderEffects } from '../prose/effects.js';
 
 export const WAYS: Bundle = compiledWorld('ways', {
-  'world.sprout': `world ways is sprout.World {
+  'ways.sprout': `world ways is sprout.World {
   visitors are Person
   visitors arrive at yard
 

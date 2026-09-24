@@ -1,4 +1,4 @@
-world.sprout:8:46  `brass` and `tin` are written after the `]` that ends this list.
-                   Everything the list holds goes inside its brackets. Take out the `]` that ends it too early.
+list_default_stray_closer.sprout:8:46  `brass` and `tin` are written after the `]` that ends this list.
+                                       Everything the list holds goes inside its brackets. Take out the `]` that ends it too early.
 
 refused: 1 problem

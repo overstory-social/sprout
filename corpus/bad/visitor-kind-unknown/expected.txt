@@ -1,4 +1,4 @@
-world.sprout:3:16  Nothing here is a `Creture`. Did you mean `Creature`?
-                   Write `Creature`, or declare `Creture` with `kind Creture is sprout.Visitor { … }`.
+visitor_kind_unknown.sprout:3:16  Nothing here is a `Creture`. Did you mean `Creature`?
+                                  Write `Creature`, or declare `Creture` with `kind Creture is sprout.Visitor { … }`.
 
 refused: 1 problem

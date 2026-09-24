@@ -12,5 +12,5 @@
       "sha": "f000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
-  "files": ["world.sprout", "person.sprout"]
+  "files": ["library_mismatched.sprout", "person.sprout"]
 }
