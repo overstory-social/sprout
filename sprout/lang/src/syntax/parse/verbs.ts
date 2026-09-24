@@ -352,11 +352,6 @@ function roleFiller(p: Parser, name: Ident): KindExpr | ValueFiller | null {
     return null;
   }
   p.next();
-  const described = p.describe(token);
-  p.diagnostics.refuse(
-    token.at,
-    `${described.charAt(0).toUpperCase()}${described.slice(1)} cannot fill a role.`,
-    FILLED_BY,
-  );
+  p.diagnostics.refuse(token.at, `${p.subject(token, true)} cannot fill a role.`, FILLED_BY);
   return null;
 }

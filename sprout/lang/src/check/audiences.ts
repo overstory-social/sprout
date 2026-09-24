@@ -161,7 +161,7 @@ function refuseSay(statement: SayStatement, context: CheckContext, kind: BodyKin
     context.diagnostics.refuse(
       at,
       `\`say\` has nobody to speak to inside \`${kind.guard}\`.`,
-      "It belongs in a role's `do`.",
+      'To say why the move is turned away, make it the words of a `refuse`, as in `refuse "No room here."`; to speak, move it to a role\'s `do`.',
     );
     return;
   }

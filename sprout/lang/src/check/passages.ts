@@ -89,8 +89,12 @@ interface Saying {
   readonly undrawn: Undrawn | null;
 }
 
-/** Check every passage the setting's kinds have against every place it is said from. */
-export function checkPassages(setting: PassageSetting): void {
+/**
+ * Check every passage the setting's kinds have against every place it is
+ * said from. Gives back the passages nothing says, renders or has the
+ * engine say, for the warning about a passage nothing invokes.
+ */
+export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPassage> {
   const run = runOver(setting);
   for (const speaker of setting.speakers) {
     const { kind } = speaker;
@@ -127,6 +131,7 @@ export function checkPassages(setting: PassageSetting): void {
     }
   }
   drain(run);
+  return new Set([...run.reached].filter((passage) => !run.heard.has(passage)));
 }
 
 /** The declarations of every body a composed kind runs, whichever kind wrote each. */
@@ -173,8 +178,10 @@ interface Run {
   readonly queue: Saying[];
   /** Each passage, with the scopes it has been checked in. */
   readonly done: Map<ResolvedPassage, Set<string>>;
-  /** Each passage said from somewhere. */
+  /** Each passage checked, whether or not anything says it. */
   readonly reached: Set<ResolvedPassage>;
+  /** Each passage something says, renders or has the engine say. */
+  readonly heard: Set<ResolvedPassage>;
   /** Each diagnostic told, so a passage said from many places is told of once. */
   readonly told: Set<string>;
   /** The composed kind that wrote each passage, where its names resolve. */
@@ -189,11 +196,20 @@ function runOver(setting: PassageSetting): Run {
       if (passage.origin === own && !writers.has(passage)) writers.set(passage, speaker);
     }
   }
-  return { setting, queue: [], done: new Map(), reached: new Set(), told: new Set(), writers };
+  return {
+    setting,
+    queue: [],
+    done: new Map(),
+    reached: new Set(),
+    heard: new Set(),
+    told: new Set(),
+    writers,
+  };
 }
 
 function say(run: Run, saying: Saying): void {
   run.reached.add(saying.passage);
+  if (saying.from.from !== 'nowhere') run.heard.add(saying.passage);
   run.queue.push(saying);
 }
 

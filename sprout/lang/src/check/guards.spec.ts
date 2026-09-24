@@ -149,7 +149,7 @@ describe('a guard may not write, make or remove anything', () => {
       [
         'g.sprout:2:25',
         '`say` has nobody to speak to inside `accept`.',
-        "It belongs in a role's `do`.",
+        'To say why the move is turned away, make it the words of a `refuse`, as in `refuse "No room here."`; to speak, move it to a role\'s `do`.',
       ],
     ]);
   });

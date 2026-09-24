@@ -296,7 +296,7 @@ function walkable(type: BindingType, over: Expr, context: CheckContext): boolean
         ? walkingUnknown(over, type.remedy, context)
         : [
             `\`${shownName(kindName(type.kind), context.from)}\` holds nothing, so there is nothing to walk.`,
-            'Containment is a declaration: a kind that holds things writes `contains`.',
+            `Write \`contains\` in the body of \`${shownName(kindName(type.kind), context.from)}\` to let it hold things, or walk something that does.`,
           ];
   context.diagnostics.refuse(over.at, message, remedy);
   return false;

@@ -197,7 +197,7 @@ describe('a world declaration', () => {
     // Two bad members in a row are two problems, each said.
     expect(named('visitors are 4\nvisitors arrive y\n:y 1')).toEqual({
       members: ['y'],
-      said: ['the number 4 is not the name of a kind.', 'A world says where visitors arrive AT.'],
+      said: ['The number 4 is not the name of a kind.', 'A world says where visitors arrive AT.'],
     });
     expect(named('nonsense\n:wear 4 min "x"\n:y 1')).toEqual({
       members: ['y'],
@@ -276,7 +276,7 @@ describe('a world declaration', () => {
       'world w is sprout.World {\n  :faulty :wet\nmessage :omega\n',
     );
     expect(refusals.map((d) => d.message)).toEqual([
-      '`:wet`, which is a property or a message is not a value.',
+      '`:wet`, which is a property or a message, is not a value.',
       '`:wet` has no value where one should be.',
       '`w` is never closed.',
     ]);

@@ -18,6 +18,10 @@ import {
   warded,
 } from '../../fixtures/check.js';
 import {
+  bareOption,
+  describeBinding,
+  describeGiven,
+  describeKind,
   elementOf,
   held,
   inRange,
@@ -88,7 +92,7 @@ describe('a value where one is wanted', () => {
     const said = saidBy(context);
     expect(said[0]).toContain('`Ward` has no option `brass`');
     expect(said[1]).toBe(
-      '`:oak` is an option, and this is integer. An option is compared with something typed by an enum.',
+      '`:oak` is an option, and this holds a whole number. Write a whole number, as in `1`.',
     );
   });
 
@@ -103,9 +107,9 @@ describe('a value where one is wanted', () => {
     expect(matches(expression('12'), held(CAPACITY), context)).toBe(false);
     expect(matches(expression('tool'), WARD, context)).toBe(false);
     expect(context.diagnostics.refusals.map((d) => d.message)).toEqual([
-      'This holds boolean, and integer is not one.',
+      'This holds true or false, and 1 is a number.',
       '12 is outside 0 to 9.',
-      'This holds Ward, and shop.Key is not one.',
+      'This holds one of oak, silver, and this is shop.Key.',
     ]);
   });
 
@@ -113,7 +117,42 @@ describe('a value where one is wanted', () => {
     const context = vessel();
     expect(wrongType(expression('1'), valueOf(integer()), valueOf(BOOLEAN), context)).toBe(false);
     expect(saidBy(context)).toEqual([
-      'This holds boolean, and integer is not one. Write something of that type.',
+      'This holds true or false, and 1 is a number. Write `true` or `false`, or a condition, as in `self.get(:open)`.',
     ]);
+  });
+});
+
+describe('what an author is told to write instead', () => {
+  it('answers text that names an option with that option, colon and all', () => {
+    const context = checking(warded());
+    expect(matches(expression('"silver"'), WARD, context, '`:ward` holds')).toBe(false);
+    expect(context.diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`:ward` holds one of oak, silver, and "silver" is text in quotes.',
+        'Write `:silver`, without quotes.',
+      ],
+    ]);
+  });
+
+  it('refuses an option written without its colon, where nothing of that name is in reach', () => {
+    const context = checking(warded());
+    expect(bareOption(expression('oak'), WARD, context)).toBe(true);
+    expect(bareOption(expression('self'), WARD, context)).toBe(false);
+    expect(bareOption(expression('oak'), valueOf(BOOLEAN), context)).toBe(false);
+    expect(context.diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        '`oak` is an option of `Ward`, and an option is written with its colon here.',
+        'Write `:oak`.',
+      ],
+    ]);
+  });
+
+  it('says what is given as written, and anything else by its type', () => {
+    expect(describeGiven(expression('4'), valueOf(integer()))).toBe('4 is a number');
+    expect(describeGiven(expression('"x"'), valueOf(STRING))).toBe('"x" is text in quotes');
+    expect(describeGiven(expression('self.get(:ward)'), WARD)).toBe('this is an option of Ward');
+    expect(describeBinding(WARD)).toBe('one of oak, silver');
+    expect(describeKind(valueOf(integer(0, 9)))).toBe('a whole number from 0 to 9');
+    expect(describeKind(objectOf(KEY))).toBe(showBindingType(objectOf(KEY)));
   });
 });

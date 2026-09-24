@@ -145,12 +145,23 @@ export function declaredOn(
   const whose = shown.map((name) => `a \`${name}\`'s`).join(' or ');
   context.diagnostics.refuse(
     named.at,
-    `\`${kindName(kind)}\` has no \`:${named.text}\`.${meant === null ? '' : ` Did you mean \`:${meant}\`?`}`,
+    `\`${shownName(kindName(kind), context.from)}\` has no \`:${named.text}\`.${meant === null ? '' : ` Did you mean \`:${meant}\`?`}`,
     shown.length === 0
-      ? `It has ${readable([...kind.properties.keys()].map((name) => `:${name}`))}.`
+      ? hasInstead(kind, named.text, context)
       : `\`:${named.text}\` is ${whose}. Read it as ${shown.length === 1 ? 'one' : 'one of them'} first: \`if (${receiver}.is(${shown[0]})) { … ${receiver}.get(:${named.text}) … }\`.`,
   );
   return null;
+}
+
+/** What `kind` has instead of `name`, and, where the kind is the body's own library's, that it may declare it. */
+function hasInstead(kind: KindRef, name: string, context: CheckContext): string {
+  const has = [...kind.properties.keys()].map((one) => `:${one}`);
+  const held = has.length === 0 ? 'It holds no properties' : `It has ${readable(has)}`;
+  if (kind.library !== context.from) return `${held}.`;
+  const shown = shownName(kindName(kind), context.from);
+  return has.length === 0
+    ? `${held}: declare \`:${name}\` in \`${shown}\` with its default.`
+    : `${held}: name one of those, or declare \`:${name}\` in \`${shown}\` with its default.`;
 }
 
 /**
@@ -197,10 +208,11 @@ export function container(
 ): boolean {
   if (type.binds === 'object' && type.kind !== null && type.kind.contains) return true;
   if (type.binds === 'object' && type.kind !== null) {
+    const shown = shownName(kindName(type.kind), context.from);
     context.diagnostics.refuse(
       at,
-      `\`${kindName(type.kind)}\` holds nothing, so there is nothing to count.`,
-      'Containment is a declaration: a kind that holds things writes `contains`.',
+      `\`${shown}\` holds nothing, so there is nothing to count.`,
+      `Write \`contains\` in the body of \`${shown}\` to let it hold things, or count something that does.`,
     );
     return false;
   }

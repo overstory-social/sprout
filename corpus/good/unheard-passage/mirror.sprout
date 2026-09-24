@@ -1,0 +1,3 @@
+kind Mirror {
+  describe { text "An old mirror in a heavy frame." }
+}

@@ -1,8 +1,7 @@
 // What the compiler says, and where (the spec's The compiler ›
-// Diagnostics). The wording of each message and the list of warnings are
-// B50's; what is here is the carrier — a problem is a SPAN, a sentence
-// and, where there is one, the thing to write instead — and the shape it
-// prints in:
+// Diagnostics). Each message is worded where it is raised; what is here
+// is the carrier — a problem is a SPAN, a sentence and, where there is
+// one, the thing to write instead — and the shape it prints in:
 //
 //   kiln.sprout:23:9    `:door` holds one of open, closed — "closed" is a string.
 //                       Write :closed.

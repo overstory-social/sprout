@@ -1,4 +1,4 @@
 mirror.sprout:3:32  `Mirror` holds nothing, so there is nothing to walk.
-                    Containment is a declaration: a kind that holds things writes `contains`.
+                    Write `contains` in the body of `Mirror` to let it hold things, or walk something that does.
 
 refused: 1 problem

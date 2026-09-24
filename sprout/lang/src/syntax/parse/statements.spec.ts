@@ -90,7 +90,7 @@ describe('`let` names the result of an expression', () => {
       ['let 4 = 1', 'A `let` needs a name.'],
       ['let Ward = 1', 'starts with a capital'],
       ['let x', 'is not given anything to name'],
-      ['let x = ', 'the end of the file is not something to read'],
+      ['let x = ', 'The end of the file is not something to read'],
     ];
     for (const [text, said] of table) {
       const { statement, refusals } = readStatement(text);
@@ -200,7 +200,7 @@ describe('`spawn` makes a new instance of a kind, in a container', () => {
       [
         'spawn 3 in self',
         'body.sprout:1:7',
-        'the number 3 is not the name of a kind.',
+        'The number 3 is not the name of a kind.',
         'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
       ],
       [

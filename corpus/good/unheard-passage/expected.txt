@@ -1,0 +1,7 @@
+unheard_passage.sprout:10:11  Nothing says `nothing_happen`, and nothing `unheard_passage` is made of has a passage of that name for it to replace. Did you mean `nothing_happens`?
+                              Write `passage nothing_happens { … }` to replace that line, or say this one by name where it should be heard, as in `say nothing_happen` in a role's `do`.
+
+unheard_passage.sprout:18:15  Nothing says `aside`, and nothing `hall.mirror` is made of has a passage of that name for it to replace.
+                              Say it by name where it should be heard, as in `say aside` in a role's `do`, or take it out.
+
+ok: 5 declarations in 3 files, 2 warnings

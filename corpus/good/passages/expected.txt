@@ -1,0 +1,7 @@
+passages.sprout:8:11   Nothing says `welcome`, and nothing `passages` is made of has a passage of that name for it to replace.
+                       Say it by name where it should be heard, as in `say welcome` in a role's `do`, or take it out.
+
+passages.sprout:14:15  Nothing says `aside`, and nothing `hall.mirror` is made of has a passage of that name for it to replace.
+                       Say it by name where it should be heard, as in `say aside` in a role's `do`, or take it out.
+
+ok: 5 declarations in 3 files, 2 warnings

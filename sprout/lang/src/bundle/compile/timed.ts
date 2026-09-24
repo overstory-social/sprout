@@ -11,7 +11,7 @@
 // declares `contains actors`; the objects asked are the declared ones, in
 // declared order, and then each kind a body spawns.
 
-import type { Block, Statement, WakeStatement } from '../../syntax/ast.js';
+import type { WakeStatement } from '../../syntax/ast.js';
 import type { HandlerDeclaration } from '../../syntax/ast-events.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { libraryOf } from '../../declare/enums.js';
@@ -19,6 +19,7 @@ import { writtenKind } from '../../declare/compose.js';
 import type { KindLookup, KindRef } from '../../declare/kinds.js';
 import type { ComposedObject } from '../../declare/objects.js';
 import type { ObjectTree } from '../../declare/tree.js';
+import { bodiesOf, spawnedKinds, statementsIn } from './written.js';
 
 /** What the warnings read: every composed kind, the objects and where they sit, and whose declarations are the world's. */
 export interface TimedSetting {
@@ -37,12 +38,6 @@ export function warnUntimed(setting: TimedSetting): void {
   warnTickOffPlace(setting);
   warnUnansweredWake(setting);
   warnUnaskedWoke(setting);
-}
-
-/** A body a kind runs, with the kind that wrote it. */
-interface Body {
-  readonly origin: string;
-  readonly block: Block | null;
 }
 
 /** An object that may be sent `:tick`, as the warning names it. */
@@ -77,27 +72,8 @@ function tickable(setting: TimedSetting): Ticked[] {
     if (object.kind === null || placement === undefined) continue;
     found.push({ named: `\`${placement.path.join('.')}\``, kind: object.kind });
   }
-  const spawned = new Set<KindRef>();
-  for (const kind of setting.kinds) {
-    for (const { origin, block } of bodiesOf(kind)) {
-      for (const statement of statementsIn(block)) {
-        const spawn =
-          statement.kind === 'spawn'
-            ? statement
-            : statement.kind === 'let' && statement.value.kind === 'spawn'
-              ? statement.value
-              : null;
-        if (spawn === null) continue;
-        const written = spawn.spawned;
-        const made =
-          written.library === null
-            ? setting.lookup.unqualified(written.name.text, libraryOf(origin))
-            : setting.lookup.qualified(written.library.text, written.name.text);
-        if (made === null || spawned.has(made)) continue;
-        spawned.add(made);
-        found.push({ named: `A spawned \`${writtenKind(written)}\``, kind: made });
-      }
-    }
+  for (const { kind, spawn } of spawnedKinds(setting.kinds, setting.lookup)) {
+    found.push({ named: `A spawned \`${writtenKind(spawn.spawned)}\``, kind });
   }
   return found;
 }
@@ -153,37 +129,4 @@ function wakesOf(kind: KindRef): { readonly origin: string; readonly statement: 
       statement.kind === 'wake' ? [{ origin, statement }] : [],
     ),
   );
-}
-
-/** Every body a kind runs: its plays' `do`s, its handlers and its hooks. */
-function bodiesOf(kind: KindRef): Body[] {
-  return [
-    ...[...kind.plays.values()]
-      .flat()
-      .map((play) => ({ origin: play.origin, block: play.declaration.do })),
-    ...[...kind.handlers.values()]
-      .flat()
-      .map((one) => ({ origin: one.origin, block: one.declaration.body })),
-    ...[...kind.hooks.values()]
-      .flat()
-      .map((one) => ({ origin: one.origin, block: one.declaration.body })),
-  ];
-}
-
-/** Every statement in `block`, however deep inside an `if`, in the order written. */
-function statementsIn(block: Block | null): Statement[] {
-  const found: Statement[] = [];
-  const pending: Statement[] = [...(block?.statements ?? [])].reverse();
-  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-    found.push(next);
-    if (next.kind !== 'if') continue;
-    const otherwise =
-      next.otherwise === null
-        ? []
-        : next.otherwise.kind === 'if'
-          ? [next.otherwise]
-          : next.otherwise.statements;
-    pending.push(...[...next.then.statements, ...otherwise].reverse());
-  }
-  return found;
 }

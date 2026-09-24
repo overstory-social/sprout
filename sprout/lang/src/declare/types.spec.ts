@@ -9,7 +9,9 @@ import {
   BOOLEAN,
   checkLiteral,
   describeLiteral,
+  describeType,
   identicalType,
+  remedyFor,
   INTEGER_MAX,
   INTEGER_MIN,
   integer,
@@ -228,9 +230,7 @@ describe('a literal is a value of a type, or it is refused at the literal', () =
   it('refuses a value of another type, naming both', () => {
     const { ok, diagnostics } = check(BOOLEAN, ':a 4');
     expect(ok).toBe(false);
-    expect(diagnostics.refusals[0]!.message).toBe(
-      'This holds boolean, and the number 4 is not one.',
-    );
+    expect(diagnostics.refusals[0]!.message).toBe('This holds true or false, and 4 is a number.');
     expect(diagnostics.refusals[0]!.remedy).toBe('Write `true` or `false`.');
   });
 
@@ -261,7 +261,9 @@ describe('a literal is a value of a type, or it is refused at the literal', () =
   it('refuses a list element of the wrong type, at the element', () => {
     const { ok, diagnostics } = check({ type: 'list', element: WARD }, ':a [oak, 4]');
     expect(ok).toBe(false);
-    expect(diagnostics.refusals[0]!.message).toContain('the number 4');
+    expect(diagnostics.refusals[0]!.message).toBe(
+      'This holds one of oak, silver, and 4 is a number.',
+    );
   });
 
   it('accepts a list of lists whose inner lists differ', () => {
@@ -285,7 +287,9 @@ describe('a literal is a value of a type, or it is refused at the literal', () =
     const grid: ValueType = { type: 'list', element: { type: 'list', element: WARD } };
     const { ok, diagnostics } = check(grid, ':a [[oak], oak]');
     expect(ok).toBe(false);
-    expect(diagnostics.refusals[0]!.message).toBe('This holds [Ward], and `oak` is not one.');
+    expect(diagnostics.refusals[0]!.message).toBe(
+      'This holds a list of Ward, and `oak` is an option.',
+    );
     expect(diagnostics.refusals[0]!.remedy).toBe(
       'Write a list in brackets, as in `[…]`, holding Ward.',
     );
@@ -295,11 +299,38 @@ describe('a literal is a value of a type, or it is refused at the literal', () =
 describe('a literal describes itself the way a person would', () => {
   const literalOf = (text: string) => property(text).declared.default!;
   it('says what it is', () => {
-    expect(describeLiteral(literalOf(':a true'))).toBe('`true`');
-    expect(describeLiteral(literalOf(':a 4'))).toBe('the number 4');
-    expect(describeLiteral(literalOf(':a "x"'))).toBe('text in quotes');
-    expect(describeLiteral(literalOf(':a oak'))).toBe('`oak`');
-    expect(describeLiteral(literalOf(':a [oak]'))).toBe('a list');
+    expect(describeLiteral(literalOf(':a true'))).toBe('`true` is true or false');
+    expect(describeLiteral(literalOf(':a 4'))).toBe('4 is a number');
+    expect(describeLiteral(literalOf(':a "x"'))).toBe('"x" is text in quotes');
+    expect(describeLiteral(literalOf(':a oak'))).toBe('`oak` is an option');
+    expect(describeLiteral(literalOf(':a [oak]'))).toBe('this is a list');
+  });
+
+  it('says what a type holds in words, not in its declared name', () => {
+    expect(describeType(BOOLEAN)).toBe('true or false');
+    expect(describeType(integer())).toBe('a whole number');
+    expect(describeType(integer(0, 9))).toBe('a whole number from 0 to 9');
+    expect(describeType(STRING)).toBe('text');
+    expect(describeType(WARD)).toBe('one of oak, silver');
+    expect(describeType({ type: 'list', element: WARD })).toBe('a list of Ward');
+  });
+});
+
+describe('a refusal says what to write instead', () => {
+  it('answers quoted text that names an option, or nearly, with the option, bare or with its colon', () => {
+    expect(remedyFor(WARD, 'silver', 'declared')).toBe('Write `silver`, without quotes.');
+    expect(remedyFor(WARD, 'silvr', 'expression')).toBe('Write `:silver`, without quotes.');
+    expect(remedyFor(WARD, 'brass', 'declared')).toBe('Write one of: oak, silver.');
+    expect(remedyFor(WARD, null, 'expression')).toBe(
+      'Write an option, as in `:oak`. Options: oak, silver.',
+    );
+  });
+
+  it('offers a condition where an expression wants true or false, and a range where there is one', () => {
+    expect(remedyFor(BOOLEAN, null, 'declared')).toBe('Write `true` or `false`.');
+    expect(remedyFor(BOOLEAN, null, 'expression')).toContain('or a condition');
+    expect(remedyFor(integer(0, 9), null, 'expression')).toBe('Write a whole number from 0 to 9.');
+    expect(remedyFor(integer(), null, 'expression')).toBe('Write a whole number, as in `1`.');
   });
 });
 
@@ -381,7 +412,7 @@ describe('a type an extension adds', () => {
     expect(extensionTyped(':image media.Image default 3').said).toEqual([
       [
         'lamp.sprout:1:28',
-        'This holds media.Image, and the number 3 is not one.',
+        'This holds `media.Image`, and 3 is a number.',
         'Write it as text in quotes, which the extension `media` reads.',
       ],
     ]);

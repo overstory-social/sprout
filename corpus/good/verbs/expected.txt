@@ -1,0 +1,31 @@
+lockable.sprout:1:6  `Lockable` hides `sprout.Lockable`: a bare `Lockable` in this world is now yours.
+                     Write `sprout.Lockable` where the library's is meant, or give yours another name.
+
+phrases.sprout:2:6   `unlock` hides `sprout.unlock`: a bare `unlock` in this world is now yours.
+                     Where the library's `unlock` is still meant, give yours another name.
+
+phrases.sprout:2:6   Nothing in this world plays a part in `unlock`, so typing it is answered with the world's `nothing_happens`.
+                     Give the kind of what it is done to a part, as in `as target for unlock { do { say "…" } }`.
+
+phrases.sprout:12:6  Nothing in this world plays a part in `work`, so typing it is answered with the world's `nothing_happens`.
+                     Give the kind of what it is done to a part, as in `as target for work { do { say "…" } }`.
+
+phrases.sprout:20:6  `ask` hides `sprout.ask`: a bare `ask` in this world is now yours.
+                     Where the library's `ask` is still meant, give yours another name.
+
+phrases.sprout:20:6  Nothing in this world plays a part in `ask`, so typing it is answered with the world's `nothing_happens`.
+                     Give the kind of what it is done to a part, as in `as target for ask { do { say "…" } }`.
+
+phrases.sprout:21:6  Nothing in this world plays a part in `dial`, so typing it is answered with the world's `nothing_happens`.
+                     Give the kind of what it is done to a part, as in `as target for dial { do { say "…" } }`.
+
+phrases.sprout:25:6  Nothing in this world plays a part in `nuzzle`, so `act nuzzle` does nothing.
+                     Give the kind of what it is done to a part, as in `as target for nuzzle { do { say "…" } }`.
+
+phrases.sprout:31:6  Nothing in this world plays a part in `stretch`, so typing it is answered with the world's `nothing_happens`.
+                     Give the kind of whoever does it a part, as in `as actor for stretch { do { say "…" } }` in a kind that composes `sprout.Actor`.
+
+phrases.sprout:34:6  Nothing in this world plays a part in `shout`, so typing it is answered with the world's `nothing_happens`.
+                     Give the kind of what it is done to a part, as in `as target for shout { do { say "…" } }`.
+
+ok: 13 declarations in 6 files, 10 warnings

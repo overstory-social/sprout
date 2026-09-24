@@ -26,7 +26,7 @@ export function property(p: Parser): PropertyDeclaration | null {
   if (symbol === null) {
     p.diagnostics.refuse(
       p.peek().at,
-      `A property starts with its name, and ${p.describe(p.peek())} is not one.`,
+      `A property starts with its name, and ${p.subject(p.peek(), false)} is not one.`,
       'Write `:wear 0`, with a colon before the name.',
     );
     return null;

@@ -770,3 +770,14 @@ describe('a parser over one stretch of a file', () => {
     expect(p.peek().at.start).toBe(29);
   });
 });
+
+describe('a token as what a sentence is about', () => {
+  it('closes a trailing clause with a comma, and takes a capital where it starts the sentence', () => {
+    const { p } = parserOver(':wet Iron 4');
+    const [wet, iron, four] = [p.peek(), p.peek(1), p.peek(2)];
+    expect(p.subject(wet, true)).toBe('`:wet`, which is a property or a message,');
+    expect(p.subject(iron, false)).toBe('`Iron`, which starts with a capital,');
+    expect(p.subject(four, true)).toBe('The number 4');
+    expect(p.subject(four, false)).toBe('the number 4');
+  });
+});

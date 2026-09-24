@@ -66,9 +66,9 @@ describe('an expression', () => {
 
   it('says what it could not read, and where', () => {
     const table: [string, string][] = [
-      ['', 'the end of the file is not something to read'],
+      ['', 'The end of the file is not something to read'],
       ['&&', '`&&` is not something to read'],
-      ['a +', 'the end of the file is not something to read'],
+      ['a +', 'The end of the file is not something to read'],
       ['(a + b', 'This bracket is never closed.'],
       ['self.get(:p', 'This bracket is never closed.'],
       ['self.', 'A dot needs the name of something to read after it.'],

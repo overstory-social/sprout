@@ -170,7 +170,7 @@ describe('a default that is not a value of the type is refused at the default', 
   it('refuses the wrong kind of value', () => {
     const { resolved, refusals } = declare(':lit boolean default 4');
     expect(resolved).toBeNull();
-    expect(refusals[0]!.message).toBe('This holds boolean, and the number 4 is not one.');
+    expect(refusals[0]!.message).toBe('`:lit` holds true or false, and 4 is a number.');
     expect(locationOf(refusals[0]!.at)).toBe('kiln.sprout:1:22');
   });
 

@@ -12,7 +12,7 @@ import { readable } from '../source/words.js';
 import { ENGINE_MESSAGES } from '../declare/engine-messages.js';
 import { namedMessage } from '../declare/handlers.js';
 import type { DeclaredMessage } from '../declare/messages.js';
-import { showType } from '../declare/types.js';
+import { describeType } from '../declare/types.js';
 import { showBindingType } from './bindings.js';
 import { checkValue, type CheckContext } from './check.js';
 import { pathType } from './statements.js';
@@ -91,10 +91,10 @@ function carries(
   if (value === null) {
     context.diagnostics.refuse(
       named.at,
-      `\`:${message.name}\` carries ${showType(type)}, and \`${written}\` gives it none.`,
+      `\`:${message.name}\` carries ${describeType(type)}, and \`${written}\` gives it none.`,
       `Write \`${written} with <value>\`, the value it carries.`,
     );
     return false;
   }
-  return checkValue(value, type, context);
+  return checkValue(value, type, context, `\`:${message.name}\` carries`);
 }

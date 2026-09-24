@@ -52,7 +52,7 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
       context.diagnostics.refuse(
         role.role.at,
         `\`${declared.name}\` is named twice in \`act ${verb.name} (…)\`.`,
-        'Name each role once.',
+        `Take this \`${declared.name}: …\` out, and give the role one thing to fill it.`,
       );
       passed = false;
       continue;

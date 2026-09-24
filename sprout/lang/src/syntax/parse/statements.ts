@@ -120,7 +120,7 @@ export function statement(p: Parser, within: Enclosing = onItsOwn()): Statement 
 export function notAStatement(p: Parser, token: Token): void {
   p.diagnostics.refuse(
     token.at,
-    `${p.describe(token)} does not start a statement this compiler reads.`,
+    `${p.subject(token, true)} does not start a statement this compiler reads.`,
     `A statement starts with ${readable([...STATEMENTS.keys()])}, or is a call that writes, as in \`self.set(:open, true)\`.`,
   );
 }

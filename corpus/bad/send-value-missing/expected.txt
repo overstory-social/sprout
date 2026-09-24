@@ -1,4 +1,4 @@
-lamp.sprout:2:34  `:illuminating` carries boolean, and `broadcast :illuminating` gives it none.
+lamp.sprout:2:34  `:illuminating` carries true or false, and `broadcast :illuminating` gives it none.
                   Write `broadcast :illuminating with <value>`, the value it carries.
 
 refused: 1 problem

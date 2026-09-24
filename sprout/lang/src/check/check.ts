@@ -91,9 +91,17 @@ function walk(expr: Expr, checker: Checker): BindingType | null {
   return type;
 }
 
-/** A value given where `wanted` is: the same type exactly, an option of its enum, a literal in its range. */
-export function checkValue(expr: Expr, wanted: ValueType, context: CheckContext): boolean {
-  return matches(expr, valueOf(wanted), checkerOf(context, walk));
+/**
+ * A value given where `wanted` is: the same type exactly, an option of its
+ * enum, a literal in its range. `holder` begins a refusal, as `` `:gust` carries `` does.
+ */
+export function checkValue(
+  expr: Expr,
+  wanted: ValueType,
+  context: CheckContext,
+  holder?: string,
+): boolean {
+  return matches(expr, valueOf(wanted), checkerOf(context, walk), holder);
 }
 
 /** `if (e)` — `e` boolean. Nothing else is a condition, and nothing is coerced. */

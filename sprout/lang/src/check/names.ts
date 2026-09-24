@@ -87,9 +87,13 @@ export function dottedType(path: ObjectPath, context: CheckContext): BindingType
   if (naming.names === 'missing') {
     const step = path.parts[naming.step]!;
     const within = naming.within;
+    // Inside a named thing, a guess is any name written anywhere, since
+    // what the path's steps before it reach is what was mistyped.
     const meant = nearestOption(
       step.text,
-      within === null ? namesInReach(scope.source, scope.vantage) : [],
+      within === null
+        ? namesInReach(scope.source, scope.vantage)
+        : [...new Set([...scope.source.tree.placed.values()].map((one) => one.path.at(-1)!))],
     );
     context.diagnostics.refuse(
       step.at,

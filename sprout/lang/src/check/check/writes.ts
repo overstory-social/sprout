@@ -31,7 +31,7 @@ export function effectCall(
     if (named === null) return null;
     const property = ownMemory(named, context);
     if (property === null) return null;
-    return matches(args[1]!, held(property), context) ? true : null;
+    return matches(args[1]!, held(property), context, `\`:${named.text}\` holds`) ? true : null;
   }
 
   // `adjust` is two readings under one word: an integer property of
@@ -76,7 +76,7 @@ export function effectCall(
 
   switch (method.text) {
     case 'set': {
-      return matches(args[1]!, held(property), context) ? true : null;
+      return matches(args[1]!, held(property), context, `\`:${named.text}\` holds`) ? true : null;
     }
     case 'adjust':
       return wholeNumber(property, named, args[1]!, context) ? true : null;

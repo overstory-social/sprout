@@ -39,6 +39,11 @@ verb peer { role target  "peer at [target]" }
  * was said, in order.
  */
 function diagnosed(text: string): Diagnostic[] {
+  return passagesOf(text).said;
+}
+
+/** The same, with the name of each passage nothing says. */
+function passagesOf(text: string): { said: Diagnostic[]; unheard: string[] } {
   const setup = new Diagnostics();
   const sprout = parseDeclarations(new SourceFile('sprout.sprout', SPROUT_TEXT), setup);
   const shop = parseDeclarations(new SourceFile('shop.sprout', `${VERBS}${text}`), setup);
@@ -86,14 +91,17 @@ function diagnosed(text: string): Diagnostic[] {
     }
     if (kind.describe?.origin === own) checkDescribe(kind.describe, kind, setting);
   }
-  checkPassages({
+  const unheard = checkPassages({
     speakers: kinds.all().map((kind) => ({ kind })),
     kinds,
     here,
     diagnostics,
     sites,
   });
-  return diagnostics.sorted();
+  return {
+    said: diagnostics.sorted(),
+    unheard: [...unheard].filter((p) => p.origin.startsWith('shop.')).map((p) => p.name),
+  };
 }
 
 /** What was said of `text`, as location and message. */
@@ -209,6 +217,17 @@ kind Grip is Hand {
   passage stare { {actor} stares. }
 }`),
     ).toEqual([['shop.sprout:6:20', 'Nothing here is called `actor`.']]);
+  });
+
+  it('gives back the passages nothing says, renders or has the engine say', () => {
+    const { unheard } = passagesOf(`kind Mirror {
+  as target for peer { do { say greeting } }
+  passage greeting { Hello. {self.echo} }
+  passage echo { Hello again. }
+  passage stare { Nobody says this. }
+  passage fault { The engine says this. }
+}`);
+    expect(unheard).toEqual(['stare']);
   });
 
   it('says a mistake in a passage said from many places once', () => {

@@ -54,7 +54,7 @@ describe('the kinds after `is`, read directly', () => {
     const { p, diagnostics, name } = afterName('K is Crate, 4 { }');
     expect(composition(p, 'kind', name)).toBeNull();
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'the number 4 is not the name of a kind.',
+      'The number 4 is not the name of a kind.',
     ]);
   });
 
@@ -108,7 +108,7 @@ describe('the kinds after `is`, read directly', () => {
     expect(composition(p, 'kind', name)).toBeNull();
     expect(diagnostics.refusals.map((d) => [d.message, d.remedy])).toEqual([
       [
-        'the number 4 is not the name of a kind.',
+        'The number 4 is not the name of a kind.',
         'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
       ],
       ['A kind composes its kinds with `is`, not a colon.', 'Write `kind Crate is <Kind> { … }`.'],

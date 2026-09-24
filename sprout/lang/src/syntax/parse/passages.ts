@@ -143,7 +143,7 @@ function notAName(p: Parser, token: Token): [message: string, remedy: string] {
       ];
     default:
       return [
-        `${p.describe(token)} cannot name a passage.`,
+        `${p.subject(token, true)} cannot name a passage.`,
         `A passage's name is a lower-case word: ${written('greeting')}.`,
       ];
   }
