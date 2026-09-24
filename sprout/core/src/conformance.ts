@@ -1,8 +1,8 @@
 import { DEFAULT_LIMITS, readStoredWorld } from '@overstory/sprout/lang';
 
+import type { LogEntry, Logged } from './log/entry.js';
 import {
   emptyState,
-  type ActionRecord,
   type MicroworldRecord,
   type MissRecord,
   type StoredChanges,
@@ -183,20 +183,108 @@ async function mintOne(tx: StoreTx): Promise<number> {
   return next;
 }
 
-const action = (microworldId: string, at: Date, faulted = false): ActionRecord => ({
-  microworldId,
-  at,
-  roomId: 'shop.hall',
-  command: 'poke',
-  events: 1,
-  depth: 0,
-  spawned: 0,
-  faulted,
-  fault: faulted ? { message: 'tangled', chain: [] } : null,
-  missed: false,
-  durationMs: 1,
-  lockWaitMs: 0,
+// One entry of every kind the log holds, with a seed at the top of its
+// range and instants past a 32-bit integer, so a store that narrows
+// either is caught.
+const turnInputs = (now: number, seed = 4_294_967_295) => ({
+  seed,
+  mayHold: 40,
+  now,
+  budgets: { ...DEFAULT_LIMITS.budgets },
 });
+const toMarta = (kind: 'said' | 'told' | 'refused' | 'described' | 'notice', words: string[]) => ({
+  kind,
+  from: 'shop.hall.lamp',
+  actor: 'shop#1',
+  to: 'shop#1',
+  visit: 'v-marta',
+  paragraphs: words,
+});
+const tangled = {
+  name: 'BudgetExhausted',
+  detail: 'steps: a wake turn may take 50000 steps.',
+  object: 'shop#2',
+  engine: false,
+};
+const LOG: readonly LogEntry[] = [
+  { kind: 'publish', now: 3_000_000_000, bundle: 'a1'.repeat(32) },
+  {
+    kind: 'arrival',
+    ...turnInputs(3_000_000_001, 0),
+    visit: 'v-marta',
+    nickname: 'Marta',
+    outcome: 'admitted',
+    fault: null,
+    effects: [{ ...toMarta('described', ['A hall.', 'Tëst “lamp” \u{1F56F}']), from: 'shop.hall' }],
+  },
+  {
+    kind: 'command',
+    ...turnInputs(3_000_000_002),
+    visit: 'v-marta',
+    text: 'light lamp',
+    fault: null,
+    effects: [
+      toMarta('said', ['It catches.']),
+      { ...toMarta('told', []), to: 'shop#4', visit: 'v-ines' },
+    ],
+  },
+  {
+    kind: 'command',
+    ...turnInputs(3_000_000_003),
+    visit: 'v-marta',
+    text: 'juggle lamp',
+    fault: { ...tangled, object: null, engine: true },
+    effects: [{ ...toMarta('notice', ['Something has gone wrong.']), from: 'shop' }],
+  },
+  {
+    kind: 'tick',
+    ...turnInputs(3_000_000_004),
+    place: 'shop.hall',
+    fault: null,
+    effects: [{ ...toMarta('told', ['The wind rises.']), actor: null }],
+  },
+  {
+    kind: 'wake',
+    ...turnInputs(3_000_000_005),
+    object: 'shop#2',
+    serial: 5,
+    fault: tangled,
+    effects: [],
+  },
+  {
+    kind: 'maintenance',
+    ...turnInputs(3_000_000_006),
+    delivered: [{ object: 'shop.hall.lamp', serial: 6 }],
+    faulted: [{ object: 'shop#2', serial: 7, fault: tangled }],
+    abandoned: [{ object: 'shop#3', serial: 8 }],
+  },
+  {
+    kind: 'departure',
+    ...turnInputs(3_000_000_007),
+    visit: 'v-marta',
+    fault: null,
+    effects: [toMarta('notice', ['You leave.'])],
+  },
+  {
+    kind: 'withholding',
+    now: 3_000_000_008,
+    withheld: ['cellar.sprout'],
+    bundle: 'b2'.repeat(32),
+  },
+  {
+    kind: 'poll-fault',
+    now: 3_000_000_009,
+    fault: {
+      ...tangled,
+      detail: 'pollSteps: a poll turn may take 10000 steps.',
+      object: 'shop.hall',
+    },
+  },
+];
+
+/** `entries` as a store hands them back, numbered from `first`. */
+const logged = (entries: readonly LogEntry[], first = 1): Logged[] =>
+  entries.map((entry, i) => ({ seq: first + i, entry }));
 
 const miss = (microworldId: string, at: Date, input: string): MissRecord => ({
   microworldId,
@@ -245,7 +333,7 @@ export const cases: ConformanceCase[] = [
       await store.transaction('w', async (tx) => {
         await tx.putMicroworld(m);
         await tx.putState(FIRST_TURN);
-        await tx.appendAction(action('w', NOW));
+        for (const entry of LOG) await tx.appendLog(entry);
         await tx.appendMiss(miss('w', NOW, 'juggle'));
       });
       await store.read('w', async (tx) => {
@@ -253,7 +341,7 @@ export const cases: ConformanceCase[] = [
         const state = await tx.state();
         equal(state, FIRST_STATE, 'the stored state, each list in code-unit order');
         loadable(state, 'the stored state is a world the language reads');
-        equal(await tx.actions({ limit: 10 }), [action('w', NOW)], 'the action');
+        equal(await tx.log({ limit: 100 }), logged(LOG), 'every kind of log entry, in order');
         equal(await tx.misses({ limit: 10 }), [miss('w', NOW, 'juggle')], 'the miss');
       });
       await store.transaction('w', async (tx) =>
@@ -318,7 +406,7 @@ export const cases: ConformanceCase[] = [
       await store.transaction('w', async (tx) => {
         await tx.putMicroworld(microworld('w'));
         minted.push(await mintOne(tx));
-        await tx.appendAction(action('w', NOW));
+        await tx.appendLog(LOG[0]!);
       });
       equal(minted, [1, 1], 'the same serial in both invocations (derived from state read inside)');
       await store.read('w', async (tx) => {
@@ -329,7 +417,7 @@ export const cases: ConformanceCase[] = [
           ['shop#1'],
           'one instance after two invocations',
         );
-        equal((await tx.actions({ limit: 10 })).length, 1, 'one action after two invocations');
+        equal(await tx.log({ limit: 10 }), logged([LOG[0]!]), 'one entry after two invocations');
       });
     },
   },
@@ -404,29 +492,39 @@ export const cases: ConformanceCase[] = [
       await store
         .transaction('w', async (tx) => {
           await tx.putState(FIRST_TURN);
-          await tx.appendAction(action('w', NOW));
+          await tx.appendLog(LOG[0]!);
           throw new Error('boom');
         })
         .catch(() => undefined);
       await store.read('w', async (tx) => {
         equal(await tx.state(), emptyState(), 'no state');
-        equal(await tx.actions({ limit: 10 }), [], 'no action row');
+        equal(await tx.log({ limit: 10 }), [], 'no log entry');
       });
     },
   },
   {
-    name: 'state is isolated by microworld',
-    proves: "microworld A's state is invisible in B, though every id coincides",
+    name: 'state and the log are isolated by microworld',
+    proves: "microworld A's state and log are invisible in B, though every id coincides",
     async run(make) {
       const store = await make();
       await store.transaction('a', async (tx) => {
         await tx.putMicroworld(microworld('a'));
         await tx.putState(FIRST_TURN);
+        await tx.appendLog(LOG[0]!);
+        await tx.appendLog(LOG[1]!);
       });
       await store.transaction('b', async (tx) => {
         await tx.putMicroworld(microworld('b'));
         await tx.putState({ ...FIRST_TURN, serial: 1, upsert: [WORLD], visitors: [] });
+        await tx.appendLog(LOG[2]!);
       });
+      await store.read('b', async (tx) =>
+        equal(
+          await tx.log({ limit: 10 }),
+          logged([LOG[2]!]),
+          "B's log, numbered from 1 of its own",
+        ),
+      );
       await store.read('b', async (tx) => {
         equal(
           await tx.state(),
@@ -438,31 +536,36 @@ export const cases: ConformanceCase[] = [
     },
   },
   {
-    name: 'actions and misses: newest first, bounded, filtered',
+    name: 'the log: numbered in order, oldest first, read a page at a time',
     proves:
-      'actions({ since, limit, faultedOnly }) and misses({ limit }) answer newest first within the limit',
+      'appendLog numbers each entry one past the last, across transactions; log({ after, limit }) answers oldest first after a number, within the limit; misses({ limit }) answers newest first',
     async run(make) {
       const store = await make();
       const t = (s: number) => new Date(NOW.getTime() + s * 1000);
       await store.transaction('w', async (tx) => {
         await tx.putMicroworld(microworld('w'));
-        for (let i = 0; i < 5; i++) await tx.appendAction(action('w', t(i), i % 2 === 0));
+        for (const entry of LOG.slice(0, 3)) await tx.appendLog(entry);
+        for (let i = 0; i < 3; i++) await tx.appendMiss(miss('w', t(i), `m${i}`));
+      });
+      await store.transaction('w', async (tx) => {
+        for (const entry of LOG.slice(3)) await tx.appendLog(entry);
       });
       await store.read('w', async (tx) => {
+        equal(await tx.log({ limit: 100 }), logged(LOG), 'the whole log, numbered from 1');
+        equal(await tx.log({ after: 2, limit: 2 }), logged(LOG.slice(2, 4), 3), 'a page after 2');
+        equal(await tx.log({ after: LOG.length, limit: 10 }), [], 'nothing after the last');
         equal(
-          (await tx.actions({ limit: 2 })).map((a) => a.at.getTime()),
-          [t(4).getTime(), t(3).getTime()],
-          'newest two',
+          (await tx.misses({ limit: 2 })).map((m) => m.input),
+          ['m2', 'm1'],
+          'the newest two misses',
         );
-        equal((await tx.actions({ limit: 10, faultedOnly: true })).length, 3, 'the faulted ones');
-        equal((await tx.actions({ limit: 10, since: t(3) })).length, 2, 'since');
       });
     },
   },
   {
     name: 'housekeeping: trim, destroyMicroworld, forgetVisitor, exportVisitor',
     proves:
-      'the four store-level methods reach every microworld and nothing else; forgetting a visitor takes their record, their instance and what it held, and every memory of them',
+      'the four store-level methods reach every microworld and nothing else; trimming keeps the log whole; forgetting a visitor takes their record, their instance and what it held, and every memory of them, and leaves the log; destroying a microworld takes its log',
     async run(make) {
       const store = await make();
       const t = (s: number) => new Date(NOW.getTime() + s * 1000);
@@ -470,13 +573,13 @@ export const cases: ConformanceCase[] = [
         await store.transaction(id, async (tx) => {
           await tx.putMicroworld(microworld(id));
           await tx.putState(FIRST_TURN);
-          for (let i = 0; i < 3; i++) await tx.appendAction(action(id, t(i)));
+          for (const entry of LOG) await tx.appendLog(entry);
           for (let i = 0; i < 3; i++) await tx.appendMiss(miss(id, t(i), `m${i}`));
         });
       }
-      await store.trim(t(1), 2);
+      await store.trim(2);
       await store.read('a', async (tx) => {
-        equal((await tx.actions({ limit: 10 })).length, 2, 'actions older than `before` are gone');
+        equal(await tx.log({ limit: 100 }), logged(LOG), 'the log is kept whole');
         equal(
           (await tx.misses({ limit: 10 })).map((m) => m.input),
           ['m2', 'm1'],
@@ -517,6 +620,7 @@ export const cases: ConformanceCase[] = [
           const state = await tx.state();
           equal(state, forgotten, `Marta forgotten in ${id}, what she held with her, Ines kept`);
           loadable(state, `the state after forgetting, in ${id}`);
+          equal(await tx.log({ limit: 100 }), logged(LOG), `the log left as it was, in ${id}`);
         });
       }
       equal(
@@ -529,7 +633,7 @@ export const cases: ConformanceCase[] = [
       await store.read('a', async (tx) => {
         equal(await tx.microworld(), null, 'a is gone');
         equal(await tx.state(), emptyState(), 'and its state');
-        equal(await tx.actions({ limit: 10 }), [], 'and its actions');
+        equal(await tx.log({ limit: 10 }), [], 'and its log');
       });
       await store.read('b', async (tx) => assert((await tx.microworld()) !== null, 'b stands'));
     },

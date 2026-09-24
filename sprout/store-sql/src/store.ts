@@ -1,4 +1,5 @@
 import {
+  Logged,
   MicroworldRecord,
   StoredInstanceSchema,
   StoredVisitorSchema,
@@ -6,7 +7,6 @@ import {
   emptyState,
   forgetting,
   visitorIn,
-  type ActionRecord,
   type MissRecord,
   type ReadTx,
   type SproutStore,
@@ -98,23 +98,6 @@ function instanceOf(r: Row, memory: Row[]): StoredInstance {
     ),
     lastTick: whole(r.last_tick),
   });
-}
-
-function actionOf(r: Row): ActionRecord {
-  return {
-    microworldId: String(r.microworld_id),
-    at: date(r.at),
-    roomId: String(r.room_id),
-    command: String(r.command),
-    events: Number(r.events),
-    depth: Number(r.depth),
-    spawned: Number(r.spawned),
-    faulted: r.faulted === true,
-    fault: r.fault == null ? null : (r.fault as ActionRecord['fault']),
-    missed: r.missed === true,
-    durationMs: Number(r.duration_ms),
-    lockWaitMs: Number(r.lock_wait_ms),
-  };
 }
 
 function missOf(r: Row): MissRecord {
@@ -213,19 +196,15 @@ function reader(c: Queryable, microworldId: string): ReadTx {
       });
     },
     state: () => stateOf(c, microworldId),
-    async actions({ since, limit, faultedOnly }) {
+    async log({ after = 0, limit }) {
       const res = await c.query(
-        `SELECT microworld_id, at, room_id, command, events, depth, spawned, faulted, fault,
-                missed, duration_ms, lock_wait_ms
-         FROM sprout.action
-         WHERE microworld_id = $1
-           AND ($2::timestamptz IS NULL OR at >= $2)
-           AND (NOT $3 OR faulted)
-         ORDER BY at DESC, id DESC
-         LIMIT $4`,
-        [microworldId, since ?? null, faultedOnly === true, limit],
+        `SELECT seq, entry FROM sprout.log
+         WHERE microworld_id = $1 AND seq > $2
+         ORDER BY seq
+         LIMIT $3`,
+        [microworldId, after, limit],
       );
-      return rowsOf(res).map(actionOf);
+      return rowsOf(res).map((r) => Logged.parse({ seq: whole(r.seq), entry: r.entry }));
     },
     async misses({ limit }) {
       const res = await c.query(
@@ -314,27 +293,12 @@ function writer(c: Queryable, microworldId: string): StoreTx {
         );
       }
     },
-    async appendAction(a) {
+    async appendLog(entry) {
+      // One past the world's last, which the world's lock keeps from racing.
       await c.query(
-        `INSERT INTO sprout.action
-           (id, microworld_id, at, room_id, command, events, depth, spawned, faulted, fault,
-            missed, duration_ms, lock_wait_ms)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [
-          rowId(),
-          microworldId,
-          a.at,
-          a.roomId,
-          a.command,
-          a.events,
-          a.depth,
-          a.spawned,
-          a.faulted,
-          a.fault ? JSON.stringify(a.fault) : null,
-          a.missed,
-          a.durationMs,
-          a.lockWaitMs,
-        ],
+        `INSERT INTO sprout.log (microworld_id, seq, entry)
+         SELECT $1, COALESCE(MAX(seq), 0) + 1, $2::jsonb FROM sprout.log WHERE microworld_id = $1`,
+        [microworldId, JSON.stringify(entry)],
       );
     },
     async appendMiss(m) {
@@ -364,7 +328,7 @@ const TABLES: readonly [table: string, column: string][] = [
   ['sprout.memory', 'microworld_id'],
   ['sprout.visitor', 'microworld_id'],
   ['sprout.tombstone', 'microworld_id'],
-  ['sprout.action', 'microworld_id'],
+  ['sprout.log', 'microworld_id'],
   ['sprout.miss', 'microworld_id'],
 ];
 
@@ -420,10 +384,9 @@ export function sqlStore(options: SqlStoreOptions): SproutStore {
         return fn(reader(c, microworldId));
       });
     },
-    async trim(before, keepMisses) {
+    async trim(keepMisses) {
       await inTransaction(async (c) => {
         await check(c);
-        await c.query(`DELETE FROM sprout.action WHERE at < $1`, [before]);
         await c.query(
           `DELETE FROM sprout.miss WHERE id IN (
              SELECT id FROM (

@@ -105,33 +105,6 @@ export const MicroworldRecord = z.object({
 });
 export type MicroworldRecord = z.infer<typeof MicroworldRecord>;
 
-/** One envelope as a fault chain keeps it. */
-export const EnvelopeRecord = z.object({
-  id: z.number().int(),
-  name: z.string(),
-  from: z.string(),
-  depth: z.number().int(),
-});
-export type EnvelopeRecord = z.infer<typeof EnvelopeRecord>;
-
-/** Per write turn. The record carries NO actor. */
-export const ActionRecord = z.object({
-  microworldId: z.string().min(1),
-  at: z.date(),
-  roomId: z.string(),
-  command: z.string(),
-  events: z.number().int(),
-  depth: z.number().int(),
-  spawned: z.number().int(),
-  faulted: z.boolean(),
-  /** The fault's words and the chain that led there, when it faulted. */
-  fault: z.object({ message: z.string(), chain: z.array(EnvelopeRecord) }).nullable(),
-  missed: z.boolean(),
-  durationMs: z.number().int().nonnegative(),
-  lockWaitMs: z.number().int().nonnegative(),
-});
-export type ActionRecord = z.infer<typeof ActionRecord>;
-
 /** A donated miss: the input, what could have been said and named, and the room and what was in it then, as stored. */
 export const MissRecord = z.object({
   microworldId: z.string().min(1),

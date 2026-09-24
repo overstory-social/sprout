@@ -44,7 +44,7 @@ const TABLES = [
   'memory',
   'visitor',
   'tombstone',
-  'action',
+  'log',
   'miss',
 ];
 

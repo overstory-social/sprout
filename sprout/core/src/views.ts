@@ -1,5 +1,12 @@
-import { pollView, type PolledView, type TurnHost, type VisitKey } from '@overstory/sprout/lang';
+import {
+  pollView,
+  type HostSeconds,
+  type PolledView,
+  type TurnHost,
+  type VisitKey,
+} from '@overstory/sprout/lang';
 
+import { pollFaultEntry } from './log/poll-fault.js';
 import type { SproutStore } from './store.js';
 import { committedState } from './turns.js';
 
@@ -8,16 +15,29 @@ import { committedState } from './turns.js';
 // state with no lock, and is valid until a committed write turn names its
 // visitor stale; there is no world version, so the cache is invalidated by
 // those names alone. A poll may run while a write turn commits, so a view
-// a poll began before a visitor was named stale is not kept.
+// a poll began before a visitor was named stale is not kept. A poll that
+// faults is logged as an authoring fault, the one thing of a poll the log
+// holds: the poll itself takes no lock, and its entry is appended after
+// it, in a transaction that writes nothing of the world.
 
-/** Poll `visit`'s view of `microworldId`, on the last committed state, with no lock. */
+/**
+ * Poll `visit`'s view of `microworldId` at `now`, on the last committed
+ * state, with no lock; a fault is then logged against the object it lays
+ * the fault on.
+ */
 export async function runView(
   store: SproutStore,
   microworldId: string,
   host: TurnHost,
   visit: VisitKey,
+  now: HostSeconds,
 ): Promise<PolledView> {
-  return pollView(await committedState(store, microworldId, host), host, visit);
+  const polled = pollView(await committedState(store, microworldId, host), host, visit);
+  if (polled.fault !== null) {
+    const entry = pollFaultEntry(polled.fault, now);
+    await store.transaction(microworldId, (tx) => tx.appendLog(entry));
+  }
+  return polled;
 }
 
 /** Each visitor's last view, per world, kept until a committed write turn names it stale. */
@@ -29,17 +49,18 @@ export class ViewCache {
   /** How many times each world has been cleared, which counts against every visitor in it. */
   private readonly cleared = new Map<string, number>();
 
-  /** `visit`'s view of `microworldId`: the one kept, else a fresh poll, kept unless it was named stale meanwhile. */
+  /** `visit`'s view of `microworldId`: the one kept, else a fresh poll at `now`, kept unless it was named stale meanwhile. */
   async view(
     store: SproutStore,
     microworldId: string,
     host: TurnHost,
     visit: VisitKey,
+    now: HostSeconds,
   ): Promise<PolledView> {
     const held = this.kept.get(microworldId)?.get(visit);
     if (held !== undefined) return held;
     const began = this.timesNamed(microworldId, visit);
-    const polled = await runView(store, microworldId, host, visit);
+    const polled = await runView(store, microworldId, host, visit, now);
     if (this.timesNamed(microworldId, visit) === began) {
       within(this.kept, microworldId).set(visit, polled);
     }

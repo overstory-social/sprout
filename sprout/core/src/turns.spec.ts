@@ -1,29 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  catalogueOf,
-  compileBundle,
-  declaredId,
   DEFAULT_LIMITS,
-  Draft,
-  initialState,
-  libraryHash,
-  newInstance,
-  renderEffects,
   NOT_ADMITTING,
-  SourceFile,
-  STANDARD_LIBRARY,
   dueWakes,
-  storedChanges,
   visitKey,
   type CommandHost,
   type CommandTurn,
-  type Manifest,
-  type Parser,
 } from '@overstory/sprout/lang';
 
 import { reentrant } from './conformance.js';
-import { memoryStore } from './memory-store.js';
+import { readLog } from './log/entry.js';
+import {
+  COUNTER,
+  GAUGE,
+  HALL,
+  MARTA,
+  command,
+  seeded as seededTally,
+  tally,
+} from './fixtures/tally.js';
 import type { SproutStore } from './store.js';
 import {
   committedState,
@@ -34,108 +30,12 @@ import {
   runPoll,
   runTick,
   runWake,
-  runWriteTurn,
   type NicknameHost,
 } from './turns.js';
 
-// A counter and a gauge in a hall, both of one kind, one kind per file:
-// bumping one counts, and smashing it counts and then overflows, so the
-// turn faults after it wrote; resting it asks for a wake a minute on,
-// and a wake sets it to the seconds it waited, which it holds only up to
-// 99.
-const FILES: Record<string, string> = {
-  'world.sprout': `world tally is sprout.World {
-  visitors are Person
-  visitors arrive at hall
-  object hall is sprout.Place {
-    object counter is Counter
-    object gauge is Counter
-  }
-}
-verb bump  { role target  "bump [target]" }
-verb smash { role target  "smash [target]" }
-verb rest  { role target  "rest [target]" }
-`,
-  'person.sprout': 'kind Person is sprout.Visitor { }\n',
-  'counter.sprout': `kind Counter {
-  :n 0 min 0 max 99
-  as target for bump  { do { self.adjust(:n, 1)  say "Click." } }
-  as target for smash { do { self.adjust(:n, 1)  if (2147483647 + 1 > 0) { say "Crunch." } } }
-  as target for rest  { do { wake in 1 minutes  say "Resting." } }
-  on :woke (elapsed) { self.set(:n, elapsed) }
-}
-`,
-};
-
-const MANIFEST: Manifest = {
-  name: 'tally',
-  namespace: 'tally',
-  version: '0.1.0',
-  author: 'Eric Eslinger',
-  license: 'MIT',
-  level: 1,
-  extensions: [],
-  libraries: [
-    {
-      name: STANDARD_LIBRARY.name,
-      version: STANDARD_LIBRARY.version,
-      sha: libraryHash(STANDARD_LIBRARY),
-    },
-  ],
-  files: Object.keys(FILES),
-};
-
-const { bundle } = compileBundle(
-  {
-    manifestFile: new SourceFile('sprout.json', JSON.stringify(MANIFEST)),
-    manifest: MANIFEST,
-    files: Object.entries(FILES).map(([name, text]) => new SourceFile(name, text)),
-    libraries: [STANDARD_LIBRARY],
-  },
-  { mode: 'publish', limits: DEFAULT_LIMITS },
-);
-if (bundle === null) throw new Error('the tally does not compile');
-const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
-const HALL = declaredId('tally', ['hall']);
-const COUNTER = declaredId('tally', ['hall', 'counter']);
-const GAUGE = declaredId('tally', ['hall', 'gauge']);
-const MARTA = visitKey('v-marta');
-
-/** Reads `verb counter` and `verb gauge`; anything else is not reached by these cases. */
-const parse: Parser = (text, actor) => {
-  const [word, noun] = text.split(' ');
-  const verb = bundle.verbs.qualified('tally', word!);
-  if (verb === null) throw new Error(`no verb in \`${text}\``);
-  const object = noun === 'gauge' ? GAUGE : COUNTER;
-  return { reading: { verb, actor, bindings: new Map([['target', { object }]]) } };
-};
-const host: CommandHost = {
-  catalogue,
-  budgets: DEFAULT_LIMITS.budgets,
-  parse,
-  render: renderEffects,
-};
-const command = (text: string, now = 0) => ({ visit: MARTA, text, seed: 1, mayHold: null, now });
-
-/** A store holding the tally with Marta standing in the hall. */
-async function seeded(store: SproutStore = memoryStore()): Promise<SproutStore> {
-  const draft = new Draft(initialState(catalogue));
-  const marta = draft.mint();
-  draft.add(
-    newInstance(
-      marta,
-      { from: 'visitor' },
-      catalogue.visitorKind!,
-      HALL,
-      draft.nextSerial(),
-      catalogue.caps,
-    ),
-  );
-  draft.putVisitor({ visit: MARTA, nickname: 'Marta', instance: marta, lastPlace: HALL });
-  const { state, changes } = draft.commit();
-  await store.transaction('w', (tx) => tx.putState(storedChanges(state, changes)));
-  return store;
-}
+const { host } = tally();
+const { catalogue } = host;
+const seeded = (store?: SproutStore) => seededTally(host, store);
 
 /** The counter, or what `id` names, as the store holds it now. */
 async function count(store: SproutStore, id = COUNTER): Promise<unknown> {
@@ -223,36 +123,6 @@ describe('a command turn against a store', () => {
     const turn = await runCommand(store, 'w', host, command('bump counter'));
     expect(committedCount(turn)).toBe(1);
     expect(await count(store)).toBe(1);
-  });
-});
-
-describe('a write turn of any kind against a store', () => {
-  it('writes what its body wrote where it commits, and nothing where it throws', async () => {
-    const store = await seeded();
-    const before = await stored(store);
-    const faulted = await runWriteTurn(
-      store,
-      'w',
-      'wake',
-      host,
-      { seed: 3, mayHold: null, now: 0 },
-      (turn) => {
-        turn.draft.mint();
-        throw new Error('the body gave up');
-      },
-    );
-    expect(faulted).toMatchObject({ committed: false, fault: { engine: true } });
-    expect(await stored(store)).toEqual(before);
-    const minted = await runWriteTurn(
-      store,
-      'w',
-      'maintenance',
-      host,
-      { seed: 4, mayHold: null, now: 0 },
-      (turn) => turn.draft.nextSerial(),
-    );
-    expect(minted).toMatchObject({ committed: true, value: before.serial + 1 });
-    expect((await stored(store)).serial).toBe(before.serial + 1);
   });
 });
 
@@ -554,5 +424,97 @@ describe('admitting a nickname against a store', () => {
     expect(admitted.arrived.committed).toBe(true);
     const state = await committedState(store, 'w', host);
     expect(state.visitors.get(INES)!.nickname).toBe('Marta');
+  });
+});
+
+describe('what each write turn logs', () => {
+  const at = (now: number) => ({ now, seed: 4, mayHold: null });
+  const kinds = async (store: SproutStore) =>
+    (await readLog(store, 'w', { limit: 100 })).map(({ entry }) => entry.kind);
+
+  it('appends one entry per turn that ran, in the order the lock ran them, a faulted one included', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('bump counter'));
+    await runCommand(store, 'w', host, command('smash counter'));
+    await runTick(store, 'w', host, { place: HALL, ...at(50) });
+    await runCommand(store, 'w', host, command('rest counter', 60));
+    await runMaintenance(store, 'w', host, at(200));
+    await runDeparture(store, 'w', host, { visit: MARTA, ...at(210) });
+    await runArrival(
+      store,
+      'w',
+      host,
+      at(220),
+      { visit: MARTA, nickname: 'Marta', ...at(220) },
+      OPEN,
+    );
+    expect(await kinds(store)).toEqual([
+      'command',
+      'command',
+      'tick',
+      'command',
+      'maintenance',
+      'departure',
+      'maintenance',
+      'arrival',
+    ]);
+    const [bumped, smashed] = await readLog(store, 'w', { limit: 2 });
+    expect(bumped!.entry).toMatchObject({ kind: 'command', text: 'bump counter', fault: null });
+    expect(smashed!.entry).toMatchObject({
+      kind: 'command',
+      fault: { name: 'IntegerOverflow', engine: false },
+      effects: [{ kind: 'notice', visit: MARTA }],
+    });
+  });
+
+  it('logs nothing for a turn that ran nothing, or an arrival that never opened', async () => {
+    const store = await seeded();
+    await runDeparture(store, 'w', host, { visit: MARTA, ...at(0) });
+    const before = await kinds(store);
+    expect(await runTick(store, 'w', host, { place: HALL, ...at(10) })).toMatchObject({
+      unoccupied: true,
+    });
+    expect(await runWake(store, 'w', host, { object: COUNTER, serial: 99, ...at(10) })).toEqual({
+      committed: false,
+      unwoken: true,
+    });
+    const refused = await runArrival(
+      store,
+      'w',
+      host,
+      at(20),
+      { visit: visitKey('v-ines'), nickname: 'Counter', ...at(20) },
+      OPEN,
+    );
+    expect('nicknameRefused' in refused.arrived).toBe(true);
+    const closed: CommandHost = { ...host, catalogue: { ...catalogue, arrival: null } };
+    await runArrival(
+      store,
+      'w',
+      closed,
+      at(30),
+      { visit: MARTA, nickname: 'Marta', ...at(30) },
+      OPEN,
+    );
+    expect(await kinds(store)).toEqual(before);
+  });
+
+  it('logs a consumed wake with its fault and nothing it said, under the budgets it ran with', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    const [due] = dueWakes(await committedState(store, 'w', host), 500);
+    const wide = { ...host, budgets: { ...host.budgets, steps: 70_000 } };
+    await runWake(store, 'w', wide, { object: due!.object, serial: due!.serial, ...at(500) });
+    const [, woke] = await readLog(store, 'w', { limit: 10 });
+    expect(woke!.entry).toMatchObject({
+      kind: 'wake',
+      object: COUNTER,
+      serial: due!.serial,
+      now: 500,
+      seed: 4,
+      fault: { name: 'ValueOutOfRange' },
+      effects: [],
+      budgets: { steps: 70_000 },
+    });
   });
 });

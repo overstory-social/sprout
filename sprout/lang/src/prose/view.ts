@@ -5,8 +5,9 @@
 // visitor as its one reader. A poll that faults yields a view whose
 // description is the world's `unseen` and which offers nothing else, its
 // fault laid against the place whose description the poll was deriving
-// where the fault names no object of its own; recording it is B40's. A
-// view is valid until a committed write turn names its visitor stale.
+// where the fault names no object of its own, and given back beside the
+// view for the host to log, the one thing of a poll the log holds. A view
+// is valid until a committed write turn names its visitor stale.
 
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
 import { DISPLACED_STOCK, displacedLine } from '../runtime/arrival.js';
