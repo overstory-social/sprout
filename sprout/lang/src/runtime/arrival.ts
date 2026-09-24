@@ -70,7 +70,7 @@ export const NOT_ADMITTING = 'This world is not letting anyone in just now.';
 export const ENTRY_FAILED = 'Something went wrong as you arrived, and you have not come in.';
 
 /** The stock line for a world whose standard library leaves `displaced` out. */
-const DISPLACED_STOCK = 'The place you were standing is gone.';
+export const DISPLACED_STOCK = 'The place you were standing is gone.';
 
 /** Where a visitor came in, and what the engine sends and says of it. */
 export interface Entered {

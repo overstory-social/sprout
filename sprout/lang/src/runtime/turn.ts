@@ -16,9 +16,9 @@
 // turns under its lock, and writing a committed change set in the
 // store's transaction, is core's. What each kind does inside the frame is
 // its own module's — `command.ts`, `tick.ts`, `wake.ts`, `maintenance.ts`,
-// `arrival.ts`, `departure.ts` — and the view a poll builds is B37's.
-// Every write turn is handed the instant it runs; nothing here reads a
-// clock but the backstop.
+// `arrival.ts`, `departure.ts` — and the view a poll builds is
+// `view.ts`'s. Every write turn is handed the instant it runs; nothing
+// here reads a clock but the backstop.
 
 import type { RuntimeBudgets } from '../bundle/limits.js';
 import type { Speech } from './body.js';

@@ -5,9 +5,10 @@
 // state, stored and live, the evaluator a guard runs on, the move
 // through consent, the queue, the turns they all run in and the effects
 // they give, and the parser that reads a typed command; and prose,
-// rendered for each reader. It imports zod and nothing else
-// (boundary.spec.ts holds that line), so a host plugs it in and the
-// language never learns whose world it is running in.
+// rendered for each reader, the view a poll gives a visitor among it. It
+// imports zod and nothing else (boundary.spec.ts holds that line), so a
+// host plugs it in and the language never learns whose world it is
+// running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -76,6 +77,8 @@ export * from './runtime/audience.js';
 export * from './runtime/reading.js';
 export * from './runtime/describe.js';
 export * from './runtime/offers.js';
+export * from './runtime/options.js';
+export * from './runtime/view.js';
 export * from './runtime/engine-verbs.js';
 export * from './runtime/bus.js';
 export * from './runtime/faults.js';
@@ -103,3 +106,4 @@ export * from './prose/line-draws.js';
 export * from './prose/heard.js';
 export * from './prose/describe.js';
 export * from './prose/effects.js';
+export * from './prose/view.js';
