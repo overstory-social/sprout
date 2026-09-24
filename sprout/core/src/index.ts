@@ -2,7 +2,8 @@
 // it keeps, with the memory store and the conformance suite every adapter
 // must pass, and a world's turns run against a store under its lock, its
 // occupied places ticked in rounds, and a visitor's view polled and kept
-// until a committed write turn names it stale; and the event log every
+// until a committed write turn names it stale; conversation between
+// visitors, beside the world and never in it; and the event log every
 // write turn appends to, what the host reads back of it, and its replay.
 // Core imports the language and zod, and nothing else; the store is a
 // port an adapter fills.
@@ -16,6 +17,7 @@ export * from './memory-store.js';
 export * from './turns.js';
 export * from './ticks.js';
 export * from './views.js';
+export * from './conversation.js';
 export * from './steps.js';
 export * from './log/parts.js';
 export * from './log/command.js';
