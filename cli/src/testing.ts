@@ -106,3 +106,50 @@ enum Topic { toll, old_road }
 }
 `,
 };
+
+/**
+ * The kiln yard, which the play and test specs play: a kiln that fires,
+ * asks to be woken in an hour and cools when it is, and faults when
+ * kicked; a yard that speaks on every tick it is sent, one of two lines
+ * drawn from the tick's seed; a shed beside it with nothing that ticks.
+ */
+export const KILN_YARD: Record<string, string> = {
+  'kiln_yard.sprout': `world kiln_yard is sprout.World {
+  visitors are Walker
+  visitors arrive at yard
+
+  object yard is Yard {
+    grammar { exit in "into the shed" -> shed }
+    object kiln is Kiln
+  }
+  object shed is sprout.Place {
+    grammar { exit out "back to the yard" -> yard }
+    describe { text "A dark shed." }
+  }
+}
+
+verb fire { role target  "fire [target]" }
+verb kick { role target  "kick [target]" }
+`,
+  'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+  'yard.sprout': `kind Yard is sprout.Place {
+  describe { text "A kiln yard." }
+  on :tick { tell "{one of}Smoke drifts.{or}The air is still.{/one of}" }
+}
+`,
+  'kiln.sprout': `kind Kiln is sprout.Fixture {
+  :hot false
+  as target for fire {
+    permit { if (self.get(:hot)) { refuse "It is firing already." } }
+    do { self.set(:hot, true)  wake in 1 hours  say "The chamber takes the flame." }
+  }
+  as target for kick {
+    do { if (2147483647 + 1 > 0) { say "Clang." } }
+  }
+  on :woke (elapsed) {
+    self.set(:hot, false)
+    tell "The kiln ticks as it cools."
+  }
+}
+`,
+};

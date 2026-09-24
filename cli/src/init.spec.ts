@@ -12,15 +12,17 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
+import { runTests, testFiles } from './test.js';
 import { readWorld } from './world.js';
 
 describe('initWorld', () => {
-  it('writes a manifest, a world, its visitors’ kind and a README, named for the folder', () => {
+  it('writes a manifest, a world, its visitors’ kind, a first test and a README, named for the folder', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Paper Store');
     expect(initWorld(dir, 'marta')).toEqual([
       'sprout.json',
       'paper_store.sprout',
       'person.sprout',
+      'tests/arrival.txt',
       'README.md',
     ]);
     const manifest = JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'));
@@ -88,6 +90,7 @@ describe('initWorld', () => {
       'sprout.json',
       'person.sprout',
       'guest.sprout',
+      'tests/arrival.txt',
       'README.md',
     ]);
     expect(readFileSync(join(dir, 'person.sprout'), 'utf8')).toContain('  visitors are Guest\n');
@@ -95,6 +98,16 @@ describe('initWorld', () => {
       'kind Guest is sprout.Visitor { }\n',
     );
     expect(compileBundle(readWorld(dir).source!).diagnostics).toEqual([]);
+  });
+
+  it('writes a first test the world it wrote passes', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'shed');
+    initWorld(dir, 'marta');
+    const bundle = compileBundle(readWorld(dir).source!).bundle!;
+    expect(runTests(bundle, testFiles(dir, []))).toEqual({
+      ok: true,
+      page: 'arrival.txt: passed, 1 expected line said\n\n1 test: passed\n',
+    });
   });
 
   it('refuses a folder that already has something in it', () => {

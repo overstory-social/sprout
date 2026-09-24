@@ -1,0 +1,15 @@
+# The type cabinet stays shut until the brass key unlocks it, and Ines
+# sees Marta do it. Only the lines that matter are written; the rest of
+# what each line makes is played and not checked.
+@arrive Marta
+@arrive Ines
+  Marta (notice): Ines arrives.
+Marta> open cabinet
+  It is locked.
+Marta> unlock cabinet with brass key
+  Marta (said): The lock turns over.
+  Ines (told): Marta unlocks the type cabinet.
+Marta> open cabinet
+  You open the type cabinet.
+Marta> take shop key
+  You take a shop key.
