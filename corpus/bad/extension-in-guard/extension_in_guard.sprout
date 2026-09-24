@@ -1,0 +1,10 @@
+world extension_in_guard is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object cabinet is Cabinet
+  }
+}
+
+verb open { role target  "open [target]" }

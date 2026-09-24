@@ -98,9 +98,11 @@ export interface Said {
    * `act`'s reading refused, whose words are said to its actor as a
    * refusal (the spec's Verbs › Moving something, Acting); a line of a
    * description, to the one looking; or spoken by the engine, as a fault
-   * is, or by a place of someone arriving or leaving (The runtime › Effects).
+   * is, or by a place of someone arriving or leaving (The runtime › Effects);
+   * or what an extension's statement recorded, whose words are its
+   * transcript line (Extensions › Effects are additive).
    */
-  readonly effect: 'said' | 'told' | 'refused' | 'described' | 'notice';
+  readonly effect: 'said' | 'told' | 'refused' | 'described' | 'notice' | 'extension';
   /**
    * Who reads it, each a person: for what is said, the actor, where a
    * person acts, and where an NPC acts, those who would hear its `tell`;
@@ -225,7 +227,12 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   const heardBy = (): readonly InstanceId[] => hearersOf(state, reading.actor, participants).to;
   const speaker = person ? null : reading.actor;
   const leftOut = participants.map((participant) => participant.id);
-  const { sink, acted, propose } = actingSink(context, depth, { heardBy, speaker, leftOut });
+  const { sink, acted, propose } = actingSink(context, depth, {
+    heardBy,
+    speaker,
+    leftOut,
+    records: 'as-said',
+  });
   const { said } = acted;
   // `go` is the engine's: its move is the reading's first effect, and a
   // refusal of it, said as a refused `move` is, ends the pass.
@@ -313,6 +320,12 @@ export interface Hearing {
   readonly speaker: InstanceId | null;
   /** Whom a plain `tell` leaves out: the reading's participants, or nobody where none is running. */
   readonly leftOut: readonly InstanceId[];
+  /**
+   * Who reads what an extension's statement records: those who read what
+   * the body says, in a reading; the place's people, as a plain `tell`
+   * reaches them, in a handler or a hook, where nobody is acting.
+   */
+  readonly records: 'as-said' | 'as-told';
 }
 
 /**
@@ -332,7 +345,7 @@ export function actingSink(
   /** A move `mover` proposes, reaching `to` as `reach` says, said or kept as the sink's `move` is. */
   readonly propose: (mover: InstanceId, item: InstanceId, to: InstanceId, reach: Reach) => Proposed;
 } {
-  const { heardBy, speaker, leftOut } = hearing;
+  const { heardBy, speaker, leftOut, records } = hearing;
   const { draft } = context;
   const state = turnState(draft);
   const said: Said[] = [];
@@ -381,6 +394,15 @@ export function actingSink(
                 one,
               ),
         speaker: null,
+      }),
+    record: (by, recorded) =>
+      said.push({
+        effect: 'extension',
+        to: records === 'as-said' ? heardBy() : toldToPlace(state, by, leftOut),
+        by,
+        speaker: null,
+        said: { recorded },
+        bindings: new Map(),
       }),
     sent: (more) => sends.push(...more),
     destroyed: (gone) => destroyed.push(...gone.removed),

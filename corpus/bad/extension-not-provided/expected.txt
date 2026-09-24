@@ -1,0 +1,4 @@
+sprout.json:7:28  This host does not provide the extension `media`.
+                  Ask whoever runs this host to install `media`, or take it out of the manifest and every file that names it.
+
+refused: 1 problem

@@ -6,7 +6,8 @@
 // object's passage named through a binding typed by a kind that declares
 // it; a boolean is refused, since an `{if}` says what it means, and so is
 // a bare list or set, since the separator and the empty case are the
-// author's. A condition is a boolean that compares, narrows with `is()`
+// author's, and an extension's value its extension gives no words. A
+// condition is a boolean that compares, narrows with `is()`
 // or tests identity, and neither a slot nor a condition does arithmetic.
 // `{for x in c}` walks a container, `{for x: K in c}` the contents
 // composing `K`, typed so, and `{for x of l}` a list or a set role; each
@@ -25,7 +26,7 @@ import {
   type ProseSlot,
 } from '../syntax/ast-prose.js';
 import { nearestOption, shownName } from '../declare/enums.js';
-import { BOOLEAN, integer } from '../declare/types.js';
+import { BOOLEAN, integer, showType } from '../declare/types.js';
 import { readable } from '../source/words.js';
 import {
   forElementBinding,
@@ -123,6 +124,12 @@ function checkSlot(slot: ProseSlot, context: CheckContext, rendered: ProseRecord
       expr.at,
       `A slot does not render ${showBindingType(type)} whole: how its elements are joined, and what is said when there are none, is yours.`,
       'Walk it: `{for x of <list>}{x}{if $last}.{else}, {/if}{/for}`.',
+    );
+  } else if (type.type.type === 'extension' && type.type.definition?.renders === false) {
+    context.diagnostics.refuse(
+      expr.at,
+      `A slot does not render \`${showType(type.type)}\`: the extension \`${type.type.extension}\` says it has no words.`,
+      'Say what it means in words of your own, or with a statement of the extension that shows it.',
     );
   }
 }

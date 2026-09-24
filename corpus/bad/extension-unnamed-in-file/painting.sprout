@@ -1,0 +1,12 @@
+// Each file that uses an extension names it at its top, as the world's
+// file does: this one uses `media` and does not say so.
+kind Painting {
+  :image media.Image default "cat.png"
+  grammar { name "painting"  nouns "painting" }
+  as target for view {
+    do {
+      media.show("cat.png", "a cat")
+      say "You look closely."
+    }
+  }
+}

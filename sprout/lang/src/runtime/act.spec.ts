@@ -152,9 +152,11 @@ const lines = (acted: Acted) =>
     words:
       'text' in line.said
         ? line.said.text
-        : 'absent' in line.said
-          ? `absent ${line.said.absent}`
-          : `${line.said.passage.origin} ${line.said.passage.name}`,
+        : 'recorded' in line.said
+          ? `recorded ${line.said.recorded.transcript}`
+          : 'absent' in line.said
+            ? `absent ${line.said.absent}`
+            : `${line.said.passage.origin} ${line.said.passage.name}`,
   }));
 
 const performed = (verb: string, roles: Record<string, Evaluated>): Performed => ({

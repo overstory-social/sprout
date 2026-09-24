@@ -17,8 +17,9 @@
 // queues what it sends, and a write that changes a property its kind
 // watches queues the hook, which the bus delivers once the body has ended.
 // What is said and told is carried unrendered, with the names in scope,
-// for `prose/` to render for each reader; who reads it is the sink's to
-// say.
+// for `prose/` to render for each reader, and what an extension's
+// statement records joins it in body order (`extension-statements.ts`);
+// who reads it is the sink's to say.
 
 import type {
   Block,
@@ -61,6 +62,7 @@ import { writtenPath } from '../syntax/ast.js';
 import type { Instance } from './state.js';
 import { defaultOf, fits, type Value } from './values.js';
 import { askToWake } from './wakes.js';
+import { recordOf, type Recorded } from './extension-statements.js';
 
 /**
  * What a `say`, a `tell` or a `refuse` gives: a passage as it applies on the
@@ -68,12 +70,15 @@ import { askToWake } from './wakes.js';
  * passage they read as, with the library whose body said them, where a
  * kind their slots name is read from; or, in a world loaded without the `.prose` file
  * that held it, the name of a passage that is absent, which renders
- * nothing (the spec's The compiler › What absent means).
+ * nothing (the spec's The compiler › What absent means). What an
+ * extension's statement recorded travels beside them as a line of its own.
  */
 export type Speech =
   | { readonly passage: ResolvedPassage }
   | { readonly text: string; readonly prose: Prose; readonly library: string }
-  | { readonly absent: string };
+  | { readonly absent: string }
+  /** What an extension's statement recorded, whose words are its transcript line. */
+  | { readonly recorded: Recorded };
 
 /** Whether a body decides, as a guard and a `permit` do, or acts, as a `do` does. */
 export type BodyMode = 'decide' | 'act';
@@ -107,6 +112,8 @@ export interface ActSink {
   tell(told: Told): void;
   /** What a spawn tells the world, and what a `send` or a `broadcast` queues, in body order. */
   sent(sends: readonly Sent[]): void;
+  /** What an extension's statement in `by`'s body recorded, in body order among what it says. */
+  record(by: InstanceId, recorded: Recorded): void;
   /** `self` removed with everything it held, at the end of the body that ran `destroy self`. */
   destroyed(destroyed: Destroyed): void;
   /** `self` marked by `finally destroy self`, to be destroyed once the turn's queue is empty. */
@@ -292,6 +299,12 @@ function runStatement(
     case 'expression-statement':
       write(statement.expression, frame, acting(run, 'a write'));
       return 'end';
+    case 'extension-statement': {
+      const sink = acting(run, 'an extension’s statement');
+      const recorded = recordOf(statement, frame, sink.lifecycle.catalogue.extensions);
+      if (recorded !== null) sink.record(frame.self, recorded);
+      return 'end';
+    }
   }
 }
 

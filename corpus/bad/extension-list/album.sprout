@@ -1,0 +1,8 @@
+// A list holds no value of an extension's type: whether two such values
+// are one, which a list asks of every element it holds, is the
+// extension's to say, and some say nothing.
+extension media 1
+
+kind Album {
+  :pictures [media.Image] default []
+}

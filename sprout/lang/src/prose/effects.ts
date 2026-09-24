@@ -2,14 +2,17 @@
 // people › What this costs; Chance › The seed). Each thing the turn said
 // is rendered once for each of its readers, in the order said, and each
 // reading is one effect carrying its words; a description is one effect
-// to the one looking. What each reader reads is charged to their own
+// to the one looking, followed by what the extension statements in it
+// recorded. An extension's effect carries its payload beside its
+// transcript line, which is its words. What each reader reads is charged to their own
 // output, so a crowd costs the host and never the one acting: only the
 // turn's actor's output faults the turn (`output.ts`), so a tick or a wake
 // never faults on it, and anyone else past the figure is cut short and
 // reads nothing more. Every reader of one line reads the same draw, taken
 // from the turn's stream after every draw its bodies made.
 
-import type { Effect, EffectContext, Unrendered } from '../runtime/effects.js';
+import type { Effect, EffectContext, ProseEffect, Unrendered } from '../runtime/effects.js';
+import type { Said } from '../runtime/reading.js';
 import type { InstanceId, VisitKey } from '../runtime/ids.js';
 import { renderDescription } from './describe.js';
 import { renderHeard, type Heard } from './heard.js';
@@ -34,23 +37,37 @@ export function renderEffects(lines: readonly Unrendered[], context: EffectConte
       const { description } = one;
       const heard = renderDescription(description, rendering);
       effects.push(effectOf('described', description.of, heard, context));
+      for (const said of description.recorded) effects.push(...heardAll(said, rendering, context));
       continue;
     }
-    const { said } = one;
-    for (const heard of renderHeard(said, rendering)) {
+    effects.push(...heardAll(one.said, rendering, context));
+  }
+  return effects;
+}
+
+/** `said` as each of its readers reads it, one effect apiece. */
+function heardAll(said: Said, rendering: RenderContext, context: EffectContext): Effect[] {
+  const effects: Effect[] = [];
+  for (const heard of renderHeard(said, rendering)) {
+    const { said: speech } = said;
+    if (said.effect !== 'extension') {
       effects.push(effectOf(said.effect, said.by, heard, context));
-    }
+    } else if ('recorded' in speech) {
+      const { extension, statement, payload } = speech.recorded;
+      const parts = effectOf('said', said.by, heard, context);
+      effects.push({ ...parts, kind: 'extension', extension, statement, payload });
+    } else throw new Error('an extension’s effect reached rendering with nothing recorded.');
   }
   return effects;
 }
 
 /** One reader's reading of a line, as an effect. */
 function effectOf(
-  kind: Effect['kind'],
+  kind: ProseEffect['kind'],
   from: InstanceId,
   heard: Heard,
   context: EffectContext,
-): Effect {
+): ProseEffect {
   return {
     kind,
     from,

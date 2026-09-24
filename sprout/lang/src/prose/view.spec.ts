@@ -22,6 +22,14 @@ import { saveWorld } from '../runtime/load.js';
 import { stockLine } from '../runtime/faults.js';
 import { viewOf } from '../runtime/view.js';
 import { pollView, renderView } from './view.js';
+import type { Catalogue } from '../runtime/catalogue.js';
+import {
+  gallery,
+  galleryCatalogue,
+  galleryHost,
+  HALL,
+  MARTA as GALLERY_MARTA,
+} from '../fixtures/gallery.js';
 
 const OPEN = [[YARD, 'gate_open', true]] as const;
 
@@ -83,6 +91,7 @@ describe('polling a visitor’s view', () => {
     const polled = pollView(gatehouse(), gateHost(20), MARTA);
     expect(polled.view).toEqual({
       description: ['Too much happens here to take in.'],
+      effects: [],
       exits: [],
       occupants: [],
       carried: [],
@@ -153,5 +162,30 @@ describe('rendering a view', () => {
     const seen = renderView(viewOf(ines, context), context);
     expect(seen.occupants.map((one) => one.name)).toEqual(['a guard', 'a sentry', 'Marta']);
     expect(seen.carried).toEqual([]);
+  });
+});
+
+describe('what a description’s extension statements record into the view', () => {
+  const polled = (catalogue: Catalogue) =>
+    pollView(gallery(catalogue), galleryHost(catalogue), GALLERY_MARTA);
+
+  it('is beside the description’s words, with its payload and its transcript line', () => {
+    const { view, fault } = polled(galleryCatalogue());
+    expect(fault).toBeNull();
+    expect(view.description).toEqual(['A bright hall.']);
+    expect(view.effects).toEqual([
+      {
+        extension: 'media',
+        statement: 'show',
+        payload: { src: 'hall.png', caption: 'the hall', self: HALL },
+        transcript: '[A picture: the hall]',
+      },
+    ]);
+  });
+
+  it('is nothing where the extension is absent, and the words are the same', () => {
+    const { view } = polled(galleryCatalogue([]));
+    expect(view.description).toEqual(['A bright hall.']);
+    expect(view.effects).toEqual([]);
   });
 });

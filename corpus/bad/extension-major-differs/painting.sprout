@@ -1,0 +1,13 @@
+// A file names an extension at the major version the manifest pins, so
+// every file of one world means the same extension by the name.
+extension media 2
+
+kind Painting {
+  grammar { name "painting"  nouns "painting" }
+  as target for view {
+    do {
+      media.show("cat.png", "a cat")
+      say "You look closely."
+    }
+  }
+}

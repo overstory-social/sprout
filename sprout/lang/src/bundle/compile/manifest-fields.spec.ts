@@ -10,6 +10,7 @@ import { atKey, atValue, checkManifest, NAMESPACE, SEMVER } from './manifest-fie
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import { refusals, world } from '../../fixtures/compile.js';
+import { MEDIA } from '../../fixtures/extensions.js';
 
 const TEXT = [
   '{',
@@ -233,7 +234,10 @@ describe('what a manifest says about the world', () => {
     ).toBeNull();
   });
 
-  it('carries the extensions it pins into the bundle', () => {
-    expect(compileBundle(world()).bundle!.extensions).toEqual([{ name: 'media', major: 2 }]);
+  it('carries the extensions it pins into the bundle, with what the host supplies for each', () => {
+    const pinned = world({ manifest: { extensions: [{ name: 'media', major: 2 }] } });
+    expect(compileBundle(pinned, { extensions: [MEDIA] }).bundle!.extensions).toEqual([
+      { name: 'media', major: 2, installed: MEDIA, absence: null },
+    ]);
   });
 });

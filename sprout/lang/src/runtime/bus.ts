@@ -108,6 +108,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
         heardBy: () => [],
         speaker: null,
         leftOut: [],
+        records: 'as-told',
       });
       runBody(body.block, frameFor(sent, body, context), 'act', sink);
       said.push(...acted.said);

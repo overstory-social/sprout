@@ -1,0 +1,4 @@
+extension_line_late.sprout:10:1  `extension` belongs at the top of the file, before anything it declares.
+                                 Move this line above the first declaration.
+
+refused: 1 problem

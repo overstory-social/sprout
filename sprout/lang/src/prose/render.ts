@@ -2,7 +2,8 @@
 // Conditionals and loops, Bounds).
 //
 // A slot renders an object as the reader reads it, an option humanised, a
-// number in digits and a string as written; another object's passage runs
+// number in digits, a string as written and an extension's value in the
+// words the extension renders it as; another object's passage runs
 // with that object as its own `self` and only `actor` and `here` beside
 // it, one passage deeper against the turn's bound. `{if}` renders the
 // first branch whose condition holds, and `{for}` its body once for each
@@ -28,6 +29,7 @@ import {
 } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
 import { SproutList } from '../runtime/lists.js';
+import { ExtensionValue, extensionWords } from '../runtime/extension-values.js';
 import type { PassRule } from '../runtime/range.js';
 import type { Draw } from '../runtime/draws.js';
 import type { LineDraws } from './line-draws.js';
@@ -146,9 +148,11 @@ function slot(
   const text =
     typeof value.value === 'number'
       ? String(value.value)
-      : context.catalogue.optionSlots.has(piece)
-        ? humanisedOption(value.value)
-        : value.value;
+      : value.value instanceof ExtensionValue
+        ? extensionWords(value.value)
+        : context.catalogue.optionSlots.has(piece)
+          ? humanisedOption(value.value)
+          : value.value;
   out.push({ words: text });
 }
 

@@ -12,6 +12,7 @@
 import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
 import type { VerbDeclaration } from './ast-verbs.js';
+import type { ExtensionStatement, ExtensionUse } from './ast-extensions.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
 import type {
   DescribeDeclaration,
@@ -441,7 +442,8 @@ export type Statement =
   | SayStatement
   | TellStatement
   | TextStatement
-  | ExpressionStatement;
+  | ExpressionStatement
+  | ExtensionStatement;
 
 // --- the world ------------------------------------------------------------
 
@@ -797,4 +799,9 @@ export interface ObjectDeclaration extends Node {
  * it is written in the body of what holds it. The union grows per item.
  */
 export type Declaration =
-  EnumDeclaration | MessageDeclaration | WorldDeclaration | KindDeclaration | VerbDeclaration;
+  | EnumDeclaration
+  | MessageDeclaration
+  | WorldDeclaration
+  | KindDeclaration
+  | VerbDeclaration
+  | ExtensionUse;

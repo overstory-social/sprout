@@ -24,8 +24,9 @@ import type { ValueType } from '../declare/types.js';
 import { idForm } from './ids.js';
 import { SproutList } from './lists.js';
 import { fits, typeKey, type Value } from './values.js';
+import { ExtensionValue, restoredExtension } from './extension-values.js';
 
-/** A value as JSON holds it: a list is an array of its elements. */
+/** A value as JSON holds it: a list is an array of its elements, and an extension's value the text it persists as. */
 export type StoredValue = boolean | number | string | readonly StoredValue[];
 
 /** A value with the type key it was written under, so a retyped property is never reinterpreted, even when the old value would fit the new type. */
@@ -270,6 +271,7 @@ export function encodeValue(type: ValueType, value: Value): StoredProperty {
 }
 
 function toStored(value: Value): StoredValue {
+  if (value instanceof ExtensionValue) return value.stored;
   return value instanceof SproutList ? value.elements.map(toStored) : value;
 }
 
@@ -293,6 +295,9 @@ export function decodeValue(type: ValueType, stored: StoredProperty, caps: Stati
 
 /** A stored value as a run-time one, or null when its shape is not the type's. */
 function fromStored(type: ValueType, stored: StoredValue, caps: StaticCaps): Value | null {
+  if (type.type === 'extension') {
+    return typeof stored === 'string' ? restoredExtension(type, stored) : null;
+  }
   if (type.type !== 'list') return Array.isArray(stored) ? null : (stored as Value);
   if (!Array.isArray(stored) || stored.length > caps.listElements) return null;
   const elements: Value[] = [];

@@ -72,6 +72,7 @@ describe('a write turn', () => {
         detail: expect.stringContaining('50000 steps'),
         object: null,
         engine: false,
+        extension: null,
       },
     });
     expect(saveWorld(state)).toEqual(before);

@@ -1,0 +1,7 @@
+album.sprout:7:13  A list does not hold `media.Image`, which is an extension's type.
+                   Declare one property of it for each value the kind holds.
+
+sprout.json:7:28   This host does not provide the extension `media`.
+                   Ask whoever runs this host to install `media`, or take it out of the manifest and every file that names it.
+
+refused: 2 problems

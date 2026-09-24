@@ -205,6 +205,7 @@ const tangled = {
   detail: 'steps: a wake turn may take 50000 steps.',
   object: 'shop#2',
   engine: false,
+  extension: null,
 };
 const LOG: readonly LogEntry[] = [
   { kind: 'publish', now: 3_000_000_000, bundle: 'a1'.repeat(32) },
@@ -226,6 +227,13 @@ const LOG: readonly LogEntry[] = [
     effects: [
       toMarta('said', ['It catches.']),
       { ...toMarta('told', []), to: 'shop#4', visit: 'v-ines' },
+      {
+        ...toMarta('said', ['[A picture: the lamp]']),
+        kind: 'extension',
+        extension: 'media',
+        statement: 'show',
+        payload: { src: 'lamp.png', size: [3, 4.5], lit: true, caption: null },
+      },
     ],
   },
   {
