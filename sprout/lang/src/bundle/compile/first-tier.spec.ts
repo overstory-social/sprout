@@ -152,7 +152,6 @@ describe('the first tier reads every file in the bundle', () => {
   const sprout = {
     ...STANDARD_LIBRARY,
     hash: libraryHash(STANDARD_LIBRARY),
-    blessed: true,
     bytes: 0,
   };
 

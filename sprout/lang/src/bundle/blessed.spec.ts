@@ -1,11 +1,10 @@
 // The host's blessed set (the spec's Host › Two decisions): the standard
 // library's hash is the one entry a host starts from, a host adds and
-// removes hashes and a mistyped one is thrown at its boot, and a bundle
-// gives back the hashes blessed at its publish.
+// removes hashes and a mistyped one is thrown at its boot.
 
 import { describe, expect, it } from 'vitest';
 
-import { blessedFrom, blessedIn, BlessedError, DEFAULT_BLESSED } from './blessed.js';
+import { blessedFrom, BlessedError, DEFAULT_BLESSED } from './blessed.js';
 import { libraryHash } from './bundle.js';
 import { compileBundle } from './compile/compile.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
@@ -21,10 +20,8 @@ describe('the blessed set a host starts from', () => {
 
   it('is what a compile blesses when the host names no set', () => {
     const { bundle } = compileBundle(world());
-    expect(bundle!.libraries.map((library) => [library.hash, library.blessed])).toEqual([
-      [SPROUT, true],
-    ]);
-    expect(bundle!.size.exemptBytes).toBeGreaterThan(0);
+    expect(bundle!.libraries.map((library) => library.hash)).toEqual([SPROUT]);
+    expect(bundle!.size.exemptBytes).toBe(bundle!.libraries[0]!.bytes);
   });
 });
 
@@ -55,15 +52,5 @@ describe('a host’s blessed set', () => {
 
   it('throws at boot for unblessing a hash it does not bless', () => {
     expect(() => blessedFrom({ unbless: [OTHER] })).toThrow(`${OTHER}: is not blessed.`);
-  });
-});
-
-describe('what a bundle records of its blessing', () => {
-  it('gives back the hashes blessed at publish, sorted', () => {
-    expect(blessedIn(compileBundle(world()).bundle!)).toEqual([SPROUT]);
-  });
-
-  it('gives back none for a library the host did not bless', () => {
-    expect(blessedIn(compileBundle(world(), { blessed: new Set() }).bundle!)).toEqual([]);
   });
 });
