@@ -1,50 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
-import { playScript } from './play.js';
-import { worldFolder } from './testing.js';
-
-/**
- * A kiln yard: a kiln that fires, asks to be woken in an hour and cools
- * when it is; a yard that speaks on every tick it is sent, one of two
- * lines drawn from the tick's seed; a shed beside it with nothing that ticks.
- */
-const KILN_YARD = {
-  'kiln_yard.sprout': `world kiln_yard is sprout.World {
-  visitors are Walker
-  visitors arrive at yard
-
-  object yard is Yard {
-    grammar { exit in "into the shed" -> shed }
-    object kiln is Kiln
-  }
-  object shed is sprout.Place {
-    grammar { exit out "back to the yard" -> yard }
-    describe { text "A dark shed." }
-  }
-}
-
-verb fire { role target  "fire [target]" }
-`,
-  'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
-  'yard.sprout': `kind Yard is sprout.Place {
-  describe { text "A kiln yard." }
-  on :tick { tell "{one of}Smoke drifts.{or}The air is still.{/one of}" }
-}
-`,
-  'kiln.sprout': `kind Kiln is sprout.Fixture {
-  :hot false
-  as target for fire {
-    permit { if (self.get(:hot)) { refuse "It is firing already." } }
-    do { self.set(:hot, true)  wake in 1 hours  say "The chamber takes the flame." }
-  }
-  on :woke (elapsed) {
-    self.set(:hot, false)
-    tell "The kiln ticks as it cools."
-  }
-}
-`,
-};
+import { heard, playLines, playScript } from './play.js';
+import { KILN_YARD, worldFolder } from './testing.js';
 
 const bundle = checkWorld(worldFolder('kiln_yard', KILN_YARD)).bundle!;
 const play = (script: string): string => playScript(bundle, script, 'yard.txt').page;
@@ -161,5 +119,37 @@ describe('playScript', () => {
     expect(() => play('@arrive Marta\n@leave Marta\nMarta> look\n')).toThrow(
       'yard.txt:3: Marta is not in the world',
     );
+  });
+});
+
+describe('playLines', () => {
+  it('keeps what is indented under each line, and marks what a reader read and what faulted', () => {
+    const played = playLines(
+      bundle,
+      '  above everything\n@arrive Marta\n  A kiln yard.\n# aside\n  under a comment\nMarta> kick kiln\n',
+      'yard.txt',
+    );
+    expect(played.before).toEqual([{ at: 1, text: 'above everything' }]);
+    expect(played.lines.map(({ at, line, under }) => [at, line, under])).toEqual([
+      [2, '@arrive Marta', [{ at: 3, text: 'A kiln yard.' }]],
+      [4, '# aside', [{ at: 5, text: 'under a comment' }]],
+      [6, 'Marta> kick kiln', []],
+    ]);
+    const [arrived, aside, kicked] = played.lines;
+    expect(arrived!.made).toEqual([
+      { text: 'Marta (described): A kiln yard.', words: 'A kiln yard.', fault: false },
+    ]);
+    expect(aside!.made).toBeNull();
+    expect(kicked!.made!.map((made) => [made.words === null, made.fault])).toEqual([
+      [false, false],
+      [true, true],
+    ]);
+    expect(kicked!.made![1]!.text).toMatch(/^the command faulted, IntegerOverflow: /);
+  });
+
+  it('gives `@seed` nothing made, and a line that made nothing an empty list the page writes as (nothing)', () => {
+    const played = playLines(bundle, '@seed 3\n@arrive Marta\nMarta> go in\n@tick\n');
+    expect(played.lines.map((line) => line.made?.length ?? null)).toEqual([null, 1, 1, 0]);
+    expect(heard([])).toEqual([{ text: '(nothing)', words: null, fault: false }]);
   });
 });

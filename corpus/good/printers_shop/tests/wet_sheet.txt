@@ -1,0 +1,17 @@
+# A pulled sheet is wet for forty minutes, and then it can be taken.
+@arrive Marta
+Marta> go out
+Marta> ink press
+  You beat the ink over the forme until it shines.
+Marta> take bone rib
+Marta> work press with bone rib
+  The bar comes over, and the yard is briefly very quiet.
+Marta> take sheet
+  The ink is still wet; it would smear.
+@advance 39 minutes
+  (nothing)
+Marta> take sheet
+  The ink is still wet; it would smear.
+@advance 1 minute
+Marta> take sheet
+  You take a printed sheet.

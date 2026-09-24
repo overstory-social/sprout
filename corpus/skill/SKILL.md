@@ -117,6 +117,9 @@ sprout — a Sprout microworld on the command line
                                       what a visitor standing there is shown and could type
   sprout play dir script              play a script of typed lines and host events through real turns;
                                       the transcript, each line followed by what every reader read
+  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
+                                      with what the world should say indented under a line, the whole line or its
+                                      words alone, in order; what failed and what the world said; exit 1 on a failure
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
 ```
