@@ -1,0 +1,16 @@
+{
+  "name": "refused_default_keeps_property",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "3471a289f05f96a6f62f34418f3fdd07d6b613cc501efe6d06fe9d1fa076b510"
+    }
+  ],
+  "files": ["refused_default_keeps_property.sprout", "person.sprout", "kiln.sprout", "door.sprout"]
+}

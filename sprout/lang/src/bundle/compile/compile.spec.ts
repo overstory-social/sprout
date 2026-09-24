@@ -283,6 +283,49 @@ describe('publishing is strict: any problem is a refusal', () => {
   });
 });
 
+describe('a default of another type is refused once, in either mode', () => {
+  const files = worldFiles(
+    WORLD_LINE,
+    'kind Kiln is sprout.Place {\n  :hatch Season default "autumn"\n  on :entered (item, from) { self.set(:hatch, :winter) if (self.get(:hatch) == :spring) { tell "Spring." } }\n}',
+  ).map((one) =>
+    one.name === 'printers_shop.sprout'
+      ? file('printers_shop.sprout', `${one.text}\nenum Season { spring, summer, autumn, winter }`)
+      : one,
+  );
+
+  it('says it at the default and nowhere the property is used', () => {
+    const { diagnostics } = compileBundle(world({ files }));
+    expect(refusals(diagnostics).map((one) => locationOf(one.at))).toEqual(['kiln.sprout:2:25']);
+  });
+
+  it('restates such a property, where two kinds give it, with a value it can hold', () => {
+    const twice = worldFiles(
+      WORLD_LINE,
+      'kind Ajar { :hatch Season default "autumn" }',
+      'kind Shut { :hatch Season default winter }',
+      'kind Crate is Ajar, Shut { }',
+    ).map((one) =>
+      one.name === 'printers_shop.sprout'
+        ? file(
+            'printers_shop.sprout',
+            `${one.text}\nenum Season { spring, summer, autumn, winter }`,
+          )
+        : one,
+    );
+    const { diagnostics } = compileBundle(world({ files: twice }));
+    const claims = refusals(diagnostics).find((one) => one.message.includes('two claims'));
+    expect(claims?.remedy).toBe(
+      'If they are meant to be one property, restate it in `Crate`: `:hatch spring`.',
+    );
+  });
+
+  it('refuses at load too, so no instance ever starts at a value its property does not hold', () => {
+    const { bundle, diagnostics } = compileBundle(world({ files }), { mode: 'load' });
+    expect(bundle).toBeNull();
+    expect(refusals(diagnostics).map((one) => locationOf(one.at))).toEqual(['kiln.sprout:2:25']);
+  });
+});
+
 describe('a compile checks the bodies of kinds, objects and the world', () => {
   it('refuses what an object’s and the world’s own guards get wrong', () => {
     const text = [

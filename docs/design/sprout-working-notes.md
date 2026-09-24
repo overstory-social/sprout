@@ -319,6 +319,10 @@ Found while building the test format (B52), each decided the narrow way and awai
 - **413. What world a test starts from.** Built: each test on the world as it loads, freshly for every test, under the host's default limits, with time at 0 and seed 0 until its `@seed`, exactly as `sprout play` does, so no test's turns reach another and the order they run in does not matter. The alternatives: a shared setup script run before each test; a test that starts from a saved state; `--seed` or `--limits` on the command line.
 - **414. How an author accepts what the world says.** Built: by copying it in. A failure prints what the world said under the failing line and says that `sprout play` prints the whole transcript, and `sprout init` writes a first test, `tests/arrival.txt`, that the world it writes passes. The alternative: `sprout test --accept`, which rewrites a failing test's lines with what the world said, a golden written by the tool rather than the author.
 
+Found while keeping a refused default's property (#282):
+
+- **420. Whether a file the checker refuses reads as absent at load.** Strict and lenient says a file "missing, withheld or broken reads as absent" at load, and does not say whether a file that parses and is then refused by the checker, a default of another type among them, is broken. Built: such a refusal stands at load as at publish, so a world with a refused default does not load, and no instance ever starts at a value its property does not hold; the property is kept for checking only, with its declared name and type, so its uses are not refused again. The alternative: the file reads as absent at load, and then what it declares is a gap and no default of it is ever read.
+
 **Decided 2026-09-24, morning**, now in the spec except where an entry says otherwise:
 
 - 125: a passage nothing says, and the engine does not, is checked with its own `self` alone, as built. No spec change.

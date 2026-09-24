@@ -114,7 +114,8 @@ describe('an enum and the option to start at, written as one', () => {
 
   it('is checked against the enum like any other option, at the option', () => {
     const { resolved, refusals } = declare(':ward Ward.slver');
-    expect(resolved).toBeNull();
+    expect(resolved!.type).toMatchObject({ type: 'symbol', of: { name: 'Ward' } });
+    expect(refusals).toHaveLength(1);
     expect(refusals[0]!.message).toBe('`Ward` has no option `slver`. Did you mean `silver`?');
     expect(refusals[0]!.remedy).toBe('Options: oak, silver.');
     expect(locationOf(refusals[0]!.at)).toBe('kiln.sprout:1:12');
@@ -143,7 +144,8 @@ describe('an integer’s range narrows its type, so the default is checked again
 
   it('refuses a default outside the range it just declared', () => {
     const { resolved, refusals } = declare(':wear 0 min 5 max 99');
-    expect(resolved).toBeNull();
+    expect(resolved!.type).toEqual(integer(5, 99));
+    expect(refusals).toHaveLength(1);
     expect(refusals[0]!.message).toBe('0 is outside 5 to 99.');
   });
 
@@ -168,8 +170,8 @@ describe('an integer’s range narrows its type, so the default is checked again
 
 describe('a default that is not a value of the type is refused at the default', () => {
   it('refuses the wrong kind of value', () => {
-    const { resolved, refusals } = declare(':lit boolean default 4');
-    expect(resolved).toBeNull();
+    const { refusals } = declare(':lit boolean default 4');
+    expect(refusals).toHaveLength(1);
     expect(refusals[0]!.message).toBe('`:lit` holds true or false, and 4 is a number.');
     expect(locationOf(refusals[0]!.at)).toBe('kiln.sprout:1:22');
   });
@@ -180,7 +182,16 @@ describe('a default that is not a value of the type is refused at the default', 
   });
 
   it('refuses a list element of the wrong type', () => {
-    expect(declare(':opens [Ward] default [oak, 4]').resolved).toBeNull();
+    const { resolved, refusals } = declare(':opens [Ward] default [oak, 4]');
+    expect(showType(resolved!.type)).toBe('[Ward]');
+    expect(refusals).toHaveLength(1);
+  });
+
+  it('keeps the property, its name and its declared type, so its uses are checked against it', () => {
+    const { resolved, refusals } = declare(':hatch Drying default "wet"');
+    expect(refusals.map((r) => locationOf(r.at))).toEqual(['kiln.sprout:1:23']);
+    expect(resolved).toMatchObject({ name: 'hatch', origin: ORIGIN, remembered: false });
+    expect(showType(resolved!.type)).toBe('Drying');
   });
 
   it('refuses a bare option with no enum written, since it names none', () => {
@@ -223,6 +234,12 @@ describe('what an object remembers about each actor', () => {
 
   it('drops one it cannot resolve and keeps the rest', () => {
     const { resolved, refusals } = remember('remembers { :handled false :ward iron :visits 0 }');
+    expect(resolved.map((p) => p.name)).toEqual(['handled', 'visits']);
+    expect(refusals).toHaveLength(1);
+  });
+
+  it('keeps one whose default is refused, since its type is known', () => {
+    const { resolved, refusals } = remember('remembers { :handled boolean default 1 :visits 0 }');
     expect(resolved.map((p) => p.name)).toEqual(['handled', 'visits']);
     expect(refusals).toHaveLength(1);
   });
@@ -348,6 +365,12 @@ describe('a restatement is written out for a remedy as the author would write it
   it('writes a property with its default as it was written', () => {
     expect(restatementOf(declare(':state Drying default wet').resolved!)).toBe('`:state wet`');
     expect(restatementOf(declare(':note "a \\{line}"').resolved!)).toBe('`:note "a \\{line}"`');
+  });
+
+  it('never quotes a default the compiler refuses, writing a plain value of the type instead', () => {
+    expect(restatementOf(declare(':state Drying default "wet"').resolved!)).toBe('`:state wet`');
+    expect(restatementOf(declare(':state Drying default damp').resolved!)).toBe('`:state wet`');
+    expect(restatementOf(declare(':lit boolean default 3').resolved!)).toBe('`:lit false`');
   });
 
   it('writes a remembered one inside a `remembers` block', () => {
