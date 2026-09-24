@@ -17,8 +17,9 @@
 // is not `default`, else the one default; a pass rule is one per
 // message, which `passes.ts` resolves; a `name` and an `article` are one
 // each and nouns all apply, which `grammar.ts` resolves; exits and links
-// are one source's per direction, which `exits.ts` resolves; a `describe`
-// is one, which `describe.ts` resolves. Guards, plays,
+// are not composed, an object taking those of the kinds its `is` names,
+// which `exits.ts` resolves; a `describe` is one, which `describe.ts`
+// resolves. Guards, plays,
 // handlers and hooks all run, in closure order less what `without` leaves
 // out, which `guards.ts`, `roles.ts` and `handlers.ts` resolve; a
 // suppression travels to every kind that composes the one that wrote it.
@@ -103,6 +104,8 @@ export interface Composer {
   readonly members: readonly KindMember[];
   /** Whether it may compose `sprout.World`, which only the world may. */
   readonly mayComposeWorld?: boolean;
+  /** Whether it is an object's anonymous kind, which takes the exits and links of the kinds it names. */
+  readonly object?: boolean;
 }
 
 /**
@@ -405,10 +408,12 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     shown,
     diagnostics,
   );
-  // --- exits and links: one source for each direction -----------------
+  // --- exits and links: a kind's own, an object's kinds' too -----------
   const exits = composeExits(
     composer.name,
-    composed.map(({ kind, written }) => ({ exits: kind.exits, written })),
+    composer.object === true
+      ? composed.map(({ kind, written }) => ({ exits: kind.exits, written }))
+      : [],
     ownExits(composer.members, own),
     shown,
     diagnostics,

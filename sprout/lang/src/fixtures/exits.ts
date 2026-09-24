@@ -5,7 +5,9 @@
 // while a beacon it cannot see is lit. The shop's ladder must be down for
 // its way up. The meadow's gate refuses whoever comes while it is shut. A
 // turning of the maze has its way on dug and its way back connected by the
-// turning dug, and every turning leads up to the yard. A person too
+// turning dug, and every turning leads up to the yard. A dead end is a
+// kind composing a turning, so none of a turning's ways out reach it,
+// and digging it faults, since it has no way on to connect. A person too
 // tired refuses to go anywhere, and counts every way they go.
 // `runtime/exits.spec.ts`, `runtime/links.spec.ts` and the go cases of
 // `runtime/command.spec.ts` share it. Spec support: the package build
@@ -62,6 +64,8 @@ export const WAYS: Bundle = compiledWorld('ways', {
   object maze_mouth is MazeCell {
     grammar { exit up "up into the daylight" -> yard }
   }
+
+  object dead_end is DeepCell
 }
 
 verb dig { role target: MazeCell  "dig [target]" }
@@ -77,22 +81,23 @@ verb dig { role target: MazeCell  "dig [target]" }
   :dug false
   grammar {
     name "turning of the maze"
-    link north "deeper into the dark"
-    link south "the way you came"
+    link onward "deeper into the dark"
+    link back   "the way you came"
     exit up    "up to the yard" -> yard
   }
-  on :spawned (from) { connect south to from }
+  on :spawned (from) { connect back to from }
   as target for dig {
     permit { if (self.get(:dug)) { refuse "This wall is already broken through." } }
     do {
       self.set(:dug, true)
       let cell = spawn MazeCell in self
-      connect north to cell
+      connect onward to cell
       say "The stones give, and a gap opens into more dark."
     }
   }
 }
 `,
+  'deep_cell.sprout': 'kind DeepCell is MazeCell { }\n',
   'walker.sprout': `kind Walker is sprout.Actor {
   :tired false
   :walked 0 min 0 max 99
@@ -116,6 +121,7 @@ export const LOFT = at('shop', 'loft');
 export const MEADOW = at('meadow');
 export const SHED = at('shed');
 export const MOUTH = at('maze_mouth');
+export const DEAD_END = at('dead_end');
 
 export const CATALOGUE = catalogueOf(WAYS, DEFAULT_LIMITS.caps);
 

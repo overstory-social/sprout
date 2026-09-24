@@ -1,4 +1,4 @@
-porch.sprout:1:26  `Porch` gets its ways `out` from both `FrontDoor` and `BackDoor`, and one place says where `out` leads.
-                   Write `Porch`'s own exits `out` to say which apply.
+world.sprout:7:29  `yard` gets its exits `out` from both `FrontDoor` and `BackDoor`, and one place says where `out` leads.
+                   Write `yard`'s own exits `out` to say which apply.
 
 refused: 1 problem

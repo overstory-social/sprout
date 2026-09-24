@@ -1,13 +1,13 @@
-// `connect` names a link by its direction, so one body writes one link
-// in each.
+// `connect` names a link by its name, so one body writes one link of
+// each name.
 world link_twice is sprout.World {
   visitors are Person
   visitors arrive at yard
 
   object yard is sprout.Place {
     grammar {
-      link north "deeper into the dark"
-      link north "further on"
+      link onward "deeper into the dark"
+      link onward "further on"
     }
   }
 }

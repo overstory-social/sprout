@@ -8,16 +8,16 @@
 // and must be a place other than the world; in a kind's body, where each
 // instance's place decides which object it is, one of those it could be
 // must be a place, and the run leads nowhere through one that is not. Its
-// `when` is a condition over `self`, the place, read-only
-// and pure as a pass rule's is: nobody is acting while it is polled, so
-// `actor` and `here` are not bound. `connect` assigns one of `self`'s
-// links, named by its direction, to a binding: a link leads only where
-// the world made a place, and a place written in source has an exit.
+// `when` is a condition over `self`, the place, read-only and pure as a
+// pass rule's is: nobody is acting while it is polled, so `actor` and
+// `here` are not bound. `connect` assigns one of the writing kind's
+// links, by its name, to a binding: a link leads only where the world
+// made a place, and a place written in source has an exit.
 
 import type { ConnectStatement, Expr, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import type { ResolvedExit } from '../declare/exits.js';
+import { isLinkName, type ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { Scope, selfBinding, showBindingType } from './bindings.js';
@@ -42,17 +42,16 @@ const A_PLACE = 'something that composes `sprout.Place` or writes `contains acto
  */
 export function checkExit(exit: ResolvedExit, self: KindRef, setting: ExitSetting): boolean {
   const { diagnostics } = setting;
-  const { line } = exit;
-  const word = line.kind === 'grammar-exit' ? 'exit' : 'link';
   if (!self.containsActors) {
     diagnostics.refuse(
-      line.direction.at,
+      exit.kind === 'exit' ? exit.line.direction.at : exit.line.name.at,
       `\`${self.name}\` is not a place, so nobody stands in it to take a way out.`,
-      `Write the ${word} on a place: ${A_PLACE}.`,
+      `Write the ${exit.kind} on a place: ${A_PLACE}.`,
     );
     return false;
   }
-  if (line.kind === 'grammar-link') return true;
+  if (exit.kind === 'link') return true;
+  const { line } = exit;
   const leads = checkDestination(line.destination, self, setting);
   const holds = line.when === null || checkWhen(line.when, self, setting);
   return leads && holds;
@@ -151,25 +150,28 @@ function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
 }
 
 /**
- * `connect north to cell`: a link the writing kind's closure declares in
- * that direction, and a binding holding a place. Returns whether it was
- * accepted.
+ * `connect onward to cell`: a link of that name among the writing kind's
+ * ways out, which are its instances' own, and a binding holding a place.
+ * Returns whether it was accepted.
  */
 export function checkConnect(statement: ConnectStatement, context: CheckContext): boolean {
   const { diagnostics } = context;
   const self = context.self;
-  const direction = statement.link.text;
+  const name = statement.link.text;
   let accepted = true;
   if (self !== null) {
-    const links = self.exits.filter((exit) => exit.line.kind === 'grammar-link');
-    if (!links.some((link) => link.direction === direction)) {
-      const has = links.map((link) => link.direction);
+    const has = self.exits.flatMap((way) => (way.kind === 'link' ? [way.name] : []));
+    if (!has.includes(name)) {
+      // A direction or a reserved word names no link, so no remedy declares one by it.
+      const declarable = isLinkName(name);
       diagnostics.refuse(
         statement.link.at,
-        `\`${self.name}\` has no link \`${direction}\`, so there is nothing to connect.`,
-        has.length === 0
-          ? `Declare one in its grammar block, as in \`link ${direction} "deeper into the dark"\`.`
-          : `Connect one it has: ${has.map((one) => `\`connect ${one} to …\``).join(', ')}; or declare \`link ${direction} "…"\`.`,
+        `\`${self.name}\` has no link \`${name}\`, so there is nothing to connect.`,
+        has.length > 0
+          ? `Connect one it has: ${has.map((one) => `\`connect ${one} to …\``).join(', ')}${declarable ? `; or declare \`link ${name} "…"\`` : ''}.`
+          : declarable
+            ? `Declare one in its grammar block, as in \`link ${name} "deeper into the dark"\`.`
+            : `Declare one in its grammar block by a word of your own, as in \`link onward "deeper into the dark"\`, and connect it by that name.`,
       );
       accepted = false;
     }
@@ -181,7 +183,7 @@ export function checkConnect(statement: ConnectStatement, context: CheckContext)
     diagnostics.refuse(
       destination.at,
       `\`${written}\` is not a binding, and a link leads only to a place the world made while it runs.`,
-      `Connect it to a binding that holds the place, as in \`let cell = spawn Cell in self\` then \`connect ${direction} to cell\`; a place written in source is reached by an \`exit\`.`,
+      `Connect it to a binding that holds the place, as in \`let cell = spawn Cell in self\` then \`connect ${name} to cell\`; a place written in source is reached by an \`exit\`.`,
     );
     return false;
   }
@@ -191,7 +193,7 @@ export function checkConnect(statement: ConnectStatement, context: CheckContext)
     diagnostics.refuse(
       destination.at,
       `A link leads to a place, and \`${written}\` is ${showBindingType(type)}.`,
-      `Connect it to one place, as in \`connect ${direction} to cell\`.`,
+      `Connect it to one place, as in \`connect ${name} to cell\`.`,
     );
     return false;
   }

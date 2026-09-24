@@ -100,9 +100,10 @@ export interface KindRef {
    */
   readonly grammar: ComposedGrammar;
   /**
-   * Its exits and links, direction by direction, each direction's in the
-   * order its guards are tried (the spec's Exits, An exit may be
-   * conditional): one source's per direction, its own replacing any.
+   * Its exits and links, direction by direction and link by link, each
+   * direction's in the order its guards are tried (the spec's Exits, An
+   * exit may be conditional, Links): a kind's own, and an object's own
+   * and those of the kinds its `is` names, its own replacing theirs.
    */
   readonly exits: readonly ResolvedExit[];
   /**
