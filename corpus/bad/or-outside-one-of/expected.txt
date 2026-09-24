@@ -1,0 +1,4 @@
+cat.sprout:3:34  `{or}` separates the choices of a `{one of}`, directly inside it.
+                 Write it between `{one of}` and the `{/one of}` that closes it, outside any `{if}` or `{for}` in the choice.
+
+refused: 1 problem

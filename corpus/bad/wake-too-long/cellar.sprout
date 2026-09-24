@@ -4,4 +4,5 @@ kind Cellar is sprout.Place {
   on :tick {
     wake in 600000 hours
   }
+  on :woke { }
 }

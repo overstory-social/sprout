@@ -1,0 +1,4 @@
+kind Cat {
+  :naps 0 min 0 max 99
+  on :tick { self.adjust(:naps, 1) }
+}
