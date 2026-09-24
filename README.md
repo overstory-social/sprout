@@ -36,7 +36,8 @@ expressions Phase 1 defined, the prose every passage holds and each
 as a turn, answers the engine verbs (`go`, `look`, `examine`, `inventory`,
 `wait`, `help`), gives back what every turn said as one ordered
 sequence of effects, each rendered for the one person who reads it, an
-extension's among them with its transcript line, and
+extension's among them with its transcript line, sent to each client as
+its payload where the client can render it and as words where it cannot, and
 polls a visitor's view: their place, its ways out, who is there, what
 they carry, and every reading they could make. Everything else lands one
 backlog item at a time;
@@ -55,7 +56,7 @@ sprout/lang/src
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
   runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, nickname admission, the engine verbs' answers, an extension's values and statements run, a turn's effects, and a visitor's view
   prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
-sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock, the log, conversation beside the world
+sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check, and the inspectors: parse (what a world accepts) and view (what a visitor is offered)
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page

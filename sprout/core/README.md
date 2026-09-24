@@ -33,6 +33,19 @@ runs no turn, writes nothing of the world, appends nothing to the log
 and stores nothing; delivering it, beside the world's words, is the
 host's.
 
+What each client is sent is negotiated with it (the spec's _Extensions ›
+Effects are additive_): `negotiate` reads a client's `ClientDeclaration`,
+the extension statements whose payloads it renders by extension and
+major, against the world's pinned extensions, and grants those the host
+supplies at that major, declining the rest with words
+(`capabilities.ts`). `deliver` then sends each effect to a visit in order,
+a prose effect as its words and an extension's as its payload where its
+statement was granted, else as its transcript line; `sendView` does the
+same for what a view's description recorded (`delivery.ts`). A client
+that declares nothing is `TEXT_ONLY` and reads every effect as words.
+A screen reader is one: `announce` speaks each effect it is sent, how
+urgently decided by its kind alone (`screen-reader.ts`).
+
 Every write turn appends its entry to the world's event log in the same
 transaction (the spec's _The runtime › The log_): its inputs and seed,
 its budgets, what it said and any fault; so does every publish
