@@ -1,16 +1,17 @@
-// The words that fill an exit role (the spec's Verbs › Exits): a
-// direction, written out or abbreviated, or the label of an exit typed as
-// an alias for its direction, so what a screen reader speaks can be
-// spoken back. Only the exits that apply where the actor stands are
-// asked, which `runtime/exits.ts` says.
+// The words that fill an exit role (the spec's Verbs › Exits, Links): a
+// direction, written out or abbreviated, or the label of an exit or a
+// link typed, so what a screen reader speaks can be spoken back. A link
+// has no direction, and is taken by its label alone. Only the ways out
+// that apply where the actor stands are asked, which `runtime/exits.ts`
+// says.
 
 import { typedWords } from '../../declare/addressing.js';
 import { directionOf, type Direction } from '../../declare/directions.js';
 import type { InstanceId } from '../ids.js';
 
-/** One exit that applies where the actor stands: its direction, its label, and the place it leads to. */
+/** One exit or link that applies where the actor stands: its direction, null for a link, its label, and the place it leads to. */
 export interface CommandExit {
-  readonly direction: Direction;
+  readonly direction: Direction | null;
   readonly label: string;
   readonly to: InstanceId;
 }

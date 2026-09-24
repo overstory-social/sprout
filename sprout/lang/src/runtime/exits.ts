@@ -1,8 +1,9 @@
 // The exits that apply where an actor stands (the spec's Verbs › Exits,
 // An exit may be conditional, Links; The compiler › What absent means).
 // Several exits may share a direction, and the first whose guard holds is
-// the one that applies, so a direction gives at most one; an exit that
-// does not apply is not offered, not traversable and not mentioned.
+// the one that applies, so a direction gives at most one, and a link is
+// one of its name; an exit that does not apply is not offered, not
+// traversable and not mentioned.
 //
 // What does not apply, rather than faulting: an unset link; a guard that
 // reads through a name out of the place's range, or to a declared object
@@ -11,6 +12,7 @@
 // as any reading is, so a guard too dear to ask faults as any work does.
 
 import type { ObjectPath } from '../syntax/ast.js';
+import type { Direction } from '../declare/directions.js';
 import { libraryOf } from '../declare/enums.js';
 import type { ResolvedExit } from '../declare/exits.js';
 import type { Budget } from './budget.js';
@@ -32,21 +34,23 @@ export interface ExitContext {
 }
 
 /**
- * The exits that apply on `place`, one for each direction that has one,
- * in the order its kind answers them; one step for each exit asked.
+ * The exits and links that apply on `place`, one for each direction that
+ * has one and each link set, in the order its kind answers them; one step
+ * for each asked.
  */
 export function exitsFrom(place: InstanceId, context: ExitContext): CommandExit[] {
   const instance = context.state.instance(place);
   if (instance === undefined) return [];
-  const decided = new Set<string>();
+  const decided = new Set<Direction>();
   const applying: CommandExit[] = [];
   for (const exit of instance.kind.exits) {
-    if (decided.has(exit.direction)) continue;
+    if (exit.kind === 'exit' && decided.has(exit.direction)) continue;
     context.budget.spend();
     const to = destinationOf(exit, instance, context);
     if (to === null) continue;
-    decided.add(exit.direction);
-    applying.push({ direction: exit.direction, label: exit.line.label.text, to });
+    const direction = exit.kind === 'exit' ? exit.direction : null;
+    if (direction !== null) decided.add(direction);
+    applying.push({ direction, label: exit.line.label.text, to });
   }
   return applying;
 }
@@ -58,16 +62,13 @@ function destinationOf(
   context: ExitContext,
 ): InstanceId | null {
   const { state } = context;
-  const { line } = exit;
   const to =
-    line.kind === 'grammar-link'
-      ? (place.links.get(exit.direction) ?? null)
-      : pathEnd(line.destination, place, context);
+    exit.kind === 'link'
+      ? (place.links.get(exit.name) ?? null)
+      : pathEnd(exit.line.destination, place, context);
   if (to === null || !isLive(state, to)) return null;
   if (state.instance(to)?.kind.containsActors !== true) return null;
-  if (line.kind === 'grammar-exit' && line.when !== null && !holds(exit, place, context)) {
-    return null;
-  }
+  if (exit.kind === 'exit' && !holds(exit, place, context)) return null;
   return to;
 }
 
@@ -88,9 +89,13 @@ function pathEnd(path: ObjectPath, place: Instance, context: ExitContext): Insta
 }
 
 /** Whether an exit's `when` holds, asked of `place`; a read out of its range, or of a destroyed name, does not. */
-function holds(exit: ResolvedExit, place: Instance, context: ExitContext): boolean {
+function holds(
+  exit: Extract<ResolvedExit, { readonly kind: 'exit' }>,
+  place: Instance,
+  context: ExitContext,
+): boolean {
   const { line } = exit;
-  if (line.kind !== 'grammar-exit' || line.when === null) return true;
+  if (line.when === null) return true;
   try {
     return evaluateCondition(line.when, {
       state: context.state,

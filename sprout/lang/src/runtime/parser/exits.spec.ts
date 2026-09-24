@@ -10,6 +10,7 @@ const EXITS: readonly CommandExit[] = [
   { direction: 'north', label: 'deeper into the dark', to: TO },
   { direction: 'north', label: 'toward a grey light', to: TO },
   { direction: 'down', label: 'Down the Coal Stair', to: TO },
+  { direction: null, label: 'the way you came', to: TO },
 ];
 const named = (line: string) => exitNamed(typedWords(line), EXITS);
 
@@ -23,6 +24,11 @@ describe('the exit a visitor names', () => {
   it('is the one whose label was typed, as an alias for its direction, however cased', () => {
     expect(named('toward a grey light')).toBe(EXITS[1]);
     expect(named('down the coal stair')).toBe(EXITS[2]);
+  });
+
+  it('is a link by its label alone, since a link has no direction', () => {
+    expect(named('the way you came')).toBe(EXITS[3]);
+    expect(named('way')).toBeNull();
   });
 
   it('is none where nothing applies in that direction or answers to the words', () => {

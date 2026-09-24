@@ -33,7 +33,7 @@ const written = (line: GrammarLine): string => {
     case 'grammar-exit':
       return `exit ${line.direction.text} ${line.label.text} ${writtenPath(line.destination)}${line.when === null ? '' : ' when'}`;
     case 'grammar-link':
-      return `link ${line.direction.text} ${line.label.text}`;
+      return `link ${line.name.text} ${line.label.text}`;
   }
 };
 
@@ -128,12 +128,12 @@ describe('a grammar block', () => {
 
   it('reads exits and links among its lines, in the order written', () => {
     const { blocks, said } = readKind(
-      'grammar {\n    exit north "deeper" -> hall when (!self.get(:lit))\n    link south "back"\n    exit up "up" -> kiln.loft\n  }',
+      'grammar {\n    exit north "deeper" -> hall when (!self.get(:lit))\n    link back "back"\n    exit up "up" -> kiln.loft\n  }',
     );
     expect(said).toEqual([]);
     expect(blocks[0]!.lines.map(written)).toEqual([
       'exit north deeper hall when',
-      'link south back',
+      'link back back',
       'exit up up kiln.loft',
     ]);
   });
@@ -160,7 +160,7 @@ const WELL_FORMED_LINES = [
     name: 'exit up the loft kiln.loft when',
     text: 'exit up "the loft" -> kiln.loft when (ladder.get(:down))',
   },
-  { name: 'link north deeper', text: 'link north "deeper"' },
+  { name: 'link onward deeper', text: 'link onward "deeper"' },
 ] as const;
 
 /**
@@ -190,9 +190,11 @@ const LINE_DEFECTS: readonly string[] = [
   'exit north "x" -> hall when (self.get(:lit)',
   'exit north "x" -> hall when (self.get(:lit) +)',
   'link',
-  'link north',
-  'link north deeper',
-  'link north "x" -> hall',
+  'link Onward "x"',
+  'link "x"',
+  'link onward',
+  'link onward deeper',
+  'link onward "x" -> hall',
   'faulty',
   '4',
   'Faulty',

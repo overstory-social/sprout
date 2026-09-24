@@ -2,13 +2,15 @@
 // `help`; The runtime › The view). Every verb a visitor may type is
 // offered once for each way its roles fill from what is in range: a role a
 // thing fills, by each thing in range it fits but the actor, a set role by
-// each such thing alone, and `go`'s way by each exit that applies. A tool
+// each such thing alone, and `go`'s way by each exit and link that
+// applies, a link typed by its label. A tool
 // is left out and a value role left unbound, which a body reads only
 // inside `if (bound …)` and a `from` may leave so anyway. Each offer is
 // typed by its verb's first phrase that fits, with the consent pass's
 // answer beside it, and costs a step, so a world too large to list faults
 // as any work does.
 
+import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
@@ -60,7 +62,11 @@ export function offersTo(actor: InstanceId, context: OfferContext): Offer[] {
   for (const [verb, phrases] of byVerb(context.catalogue.phrases)) {
     const each = verb.roles.map((role): Filling[] => {
       if (role.filler?.fills === 'exit') {
-        return exits.map((exit) => ({ bound: { exit }, words: exit.direction }));
+        // A link has no direction, and is typed by its label.
+        return exits.map((exit) => ({
+          bound: { exit },
+          words: exit.direction ?? typedWords(exit.label).join(' '),
+        }));
       }
       if (role.optional || role.filler?.fills === 'symbol' || role.filler?.fills === 'integer') {
         return [null];

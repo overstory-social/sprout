@@ -1,0 +1,9 @@
+// An object takes the links of the kinds its `is` names, and `connect`
+// names a link by its name, so two of them writing one name cannot both
+// give it; the object says which with its own.
+world link_two_sources is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is Burrow, Tunnel
+}

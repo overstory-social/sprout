@@ -1,5 +1,5 @@
 kind Cell is sprout.Place {
-  grammar { link north "deeper into the dark" }
+  grammar { link onward "deeper into the dark" }
   as target for dig {
     do {
       let cell = spawn Cell in self

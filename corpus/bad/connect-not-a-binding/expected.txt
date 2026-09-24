@@ -1,7 +1,7 @@
-cell.sprout:6:24  `meadow` is not a binding, and a link leads only to a place the world made while it runs.
-                  Connect it to a binding that holds the place, as in `let cell = spawn Cell in self` then `connect north to cell`; a place written in source is reached by an `exit`.
+cell.sprout:6:25  `meadow` is not a binding, and a link leads only to a place the world made while it runs.
+                  Connect it to a binding that holds the place, as in `let cell = spawn Cell in self` then `connect onward to cell`; a place written in source is reached by an `exit`.
 
-cell.sprout:7:24  `Pebble` does not hold actors, so nobody could stand where this link leads.
+cell.sprout:7:23  `Pebble` does not hold actors, so nobody could stand where this link leads.
                   Connect it to a place: something that composes `sprout.Place` or writes `contains actors`.
 
 refused: 2 problems

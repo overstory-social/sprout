@@ -3,10 +3,11 @@
 // which a nickname is admitted against with no scan of live state. Names
 // are declaration syntax and every spawn instantiates a declared kind, so
 // the set is known at compile time: each word of every name, noun and
-// exit or link label a kind or an object writes, of every identifier and of every kind's name
-// as a spawn is called by default, the directions and their
-// abbreviations, the articles and determiners, the connectors, and the
-// words of every phrase.
+// exit or link label a kind or an object writes, of every identifier and
+// of every kind's name as a spawn is called by default, the directions
+// and their abbreviations, the articles and determiners, the connectors,
+// and the words of every phrase. A link's name is not among them: a
+// visitor takes a link by its label, and the name is source's alone.
 
 import {
   CONNECTORS,

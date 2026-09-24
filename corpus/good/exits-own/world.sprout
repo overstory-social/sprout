@@ -1,0 +1,21 @@
+// Exits and links are not composed. An object has its own and those of
+// the kinds its `is` names, its own exit in a direction replacing theirs
+// there, so the yard's own way out settles the two doors it is made of.
+// A kind has only its own: a porch made of both doors takes neither and
+// is not refused, and a dead end made of a turning takes none of its
+// ways out, though the turning's `dig` still reaches it.
+world ways_own is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is FrontDoor, BackDoor {
+    grammar { exit out "out to the street" -> street }
+  }
+  object porch is Porch
+  object street is sprout.Place { }
+  object lane is sprout.Place { }
+  object turning is MazeCell
+  object dead_end is DeadEnd
+}
+
+verb dig { role target: MazeCell  "dig [target]" }

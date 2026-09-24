@@ -1,9 +1,10 @@
-// Exits and links: a direction, a label and where each leads. Exits
-// sharing a direction read as the if/else chain they are, the first whose
-// `when` holds applying; a place inside another is reached by its path; a
-// kind's exits lead to places the world's body holds, and an object's own
-// exits in a direction replace its kind's there. A link leads nowhere
-// until the world connects it, from a `do` and from `on :spawned`.
+// Exits and links: an exit its direction, a link its name, each a label
+// and where it leads. Exits sharing a direction read as the if/else chain
+// they are, the first whose `when` holds applying; a place inside another
+// is reached by its path; a kind's exits lead to places the world's body
+// holds, and an object's own exits in a direction replace its kind's
+// there. A link leads nowhere until the world connects it, from a `do`
+// and from `on :spawned`.
 world ways is sprout.World {
   visitors are Person
   visitors arrive at yard
