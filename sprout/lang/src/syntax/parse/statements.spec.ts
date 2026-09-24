@@ -17,6 +17,7 @@ import {
   onItsOwn,
   spawnStatement,
   statement,
+  STATEMENT_WORDS,
 } from './statements.js';
 
 /** One reader, run over a string on its own. */
@@ -556,6 +557,33 @@ describe('a statement', () => {
         'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast` and `wake`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
+    }
+  });
+
+  it('lists as its words exactly the ones a statement starts with, in the order the refusal names them', () => {
+    expect(STATEMENT_WORDS).toEqual([
+      'if',
+      'refuse',
+      'allow',
+      'say',
+      'tell',
+      'text',
+      'let',
+      'spawn',
+      'destroy',
+      'finally',
+      'move',
+      'connect',
+      'act',
+      'send',
+      'broadcast',
+      'wake',
+    ]);
+    for (const word of STATEMENT_WORDS) {
+      const { refusals } = readStatement(word);
+      for (const refusal of refusals) {
+        expect(refusal.message, word).not.toContain('does not start a statement');
+      }
     }
   });
 

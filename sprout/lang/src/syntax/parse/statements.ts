@@ -102,6 +102,9 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['wake', wakeStatement],
 ]);
 
+/** The words a statement may start with, in the order this compiler reads them. */
+export const STATEMENT_WORDS: readonly string[] = [...STATEMENTS.keys()];
+
 /** One statement, or null having said why it is not one. */
 export function statement(p: Parser, within: Enclosing = onItsOwn()): Statement | null {
   const token = p.peek();

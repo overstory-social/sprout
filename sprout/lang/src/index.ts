@@ -59,6 +59,7 @@ export * from './bundle/declarations.js';
 export { checkShape, type ShapeResult } from './bundle/compile/first-tier.js';
 export * from './bundle/compile/compile.js';
 export type { RecordedCaps } from './bundle/compile/recorded.js';
+export { generateSkill, type SkillOptions } from './bundle/skill/skill.js';
 
 export * from './runtime/budget.js';
 export * from './runtime/lists.js';
