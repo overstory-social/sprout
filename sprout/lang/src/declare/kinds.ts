@@ -14,6 +14,7 @@ import type { Guards } from './guards.js';
 import type { Plays } from './roles.js';
 import type { Handlers, Hooks } from './handlers.js';
 import type { PassRules } from './passes.js';
+import type { ComposedGrammar } from './grammar.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import {
   composeKind,
@@ -90,6 +91,12 @@ export interface KindRef {
   readonly hooks: Hooks;
   /** What it answers as a container: its own rule for a message, else the one it composes. */
   readonly passes: PassRules;
+  /**
+   * What it is called and answers to, as its closure writes it (the
+   * spec's Addressing and display): one `name` and one `article`, and
+   * every source's nouns.
+   */
+  readonly grammar: ComposedGrammar;
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**

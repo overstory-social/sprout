@@ -7,16 +7,18 @@
 // the effect pass said or the world's `nothing_happens`, or, when the
 // turn faults and is abandoned, the world's `fault`.
 //
-// Reading typed words is the parser's (B27), reached through `Parser`:
-// the turn hands it the words, who typed them and the turn's state and
-// meter, and it gives back the reading they make, or a line said to the
-// actor in place of one, as an unknown word or a `which` is answered.
+// Reading typed words is the parser's, reached through `Parser`, which
+// `parser.ts` fills: the turn hands it the words, who typed them, each
+// visitor's nickname and the turn's state and meter, and it gives back
+// the reading they make, or a line said to the actor in place of one, as
+// an unknown word or a `which` is answered.
 
 import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
 import { faultTold } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
+import type { Choice } from './parser/answers.js';
 import type { PassRule } from './range.js';
 import { runReading, type Acted, type PermitRefusal, type Reading, type Said } from './reading.js';
 import { readerOf, type StateReader, type WorldState } from './state.js';
@@ -35,10 +37,17 @@ export interface ParseContext {
   readonly passes: PassRule<InstanceId>;
   /** Parsing is charged to the turn's steps: a command too costly to read faults (Limits › Runtime budgets). */
   readonly budget: Budget;
+  /** Each visitor's nickname, by the instance that is them, which is how a person is named (Names › Nicknames). */
+  readonly nicknames: ReadonlyMap<InstanceId, string>;
 }
 
-/** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
-export type Parsed = { readonly reading: Reading } | { readonly answered: Said };
+/**
+ * What the words typed make: a reading `actor` performs, or a line said
+ * to them in place of one, with, for a `which`, the line to type again
+ * for each candidate.
+ */
+export type Parsed =
+  { readonly reading: Reading } | { readonly answered: Said; readonly choices: readonly Choice[] };
 
 /** Reads the words `actor` typed. */
 export type Parser = (text: string, actor: InstanceId, context: ParseContext) => Parsed;
@@ -57,7 +66,7 @@ export interface Command extends WriteInputs {
 
 /** What a committed command turn did. */
 export type Commanded =
-  | { readonly answered: Said }
+  | { readonly answered: Said; readonly choices: readonly Choice[] }
   | { readonly refused: PermitRefusal }
   | { readonly acted: Acted; readonly drained: Drained };
 
@@ -79,14 +88,20 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
   const actor = presentActor(committed, command.visit);
   const written = writeTurn<Commanded>(state, 'command', host, command, (turn) => {
     const { draft, catalogue, passes, budget } = turn;
-    const parsed = host.parse(command.text, actor, { state: draft, catalogue, passes, budget });
+    const parsed = host.parse(command.text, actor, {
+      state: draft,
+      catalogue,
+      passes,
+      budget,
+      nicknames: nicknamesIn(state),
+    });
     if ('answered' in parsed) {
       if (!parsed.answered.to.includes(actor)) {
         throw new Error(
           `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
         );
       }
-      return { answered: parsed.answered };
+      return { answered: parsed.answered, choices: parsed.choices };
     }
     const { reading } = parsed;
     if (reading.actor !== actor) {
@@ -99,6 +114,11 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
     return { acted: outcome, drained: drain(outcome, turn) };
   });
   return written.committed ? written : { ...written, told: faultTold(committed, actor) };
+}
+
+/** Each visitor's nickname, by the instance that is them. */
+function nicknamesIn(state: WorldState): ReadonlyMap<InstanceId, string> {
+  return new Map([...state.visitors.values()].map((one) => [one.instance, one.nickname]));
 }
 
 /** The instance `visit` acts as, which must stand somewhere in the world. */

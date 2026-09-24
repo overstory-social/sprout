@@ -27,9 +27,11 @@ Two packages, one version:
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
-of, kinds and objects with their composition, and verbs with their roles
-resolved across libraries) and checks the expressions Phase 1 defined.
-Everything else — prose, the parser, the view — lands one backlog item at a time; see the build order in
+of, kinds and objects with their composition and grammar blocks, and verbs
+with their roles resolved across libraries) and checks the expressions
+Phase 1 defined; the runtime reads a visitor's typed line as a reading, and
+runs it as a turn. Everything else — prose, exits, the view — lands one
+backlog item at a time; see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.
 
@@ -42,7 +44,7 @@ sprout/lang/src
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, verbs, the world, actors
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
-  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, and turns
+  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, and the command parser
 sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check

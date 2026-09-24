@@ -132,13 +132,15 @@ function behaviourOf(member: KindMember): Behaviour | null {
       const rule = writtenPass(member);
       return { at: member.at, does: `say what passes with \`${rule}\``, written: `${rule} (…)` };
     }
-    // What a person has, holds, remembers and is described by, and what
-    // it leaves out of what it composes, is not behaviour of its own.
+    // What a person has, holds, remembers, is called and is described
+    // by, and what it leaves out of what it composes, is not behaviour
+    // of its own.
     case 'property':
     case 'remembers':
     case 'contains':
     case 'without':
     case 'passage':
+    case 'grammar':
       return null;
   }
 }

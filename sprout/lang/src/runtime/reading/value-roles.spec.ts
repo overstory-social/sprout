@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { InstanceId } from '../ids.js';
 import type { SproutList } from '../lists.js';
-import { runReading } from '../reading.js';
+import { heardBy, runReading } from '../reading.js';
 import {
   acted,
   contextOf,
@@ -90,5 +90,20 @@ describe('a value role, as each role-player hears it', () => {
       'unbound',
     ]);
     expect([dial(SAFE, 0), dial(SAFE, 99), dial(SAFE, 100)]).toEqual(['bound', 'bound', 'unbound']);
+  });
+
+  it('says whether any participant hears a value, as the command parser asks before binding one', () => {
+    const one = turn(YARD, [HALL]);
+    const [visitor] = one.people;
+    const ask = reading(YARD, 'ask', visitor!, { target: { object: GUARD } }, 'sprout');
+    const topic = ask.verb.roles.find((role) => role.name === 'topic')!;
+    expect(heardBy(ask, topic, 'toll', one.draft)).toBe(true);
+    expect(heardBy(ask, topic, 'weather', one.draft)).toBe(false);
+    const dial = reading(YARD, 'dial', visitor!, { target: { object: DIAL } });
+    const number = dial.verb.roles.find((role) => role.name === 'number')!;
+    expect([heardBy(dial, number, 12, one.draft), heardBy(dial, number, 13, one.draft)]).toEqual([
+      true,
+      false,
+    ]);
   });
 });

@@ -1,0 +1,14 @@
+// A name never begins with an article: the article is a line of its own.
+world name_article is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object brass_key is Key {
+      grammar { name "the brass key" }
+    }
+    object lamp is Key {
+      grammar { name "A lamp" }
+    }
+  }
+}

@@ -36,6 +36,7 @@ import { stepPast } from './recovery.js';
 import { play } from './roles.js';
 import { ARTICLE, type Owner } from './composition.js';
 import { without } from './without.js';
+import { grammar } from './grammar.js';
 
 /** What may be written inside a body, by the word each member begins with. */
 export type MemberReaders<M> = ReadonlyMap<string, () => M | null>;
@@ -66,6 +67,7 @@ export function kindMembers(
   readers.set('contains', () => contains(p));
   readers.set('passage', () => passage(p, readers));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
+  readers.set('grammar', () => grammar(p, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);
   addEvents(p, owner, readers);
@@ -306,6 +308,9 @@ function membersAfterClose<M>(p: Parser, name: Token, readers: MemberReaders<M>)
     if (token.kind === 'name' && token.text === 'as') ahead = pastPlay(p, ahead);
     // So are a handler's, a hook's and a pass rule's, past what they name.
     if (token.kind === 'name' && EVENT_WORDS.has(token.text)) ahead = pastEvent(p, ahead);
+    // And a grammar block's braces are its own.
+    if (token.kind === 'name' && token.text === 'grammar')
+      ahead = pastBracketed(p, ahead, '{', '}');
   }
   if (found.length === 0) return;
   p.diagnostics.refuse(
