@@ -1,0 +1,4 @@
+// Whoever visits carries three things, not the library's eight.
+kind Person is sprout.Visitor {
+  :capacity 3
+}

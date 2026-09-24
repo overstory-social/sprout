@@ -1,4 +1,0 @@
-// A role's kind must be declared somewhere the world can see.
-kind Lockable {
-  :locked true
-}

@@ -1,0 +1,5 @@
+// `sprout.Container`'s `:open` is a lid off, and `Futon`'s is a futon
+// unfolded: the library's names are not namespaced, so composing both
+// is two claims on one slot (the spec's Properties merge; they never
+// shadow).
+kind Bed is sprout.Container, Futon { }

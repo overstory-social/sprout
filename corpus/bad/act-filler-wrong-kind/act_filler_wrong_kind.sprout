@@ -6,5 +6,4 @@ world act_filler_wrong_kind is sprout.World {
   object hall is sprout.Place
 }
 
-verb pet    { role target  "pet [target]" }
-verb unlock { role target: Lockable  role tool  "unlock [target] with [tool]"  "unlock [target]" }
+verb pet { role target  "pet [target]" }

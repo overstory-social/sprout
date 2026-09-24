@@ -6,5 +6,3 @@ world extension_in_guard is sprout.World {
     object cabinet is Cabinet
   }
 }
-
-verb open { role target  "open [target]" }

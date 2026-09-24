@@ -79,26 +79,24 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world with a kind in a role that is not there, and the role fills nothing', () => {
-    const files = worldFiles(
-      `${WORLD_LINE}\nverb unlock { role target: Lockabel  "unlock [target]" }`,
-    );
+    const files = worldFiles(`${WORLD_LINE}\nverb pry { role target: Lever  "pry [target]" }`);
     const loaded = compileBundle(world({ files }), load);
     expect(refusals(loaded.diagnostics)).toEqual([]);
     expect(loaded.bundle!.absent.map((a) => [a.what, a.kind, a.reason, locationOf(a.at!)])).toEqual(
-      [['Lockabel', 'kind-in-role', 'missing', 'printers_shop.sprout:2:28']],
+      [['Lever', 'kind-in-role', 'missing', 'printers_shop.sprout:2:25']],
     );
     expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
       // Nothing plays a role in it at all, so nothing says anything for it either.
-      "Nothing that takes part in `unlock` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.",
-      'Nothing here is a `Lockabel`. Nothing fills the role; the verb’s phrases do not match.',
+      "Nothing that takes part in `pry` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.",
+      'Nothing here is a `Lever`. Nothing fills the role; the verb’s phrases do not match.',
     ]);
     // At publish the same is a refusal, with what to write instead.
     const published = compileBundle(world({ files }));
     expect(published.bundle).toBeNull();
     expect(refusals(published.diagnostics).map((d) => [d.message, d.remedy])).toEqual([
       [
-        'Nothing here is a `Lockabel`.',
-        'Declare it with `kind Lockabel { … }`, or check the spelling of a kind this world or a library it uses declares.',
+        'Nothing here is a `Lever`.',
+        'Declare it with `kind Lever { … }`, or check the spelling of a kind this world or a library it uses declares.',
       ],
     ]);
   });

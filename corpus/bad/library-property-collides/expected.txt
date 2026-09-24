@@ -1,0 +1,4 @@
+bed.sprout:5:31  `Bed` gets `:open` from both `sprout.Container` and `Futon`, which are two claims on one slot.
+                 If they are meant to be one property, restate it in `Bed`: `:open true`.
+
+refused: 1 problem

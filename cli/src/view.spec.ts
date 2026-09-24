@@ -39,6 +39,7 @@ what they could type
   help  (sprout.help)
   take shed  (sprout.take)
   drop shed  (sprout.drop)
+    refused: You are not holding a shed.
   ask shed about …  (sprout.ask)
     topic: nothing it hears
 `,

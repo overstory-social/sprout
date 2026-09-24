@@ -1,0 +1,14 @@
+// A locked container: `sprout.Lockable`'s permit on `open` keeps the
+// lid down until it is unlocked, and which tool fits is this world's to
+// say, in a permit of its own beside the library's.
+kind TypeCase is sprout.Container, sprout.Lockable {
+  :open false
+
+  as target for unlock {
+    permit { if (!tool.is(Quoin)) { refuse wrong_tool } }
+  }
+
+  passage wrong_tool { {tool} does not fit the lock on {self}. }
+  // The world's own words for a stock line replace the library's default.
+  passage shut { The lid of {self} is down. }
+}

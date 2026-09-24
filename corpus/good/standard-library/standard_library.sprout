@@ -1,0 +1,15 @@
+// A world that declares no verb of its own: `take`, `drop`, `put`,
+// `give`, `open`, `close` and `unlock` are the standard library's, and
+// its kinds are composed as they stand or with a line of the world's.
+world standard_library is sprout.World {
+  visitors are Person
+  visitors arrive at shop
+
+  object shop is sprout.Place {
+    object press is sprout.Fixture
+    object case is TypeCase
+    object drawer is sprout.Container { :capacity 2 }
+    object quoin is Quoin
+    object stick is sprout.Container { :open false }
+  }
+}

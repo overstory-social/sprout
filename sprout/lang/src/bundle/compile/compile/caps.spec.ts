@@ -14,7 +14,7 @@ import { file, refusals, world, worldFiles } from '../../../fixtures/compile.js'
 
 describe('kinds, objects and places are counted against the host’s caps', () => {
   // Two kinds and two objects of the world's own, one of them a place,
-  // and a copy of the standard library with a fifth kind added to its four.
+  // and a copy of the standard library with a kind added to its seven.
   // What the world's body holds beside them is `extra`, from line 7.
   const ownWith = (extra = '') =>
     worldFiles(
@@ -33,10 +33,7 @@ ${extra}
   const OWN = ownWith();
   const KINDED: LibrarySource = {
     ...STANDARD_LIBRARY,
-    files: [
-      ...STANDARD_LIBRARY.files,
-      file('sprout/container.sprout', 'kind Container { contains }'),
-    ],
+    files: [...STANDARD_LIBRARY.files, file('sprout/shelf.sprout', 'kind Shelf { contains }')],
   };
   const kinded = () =>
     world({
@@ -51,7 +48,7 @@ ${extra}
   it('records how many of each the world has, a library’s kinds among its own', () => {
     const { bundle, diagnostics } = compileBundle(kinded());
     expect(refusals(diagnostics)).toEqual([]);
-    expect(bundle!.size).toMatchObject({ kinds: 8, objects: 2, places: 1 });
+    expect(bundle!.size).toMatchObject({ kinds: 11, objects: 2, places: 1 });
   });
 
   it('leaves a blessed library’s kinds out, as it leaves out its bytes and files', () => {
@@ -60,13 +57,13 @@ ${extra}
   });
 
   it('refuses a kind past the cap at the kind, a library’s included', () => {
-    const limits = limitsFrom({ caps: { kinds: 7 } });
+    const limits = limitsFrom({ caps: { kinds: 10 } });
     const { bundle, diagnostics } = compileBundle(kinded(), { limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
-        'sprout/container.sprout:1:6',
-        'This world declares 8 kinds, and 7 is as many as it may have.',
+        'sprout/shelf.sprout:1:6',
+        'This world declares 11 kinds, and 10 is as many as it may have.',
         'Take some out, or use a library the host has blessed, whose kinds cost nothing.',
       ],
     ]);
@@ -100,7 +97,7 @@ ${extra}
     const { bundle, diagnostics } = compileBundle(kinded(), { mode: 'load', limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toBe(
-      'This world declares 8 kinds, and 1 is as many as it may have.',
+      'This world declares 11 kinds, and 1 is as many as it may have.',
     );
   });
 

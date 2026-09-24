@@ -1,4 +1,4 @@
-warded.sprout:6:12  `tool` may be missing here: `"unlock [target]"` leaves it out.
+warded.sprout:6:12  `tool` may be missing here: `"pry [target]"` leaves it out.
                     Read it inside `if (bound tool) { … }`.
 
 refused: 1 problem

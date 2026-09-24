@@ -100,6 +100,9 @@ describe('a catalogue says what one bundle holds as instances', () => {
       'printers_shop.Room',
       'printers_shop.Shelf',
       'sprout.Actor',
+      'sprout.Container',
+      'sprout.Fixture',
+      'sprout.Lockable',
       'sprout.Place',
     ]);
     for (const [name, kind] of catalogue.kinds) {
