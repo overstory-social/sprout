@@ -122,12 +122,13 @@ describe('a mistake in prose is said once, where it is, and the words around it 
     expect(textOf((prose.pieces[1] as ProseOneOf).opened)).toBe('{one of}');
   });
 
-  it('refuses a `{one of}` with one choice, and keeps what it holds', () => {
-    const { prose, refusals } = readProseText('a {one of}b {c}{/one of}');
-    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+  it('warns about a `{one of}` with one choice, refuses nothing, and keeps what it holds', () => {
+    const { prose, refusals, diagnostics } = readProseText('a {one of}b {c}{/one of}');
+    expect(refusals).toEqual([]);
+    expect(diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
         'lines.prose:1:3',
-        'This `{one of}` has one choice, so it would say it every time.',
+        'This `{one of}` has one choice, so it says the same words every time.',
         'Write another choice after an `{or}`, or take out `{one of}` and `{/one of}` and keep the words.',
       ],
     ]);

@@ -1,0 +1,10 @@
+bell.sprout:2:6  Nothing here asks to be woken, so `on :woke` never runs.
+                 Ask with `wake in 10 minutes` in a `do`, a handler or a hook of this kind, or take the handler out.
+
+cat.sprout:3:6   `yard.cat` is not a place, so `on :tick` never runs.
+                 Only a place, whose kind writes `contains actors`, is ticked. Move the handler to the kind of the place it stands in, or ask with `wake in 10 minutes` and answer `on :woke (elapsed) { … }` here.
+
+kiln.sprout:4:7  Nothing here answers `:woke`, so this `wake` comes to nothing.
+                 Say what happens when it arrives with `on :woke (elapsed) { … }` in this kind, or take the `wake` out.
+
+ok: 10 declarations in 5 files, 3 warnings
