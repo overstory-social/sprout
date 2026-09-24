@@ -102,8 +102,8 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
   },
   {
     word: 'each',
-    example: 'each crumb: Crumb in self { send crumb :stir }',
-    does: 'walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role',
+    example: 'each crumb: Crumb in self { }',
+    does: 'walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may',
   },
   {
     word: null,
