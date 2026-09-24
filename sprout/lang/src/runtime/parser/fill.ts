@@ -7,13 +7,12 @@
 
 import { optionFromWords } from '../../declare/enums.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
-import type { Budget } from '../budget.js';
 import type { InstanceId } from '../ids.js';
 import { heardBy, type Bound, type Reading } from '../reading.js';
 import type { StateReader } from '../state.js';
 import type { Value } from '../values.js';
 import { exitNamed, type CommandExit } from './exits.js';
-import { forms, nounIn, runIn, type Candidate, type NounFound } from './nouns.js';
+import { forms, nounIn, runIn, type Candidate, type NounContext, type NounFound } from './nouns.js';
 
 /** What a slot's words come to for its role. */
 export type Filled =
@@ -32,11 +31,10 @@ export type Filled =
   /** The phrase does not match: something answers and cannot fill the role, or the words name no exit. */
   | { readonly fills: 'unfit' };
 
-/** What filling a slot reads: what the actor can reach, the exits that apply, and the meter. */
-export interface FillContext {
+/** What filling a slot reads: what the actor can reach, the exits that apply, the meter and the draws. */
+export interface FillContext extends NounContext {
   readonly candidates: readonly Candidate[];
   readonly exits: readonly CommandExit[];
-  readonly budget: Budget;
 }
 
 /** What `words`, taken by a slot, fill `role` with. */
@@ -53,12 +51,12 @@ export function fillSlot(
     return exit === null ? { fills: 'unfit' } : { fills: 'bound', bound: { exit } };
   }
   if (role.many) {
-    const found = runIn(words, role, context.candidates, context.budget);
+    const found = runIn(words, role, context.candidates, context);
     return found.found === 'set'
       ? { fills: 'bound', bound: { set: found.ids } }
       : fromNoun(found, found.start, found.end, true);
   }
-  return fromNoun(nounIn(words, role, context.candidates, context.budget), 0, words.length, false);
+  return fromNoun(nounIn(words, role, context.candidates, context), 0, words.length, false);
 }
 
 /** What one noun found fills a role with, the noun running from `start` to `end` of the slot's words. */

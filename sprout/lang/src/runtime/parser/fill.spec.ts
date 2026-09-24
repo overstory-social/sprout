@@ -12,6 +12,7 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
+import { Draws } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import type { Reading } from '../reading.js';
 import { addressOf } from './address.js';
@@ -21,9 +22,9 @@ const one = study();
 const addressing = { world: one.draft.world, nicknames: one.nicknames };
 const candidates = [BRASS_KEY, IRON_KEY, GONG, GUARD, DIAL].map((id: InstanceId) => {
   const instance = one.draft.instance(id)!;
-  return { instance, address: addressOf(instance, addressing) };
+  return { instance, address: addressOf(instance, addressing), near: 2 };
 });
-const context = { candidates, exits: EXITS, budget: one.budget };
+const context = { candidates, exits: EXITS, budget: one.budget, draws: new Draws(7) };
 const verb = (name: string, library = 'study') => STUDY.verbs.qualified(library, name)!;
 const role = (verbName: string, name: string, library = 'study'): ResolvedRole =>
   verb(verbName, library).roles.find((one) => one.name === name)!;

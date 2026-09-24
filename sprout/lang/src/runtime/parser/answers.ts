@@ -1,9 +1,9 @@
 // What the engine says to a line it could not run as a reading (the
 // spec's A worked microworld › The standard library it needs; Properties
-// › Where types come from): the world's `unknown`, `unreachable` and
-// `which` passages, with `thing` or `candidates` bound as the bindings
-// table types them, and `actor` and `here` as every passage the engine
-// speaks to an actor has them. Nothing is rendered here: `prose/` renders.
+// › Where types come from): the world's `unknown`, `not_here` and
+// `which` passages, with `actor` and `here` bound as every passage the
+// engine speaks to an actor has them, and `candidates` in a `which`. No
+// answer binds a thing a noun names, so none names what is out of range. Nothing is rendered here: `prose/` renders.
 // A `which` also carries, for each candidate, the line to type again to
 // mean it, so the question is answered with a command and the parser
 // keeps nothing between turns.
@@ -15,7 +15,7 @@ import type { InstanceId } from '../ids.js';
 import type { StateReader } from '../state.js';
 
 /** The three answers, each named for the world's passage that says it. */
-export type AnswerName = 'unknown' | 'unreachable' | 'which';
+export type AnswerName = 'unknown' | 'not_here' | 'which';
 
 /** One candidate a `which` offers: the thing, and the line that means it. */
 export interface Choice {
@@ -28,26 +28,24 @@ export interface Answer {
   readonly answer: AnswerName;
   /** The world's passage of that name. */
   readonly said: Speech;
-  /** `actor` and `here`, and `thing` for `unreachable` or `candidates` for `which`. */
+  /** `actor` and `here`, and `candidates` for `which`. */
   readonly bindings: ReadonlyMap<string, Evaluated>;
   /** For `which`, each candidate in the order asked, nearest first; empty otherwise. */
   readonly choices: readonly Choice[];
 }
 
-/** The answer `answer`, said to `actor` standing in `here`, with what it names. */
+/** The answer `answer`, said to `actor` standing in `here`, with a `which`'s choices. */
 export function answer(
   state: StateReader,
   answer: AnswerName,
   actor: InstanceId,
   here: InstanceId,
-  names: { readonly thing?: InstanceId; readonly choices?: readonly Choice[] } = {},
+  choices: readonly Choice[] = [],
 ): Answer {
   const bindings = new Map<string, Evaluated>([
     ['actor', boundObject(actor)],
     ['here', boundObject(here)],
   ]);
-  if (names.thing !== undefined) bindings.set('thing', boundObject(names.thing));
-  const choices = names.choices ?? [];
   if (answer === 'which') {
     bindings.set('candidates', { binds: 'set', ids: choices.map((choice) => choice.id) });
   }

@@ -247,14 +247,14 @@ describe('the standard library', () => {
     // The absent table's rows name who is told, and through what.
     const told = ABSENT_TABLE.flatMap((row) => (row.told === null ? [] : [row.told]));
     // The Runtime's Faults, and the turn's own answers: a command nothing
-    // reads, a thing out of reach, a noun that could be several things, a
+    // reads, a noun nothing in range answers to, a noun that could be several things, a
     // reading that says nothing, a thing with nothing to say; and a move
     // the engine refuses because a container would hold itself.
     const engine = [
       'fault',
       'unseen',
       'unknown',
-      'unreachable',
+      'not_here',
       'which',
       'nothing_happens',
       'unremarkable',
@@ -299,7 +299,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '51c11a09e9c545ff62c3b68446343f63cedc481dceaa6e020db11d84ec0a98b9',
+      'ea58a82a45588ac8eb0fea93f2ebbff96d3660cc9d9e6c12dd086a83628e451a',
     );
   });
 });
