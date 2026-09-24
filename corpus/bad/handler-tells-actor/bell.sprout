@@ -1,0 +1,7 @@
+kind Bell {
+  passage rung { {actor} rings the bell. }
+  on :rang {
+    tell actor "You ring it."
+    tell rung
+  }
+}

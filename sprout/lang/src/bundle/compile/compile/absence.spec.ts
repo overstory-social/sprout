@@ -88,6 +88,8 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
       [['Lockabel', 'kind-in-role', 'missing', 'world.sprout:2:28']],
     );
     expect(warnings(loaded.diagnostics).map((d) => d.message)).toEqual([
+      // Nothing plays a role in it at all, so nothing says anything for it either.
+      "Nothing that takes part in `unlock` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.",
       'Nothing here is a `Lockabel`. Nothing fills the role; the verb’s phrases do not match.',
     ]);
     // At publish the same is a refusal, with what to write instead.

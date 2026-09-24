@@ -1,0 +1,4 @@
+lever.sprout:5:11  `tell` says something.
+                   Write the words in quotes, as in `tell "{actor} pulls the lever."`, or name a passage of `Lever`, as in `tell pulled`.
+
+refused: 1 problem

@@ -1,0 +1,8 @@
+// A wardrobe that holds actors is a place of its own: who steps in is
+// told, and so is whoever is already inside, and nobody in the hall.
+kind Wardrobe is sprout.Place {
+  on :entered (item, from) {
+    tell item "Coats close around you."
+    tell "The coats rustle."
+  }
+}

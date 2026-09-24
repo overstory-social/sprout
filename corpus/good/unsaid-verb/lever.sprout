@@ -1,0 +1,4 @@
+kind Lever {
+  as target for pull { do { tell "{actor} pulls the lever." } }
+  as target for creak { do { tell "The lever creaks." } }
+}

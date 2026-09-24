@@ -1,0 +1,1 @@
+kind Person is Creature, sprout.Visitor { }

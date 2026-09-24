@@ -1,0 +1,4 @@
+// Said by name from the actor's part of `tag`, where `target` is bound.
+passage tagged {
+  {actor} tags {target}.
+}

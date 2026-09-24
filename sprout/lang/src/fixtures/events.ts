@@ -4,11 +4,11 @@
 // whose kind gives it a wick, a bell that counts answers and the time it
 // is handed and tolls at random, and a dog, an NPC that acts; a bubble
 // that bursts, a match that goes once the queue is empty, and a tidier
-// whose move is refused; a yard beside it that the world keeps apart. A
-// fresh turn over it reads its containers' own pass rules and draws from
-// seed 7. `runtime/sends.spec.ts`, `runtime/passes.spec.ts`,
-// `runtime/named.spec.ts` and `runtime/bus.spec.ts` share it. Spec
-// support: the package build leaves it out.
+// whose move is refused; a yard beside it that the world keeps apart,
+// where a gem hums to nobody. A fresh turn over it reads its containers'
+// own pass rules and draws from seed 7. `runtime/sends.spec.ts`,
+// `runtime/passes.spec.ts`, `runtime/named.spec.ts` and `runtime/bus.spec.ts`
+// share it. Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS, type RuntimeBudgets } from '../bundle/limits.js';
@@ -94,9 +94,13 @@ kind GlassCase {
   pass any (false)
 }
 
+// A gem hums when a bell rings, heard in its place however shut away.
 kind Gem {
   :rung false
-  on :rang { self.set(:rung, true) }
+  on :rang {
+    self.set(:rung, true)
+    tell "{self} hums."
+  }
 }
 
 kind Moth {

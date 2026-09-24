@@ -149,6 +149,18 @@ describe('a deciding body draws nothing', () => {
     ]);
   });
 
+  it('refuses a `tell` or `text` that draws once, for standing there at all, and not again for drawing', () => {
+    expect(check('tell "{one of}Hi.{or}Ho.{/one of}"', GUARD)).toEqual([
+      ['b.sprout:3:5', '`tell` speaks, and `depart` only reads and decides.'],
+    ]);
+    expect(check('tell self "{one of}Hi.{or}Ho.{/one of}"', PERMIT)).toEqual([
+      ['b.sprout:3:5', '`tell` speaks, and a `permit` only decides.'],
+    ]);
+    expect(check('text "{one of}Hi.{or}Ho.{/one of}"', GUARD)).toEqual([
+      ['b.sprout:3:5', '`text` gives a `describe` its words, and this is `depart`.'],
+    ]);
+  });
+
   it('takes them in a `do`', () => {
     expect(
       check('if (chance(2)) { say "{one of}Yes.{or}Aye.{/one of}" }\n    let n = random(6)', DO),
@@ -238,6 +250,16 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
     expect(
       check('self.set(:inked, true)\n    spawn Vessel in self\n    destroy self', HANDLER),
     ).toEqual([]);
+  });
+
+  it('tells, the place or one it has bound, and never gives a `describe`’s `text`', () => {
+    expect(check('tell "Hi."\n    tell self "Hi."', HANDLER)).toEqual([]);
+    expect(check('tell "Hi."\n    text "Hi."', DO).map(([, m]) => m)).toEqual([
+      '`text` gives a `describe` its words, and this is a `do`.',
+    ]);
+    expect(check('tell "Hi."', GUARD).map(([, m]) => m)).toEqual([
+      '`tell` speaks, and `depart` only reads and decides.',
+    ]);
   });
 
   it('refuses `say`, `refuse` and `allow`, naming the handler', () => {

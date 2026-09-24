@@ -1,0 +1,10 @@
+// `tell` takes words in quotes or a passage's name, and a statement
+// after it is its own.
+world tell_says_nothing is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+  }
+}
+verb pull { role target  "pull [target]" }
