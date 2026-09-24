@@ -74,7 +74,14 @@ describe('a write turn', () => {
   });
 
   it('runs each kind under a budget of its own kind, with the seed and bound the host gave', () => {
-    const kinds: WriteTurnKind[] = ['command', 'tick', 'wake', 'maintenance'];
+    const kinds: WriteTurnKind[] = [
+      'command',
+      'tick',
+      'wake',
+      'maintenance',
+      'arrival',
+      'departure',
+    ];
     for (const kind of kinds) {
       const written = writeTurn(belfry(), kind, belfryHost(), inputs, (turn) => {
         turn.budget.spend(10);

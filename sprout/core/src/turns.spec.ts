@@ -9,6 +9,7 @@ import {
   initialState,
   libraryHash,
   newInstance,
+  NOT_ADMITTING,
   SourceFile,
   STANDARD_LIBRARY,
   dueWakes,
@@ -25,7 +26,9 @@ import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
 import {
   committedState,
+  runArrival,
   runCommand,
+  runDeparture,
   runMaintenance,
   runPoll,
   runTick,
@@ -337,5 +340,54 @@ describe('a maintenance turn against a store', () => {
     expect(turn.value.delivered.map((w) => w.object)).toEqual([GAUGE]);
     const later = dueWakes(await committedState(store, 'w', twice), 120);
     expect(later.map((w) => [w.object, w.askedAt])).toEqual([[COUNTER, 10]]);
+  });
+});
+
+describe('admitting and letting go of a visitor against a store', () => {
+  const at = (now: number) => ({ now, seed: 4, mayHold: null });
+
+  it('goes away, writing the visitor out of the tree with where they stood kept', async () => {
+    const store = await seeded();
+    const turn = await runDeparture(store, 'w', host, { visit: MARTA, ...at(0) });
+    expect(turn.committed).toBe(true);
+    const state = await committedState(store, 'w', host);
+    const record = state.visitors.get(MARTA)!;
+    expect(state.instances.get(record.instance)!.container).toBeNull();
+    expect(record.lastPlace).toBe(HALL);
+  });
+
+  it('runs catch-up, committed first, then admits the visitor where they last stood', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    await runDeparture(store, 'w', host, { visit: MARTA, ...at(10) });
+    const admitted = await runArrival(store, 'w', host, at(75), {
+      visit: MARTA,
+      nickname: 'Marta',
+      ...at(75),
+    });
+    expect(admitted.caughtUp!.value.delivered.map((w) => w.object)).toEqual([COUNTER]);
+    expect(admitted.arrived.committed).toBe(true);
+    // The counter reads the whole absence, delivered before anyone walked in.
+    expect(await count(store)).toBe(75);
+    const state = await committedState(store, 'w', host);
+    expect(state.instances.get(state.visitors.get(MARTA)!.instance)!.container).toBe(HALL);
+  });
+
+  it('runs no catch-up for a world that admits no one, and writes nothing', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    const closed: CommandHost = { ...host, catalogue: { ...catalogue, arrival: null } };
+    const before = await stored(store);
+    const admitted = await runArrival(store, 'w', closed, at(75), {
+      visit: visitKey('v-ines'),
+      nickname: 'Ines',
+      ...at(75),
+    });
+    expect(admitted.caughtUp).toBeNull();
+    expect(admitted.arrived).toEqual({
+      committed: false,
+      closed: { reason: 'no-arrival-place', words: NOT_ADMITTING },
+    });
+    expect(await stored(store)).toEqual(before);
   });
 });

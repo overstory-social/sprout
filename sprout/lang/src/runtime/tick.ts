@@ -14,6 +14,7 @@
 
 import { drain, type Drained } from './bus.js';
 import type { InstanceId } from './ids.js';
+import { standsInPlace } from './live.js';
 import { codeUnitOrder, readerOf, type StateReader, type WorldState } from './state.js';
 import { elapsedSince, hostSeconds, type HostSeconds, type TimeSend } from './time.js';
 import {
@@ -49,13 +50,15 @@ export type TickTurn = Committed<Ticked> | Faulted | Unoccupied;
 
 /**
  * Every place a visitor stands in, once each, in code-unit order: the
- * places the host ticks. An NPC keeps no place ticking.
+ * places the host ticks. An NPC keeps no place ticking, and nor does a
+ * visitor whose place is gone, until their next turn displaces them.
  */
 export function occupiedPlaces(state: WorldState): InstanceId[] {
   const places = new Set<InstanceId>();
+  const reader = readerOf(state);
   for (const visitor of state.visitors.values()) {
-    const place = state.instances.get(visitor.instance)?.container ?? null;
-    if (place !== null) places.add(place);
+    if (!standsInPlace(reader, visitor.instance)) continue;
+    places.add(state.instances.get(visitor.instance)!.container!);
   }
   return [...places].sort(codeUnitOrder);
 }

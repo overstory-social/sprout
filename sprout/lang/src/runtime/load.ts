@@ -12,13 +12,16 @@
 // are kept as stored: a link its kind no longer declares applies nowhere
 // and is kept, so a line restored brings it back, and a wake list longer
 // than the host's cap is kept whole, since the cap is on asking. A
-// visitor whose place is gone keeps its record; B42 applies the absent
-// table's rows when they next arrive.
+// visitor whose place is gone stays where it was stored, and is
+// displaced on their next turn or arrival (`arrival.ts`). An actor stored
+// inside something that no longer holds actors is kept too, and named
+// for the host to report loudly (the spec's The runtime › State).
 //
 // A tombstone is kept as stored, and a declared object with one is never
 // made again, nor anything declared inside it, what a kind gives it and
 // what source has added since included (the spec's Destroying).
 
+import { isActor } from '../declare/actors.js';
 import { contentAt } from '../declare/contents.js';
 import type { KindRef } from '../declare/kinds.js';
 import type { ResolvedProperty } from '../declare/properties.js';
@@ -62,6 +65,12 @@ export interface Loaded {
   /** What is kept untouched because it cannot be decoded now, by id. */
   readonly dormant: readonly InstanceId[];
   readonly dropped: readonly Dropped[];
+  /**
+   * Every actor stored inside something decoded that holds no actors, by
+   * id: nothing a world does puts one there, so each is an engine error
+   * the host reports loudly.
+   */
+  readonly stranded: readonly InstanceId[];
 }
 
 /** A world with nothing stored: serial 0, no instances, no visitors. */
@@ -165,6 +174,13 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
     created,
     dormant: [...dormant.keys()].sort(compare),
     dropped,
+    stranded: [...instances.values()]
+      .filter((one) => {
+        if (one.container === null || !isActor(one.kind)) return false;
+        const holder = instances.get(one.container);
+        return holder !== undefined && !holder.kind.containsActors;
+      })
+      .map((one) => one.id),
   };
 }
 

@@ -112,4 +112,19 @@ describe('the world’s words for a fault', () => {
       ]),
     );
   });
+
+  it('are the stock line, binding no `here`, to an actor whose place is gone', () => {
+    const state = belfry();
+    const marta = actorOf(state, MARTA);
+    const committed = readerOf(state);
+    const gone: StateReader = {
+      ...committed,
+      instance: (id) => (id === HALL ? undefined : committed.instance(id)),
+    };
+    const told = faultTold(gone, marta);
+    expect(told.said).toMatchObject({
+      text: 'Something in this world has gone wrong, and nothing has changed.',
+    });
+    expect([...told.bindings.keys()]).toEqual(['actor']);
+  });
 });

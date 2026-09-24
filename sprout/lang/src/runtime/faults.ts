@@ -98,19 +98,21 @@ export function worldSpeech(state: StateReader, name: FaultPassage): Speech {
 
 /**
  * What `actor` is told of a fault: the world's `fault`, from the world,
- * rendered with `actor` and `here` (the spec's Faults). A command's actor
- * stands where the abandoned turn found them, so `here` is always theirs.
+ * rendered with `actor` and `here` (the spec's Faults). Where the place
+ * the actor stands in is gone, `here` cannot be bound, so the stock line
+ * is told instead, which binds nothing.
  */
 export function faultTold(state: StateReader, actor: InstanceId): Said {
   const bindings = new Map<string, Evaluated>([['actor', boundObject(actor)]]);
   const place = state.instance(actor)?.container ?? null;
-  if (place !== null) bindings.set('here', boundObject(place));
+  const gone = place === null || state.instance(place) === undefined;
+  if (!gone) bindings.set('here', boundObject(place));
   return {
     effect: 'notice',
     to: [actor],
     by: state.world,
     speaker: null,
-    said: worldSpeech(state, 'fault'),
+    said: gone ? engineLine(STOCK.fault) : worldSpeech(state, 'fault'),
     bindings,
   };
 }

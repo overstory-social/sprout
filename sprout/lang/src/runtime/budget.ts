@@ -19,8 +19,14 @@
 
 import type { RuntimeBudgetName, RuntimeBudgets } from '../bundle/limits.js';
 
-/** The five kinds of turn. A poll is read-only and has its own step budget. */
-export type TurnKind = 'command' | 'tick' | 'wake' | 'maintenance' | 'poll';
+/**
+ * The kinds of turn: the spec's five, and a visitor's arrival and
+ * departure, which move a person in and out of the tree as write turns do
+ * (The host contract › Admission and identity). A poll is read-only and
+ * has its own step budget.
+ */
+export type TurnKind =
+  'command' | 'tick' | 'wake' | 'maintenance' | 'arrival' | 'departure' | 'poll';
 
 /**
  * A budget ran out. Thrown, because a turn that cannot afford to finish
