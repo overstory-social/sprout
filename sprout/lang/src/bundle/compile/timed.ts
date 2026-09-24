@@ -12,6 +12,7 @@
 // declared order, and then each kind a body spawns.
 
 import type { Block, Statement, WakeStatement } from '../../syntax/ast.js';
+import { statementsWithin } from '../../syntax/ast.js';
 import type { HandlerDeclaration } from '../../syntax/ast-events.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { libraryOf } from '../../declare/enums.js';
@@ -170,20 +171,13 @@ function bodiesOf(kind: KindRef): Body[] {
   ];
 }
 
-/** Every statement in `block`, however deep inside an `if`, in the order written. */
+/** Every statement in `block`, however deep inside an `if` or an `each`, in the order written. */
 function statementsIn(block: Block | null): Statement[] {
   const found: Statement[] = [];
   const pending: Statement[] = [...(block?.statements ?? [])].reverse();
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     found.push(next);
-    if (next.kind !== 'if') continue;
-    const otherwise =
-      next.otherwise === null
-        ? []
-        : next.otherwise.kind === 'if'
-          ? [next.otherwise]
-          : next.otherwise.statements;
-    pending.push(...[...next.then.statements, ...otherwise].reverse());
+    pending.push(...[...statementsWithin(next)].reverse());
   }
   return found;
 }

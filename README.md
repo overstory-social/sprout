@@ -23,7 +23,7 @@ Two packages, one version:
 | package                 | what                                                                                                                                                                  |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@overstory/sprout`     | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records, memory store and turns; `./conformance`) · `./store-sql` · `./store-document` |
-| `@overstory/sprout-cli` | `sprout init · check · parse · view` on a microworld folder                                                                                                           |
+| `@overstory/sprout-cli` | `sprout init · check · parse · view · play` on a microworld folder                                                                                                    |
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
@@ -69,7 +69,8 @@ docs/design/      the spec, the working notes, the backlog, the reviews
 npm ci
 npm run gate      # before every commit: no conflict markers, lint, prettier, builds, every suite, spec typechecks, the corpus
 npm run e2e       # before opening a PR: install both tarballs into an empty folder, init and check
-npm run check     # the corpus alone; `node scripts/check-corpus.mjs --write` regenerates its pages
+npm run check     # the corpus and its golden transcripts; `node scripts/check-corpus.mjs --write` and
+                  # `node scripts/check-transcripts.mjs --write` regenerate them
 ```
 
 There is no CI: the gate and e2e run locally, a PR carries their receipts,

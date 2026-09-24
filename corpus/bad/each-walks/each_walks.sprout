@@ -1,0 +1,14 @@
+// `each` walks what a thing holds, or a set role: a list holds values,
+// and a thing that holds nothing has nothing to walk.
+world each_walks is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object shelf is Shelf
+  }
+}
+
+enum Ward { oak, iron }
+
+verb sort { role target  role tools many  "sort [target]"  "sort [target] with [tools]" }

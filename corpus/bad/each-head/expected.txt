@@ -1,0 +1,16 @@
+each_head.sprout:8:21  Nothing here is a `Shelf`.
+                       Declare it with `kind Shelf { … }`, or check the spelling of a kind this world or a library it uses declares.
+
+shelf.sprout:6:12      The name `each` gives what it walks starts with a small letter, and `Cup` starts with a capital.
+                       Write `each thing in self { … }`, `each pot: Vessel in self { … }` or `each tool of tools { … }`.
+
+shelf.sprout:7:18      `each thing` is followed by `in` and a container, or `of` and a set role.
+                       Write `each thing in self { … }`, `each pot: Vessel in self { … }` or `each tool of tools { … }`.
+
+shelf.sprout:8:18      A kind picks out what a container holds, and `of` walks a set role whole.
+                       Write `each tool: Shelf in <container> { … }`, or leave the kind out: `each tool of <set role> { … }`.
+
+shelf.sprout:9:26      What `each` does goes in braces.
+                       Write `each thing in … { … }`, as in `each thing in self { send thing :stir }`.
+
+refused: 5 problems

@@ -16,7 +16,8 @@
 // hook acts as a `do` does, but nobody is acting, so it tells rather than
 // says, and never refuses. Who each of `say`, `tell` and `text` speaks to
 // is `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
-// binds `tool`, for the branch each guards. Statements after an `allow`
+// binds `tool`, for the branch each guards, and an `each` binds its
+// variable for its body (`each.ts`). Statements after an `allow`
 // or a `refuse` are accepted and never run. Where an extension's statement
 // may stand is `extensions.ts`'s.
 
@@ -32,6 +33,7 @@ import type { Undrawn } from './chance.js';
 import { checkWake } from './wake.js';
 import { checkPassage, checkSpoken } from './audiences.js';
 import { checkExtensionStatement } from './extensions.js';
+import { eachScope } from './each.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
 export type BodyKind =
@@ -79,6 +81,11 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'if':
       checkIf(statement, context, kind);
       return;
+    case 'each': {
+      const scope = eachScope(statement, context);
+      if (scope !== null) checkBlock(statement.body, { ...context, scope }, kind);
+      return;
+    }
     case 'refuse':
       if (decides) checkPassage(statement, context);
       else if (kind.body === 'handler') undecided(statement.at, 'refuse', kind.written, context);

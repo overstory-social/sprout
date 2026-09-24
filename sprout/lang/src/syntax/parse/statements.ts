@@ -5,7 +5,8 @@
 // something). `say`, `tell` and `text`, and the words `refuse` takes, are
 // read in `speech.ts`, `act` in `act.ts`, `connect` in `connect.ts`,
 // `send` and `broadcast` in `sends.ts`, `destroy self` and `finally
-// destroy self` in `destroy.ts`, `wake` in `wake.ts`, and an extension's
+// destroy self` in `destroy.ts`, `wake` in `wake.ts`, `each` in
+// `each.ts`, and an extension's
 // statement, `media.show(…)`, in `extensions.ts`, and each is
 // registered here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
@@ -43,6 +44,7 @@ import { connectStatement } from './connect.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
 import { wakeStatement } from './wake.js';
+import { eachStatement } from './each.js';
 import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
 import { skipBracketed } from './recovery.js';
 import { atExtensionStatement, extensionStatement } from './extensions.js';
@@ -100,6 +102,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['send', sendStatement],
   ['broadcast', broadcastStatement],
   ['wake', wakeStatement],
+  ['each', eachStatement],
 ]);
 
 /** One statement, or null having said why it is not one. */

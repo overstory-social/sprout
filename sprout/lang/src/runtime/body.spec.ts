@@ -55,6 +55,8 @@ const VERBS = [
   'dig',
   'rest',
   'announce',
+  'sort',
+  'empty',
 ];
 
 /**
@@ -101,6 +103,8 @@ const bundle = compiledWorld('shop', {
     '  as target for lug    { do { self.set(:n, 4)  if (self.get(:n) > 0) { move actor to self  say "Inside." }  say "After." } }',
     '  as target for sink   { do { destroy self  move actor to self  say "Sunk." } }',
     '  as target for rest   { do { wake in 2 minutes  say "Resting." } }',
+    '  as target for sort   { do { each c: Cup in self { say "One." }  each h: Heeds in self { say "None." }  say "Sorted." } }',
+    '  as target for empty  { do { each thing in self { move thing to here  say "Moved." }  say "Emptied." } }',
     '  as target for announce { do { tell "{actor} rings {self}."  let a = 1  tell actor done  tell self "Rung." } }',
     '  as target for ring   { do { send hall.counter.pin :knock  send hall.cat :tally with self.get(:n)  send hall.near :knock  send yard.far :knock  broadcast :knock } }',
     '}',
@@ -457,6 +461,22 @@ describe('what a `do` moves', () => {
   });
 });
 
+describe('what a `do` walks', () => {
+  it('runs an `each` body once for each thing held that its kind picks out, then goes on', () => {
+    const heard = act(turn(), COUNTER, 'sort');
+    expect(heard.spoken.map(words)).toEqual(['One.', 'Sorted.']);
+  });
+
+  it('binds the variable to each thing in turn, and ends the whole body at a refused `move` inside', () => {
+    const made = act(turn(), COUNTER, 'empty');
+    expect(made.moves).toEqual([[COUNTER, PIN, HALL]]);
+    expect(made.spoken.map(words)).toEqual(['Moved.', 'Emptied.']);
+    const refused = act(turn(), COUNTER, 'empty', undefined, undefined, () => 'refused');
+    expect(refused.moves).toHaveLength(1);
+    expect(refused.spoken).toEqual([]);
+  });
+});
+
 describe('what a `do` connects', () => {
   it('writes `self`’s link to what the binding holds, replacing where it led, and goes on', () => {
     const one = turn();
@@ -606,6 +626,16 @@ describe('what a `do` is charged', () => {
     // `let a = 2`: 2. `self.set(:n, self.get(:n) + a)`: the statement,
     // `self`, the call and `:n`, then five for the value: 9.
     expect(budget.spentSteps).toBe(11);
+  });
+
+  it('charges an `each` as the statement, what it walks, each range question and each iteration', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    act(one, COUNTER, 'sort', budget);
+    // Each `each`: the statement, `self`, and whether the pin is in range,
+    // the counter and its two ancestors climbed and the pin one step: 6. The
+    // first walks the pin, an iteration and its `say`: 2 more. The last `say`: 1.
+    expect(budget.spentSteps).toBe(15);
   });
 
   it('charges a `say` as the statement it is', () => {

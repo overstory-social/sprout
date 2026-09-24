@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actorOf,
   BLANK,
+  BOX,
   CATALOGUE,
   CELLAR,
   HALL,
@@ -11,6 +12,7 @@ import {
   lookingAt,
   MARTA,
   MIRROR,
+  PIN,
   STOOL,
   study,
 } from '../fixtures/describe.js';
@@ -65,6 +67,13 @@ describe('a description', () => {
       'It is crowded, with {count} in it.',
     ]);
     expect(hall[2]!.bindings.get('count')).toEqual({ binds: 'value', value: 8 });
+  });
+
+  it('runs an `each` body once for each thing walked, binding it for the lines inside', () => {
+    const state = study();
+    const lines = describeFor(BOX, actorOf(state, MARTA), lookingAt(state)).lines;
+    expect(lines.map((line) => words(line.said))).toEqual(['Something is in it.']);
+    expect(lines[0]!.bindings.get('thing')).toEqual({ binds: 'object', id: PIN });
   });
 
   it('carries the world’s `unremarkable`, with `thing` the thing, for when it says nothing', () => {

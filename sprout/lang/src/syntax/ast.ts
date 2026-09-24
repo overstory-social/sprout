@@ -381,6 +381,22 @@ export interface WakeStatement extends Node {
 }
 
 /**
+ * `each pot: Vessel in self { … }`, `each tool of tools { … }` — the
+ * body once for each thing a container directly holds, or those of them
+ * composing a kind, or each member of a set role, bound to the variable
+ * (the spec's Properties › Walking contents).
+ */
+export interface EachStatement extends Node {
+  readonly kind: 'each';
+  readonly variable: Ident;
+  /** The kind a walk of contents is filtered by, where one is written; never on `of`. */
+  readonly filter: KindExpr | null;
+  readonly walks: 'in' | 'of';
+  readonly over: Expr;
+  readonly body: Block;
+}
+
+/**
  * `{ … }` — statements in the order written, which run in that order and
  * are a scope of their own: a `let` in a block lives to its `}`.
  */
@@ -437,6 +453,7 @@ export type Statement =
   | SendStatement
   | BroadcastStatement
   | WakeStatement
+  | EachStatement
   | IfStatement
   | RefuseStatement
   | AllowStatement
@@ -445,6 +462,22 @@ export type Statement =
   | TextStatement
   | ExpressionStatement
   | ExtensionStatement;
+
+/**
+ * The statements written directly inside `statement`'s blocks, in the
+ * order written: an `if`'s branch, then its `else if` as one statement
+ * or its `else` block's statements; an `each`'s body. Nothing for the rest.
+ */
+export function statementsWithin(statement: Statement): readonly Statement[] {
+  if (statement.kind === 'each') return statement.body.statements;
+  if (statement.kind !== 'if') return [];
+  const otherwise = statement.otherwise;
+  if (otherwise === null) return statement.then.statements;
+  return [
+    ...statement.then.statements,
+    ...(otherwise.kind === 'if' ? [otherwise] : otherwise.statements),
+  ];
+}
 
 // --- the world ------------------------------------------------------------
 

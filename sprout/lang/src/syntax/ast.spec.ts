@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   GUARD_NAMES,
+  statementsWithin,
   writtenMember,
   type Declaration,
   type EnumDeclaration,
@@ -14,7 +15,7 @@ import {
 import type { VerbDeclaration } from './ast-verbs.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { isNode, nodesOf, unspanned } from '../source/nodes.js';
-import { parseDeclarations } from './parse.js';
+import { parseDeclarations, parseStatement } from './parse.js';
 import { SourceFile, textOf } from '../source/source.js';
 
 const source = new SourceFile('ward.sprout', 'enum Ward { oak, silver }\n');
@@ -197,5 +198,28 @@ describe('a verb is its name, its roles and its phrases, each part a node', () =
       'role tools many',
     ]);
     expect(textOf(work.phrases[0]!.at)).toBe('"work [target] with [tools]"');
+  });
+});
+
+describe('the statements written inside a statement', () => {
+  const kinds = (text: string): string[] => {
+    const statement = parseStatement(new SourceFile('b.sprout', text), new Diagnostics());
+    if (statement === null) throw new Error(`${text} did not parse`);
+    return statementsWithin(statement).map((one) => one.kind);
+  };
+
+  it('are an `if`’s branch, then its `else if` as one statement or its `else`’s statements', () => {
+    expect(kinds('if (a) { allow  let n = 1 }')).toEqual(['allow', 'let']);
+    expect(kinds('if (a) { allow } else if (b) { refuse full }')).toEqual(['allow', 'if']);
+    expect(kinds('if (a) { allow } else { refuse full  allow }')).toEqual([
+      'allow',
+      'refuse',
+      'allow',
+    ]);
+  });
+
+  it('are an `each`’s body, and nothing for a statement holding no block', () => {
+    expect(kinds('each thing in self { send thing :stir  allow }')).toEqual(['send', 'allow']);
+    expect(kinds('wake in 3 hours')).toEqual([]);
   });
 });

@@ -57,6 +57,11 @@ describe('a message nothing handles, and a handler nothing sends to', () => {
         'message :stir\nkind Cat { on :stir { } }\nkind Room { contains on :entered (item, from) { if (true) { broadcast :stir } } }',
       ),
     ).toEqual([]);
+    expect(
+      warned(
+        'message :stir\nkind Cat { on :stir { } }\nkind Room { contains on :entered (item, from) { each c: Cat in self { send c :stir } } }',
+      ),
+    ).toEqual([]);
   });
 
   it('never warn about the engine’s messages, which the engine sends', () => {

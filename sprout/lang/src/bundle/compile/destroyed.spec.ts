@@ -78,6 +78,17 @@ kind Lantern is Candle { }`;
     ]);
   });
 
+  it('inside an `each`, as inside an `if`', () => {
+    const text = `${WORLD}
+  object lamp is Candle
+} }
+${VERB}
+kind Candle { contains  as target for snuff { do { each thing in self { destroy self } } } }`;
+    expect(warned(text)).toEqual([
+      '6:73 `hall.lamp` is made of `Candle` and is declared in the world, so once it is destroyed it never comes back.',
+    ]);
+  });
+
   it('in a kind that gives a declared object a copy, naming the copy', () => {
     const text = `${WORLD}
   object lamp is Lantern

@@ -1,0 +1,13 @@
+kind Shelf {
+  contains
+
+  as target for sort {
+    do {
+      each Cup in self { }
+      each thing self { }
+      each tool: Shelf of tools { }
+      each thing in self say "Sorted."
+      say "Sorted."
+    }
+  }
+}

@@ -200,15 +200,15 @@ describe('the `text`s a describe holds', () => {
     return read.then;
   };
 
-  it('are every one, in every branch of every `if`, in the order written', () => {
+  it('are every one, in every branch of every `if` and the body of every `each`, in the order written', () => {
     const found = textsIn(
       block(
-        '{ text "a"  if (x) { text "b" } else if (y) { text "c" } else { if (z) { text "d" } }  text "e" }',
+        '{ text "a"  if (x) { text "b" } else if (y) { text "c" } else { if (z) { text "d" } }  each t in self { text "e" }  text "f" }',
       ),
     );
     expect(
       found.map((one) => (one.said.kind === 'prose-literal' ? one.said.value : one.said.text)),
-    ).toEqual(['a', 'b', 'c', 'd', 'e']);
+    ).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
     expect(textsIn(block('{ let n = 1 }'))).toEqual([]);
   });
 });

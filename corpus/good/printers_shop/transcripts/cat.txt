@@ -1,0 +1,63 @@
+# The cat. A tick reaches the composing room and no further; the room
+# forwards it with `broadcast :stir`. The cat sometimes remarks on itself,
+# and for each `Creature` in the room other than itself, sometimes performs
+# `nuzzle` on them: a verb with no phrases, which nobody can type. The one
+# nuzzled is told in the second person by their own kind's play, and the
+# room reads the cat's line about them. Which of these happens is drawn from
+# each tick's seed.
+@arrive Marta
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+@arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): You have not stood in here before, and the room somehow knows it.
+  Ines (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta,
+@seed 1
+@tick
+  (nothing)
+@seed 14
+@tick
+  Marta (told): The cat regards the door and declines to go through it.
+  Ines (told): The cat regards the door and declines to go through it.
+  Marta (told): The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning.
+  Ines (told): The shop cat winds round Marta's ankles.
+@seed 4
+@tick
+  Marta (told): The shop cat winds round the apprentice's ankles.
+  Ines (told): The shop cat winds round the apprentice's ankles.
+  Ines (told): The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning.
+  Marta (told): The shop cat winds round Ines's ankles.
+@seed 6
+@tick
+  Marta (told): The shop cat winds round the apprentice's ankles.
+  Ines (told): The shop cat winds round the apprentice's ankles.
+@seed 17
+@tick
+  Marta (told): The cat resettles.
+  Ines (told): The cat resettles.
+  Marta (told): The shop cat winds round the apprentice's ankles.
+  Ines (told): The shop cat winds round the apprentice's ankles.
+  Marta (told): The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning.
+  Ines (told): The shop cat winds round Marta's ankles.
+  Ines (told): The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning.
+  Marta (told): The shop cat winds round Ines's ankles.
+# Nobody is behind the cat, so `nuzzle` is not something a visitor can do.
+Marta> nuzzle cat
+  Marta (notice): That is not something you can do here.
+# The press yard has no tick of its own, and an empty room is not ticked.
+Marta> go out
+  Ines (notice): Marta leaves.
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): A wooden rib, a bone rib, the press,
+@seed 9
+@tick
+  Ines (told): The shop cat winds round the apprentice's ankles.
+  Ines (told): The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning.
+Ines> go out
+  Marta (notice): Ines arrives.
+  Ines (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Ines (described): A wooden rib, a bone rib, the press, Marta,
+@tick
+  (nothing)

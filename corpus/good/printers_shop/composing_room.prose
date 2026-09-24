@@ -1,0 +1,11 @@
+passage arrival {
+  Lead and lamp oil. The composing frames take the long wall, and the
+  cabinet stands where the light is worst, which is either carelessness
+  or the opposite.
+
+  {if actor.recall(:visits) <= 1}
+  You have not stood in here before, and the room somehow knows it.
+  {/if}
+
+  {for thing in self}{if thing != actor}{thing}{if $last}.{else}, {/if}{/if}{/for}
+}

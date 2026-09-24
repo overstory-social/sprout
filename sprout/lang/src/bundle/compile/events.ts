@@ -11,6 +11,7 @@
 // warned about.
 
 import type { Block, Statement } from '../../syntax/ast.js';
+import { statementsWithin } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { libraryOf } from '../../declare/enums.js';
 import type { KindRef } from '../../declare/kinds.js';
@@ -84,10 +85,6 @@ function sendsIn(
       const reached = reachMessage(next.message.text, libraryOf(origin), messages);
       if (reached !== null) sent.add(messageKey(reached));
     }
-    if (next.kind !== 'if') continue;
-    pending.push(...next.then.statements);
-    if (next.otherwise === null) continue;
-    if (next.otherwise.kind === 'if') pending.push(next.otherwise);
-    else pending.push(...next.otherwise.statements);
+    pending.push(...statementsWithin(next));
   }
 }

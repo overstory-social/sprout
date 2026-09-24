@@ -14,6 +14,7 @@ import type { Block, IfStatement, Statement } from '../syntax/ast.js';
 import { libraryOf } from '../declare/enums.js';
 import type { ExtensionStatement } from '../syntax/ast-extensions.js';
 import { speechOf, type Speech } from './body.js';
+import { eachWalked } from './each.js';
 import { recordOf } from './extension-statements.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
@@ -138,7 +139,7 @@ function runBlock(block: Block, outer: Frame, gives: Gives): void {
 
 /**
  * One statement, one step. A describe holds exactly what the checker lets
- * it hold, `let`, `if`, `text` and an extension's statement allowed there,
+ * it hold, `let`, `if`, `each`, `text` and an extension's statement allowed there,
  * so anything else is the engine's defect.
  */
 function runStatement(
@@ -155,6 +156,14 @@ function runStatement(
       return;
     case 'if':
       runIf(statement, frame, gives);
+      return;
+    case 'each':
+      for (const walked of eachWalked(statement, frame)) {
+        frame.budget.spend();
+        const inner = new Map(frame.bindings);
+        inner.set(statement.variable.text, walked);
+        runBlock(statement.body, { ...frame, bindings: inner }, gives);
+      }
       return;
     case 'text':
       gives.text(speechOf(statement, frame), new Map(bindings));

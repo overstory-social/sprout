@@ -1,0 +1,46 @@
+# The apprentice: a `Creature`, so an actor that nobody is behind. `ask`'s
+# topic is a value role filled only from his `:knows`, so a topic of the
+# world's enum he does not know, and a word that is no topic at all, leave
+# it unbound and he shrugs. Nothing is carried off from a person, and a gift
+# goes into his hands, out of reach.
+@arrive Marta
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+@arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): You have not stood in here before, and the room somehow knows it.
+  Ines (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta,
+Marta> ask apprentice about the press
+  Marta (said): Bar's stiff, he says. Mind your knuckles.
+Marta> ask boy about the cat
+  Marta (said): She's not ours, he says. She just decided.
+Marta> ask the apprentice the press
+  Marta (said): Bar's stiff, he says. Mind your knuckles.
+Ines> ask apprentice about the cellar
+  Ines (said): He shrugs. Not something he knows about.
+Ines> ask apprentice about the weather
+  Ines (said): He shrugs. Not something he knows about.
+Ines> ask cat about the press
+  Ines (said): Nothing much comes of that.
+Marta> take apprentice
+  Marta (refused): The apprentice cannot stand in you.
+Marta> take boy
+  Marta (refused): The apprentice cannot stand in you.
+Marta> take brass key
+  Marta (said): You take a brass key.
+  Ines (told): Marta takes a brass key.
+Marta> give brass key to apprentice
+  Marta (said): You give a brass key to the apprentice.
+  Ines (told): Marta gives a brass key to the apprentice.
+Marta> give brass key to apprentice
+  Marta (notice): You see nothing like that here.
+Marta> i
+  Marta (said): You are carrying nothing.
+Ines> take brass key
+  Ines (notice): You see nothing like that here.
+Marta> give apprentice to Ines
+  Marta (refused): You are not holding the apprentice.
+Marta> give Ines to apprentice
+  Marta (refused): You are not holding Ines.
