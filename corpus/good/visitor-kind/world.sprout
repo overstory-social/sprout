@@ -1,0 +1,9 @@
+world visitor_kind is sprout.World {
+  visitors are Visitor
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    // An NPC made of `Creature` alone, with the same hands as a person.
+    object cat is Creature
+  }
+}

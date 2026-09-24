@@ -1,0 +1,8 @@
+// What a person shares with the world's NPCs: hands that hold four things
+// rather than `sprout.Actor`'s eight. Restating `:capacity` makes
+// `Creature` its origin, and a kind that composes `Creature` and, through
+// `sprout.Visitor`, `sprout.Actor` as well takes `Creature`'s, since
+// `Creature` composes the origin it restated.
+kind Creature is sprout.Actor {
+  :capacity 4
+}

@@ -7,10 +7,12 @@
 // Three rules hold here. The closure is walked depth-first, left to
 // right, each kind at its first appearance and the composer last, and
 // that is the order composable members run in. A property is one slot
-// per name: one origin reached by several paths is one property, two
-// origins are refused unless the composer restates it, and a restatement
-// keeps the type. `contains` and `contains actors` are idempotent, so
-// they are OR'd over the closure. A passage is one per name, which
+// per name: one origin reached by several paths is one property, an
+// origin is superseded by a restatement of it that reaches the composer
+// too, two origins neither of which composes the other are refused
+// unless the composer restates it, and a restatement keeps the type.
+// `contains` and `contains actors` are idempotent, so they are OR'd over
+// the closure. A passage is one per name, which
 // `passages.ts` resolves: the composer's own, else the one source that
 // is not `default`, else the one default; a pass rule is one per
 // message, which `passes.ts` resolves; a `name` and an `article` are one
@@ -224,6 +226,16 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
       came.push({ property, through: written });
       arrivals.set(property.name, came);
     }
+  }
+  // A restatement by a kind that composes the origin it restated
+  // supersedes that origin wherever both reach this composer (rule 2).
+  for (const [name, came] of arrivals) {
+    arrivals.set(
+      name,
+      came.filter(
+        (one) => !came.some((other) => supersedes(other.property, one.property, context.kinds)),
+      ),
+    );
   }
 
   const restate = (
@@ -574,6 +586,20 @@ function missingWorld(kinds: KindSource): { message: string; remedy: string } {
     message: `The standard library is missing \`${WORLD}\`.`,
     remedy: 'Every world composes it, for the words the engine speaks for itself.',
   };
+}
+
+/**
+ * Whether `restating`'s origin is a kind that composes `restated`'s, so
+ * that its declaration of the name restated it.
+ */
+function supersedes(
+  restating: ResolvedProperty,
+  restated: ResolvedProperty,
+  kinds: KindSource,
+): boolean {
+  if (restating.origin === restated.origin) return false;
+  const found = kinds.find(restating.origin);
+  return found.found === 'kind' && found.kind.composes.has(restated.origin);
 }
 
 /** Whether two origins' declarations could be one slot: the same type, range and memory. */

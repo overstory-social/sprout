@@ -76,9 +76,7 @@ const KEEP = {
     '  :capacity 2',
     '  passage hands_full { {self} has no hand free. }',
     '}',
-    // Restated, since `Creature`'s `:capacity` and the one `sprout.Visitor`
-    // brings from `sprout.Actor` are two origins.
-    'kind Person is Creature, sprout.Visitor { :capacity 2 }',
+    'kind Person is Creature, sprout.Visitor { }',
     'kind Room { contains actors }',
     'kind Plain { }',
     'kind Basket { contains }',

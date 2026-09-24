@@ -210,6 +210,34 @@ describe('a world declaration shadowing a standard library name warns once, at i
     expect(verbs.qualified('sprout', 'take')).not.toBeNull();
   });
 
+  it('does not warn for a kind that composes the library kind it hides, directly or not', () => {
+    for (const shop of [
+      'kind Creature { }\nkind Visitor is Creature, sprout.Visitor { }',
+      'kind Person is sprout.Visitor { }\nkind Visitor is Person { }',
+    ]) {
+      const report = loading();
+      resolveDeclarations(
+        byLibrary({ sprout: 'kind Actor { }\nkind Visitor is Actor { }', shop }),
+        SHOP,
+        report,
+      );
+      expect(report.diagnostics.warnings, shop).toEqual([]);
+    }
+    // One that does not compose it is still warned.
+    const report = loading();
+    resolveDeclarations(
+      byLibrary({
+        sprout: 'kind Actor { }\nkind Visitor is Actor { }',
+        shop: 'kind Visitor is sprout.Actor { }',
+      }),
+      SHOP,
+      report,
+    );
+    expect(report.diagnostics.warnings.map((d) => d.message)).toEqual([
+      '`Visitor` hides `sprout.Visitor`: a bare `Visitor` in this world is now yours.',
+    ]);
+  });
+
   it('does not warn for an engine verb’s name, which is refused and hides nothing', () => {
     const report = loading();
     resolveDeclarations(
