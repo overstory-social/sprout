@@ -159,6 +159,7 @@ export const parseBelfry: Parser = (text, actor, context) => {
         said: { passage: unknown },
         bindings: new Map(),
       },
+      choices: [],
     };
   }
   return {

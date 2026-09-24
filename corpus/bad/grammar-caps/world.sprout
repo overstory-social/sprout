@@ -1,0 +1,14 @@
+// The host's caps on what a thing answers to: how many nouns, and how long a word.
+world grammar_caps is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object brass_key is Key {
+      grammar {
+        nouns "one" "two" "three" "four" "five" "six" "seven" "eight" "nine"
+        nouns "supercalifragilisticexpialidociouslyoddandlong key"
+      }
+    }
+  }
+}

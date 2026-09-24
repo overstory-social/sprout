@@ -1,0 +1,5 @@
+// A verb for each kind of slot: a thing of a kind with a tool one phrase
+// leaves out, a set of things, and a number.
+verb unlock { role target: Door  role tool: Key  "unlock [target] with [tool]"  "unlock [target]" }
+verb juggle { role things many  "juggle [things]" }
+verb turn   { role target: Dial  role number: integer  "turn [target] to [number]" }

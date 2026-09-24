@@ -1,0 +1,4 @@
+// Oil answers to `lamp` too, and a lamp's own name is still what `lamp` means.
+kind Oil {
+  grammar { nouns "lamp" }
+}

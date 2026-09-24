@@ -1,0 +1,7 @@
+// Shut, so what it holds is out of reach until it opens.
+kind Chest {
+  contains
+  :open false
+  pass any (self.get(:open))
+  grammar { article the }
+}

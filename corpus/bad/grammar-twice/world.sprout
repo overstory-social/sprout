@@ -1,0 +1,15 @@
+// A thing has one name and one article, however many grammar blocks say them.
+world grammar_twice is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object brass_key is Key {
+      grammar { name "brass key"  article the }
+      grammar { name "old key"  article a }
+    }
+    object lamp is Key {
+      grammar { name "  "  nouns "light" "" }
+    }
+  }
+}
