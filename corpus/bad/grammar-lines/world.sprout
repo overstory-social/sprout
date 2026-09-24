@@ -1,0 +1,20 @@
+// A grammar block holds `name`, `article` and `nouns`, each as it is written.
+world grammar_lines is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object brass_key is Key {
+      grammar {
+        name brass_key
+        article teh
+        nouns
+        exit north "to the yard" -> hall
+      }
+    }
+    object lamp is Key {
+      grammar { article the }
+      :lit false
+    }
+  }
+}

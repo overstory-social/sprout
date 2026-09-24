@@ -141,8 +141,7 @@ export interface VendoredLibrary extends LibrarySource {
 /**
  * The world's complete word set: every word its grammar can match,
  * sorted and without repeats. A nickname is admitted against this, so it
- * travels in the bundle rather than being re-derived. B27 fills it from
- * nouns, tokens, directions, articles, connectors and phrase words.
+ * travels in the bundle rather than being re-derived; `words.ts` draws it.
  */
 export type WordSet = readonly string[];
 

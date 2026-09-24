@@ -63,8 +63,7 @@ export interface Frame {
 /**
  * `+` or `-` gave a number outside −2,147,483,648 to 2,147,483,647, the
  * range of every integer (the spec's The types). Thrown, as `ListFull`
- * is, because the turn cannot go on; B34 turns it into the world's
- * `fault` passage.
+ * is, because the turn cannot go on, and faults it (`faults.ts`).
  */
 export class IntegerOverflow extends Error {
   constructor(readonly result: number) {

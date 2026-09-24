@@ -1,0 +1,8 @@
+kind Dial {
+  as target for turn {
+    number from 1 to 12
+    do {
+      if (bound number) { say "The dial clicks round." } else { say "The dial goes no further." }
+    }
+  }
+}

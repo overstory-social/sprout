@@ -33,6 +33,7 @@ import {
 import { composesKind, kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import {
+  actorBinding,
   OPEN_OBJECT,
   Scope,
   selfBinding,
@@ -43,6 +44,7 @@ import {
 import type { CheckContext } from './check.js';
 import type { NameScope } from './names.js';
 import { nameFrom } from '../declare/names.js';
+import { SPROUT } from '../declare/enums.js';
 import { checkProse } from './prose.js';
 import type { PassageRendered, PassageSites } from './speech.js';
 
@@ -92,7 +94,8 @@ export function checkPassages(setting: PassageSetting): void {
     for (const line of [...WORLD_LINES, ...PLACE_LINES]) {
       const passage = kind.passages.get(line.name);
       if (passage !== undefined) {
-        say(run, { passage, scope: engineScope(line, passage.at), from: { from: 'engine', line } });
+        const scope = engineScope(line, passage.at, setting.kinds);
+        say(run, { passage, scope, from: { from: 'engine', line } });
       }
     }
   }
@@ -118,15 +121,16 @@ function bodiesOf(kind: KindRef): Node[] {
   ];
 }
 
-/** What the engine binds when it says `line`. */
-function engineScope(line: EnginePassage, at: Span): Scope {
+/** What the engine binds when it says `line`, the one acting typed as a body's `actor` is. */
+function engineScope(line: EnginePassage, at: Span, kinds: KindLookup): Scope {
   return Object.entries(line.binds).reduce(
-    (built, [name, binds]) => built.bounding(engineBinding(name, binds, at)),
+    (built, [name, binds]) => built.bounding(engineBinding(name, binds, at, kinds)),
     Scope.root(),
   );
 }
 
-function engineBinding(name: string, binds: EngineBinds, at: Span): Binding {
+function engineBinding(name: string, binds: EngineBinds, at: Span, kinds: KindLookup): Binding {
+  if (binds === 'actor') return { ...actorBinding(kinds.qualified(SPROUT, 'Actor'), at), name };
   return {
     name,
     type: binds === 'set' ? setOf(null) : OPEN_OBJECT,

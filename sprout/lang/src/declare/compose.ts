@@ -13,10 +13,11 @@
 // they are OR'd over the closure. A passage is one per name, which
 // `passages.ts` resolves: the composer's own, else the one source that
 // is not `default`, else the one default; a pass rule is one per
-// message, which `passes.ts` resolves. Guards, plays, handlers and hooks
-// all run, in closure order less what `without` leaves out, which
-// `guards.ts`, `roles.ts` and `handlers.ts` resolve; a suppression travels
-// to every kind that composes the one that wrote it.
+// message, which `passes.ts` resolves; a `name` and an `article` are one
+// each and nouns all apply, which `grammar.ts` resolves. Guards, plays,
+// handlers and hooks all run, in closure order less what `without` leaves
+// out, which `guards.ts`, `roles.ts` and `handlers.ts` resolve; a
+// suppression travels to every kind that composes the one that wrote it.
 
 import {
   writtenMember,
@@ -51,6 +52,7 @@ import {
 } from './handlers.js';
 import { MessageTable, type MessageLookup } from './messages.js';
 import { composePassRules, ownPassRules } from './passes.js';
+import { composeGrammar, ownGrammar } from './grammar.js';
 import {
   composePlays,
   ownPlays,
@@ -379,6 +381,14 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     shown,
     diagnostics,
   );
+  // --- grammar: one name and article, every noun ----------------------
+  const grammar = composeGrammar(
+    composer.name,
+    composed.map(({ kind, written }) => ({ grammar: kind.grammar, written })),
+    ownGrammar(composer.members, own),
+    shown,
+    diagnostics,
+  );
   order.push(own);
 
   return {
@@ -393,6 +403,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     handlers,
     hooks,
     passes,
+    grammar,
     contains: contains || containsActors,
     containsActors,
     suppressed,

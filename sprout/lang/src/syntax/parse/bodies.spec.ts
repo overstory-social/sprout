@@ -48,9 +48,9 @@ const OWNERS = [
 ] as const;
 type Owner = (typeof OWNERS)[number];
 
-/** The members every body holds, with `holds` first where the owner says one more. */
+/** The members every body holds, with `holds` first where the owner says one more, and `grammar` where it is a thing's. */
 const membersOf = (owner: Owner): string =>
-  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`prose\`, \`without\`, \`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`prose\`, \`without\`, ${owner.holds === null ? '`grammar`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
 
 /**
  * The declaration a file's text opened with: a world or a kind, or, for

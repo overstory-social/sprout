@@ -14,14 +14,20 @@ describe('the lines the engine says for itself', () => {
     const binds = Object.fromEntries(
       [...WORLD_LINES, ...PLACE_LINES].map((line) => [line.name, line.binds]),
     );
-    expect(binds.unreachable).toEqual({ thing: 'object' });
+    expect(binds.unreachable).toEqual({ actor: 'actor', here: 'object', thing: 'object' });
     expect(binds.unremarkable).toEqual({ thing: 'object' });
-    expect(binds.which).toEqual({ candidates: 'set' });
+    expect(binds.which).toEqual({ actor: 'actor', here: 'object', candidates: 'set' });
     expect(binds.inside_itself).toEqual({ item: 'object' });
     expect(binds.arrives).toEqual({ item: 'object' });
     expect(binds.leaves).toEqual({ item: 'object' });
-    for (const bare of ['unknown', 'nothing_happens', 'unseen', 'fault', 'missing', 'displaced']) {
-      expect(binds[bare], bare).toEqual({});
-    }
+  });
+
+  it('bind the one acting and where, for a line said to the one acting, and only as the engine does', () => {
+    const binds = Object.fromEntries(WORLD_LINES.map((line) => [line.name, line.binds]));
+    expect(binds.unknown).toEqual({ actor: 'actor', here: 'object' });
+    expect(binds.nothing_happens).toEqual({ actor: 'actor', here: 'object' });
+    // A fault's actor may stand nowhere, so `here` is not promised.
+    expect(binds.fault).toEqual({ actor: 'actor' });
+    for (const bare of ['unseen', 'missing', 'displaced']) expect(binds[bare], bare).toEqual({});
   });
 });

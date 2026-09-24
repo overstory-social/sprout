@@ -1,0 +1,170 @@
+// Turns (the spec's The runtime › Turns, Faults; Limits › Runtime
+// budgets). Everything that runs is a turn of one of five kinds. A write
+// turn — a command, a tick, a wake or a maintenance turn — runs in a
+// draft over the last committed state, under a budget of its own, and
+// either commits, giving the next state, the change set a store writes
+// and who now holds a stale view, or faults: the draft is dropped, and the
+// world is exactly as it was. A poll reads the committed state itself,
+// under the poll's own step budget; it can write nothing, draws no seed,
+// and one that faults yields the world's `unseen`.
+//
+// This is the frame, and it holds no store: serializing a world's write
+// turns under its lock, and writing a committed change set in the
+// store's transaction, is core's. What a command turn does inside the
+// frame is `command.ts`'s and a tick's `tick.ts`'s; a wake's and a
+// maintenance turn's are B36's, and the view a poll builds is B37's.
+
+import type { RuntimeBudgets } from '../bundle/limits.js';
+import type { Speech } from './body.js';
+import { Budget, type TurnKind } from './budget.js';
+import type { Catalogue } from './catalogue.js';
+import { Draft, storedChanges, type StoredChanges } from './draft.js';
+import { faultOf, worldSpeech, type Fault } from './faults.js';
+import type { InstanceId, VisitKey } from './ids.js';
+import type { LifecycleContext } from './lifecycle.js';
+import { passRules } from './passes.js';
+import type { PassRule } from './range.js';
+import { codeUnitOrder, readerOf, type StateReader, type WorldState } from './state.js';
+
+/** A turn that may write: every kind but the poll. */
+export type WriteTurnKind = Exclude<TurnKind, 'poll'>;
+
+/** What the host runs a world's turns with. */
+export interface TurnHost {
+  readonly catalogue: Catalogue;
+  /** The host's runtime budgets now. */
+  readonly budgets: RuntimeBudgets;
+  /**
+   * The host's clock, read by the wall-clock backstop and by nothing
+   * else (the spec's Limits › Runtime budgets); without one there is no
+   * backstop.
+   */
+  readonly clock?: () => number;
+}
+
+/** What the host gives one write turn, and records beside it (the spec's The log). */
+export interface WriteInputs {
+  /** The seed the host drew for this turn, which every draw it makes comes from (B33). */
+  readonly seed: number;
+  /** The most instances the host will store for this world this turn; null where it sets no bound. */
+  readonly mayHold: number | null;
+}
+
+/** A write turn as its body sees it: its kind and seed, and what a body reads and writes through. */
+export interface WriteTurn extends LifecycleContext {
+  readonly kind: WriteTurnKind;
+  readonly seed: number;
+}
+
+/** A write turn that committed. */
+export interface Committed<T> {
+  readonly committed: true;
+  /** The world after the turn: what the next turn reads. */
+  readonly state: WorldState;
+  /** What the store writes, in the stored form. */
+  readonly changes: StoredChanges;
+  /**
+   * Every visitor present once it committed, in code-unit order of the
+   * visit: their views are stale (the spec's The view).
+   */
+  readonly stale: readonly VisitKey[];
+  /** What the body gave. */
+  readonly value: T;
+}
+
+/** A write turn that faulted and was abandoned: nothing it did is kept. */
+export interface Faulted {
+  readonly committed: false;
+  readonly fault: Fault;
+}
+
+export type Written<T> = Committed<T> | Faulted;
+
+/**
+ * Run `body` as one write turn of `kind` over `state`: in a draft, under
+ * a fresh budget, committed when it returns and abandoned when anything
+ * it runs throws.
+ */
+export function writeTurn<T>(
+  state: WorldState,
+  kind: WriteTurnKind,
+  host: TurnHost,
+  inputs: WriteInputs,
+  body: (turn: WriteTurn) => T,
+): Written<T> {
+  const draft = new Draft(state);
+  const budget = new Budget(host.budgets, kind, host.clock);
+  const { catalogue } = host;
+  const passes = passRules({
+    state: draft,
+    kinds: catalogue.lookup,
+    caps: catalogue.caps,
+    budget,
+    names: catalogue.names,
+  });
+  try {
+    const value = body({
+      kind,
+      seed: inputs.seed,
+      draft,
+      catalogue,
+      passes,
+      budget,
+      mayHold: inputs.mayHold,
+    });
+    const committed = draft.commit();
+    return {
+      committed: true,
+      state: committed.state,
+      changes: storedChanges(committed.state, committed.changes),
+      stale: present(committed.state),
+      value,
+    };
+  } catch (thrown) {
+    return { committed: false, fault: faultOf(thrown) };
+  }
+}
+
+/** A poll as its look sees it: the committed state, read-only, and the poll's own meter. */
+export interface PollTurn {
+  readonly state: StateReader;
+  readonly catalogue: Catalogue;
+  readonly passes: PassRule<InstanceId>;
+  readonly budget: Budget;
+}
+
+/** A poll's outcome: what its look gave, or, where it faulted, the world's `unseen`. */
+export type Polled<T> =
+  | { readonly faulted: false; readonly view: T }
+  | { readonly faulted: true; readonly fault: Fault; readonly unseen: Speech };
+
+/** Run `look` as a poll over the committed `state`, under the poll's own step budget. */
+export function pollTurn<T>(
+  state: WorldState,
+  host: TurnHost,
+  look: (turn: PollTurn) => T,
+): Polled<T> {
+  const reader = readerOf(state);
+  const budget = new Budget(host.budgets, 'poll', host.clock);
+  const { catalogue } = host;
+  const passes = passRules({
+    state: reader,
+    kinds: catalogue.lookup,
+    caps: catalogue.caps,
+    budget,
+    names: catalogue.names,
+  });
+  try {
+    return { faulted: false, view: look({ state: reader, catalogue, passes, budget }) };
+  } catch (thrown) {
+    return { faulted: true, fault: faultOf(thrown), unseen: worldSpeech(reader, 'unseen') };
+  }
+}
+
+/** Every visitor whose instance stands somewhere in `state`, by visit. */
+function present(state: WorldState): VisitKey[] {
+  return [...state.visitors.values()]
+    .filter((visitor) => (state.instances.get(visitor.instance)?.container ?? null) !== null)
+    .map((visitor) => visitor.visit)
+    .sort(codeUnitOrder);
+}

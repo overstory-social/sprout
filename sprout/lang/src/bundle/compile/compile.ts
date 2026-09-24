@@ -43,7 +43,8 @@ import { resolveDeclarations, unknownMessageGap } from '../declarations.js';
 import { kindName } from '../../declare/kinds.js';
 import type { Named } from '../../declare/names.js';
 import type { Node } from '../../source/nodes.js';
-import { checkActors } from '../../declare/actors.js';
+import { checkActors, isVisitorKind } from '../../declare/actors.js';
+import { WORLD } from '../../declare/sprout-world.js';
 import { everyContent } from '../../declare/contents.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
@@ -60,6 +61,8 @@ import { checkManifest } from './manifest-fields.js';
 import { blessedToHonour, capsToCheck, type RecordedCaps } from './recorded.js';
 import { Report } from './report.js';
 import { weighBundle } from './weight.js';
+import { wordSetOf } from '../words.js';
+import { objectsIn } from '../../declare/objects.js';
 import { oneWorld, worldKinds } from './world.js';
 
 /** What a host brings to a compile. */
@@ -195,15 +198,18 @@ export function compileBundle(
     },
   );
   warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
+  // Every composed kind: the named ones, what each gives its instances,
+  // every declared object's own, and the world's.
+  const everyKind = [
+    ...tables.kinds.all(),
+    ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
+    ...tables.composed.flatMap(({ kind, giver }) =>
+      kind === null || giver !== null ? [] : [kind],
+    ),
+    ...(world === null ? [] : [world]),
+  ];
   warnUnsentAndUnhandled({
-    kinds: [
-      ...tables.kinds.all(),
-      ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
-      ...tables.composed.flatMap(({ kind, giver }) =>
-        kind === null || giver !== null ? [] : [kind],
-      ),
-      ...(world === null ? [] : [world]),
-    ],
+    kinds: everyKind,
     messages: tables.messages,
     namespace: manifest.namespace,
     diagnostics: report.diagnostics,
@@ -254,9 +260,16 @@ export function compileBundle(
     objects: tables.objects,
     tree: tables.tree,
     arrival,
-    // B27 fills this from nouns, tokens, directions, articles,
-    // connectors and phrase words, once there is a grammar to read.
-    words: [],
+    words: wordSetOf({
+      kinds: everyKind,
+      named: tables.kinds.all().filter((kind) => !kind.composes.has(WORLD) && !isVisitorKind(kind)),
+      identifiers: declarations.flatMap((declared) =>
+        declared.kind === 'world' || declared.kind === 'kind'
+          ? objectsIn(declared).map(({ declaration }) => declaration.name.text)
+          : [],
+      ),
+      verbs: tables.verbs.all(),
+    }),
     level,
     extensions: manifest.extensions,
     libraries: usable,

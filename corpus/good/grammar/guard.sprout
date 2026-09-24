@@ -1,0 +1,11 @@
+// The topics a guard hears are the ones it knows.
+kind Guard {
+  :knows [Topic] default [bridge, old_press]
+
+  as target for ask {
+    topic from :knows
+    do {
+      if (bound topic) { say "The guard nods." } else { say "The guard shrugs." }
+    }
+  }
+}

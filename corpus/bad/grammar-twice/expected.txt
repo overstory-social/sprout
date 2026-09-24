@@ -1,0 +1,13 @@
+world.sprout:9:17   `brass_key` writes its `name` twice.
+                    A thing has one name. Keep one `name` line.
+
+world.sprout:9:33   `brass_key` writes its `article` twice.
+                    A thing is written with one article. Keep one `article` line.
+
+world.sprout:12:17  `lamp`'s name is empty.
+                    Write the name a visitor reads, as in `name "brass key"`, or take the line out and the name is its identifier.
+
+world.sprout:12:42  This noun is empty.
+                    Write the words a visitor types for it, or take it out.
+
+refused: 4 problems

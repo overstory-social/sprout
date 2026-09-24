@@ -146,7 +146,8 @@ function bodiesFor(sent: Sent, kind: KindRef): Delivered[] {
 /**
  * What a delivery passes its handler, positionally: an authored message's
  * sender and the value it carries; an engine message's objects in the
- * order Receiving names them; a hook's previous value.
+ * order Receiving names them, or the `elapsed` of a tick or a wake; a
+ * hook's previous value.
  */
 function passed(sent: Sent): Evaluated[] {
   switch (sent.message) {
@@ -168,6 +169,9 @@ function passed(sent: Sent): Evaluated[] {
       return [boundObject(sent.actor), boundObject(sent.to)];
     case 'spawned':
       return [boundObject(sent.from)];
+    case 'tick':
+    case 'woke':
+      return [boundValue(sent.elapsed)];
   }
 }
 

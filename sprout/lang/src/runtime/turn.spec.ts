@@ -1,0 +1,153 @@
+import { describe, expect, it } from 'vitest';
+
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import {
+  actorOf,
+  belfry,
+  belfryHost,
+  BELL,
+  heldIn,
+  INES,
+  MARTA,
+  STONE,
+} from '../fixtures/turns.js';
+import { words } from '../fixtures/reading.js';
+import { Draft } from './draft.js';
+import { saveWorld } from './load.js';
+import type { WorldState } from './state.js';
+import { pollTurn, writeTurn, type WriteTurn, type WriteTurnKind } from './turn.js';
+
+const inputs = { seed: 41, mayHold: 12 };
+
+/** A body that writes a property, as a do's `set` would. */
+function strike(turn: WriteTurn): void {
+  const bell = turn.draft.instance(BELL)!;
+  turn.draft.write({ ...bell, properties: new Map([...bell.properties, ['struck', true]]) });
+}
+
+describe('a write turn', () => {
+  it('commits what its body wrote, in the stored form, and marks everyone present stale', () => {
+    const state = belfry([MARTA], true);
+    const written = writeTurn(state, 'tick', belfryHost(), inputs, (turn) => {
+      strike(turn);
+      return 'rung';
+    });
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(written.value).toBe('rung');
+    expect(heldIn(written.state, BELL, 'struck')).toBe(true);
+    expect(written.changes.upsert.map((record) => record.id)).toEqual([BELL]);
+    expect(written.changes.serial).toBe(state.serial);
+    // Ines is away, so nobody holds a view of hers.
+    expect(written.stale).toEqual([MARTA]);
+    expect(state.visitors.has(INES)).toBe(true);
+  });
+
+  it('abandons everything its body wrote when it throws, and says what was broken', () => {
+    const state = belfry();
+    const before = saveWorld(state);
+    const written = writeTurn(state, 'wake', belfryHost(), inputs, (turn) => {
+      strike(turn);
+      turn.draft.mint();
+      turn.budget.spend(DEFAULT_LIMITS.budgets.steps + 1);
+    });
+    expect(written).toEqual({
+      committed: false,
+      fault: {
+        name: 'BudgetExhausted',
+        detail: expect.stringContaining('50000 steps'),
+        object: null,
+        engine: false,
+      },
+    });
+    expect(saveWorld(state)).toEqual(before);
+    expect(heldIn(state, BELL, 'struck')).toBe(false);
+  });
+
+  it('runs each kind under a budget of its own kind, with the seed and bound the host gave', () => {
+    const kinds: WriteTurnKind[] = ['command', 'tick', 'wake', 'maintenance'];
+    for (const kind of kinds) {
+      const written = writeTurn(belfry(), kind, belfryHost(), inputs, (turn) => {
+        turn.budget.spend(10);
+        return {
+          kind: turn.kind,
+          meter: turn.budget.kind,
+          allowed: turn.budget.allowedSteps,
+          spent: turn.budget.spentSteps,
+          seed: turn.seed,
+          mayHold: turn.mayHold,
+        };
+      });
+      if (!written.committed) throw new Error(written.fault.detail);
+      expect(written.value).toEqual({
+        kind,
+        meter: kind,
+        allowed: DEFAULT_LIMITS.budgets.steps,
+        spent: 10,
+        seed: 41,
+        mayHold: 12,
+      });
+    }
+  });
+
+  it('reads through the containers’ own pass rules, and a draft over the state it was given', () => {
+    const state = belfry();
+    const written = writeTurn(state, 'command', belfryHost(), inputs, (turn) => ({
+      draft: turn.draft instanceof Draft,
+      marta: turn.draft.instance(actorOf(state, MARTA))?.container,
+      worldPasses: turn.passes(state.world, 'any'),
+    }));
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(written.value).toEqual({
+      draft: true,
+      marta: state.instances.get(actorOf(state, MARTA))!.container,
+      worldPasses: false,
+    });
+  });
+});
+
+describe('a poll', () => {
+  it('reads the committed state, under the poll’s own step budget', () => {
+    const state = belfry();
+    const polled = pollTurn(state, belfryHost(), (turn) => ({
+      meter: turn.budget.kind,
+      allowed: turn.budget.allowedSteps,
+      taps: turn.state.instance(STONE)?.properties.get('taps'),
+    }));
+    expect(polled).toEqual({
+      faulted: false,
+      view: { meter: 'poll', allowed: DEFAULT_LIMITS.budgets.pollSteps, taps: 0 },
+    });
+  });
+
+  it('sees the state before a write turn that has not committed, whatever that turn does', () => {
+    const state: WorldState = belfry();
+    let seen: unknown;
+    writeTurn(state, 'command', belfryHost(), inputs, (turn) => {
+      strike(turn);
+      seen = pollTurn(state, belfryHost(), (poll) =>
+        poll.state.instance(BELL)?.properties.get('struck'),
+      );
+    });
+    expect(seen).toEqual({ faulted: false, view: false });
+  });
+
+  it('has nothing to write with', () => {
+    const polled = pollTurn(belfry(), belfryHost(), (turn) => ({
+      draft: turn.state instanceof Draft,
+      writes: 'write' in turn.state || 'place' in turn.state,
+    }));
+    expect(polled).toEqual({ faulted: false, view: { draft: false, writes: false } });
+  });
+
+  it('yields the world’s `unseen` when its look faults', () => {
+    const polled = pollTurn(belfry(), belfryHost(), (turn) =>
+      turn.budget.spend(DEFAULT_LIMITS.budgets.pollSteps + 1),
+    );
+    if (!polled.faulted) throw new Error('the poll did not fault');
+    expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', engine: false });
+    expect(polled.fault.detail).toContain('poll');
+    expect(words(polled.unseen)).toBe(
+      'sprout.World unseen: Something here is too much to take in.',
+    );
+  });
+});

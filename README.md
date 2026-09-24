@@ -20,16 +20,20 @@ message :stir
 
 Two packages, one version:
 
-| package                 | what                                                                                                                                                           |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@overstory/sprout`     | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records and memory store; `./conformance`) · `./store-sql` · `./store-document` |
-| `@overstory/sprout-cli` | `sprout init · check` on a microworld folder                                                                                                                   |
+| package                 | what                                                                                                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@overstory/sprout`     | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records, memory store and turns; `./conformance`) · `./store-sql` · `./store-document` |
+| `@overstory/sprout-cli` | `sprout init · check` on a microworld folder                                                                                                                          |
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
-of, kinds and objects with their composition, and verbs with their roles
-resolved across libraries, passages and the `.prose` files they live in) and checks the expressions Phase 1 defined and the prose every passage holds.
-Everything else — the audiences, descriptions, turns — lands one backlog item at a time; see the build order in
+of, kinds and objects with their composition and grammar blocks, and verbs
+with their roles resolved across libraries, passages and the `.prose` files
+they live in) and checks the expressions Phase 1 defined and the prose every
+passage holds; the runtime reads a visitor's typed line as a reading, runs it
+as a turn, and renders what is said for each reader. Everything else — the
+audiences, descriptions, exits, the view — lands one backlog item at a time;
+see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.
 
@@ -42,9 +46,9 @@ sprout/lang/src
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, verbs, the world, actors
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
-  runtime/   the turn's meter, values, range, ids, stored and live state, and what is remembered about an actor
+  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, and the command parser
   prose/     what is said, rendered for each reader: names, slots, blocks and loops, reflow
-sprout/core/src   the store port, its records, the memory store, the conformance suite
+sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page

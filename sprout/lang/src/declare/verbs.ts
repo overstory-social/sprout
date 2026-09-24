@@ -303,6 +303,8 @@ export interface VerbLookup {
   qualified(library: string, name: string): ResolvedVerb | null;
   /** A verb written without a library: the asking world's own first, then `sprout`'s. */
   unqualified(name: string, from: string): ResolvedVerb | null;
+  /** Every verb in the bundle, in the order it was added. */
+  all(): readonly ResolvedVerb[];
 }
 
 /** Every verb the bundle declares, by library and name. */

@@ -1,0 +1,46 @@
+// What a thing is called and answers to, and the words a visitor types
+// for it: names and articles written and left to their defaults, nouns
+// added by an object and by its kind, a kind's name given to every
+// instance of it, and verbs typed with a thing of a kind, a set of
+// things, a number and a topic in their slots.
+world study is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object brass_key is Key {
+      grammar {
+        name  "brass key"
+        nouns "shiny thing"
+      }
+    }
+    object iron_key is Key
+    object lamp is Lamp { grammar { article the } }
+    object lamp_oil is Oil
+    object gong is Gong {
+      grammar {
+        name    "brass disc"
+        article the
+      }
+    }
+    object pebble_a is Pebble
+    object pebble_b is Pebble
+    object chest is Chest {
+      object coin is Coin
+    }
+    object guard is Guard {
+      grammar {
+        name    "Oskar"
+        article none
+      }
+    }
+    object dial is Dial
+    object door is Door
+  }
+
+  object cellar is sprout.Place {
+    object barrel is Barrel
+  }
+}
+
+enum Topic { bridge, toll, old_press }

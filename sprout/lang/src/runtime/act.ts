@@ -37,8 +37,8 @@ export interface ActContext {
 
 /**
  * An `act` that could not be performed, as a `MoveFault` is: thrown,
- * because the turn cannot do what it was asked, and turned by B34 into
- * the world's `fault` passage. The detail names the object by its id, for
+ * because the turn cannot do what it was asked, and faulting it
+ * (`faults.ts`). The detail names the object by its id, for
  * the log and the host.
  */
 export class ActFault extends Error {

@@ -60,7 +60,7 @@ describe('a line said is rendered for each reader', () => {
         ['to', boundObject(CRATE)],
       ]),
     };
-    expect(renderFor(line, turn.marta, turn.context)).toEqual(['You cannot stand in a crate.']);
+    expect(renderFor(line, turn.marta, turn.context)).toEqual(['You cannot stand in the crate.']);
   });
 
   it('renders nothing of a passage that is absent', () => {

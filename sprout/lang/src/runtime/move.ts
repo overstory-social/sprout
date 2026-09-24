@@ -35,7 +35,7 @@ export type MoveFaultReason = 'out-of-range' | 'holds-nothing' | 'world' | 'away
 /**
  * A move the world cannot make, as a spawn's `LifecycleFault` is: thrown,
  * because the turn cannot do what it was asked and is about to be rolled
- * back, and turned by B34 into the world's `fault` passage. The detail
+ * back, and faulting the turn (`faults.ts`). The detail
  * names the object by its id, for the log and the host, never for a visitor.
  */
 export class MoveFault extends Error {

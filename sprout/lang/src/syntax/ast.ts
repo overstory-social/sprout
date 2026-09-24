@@ -10,6 +10,7 @@
 // in. `enum Ward { oak, oak }` reports at the second `oak`.
 
 import type { Node } from '../source/nodes.js';
+import type { GrammarDeclaration } from './ast-grammar.js';
 import type { VerbDeclaration } from './ast-verbs.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
 
@@ -702,7 +703,8 @@ export type KindMember =
   | PlayDeclaration
   | HandlerDeclaration
   | HookDeclaration
-  | PassDeclaration;
+  | PassDeclaration
+  | GrammarDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

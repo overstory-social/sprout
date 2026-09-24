@@ -3,9 +3,11 @@
 // declarations and their types, the checker, the closed bundle a
 // microworld compiles to, and the runtime's meter, values, range, ids,
 // state, stored and live, the evaluator a guard runs on, the move
-// through consent and the reading; and prose, rendered for each reader. It imports zod and nothing else (boundary.spec.ts
-// holds that line), so a host plugs it in and the language never learns
-// whose world it is running in.
+// through consent, the queue, the turns they all run in, and the parser
+// that reads a typed command; and prose, rendered for each reader. It
+// imports zod and nothing else (boundary.spec.ts holds that line), so a
+// host plugs it in and the language never learns whose world it is
+// running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -16,6 +18,7 @@ export * from './syntax/lexer.js';
 export * from './syntax/reserved.js';
 export * from './syntax/ast.js';
 export * from './syntax/ast-prose.js';
+export * from './syntax/ast-grammar.js';
 export * from './syntax/parse.js';
 
 export * from './declare/types.js';
@@ -30,6 +33,9 @@ export * from './declare/tree.js';
 export * from './declare/properties.js';
 export * from './declare/messages.js';
 export * from './declare/verbs.js';
+export * from './declare/addressing.js';
+export * from './declare/directions.js';
+export * from './declare/grammar.js';
 export * from './declare/world.js';
 
 export * from './check/bindings.js';
@@ -65,6 +71,16 @@ export * from './runtime/body.js';
 export * from './runtime/guards.js';
 export * from './runtime/move.js';
 export * from './runtime/reading.js';
+export * from './runtime/bus.js';
+export * from './runtime/faults.js';
+export * from './runtime/turn.js';
+export * from './runtime/command.js';
+export * from './runtime/parser.js';
+export type { Address } from './runtime/parser/address.js';
+export type { Answer, AnswerName, Choice } from './runtime/parser/answers.js';
+export type { CommandExit } from './runtime/parser/exits.js';
+export * from './runtime/time.js';
+export * from './runtime/tick.js';
 
 export * from './prose/names.js';
 export * from './prose/reflow.js';

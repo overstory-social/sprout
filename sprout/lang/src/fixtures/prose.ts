@@ -32,9 +32,10 @@ export const MILL: Bundle = compiledWorld('mill', {
     '  object yard is sprout.Place {',
     '    object press is Press',
     '    object brass_key is Key',
-    '    object oak_door is Plain',
+    '    object oak_door is Plain { grammar { article an } }',
     '    object crate is Crate {',
-    '      object apple is Plain',
+    '      grammar { article the }',
+    '      object apple is Plain { grammar { article an } }',
     '      object rib is Rib',
     '      object spare_rib is Rib',
     '    }',
@@ -128,7 +129,7 @@ export function proseTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets): Pro
       catalogue,
       budget: new Budget(budgets),
       passes: (container) => (container === draft.world ? WORLD_PASSES_ANYTHING : true),
-      nickname: (id) => (id === marta.id ? 'Marta' : null),
+      nicknames: new Map([[marta.id, 'Marta']]),
     },
   };
 }

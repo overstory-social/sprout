@@ -1,0 +1,4 @@
+// A kind may name every instance of it: each pebble is "a pebble".
+kind Pebble {
+  grammar { name "pebble" }
+}
