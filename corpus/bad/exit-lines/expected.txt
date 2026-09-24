@@ -13,7 +13,7 @@ world.sprout:13:48  An exit's `when` is followed by its condition in brackets.
 world.sprout:14:46  This exit's `when` says nothing inside its brackets.
                     Write the condition it applies under, as in `exit up "to the meadow" -> meadow when (self.get(:open))`, or leave `when` out.
 
-world.sprout:15:24  A link leads nowhere until the world connects it, so it names no place.
-                    Write `link down "down"`, and `connect down to …` where the place is made; or write an `exit` for a place written in source.
+world.sprout:15:25  A link leads nowhere until the world connects it, so it names no place.
+                    Write `link below "down"`, and `connect below to …` where the place is made; or write an `exit` for a place written in source.
 
 refused: 6 problems

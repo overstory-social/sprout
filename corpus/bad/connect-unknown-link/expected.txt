@@ -1,4 +1,4 @@
 cell.sprout:6:15  `Cell` has no link `down`, so there is nothing to connect.
-                  Connect one it has: `connect north to …`; or declare `link down "…"`.
+                  Connect one it has: `connect onward to …`.
 
 refused: 1 problem

@@ -104,10 +104,10 @@ describe('a deciding body only reads and decides', () => {
   });
 
   it('refuses a `connect`, which writes where a link leads', () => {
-    expect(check('connect north to self', GUARD)).toEqual([
+    expect(check('connect onward to self', GUARD)).toEqual([
       ['b.sprout:3:5', '`connect` writes where a link leads, and a guard only reads and decides.'],
     ]);
-    expect(check('connect north to self', PERMIT)[0]![1]).toBe(
+    expect(check('connect onward to self', PERMIT)[0]![1]).toBe(
       '`connect` writes where a link leads, and a `permit` only reads and decides.',
     );
   });
@@ -194,10 +194,10 @@ describe('a `do` acts', () => {
   });
 
   it('checks a `connect` as a statement, against the links `self` has', () => {
-    expect(check('connect north to self', DO)).toEqual([
-      ['b.sprout:3:13', '`Vessel` has no link `north`, so there is nothing to connect.'],
+    expect(check('connect onward to self', DO)).toEqual([
+      ['b.sprout:3:13', '`Vessel` has no link `onward`, so there is nothing to connect.'],
       [
-        'b.sprout:3:22',
+        'b.sprout:3:23',
         '`Vessel` does not hold actors, so nobody could stand where this link leads.',
       ],
     ]);
@@ -274,7 +274,7 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
 describe('a `describe` only reads, and gives its words with `text`', () => {
   const DESCRIBE: BodyKind = { body: 'describe' };
   const doing =
-    'self.set(:inked, true)\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    connect north to self\n    wake in 3 hours';
+    'self.set(:inked, true)\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    connect onward to self\n    wake in 3 hours';
 
   it('refuses everything that changes the world, naming the `describe`', () => {
     expect(check(doing, DESCRIBE).map(([, message]) => message)).toEqual([

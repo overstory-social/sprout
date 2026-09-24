@@ -107,6 +107,7 @@ export function resolveObjects(
                 name: next.written.name.text,
                 composes: next.written.composes,
                 members: next.written.members,
+                object: true,
               },
               { ...context, world: library },
             ),
