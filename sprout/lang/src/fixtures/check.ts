@@ -135,13 +135,15 @@ export const PRINTER = kind(
   true,
 );
 export const CONTAINER = kind('Container', [], [], true, 'sprout');
+/** `sprout.Place`, what `here` is where every place composes it. */
+export const PLACE = kind('Place', [], [], true, 'sprout', true);
 
 /** `sprout.World`, what every world composes. */
 export const SPROUT_WORLD = kind('World', [], [], true, 'sprout');
 /** The shop's own world, as its composed kind: what `self` is in the world's body. */
 export const SHOP = kind('Shop', [], ['sprout.World'], true);
 
-export const ALL = [KEY, WARDED, RIB, VESSEL, PRINTER, CONTAINER, SPROUT_WORLD, SHOP];
+export const ALL = [KEY, WARDED, RIB, VESSEL, PRINTER, CONTAINER, PLACE, SPROUT_WORLD, SHOP];
 export const KINDS: KindLookup = {
   qualified: (library, name) => ALL.find((k) => k.library === library && k.name === name) ?? null,
   unqualified: (name, from) => KINDS.qualified(from, name) ?? KINDS.qualified('sprout', name),
@@ -155,7 +157,7 @@ export function bodyOf(selfKind: KindRef, ...extra: Binding[]): CheckContext {
   for (const binding of [
     selfBinding(selfKind, at('self')),
     actorBinding(PRINTER, at('actor')),
-    hereBinding(at('here')),
+    hereBinding({ place: PLACE, unlike: null }, at('here')),
     ...extra,
   ]) {
     scope.introduce(binding, setting);

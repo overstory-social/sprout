@@ -180,7 +180,7 @@ describe('words in quotes are held to the host’s cap on a literal line', () =>
     }
   });
 
-  it('does not hold `refuse` to it', () => {
+  it('holds `refuse` to it, and keeps the words', () => {
     const diagnostics = new Diagnostics();
     const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 3 };
     const p = new Parser(
@@ -190,7 +190,30 @@ describe('words in quotes are held to the host’s cap on a literal line', () =>
       caps,
     );
     const keyword = p.next();
-    expect(refusal(p, keyword, onItsOwn())).toMatchObject({ kind: 'prose-literal' });
+    expect(refusal(p, keyword, onItsOwn())).toMatchObject({
+      kind: 'prose-literal',
+      value: 'No room here.',
+    });
+    expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'body.sprout:1:8',
+        'This line is 13 characters long, and 3 is as long as a `refuse` in quotes may be.',
+        'Put the words in a passage, which has no length cap of its own, and say it by name, as in `refuse greeting`.',
+      ],
+    ]);
+  });
+
+  it('holds `refuse` to it no more than to the cap: a line as long as the cap stands', () => {
+    const diagnostics = new Diagnostics();
+    const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 13 };
+    const p = new Parser(
+      new SourceFile('body.sprout', 'refuse "No room here." refuse full'),
+      diagnostics,
+      DECLARATION_READERS,
+      caps,
+    );
+    expect(refusal(p, p.next(), onItsOwn())).toMatchObject({ kind: 'prose-literal' });
+    expect(refusal(p, p.next(), onItsOwn())).toMatchObject({ kind: 'ident', text: 'full' });
     expect(diagnostics.refusals).toEqual([]);
   });
 });

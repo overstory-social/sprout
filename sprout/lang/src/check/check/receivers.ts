@@ -27,7 +27,7 @@ export function receiverKind(
     context.diagnostics.refuse(
       at,
       `Sprout does not know what this is, so it cannot ${doing} it.`,
-      'Narrow it first, as in `if (thing.is(Key)) { … }`.',
+      type.remedy ?? 'Narrow it first, as in `if (thing.is(Key)) { … }`.',
     );
     return null;
   }
@@ -179,7 +179,7 @@ export function container(type: BindingType, at: Span, context: CheckContext): b
     context.diagnostics.refuse(
       at,
       'Sprout does not know whether this holds anything.',
-      'Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
+      type.remedy ?? 'Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
     );
     return false;
   }

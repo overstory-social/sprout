@@ -7,6 +7,7 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable } from '../declare/kinds.js';
+import { hereKindOf } from '../declare/places.js';
 import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkPlay } from './roles.js';
@@ -63,11 +64,12 @@ function checked(text: string): string[][] {
   ).toEqual([]);
 
   const diagnostics = new Diagnostics();
+  const here = hereKindOf(kinds.all(), kinds);
   for (const kind of kinds.all()) {
     for (const plays of kind.plays.values()) {
       for (const play of plays) {
         if (play.origin === `${kind.library}.${kind.name}`) {
-          checkPlay(play, kind, { kinds, verbs, diagnostics });
+          checkPlay(play, kind, { kinds, here, verbs, diagnostics });
         }
       }
     }

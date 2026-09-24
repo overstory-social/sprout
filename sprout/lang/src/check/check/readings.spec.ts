@@ -48,9 +48,15 @@ describe('what the compiler checks — the table, row by row', () => {
 
   it('`x.get(:p)` — `x` is not of object type', () => {
     const open = vessel();
-    const refused = read('here.get(:capacity)', open);
+    const refused = read('target.get(:capacity)', open);
     expect(refused.type).toBeNull();
     expect(refused.said.join(' ')).toContain('Narrow it first');
+  });
+
+  it('reads `here` as `sprout.Place`, which holds things and declares no property of its own', () => {
+    expect(shapeOf('here.count', vessel())).toBe('integer');
+    const refused = read('here.get(:capacity)', vessel());
+    expect(refused.said).toEqual(['`sprout.Place` has no `:capacity`. It has nothing.']);
   });
 
   it('`x.recall(:p)` — `x` composes `sprout.Actor`, `p` in `self`’s `remembers` block', () => {

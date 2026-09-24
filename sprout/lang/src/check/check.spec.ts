@@ -80,7 +80,7 @@ describe('only `self` writes `self`', () => {
 
 describe('`is()` is the only read through the object type', () => {
   it('refuses every other reading of an unnarrowed object, saying to narrow it', () => {
-    for (const text of ['here.get(:capacity)', 'here.count', 'here.recall(:visits)']) {
+    for (const text of ['target.get(:capacity)', 'target.count', 'target.recall(:visits)']) {
       const context = vessel();
       expect(read(text, context).type, text).toBeNull();
       expect(context.diagnostics.refusals.map((d) => d.remedy).join(' '), text).toContain('is(');
