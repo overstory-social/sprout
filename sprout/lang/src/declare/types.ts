@@ -22,7 +22,7 @@
 import type { Literal, TypeExpr } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { DeclaredEnum, EnumTable } from './enums.js';
-import { checkOption } from './enums.js';
+import { checkOption, nearestOption } from './enums.js';
 import {
   namesExtension,
   readLiteral,
@@ -266,19 +266,23 @@ export function typeOfLiteral(literal: Literal, diagnostics: Diagnostics): Value
   }
 }
 
-/** Whether a literal is a value of this type, refusing at the literal when it is not. */
+/**
+ * Whether a literal is a value of this type, refusing at the literal when
+ * it is not; `holder` begins the refusal, as `` `:door` holds `` does.
+ */
 export function checkLiteral(
   expected: ValueType,
   literal: Literal,
   diagnostics: Diagnostics,
+  holder = 'This holds',
 ): boolean {
   switch (expected.type) {
     case 'boolean':
-      return want(expected, literal, literal.kind === 'boolean', diagnostics);
+      return want(expected, literal, literal.kind === 'boolean', diagnostics, holder);
     case 'string':
-      return want(expected, literal, literal.kind === 'string', diagnostics);
+      return want(expected, literal, literal.kind === 'string', diagnostics, holder);
     case 'integer': {
-      if (!want(expected, literal, literal.kind === 'integer', diagnostics)) return false;
+      if (!want(expected, literal, literal.kind === 'integer', diagnostics, holder)) return false;
       const value = (literal as { value: number }).value;
       if (value < expected.min || value > expected.max) {
         diagnostics.refuse(
@@ -291,12 +295,14 @@ export function checkLiteral(
       return true;
     }
     case 'symbol': {
-      if (!want(expected, literal, literal.kind === 'option-literal', diagnostics)) return false;
+      if (!want(expected, literal, literal.kind === 'option-literal', diagnostics, holder))
+        return false;
       const option = literal as { name: { text: string } };
       return checkOption(expected.of, option.name.text, literal.at, diagnostics);
     }
     case 'list': {
-      if (!want(expected, literal, literal.kind === 'list-literal', diagnostics)) return false;
+      if (!want(expected, literal, literal.kind === 'list-literal', diagnostics, holder))
+        return false;
       const list = literal as { elements: readonly Literal[] };
       let ok = true;
       const seen = new Set<string>();
@@ -320,7 +326,7 @@ export function checkLiteral(
       return ok;
     }
     case 'extension': {
-      if (!want(expected, literal, literal.kind === 'string', diagnostics)) return false;
+      if (!want(expected, literal, literal.kind === 'string', diagnostics, holder)) return false;
       // An absent extension cannot read its literal, which is held as written.
       if (expected.definition === null) return true;
       const text = (literal as { value: string }).value;
@@ -354,42 +360,88 @@ function want(
   literal: Literal,
   matched: boolean,
   diagnostics: Diagnostics,
+  holder: string,
 ): boolean {
   if (matched) return true;
   diagnostics.refuse(
     literal.at,
-    `This holds ${showType(expected)}, and ${describeLiteral(literal)} is not one.`,
-    remedyFor(expected),
+    `${holder} ${describeType(expected)}, and ${describeLiteral(literal)}.`,
+    remedyFor(expected, literal.kind === 'string' ? literal.value : null, 'declared'),
   );
   return false;
 }
 
-/** A literal as a person would describe it. */
-export function describeLiteral(literal: Literal): string {
-  switch (literal.kind) {
+/**
+ * What a value of `type` is, as a sentence for an author says it: `true
+ * or false`, `one of open, closed`, `a whole number from 0 to 9`.
+ */
+export function describeType(type: ValueType): string {
+  switch (type.type) {
     case 'boolean':
-      return `\`${literal.value}\``;
+      return 'true or false';
     case 'integer':
-      return `the number ${literal.value}`;
+      return type.min === INTEGER_MIN && type.max === INTEGER_MAX
+        ? 'a whole number'
+        : `a whole number from ${type.min} to ${type.max}`;
     case 'string':
-      return 'text in quotes';
-    case 'option-literal':
-      return `\`${literal.name.text}\``;
-    case 'list-literal':
-      return 'a list';
+      return 'text';
+    case 'symbol':
+      return `one of ${type.of.options.join(', ')}`;
+    case 'list':
+      return `a list of ${showType(type.element)}`;
+    case 'extension':
+      return `\`${type.extension}.${type.name}\``;
   }
 }
 
-function remedyFor(expected: ValueType): string {
+/** A literal as written, and what it is: `"closed" is text in quotes`, `4 is a number`. */
+export function describeLiteral(literal: Literal): string {
+  switch (literal.kind) {
+    case 'boolean':
+      return `\`${literal.value}\` is true or false`;
+    case 'integer':
+      return `${literal.value} is a number`;
+    case 'string':
+      return `${JSON.stringify(literal.value)} is text in quotes`;
+    case 'option-literal':
+      return `\`${literal.name.text}\` is an option`;
+    case 'list-literal':
+      return 'this is a list';
+  }
+}
+
+/**
+ * What to write instead of a value that is not `expected`: in a
+ * declaration, where an option is written bare, or in an expression,
+ * where it takes its colon. Text in quotes that names an option, or
+ * nearly, is answered with that option.
+ */
+export function remedyFor(
+  expected: ValueType,
+  quoted: string | null,
+  where: 'declared' | 'expression',
+): string {
   switch (expected.type) {
     case 'boolean':
-      return 'Write `true` or `false`.';
+      return where === 'declared'
+        ? 'Write `true` or `false`.'
+        : 'Write `true` or `false`, or a condition, as in `self.get(:open)`.';
     case 'integer':
-      return `Write a whole number from ${expected.min} to ${expected.max}.`;
+      return expected.min === INTEGER_MIN && expected.max === INTEGER_MAX
+        ? 'Write a whole number, as in `1`.'
+        : `Write a whole number from ${expected.min} to ${expected.max}.`;
     case 'string':
       return 'Write text in quotes, as in `"a line"`.';
-    case 'symbol':
-      return `Write one of: ${expected.of.options.join(', ')}.`;
+    case 'symbol': {
+      const { options } = expected.of;
+      const meant =
+        quoted === null ? null : options.includes(quoted) ? quoted : nearestOption(quoted, options);
+      const colon = where === 'declared' ? '' : ':';
+      if (meant !== null) return `Write \`${colon}${meant}\`, without quotes.`;
+      return where === 'declared'
+        ? `Write one of: ${options.join(', ')}.`
+        : `Write an option, as in \`:${options[0] ?? 'option'}\`. Options: ${options.join(', ')}.`;
+    }
     case 'list':
       return `Write a list in brackets, as in \`[…]\`, holding ${showType(expected.element)}.`;
     case 'extension':

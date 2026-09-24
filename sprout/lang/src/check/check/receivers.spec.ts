@@ -55,7 +55,7 @@ describe('a receiver’s kind', () => {
     expect(declaredOn(KEY, word(':wear'), context)).toBe(KEY.properties.get('wear'));
     expect(declaredOn(KEY, word(':waer'), context)).toBeNull();
     expect(saidBy(context)).toEqual([
-      '`shop.Key` has no `:waer`. Did you mean `:wear`? It has `:wear` and `:opens`.',
+      '`Key` has no `:waer`. Did you mean `:wear`? It has `:wear` and `:opens`: name one of those, or declare `:waer` in `Key` with its default.',
     ]);
   });
 
@@ -71,9 +71,9 @@ describe('a receiver’s kind', () => {
     expect(declaredOn(actor, word(':handled'), context, 'actor')).toBeNull();
     expect(saidBy(context)).toEqual([
       "`sprout.Container` has no `:inked`. `:inked` is a `Vessel`'s. Read it as one first: `if (target.is(Vessel)) { … target.get(:inked) … }`.",
-      '`sprout.Container` has no `:lid`. It has nothing.',
-      '`sprout.Container` has no `:inked`. It has nothing.',
-      '`sprout.Actor` has no `:handled`. It has nothing.',
+      '`sprout.Container` has no `:lid`. It holds no properties.',
+      '`sprout.Container` has no `:inked`. It holds no properties.',
+      '`sprout.Actor` has no `:handled`. It holds no properties.',
     ]);
   });
 
@@ -150,7 +150,7 @@ describe('what a receiver holds, asked directly', () => {
     expect(countable(objectOf(VESSEL), at('self'), context)).toBe(true);
     expect(countable(objectOf(KEY), at('tool'), context)).toBe(false);
     expect(saidBy(context)).toEqual([
-      '`shop.Key` holds nothing, so there is nothing to count. Containment is a declaration: a kind that holds things writes `contains`.',
+      '`Key` holds nothing, so there is nothing to count. Write `contains` in the body of `Key` to let it hold things, or count something that does.',
     ]);
   });
 

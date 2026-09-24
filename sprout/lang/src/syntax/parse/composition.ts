@@ -113,7 +113,7 @@ export function kindName(p: Parser): KindExpr | null {
   }
   p.diagnostics.refuse(
     first.at,
-    `${p.describe(first)} is not the name of a kind.`,
+    `${p.subject(first, true)} is not the name of a kind.`,
     'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
   );
   return null;

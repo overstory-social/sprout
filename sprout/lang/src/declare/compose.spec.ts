@@ -511,7 +511,7 @@ describe('what a composition list may not name', () => {
   it('refuses the same kind twice, at the second', () => {
     const { said } = compose('kind Box { }\nkind Crate is Box, Box { }');
     expect(said).toEqual([
-      ['shop.sprout:2:20', '`Crate` composes `Box` twice.', 'Compose it once.'],
+      ['shop.sprout:2:20', '`Crate` composes `Box` twice.', 'Take this `Box` out: once is enough.'],
     ]);
   });
 
@@ -521,10 +521,18 @@ describe('what a composition list may not name', () => {
     const unknown = compose('kind Crate is Wodden, Wodden { }');
     expect(unknown.unknown).toHaveLength(1);
     expect(unknown.said).toEqual([
-      ['shop.sprout:1:23', '`Crate` composes `Wodden` twice.', 'Compose it once.'],
+      [
+        'shop.sprout:1:23',
+        '`Crate` composes `Wodden` twice.',
+        'Take this `Wodden` out: once is enough.',
+      ],
     ]);
     expect(compose('kind Crate is sprout.Container, sprout.Container { }').said).toEqual([
-      ['shop.sprout:1:33', '`Crate` composes `sprout.Container` twice.', 'Compose it once.'],
+      [
+        'shop.sprout:1:33',
+        '`Crate` composes `sprout.Container` twice.',
+        'Take this `sprout.Container` out: once is enough.',
+      ],
     ]);
   });
 

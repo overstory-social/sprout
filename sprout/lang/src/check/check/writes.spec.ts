@@ -70,7 +70,9 @@ describe('what the compiler checks — the table, row by row', () => {
 
     const wrong = warded();
     expect(effect('self.add(:grid, self.get(:ward))', wrong)).toBe(false);
-    expect(wrong.diagnostics.refusals[0]!.message).toBe('This holds [Ward], and Ward is not one.');
+    expect(wrong.diagnostics.refusals[0]!.message).toBe(
+      'This holds a list of Ward, and this is an option of Ward.',
+    );
   });
 
   it('`x.remember(:p, e)` — the same rule, and the same refusal', () => {
@@ -184,7 +186,7 @@ describe('the writes, asked directly', () => {
       wholeNumber(inked, word(':inked'), call('self.adjust(:inked, 1)').arguments[1]!, context),
     ).toBe(false);
     expect(saidBy(context)).toEqual([
-      'This holds integer, and boolean is not one. Write something of that type.',
+      'This holds a whole number, and `true` is true or false. Write a whole number, as in `1`.',
       '`adjust` steps a number, and `:inked` holds boolean. Write it with `set` instead.',
     ]);
   });

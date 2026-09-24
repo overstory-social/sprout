@@ -1,4 +1,4 @@
 chest.sprout:3:23  `Chest` composes `Wooden` twice.
-                   Compose it once.
+                   Take this `Wooden` out: once is enough.
 
 refused: 1 problem

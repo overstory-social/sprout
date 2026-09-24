@@ -180,7 +180,7 @@ describe('a loop walks contents, a kind among them, a list or a set', () => {
   it('refuses a walk of contents over what holds nothing, or might not, or is no thing', () => {
     expect(checked('{for t in actor}{t}{/for}', warded()).said).toEqual([]);
     expect(checked('{for t in self}{t}{/for}', warded()).said).toEqual([
-      '`Warded` holds nothing, so there is nothing to walk. Containment is a declaration: a kind that holds things writes `contains`.',
+      '`Warded` holds nothing, so there is nothing to walk. Write `contains` in the body of `Warded` to let it hold things, or walk something that does.',
     ]);
     expect(checked('{for t in target}{t}{/for}', vessel()).said).toEqual([
       'Sprout does not know whether this holds anything. Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',

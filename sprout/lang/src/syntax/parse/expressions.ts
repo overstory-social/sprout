@@ -245,7 +245,7 @@ function primary(p: Parser): Expr | null {
 
   p.diagnostics.refuse(
     token.at,
-    `${p.describe(token)} is not something to read.`,
+    `${p.subject(token, true)} is not something to read.`,
     'Write a value, a name something in scope answers to, or a reading such as `self.get(:wear)`.',
   );
   return null;

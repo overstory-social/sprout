@@ -1,0 +1,3 @@
+kind Guard {
+  as target for quiz { do { say "The guard shrugs." } }
+}

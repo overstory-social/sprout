@@ -106,7 +106,7 @@ export function typeExpr(p: Parser): TypeExpr | null {
   }
   p.diagnostics.refuse(
     first.at,
-    `${p.describe(first)} is not a type.`,
+    `${p.subject(first, true)} is not a type.`,
     'Write `boolean`, `integer`, `string`, the name of an enum, or `[…]` for a list of those.',
   );
   return null;
@@ -191,7 +191,7 @@ export function literal(p: Parser): Literal | null {
   }
   p.diagnostics.refuse(
     token.at,
-    `${p.describe(token)} is not a value.`,
+    `${p.subject(token, true)} is not a value.`,
     'Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.',
   );
   return null;

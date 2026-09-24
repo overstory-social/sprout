@@ -269,12 +269,17 @@ describe('`spawn` makes a kind in something that holds things', () => {
   });
 
   it('refuses a container whose kind holds nothing', () => {
-    const remedy = 'Containment is a declaration: a kind that holds things writes `contains`.';
+    const remedy = (kind: string) =>
+      `Write \`contains\` in the body of \`${kind}\` to let it hold things, or name something that does.`;
     expect(spawned('spawn Rib in tool', warded()).said).toEqual([
-      ['b.sprout:1:14', '`shop.Key` holds nothing, so nothing can be spawned in it.', remedy],
+      ['b.sprout:1:14', '`Key` holds nothing, so nothing can be spawned in it.', remedy('Key')],
     ]);
     expect(spawned('spawn Rib in self', warded()).said).toEqual([
-      ['b.sprout:1:14', '`shop.Warded` holds nothing, so nothing can be spawned in it.', remedy],
+      [
+        'b.sprout:1:14',
+        '`Warded` holds nothing, so nothing can be spawned in it.',
+        remedy('Warded'),
+      ],
     ]);
   });
 
@@ -413,8 +418,8 @@ describe('`move` moves one thing into something that holds things', () => {
     expect(moved('move actor to self', warded()).said).toEqual([
       [
         'b.sprout:1:15',
-        '`shop.Warded` holds nothing, so nothing can be moved into it.',
-        'Containment is a declaration: a kind that holds things writes `contains`.',
+        '`Warded` holds nothing, so nothing can be moved into it.',
+        'Write `contains` in the body of `Warded` to let it hold things, or name something that does.',
       ],
     ]);
   });

@@ -1,4 +1,4 @@
-lamp.sprout:2:53  This holds boolean, and integer is not one.
-                  Write something of that type.
+lamp.sprout:2:53  `:illuminating` carries true or false, and 1 is a number.
+                  Write `true` or `false`, or a condition, as in `self.get(:open)`.
 
 refused: 1 problem

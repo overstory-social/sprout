@@ -1,4 +1,4 @@
-panel.sprout:3:23  `move_to_holds_nothing.Button` holds nothing, so nothing can be moved into it.
-                   Containment is a declaration: a kind that holds things writes `contains`.
+panel.sprout:3:23  `Button` holds nothing, so nothing can be moved into it.
+                   Write `contains` in the body of `Button` to let it hold things, or name something that does.
 
 refused: 1 problem

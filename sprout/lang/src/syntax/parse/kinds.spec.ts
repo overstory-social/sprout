@@ -246,7 +246,7 @@ describe('what is refused, where, and what the author is told to write', () => {
     expect(said('kind Crate is 4 { }')).toEqual([
       [
         'k.sprout:1:15',
-        'the number 4 is not the name of a kind.',
+        'The number 4 is not the name of a kind.',
         'A kind starts with a capital letter, as in `Creature` or `sprout.Container`.',
       ],
     ]);

@@ -2,7 +2,8 @@
 
 Worlds `sprout check` is run over in the gate (`npm run check`,
 `scripts/check-corpus.mjs`). Everything under `good/` passes with no
-problems; everything under `bad/` fails, and each `bad/<name>/expected.txt`
+refusals, and a `good/<name>/expected.txt` pins the page of one that
+warns; everything under `bad/` fails, and each `bad/<name>/expected.txt`
 is the exact page the compiler prints for it, so the compiler's words to an
 author cannot drift without a test noticing. `node scripts/check-corpus.mjs
 --write` regenerates the pages; the diff is reviewed like any other change.

@@ -56,7 +56,7 @@ describe('what the compiler checks — the table, row by row', () => {
   it('reads `here` as `sprout.Place`, which holds things and declares no property of its own', () => {
     expect(shapeOf('here.count', vessel())).toBe('integer');
     const refused = read('here.get(:capacity)', vessel());
-    expect(refused.said).toEqual(['`sprout.Place` has no `:capacity`. It has nothing.']);
+    expect(refused.said).toEqual(['`sprout.Place` has no `:capacity`. It holds no properties.']);
   });
 
   it('`x.recall(:p)` — `x` composes `sprout.Actor`, `p` in `self`’s `remembers` block', () => {
@@ -120,7 +120,9 @@ describe('what the compiler checks — the table, row by row', () => {
 
     const wrong = warded();
     expect(read('self.get(:grid).includes(self.get(:ward))', wrong).type).toBeNull();
-    expect(saidBy(wrong).join(' ')).toContain('This holds [Ward], and Ward is not one.');
+    expect(saidBy(wrong).join(' ')).toContain(
+      'This holds a list of Ward, and this is an option of Ward.',
+    );
   });
 
   it('`x.count`, `x.count(K)` — `x` a container or a set role', () => {
@@ -264,7 +266,7 @@ describe('the readings, asked directly', () => {
 
     expect(context.diagnostics.refusals.map((d) => d.message)).toEqual([
       '`is` asks what a thing is, and this is boolean.',
-      '`shop.Key` holds nothing, so there is nothing to count.',
+      '`Key` holds nothing, so there is nothing to count.',
       '`includes` asks what a list or a set holds, and this is shop.Vessel.',
     ]);
   });

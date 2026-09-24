@@ -210,7 +210,11 @@ describe('`act` in a body whose kind composes `sprout.Actor`', () => {
       ],
     ]);
     expect(checked('act nuzzle (target: stone, target: door)').said).toEqual([
-      ['b.sprout:1:28', '`target` is named twice in `act nuzzle (…)`.', 'Name each role once.'],
+      [
+        'b.sprout:1:28',
+        '`target` is named twice in `act nuzzle (…)`.',
+        'Take this `target: …` out, and give the role one thing to fill it.',
+      ],
     ]);
   });
 

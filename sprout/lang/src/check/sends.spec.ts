@@ -82,7 +82,7 @@ describe('a send', () => {
       '`:gust` carries no value. Take `with …` off, as in `send self :gust`, or declare the value with `message :gust with <type>`.',
     ]);
     expect(checked('send self :illuminating').said).toEqual([
-      '`:illuminating` carries boolean, and `send self :illuminating` gives it none. Write `send self :illuminating with <value>`, the value it carries.',
+      '`:illuminating` carries true or false, and `send self :illuminating` gives it none. Write `send self :illuminating with <value>`, the value it carries.',
     ]);
     expect(checked('send self :illuminating with 1').said).toHaveLength(1);
   });
@@ -92,7 +92,7 @@ describe('a broadcast', () => {
   it('names a declared message and gives what it carries', () => {
     expect(checked('broadcast :illuminating with false').said).toEqual([]);
     expect(checked('broadcast :pong').said).toEqual([
-      '`:pong` carries integer, and `broadcast :pong` gives it none. Write `broadcast :pong with <value>`, the value it carries.',
+      '`:pong` carries a whole number, and `broadcast :pong` gives it none. Write `broadcast :pong with <value>`, the value it carries.',
     ]);
   });
 });

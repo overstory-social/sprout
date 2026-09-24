@@ -31,6 +31,7 @@ import {
   type BindingType,
 } from './bindings.js';
 import { kindName, type KindRef } from '../declare/kinds.js';
+import { shownName } from '../declare/enums.js';
 import { WORLD } from '../declare/sprout-world.js';
 import { writtenKind } from '../declare/compose.js';
 import { aVisitorMade, isVisitorKind } from '../declare/actors.js';
@@ -200,10 +201,11 @@ function checkContainer(path: ObjectPath, context: CheckContext, going: Going): 
     return false;
   }
   if (type.kind === null || type.kind.contains) return true;
+  const shown = shownName(kindName(type.kind), context.from);
   context.diagnostics.refuse(
     path.at,
-    `\`${kindName(type.kind)}\` holds nothing, so nothing can be ${going.into} it.`,
-    'Containment is a declaration: a kind that holds things writes `contains`.',
+    `\`${shown}\` holds nothing, so nothing can be ${going.into} it.`,
+    `Write \`contains\` in the body of \`${shown}\` to let it hold things, or name something that does.`,
   );
   return false;
 }

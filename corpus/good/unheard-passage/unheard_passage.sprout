@@ -1,0 +1,21 @@
+// A passage on an object or the world that nothing says, and that
+// replaces no line of what it is made of, is most often a misspelt
+// override: the world's `nothing_happen` replaces no stock line, so the
+// stock `nothing_happens` is still what a visitor reads. Each is warned
+// about at its name, and the world still runs.
+world unheard_passage is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  passage nothing_happen { Nothing stirs in the old shop. }
+
+  object hall is sprout.Place {
+    // Replaces the stock line a place says when someone arrives: not warned.
+    passage arrives { {item} comes in out of the rain. }
+
+    object mirror is Mirror {
+      // Said by nothing, and the mirror has no `aside` to replace.
+      passage aside { The glass keeps its own counsel. }
+    }
+  }
+}

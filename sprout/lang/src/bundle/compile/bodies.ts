@@ -27,6 +27,7 @@ import type { Span } from '../../source/source.js';
 import { checkPassages } from '../../check/passages.js';
 import { PassageSites } from '../../check/speech.js';
 import type { PinnedExtensions } from '../../declare/extensions.js';
+import type { ResolvedPassage } from '../../declare/passages.js';
 
 /** What every body is checked against: the kinds, verbs and messages, and where names resolve. */
 export interface BodySetting {
@@ -59,12 +60,19 @@ export interface Written {
   readonly vantage: Vantage;
 }
 
+/** What checking the bodies gives back. */
+export interface BodiesChecked {
+  /** The slots that render an option, which the runtime humanises. */
+  readonly optionSlots: ReadonlySet<Node>;
+  /** The passages nothing says, renders or has the engine say. */
+  readonly unheard: ReadonlySet<ResolvedPassage>;
+}
+
 /**
  * Check every body each of `composed` wrote itself, against it, its names
- * resolved from its vantage, then every passage; give back the slots that
- * render an option, which the runtime humanises.
+ * resolved from its vantage, then every passage.
  */
-export function checkBodies(composed: readonly Written[], base: BodySetting): ReadonlySet<Node> {
+export function checkBodies(composed: readonly Written[], base: BodySetting): BodiesChecked {
   const sites = new PassageSites();
   const speech = {
     sites,
@@ -116,12 +124,12 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Re
       });
     }
   }
-  checkPassages({
+  const unheard = checkPassages({
     speakers: composed.map(({ kind, vantage }) => ({ kind, names: namesOf(vantage) })),
     kinds: base.kinds,
     here: base.here,
     diagnostics: base.diagnostics,
     sites,
   });
-  return sites.options;
+  return { optionSlots: sites.options, unheard };
 }

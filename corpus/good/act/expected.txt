@@ -1,0 +1,4 @@
+acting.sprout:19:6  Nothing that takes part in `play` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.
+                    Say what happens in a role's `do`, as in `as target for play { do { say "…" } }`.
+
+ok: 16 declarations in 5 files, 1 warning

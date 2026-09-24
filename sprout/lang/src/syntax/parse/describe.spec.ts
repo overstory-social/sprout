@@ -79,7 +79,7 @@ group('a describe', () => {
   it('keeps the statements that read around one that did not', () => {
     const { described, said } = readDescribe('describe { text "A." 4 text "B." }');
     expect(said.map(([, message]) => message)).toEqual([
-      'the number 4 does not start a statement this compiler reads.',
+      'The number 4 does not start a statement this compiler reads.',
     ]);
     expect(described!.body.statements.map((s) => s.kind)).toEqual(['text', 'text']);
   });

@@ -46,7 +46,7 @@ function checking(text: string) {
     'the fixture composes',
   ).toEqual([]);
   const diagnostics = new Diagnostics();
-  const options = checkBodies(
+  const { optionSlots: options } = checkBodies(
     kinds.all().map((kind) => ({
       kind,
       vantage: { in: 'kind' as const, giver: kindName(kind), path: [], self: kind },

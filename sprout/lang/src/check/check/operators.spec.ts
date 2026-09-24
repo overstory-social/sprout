@@ -46,7 +46,7 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(shapeOf('self.get(:capacity) != 4')).toBe('boolean');
     const mixed = read('self.get(:inked) == 4', vessel());
     expect(mixed.type).toBeNull();
-    expect(mixed.said.join(' ')).toContain('compares boolean with integer');
+    expect(mixed.said.join(' ')).toContain('`:inked` holds true or false, and 4 is a number.');
   });
 
   it('`a == b`, `a != b` — not a list, refused at the left list', () => {
@@ -78,16 +78,18 @@ describe('what the compiler checks — the table, row by row', () => {
     // "compares X with Y" mismatch, at the whole comparison.
     const withInteger = read('self.get(:row) == 4', warded());
     expect(withInteger.type).toBeNull();
-    expect(withInteger.said.join(' ')).toContain('This compares [Ward] with integer.');
+    expect(withInteger.said.join(' ')).toContain(
+      'This compares a list of Ward with a whole number,',
+    );
     expect(locationOf(withInteger.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:1');
 
     const withObject = read('self.get(:row) == tool', warded());
     expect(withObject.type).toBeNull();
-    expect(withObject.said.join(' ')).toContain('This compares [Ward] with shop.Key.');
+    expect(withObject.said.join(' ')).toContain('This compares a list of Ward with shop.Key,');
 
     const withString = read('self.get(:row) == self.get(:note)', warded());
     expect(withString.type).toBeNull();
-    expect(withString.said.join(' ')).toContain('This compares [Ward] with string.');
+    expect(withString.said.join(' ')).toContain('This compares a list of Ward with text,');
 
     // Exactly one refusal per comparison, not the list message too.
     for (const result of [withInteger, withObject, withString]) {
@@ -185,7 +187,27 @@ describe('what the compiler checks — the table, row by row', () => {
     const mixed = read('"a" == 12', vessel());
     expect(mixed.type).toBeNull();
     expect(mixed.diagnostics.refusals).toHaveLength(1);
-    expect(mixed.said.join(' ')).toContain('This compares string with integer.');
+    expect(mixed.said.join(' ')).toContain('This compares text with a whole number,');
+  });
+
+  it('`a == b` — a literal of the wrong type is refused at the literal, with what to write', () => {
+    const quoted = read('self.get(:ward) == "silver"', warded());
+    expect(quoted.type).toBeNull();
+    expect(quoted.said).toEqual([
+      '`:ward` holds one of oak, silver, and "silver" is text in quotes. Write `:silver`, without quotes.',
+    ]);
+    expect(locationOf(quoted.diagnostics.refusals[0]!.at)).toBe('b.sprout:1:20');
+    // Either side: the literal is what is rewritten.
+    const first = read('4 == self.get(:ward)', warded());
+    expect(first.said[0]).toContain('`:ward` holds one of oak, silver, and 4 is a number.');
+  });
+
+  it('`a == b` — an option written without its colon is answered with the colon', () => {
+    const bare = read('self.get(:ward) == oak', warded());
+    expect(bare.type).toBeNull();
+    expect(bare.said).toEqual([
+      '`oak` is an option of `Ward`, and an option is written with its colon here. Write `:oak`.',
+    ]);
   });
 
   it('`< <= > >=` — an integer literal outside the other operand’s range is always decided', () => {
