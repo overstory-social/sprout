@@ -58,7 +58,14 @@ describe('a poll is a turn with its own step budget', () => {
   });
 
   it('budgets every other kind of turn as a turn', () => {
-    for (const kind of ['command', 'tick', 'wake', 'maintenance'] as const) {
+    for (const kind of [
+      'command',
+      'tick',
+      'wake',
+      'maintenance',
+      'arrival',
+      'departure',
+    ] as const) {
       expect(new Budget(budgets, kind).allowedSteps).toBe(budgets.steps);
     }
   });

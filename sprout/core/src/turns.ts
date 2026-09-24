@@ -1,6 +1,14 @@
 import {
+  arrivalTurn,
+  closedByBundle,
   commandTurn,
+  departureTurn,
   loadWorld,
+  NOT_ADMITTING,
+  type Arrival,
+  type ArrivalTurn,
+  type Departure,
+  type DepartureTurn,
   maintenanceTurn,
   pollTurn,
   tickTurn,
@@ -112,10 +120,9 @@ export function runWake(
 }
 
 /**
- * Run catch-up as one maintenance turn on `microworldId`, under its lock,
- * before an arriving visitor is admitted. It writes what it kept, a fault
- * included, and the host admits the visitor once it resolves, whatever it
- * did (B42 admits).
+ * Run catch-up as one maintenance turn on `microworldId`, under its lock.
+ * It writes what it kept, a fault included; `runArrival` runs it before
+ * an arriving visitor is admitted, whatever it did.
  */
 export function runMaintenance(
   store: SproutStore,
@@ -126,6 +133,59 @@ export function runMaintenance(
   return store.transaction(microworldId, async (tx) => {
     const turn = maintenanceTurn(loaded(await tx.state(), host), host, inputs);
     await tx.putState(turn.changes);
+    return turn;
+  });
+}
+
+/** What admitting one visitor did: the catch-up run first, null where the world admits no one, and the arrival. */
+export interface Admission {
+  readonly caughtUp: Committed<CaughtUp> | null;
+  readonly arrived: ArrivalTurn;
+}
+
+/**
+ * Admit `arrival`'s visitor to `microworldId`: catch-up as a maintenance
+ * turn at `catchUp`, committed first, so nobody walks into a place about
+ * to rearrange itself, then the arrival as a turn of its own (the spec's
+ * The host contract › Time, Admission and identity). A world whose bundle
+ * admits no one runs no catch-up for it.
+ */
+export async function runArrival(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+  catchUp: WriteInputs,
+  arrival: Arrival,
+): Promise<Admission> {
+  const reason = closedByBundle(host.catalogue);
+  if (reason !== null) {
+    return {
+      caughtUp: null,
+      arrived: { committed: false, closed: { reason, words: NOT_ADMITTING } },
+    };
+  }
+  const caughtUp = await runMaintenance(store, microworldId, host, catchUp);
+  const arrived = await store.transaction(microworldId, async (tx) => {
+    const turn = arrivalTurn(loaded(await tx.state(), host), host, arrival);
+    if (turn.committed) await tx.putState(turn.changes);
+    return turn;
+  });
+  return { caughtUp, arrived };
+}
+
+/**
+ * Run `departure` as one departure turn on `microworldId`, under its
+ * lock. A departure that faulted writes the visitor gone away quietly.
+ */
+export function runDeparture(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+  departure: Departure,
+): Promise<DepartureTurn> {
+  return store.transaction(microworldId, async (tx) => {
+    const turn = departureTurn(loaded(await tx.state(), host), host, departure);
+    await tx.putState(turn.committed ? turn.changes : turn.quietly.changes);
     return turn;
   });
 }

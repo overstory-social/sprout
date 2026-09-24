@@ -108,6 +108,10 @@ describe('the places the host ticks', () => {
     expect(occupiedPlaces(weather([]))).toEqual([]);
   });
 
+  it('leave out a visitor who stands in something that is not a place, until their turn displaces them', () => {
+    expect(occupiedPlaces(weather([[MARTA, FLAG]]))).toEqual([]);
+  });
+
   it('are the nearest place a visitor stands in, and not the place around it', () => {
     expect(occupiedPlaces(weather([[MARTA, HUT]]))).toEqual([HUT]);
   });

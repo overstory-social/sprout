@@ -564,6 +564,20 @@ describe('visitors and the world', () => {
     expect(loaded.state.visitors.get(visitKey('v-1'))!.lastPlace).toBe(id('yard', 'kiln'));
   });
 
+  it('names an actor stored inside something that holds no actors, for the host to report', () => {
+    const shelved = storing(store, [{ ...marta, container: 'printers_shop.hall.shelf' }]);
+    const loaded = loadWorld(shelved, published);
+    expect(loaded.stranded).toEqual([minted(1)]);
+    // It is kept where it was stored, not moved or dropped.
+    expect(loaded.state.instances.get(minted(1))!.container).toBe(id('hall', 'shelf'));
+    expect(loadWorld(store, published).stranded).toEqual([]);
+  });
+
+  it('does not name an actor inside something absent, whose kind cannot say', () => {
+    const kilned = storing(store, [{ ...marta, container: 'printers_shop.yard.kiln' }]);
+    expect(loadWorld(kilned, withheld).stranded).toEqual([]);
+  });
+
   it('makes the world an instance of whatever world kind the catalogue has, at the tree’s root', () => {
     const catalogue: Catalogue = {
       ...published,
