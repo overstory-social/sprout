@@ -5,6 +5,11 @@ import {
   departureTurn,
   loadWorld,
   NOT_ADMITTING,
+  keptNickname,
+  moderated,
+  nicknameRefusal,
+  type NicknameRefused,
+  type NicknameRules,
   type Arrival,
   type ArrivalTurn,
   type Departure,
@@ -137,18 +142,32 @@ export function runMaintenance(
   });
 }
 
-/** What admitting one visitor did: the catch-up run first, null where the world admits no one, and the arrival. */
+/** What the host decides of a nickname beyond the bundle (the spec's The host contract › Admission and identity). */
+export interface NicknameHost {
+  readonly rules: NicknameRules;
+  /** Whether the host's moderation lets `nickname`, as the world would keep it, be rendered there; asked only of one the world would admit. */
+  readonly moderate: (nickname: string) => boolean | Promise<boolean>;
+}
+
+/** An arrival that did not open, its nickname refused: the host asks the person for another. */
+export interface NicknameRefusedTurn {
+  readonly committed: false;
+  readonly nicknameRefused: NicknameRefused;
+}
+
+/** What admitting one visitor did: the catch-up run first, null where nobody was let in, and the arrival. */
 export interface Admission {
   readonly caughtUp: Committed<CaughtUp> | null;
-  readonly arrived: ArrivalTurn;
+  readonly arrived: ArrivalTurn | NicknameRefusedTurn;
 }
 
 /**
- * Admit `arrival`'s visitor to `microworldId`: catch-up as a maintenance
- * turn at `catchUp`, committed first, so nobody walks into a place about
- * to rearrange itself, then the arrival as a turn of its own (the spec's
- * The host contract › Time, Admission and identity). A world whose bundle
- * admits no one runs no catch-up for it.
+ * Admit `arrival`'s visitor to `microworldId`: their nickname checked
+ * against the bundle, the world and `nicknames`, then catch-up as a
+ * maintenance turn at `catchUp`, committed first, so nobody walks into a
+ * place about to rearrange itself, then the arrival as a turn of its own
+ * (the spec's The host contract › Time, Admission and identity). A world
+ * whose bundle admits no one, or a nickname refused, runs no catch-up.
  */
 export async function runArrival(
   store: SproutStore,
@@ -156,6 +175,7 @@ export async function runArrival(
   host: TurnHost,
   catchUp: WriteInputs,
   arrival: Arrival,
+  nicknames: NicknameHost,
 ): Promise<Admission> {
   const reason = closedByBundle(host.catalogue);
   if (reason !== null) {
@@ -164,12 +184,32 @@ export async function runArrival(
       arrived: { committed: false, closed: { reason, words: NOT_ADMITTING } },
     };
   }
+  const refusalIn = (state: WorldState): NicknameRefused | null =>
+    nicknameRefusal(state, host.catalogue, nicknames.rules, arrival.visit, arrival.nickname);
+  const before = await store.read(microworldId, async (tx) =>
+    refusalIn(loaded(await tx.state(), host)),
+  );
+  const refused =
+    before ??
+    ((await nicknames.moderate(keptNickname(arrival.nickname)))
+      ? null
+      : moderated(arrival.nickname));
+  if (refused !== null) {
+    return { caughtUp: null, arrived: { committed: false, nicknameRefused: refused } };
+  }
   const caughtUp = await runMaintenance(store, microworldId, host, catchUp);
-  const arrived = await store.transaction(microworldId, async (tx) => {
-    const turn = arrivalTurn(loaded(await tx.state(), host), host, arrival);
-    if (turn.committed) await tx.putState(turn.changes);
-    return turn;
-  });
+  const arrived = await store.transaction(
+    microworldId,
+    async (tx): Promise<ArrivalTurn | NicknameRefusedTurn> => {
+      const state = loaded(await tx.state(), host);
+      // Someone may have come in under the same nickname since it was checked.
+      const taken = refusalIn(state);
+      if (taken !== null) return { committed: false, nicknameRefused: taken };
+      const turn = arrivalTurn(state, host, arrival);
+      if (turn.committed) await tx.putState(turn.changes);
+      return turn;
+    },
+  );
   return { caughtUp, arrived };
 }
 
