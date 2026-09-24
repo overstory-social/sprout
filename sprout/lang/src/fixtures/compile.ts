@@ -3,10 +3,15 @@
 // visitor kind, named as the manifest names it, with the standard library
 // pinned and vendored. `world()` takes the overrides a case wants to move
 // — the manifest, the files, the libraries, what is withheld — and hands
-// back a source ready for `compileBundle`. Spec support: the package
-// build leaves it out.
+// back a source ready for `compileBundle`; `firstTierOf()` reads the
+// world's own files through the first tier, for a stage that runs after
+// it to take directly. Spec support: the package build leaves it out.
 
+import type { CompileMode } from '../bundle/absent.js';
 import { libraryHash, type LibrarySource, type Manifest } from '../bundle/bundle.js';
+import { readFirstTier, type FirstTier } from '../bundle/compile/first-tier.js';
+import { Report } from '../bundle/compile/report.js';
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { fileNamedFor } from '../declare/file-names.js';
 import { SourceFile } from '../source/source.js';
@@ -96,3 +101,17 @@ export const refusals = (diagnostics: readonly Diagnostic[]): Diagnostic[] =>
   diagnostics.filter((d) => d.severity === 'refusal');
 export const warnings = (diagnostics: readonly Diagnostic[]): Diagnostic[] =>
   diagnostics.filter((d) => d.severity === 'warning');
+
+/**
+ * The world's own `files`, read alone by the first tier in `mode` under
+ * the host's default caps, and the report a later stage says its own
+ * findings to. No library is read.
+ */
+export function firstTierOf(
+  files: readonly SourceFile[],
+  mode: CompileMode = 'publish',
+): { readonly first: FirstTier; readonly report: Report } {
+  const report = new Report(mode, file('sprout.json', MANIFEST).span(0, 0));
+  const first = readFirstTier(files, [], 'printers_shop', DEFAULT_LIMITS.caps, report);
+  return { first, report };
+}
