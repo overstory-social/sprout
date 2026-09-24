@@ -19,10 +19,10 @@
 // its own reading there, one deeper against the cascade depth, and what
 // that says, refusal included, joins this one's. A plain `tell` reaches
 // the people in the teller's place less every participant, and `tell <x>`
-// reaches `x` (`audience.ts`). What the effect pass says, tells and sends
-// is kept in body order. Nothing is rendered here: `prose/` renders what
-// is said for each reader, `bus.ts` drains the queue after, and B37 polls
-// the consent pass alone.
+// reaches `x` where `x` is in the teller's range (`audience.ts`). What
+// the effect pass says, tells and sends is kept in body order. Nothing is
+// rendered here: `prose/` renders what is said for each reader, `bus.ts`
+// drains the queue after, and B37 polls the consent pass alone.
 
 import { libraryOf, SPROUT } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
@@ -364,7 +364,14 @@ export function actingSink(
       said.push({
         effect: 'told',
         ...told,
-        to: one === null ? toldToPlace(state, told.by, leftOut) : toldToOne(state, one),
+        to:
+          one === null
+            ? toldToPlace(state, told.by, leftOut)
+            : toldToOne(
+                { state: draft, passes: context.passes, budget: context.budget },
+                told.by,
+                one,
+              ),
         speaker: null,
       }),
     sent: (more) => sends.push(...more),
