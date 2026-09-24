@@ -269,14 +269,19 @@ export type Polled<T> =
   | { readonly faulted: false; readonly view: T }
   | { readonly faulted: true; readonly fault: Fault; readonly unseen: Speech };
 
-/** Run `look` as a poll over the committed `state`, under the poll's own step budget. */
+/**
+ * Run `look` as a poll over the committed `state`, writing nothing, under
+ * the poll's own step budget; `chargedAs` a command, it is budgeted as the
+ * command turn it stands in for, as an inspector reading a line is.
+ */
 export function pollTurn<T>(
   state: WorldState,
   host: TurnHost,
   look: (turn: PollTurn) => T,
+  chargedAs: 'poll' | 'command' = 'poll',
 ): Polled<T> {
   const reader = readerOf(state);
-  const budget = new Budget(host.budgets, 'poll', host.clock);
+  const budget = new Budget(host.budgets, chargedAs, host.clock);
   const { catalogue } = host;
   const passes = passRules({
     state: reader,

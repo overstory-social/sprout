@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { USAGE, main, parseArgs } from './cli.js';
-import { captured } from './testing.js';
+import { captured, LANE, worldFolder } from './testing.js';
 
 describe('parseArgs', () => {
   it('reads a command, positionals, --flag value, --flag=value and --flag alone', () => {
@@ -61,5 +61,53 @@ describe('main', () => {
     const io = captured();
     expect(main(['check', dir], io)).toBe(1);
     expect(io.err()).toContain('no sprout.json here');
+  });
+
+  it('parse with no line lists the grammar; with one, reads it where --at stands the visitor', () => {
+    const dir = worldFolder('lane', LANE);
+    const grammar = captured();
+    expect(main(['parse', dir], grammar)).toBe(0);
+    expect(grammar.out()).toMatch(/^lane accepts these phrases/);
+    const line = captured();
+    expect(main(['parse', dir, 'go out', '--at', 'shed'], line)).toBe(0);
+    expect(line.out()).toBe(
+      'in shed, "go out" reads as sprout.go\n  way: exit out "back to the yard" -> yard\nevery participant consents\n',
+    );
+  });
+
+  it('view shows where --at stands the visitor, as --as names them', () => {
+    const dir = worldFolder('lane', LANE);
+    const io = captured();
+    expect(main(['view', dir, '--at=shed', '--as', 'Marta'], io)).toBe(0);
+    expect(io.out()).toMatch(/^standing in shed\n\ndescription\n {2}Tools hang in rows\.\n/);
+  });
+
+  it('parse and view on a refused world print what check prints, and fail', () => {
+    const dir = worldFolder('lane', { ...LANE, 'dial.sprout': 'kind Dial {\n' });
+    for (const argv of [
+      ['parse', dir],
+      ['parse', dir, 'look'],
+      ['view', dir],
+    ]) {
+      const io = captured();
+      expect(main(argv, io)).toBe(1);
+      expect(io.out()).toContain('dial.sprout:');
+      expect(io.out()).toMatch(/refused: \d+ problems?\n$/);
+    }
+  });
+
+  it('refuses a place or a nickname it cannot stand a visitor as, saying what to write instead', () => {
+    const dir = worldFolder('lane', LANE);
+    const nowhere = captured();
+    expect(main(['view', dir, '--at', 'loft'], nowhere)).toBe(1);
+    expect(nowhere.err()).toContain('write one of its places');
+    const bare = captured();
+    expect(main(['view', dir, '--at'], bare)).toBe(1);
+    expect(bare.err()).toBe(
+      'sprout: --at wants a place after it, as the world names it: --at hall\n',
+    );
+    const named = captured();
+    expect(main(['parse', dir, 'look', '--as'], named)).toBe(1);
+    expect(named.err()).toBe('sprout: --as wants a nickname after it: --as Marta\n');
   });
 });

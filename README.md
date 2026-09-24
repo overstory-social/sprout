@@ -23,7 +23,7 @@ Two packages, one version:
 | package                 | what                                                                                                                                                                  |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@overstory/sprout`     | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records, memory store and turns; `./conformance`) · `./store-sql` · `./store-document` |
-| `@overstory/sprout-cli` | `sprout init · check` on a microworld folder                                                                                                                          |
+| `@overstory/sprout-cli` | `sprout init · check · parse · view` on a microworld folder                                                                                                           |
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made
@@ -55,7 +55,7 @@ sprout/lang/src
   prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
 sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock, the log, conversation beside the world
 sprout/store-sql  sprout/store-document   the two store adapters
-cli/src           init and check
+cli/src           init and check, and the inspectors: parse (what a world accepts) and view (what a visitor is offered)
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page
 docs/design/      the spec, the working notes, the backlog, the reviews
 ```
