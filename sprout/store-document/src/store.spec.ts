@@ -6,8 +6,8 @@ import { memoryBackend, type DocumentBackend } from './backend.js';
 import { documentStore, keys, parseKey } from './store.js';
 
 // The layout, pinned: which key holds what, the instances and
-// tombstones as one opaque string, one document per visitor, action and
-// miss, ids encoded so a microworld named `<zone>/draft` is not the zone's.
+// tombstones as one opaque string, one document per visitor, log entry
+// and miss, ids encoded so a microworld named `<zone>/draft` is not the zone's.
 
 /** The spec's default caps, as a publish under a host that set none of its own records them. */
 const CAPS = {
@@ -71,27 +71,14 @@ const turn = (over: Partial<StoredChanges> = {}): StoredChanges => ({
   visitors: [visitor('v-marta')],
   ...over,
 });
-const action = (microworldId: string) => ({
-  microworldId,
-  at: NOW,
-  roomId: 'hall',
-  command: 'poke',
-  events: 1,
-  depth: 0,
-  spawned: 0,
-  faulted: false,
-  fault: null,
-  missed: false,
-  durationMs: 1,
-  lockWaitMs: 0,
-});
+const PUBLISH = { kind: 'publish', now: 3_000_000_000, bundle: 'a1' } as const;
 
 describe('the keys', () => {
   it('put the microworld first, URL-encoded, so `<zone>/draft` is its own prefix', () => {
     expect(keys.state('z/draft')).toBe('microworld/z%2Fdraft/state');
     expect(keys.microworld('z')).toBe('microworld/z/');
     expect(keys.visitor('z', 'p/1')).toBe('microworld/z/visitors/p%2F1');
-    expect(keys.action('z', 7)).toBe('microworld/z/actions/000000000007');
+    expect(keys.entry('z', 7)).toBe('microworld/z/log/000000000007');
     expect(parseKey('microworld/z%2Fdraft/visitors/p%2F1')).toEqual({
       microworldId: 'z/draft',
       collection: 'visitors',
@@ -107,14 +94,14 @@ describe('the keys', () => {
 });
 
 describe('the layout on the backend', () => {
-  it('instances and tombstones are one document holding an opaque string; each visitor, action and miss one document; the counters one', async () => {
+  it('instances and tombstones are one document holding an opaque string; each visitor, log entry and miss one document; the counters one', async () => {
     const backend = memoryBackend();
     const store = documentStore(backend);
     await store.transaction('w', async (tx) => {
       await tx.putMicroworld(microworld('w'));
       await tx.putState(turn());
-      await tx.appendAction(action('w'));
-      await tx.appendAction(action('w'));
+      await tx.appendLog(PUBLISH);
+      await tx.appendLog({ ...PUBLISH, bundle: 'b2' });
       await tx.appendMiss({
         microworldId: 'w',
         at: NOW,
@@ -126,10 +113,10 @@ describe('the layout on the backend', () => {
       });
     });
     expect(await backend.list('')).toEqual([
-      'microworld/w/actions/000000000001',
-      'microworld/w/actions/000000000002',
       'microworld/w/archive',
       'microworld/w/counters',
+      'microworld/w/log/000000000001',
+      'microworld/w/log/000000000002',
       'microworld/w/misses/000000000001',
       'microworld/w/state',
       'microworld/w/visitors/v-marta',
@@ -142,7 +129,7 @@ describe('the layout on the backend', () => {
     });
     expect(await backend.get('microworld/w/counters')).toEqual({
       serial: 1,
-      actions: 2,
+      log: 2,
       misses: 1,
     });
     expect(await backend.get('microworld/w/visitors/v-marta')).toEqual(visitor('v-marta'));
@@ -152,7 +139,9 @@ describe('the layout on the backend', () => {
     });
     await store.read('w', async (tx) => {
       expect((await tx.microworld())?.loadedAt).toEqual(NOW);
-      expect((await tx.actions({ limit: 5 }))[0]?.at).toEqual(NOW);
+      expect(await tx.log({ after: 1, limit: 5 })).toEqual([
+        { seq: 2, entry: { ...PUBLISH, bundle: 'b2' } },
+      ]);
     });
   });
 

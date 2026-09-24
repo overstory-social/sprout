@@ -10,7 +10,6 @@ import {
 } from '@overstory/sprout/lang';
 
 import {
-  ActionRecord,
   MicroworldRecord,
   MissRecord,
   RecordedCaps,
@@ -63,12 +62,11 @@ describe('the records', () => {
     expect('blessed' in read).toBe(false);
   });
 
-  it('every record is keyed by its microworld; an action carries no actor', () => {
-    for (const schema of [ActionRecord, MissRecord, VisitorInWorld]) {
+  it('every record is keyed by its microworld', () => {
+    for (const schema of [MissRecord, VisitorInWorld]) {
       expect(Object.keys(schema.shape)).toContain('microworldId');
     }
     expect(Object.keys(MicroworldRecord.shape)).toContain('id');
-    expect(Object.keys(ActionRecord.shape)).not.toContain('actorId');
   });
 
   it('keeps a world’s state in the language’s stored form, and refuses what the language would', () => {

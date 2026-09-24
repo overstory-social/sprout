@@ -15,13 +15,22 @@ visitor's record, their instance and what it held, and every memory of
 them; `exportVisitor` hands back the same, but what their instance held.
 Reads write nothing.
 
-A world's turns run against a store through `runWriteTurn`,
-`runCommand` and `runPoll` (`turns.ts`): a write turn runs in the store's
-transaction, under the world's lock, and writes its change set only where
-it committed, so a fault writes nothing of the world; a poll reads a
-snapshot and takes no lock. `runView` polls a visitor's view, and a
-`ViewCache` keeps each one until a committed turn's `stale` names its
-visitor (`views.ts`). The log is B40's, and B40 reshapes the action and miss records for the event log. What the
+A world's turns run against a store through `runCommand`, `runTick`,
+`runWake`, `runMaintenance`, `runArrival`, `runDeparture` and `runPoll`
+(`turns.ts`): a write turn runs in the store's transaction, under the
+world's lock, and writes its change set only where it committed, so a
+fault writes nothing of the world; a poll reads a snapshot and takes no
+lock. `runView` polls a visitor's view, and a `ViewCache` keeps each one
+until a committed turn's `stale` names its visitor (`views.ts`).
+
+Every write turn appends its entry to the world's event log in the same
+transaction (the spec's _The runtime › The log_): its inputs and seed,
+its budgets, what it said and any fault; so does every publish
+(`publishWorld`), withholding (`logWithholding`) and a poll's fault.
+`readLog` and `wholeLog` read it back, oldest first and numbered from 1,
+and `replayLog` runs every turn in it again, each against the bundle of
+the publish before it, reporting any turn that does not reproduce
+(`log/`). The log is kept whole: `trim` takes only misses. What the
 conformance suite proves is the contract:
 
 1. Write turns on one microworld are serialized; read turns are not.

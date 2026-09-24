@@ -40,7 +40,7 @@ const MICROWORLD: MicroworldRecord = {
 };
 
 /** A client that answers the version check and records everything else. */
-function scripted(version: string | null = '2') {
+function scripted(version: string | null = '3') {
   const calls: { text: string; params: unknown[] }[] = [];
   const client: Queryable = {
     async query(text, params = []) {
@@ -76,11 +76,11 @@ describe('sqlStore', () => {
 
   it('a version it was not built for is refused with expected and found; an absent schema too', async () => {
     const stale = sqlStore({ client: scripted('1').client });
-    await expect(stale.read('w', async () => 1)).rejects.toThrow(/2 expected, 1 found/);
+    await expect(stale.read('w', async () => 1)).rejects.toThrow(/3 expected, 1 found/);
     const none = sqlStore({ client: scripted(null).client });
     await expect(none.read('w', async () => 1)).rejects.toThrow(/no sprout schema found/);
-    const pinned = sqlStore({ client: scripted('2').client, schemaVersion: 3 });
-    await expect(pinned.read('w', async () => 1)).rejects.toThrow(/3 expected, 2 found/);
+    const pinned = sqlStore({ client: scripted('3').client, schemaVersion: 4 });
+    await expect(pinned.read('w', async () => 1)).rejects.toThrow(/4 expected, 3 found/);
   });
 
   it('with a transaction runner, a read is its own REPEATABLE READ transaction and never locks', async () => {
@@ -154,7 +154,7 @@ describe('sqlStore', () => {
       'sprout.memory',
       'sprout.visitor',
       'sprout.tombstone',
-      'sprout.action',
+      'sprout.log',
       'sprout.miss',
     ]);
   });
@@ -165,7 +165,7 @@ describe('sqlStore', () => {
       async query(text, params = []) {
         calls.push(`${text.trim().split(/\s+/).slice(0, 3).join(' ')} ${JSON.stringify(params)}`);
         if (text.includes("table_name = 'meta'")) return { rows: [{ 1: 1 }] };
-        if (text.includes("key = 'schema_version'")) return { rows: [{ value: '2' }] };
+        if (text.includes("key = 'schema_version'")) return { rows: [{ value: '3' }] };
         if (text.includes('SELECT microworld_id FROM sprout.visitor')) {
           return { rows: [{ microworld_id: 'b' }, { microworld_id: 'a' }] };
         }
@@ -184,7 +184,8 @@ describe('sqlStore', () => {
     const store = sqlStore({ client });
     await store.transaction('w', async (tx) => {
       await tx.state();
-      await tx.actions({ limit: 5 });
+      await tx.log({ after: 2, limit: 5 });
+      await tx.appendLog({ kind: 'publish', now: 0, bundle: 'a1' });
       await tx.misses({ limit: 5 });
     });
     await store.forgetVisitor('v');
@@ -193,7 +194,7 @@ describe('sqlStore', () => {
       (t) => /FROM|INTO|UPDATE/.test(t) && !t.includes('information_schema'),
     )) {
       expect(t).toMatch(
-        /sprout\.(microworld|serial|instance|memory|visitor|tombstone|action|miss|meta)/,
+        /sprout\.(microworld|serial|instance|memory|visitor|tombstone|log|miss|meta)/,
       );
       expect(t).not.toMatch(/\w+::text = ANY/);
     }

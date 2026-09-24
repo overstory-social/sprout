@@ -7,7 +7,9 @@
 // gives, in closure order (`givenBy`), before what its own body holds.
 //
 // Two invariants. A content is refused, and given to no one, where what
-// holds it holds nothing or where it holds two of one name. And no kind
+// holds it holds nothing, where it holds two of one name, or where it is
+// made for a person, since nothing declares a visitor (the spec's Actors
+// and visitors) whatever instance would hold it. And no kind
 // gives, at any depth, something made of a kind it is already inside: the
 // content that would close such a loop is refused and cut, so every
 // instance's contents are finite.
@@ -19,6 +21,7 @@ import type { KindRef, KindTable } from './kinds.js';
 import { composeKind, type MemberNames, type OnUnknown } from './compose.js';
 
 import { holdsNothing, type TreePath } from './tree.js';
+import { aVisitorMade, isVisitorKind } from './actors.js';
 
 /** One object a kind's body gives every instance, and what it holds. */
 export interface KindContent {
@@ -107,7 +110,8 @@ export function resolveContents(
 
 /**
  * The contents one kind's body writes, each composed, and each dropped
- * where what holds it holds nothing or already holds one of its name.
+ * where what holds it holds nothing or already holds one of its name, or
+ * where it is made for a person.
  * A loop, not recursion, walks the nest.
  */
 function composeBody(
@@ -153,6 +157,11 @@ function composeBody(
     );
     if (holder.kind !== null && !holder.kind.contains) {
       const words = holdsNothing(holder.name, name);
+      diagnostics.refuse(declaration.name.at, words.message, words.remedy);
+      continue;
+    }
+    if (composed !== null && isVisitorKind(composed)) {
+      const words = aVisitorMade(name, 'declares');
       diagnostics.refuse(declaration.name.at, words.message, words.remedy);
       continue;
     }

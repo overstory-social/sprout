@@ -22,6 +22,7 @@ import {
 import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
 import { runCommand } from './turns.js';
+import { readLog } from './log/entry.js';
 import { runView, ViewCache } from './views.js';
 
 // A hall with a lamp in it, one kind per file: the hall says whether the
@@ -116,19 +117,50 @@ async function lit(store: SproutStore) {
 describe('a view polled against a store', () => {
   it('is rendered from the last committed state', async () => {
     const store = await seeded();
-    expect((await runView(store, 'w', host, MARTA)).view.description).toEqual(['The hall is dim.']);
+    expect((await runView(store, 'w', host, MARTA, 0)).view.description).toEqual([
+      'The hall is dim.',
+    ]);
     await lit(store);
-    const polled = await runView(store, 'w', host, MARTA);
+    const polled = await runView(store, 'w', host, MARTA, 0);
     expect(polled.fault).toBeNull();
     expect(polled.view.description).toEqual(['The hall is bright.']);
+    // The command is logged; neither poll is.
+    expect((await readLog(store, 'w', { limit: 10 })).map((one) => one.entry.kind)).toEqual([
+      'command',
+    ]);
   });
 
   it('carries the world’s `unseen` and its fault where the poll runs out', async () => {
     const store = await seeded();
     const tight = { ...host, budgets: { ...host.budgets, pollSteps: 1 } };
-    const polled = await runView(store, 'w', tight, MARTA);
+    const polled = await runView(store, 'w', tight, MARTA, 7);
     expect(polled.view.description).toEqual(['Something here is too much to take in.']);
     expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', object: HALL });
+    // Logged as an authoring fault against the place, at the instant the host polled at.
+    expect(await readLog(store, 'w', { limit: 10 })).toEqual([
+      {
+        seq: 1,
+        entry: {
+          kind: 'poll-fault',
+          now: 7,
+          fault: {
+            name: 'BudgetExhausted',
+            detail: polled.fault!.detail,
+            object: HALL,
+            engine: false,
+          },
+        },
+      },
+    ]);
+  });
+
+  it('logs a faulted view once, however often the cache hands it back', async () => {
+    const store = await seeded();
+    const tight = { ...host, budgets: { ...host.budgets, pollSteps: 1 } };
+    const cache = new ViewCache();
+    await cache.view(store, 'w', tight, MARTA, 0);
+    await cache.view(store, 'w', tight, MARTA, 1);
+    expect(await readLog(store, 'w', { limit: 10 })).toHaveLength(1);
   });
 });
 
@@ -136,37 +168,37 @@ describe('a cache of views', () => {
   it('keeps a view until a committed write turn names its visitor stale', async () => {
     const store = await seeded();
     const cache = new ViewCache();
-    const first = await cache.view(store, 'w', host, MARTA);
+    const first = await cache.view(store, 'w', host, MARTA, 0);
     const stale = await lit(store);
     expect(stale).toEqual([MARTA]);
     // Nobody has told the cache yet, so it still holds the view it made.
-    expect(await cache.view(store, 'w', host, MARTA)).toBe(first);
+    expect(await cache.view(store, 'w', host, MARTA, 0)).toBe(first);
     cache.stale('w', stale);
-    const next = await cache.view(store, 'w', host, MARTA);
+    const next = await cache.view(store, 'w', host, MARTA, 0);
     expect(next.view.description).toEqual(['The hall is bright.']);
-    expect(await cache.view(store, 'w', host, MARTA)).toBe(next);
+    expect(await cache.view(store, 'w', host, MARTA, 0)).toBe(next);
   });
 
   it('does not keep a view whose poll began before its visitor was named stale', async () => {
     const store = await seeded();
     const cache = new ViewCache();
-    const pending = cache.view(store, 'w', host, MARTA);
+    const pending = cache.view(store, 'w', host, MARTA, 0);
     cache.stale('w', [MARTA]);
     const raced = await pending;
-    expect(await cache.view(store, 'w', host, MARTA)).not.toBe(raced);
+    expect(await cache.view(store, 'w', host, MARTA, 0)).not.toBe(raced);
   });
 
   it('keeps each world’s views apart, and drops them all when a world is cleared', async () => {
     const store = await seeded();
     const cache = new ViewCache();
-    const kept = await cache.view(store, 'w', host, MARTA);
+    const kept = await cache.view(store, 'w', host, MARTA, 0);
     cache.stale('elsewhere', [MARTA]);
-    expect(await cache.view(store, 'w', host, MARTA)).toBe(kept);
+    expect(await cache.view(store, 'w', host, MARTA, 0)).toBe(kept);
     cache.clear('w');
-    const pending = cache.view(store, 'w', host, MARTA);
+    const pending = cache.view(store, 'w', host, MARTA, 0);
     cache.clear('w');
     const raced = await pending;
     expect(raced).not.toBe(kept);
-    expect(await cache.view(store, 'w', host, MARTA)).not.toBe(raced);
+    expect(await cache.view(store, 'w', host, MARTA, 0)).not.toBe(raced);
   });
 });

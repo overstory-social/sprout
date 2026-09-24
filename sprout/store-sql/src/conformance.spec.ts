@@ -28,7 +28,7 @@ const TABLES = [
   'memory',
   'visitor',
   'tombstone',
-  'action',
+  'log',
   'miss',
 ];
 
@@ -78,7 +78,7 @@ describe('the migrations', () => {
   it('the adapter refuses a schema it was not built for, with expected and found', async () => {
     const wrong = sqlStore({ client: db as unknown as Queryable, schemaVersion: 99 });
     await expect(wrong.read('w', async () => 1)).rejects.toThrow(
-      /schema version 99 expected, 2 found/,
+      `schema version 99 expected, ${SCHEMA_VERSION} found`,
     );
     const absent = sqlStore({ client: empty as unknown as Queryable });
     await expect(absent.read('w', async () => 1)).rejects.toThrow(/no sprout schema found/);

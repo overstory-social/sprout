@@ -1,0 +1,10 @@
+world kind_content_visitor is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object bell is Bell
+  }
+}
+
+verb ring { role target  "ring [target]" }

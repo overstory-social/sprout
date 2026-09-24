@@ -42,7 +42,7 @@ const { KINDS, CONTENTS } = (() => {
       'kind Porter is sprout.Actor { }',
       'kind Hall is sprout.Place { }',
       'kind Basket { contains }',
-      'kind Hutch { contains object rabbit is Creature object guest is Person }',
+      'kind Hutch { contains object rabbit is Creature }',
     ].join('\n'),
     victorian: 'kind Gent is sprout.Visitor { }\nkind Butler is sprout.Actor { }\nkind Voice { }',
   })) {
@@ -381,7 +381,6 @@ describe('nothing declares a visitor, and every NPC stands in a place', () => {
         '`hutch` holds no actors, so `rabbit` cannot stand in it.',
         'Write `rabbit` inside the braces of a place, or make `hutch` one: compose `sprout.Place`, or write `contains actors` in its body.',
       ],
-      ['guest', declaredVisitor('guest'), FOR_AN_NPC],
       [
         'rabbit',
         '`pen` holds no actors, so `rabbit` cannot stand in it.',
@@ -392,7 +391,7 @@ describe('nothing declares a visitor, and every NPC stands in a place', () => {
 
   it('accepts what a kind gives an instance whose own body holds actors', () => {
     const body = ['object hall is Hall {', '  object hutch is Hutch { contains actors }', '}'];
-    expect(actorsIn(body.join('\n')).map(([at]) => at)).toEqual(['guest']);
+    expect(actorsIn(body.join('\n'))).toEqual([]);
   });
 
   it('says nothing of where an NPC stands that an absent world kind would decide', () => {

@@ -1,5 +1,5 @@
+import type { LogEntry, Logged } from './log/entry.js';
 import type {
-  ActionRecord,
   MicroworldRecord,
   MissRecord,
   StoredChanges,
@@ -18,8 +18,8 @@ import type {
 //   2. `fn` may be invoked more than once — it must have no effect
 //      outside the tx it is handed, and every serial it issues must
 //      follow the one it read inside that same invocation.
-//   3. A turn's writes land together or not at all; a fault writes
-//      nothing of the world, only its action record.
+//   3. A turn's writes land together or not at all, its log entry
+//      among them; a fault writes nothing of the world, only its entry.
 //   4. Locks have timeouts and are not tuples.
 //   5. The host may supply the transaction.
 //   6. Housekeeping is not a turn; what of it writes a world's state
@@ -32,7 +32,8 @@ export interface ReadTx {
   microworld(): Promise<MicroworldRecord | null>;
   /** The world's stored state, each list in code-unit order of its key; `emptyState()` where nothing is stored. */
   state(): Promise<StoredState>;
-  actions(opts: { since?: Date; limit: number; faultedOnly?: boolean }): Promise<ActionRecord[]>;
+  /** The log's entries numbered after `after` (0, or none, for the first), oldest first, at most `limit`. */
+  log(opts: { after?: number; limit: number }): Promise<Logged[]>;
   misses(opts: { limit: number }): Promise<MissRecord[]>;
 }
 
@@ -44,7 +45,8 @@ export interface StoreTx extends ReadTx {
    * added, visitors upserted by visit.
    */
   putState(changes: StoredChanges): Promise<void>;
-  appendAction(a: ActionRecord): Promise<void>;
+  /** Append `entry` to the world's log, numbered one past its last entry, or 1 for its first. */
+  appendLog(entry: LogEntry): Promise<void>;
   appendMiss(m: MissRecord): Promise<void>;
 }
 
@@ -54,15 +56,19 @@ export interface SproutStore {
   /** Run `fn` on a consistent snapshot with no lock — what a poll uses. */
   read<T>(microworldId: string, fn: (tx: ReadTx) => Promise<T>): Promise<T>;
   // --- housekeeping, off the turn path ---
-  /** Drop action records older than `before`, and misses past the newest `keepMisses`, in every microworld. */
-  trim(before: Date, keepMisses: number): Promise<void>;
-  /** Everything of this microworld: archive, state, actions, misses. */
+  /**
+   * Drop misses past the newest `keepMisses`, in every microworld. The
+   * log is kept whole, since replaying it is what reproduces the world.
+   */
+  trim(keepMisses: number): Promise<void>;
+  /** Everything of this microworld: archive, state, log, misses. */
   destroyMicroworld(microworldId: string): Promise<void>;
   /**
    * In every microworld that holds `visit`: its visitor record, its
    * instance and everything stored inside that instance, and every
    * instance's memory of it (the spec's The host contract › Moderation
-   * and takedown).
+   * and takedown). The log is left as it is, since a replay needs every
+   * turn it holds.
    */
   forgetVisitor(visit: string): Promise<void>;
   /** The visitor records, instances and memory `forgetVisitor` erases, for takeout; not what their instance held. */

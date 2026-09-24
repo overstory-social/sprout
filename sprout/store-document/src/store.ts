@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import {
-  ActionRecord,
+  LogEntry,
   MicroworldRecord,
   MissRecord,
   StoredInstanceSchema,
@@ -26,7 +26,7 @@ import type { DocumentBackend, DocumentReader, DocumentWriter } from './backend.
 // an opaque serialized string (a map of two thousand small records would
 // blow a document database's index-entry ceiling); each visitor is a
 // small document of its own, found by its visit; the archive is one; and
-// actions and misses are COLLECTIONS, one document per record, never a
+// the log and misses are COLLECTIONS, one document per record, never a
 // dated document appended to. Serialization is `transact` on the state
 // key; atomicity is the backend's single commit; re-entrancy is core's
 // re-run rule, which is why every number a turn issues (the serial, a
@@ -49,8 +49,8 @@ export const keys = {
   counters: (w: string) => `microworld/${enc(w)}/counters`,
   visitors: (w: string) => `microworld/${enc(w)}/visitors/`,
   visitor: (w: string, visit: string) => `microworld/${enc(w)}/visitors/${enc(visit)}`,
-  actions: (w: string) => `microworld/${enc(w)}/actions/`,
-  action: (w: string, n: number) => `microworld/${enc(w)}/actions/${pad(n)}`,
+  log: (w: string) => `microworld/${enc(w)}/log/`,
+  entry: (w: string, n: number) => `microworld/${enc(w)}/log/${pad(n)}`,
   misses: (w: string) => `microworld/${enc(w)}/misses/`,
   miss: (w: string, n: number) => `microworld/${enc(w)}/misses/${pad(n)}`,
 };
@@ -76,11 +76,11 @@ export function parseKey(
 
 const Counters = z.object({
   serial: z.number().int().nonnegative(),
-  actions: z.number().int().nonnegative(),
+  log: z.number().int().nonnegative(),
   misses: z.number().int().nonnegative(),
 });
 type Counters = z.infer<typeof Counters>;
-const NO_COUNTERS: Counters = { serial: 0, actions: 0, misses: 0 };
+const NO_COUNTERS: Counters = { serial: 0, log: 0, misses: 0 };
 
 /** The state document: instances and tombstones as ONE opaque string, never a map the backend would index. */
 const StateDoc = z.object({ blob: z.string() });
@@ -103,7 +103,6 @@ const dated = <T extends z.ZodObject>(schema: T, field: string) =>
   }, schema);
 
 const MicroworldDoc = dated(MicroworldRecord, 'loadedAt');
-const ActionDoc = dated(ActionRecord, 'at');
 const MissDoc = dated(MissRecord, 'at');
 
 function parseOr<T>(schema: z.ZodType<T>, doc: unknown, key: string): T {
@@ -179,12 +178,18 @@ function reads(w: string, r: DocumentReader): ReadTx {
       return doc === null ? null : parseOr(MicroworldDoc, doc, keys.archive(w));
     },
     state: () => stateOf(w, r),
-    // Newest first is the collection's order reversed: the sequence in the key.
-    actions: async ({ since, limit, faultedOnly }) =>
-      (await each(r, keys.actions(w), ActionDoc))
-        .filter((a) => (!since || a.at.getTime() >= since.getTime()) && (!faultedOnly || a.faulted))
-        .slice(-limit)
-        .reverse(),
+    // The entry's number is its key's last segment, so a page reads only the entries it hands back.
+    log: async ({ after = 0, limit }) => {
+      const page = (await r.list(keys.log(w)))
+        .map((k) => ({ k, seq: Number(parseKey(k)!.member) }))
+        .filter(({ seq }) => seq > after)
+        .sort((a, b) => a.seq - b.seq)
+        .slice(0, limit);
+      const docs = await Promise.all(page.map(({ k }) => r.get(k)));
+      return page.flatMap(({ k, seq }, i) =>
+        docs[i] === null ? [] : [{ seq, entry: parseOr(LogEntry, docs[i], k) }],
+      );
+    },
     misses: async ({ limit }) => (await each(r, keys.misses(w), MissDoc)).slice(-limit).reverse(),
   };
 }
@@ -196,7 +201,7 @@ function writes(w: string, tx: DocumentWriter): StoreTx {
     counters ??= tx.get(keys.counters(w)).then((doc) => countersOf(doc, keys.counters(w)));
     return counters;
   };
-  const bump = async (field: 'actions' | 'misses'): Promise<number> => {
+  const bump = async (field: 'log' | 'misses'): Promise<number> => {
     const c = await count();
     c[field] += 1;
     await tx.put(keys.counters(w), c);
@@ -213,7 +218,7 @@ function writes(w: string, tx: DocumentWriter): StoreTx {
       c.serial = changes.serial;
       await tx.put(keys.counters(w), c);
     },
-    appendAction: async (a) => tx.put(keys.action(w, await bump('actions')), a),
+    appendLog: async (entry) => tx.put(keys.entry(w, await bump('log')), entry),
     appendMiss: async (m) => tx.put(keys.miss(w, await bump('misses')), m),
   };
 }
@@ -243,15 +248,9 @@ export function documentStore(backend: DocumentBackend): SproutStore {
   return {
     transaction: (w, fn) => backend.transact([keys.state(w)], (tx) => fn(writes(w, tx))),
     read: async (w, fn) => fn(reads(w, memoised(backend))),
-    async trim(before, keepMisses) {
+    async trim(keepMisses) {
       for (const w of await microworldIds(backend)) {
         await backend.transact([keys.state(w)], async (tx) => {
-          for (const k of await tx.list(keys.actions(w))) {
-            const doc = await tx.get(k);
-            if (doc !== null && parseOr(ActionDoc, doc, k).at.getTime() < before.getTime()) {
-              await tx.delete(k);
-            }
-          }
           const misses = await tx.list(keys.misses(w));
           for (const k of misses.slice(0, Math.max(0, misses.length - keepMisses))) {
             await tx.delete(k);

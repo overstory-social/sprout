@@ -36,7 +36,7 @@ no foreign key to any table of yours:
 | `sprout.memory`     | an instance's memory of one actor          | a row per actor, indexed by actor for `forgetVisitor`    |
 | `sprout.visitor`    | `StoredVisitor`                            | indexed by visit for `forgetVisitor` and `exportVisitor` |
 | `sprout.tombstone`  | a declared object destroyed, kept for good | by microworld and id                                     |
-| `sprout.action`     | `ActionRecord`                             | per write turn; **no actor column**, by design           |
+| `sprout.log`        | `LogEntry`                                 | per world, numbered from 1; kept whole for replay        |
 | `sprout.miss`       | `MissRecord`                               | donated misses, against the microworld                   |
 | `sprout.meta`       | —                                          | the schema version, checked on first use                 |
 
@@ -73,7 +73,8 @@ turn) — those are proved against a real Postgres by
 applies what `sprout.meta` does not yet record, each in its own
 transaction. A migration once released is never edited; `002` replaces
 the state model `001` made with the stored form, dropping what it held,
-which this runtime does not read. A host with its own ledger copies the
+which this runtime does not read, and `003` replaces the per-turn action
+record with the event log. A host with its own ledger copies the
 SQL into it and pins the copy to this export with a test, so a version
 bump that changes the schema fails its gate. `sqlStore({ …, schemaVersion })` checks
 `sprout.meta` on first use and throws with expected and found.

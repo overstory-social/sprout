@@ -176,8 +176,9 @@ export interface ActorSetting {
  * Refuse every declared object composing `sprout.Visitor`, and every NPC
  * declared directly inside something that does not hold actors (the
  * spec's Actors and visitors), a kind's content in each instance
- * included. Each object is told at most one of the two, and nothing is
- * said where what decides it is absent.
+ * included; a content made for a person is refused where its kind writes
+ * it (`resolveContents`). Each object is told at most one of the two, and
+ * nothing is said where what decides it is absent.
  */
 export function checkActors(setting: ActorSetting): void {
   const { tree, world } = setting;
