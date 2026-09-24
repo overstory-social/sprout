@@ -12,7 +12,7 @@ import {
   PEBBLE_B,
   study,
   STUDY,
-} from '../../fixtures/command.js';
+} from '../../fixtures/parser.js';
 import type { InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
 import { answersTo, fits, forms, nounIn, nounsOfRun, runIn, type Candidate } from './nouns.js';

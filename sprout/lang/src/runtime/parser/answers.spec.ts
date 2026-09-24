@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BRASS_KEY, COIN, HALL, IRON_KEY, study } from '../../fixtures/command.js';
+import { BRASS_KEY, COIN, HALL, IRON_KEY, study } from '../../fixtures/parser.js';
 import type { StateReader } from '../state.js';
 import { answer } from './answers.js';
 

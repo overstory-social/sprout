@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compiledWorld } from '../fixtures/bundle.js';
-import { STUDY } from '../fixtures/command.js';
+import { STUDY } from '../fixtures/parser.js';
 import { wordSetOf } from './words.js';
 
 describe('the world’s word set', () => {

@@ -19,8 +19,8 @@ import type { Instance, StateReader } from './state.js';
 
 /**
  * A name read at run time that reaches a declared object destroyed.
- * Thrown, as `MoveFault` is, because the turn cannot go on; B34 turns it
- * into the world's `fault` passage. The detail names the object by its
+ * Thrown, as `MoveFault` is, because the turn cannot go on: it faults
+ * (`faults.ts`). The detail names the object by its
  * id, for the log and the host, never for a visitor.
  */
 export class DestroyedReference extends Error {
@@ -47,7 +47,7 @@ export function namedObject(state: StateReader, id: InstanceId): Instance | null
 /**
  * A name read through at run time that reaches nothing in range of the
  * body's `self`: out of range, or absent. Thrown, as `DestroyedReference`
- * is; B34 turns it into the world's `fault` passage.
+ * is, and faults the turn.
  */
 export class NameOutOfRange extends Error {
   constructor(

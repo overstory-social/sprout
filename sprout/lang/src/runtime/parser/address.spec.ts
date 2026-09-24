@@ -10,7 +10,7 @@ import {
   LAMP_OIL,
   PEBBLE_B,
   study,
-} from '../../fixtures/command.js';
+} from '../../fixtures/parser.js';
 import { mintedId, type InstanceId } from '../ids.js';
 import { newInstance, type Instance } from '../state.js';
 import { addressOf, type Address } from './address.js';

@@ -4,7 +4,7 @@ import { initWorld } from './init.js';
 // The `sprout` command: two verbs on a microworld folder. Flags are
 // `--name value` or `--name=value`; `--flag` alone is true. The first
 // bare word is the command, the next the path. `play` and `serve` return
-// when the runtime does (B34, B37).
+// when the parser and the view do (B27, B37).
 
 export const USAGE = `sprout — a Sprout microworld on the command line
 

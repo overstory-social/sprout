@@ -11,7 +11,7 @@ import {
   IRON_KEY,
   study,
   STUDY,
-} from '../../fixtures/command.js';
+} from '../../fixtures/parser.js';
 import type { InstanceId } from '../ids.js';
 import type { Reading } from '../reading.js';
 import { addressOf } from './address.js';

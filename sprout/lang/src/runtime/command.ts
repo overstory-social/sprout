@@ -1,208 +1,132 @@
-// A line a visitor typed, read as a reading (the spec's Verbs › Slots,
-// Set roles, Value roles, Engine verbs; Names › Addressing and display,
-// Articles, Nicknames; Limits › Runtime budgets). The modules in
-// `command/` are its areas: the phrases a visitor may type, what a thing
-// is called, where slots fall, what a noun names, and the answers.
+// A command turn (the spec's The runtime › Turns, Faults). Its order is
+// fixed: parse; the consent pass; the effect pass, actor first and then
+// roles in declared order; the queue, breadth-first in insertion order;
+// then the views of everyone present are marked stale, as every write
+// turn that commits marks them. The one who typed the command is always
+// told something: the parser's answer, the consent pass's refusal, what
+// the effect pass said or the world's `nothing_happens`, or, when the
+// turn faults and is abandoned, the world's `fault`.
 //
-// Every line has exactly one outcome: a reading, or one of the world's
-// answers, `which`, `unreachable` or `unknown`, never nothing. Phrases
-// are tried in order and the first reading wins; failing one, the first
-// `which` asked; failing that, a noun that names something the actor
-// cannot reach is `unreachable`, and anything else is `unknown`. Every
-// noun tried, every way of placing the slots and every object a range
-// walk visits is a step, so a line that costs too much to read faults the
-// turn as any other work would.
+// Reading typed words is the parser's, reached through `Parser`, which
+// `parser.ts` fills: the turn hands it the words, who typed them, each
+// visitor's nickname and the turn's state and meter, and it gives back
+// the reading they make, or a line said to the actor in place of one, as
+// an unknown word or a `which` is answered.
 
-import { typedWords } from '../declare/addressing.js';
-import type { ResolvedRole } from '../declare/verbs.js';
 import type { Budget } from './budget.js';
+import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
-import type { InstanceId } from './ids.js';
-import { liveTree } from './live.js';
-import { rangeOf, type PassRule } from './range.js';
-import type { Bound, Reading } from './reading.js';
-import type { StateReader } from './state.js';
-import { addressOf, type AddressContext } from './command/address.js';
-import { answer, type Answer, type Choice } from './command/answers.js';
-import type { CommandExit } from './command/exits.js';
-import { fillSlot, valueOf, type Filled } from './command/fill.js';
-import { slotSpans, type SlotSpan } from './command/match.js';
-import { nounIn, type Candidate } from './command/nouns.js';
-import type { TypedPhrase } from './command/phrases.js';
+import { faultTold } from './faults.js';
+import type { InstanceId, VisitKey } from './ids.js';
+import type { Choice } from './parser/answers.js';
+import type { PassRule } from './range.js';
+import { runReading, type Acted, type PermitRefusal, type Reading, type Said } from './reading.js';
+import { readerOf, type StateReader, type WorldState } from './state.js';
+import {
+  writeTurn,
+  type Committed,
+  type Faulted,
+  type TurnHost,
+  type WriteInputs,
+} from './turn.js';
 
-/** What reading a line reads: the turn's state, the bundle, the pass rules and the meter. */
-export interface CommandContext {
+/** What the parser reads while it parses: the turn's state before anything is written, and the turn's meter. */
+export interface ParseContext {
   readonly state: StateReader;
   readonly catalogue: Catalogue;
-  readonly budget: Budget;
   readonly passes: PassRule<InstanceId>;
-  /** Each visitor's nickname, by the instance that is them. */
+  /** Parsing is charged to the turn's steps: a command too costly to read faults (Limits › Runtime budgets). */
+  readonly budget: Budget;
+  /** Each visitor's nickname, by the instance that is them, which is how a person is named (Names › Nicknames). */
   readonly nicknames: ReadonlyMap<InstanceId, string>;
-  /** The exits that apply where the actor stands, in the order the place declares them. */
-  readonly exits: readonly CommandExit[];
 }
 
-/** A line's one outcome: understood as a reading, or answered. */
-export type CommandOutcome = { readonly understood: Reading } | Answer;
+/**
+ * What the words typed make: a reading `actor` performs, or a line said
+ * to them in place of one, with, for a `which`, the line to type again
+ * for each candidate.
+ */
+export type Parsed =
+  { readonly reading: Reading } | { readonly answered: Said; readonly choices: readonly Choice[] };
 
-/** A slot of one phrase that named nothing the actor can reach, kept for `unreachable`. */
-interface Unreached {
-  readonly role: ResolvedRole;
-  readonly words: readonly string[];
+/** Reads the words `actor` typed. */
+export type Parser = (text: string, actor: InstanceId, context: ParseContext) => Parsed;
+
+/** What the host runs command turns with: its turn host, and the parser the bundle gives. */
+export interface CommandHost extends TurnHost {
+  readonly parse: Parser;
 }
 
-/** `line`, typed by `actor`, as a reading or the world's answer to it. */
-export function readCommand(
-  line: string,
-  actor: InstanceId,
-  context: CommandContext,
-): CommandOutcome {
-  const { state, catalogue, budget } = context;
-  const here = placeOf(state, actor);
-  const words = typedWords(line);
-  if (words.length === 0) return answer(state, 'unknown', actor, here);
+/** One typed command, as the host hands it over and the log records it. */
+export interface Command extends WriteInputs {
+  /** Who typed it. */
+  readonly visit: VisitKey;
+  readonly text: string;
+}
 
-  const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
-  const tree = liveTree(state);
-  const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
-  const candidates = candidatesOf(
-    state,
-    range.reached.map(({ node }) => node),
-    addressing,
-  );
-  const fill = { candidates, exits: context.exits, budget };
+/** What a committed command turn did. */
+export type Commanded =
+  | { readonly answered: Said; readonly choices: readonly Choice[] }
+  | { readonly refused: PermitRefusal }
+  | { readonly acted: Acted; readonly drained: Drained };
 
-  let which: Answer | null = null;
-  const unreached: Unreached[] = [];
-  for (const phrase of catalogue.phrases) {
-    const filled = new Map<string, Filled>();
-    const fillOf = (span: SlotSpan): Filled => {
-      const key = `${span.role}:${span.start}:${span.end}`;
-      let found = filled.get(key);
-      if (found === undefined) {
-        found = fillSlot(phrase.verb.roles[span.role]!, words.slice(span.start, span.end), fill);
-        filled.set(key, found);
-      }
-      return found;
-    };
-    for (const spans of slotSpans(phrase.parts, words)) {
-      budget.spend();
-      const fills = spans.map(fillOf);
-      if (fills.some((one) => one.fills === 'unfit')) continue;
-      const asked = spans.findIndex((_, at) => fills[at]!.fills === 'which');
-      if (asked >= 0) {
-        which ??= whichAnswer(
-          context,
-          actor,
-          here,
-          words,
-          spans[asked]!,
-          fills[asked]!,
-          addressing,
+/** A command turn: committed, or faulted and abandoned, with the actor told so. */
+export type CommandTurn =
+  | Committed<Commanded>
+  | (Faulted & {
+      /** The world's `fault`, told to the actor. */
+      readonly told: Said;
+    });
+
+/**
+ * Run `command` as one command turn over the committed `state`. The one
+ * who typed it must be present; a command from anyone else is the host's
+ * defect, thrown before the turn opens.
+ */
+export function commandTurn(state: WorldState, host: CommandHost, command: Command): CommandTurn {
+  const committed = readerOf(state);
+  const actor = presentActor(committed, command.visit);
+  const written = writeTurn<Commanded>(state, 'command', host, command, (turn) => {
+    const { draft, catalogue, passes, budget } = turn;
+    const parsed = host.parse(command.text, actor, {
+      state: draft,
+      catalogue,
+      passes,
+      budget,
+      nicknames: nicknamesIn(state),
+    });
+    if ('answered' in parsed) {
+      if (!parsed.answered.to.includes(actor)) {
+        throw new Error(
+          `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
         );
-        continue;
       }
-      const missing = spans.findIndex((_, at) => fills[at]!.fills === 'nothing');
-      if (missing >= 0) {
-        const span = spans[missing]!;
-        const noun = fills[missing]!;
-        if (noun.fills === 'nothing') {
-          const start = span.start + noun.start;
-          unreached.push({
-            role: phrase.verb.roles[span.role]!,
-            words: words.slice(start, span.start + noun.end),
-          });
-        }
-        continue;
-      }
-      return { understood: readingOf(phrase, actor, spans, fills, context) };
+      return { answered: parsed.answered, choices: parsed.choices };
     }
-  }
-  if (which !== null) return which;
-
-  // Nothing the actor can reach was named: something further off is.
-  if (unreached.length > 0) {
-    const beyond = rangeOf({ tree, passes: () => true, budget }, actor, 'any')
-      .reached.map(({ node }) => node)
-      .filter((node) => !range.within.has(node));
-    const far = candidatesOf(state, beyond, addressing);
-    for (const { role, words: named } of unreached) {
-      const found = nounIn(named, role, far, budget);
-      const thing =
-        found.found === 'one' ? found.id : found.found === 'which' ? found.candidates[0] : null;
-      if (thing !== null && thing !== undefined) {
-        return answer(state, 'unreachable', actor, here, { thing });
-      }
+    const { reading } = parsed;
+    if (reading.actor !== actor) {
+      throw new Error(
+        `\`${command.text}\` was read as \`${reading.actor}\`'s, not \`${actor}\`'s.`,
+      );
     }
-  }
-  return answer(state, 'unknown', actor, here);
-}
-
-/** What may be named among `nodes`, nearest first: every live thing but the world. */
-function candidatesOf(
-  state: StateReader,
-  nodes: readonly InstanceId[],
-  addressing: AddressContext,
-): Candidate[] {
-  return nodes.flatMap((node) => {
-    const instance = node === state.world ? undefined : state.instance(node);
-    return instance === undefined ? [] : [{ instance, address: addressOf(instance, addressing) }];
+    const outcome = runReading(reading, turn);
+    if ('refused' in outcome) return outcome;
+    return { acted: outcome, drained: drain(outcome, turn) };
   });
+  return written.committed ? written : { ...written, told: faultTold(committed, actor) };
 }
 
-/** The reading one placement of a phrase's slots makes, every slot filled. */
-function readingOf(
-  phrase: TypedPhrase,
-  actor: InstanceId,
-  spans: readonly SlotSpan[],
-  fills: readonly Filled[],
-  context: CommandContext,
-): Reading {
-  const { verb } = phrase;
-  const bindings = new Map<string, Bound>();
-  const values: { role: ResolvedRole; words: readonly string[] }[] = [];
-  spans.forEach((span, at) => {
-    const role = verb.roles[span.role]!;
-    const filled = fills[at]!;
-    if (filled.fills === 'bound') bindings.set(role.name, filled.bound);
-    else if (filled.fills === 'words') values.push({ role, words: filled.words });
-  });
-  // A value is bound once the things are, since who hears it depends on them.
-  const things: Reading = { verb, actor, bindings: new Map(bindings) };
-  for (const { role, words } of values) {
-    const value = valueOf(role, words, things, context.state);
-    if (value !== null) bindings.set(role.name, { value });
-  }
-  for (const bound of bindings.values())
-    if ('set' in bound) context.budget.setRole(bound.set.length);
-  return { verb, actor, bindings };
+/** Each visitor's nickname, by the instance that is them. */
+function nicknamesIn(state: WorldState): ReadonlyMap<InstanceId, string> {
+  return new Map([...state.visitors.values()].map((one) => [one.instance, one.nickname]));
 }
 
-/** The `which` one ambiguous slot asks, each candidate with the line that means it. */
-function whichAnswer(
-  context: CommandContext,
-  actor: InstanceId,
-  here: InstanceId,
-  words: readonly string[],
-  span: SlotSpan,
-  filled: Filled,
-  addressing: AddressContext,
-): Answer {
-  if (filled.fills !== 'which') return answer(context.state, 'which', actor, here);
-  const start = span.start + filled.start;
-  const end = span.start + filled.end;
-  const choices: Choice[] = filled.candidates.map((id) => {
-    const instance = context.state.instance(id)!;
-    const name = typedWords(addressOf(instance, addressing).name);
-    const line = [...words.slice(0, start), ...name, ...words.slice(end)];
-    return { id, line: line.join(' ').replaceAll(' ,', ',') };
-  });
-  return answer(context.state, 'which', actor, here, { choices });
-}
-
-/** The actor's place: its container, since an actor is only ever inside something that holds actors. */
-function placeOf(state: StateReader, actor: InstanceId): InstanceId {
-  const container = state.instance(actor)?.container ?? null;
-  if (container === null) throw new Error(`\`${actor}\` is not in the world, and types nothing.`);
-  return container;
+/** The instance `visit` acts as, which must stand somewhere in the world. */
+function presentActor(state: StateReader, visit: VisitKey): InstanceId {
+  const visitor = state.visitor(visit);
+  if (visitor === undefined) throw new Error(`\`${visit}\` has never visited this world.`);
+  const container = state.instance(visitor.instance)?.container ?? null;
+  if (container === null)
+    throw new Error(`\`${visit}\` is not in this world, so cannot act in it.`);
+  return visitor.instance;
 }

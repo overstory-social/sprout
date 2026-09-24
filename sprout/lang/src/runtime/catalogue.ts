@@ -23,7 +23,7 @@ import type { VerbLookup } from '../declare/verbs.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
 import { declaredId, type InstanceId } from './ids.js';
-import { typedPhrasesOf, type TypedPhrase } from './command/phrases.js';
+import { typedPhrasesOf, type TypedPhrase } from './parser/phrases.js';
 
 /** One object the tree places. */
 export interface DeclaredEntry {

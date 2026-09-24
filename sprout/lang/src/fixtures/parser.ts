@@ -1,7 +1,7 @@
 // The study the command parser's specs are written about: the corpus
 // world `good/grammar`, compiled, with visitors standing in
 // its hall under the nicknames a case gives them, and what reading a line
-// there comes to. `runtime/command.spec.ts` and `runtime/command/*.spec.ts`
+// there comes to. `runtime/parser.spec.ts` and `runtime/parser/*.spec.ts`
 // share it. Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
@@ -10,13 +10,13 @@ import { compiledWorld } from './bundle.js';
 import { turn, type Turn } from './reading.js';
 import { passRules } from '../runtime/passes.js';
 import { Budget } from '../runtime/budget.js';
-import { readCommand, type CommandContext, type CommandOutcome } from '../runtime/command.js';
-import type { CommandExit } from '../runtime/command/exits.js';
+import { readCommand, type CommandContext, type CommandOutcome } from '../runtime/parser.js';
+import type { CommandExit } from '../runtime/parser/exits.js';
 import { declaredId, type InstanceId } from '../runtime/ids.js';
 
 /**
  * The corpus world `good/grammar`, file by file, as its folder holds it;
- * `runtime/command.spec.ts` holds the two to each other.
+ * `runtime/parser.spec.ts` holds the two to each other.
  */
 export const STUDY_FILES: Readonly<Record<string, string>> = {
   'world.sprout': [

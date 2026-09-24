@@ -3,9 +3,10 @@
 // declarations and their types, the checker, the closed bundle a
 // microworld compiles to, and the runtime's meter, values, range, ids,
 // state, stored and live, the evaluator a guard runs on, the move
-// through consent, and the reading of a typed command. It imports zod and nothing else (boundary.spec.ts
-// holds that line), so a host plugs it in and the language never learns
-// whose world it is running in.
+// through consent, the queue, the turns they all run in, and the parser
+// that reads a typed command. It imports zod and nothing else
+// (boundary.spec.ts holds that line), so a host plugs it in and the
+// language never learns whose world it is running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -68,7 +69,11 @@ export * from './runtime/body.js';
 export * from './runtime/guards.js';
 export * from './runtime/move.js';
 export * from './runtime/reading.js';
+export * from './runtime/bus.js';
+export * from './runtime/faults.js';
+export * from './runtime/turn.js';
 export * from './runtime/command.js';
-export type { Address } from './runtime/command/address.js';
-export type { Answer, AnswerName, Choice } from './runtime/command/answers.js';
-export type { CommandExit } from './runtime/command/exits.js';
+export * from './runtime/parser.js';
+export type { Address } from './runtime/parser/address.js';
+export type { Answer, AnswerName, Choice } from './runtime/parser/answers.js';
+export type { CommandExit } from './runtime/parser/exits.js';

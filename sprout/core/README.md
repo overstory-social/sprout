@@ -15,10 +15,13 @@ visitor's record, their instance and what it held, and every memory of
 them; `exportVisitor` hands back the same, but what their instance held.
 Reads write nothing.
 
-The runtime itself — turns, the log, the view — is built by B34 onward
-against the spec's _The runtime_, and B40 reshapes the action and miss
-records for the event log. What holds already, and what the conformance
-suite proves, is the contract:
+A world's turns run against a store through `runWriteTurn`,
+`runCommand` and `runPoll` (`turns.ts`): a write turn runs in the store's
+transaction, under the world's lock, and writes its change set only where
+it committed, so a fault writes nothing of the world; a poll reads a
+snapshot and takes no lock. The log and the view are B40's and B37's, and
+B40 reshapes the action and miss records for the event log. What the
+conformance suite proves is the contract:
 
 1. Write turns on one microworld are serialized; read turns are not.
 2. A transaction's function may be invoked more than once and must have
