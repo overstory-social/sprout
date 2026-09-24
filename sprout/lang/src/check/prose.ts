@@ -146,11 +146,14 @@ function renderedPassage(
   }
   if (type.kind === null) {
     const placed = placedWords(receiver, 'render one of its passages from', context);
+    if (placed !== null) {
+      context.diagnostics.refuse(member.at, placed.message, placed.remedy);
+      return;
+    }
     context.diagnostics.refuse(
       member.at,
-      placed?.message ??
-        'Sprout does not know what this is, so it cannot render one of its passages.',
-      placed?.remedy ?? 'Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
+      'Sprout does not know what this is, so it cannot render one of its passages.',
+      type.remedy ?? 'Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
     );
     return;
   }
@@ -256,15 +259,21 @@ function forVariable(block: ProseFor, context: CheckContext): Binding | null {
   return null;
 }
 
-/** The words for walking what a name of the object type holds. */
-function walkingPlaced(over: Expr, context: CheckContext): [string, string] {
+/**
+ * The words for walking what a name of the object type holds: the narrowing
+ * words for a name in a kind's body, else the binding's own remedy, if any.
+ */
+function walkingUnknown(
+  over: Expr,
+  remedy: string | undefined,
+  context: CheckContext,
+): [string, string] {
   const placed = placedWords(over, 'walk', context);
-  return placed === null
-    ? [
-        'Sprout does not know whether this holds anything.',
-        'Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',
-      ]
-    : [placed.message, placed.remedy];
+  if (placed !== null) return [placed.message, placed.remedy];
+  return [
+    'Sprout does not know whether this holds anything.',
+    remedy ?? 'Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',
+  ];
 }
 
 /** Whether `{for … in}` can walk what `over` is: a thing whose kind holds things. */
@@ -277,7 +286,7 @@ function walkable(type: BindingType, over: Expr, context: CheckContext): boolean
           'Walk a list or a role marked `many` with `{for x of …}`.',
         ]
       : type.kind === null
-        ? walkingPlaced(over, context)
+        ? walkingUnknown(over, type.remedy, context)
         : [
             `\`${shownName(kindName(type.kind), context.from)}\` holds nothing, so there is nothing to walk.`,
             'Containment is a declaration: a kind that holds things writes `contains`.',

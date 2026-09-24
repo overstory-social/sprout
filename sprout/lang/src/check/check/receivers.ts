@@ -31,10 +31,14 @@ export function receiverKind(
   if (type.binds === 'object' && type.kind !== null) return type.kind;
   if (type.binds === 'object') {
     const placed = receiver === undefined ? null : placedWords(receiver, doing, context);
+    if (placed !== null) {
+      context.diagnostics.refuse(at, placed.message, placed.remedy);
+      return null;
+    }
     context.diagnostics.refuse(
       at,
-      placed?.message ?? `Sprout does not know what this is, so it cannot ${doing} it.`,
-      placed?.remedy ?? 'Narrow it first, as in `if (thing.is(Key)) { … }`.',
+      `Sprout does not know what this is, so it cannot ${doing} it.`,
+      type.remedy ?? 'Narrow it first, as in `if (thing.is(Key)) { … }`.',
     );
     return null;
   }
@@ -202,10 +206,14 @@ export function container(
   }
   if (type.binds === 'object') {
     const placed = receiver === undefined ? null : placedWords(receiver, 'count', context);
+    if (placed !== null) {
+      context.diagnostics.refuse(at, placed.message, placed.remedy);
+      return false;
+    }
     context.diagnostics.refuse(
       at,
-      placed?.message ?? 'Sprout does not know whether this holds anything.',
-      placed?.remedy ?? 'Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
+      'Sprout does not know whether this holds anything.',
+      type.remedy ?? 'Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
     );
     return false;
   }

@@ -7,6 +7,7 @@ import { parseDeclarations } from '../../syntax/parse.js';
 import { locationOf, SourceFile } from '../../source/source.js';
 import { EnumTable } from '../../declare/enums.js';
 import { kindName, KindTable } from '../../declare/kinds.js';
+import { hereKindOf } from '../../declare/places.js';
 import { MessageTable } from '../../declare/messages.js';
 import { placeObjects } from '../../declare/tree.js';
 import { VerbNames } from '../../declare/roles.js';
@@ -52,6 +53,7 @@ function checking(text: string) {
     })),
     {
       kinds,
+      here: hereKindOf(kinds.all(), kinds),
       verbs,
       diagnostics,
       messages: { lookup: new MessageTable() },

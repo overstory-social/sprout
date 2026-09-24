@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { objectOf, OPEN_OBJECT, valueOf } from '../bindings.js';
 import { ACTOR } from '../../declare/actors.js';
+import type { Expr } from '../../syntax/ast.js';
 import { integer } from '../../declare/types.js';
 import {
   at,
@@ -19,8 +20,11 @@ import {
   saidBy,
   VESSEL,
   vessel,
+  read,
   word,
 } from '../../fixtures/check.js';
+import { inKind, nameSource } from '../../fixtures/names.js';
+import type { CheckContext } from './checker.js';
 import {
   container,
   countable,
@@ -158,6 +162,74 @@ describe('what a receiver holds, asked directly', () => {
     expect(saidBy(context)).toEqual([
       'Sprout does not know whether this holds anything. Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
       'Only a thing that holds things can be counted, and this is [Ward]. Ask it of a container, or of a role marked `many`.',
+    ]);
+  });
+});
+
+/**
+ * A vessel's body written in `shop.Lantern`'s, where `lamp` is whatever is
+ * called that nearest each lantern, with `lamp` read once so the name is
+ * recorded as the checker records it.
+ */
+function inLantern(): { context: CheckContext; lamp: Expr } {
+  const source = nameSource();
+  const names = { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() };
+  const context: CheckContext = { ...vessel(), names };
+  const { expr: lamp, said } = read('lamp', context);
+  expect(said).toEqual([]);
+  return { context, lamp };
+}
+
+const NARROW_LAMP =
+  'Name it with `let` and narrow that, as in `let found = lamp` and then `if (found.is(Thing)) { … }`; a passage said inside the branch may read `found` too.';
+const placedLamp = (doing: string) =>
+  `\`lamp\` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot ${doing} it. ${NARROW_LAMP}`;
+
+describe('a name in a kind’s body as the receiver, asked directly', () => {
+  it('is refused with the `let` that narrows it, by every question of its kind', () => {
+    const { context, lamp } = inLantern();
+    expect(receiverKind(OPEN_OBJECT, lamp.at, 'read a property from', context, lamp)).toBeNull();
+    expect(remembers(OPEN_OBJECT, lamp.at, context, lamp)).toBe(false);
+    expect(container(OPEN_OBJECT, lamp.at, context, lamp)).toBe(false);
+    expect(countable(OPEN_OBJECT, lamp.at, context, lamp)).toBe(false);
+    expect(saidBy(context)).toEqual([
+      placedLamp('read a property from'),
+      placedLamp('ask about memory of'),
+      placedLamp('count'),
+      placedLamp('count'),
+    ]);
+  });
+
+  it('has the generic words where the receiver is a binding, not a placed name', () => {
+    const { context } = inLantern();
+    const target = expression('target');
+    expect(
+      receiverKind(OPEN_OBJECT, at('target'), 'read a property from', context, target),
+    ).toBeNull();
+    expect(remembers(OPEN_OBJECT, at('target'), context, target)).toBe(false);
+    expect(container(OPEN_OBJECT, at('target'), context, target)).toBe(false);
+    expect(countable(OPEN_OBJECT, at('target'), context, target)).toBe(false);
+    expect(saidBy(context)).toEqual([
+      'Sprout does not know what this is, so it cannot read a property from it. Narrow it first, as in `if (thing.is(Key)) { … }`.',
+      'Sprout does not know whether this is someone who can be remembered about. Narrow it first, as in `if (item.is(Creature)) { … }`.',
+      'Sprout does not know whether this holds anything. Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
+      'Sprout does not know whether this holds anything. Narrow it first, as in `if (thing.is(sprout.Container)) { … }`.',
+    ]);
+  });
+
+  it('leaves a binding’s own remedy to the binding, where it is not a placed name', () => {
+    const { context } = inLantern();
+    const here = expression('here');
+    const unplaced = {
+      binds: 'object',
+      kind: null,
+      remedy: 'Compose `sprout.Place` into `Room`.',
+    } as const;
+    expect(receiverKind(unplaced, at('here'), 'read a property from', context, here)).toBeNull();
+    expect(container(unplaced, at('here'), context, here)).toBe(false);
+    expect(saidBy(context)).toEqual([
+      'Sprout does not know what this is, so it cannot read a property from it. Compose `sprout.Place` into `Room`.',
+      'Sprout does not know whether this holds anything. Compose `sprout.Place` into `Room`.',
     ]);
   });
 });

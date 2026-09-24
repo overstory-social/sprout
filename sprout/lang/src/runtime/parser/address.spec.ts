@@ -10,6 +10,7 @@ import {
   LAMP_OIL,
   PEBBLE_B,
   study,
+  UKULELE,
 } from '../../fixtures/parser.js';
 import { mintedId, type InstanceId } from '../ids.js';
 import { newInstance, type Instance } from '../state.js';
@@ -40,6 +41,12 @@ describe('what a thing is called and answers to', () => {
       article: 'a',
       nouns: [['brass', 'key'], ['key'], ['metal'], ['shiny', 'thing']],
     });
+  });
+
+  it('writes `a` as `an` before a vowel where no article is written, and a written article as written', () => {
+    expect(of(IRON_KEY).article).toBe('an');
+    expect(of(LAMP_OIL).article).toBe('a');
+    expect(of(UKULELE)).toMatchObject({ name: 'ukulele', article: 'a' });
   });
 
   it('is its identifier humanised where it writes no name, and answers to that', () => {

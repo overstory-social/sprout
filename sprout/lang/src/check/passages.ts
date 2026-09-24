@@ -35,8 +35,10 @@ import {
 } from '../declare/engine-passages.js';
 import { composesKind, kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
+import type { HereKind } from '../declare/places.js';
 import {
   actorBinding,
+  hereBinding,
   OPEN_OBJECT,
   Scope,
   selfBinding,
@@ -63,6 +65,8 @@ export interface PassageSetting {
   /** Every composed kind: each named kind, an object's own, the world's. */
   readonly speakers: readonly Speaker[];
   readonly kinds: KindLookup;
+  /** What `here` is typed as in this world, for the lines the engine says. */
+  readonly here: HereKind;
   readonly diagnostics: Diagnostics;
   /** What the bundle's bodies said, recorded as they were checked. */
   readonly sites: PassageSites;
@@ -105,7 +109,7 @@ export function checkPassages(setting: PassageSetting): void {
     for (const line of [...WORLD_LINES, ...PLACE_LINES]) {
       const passage = kind.passages.get(line.name);
       if (passage !== undefined) {
-        const scope = engineScope(line, passage.at, setting.kinds);
+        const scope = engineScope(line, passage.at, setting);
         const undrawn: Undrawn | null =
           line.polled === true ? { by: 'poll', line: line.name } : null;
         say(run, { passage, scope, from: { from: 'engine', line }, undrawn });
@@ -134,16 +138,24 @@ function bodiesOf(kind: KindRef): Node[] {
   ];
 }
 
-/** What the engine binds when it says `line`, the one acting typed as a body's `actor` is. */
-function engineScope(line: EnginePassage, at: Span, kinds: KindLookup): Scope {
+/** What the engine binds when it says `line`, the one acting and their place typed as a body's `actor` and `here` are. */
+function engineScope(line: EnginePassage, at: Span, setting: PassageSetting): Scope {
   return Object.entries(line.binds).reduce(
-    (built, [name, binds]) => built.bounding(engineBinding(name, binds, at, kinds)),
+    (built, [name, binds]) => built.bounding(engineBinding(name, binds, at, setting)),
     Scope.root(),
   );
 }
 
-function engineBinding(name: string, binds: EngineBinds, at: Span, kinds: KindLookup): Binding {
-  if (binds === 'actor') return { ...actorBinding(kinds.qualified(SPROUT, 'Actor'), at), name };
+function engineBinding(
+  name: string,
+  binds: EngineBinds,
+  at: Span,
+  setting: PassageSetting,
+): Binding {
+  if (binds === 'actor') {
+    return { ...actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), at), name };
+  }
+  if (binds === 'here') return { ...hereBinding(setting.here, at), name };
   return {
     name,
     type: binds === 'set' ? setOf(null) : OPEN_OBJECT,

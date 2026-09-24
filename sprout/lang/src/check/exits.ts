@@ -20,7 +20,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
-import { actorBinding, hereBinding, Scope, selfBinding, showBindingType } from './bindings.js';
+import { Scope, selfBinding, showBindingType } from './bindings.js';
 import { typeOf, type CheckContext } from './check.js';
 import { dottedType, type NameScope } from './names.js';
 import { pathType } from './statements.js';
@@ -110,17 +110,14 @@ function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
   const { diagnostics } = setting;
   const scope = Scope.root();
   scope.introduce(selfBinding(self, when.at), diagnostics);
-  for (const [name, binding] of [
-    ['actor', actorBinding(null, when.at)],
-    ['here', hereBinding(when.at)],
-  ] as const) {
+  for (const name of ['actor', 'here']) {
     const words = {
       message: `\`${name}\` is not bound in an exit's \`when\`: it is asked of the place, whoever looks.`,
       remedy:
         'Read the place through `self`, as in `when (self.get(:lit))`, or a thing by its name.',
     };
     scope.withhold(
-      { name, at: binding.at, unread: words, bound: { bindable: false, words } },
+      { name, at: when.at, unread: words, bound: { bindable: false, words } },
       diagnostics,
     );
   }

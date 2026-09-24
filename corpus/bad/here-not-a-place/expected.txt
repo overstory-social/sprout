@@ -1,0 +1,7 @@
+lamp.sprout:5:16  Sprout does not know whether this holds anything.
+                  `Wardrobe` holds actors without composing `sprout.Place`, so `here` may be a place that is not one: compose `sprout.Place` into `Wardrobe`, or narrow `here` first with `is()`.
+
+lamp.sprout:9:48  Sprout does not know whether this holds anything.
+                  `Wardrobe` holds actors without composing `sprout.Place`, so `here` may be a place that is not one: compose `sprout.Place` into `Wardrobe`, or narrow `here` first with `is()`.
+
+refused: 2 problems
