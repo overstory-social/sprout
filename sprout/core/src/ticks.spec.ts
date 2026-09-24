@@ -9,6 +9,7 @@ import {
   initialState,
   libraryHash,
   newInstance,
+  renderEffects,
   SourceFile,
   STANDARD_LIBRARY,
   storedChanges,
@@ -75,7 +76,7 @@ const { bundle } = compileBundle(
 );
 if (bundle === null) throw new Error('the heath does not compile');
 const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
-const host: TurnHost = { catalogue, budgets: DEFAULT_LIMITS.budgets };
+const host: TurnHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, render: renderEffects };
 const NORTH = declaredId('heath', ['north']);
 const SOUTH = declaredId('heath', ['south']);
 const CELLAR = declaredId('heath', ['cellar']);

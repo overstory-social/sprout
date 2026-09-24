@@ -6,7 +6,9 @@
 // The one who typed the command is always told something: the parser's
 // answer, the consent pass's refusal, what the effect pass said, what
 // the engine answered or the world's `nothing_happens`, or, when the turn
-// faults and is abandoned, the world's `fault`.
+// faults and is abandoned, the world's `fault`. What it says is one
+// sequence of effects in that order: the effect pass's lines, then the
+// queue's, then the engine's answers (`effects.ts`).
 //
 // Reading typed words is the parser's, reached through `Parser`, which
 // `parser.ts` fills: the turn hands it the words, who typed them, each
@@ -18,9 +20,10 @@ import { displace, type Displaced } from './arrival.js';
 import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
 import type { Draw } from './draws.js';
-import { engineAnswers, type EngineAnswer } from './engine-verbs.js';
+import { engineAnswers } from './engine-verbs.js';
 import type { Catalogue } from './catalogue.js';
-import { faultTold } from './faults.js';
+import { saidLines, type Effect, type Unrendered } from './effects.js';
+import { faultTold, stockFaultEffect } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import { standsInPlace } from './live.js';
 import type { Choice } from './parser/answers.js';
@@ -35,6 +38,7 @@ import {
 } from './reading.js';
 import { readerOf, type StateReader, type WorldState } from './state.js';
 import {
+  effectsOver,
   writeTurn,
   type Committed,
   type Faulted,
@@ -90,7 +94,7 @@ export type Commanded =
       readonly acted: Acted;
       readonly drained: Drained;
       /** What the engine answered once the queue was empty: each arrival read, then the command's own. */
-      readonly answers: readonly EngineAnswer[];
+      readonly answers: readonly Unrendered[];
     }
   | { readonly displaced: Displaced };
 
@@ -100,6 +104,8 @@ export type CommandTurn =
   | (Faulted & {
       /** The world's `fault`, told to the actor. */
       readonly told: Said;
+      /** It, rendered, or the stock line where it cannot be: the one effect of a faulted command. */
+      readonly effects: readonly Effect[];
     });
 
 /**
@@ -111,45 +117,93 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
   const committed = readerOf(state);
   const actor = presentActor(committed, command.visit);
   const gone = !standsInPlace(committed, actor);
-  const written = writeTurn<Commanded>(state, 'command', host, command, (turn) => {
-    if (gone) return { displaced: displace(turn, command.visit) };
-    const { draft, catalogue, passes, budget, draws } = turn;
-    const nicknames = nicknamesIn(state);
-    const parsed = host.parse(command.text, actor, {
-      state: draft,
-      catalogue,
-      passes,
-      budget,
-      draws,
-      nicknames,
-    });
-    if ('answered' in parsed) {
-      if (!parsed.answered.to.includes(actor)) {
+  const written = writeTurn<Commanded>(
+    state,
+    'command',
+    host,
+    command,
+    (turn) => {
+      if (gone) return { displaced: displace(turn, command.visit) };
+      const { draft, catalogue, passes, budget, draws } = turn;
+      const nicknames = nicknamesIn(state);
+      const parsed = host.parse(command.text, actor, {
+        state: draft,
+        catalogue,
+        passes,
+        budget,
+        draws,
+        nicknames,
+      });
+      if ('answered' in parsed) {
+        if (!parsed.answered.to.includes(actor)) {
+          throw new Error(
+            `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
+          );
+        }
+        return { answered: parsed.answered, choices: parsed.choices };
+      }
+      const { reading } = parsed;
+      if (reading.actor !== actor) {
         throw new Error(
-          `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
+          `\`${command.text}\` was read as \`${reading.actor}\`'s, not \`${actor}\`'s.`,
         );
       }
-      return { answered: parsed.answered, choices: parsed.choices };
-    }
-    const { reading } = parsed;
-    if (reading.actor !== actor) {
-      throw new Error(
-        `\`${command.text}\` was read as \`${reading.actor}\`'s, not \`${actor}\`'s.`,
-      );
-    }
-    const outcome = runReading(reading, turn);
-    if ('refused' in outcome) return outcome;
-    const drained = drain(outcome, turn);
-    const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
-      state: turnState(draft),
-      catalogue,
-      passes,
-      budget,
-      nicknames,
-    });
-    return { acted: outcome, drained, answers };
-  });
-  return written.committed ? written : { ...written, told: faultTold(committed, actor) };
+      const outcome = runReading(reading, turn);
+      if ('refused' in outcome) return outcome;
+      const drained = drain(outcome, turn);
+      const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
+        state: turnState(draft),
+        catalogue,
+        passes,
+        budget,
+        nicknames,
+      });
+      return { acted: outcome, drained, answers };
+    },
+    (done) => ({ actor, lines: linesSaidBy(done, actor) }),
+  );
+  if (written.committed) return written;
+  return { ...written, ...faultEffects(state, host, command, actor) };
+}
+
+/** What a committed command said, in the order it said it. */
+function linesSaidBy(done: Commanded, actor: InstanceId): Unrendered[] {
+  if ('answered' in done) return [{ said: done.answered }];
+  if ('refused' in done) {
+    const { by, said, bindings } = done.refused;
+    return [{ said: { effect: 'refused', to: [actor], by, speaker: null, said, bindings } }];
+  }
+  if ('displaced' in done) return displacedLines(done.displaced);
+  return [...saidLines(done.acted.said), ...saidLines(done.drained.said), ...done.answers];
+}
+
+/** What a displaced visitor is told and what the entry says, in order, then the place they came in to. */
+function displacedLines(displaced: Displaced): Unrendered[] {
+  const { told, entry, drained, answers } = displaced;
+  if ('closed' in entry) return [{ said: told }];
+  if ('refused' in entry) return [{ said: told }, { said: entry.refused }];
+  return [{ said: told }, ...saidLines(entry.said), ...saidLines(drained?.said ?? []), ...answers];
+}
+
+/**
+ * The world's `fault`, told to `actor` over the committed state, and
+ * rendered; where the world's own words cannot be rendered, the stock
+ * line is told, so a fault is never silent.
+ */
+function faultEffects(
+  state: WorldState,
+  host: CommandHost,
+  command: Command,
+  actor: InstanceId,
+): { readonly told: Said; readonly effects: readonly Effect[] } {
+  const committed = readerOf(state);
+  const told = faultTold(committed, actor);
+  try {
+    const lines = [{ said: told }];
+    return { told, effects: effectsOver(state, 'command', host, command, { actor, lines }) };
+  } catch {
+    return { told, effects: [stockFaultEffect(committed, actor, command.visit)] };
+  }
 }
 
 /** Each visitor's nickname, by the instance that is them. */

@@ -5,20 +5,19 @@
 // who typed `look` reads their place, `examine` the thing named,
 // `inventory` their own kind's `inventory`, and `help` what they can do
 // there, the readings `offers.ts` derives whose consent pass allows. An
-// NPC reads nothing. Every answer is carried unrendered, for `prose/`.
+// NPC reads nothing. Every answer is carried unrendered, among what the
+// turn says (`effects.ts`).
 
 import { SPROUT } from '../declare/enums.js';
 import { isPerson } from './audience.js';
-import { describeFor, type Description } from './describe.js';
+import { describeFor, type DescribeContext } from './describe.js';
+import type { Unrendered } from './effects.js';
 import { engineLine } from './engine-lines.js';
 import { boundObject, type Evaluated } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import type { Notice } from './move.js';
 import { offersTo, type OfferContext } from './offers.js';
 import { answeredByEngine, type Reading, type Said } from './reading.js';
-
-/** One thing the engine answers: a description, or a line it says. */
-export type EngineAnswer = { readonly description: Description } | { readonly said: Said };
 
 /** The passage `inventory` says, on the kind of the actor who asked. */
 const INVENTORY = 'inventory';
@@ -32,20 +31,9 @@ export function engineAnswers(
   reading: Reading,
   notices: readonly Notice[],
   context: OfferContext,
-): EngineAnswer[] {
+): Unrendered[] {
   const { state } = context;
-  const answers: EngineAnswer[] = [];
-  const described = new Set<string>();
-  for (const notice of notices) {
-    if (notice.notice !== 'described') continue;
-    const [mover] = notice.audience;
-    // Where a later move carried them on, that move's arrival is read instead.
-    if (!isPerson(state, mover) || state.instance(mover)?.container !== notice.place) continue;
-    const key = `${mover} ${notice.place}`;
-    if (described.has(key)) continue;
-    described.add(key);
-    answers.push({ description: describeFor(notice.place, mover, context) });
-  }
+  const answers = arrivalsRead(notices, context);
   const { actor, verb } = reading;
   const here = state.instance(actor)?.container ?? null;
   if (!answeredByEngine(verb) || !isPerson(state, actor) || here === null) return answers;
@@ -67,6 +55,28 @@ export function engineAnswers(
     case 'help':
       answers.push({ said: helpFor(actor, here, context) });
       break;
+  }
+  return answers;
+}
+
+/**
+ * The place each person a move carried between places arrived in, as
+ * they read it, in the order the moves were made, once for each place and
+ * only where they still stand there, since a later move's arrival stands
+ * in for an earlier one's.
+ */
+export function arrivalsRead(notices: readonly Notice[], context: DescribeContext): Unrendered[] {
+  const { state } = context;
+  const answers: Unrendered[] = [];
+  const described = new Set<string>();
+  for (const notice of notices) {
+    if (notice.notice !== 'described') continue;
+    const [mover] = notice.audience;
+    if (!isPerson(state, mover) || state.instance(mover)?.container !== notice.place) continue;
+    const key = `${mover} ${notice.place}`;
+    if (described.has(key)) continue;
+    described.add(key);
+    answers.push({ description: describeFor(notice.place, mover, context) });
   }
   return answers;
 }

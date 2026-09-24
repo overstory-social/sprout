@@ -4,7 +4,10 @@
 // from there, so the tick reaches the place and no further unless the
 // place sends onward. `elapsed` is the seconds since the last tick the
 // place received, and the turn records the instant it ran as that place's
-// last tick; a place that was skipped folds the missed interval in.
+// last tick; a place that was skipped folds the missed interval in. What
+// the queue says is the turn's effects, then the place each person a
+// handler moved arrived in, as they read it; nobody acted, so they carry
+// no actor.
 //
 // A tick that faults is dropped: abandoned like every write turn, so its
 // place's last tick stays where it was and the next tick's `elapsed`
@@ -13,8 +16,11 @@
 // run, is the host's.
 
 import { drain, type Drained } from './bus.js';
+import { saidLines, type Unrendered } from './effects.js';
+import { arrivalsRead } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
 import { standsInPlace } from './live.js';
+import { turnState } from './reading.js';
 import { codeUnitOrder, readerOf, type StateReader, type WorldState } from './state.js';
 import { elapsedSince, hostSeconds, type HostSeconds, type TimeSend } from './time.js';
 import {
@@ -37,6 +43,8 @@ export interface Ticked {
   readonly elapsed: number;
   /** What the queue did from the tick on. */
   readonly drained: Drained;
+  /** The place each person a handler moved between places arrived in, as they read it. */
+  readonly answers: readonly Unrendered[];
 }
 
 /** A tick not run, because the place holds no visitor by the time its turn opens. */
@@ -74,12 +82,21 @@ export function tickTurn(state: WorldState, host: TurnHost, tick: Tick): TickTur
   const now = hostSeconds(tick.now, 'a tick’s time');
   const elapsed = since === null ? 0 : elapsedSince(since, now);
   if (!occupiedPlaces(state).includes(tick.place)) return { committed: false, unoccupied: true };
-  return writeTurn<Ticked>(state, 'tick', host, tick, (turn) => {
-    const place = turn.draft.instance(tick.place)!;
-    turn.draft.write({ ...place, lastTick: now });
-    const sent: TimeSend = { message: 'tick', recipient: tick.place, elapsed };
-    return { elapsed, drained: drain({ sends: [sent], destroyed: [], marked: [] }, turn) };
-  });
+  return writeTurn<Ticked>(
+    state,
+    'tick',
+    host,
+    tick,
+    (turn) => {
+      const { draft, catalogue, budget, passes } = turn;
+      draft.write({ ...draft.instance(tick.place)!, lastTick: now });
+      const sent: TimeSend = { message: 'tick', recipient: tick.place, elapsed };
+      const drained = drain({ sends: [sent], destroyed: [], marked: [] }, turn);
+      const read = { state: turnState(draft), catalogue, budget, passes };
+      return { elapsed, drained, answers: arrivalsRead(drained.notices, read) };
+    },
+    (done) => ({ actor: null, lines: [...saidLines(done.drained.said), ...done.answers] }),
+  );
 }
 
 /** When `place` last ticked, or null if it never has; what is not a place is not ticked. */

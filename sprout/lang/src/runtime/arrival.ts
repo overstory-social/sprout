@@ -7,7 +7,10 @@
 // place they stood in is gone. Entry is a move from outside the tree: the
 // place's `accept` is asked, with the world as `from`, and then the place
 // is sent `:entered`, the visitor `:moved`, the place's range `arrives`
-// and `:arrived`, and the visitor reads the place's description.
+// and `:arrived`, and the visitor reads the place's description once the
+// queue is empty. What it says is one sequence of effects: `displaced`,
+// where it is told, the place's `arrives`, what the queue said, then the
+// description.
 //
 // Two invariants. An arrival is a write turn, so a fault abandons all of
 // it; a visitor the place refuses, or a world that admits no one, writes
@@ -17,6 +20,8 @@
 import { runGuard } from './guards.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
+import { noticeLines, saidLines, type Effect, type Speaking, type Unrendered } from './effects.js';
+import { arrivalsRead } from './engine-verbs.js';
 import { engineLine } from './engine-lines.js';
 import type { Speech } from './body.js';
 import type { InstanceId, VisitKey } from './ids.js';
@@ -24,7 +29,7 @@ import type { EngineSend } from './lifecycle.js';
 import { isPlace, liveTree } from './live.js';
 import { placeEntered, type Notice, type PlaceSend } from './move.js';
 import { keptNickname, nicknameRefusal } from './nickname.js';
-import type { Said } from './reading.js';
+import { turnState, type Said } from './reading.js';
 import { newInstance, readerOf, type StateReader, type WorldState } from './state.js';
 import {
   writeTurn,
@@ -75,6 +80,8 @@ export interface Entered {
   readonly sends: readonly (EngineSend | PlaceSend)[];
   /** The place's `arrives` to the visitors in its range, then its description to the one who came in. */
   readonly notices: readonly Notice[];
+  /** The place's `arrives`, as a line to the visitors in its range. */
+  readonly said: readonly Said[];
 }
 
 /** An entry: made, or refused by the place's `accept`, whose words the visitor reads. */
@@ -92,6 +99,8 @@ export interface Admitted {
   readonly entered: Entered;
   /** What the queue did from the entry on. */
   readonly drained: Drained;
+  /** The place the visitor came in to, as they read it, and any other a move of the queue's carried them to. */
+  readonly answers: readonly Unrendered[];
 }
 
 /**
@@ -104,8 +113,10 @@ export type ArrivalTurn =
   | {
       readonly committed: false;
       readonly refused: Said;
-      /** The world as the refusal found the visitor, standing nowhere: what its words render against, never written. */
+      /** The world as the refusal found the visitor, standing nowhere: what its words rendered against, never written. */
       readonly seen: WorldState;
+      /** The refusal, rendered: the one effect of a refused arrival. */
+      readonly effects: readonly Effect[];
     }
   | { readonly committed: false; readonly closed: Closed }
   | (Faulted & { readonly words: string });
@@ -189,22 +200,47 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
       if (entry === null || 'refused' in entry) entry = enter(turn, id, catalogue.arrival!);
       if ('refused' in entry) return entry;
       draft.putVisitor({ visit: arrival.visit, nickname, instance: id, lastPlace: entry.place });
+      const drained = drain({ sends: entry.sends, destroyed: [], marked: [] }, turn);
       return {
         visit: arrival.visit,
         instance: id,
         returning: record !== undefined,
         displaced: gone ? displacedLine(draft, id) : null,
         entered: entry,
-        drained: drain({ sends: entry.sends, destroyed: [], marked: [] }, turn),
+        drained,
+        answers: answersAfter(turn, [...entry.notices, ...drained.notices]),
       };
     },
+    arrivalSpeaking,
   );
   if (!written.committed) return { ...written, words: ENTRY_FAILED };
   // Refused, the turn writes nothing: the place only decided.
   if ('refused' in written.value) {
-    return { committed: false, refused: written.value.refused, seen: written.state };
+    const { refused } = written.value;
+    return { committed: false, refused, seen: written.state, effects: written.effects };
   }
   return { ...written, value: written.value };
+}
+
+/** What an arrival says, in order, and whose turn it is: the visitor's. */
+function arrivalSpeaking(done: Admitted | { readonly refused: Said }): Speaking {
+  if ('refused' in done)
+    return { actor: done.refused.to[0] ?? null, lines: [{ said: done.refused }] };
+  return {
+    actor: done.instance,
+    lines: [
+      ...(done.displaced === null ? [] : [{ said: done.displaced }]),
+      ...saidLines(done.entered.said),
+      ...saidLines(done.drained.said),
+      ...done.answers,
+    ],
+  };
+}
+
+/** What the engine answers once an entry's queue is empty: the place each person moved arrived in. */
+function answersAfter(turn: WriteTurn, notices: readonly Notice[]): Unrendered[] {
+  const { draft, catalogue, budget, passes } = turn;
+  return arrivalsRead(notices, { state: turnState(draft), catalogue, budget, passes });
 }
 
 /**
@@ -255,6 +291,7 @@ export function enter(turn: WriteTurn, visitor: InstanceId, place: InstanceId): 
       ...spoke.sends,
     ],
     notices: spoke.notices,
+    said: noticeLines(spoke.notices),
   };
 }
 
@@ -266,6 +303,8 @@ export interface Displaced {
   readonly entry: Entry | { readonly closed: Closed };
   /** What the queue did from the entry on, where they came in. */
   readonly drained: Drained | null;
+  /** The place they came in to, as they read it, where they came in. */
+  readonly answers: readonly Unrendered[];
 }
 
 /** Move `visit`'s visitor, whose place is gone, to the world's arrival place, as their turn's whole outcome. */
@@ -277,12 +316,23 @@ export function displace(turn: WriteTurn, visit: VisitKey): Displaced {
   const told = displacedLine(draft, visitor);
   const reason = closedIn(draft, catalogue);
   if (reason !== null) {
-    return { told, entry: { closed: { reason, words: NOT_ADMITTING } }, drained: null };
+    return {
+      told,
+      entry: { closed: { reason, words: NOT_ADMITTING } },
+      drained: null,
+      answers: [],
+    };
   }
   const entry = enter(turn, visitor, catalogue.arrival!);
-  if ('refused' in entry) return { told, entry, drained: null };
+  if ('refused' in entry) return { told, entry, drained: null, answers: [] };
   draft.putVisitor({ ...record, lastPlace: entry.place });
-  return { told, entry, drained: drain({ sends: entry.sends, destroyed: [], marked: [] }, turn) };
+  const drained = drain({ sends: entry.sends, destroyed: [], marked: [] }, turn);
+  return {
+    told,
+    entry,
+    drained,
+    answers: answersAfter(turn, [...entry.notices, ...drained.notices]),
+  };
 }
 
 /** The world's `displaced`, from the world, to `visitor`, rendered with nothing bound (the spec's bindings table). */

@@ -9,6 +9,7 @@ import {
   initialState,
   libraryHash,
   newInstance,
+  renderEffects,
   NOT_ADMITTING,
   SourceFile,
   STANDARD_LIBRARY,
@@ -108,7 +109,12 @@ const parse: Parser = (text, actor) => {
   const object = noun === 'gauge' ? GAUGE : COUNTER;
   return { reading: { verb, actor, bindings: new Map([['target', { object }]]) } };
 };
-const host: CommandHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, parse };
+const host: CommandHost = {
+  catalogue,
+  budgets: DEFAULT_LIMITS.budgets,
+  parse,
+  render: renderEffects,
+};
 const command = (text: string, now = 0) => ({ visit: MARTA, text, seed: 1, mayHold: null, now });
 
 /** A store holding the tally with Marta standing in the hall. */
@@ -155,6 +161,14 @@ describe('a command turn against a store', () => {
     expect(committedCount(await runCommand(store, 'w', host, command('bump counter')))).toBe(2);
   });
 
+  it('gives the host what it said, rendered, as its effects', async () => {
+    const store = await seeded();
+    const turn = await runCommand(store, 'w', host, command('bump counter'));
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit, one.paragraphs])).toEqual([
+      ['said', COUNTER, MARTA, ['Click.']],
+    ]);
+  });
+
   it('writes nothing of the world when it faults, and tells the actor', async () => {
     const store = await seeded();
     await runCommand(store, 'w', host, command('bump counter'));
@@ -164,6 +178,7 @@ describe('a command turn against a store', () => {
     if (turn.committed) return;
     expect(turn.fault.name).toBe('IntegerOverflow');
     expect(turn.told.effect).toBe('notice');
+    expect(turn.effects.map((one) => [one.kind, one.visit])).toEqual([['notice', MARTA]]);
     expect(await stored(store)).toEqual(before);
     expect(await count(store)).toBe(1);
   });

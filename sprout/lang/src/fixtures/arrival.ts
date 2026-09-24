@@ -21,6 +21,7 @@ import { initialState } from '../runtime/load.js';
 import { parseCommand } from '../runtime/parser.js';
 import { newInstance, type WorldState } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
+import { renderEffects } from '../prose/effects.js';
 
 export const HARBOUR_FILES: Readonly<Record<string, string>> = {
   'world.sprout': `world harbour is sprout.World {
@@ -94,6 +95,7 @@ export const harbourHost = (catalogue: Catalogue = CATALOGUE): CommandHost => ({
   catalogue,
   budgets: DEFAULT_LIMITS.budgets,
   parse: parseCommand,
+  render: renderEffects,
 });
 
 export const MARTA: VisitKey = visitKey('v-marta');

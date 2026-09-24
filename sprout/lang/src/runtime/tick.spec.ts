@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { compiledWorld } from '../fixtures/bundle.js';
+import { renderEffects } from '../prose/effects.js';
 import { catalogueOf } from './catalogue.js';
 import { Draft } from './draft.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from './ids.js';
@@ -60,7 +61,11 @@ message :gust
 });
 
 const CATALOGUE = catalogueOf(WEATHER, DEFAULT_LIMITS.caps);
-const HOST: TurnHost = { catalogue: CATALOGUE, budgets: DEFAULT_LIMITS.budgets };
+const HOST: TurnHost = {
+  catalogue: CATALOGUE,
+  budgets: DEFAULT_LIMITS.budgets,
+  render: renderEffects,
+};
 const at = (...path: string[]): InstanceId => declaredId('weather', path);
 const MOOR = at('moor');
 const FLAG = at('moor', 'flag');
@@ -164,6 +169,18 @@ describe('a tick turn', () => {
     expect(
       gusty.value.drained.said.map((said) => [said.effect, said.by, said.to, said.speaker]),
     ).toEqual([['told', MOOR, [marta], null]]);
+    // Rendered as the tick's one effect, which nobody acted to cause.
+    expect(first.effects).toEqual([]);
+    expect(gusty.effects).toEqual([
+      {
+        kind: 'told',
+        from: MOOR,
+        actor: null,
+        to: marta,
+        visit: MARTA,
+        paragraphs: ['The wind picks up in the eaves.'],
+      },
+    ]);
   });
 
   it('commits a tick to a place with no `:tick` handler, which does nothing but record it', () => {

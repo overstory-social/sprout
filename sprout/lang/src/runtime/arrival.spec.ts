@@ -93,6 +93,14 @@ describe('a new visitor', () => {
       }),
       { notice: 'described', place: QUAY, audience: [done.instance] },
     ]);
+    // As effects: the place's words to whoever is there, then the place to the one who came in.
+    const turn = arrivalTurn(state, harbourHost(), arriving(MARTA));
+    if (!turn.committed) throw new Error('not admitted');
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit, one.actor])).toEqual([
+      ['notice', QUAY, INES, done.instance],
+      ['described', QUAY, MARTA, done.instance],
+    ]);
+    expect(turn.effects[0]!.paragraphs).toEqual(['Marta arrives.']);
   });
 
   it('is refused by the arrival place’s `accept` in its words, and nothing is written', () => {
@@ -106,6 +114,16 @@ describe('a new visitor', () => {
     expect(turn.seen.instances.get(reader)!.container).toBeNull();
     expect(turn.seen.visitors.get(MARTA)!.nickname).toBe('Marta');
     expect(state.visitors.has(MARTA)).toBe(false);
+    expect(turn.effects).toEqual([
+      {
+        kind: 'refused',
+        from: QUAY,
+        actor: reader,
+        to: reader,
+        visit: MARTA,
+        paragraphs: ['The quay is closed for the tide.'],
+      },
+    ]);
   });
 
   it('whose arrival faults is not admitted, told in the host’s words, and the world is as it was', () => {
@@ -149,6 +167,12 @@ describe('a returning visitor', () => {
     expect(words(done.displaced!.said)).toBe(DISPLACED);
     expect(done.displaced!.to).toEqual([done.instance]);
     expect(done.displaced!.bindings.size).toBe(0);
+    const turn = arrivalTurn(state, harbourHost(), arriving(MARTA));
+    if (!turn.committed) throw new Error('not admitted');
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit])).toEqual([
+      ['notice', WORLD, MARTA],
+      ['described', QUAY, MARTA],
+    ]);
   });
 
   it('whose last place is absent is displaced the same way', () => {
@@ -231,6 +255,11 @@ describe('a visitor whose place is gone, on their next turn', () => {
     expect(turn.state.visitors.get(MARTA)!.lastPlace).toBe(QUAY);
     expect(heldIn(turn.state, QUAY, 'arrivals')).toBe(1);
     expect(displaced.drained).not.toBeNull();
+    // Told first, then reading the place they came in to.
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit])).toEqual([
+      ['notice', WORLD, MARTA],
+      ['described', QUAY, MARTA],
+    ]);
   });
 
   it('is displaced the same way from something that no longer holds actors', () => {
@@ -249,6 +278,10 @@ describe('a visitor whose place is gone, on their next turn', () => {
       'The quay is closed for the tide.',
     );
     expect(whereIs(turn.state, MARTA)).toBe(CELLAR);
+    expect(turn.effects.map((one) => [one.kind, one.from, one.paragraphs])).toEqual([
+      ['notice', WORLD, ['The place you were standing is gone.']],
+      ['refused', QUAY, ['The quay is closed for the tide.']],
+    ]);
   });
 
   it('is told the world admits no one where the arrival place is gone too', () => {
@@ -259,6 +292,8 @@ describe('a visitor whose place is gone, on their next turn', () => {
       closed: { reason: 'arrival-place-gone', words: NOT_ADMITTING },
     });
     expect(turn.value.displaced.drained).toBeNull();
+    // The host says the world admits no one outside it; within it, only `displaced` is told.
+    expect(turn.effects.map((one) => [one.kind, one.from])).toEqual([['notice', WORLD]]);
   });
 });
 

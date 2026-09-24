@@ -24,6 +24,7 @@ import type { Said } from '../runtime/reading.js';
 import { newInstance, type WorldState } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
 import { words } from './reading.js';
+import { renderEffects } from '../prose/effects.js';
 
 export const BELFRY: Bundle = compiledWorld('belfry', {
   'world.sprout': `world belfry is sprout.World {
@@ -190,7 +191,7 @@ export function belfryHost(
   budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets,
   parse: Parser = parseBelfry,
 ): CommandHost {
-  return { catalogue: CATALOGUE, budgets, parse };
+  return { catalogue: CATALOGUE, budgets, parse, render: renderEffects };
 }
 
 /** Marta's visit, and the instance she is. */
