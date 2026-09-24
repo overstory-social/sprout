@@ -1,7 +1,7 @@
 {
   "name": "@overstory/sprout-cli",
   "version": "0.1.0",
-  "description": "The Sprout command line: init, check, parse, view and play on a microworld folder.",
+  "description": "The Sprout command line: init, check, parse, view and play on a microworld folder, and the generated skill.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",

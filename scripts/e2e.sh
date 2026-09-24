@@ -3,15 +3,17 @@
 # The installed CLI inits a world and checks it, checks a corpus world the
 # same way, and inspects the new world and a corpus world: the grammar a
 # world accepts, a line read where a visitor stands, and that visitor's
-# view. Then it checks the worked microworld and plays each of its golden
-# transcripts, which must print exactly what they hold. Runs locally only —
-# there is no CI on this repository.
+# view. It checks the worked microworld and plays each of its golden
+# transcripts, which must print exactly what they hold, and it prints the
+# generated skill exactly as corpus/skill/SKILL.md holds it. Runs locally
+# only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 sha=$(git rev-parse --short HEAD)
 corpus=$(pwd)/corpus/good/declarations
 grammar=$(pwd)/corpus/good/grammar
 shop=$(pwd)/corpus/good/printers_shop
+skill=$(pwd)/corpus/skill/SKILL.md
 packs=$(mktemp -d)
 npm run build >/dev/null
 npm pack -w sprout -w cli --pack-destination "$packs" >/dev/null
@@ -33,5 +35,7 @@ for transcript in "$shop"/transcripts/*.txt; do
   diff -u "$transcript" played.txt
   echo "played $(basename "$transcript") as written"
 done
+npx sprout skill > SKILL.md
+cmp SKILL.md "$skill"
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (init, check, parse, view and play from the installed CLI at $sha)"
+echo "e2e: green (init, check, parse, view, play and skill from the installed CLI at $sha)"
