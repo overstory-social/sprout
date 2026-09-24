@@ -7,9 +7,8 @@ import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { chooser, readStatement } from '../../fixtures/parse.js';
+import { parserOver } from '../../fixtures/readers.js';
 import { Lexer } from '../lexer.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
 import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
 import { block, onItsOwn } from './statements.js';
 
@@ -17,8 +16,7 @@ const READERS = { say: sayStatement, tell: tellStatement, text: textStatement } 
 
 /** One statement read by its own reader, over `text` alone. */
 function read(text: string, caps: StaticCaps = DEFAULT_LIMITS.caps) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS, caps);
+  const { p, diagnostics } = parserOver(text, { name: 'body.sprout', caps });
   const word = p.peek().text as keyof typeof READERS;
   const statement = READERS[word](p, onItsOwn());
   return {
@@ -181,14 +179,8 @@ describe('words in quotes are held to the host’s cap on a literal line', () =>
   });
 
   it('holds `refuse` to it, and keeps the words', () => {
-    const diagnostics = new Diagnostics();
     const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 3 };
-    const p = new Parser(
-      new SourceFile('body.sprout', 'refuse "No room here."'),
-      diagnostics,
-      DECLARATION_READERS,
-      caps,
-    );
+    const { p, diagnostics } = parserOver('refuse "No room here."', { name: 'body.sprout', caps });
     const keyword = p.next();
     expect(refusal(p, keyword, onItsOwn())).toMatchObject({
       kind: 'prose-literal',
@@ -204,14 +196,11 @@ describe('words in quotes are held to the host’s cap on a literal line', () =>
   });
 
   it('holds `refuse` to it no more than to the cap: a line as long as the cap stands', () => {
-    const diagnostics = new Diagnostics();
     const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 13 };
-    const p = new Parser(
-      new SourceFile('body.sprout', 'refuse "No room here." refuse full'),
-      diagnostics,
-      DECLARATION_READERS,
+    const { p, diagnostics } = parserOver('refuse "No room here." refuse full', {
+      name: 'body.sprout',
       caps,
-    );
+    });
     expect(refusal(p, p.next(), onItsOwn())).toMatchObject({ kind: 'prose-literal' });
     expect(refusal(p, p.next(), onItsOwn())).toMatchObject({ kind: 'ident', text: 'full' });
     expect(diagnostics.refusals).toEqual([]);
@@ -220,8 +209,7 @@ describe('words in quotes are held to the host’s cap on a literal line', () =>
 
 /** A block read on its own: each statement it kept, written back, and what was said. */
 function blockOf(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
+  const { p, diagnostics } = parserOver(text, { name: 'body.sprout' });
   const kept = block(p, onItsOwn());
   return {
     kinds:

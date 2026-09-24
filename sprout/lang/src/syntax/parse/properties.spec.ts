@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { DEEPEST, parseProperty, parseRemembers } from '../parse.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { read, readProperty } from '../../fixtures/parse.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { readWith, rest } from '../../fixtures/readers.js';
+import { DEEPEST } from './parser.js';
+import { property } from './properties.js';
+
+/** One property, read by `property` from the start of `text`. */
+const declare = (text: string) => {
+  const { read, refusals, p } = readWith(property, text, { name: 'kiln.sprout' });
+  return { declared: read, refusals, p };
+};
 
 describe('a property declaration, as a kind or an object writes one', () => {
-  const declare = (text: string) => {
-    const diagnostics = new Diagnostics();
-    const declared = parseProperty(new SourceFile('kiln.sprout', text), diagnostics);
-    return { declared, diagnostics, refusals: diagnostics.refusals };
-  };
-
   it('reads a literal with the type left out', () => {
     const { declared, refusals } = declare(':lit false');
     expect(refusals).toEqual([]);
@@ -76,17 +76,6 @@ describe('a property declaration, as a kind or an object writes one', () => {
     expect(declared!.type).toMatchObject({ library: { text: 'sprout' }, name: { text: 'Ward' } });
     expect(declared!.default).toMatchObject({ kind: 'option-literal', name: { text: 'iron' } });
     expect(locationOf(declared!.default!.at)).toBe('kiln.sprout:1:19');
-  });
-
-  it('reads it the same way where an object remembers it', () => {
-    const diagnostics = new Diagnostics();
-    const declared = parseRemembers(
-      new SourceFile('kiln.sprout', 'remembers { :ward Ward.iron }'),
-      diagnostics,
-    );
-    expect(diagnostics.refusals).toEqual([]);
-    expect(declared!.properties[0]!.type).toMatchObject({ name: { text: 'Ward' } });
-    expect(declared!.properties[0]!.default).toMatchObject({ name: { text: 'iron' } });
   });
 
   it('refuses a `default` after that form, which would say the default twice', () => {
@@ -200,16 +189,15 @@ describe('a property declaration, as a kind or an object writes one', () => {
   });
 
   it('refuses a value missing before a `remembers` block, and keeps the block', () => {
-    const text = 'kind K {\n  :faulty\n  remembers { :visits 0 }\n}';
-    const { declarations, refusals } = read(text);
+    const { declared, refusals, p } = declare(':faulty\n  remembers { :visits 0 }\n}');
+    expect(declared).toBeNull();
     expect(refusals.map((d) => [d.message, d.remedy])).toEqual([
       [
         '`:faulty` has no value where one should be.',
         'Write an option of the type, or a literal, before the next `remembers` block.',
       ],
     ]);
-    const kind = declarations.find((d) => d.kind === 'kind');
-    expect(kind?.members.map((m) => m.kind)).toEqual(['remembers']);
+    expect(rest(p)).toBe('remembers { :visits 0 }\n}');
   });
 
   it('still reads `message` and `enum` as bare options where no declaration follows', () => {
@@ -223,6 +211,15 @@ describe('a property declaration, as a kind or an object writes one', () => {
       kind: 'option-literal',
       name: { text: 'enum' },
     });
+  });
+
+  it('reads a word that only spells a declaration as an element of a list default', () => {
+    // Nothing reserves an option's name, and what FOLLOWS the word is
+    // what decides: `[oak, enum]` is a list of two options.
+    for (const text of [':x [Ward] default [oak, enum]', ':x [Ward] default [oak, message]']) {
+      expect(declare(text).declared, text).not.toBeNull();
+      expect(declare(text).refusals, text).toEqual([]);
+    }
   });
 
   it('never throws, whatever it is given', () => {
@@ -240,15 +237,43 @@ describe('a property declaration, as a kind or an object writes one', () => {
       expect(() => declare(text), text).not.toThrow();
     }
   });
+
+  it('never loops on an element it cannot read and cannot step over', () => {
+    for (const text of [':x [Zeta]', ':x [Zeta Zeta Zeta]', 'remembers { Zeta }', ':x [,,,]']) {
+      expect(() => declare(text), text).not.toThrow();
+    }
+  });
+});
+
+describe('one mistake in a property is said once, and said truly', () => {
+  it('says a list type names one element type, rather than blaming the bracket', () => {
+    expect(declare(':x [Ward, oak]').refusals.map((d) => d.message)).toEqual([
+      'A list type names one element type.',
+    ]);
+  });
+
+  it('reads a list past an element it could not read, as the enum does', () => {
+    expect(declare(':x [Ward] default [oak silver brass]').refusals.map((d) => d.message)).toEqual([
+      'A list needs a comma between its elements.',
+      'A list needs a comma between its elements.',
+    ]);
+  });
+
+  it('spans a property to its last bound, whichever order they came in', () => {
+    expect(textOf(declare(':x 0 max 1 min 2').declared!.at)).toBe(':x 0 max 1 min 2');
+  });
+
+  it('keeps a well-formed element that follows one it could not read', () => {
+    for (const text of [':x [oak, Zeta silver]', ':x [oak, Zeta, silver]']) {
+      const { declared, refusals } = declare(text);
+      expect(refusals, text).toHaveLength(1);
+      const value = declared!.default!;
+      expect(value.kind === 'list-literal' && value.elements.length, text).toBe(2);
+    }
+  });
 });
 
 describe('a type that failed to parse is not mistaken for no type at all', () => {
-  const declare = (text: string) => {
-    const diagnostics = new Diagnostics();
-    const declared = parseProperty(new SourceFile('kiln.sprout', text), diagnostics);
-    return { declared, refusals: diagnostics.refusals };
-  };
-
   it('gives back nothing, having already said what was wrong', () => {
     const { declared, refusals } = declare(':opens [Ward default oak');
     expect(declared).toBeNull();
@@ -267,6 +292,8 @@ describe('a type that failed to parse is not mistaken for no type at all', () =>
 });
 
 describe('a `min` and a `max` are whole numbers', () => {
+  const readProperty = declare;
+
   it('says so for anything written there that is not one', () => {
     for (const [text, said] of [
       [':x integer default 0 min [1, 2]', 'A min is a whole number.'],
@@ -315,65 +342,6 @@ describe('a `min` and a `max` are whole numbers', () => {
         readProperty(`:x integer default 0 max ${bad}`).refusals.map((d) => d.message),
         bad,
       ).toEqual(['Sprout has no fractions.']);
-    }
-  });
-
-  it('steps over the rest of a property whose bound is refused, and says one thing', () => {
-    for (const bad of ['min max 9', 'min oak max 9', 'min 0 min 1 max 2', 'max [1] min 0']) {
-      const text = `remembers { :visits 0 ${bad} :walks 1 }`;
-      const diagnostics = new Diagnostics();
-      const remembered = parseRemembers(new SourceFile('k.sprout', text), diagnostics);
-      expect(
-        remembered?.properties.map((p) => p.name.text),
-        text,
-      ).toEqual(['walks']);
-      expect(diagnostics.refusals, text).toHaveLength(1);
-    }
-  });
-
-  it('never loses the entry written after a bad bound in silence', () => {
-    // Every shape either keeps `walks` or names it; none drops it
-    // without saying so.
-    for (const bad of [
-      '[1, 2]',
-      '[[1]]',
-      'oak',
-      '"9"',
-      'true',
-      'Ward',
-      ':wet',
-      'max 9',
-      '1.5',
-      '-[1]',
-      '-[1, 2]',
-      '-oak',
-      '-"9"',
-      '-',
-      '- -',
-    ]) {
-      const diagnostics = new Diagnostics();
-      const remembered = parseRemembers(
-        new SourceFile('k.sprout', `remembers { :visits 0 min ${bad} :walks 1 }`),
-        diagnostics,
-      );
-      const kept = remembered?.properties.map((p) => p.name.text) ?? [];
-      const said = diagnostics.refusals.map((d) => d.message).join(' ');
-      expect(kept.includes('walks') || said.includes('walks'), `${bad}: walks vanished`).toBe(true);
-      expect(diagnostics.refusals.length, bad).toBeGreaterThan(0);
-    }
-  });
-
-  it('keeps what was read before a bad bound, whatever the bound was', () => {
-    for (const bad of [']', 'oak', '[1, 2]', '}', '-', '-[1]']) {
-      const diagnostics = new Diagnostics();
-      const remembered = parseRemembers(
-        new SourceFile('k.sprout', `remembers { :handled false :visits 0 min ${bad} }`),
-        diagnostics,
-      );
-      expect(
-        remembered?.properties.map((p) => p.name.text),
-        bad,
-      ).toEqual(['handled']);
     }
   });
 });

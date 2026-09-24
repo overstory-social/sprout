@@ -1,30 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration } from '../ast.js';
-import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { read } from '../../fixtures/parse.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { atMember, parserOver, readWith } from '../../fixtures/readers.js';
 import { proseFile, proseFileBody, PROSE_FILE } from './prose-file.js';
+import { worldMembers } from './world.js';
 
+/** Every passage `proseFileBody` reads from a `.prose` file holding `text`. */
 function body(text: string) {
-  const diagnostics = new Diagnostics();
-  const passages = proseFileBody(
-    new Parser(new SourceFile('mirror.prose', text), diagnostics, new Map()),
-  );
-  return { passages, said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message]) };
+  const { read: passages, refusals } = readWith(proseFileBody, text, {
+    name: 'mirror.prose',
+    readers: new Map(),
+  });
+  return { passages, said: refusals.map((d) => [locationOf(d.at), d.message]) };
 }
 
+/** One `prose "…"` member, read by `proseFile` from the start of `text`. */
 function member(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('mirror.sprout', text), diagnostics, new Map());
-  const read = proseFile(p);
-  return {
-    read,
-    p,
-    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-  };
+  const { read, p, refusals } = readWith(proseFile, text, {
+    name: 'mirror.sprout',
+    readers: new Map(),
+  });
+  return { read, p, said: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]) };
 }
 
 describe('`prose "…"` names the file a kind’s longer passages live in', () => {
@@ -37,17 +34,13 @@ describe('`prose "…"` names the file a kind’s longer passages live in', () =
   });
 
   it('is a member of a kind’s, an object’s and the world’s body', () => {
-    const { declarations, refusals } = read(
-      'kind Mirror { prose "mirror.prose" }\nworld w is sprout.World { prose "w.prose"\n  object o is Mirror { prose "o.prose" } }',
-    );
-    expect(refusals).toEqual([]);
-    const [kind, world] = declarations as [
-      KindDeclaration,
-      { members: { kind: string }[]; objects: KindDeclaration[] },
-    ];
-    expect(kind.members.map((m) => m.kind)).toEqual(['prose-file']);
-    expect(world.members.map((m) => m.kind)).toEqual(['prose-file']);
-    expect(world.objects[0]!.members.map((m) => m.kind)).toEqual(['prose-file']);
+    // A kind's body and an object's are read by one table of members, and the world's by its own.
+    const text = 'kind Mirror { prose "mirror.prose" }';
+    const kind = atMember(text, text.indexOf('prose'), 'Mirror');
+    expect(kind.readers.get('prose')!()).toMatchObject({ kind: 'prose-file' });
+    const { p, diagnostics } = parserOver('prose "w.prose"');
+    expect(worldMembers(p, 'w').get('prose')!()).toMatchObject({ kind: 'prose-file' });
+    expect([...kind.diagnostics.refusals, ...diagnostics.refusals]).toEqual([]);
   });
 
   it('refuses a name not in quotes, and leaves what follows to be read', () => {

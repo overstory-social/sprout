@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { parserOver as over } from '../../fixtures/readers.js';
 import { ARTICLE, composition, kindName, writtenKind } from './composition.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
 
 /** A parser over some text, for calling one reader directly. */
-function parserOver(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('b.sprout', text), diagnostics, DECLARATION_READERS);
-  return { p, diagnostics };
-}
+const parserOver = (text: string) => over(text, { name: 'b.sprout' });
 
 /** A parser at `text` with the declaration's name taken, as its reader leaves it. */
 function afterName(text: string) {

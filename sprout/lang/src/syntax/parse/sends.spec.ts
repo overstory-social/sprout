@@ -6,11 +6,16 @@ import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { chooser, readStatement, shape } from '../../fixtures/parse.js';
+import { parserOver, readWith } from '../../fixtures/readers.js';
 import { Lexer } from '../lexer.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { block, onItsOwn } from './statements.js';
+
+/** The `send` or `broadcast` `text` starts with, read by its own reader. */
+const readSend = (text: string) =>
+  readWith((p) => (p.at('name', 'broadcast') ? broadcastStatement(p) : sendStatement(p)), text, {
+    name: 'body.sprout',
+  });
 
 /** A send or a broadcast as the parser holds it, written back. */
 function written(statement: SendStatement | BroadcastStatement): string {
@@ -21,14 +26,12 @@ function written(statement: SendStatement | BroadcastStatement): string {
 }
 
 const said = (text: string) =>
-  readStatement(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  readSend(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
 
 /** A block read on its own: the kinds of statement it kept, and what was said. */
 function blockOf(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
-  const read = block(p, onItsOwn());
-  return { kinds: read?.statements.map((one) => one.kind) ?? null, refusals: diagnostics.refusals };
+  const { read, refusals } = readWith((p) => block(p, onItsOwn()), text, { name: 'body.sprout' });
+  return { kinds: read?.statements.map((one) => one.kind) ?? null, refusals };
 }
 
 describe('`send` and `broadcast`', () => {
@@ -40,21 +43,17 @@ describe('`send` and `broadcast`', () => {
       ['send kiln.shelf :fired', 'send kiln.shelf :fired'],
       ['broadcast :gust', 'broadcast :gust'],
     ] as const) {
-      const { statement, refusals } = readStatement(text);
+      const { read: statement, refusals, p } = readSend(text);
       expect(refusals, text).toEqual([]);
+      expect(p.done, text).toBe(true);
       expect(unspanned(statement), text).toEqual([]);
-      expect(written(statement as SendStatement | BroadcastStatement), text).toBe(form);
+      expect(written(statement!), text).toBe(form);
       expect(textOf(statement!.at), text).toBe(text);
     }
   });
 
   it('are read by their own readers', () => {
-    const diagnostics = new Diagnostics();
-    const p = new Parser(
-      new SourceFile('body.sprout', 'send lamp :lit with self.get(:on) broadcast :rang'),
-      diagnostics,
-      DECLARATION_READERS,
-    );
+    const { p, diagnostics } = parserOver('send lamp :lit with self.get(:on) broadcast :rang');
     const send = sendStatement(p);
     const broadcast = broadcastStatement(p);
     expect(diagnostics.refusals).toEqual([]);

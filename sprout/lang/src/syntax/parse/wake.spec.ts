@@ -1,30 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { Diagnostics } from '../../source/diagnostics.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { readStatement } from '../../fixtures/parse.js';
-import { parseDeclarations } from '../parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { atMember, readWith, rest } from '../../fixtures/readers.js';
 import { wakeStatement } from './wake.js';
 
 const EXAMPLE =
   'Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.';
 
+/** One `wake`, read by `wakeStatement` from the start of `text`. */
+const readWake = (text: string) => readWith(wakeStatement, text, { name: 'body.sprout' });
+
 /** What refusing `text` said, where and in what words. */
 const refused = (text: string) =>
-  readStatement(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  readWake(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
 
 describe('`wake in <n> seconds | minutes | hours`', () => {
   it('reads the spec’s own, with its count and unit, spanning the whole statement', () => {
-    const diagnostics = new Diagnostics();
-    const p = new Parser(
-      new SourceFile('body.sprout', 'wake in 3 hours'),
-      diagnostics,
-      DECLARATION_READERS,
-    );
-    const read = wakeStatement(p);
-    expect(diagnostics.refusals).toEqual([]);
+    const { read, p, refusals } = readWake('wake in 3 hours\nsay "Later."');
+    expect(refusals).toEqual([]);
+    expect(rest(p)).toBe('say "Later."');
     expect(read).toMatchObject({
       kind: 'wake',
       count: { kind: 'integer', value: 3 },
@@ -36,9 +30,9 @@ describe('`wake in <n> seconds | minutes | hours`', () => {
 
   it('reads each unit, across lines as any statement may be written', () => {
     for (const unit of ['seconds', 'minutes', 'hours'] as const) {
-      const { statement, refusals } = readStatement(`wake\n  in 40\n  ${unit}`);
+      const { read, refusals } = readWake(`wake\n  in 40\n  ${unit}`);
       expect(refusals, unit).toEqual([]);
-      expect(statement, unit).toMatchObject({ kind: 'wake', count: { value: 40 }, unit });
+      expect(read, unit).toMatchObject({ kind: 'wake', count: { value: 40 }, unit });
     }
   });
 
@@ -65,7 +59,7 @@ describe('`wake in <n> seconds | minutes | hours`', () => {
       ['wake in "3" hours', '"3"'],
       ['wake in Three hours', 'Three'],
     ] as const) {
-      const { refusals } = readStatement(text);
+      const { refusals } = readWake(text);
       expect(
         refusals.map((d) => [textOf(d.at), d.message, d.remedy]),
         text,
@@ -96,15 +90,24 @@ describe('`wake in <n> seconds | minutes | hours`', () => {
   it('never takes the next statement, or a word starting a line, for its count or unit', () => {
     const text =
       'kind Kiln {\n  :lit false\n  on :stir {\n    wake in 3\n    self.set(:lit, true)\n    wake in\n    send self :stir\n  }\n}\nmessage :stir\n';
-    const diagnostics = new Diagnostics();
-    const [kiln] = parseDeclarations(new SourceFile('kiln.sprout', text), diagnostics);
-    expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+    /** The `wake` at `from`, read where the handler's block holds it. */
+    const wakeAt = (from: string) => {
+      const { p, diagnostics } = atMember(text, text.indexOf(from), 'Kiln', {
+        name: 'kiln.sprout',
+      });
+      expect(wakeStatement(p), from).toBeNull();
+      return {
+        said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message]),
+        rest: rest(p),
+      };
+    };
+    const count = wakeAt('wake in 3');
+    expect(count.said).toEqual([
       ['kiln.sprout:4:14', '`wake in 3` does not say seconds, minutes or hours.'],
-      ['kiln.sprout:6:12', '`wake in` does not say how long to wait.'],
     ]);
-    if (kiln?.kind !== 'kind') return expect.unreachable('the kind is read');
-    const handler = kiln.members.find((m) => m.kind === 'handler');
-    if (handler?.kind !== 'handler') return expect.unreachable('the handler is read');
-    expect(handler.body.statements.map((s) => s.kind)).toEqual(['expression-statement', 'send']);
+    expect(count.rest.startsWith('self.set(:lit, true)\n')).toBe(true);
+    const unit = wakeAt('wake in\n');
+    expect(unit.said).toEqual([['kiln.sprout:6:12', '`wake in` does not say how long to wait.']]);
+    expect(unit.rest.startsWith('send self :stir\n')).toBe(true);
   });
 });

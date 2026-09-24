@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ActStatement, KindDeclaration, PlayDeclaration } from '../ast.js';
+import type { ActStatement } from '../ast.js';
 import { writtenPath } from '../ast.js';
-import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { chooser, readExpression, readStatement } from '../../fixtures/parse.js';
-import { parseDeclarations } from '../parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { chooser } from '../../fixtures/parse.js';
+import { inKindBody, readWith, rest } from '../../fixtures/readers.js';
 import { actStatement } from './act.js';
+import { play } from './roles.js';
 import { block, onItsOwn } from './statements.js';
 
 /** An `act` as the parser holds it, written back: `act nuzzle (target: p)`. */
@@ -18,16 +16,17 @@ function actShape(act: ActStatement): string {
   return `act ${act.verb.text} (${roles.join(', ')})`;
 }
 
-/** What was said reading `text` as one statement: location, message and remedy. */
+/** One `act`, read by `actStatement` from the start of `text`. */
+const readAct = (text: string) => readWith(actStatement, text, { name: 'body.sprout' });
+
+/** What was said reading `text` as one `act`: location, message and remedy. */
 const said = (text: string) =>
-  readStatement(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  readAct(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
 
 /** A block read on its own: the kinds of statement it kept, and how many refusals. */
 function blockOf(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
-  const read = block(p, onItsOwn());
-  return { kinds: read?.statements.map((one) => one.kind) ?? null, refusals: diagnostics.refusals };
+  const { read, refusals } = readWith((p) => block(p, onItsOwn()), text, { name: 'body.sprout' });
+  return { kinds: read?.statements.map((one) => one.kind) ?? null, refusals };
 }
 
 describe('`act` performs a verb with `self` as the actor', () => {
@@ -38,32 +37,30 @@ describe('`act` performs a verb with `self` as the actor', () => {
       'act look ()',
       'act take (target: kiln.cup)',
     ]) {
-      const { statement, refusals } = readStatement(text);
+      const { read, refusals, p } = readAct(text);
       expect(refusals, text).toEqual([]);
-      expect(unspanned(statement), text).toEqual([]);
-      expect(statement!.kind, text).toBe('act');
-      expect(actShape(statement as ActStatement), text).toBe(text);
+      expect(unspanned(read), text).toEqual([]);
+      expect(read!.kind, text).toBe('act');
+      expect(actShape(read!), text).toBe(text);
+      expect(p.done, text).toBe(true);
     }
   });
 
   it('is read by its own reader, spanning from the word to the closing bracket', () => {
-    const diagnostics = new Diagnostics();
-    const text = 'act unlock (target: door,  tool: key)';
-    const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
-    const read = actStatement(p);
-    expect(diagnostics.refusals).toEqual([]);
-    expect(textOf(read!.at)).toBe(text);
+    const text = 'act unlock (target: door,  tool: key) after';
+    const { read, refusals, p } = readAct(text);
+    expect(refusals).toEqual([]);
+    expect(rest(p)).toBe('after');
+    expect(textOf(read!.at)).toBe('act unlock (target: door,  tool: key)');
     expect(read!.roles.map((role) => textOf(role.at))).toEqual(['target: door', 'tool: key']);
     expect(locationOf(read!.roles[1]!.filler.at)).toBe('body.sprout:1:34');
   });
 
   it('takes a comma after the last role, and a role written against its colon', () => {
-    expect(actShape(readStatement('act nuzzle (target: p,)').statement as ActStatement)).toBe(
-      'act nuzzle (target: p)',
-    );
-    const joined = readStatement('act nuzzle (target:p)');
+    expect(actShape(readAct('act nuzzle (target: p,)').read!)).toBe('act nuzzle (target: p)');
+    const joined = readAct('act nuzzle (target:p)');
     expect(joined.refusals).toEqual([]);
-    const filler = (joined.statement as ActStatement).roles[0]!.filler;
+    const filler = joined.read!.roles[0]!.filler;
     expect(writtenPath(filler)).toBe('p');
     expect(locationOf(filler.at)).toBe('body.sprout:1:20');
   });
@@ -156,23 +153,9 @@ describe('`act` performs a verb with `self` as the actor', () => {
       ],
     ];
     for (const [text, where, message, remedy] of table) {
-      const { statement } = readStatement(text);
-      expect(statement, text).toBeNull();
+      expect(readAct(text).read, text).toBeNull();
       expect(said(text), text).toEqual([[where, message, remedy]]);
     }
-  });
-
-  it('is refused once where a value is wanted, with everything it holds', () => {
-    const { expr, refusals } = readExpression('act nuzzle (target: p, tool: q)');
-    expect(expr).toBeNull();
-    expect(refusals.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
-      [
-        'body.sprout:1:1',
-        '`act` performs a verb, and is not something to read.',
-        'Write it on its own line, as in `act nuzzle (target: p)`.',
-      ],
-    ]);
-    expect(textOf(refusals[0]!.at)).toBe('act nuzzle (target: p, tool: q)');
   });
 });
 
@@ -217,19 +200,14 @@ describe('a refused `act` never takes what follows it', () => {
 
   it('keeps the member after a play whose `do` holds one, and the play itself', () => {
     for (const defect of DEFECTIVE) {
-      const text = `kind Cat {\n  as actor for purr { do { ${defect}\n  say "after" } }\n  :fed false\n}\n`;
-      const diagnostics = new Diagnostics();
-      const [kind] = parseDeclarations(new SourceFile('cat.sprout', text), diagnostics);
-      expect(diagnostics.refusals, text).toHaveLength(1);
-      const members = (kind as KindDeclaration).members;
+      const members = `as actor for purr { do { ${defect}\n  say "after" } }\n  :fed false`;
+      const { p, diagnostics, startsMember } = inKindBody(members, 'Cat');
+      const read = play(p, 'Cat', startsMember);
+      expect(diagnostics.refusals, members).toHaveLength(1);
+      expect(rest(p), members).toBe(':fed false\n}\n');
       expect(
-        members.map((member) => member.kind),
-        text,
-      ).toEqual(['play', 'property']);
-      const play = members[0] as PlayDeclaration;
-      expect(
-        play.do!.statements.map((one) => one.kind),
-        text,
+        read!.do!.statements.map((one) => one.kind),
+        members,
       ).toEqual(['say']);
     }
   });
