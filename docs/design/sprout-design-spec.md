@@ -1671,7 +1671,7 @@ How a page of them is laid out — the gutter, the wrapping — is the tool's bu
 
 ### What compiling produces
 
-A bundle: the manifest it was compiled from, the definitions, the world's complete word set, the language level, the extensions it pins, the hash of every vendored library, the static caps it was checked against, and which of those the host blessed at publish.
+A bundle: the manifest it was compiled from, the definitions, the world's complete word set, the language level, the extensions it pins, the hash of every vendored library, and the static caps it was checked against. Which libraries are blessed is not recorded: it is the host's, read at every load.
 
 ### Language levels
 

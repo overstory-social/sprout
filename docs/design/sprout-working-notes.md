@@ -918,7 +918,7 @@ Only dynamic topology was irreducible, and it is answered by `link` and `connect
 
 **Typing — exact, at the cost of `is()`.** The union rule over role-players was computable and fragile; declaring a kind on every role brought brand kinds back. The bare object type is the third way: an open role is an object, and reading anything through it requires narrowing. One `if` per cross-kind read, and no read is ever unchecked. Messages declare their carried type for the same reason.
 
-**The poll is a turn.** Read-only, snapshot-isolated, own step budget, no seed, no log, cacheable by world version. Making views a by-product of write turns was the cheaper runtime and the worse language: it would have charged a busy room's every action for every bystander's view. A poll that is a turn has a budget the host sets and a fault the author owns.
+**The poll is a turn.** Read-only, snapshot-isolated, own step budget, no seed, no log, cacheable until a committed write turn names the view stale. Making views a by-product of write turns was the cheaper runtime and the worse language: it would have charged a busy room's every action for every bystander's view. A poll that is a turn has a budget the host sets and a fault the author owns.
 
 ### Not language questions, but blocking
 
