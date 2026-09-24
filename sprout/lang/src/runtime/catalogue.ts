@@ -2,9 +2,10 @@
 // The runtime › State): every declared object by its id, what the world
 // and a visitor are made of, the kinds a spawn may name and what each
 // gives its instances, every kind as a body finds it by name, every verb
-// and the phrases a visitor may type, where visitors arrive, and the
-// host's caps that stored values are read under. Built once per load,
-// and read by every rule that reconciles stored state with source.
+// and the phrases a visitor may type, where visitors arrive, the word
+// set a nickname is admitted against, and the host's caps that stored
+// values are read under. Built once per load, and read by every rule
+// that reconciles stored state with source.
 //
 // Every placement in the declared tree is here, what a kind gave a
 // declared object and one whose kind is absent included, so that what it
@@ -73,6 +74,8 @@ export interface Catalogue {
   readonly optionSlots: ReadonlySet<Node>;
   /** Where visitors arrive, or null for a world that admits no one. */
   readonly arrival: InstanceId | null;
+  /** The bundle's word set, which a nickname is admitted against. */
+  readonly words: ReadonlySet<string>;
   /**
    * The caps the host runs the world under now, which stored values are
    * read under: its own, or for a world it made an exception for, those
@@ -117,6 +120,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     names: bundle.names,
     optionSlots: bundle.optionSlots,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
+    words: new Set(bundle.words),
     caps,
   };
 }

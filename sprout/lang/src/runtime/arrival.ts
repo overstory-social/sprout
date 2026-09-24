@@ -30,6 +30,7 @@ import type { InstanceId, VisitKey } from './ids.js';
 import type { EngineSend } from './lifecycle.js';
 import { isPlace, liveTree } from './live.js';
 import { placeEntered, type Notice, type PlaceSend } from './move.js';
+import { keptNickname, nicknameRefusal } from './nickname.js';
 import { turnState, type Said } from './reading.js';
 import { newInstance, readerOf, type StateReader, type WorldState } from './state.js';
 import {
@@ -44,7 +45,7 @@ import {
 /** One visitor arriving, as the host hands it over and the log records it. */
 export interface Arrival extends WriteInputs {
   readonly visit: VisitKey;
-  /** The nickname the host accepted for this visit (Admission and identity). */
+  /** The nickname the host admitted for this visit (`nicknameRefusal`), kept as its words single-spaced. */
   readonly nickname: string;
 }
 
@@ -72,7 +73,7 @@ export const NOT_ADMITTING = 'This world is not letting anyone in just now.';
 export const ENTRY_FAILED = 'Something went wrong as you arrived, and you have not come in.';
 
 /** The stock line for a world whose standard library leaves `displaced` out. */
-const DISPLACED_STOCK = 'The place you were standing is gone.';
+export const DISPLACED_STOCK = 'The place you were standing is gone.';
 
 /** Where a visitor came in, and what the engine sends and says of it. */
 export interface Entered {
@@ -143,22 +144,26 @@ export function closedIn(state: StateReader, catalogue: Catalogue): ClosedReason
 
 /**
  * Run `arrival` as one arrival turn over the committed `state`. A visit
- * already standing in the world, or a nickname empty or held by someone
- * present, is the host's defect, thrown before the turn opens.
+ * already standing in the world, or a nickname `nicknameRefusal` refuses
+ * with no cap on its length, which only the host knows, is the host's
+ * defect, thrown before the turn opens.
  */
 export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival): ArrivalTurn {
   const committed = readerOf(state);
   const { catalogue } = host;
-  const nickname = arrival.nickname.trim();
-  if (nickname.length === 0) {
-    throw new Error(`\`${arrival.visit}\` arrives with no nickname, and the host gives one.`);
+  const unadmitted = nicknameRefusal(
+    state,
+    catalogue,
+    { characters: null },
+    arrival.visit,
+    arrival.nickname,
+  );
+  if (unadmitted !== null) {
+    throw new Error(
+      `\`${arrival.visit}\` arrives with a nickname the host did not admit: ${unadmitted.words}`,
+    );
   }
-  for (const other of state.visitors.values()) {
-    if (other.visit === arrival.visit || other.nickname !== nickname) continue;
-    if ((state.instances.get(other.instance)?.container ?? null) !== null) {
-      throw new Error(`\`${nickname}\` is already the nickname of someone in this world.`);
-    }
-  }
+  const nickname = keptNickname(arrival.nickname);
   const record = committed.visitor(arrival.visit);
   if (record !== undefined) {
     const instance = committed.instance(record.instance);

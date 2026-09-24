@@ -45,6 +45,13 @@ describe('a catalogue says what one bundle holds as instances', () => {
     ]);
   });
 
+  it('carries the bundle’s word set, which a nickname is admitted against', () => {
+    const bundle = shop();
+    expect(bundle.words.length).toBeGreaterThan(0);
+    expect([...catalogue.words].sort()).toEqual([...bundle.words]);
+    expect(catalogue.words.has('jar')).toBe(true);
+  });
+
   it('ranks siblings in the order they were declared', () => {
     const rank = (...path: string[]) => catalogue.declared.get(id(...path))!.rank;
     expect(rank('hall')).toBeLessThan(rank('yard'));

@@ -35,6 +35,7 @@ import {
   runTick,
   runWake,
   runWriteTurn,
+  type NicknameHost,
 } from './turns.js';
 
 // A counter and a gauge in a hall, both of one kind, one kind per file:
@@ -358,6 +359,9 @@ describe('a maintenance turn against a store', () => {
   });
 });
 
+/** A host that caps no nickname and whose moderation declines none. */
+const OPEN: NicknameHost = { rules: { characters: null }, moderate: () => true };
+
 describe('admitting and letting go of a visitor against a store', () => {
   const at = (now: number) => ({ now, seed: 4, mayHold: null });
 
@@ -375,11 +379,18 @@ describe('admitting and letting go of a visitor against a store', () => {
     const store = await seeded();
     await runCommand(store, 'w', host, command('rest counter', 0));
     await runDeparture(store, 'w', host, { visit: MARTA, ...at(10) });
-    const admitted = await runArrival(store, 'w', host, at(75), {
-      visit: MARTA,
-      nickname: 'Marta',
-      ...at(75),
-    });
+    const admitted = await runArrival(
+      store,
+      'w',
+      host,
+      at(75),
+      {
+        visit: MARTA,
+        nickname: 'Marta',
+        ...at(75),
+      },
+      OPEN,
+    );
     expect(admitted.caughtUp!.value.delivered.map((w) => w.object)).toEqual([COUNTER]);
     expect(admitted.arrived.committed).toBe(true);
     // The counter reads the whole absence, delivered before anyone walked in.
@@ -393,16 +404,155 @@ describe('admitting and letting go of a visitor against a store', () => {
     await runCommand(store, 'w', host, command('rest counter', 0));
     const closed: CommandHost = { ...host, catalogue: { ...catalogue, arrival: null } };
     const before = await stored(store);
-    const admitted = await runArrival(store, 'w', closed, at(75), {
-      visit: visitKey('v-ines'),
-      nickname: 'Ines',
-      ...at(75),
-    });
+    const admitted = await runArrival(
+      store,
+      'w',
+      closed,
+      at(75),
+      {
+        visit: visitKey('v-ines'),
+        nickname: 'Ines',
+        ...at(75),
+      },
+      OPEN,
+    );
     expect(admitted.caughtUp).toBeNull();
     expect(admitted.arrived).toEqual({
       committed: false,
       closed: { reason: 'no-arrival-place', words: NOT_ADMITTING },
     });
     expect(await stored(store)).toEqual(before);
+  });
+});
+
+describe('admitting a nickname against a store', () => {
+  const at = (now: number) => ({ now, seed: 4, mayHold: null });
+  const INES = visitKey('v-ines');
+  const PAT = visitKey('v-pat');
+
+  it('refuses one the world reads, or one someone present holds, running no catch-up, asking no moderation and writing nothing', async () => {
+    for (const nickname of ['Counter', 'Hall Ines', 'MARTA']) {
+      const store = await seeded();
+      await runCommand(store, 'w', host, command('rest counter', 0));
+      const before = await stored(store);
+      const asked: string[] = [];
+      const moderating: NicknameHost = {
+        ...OPEN,
+        moderate: (name) => (asked.push(name), true),
+      };
+      const admitted = await runArrival(
+        store,
+        'w',
+        host,
+        at(75),
+        { visit: INES, nickname, ...at(75) },
+        moderating,
+      );
+      expect(admitted.caughtUp, nickname).toBeNull();
+      expect(admitted.arrived.committed, nickname).toBe(false);
+      const refused =
+        'nicknameRefused' in admitted.arrived ? admitted.arrived.nicknameRefused : null;
+      expect(refused?.reason, nickname).toBe(nickname === 'MARTA' ? 'held' : 'world-word');
+      expect(refused?.words.length, nickname).toBeGreaterThan(0);
+      expect(asked, nickname).toEqual([]);
+      expect(await stored(store), nickname).toEqual(before);
+    }
+  });
+
+  it('refuses one past the host’s cap before its moderation is asked', async () => {
+    const store = await seeded();
+    const capped: NicknameHost = { rules: { characters: 4 }, moderate: () => true };
+    const admitted = await runArrival(
+      store,
+      'w',
+      host,
+      at(0),
+      { visit: INES, nickname: 'Ines B', ...at(0) },
+      capped,
+    );
+    expect('nicknameRefused' in admitted.arrived && admitted.arrived.nicknameRefused.reason).toBe(
+      'too-long',
+    );
+  });
+
+  it('asks the host’s moderation of the nickname as it would be kept, and refuses one it declines, writing nothing', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    const before = await stored(store);
+    const asked: string[] = [];
+    const strict: NicknameHost = {
+      ...OPEN,
+      moderate: async (name) => (asked.push(name), name !== 'Rude Word'),
+    };
+    const admitted = await runArrival(
+      store,
+      'w',
+      host,
+      at(75),
+      { visit: INES, nickname: '  Rude   Word ', ...at(75) },
+      strict,
+    );
+    expect(asked).toEqual(['Rude Word']);
+    expect(admitted.caughtUp).toBeNull();
+    expect(admitted.arrived).toEqual({
+      committed: false,
+      nicknameRefused: {
+        reason: 'moderated',
+        nickname: '  Rude   Word ',
+        collides: [],
+        words: 'That nickname cannot be used here: choose another.',
+      },
+    });
+    expect(await stored(store)).toEqual(before);
+  });
+
+  it('refuses one someone came in under while it was being moderated, after catch-up, writing no arrival', async () => {
+    const store = await seeded();
+    const racing: NicknameHost = {
+      ...OPEN,
+      moderate: async () => {
+        const first = await runArrival(
+          store,
+          'w',
+          host,
+          at(5),
+          { visit: PAT, nickname: 'Pat', ...at(5) },
+          OPEN,
+        );
+        expect(first.arrived.committed).toBe(true);
+        return true;
+      },
+    };
+    const admitted = await runArrival(
+      store,
+      'w',
+      host,
+      at(5),
+      { visit: INES, nickname: 'pat', ...at(5) },
+      racing,
+    );
+    expect(admitted.caughtUp).not.toBeNull();
+    expect('nicknameRefused' in admitted.arrived && admitted.arrived.nicknameRefused.words).toBe(
+      'Someone here is already called "pat": choose another nickname.',
+    );
+    const state = await committedState(store, 'w', host);
+    expect(state.visitors.has(INES)).toBe(false);
+    expect(state.visitors.get(PAT)!.nickname).toBe('Pat');
+  });
+
+  it('admits one held only by someone away, kept as its words single-spaced', async () => {
+    const store = await seeded();
+    await runDeparture(store, 'w', host, { visit: MARTA, ...at(0) });
+    const admitted = await runArrival(
+      store,
+      'w',
+      host,
+      at(5),
+      { visit: INES, nickname: ' Marta ', ...at(5) },
+      OPEN,
+    );
+    expect(admitted.arrived.committed).toBe(true);
+    const state = await committedState(store, 'w', host);
+    expect(state.visitors.get(INES)!.nickname).toBe('Marta');
   });
 });

@@ -219,14 +219,22 @@ describe('what the host must not hand over', () => {
     );
   });
 
-  it('is an empty nickname, or one someone present holds', () => {
+  it('is a nickname the host could not have admitted: empty, a word of the world, or one someone present holds', () => {
     expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, '  '))).toThrow(
-      /no nickname/,
+      /did not admit: Choose a nickname/,
+    );
+    expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Gull Marta'))).toThrow(
+      /did not admit: "gull" is a word this world already reads/,
     );
     const state = harbour([{ visit: INES, in: QUAY }]);
-    expect(() => arrivalTurn(state, harbourHost(), arriving(MARTA, 'Ines'))).toThrow(
-      /already the nickname/,
+    expect(() => arrivalTurn(state, harbourHost(), arriving(MARTA, 'INES'))).toThrow(
+      /did not admit: Someone here is already called "INES"/,
     );
+  });
+
+  it('keeps the nickname admitted as its words, single-spaced', () => {
+    const done = admitted(arrivalTurn(harbour(), harbourHost(), arriving(MARTA, '  Marta \t  B ')));
+    expect(done.state.visitors.get(MARTA)!.nickname).toBe('Marta B');
   });
 
   it('allows a nickname held only by someone away, since reservations are soft', () => {

@@ -19,8 +19,9 @@ A world's turns run against a store through `runWriteTurn`,
 `runCommand` and `runPoll` (`turns.ts`): a write turn runs in the store's
 transaction, under the world's lock, and writes its change set only where
 it committed, so a fault writes nothing of the world; a poll reads a
-snapshot and takes no lock. The log and the view are B40's and B37's, and
-B40 reshapes the action and miss records for the event log. What the
+snapshot and takes no lock. `runView` polls a visitor's view, and a
+`ViewCache` keeps each one until a committed turn's `stale` names its
+visitor (`views.ts`). The log is B40's, and B40 reshapes the action and miss records for the event log. What the
 conformance suite proves is the contract:
 
 1. Write turns on one microworld are serialized; read turns are not.

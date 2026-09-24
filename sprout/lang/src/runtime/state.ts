@@ -105,6 +105,11 @@ export function readerOf(state: WorldState): StateReader {
   };
 }
 
+/** Each visitor's nickname, by the instance that is them (the spec's Names › Nicknames). */
+export function nicknamesIn(state: WorldState): ReadonlyMap<InstanceId, string> {
+  return new Map([...state.visitors.values()].map((one) => [one.instance, one.nickname]));
+}
+
 /** An instance at its kind's defaults (the spec's Properties › Declaring a property), with no links, wakes, memory or tick. */
 export function newInstance(
   id: InstanceId,

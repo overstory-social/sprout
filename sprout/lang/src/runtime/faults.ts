@@ -50,6 +50,11 @@ const STOCK: Readonly<Record<FaultPassage, string>> = {
   unseen: 'Something here is too much to take in.',
 };
 
+/** The stock line for `name`, in the engine's fixed words, which binds nothing. */
+export function stockLine(name: FaultPassage): string {
+  return STOCK[name];
+}
+
 /** What `thrown` says about the turn it ended. */
 export function faultOf(thrown: unknown): Fault {
   if (!(thrown instanceof Error)) {
