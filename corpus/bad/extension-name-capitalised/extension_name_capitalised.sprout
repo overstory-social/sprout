@@ -1,0 +1,10 @@
+// An extension is named as its statements are written, `media.show(…)`:
+// lower-case, and then its major version.
+extension Media 1
+
+world extension_name_capitalised is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

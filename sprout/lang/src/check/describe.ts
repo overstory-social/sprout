@@ -27,6 +27,7 @@ import type { CheckContext, MessageSetting } from './check.js';
 import type { NameScope } from './names.js';
 import { checkBlock } from './blocks.js';
 import type { SpeechBook } from './speech.js';
+import type { PinnedExtensions } from '../declare/extensions.js';
 
 /** Where a describe is read: the kinds in scope, and somewhere to say what is wrong. */
 export interface DescribeSetting {
@@ -39,6 +40,8 @@ export interface DescribeSetting {
   readonly messages?: MessageSetting;
   /** Where what the body says is recorded. */
   readonly speech?: SpeechBook;
+  /** The extensions the bundle pins, whose statements the body may write. */
+  readonly extensions?: PinnedExtensions;
   /**
    * Told of a describe whose every `text` names a passage `self` does not
    * have, which is so where the `.prose` file that held them is absent.
@@ -71,6 +74,7 @@ export function checkDescribe(
     diagnostics,
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
+    ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),
     ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: declaration } }),
   };
   checkBlock(declaration.body, context, { body: 'describe' });

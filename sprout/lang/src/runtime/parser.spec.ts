@@ -106,9 +106,11 @@ function rangeIn(one: Study): ReadonlySet<InstanceId> {
 const words = (answer: Answer): string =>
   'passage' in answer.said
     ? answer.said.passage.body.text.trim()
-    : 'absent' in answer.said
-      ? `absent ${answer.said.absent}`
-      : answer.said.text;
+    : 'recorded' in answer.said
+      ? answer.said.recorded.transcript
+      : 'absent' in answer.said
+        ? `absent ${answer.said.absent}`
+        : answer.said.text;
 
 describe('the study', () => {
   it('is the corpus world `good/grammar`, file for file', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { writtenPass, type KindDeclaration, type PassDeclaration } from '../ast.js';
+import type { KindDeclaration } from '../ast.js';
+import { writtenPass, type PassDeclaration } from '../ast-events.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf } from '../../source/source.js';
 import { chooser, read, shape } from '../../fixtures/parse.js';

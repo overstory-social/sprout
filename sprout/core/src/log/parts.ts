@@ -5,14 +5,15 @@ import {
   type Effect,
   type EffectKind,
   type Fault,
+  type Plain,
   type RuntimeBudgets,
   type TurnHost,
   type WriteInputs,
 } from '@overstory/sprout/lang';
 
 // What every entry of the log is built from (the spec's The runtime ›
-// The log, Effects, Faults): a turn's inputs, its effects and its fault,
-// as zod schemas, since an adapter validates what it reads back. A turn's
+// The log, Effects, Faults; Extensions): a turn's inputs, its effects,
+// an extension's with its payload, and its fault, as zod schemas, since an adapter validates what it reads back. A turn's
 // inputs are what the host handed it and everything that decides what it
 // does: the seed, the bound on stored instances, its instant, and the
 // host's runtime budgets as they were, so a replay under other figures
@@ -35,6 +36,7 @@ export const LoggedBudgets = z.object({
   shortestWakeSeconds: whole,
   pendingWakesPerObject: whole,
   peoplePerPlace: whole.nullable(),
+  extensionEffects: whole.nullable(),
   wallClockMs: whole.nullable(),
 }) satisfies z.ZodType<RuntimeBudgets>;
 export type LoggedBudgets = z.infer<typeof LoggedBudgets>;
@@ -49,7 +51,7 @@ export const TurnInputs = z.object({
 });
 export type TurnInputs = z.infer<typeof TurnInputs>;
 
-const EFFECT_KINDS = [
+const PROSE_KINDS = [
   'said',
   'told',
   'refused',
@@ -57,23 +59,54 @@ const EFFECT_KINDS = [
   'notice',
 ] as const satisfies readonly EffectKind[];
 
-/** One effect as the log keeps it: its kind, where it came from, whose turn, its reader and the words they read. */
-export const LoggedEffect = z.object({
-  kind: z.enum(EFFECT_KINDS),
+/** A payload an extension recorded: JSON's shapes. */
+const LoggedPayload: z.ZodType<Plain> = z.lazy(() =>
+  z.union([
+    z.null(),
+    z.boolean(),
+    z.number(),
+    z.string(),
+    z.array(LoggedPayload),
+    z.record(z.string(), LoggedPayload),
+  ]),
+);
+
+/** What every effect carries: where it came from, whose turn, its reader and the words they read. */
+const EffectParts = {
   from: z.string().min(1),
   actor: z.string().min(1).nullable(),
   to: z.string().min(1),
   visit: z.string().min(1),
   paragraphs: z.array(z.string()),
-});
+};
+
+/**
+ * One effect as the log keeps it: a line the turn said, by its kind, or
+ * what an extension's statement recorded, with the extension, the
+ * statement and its payload beside its transcript line.
+ */
+export const LoggedEffect = z.discriminatedUnion('kind', [
+  z.object({ kind: z.enum(PROSE_KINDS), ...EffectParts }),
+  z.object({
+    kind: z.literal('extension'),
+    ...EffectParts,
+    extension: z.string().min(1),
+    statement: z.string().min(1),
+    payload: LoggedPayload,
+  }),
+]);
 export type LoggedEffect = z.infer<typeof LoggedEffect>;
 
-/** A fault as the log keeps it: the rule broken, what happened, the object it is about, and whether it is the engine's. */
+/**
+ * A fault as the log keeps it: the rule broken, what happened, the object
+ * it is about, whether it is the engine's, and the extension it names.
+ */
 export const LoggedFault = z.object({
   name: z.string().min(1),
   detail: z.string(),
   object: z.string().min(1).nullable(),
   engine: z.boolean(),
+  extension: z.string().min(1).nullable(),
 });
 export type LoggedFault = z.infer<typeof LoggedFault>;
 
@@ -94,17 +127,22 @@ export function writeInputsOf(entry: TurnInputs): WriteInputs {
 
 /** `effects` as the log keeps them, in order. */
 export function loggedEffects(effects: readonly Effect[]): LoggedEffect[] {
-  return effects.map((effect) => ({
-    kind: effect.kind,
-    from: effect.from,
-    actor: effect.actor,
-    to: effect.to,
-    visit: effect.visit,
-    paragraphs: [...effect.paragraphs],
-  }));
+  return effects.map((effect) => {
+    const parts = {
+      from: effect.from,
+      actor: effect.actor,
+      to: effect.to,
+      visit: effect.visit,
+      paragraphs: [...effect.paragraphs],
+    };
+    if (effect.kind !== 'extension') return { kind: effect.kind, ...parts };
+    const { extension, statement, payload } = effect;
+    return { kind: effect.kind, ...parts, extension, statement, payload };
+  });
 }
 
 /** `fault` as the log keeps it. */
 export function loggedFault(fault: Fault): LoggedFault {
-  return { name: fault.name, detail: fault.detail, object: fault.object, engine: fault.engine };
+  const { name, detail, object, engine, extension } = fault;
+  return { name, detail, object, engine, extension };
 }

@@ -9,6 +9,7 @@ import { parseStatement } from '../syntax/parse.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 import type { Performed } from './act.js';
+import type { Recorded } from './extension-statements.js';
 import {
   runBody,
   speechOf,
@@ -143,6 +144,8 @@ interface Heard {
   readonly moves: [InstanceId, InstanceId, InstanceId][];
   /** Each `act` performed: the actor, and the reading as the body evaluated it. */
   readonly acts: [InstanceId, Performed][];
+  /** What each extension's statement recorded, and whose body ran it. */
+  readonly recorded: [InstanceId, Recorded][];
 }
 
 interface Turn {
@@ -217,6 +220,7 @@ function act(
     marked: [],
     moves: [],
     acts: [],
+    recorded: [],
   };
   const sink: ActSink = {
     lifecycle: {
@@ -231,6 +235,7 @@ function act(
     say: (spoken) => heard.spoken.push(spoken),
     tell: (told) => heard.told.push(told),
     sent: (sends) => heard.sends.push(...sends),
+    record: (by, recorded) => heard.recorded.push([by, recorded]),
     destroyed: (destroyed) => heard.destroyed.push(destroyed),
     marked: (marked) => heard.marked.push(marked),
     move: (mover, item, to) => {
@@ -255,9 +260,11 @@ const wards = (turn: Turn) => (property(turn, COUNTER, 'wards') as SproutList).e
 const words = (spoken: Spoken) =>
   'text' in spoken.said
     ? spoken.said.text
-    : 'absent' in spoken.said
-      ? `absent ${spoken.said.absent}`
-      : `${spoken.said.passage.origin} ${spoken.said.passage.name}: ${spoken.said.passage.body.text.trim()}`;
+    : 'recorded' in spoken.said
+      ? `recorded ${spoken.said.recorded.transcript}`
+      : 'absent' in spoken.said
+        ? `absent ${spoken.said.absent}`
+        : `${spoken.said.passage.origin} ${spoken.said.passage.name}: ${spoken.said.passage.body.text.trim()}`;
 
 describe('what a `do` writes', () => {
   it('`set` writes `self` through the draft, and a later read in the turn sees it', () => {

@@ -3,14 +3,18 @@
 // thing, `actor` whoever is looking and `here` their place, and gives its
 // words with `text`, each one line in the order run; it only reads, so it
 // runs the same in a write turn, after the queue, and in a poll, and it
-// draws nothing. What a line says is carried unrendered, for `prose/` to
-// render; where the lines render nothing, or the thing has no describe,
+// draws nothing. An extension's statement a describe may hold records its
+// effect for the one looking, into the view in a poll (the spec's
+// Extensions › What an extension may add). What a line says is carried
+// unrendered, for `prose/` to render; where the lines render nothing, or the thing has no describe,
 // the world's `unremarkable` is read in their place, so looking at
 // anything always reads something.
 
 import type { Block, IfStatement, Statement } from '../syntax/ast.js';
 import { libraryOf } from '../declare/enums.js';
+import type { ExtensionStatement } from '../syntax/ast-extensions.js';
 import { speechOf, type Speech } from './body.js';
+import { recordOf } from './extension-statements.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { engineLine } from './engine-lines.js';
@@ -42,6 +46,8 @@ export interface Description {
   readonly to: InstanceId;
   /** Each `text` its describe ran, in order, from the thing, as a `described` line. */
   readonly lines: readonly Said[];
+  /** What each extension's statement its describe ran recorded, in order, into the view or after the description. */
+  readonly recorded: readonly Said[];
   /** The world's `unremarkable`, with `thing` the thing: read where the lines render nothing. */
   readonly unremarkable: Said;
 }
@@ -80,7 +86,7 @@ export function describeFor(
   };
 
   const describe = instance.kind.describe;
-  if (describe === null) return { of: thing, to: actor, lines: [], unremarkable };
+  if (describe === null) return { of: thing, to: actor, lines: [], recorded: [], unremarkable };
   const frame: Frame = {
     state,
     kinds: context.catalogue.lookup,
@@ -96,31 +102,50 @@ export function describeFor(
     passes: context.passes,
   };
   const lines: Said[] = [];
-  runBlock(describe.declaration.body, frame, (said, bindings) =>
-    lines.push({ effect: 'described', to: [actor], by: thing, speaker: null, said, bindings }),
-  );
-  return { of: thing, to: actor, lines, unremarkable };
+  const recorded: Said[] = [];
+  const extensions = context.catalogue.extensions;
+  runBlock(describe.declaration.body, frame, {
+    text: (said, bindings) =>
+      lines.push({ effect: 'described', to: [actor], by: thing, speaker: null, said, bindings }),
+    record: (statement, inner) => {
+      const one = recordOf(statement, inner, extensions);
+      if (one === null) return;
+      recorded.push({
+        effect: 'extension',
+        to: [actor],
+        by: thing,
+        speaker: null,
+        said: { recorded: one },
+        bindings: new Map(),
+      });
+    },
+  });
+  return { of: thing, to: actor, lines, recorded, unremarkable };
 }
 
-/** Where each `text` goes, with every name in scope where it ran. */
-type Texts = (said: Speech, bindings: ReadonlyMap<string, Evaluated>) => void;
+/** Where each `text` goes, with every name in scope where it ran, and each extension's statement. */
+interface Gives {
+  text(said: Speech, bindings: ReadonlyMap<string, Evaluated>): void;
+  record(statement: ExtensionStatement, frame: Frame): void;
+}
 
 /** A block's statements in order, in a scope of its own: a `let` lives to its `}`. */
-function runBlock(block: Block, outer: Frame, texts: Texts): void {
+function runBlock(block: Block, outer: Frame, gives: Gives): void {
   const bindings = new Map(outer.bindings);
   const frame: Frame = { ...outer, bindings };
-  for (const statement of block.statements) runStatement(statement, frame, bindings, texts);
+  for (const statement of block.statements) runStatement(statement, frame, bindings, gives);
 }
 
 /**
  * One statement, one step. A describe holds exactly what the checker lets
- * it hold, `let`, `if` and `text`, so anything else is the engine's defect.
+ * it hold, `let`, `if`, `text` and an extension's statement allowed there,
+ * so anything else is the engine's defect.
  */
 function runStatement(
   statement: Statement,
   frame: Frame,
   bindings: Map<string, Evaluated>,
-  texts: Texts,
+  gives: Gives,
 ): void {
   frame.budget.spend();
   switch (statement.kind) {
@@ -129,10 +154,13 @@ function runStatement(
       bindings.set(statement.name.text, evaluate(statement.value, frame));
       return;
     case 'if':
-      runIf(statement, frame, texts);
+      runIf(statement, frame, gives);
       return;
     case 'text':
-      texts(speechOf(statement, frame), new Map(bindings));
+      gives.text(speechOf(statement, frame), new Map(bindings));
+      return;
+    case 'extension-statement':
+      gives.record(statement, frame);
       return;
     default:
       break;
@@ -143,16 +171,16 @@ function runStatement(
 }
 
 /** An `if` and each `else if` after it, as the chain it is; each link tested past the first is a step. */
-function runIf(statement: IfStatement, frame: Frame, texts: Texts): void {
+function runIf(statement: IfStatement, frame: Frame, gives: Gives): void {
   for (let link: IfStatement = statement; ;) {
     if (evaluateCondition(link.condition, frame)) {
-      runBlock(link.then, frame, texts);
+      runBlock(link.then, frame, gives);
       return;
     }
     const otherwise = link.otherwise;
     if (otherwise === null) return;
     if (otherwise.kind === 'block') {
-      runBlock(otherwise, frame, texts);
+      runBlock(otherwise, frame, gives);
       return;
     }
     frame.budget.spend();

@@ -1,0 +1,12 @@
+extension media 1
+
+world extension_unnamed_in_file is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object painting is Painting
+  }
+}
+
+verb view { role target  "view [target]" }

@@ -9,7 +9,8 @@
 // what each is, is the checker's. A head that is wrong still has its
 // block read, so what is wrong inside it is said too, and is then dropped.
 
-import type { HandlerDeclaration, HookDeclaration, Ident, Parameters } from '../ast.js';
+import type { Ident } from '../ast.js';
+import type { HandlerDeclaration, HookDeclaration, Parameters } from '../ast-events.js';
 import type { Token } from '../lexer.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';

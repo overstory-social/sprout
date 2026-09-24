@@ -9,7 +9,8 @@
 // `messageKey` names it, resolved from the library of the kind that wrote
 // it, so two libraries' `:stir` are two messages; a hook by the property.
 
-import type { HandlerDeclaration, HookDeclaration, Ident, KindMember } from '../syntax/ast.js';
+import type { Ident, KindMember } from '../syntax/ast.js';
+import type { HandlerDeclaration, HookDeclaration } from '../syntax/ast-events.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Suppression } from './kinds.js';
 import { composeContributions } from './contributions.js';

@@ -1,7 +1,8 @@
-// A file, and the declarations it holds: `enum`, `kind`, `message`,
-// `verb` and `world` (the spec's Properties › Enums, Kinds › Declaring
-// and composing, Events › Declaring a message, Verbs › Declaring a verb,
-// The world model). `DECLARATION_READERS` is the one table of the words
+// A file, and the declarations it holds: the `extension` lines at its
+// top, then `enum`, `kind`, `message`, `verb` and `world` (the spec's
+// Extensions › Activation and absence, Properties › Enums, Kinds ›
+// Declaring and composing, Events › Declaring a message, Verbs ›
+// Declaring a verb, The world model). `DECLARATION_READERS` is the one table of the words
 // a declaration starts with; `object` is among them so an object written
 // at the top level is read whole and refused there, never skipped.
 
@@ -16,12 +17,21 @@ import { isGuardName } from './guards.js';
 import { kindDeclaration, topLevelObject } from './kinds.js';
 import { verbDeclaration } from './verbs.js';
 import { worldDeclaration } from './world.js';
+import { extensionUse } from './extensions.js';
 
 /** Every declaration in the file, in the order they were written. */
 export function file(p: Parser): Declaration[] {
   const declarations: Declaration[] = [];
+  /** Whether anything but an `extension` line has been written yet. */
+  let started = false;
   while (!p.done) {
     const token = p.peek();
+    if (token.kind === 'name' && token.text === 'extension') {
+      const used = extensionUse(p, !started);
+      if (used !== null) declarations.push(used);
+      continue;
+    }
+    started = true;
     const read = token.kind === 'name' ? p.readers.get(token.text) : undefined;
     if (read !== undefined) {
       // Each declaration is owed its own account of being too deep.

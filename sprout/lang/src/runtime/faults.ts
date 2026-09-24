@@ -3,7 +3,8 @@
 // abandons the turn's transaction: a rule the language names — a budget
 // spent, a spawn, a move, a `connect` or an `act` that could not be made,
 // a name that reaches nothing, a value its property cannot hold, an
-// integer out of range, a full list, a wake past the host's cap — or a
+// extension that threw or gave what it may not, an integer out of range,
+// a full list, a wake past the host's cap — or a
 // defect of the engine's own, which is told the same way, since no turn
 // ends with nothing said, and is marked for the host to report loudly.
 //
@@ -16,6 +17,7 @@ import type { ResolvedPassage } from '../declare/passages.js';
 import { ActFault } from './act.js';
 import { ValueOutOfRange, type Speech } from './body.js';
 import { engineLine } from './engine-lines.js';
+import { ExtensionFault } from './extension-fault.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow, type Evaluated } from './evaluate.js';
 import type { Effect } from './effects.js';
@@ -39,6 +41,8 @@ export interface Fault {
   readonly object: InstanceId | null;
   /** True where nothing the world did explains it: the engine's own defect, which the host reports loudly. */
   readonly engine: boolean;
+  /** The extension whose code threw or gave what it may not, which the host reports as that extension's; null for every other fault. */
+  readonly extension: string | null;
 }
 
 /** The world's passages a fault is told in: `fault` to a command's actor, `unseen` for a poll. */
@@ -58,7 +62,7 @@ export function stockLine(name: FaultPassage): string {
 /** What `thrown` says about the turn it ended. */
 export function faultOf(thrown: unknown): Fault {
   if (!(thrown instanceof Error)) {
-    return { name: 'Error', detail: String(thrown), object: null, engine: true };
+    return { name: 'Error', detail: String(thrown), object: null, engine: true, extension: null };
   }
   const about = objectOf(thrown);
   return {
@@ -66,6 +70,7 @@ export function faultOf(thrown: unknown): Fault {
     detail: thrown.message,
     object: about === undefined ? null : about,
     engine: about === undefined,
+    extension: thrown instanceof ExtensionFault ? thrown.extension : null,
   };
 }
 
@@ -81,7 +86,8 @@ function objectOf(error: Error): InstanceId | null | undefined {
     error instanceof ActFault ||
     error instanceof DestroyedReference ||
     error instanceof NameOutOfRange ||
-    error instanceof WakeFault
+    error instanceof WakeFault ||
+    error instanceof ExtensionFault
   ) {
     return error.object;
   }

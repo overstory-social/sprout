@@ -63,6 +63,7 @@ export class Budget {
   private steps = 0;
   private events = 0;
   private spawns = 0;
+  private recorded = 0;
   private passages = 0;
   private nextClockCheck = CLOCK_STRIDE;
   private readonly output = new Map<string, number>();
@@ -240,6 +241,23 @@ export class Budget {
         'spawnsPerTurn',
         this.limits.spawnsPerTurn,
         `one turn may spawn ${this.limits.spawnsPerTurn} objects.`,
+      );
+    }
+  }
+
+  /**
+   * Charge one effect an extension's statement records against the host's
+   * cap on them (the spec's Extensions › Trust); unbounded where the host
+   * sets none.
+   */
+  record(): void {
+    this.recorded += 1;
+    const allowed = this.limits.extensionEffects;
+    if (allowed !== null && this.recorded > allowed) {
+      throw new BudgetExhausted(
+        'extensionEffects',
+        allowed,
+        `one turn may record ${allowed} effects of extensions.`,
       );
     }
   }

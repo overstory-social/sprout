@@ -1,4 +1,8 @@
-// The five value types, resolved (the spec's Properties › The types).
+// The five value types, resolved (the spec's Properties › The types),
+// and an extension's, which a world pins (Extensions › What an extension
+// may add). An extension's type is written `media.Image`, its literal as
+// text in quotes that the extension reads, and it is never a list's
+// element; where the extension is absent it resolves with no definition.
 //
 // Every value in Sprout has a declared type, every binding's type is
 // known where it is bound, and there is no null — so the compiler checks
@@ -19,6 +23,15 @@ import type { Literal, TypeExpr } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { DeclaredEnum, EnumTable } from './enums.js';
 import { checkOption } from './enums.js';
+import {
+  namesExtension,
+  readLiteral,
+  type Extension,
+  type ExtensionParameter,
+  type ExtensionValueType,
+  type PinnedExtension,
+  type PinnedExtensions,
+} from './extensions.js';
 
 /** An integer declared without `min`/`max` ranges over these, which is also the range of `elapsed`. */
 export const INTEGER_MIN = -2_147_483_648;
@@ -30,7 +43,16 @@ export type ValueType =
   | { readonly type: 'integer'; readonly min: number; readonly max: number }
   | { readonly type: 'string' }
   | { readonly type: 'symbol'; readonly of: DeclaredEnum }
-  | { readonly type: 'list'; readonly element: ValueType };
+  | { readonly type: 'list'; readonly element: ValueType }
+  | ExtensionType;
+
+/** A value type an extension adds: its extension, its name, and its definition, null where the extension is absent. */
+export interface ExtensionType {
+  readonly type: 'extension';
+  readonly extension: string;
+  readonly name: string;
+  readonly definition: ExtensionValueType | null;
+}
 
 // Annotated with `satisfies` rather than `: ValueType` for the same
 // reason `integer()` returns its own arm: a caller asking for boolean
@@ -69,6 +91,8 @@ export function showType(value: ValueType): string {
       return value.of.name;
     case 'list':
       return `[${showType(value.element)}]`;
+    case 'extension':
+      return `${value.extension}.${value.name}`;
   }
 }
 
@@ -83,6 +107,9 @@ export function sameType(a: ValueType, b: ValueType): boolean {
     return a.of.library === b.of.library && a.of.name === b.of.name;
   }
   if (a.type === 'list' && b.type === 'list') return sameType(a.element, b.element);
+  if (a.type === 'extension' && b.type === 'extension') {
+    return a.extension === b.extension && a.name === b.name;
+  }
   return true;
 }
 
@@ -111,7 +138,21 @@ export function resolveType(
     // as every element is of that one type (the spec's Lists).
     const element = resolveType(written.element, enums, from, diagnostics);
     if (element === null) return null;
+    if (element.type === 'extension') {
+      diagnostics.refuse(
+        written.at,
+        `A list does not hold \`${showType(element)}\`, which is an extension's type.`,
+        'Declare one property of it for each value the kind holds.',
+      );
+      return null;
+    }
     return { type: 'list', element };
+  }
+
+  const extension =
+    written.library === null ? undefined : enums.extensions.pinned.get(written.library.text);
+  if (extension !== undefined) {
+    return extensionType(written, extension, enums.extensions, diagnostics);
   }
 
   const name = written.name.text;
@@ -142,6 +183,57 @@ export function resolveType(
     `Write \`boolean\`, \`integer\`, \`string\`, the name of an enum, or \`[…]\` for a list of those — and a list may hold lists, as in \`[[Ward]]\`.`,
   );
   return null;
+}
+
+/**
+ * `media.Image`: a type of an extension the world pins, which the file it
+ * is written in must name at its top. Where the extension is absent the
+ * type resolves with no definition, and holds its default.
+ */
+function extensionType(
+  written: TypeExpr & { readonly kind: 'named-type' },
+  extension: PinnedExtension,
+  extensions: PinnedExtensions,
+  diagnostics: Diagnostics,
+): ExtensionType | null {
+  const full = `${extension.name}.${written.name.text}`;
+  if (!namesExtension(extensions, written.at.source, extension.name)) {
+    diagnostics.refuse(
+      written.at,
+      `\`${full}\` is a type of the extension \`${extension.name}\`, which this file does not name.`,
+      `Write \`extension ${extension.name} ${extension.major}\` at the top of the file.`,
+    );
+    return null;
+  }
+  const base = { type: 'extension', extension: extension.name, name: written.name.text } as const;
+  if (extension.installed === null) return { ...base, definition: null };
+  const definition = extension.installed.types.find((type) => type.name === written.name.text);
+  if (definition !== undefined) return { ...base, definition };
+  const types = extension.installed.types.map((type) => `\`${extension.name}.${type.name}\``);
+  diagnostics.refuse(
+    written.at,
+    `The extension \`${extension.name}\` has no type \`${written.name.text}\`.`,
+    types.length === 0 ? `\`${extension.name}\` adds no types.` : `Its types: ${types.join(', ')}.`,
+  );
+  return null;
+}
+
+/**
+ * What one argument of an extension's statement is typed as: a value of
+ * the language's, or one of `extension`'s own types. Null where it names
+ * a type the extension does not add, which is the host's defect.
+ */
+export function parameterType(
+  extension: Extension,
+  parameter: ExtensionParameter,
+): ValueType | null {
+  const written = parameter.type;
+  if (written === 'boolean') return BOOLEAN;
+  if (written === 'integer') return integer();
+  if (written === 'string') return STRING;
+  const definition = extension.types.find((type) => type.name === written.type);
+  if (definition === undefined) return null;
+  return { type: 'extension', extension: extension.name, name: definition.name, definition };
 }
 
 /**
@@ -227,6 +319,16 @@ export function checkLiteral(
       }
       return ok;
     }
+    case 'extension': {
+      if (!want(expected, literal, literal.kind === 'string', diagnostics)) return false;
+      // An absent extension cannot read its literal, which is held as written.
+      if (expected.definition === null) return true;
+      const text = (literal as { value: string }).value;
+      const read = readLiteral(expected.extension, expected.definition, text);
+      if ('value' in read) return true;
+      diagnostics.refuse(literal.at, read.problem, read.remedy);
+      return false;
+    }
   }
 }
 
@@ -290,5 +392,7 @@ function remedyFor(expected: ValueType): string {
       return `Write one of: ${expected.of.options.join(', ')}.`;
     case 'list':
       return `Write a list in brackets, as in \`[…]\`, holding ${showType(expected.element)}.`;
+    case 'extension':
+      return `Write it as text in quotes, which the extension \`${expected.extension}\` reads.`;
   }
 }

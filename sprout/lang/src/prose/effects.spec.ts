@@ -139,6 +139,7 @@ describe('a turn’s lines, rendered as its effects', () => {
       of: PRESS,
       to: turn.marta,
       lines: [described('An iron press.'), described('It is cold.')],
+      recorded: [],
       unremarkable: described('Nothing special.'),
     };
     expect(renderEffects([{ description }], contextOf(turn))).toEqual([

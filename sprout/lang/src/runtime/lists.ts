@@ -34,6 +34,7 @@ import type { ValueType } from '../declare/types.js';
 import type { Value } from './values.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import { sameType, showType } from '../declare/types.js';
+import { ExtensionValue } from './extension-values.js';
 
 /**
  * A full list was added to. Thrown, and not returned, for the reason
@@ -140,6 +141,11 @@ export function sameValue(a: Value, b: Value): boolean {
     if (!sameType(a.holds, b.holds)) return false;
     if (a.count !== b.count) return false;
     return a.elements.every((element, index) => sameValue(element, b.elements[index]!));
+  }
+  // A value of an extension's type is the same as another where it is stored the same.
+  if (a instanceof ExtensionValue || b instanceof ExtensionValue) {
+    if (!(a instanceof ExtensionValue) || !(b instanceof ExtensionValue)) return false;
+    return sameType(a.type, b.type) && a.stored === b.stored;
   }
   return a === b;
 }

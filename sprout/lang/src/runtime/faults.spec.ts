@@ -30,6 +30,7 @@ describe('what a fault is', () => {
         detail: error.message,
         object: BELL,
         engine: false,
+        extension: null,
       });
     }
     expect(faultOf(new NameOutOfRange('hall.gone', null, HALL))).toMatchObject({
@@ -51,6 +52,7 @@ describe('what a fault is', () => {
         detail: error.message,
         object: null,
         engine: false,
+        extension: null,
       });
     }
   });
@@ -61,12 +63,14 @@ describe('what a fault is', () => {
       detail: 'x is undefined',
       object: null,
       engine: true,
+      extension: null,
     });
     expect(faultOf('thrown bare')).toEqual({
       name: 'Error',
       detail: 'thrown bare',
       object: null,
       engine: true,
+      extension: null,
     });
   });
 });

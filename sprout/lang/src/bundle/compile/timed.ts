@@ -11,7 +11,8 @@
 // declares `contains actors`; the objects asked are the declared ones, in
 // declared order, and then each kind a body spawns.
 
-import type { Block, HandlerDeclaration, Statement, WakeStatement } from '../../syntax/ast.js';
+import type { Block, Statement, WakeStatement } from '../../syntax/ast.js';
+import type { HandlerDeclaration } from '../../syntax/ast-events.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { libraryOf } from '../../declare/enums.js';
 import { writtenKind } from '../../declare/compose.js';

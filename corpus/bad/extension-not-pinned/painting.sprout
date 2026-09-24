@@ -1,0 +1,13 @@
+// A file names only an extension the manifest pins: the manifest is what
+// a host reads to know what the world needs before a line of it is read.
+extension media 1
+
+kind Painting {
+  grammar { name "painting"  nouns "painting" }
+  as target for view {
+    do {
+      media.show("cat.png", "a cat")
+      say "You look closely."
+    }
+  }
+}

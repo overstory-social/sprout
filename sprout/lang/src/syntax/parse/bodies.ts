@@ -12,15 +12,13 @@ import {
   GUARD_NAMES,
   type ContainsDeclaration,
   type GuardDeclaration,
-  type HandlerDeclaration,
-  type HookDeclaration,
   type KindMember,
   type ObjectDeclaration,
-  type PassDeclaration,
   type PlayDeclaration,
   type PropertyDeclaration,
   type RemembersDeclaration,
 } from '../ast.js';
+import type { HandlerDeclaration, HookDeclaration, PassDeclaration } from '../ast-events.js';
 import type { Token } from '../lexer.js';
 import type { Node } from '../../source/nodes.js';
 import { spanning, type Span } from '../../source/source.js';

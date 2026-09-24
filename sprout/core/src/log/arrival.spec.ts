@@ -9,7 +9,7 @@ import { ArrivalEntry, arrivalEntry, arrivalOf, type RanArrival } from './arriva
 const { host } = tally();
 const INES = visitKey('v-ines');
 const arrival = { visit: INES, nickname: 'Ines', now: 40, seed: 9, mayHold: 30 };
-const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false };
+const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false, extension: null };
 
 describe('a visitor’s entry in the log', () => {
   it('keeps the visit, the nickname they came with, its inputs and what it said', async () => {

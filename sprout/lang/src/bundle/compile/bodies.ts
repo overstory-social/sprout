@@ -26,6 +26,7 @@ import type { Node } from '../../source/nodes.js';
 import type { Span } from '../../source/source.js';
 import { checkPassages } from '../../check/passages.js';
 import { PassageSites } from '../../check/speech.js';
+import type { PinnedExtensions } from '../../declare/extensions.js';
 
 /** What every body is checked against: the kinds, verbs and messages, and where names resolve. */
 export interface BodySetting {
@@ -41,6 +42,8 @@ export interface BodySetting {
   readonly world: KindRef | null;
   /** Where every name a body resolves is recorded, for the runtime. */
   readonly names: Map<Node, Named>;
+  /** The extensions the bundle pins, whose statements a body may write. */
+  readonly extensions?: PinnedExtensions;
   /**
    * Told of a passage a body names that its kind lacks because the
    * `.prose` file that held it is absent: true where it has been told.
@@ -82,6 +85,7 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Re
       messages: base.messages,
       names: namesOf(vantage),
       speech,
+      ...(base.extensions === undefined ? {} : { extensions: base.extensions }),
     };
     const own = kindName(kind);
     for (const name of GUARD_NAMES) {

@@ -1,0 +1,10 @@
+cabinet.sprout:9:5   `media.show` records an effect, and a guard only reads and decides.
+                     Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
+
+cabinet.sprout:14:7  `media.show` records an effect, and a `permit` only reads and decides.
+                     Move it to `do`; a `permit` ends in `allow` or `refuse`.
+
+sprout.json:7:28     This host does not provide the extension `media`.
+                     Ask whoever runs this host to install `media`, or take it out of the manifest and every file that names it.
+
+refused: 3 problems

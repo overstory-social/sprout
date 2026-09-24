@@ -14,7 +14,7 @@ import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { ResolvedHandler, ResolvedHook } from '../declare/handlers.js';
 import type { ResolvedPass } from '../declare/passes.js';
-import { writtenPass } from '../syntax/ast.js';
+import { writtenPass } from '../syntax/ast-events.js';
 import { nearestOption } from '../declare/enums.js';
 import {
   engineParameters,
@@ -28,6 +28,7 @@ import {
 import { typeOf, type ActSetting, type CheckContext, type MessageSetting } from './check.js';
 import type { NameScope } from './names.js';
 import type { SpeechBook } from './speech.js';
+import type { PinnedExtensions } from '../declare/extensions.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a handler, a hook or a pass rule is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
@@ -41,6 +42,8 @@ export interface HandlerSetting {
   readonly messages?: MessageSetting;
   /** Where what the body says is recorded. */
   readonly speech?: SpeechBook;
+  /** The extensions the bundle pins, whose statements the body may write. */
+  readonly extensions?: PinnedExtensions;
 }
 
 /**
@@ -189,6 +192,7 @@ function checkBody(
     acting: { verbs: setting.verbs },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
+    ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),
     ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: declaration } }),
   };
   checkBlock(body, context, { body: 'handler', written });

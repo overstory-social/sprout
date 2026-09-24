@@ -19,6 +19,7 @@
 // bundle that produced it.
 
 import type { Absent } from './absent.js';
+import type { PinnedExtension } from '../declare/extensions.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
 import type { Node } from '../source/nodes.js';
@@ -240,7 +241,12 @@ export interface Bundle {
   readonly words: WordSet;
   /** The highest level of any part, library source included. */
   readonly level: number;
-  readonly extensions: readonly ExtensionPin[];
+  /**
+   * The extensions it pins, in the manifest's order, each with what the
+   * host supplied for it at compile: installed at its major, or absent,
+   * with the gap in `absent`.
+   */
+  readonly extensions: readonly PinnedExtension[];
   readonly libraries: readonly VendoredLibrary[];
   /**
    * The static caps it was checked against: the host's, or at a load

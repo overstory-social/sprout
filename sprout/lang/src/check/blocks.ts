@@ -17,9 +17,10 @@
 // says, and never refuses. Who each of `say`, `tell` and `text` speaks to
 // is `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
 // binds `tool`, for the branch each guards. Statements after an `allow`
-// or a `refuse` are accepted and never run.
+// or a `refuse` are accepted and never run. Where an extension's statement
+// may stand is `extensions.ts`'s.
 
-import type { Block, CallExpr, IfStatement, Statement } from '../syntax/ast.js';
+import type { Block, CallExpr, Expr, IfStatement, Statement } from '../syntax/ast.js';
 import type { GuardName } from '../syntax/ast.js';
 import type { Span } from '../source/source.js';
 import { branchScope, checkCondition, isEffect, type CheckContext } from './check.js';
@@ -30,6 +31,7 @@ import { checkBroadcast, checkSend } from './sends.js';
 import type { Undrawn } from './chance.js';
 import { checkWake } from './wake.js';
 import { checkPassage, checkSpoken } from './audiences.js';
+import { checkExtensionStatement } from './extensions.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
 export type BodyKind =
@@ -126,11 +128,33 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
       else checkWake(statement, context);
       return;
     case 'expression-statement':
+      if (unnamedExtension(statement.expression, context)) return;
       if (reads !== null && isEffect(statement.expression)) {
         refuseWrite(statement.expression, context, reads);
       } else checkEffect(statement.expression, context);
       return;
+    case 'extension-statement':
+      checkExtensionStatement(statement, context, kind);
+      return;
   }
+}
+
+/**
+ * `media.show(…)` in a file that does not name `media` at its top, which
+ * reads as a call on a name nothing binds: refused as what it is meant
+ * for, where the world pins `media`. Says whether it refused.
+ */
+function unnamedExtension(expr: Expr, context: CheckContext): boolean {
+  if (expr.kind !== 'call' || expr.receiver.kind !== 'binding') return false;
+  const name = expr.receiver.name;
+  const pinned = context.extensions?.pinned.get(name.text);
+  if (pinned === undefined || context.scope.lookup(name.text) !== null) return false;
+  context.diagnostics.refuse(
+    name.at,
+    `\`${name.text}.${expr.method.text}\` is a statement of the extension \`${name.text}\`, which this file does not name.`,
+    `Write \`extension ${name.text} ${pinned.major}\` at the top of the file.`,
+  );
+  return true;
 }
 
 /**

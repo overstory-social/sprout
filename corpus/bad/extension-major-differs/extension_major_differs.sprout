@@ -1,0 +1,10 @@
+world extension_major_differs is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object painting is Painting
+  }
+}
+
+verb view { role target  "view [target]" }

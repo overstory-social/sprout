@@ -1,0 +1,19 @@
+// An extension's statement records an effect, and a guard and a `permit`
+// only read and decide: neither may hold one, on any host.
+extension media 1
+
+kind Cabinet {
+  contains
+  grammar { name "cabinet"  nouns "cabinet" }
+  accept (item, from) {
+    media.show("drawer.png", "a drawer sliding open")
+    allow
+  }
+  as target for open {
+    permit {
+      media.show("cabinet.png", "the cabinet")
+      allow
+    }
+    do { say "The doors swing open." }
+  }
+}

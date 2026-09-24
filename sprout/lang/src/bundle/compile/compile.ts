@@ -28,7 +28,8 @@
 // `compileBundle` runs the steps in order, each a module of this folder
 // taking the report: the caps to check against, the manifest's own
 // fields, the files, the libraries, what the bundle weighs, the first tier over every file,
-// the `.prose` files each kind points at, the one world, the declarations, what the world and its visitors are made
+// the `.prose` files each kind points at, the one world, the extensions it
+// pins, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
 // bodies every kind writes, which of them destroy a declared object, and
 // what they leave unsent, unhandled, untimed or unsaid.
@@ -62,6 +63,8 @@ import { attachProse } from './prose.js';
 import { absenceRule } from '../absent.js';
 import { checkLibraries } from './libraries.js';
 import { checkManifest } from './manifest-fields.js';
+import { pinnedExtensions } from './extensions.js';
+import type { Extension } from '../../declare/extensions.js';
 import { capsToCheck, type RecordedCaps } from './recorded.js';
 import { Report } from './report.js';
 import { weighBundle } from './weight.js';
@@ -90,6 +93,12 @@ export interface CompileOptions {
   readonly blessed?: ReadonlySet<string>;
   /** The level this compiler understands. Text needing a newer one is refused, in either mode. */
   readonly compilerLevel?: number;
+  /**
+   * The extensions the host installed, none unless it says otherwise
+   * (the spec's The host contract › Two decisions). One the world pins
+   * and the host lacks at that major refuses at publish, and is absent at load.
+   */
+  readonly extensions?: readonly Extension[];
 }
 
 /** What compiling a bundle makes of it: the bundle, or nothing, and everything there was to say. */
@@ -132,11 +141,14 @@ export function compileBundle(
   );
   const theWorld = oneWorld(source, byLibrary, ownFileRefused, report);
 
-  // The second tier over what parsed.
+  // The second tier over what parsed, with the extensions the world pins
+  // against the ones the host installed.
+  const extensions = pinnedExtensions(source, options.extensions ?? [], byLibrary, report);
   const tables = resolveDeclarations(
     byLibrary,
     { namespace: manifest.namespace, name: manifest.name },
     report,
+    extensions,
   );
   // A world missing, doubled or misnamed has been said, and nothing more
   // is said about what it is made of or where its visitors arrive.
@@ -193,6 +205,7 @@ export function compileBundle(
       source: { tree: tables.tree, contents: tables.contents },
       world,
       names,
+      extensions,
       absentPassage: (self, name, at) => {
         if (![...self.composes].some((identity) => gone.has(identity))) return false;
         // At publish the file's absence is the one refusal; at load each
@@ -306,7 +319,7 @@ export function compileBundle(
       verbs: tables.verbs.all(),
     }),
     level,
-    extensions: manifest.extensions,
+    extensions: [...extensions.pinned.values()],
     libraries: usable,
     caps,
     size: { files, sourceBytes, exemptBytes, ...counts },

@@ -55,14 +55,41 @@ describe('effects and faults as the log keeps them', () => {
     expect(kept[0]!.paragraphs).not.toBe(paragraphs);
   });
 
+  it('keeps an extension’s effect whole: the extension, the statement, its payload and its transcript', () => {
+    const recorded: Effect = {
+      kind: 'extension',
+      from: COUNTER,
+      actor: COUNTER,
+      to: COUNTER,
+      visit: MARTA,
+      paragraphs: ['[A picture: a cat]'],
+      extension: 'media',
+      statement: 'show',
+      payload: { src: 'cat.png', size: [3, 4], shown: true, caption: null },
+    };
+    const [kept] = loggedEffects([recorded]);
+    expect(kept).toEqual(recorded);
+    expect(LoggedEffect.parse(JSON.parse(JSON.stringify(kept)))).toEqual(recorded);
+    expect(LoggedEffect.safeParse({ ...recorded, payload: undefined }).success).toBe(false);
+    expect(LoggedEffect.safeParse({ ...recorded, extension: '' }).success).toBe(false);
+  });
+
   it('refuses an effect of a kind the spec does not name', () => {
     const one = { kind: 'said', from: 'a', actor: null, to: 'b', visit: 'v', paragraphs: [] };
     expect(LoggedEffect.safeParse(one).success).toBe(true);
     expect(LoggedEffect.safeParse({ ...one, kind: 'shouted' }).success).toBe(false);
   });
 
-  it('keeps a fault’s rule, detail, object and whether it is the engine’s', () => {
-    const fault: Fault = { name: 'ListFull', detail: 'full', object: COUNTER, engine: false };
+  it('keeps a fault’s rule, detail, object, whether it is the engine’s and the extension it names', () => {
+    const fault: Fault = {
+      name: 'ListFull',
+      detail: 'full',
+      object: COUNTER,
+      engine: false,
+      extension: null,
+    };
     expect(loggedFault({ ...fault, extra: 1 } as Fault)).toEqual(fault);
+    const extension: Fault = { ...fault, name: 'ExtensionFault', extension: 'media' };
+    expect(loggedFault(extension)).toEqual(extension);
   });
 });

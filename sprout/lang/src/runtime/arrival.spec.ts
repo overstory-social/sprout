@@ -23,6 +23,9 @@ import {
   closedByBundle,
   closedIn,
   displacedLine,
+  missesExtensions,
+  missingLine,
+  MISSING_STOCK,
   ENTRY_FAILED,
   NOT_ADMITTING,
   type Admitted,
@@ -33,6 +36,7 @@ import { commandTurn } from './command.js';
 import { Draft } from './draft.js';
 import type { InstanceId } from './ids.js';
 import { readerOf, type WorldState } from './state.js';
+import { gallery, galleryCatalogue, galleryHost } from '../fixtures/gallery.js';
 
 const DISPLACED = 'sprout.World displaced: The place you were standing is gone.';
 
@@ -306,6 +310,53 @@ describe('the world’s `displaced`', () => {
     expect(line).toMatchObject({ effect: 'notice', to: [marta], by: WORLD, speaker: null });
     expect(words(line.said)).toBe(DISPLACED);
     expect(line.bindings.size).toBe(0);
+  });
+});
+
+describe('the world’s `missing`, on entry', () => {
+  const entering = (catalogue: Catalogue) => {
+    const turn = arrivalTurn(gallery(catalogue, [INES]), galleryHost(catalogue), arriving(MARTA));
+    if (!turn.committed) throw new Error('not admitted');
+    return turn;
+  };
+
+  it('is told first, to the one arriving, where the world pins an extension this host lacks', () => {
+    const turn = entering(galleryCatalogue([]));
+    expect(turn.value.missing).not.toBeNull();
+    expect(words(turn.value.missing!.said)).toBe(
+      'sprout.World missing: This world uses something this host does not provide, and will be missing some of itself.',
+    );
+    expect(turn.effects.map((one) => [one.kind, one.visit, one.paragraphs])).toEqual([
+      [
+        'notice',
+        MARTA,
+        [
+          'This world uses something this host does not provide, and will be missing some of itself.',
+        ],
+      ],
+      ['notice', INES, ['Marta arrives.']],
+      ['described', MARTA, ['A bright hall.']],
+    ]);
+  });
+
+  it('is not told where the host supplies every extension the world pins', () => {
+    const turn = entering(galleryCatalogue());
+    expect(turn.value.missing).toBeNull();
+    expect(turn.effects.map((one) => one.kind)).toEqual(['notice', 'described', 'extension']);
+  });
+
+  it('is in the stock words where the world’s standard library leaves it out', () => {
+    const catalogue = galleryCatalogue([]);
+    const state = gallery(catalogue);
+    const worldless = new Draft(state);
+    const world = worldless.instance(state.world)!;
+    const passages = new Map(world.kind.passages);
+    passages.delete('missing');
+    worldless.write({ ...world, kind: { ...world.kind, passages } });
+    const line = missingLine(worldless, state.world);
+    expect(line.said).toMatchObject({ text: MISSING_STOCK });
+    expect(missesExtensions(catalogue)).toBe(true);
+    expect(missesExtensions(galleryCatalogue())).toBe(false);
   });
 });
 

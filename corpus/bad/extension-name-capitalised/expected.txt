@@ -1,0 +1,4 @@
+extension_name_capitalised.sprout:3:11  An extension's name is lower-case, and `Media` starts with a capital.
+                                        Write the extension and the major version the manifest pins, as in `extension media 2`.
+
+refused: 1 problem
