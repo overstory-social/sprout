@@ -73,7 +73,9 @@ export type ConversationRefusalReason =
   /** The speaker has said as much as the host's pace allows for now. */
   | 'too-fast'
   /** The host's moderation declined it. */
-  | 'moderated';
+  | 'moderated'
+  /** The speaker left their place while moderation was deciding. */
+  | 'gone';
 
 /** A thing not said, with the words the speaker is shown; a host may replace them with its own. */
 export interface ConversationRefused {
@@ -208,7 +210,9 @@ export async function runConversation(
     return refused('moderated', 'That cannot be said here.');
   }
   const state = await committedState(store, microworldId, host);
-  const heard = withOthers(hearers(state, saying.visit));
+  const standing = hearers(state, saying.visit);
+  if (standing === null) return GONE;
+  const heard = withOthers(standing);
   if (heard === null) return NOBODY_HERE;
   return {
     said: true,
@@ -231,3 +235,4 @@ function refused(reason: ConversationRefusalReason, words: string): Conversation
 }
 
 const NOBODY_HERE = refused('nobody-here', 'There is nobody else here to hear you.');
+const GONE = refused('gone', 'You left before that was said: say it again where you are now.');

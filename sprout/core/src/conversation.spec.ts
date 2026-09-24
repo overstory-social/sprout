@@ -244,6 +244,24 @@ describe('saying something against a store', () => {
     });
   });
 
+  it('tells a speaker who left while moderation decided that it was not said, not that nobody was there', async () => {
+    const store = await hall();
+    const slow: ConversationHost = {
+      rules: UNBOUNDED,
+      moderate: async () => {
+        await runDeparture(store, 'w', host, { visit: MARTA, now: 1, seed: 1, mayHold: null });
+        return true;
+      },
+    };
+    expect(
+      await runConversation(store, 'w', host, slow, new ConversationPace(), say('hi')),
+    ).toEqual({
+      said: false,
+      reason: 'gone',
+      words: 'You left before that was said: say it again where you are now.',
+    });
+  });
+
   it("throws the host's defect for one who never came or is away, and for time not in whole seconds", async () => {
     const store = await hall();
     const pace = new ConversationPace();
