@@ -26,8 +26,11 @@ const ManifestSchema = z.object({
   files: z.array(z.string()).default([]),
 });
 
-/** What to write for each field, in the manifest's own words. */
-const EXAMPLES: Readonly<Record<string, string>> = {
+/**
+ * What to write for each field, in the manifest's own words: what a
+ * refusal of the field says to write, and what the generated skill lists.
+ */
+export const MANIFEST_FIELDS: Readonly<Record<string, string>> = {
   name: '"name": "printers_shop" — lower-case, with letters, digits and _',
   namespace: '"namespace": "printers_shop", or leave it out to use the name',
   version: '"version": "0.1.0"',
@@ -57,7 +60,7 @@ function withArticle(expected: string): string {
 }
 
 function remedyFor(key: string | null): string {
-  const example = key === null ? null : EXAMPLES[key];
+  const example = key === null ? null : MANIFEST_FIELDS[key];
   return example === undefined || example === null
     ? 'A manifest is a JSON object with a name, a version, an author, a license, a level and a list of files.'
     : `Write ${example}.`;

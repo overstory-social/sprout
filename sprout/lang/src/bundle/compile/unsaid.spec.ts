@@ -60,6 +60,11 @@ describe('a verb with phrases that nothing `say`s for', () => {
         `${PULL}\nkind Hand is sprout.Actor { as actor for pull { do { if (false) { } else { say "Heave." } } } }`,
       ),
     ).toEqual([]);
+    expect(
+      warned(
+        `${PULL}\nkind Lever { contains  as target for pull { do { each thing in self { say "It gives." } } } }`,
+      ),
+    ).toEqual([]);
   });
 
   it('counts a `refuse` for nothing, since it is said only when the reading is refused', () => {

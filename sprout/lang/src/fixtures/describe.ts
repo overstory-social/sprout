@@ -5,7 +5,8 @@
 // holds the box and when it is crowded, and leads north to the loft; the
 // lamp is described by whether it is lit and refuses to be pulled once it
 // is; the mirror names whoever looks; the stool has no describe; the
-// blank's describe says nothing until it is shown; the cat is an NPC that
+// blank's describe says nothing until it is shown; the box says a line
+// for each thing it holds; the cat is an NPC that
 // hears what it is asked about; and the cellar has no describe. The
 // `runtime/describe.spec.ts`, `runtime/offers.spec.ts`,
 // `runtime/engine-verbs.spec.ts` and `prose/describe.spec.ts` share it.
@@ -88,7 +89,8 @@ verb ask  { role target  role topic: symbol  "ask [target] about [topic]" }
   describe { if (self.get(:shown)) { text "A card, now written on." } }
 }
 `,
-  'box.sprout': 'kind Box { contains }\n',
+  'box.sprout':
+    'kind Box {\n  contains\n  describe { each thing in self { text "Something is in it." } }\n}\n',
   'cat.sprout': `kind Cat is sprout.Actor {
   :knows [Topic] default [mice]
   as target for ask {

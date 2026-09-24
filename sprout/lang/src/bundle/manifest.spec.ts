@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Diagnostics } from '../source/diagnostics.js';
 import { locationOf, SourceFile } from '../source/source.js';
-import { MANIFEST_FILE, manifestKeySpan, parseManifest } from './manifest.js';
+import { MANIFEST_FIELDS, MANIFEST_FILE, manifestKeySpan, parseManifest } from './manifest.js';
 
 const GOOD = {
   name: 'shop',
@@ -68,6 +68,14 @@ describe('parseManifest', () => {
     const level = diagnostics.all.find((d) => d.message.includes('level'));
     expect(level?.message).toBe("The manifest's level is not a number.");
     expect(level?.remedy).toBe('Write "level": 1.');
+  });
+
+  it('says what to write for exactly the fields a manifest holds, each in its own words', () => {
+    const { manifest } = read(JSON.stringify(GOOD));
+    expect(Object.keys(MANIFEST_FIELDS).sort()).toEqual(Object.keys(manifest!).sort());
+    for (const [field, write] of Object.entries(MANIFEST_FIELDS)) {
+      expect(write, field).toMatch(new RegExp(`^"${field}": `));
+    }
   });
 
   it('finds a key in the text, and falls back to the head', () => {

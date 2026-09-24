@@ -6,10 +6,11 @@
 //
 // A verb counts as spoken for where any play for it, for any role or for
 // the actor, in any composed kind of the bundle, holds a `say` in its
-// `do`, however deep inside an `if`. A `refuse` does not count: it is said
+// `do`, however deep inside an `if` or an `each`. A `refuse` does not count: it is said
 // only when the reading is refused.
 
 import type { Block, Statement } from '../../syntax/ast.js';
+import { statementsWithin } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import type { KindRef } from '../../declare/kinds.js';
 import { ACTOR_ROLE, playKey } from '../../declare/roles.js';
@@ -50,16 +51,12 @@ function spokenFor(verb: ResolvedVerb, kinds: readonly KindRef[]): boolean {
   );
 }
 
-/** Whether `block` holds a `say`, however deep inside an `if`. */
+/** Whether `block` holds a `say`, however deep inside an `if` or an `each`. */
 function says(block: Block | null): boolean {
   const pending: Statement[] = [...(block?.statements ?? [])];
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     if (next.kind === 'say') return true;
-    if (next.kind !== 'if') continue;
-    pending.push(...next.then.statements);
-    if (next.otherwise === null) continue;
-    if (next.otherwise.kind === 'if') pending.push(next.otherwise);
-    else pending.push(...next.otherwise.statements);
+    pending.push(...statementsWithin(next));
   }
   return false;
 }

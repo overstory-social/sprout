@@ -115,6 +115,22 @@ describe('a deciding body only reads and decides', () => {
   it('takes `refuse` and `allow`', () => {
     expect(check('if (self.count > 1) { refuse "Full." } else { allow }', PERMIT)).toEqual([]);
   });
+
+  it('takes an `each`, which only reads, and holds its body to what the body it stands in allows', () => {
+    expect(
+      check('each thing in self { if (thing == actor) { refuse "Not you." } }', PERMIT),
+    ).toEqual([]);
+    expect(check('each thing in self { move thing to self }', GUARD)).toEqual([
+      ['b.sprout:3:26', '`move` moves something, and a guard only reads and decides.'],
+    ]);
+    expect(check('each thing in self { move thing to self }', DO)).toEqual([]);
+  });
+
+  it('binds an `each`’s variable inside its body and nowhere after it', () => {
+    expect(check('each thing in self { }\n    if (thing == actor) { allow }', PERMIT)).toHaveLength(
+      1,
+    );
+  });
 });
 
 describe('a deciding body draws nothing', () => {

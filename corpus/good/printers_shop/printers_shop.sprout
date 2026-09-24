@@ -1,0 +1,178 @@
+world printers_shop is sprout.World {
+  contains
+  visitors are Visitor
+  visitors arrive at composing_room
+  :season Season default autumn
+
+  object composing_room is sprout.Place {
+    grammar {
+      name    "composing room"
+      article the
+      exit out "out to the press yard" -> press_yard
+      exit in  "into the paper store"  -> paper_store
+    }
+
+    prose "composing_room.prose"
+    remembers { :visits 0 min 0 max 99 }
+
+    describe { text arrival }
+
+    on :entered (item, from) {
+      if (item.is(Creature)) { item.adjust(:visits, 1) }
+    }
+
+    on :tick { broadcast :stir }
+
+    object paper_store is sprout.Place, sprout.Container, Warded {
+      grammar {
+        name    "paper store"
+        article the
+        exit out "back to the composing room" -> composing_room
+        exit up  "up the ladder to the loft"  -> drying_loft when (ladder.get(:down))
+      }
+
+      :open     false
+      :ward     iron
+      :capacity 40
+
+      describe { text "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
+
+      object ladder is sprout.Fixture {
+        grammar { nouns "ladder" }
+
+        :down false
+
+        passage immovable { The ladder is chained to the shelving. }
+
+        as target for lower {
+          permit { if (self.get(:down)) { refuse "It is down already." } }
+          do {
+            self.set(:down, true)
+            say  "You let the ladder down. The hatch above it swings open."
+            tell "{actor} lets the ladder down."
+          }
+        }
+      }
+    }
+
+    object cabinet is sprout.Container, Warded, sprout.Fixture {
+      grammar { name "type cabinet" article the nouns "cabinet", "type" }
+
+      :open     false
+      :capacity 12
+
+      passage immovable { It is a cabinet. It stays where it is. }
+
+      object shop_key is Key {
+        grammar { name "shop key" nouns "iron key" }
+        :opens [brass, iron]
+      }
+    }
+
+    object brass_key is Key
+
+    object apprentice is Creature {
+      grammar { name "apprentice" article the nouns "boy" }
+
+      :knows [Topic] default [the_press, the_cat]
+
+      as target for ask {
+        topic from :knows
+        do {
+          if (bound topic) {
+            if (topic == :the_press) { say "Bar's stiff, he says. Mind your knuckles." }
+            else                     { say "She's not ours, he says. She just decided." }
+          } else {
+            say "He shrugs. Not something he knows about."
+          }
+        }
+      }
+    }
+
+    object cat is Creature {
+      grammar { name "shop cat" article the }
+
+      on :stir {
+        if (chance(8)) {
+          tell "{one of}The cat resettles.{or}The cat regards the door and declines to go through it.{/one of}"
+        }
+        each p: Creature in composing_room {
+          if (p != self && chance(4)) { act nuzzle (target: p) }
+        }
+      }
+    }
+  }
+
+  object press_yard is sprout.Place {
+    grammar {
+      name    "press yard"
+      article the
+      exit in "back into the shop" -> composing_room
+    }
+
+    prose "press_yard.prose"
+    describe { text yard }
+
+    object wooden_rib is Rib { grammar { nouns "rib" } }
+    object bone_rib   is Rib { grammar { nouns "rib" } }
+
+    object press is sprout.Fixture {
+      grammar { name "press" article the }
+
+      :inked false
+
+      passage immovable { The press is bolted to the yard. }
+
+      as target for ink {
+        permit { if (self.get(:inked)) { refuse "The forme is inked already." } }
+        do {
+          self.set(:inked, true)
+          say "You beat the ink over the forme until it shines."
+        }
+      }
+
+      as target for work {
+        permit {
+          if (!self.get(:inked))         { refuse "Dry type. It would print nothing but a bruise." }
+          else if (tools.count(Rib) > 1) { refuse "Two ribs at once is one rib too many." }
+        }
+        do {
+          self.set(:inked, false)
+          spawn Sheet in here
+          say  "The bar comes over, and the yard is briefly very quiet."
+          tell "{actor} works the press."
+        }
+      }
+    }
+  }
+
+  object drying_loft is sprout.Place {
+    grammar {
+      name    "drying loft"
+      article the
+      exit down "down the ladder" -> composing_room.paper_store
+    }
+
+    describe { text "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
+  }
+}
+
+enum Season { spring, summer, autumn, winter }
+enum Ward   { brass, iron }
+enum Drying { wet, touch_dry, cured }
+enum Topic  { the_press, the_cat, the_cellar }
+enum Cuff   { dry, damp }
+
+message :stir
+
+verb work {
+  role target
+  role tools many
+  "work [target]"
+  "work [target] with [tools]"
+  "pull [target]"
+}
+
+verb ink    { role target  "ink [target]" }
+verb lower  { role target  "lower [target]"  "let down [target]" }
+verb nuzzle { role target: Creature }

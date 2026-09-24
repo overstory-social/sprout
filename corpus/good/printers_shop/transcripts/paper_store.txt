@@ -1,0 +1,74 @@
+# The paper store: a place inside the composing room that is also a
+# container, so its lid rule is `pass any (self.get(:open))` and its
+# `accept` keeps people out while it is shut. Its iron ward wants the shop
+# key. Inside, the loft's exit applies only once the ladder is down, and the
+# loft's way down names the store by its path. A visitor shut in can still
+# open it from inside.
+@arrive Marta
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+@arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): You have not stood in here before, and the room somehow knows it.
+  Ines (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta,
+Marta> go in
+  Marta (refused): The paper store is shut.
+Marta> unlock paper store with brass key
+  Marta (refused): It goes in, and turns nothing.
+Marta> unlock cabinet with brass key
+  Marta (said): The lock turns over.
+  Ines (told): Marta unlocks the type cabinet.
+Marta> open cabinet
+  Marta (said): You open the type cabinet.
+  Ines (told): Marta opens the type cabinet.
+Marta> take shop key
+  Marta (said): You take a shop key.
+  Ines (told): Marta takes a shop key.
+Marta> unlock paper store with shop key
+  Marta (said): The lock turns over.
+Marta> go in
+  Marta (refused): The paper store is shut.
+Marta> open paper store
+  Marta (said): You open the paper store.
+Marta> go in
+  Ines (notice): Marta leaves.
+  Ines (notice): Marta arrives.
+  Marta (described): Reams in brown paper, shelved by weight. A ladder leans against the loft hatch.
+Ines> look
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): You have not stood in here before, and the room somehow knows it.
+  Ines (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Marta> go up
+  Marta (notice): That is not something you can do here.
+Marta> take ladder
+  Marta (refused): The ladder is chained to the shelving.
+Marta> lower ladder
+  Marta (said): You let the ladder down. The hatch above it swings open.
+Marta> lower ladder
+  Marta (refused): It is down already.
+Marta> go up
+  Ines (notice): Marta leaves.
+  Marta (described): Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet.
+Marta> look
+  Marta (described): Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet.
+Marta> go down
+  Ines (notice): Marta arrives.
+  Marta (described): Reams in brown paper, shelved by weight. A ladder leans against the loft hatch.
+Ines> close paper store
+  Ines (said): You shut the paper store.
+  Marta (told): Ines shuts the paper store.
+Marta> look
+  Marta (described): Reams in brown paper, shelved by weight. A ladder leans against the loft hatch.
+Marta> go out
+  Ines (notice): Marta leaves.
+  Ines (notice): Marta arrives.
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines,
+Marta> open paper store
+  Marta (said): You open the paper store.
+Marta> go out
+  Ines (notice): Marta leaves.
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): A wooden rib, a bone rib, the press,

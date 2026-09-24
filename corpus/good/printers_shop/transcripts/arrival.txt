@@ -1,0 +1,55 @@
+# Arriving, and coming back. The composing room counts each creature that
+# enters it in its own memory of them (`remembers { :visits … }`, bumped in
+# `on :entered`), and its description says the first visit only. A second
+# visitor's arrival is a notice to the first. Leaving takes what you carry;
+# a returning visitor comes back to where they last stood.
+@arrive Marta
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Marta> look
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Marta> inventory
+  Marta (said): You are carrying nothing.
+@arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): You have not stood in here before, and the room somehow knows it.
+  Ines (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta,
+Marta> look
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines.
+Marta> take brass key
+  Marta (said): You take a brass key.
+  Ines (told): Marta takes a brass key.
+Ines> go out
+  Marta (notice): Ines leaves.
+  Ines (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Ines (described): A wooden rib, a bone rib, the press,
+Ines> go in
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): The paper store, the type cabinet, the apprentice, the shop cat, Marta,
+@leave Marta
+  Marta (notice): You leave, and take what you carry with you.
+  Ines (notice): Marta leaves.
+@arrive Marta
+  Ines (notice): Marta arrives.
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): The paper store, the type cabinet, the apprentice, the shop cat, Ines,
+Marta> i
+  Marta (said): You are carrying a brass key.
+Marta> go out
+  Ines (notice): Marta leaves.
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): A wooden rib, a bone rib, the press,
+@leave Marta
+  Marta (notice): You leave, and take what you carry with you.
+@arrive Marta
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): A wooden rib, a bone rib, the press,
+Marta> wait
+  Marta (said): Nothing much comes of that.

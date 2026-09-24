@@ -230,6 +230,15 @@ kind Grip is Hand {
     expect(unheard).toEqual(['stare']);
   });
 
+  it('hears a passage said inside an `each`', () => {
+    const { unheard } = passagesOf(`kind Mirror {
+  contains
+  as target for peer { do { each thing in self { say greeting } } }
+  passage greeting { Hello. }
+}`);
+    expect(unheard).toEqual([]);
+  });
+
   it('says a mistake in a passage said from many places once', () => {
     const said = checked(`kind Crate {
   contains

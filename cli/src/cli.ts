@@ -1,15 +1,20 @@
-import type { Bundle } from '@overstory/sprout/lang';
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
+
+import { generateSkill, type Bundle } from '@overstory/sprout/lang';
 
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { initWorld } from './init.js';
 import { formatGrammar, parseLine } from './parse.js';
+import { playScript } from './play.js';
 import { catalogueFor, standIn, type StandOptions } from './stand.js';
 import { inspectView } from './view.js';
 
-// The `sprout` command: four verbs on a microworld folder. Flags are
-// `--name value` or `--name=value`; `--flag` alone is true. The first
-// bare word is the command, the next the path. `play` and `serve` are not
-// built.
+// The `sprout` command: five verbs on a microworld folder, and `skill`,
+// the builder's reference this compiler generates from its own tables.
+// Flags are `--name value` or `--name=value`; `--flag` alone is true. The
+// first bare word is the command, the next the path. Playing
+// interactively, and `serve`, are not built.
 
 export const USAGE = `sprout — a Sprout microworld on the command line
 
@@ -20,6 +25,10 @@ export const USAGE = `sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
+  sprout play dir script              play a script of typed lines and host events through real turns;
+                                      the transcript, each line followed by what every reader read
+  sprout skill                        the builder's reference, generated from this compiler's own tables,
+                                      as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
 `;
 
 export interface Io {
@@ -111,6 +120,22 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number {
         say(inspected.page);
         return inspected.ok ? 0 : 1;
       }
+      case 'play': {
+        const [dir = '.', script] = positional;
+        if (script === undefined) {
+          throw new Error(
+            'play wants a script after the folder, as in `sprout play shop opening.txt`: lines like `@arrive Marta` and `Marta> look`.',
+          );
+        }
+        const checked = compiled(dir, say);
+        if (checked === null) return 1;
+        const text = readFileSync(script === '-' ? 0 : script, 'utf8');
+        say(playScript(checked, text, script === '-' ? 'the script' : basename(script)).page);
+        return 0;
+      }
+      case 'skill':
+        say(generateSkill({ usage: USAGE }));
+        return 0;
       default:
         io.stderr.write(`sprout: no such command "${command}"\n\n${USAGE}`);
         return 1;

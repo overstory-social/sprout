@@ -68,6 +68,27 @@ describe('a grammar block', () => {
     }
   });
 
+  it('reads nouns with a comma between them or not, as the worked microworld writes them', () => {
+    for (const text of [
+      'grammar { name "type cabinet" article the nouns "cabinet", "type" }',
+      'grammar { nouns "cabinet" "type"  name "type cabinet"  article the }',
+    ]) {
+      const { blocks, said } = readGrammar(text);
+      expect(said, text).toEqual([]);
+      expect(blocks[0]!.lines.map(written).sort(), text).toEqual([
+        'article the',
+        'name type cabinet',
+        'nouns cabinet|type',
+      ]);
+    }
+  });
+
+  it('refuses a comma after the last noun, as a line the block is not made of', () => {
+    const { blocks, said } = readGrammar('grammar { nouns "cabinet", name "type cabinet" }');
+    expect(said.map((one) => one[1])).toEqual(['A grammar block is not made of `,`.']);
+    expect(blocks[0]!.lines.map(written)).toEqual(['nouns cabinet', 'name type cabinet']);
+  });
+
   it('reads every article a grammar block may declare', () => {
     for (const article of ['a', 'an', 'the', 'none']) {
       const { blocks, said } = readGrammar(`grammar { article ${article} }`);
@@ -171,6 +192,7 @@ const WELL_FORMED_LINES = [
   { name: 'name brass key', text: 'name "brass key"' },
   { name: 'article the', text: 'article the' },
   { name: 'nouns brass|key ring', text: 'nouns "brass" "key ring"' },
+  { name: 'nouns cabinet|type', text: 'nouns "cabinet", "type"' },
   { name: 'exit out to the yard yard', text: 'exit out "to the yard" -> yard' },
   {
     name: 'exit up the loft kiln.loft when',
@@ -193,6 +215,8 @@ const LINE_DEFECTS: readonly string[] = [
   'article 4',
   'nouns',
   'nouns 4',
+  'nouns "brass",',
+  'nouns , "brass"',
   'exit',
   'exit North "x" -> hall',
   'exit "to the yard" -> hall',

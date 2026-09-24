@@ -1,0 +1,11 @@
+kind Key {
+  grammar { nouns "key" }
+
+  :opens [Ward] default [brass]
+  :wear  0 min 0 max 99
+
+  as tool for unlock {
+    permit { if (self.get(:wear) >= 99) { refuse "The bit is worn smooth. It turns nothing." } }
+    do     { self.adjust(:wear, 1) }
+  }
+}

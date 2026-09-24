@@ -1,0 +1,12 @@
+// An `each` names what it walks, says `in` or `of`, and holds its body in
+// braces; a kind picks out what a container holds, and never a set role's.
+world each_head is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object shelf is Shelf
+  }
+}
+
+verb sort { role target  role tools many  "sort [target]"  "sort [target] with [tools]" }

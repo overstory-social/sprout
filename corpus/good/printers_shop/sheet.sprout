@@ -1,0 +1,19 @@
+kind Sheet {
+  grammar { name "printed sheet" nouns "sheet", "print" }
+
+  :state Drying default wet
+
+  depart (to) {
+    if (self.get(:state) == :wet) { refuse "The ink is still wet; it would smear." }
+  }
+
+  on :spawned (from) { wake in 40 minutes }
+
+  on :woke (elapsed) {
+    if (elapsed > 7200) { self.set(:state, :cured) }
+    else {
+      self.set(:state, :touch_dry)
+      wake in 2 hours
+    }
+  }
+}

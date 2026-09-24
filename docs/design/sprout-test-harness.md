@@ -50,15 +50,35 @@ This is the layer that pins the compiler's words, exercises the whole
 pipeline from folder to bundle, and shows a reader what the language
 looks like. It grows one world per construct: when kinds land, a
 `good/kinds` world and a `bad/` world for each refusal the spec lists
-under *What it refuses*. When the worked microworld compiles (B49), it
-joins `good/` and its golden transcripts become the runtime's version of
-the same idea.
+under *What it refuses*. The worked microworld is `good/printers_shop`,
+its files as the spec writes them, and its golden transcripts are the
+runtime's version of the same idea (below).
 
 `node scripts/check-corpus.mjs --write` regenerates the pages. The diff is
 read, not accepted: a changed page is either a deliberate change to the
 compiler's words, which the PR explains, or a regression. A `good/` world
 may also carry an `expected.txt`, pinning its warnings the same way; a
 `good/` world without one only has to pass.
+
+`corpus/skill/SKILL.md` is the page `sprout skill` prints, the generated
+skill, pinned the same way: every table it is read from, every example
+it compiles and every message it quotes is in it, so a change to any of
+them shows as a diff of the page, read like any other.
+
+### 2a. Golden transcripts
+
+A `good/` world may carry `transcripts/*.txt`. Each is a script that
+`sprout play` plays through real turns over the world as it loads: what
+visitors type, `Marta> take brass key`, and what the host does,
+`@arrive Marta`, `@leave`, `@tick`, `@advance 40 minutes`, `@seed 7`.
+Playing it prints the script with what every reader read of each line
+indented under it, so a transcript is its own golden: `npm run check`
+plays each and compares, and `node scripts/check-transcripts.mjs
+--write` replays each and writes what it printed. The diff is read as a
+page's is. The worked microworld's transcripts play every chain in it
+end to end, and where one plays in a way the spec did not mean, the
+transcript pins what happens and the working notes' Open list says why
+(the group "Found while playing the worked microworld").
 
 ### 3. Invariants over generated input
 
@@ -92,14 +112,12 @@ host with its own adapter runs it too.
 `npm run e2e` packs both tarballs, installs them into an empty folder, and
 runs the installed CLI: `init` a world, `check` it, and `check` a corpus
 world. It proves the published packages work from outside the repository,
-which nothing else does. When the runtime lands, it also plays the worked
-microworld and compares the transcript to its golden.
+which nothing else does. It also checks the worked microworld and plays
+each of its transcripts from the installed CLI, comparing what it prints
+to the golden.
 
 ## Still to build
 
-- **Golden transcripts** (B49): the worked microworld as a fixture, with
-  a typed command sequence and the exact text each produces. This is the
-  corpus for the runtime.
 - **An author-facing test format** (B52): the same idea an author can
   write in a world's own folder — "after `light torch`, expect this line" —
   and run with `sprout test`. Golden transcripts are what it is built on.

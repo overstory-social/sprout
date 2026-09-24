@@ -1,0 +1,51 @@
+# Time while nobody is there. This host runs no wakes while the world is
+# empty: the next arrival's catch-up delivers each object's oldest due wake,
+# says nothing of it, and the elapsed time is the whole absence, so a sheet
+# left wet overnight is cured rather than stepped through touch-dry; being
+# cured, it asks for no more wakes. A creature's hands hold four things.
+@arrive Marta
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Marta> take brass key
+  Marta (said): You take a brass key.
+Marta> unlock cabinet with brass key
+  Marta (said): The lock turns over.
+Marta> open cabinet
+  Marta (said): You open the type cabinet.
+Marta> take shop key
+  Marta (said): You take a shop key.
+Marta> go out
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): A wooden rib, a bone rib, the press,
+Marta> take wooden rib
+  Marta (said): You take a wooden rib.
+Marta> take bone rib
+  Marta (said): You take a bone rib.
+Marta> ink press
+  Marta (said): You beat the ink over the forme until it shines.
+Marta> work press with wooden rib
+  Marta (said): The bar comes over, and the yard is briefly very quiet.
+Marta> take sheet
+  Marta (refused): The ink is still wet; it would smear.
+@leave Marta
+  Marta (notice): You leave, and take what you carry with you.
+@advance 24 hours
+  (nothing)
+@arrive Marta
+  caught up: printers_shop#8 woke, 86400 seconds after it asked
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): The press, a printed sheet,
+Marta> take sheet
+  Marta (refused): You cannot carry any more.
+Marta> drop brass key
+  Marta (said): You put a brass key down.
+Marta> take sheet
+  Marta (said): You take a printed sheet.
+Marta> i
+  Marta (said): You are carrying a shop key, a wooden rib, a bone rib, a printed sheet.
+@advance 5 hours
+  (nothing)
+Marta> look
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): The press, a brass key.

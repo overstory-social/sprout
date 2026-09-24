@@ -37,6 +37,7 @@ kind Shelf {
   on :entered (item, from) {
     if (true) { spawn Cup in self } else if (false) { let jug = spawn Jug in self } else { spawn Cup in self }
     wake in 3 minutes
+    each thing in self { spawn Bowl in self }
   }
   changed :full (was) { spawn Cup in self }
   :full false
@@ -53,7 +54,7 @@ describe('what a kind’s bodies write', () => {
     ]);
   });
 
-  it('reads every statement of a body, however deep inside an `if`, in the order written', () => {
+  it('reads every statement of a body, however deep inside an `if` or an `each`, in the order written', () => {
     const shelf = composed(TEXT).qualified('shop', 'Shelf')!;
     const [stir] = bodiesOf(shelf);
     expect(statementsIn(stir!.block).map((statement) => statement.kind)).toEqual([
@@ -63,12 +64,18 @@ describe('what a kind’s bodies write', () => {
       'let',
       'spawn',
       'wake',
+      'each',
+      'spawn',
     ]);
     expect(statementsIn(null)).toEqual([]);
   });
 
   it('finds each kind a body spawns once, first spawned first', () => {
     const kinds = composed(TEXT);
-    expect(spawnedKinds(kinds.all(), kinds).map(({ kind }) => kind.name)).toEqual(['Cup', 'Jug']);
+    expect(spawnedKinds(kinds.all(), kinds).map(({ kind }) => kind.name)).toEqual([
+      'Cup',
+      'Jug',
+      'Bowl',
+    ]);
   });
 });

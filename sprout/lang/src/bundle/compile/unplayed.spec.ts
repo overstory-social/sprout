@@ -86,6 +86,12 @@ describe('a verb no object plays a role for', () => {
     expect(
       warned(`${PULL}\n${LEVER}\n${spawning}\n${WORLD} object crate is Crate } }`).said,
     ).toEqual([]);
+    // And one spawned inside an `each`.
+    const eachSpawning =
+      'kind Crate { contains  on :stir { each thing in self { spawn Lever in self } } }\nmessage :stir';
+    expect(
+      warned(`${PULL}\n${LEVER}\n${eachSpawning}\n${WORLD} object crate is Crate } }`).said,
+    ).toEqual([]);
   });
 
   it('counts the actor’s part', () => {
@@ -133,6 +139,13 @@ kind Guard is sprout.Actor {
   as actor for mew { do { say "Mew." } }
 }`;
     expect(warned(`${ask}\n${acting}\n${WORLD} object guard is Guard } }`).said).toEqual([]);
+    // An `act` inside an `each` names it as surely.
+    const eachActing = acting.replace(
+      'if (bound topic) { act mew (target: actor, mood: topic) }',
+      'if (bound topic) { each thing in actor { act mew (target: actor, mood: topic) } }',
+    );
+    expect(eachActing).not.toEqual(acting);
+    expect(warned(`${ask}\n${eachActing}\n${WORLD} object guard is Guard } }`).said).toEqual([]);
   });
 
   it('never warns at an open role, which any thing fills', () => {

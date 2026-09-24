@@ -31,13 +31,13 @@ editor.
 
 ## Layout
 
-| folder     | holds                                                                                                                 |
-| ---------- | --------------------------------------------------------------------------------------------------------------------- |
-| `source/`  | `SourceFile` and spans, the rule every AST node keeps, diagnostics and their page, SHA-256                            |
-| `syntax/`  | the pull lexer, the AST, the recovering parser                                                                        |
-| `declare/` | value types, enums, kinds and their composition, objects, properties, messages, verbs, the world root                 |
-| `check/`   | typed bindings and scope, the expression checker                                                                      |
-| `bundle/`  | limits as host configuration, the manifest, the bundle and its hash, the declaration tables, `compileBundle`, absence |
-| `runtime/` | the turn's budget meter and the list value                                                                            |
+| folder     | holds                                                                                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source/`  | `SourceFile` and spans, the rule every AST node keeps, diagnostics and their page, SHA-256                                                                      |
+| `syntax/`  | the pull lexer, the AST, the recovering parser                                                                                                                  |
+| `declare/` | value types, enums, kinds and their composition, objects, properties, messages, verbs, the world root                                                           |
+| `check/`   | typed bindings and scope, the expression checker                                                                                                                |
+| `bundle/`  | limits as host configuration, the manifest, the bundle and its hash, the declaration tables, `compileBundle`, absence, and the generated skill, `generateSkill` |
+| `runtime/` | the turn's budget meter and the list value                                                                                                                      |
 
 Every source file has a colocated `.spec.ts` that exercises it directly.

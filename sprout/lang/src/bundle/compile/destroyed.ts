@@ -11,6 +11,7 @@
 // not. A body that may destroy is a play's `do`, a handler or a hook.
 
 import type { Block, DestroyStatement, Statement } from '../../syntax/ast.js';
+import { statementsWithin } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { kindName, type KindRef } from '../../declare/kinds.js';
 import type { ComposedObject } from '../../declare/objects.js';
@@ -58,20 +59,13 @@ function acting(kind: KindRef): { readonly origin: string; readonly body: Block 
   ];
 }
 
-/** Every `destroy` in `block`, however deep inside an `if`, in the order written. */
+/** Every `destroy` in `block`, however deep inside an `if` or an `each`, in the order written. */
 function destroysIn(block: Block | null): DestroyStatement[] {
   const found: DestroyStatement[] = [];
   const pending: Statement[] = [...(block?.statements ?? [])].reverse();
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     if (next.kind === 'destroy') found.push(next);
-    if (next.kind !== 'if') continue;
-    const otherwise =
-      next.otherwise === null
-        ? []
-        : next.otherwise.kind === 'if'
-          ? [next.otherwise]
-          : next.otherwise.statements;
-    pending.push(...[...next.then.statements, ...otherwise].reverse());
+    pending.push(...[...statementsWithin(next)].reverse());
   }
   return found;
 }

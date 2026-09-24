@@ -11,7 +11,7 @@
 // one whose every `text` names a passage of a `.prose` file that is absent
 // is told to `emptied`, which refuses it at publish.
 
-import type { Block, Statement } from '../syntax/ast.js';
+import { statementsWithin, type Block, type Statement } from '../syntax/ast.js';
 import {
   describeWord,
   type DescribeDeclaration,
@@ -95,22 +95,13 @@ export function checkDescribe(
   return diagnostics.refusals.length === before;
 }
 
-/** Every `text` in a block, in every branch of every `if`, in the order written. */
+/** Every `text` in a block, in every branch of every `if` and the body of every `each`, in the order written. */
 export function textsIn(block: Block): TextStatement[] {
   const found: TextStatement[] = [];
   const walk = (statements: readonly Statement[]): void => {
     for (const statement of statements) {
       if (statement.kind === 'text') found.push(statement);
-      if (statement.kind !== 'if') continue;
-      for (let link: Statement | Block | null = statement; link !== null;) {
-        if (link.kind === 'block') {
-          walk(link.statements);
-          break;
-        }
-        if (link.kind !== 'if') break;
-        walk(link.then.statements);
-        link = link.otherwise;
-      }
+      walk(statementsWithin(statement));
     }
   };
   walk(block.statements);

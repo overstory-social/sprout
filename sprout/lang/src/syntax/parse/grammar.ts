@@ -144,7 +144,7 @@ function grammarLine(p: Parser, ends: LineEnds): GrammarLine | null {
     }
     default: {
       const nouns: GrammarNoun[] = [];
-      for (let quoted = p.take('string'); quoted !== null; quoted = p.take('string')) {
+      for (let quoted = p.take('string'); quoted !== null; quoted = nextNoun(p)) {
         nouns.push({ kind: 'grammar-noun', at: quoted.at, text: quoted.text });
       }
       if (nouns.length === 0) {
@@ -158,4 +158,11 @@ function grammarLine(p: Parser, ends: LineEnds): GrammarLine | null {
       return { kind: 'grammar-nouns', at: spanning(word.at, nouns.at(-1)!.at), nouns };
     }
   }
+}
+
+/** The noun after one already read: the next in quotes, a comma between them or not, as the spec's worked microworld writes `nouns "cabinet", "type"`. */
+function nextNoun(p: Parser): Token | null {
+  const after = p.peek(1);
+  if (p.at('punct', ',') && after.kind === 'string') p.next();
+  return p.take('string');
 }

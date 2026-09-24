@@ -2,9 +2,10 @@
 // the bundle does rather than what one body means (the spec's The
 // compiler › What it warns about): every body a kind runs, every
 // statement in one, and every kind a body spawns. A statement inside an
-// `if` is written as surely as one outside it, so both are read.
+// `if` or an `each` is written as surely as one outside it, so all are read.
 
 import type { Block, SpawnStatement, Statement } from '../../syntax/ast.js';
+import { statementsWithin } from '../../syntax/ast.js';
 import { libraryOf } from '../../declare/enums.js';
 import type { KindLookup, KindRef } from '../../declare/kinds.js';
 
@@ -29,20 +30,13 @@ export function bodiesOf(kind: KindRef): Body[] {
   ];
 }
 
-/** Every statement in `block`, however deep inside an `if`, in the order written. */
+/** Every statement in `block`, however deep inside an `if` or an `each`, in the order written. */
 export function statementsIn(block: Block | null): Statement[] {
   const found: Statement[] = [];
   const pending: Statement[] = [...(block?.statements ?? [])].reverse();
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     found.push(next);
-    if (next.kind !== 'if') continue;
-    const otherwise =
-      next.otherwise === null
-        ? []
-        : next.otherwise.kind === 'if'
-          ? [next.otherwise]
-          : next.otherwise.statements;
-    pending.push(...[...next.then.statements, ...otherwise].reverse());
+    pending.push(...[...statementsWithin(next)].reverse());
   }
   return found;
 }
