@@ -1,0 +1,12 @@
+kind Creature is sprout.Actor {
+  :capacity 4
+  :cuff     Cuff default dry
+
+  as target for nuzzle {
+    do {
+      self.set(:cuff, :damp)
+      tell self "{actor} winds round your ankles and licks your hand. Your cuff will be damp all morning."
+      tell "{actor} winds round {self}'s ankles."
+    }
+  }
+}

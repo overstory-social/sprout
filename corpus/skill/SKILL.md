@@ -115,6 +115,8 @@ sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
+  sprout play dir script              play a script of typed lines and host events through real turns;
+                                      the transcript, each line followed by what every reader read
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
 ```
@@ -238,6 +240,7 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `send self :stir` | sends a message to one thing in range | — | — | yes | — | yes |
 | `broadcast :stir` | sends a message outward and inward through what holds what | — | — | yes | — | yes |
 | `wake in 10 minutes` | asks to be sent `:woke` later, in seconds, minutes or hours | — | — | yes | — | yes |
+| `each crumb: Crumb in self { }` | walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may | yes | yes | yes | yes | yes |
 | `self.set(:lit, true)` | a call that writes, one of those under Writing below | — | — | yes | — | yes |
 
 ## What a visitor can type

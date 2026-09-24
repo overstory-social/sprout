@@ -1,0 +1,6 @@
+passage yard {
+  Flagstones, a water butt, and the press under its lean-to, which is the
+  only thing out here anyone has ever been careful with.
+
+  {for thing in self}{if thing != actor}{thing}{if $last}.{else}, {/if}{/if}{/for}
+}

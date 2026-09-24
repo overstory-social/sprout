@@ -1,0 +1,11 @@
+kind Warded is sprout.Lockable {
+  :ward Ward default brass
+
+  as target for unlock {
+    permit {
+      if (tool.is(Key)) {
+        if (!tool.get(:opens).includes(self.get(:ward))) { refuse "It goes in, and turns nothing." }
+      } else { refuse "{tool} is not a key." }
+    }
+  }
+}

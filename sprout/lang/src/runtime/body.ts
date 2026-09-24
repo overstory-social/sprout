@@ -24,6 +24,7 @@
 import type {
   Block,
   CallExpr,
+  EachStatement,
   Expr,
   IfStatement,
   ObjectPath,
@@ -45,6 +46,7 @@ import {
   type Evaluated,
   type Frame,
 } from './evaluate.js';
+import { eachWalked } from './each.js';
 import type { InstanceId } from './ids.js';
 import {
   destroyInstance,
@@ -213,6 +215,8 @@ function runStatement(
     }
     case 'if':
       return runIf(statement, frame, run);
+    case 'each':
+      return runEach(statement, frame, run);
     case 'allow':
       deciding(run, '`allow`');
       return 'allow';
@@ -306,6 +310,18 @@ function runStatement(
       return 'end';
     }
   }
+}
+
+/** An `each`: its body once for each thing walked, each iteration a step, until one ends the body. */
+function runEach(statement: EachStatement, frame: Frame, run: Run): Ended {
+  for (const walked of eachWalked(statement, frame)) {
+    frame.budget.spend();
+    const bindings = new Map(frame.bindings);
+    bindings.set(statement.variable.text, walked);
+    const ended = runBlock(statement.body, { ...frame, bindings }, run);
+    if (ended !== 'end' || run.stopped !== null) return ended;
+  }
+  return 'end';
 }
 
 /** An `if` and each `else if` after it, as the chain it is; each link tested is a step. */

@@ -1,0 +1,62 @@
+# The type cabinet: a `sprout.Container` that is `Warded` (and so
+# `sprout.Lockable`) and a `sprout.Fixture`. Its lock is a `permit` on the
+# library's own `open`; `Warded` narrows the open `tool` with `is(Key)`
+# before reading `:opens`; the brass key's ward is the cabinet's, and the
+# shop key inside opens both. The fixture's words are the cabinet's own.
+@arrive Marta
+  Marta (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Marta (described): You have not stood in here before, and the room somehow knows it.
+  Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+@arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Ines (described): You have not stood in here before, and the room somehow knows it.
+  Ines (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta,
+Marta> take cabinet
+  Marta (refused): It is a cabinet. It stays where it is.
+Marta> open cabinet
+  Marta (refused): It is locked.
+Marta> close cabinet
+  Marta (refused): It is already shut.
+Marta> unlock cabinet with apprentice
+  Marta (refused): The apprentice is not a key.
+Marta> unlock cabinet with brass key
+  Marta (said): The lock turns over.
+  Ines (told): Marta unlocks the type cabinet.
+Marta> take brass key
+  Marta (said): You take a brass key.
+  Ines (told): Marta takes a brass key.
+Marta> unlock cabinet with brass key
+  Marta (refused): It is already unlocked.
+Marta> unlock cabinet with key
+  Marta (refused): It is already unlocked.
+Marta> open type
+  Marta (said): You open the type cabinet.
+  Ines (told): Marta opens the type cabinet.
+Marta> open cabinet
+  Marta (refused): It is already open.
+Marta> take shop key
+  Marta (said): You take a shop key.
+  Ines (told): Marta takes a shop key.
+Marta> take iron key
+  Marta (refused): You already have it.
+Ines> close cabinet
+  Ines (said): You shut the type cabinet.
+  Marta (told): Ines shuts the type cabinet.
+Marta> put brass key in cabinet
+  Marta (refused): The type cabinet is shut.
+Ines> open cabinet
+  Ines (said): You open the type cabinet.
+  Marta (told): Ines opens the type cabinet.
+Marta> put brass key in cabinet
+  Marta (said): You put a brass key in the type cabinet.
+  Ines (told): Marta puts a brass key in the type cabinet.
+Ines> take brass key
+  Ines (said): You take a brass key.
+  Marta (told): Ines takes a brass key.
+Ines> x cabinet
+  Ines (described): There is nothing special about the type cabinet.
+Marta> unlock paper store with shop key
+  Marta (said): The lock turns over.
+Marta> i
+  Marta (said): You are carrying a shop key.

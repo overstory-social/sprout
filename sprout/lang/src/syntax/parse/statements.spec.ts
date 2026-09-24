@@ -531,6 +531,7 @@ describe('a statement', () => {
       'allow',
       'self.set(:wear, 1)',
       'wake in 3 hours',
+      'each thing in self { }',
     ].map((text) => readWith(statement, text).read?.kind);
     expect(kinds).toEqual([
       'let',
@@ -542,6 +543,7 @@ describe('a statement', () => {
       'allow',
       'expression-statement',
       'wake',
+      'each',
     ]);
   });
 
@@ -554,7 +556,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast` and `wake`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast`, `wake` and `each`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -578,6 +580,7 @@ describe('a statement', () => {
       'send',
       'broadcast',
       'wake',
+      'each',
     ]);
     for (const word of STATEMENT_WORDS) {
       const { refusals } = readStatement(word);
@@ -627,7 +630,15 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
   const conditions = ['a', 'self.count >= 8', 'open == false', 'mover != self', 'n + 1 > 3'];
   const inner = (): string => c.one(['allow', 'refuse "No room."', 'refuse full', 'let n = 1', '']);
   const branch = (): string => `(${c.one(conditions)})${gap()}{${gap()}${inner()}${gap()}}`;
-  switch (c.below(9)) {
+  switch (c.below(10)) {
+    case 9:
+      return {
+        text: ['each', c.one(NAMES), ...(c.below(2) === 0 ? [':', c.one(KINDS)] : []), 'in']
+          .concat([c.one(TARGETS), `{${gap()}${inner()}${gap()}}`])
+          .map((word, i) => (i === 0 || word === ':' ? word : gap() + word))
+          .join(''),
+        kind: 'each',
+      };
     case 8:
       return {
         text: ['wake', 'in', c.one(['1', '3', '90', '0']), c.one(['seconds', 'minutes', 'hours'])]
@@ -729,6 +740,7 @@ describe('a statement never vanishes silently', () => {
       'allow',
       'an else left inside',
       'destroy',
+      'each',
       'if',
       'let',
       'move',

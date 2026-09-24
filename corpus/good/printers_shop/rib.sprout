@@ -1,0 +1,9 @@
+kind Rib {
+  :cracked false
+  :used    false
+
+  as tools for work {
+    permit { if (self.get(:cracked)) { refuse "The rib is cracked; it would score the sheet." } }
+    do     { self.set(:used, true) }
+  }
+}

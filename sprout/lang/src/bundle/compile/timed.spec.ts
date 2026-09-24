@@ -99,6 +99,15 @@ ${VERB}`;
     ]);
   });
 
+  it('is warned about at a `wake` inside an `each`', () => {
+    const text = `${WORLD} object kiln is Kiln } }
+kind Kiln { contains  as target for poke { do { each thing in self { wake in 3 hours } } } }
+${VERB}`;
+    expect(warned(text)).toEqual([
+      '2:70 Nothing here answers `:woke`, so this `wake` comes to nothing.',
+    ]);
+  });
+
   it('is quiet where a kind that runs it answers `:woke`, the composer bringing the other half', () => {
     const text = `${WORLD} object kiln is Kiln } }
 kind Timer { as target for poke { do { wake in 3 hours } } }

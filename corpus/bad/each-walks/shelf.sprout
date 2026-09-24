@@ -1,0 +1,13 @@
+kind Shelf {
+  :wards [Ward] default [oak]
+
+  as target for sort {
+    do {
+      each ward of self.get(:wards) { }
+      each thing in self { }
+      each tool in tools { }
+      each thing of self { }
+      say "Sorted."
+    }
+  }
+}

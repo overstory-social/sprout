@@ -33,6 +33,7 @@ describe('the statements the skill lists', () => {
     const everywhere = BODIES.map((body) => body.name);
     expect(where(entry('if'))).toEqual(everywhere);
     expect(where(entry('let'))).toEqual(everywhere);
+    expect(where(entry('each'))).toEqual(everywhere);
     expect(where(entry('refuse'))).toEqual(decides);
     expect(where(entry('allow'))).toEqual(decides);
     expect(where(entry('say'))).toEqual(['a `do`']);

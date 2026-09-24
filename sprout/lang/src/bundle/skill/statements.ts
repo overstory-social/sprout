@@ -101,6 +101,11 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
     does: 'asks to be sent `:woke` later, in seconds, minutes or hours',
   },
   {
+    word: 'each',
+    example: 'each crumb: Crumb in self { }',
+    does: 'walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may',
+  },
+  {
     word: null,
     example: 'self.set(:lit, true)',
     does: 'a call that writes, one of those under Writing below',

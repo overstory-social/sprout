@@ -1,0 +1,13 @@
+shelf.sprout:6:20  `each … of` walks a role marked `many`, and this is [Ward].
+                   A list holds values, not things, so nothing walks it with `each`: render it in a passage with `{for … of}`.
+
+shelf.sprout:7:21  `Shelf` holds nothing, so there is nothing to walk.
+                   Containment is a declaration: a kind that holds things writes `contains`.
+
+shelf.sprout:8:20  `each … in` walks what a thing holds, and this is a set of objects.
+                   Walk a role marked `many` with `each tool of …`.
+
+shelf.sprout:9:21  `each … of` walks a role marked `many`, and this is `Shelf`.
+                   To walk what it holds, write `each thing in …`.
+
+refused: 4 problems

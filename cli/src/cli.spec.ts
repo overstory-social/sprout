@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -119,5 +119,23 @@ describe('main', () => {
     const named = captured();
     expect(main(['parse', dir, 'look', '--as'], named)).toBe(1);
     expect(named.err()).toBe('sprout: --as wants a nickname after it: --as Marta\n');
+  });
+
+  it('play prints the transcript a script makes, and wants a script and a line it can play', () => {
+    const dir = worldFolder('lane', LANE);
+    const script = join(mkdtempSync(join(tmpdir(), 'sprout-play-')), 'walk.txt');
+    writeFileSync(script, '@arrive Marta\nMarta> go in\n');
+    const io = captured();
+    expect(main(['play', dir, script], io)).toBe(0);
+    expect(io.out()).toBe(
+      '@arrive Marta\n  Marta (described): A muddy yard.\nMarta> go in\n  Marta (described): Tools hang in rows.\n',
+    );
+    const none = captured();
+    expect(main(['play', dir], none)).toBe(1);
+    expect(none.err()).toContain('play wants a script after the folder');
+    writeFileSync(script, 'go in\n');
+    const bad = captured();
+    expect(main(['play', dir, script], bad)).toBe(1);
+    expect(bad.err()).toMatch(/^sprout: walk\.txt:1: a line is what someone types/);
   });
 });
