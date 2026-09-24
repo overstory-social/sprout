@@ -15,6 +15,8 @@ import { initialState, saveWorld } from './load.js';
 import {
   MoveFault,
   moveInstance,
+  placeEntered,
+  placeLeft,
   type MoveContext,
   type MoveFaultReason,
   type Moved,
@@ -703,6 +705,47 @@ describe('an actor moved between places', () => {
     expect(
       sends.filter((send) => send.message === 'departed').map((send) => send.recipient),
     ).not.toContain(visitor);
+  });
+});
+
+describe('what one place says of an actor, alone', () => {
+  const range = (draft: Draft) => ({
+    tree: liveTree(draft),
+    passes: passing(CLOSET, CHEST),
+    budget: new Budget(DEFAULT_LIMITS.budgets),
+  });
+
+  it('is, entered, the place’s `arrives` to its visitors, `:arrived` to the rest, then the description', () => {
+    const { draft, visitor } = turn();
+    const near = visitorIn(draft, NOOK);
+    const spoke = placeEntered(draft, range(draft), HALL, visitor, WORLD_ID);
+    expect(spoke.notices.map((notice) => notice.notice)).toEqual(['arrives', 'described']);
+    expect(spoke.notices[0]).toMatchObject({ place: HALL, audience: [near] });
+    expect(spoke.notices[1]).toEqual({ notice: 'described', place: HALL, audience: [visitor] });
+    expect(spoke.sends[0]).toEqual({
+      message: 'arrived',
+      recipient: HALL,
+      actor: visitor,
+      from: WORLD_ID,
+    });
+    for (const send of spoke.sends) expect([visitor, near]).not.toContain(send.recipient);
+  });
+
+  it('is, left, the place’s `leaves` to its visitors and `:departed` to the rest, and no description', () => {
+    const { draft, visitor } = turn();
+    const near = visitorIn(draft, NOOK);
+    draft.place(visitor, null);
+    const spoke = placeLeft(draft, range(draft), HALL, visitor, WORLD_ID);
+    expect(spoke.notices).toEqual([
+      expect.objectContaining({ notice: 'leaves', place: HALL, audience: [near] }),
+    ]);
+    expect(spoke.sends.every((send) => send.message === 'departed')).toBe(true);
+    expect(spoke.sends[0]).toEqual({
+      message: 'departed',
+      recipient: HALL,
+      actor: visitor,
+      to: WORLD_ID,
+    });
   });
 });
 

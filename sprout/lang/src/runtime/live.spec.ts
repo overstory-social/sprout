@@ -8,7 +8,7 @@ import { Budget } from './budget.js';
 import { catalogueOf } from './catalogue.js';
 import { Draft } from './draft.js';
 import { declaredId, mintedId, type InstanceId } from './ids.js';
-import { isLive, liveTree } from './live.js';
+import { isLive, isPlace, liveTree, standsInPlace } from './live.js';
 import { initialState, loadWorld, saveWorld } from './load.js';
 import { rangeOf } from './range.js';
 import { newInstance, readerOf, type Instance, type StateReader } from './state.js';
@@ -103,6 +103,46 @@ describe('what is live', () => {
     };
     expect(isLive(reader, a)).toBe(false);
     expect(liveTree(reader).contents(a)).toEqual([]);
+  });
+});
+
+describe('a place a visitor can stand in now', () => {
+  const catalogue = catalogueOf(shop(), CAPS);
+
+  it('is live, holds actors, and is not the world', () => {
+    const reader = readerOf(initialState(catalogue));
+    expect(isPlace(reader, id('hall'))).toBe(true);
+    expect(isPlace(reader, id('hall', 'shelf'))).toBe(false);
+    // The shop's world declares `contains` and holds no actors; it is never one either way.
+    expect(isPlace(reader, reader.world)).toBe(false);
+    expect(isPlace(reader, minted(7))).toBe(false);
+  });
+
+  it('is not one destroyed, nor one of an absent kind', () => {
+    const draft = new Draft(initialState(catalogue));
+    draft.remove(id('yard'));
+    expect(isPlace(draft, id('yard'))).toBe(false);
+    const absent = readerOf(initialState(catalogueOf(shopWithheld(), CAPS)));
+    expect(isPlace(absent, id('yard', 'kiln'))).toBe(false);
+  });
+
+  it('is where a visitor stands, unless they stand in something else or are away', () => {
+    const draft = new Draft(initialState(catalogue));
+    const person = (where: InstanceId | null): InstanceId => {
+      const made = newInstance(
+        draft.mint(),
+        { from: 'visitor' },
+        catalogue.visitorKind!,
+        where,
+        where === null ? null : draft.nextSerial(),
+        CAPS,
+      );
+      draft.add(made);
+      return made.id;
+    };
+    expect(standsInPlace(draft, person(id('hall')))).toBe(true);
+    expect(standsInPlace(draft, person(id('hall', 'shelf')))).toBe(false);
+    expect(standsInPlace(draft, person(null))).toBe(false);
   });
 });
 

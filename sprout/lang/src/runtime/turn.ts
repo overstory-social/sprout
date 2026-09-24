@@ -1,7 +1,7 @@
 // Turns (the spec's The runtime › Turns, Faults; Limits › Runtime
-// budgets). Everything that runs is a turn of one of five kinds. A write
-// turn — a command, a tick, a wake or a maintenance turn — runs in a
-// draft over the last committed state, under a budget of its own, and
+// budgets). Everything that runs is a turn: the spec's five kinds, and a
+// visitor's arrival and departure. A write turn — every kind but the poll
+// — runs in a draft over the last committed state, under a budget of its own, and
 // either commits, giving the next state, the change set a store writes
 // and who now holds a stale view, or faults: the draft is dropped, and the
 // world is exactly as it was. Every draw it makes comes from one stream
@@ -12,8 +12,8 @@
 // This is the frame, and it holds no store: serializing a world's write
 // turns under its lock, and writing a committed change set in the
 // store's transaction, is core's. What each kind does inside the frame is
-// its own module's — `command.ts`, `tick.ts`, `wake.ts`, `maintenance.ts`
-// — and the view a poll builds is B37's. Every write turn is handed the
+// its own module's — `command.ts`, `tick.ts`, `wake.ts`, `maintenance.ts`,
+// `arrival.ts`, `departure.ts` — and the view a poll builds is B37's. Every write turn is handed the
 // instant it runs; nothing here reads a clock but the backstop.
 
 import type { RuntimeBudgets } from '../bundle/limits.js';

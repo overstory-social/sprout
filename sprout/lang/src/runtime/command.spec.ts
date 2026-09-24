@@ -4,6 +4,7 @@ import { DEFAULT_LIMITS, type RuntimeBudgets } from '../bundle/limits.js';
 import {
   actorOf,
   BELL,
+  CATALOGUE,
   belfry,
   COIN,
   belfryHost,
@@ -11,6 +12,7 @@ import {
   DRUM,
   FAULT,
   GONG,
+  HALL,
   heldIn,
   INES,
   MARTA,
@@ -36,7 +38,7 @@ import {
 import { commandTurn, type CommandTurn, type Parser } from './command.js';
 import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
-import { saveWorld } from './load.js';
+import { loadWorld, saveWorld } from './load.js';
 import type { WorldState } from './state.js';
 
 const run = (state: WorldState, text: string, budgets?: RuntimeBudgets, parse?: Parser) =>
@@ -173,6 +175,32 @@ describe('a command from someone not in the world', () => {
   });
 });
 
+describe('a command from someone whose place is gone', () => {
+  /** The belfry with Marta stored standing in an attic nothing declares now. */
+  const stranded = (): WorldState => {
+    const saved = saveWorld(belfry());
+    const marta = actorOf(belfry(), MARTA);
+    const instances = saved.instances.map((one) =>
+      one.id === marta ? { ...one, container: 'belfry.attic' } : one,
+    );
+    return loadWorld({ ...saved, instances }, CATALOGUE).state;
+  };
+
+  it('displaces them to the arrival place, told through `displaced`, and reads nothing they typed', () => {
+    const state = stranded();
+    const turn = committed(run(state, 'ring bell'));
+    expect('displaced' in turn.value).toBe(true);
+    expect(toldBy(turn, actorOf(state, MARTA))).toEqual([
+      {
+        to: [actorOf(state, MARTA)],
+        words: 'sprout.World displaced: The place you were standing is gone.',
+      },
+    ]);
+    expect(turn.state.instances.get(actorOf(state, MARTA))!.container).toBe(HALL);
+    expect(heldIn(turn.state, BELL, 'struck')).toBe(false);
+  });
+});
+
 describe('no command turn ends with nothing said to the one who typed it', () => {
   const verbs = ['ring', 'strike', 'beat', 'tap', 'sniff'];
   const nouns = ['bell', 'gong', 'drum', 'muffled', 'stone', 'dog', 'loft'];
@@ -259,6 +287,7 @@ describe('`go`, through a command turn', () => {
     const done = turn.value;
     if ('answered' in done) return [words(done.answered.said)];
     if ('refused' in done) return [words(done.refused.said)];
+    if ('displaced' in done) return [words(done.displaced.told.said)];
     return [
       ...[...done.acted.said, ...done.drained.said]
         .filter((line) => line.to.includes(actor))
