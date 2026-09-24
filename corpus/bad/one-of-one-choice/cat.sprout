@@ -1,0 +1,5 @@
+// A `{one of}` with one choice, and an `{or}` outside any choice.
+kind Cat {
+  passage purr { {one of}The cat purrs.{/one of} }
+  passage stare { The cat stares.{or}The cat blinks. }
+}

@@ -1,0 +1,5 @@
+// A pass rule that rolls: range is walked by a poll too.
+kind Sieve {
+  contains
+  pass any (chance(2))
+}

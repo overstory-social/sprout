@@ -361,3 +361,28 @@ describe('a compile refuses actors where the spec has none', () => {
     ]);
   });
 });
+
+describe('the warning for a verb nobody speaks for', () => {
+  const PULL = 'verb pull { role target  "pull [target]" }';
+  const unsaid = (lever: string) =>
+    compileBundle(
+      world({ files: worldFiles(`${worldLine('object lever is Lever')}\n${PULL}`, lever) }),
+    ).diagnostics.map((d) => [d.severity, d.message]);
+
+  it('is said of a bundle that checks', () => {
+    expect(unsaid('kind Lever { as target for pull { do { tell "It gives." } } }')).toEqual([
+      [
+        'warning',
+        "Nothing that takes part in `pull` ever `say`s anything, so typing it is answered with the world's `nothing_happens`.",
+      ],
+    ]);
+  });
+
+  it('is not said of a refused one, which is missing what was refused', () => {
+    // The lever's file does not read, so nothing is a `Lever` and nothing plays `pull`.
+    expect(unsaid('kind Lever { as target for pull { do { say 4 } } }')).toEqual([
+      ['refusal', '`say` says something.'],
+      ['refusal', 'Nothing here is a `Lever`.'],
+    ]);
+  });
+});

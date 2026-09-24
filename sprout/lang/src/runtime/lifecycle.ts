@@ -17,6 +17,7 @@
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import type { Draft } from './draft.js';
+import type { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import type { HostSeconds } from './time.js';
 import { isLive, liveTree } from './live.js';
@@ -82,12 +83,14 @@ export type EngineSend =
     }
   | { readonly message: 'spawned'; readonly recipient: InstanceId; readonly from: InstanceId };
 
-/** What a spawn, a destroy and a `wake` read and write. */
+/** What a spawn, a destroy and a `wake` read and write, and what an acting body draws from. */
 export interface LifecycleContext {
   readonly draft: Draft;
   readonly catalogue: Catalogue;
   readonly passes: PassRule<InstanceId>;
   readonly budget: Budget;
+  /** The turn's one stream of draws (`draws.ts`). */
+  readonly draws: Draws;
   /**
    * The most instances the host will store for this world this turn (the
    * world, declared, spawned, visitors and dormant alike), recorded with

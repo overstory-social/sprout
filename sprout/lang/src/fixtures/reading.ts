@@ -25,6 +25,7 @@ import type {
 } from '../runtime/reading.js';
 import { newInstance } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
+import { Draws } from '../runtime/draws.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
 
@@ -32,7 +33,8 @@ const CAPS = DEFAULT_LIMITS.caps;
  * A yard whose hall holds a player of each part a reading has. `Both`
  * composes `First` and `Second`, each playing the target of `order`, and
  * adds its own; every `permit` refuses when its flag is set, and every
- * `do` says who it is. The world holds things and not actors.
+ * `do` says who it is. A creature waving tells the room and the one it
+ * waves at. The world holds things and not actors.
  */
 export const YARD = compiledWorld('yard', {
   'world.sprout': [
@@ -57,6 +59,7 @@ export const YARD = compiledWorld('yard', {
     '    object dog is Creature',
     '    object basket is Basket',
     '    object wardrobe is Room',
+    '    object die is Die',
     '  }',
     '}',
     'enum Topic { bridge, toll, weather }',
@@ -70,9 +73,11 @@ export const YARD = compiledWorld('yard', {
     '}',
     'verb nudge { role target  "nudge [target]" }',
     'verb nod { role target  "nod at [target]" }',
+    'verb wave { role target  "wave at [target]" }',
     'verb unlock { role target  role tool  "unlock [target] with [tool]"  "unlock [target]" }',
     'verb dial { role target  role number: integer  "turn [target] to [number]" }',
     'verb pop { role target  role tool  "pop [target] with [tool]"  "pop [target]" }',
+    'verb roll { role target  "roll [target]" }',
     'kind Creature is sprout.Actor {',
     '  :balks false',
     '  :log 0 min 0 max 99',
@@ -82,6 +87,7 @@ export const YARD = compiledWorld('yard', {
     '  }',
     '  as actor for ask { do { say "You ask." } }',
     '  as target for nudge { do { say "nudged" } }',
+    '  as actor for wave { do { tell "{actor} waves at {target}."  tell target "{actor} waves at you." } }',
     '}',
     'kind Person is Creature, sprout.Visitor { }',
     'kind First  { :a false  as target for order { permit { if (self.get(:a)) { refuse "First balks." } }  do { say "first" } } }',
@@ -118,6 +124,7 @@ export const YARD = compiledWorld('yard', {
     '  as target for pop { do { destroy self  say "pop" } }',
     '  as tool for pop   { do { say "tool pop" } }',
     '}',
+    'kind Die { :face 0 min 0 max 5  as target for roll { do { self.set(:face, random(6)) } } }',
     'kind Glued is Bubble { :n 0 min 0 max 9  as target for pop { do { self.adjust(:n, 1)  say "glued" } } }',
     '',
   ].join('\n'),
@@ -144,6 +151,7 @@ export const CAT = at('hall', 'cat');
 export const DOG = at('hall', 'dog');
 export const BASKET = at('hall', 'basket');
 export const WARDROBE = at('hall', 'wardrobe');
+export const DIE = at('hall', 'die');
 
 export interface Turn {
   readonly draft: Draft;
@@ -178,6 +186,7 @@ export function contextOf(one: Turn): ReadingContext {
     catalogue: one.catalogue,
     passes: (container) => (container === one.draft.world ? WORLD_PASSES_ANYTHING : true),
     budget: one.budget,
+    draws: new Draws(7),
     mayHold: null,
     now: 0,
   };

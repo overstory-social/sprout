@@ -1,0 +1,7 @@
+bell.sprout:2:19  `actor` is not bound inside `on :rang`: nobody is acting when a message arrives.
+                  Name what you mean through what the message passes, as `on :entered (item, from)` names what arrived.
+
+bell.sprout:4:10  `actor` is not bound inside `on :rang`: nobody is acting when a message arrives.
+                  Name what you mean through what the message passes, as `on :entered (item, from)` names what arrived.
+
+refused: 2 problems

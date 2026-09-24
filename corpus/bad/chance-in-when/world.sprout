@@ -1,0 +1,14 @@
+// An exit's `when` is asked to show a visitor the ways out, so it draws
+// nothing: a door that is open one time in two offers a way that
+// vanishes when taken.
+world chance_in_when is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit in "into the shop" -> shop when (chance(2))
+    }
+  }
+  object shop is sprout.Place { }
+}

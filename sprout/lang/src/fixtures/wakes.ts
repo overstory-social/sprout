@@ -1,9 +1,10 @@
 // The garden the wake specs are written about, and what they run a wake
 // with. A rose grows a stage each time it wakes, keeping every second it
 // is handed, and asks again until it is grown; a candle goes out when it
-// wakes; a fuse keeps its `elapsed` and holds at most 3, so any real
+// wakes, and tells whoever is there; a fuse keeps its `elapsed` and holds at most 3, so any real
 // wait faults it; a pod destroys itself when it wakes, and the seed
-// inside it goes with it. A visitor may carry a candle of their own.
+// inside it goes with it; a bulb and a lamp each glow at random when they
+// wake. A visitor may carry a candle of their own.
 // `runtime/wakes.spec.ts`, `runtime/wake.spec.ts` and
 // `runtime/maintenance.spec.ts` share it. Spec support: the package build
 // leaves it out.
@@ -30,6 +31,8 @@ export const GARDEN = compiledWorld('garden', {
     object pod is Pod {
       object seed is Candle
     }
+    object bulb is Bulb
+    object lamp is Bulb
   }
 }
 `,
@@ -46,12 +49,20 @@ export const GARDEN = compiledWorld('garden', {
 `,
   'candle.sprout': `kind Candle {
   :lit true
-  on :woke { self.set(:lit, false) }
+  on :woke {
+    self.set(:lit, false)
+    tell "{self} gutters out."
+  }
 }
 `,
   'fuse.sprout': `kind Fuse {
   :burnt 0 min 0 max 3
   on :woke (elapsed) { self.set(:burnt, elapsed) }
+}
+`,
+  'bulb.sprout': `kind Bulb {
+  :glow 0 min 0 max 999
+  on :woke { self.set(:glow, random(1000)) }
 }
 `,
   'pod.sprout': `kind Pod {
@@ -70,6 +81,8 @@ export const CANDLE = at('bed', 'candle');
 export const FUSE = at('bed', 'fuse');
 export const POD = at('bed', 'pod');
 export const SEED = at('bed', 'pod', 'seed');
+export const BULB = at('bed', 'bulb');
+export const LAMP = at('bed', 'lamp');
 export const MARTA = visitKey('v-marta');
 
 /** A wake to ask for: on `object`, asked at `askedAt` and due at `dueAt`. */

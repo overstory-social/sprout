@@ -1,0 +1,18 @@
+// A tag: the one tagging reads their own line, the one tagged is told in
+// the second person, and the rest of the room reads it about both. Each
+// participant is someone the author already addresses, so the plain
+// `tell` leaves both out.
+kind Creature is sprout.Actor {
+  prose "creature.prose"
+
+  as actor for tag {
+    do {
+      say "You tag {target}."
+      tell tagged
+    }
+  }
+
+  as target for tag {
+    do { tell self "{actor} tags you. You're it." }
+  }
+}

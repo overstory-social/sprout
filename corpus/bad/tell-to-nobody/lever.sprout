@@ -1,0 +1,11 @@
+kind Lever {
+  as target for pull {
+    do {
+      let n = 2
+      say "It gives."
+      tell hall "The hall shakes."
+      tell hands "Your hands ache."
+      tell n "Two."
+    }
+  }
+}

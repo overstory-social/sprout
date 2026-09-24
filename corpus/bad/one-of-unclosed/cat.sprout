@@ -1,0 +1,5 @@
+// A `{one of}` never closed, and a `{/one of}` that closes none.
+kind Cat {
+  passage petted { {one of}The cat purrs.{or}The cat yawns. }
+  passage stare { The cat stares.{/one of} }
+}

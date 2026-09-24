@@ -1,0 +1,5 @@
+// A guard's words render another object's passage, which rolls.
+kind Tower {
+  contains
+  accept (item, from) { refuse "{for b: Bell in self}{b.ring}{/for}" }
+}

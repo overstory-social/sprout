@@ -1,0 +1,9 @@
+// The world's `unseen` is said by a poll, which draws nothing.
+world chance_in_unseen is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  passage unseen { {one of}Too much to take in.{or}It all blurs.{/one of} }
+
+  object yard is sprout.Place
+}

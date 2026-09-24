@@ -1,0 +1,7 @@
+box.sprout:4:5     `tell` speaks, and `accept` only reads and decides.
+                   Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
+
+lever.sprout:3:14  `tell` speaks, and a `permit` only decides.
+                   Move it to `do`; a `permit` ends in `allow` or `refuse`.
+
+refused: 2 problems

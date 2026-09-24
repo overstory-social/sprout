@@ -1,5 +1,0 @@
-// `{one of}` chooses at random, which this compiler does not read.
-kind Mirror {
-  :mood Mood default drowsy
-  passage greeting { The glass {one of}ripples{or}stills{/one of}. }
-}

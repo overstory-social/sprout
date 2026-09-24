@@ -38,9 +38,10 @@ export interface Queued {
 /** What draining the queue did, in delivery order. */
 export interface Drained {
   /**
-   * What handlers had said: a refused `move`, said to nobody, since
-   * nobody is acting; and an NPC's reading performed with `act`, heard as
-   * its own is.
+   * What handlers had said: what they told, heard by the teller's place
+   * with nobody left out, or by the one named, since no reading is
+   * running; a refused `move`, said to nobody, since nobody is acting;
+   * and an NPC's reading performed with `act`, heard as its own is.
    */
   readonly said: readonly Said[];
   /** What the places spoke of each actor a handler moved between two. */
@@ -101,7 +102,11 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
       // `destroy self` takes effect as the body that ran it ends, so a
       // composed handler after it has no `self` to run for.
       if (draft.instance(sent.recipient) === undefined) break;
-      const { sink, acted } = actingSink(context, depth, () => [], null);
+      const { sink, acted } = actingSink(context, depth, {
+        heardBy: () => [],
+        speaker: null,
+        leftOut: [],
+      });
       runBody(body.block, frameFor(sent, body, context), 'act', sink);
       said.push(...acted.said);
       notices.push(...acted.notices);
@@ -193,6 +198,7 @@ function frameFor(sent: Sent, body: Delivered, context: ReadingContext): Frame {
     caps: context.catalogue.caps,
     names: context.catalogue.names,
     passes: context.passes,
+    draws: context.draws,
   };
 }
 

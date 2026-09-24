@@ -5,7 +5,8 @@
 // world's lines are said on the world's kind, a place's notices on the
 // place's, and a passage the engine says is checked against exactly what
 // the engine binds where it says it: the person acting, as `actor` is in
-// a body that binds one, an object, or a set of objects, by name.
+// a body that binds one, an object, or a set of objects, by name. A line
+// a poll says, in place of a description or a view, draws nothing.
 
 /** What the engine binds a name to when it says a line: the one acting, an object, or a set of them. */
 export type EngineBinds = 'actor' | 'object' | 'set';
@@ -14,6 +15,8 @@ export type EngineBinds = 'actor' | 'object' | 'set';
 export interface EnginePassage {
   readonly name: string;
   readonly binds: Readonly<Record<string, EngineBinds>>;
+  /** Said by a poll, which draws nothing (the spec's Chance › The seed). */
+  readonly polled?: true;
 }
 
 /** Who is acting and where, as the engine binds them for a line said to the one acting. */
@@ -25,8 +28,8 @@ export const WORLD_LINES: readonly EnginePassage[] = [
   { name: 'unreachable', binds: { ...ACTING, thing: 'object' } },
   { name: 'which', binds: { ...ACTING, candidates: 'set' } },
   { name: 'nothing_happens', binds: ACTING },
-  { name: 'unremarkable', binds: { thing: 'object' } },
-  { name: 'unseen', binds: {} },
+  { name: 'unremarkable', binds: { thing: 'object' }, polled: true },
+  { name: 'unseen', binds: {}, polled: true },
   { name: 'fault', binds: ACTING },
   { name: 'missing', binds: {} },
   { name: 'displaced', binds: {} },

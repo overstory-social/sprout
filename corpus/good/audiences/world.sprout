@@ -1,0 +1,23 @@
+// The three audiences: `say` to the actor, `tell` to everyone else in the
+// place, and `tell <x>` to one person, from a role's `do`, a handler, a
+// wake and an NPC's reading. A wardrobe is a place inside the hall, so
+// what is told in it stays with its occupants.
+world audiences is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lever is Lever
+    object bell is Bell
+    object kiln is Kiln
+    object cat is Cat
+    object wardrobe is Wardrobe
+  }
+}
+
+verb pull   { role target  "pull [target]" }
+verb tag    { role target  "tag [target]" }
+verb fire   { role target  "fire [target]" }
+verb nuzzle { role target }
+
+message :rang
