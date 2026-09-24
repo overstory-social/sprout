@@ -1,13 +1,13 @@
 // The passages the engine says for itself, and what it binds when it
 // does (the spec's A worked microworld › The standard library it needs;
 // Properties › Where types come from: `thing` in the world's
-// `unremarkable`, `candidates` in its `which`). The world's lines are
-// said on the world's kind, a place's notices on the
-// place's, and a passage the engine says is checked against exactly what
-// the engine binds where it says it: the person acting and their place,
-// as `actor` and `here` are in a body that binds them, an object, or a set
-// of objects, by name. A line
-// a poll says, in place of a description or a view, draws nothing.
+// `unremarkable`, `candidates` in its `which`; Engine verbs). The world's
+// lines are said on the world's kind, a place's notices on the place's,
+// the inventory on the actor's own, and a passage the engine says is
+// checked against exactly what the engine binds where it says it: the
+// person acting and their place, as `actor` and `here` are in a body that
+// binds them, an object, or a set of objects, by name. A line a poll
+// says, in place of a description or a view, draws nothing.
 
 /** What the engine binds a name to when it says a line: the one acting, their place, an object, or a set of them. */
 export type EngineBinds = 'actor' | 'here' | 'object' | 'set';
@@ -42,3 +42,6 @@ export const PLACE_LINES: readonly EnginePassage[] = [
   { name: 'arrives', binds: { item: 'object' } },
   { name: 'leaves', binds: { item: 'object' } },
 ];
+
+/** What `inventory` says, on the kind of the actor who asked (the spec's Engine verbs). */
+export const ACTOR_LINES: readonly EnginePassage[] = [{ name: 'inventory', binds: ACTING }];

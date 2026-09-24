@@ -1,0 +1,11 @@
+// A describe only reads: it runs whenever anyone looks, so it writes,
+// moves, spawns, sends and destroys nothing.
+world describe_writes is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}
+message :looked

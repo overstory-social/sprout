@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PLACE_LINES, WORLD_LINES } from './engine-passages.js';
+import { ACTOR_LINES, PLACE_LINES, WORLD_LINES } from './engine-passages.js';
 
 describe('the lines the engine says for itself', () => {
   it('are the world’s ten and a place’s two, each named once', () => {
@@ -28,5 +28,9 @@ describe('the lines the engine says for itself', () => {
     expect(binds.nothing_happens).toEqual({ actor: 'actor', here: 'here' });
     expect(binds.fault).toEqual({ actor: 'actor', here: 'here' });
     for (const bare of ['unseen', 'missing', 'displaced']) expect(binds[bare], bare).toEqual({});
+  });
+
+  it('say an actor’s `inventory` on its own kind, to the one who asked, which a poll does not say', () => {
+    expect(ACTOR_LINES).toEqual([{ name: 'inventory', binds: { actor: 'actor', here: 'here' } }]);
   });
 });

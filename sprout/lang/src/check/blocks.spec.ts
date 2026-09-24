@@ -271,6 +271,50 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
   });
 });
 
+describe('a `describe` only reads, and gives its words with `text`', () => {
+  const DESCRIBE: BodyKind = { body: 'describe' };
+  const doing =
+    'self.set(:inked, true)\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    connect north to self\n    wake in 3 hours';
+
+  it('refuses everything that changes the world, naming the `describe`', () => {
+    expect(check(doing, DESCRIBE).map(([, message]) => message)).toEqual([
+      '`self.set` writes, and a `describe` only reads.',
+      '`spawn` makes a new thing, and a `describe` only reads.',
+      '`destroy self` removes something, and a `describe` only reads.',
+      '`move` moves something, and a `describe` only reads.',
+      '`act` performs a verb, and a `describe` only reads.',
+      '`connect` writes where a link leads, and a `describe` only reads.',
+      '`wake` asks for a wake, and a `describe` only reads.',
+    ]);
+  });
+
+  it('takes `text`, `let` and `if`, and refuses `refuse`, `allow`, `say` and `tell`', () => {
+    expect(
+      check('let n = self.count\n    if (n > 1) { text "Full." } else { text "Empty." }', DESCRIBE),
+    ).toEqual([]);
+    expect(
+      check('refuse "No."\n    allow\n    say "Hi."\n    tell "Hi."', DESCRIBE).map(([, m]) => m),
+    ).toEqual([
+      '`refuse` decides, and a `describe` only says what is there.',
+      '`allow` decides, and a `describe` only says what is there.',
+      '`say` speaks to the one acting, and a `describe` is read by whoever looks.',
+      '`tell` speaks to the room, and a `describe` is read by whoever looks, and only reads.',
+    ]);
+  });
+
+  it('draws nothing, in every branch', () => {
+    expect(
+      check(
+        'if (true) { text "{one of}A{or}B{/one of}" } else { let d = random(6) }',
+        DESCRIBE,
+      ).map(([, m]) => m),
+    ).toEqual([
+      'A `describe` may not use `{one of}`: it is run whenever anyone looks, so a roll would change the thing while nobody acts.',
+      'A `describe` may not use `random`: it is run whenever anyone looks, so a roll would change the thing while nobody acts.',
+    ]);
+  });
+});
+
 describe('a guard or a `permit` sends nothing', () => {
   it('refuses `send` and `broadcast`, which queue a message, as doing', () => {
     expect(check('send self :creak\n    broadcast :creak', GUARD).map(([, m]) => m)).toEqual([

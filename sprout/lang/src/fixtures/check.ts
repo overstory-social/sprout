@@ -97,6 +97,7 @@ export function kind(
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
     exits: [],
+    describe: null,
     // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,

@@ -1,0 +1,4 @@
+kind Mirror {
+  prose "mirror.prose"
+  describe { text greeting }
+}

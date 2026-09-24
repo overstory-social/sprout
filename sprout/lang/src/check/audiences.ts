@@ -3,8 +3,9 @@
 // `say` speaks to the actor, so it stands only in a role's `do`; `tell`
 // speaks to the teller's place or to one actor it names, so it stands in
 // a `do`, a handler and a hook, a tick's and a wake's among them; `text`
-// gives a `describe` its words and stands nowhere else. A guard and a
-// `permit` only decide, so none of the three stands in either.
+// gives a `describe` its words and stands nowhere else, and neither of
+// the others stands in a `describe`, which whoever looks reads. A guard
+// and a `permit` only decide, so none of the three stands in either.
 //
 // `tell <x>` names a binding: `self`, a role, a handler's parameter, a
 // `let`. An object of the world is never a person, so telling one by its
@@ -39,28 +40,31 @@ export function checkSpoken(statement: Spoken, context: CheckContext, kind: Body
   switch (statement.kind) {
     case 'say':
       if (kind.body === 'do') checkPassage(statement, context);
+      else if (kind.body === 'describe') refuseInDescribe(statement, context);
       else refuseSay(statement, context, kind);
       return;
     case 'tell':
       if (kind.body === 'do' || kind.body === 'handler') {
         if (statement.to !== null) checkTold(statement.to, context);
         checkPassage(statement, context);
-      } else refuseTell(statement, context, kind);
+      } else if (kind.body === 'describe') refuseInDescribe(statement, context);
+      else refuseTell(statement, context, kind);
       return;
     case 'text':
-      refuseText(statement, context, kind);
+      if (kind.body === 'describe') checkPassage(statement, context);
+      else refuseText(statement, context, kind);
       return;
   }
 }
 
 /**
- * `refuse full`, `say taken` or `tell pulled` names a passage of the kind
- * that wrote the body, which is recorded with what is in scope here, for
- * the passage to be checked against; words in quotes are a one-line
- * passage, checked here and now.
+ * `refuse full`, `say taken`, `tell pulled` or `text greeting` names a
+ * passage of the kind that wrote the body, which is recorded with what is
+ * in scope here, for the passage to be checked against; words in quotes
+ * are a one-line passage, checked here and now.
  */
 export function checkPassage(
-  statement: RefuseStatement | SayStatement | TellStatement,
+  statement: RefuseStatement | SayStatement | TellStatement | TextStatement,
   context: CheckContext,
 ): void {
   const said = statement.said;
@@ -126,6 +130,19 @@ function checkTold(to: ObjectPath, context: CheckContext): void {
       ? `\`${written}\` holds several things, and \`tell ${written}\` speaks to one person.`
       : `\`tell\` speaks to one person, and \`${written}\` is ${showBindingType(type)}.`,
     'Tell one person a body has bound, as in `tell actor "…"`, or tell the place, as in `tell "{actor} pulls the lever."`.',
+  );
+}
+
+/** `say` or `tell` in a `describe`, whose words are for whoever looks and are given with `text`. */
+function refuseInDescribe(statement: SayStatement | TellStatement, context: CheckContext): void {
+  context.diagnostics.refuse(
+    wordOf(statement),
+    statement.kind === 'say'
+      ? '`say` speaks to the one acting, and a `describe` is read by whoever looks.'
+      : '`tell` speaks to the room, and a `describe` is read by whoever looks, and only reads.',
+    statement.kind === 'say'
+      ? 'Write `text` in its place, as in `text "A lever, waist high."`.'
+      : 'Write `text` for the words the one looking reads; tell the room from a `do` or a handler.',
   );
 }
 

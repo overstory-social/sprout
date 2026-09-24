@@ -13,6 +13,7 @@ import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkGuard } from './guards.js';
 import { checkPlay } from './roles.js';
+import { checkDescribe } from './describe.js';
 import { checkPassages } from './passages.js';
 import { PassageSites } from './speech.js';
 
@@ -83,6 +84,7 @@ function diagnosed(text: string): Diagnostic[] {
     for (const plays of kind.plays.values()) {
       for (const play of plays) if (play.origin === own) checkPlay(play, kind, setting);
     }
+    if (kind.describe?.origin === own) checkDescribe(kind.describe, kind, setting);
   }
   checkPassages({
     speakers: kinds.all().map((kind) => ({ kind })),
@@ -300,6 +302,43 @@ describe('the engine says its own lines with what it binds for each', () => {
       [
         'shop.sprout:4:31',
         'The engine says `unseen` with nothing bound, and nothing is called `here` there.',
+      ],
+    ]);
+  });
+
+  it('says an actor’s `inventory` with `actor` and `here`, and nothing else', () => {
+    expect(
+      checked(
+        `kind Pack is sprout.Actor { passage inventory { {actor} holds {self.count} in {here}. } }`,
+      ),
+    ).toEqual([]);
+    expect(
+      checked(`kind Pack is sprout.Actor { passage inventory { {target} is here. } }`),
+    ).toEqual([
+      [
+        'shop.sprout:4:50',
+        'The engine says `inventory` with `{actor}` and `{here}` bound, and nothing is called `target` there.',
+      ],
+    ]);
+  });
+});
+
+describe('a passage a `describe` says', () => {
+  it('is checked with `actor` and `here`, as the describe binds them', () => {
+    expect(
+      checked(
+        `kind Lamp { describe { text lit }  passage lit { {actor} sees {self} in {here}. } }`,
+      ),
+    ).toEqual([]);
+  });
+
+  it('may not draw, refused where it is said', () => {
+    expect(
+      checked(`kind Lamp { describe { text lit }  passage lit { {one of}A{or}B{/one of} } }`),
+    ).toEqual([
+      [
+        'shop.sprout:4:29',
+        'The passage `lit` uses `{one of}`, and it is said from a `describe`, which may not: it is run whenever anyone looks, so a roll would change the thing while nobody acts.',
       ],
     ]);
   });

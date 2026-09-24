@@ -1,0 +1,9 @@
+kind Lamp {
+  describe {
+    text "A lamp."
+    say "You look at the lamp."
+    tell "{actor} looks at the lamp."
+    refuse "Do not look."
+    allow
+  }
+}

@@ -1,0 +1,8 @@
+// What a describe gives goes in braces. Left without them, the member
+// on the next line is still read as a member.
+world describe_no_braces is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

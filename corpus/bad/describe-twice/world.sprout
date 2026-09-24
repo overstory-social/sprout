@@ -1,0 +1,9 @@
+// One body writes two describes.
+world describe_twice is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}

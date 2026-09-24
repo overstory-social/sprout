@@ -89,6 +89,7 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
     exits: [],
+    describe: null,
     contains: false,
     containsActors: false,
     suppressed: [],

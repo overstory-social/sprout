@@ -1,0 +1,4 @@
+lamp.sprout:3:3  `Lamp` writes `describe` twice.
+                 A thing has one description. Keep one `describe`, and write what both say in it, with `if` where it depends.
+
+refused: 1 problem

@@ -296,6 +296,17 @@ describe('`go`, through a command turn', () => {
     }
   });
 
+  it('answers the one who went with where they arrived, described once the queue is empty', () => {
+    const state = ways();
+    const done = walk(state, 'north').value;
+    if (!('acted' in done)) throw new Error('the turn did not act');
+    expect(
+      done.answers.map((answer) =>
+        'description' in answer ? [answer.description.of, answer.description.to] : 'said',
+      ),
+    ).toEqual([[MOUTH, marta(state)]]);
+  });
+
   it('takes the exit that applies: the next in its direction once the first no longer holds', () => {
     const state = ways(undefined, [[LAMP, 'lit', true]]);
     expect(standing(walk(state, 'north').state, marta(state))).toBe(MEADOW);

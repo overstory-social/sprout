@@ -1,0 +1,4 @@
+lamp.sprout:3:3  This `describe` has no `text`, so whoever looks at `Lamp` would read nothing.
+                 Give it its words with `text`, as in `describe { text "Slat-sided, heavier than it looks." }`.
+
+refused: 1 problem

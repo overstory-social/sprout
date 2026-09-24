@@ -16,6 +16,7 @@ import type { Handlers, Hooks } from './handlers.js';
 import type { PassRules } from './passes.js';
 import type { ComposedGrammar } from './grammar.js';
 import type { ResolvedExit } from './exits.js';
+import type { ResolvedDescribe } from './describe.js';
 import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import {
   composeKind,
@@ -104,6 +105,12 @@ export interface KindRef {
    * conditional): one source's per direction, its own replacing any.
    */
   readonly exits: readonly ResolvedExit[];
+  /**
+   * What whoever looks at it reads: its own `describe`, else the one it
+   * composes; null where its closure writes none, and the world's
+   * `unremarkable` is read instead (the spec's Engine verbs).
+   */
+  readonly describe: ResolvedDescribe | null;
   /** Whether it may hold others: `contains`, or `contains actors`, which implies it. */
   readonly contains: boolean;
   /**

@@ -1,0 +1,11 @@
+// A describe gives its words with `text`: `say` is for the one acting
+// and `tell` for the room, and it decides nothing, so it neither
+// refuses nor allows.
+world describe_speaks is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}

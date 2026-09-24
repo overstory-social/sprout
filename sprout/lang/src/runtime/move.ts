@@ -10,9 +10,10 @@
 // `Draft.place`, which puts the thing last in its new container. And what
 // the engine then tells the world is returned rather than queued or said:
 // the messages for the queue (`bus.ts`), and the notices a place speaks,
-// for `prose/` to render (B31 describes the place to the one who moved). A move is
-// charged for what it runs, its range walks and its guards' bodies, and
-// nothing for itself: the statement that proposed it is its body's step.
+// for `prose/` to render, the new place's description to the one who
+// moved among them (`engine-verbs.ts`). A move is charged for what it
+// runs, its range walks and its guards' bodies, and nothing for itself:
+// the statement that proposed it is its body's step.
 
 import { isActor } from '../declare/actors.js';
 import type { GuardName } from '../syntax/ast.js';
@@ -109,7 +110,8 @@ export type PlaceSend =
  * the old place's `leaves` to the visitors in its range, the new place's
  * `arrives` to the visitors in its, each with the passage as it applies
  * on the place's kind and the binding it renders with; and the new
- * place's description to the one who moved, which B31 writes.
+ * place's description to the one who moved, which the engine derives
+ * once the queue is empty.
  */
 export type Notice =
   | {

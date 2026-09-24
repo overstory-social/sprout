@@ -28,6 +28,7 @@ import type { Node } from '../source/nodes.js';
 import type { Span } from '../source/source.js';
 import { readable } from '../source/words.js';
 import {
+  ACTOR_LINES,
   PLACE_LINES,
   WORLD_LINES,
   type EngineBinds,
@@ -106,7 +107,7 @@ export function checkPassages(setting: PassageSetting): void {
         }
       }
     }
-    for (const line of [...WORLD_LINES, ...PLACE_LINES]) {
+    for (const line of [...WORLD_LINES, ...PLACE_LINES, ...ACTOR_LINES]) {
       const passage = kind.passages.get(line.name);
       if (passage !== undefined) {
         const scope = engineScope(line, passage.at, setting);
@@ -135,6 +136,7 @@ function bodiesOf(kind: KindRef): Node[] {
     ...[...kind.plays.values()].flatMap((plays) => plays.map((play) => play.declaration)),
     ...[...kind.handlers.values()].flatMap((handlers) => handlers.map((one) => one.declaration)),
     ...[...kind.hooks.values()].flatMap((hooks) => hooks.map((hook) => hook.declaration)),
+    ...(kind.describe === null ? [] : [kind.describe.declaration]),
   ];
 }
 
@@ -231,6 +233,8 @@ function undrawnKey(undrawn: Undrawn | null): string {
       return `guard ${undrawn.guard}`;
     case 'permit':
       return 'permit';
+    case 'describe':
+      return 'describe';
     case 'when':
       return 'when';
     case 'pass':

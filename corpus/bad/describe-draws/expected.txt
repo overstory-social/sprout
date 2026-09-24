@@ -1,0 +1,10 @@
+lamp.sprout:3:9   A `describe` may not use `chance`: it is run whenever anyone looks, so a roll would change the thing while nobody acts.
+                  Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+lamp.sprout:4:11  A `describe` may not use `{one of}`: it is run whenever anyone looks, so a roll would change the thing while nobody acts.
+                  Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+lamp.sprout:5:10  The passage `wick` uses `{one of}`, and it is said from a `describe`, which may not: it is run whenever anyone looks, so a roll would change the thing while nobody acts.
+                  Say words here that do not vary, or keep the variation on a property a `do` or a tick sets, and read that in an `{if}`.
+
+refused: 3 problems
