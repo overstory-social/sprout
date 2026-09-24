@@ -1,0 +1,4 @@
+person.sprout:4:26  `Person` gets `:capacity` from both `Creature` and `Porter`, which are two claims on one slot.
+                    If they are meant to be one property, restate it in `Person`: `:capacity 4`.
+
+refused: 1 problem

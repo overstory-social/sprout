@@ -50,6 +50,7 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'else',
   'enum',
   'exit',
+  'finally',
   'for',
   'from',
   'grammar',

@@ -316,17 +316,57 @@ describe('a property from two origins is refused until the composer restates it'
       '`:open` holds boolean in `Lidded` and boolean (remembered) in `Futon`, so restating it cannot make them one property.',
     ]);
   });
+});
 
-  it('makes a restating kind the origin, so composing it beside what it restated collides again', () => {
-    // `Crate` restates `sprout.Container`'s `:capacity`, and is its
-    // origin from then on: composing both is two origins.
-    const { said } = compose(
-      'kind Crate is sprout.Container { :capacity 40 }\nworld shop is sprout.World { object box is Crate, sprout.Container }',
+describe('a restatement supersedes the origin it restated wherever both reach one composer', () => {
+  const CRATE = 'kind Crate is sprout.Container { :capacity 40 }\n';
+
+  it('takes the restating kind’s `:capacity` where the restated origin also arrives directly', () => {
+    for (const written of ['Crate, sprout.Container', 'sprout.Container, Crate']) {
+      const { kind, said } = compose(`${CRATE}kind Box is ${written} { }`);
+      expect(said, written).toEqual([]);
+      const capacity = kind!.properties.get('capacity')!;
+      expect([capacity.origin, capacity.declaration.default], written).toMatchObject([
+        'shop.Crate',
+        { value: 40 },
+      ]);
+    }
+  });
+
+  it('resolves a diamond to the restatement, as `kind Visitor is Creature, sprout.Visitor` does', () => {
+    const { kind, said } = compose(
+      'kind Creature is sprout.Container { :capacity 4 }\nkind Walker is sprout.Container { }\nkind Visitor is Creature, Walker { }',
     );
-    // `:open` reaches `box` by both paths from one origin, and is one.
-    expect(said.map(([, message]) => message)).toEqual([
-      '`box` gets `:capacity` from both `Crate` and `sprout.Container`, which are two claims on one slot.',
+    expect(said).toEqual([]);
+    expect(kind!.properties.get('capacity')!.origin).toBe('shop.Creature');
+    // What nothing restated is still the library's, one origin by two paths.
+    expect(kind!.properties.get('open')!.origin).toBe('sprout.Container');
+  });
+
+  it('takes the latest of a chain of restatements', () => {
+    const { kind, said } = compose(
+      `${CRATE}kind Bin is Crate { :capacity 20 }\nkind Box is Crate, Bin, sprout.Container { }`,
+    );
+    expect(said).toEqual([]);
+    expect(kind!.properties.get('capacity')!.origin).toBe('shop.Bin');
+  });
+
+  it('still refuses two restatements neither of which composes the other', () => {
+    const { said } = compose(
+      `${CRATE}kind Bin is sprout.Container { :capacity 20 }\nkind Box is Crate, Bin, sprout.Container { }`,
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:3:20',
+        '`Box` gets `:capacity` from both `Crate` and `Bin`, which are two claims on one slot.',
+        'If they are meant to be one property, restate it in `Box`: `:capacity 40`.',
+      ],
     ]);
+    const restated = compose(
+      `${CRATE}kind Bin is sprout.Container { :capacity 20 }\nkind Box is Crate, Bin { :capacity 30 }`,
+    );
+    expect(restated.said).toEqual([]);
+    expect(restated.kind!.properties.get('capacity')!.origin).toBe('shop.Box');
   });
 });
 

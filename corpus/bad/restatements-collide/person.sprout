@@ -1,0 +1,4 @@
+// Neither `Creature` nor `Porter` composes the other, so neither
+// restatement supersedes the other, and a person made of both has two
+// claims on one slot: it has to say which it holds.
+kind Person is Creature, Porter, sprout.Visitor { }

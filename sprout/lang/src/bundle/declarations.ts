@@ -27,7 +27,7 @@ import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable, SPROUT } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
-import { KindTable } from '../declare/kinds.js';
+import { composesKind, KindTable } from '../declare/kinds.js';
 import { VerbTable } from '../declare/verbs.js';
 import { resolveContents, type KindContents } from '../declare/contents.js';
 import {
@@ -296,9 +296,13 @@ function warnShadows(
       case 'message':
         shadow('message', declared, messages.qualified(SPROUT, declared.name.text) !== null);
         break;
-      case 'kind':
-        shadow('kind', declared, kinds.qualified(SPROUT, declared.name.text) !== null);
+      case 'kind': {
+        // A kind that composes the one it hides plainly means both.
+        const hidden = kinds.qualified(SPROUT, declared.name.text);
+        const mine = kinds.qualified(namespace, declared.name.text);
+        shadow('kind', declared, hidden !== null && (mine === null || !composesKind(mine, hidden)));
         break;
+      }
       case 'verb':
         // An engine verb's name was refused, and hides nothing.
         shadow(

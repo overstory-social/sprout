@@ -14,7 +14,8 @@
 // composition merges on (`compose.ts`): one origin reached twice is one
 // property, two origins are refused until the composer restates it. A
 // restatement keeps the type it restates, so there `:ward iron` is
-// enough, and the restating kind becomes the origin.
+// enough, and the restating kind becomes the origin, superseding the one
+// it restated wherever both reach one composer.
 
 import type { Literal, PropertyDeclaration, RemembersDeclaration } from '../syntax/ast.js';
 import { Diagnostics } from '../source/diagnostics.js';
