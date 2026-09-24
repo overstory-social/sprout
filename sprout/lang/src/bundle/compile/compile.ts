@@ -42,6 +42,7 @@ import { resolveDeclarations, unknownMessageGap } from '../declarations.js';
 import { kindName } from '../../declare/kinds.js';
 import type { Named } from '../../declare/names.js';
 import type { Node } from '../../source/nodes.js';
+import { describeWord } from '../../syntax/ast-speech.js';
 import { checkActors, isVisitorKind } from '../../declare/actors.js';
 import { WORLD } from '../../declare/sprout-world.js';
 import { everyContent } from '../../declare/contents.js';
@@ -207,6 +208,17 @@ export function compileBundle(
           'Restore the file, or give the words here in quotes.',
         );
         return true;
+      },
+      emptiedDescribe: (self, describe) => {
+        // At load each passage it names is a gap already; at publish the
+        // description is refused for what the file's absence leaves it.
+        if (report.mode !== 'publish') return;
+        if (![...self.composes].some((identity) => gone.has(identity))) return;
+        report.diagnostics.refuse(
+          describeWord(describe),
+          `This \`describe\` says nothing while \`${self.name}\`'s \`.prose\` file is absent: every \`text\` in it names a passage that file holds.`,
+          'Restore the file, or give the description words of its own in quotes, as in `text "A lever, waist high."`.',
+        );
       },
     },
   );

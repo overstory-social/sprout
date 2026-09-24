@@ -1,0 +1,10 @@
+// A describe with no `text` anywhere in it would be empty on a text
+// client.
+world describe_no_text is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}

@@ -30,7 +30,7 @@ import type {
   SpawnStatement,
   Statement,
 } from '../syntax/ast.js';
-import type { SayStatement, TellStatement } from '../syntax/ast-speech.js';
+import type { SayStatement, TellStatement, TextStatement } from '../syntax/ast-speech.js';
 import { qualifiedName } from '../declare/enums.js';
 import { kindName } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
@@ -212,7 +212,7 @@ function runStatement(
       return 'allow';
     case 'refuse':
       deciding(run, '`refuse`');
-      return { refused: speech(statement, frame) };
+      return { refused: speechOf(statement, frame) };
     case 'spawn':
       spawn(statement, frame, acting(run, '`spawn`'));
       return 'end';
@@ -278,7 +278,7 @@ function runStatement(
     case 'say':
       acting(run, '`say`').say({
         by: frame.self,
-        said: speech(statement, frame),
+        said: speechOf(statement, frame),
         bindings: new Map(bindings),
       });
       return 'end';
@@ -286,13 +286,13 @@ function runStatement(
       acting(run, '`tell`').tell({
         by: frame.self,
         one: statement.to === null ? null : objectAt(statement.to, frame),
-        said: speech(statement, frame),
+        said: speechOf(statement, frame),
         bindings: new Map(bindings),
       });
       return 'end';
     case 'text':
       throw new Error(
-        '`text` reached a body, and only a `describe` gives words so; the checker refuses it.',
+        '`text` reached a body, and only a `describe` gives words so, which `describe.ts` runs; the checker refuses it.',
       );
     case 'expression-statement':
       write(statement.expression, frame, acting(run, 'a write'));
@@ -313,12 +313,15 @@ function runIf(statement: IfStatement, frame: Frame, run: Run): Ended {
 }
 
 /**
- * `say`, `tell` or `refuse` with words in quotes, or a passage as the speaker's
- * kind has it, so a composer's own line replaces a default. A passage
- * the kind does not have is one whose `.prose` file the world was loaded
- * without, since the checker refuses any other.
+ * `say`, `tell`, `text` or `refuse` with words in quotes, or a passage as
+ * the speaker's kind has it, so a composer's own line replaces a default.
+ * A passage the kind does not have is one whose `.prose` file the world
+ * was loaded without, since the checker refuses any other.
  */
-function speech(statement: RefuseStatement | SayStatement | TellStatement, frame: Frame): Speech {
+export function speechOf(
+  statement: RefuseStatement | SayStatement | TellStatement | TextStatement,
+  frame: Frame,
+): Speech {
   const said = statement.said;
   if (said.kind === 'prose-literal') {
     return { text: said.value, prose: said.prose, library: frame.library };

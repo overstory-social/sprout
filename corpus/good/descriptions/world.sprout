@@ -1,0 +1,19 @@
+// Descriptions: a place says what it holds and how it stands, with
+// `let`, `if`, `is()` and a passage of its `.prose` file; a kind
+// describes every instance, an object's own describe replaces its
+// kind's, and a composer writes the one paragraph for two kinds that
+// each describe. A person is described by the visitor kind, and a
+// stool with no describe reads the world's `unremarkable`.
+world descriptions is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is Hall {
+    object lamp is Lamp
+    object old_lamp is Lamp {
+      describe { text "A lamp older than the house, and dark for good." }
+    }
+    object stool is Stool
+    object press is Press
+  }
+}

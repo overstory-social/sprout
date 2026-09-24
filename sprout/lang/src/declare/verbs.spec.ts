@@ -10,6 +10,7 @@ import { EnumTable } from './enums.js';
 import { KindTable, kindName } from './kinds.js';
 import {
   checkVerbDeclaration,
+  ENGINE_ANSWERS,
   ENGINE_VERBS,
   VerbTable,
   type ResolvedRole,
@@ -414,6 +415,11 @@ describe('what the table refuses, at the thing', () => {
     expect(said).toEqual(['shop.sprout:2:6 shop declares two verbs called `take`.']);
     expect(diagnostics.refusals[0]!.remedy).toBe('Give one of them another name, or remove it.');
     expect(verbs.qualified('shop', 'take')!.roles[0]!.name).toBe('target');
+  });
+
+  it('names the engine verbs it answers with what the actor reads, each an engine verb', () => {
+    expect(ENGINE_ANSWERS).toEqual(['look', 'examine', 'inventory', 'help']);
+    for (const name of ENGINE_ANSWERS) expect(ENGINE_VERBS, name).toContain(name);
   });
 
   it('an engine verb’s name in any library but the standard one', () => {

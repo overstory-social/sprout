@@ -16,6 +16,7 @@ import {
 const EVERY: readonly Undrawn[] = [
   { by: 'guard', guard: 'accept' },
   { by: 'permit' },
+  { by: 'describe' },
   { by: 'when' },
   { by: 'pass', written: 'pass any' },
   { by: 'poll', line: 'unseen' },
@@ -80,6 +81,12 @@ describe('a draw where nothing draws is refused, naming why', () => {
       [
         [
           'A `permit` may not use `chance`: a `permit` is asked as part of a decision it must not change.',
+          'Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.',
+        ],
+      ],
+      [
+        [
+          'A `describe` may not use `chance`: it is run whenever anyone looks, so a roll would change the thing while nobody acts.',
           'Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.',
         ],
       ],

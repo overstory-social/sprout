@@ -1,0 +1,4 @@
+kind Lamp {
+  :lit false
+  describe { let lit = self.get(:lit) }
+}

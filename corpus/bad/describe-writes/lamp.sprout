@@ -1,0 +1,12 @@
+kind Lamp {
+  contains
+  :seen false
+  describe {
+    text "A lamp."
+    self.set(:seen, true)
+    move self to actor
+    spawn Wick in self
+    send actor :looked
+    destroy self
+  }
+}

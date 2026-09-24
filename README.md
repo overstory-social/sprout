@@ -30,10 +30,12 @@ messages, properties, the world root and the kind its visitors are made
 of, kinds and objects with their composition and grammar blocks, a
 place's exits and links, and verbs with their roles resolved across
 libraries, passages and the `.prose` files they live in) and checks the
-expressions Phase 1 defined and the prose every passage holds; the runtime
-reads a visitor's typed line as a reading, `go` among them, runs it as a
-turn, and renders what is said and told once for each person who reads it.
-Everything else — descriptions, the view — lands one backlog item at a time;
+expressions Phase 1 defined, the prose every passage holds and each
+`describe`; the runtime reads a visitor's typed line as a reading, runs it
+as a turn, answers the engine verbs (`go`, `look`, `examine`, `inventory`,
+`wait`, `help`), and renders what is said, told and described once for
+each person who reads it. Everything else — the view among it — lands one
+backlog item at a time;
 see the build order in
 [`docs/design/sprout-build-backlog.md`](docs/design/sprout-build-backlog.md)
 and the tracking issue #54.
@@ -47,8 +49,8 @@ sprout/lang/src
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, verbs, the world, actors
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling
-  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, and the command parser
-  prose/     what is said, rendered for each reader: names, slots, blocks and loops, reflow, who hears it
+  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, and the engine verbs' answers
+  prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it
 sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check

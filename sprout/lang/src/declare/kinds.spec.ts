@@ -34,6 +34,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
     exits: [],
+    describe: null,
     contains: false,
     containsActors: false,
     suppressed: [],
