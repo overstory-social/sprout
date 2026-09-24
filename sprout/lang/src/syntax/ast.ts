@@ -299,6 +299,19 @@ export interface MoveStatement extends Node {
   readonly destination: ObjectPath;
 }
 
+/**
+ * `connect north to cell` — `self`'s link in that direction assigned the
+ * place a binding holds (the spec's Verbs › Links). A link is write-only:
+ * nothing reads it back.
+ */
+export interface ConnectStatement extends Node {
+  readonly kind: 'connect';
+  /** The link's direction, as written. */
+  readonly link: Ident;
+  /** What it leads to: a binding, which the checker holds it to. */
+  readonly destination: ObjectPath;
+}
+
 /** `target: p` inside an `act`'s brackets: a role of the verb, and what fills it. */
 export interface ActRole extends Node {
   readonly kind: 'act-role';
@@ -421,6 +434,7 @@ export type Statement =
   | SpawnStatement
   | DestroyStatement
   | MoveStatement
+  | ConnectStatement
   | ActStatement
   | SendStatement
   | BroadcastStatement

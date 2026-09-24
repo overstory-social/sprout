@@ -7,7 +7,7 @@
 // written. Spec support: the package build leaves it out.
 
 import { libraryHash, type Bundle, type Manifest } from '../bundle/bundle.js';
-import { compileBundle } from '../bundle/compile/compile.js';
+import { compileBundle, type BundleResult } from '../bundle/compile/compile.js';
 import { DEFAULT_LIMITS, type Limits } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { kindFileName } from '../declare/kind-files.js';
@@ -76,6 +76,19 @@ export function compiledWorld(
   files: Readonly<Record<string, string>>,
   options: WorldOptions = {},
 ): Bundle {
+  const { bundle, diagnostics } = compileWorld(name, files, options);
+  if (bundle === null) {
+    throw new Error(diagnostics.map((diagnostic) => diagnostic.message).join('\n'));
+  }
+  return bundle;
+}
+
+/** Compile `files` as the world `name`, as `compiledWorld` does, with what was said and no throw. */
+export function compileWorld(
+  name: string,
+  files: Readonly<Record<string, string>>,
+  options: WorldOptions = {},
+): BundleResult {
   const { files: laid, withheld } = laidOut(files, options.withheld);
   const sha = libraryHash(STANDARD_LIBRARY);
   const manifest: Manifest = {
@@ -89,7 +102,7 @@ export function compiledWorld(
     libraries: [{ name: STANDARD_LIBRARY.name, version: STANDARD_LIBRARY.version, sha }],
     files: Object.keys(laid),
   };
-  const { bundle, diagnostics } = compileBundle(
+  return compileBundle(
     {
       manifestFile: new SourceFile('sprout.json', JSON.stringify(manifest, null, 2)),
       manifest,
@@ -102,10 +115,6 @@ export function compiledWorld(
       limits: options.limits ?? DEFAULT_LIMITS,
     },
   );
-  if (bundle === null) {
-    throw new Error(diagnostics.map((diagnostic) => diagnostic.message).join('\n'));
-  }
-  return bundle;
 }
 
 /**

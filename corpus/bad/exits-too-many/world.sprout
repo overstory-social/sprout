@@ -1,0 +1,20 @@
+// A place has as many ways out as the host allows, eight by default,
+// guarded exits in one direction and links each counting.
+world exits_too_many is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit north "north" -> yard
+      exit north "north again" -> yard when (true)
+      exit south "south" -> yard
+      exit east  "east" -> yard
+      exit west  "west" -> yard
+      exit up    "up" -> yard
+      exit down  "down" -> yard
+      link in    "in"
+      link out   "out"
+    }
+  }
+}

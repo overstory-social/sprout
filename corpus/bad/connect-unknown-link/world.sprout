@@ -1,0 +1,9 @@
+// A place connects only a link it declares.
+world connect_unknown_link is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is Cell
+}
+
+verb dig { role target: Cell  "dig [target]" }

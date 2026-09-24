@@ -14,7 +14,8 @@
 // `passages.ts` resolves: the composer's own, else the one source that
 // is not `default`, else the one default; a pass rule is one per
 // message, which `passes.ts` resolves; a `name` and an `article` are one
-// each and nouns all apply, which `grammar.ts` resolves. Guards, plays,
+// each and nouns all apply, which `grammar.ts` resolves; exits and links
+// are one source's per direction, which `exits.ts` resolves. Guards, plays,
 // handlers and hooks all run, in closure order less what `without` leaves
 // out, which `guards.ts`, `roles.ts` and `handlers.ts` resolve; a
 // suppression travels to every kind that composes the one that wrote it.
@@ -53,6 +54,7 @@ import {
 import { MessageTable, type MessageLookup } from './messages.js';
 import { composePassRules, ownPassRules } from './passes.js';
 import { composeGrammar, ownGrammar } from './grammar.js';
+import { composeExits, ownExits } from './exits.js';
 import {
   composePlays,
   ownPlays,
@@ -389,6 +391,14 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     shown,
     diagnostics,
   );
+  // --- exits and links: one source for each direction -----------------
+  const exits = composeExits(
+    composer.name,
+    composed.map(({ kind, written }) => ({ exits: kind.exits, written })),
+    ownExits(composer.members, own),
+    shown,
+    diagnostics,
+  );
   order.push(own);
 
   return {
@@ -404,6 +414,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     hooks,
     passes,
     grammar,
+    exits,
     contains: contains || containsActors,
     containsActors,
     suppressed,

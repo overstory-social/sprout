@@ -33,6 +33,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     hooks: new Map(),
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
+    exits: [],
     contains: false,
     containsActors: false,
     suppressed: [],

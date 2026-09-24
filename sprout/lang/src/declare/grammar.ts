@@ -5,7 +5,8 @@
 //
 // The first tier checks one body's lines against themselves: one `name`
 // and one `article` however many blocks hold them, a name that is not
-// empty and does not begin with an article, and the host's caps on nouns.
+// empty and does not begin with an article, and the host's caps on nouns;
+// its exits and links are `exits.ts`'s.
 // The second tier composes: a composer's own `name` or `article` replaces
 // what it composes, one source's applies, and two sources are refused;
 // nouns from every source apply, in closure order, the composer's own
@@ -17,9 +18,10 @@ import type { Article, GrammarLine } from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import { typedWords } from './addressing.js';
+import { checkExitLines, type ExitCaps } from './exits.js';
 
 /** The host's figures for the static caps a grammar block is held to. Never this layer's numbers. */
-export interface GrammarCaps {
+export interface GrammarCaps extends ExitCaps {
   readonly nounsPerObject: number;
   readonly nounCharacters: number;
 }
@@ -138,8 +140,12 @@ export function checkGrammar(
           words(noun.text.trim(), noun.at);
         }
         break;
+      case 'grammar-exit':
+      case 'grammar-link':
+        break;
     }
   }
+  checkExitLines(owner, declared.members, caps, diagnostics);
 }
 
 /** What a composer's own body writes, which the first tier has checked. */
@@ -152,7 +158,7 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
       name ??= { value: line.text.trim(), origin, at: line.at };
     } else if (line.kind === 'grammar-article') {
       article ??= { value: line.article, origin, at: line.at };
-    } else {
+    } else if (line.kind === 'grammar-nouns') {
       for (const noun of line.nouns) if (noun.text.trim() !== '') nouns.push(noun.text.trim());
     }
   }

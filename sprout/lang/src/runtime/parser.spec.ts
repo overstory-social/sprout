@@ -38,6 +38,12 @@ import { commandTurn } from './command.js';
 import { liveTree } from './live.js';
 import { rangeOf } from './range.js';
 import { parseCommand, type CommandOutcome } from './parser.js';
+import {
+  CATALOGUE as WAYS_CATALOGUE,
+  MARTA as WAYS_MARTA,
+  MOUTH,
+  ways,
+} from '../fixtures/exits.js';
 import { readerOf } from './state.js';
 import {
   actorOf,
@@ -381,13 +387,35 @@ describe('the parser a command turn reads through', () => {
     });
   });
 
-  it('carries a `which`’s choices, and reads no exit until the place gives it one', () => {
+  it('carries a `which`’s choices, and reads no exit where the place gives none', () => {
     const one = study();
     const context = commandContext(one);
     const which = parseCommand('take key', one.people[0]!, context);
     if (!('answered' in which)) throw new Error('not answered');
     expect(which.choices.map((choice) => choice.line)).toEqual(['take brass key', 'take iron key']);
     expect('answered' in parseCommand('north', one.people[0]!, context)).toBe(true);
+  });
+});
+
+describe('the parser a command turn reads through', () => {
+  it('reads a direction or a label as `go` through the exit that applies where the actor stands', () => {
+    const state = ways();
+    const actor = state.visitors.get(WAYS_MARTA)!.instance;
+    const context = {
+      state: readerOf(state),
+      catalogue: WAYS_CATALOGUE,
+      passes: () => true,
+      budget: new Budget(DEFAULT_LIMITS.budgets),
+      nicknames: new Map<InstanceId, string>(),
+    };
+    for (const line of ['north', 'go north', 'deeper into the dark']) {
+      const parsed = parseCommand(line, actor, context);
+      expect('reading' in parsed && parsed.reading.bindings.get('way'), line).toEqual({
+        exit: { direction: 'north', label: 'deeper into the dark', to: MOUTH },
+      });
+    }
+    // The way north that does not apply is not mentioned, even by its label.
+    expect('answered' in parseCommand('toward a grey light', actor, context)).toBe(true);
   });
 });
 

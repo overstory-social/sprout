@@ -1,0 +1,9 @@
+// Only a place holds visitors, so only a place has ways out.
+world exit_on_non_place is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object cupboard is Cupboard
+  }
+}

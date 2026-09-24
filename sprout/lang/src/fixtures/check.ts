@@ -96,6 +96,7 @@ export function kind(
     hooks: new Map(),
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
+    exits: [],
     // `contains actors` implies holding, and a fixture that says
     // otherwise would be typing against a kind that cannot exist.
     contains: contains || containsActors,

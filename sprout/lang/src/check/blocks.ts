@@ -5,12 +5,12 @@
 // Prose; The compiler › What it refuses).
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
-// `refuse`, and a write, a `spawn`, a `destroy`, a `move`, an `act`, a
-// `wake` or a `say` in one is refused, since the engine asks it before
-// anything happens and it must not change the world underneath the
-// decision it is part of. A `do` acts: it writes, spawns, destroys,
-// moves, acts, asks to be woken and speaks, and `refuse` and `allow` are
-// refused there, since the deciding was done. A handler or a hook acts as a `do` does, but nobody is acting,
+// `refuse`, and a write, a `spawn`, a `destroy`, a `move`, a `connect`,
+// an `act`, a `wake` or a `say` in one is refused, since the engine asks
+// it before anything happens and it must not change the world underneath
+// the decision it is part of. A `do` acts: it writes, spawns, destroys,
+// moves, connects, acts, asks to be woken and speaks, and `refuse` and
+// `allow` are refused there, since the deciding was done. A handler or a hook acts as a `do` does, but nobody is acting,
 // so it neither speaks with `say` nor refuses. `if (x.is(K))` narrows
 // `x`, and `if (bound tool)` binds `tool`, for the branch each guards.
 // Statements after an `allow` or a `refuse` are accepted and never run.
@@ -29,6 +29,7 @@ import { nearestOption } from '../declare/enums.js';
 import { branchScope, checkCondition, isEffect, type CheckContext } from './check.js';
 import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
 import { checkAct } from './act.js';
+import { checkConnect } from './exits.js';
 import { checkBroadcast, checkSend } from './sends.js';
 import { checkProse } from './prose.js';
 import { checkWake } from './wake.js';
@@ -82,6 +83,10 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'move':
       if (decides) readOnly('move', statement.at, context, kind);
       else checkMove(statement, context);
+      return;
+    case 'connect':
+      if (decides) readOnly('connect', statement.at, context, kind);
+      else checkConnect(statement, context);
       return;
     case 'act':
       if (decides) readOnly('act', statement.at, context, kind);
@@ -184,13 +189,14 @@ const CHANGES = {
   spawn: '`spawn` makes a new thing',
   destroy: '`destroy self` removes something',
   move: '`move` moves something',
+  connect: '`connect` writes where a link leads',
   act: '`act` performs a verb',
   send: '`send` sends a message',
   broadcast: '`broadcast` sends a message',
   wake: '`wake` asks for a wake',
 } as const;
 
-/** `spawn`, `destroy self`, `move`, `act`, `send`, `broadcast` or `wake` where a guard or a `permit` decides. */
+/** `spawn`, `destroy self`, `move`, `connect`, `act`, `send`, `broadcast` or `wake` where a guard or a `permit` decides. */
 function readOnly(
   what: keyof typeof CHANGES,
   at: Span,

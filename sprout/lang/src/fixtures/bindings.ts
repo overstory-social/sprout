@@ -87,6 +87,7 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
     hooks: new Map(),
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
+    exits: [],
     contains: false,
     containsActors: false,
     suppressed: [],

@@ -449,6 +449,19 @@ describe('a move that cannot be asked about', () => {
     );
   });
 
+  it('asks no range of a destination reached through an exit, and still faults for one not live', () => {
+    const { state, visitor } = base();
+    const draft = new Draft(state);
+    const moved = moveInstance(context(draft), visitor, visitor, YARD, 'exit');
+    expect('item' in moved && [moved.from, moved.to]).toEqual([HALL, YARD]);
+    expect(draft.instance(visitor)!.container).toBe(YARD);
+    const gone = new Draft(state);
+    destroyInstance(gone, URN);
+    expect(faultOf(() => moveInstance(context(gone), visitor, visitor, URN, 'exit')).reason).toBe(
+      'out-of-range',
+    );
+  });
+
   it('faults for a destination that holds nothing, writing nothing', () => {
     const { state, visitor } = base();
     const fault = faultsWritingNothing(

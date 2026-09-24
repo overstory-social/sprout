@@ -1,0 +1,10 @@
+world.sprout:10:50  An exit's `when` says whether it applies, so it is true or false, and this is integer 0 to 9.
+                    Write a condition, as in `when (self.get(:lit))`.
+
+world.sprout:11:50  `actor` is not bound in an exit's `when`: it is asked of the place, whoever looks.
+                    Read the place through `self`, as in `when (self.get(:lit))`, or a thing by its name.
+
+world.sprout:12:50  This exit's `when` is `false`, so the exit never applies.
+                    Give it a condition that can hold, or take the exit out.
+
+refused: 2 problems

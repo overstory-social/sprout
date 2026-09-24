@@ -1,0 +1,19 @@
+world.sprout:10:18  `exit north` is followed by its label in quotes: what a visitor reads, and may type, for the way out.
+                    Write the label after the direction, as in `exit north "out to the yard" -> yard`.
+
+world.sprout:11:33  An exit says where it leads after its label, with `->`.
+                    Write `exit east "to the meadow" -> meadow`, naming the place it leads to.
+
+world.sprout:12:35  After `->` comes the place the exit leads to.
+                    Name it in lower case, as in `exit west "to the meadow" -> yard`, or by its path, as in `-> bedroom.wardrobe`.
+
+world.sprout:13:48  An exit's `when` is followed by its condition in brackets.
+                    Write `exit south "to the meadow" -> meadow when (self.get(:open))`.
+
+world.sprout:14:46  This exit's `when` says nothing inside its brackets.
+                    Write the condition it applies under, as in `exit up "to the meadow" -> meadow when (self.get(:open))`, or leave `when` out.
+
+world.sprout:15:24  A link leads nowhere until the world connects it, so it names no place.
+                    Write `link down "down"`, and `connect down to …` where the place is made; or write an `exit` for a place written in source.
+
+refused: 6 problems

@@ -1,0 +1,15 @@
+// An exit names the place it leads to from where it is written.
+world exit_unknown_target is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit in "into the shop" -> shpo
+      exit up "up to the loft" -> shop.lofft
+    }
+  }
+  object shop is sprout.Place {
+    object loft is sprout.Place { }
+  }
+}
