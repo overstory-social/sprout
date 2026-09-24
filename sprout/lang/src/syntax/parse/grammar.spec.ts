@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, KindMember } from '../ast.js';
+import { writtenPath, type KindDeclaration, type KindMember } from '../ast.js';
 import type { GrammarDeclaration, GrammarLine } from '../ast-grammar.js';
 import { unspanned } from '../../source/nodes.js';
 import { Diagnostics } from '../../source/diagnostics.js';
@@ -22,12 +22,20 @@ function readKind(members: string) {
 }
 
 /** A line as a case compares it. */
-const written = (line: GrammarLine): string =>
-  line.kind === 'grammar-name'
-    ? `name ${line.text}`
-    : line.kind === 'grammar-article'
-      ? `article ${line.article}`
-      : `nouns ${line.nouns.map((noun) => noun.text).join('|')}`;
+const written = (line: GrammarLine): string => {
+  switch (line.kind) {
+    case 'grammar-name':
+      return `name ${line.text}`;
+    case 'grammar-article':
+      return `article ${line.article}`;
+    case 'grammar-nouns':
+      return `nouns ${line.nouns.map((noun) => noun.text).join('|')}`;
+    case 'grammar-exit':
+      return `exit ${line.direction.text} ${line.label.text} ${writtenPath(line.destination)}${line.when === null ? '' : ' when'}`;
+    case 'grammar-link':
+      return `link ${line.direction.text} ${line.label.text}`;
+  }
+};
 
 describe('a grammar block', () => {
   it('reads its three lines in any order, on one line or several', () => {
@@ -106,16 +114,28 @@ describe('a grammar block', () => {
 
   it('refuses a line it does not read once, stepping over the rest of it', () => {
     const { said, blocks } = readKind(
-      'grammar {\n    exit north "to the yard" -> hall\n    name "lamp"\n  }',
+      'grammar {\n    door north "to the yard" -> hall\n    name "lamp"\n  }',
     );
     expect(said).toEqual([
       [
         'k.sprout:3:5',
-        'A grammar block is not made of `exit`.',
-        'It holds `name`, `article` and `nouns`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
+        'A grammar block is not made of `door`.',
+        'It holds `name`, `article`, `nouns`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
       ],
     ]);
     expect(blocks[0]!.lines.map(written)).toEqual(['name lamp']);
+  });
+
+  it('reads exits and links among its lines, in the order written', () => {
+    const { blocks, said } = readKind(
+      'grammar {\n    exit north "deeper" -> hall when (!self.get(:lit))\n    link south "back"\n    exit up "up" -> kiln.loft\n  }',
+    );
+    expect(said).toEqual([]);
+    expect(blocks[0]!.lines.map(written)).toEqual([
+      'exit north deeper hall when',
+      'link south back',
+      'exit up up kiln.loft',
+    ]);
   });
 
   it('ends a block never closed where the body’s next member starts', () => {
@@ -135,6 +155,12 @@ const WELL_FORMED_LINES = [
   { name: 'name brass key', text: 'name "brass key"' },
   { name: 'article the', text: 'article the' },
   { name: 'nouns brass|key ring', text: 'nouns "brass" "key ring"' },
+  { name: 'exit out to the yard yard', text: 'exit out "to the yard" -> yard' },
+  {
+    name: 'exit up the loft kiln.loft when',
+    text: 'exit up "the loft" -> kiln.loft when (ladder.get(:down))',
+  },
+  { name: 'link north deeper', text: 'link north "deeper"' },
 ] as const;
 
 /**
@@ -151,8 +177,22 @@ const LINE_DEFECTS: readonly string[] = [
   'article 4',
   'nouns',
   'nouns 4',
-  'exit north "to the yard" -> hall',
-  'link onward "deeper"',
+  'exit',
+  'exit North "x" -> hall',
+  'exit "to the yard" -> hall',
+  'exit north',
+  'exit north -> hall',
+  'exit north "x" hall',
+  'exit north "x" ->',
+  'exit north "x" -> when (true)',
+  'exit north "x" -> hall when',
+  'exit north "x" -> hall when ()',
+  'exit north "x" -> hall when (self.get(:lit)',
+  'exit north "x" -> hall when (self.get(:lit) +)',
+  'link',
+  'link north',
+  'link north deeper',
+  'link north "x" -> hall',
   'faulty',
   '4',
   'Faulty',
@@ -163,7 +203,7 @@ describe('a defect in one line never loses a well-formed neighbour in silence (g
   it('keeps every line written well, around one written badly, and says something', () => {
     const c = chooser(27);
     for (let run = 0; run < 300; run++) {
-      const good = c.shuffled(WELL_FORMED_LINES).slice(0, 1 + c.below(3));
+      const good = c.shuffled(WELL_FORMED_LINES).slice(0, 1 + c.below(4));
       const defect = c.one(LINE_DEFECTS);
       const at = c.below(good.length + 1);
       const lines: string[] = good.map((line) => line.text);

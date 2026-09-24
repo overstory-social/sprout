@@ -1,0 +1,20 @@
+// An exit is a direction, a label in quotes, `->` and where it leads,
+// and a `when` has its condition in brackets; each line written wrong is
+// refused once, and the good line after it is kept.
+world exit_lines is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit north -> meadow
+      exit east "to the meadow" meadow
+      exit west "to the meadow" ->
+      exit south "to the meadow" -> meadow when
+      exit up "to the meadow" -> meadow when ()
+      link down "down" -> meadow
+      exit in "into the meadow" -> meadow
+    }
+  }
+  object meadow is sprout.Place { }
+}

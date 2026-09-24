@@ -1,0 +1,17 @@
+// An exit's `when` is a condition over the place, asked whoever looks:
+// it is true or false, `actor` is not bound in it, and one that is the
+// literal `false` never holds.
+world exit_when is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit in    "into the shop"   -> shop when (lamp.get(:fuel))
+      exit north "to the meadow"   -> shop when (actor.is(Lamp))
+      exit up    "up to nowhere"   -> shop when (false)
+    }
+    object lamp is Lamp
+  }
+  object shop is sprout.Place { }
+}

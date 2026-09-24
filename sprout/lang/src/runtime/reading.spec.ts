@@ -13,6 +13,7 @@ import { IntegerOverflow } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import { consentPass, participantsOf, runReading } from './reading.js';
 import { readerOf } from './state.js';
+import { MEADOW, MOUTH, WAYS, YARD as WAYS_YARD } from '../fixtures/exits.js';
 import {
   acted,
   BOTH,
@@ -197,5 +198,49 @@ describe('the consent pass', () => {
     );
     // Not even the actor's own part ran.
     expect(one.draft.instance(visitor!)!.properties.get('log')).toBe(log);
+  });
+});
+
+describe('a reading of the engine’s `go`', () => {
+  const go = (to: InstanceId) => {
+    const one = turn(WAYS, [WAYS_YARD]);
+    const walker = one.people[0]!;
+    const way = { exit: { direction: 'north' as const, label: 'north', to } };
+    const outcome = runReading(reading(WAYS, 'go', walker, { way }, 'sprout'), contextOf(one));
+    return { one, walker, outcome };
+  };
+
+  it('moves its actor through the exit, which no play binds, and then runs the actor’s part', () => {
+    const { one, walker, outcome } = go(MOUTH);
+    expect(
+      participantsOf(
+        reading(
+          WAYS,
+          'go',
+          walker,
+          { way: { exit: { direction: 'north', label: 'n', to: MOUTH } } },
+          'sprout',
+        ),
+      ),
+    ).toEqual([{ id: walker, role: 'actor' }]);
+    const done = acted(outcome);
+    expect(one.draft.instance(walker)!.container).toBe(MOUTH);
+    expect(one.draft.instance(walker)!.properties.get('walked')).toBe(1);
+    // Having gone, the actor reads where they are, and is told nothing else.
+    expect(done.said).toEqual([]);
+    expect(done.notices.at(-1)).toEqual({ notice: 'described', place: MOUTH, audience: [walker] });
+  });
+
+  it('says a refusal of the move to its actor, and ends the pass there', () => {
+    const one = turn(WAYS, [WAYS_YARD]);
+    const walker = one.people[0]!;
+    setOn(one, MEADOW, { shut: true });
+    const way = { exit: { direction: 'north' as const, label: 'north', to: MEADOW } };
+    const done = acted(runReading(reading(WAYS, 'go', walker, { way }, 'sprout'), contextOf(one)));
+    expect(done.said.map((line) => [line.effect, line.to, words(line.said)])).toEqual([
+      ['refused', [walker], 'The gate is shut.'],
+    ]);
+    expect(one.draft.instance(walker)!.container).toBe(WAYS_YARD);
+    expect(one.draft.instance(walker)!.properties.get('walked')).toBe(0);
   });
 });

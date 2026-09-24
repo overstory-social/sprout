@@ -1,13 +1,13 @@
-world.sprout:9:14   `name` is followed by the name in quotes.
+world.sprout:10:14  `name` is followed by the name in quotes.
                     Write `name "brass key"`, in quotes.
 
-world.sprout:10:17  `article` is followed by `a`, `an`, `the` or `none`.
+world.sprout:11:17  `article` is followed by `a`, `an`, `the` or `none`.
                     Write `article the` for a thing there is one of, or `article none` for a proper name.
 
-world.sprout:12:9   `nouns` is followed by one or more nouns in quotes.
+world.sprout:13:9   `nouns` is followed by one or more nouns in quotes.
                     Write `nouns "brass" "key ring"`.
 
-world.sprout:12:9   A grammar block is not made of `exit`.
-                    It holds `name`, `article` and `nouns`, as in `grammar { name "brass key"  article a  nouns "brass" }`.
+world.sprout:13:9   A grammar block is not made of `door`.
+                    It holds `name`, `article`, `nouns`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.
 
 refused: 4 problems

@@ -1,0 +1,41 @@
+// Exits and links: a direction, a label and where each leads. Exits
+// sharing a direction read as the if/else chain they are, the first whose
+// `when` holds applying; a place inside another is reached by its path; a
+// kind's exits lead to places the world's body holds, and an object's own
+// exits in a direction replace its kind's there. A link leads nowhere
+// until the world connects it, from a `do` and from `on :spawned`.
+world ways is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit in    "into the shop"        -> shop
+      exit north "deeper into the dark" -> maze_mouth when (!lamp.get(:lit))
+      exit north "toward a grey light"  -> meadow
+      exit up    "up to the loft"       -> shop.loft
+    }
+    object lamp is Lamp
+  }
+
+  object shop is sprout.Place {
+    grammar {
+      exit out "back to the yard" -> yard
+      exit up  "up the ladder"    -> loft when (ladder.get(:down))
+    }
+    object ladder is Ladder
+    object loft is sprout.Place {
+      grammar { exit down "down the ladder" -> shop }
+    }
+  }
+
+  object meadow is sprout.Place {
+    grammar { exit south "back to the yard" -> yard }
+  }
+
+  object maze_mouth is MazeCell {
+    grammar { exit up "up into the daylight" -> yard }
+  }
+}
+
+verb dig { role target: MazeCell  "dig [target]"  "dig through [target]" }

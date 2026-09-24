@@ -1,0 +1,11 @@
+kind Cell is sprout.Place {
+  grammar { link north "deeper into the dark"  link south "back" }
+  as target for dig {
+    do {
+      let pebble = spawn Pebble in self
+      connect north to meadow
+      connect south to pebble
+      say "The wall gives."
+    }
+  }
+}

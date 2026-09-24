@@ -2,8 +2,8 @@
 // compiler › What compiling produces): every word its grammar can match,
 // which a nickname is admitted against with no scan of live state. Names
 // are declaration syntax and every spawn instantiates a declared kind, so
-// the set is known at compile time: each word of every name and noun a
-// kind or an object writes, of every identifier and of every kind's name
+// the set is known at compile time: each word of every name, noun and
+// exit or link label a kind or an object writes, of every identifier and of every kind's name
 // as a spawn is called by default, the directions and their
 // abbreviations, the articles and determiners, the connectors, and the
 // words of every phrase.
@@ -40,6 +40,7 @@ export function wordSetOf(sources: WordSources): WordSet {
   for (const kind of sources.kinds) {
     if (kind.grammar.name !== null) add(kind.grammar.name.value);
     for (const noun of kind.grammar.nouns) add(noun);
+    for (const exit of kind.exits) add(exit.line.label.text);
   }
   for (const kind of sources.named) if (kind.grammar.name === null) add(humanisedKind(kind.name));
   for (const identifier of sources.identifiers) add(humanisedIdentifier(identifier));

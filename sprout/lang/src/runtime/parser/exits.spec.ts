@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { typedWords } from '../../declare/addressing.js';
+import { declaredId } from '../ids.js';
 import { exitNamed, type CommandExit } from './exits.js';
 
+const TO = declaredId('maze', ['hall']);
+
 const EXITS: readonly CommandExit[] = [
-  { direction: 'north', label: 'deeper into the dark' },
-  { direction: 'north', label: 'toward a grey light' },
-  { direction: 'down', label: 'Down the Coal Stair' },
+  { direction: 'north', label: 'deeper into the dark', to: TO },
+  { direction: 'north', label: 'toward a grey light', to: TO },
+  { direction: 'down', label: 'Down the Coal Stair', to: TO },
 ];
 const named = (line: string) => exitNamed(typedWords(line), EXITS);
 

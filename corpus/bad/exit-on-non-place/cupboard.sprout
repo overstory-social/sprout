@@ -1,0 +1,4 @@
+kind Cupboard {
+  contains
+  grammar { exit out "back to the yard" -> yard }
+}

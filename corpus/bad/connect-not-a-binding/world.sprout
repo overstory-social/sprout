@@ -1,0 +1,12 @@
+// A link leads where the world made a place while it ran, so it is
+// connected to a binding; a place written in source is reached by an
+// exit. And it leads to a place.
+world connect_not_a_binding is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is Cell
+  object meadow is sprout.Place { }
+}
+
+verb dig { role target: Cell  "dig [target]" }

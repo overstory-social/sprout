@@ -1,0 +1,4 @@
+cupboard.sprout:3:18  `Cupboard` is not a place, so nobody stands in it to take a way out.
+                      Write the exit on a place: something that composes `sprout.Place` or writes `contains actors`.
+
+refused: 1 problem

@@ -1,0 +1,4 @@
+world.sprout:10:12  `yard` writes two links `north`, and `connect north` could not say which it means.
+                    Give each link a direction of its own.
+
+refused: 1 problem
