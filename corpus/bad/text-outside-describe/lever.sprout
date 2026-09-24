@@ -1,0 +1,10 @@
+kind Lever {
+  as target for pull {
+    do {
+      text "A lever, waist high."
+      send self :creak
+    }
+  }
+
+  on :creak { text "It creaks." }
+}

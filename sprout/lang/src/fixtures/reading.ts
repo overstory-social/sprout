@@ -33,7 +33,8 @@ const CAPS = DEFAULT_LIMITS.caps;
  * A yard whose hall holds a player of each part a reading has. `Both`
  * composes `First` and `Second`, each playing the target of `order`, and
  * adds its own; every `permit` refuses when its flag is set, and every
- * `do` says who it is. The world holds things and not actors.
+ * `do` says who it is. A creature waving tells the room and the one it
+ * waves at. The world holds things and not actors.
  */
 export const YARD = compiledWorld('yard', {
   'world.sprout': [
@@ -72,6 +73,7 @@ export const YARD = compiledWorld('yard', {
     '}',
     'verb nudge { role target  "nudge [target]" }',
     'verb nod { role target  "nod at [target]" }',
+    'verb wave { role target  "wave at [target]" }',
     'verb unlock { role target  role tool  "unlock [target] with [tool]"  "unlock [target]" }',
     'verb dial { role target  role number: integer  "turn [target] to [number]" }',
     'verb pop { role target  role tool  "pop [target] with [tool]"  "pop [target]" }',
@@ -85,6 +87,7 @@ export const YARD = compiledWorld('yard', {
     '  }',
     '  as actor for ask { do { say "You ask." } }',
     '  as target for nudge { do { say "nudged" } }',
+    '  as actor for wave { do { tell "{actor} waves at {target}."  tell target "{actor} waves at you." } }',
     '}',
     'kind Person is Creature, sprout.Visitor { }',
     'kind First  { :a false  as target for order { permit { if (self.get(:a)) { refuse "First balks." } }  do { say "first" } } }',

@@ -1,0 +1,9 @@
+// A line in quotes longer than the host lets a `tell` be.
+world tell_too_long is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+  }
+}
+verb pull { role target  "pull [target]" }

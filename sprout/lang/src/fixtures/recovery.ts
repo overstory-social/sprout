@@ -118,7 +118,7 @@ export const GUARD_DEFECTS: readonly string[] = [
   'depart (to) { if (a) allow }',
   'depart (to) { else { allow } }',
   'depart (to) { if (a) { allow } else }',
-  'accept (item, from) { tell "Hello." }',
+  'accept (item, from) { with "Hello." }',
   'accept (item, from) { if (a) { allow } %% allow }',
 ];
 

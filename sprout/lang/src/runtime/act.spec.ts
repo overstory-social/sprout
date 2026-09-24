@@ -217,8 +217,9 @@ describe('an `act` run where it stands', () => {
     const one = turn(2);
     const [marta, ivo] = one.people;
     expect(lines(acted(typed(one, 'pet')))).toEqual([
-      // The cat's own reading: its participants, the cat and Marta, do not hear it.
-      { effect: 'said', by: CAT, to: [DOG, ivo], speaker: CAT, words: 'purr' },
+      // The cat's own reading: its participants, the cat and Marta, do not hear
+      // it, and the dog, an NPC, reads nothing.
+      { effect: 'said', by: CAT, to: [ivo], speaker: CAT, words: 'purr' },
       // Then the rest of the cat's `do` in Marta's command, said to her.
       { effect: 'said', by: CAT, to: [marta], speaker: null, words: 'after' },
     ]);
@@ -232,7 +233,7 @@ describe('an `act` run where it stands', () => {
       {
         effect: 'refused',
         by: marta,
-        to: [DOG, ivo],
+        to: [ivo],
         speaker: CAT,
         words: 'You pull your hand away.',
       },

@@ -1,0 +1,12 @@
+// `text` is how a `describe` gives whoever is looking its words; a `do`
+// says, and a handler tells.
+world text_outside_describe is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lever is Lever
+  }
+}
+verb pull { role target  "pull [target]" }
+message :creak

@@ -1,0 +1,8 @@
+kind Lever {
+  as target for pull {
+    do {
+      say "It gives."
+      tell "{actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever. {actor} leans on the lever."
+    }
+  }
+}

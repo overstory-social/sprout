@@ -1,0 +1,11 @@
+// `tell <x>` speaks to one person a body has bound. An object of the
+// world is never a person, a set is several, and a number is no one.
+world tell_to_nobody is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lever is Lever
+  }
+}
+verb pull { role target  role hands many  "pull [target] with [hands]" }
