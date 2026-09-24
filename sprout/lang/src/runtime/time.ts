@@ -4,9 +4,9 @@
 // own range, the seconds between two instants the host supplied. Nothing
 // here reads a clock; every instant is one the host passed in.
 //
-// A tick is delivered as an engine message to its place, queued at the
-// head of its turn's drain, so the queue stays the one place that
-// delivers; B36 delivers `:woke` the same way.
+// A tick is delivered as an engine message to its place, and a wake as
+// one to the object that asked, each queued at the head of its turn's
+// drain, so the queue stays the one place that delivers.
 
 import { INTEGER_MAX } from '../declare/types.js';
 import type { InstanceId } from './ids.js';

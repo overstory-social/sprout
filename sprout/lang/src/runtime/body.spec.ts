@@ -20,6 +20,7 @@ import type { Sent } from './sends.js';
 import { ListFull, SproutList } from './lists.js';
 import { initialState } from './load.js';
 import { newInstance } from './state.js';
+import { WakeFault } from './wakes.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
 
@@ -41,6 +42,7 @@ const VERBS = [
   'lug',
   'sink',
   'ring',
+  'rest',
 ];
 
 /**
@@ -85,6 +87,7 @@ const bundle = compiledWorld('shop', {
     '  as target for haul   { do { move actor to self  move self to here  say "Hauled." } }',
     '  as target for lug    { do { self.set(:n, 4)  if (self.get(:n) > 0) { move actor to self  say "Inside." }  say "After." } }',
     '  as target for sink   { do { destroy self  move actor to self  say "Sunk." } }',
+    '  as target for rest   { do { wake in 2 minutes  say "Resting." } }',
     '  as target for ring   { do { send hall.counter.pin :knock  send hall.cat :tally with self.get(:n)  send hall.near :knock  send yard.far :knock  broadcast :knock } }',
     '}',
     'message :knock',
@@ -194,6 +197,7 @@ function act(
       passes: (container) => (container === WORLD_ID ? WORLD_PASSES_ANYTHING : true),
       budget,
       mayHold: null,
+      now: 0,
     },
     say: (spoken) => heard.spoken.push(spoken),
     sent: (sends) => heard.sends.push(...sends),
@@ -327,6 +331,31 @@ describe('what a `do` says, spawns and destroys', () => {
     expect(one.draft.destroyed(COUNTER)!.properties.get('n')).toBe(5);
     expect(one.draft.instance(PIN)).toBeUndefined();
     expect(one.draft.destroyed(PIN)!.container).toBe(COUNTER);
+  });
+});
+
+describe('what a `do` asks for', () => {
+  it('asks for `self` to be woken, at the turn’s instant, charged as the statement it is, and goes on', () => {
+    const one = turn();
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const heard = act(one, COUNTER, 'rest', budget);
+    expect(one.draft.instance(COUNTER)!.wakes).toEqual([
+      { serial: one.draft.commit().state.serial, askedAt: 0, dueAt: 120 },
+    ]);
+    expect(heard.spoken.map(words)).toEqual(['Resting.']);
+    // The `wake` and the `say`, one step each.
+    expect(budget.spentSteps).toBe(2);
+  });
+
+  it('faults a second `wake` past the host’s cap of one, and says nothing after it', () => {
+    const one = turn();
+    act(one, COUNTER, 'rest');
+    let heard: Heard | undefined;
+    expect(() => {
+      heard = act(one, COUNTER, 'rest');
+    }).toThrow(WakeFault);
+    expect(heard).toBeUndefined();
+    expect(one.draft.instance(COUNTER)!.wakes).toHaveLength(1);
   });
 });
 

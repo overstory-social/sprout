@@ -225,7 +225,7 @@ export function eventTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets): Eve
     budget,
     visitor,
     passes,
-    lifecycle: { draft, catalogue, passes, budget, mayHold: null },
+    lifecycle: { draft, catalogue, passes, budget, mayHold: null, now: 0 },
   };
 }
 

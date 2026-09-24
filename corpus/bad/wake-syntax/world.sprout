@@ -1,0 +1,10 @@
+world wake_syntax is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object kiln is Kiln
+  }
+}
+
+message :stir

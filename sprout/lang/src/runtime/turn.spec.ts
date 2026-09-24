@@ -15,9 +15,17 @@ import { words } from '../fixtures/reading.js';
 import { Draft } from './draft.js';
 import { saveWorld } from './load.js';
 import type { WorldState } from './state.js';
-import { pollTurn, writeTurn, type WriteTurn, type WriteTurnKind } from './turn.js';
+import { Budget } from './budget.js';
+import {
+  committedOver,
+  pollTurn,
+  writeTurn,
+  writeUnder,
+  type WriteTurn,
+  type WriteTurnKind,
+} from './turn.js';
 
-const inputs = { seed: 41, mayHold: 12 };
+const inputs = { seed: 41, mayHold: 12, now: 500 };
 
 /** A body that writes a property, as a do's `set` would. */
 function strike(turn: WriteTurn): void {
@@ -75,6 +83,7 @@ describe('a write turn', () => {
           spent: turn.budget.spentSteps,
           seed: turn.seed,
           mayHold: turn.mayHold,
+          now: turn.now,
         };
       });
       if (!written.committed) throw new Error(written.fault.detail);
@@ -85,7 +94,16 @@ describe('a write turn', () => {
         spent: 10,
         seed: 41,
         mayHold: 12,
+        now: 500,
       });
+    }
+  });
+
+  it('is the host’s defect, thrown before it opens, at an instant that is not whole seconds from 0', () => {
+    for (const now of [-1, 0.5, Number.NaN]) {
+      expect(() =>
+        writeTurn(belfry(), 'command', belfryHost(), { ...inputs, now }, strike),
+      ).toThrow('whole seconds');
     }
   });
 
@@ -102,6 +120,40 @@ describe('a write turn', () => {
       marta: state.instances.get(actorOf(state, MARTA))!.container,
       worldPasses: false,
     });
+  });
+});
+
+describe('a write turn in parts', () => {
+  it('charges every part run under one budget to it, so a later part has what the earlier left', () => {
+    const budget = new Budget({ ...DEFAULT_LIMITS.budgets, steps: 15 }, 'maintenance');
+    const host = belfryHost();
+    const first = writeUnder(budget, belfry(), 'maintenance', host, inputs, (turn) => {
+      turn.budget.spend(10);
+      return turn.budget === budget;
+    });
+    if (!first.committed) throw new Error(first.fault.detail);
+    expect(first.value).toBe(true);
+    const second = writeUnder(budget, first.state, 'maintenance', host, inputs, (turn) => {
+      turn.budget.spend(10);
+    });
+    expect(second).toMatchObject({ committed: false, fault: { name: 'BudgetExhausted' } });
+  });
+
+  it('commits as one turn what its parts did, against the state the first opened on', () => {
+    const state = belfry([MARTA], true);
+    const host = belfryHost();
+    const struck = writeTurn(state, 'maintenance', host, inputs, strike);
+    if (!struck.committed) throw new Error(struck.fault.detail);
+    const minted = writeTurn(struck.state, 'maintenance', host, inputs, (turn) => {
+      turn.draft.mint();
+    });
+    if (!minted.committed) throw new Error(minted.fault.detail);
+    const whole = committedOver(state, minted.state, 'both');
+    expect(whole.value).toBe('both');
+    expect(whole.state).toBe(minted.state);
+    expect(whole.changes.upsert.map((record) => record.id)).toEqual([BELL]);
+    expect(whole.changes.serial).toBe(state.serial + 1);
+    expect(whole.stale).toEqual([MARTA]);
   });
 });
 

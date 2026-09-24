@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { shop, shopWithheld } from '../fixtures/bundle.js';
 import { catalogueOf } from './catalogue.js';
-import { Draft, storedChanges } from './draft.js';
+import { changesBetween, Draft, storedChanges } from './draft.js';
 import { declaredId, mintedId, visitKey, type InstanceId } from './ids.js';
 import { initialState, loadWorld, saveWorld } from './load.js';
 import { newInstance, readerOf, type Instance, type WorldState } from './state.js';
@@ -354,5 +354,53 @@ describe('committing', () => {
     for (const one of written.remove) applied.delete(one);
     for (const one of written.upsert) applied.set(one.id, one);
     expect([...applied.values()].sort((a, b) => (a.id < b.id ? -1 : 1))).toEqual(saved.instances);
+  });
+});
+
+describe('what changed between two states', () => {
+  it('is what one draft committed, where one draft took one to the other', () => {
+    const base = initialState(catalogue);
+    const draft = new Draft(base);
+    draft.write(filled(draft.instance(JAR_ID)!, 9));
+    const passing = spawnJar(draft, HALL);
+    draft.remove(passing.id);
+    const kept = spawnJar(draft, SHELF);
+    draft.place(CUP_ID, HALL);
+    draft.remove(JAR_ID);
+    draft.putVisitor({
+      visit: visitKey('v-1'),
+      nickname: 'Marta',
+      instance: kept.id,
+      lastPlace: HALL,
+    });
+    const { state, changes } = draft.commit();
+    expect(changesBetween(base, state)).toEqual(changes);
+  });
+
+  it('spans several drafts, each opened on the last one’s state, as one change set', () => {
+    const base = initialState(catalogue);
+    const first = new Draft(base);
+    const made = spawnJar(first, HALL);
+    first.write(filled(first.instance(JAR_ID)!, 9));
+    const middle = first.commit().state;
+    const second = new Draft(middle);
+    // Made by the first, removed by the second: in neither list.
+    second.remove(made.id);
+    second.remove(TIN);
+    const after = second.commit().state;
+    expect(changesBetween(base, after)).toEqual({
+      serial: after.serial,
+      written: [JAR_ID],
+      removed: [TIN],
+      tombstoned: [TIN],
+      visitors: [],
+    });
+    expect(changesBetween(after, after)).toEqual({
+      serial: after.serial,
+      written: [],
+      removed: [],
+      tombstoned: [],
+      visitors: [],
+    });
   });
 });

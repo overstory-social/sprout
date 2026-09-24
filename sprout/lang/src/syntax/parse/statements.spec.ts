@@ -519,6 +519,7 @@ describe('a statement', () => {
       'refuse full',
       'allow',
       'self.set(:wear, 1)',
+      'wake in 3 hours',
     ].map((text) => readWith(statement, text).read?.kind);
     expect(kinds).toEqual([
       'let',
@@ -529,6 +530,7 @@ describe('a statement', () => {
       'refuse',
       'allow',
       'expression-statement',
+      'wake',
     ]);
   });
 
@@ -541,7 +543,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `say`, `let`, `spawn`, `destroy`, `finally`, `move`, `act`, `send` and `broadcast`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `let`, `spawn`, `destroy`, `finally`, `move`, `act`, `send`, `broadcast` and `wake`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -587,7 +589,14 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
   const conditions = ['a', 'self.count >= 8', 'open == false', 'mover != self', 'n + 1 > 3'];
   const inner = (): string => c.one(['allow', 'refuse "No room."', 'refuse full', 'let n = 1', '']);
   const branch = (): string => `(${c.one(conditions)})${gap()}{${gap()}${inner()}${gap()}}`;
-  switch (c.below(8)) {
+  switch (c.below(9)) {
+    case 8:
+      return {
+        text: ['wake', 'in', c.one(['1', '3', '90', '0']), c.one(['seconds', 'minutes', 'hours'])]
+          .map((word, i) => (i === 0 ? word : gap() + word))
+          .join(''),
+        kind: 'wake',
+      };
     case 7:
       return {
         text: ['move', c.one(TARGETS), 'to', c.one(TARGETS)]
@@ -687,6 +696,7 @@ describe('a statement never vanishes silently', () => {
       'move',
       'refuse',
       'spawn',
+      'wake',
     ]);
   });
 });

@@ -24,12 +24,10 @@ import {
   type WriteInputs,
 } from './turn.js';
 
-/** One tick, as the host hands it over and the log records it. */
+/** One tick, as the host hands it over and the log records it, at the instant it runs. */
 export interface Tick extends WriteInputs {
   /** The place ticked. */
   readonly place: InstanceId;
-  /** When the tick runs, in host seconds. */
-  readonly now: HostSeconds;
 }
 
 /** What a committed tick did. */

@@ -3,9 +3,9 @@
 // abandons the turn's transaction: a rule the language names — a budget
 // spent, a spawn, a move or an `act` that could not be made, a name that
 // reaches nothing, a value its property cannot hold, an integer out of
-// range, a full list — or a defect of the engine's own, which is told the
-// same way, since no turn ends with nothing said, and is marked for the
-// host to report loudly.
+// range, a full list, a wake past the host's cap — or a defect of the
+// engine's own, which is told the same way, since no turn ends with
+// nothing said, and is marked for the host to report loudly.
 //
 // A fault is told in the world's own passage, `fault` to a command's
 // actor and `unseen` for a poll, as it applies on the world's kind. A
@@ -25,6 +25,7 @@ import { MoveFault } from './move.js';
 import { DestroyedReference, NameOutOfRange } from './named.js';
 import type { Said } from './reading.js';
 import type { StateReader } from './state.js';
+import { WakeFault } from './wakes.js';
 
 /** A turn that faulted: what was broken, for the log and the host; never shown to a visitor. */
 export interface Fault {
@@ -71,7 +72,8 @@ function objectOf(error: Error): InstanceId | null | undefined {
     error instanceof MoveFault ||
     error instanceof ActFault ||
     error instanceof DestroyedReference ||
-    error instanceof NameOutOfRange
+    error instanceof NameOutOfRange ||
+    error instanceof WakeFault
   ) {
     return error.object;
   }

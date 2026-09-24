@@ -5,12 +5,12 @@
 // Prose; The compiler › What it refuses).
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
-// `refuse`, and a write, a `spawn`, a `destroy`, a `move`, an `act` or a
-// `say` in one is refused, since the engine asks it before anything
-// happens and it must not change the world underneath the decision it is
-// part of. A `do` acts: it writes, spawns, destroys, moves, acts and
-// speaks, and `refuse` and `allow` are refused there, since the deciding
-// was done. A handler or a hook acts as a `do` does, but nobody is acting,
+// `refuse`, and a write, a `spawn`, a `destroy`, a `move`, an `act`, a
+// `wake` or a `say` in one is refused, since the engine asks it before
+// anything happens and it must not change the world underneath the
+// decision it is part of. A `do` acts: it writes, spawns, destroys,
+// moves, acts, asks to be woken and speaks, and `refuse` and `allow` are
+// refused there, since the deciding was done. A handler or a hook acts as a `do` does, but nobody is acting,
 // so it neither speaks with `say` nor refuses. `if (x.is(K))` narrows
 // `x`, and `if (bound tool)` binds `tool`, for the branch each guards.
 // Statements after an `allow` or a `refuse` are accepted and never run.
@@ -31,6 +31,7 @@ import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './st
 import { checkAct } from './act.js';
 import { checkBroadcast, checkSend } from './sends.js';
 import { checkProse } from './prose.js';
+import { checkWake } from './wake.js';
 
 /** Which body a block belongs to, which is what decides what it may do. */
 export type BodyKind =
@@ -93,6 +94,10 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'broadcast':
       if (decides) readOnly('broadcast', statement.at, context, kind);
       else checkBroadcast(statement, context);
+      return;
+    case 'wake':
+      if (decides) readOnly('wake', statement.at, context, kind);
+      else checkWake(statement, context);
       return;
     case 'expression-statement':
       if (decides && isEffect(statement.expression)) {
@@ -182,9 +187,10 @@ const CHANGES = {
   act: '`act` performs a verb',
   send: '`send` sends a message',
   broadcast: '`broadcast` sends a message',
+  wake: '`wake` asks for a wake',
 } as const;
 
-/** `spawn`, `destroy self`, `move`, `act`, `send` or `broadcast` where a guard or a `permit` decides. */
+/** `spawn`, `destroy self`, `move`, `act`, `send`, `broadcast` or `wake` where a guard or a `permit` decides. */
 function readOnly(
   what: keyof typeof CHANGES,
   at: Span,

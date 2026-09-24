@@ -207,12 +207,13 @@ export const actorOf = (state: WorldState, visit: VisitKey): InstanceId =>
 export const heldIn = (state: WorldState, id: InstanceId, name: string): Value | undefined =>
   state.instances.get(id)?.properties.get(name);
 
-/** A command's write inputs, with no bound on instances. */
-export const typed = (visit: VisitKey, text: string, seed = 7) => ({
+/** A command's write inputs, at the host's instant 0, with no bound on instances. */
+export const typed = (visit: VisitKey, text: string, seed = 7, now = 0) => ({
   visit,
   text,
   seed,
   mayHold: null,
+  now,
 });
 
 /**

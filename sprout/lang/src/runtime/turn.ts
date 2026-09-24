@@ -10,21 +10,23 @@
 //
 // This is the frame, and it holds no store: serializing a world's write
 // turns under its lock, and writing a committed change set in the
-// store's transaction, is core's. What a command turn does inside the
-// frame is `command.ts`'s and a tick's `tick.ts`'s; a wake's and a
-// maintenance turn's are B36's, and the view a poll builds is B37's.
+// store's transaction, is core's. What each kind does inside the frame is
+// its own module's — `command.ts`, `tick.ts`, `wake.ts`, `maintenance.ts`
+// — and the view a poll builds is B37's. Every write turn is handed the
+// instant it runs; nothing here reads a clock but the backstop.
 
 import type { RuntimeBudgets } from '../bundle/limits.js';
 import type { Speech } from './body.js';
 import { Budget, type TurnKind } from './budget.js';
 import type { Catalogue } from './catalogue.js';
-import { Draft, storedChanges, type StoredChanges } from './draft.js';
+import { changesBetween, Draft, storedChanges, type StoredChanges } from './draft.js';
 import { faultOf, worldSpeech, type Fault } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
 import { passRules } from './passes.js';
 import type { PassRule } from './range.js';
 import { codeUnitOrder, readerOf, type StateReader, type WorldState } from './state.js';
+import { hostSeconds, type HostSeconds } from './time.js';
 
 /** A turn that may write: every kind but the poll. */
 export type WriteTurnKind = Exclude<TurnKind, 'poll'>;
@@ -48,6 +50,8 @@ export interface WriteInputs {
   readonly seed: number;
   /** The most instances the host will store for this world this turn; null where it sets no bound. */
   readonly mayHold: number | null;
+  /** When the turn runs, in whole host seconds. */
+  readonly now: HostSeconds;
 }
 
 /** A write turn as its body sees it: its kind and seed, and what a body reads and writes through. */
@@ -92,8 +96,25 @@ export function writeTurn<T>(
   inputs: WriteInputs,
   body: (turn: WriteTurn) => T,
 ): Written<T> {
+  return writeUnder(new Budget(host.budgets, kind, host.clock), state, kind, host, inputs, body);
+}
+
+/**
+ * Run `body` as `writeTurn` does, charged to `budget`: a maintenance
+ * turn's catch-up runs each wake so, under the one budget the turn has.
+ * An instant that is not whole host seconds is the host's defect, thrown
+ * before the turn opens.
+ */
+export function writeUnder<T>(
+  budget: Budget,
+  state: WorldState,
+  kind: WriteTurnKind,
+  host: TurnHost,
+  inputs: WriteInputs,
+  body: (turn: WriteTurn) => T,
+): Written<T> {
+  const now = hostSeconds(inputs.now, 'a turn’s time');
   const draft = new Draft(state);
-  const budget = new Budget(host.budgets, kind, host.clock);
   const { catalogue } = host;
   const passes = passRules({
     state: draft,
@@ -111,6 +132,7 @@ export function writeTurn<T>(
       passes,
       budget,
       mayHold: inputs.mayHold,
+      now,
     });
     const committed = draft.commit();
     return {
@@ -123,6 +145,21 @@ export function writeTurn<T>(
   } catch (thrown) {
     return { committed: false, fault: faultOf(thrown) };
   }
+}
+
+/**
+ * One committed write turn made of the parts that took `base` to
+ * `after`: what the store writes is everything between the two, and who
+ * holds a stale view is who is present after.
+ */
+export function committedOver<T>(base: WorldState, after: WorldState, value: T): Committed<T> {
+  return {
+    committed: true,
+    state: after,
+    changes: storedChanges(after, changesBetween(base, after)),
+    stale: present(after),
+    value,
+  };
 }
 
 /** A poll as its look sees it: the committed state, read-only, and the poll's own meter. */
