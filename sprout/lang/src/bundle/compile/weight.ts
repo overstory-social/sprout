@@ -3,8 +3,9 @@
 // of any of its parts, library source included, and a compiler refuses
 // text newer than itself in either mode, because it cannot read what it
 // does not know. Its source bytes and files are counted against the
-// host's caps; blessed library source costs the author nothing, and a
-// modified copy is the author's own source and counts as it.
+// host's caps; library source whose hash the host blesses at this
+// compile costs the author nothing, and a modified copy is the author's
+// own source and counts as it.
 
 import type { MicroworldSource, VendoredLibrary } from '../bundle.js';
 import { bytesOf } from '../bundle.js';
@@ -28,12 +29,13 @@ export interface Weight {
 
 /**
  * Weigh a bundle's own files, less the withheld ones, and its usable
- * libraries, refusing a level newer than `compilerLevel` and a source or
- * file cap it is past.
+ * libraries less those `blessed` names, refusing a level newer than
+ * `compilerLevel` and a source or file cap it is past.
  */
 export function weighBundle(
   source: MicroworldSource,
   usable: readonly VendoredLibrary[],
+  blessed: ReadonlySet<string>,
   withheld: ReadonlySet<string>,
   caps: StaticCaps,
   compilerLevel: number,
@@ -61,10 +63,10 @@ export function weighBundle(
   // the author's own source and counts as it.
   const arrived = source.files.filter((file) => !withheld.has(file.name));
   const exemptBytes = usable
-    .filter((library) => library.blessed)
+    .filter((library) => blessed.has(library.hash))
     .reduce((bytes, library) => bytes + library.bytes, 0);
   const ownBytes = arrived.reduce((bytes, file) => bytes + bytesOf(file.text), 0);
-  const charged = usable.filter((library) => !library.blessed);
+  const charged = usable.filter((library) => !blessed.has(library.hash));
   const sourceBytes = ownBytes + charged.reduce((bytes, library) => bytes + library.bytes, 0);
   const files =
     arrived.length + charged.reduce((count, library) => count + library.files.length, 0);

@@ -26,8 +26,7 @@
 // a check is not yet possible, this says so rather than pretending.
 //
 // `compileBundle` runs the steps in order, each a module of this folder
-// taking the report: the caps to check against and the libraries they
-// exempt, the manifest's own
+// taking the report: the caps to check against, the manifest's own
 // fields, the files, the libraries, what the bundle weighs, the first tier over every file,
 // the `.prose` files each kind points at, the one world, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
@@ -60,7 +59,7 @@ import { attachProse } from './prose.js';
 import { absenceRule } from '../absent.js';
 import { checkLibraries } from './libraries.js';
 import { checkManifest } from './manifest-fields.js';
-import { blessedToHonour, capsToCheck, type RecordedCaps } from './recorded.js';
+import { capsToCheck, type RecordedCaps } from './recorded.js';
 import { Report } from './report.js';
 import { weighBundle } from './weight.js';
 import { wordSetOf } from '../words.js';
@@ -75,15 +74,15 @@ export interface CompileOptions {
   readonly limits?: Limits;
   /**
    * At load, the caps the world was checked against when it was
-   * published, whether the host made an exception for it, and the
-   * libraries it blessed then. Unread at publish, which is checked
-   * against the host's own caps and blessed set.
+   * published, and whether the host made an exception for it. Unread at
+   * publish, which is checked against the host's own caps.
    */
   readonly recorded?: RecordedCaps;
   /**
-   * The library hashes the host blesses, `DEFAULT_BLESSED` unless it says
-   * otherwise. A blessed library costs the author nothing toward the
-   * caps; the grant is made at publish and recorded in the bundle.
+   * The library hashes the host blesses now, `DEFAULT_BLESSED` unless it
+   * says otherwise. A blessed library costs the author nothing toward the
+   * caps, at publish and at every load alike (the spec's Host › Two
+   * decisions).
    */
   readonly blessed?: ReadonlySet<string>;
   /** The level this compiler understands. Text needing a newer one is refused, in either mode. */
@@ -111,11 +110,11 @@ export function compileBundle(
 
   checkManifest(source, report);
   const withheld = checkFiles(source, report);
-  const blessed = blessedToHonour(options.blessed ?? DEFAULT_BLESSED, options.recorded, report);
-  const usable = checkLibraries(source, blessed, report);
+  const usable = checkLibraries(source, report);
   const { level, arrived, charged, files, sourceBytes, exemptBytes } = weighBundle(
     source,
     usable,
+    options.blessed ?? DEFAULT_BLESSED,
     withheld,
     caps,
     options.compilerLevel ?? LANGUAGE_LEVEL,

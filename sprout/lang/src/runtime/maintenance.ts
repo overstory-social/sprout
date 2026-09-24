@@ -2,13 +2,18 @@
 // Absence; The runtime › Faults; The host contract › Time). Run before an
 // arriving visitor is admitted, it delivers every object's oldest due
 // wake, one per object, oldest first, under the one budget the turn has;
-// a wake one of them asks for waits for live time. Catch-up does not
+// a wake one of them asks for, and an object's later due wakes, wait for
+// live time. Catch-up does not
 // narrate: what the wakes did is kept and nothing they said is told.
 //
 // Each wake is a part of the turn, kept once it has run. A part that
 // faults is abandoned and its wake consumed, as any faulted wake is, and
-// the rest of the catch-up is abandoned with it, left pending; what
-// earlier parts did stands, and the visitor is admitted either way.
+// the catch-up goes on to the other objects' wakes, under the same budget
+// and on along the same stream of draws: what the faulted part drew stays
+// drawn, so a replay from the seed draws the same again. Once steps,
+// events or the wall clock are spent, nothing more can run under the
+// budget, and the rest of the catch-up is abandoned, left pending for
+// live time. The visitor is admitted either way.
 
 import { Budget } from './budget.js';
 import { Draws } from './draws.js';
@@ -29,9 +34,9 @@ import { dueWakes, onePerObject, type DueWake } from './wakes.js';
 export interface CaughtUp {
   /** The wakes delivered, in the order they were. */
   readonly delivered: readonly DueWake[];
-  /** The wake whose part faulted, consumed, and its fault; null where none did. */
-  readonly faulted: { readonly wake: DueWake; readonly fault: Fault } | null;
-  /** The wakes catch-up would have delivered after it, still pending for live time. */
+  /** Each wake whose part faulted, consumed, with its fault, in the order they ran. */
+  readonly faulted: readonly { readonly wake: DueWake; readonly fault: Fault }[];
+  /** The wakes left pending for live time once the budget was spent, before they could run. */
   readonly abandoned: readonly DueWake[];
 }
 
@@ -53,6 +58,7 @@ export function maintenanceTurn(
     draws: new Draws(inputs.seed),
   };
   const delivered: DueWake[] = [];
+  const faulted: { wake: DueWake; fault: Fault }[] = [];
   let at = state;
   for (const [i, listed] of due.entries()) {
     // An earlier wake may have destroyed this one's object, or moved it out of the tree.
@@ -68,15 +74,14 @@ export function maintenanceTurn(
       continue;
     }
     at = consumeWake(at, 'maintenance', host, inputs, wake).state;
-    const after = at;
-    const abandoned = due
-      .slice(i + 1)
-      .filter((rest) => pendingWake(after, rest.object, rest.serial) !== null);
-    return committedOver(state, at, {
-      delivered,
-      faulted: { wake, fault: part.fault },
-      abandoned,
-    });
+    faulted.push({ wake, fault: part.fault });
+    if (shared.budget.exhausted !== null) {
+      const after = at;
+      const abandoned = due
+        .slice(i + 1)
+        .filter((rest) => pendingWake(after, rest.object, rest.serial) !== null);
+      return committedOver(state, at, { delivered, faulted, abandoned });
+    }
   }
-  return committedOver(state, at, { delivered, faulted: null, abandoned: [] });
+  return committedOver(state, at, { delivered, faulted, abandoned: [] });
 }

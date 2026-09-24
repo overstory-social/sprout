@@ -103,6 +103,40 @@ describe('sqlStore passes the conformance suite on PGlite', () => {
     ]);
   });
 
+  it('reads a stored microworld that lists what was blessed at publish, without the list', async () => {
+    const written = {
+      id: 'w',
+      archive: { files: [{ name: 'a.sprout', source: 'world w {}' }], manifest: null },
+      stamp: 's',
+      level: 1,
+      extensions: [],
+      caps: {
+        optionsPerEnum: 100,
+        rolesPerVerb: 8,
+        phrasesPerVerb: 8,
+        phraseCharacters: 80,
+        nounsPerObject: 8,
+        nounCharacters: 40,
+        exitsPerPlace: 8,
+        listElements: 16,
+        literalCharacters: 600,
+        places: null,
+        objects: null,
+        kinds: null,
+        files: null,
+        sourceBytes: null,
+      },
+      excepted: false,
+      loadedAt: new Date('2026-09-18T12:00:00Z'),
+    };
+    await store().transaction('w', (tx) => tx.putMicroworld(written));
+    await db.query(`UPDATE sprout.microworld SET record = record || $1::jsonb WHERE id = 'w'`, [
+      JSON.stringify({ blessed: ['a'.repeat(64)] }),
+    ]);
+    const read = await store().read('w', (tx) => tx.microworld());
+    expect(read).toEqual(written);
+  });
+
   it('a host-supplied client: the lock is transaction-scoped, and the host’s rollback takes core’s writes with it', async () => {
     await db.query('BEGIN');
     const bound = sqlStore({ client: db as unknown as Queryable });
