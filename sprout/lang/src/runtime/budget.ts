@@ -4,7 +4,7 @@
 // Exhausting any of them throws `BudgetExhausted`, which the turn
 // boundary turns into a fault: the transaction is abandoned, the world
 // is left exactly as it was, and whoever acted is told through the
-// world's `fault` passage. Deciding that is B34's; counting is this.
+// world's `fault` passage (`turn.ts`, `faults.ts`); counting is this.
 //
 // Two things this deliberately does not do. It holds no figure of its
 // own — every number comes from the `RuntimeBudgets` the host set. And
@@ -13,8 +13,8 @@
 // can prove the backstop fires without waiting for it.
 //
 // What is charged belongs to the code doing it: range walks are
-// `range.ts`'s, and parsing, `each` and the objects a set role binds
-// belong to B23, B27 and B34. What is here is the meter they all charge
+// `range.ts`'s, the objects a set role binds `reading.ts`'s, parsing
+// the parser's (B27), and `each` the item that brings it. What is here is the meter they all charge
 // against, so that none of them invents a second one.
 
 import type { RuntimeBudgetName, RuntimeBudgets } from '../bundle/limits.js';

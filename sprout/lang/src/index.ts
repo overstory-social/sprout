@@ -2,8 +2,8 @@
 // and what the compiler says about it, the syntax and its parser, the
 // declarations and their types, the checker, the closed bundle a
 // microworld compiles to, and the runtime's meter, values, range, ids,
-// state, stored and live, the evaluator a guard runs on, and the move
-// through consent. It imports zod and nothing else (boundary.spec.ts
+// state, stored and live, the evaluator a guard runs on, the move
+// through consent, the queue, and the turns they all run in. It imports zod and nothing else (boundary.spec.ts
 // holds that line), so a host plugs it in and the language never learns
 // whose world it is running in.
 
@@ -64,3 +64,7 @@ export * from './runtime/body.js';
 export * from './runtime/guards.js';
 export * from './runtime/move.js';
 export * from './runtime/reading.js';
+export * from './runtime/bus.js';
+export * from './runtime/faults.js';
+export * from './runtime/turn.js';
+export * from './runtime/command.js';

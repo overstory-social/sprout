@@ -78,14 +78,15 @@ export interface PermitRefusal {
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
-/** A line said in the effect pass, unrendered. */
+/** A line a turn says, unrendered. */
 export interface Said {
   /**
-   * What the line is: said by a body, or a `move` or an `act`'s reading
+   * What the line is: said by a body; a `move` or an `act`'s reading
    * refused, whose words are said to its actor as a refusal (the spec's
-   * Verbs › Moving something, Acting).
+   * Verbs › Moving something, Acting); or spoken by the engine, as a
+   * fault is (The runtime › Effects).
    */
-  readonly effect: 'said' | 'refused';
+  readonly effect: 'said' | 'refused' | 'notice';
   /** Who reads it: the actor, where a person acts; where an NPC acts, those who would hear its `tell`. */
   readonly to: readonly InstanceId[];
   /**
@@ -338,11 +339,14 @@ export function actingSink(
 }
 
 /**
- * The consent pass, then, where nobody refused, the effect pass. `depth`
- * is how many `act`s deep the reading runs: a typed command's is 0.
+ * The consent pass, then, where nobody refused, the effect pass, once
+ * each set role is checked against the host's cap on what one binds.
+ * `depth` is how many `act`s deep the reading runs: a typed command's is 0.
  */
 export function runReading(reading: Reading, context: ReadingContext, depth = 0): ReadingOutcome {
   const { draft, catalogue, budget, passes } = context;
+  for (const bound of reading.bindings.values())
+    if ('set' in bound) budget.setRole(bound.set.length);
   const refused = consentPass(reading, { state: draft, catalogue, budget, passes });
   return refused === null ? effectPass(reading, context, depth) : { refused };
 }

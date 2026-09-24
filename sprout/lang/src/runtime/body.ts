@@ -105,7 +105,7 @@ export interface ActSink {
  * A `set` or `remember` of a value its property cannot hold (the spec's
  * What the compiler checks: a fault at run time where the compiler could
  * not tell). Thrown, as `ListFull` is, because the turn cannot do what it
- * was asked; B34 turns it into the world's `fault` passage.
+ * was asked, and faults the turn (`faults.ts`).
  */
 export class ValueOutOfRange extends Error {
   constructor(

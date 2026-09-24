@@ -38,8 +38,8 @@ import { sameType, showType } from '../declare/types.js';
 /**
  * A full list was added to. Thrown, and not returned, for the reason
  * `BudgetExhausted` is: the turn cannot finish what it was asked to do,
- * and everything it has done is about to be rolled back. B34 turns it
- * into the world's `fault` passage.
+ * and everything it has done is about to be rolled back: it faults
+ * (`faults.ts`).
  */
 export class ListFull extends Error {
   constructor(
