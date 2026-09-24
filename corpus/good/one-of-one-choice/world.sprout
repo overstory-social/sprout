@@ -1,0 +1,12 @@
+// A `{one of}` with one choice is warned about, since it says the same
+// words every time, and it says them: petting the cat always purrs.
+world one_of_one_choice is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object cat is Cat
+  }
+}
+
+verb pet { role target  "pet [target]" }
