@@ -1,0 +1,5 @@
+// `prose` names its file in quotes.
+kind Mirror {
+  :mood Mood default drowsy
+  prose mirror
+}

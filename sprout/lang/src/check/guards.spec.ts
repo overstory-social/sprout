@@ -30,7 +30,8 @@ const CRATE: KindRef = (() => {
   const source = new SourceFile('p.sprout', 'full shut');
   const passage = (name: string, start: number): [string, ResolvedPassage] => {
     const at = source.span(start, start + name.length);
-    const body = { kind: 'passage-body' as const, at, text: '' };
+    const prose = { kind: 'prose' as const, at, pieces: [] };
+    const body = { kind: 'passage-body' as const, at, text: '', prose };
     return [name, { name, origin: 'shop.Vessel', yields: false, body, at }];
   };
   return { ...VESSEL, passages: new Map([passage('full', 0), passage('shut', 5)]) };

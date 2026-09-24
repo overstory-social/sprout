@@ -1,14 +1,16 @@
 // The first tier (the spec's The compiler › Two tiers): a single file
 // checked alone for its shape, which is what an editor runs on each
 // keystroke, and that check over every file in the closed bundle, the
-// world's own and every usable library's, since they compile together.
+// world's own and every usable library's, since they compile together;
+// a `.prose` file is read for its passages, whose kind is the bundle's
+// to say.
 // A file that does not compile refuses at publish; at load it reads as
 // absent, what it declared is not in the world, and what referred to it
 // keeps compiling. A kind in the wrong file is not a file that does not
 // compile: it refuses at publish and is warned about at load, and what
 // the file declares stands either way.
 
-import type { Declaration } from '../../syntax/ast.js';
+import type { Declaration, PassageDeclaration } from '../../syntax/ast.js';
 import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration } from '../../declare/enums.js';
@@ -17,15 +19,16 @@ import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';
 import { checkWorldDeclaration } from '../../declare/world.js';
-import { parseDeclarations } from '../../syntax/parse.js';
+import { parseDeclarations, parseProseFile } from '../../syntax/parse.js';
 import { DEFAULT_LIMITS, type StaticCaps } from '../limits.js';
 import type { SourceFile } from '../../source/source.js';
-import { FILE_GONE, isCode } from './files.js';
+import { FILE_GONE, isCode, isProse } from './files.js';
 import type { Report } from './report.js';
 
-/** What the first tier makes of one file. */
+/** What the first tier makes of one file: a `.sprout` file's declarations, a `.prose` file's passages. */
 export interface ShapeResult {
   readonly declarations: readonly Declaration[];
+  readonly passages: readonly PassageDeclaration[];
   readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -39,8 +42,8 @@ export interface ShapeResult {
  * that expresses them lands. The caps are the host's, as every limit is.
  */
 export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
-  const { declarations, diagnostics, layout } = readShape(file, caps);
-  return { declarations, diagnostics: [...diagnostics, ...layout] };
+  const { declarations, passages, diagnostics, layout } = readShape(file, caps);
+  return { declarations, passages, diagnostics: [...diagnostics, ...layout] };
 }
 
 /** One file's shape, with what is said of where its kinds are written kept apart. */
@@ -49,8 +52,12 @@ function readShape(
   caps?: StaticCaps,
 ): ShapeResult & { readonly layout: readonly Diagnostic[] } {
   const diagnostics = new Diagnostics();
-  if (!isCode(file)) return { declarations: [], diagnostics: [], layout: [] };
   const using = caps ?? DEFAULT_LIMITS.caps;
+  if (isProse(file)) {
+    const passages = parseProseFile(file, diagnostics, using);
+    return { declarations: [], passages, diagnostics: diagnostics.all, layout: [] };
+  }
+  if (!isCode(file)) return { declarations: [], passages: [], diagnostics: [], layout: [] };
   const declarations = parseDeclarations(file, diagnostics, using);
   for (const declared of declarations) {
     if (declared.kind === 'enum') {
@@ -81,7 +88,7 @@ function readShape(
   }
   const layout = new Diagnostics();
   checkKindFiles(file.name, declarations, layout);
-  return { declarations, diagnostics: diagnostics.all, layout: layout.all };
+  return { declarations, passages: [], diagnostics: diagnostics.all, layout: layout.all };
 }
 
 /** What the first tier makes of a whole bundle. */
@@ -92,6 +99,14 @@ export interface FirstTier {
   readonly byLibrary: ReadonlyMap<string, readonly Declaration[]>;
   /** Whether one of the world's own files was refused, which may be where something is declared. */
   readonly ownFileRefused: boolean;
+  /** Every `.prose` file that read, by its name, and the passages in it. */
+  readonly prose: ReadonlyMap<string, ProseRead>;
+}
+
+/** A `.prose` file that read, and the passages in it. */
+export interface ProseRead {
+  readonly file: SourceFile;
+  readonly passages: readonly PassageDeclaration[];
 }
 
 /**
@@ -111,6 +126,7 @@ export function readFirstTier(
   ];
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
+  const prose = new Map<string, ProseRead>();
   /** Whether one of the world's own files was refused by the first tier. */
   let ownFileRefused = false;
   for (const { library, file } of readable) {
@@ -119,6 +135,7 @@ export function readFirstTier(
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
     if (refused && library === namespace) ownFileRefused = true;
     if (!refused) {
+      if (isProse(file)) prose.set(file.name, { file, passages: shape.passages });
       declarations.push(...shape.declarations);
       byLibrary.set(library, [...(byLibrary.get(library) ?? []), ...shape.declarations]);
       report.diagnostics.add(...shape.diagnostics);
@@ -143,5 +160,5 @@ export function readFirstTier(
       );
     }
   }
-  return { declarations, byLibrary, ownFileRefused };
+  return { declarations, byLibrary, ownFileRefused, prose };
 }

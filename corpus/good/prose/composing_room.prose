@@ -1,0 +1,17 @@
+// The composing room's own words. `arrival` is said where someone peers
+// about, so `actor` is bound in it; `arrives` is the engine's, which says
+// it with `item`.
+passage arrival {
+  Lead and lamp oil. The composing frames take the long wall, and the
+  cabinet stands where the light is worst.
+
+  {if actor.recall(:visits) <= 1}
+  You have not stood in here before, and the room somehow knows it.
+  {/if}
+
+  {for thing in self}{if thing != actor}{thing}{if $last}.{else}, {/if}{/if}{/for}
+
+  {for rib: Rib in self}{rib.short}{if !$last}; {/if}{/for}
+}
+
+passage arrives { {item} comes in, and the frames rattle. }

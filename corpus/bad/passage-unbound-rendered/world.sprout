@@ -1,0 +1,9 @@
+world passage_unbound_rendered is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object crate is Crate
+  }
+}
+verb open { role target  "open [target]" }

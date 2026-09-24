@@ -28,8 +28,8 @@
 // `compileBundle` runs the steps in order, each a module of this folder
 // taking the report: the caps to check against and the libraries they
 // exempt, the manifest's own
-// fields, the files, the libraries, what the bundle weighs, the first tier over every file, the
-// one world, the declarations, what the world and its visitors are made
+// fields, the files, the libraries, what the bundle weighs, the first tier over every file,
+// the `.prose` files each kind points at, the one world, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
 // bodies every kind writes, and which of them destroy a declared object.
 
@@ -53,6 +53,8 @@ import { warnDestroyingDeclared } from './destroyed.js';
 import { warnUnsentAndUnhandled } from './events.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
+import { attachProse } from './prose.js';
+import { absenceRule } from '../absent.js';
 import { checkLibraries } from './libraries.js';
 import { checkManifest } from './manifest-fields.js';
 import { blessedToHonour, capsToCheck, type RecordedCaps } from './recorded.js';
@@ -114,11 +116,11 @@ export function compileBundle(
     options.compilerLevel ?? LANGUAGE_LEVEL,
     report,
   );
-  const { declarations, byLibrary, ownFileRefused } = readFirstTier(
-    arrived,
-    usable,
-    manifest.namespace,
-    caps,
+  const first = readFirstTier(arrived, usable, manifest.namespace, caps, report);
+  const { ownFileRefused } = first;
+  const { declarations, byLibrary, gone } = attachProse(
+    first.byLibrary,
+    { prose: first.prose, named: new Set(manifest.files) },
     report,
   );
   const theWorld = oneWorld(source, byLibrary, ownFileRefused, report);
@@ -147,7 +149,7 @@ export function compileBundle(
   // Every body, against the kind that wrote it: a kind's content once,
   // however many instances hold a copy.
   const names = new Map<Node, Named>();
-  checkBodies(
+  const optionSlots = checkBodies(
     [
       ...tables.kinds.all().map((kind) => ({
         kind,
@@ -172,6 +174,24 @@ export function compileBundle(
       source: { tree: tables.tree, contents: tables.contents },
       world,
       names,
+      absentPassage: (self, name, at) => {
+        if (![...self.composes].some((identity) => gone.has(identity))) return false;
+        // At publish the file's absence is the one refusal; at load each
+        // passage it held is a gap where it is said.
+        if (report.mode === 'publish') return true;
+        report.gap(
+          {
+            what: name,
+            kind: 'passage',
+            reason: 'missing',
+            at,
+            consequence: absenceRule('passage').consequence,
+          },
+          `\`${self.name}\` has no passage \`${name}\` while its \`.prose\` file is absent.`,
+          'Restore the file, or give the words here in quotes.',
+        );
+        return true;
+      },
     },
   );
   warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
@@ -227,6 +247,7 @@ export function compileBundle(
     verbs: tables.verbs,
     messages: tables.messages,
     names,
+    optionSlots,
     contents: tables.contents,
     world,
     visitor,

@@ -1,0 +1,4 @@
+lamp.prose:1:1  No kind points at "lamp.prose", so nothing says its passages.
+                Write `prose "lamp.prose"` in the kind whose words these are, or take the file out.
+
+ok: 3 declarations in 3 files, 1 warning

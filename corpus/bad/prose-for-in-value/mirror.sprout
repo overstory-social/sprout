@@ -1,0 +1,5 @@
+// A walk of contents over a number.
+kind Mirror {
+  :sheets 2 min 0 max 9
+  passage greeting { {for s in self.get(:sheets)}{s}{/for} }
+}

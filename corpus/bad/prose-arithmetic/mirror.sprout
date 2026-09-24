@@ -1,0 +1,5 @@
+// A passage does no arithmetic.
+kind Mirror {
+  :sheets 2 min 0 max 9
+  passage greeting { {self.get(:sheets) + 1} sheets. }
+}

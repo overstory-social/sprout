@@ -684,3 +684,17 @@ describe('what the parser says about the passages the lexer hands it', () => {
     }
   });
 });
+
+describe('a parser over one stretch of a file', () => {
+  it('reads that stretch alone, and is done at its end', () => {
+    const source = new SourceFile('lines.prose', 'The press is {self.get(:mood)} today.');
+    const p = new Parser(source, new Diagnostics(), DECLARATION_READERS, undefined, {
+      start: 14,
+      end: 29,
+    });
+    expect(p.next().text).toBe('self');
+    for (let i = 0; i < 5; i++) p.next();
+    expect(p.done).toBe(true);
+    expect(p.peek().at.start).toBe(29);
+  });
+});

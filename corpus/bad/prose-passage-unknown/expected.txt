@@ -1,0 +1,4 @@
+mirror.sprout:4:28  `Mirror` has no passage `gretting`. Did you mean `greeting`?
+                    Write `passage gretting { … }` in `Mirror`, or render one it has: `greeting` and `shine`.
+
+refused: 1 problem

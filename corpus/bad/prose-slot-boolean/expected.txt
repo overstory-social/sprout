@@ -1,0 +1,4 @@
+mirror.sprout:4:41  This slot is true or false, and a passage says what that means in words.
+                    Write an `{if}`: `{if <condition>}…{else}…{/if}`.
+
+refused: 1 problem

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Manifest, MicroworldSource } from '../bundle.js';
 import { locationOf, SourceFile } from '../../source/source.js';
-import { checkFiles, FILE_GONE, isCode } from './files.js';
+import { checkFiles, FILE_GONE, isCode, isProse } from './files.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import { file, refusals, WORLD_TEXT, world, worldFiles } from '../../fixtures/compile.js';
@@ -41,9 +41,11 @@ describe('a world’s files are the ones its manifest names', () => {
     ).toEqual({ withheld: [], said: [], absent: [] });
   });
 
-  it('reads only a `.sprout` file as code', () => {
+  it('reads only a `.sprout` file as code, and only a `.prose` file as prose', () => {
     expect(isCode(new SourceFile('world.sprout', ''))).toBe(true);
     expect(isCode(new SourceFile('rooms.prose', ''))).toBe(false);
+    expect(isProse(new SourceFile('rooms.prose', ''))).toBe(true);
+    expect(isProse(new SourceFile('world.sprout', ''))).toBe(false);
   });
 
   it('refuses a name that is not a world’s file, and one named twice', () => {
@@ -119,7 +121,7 @@ describe('the manifest enumerates the world’s own files', () => {
   });
 
   it('takes a .prose file as readily as a .sprout one', () => {
-    const files = [...worldFiles(WORLD_TEXT), file('kiln.prose', 'Warm brick.')];
+    const files = [...worldFiles(WORLD_TEXT), file('kiln.prose', 'passage warmth { Warm brick. }')];
     expect(compileBundle(world({ files })).bundle).not.toBeNull();
   });
 

@@ -21,6 +21,7 @@
 import type { Absent } from './absent.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
+import type { Node } from '../source/nodes.js';
 import type { Declaration } from '../syntax/ast.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { KindContents } from '../declare/contents.js';
@@ -193,6 +194,12 @@ export interface Bundle {
    * written, as the checker resolved it from where the body is written.
    */
   readonly names: NameTable;
+  /**
+   * Every slot of prose that renders an enum's option, by the slot as
+   * written: an option renders humanised, `bone_dry` as "bone dry", where
+   * a string renders as written, and at run time both are text.
+   */
+  readonly optionSlots: ReadonlySet<Node>;
   /**
    * What each kind's body gives every instance of it, by the kind's
    * qualified name: what a spawn makes with the instance, and what a

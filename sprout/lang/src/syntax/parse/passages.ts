@@ -2,9 +2,8 @@
 // {target}. }`, as a kind, an object or the world writes one (the spec's
 // Prose › Passages; Kinds › How members combine for `default`).
 //
-// The lexer hands the body over as one `passage-body` token, so nothing
-// here reads prose: this reads the header and carries the body whole.
-// A header that cannot be read costs its own passage and nothing after
+// The lexer hands the body over as one `passage-body` token: this reads
+// the header, and `prose.ts` what the body says. A header that cannot be read costs its own passage and nothing after
 // it. The lexer opens a body only after a header whose words all stand
 // on the line of its `passage`, so what is taken with a broken header is
 // the body written for it, and a header left without braces never takes
@@ -16,6 +15,7 @@ import type { Node } from '../../source/nodes.js';
 import { spanning, type Span } from '../../source/source.js';
 import type { Parser } from './parser.js';
 import type { MemberReaders } from './bodies.js';
+import { readProse } from './prose.js';
 
 /** A header's shape, for a remedy to show. */
 const written = (name: string, yields = false): string =>
@@ -98,12 +98,18 @@ export function passage<M>(p: Parser, readers: MemberReaders<M>): PassageDeclara
   }
 
   take();
+  // A body never closed took the rest of the file, which has been said,
+  // and what it holds is not read as its words.
+  const start = body.at.start + 1;
+  const prose = p.swallowedRest
+    ? { kind: 'prose' as const, at: p.source.span(start, start), pieces: [] }
+    : readProse(p, start, start + body.text.length);
   return {
     kind: 'passage',
     at: spanning(keyword.at, body.at),
     name: p.ident(first),
     yields,
-    body: { kind: 'passage-body', at: body.at, text: body.text },
+    body: { kind: 'passage-body', at: body.at, text: body.text, prose },
   };
 }
 

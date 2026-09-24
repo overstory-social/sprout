@@ -20,10 +20,54 @@ import {
   worldFiles,
   worldLine,
 } from '../../fixtures/compile.js';
-import { locationOf } from '../../source/source.js';
+import { locationOf, textOf } from '../../source/source.js';
 
 describe('what a compiled bundle carries', () => {
   const { bundle } = compileBundle(world());
+
+  it('holds each slot of prose that renders an option, wherever the slot is written', () => {
+    const files = [
+      file(
+        'world.sprout',
+        worldLine(
+          'passage season { {self.get(:season)} and {self.get(:note)}. } :season Season default autumn :note "x"',
+        ),
+      ),
+      ...worldFiles(WORLD_TEXT).slice(1),
+    ];
+    const withEnum = files.map((one) =>
+      one.name === 'world.sprout'
+        ? file('world.sprout', `${one.text}\nenum Season { spring, summer, autumn, winter }`)
+        : one,
+    );
+    const compiled = compileBundle(world({ files: withEnum }));
+    expect(refusals(compiled.diagnostics)).toEqual([]);
+    expect([...compiled.bundle!.optionSlots].map((slot) => textOf(slot.at))).toEqual([
+      '{self.get(:season)}',
+    ]);
+  });
+
+  it('reads a passage its kind lacks at load as a gap where its `.prose` file is gone, and refuses it at publish once', () => {
+    const files = [
+      file('world.sprout', `${WORLD_LINE}\nverb peer { role target  "peer at [target]" }`),
+      ...worldFiles(WORLD_TEXT).slice(1),
+      file(
+        'mirror.sprout',
+        'kind Mirror {\n  prose "mirror.prose"\n  as target for peer { do { say greeting } }\n}\n',
+      ),
+      file('mirror.prose', 'passage greeting { Hi. }\n'),
+    ];
+    const load = compileBundle(world({ files, withheld: ['mirror.prose'] }), { mode: 'load' });
+    expect(refusals(load.diagnostics)).toEqual([]);
+    expect(load.bundle!.absent.map((gap) => [gap.what, gap.kind])).toEqual([
+      ['mirror.prose', 'file'],
+      ['greeting', 'passage'],
+    ]);
+    const publish = compileBundle(world({ files, withheld: ['mirror.prose'] }));
+    expect(refusals(publish.diagnostics).map((d) => d.message)).toEqual([
+      'The file "mirror.prose" is being withheld.',
+    ]);
+  });
 
   it('records the caps it was checked against, for a host that loads it later to decide', () => {
     const limits = limitsFrom({ caps: { optionsPerEnum: 12, places: 40 } });

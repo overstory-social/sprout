@@ -1,0 +1,6 @@
+// A line in quotes longer than the host lets a `say` be.
+kind Lever {
+  as target for pull {
+    do { say "The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives. The lever gives." }
+  }
+}

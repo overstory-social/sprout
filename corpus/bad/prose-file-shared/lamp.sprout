@@ -1,0 +1,4 @@
+// The second kind to point at the mirror's file.
+kind Lamp {
+  prose "mirror.prose"
+}

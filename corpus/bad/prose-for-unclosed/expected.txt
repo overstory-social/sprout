@@ -1,0 +1,4 @@
+mirror.sprout:5:22  This `{for}` is never closed.
+                    Add `{/for}` where the words it repeats end.
+
+refused: 1 problem

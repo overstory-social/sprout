@@ -5,8 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { letBinding, valueOf } from './bindings.js';
-import { checkCondition, isEffect, narrowingOf, type CheckContext } from './check.js';
+import { letBinding, objectOf, valueOf } from './bindings.js';
+import { branchScope, checkCondition, isEffect, narrowingOf, type CheckContext } from './check.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseExpression } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
@@ -16,6 +16,7 @@ import {
   bodyOf,
   effect,
   effectSaid,
+  expression,
   KEY,
   PRINTER,
   read,
@@ -207,5 +208,14 @@ describe('it never guesses, and never dies', () => {
         expect(locationOf(refusal.at), text).toMatch(/^b\.sprout:\d+:\d+$/);
       }
     }
+  });
+});
+
+describe('a condition opens the branch it guards', () => {
+  it('narrows a thing with `is()`, binds a tool with `bound`, and otherwise leaves the scope as it was', () => {
+    const context = vessel();
+    const narrowed = branchScope(expression('target.is(Vessel)'), context);
+    expect(narrowed.lookup('target')!.type).toEqual(objectOf(VESSEL));
+    expect(branchScope(expression('self.count > 1'), context)).toBe(context.scope);
   });
 });

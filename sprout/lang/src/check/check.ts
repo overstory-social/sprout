@@ -33,8 +33,10 @@ import {
   isObjectBinding,
   showBindingType,
   valueOf,
+  type Binding,
   type BindingType,
   type ObjectBinding,
+  type Scope,
 } from './bindings.js';
 import type { KindRef } from '../declare/kinds.js';
 import { resolveKind } from './check/arguments.js';
@@ -124,6 +126,21 @@ export function narrowingOf(
   if (written.kind !== 'kind-expr') return null;
   const kind = resolveKind(written, context);
   return kind === null ? null : { binding, kind };
+}
+
+/** The scope a condition, checked already, opens for the branch it guards: `x.is(K)` narrows, `bound tool` binds. */
+export function branchScope(condition: Expr, context: CheckContext): Scope {
+  const narrowing = narrowingOf(condition, context);
+  if (narrowing !== null) return context.scope.narrowing(narrowing.binding, narrowing.kind);
+  const bound = boundOf(condition, context);
+  return bound === null ? context.scope : context.scope.bounding(bound);
+}
+
+/** `bound tool` written as a whole condition: the binding `tool` has in the branch it guards. */
+function boundOf(condition: Expr, context: CheckContext): Binding | null {
+  if (condition.kind !== 'bound') return null;
+  const withheld = context.scope.withheld(condition.name.text);
+  return withheld !== null && withheld.bound.bindable ? withheld.bound.binding : null;
 }
 
 /** Whether an expression is a call to one of the four that write or the one that remembers. */

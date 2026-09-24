@@ -21,6 +21,7 @@ import type { Placement, TreePath } from '../declare/tree.js';
 import type { VerbLookup } from '../declare/verbs.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
+import type { Node } from '../source/nodes.js';
 import { declaredId, type InstanceId } from './ids.js';
 
 /** One object the tree places. */
@@ -64,6 +65,8 @@ export interface Catalogue {
   readonly messages: MessageLookup;
   /** What each identifier and path a body writes names. */
   readonly names: NameTable;
+  /** Every slot of prose that renders an enum's option, which renders humanised. */
+  readonly optionSlots: ReadonlySet<Node>;
   /** Where visitors arrive, or null for a world that admits no one. */
   readonly arrival: InstanceId | null;
   /**
@@ -107,6 +110,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     verbs: bundle.verbs,
     messages: bundle.messages,
     names: bundle.names,
+    optionSlots: bundle.optionSlots,
     arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
     caps,
   };

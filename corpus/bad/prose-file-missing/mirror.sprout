@@ -1,0 +1,5 @@
+// A kind points at a `.prose` file the world does not have.
+kind Mirror {
+  :mood Mood default drowsy
+  prose "mirorr.prose"
+}

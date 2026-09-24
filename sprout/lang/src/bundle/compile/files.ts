@@ -14,9 +14,14 @@ import { refuseRepeats, type Report } from './report.js';
 /** What a world runs without when one of its own files is not there. */
 export const FILE_GONE = 'everything it declared reads as absent, and its objects keep their state';
 
-/** Whether a file is code. A `.prose` file is read by B29's rules, not by these. */
+/** Whether a file is code, read for its declarations. */
 export function isCode(file: SourceFile): boolean {
   return file.name.endsWith('.sprout');
+}
+
+/** Whether a file is prose, read for its passages (the spec's Prose › Passages). */
+export function isProse(file: SourceFile): boolean {
+  return file.name.endsWith('.prose');
 }
 
 /** A world's own files are its `.sprout` files and the `.prose` files they point at. */

@@ -16,9 +16,9 @@
 // `nothing_happens`, and an NPC's reading is not. An `act` in a `do` runs
 // its own reading there, one deeper against the cascade depth, and what
 // that says, refusal included, joins this one's. What the effect pass
-// says and sends is kept in body order. Nothing is rendered: B29 renders
-// what is said, B30 brings `tell`, `bus.ts` drains the queue after, and B37 polls
-// the consent pass alone.
+// says and sends is kept in body order. Nothing is rendered here:
+// `prose/` renders what is said for each reader, B30 brings `tell`,
+// `bus.ts` drains the queue after, and B37 polls the consent pass alone.
 
 import { isActor } from '../declare/actors.js';
 import { libraryOf } from '../declare/enums.js';
@@ -110,7 +110,7 @@ export interface Acted {
   readonly said: readonly Said[];
   /** What each spawn and move tells the world, and what each `send` and `broadcast` queued, in body order. */
   readonly sends: readonly Sent[];
-  /** What the places speak of each move an actor made between two, for B29 to render. */
+  /** What the places speak of each move an actor made between two, for `prose/` to render. */
   readonly notices: readonly Notice[];
   /** What destroyed itself, and everything it held; the queue drops everything pending on each. */
   readonly destroyed: readonly InstanceId[];

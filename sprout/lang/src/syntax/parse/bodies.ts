@@ -30,6 +30,7 @@ import { guard, isGuardName } from './guards.js';
 import { handler, hook } from './handlers.js';
 import { passRule } from './passes.js';
 import { isPassage, passage } from './passages.js';
+import { proseFile } from './prose-file.js';
 import { property } from './properties.js';
 import { rememberedAsList, remembers } from './remembers.js';
 import { stepPast } from './recovery.js';
@@ -65,6 +66,7 @@ export function kindMembers(
   addRemembers(p, readers);
   readers.set('contains', () => contains(p));
   readers.set('passage', () => passage(p, readers));
+  readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);

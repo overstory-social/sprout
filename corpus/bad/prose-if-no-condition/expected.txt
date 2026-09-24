@@ -1,0 +1,4 @@
+mirror.sprout:4:22  `{if}` needs a condition.
+                    Write one after it, with no brackets, as in `{if self.get(:open)}`.
+
+refused: 1 problem

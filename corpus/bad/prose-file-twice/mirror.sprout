@@ -1,0 +1,6 @@
+// A kind points at two `.prose` files.
+kind Mirror {
+  :mood Mood default drowsy
+  prose "mirror.prose"
+  prose "glass.prose"
+}

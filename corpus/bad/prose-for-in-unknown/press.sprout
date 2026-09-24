@@ -1,0 +1,6 @@
+// A walk of contents through a role of no kind.
+kind Press {
+  as target for work {
+    do { say "{for t in tool}{t}{/for}" }
+  }
+}

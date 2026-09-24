@@ -125,12 +125,26 @@ describe('the first tier reads one file alone, for its shape', () => {
     ).toEqual([]);
   });
 
-  it('leaves a .prose file to B29 rather than reading it as code', () => {
-    const { declarations, diagnostics } = checkShape(
-      file('mirror.prose', 'You see yourself, and % is not a problem here.'),
+  it('reads a .prose file for its passages, whose words are not code', () => {
+    const { declarations, passages, diagnostics } = checkShape(
+      file(
+        'mirror.prose',
+        'passage glass {\n  You see yourself, and % is not a problem here.\n}\n',
+      ),
     );
     expect(diagnostics).toEqual([]);
     expect(declarations).toEqual([]);
+    expect(passages.map((one) => one.name.text)).toEqual(['glass']);
+  });
+
+  it('refuses what a .prose file holds besides passages, and reads the passages after it', () => {
+    const { passages, diagnostics } = checkShape(
+      file('mirror.prose', ':mood 0\npassage glass { Cold. }\n'),
+    );
+    expect(diagnostics.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['mirror.prose:1:1', 'A `.prose` file holds passages, and nothing else.'],
+    ]);
+    expect(passages.map((one) => one.name.text)).toEqual(['glass']);
   });
 });
 

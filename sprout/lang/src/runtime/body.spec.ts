@@ -5,6 +5,9 @@ import { playsOf } from '../declare/roles.js';
 import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import type { Block } from '../syntax/ast.js';
+import { parseStatement } from '../syntax/parse.js';
+import { Diagnostics } from '../source/diagnostics.js';
+import { SourceFile } from '../source/source.js';
 import type { Performed } from './act.js';
 import { runBody, ValueOutOfRange, type ActSink, type Proposed, type Spoken } from './body.js';
 import { Budget } from './budget.js';
@@ -218,7 +221,9 @@ const wards = (turn: Turn) => (property(turn, COUNTER, 'wards') as SproutList).e
 const words = (spoken: Spoken) =>
   'text' in spoken.said
     ? spoken.said.text
-    : `${spoken.said.passage.origin} ${spoken.said.passage.name}: ${spoken.said.passage.body.text.trim()}`;
+    : 'absent' in spoken.said
+      ? `absent ${spoken.said.absent}`
+      : `${spoken.said.passage.origin} ${spoken.said.passage.name}: ${spoken.said.passage.body.text.trim()}`;
 
 describe('what a `do` writes', () => {
   it('`set` writes `self` through the draft, and a later read in the turn sees it', () => {
@@ -427,7 +432,28 @@ describe('the two modes', () => {
     expect(decide()).toBe('allow');
     // 1, then 3, 5 and 7.
     for (let times = 0; times < 3; times++) act(one, COUNTER, 'fill');
-    expect(decide()).toEqual({ refused: { text: 'Too full.' } });
+    expect(decide()).toMatchObject({ refused: { text: 'Too full.' } });
+    // Words in quotes are a one-line passage, carried with the library
+    // whose body said them, where a kind in their slots is read from.
+    const refusal = decide();
+    if (typeof refusal === 'string' || !('prose' in refusal.refused)) {
+      return expect.unreachable('the `permit` refused with words in quotes');
+    }
+    expect(refusal.refused.library).toBe('shop');
+    expect(refusal.refused.prose.pieces).toMatchObject([
+      { kind: 'prose-words', text: 'Too full.' },
+    ]);
+  });
+
+  it('says a passage its kind lacks, whose `.prose` file the world was loaded without, as absent', () => {
+    const one = turn();
+    const diagnostics = new Diagnostics();
+    const said = parseStatement(new SourceFile('b.sprout', 'say gone'), diagnostics)!;
+    const block: Block = { kind: 'block', at: said.at, statements: [said] };
+    const heard: Spoken[] = [];
+    const sink = { say: (spoken: Spoken) => heard.push(spoken) } as unknown as ActSink;
+    runBody(block, frameOf(one, COUNTER, new Budget(DEFAULT_LIMITS.budgets)), 'act', sink);
+    expect(heard.map((spoken) => spoken.said)).toEqual([{ absent: 'gone' }]);
   });
 
   it('throws an engine error, not a fault, for an effect in a body that decides', () => {

@@ -1,0 +1,4 @@
+// A `.prose` file holds passages and nothing else.
+:mood 1
+
+passage greeting { The glass is cold. }
