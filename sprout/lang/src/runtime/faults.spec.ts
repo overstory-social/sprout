@@ -6,7 +6,7 @@ import { ActFault } from './act.js';
 import { ValueOutOfRange } from './body.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow } from './evaluate.js';
-import { faultOf, faultTold, worldSpeech } from './faults.js';
+import { faultOf, faultTold, stockFaultEffect, worldSpeech } from './faults.js';
 import { LifecycleFault } from './lifecycle.js';
 import { ListFull } from './lists.js';
 import { MoveFault } from './move.js';
@@ -126,5 +126,18 @@ describe('the world’s words for a fault', () => {
       text: 'Something in this world has gone wrong, and nothing has changed.',
     });
     expect([...told.bindings.keys()]).toEqual(['actor']);
+  });
+
+  it('are the stock line as an effect, made without rendering, where the world’s cannot be rendered', () => {
+    const state = belfry();
+    const marta = actorOf(state, MARTA);
+    expect(stockFaultEffect(readerOf(state), marta, MARTA)).toEqual({
+      kind: 'notice',
+      from: state.world,
+      actor: marta,
+      to: marta,
+      visit: MARTA,
+      paragraphs: ['Something in this world has gone wrong, and nothing has changed.'],
+    });
   });
 });

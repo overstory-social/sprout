@@ -71,6 +71,14 @@ describe('a visitor going away', () => {
     expect(done.notices).toEqual([
       expect.objectContaining({ notice: 'leaves', place: QUAY, audience: [ines] }),
     ]);
+    // As effects: the words to the one leaving, then the place's to whoever stays.
+    const turn = departureTurn(state, harbourHost(), departing(MARTA));
+    if (!turn.committed) throw new Error('faulted');
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit, one.paragraphs])).toEqual([
+      ['notice', WORLD, MARTA, [GONE_AWAY]],
+      ['notice', QUAY, INES, ['Marta leaves.']],
+    ]);
+    expect(turn.effects.every((one) => one.actor === done.instance)).toBe(true);
   });
 
   it('from a place that is gone sends nothing and still goes', () => {
@@ -94,6 +102,9 @@ describe('a visitor going away', () => {
     expect(quietly.value.drained).toBeNull();
     expect(heldIn(quietly.state, QUAY, 'departures')).toBe(0);
     expect(words(quietly.value.told.said)).toBe(GONE_AWAY);
+    expect(quietly.effects.map((one) => [one.kind, one.visit, one.paragraphs])).toEqual([
+      ['notice', MARTA, [GONE_AWAY]],
+    ]);
   });
 });
 

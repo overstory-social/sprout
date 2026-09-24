@@ -16,10 +16,12 @@ import {
   heldIn,
   INES,
   MARTA,
+  MUFFLED,
   parseBelfry,
   STONE,
   toldBy,
   typed,
+  WORLD,
 } from '../fixtures/turns.js';
 import { NOTHING, words } from '../fixtures/reading.js';
 import {
@@ -119,6 +121,58 @@ describe('a command turn runs in a fixed order', () => {
   });
 });
 
+describe('what a command turn says is one sequence of effects', () => {
+  const effectsOf = (turn: CommandTurn) =>
+    turn.effects.map((one) => [one.kind, one.from, one.visit, one.paragraphs.join(' ')]);
+
+  it('the effect pass’s lines, then the queue’s, each rendered for each of its readers', () => {
+    const state = belfry([MARTA, INES]);
+    const marta = actorOf(state, MARTA);
+    const turn = committed(run(state, 'ring bell'));
+    expect(effectsOf(turn)).toEqual([
+      ['said', marta, MARTA, 'You pull the rope.'],
+      ['said', BELL, MARTA, 'The bell sounds.'],
+      // The dog's reading, once the queue drained, heard by everyone in the hall.
+      ['said', DOG, MARTA, 'A dog says "The dog sniffs at the bell."'],
+      ['said', DOG, INES, 'A dog says "The dog sniffs at the bell."'],
+    ]);
+    expect(turn.effects.every((one) => one.actor === marta)).toBe(true);
+    expect(turn.effects.map((one) => one.to)).toEqual([marta, marta, marta, actorOf(state, INES)]);
+  });
+
+  it('the consent pass’s refusal alone, from the one that refused, to the actor', () => {
+    const turn = committed(run(belfry([MARTA, INES]), 'ring muffled'));
+    expect(effectsOf(turn)).toEqual([['refused', MUFFLED, MARTA, 'The bell is wrapped in felt.']]);
+  });
+
+  it('the parser’s answer alone, from the world', () => {
+    const turn = committed(run(belfry(), 'xyzzy'));
+    expect(effectsOf(turn)).toEqual([
+      ['notice', WORLD, MARTA, 'That is not something you can do here.'],
+    ]);
+  });
+
+  it('`nothing_happens`, from the world, where nothing was said to the actor', () => {
+    const turn = committed(run(belfry(), 'tap stone'));
+    expect(effectsOf(turn)).toEqual([['said', WORLD, MARTA, 'Nothing much comes of that.']]);
+  });
+
+  it('what a line draws, drawn after every draw the turn’s bodies made', () => {
+    const faces = new Set<string>();
+    for (let seed = 0; seed < 30; seed++) {
+      const turn = committed(commandTurn(belfry(), belfryHost(), typed(MARTA, 'flip coin', seed)));
+      // The coin draws its face and its luck, then the line its words.
+      const stream = new Draws(seed);
+      stream.below(6);
+      stream.below(2);
+      const face = ['It spins.', 'It rings.', 'It rolls away.'][stream.below(3)]!;
+      faces.add(face);
+      expect(effectsOf(turn), String(seed)).toEqual([['said', COIN, MARTA, face]]);
+    }
+    expect(faces.size).toBe(3);
+  });
+});
+
 describe('a command turn that faults', () => {
   it('abandons every write, the actor’s and a spawn included, and tells the actor', () => {
     const state = belfry();
@@ -143,6 +197,43 @@ describe('a command turn that faults', () => {
     expect(turn.fault).toMatchObject({ name: 'BudgetExhausted', engine: false });
     expect(turn.fault.detail).toContain('cascade');
     expect(heldIn(state, DRUM, 'beats')).toBe(0);
+  });
+
+  it('tells the actor alone, in the world’s `fault`, as the one effect', () => {
+    const state = belfry([MARTA, INES]);
+    const turn = faulted(run(state, 'strike gong'));
+    expect(turn.effects).toEqual([
+      {
+        kind: 'notice',
+        from: WORLD,
+        actor: actorOf(state, MARTA),
+        to: actorOf(state, MARTA),
+        visit: MARTA,
+        paragraphs: ['Something in this world has gone wrong, and nothing has changed.'],
+      },
+    ]);
+  });
+
+  it('faults where one reader would read more than the host allows, and still tells the actor', () => {
+    const tight = { ...DEFAULT_LIMITS.budgets, output: 70 };
+    const long = faulted(run(belfry(), 'ring bell', tight));
+    expect(long.fault.name).toBe('BudgetExhausted');
+    expect(long.fault.detail).toMatch(/^output:/);
+    expect(long.effects.map((one) => one.paragraphs)).toEqual([
+      ['Something in this world has gone wrong, and nothing has changed.'],
+    ]);
+  });
+
+  it('tells the stock line where even the world’s `fault` is more than the host allows', () => {
+    const turn = faulted(run(belfry(), 'ring bell', { ...DEFAULT_LIMITS.budgets, output: 5 }));
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit, one.paragraphs])).toEqual([
+      [
+        'notice',
+        WORLD,
+        MARTA,
+        ['Something in this world has gone wrong, and nothing has changed.'],
+      ],
+    ]);
   });
 
   it('charges parsing to the turn’s steps, so a command too costly to read faults', () => {
@@ -198,6 +289,12 @@ describe('a command from someone whose place is gone', () => {
     ]);
     expect(turn.state.instances.get(actorOf(state, MARTA))!.container).toBe(HALL);
     expect(heldIn(turn.state, BELL, 'struck')).toBe(false);
+    // Told they were displaced, then reading the place they came in to.
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit])).toEqual([
+      ['notice', WORLD, MARTA],
+      ['described', HALL, MARTA],
+    ]);
+    expect(turn.effects[0]!.paragraphs).toEqual(['The place you were standing is gone.']);
   });
 });
 
@@ -213,6 +310,8 @@ describe('no command turn ends with nothing said to the one who typed it', () =>
   ];
   const budgets: RuntimeBudgets[] = [
     DEFAULT_LIMITS.budgets,
+    { ...DEFAULT_LIMITS.budgets, output: 5 },
+    { ...DEFAULT_LIMITS.budgets, output: 40 },
     { ...DEFAULT_LIMITS.budgets, steps: 12 },
     { ...DEFAULT_LIMITS.budgets, events: 1 },
     { ...DEFAULT_LIMITS.budgets, cascadeDepth: 1 },
@@ -228,6 +327,10 @@ describe('no command turn ends with nothing said to the one who typed it', () =>
         expect(
           lines.some((line) => line.to.includes(marta)),
           `\`${text}\` said nothing to its actor`,
+        ).toBe(true);
+        expect(
+          turn.effects.some((one) => one.visit === MARTA && one.paragraphs.length > 0),
+          `\`${text}\` gave its actor no effect`,
         ).toBe(true);
       }
     }
@@ -405,6 +508,11 @@ describe('`go`, through a command turn', () => {
       ['leaves', YARD, []],
       ['arrives', MOUTH, [actorOf(state, INES_WAYS)]],
       ['described', MOUTH, [marta(state)]],
+    ]);
+    // Nobody is in the yard to read it leave; Ines reads it arrive, and the one who went reads where.
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit])).toEqual([
+      ['notice', MOUTH, INES_WAYS],
+      ['described', MOUTH, MARTA_WAYS],
     ]);
   });
 

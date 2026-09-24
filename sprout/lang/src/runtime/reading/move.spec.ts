@@ -115,6 +115,18 @@ describe('a `move` in a `do`', () => {
     expect(lines(done)).toEqual([[YARD_ID, NOTHING]]);
   });
 
+  it('says what the places speak of an actor moved between them where the move is made, in body order', () => {
+    const one = turn(DEPOT, [at('yard'), at('yard')]);
+    const [visitor, other] = one.people;
+    const done = run(one, 'board', visitor!, { target: { object: CART! } });
+    expect(done.said.map((line) => [line.effect, line.by, line.to, words(line.said)])).toEqual([
+      ['notice', at('yard'), [other], 'sprout.Place leaves: {item} leaves.'],
+      ['notice', CART, [other], 'sprout.Place arrives: {item} arrives.'],
+      ['said', YARD_ID, [visitor], NOTHING],
+    ]);
+    expect([...done.said[0]!.bindings]).toEqual([['item', boundObject(visitor!)]]);
+  });
+
   it('says a guard’s refusal to the actor, from the refusing party, and ends the body there', () => {
     const one = turn(DEPOT, [at('yard')]);
     const [visitor] = one.people;
