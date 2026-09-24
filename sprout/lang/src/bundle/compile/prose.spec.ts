@@ -62,9 +62,7 @@ function membersOf(declared: readonly Declaration[], name: string): string[] {
     members: readonly (KindMember | WorldMember)[];
     objects: readonly Holder[];
   };
-  const holders = declared.flatMap((d) =>
-    d.kind === 'kind' || d.kind === 'world' ? [d as unknown as Holder] : [],
-  );
+  const holders = declared.flatMap((d) => (d.kind === 'kind' || d.kind === 'world' ? [d] : []));
   const find = (among: readonly Holder[]): Holder | undefined => {
     for (const holder of among) {
       if (holder.name.text === name) return holder;
