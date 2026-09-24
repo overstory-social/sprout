@@ -3,7 +3,8 @@
 // as a line of its own, its paragraphs in order, and one that renders
 // nothing leaves no paragraph behind; where every line renders nothing,
 // the world's `unremarkable` is read in their place, so looking at a thing
-// never reads as silence. A write turn renders with its line draws and a
+// never reads as silence. Someone other than the actor whose output is cut
+// short this turn reads none of it (`output.ts`). A write turn renders with its line draws and a
 // poll with none, and a describe draws nothing either way.
 
 import type { Description } from '../runtime/describe.js';

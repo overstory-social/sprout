@@ -7,10 +7,10 @@
 // (`effects.ts`), and who now holds a stale view, or faults: the draft is
 // dropped, and the world is exactly as it was. Every draw it makes comes
 // from one stream begun from its seed, and its words are rendered inside
-// it, so a line too long for its reader faults the turn as any budget
-// spent does. A poll reads the committed state itself, under the poll's
-// own step budget; it can write nothing, draws no seed, and one that
-// faults yields the world's `unseen`.
+// it, so a line too long for the turn's actor faults the turn as any
+// budget spent does, and anyone else is cut short. A poll reads the
+// committed state itself, under the poll's own step budget; it can write
+// nothing, draws no seed, and one that faults yields the world's `unseen`.
 //
 // This is the frame, and it holds no store: serializing a world's write
 // turns under its lock, and writing a committed change set in the

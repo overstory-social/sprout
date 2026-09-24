@@ -4,11 +4,13 @@
 // "you" to them and their name to everyone else. A line an NPC says is
 // heard as the NPC speaking, in the engine's fixed words, _the cat says
 // "Miaow."_, and what it renders is charged to each reader's output, so a
-// crowded room costs the host and never the one acting.
+// crowded room costs the host and never the one acting: a reader other
+// than the actor whom it would take past theirs is left out (`output.ts`).
 
 import type { InstanceId } from '../runtime/ids.js';
 import type { Said } from '../runtime/reading.js';
 import { objectWords } from './names.js';
+import { charged } from './output.js';
 import { capitalise } from './reflow.js';
 import type { RenderContext } from './render.js';
 import { renderFor } from './speech.js';
@@ -28,11 +30,12 @@ export function renderHeard(said: Said, context: RenderContext): Heard[] {
   for (const reader of said.to) {
     const paragraphs = renderFor(said, reader, context);
     if (paragraphs.length === 0) continue;
-    heard.push({
-      reader,
-      paragraphs:
-        said.speaker === null ? paragraphs : [framed(said.speaker, paragraphs, reader, context)],
-    });
+    if (said.speaker === null) {
+      heard.push({ reader, paragraphs });
+      continue;
+    }
+    const line = framed(said.speaker, paragraphs, reader, context);
+    if (line !== null) heard.push({ reader, paragraphs: [line] });
   }
   return heard;
 }
@@ -40,16 +43,15 @@ export function renderHeard(said: Said, context: RenderContext): Heard[] {
 /**
  * An NPC's line as its hearers read it: the NPC, named for the reader,
  * saying the paragraphs as one quotation. Only the frame's own words are
- * charged here; the line's were charged as it rendered.
+ * charged here, and null where they do not fit someone other than the actor.
  */
 function framed(
   speaker: InstanceId,
   paragraphs: readonly string[],
   reader: InstanceId,
   context: RenderContext,
-): string {
+): string | null {
   const words = paragraphs.join(' ');
   const line = capitalise(`${objectWords(speaker, reader, context)} says "${words}"`);
-  context.budget.say(reader, [...line].length - [...words].length);
-  return line;
+  return charged(context, reader, [...line].length - [...words].length) ? line : null;
 }

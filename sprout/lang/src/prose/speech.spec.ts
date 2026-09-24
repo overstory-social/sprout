@@ -90,6 +90,19 @@ describe('what is rendered is charged to its reader', () => {
     expect(() => renderFor(line, BRASS_KEY, turn.context)).not.toThrow();
   });
 
+  it('renders nothing for anyone but the actor it would take past their output, and never faults', () => {
+    // The brass key stands in for someone else in the place.
+    const turn = proseTurn({ ...DEFAULT_LIMITS.budgets, output: 10 });
+    const clunk = { by: PRESS, said: quoted('Clunk.'), bindings: new Map() };
+    const thud = { by: PRESS, said: quoted('Thud.'), bindings: new Map() };
+    expect(renderFor(clunk, BRASS_KEY, turn.context)).toEqual(['Clunk.']);
+    expect(renderFor(clunk, BRASS_KEY, turn.context)).toEqual([]);
+    // Cut short: nothing more that turn, though this would have fitted.
+    expect(renderFor(thud, BRASS_KEY, turn.context)).toEqual([]);
+    expect(turn.context.budget.spentOutput(BRASS_KEY)).toBe(6);
+    expect(renderFor(clunk, turn.marta, turn.context)).toEqual(['Clunk.']);
+  });
+
   it('runs a named passage one passage deep, and comes back up however it ends', () => {
     const turn = proseTurn({ ...DEFAULT_LIMITS.budgets, passageDepth: 1 });
     expect(passageFor(turn, PRESS, 'mood', turn.marta)).toHaveLength(1);

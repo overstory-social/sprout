@@ -33,9 +33,11 @@ import {
   MARTA as MARTA_WAYS,
   MEADOW,
   MOUTH,
+  SHED,
   SHOP,
   ways,
   waysHost,
+  WORLD as WAYS_WORLD,
   YARD,
 } from '../fixtures/exits.js';
 import { commandTurn, type CommandTurn, type Parser } from './command.js';
@@ -215,7 +217,7 @@ describe('a command turn that faults', () => {
     ]);
   });
 
-  it('faults where one reader would read more than the host allows, and still tells the actor', () => {
+  it('faults where its actor would read more than the host allows, and still tells them', () => {
     const tight = { ...DEFAULT_LIMITS.budgets, output: 70 };
     const long = faulted(run(belfry(), 'ring bell', tight));
     expect(long.fault.name).toBe('BudgetExhausted');
@@ -476,6 +478,25 @@ describe('`go`, through a command turn', () => {
     expect(standing(turn.state, marta(state))).toBe(YARD);
     // The refusal ends the pass: the walker's own part does not count the way.
     expect(turn.state.instances.get(marta(state))!.properties.get('walked')).toBe(0);
+  });
+
+  it('says the engine’s words where the host says the destination is full, and moves nobody', () => {
+    const state = ways([
+      [MARTA_WAYS, YARD],
+      [INES_WAYS, SHED],
+    ]);
+    const host = { ...waysHost(), budgets: { ...DEFAULT_LIMITS.budgets, peoplePerPlace: 1 } };
+    const turn = committed(commandTurn(state, host, typed(MARTA_WAYS, 'east')));
+    expect(told(turn, marta(state))).toEqual(['There is no room in {to} for {item}.']);
+    expect(standing(turn.state, marta(state))).toBe(YARD);
+    // Rendered, as the one effect, to the one turned away; Ines in the shed reads nothing of it.
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit, one.paragraphs])).toEqual([
+      ['refused', WAYS_WORLD, MARTA_WAYS, ['There is no room in a shed for you.']],
+    ]);
+    // With room for two, the same way is taken.
+    const roomy = { ...host, budgets: { ...host.budgets, peoplePerPlace: 2 } };
+    const went = committed(commandTurn(state, roomy, typed(MARTA_WAYS, 'east')));
+    expect(standing(went.state, marta(state))).toBe(SHED);
   });
 
   it('runs the actor’s own part of `go`: its `permit` may refuse, and its `do` runs once the move is made', () => {

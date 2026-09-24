@@ -92,6 +92,18 @@ describe('polling a visitor’s view', () => {
     expect(polled.fault?.detail).toContain('pollSteps');
   });
 
+  it('is `unseen` where its description is more than the one looking may read', () => {
+    const host = gateHost();
+    const polled = pollView(
+      gatehouse(),
+      { ...host, budgets: { ...host.budgets, output: 10 } },
+      MARTA,
+    );
+    expect(polled.view.readings).toEqual([]);
+    expect(polled.fault?.name).toBe('BudgetExhausted');
+    expect(polled.fault?.detail).toContain('output');
+  });
+
   it('says `unseen` in the stock words where rendering the world’s own cannot be afforded either', () => {
     const polled = pollView(gatehouse(), gateHost(0), MARTA);
     expect(polled.view.description).toEqual([stockLine('unseen')]);
@@ -136,8 +148,8 @@ describe('rendering a view', () => {
       ],
       [PURSE],
     );
-    const context = { ...pollingIn(state), draws: null };
     const ines = actorOf(state, INES);
+    const context = { ...pollingIn(state), draws: null, actor: ines };
     const seen = renderView(viewOf(ines, context), context);
     expect(seen.occupants.map((one) => one.name)).toEqual(['a guard', 'a sentry', 'Marta']);
     expect(seen.carried).toEqual([]);

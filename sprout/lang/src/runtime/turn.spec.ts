@@ -292,7 +292,7 @@ describe('what a write turn says', () => {
     expect(written.effects.map((one) => one.paragraphs)).toEqual([['Hello, you.']]);
   });
 
-  it('faults the turn, keeping nothing, where a reader would read more than the host allows', () => {
+  it('faults the turn, keeping nothing, where its actor would read more than the host allows', () => {
     const state = belfry([MARTA]);
     const marta = actorOf(state, MARTA);
     const host = belfryHost({ ...DEFAULT_LIMITS.budgets, output: 8 });
@@ -308,6 +308,65 @@ describe('what a write turn says', () => {
       (said) => ({ actor: marta, lines: [{ said }] }),
     );
     expect(written).toMatchObject({ committed: false, fault: { name: 'BudgetExhausted' } });
+  });
+
+  it('cuts short anyone else who would read more than the host allows, and commits the turn', () => {
+    const state = belfry([MARTA, INES]);
+    const [marta, ines] = [actorOf(state, MARTA), actorOf(state, INES)];
+    const host = belfryHost({ ...DEFAULT_LIMITS.budgets, output: 20 });
+    const written = writeTurn(
+      state,
+      'command',
+      host,
+      inputs,
+      (turn) => {
+        strike(turn);
+        return [
+          line(BELL, [ines], 'The bell rings out.', marta),
+          line(BELL, [marta, ines], 'Hm.', marta),
+          line(BELL, [ines, marta], 'Ah.', marta),
+        ];
+      },
+      (said) => ({ actor: marta, lines: said.map((one) => ({ said: one })) }),
+    );
+    if (!written.committed) throw new Error(written.fault.detail);
+    expect(heldIn(written.state, BELL, 'struck')).toBe(true);
+    // Ines reads the first line whole and nothing after the one that did not fit, though a later one would.
+    expect(written.effects.map((one) => [one.visit, one.paragraphs])).toEqual([
+      [INES, ['The bell rings out.']],
+      [MARTA, ['Hm.']],
+      [MARTA, ['Ah.']],
+    ]);
+  });
+
+  it('never faults on output where the turn has no actor, whoever reads too much', () => {
+    const state = belfry([MARTA, INES]);
+    const [marta, ines] = [actorOf(state, MARTA), actorOf(state, INES)];
+    const host = belfryHost({ ...DEFAULT_LIMITS.budgets, output: 8 });
+    for (const kind of ['tick', 'wake'] as const) {
+      const written = writeTurn(
+        state,
+        kind,
+        host,
+        inputs,
+        (turn) => {
+          strike(turn);
+          return [
+            line(BELL, [marta, ines], 'Hm.', marta),
+            line(BELL, [marta], 'The bell rings out.', marta),
+            line(BELL, [ines, marta], 'Ah.', marta),
+          ];
+        },
+        (said) => ({ actor: null, lines: said.map((one) => ({ said: one })) }),
+      );
+      if (!written.committed) throw new Error(written.fault.detail);
+      expect(heldIn(written.state, BELL, 'struck')).toBe(true);
+      expect(written.effects.map((one) => [one.visit, one.paragraphs])).toEqual([
+        [MARTA, ['Hm.']],
+        [INES, ['Hm.']],
+        [INES, ['Ah.']],
+      ]);
+    }
   });
 
   it('is rendered over the committed state under a fresh budget and stream, for a turn that faulted', () => {

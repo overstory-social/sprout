@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { boundObject, BRASS_KEY, OAK_DOOR, PRESS, proseTurn } from '../fixtures/prose.js';
 import { Draws } from '../runtime/draws.js';
 import { engineLine } from '../runtime/engine-lines.js';
@@ -50,6 +51,25 @@ describe('a line is rendered once for each of its readers', () => {
     renderHeard(line('{actor} leans.', [BRASS_KEY], null, turn.marta), turn.context);
     expect(turn.context.budget.spentOutput(BRASS_KEY)).toBe('Marta leans.'.length);
     expect(turn.context.budget.spentOutput(turn.marta)).toBe(0);
+  });
+});
+
+describe('a line too long for someone other than the actor', () => {
+  it('leaves them out of it, and the actor still reads it', () => {
+    // The line fits "you", 21 characters, and not Marta's name, 23.
+    const turn = proseTurn({ ...DEFAULT_LIMITS.budgets, output: 21 });
+    const told = line('{actor} lean on it, hard.', [turn.marta, BRASS_KEY], null, turn.marta);
+    expect(renderHeard(told, turn.context)).toEqual([
+      { reader: turn.marta, paragraphs: ['You lean on it, hard.'] },
+    ]);
+    expect(turn.context.budget.cutShort).toEqual([BRASS_KEY]);
+  });
+
+  it('leaves out a hearer whom an NPC’s frame, and not the line, takes past their output', () => {
+    const turn = proseTurn({ ...DEFAULT_LIMITS.budgets, output: 10 });
+    const said = line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta);
+    expect(renderHeard(said, turn.context)).toEqual([]);
+    expect(turn.context.budget.cutShort).toEqual([BRASS_KEY]);
   });
 });
 

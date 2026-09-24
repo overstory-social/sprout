@@ -5,12 +5,12 @@
 // that place still exists and accepts them, and otherwise where the world
 // says visitors arrive, told through the world's `displaced` when the
 // place they stood in is gone. Entry is a move from outside the tree: the
-// place's `accept` is asked, with the world as `from`, and then the place
-// is sent `:entered`, the visitor `:moved`, the place's range `arrives`
-// and `:arrived`, and the visitor reads the place's description once the
-// queue is empty. What it says is one sequence of effects: `displaced`,
-// where it is told, the place's `arrives`, what the queue said, then the
-// description.
+// host's bound on a crowd is asked (`crowd.ts`), then the place's
+// `accept`, with the world as `from`; then the place is sent `:entered`,
+// the visitor `:moved`, the place's range `arrives` and `:arrived`, and
+// the visitor reads the place's description once the queue is empty.
+// What it says is one sequence of effects: `displaced`, where it is told,
+// the place's `arrives`, what the queue said, then the description.
 //
 // Two invariants. An arrival is a write turn, so a fault abandons all of
 // it; a visitor the place refuses, or a world that admits no one, writes
@@ -20,9 +20,11 @@
 import { runGuard } from './guards.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
+import { FULL, turnedAway } from './crowd.js';
 import { noticeLines, saidLines, type Effect, type Speaking, type Unrendered } from './effects.js';
 import { arrivalsRead } from './engine-verbs.js';
 import { engineLine } from './engine-lines.js';
+import { boundObject } from './evaluate.js';
 import type { Speech } from './body.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { EngineSend } from './lifecycle.js';
@@ -244,13 +246,28 @@ function answersAfter(turn: WriteTurn, notices: readonly Notice[]): Unrendered[]
 }
 
 /**
- * Bring `visitor`, who stands nowhere live, into `place`: its `accept`
- * asked with the world as `from`, the first refusal deciding, then the one
- * write and what the engine sends and says of it.
+ * Bring `visitor`, who stands nowhere live, into `place`: the host's bound
+ * on a crowd, then its `accept` asked with the world as `from`, the first
+ * refusal deciding, then the one write and what the engine sends and says of it.
  */
 export function enter(turn: WriteTurn, visitor: InstanceId, place: InstanceId): Entry {
   const { draft, catalogue, budget, passes } = turn;
   const from = draft.world;
+  if (turnedAway(draft, visitor, place, budget.limits.peoplePerPlace)) {
+    return {
+      refused: {
+        effect: 'refused',
+        to: [visitor],
+        by: from,
+        speaker: null,
+        said: FULL,
+        bindings: new Map([
+          ['item', boundObject(visitor)],
+          ['to', boundObject(place)],
+        ]),
+      },
+    };
+  }
   for (const written of draft.instance(place)?.kind.guards.accept ?? []) {
     const outcome = runGuard(written, {
       state: draft,
