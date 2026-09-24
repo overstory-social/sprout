@@ -2,8 +2,20 @@ import { describe, expect, it } from 'vitest';
 
 import type { Prose, ProseOneOf, ProsePiece } from '../ast-prose.js';
 import { locationOf, textOf } from '../../source/source.js';
-import { chooser, readProseText, shape, type Chooser } from '../../fixtures/parse.js';
+import { chooser, shape, type Chooser } from '../../fixtures/parse.js';
+import { readWith } from '../../fixtures/readers.js';
 import { DEEPEST } from './parser.js';
+import { readProse } from './prose.js';
+
+/** Prose read by `readProse` as the words of a one-line passage: the whole of `text`. */
+function readProseText(text: string) {
+  const { read, source, diagnostics, refusals } = readWith(
+    (p) => readProse(p, 0, text.length),
+    text,
+    { name: 'lines.prose' },
+  );
+  return { prose: read, source, diagnostics, refusals };
+}
 
 /** Prose as a string of what it holds: words, breaks, slots and blocks. */
 function outline(prose: Prose): string {

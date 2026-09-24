@@ -1,62 +1,58 @@
 import { describe as group, expect, it } from 'vitest';
 
-import type { KindDeclaration, WorldDeclaration } from '../ast.js';
-import type { DescribeDeclaration } from '../ast-speech.js';
+import type { KindDeclaration } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
 import { WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
+import { atMember, inKindBody, parserOver, rest } from '../../fixtures/readers.js';
+import { describe } from './describe.js';
+import { worldMembers } from './world.js';
 
-/** The describes a kind's body holds, and everything said, as location, message and remedy. */
-function readDescribes(members: string) {
-  const { declarations, refusals } = read(`kind Crate {\n  ${members}\n}\n`, 'k.sprout');
-  const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
-  const described = (kind?.members ?? []).filter(
-    (m): m is DescribeDeclaration => m.kind === 'describe',
-  );
+/**
+ * The describe `members` starts with, read by `describe` in the body of
+ * `kind Crate`, what it left for the body's next member, and everything
+ * said, as location, message and remedy.
+ */
+function readDescribe(members: string) {
+  const { p, diagnostics, startsMember } = inKindBody(members);
+  const described = describe(p, 'Crate', startsMember);
   return {
-    kind,
     described,
-    said: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
   };
 }
 
 group('a describe', () => {
   it('is its word and a block of statements, read as any body’s block is', () => {
-    const { described, said } = readDescribes(
+    const {
+      described: one,
+      said,
+      rest,
+    } = readDescribe(
       'describe {\n    let n = self.count\n    if (n > 1) { text many } else { text "One." }\n  }',
     );
     expect(said).toEqual([]);
-    expect(described).toHaveLength(1);
-    const [one] = described;
+    expect(rest).toBe('}\n');
     expect(unspanned(one)).toEqual([]);
     expect(textOf(one!.at).startsWith('describe {')).toBe(true);
     expect(one!.body.statements.map((s) => s.kind)).toEqual(['let', 'if']);
   });
 
   it('is read in a kind and an object alike, and the world’s own body reads none', () => {
-    const { declarations, refusals } = read(
-      [
-        'world w is sprout.World {',
-        '  describe { text "The world." }',
-        '  object hall is sprout.Place { describe { text "A hall." } }',
-        '}',
-        'kind K { describe { text "A thing." } }',
-      ].join('\n'),
-      'w.sprout',
-    );
-    const world = declarations.find((d): d is WorldDeclaration => d.kind === 'world')!;
-    const hall = world.objects[0]!;
-    expect(hall.members.map((m) => m.kind)).toEqual(['describe']);
-    const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind')!;
-    expect(kind.members.map((m) => m.kind)).toEqual(['describe']);
-    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['w.sprout:2:3', 'A world is not made of `describe`.'],
-    ]);
+    // A kind's body and an object's are read by the one table of members.
+    const text = 'object hall is sprout.Place { describe { text "A hall." } }';
+    const { p, diagnostics, readers } = atMember(text, text.indexOf('describe'), 'hall');
+    expect(readers.get('describe')!()).toMatchObject({ kind: 'describe' });
+    expect(diagnostics.refusals).toEqual([]);
+    expect(rest(p)).toBe('}');
+    expect(worldMembers(parserOver('').p, 'w').has('describe')).toBe(false);
   });
 
   it('holds what it gives in braces, refused where they are left off, the next member kept', () => {
-    const { kind, said } = readDescribes('describe text "A crate."\n  :open true');
+    const { described, said, rest } = readDescribe('describe text "A crate."\n  :open true');
+    expect(described).toBeNull();
     expect(said).toEqual([
       [
         'k.sprout:2:12',
@@ -64,11 +60,12 @@ group('a describe', () => {
         'Write `describe { text "Slat-sided, heavier than it looks." }`.',
       ],
     ]);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['property']);
+    // What it left is the body's to step over, to its next member.
+    expect(rest).toBe('text "A crate."\n  :open true\n}\n');
   });
 
   it('is never closed where the body’s next member starts inside it, said there, and the member kept', () => {
-    const { kind, said } = readDescribes('describe { text "A crate."\n  :open true');
+    const { said, rest } = readDescribe('describe { text "A crate."\n  :open true');
     expect(said).toEqual([
       [
         'k.sprout:3:3',
@@ -76,25 +73,15 @@ group('a describe', () => {
         'Add a } where what `describe` decides ends. Every { inside it, after an `if` or an `else`, needs its own }.',
       ],
     ]);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['property']);
+    expect(rest).toBe(':open true\n}\n');
   });
 
   it('keeps the statements that read around one that did not', () => {
-    const { described, said } = readDescribes('describe { text "A." 4 text "B." }');
+    const { described, said } = readDescribe('describe { text "A." 4 text "B." }');
     expect(said.map(([, message]) => message)).toEqual([
       'the number 4 does not start a statement this compiler reads.',
     ]);
-    expect(described[0]!.body.statements.map((s) => s.kind)).toEqual(['text', 'text']);
-  });
-
-  it('is named, with its block stepped over, when written after the `}` that ends its body', () => {
-    const { refusals } = read(
-      'kind Crate {\n  :open true\n}\n  describe { text "A crate." }\n  :shut false\n}\n',
-      'k.sprout',
-    );
-    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['k.sprout:4:3', '`describe` and `:shut` are written after the `}` that ends `Crate`.'],
-    ]);
+    expect(described!.body.statements.map((s) => s.kind)).toEqual(['text', 'text']);
   });
 });
 

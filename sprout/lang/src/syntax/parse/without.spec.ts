@@ -1,19 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  writtenMember,
-  type Declaration,
-  type KindDeclaration,
-  type ObjectDeclaration,
-  type WorldDeclaration,
-} from '../ast.js';
-import { Diagnostics } from '../../source/diagnostics.js';
+import { writtenMember, type WithoutDeclaration } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { read } from '../../fixtures/parse.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
+import { locationOf, textOf } from '../../source/source.js';
+import { atMember, inKindBody, parserOver, rest } from '../../fixtures/readers.js';
+import { startsMemberOf } from './bodies.js';
+import { guard } from './guards.js';
 import { without } from './without.js';
+import { worldMembers } from './world.js';
 
 /** Each thing that holds a body, opened as it is written; an object sits inside a world's. */
 const OWNERS = [
@@ -21,25 +15,32 @@ const OWNERS = [
   { noun: 'kind', open: 'kind K', around: ['', ''] },
   { noun: 'object', open: 'object o is K', around: ['world w is sprout.World {\n', '}\n'] },
 ] as const;
-type Owner = (typeof OWNERS)[number];
 
-/** The declaration a file's text opened with, or, for the object owner, the object in the world. */
-const ownedIn = (declarations: readonly Declaration[], owner?: Owner) => {
-  const top = declarations.find(
-    (d): d is WorldDeclaration | KindDeclaration => d.kind === 'world' || d.kind === 'kind',
-  );
-  return owner?.noun === 'object' ? (top?.objects[0] as ObjectDeclaration | undefined) : top;
-};
-const owned = (declarations: readonly Declaration[]) => ownedIn(declarations);
+/**
+ * The `without`s written one after another from `at` in `text`, each
+ * read by `without` where the body of a world, or else of a kind or an
+ * object, holds it; what they left, and what was said.
+ */
+function withoutsAt(text: string, at: number, world = false) {
+  const { p, diagnostics, startsMember } = atMember(text, at, 'K', { name: 'k.sprout' });
+  const starts = world ? startsMemberOf(p, worldMembers(p, 'w')) : startsMember;
+  const read: WithoutDeclaration[] = [];
+  while (p.at('name', 'without')) {
+    const one = without(p, starts);
+    if (one !== null) read.push(one);
+  }
+  return { withouts: read, rest: rest(p), refusals: diagnostics.refusals };
+}
+
+/** The `without`s `members` starts with, in the body of `kind K`. */
+function readWithouts(members: string) {
+  const { p } = inKindBody(members, 'K');
+  return withoutsAt(p.source.text, p.peek().at.start);
+}
 
 describe('`without`, read directly', () => {
   it('reads the member and the kind, and leaves what follows', () => {
-    const diagnostics = new Diagnostics();
-    const p = new Parser(
-      new SourceFile('w.sprout', 'without on :stir from Bellows :a 1'),
-      diagnostics,
-      DECLARATION_READERS,
-    );
+    const { p, diagnostics } = parserOver('without on :stir from Bellows :a 1');
     const made = without(p, (token) => token.kind === 'symbol');
     expect(diagnostics.refusals).toEqual([]);
     expect(
@@ -50,11 +51,9 @@ describe('`without`, read directly', () => {
 });
 
 describe('`without` names a member and the kind it comes from, in any body', () => {
-  /** The `without` lines a body read, each as the member and kind it names. */
-  const withouts = (declarations: readonly Declaration[], owner?: Owner) =>
-    ownedIn(declarations, owner)!.members.flatMap((m) =>
-      m.kind === 'without' ? [`${writtenMember(m.member)} from ${textOf(m.source.at)}`] : [],
-    );
+  /** Each `without` as the member and kind it names. */
+  const named = (withouts: readonly WithoutDeclaration[]) =>
+    withouts.map((m) => `${writtenMember(m.member)} from ${textOf(m.source.at)}`);
 
   for (const owner of OWNERS) {
     it(`${owner.noun}: reads each member form the spec's table says every source of runs`, () => {
@@ -66,26 +65,23 @@ describe('`without` names a member and the kind it comes from, in any body', () 
         'without accept from Crate',
         'without as target for unlock from Lock',
       ];
-      const { declarations, refusals } = read(
-        `${owner.around[0]}${owner.open} {\n  ${lines.join('\n  ')}\n}\n${owner.around[1]}`,
+      const text = `${owner.around[0]}${owner.open} {\n  ${lines.join('\n  ')}\n}\n${owner.around[1]}`;
+      const { withouts, rest, refusals } = withoutsAt(
+        text,
+        text.indexOf(lines[0]!),
+        owner.noun === 'world',
       );
       expect(refusals).toEqual([]);
-      expect(withouts(declarations, owner)).toEqual(
-        lines.map((line) => line.slice('without '.length)),
-      );
-      const first = ownedIn(declarations, owner)!.members[0]!;
-      expect(textOf(first.at)).toBe(lines[0]);
-      expect(unspanned(declarations)).toEqual([]);
+      expect(named(withouts)).toEqual(lines.map((line) => line.slice('without '.length)));
+      expect(textOf(withouts[0]!.at)).toBe(lines[0]);
+      expect(unspanned(withouts)).toEqual([]);
+      expect(rest.startsWith('}\n')).toBe(true);
     });
   }
 
   /** Each refusal as its place, its words and its remedy, in a kind's body. */
   const said = (line: string) =>
-    read(`kind K {\n  ${line}\n  :a 1\n}\n`, 'k.sprout').refusals.map((d) => [
-      locationOf(d.at),
-      d.message,
-      d.remedy,
-    ]);
+    readWithouts(`${line}\n  :a 1`).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
   const EXAMPLE = '`without changed :lit from sprout.LightSource`';
 
   it('refuses one that names nothing, at the word, and reads the member after it', () => {
@@ -96,8 +92,9 @@ describe('`without` names a member and the kind it comes from, in any body', () 
     ];
     expect(said('without')).toEqual([missing]);
     expect(said('without from Crate')).toEqual([missing]);
-    const { declarations } = read('kind K {\n  without\n  :a 1\n}\n');
-    expect(owned(declarations)!.members.map((m) => m.kind)).toEqual(['property']);
+    const { withouts, rest } = readWithouts('without\n  :a 1');
+    expect(withouts).toEqual([]);
+    expect(rest).toBe(':a 1\n}\n');
   });
 
   it('refuses a member that is none of the forms, at it, and does not read it as a member', () => {
@@ -115,10 +112,10 @@ describe('`without` names a member and the kind it comes from, in any body', () 
         `Write one as it is declared: \`on :<message>\`, \`changed :<property>\`, \`depart\`, \`release\`, \`accept\` or \`as <role> for <verb>\`, as in ${EXAMPLE}.`,
       ],
     ]);
-    const { declarations } = read('kind K {\n  without :x from Crate\n  :a 1\n}\n');
-    expect(
-      owned(declarations)!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind)),
-    ).toEqual(['a']);
+    // What is left of its line is the body's to step over; the member after it is untouched.
+    const { withouts, rest } = readWithouts('without :x from Crate\n  :a 1');
+    expect(withouts).toEqual([]);
+    expect(rest.endsWith('\n  :a 1\n}\n')).toBe(true);
   });
 
   it('refuses a handler or a hook with no name, and a role with half of one', () => {
@@ -169,11 +166,9 @@ describe('`without` names a member and the kind it comes from, in any body', () 
       ['k.sprout:2:11', message, remedy('<name>')],
     ]);
     for (const line of ['without passage immovable', 'without passage immovable { It stays. }']) {
-      const { declarations } = read(`kind K {\n  ${line}\n  :a 1\n  contains\n}\n`);
-      expect(
-        owned(declarations)!.members.map((m) => m.kind),
-        line,
-      ).toEqual(['property', 'contains']);
+      const { withouts, rest } = readWithouts(`${line}\n  :a 1\n  contains`);
+      expect(withouts, line).toEqual([]);
+      expect(rest.endsWith('\n  :a 1\n  contains\n}\n'), line).toBe(true);
     }
   });
 
@@ -189,13 +184,13 @@ describe('`without` names a member and the kind it comes from, in any body', () 
 });
 
 describe('`without` beside a guard', () => {
-  /** A kind's body, its members by kind, and what was said. */
+  /** A `without` and then the guard after it, each read by its own reader in `kind Crate`. */
   const readKind = (members: string) => {
-    const { declarations, refusals } = read(`kind Crate {\n  ${members}\n}\n`, 'k.sprout');
-    const kind = declarations[0] as KindDeclaration;
+    const { p, diagnostics, startsMember } = inKindBody(members);
+    const read = [without(p, startsMember), guard(p, 'Crate', startsMember)];
     return {
-      members: kind.members.map((m) => m.kind),
-      said: refusals.map((d) => d.message),
+      members: read.flatMap((one) => (one === null ? [] : [one.kind])),
+      said: diagnostics.refusals.map((d) => d.message),
     };
   };
 

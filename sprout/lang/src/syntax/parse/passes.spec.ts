@@ -2,28 +2,42 @@ import { describe, expect, it } from 'vitest';
 
 import { writtenPass, type KindDeclaration, type PassDeclaration } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
-import { Diagnostics } from '../../source/diagnostics.js';
-import { locationOf, SourceFile } from '../../source/source.js';
+import { locationOf } from '../../source/source.js';
 import { chooser, read, shape } from '../../fixtures/parse.js';
 import { WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
-import { Parser } from './parser.js';
+import { atMember, inKind, readWith, rest } from '../../fixtures/readers.js';
 import { passRule } from './passes.js';
 
-function readMembers(members: string) {
-  const { declarations, refusals } = read(`kind Case {\n  contains\n  ${members}\n}\n`, 'k.sprout');
-  const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
+/**
+ * The pass rules `members` starts with, read one after another by
+ * `passRule` in the body of `kind Case` after its `contains`, what they
+ * left for the body, and what was said.
+ */
+function readPasses(members: string) {
+  const { text } = inKind(`contains\n  ${members}`, 'Case');
+  const { p, diagnostics, startsMember } = atMember(text, text.indexOf(members), 'Case', {
+    name: 'k.sprout',
+  });
+  const passes: PassDeclaration[] = [];
+  while (p.at('name', 'pass')) {
+    const one = passRule(p, startsMember);
+    if (one !== null) passes.push(one);
+  }
   return {
-    members: kind?.members ?? [],
-    passes: (kind?.members ?? []).filter((m): m is PassDeclaration => m.kind === 'pass'),
-    said: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-    messages: refusals.map((d) => d.message),
+    passes,
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    messages: diagnostics.refusals.map((d) => d.message),
   };
 }
 
 describe('a pass rule', () => {
   it('is read as the spec writes it, for one message and for the rest', () => {
-    const { passes, said } = readMembers('pass :illuminating (true)\n  pass any (self.get(:open))');
+    const { passes, said, rest } = readPasses(
+      'pass :illuminating (true)\n  pass any (self.get(:open))',
+    );
     expect(said).toEqual([]);
+    expect(rest).toBe('}\n');
     expect(unspanned(passes)).toEqual([]);
     expect(passes.map((p) => [writtenPass(p), shape(p.rule)])).toEqual([
       ['pass :illuminating', 'true'],
@@ -32,16 +46,16 @@ describe('a pass rule', () => {
   });
 
   it('is read by `passRule` directly, spanning its word to its bracket', () => {
-    const diagnostics = new Diagnostics();
     const text = 'pass any (false)';
-    const p = new Parser(new SourceFile('k.sprout', text), diagnostics, new Map());
-    const made = passRule(p, () => false);
-    expect(diagnostics.refusals).toEqual([]);
+    const { read: made, refusals } = readWith((p) => passRule(p, () => false), text, {
+      readers: new Map(),
+    });
+    expect(refusals).toEqual([]);
     expect([made?.at.start, made?.at.end]).toEqual([0, text.length]);
   });
 
   it('refuses a rule that names neither a message nor `any`', () => {
-    expect(readMembers('pass open (true)').said).toEqual([
+    expect(readPasses('pass open (true)').said).toEqual([
       [
         'k.sprout:3:8',
         '`pass` names a message, with its colon, or `any` for every message it does not name.',
@@ -51,30 +65,33 @@ describe('a pass rule', () => {
   });
 
   it('refuses a rule with no condition, or an empty one', () => {
-    expect(readMembers('pass any\n  :open true').said).toEqual([
+    expect(readPasses('pass any\n  :open true').said).toEqual([
       [
         'k.sprout:3:11',
         '`pass any` says whether it lets the message through, in brackets.',
         'Write `pass any (true)`, `pass any (false)`, or a condition, as in `pass any (self.get(:open))`.',
       ],
     ]);
-    expect(readMembers('pass :m ()').messages).toEqual([
+    expect(readPasses('pass :m ()').messages).toEqual([
       '`pass :m` says nothing inside its brackets.',
     ]);
   });
 
   it('refuses a condition whose bracket is never closed', () => {
-    expect(readMembers('pass any (true\n  :open true').messages).toEqual([
+    const unclosed = readPasses('pass any (true\n  :open true');
+    expect(unclosed.messages).toEqual([
       'The condition of `pass any` ends here, and its bracket is never closed.',
     ]);
+    expect(unclosed.rest).toBe(':open true\n}\n');
   });
 
   it('leaves a property on the next line to the body', () => {
-    const { members, messages } = readMembers('pass\n  :open true');
+    const { passes, rest, messages } = readPasses('pass\n  :open true');
     expect(messages).toEqual([
       '`pass` names a message, with its colon, or `any` for every message it does not name.',
     ]);
-    expect(members.map((m) => m.kind)).toEqual(['contains', 'property']);
+    expect(passes).toEqual([]);
+    expect(rest).toBe(':open true\n}\n');
   });
 });
 

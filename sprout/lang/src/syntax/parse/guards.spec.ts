@@ -1,22 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GuardDeclaration, KindDeclaration, Statement, WorldDeclaration } from '../ast.js';
+import type { GuardDeclaration, KindDeclaration, Statement } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
 import { GUARD_DEFECTS, GUARD_UNCLOSED, WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
-import { isGuardName } from './guards.js';
+import { atMember, inKindBody, rest } from '../../fixtures/readers.js';
+import { guard, isGuardName } from './guards.js';
+import { worldMembers } from './world.js';
 
-/** The guards a kind's body holds, and everything said, as location and message. */
+/**
+ * The guards `members` starts with, read one after another by `guard` in
+ * the body of `kind Crate`, what they left for the body's next member, and
+ * everything said, as location and message.
+ */
 function readGuards(members: string) {
-  const { declarations, refusals } = read(`kind Crate {\n  ${members}\n}\n`, 'k.sprout');
-  const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
-  const guards = (kind?.members ?? []).filter((m): m is GuardDeclaration => m.kind === 'guard');
+  const { p, diagnostics, startsMember } = inKindBody(members);
+  const guards: GuardDeclaration[] = [];
+  while (p.peek().kind === 'name' && isGuardName(p.peek().text)) {
+    const read = guard(p, 'Crate', startsMember);
+    if (read !== null) guards.push(read);
+  }
   return {
-    kind,
     guards,
-    said: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-    messages: refusals.map((d) => d.message),
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    messages: diagnostics.refusals.map((d) => d.message),
   };
 }
 
@@ -43,7 +52,7 @@ function shapeOf(statement: Statement): string {
 
 describe('the three guards', () => {
   it('are read as the spec writes them, each word, its parameters and its block', () => {
-    const { guards, said } =
+    const { guards, said, rest } =
       readGuards(`depart  (to)         { if (mover != self) { refuse held_fast } }
   release (item, to)   { if (mover != self) { refuse not_yours } }
   accept  (item, from) {
@@ -51,6 +60,7 @@ describe('the three guards', () => {
     else if (self.count >= self.get(:capacity)) { refuse full }
   }`);
     expect(said).toEqual([]);
+    expect(rest).toBe('}\n');
     expect(unspanned(guards)).toEqual([]);
     expect(guards.map((g) => [g.guard, g.parameters.map((p) => p.text)])).toEqual([
       ['depart', ['to']],
@@ -74,20 +84,14 @@ describe('the three guards', () => {
   });
 
   it('are read in a kind, an object and the world alike', () => {
-    for (const [open, close] of [
-      ['kind K {', '}'],
-      ['world w is sprout.World {\nobject o is K {', '}\n}'],
-      ['world w is sprout.World {', '}'],
-    ]) {
-      const { declarations, refusals } = read(`${open}\n  depart (to) { allow }\n${close}`);
-      expect(refusals, open).toEqual([]);
-      const top = declarations[0] as KindDeclaration | WorldDeclaration;
-      const owner = top.objects[0] ?? top;
-      expect(
-        owner.members.map((m) => m.kind),
-        open,
-      ).toEqual(['guard']);
-    }
+    // A kind's body and an object's are read by one table of members, and the world's by its own.
+    const text = 'kind K {\n  depart (to) { allow }\n}';
+    const kind = atMember(text, text.indexOf('depart'), 'K');
+    expect(kind.readers.get('depart')!()).toMatchObject({ kind: 'guard', guard: 'depart' });
+    expect(kind.diagnostics.refusals).toEqual([]);
+    const { p, diagnostics } = atMember('depart (to) { allow }', 0);
+    expect(worldMembers(p, 'w').get('depart')!()).toMatchObject({ kind: 'guard' });
+    expect(diagnostics.refusals).toEqual([]);
   });
 
   it('are the only words `isGuardName` answers to', () => {
@@ -158,20 +162,21 @@ describe('a guard’s parameters', () => {
   });
 
   it('have brackets that close, before the block; what they held is stepped over', () => {
-    const { said, kind } = readGuards('depart (to { allow }\n  :open true');
+    const { said, guards, rest } = readGuards('depart (to { allow }\n  :open true');
     expect(said.map(([at, message]) => [at, message])).toEqual([
       ['k.sprout:2:14', 'The brackets after `depart` are never closed.'],
     ]);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['property']);
+    expect(guards).toEqual([]);
+    expect(rest).toBe(':open true\n}\n');
     const before = readGuards('depart (to\n  :open true');
     expect(before.messages).toEqual(['The brackets after `depart` are never closed.']);
-    expect(before.kind!.members.map((m) => m.kind)).toEqual(['property']);
+    expect(before.rest).toBe(':open true\n}\n');
   });
 });
 
 describe('a guard’s block', () => {
   it('is required, and its absence does not take the next member', () => {
-    const { said, kind } = readGuards('depart (to)\n  :open true');
+    const { said, guards, rest } = readGuards('depart (to)\n  :open true');
     expect(said).toEqual([
       [
         'k.sprout:2:14',
@@ -179,11 +184,12 @@ describe('a guard’s block', () => {
         'Write `depart (to) { … }`, ending in `allow` or `refuse` where it decides.',
       ],
     ]);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['property']);
+    expect(guards).toEqual([]);
+    expect(rest).toBe(':open true\n}\n');
   });
 
   it('is never closed where the body’s next member starts inside it, said there, and the member kept', () => {
-    const { said, kind } = readGuards(
+    const { said, rest } = readGuards(
       'accept (item, from) {\n    if (a) { refuse shut }\n  passage shut { {self} is shut. }',
     );
     expect(said).toEqual([
@@ -193,12 +199,15 @@ describe('a guard’s block', () => {
         'Add a } where what `accept` decides ends. Every { inside it, after an `if` or an `else`, needs its own }.',
       ],
     ]);
-    expect(kind!.members.map((m) => m.kind)).toEqual(['passage']);
+    expect(rest).toBe('passage shut { {self} is shut. }\n}\n');
   });
 
   it('leaves the file’s end to the body, which says it is never closed once', () => {
-    const { refusals } = read('kind Crate {\n  depart (to) { allow\n');
-    expect(refusals.map((d) => d.message)).toEqual(['`Crate` is never closed.']);
+    const text = 'kind Crate {\n  depart (to) { allow\n';
+    const { p, diagnostics, startsMember } = atMember(text, text.indexOf('depart'));
+    expect(guard(p, 'Crate', startsMember)).toBeNull();
+    expect(diagnostics.refusals).toEqual([]);
+    expect(p.done).toBe(true);
   });
 
   it('keeps the statements that read around one that did not', () => {

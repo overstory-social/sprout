@@ -6,44 +6,41 @@ import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { chooser, readStatement } from '../../fixtures/parse.js';
+import { readWith, rest } from '../../fixtures/readers.js';
 import { Lexer } from '../lexer.js';
 import { connectStatement } from './connect.js';
-import { DECLARATION_READERS } from './declarations.js';
-import { Parser } from './parser.js';
 import { block, onItsOwn } from './statements.js';
 
+/** One `connect`, read by `connectStatement` from the start of `text`. */
+const readConnect = (text: string) => readWith(connectStatement, text, { name: 'body.sprout' });
+
 const said = (text: string) =>
-  readStatement(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  readConnect(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
 
 /** A block read on its own: the kinds of statement it kept, and what was said. */
 function blockOf(text: string) {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('body.sprout', text), diagnostics, DECLARATION_READERS);
-  const read = block(p, onItsOwn());
-  return { kinds: read?.statements.map((one) => one.kind) ?? null, refusals: diagnostics.refusals };
+  const { read, refusals } = readWith((p) => block(p, onItsOwn()), text, { name: 'body.sprout' });
+  return { kinds: read?.statements.map((one) => one.kind) ?? null, refusals };
 }
 
 describe('`connect`', () => {
   it('reads a link by its name and what it leads to', () => {
     for (const text of ['connect onward to cell', 'connect back to from', 'connect way_3 to a.b']) {
-      const { statement, refusals } = readStatement(text);
+      const { read: statement, refusals, p } = readConnect(text);
       expect(refusals, text).toEqual([]);
       expect(unspanned(statement), text).toEqual([]);
-      const read = statement as ConnectStatement;
+      expect(p.done, text).toBe(true);
+      const read: ConnectStatement = statement!;
       expect(`connect ${read.link.text} to ${writtenPath(read.destination)}`).toBe(text);
       expect(textOf(read.at)).toBe(text);
     }
   });
 
-  it('is read by its own reader', () => {
-    const diagnostics = new Diagnostics();
-    const p = new Parser(
-      new SourceFile('body.sprout', 'connect onward to cell'),
-      diagnostics,
-      DECLARATION_READERS,
-    );
-    expect(connectStatement(p)?.kind).toBe('connect');
-    expect(diagnostics.refusals).toEqual([]);
+  it('stops at its destination, leaving what follows', () => {
+    const { read, refusals, p } = readConnect('connect onward to cell\nsay "after"');
+    expect(read?.kind).toBe('connect');
+    expect(refusals).toEqual([]);
+    expect(rest(p)).toBe('say "after"');
   });
 
   it('refuses a link not named, a destination not given, and `to` left out', () => {

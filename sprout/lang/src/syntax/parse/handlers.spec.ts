@@ -5,26 +5,44 @@ import type {
   HookDeclaration,
   KindDeclaration,
   KindMember,
-  WorldDeclaration,
+  WithoutDeclaration,
 } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
 import { WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
+import { atMember, inKindBody, readWith, rest } from '../../fixtures/readers.js';
 import { handler, hook } from './handlers.js';
-import { Parser } from './parser.js';
-import { SourceFile } from '../../source/source.js';
-import { Diagnostics } from '../../source/diagnostics.js';
+import type { Parser } from './parser.js';
+import { without } from './without.js';
+import { worldMembers } from './world.js';
 
-/** The members a kind's body holds, and everything said, as location and message. */
+/**
+ * The handlers and hooks `members` starts with, and the `without`s among
+ * them, each read by its own reader in the body of `kind Lamp`; what they
+ * left for the body's next member, and everything said.
+ */
 function readMembers(members: string) {
-  const { declarations, refusals } = read(`kind Lamp {\n  ${members}\n}\n`, 'k.sprout');
-  const kind = declarations.find((d): d is KindDeclaration => d.kind === 'kind');
+  const { p, diagnostics, startsMember } = inKindBody(members, 'Lamp');
+  const read: (HandlerDeclaration | HookDeclaration | WithoutDeclaration)[] = [];
+  for (;;) {
+    const word = p.peek().kind === 'name' ? p.peek().text : '';
+    const one =
+      word === 'on'
+        ? handler(p, 'Lamp', startsMember)
+        : word === 'changed'
+          ? hook(p, 'Lamp', startsMember)
+          : word === 'without'
+            ? without(p, startsMember)
+            : undefined;
+    if (one === undefined) break;
+    if (one !== null) read.push(one);
+  }
   return {
-    kind,
-    members: kind?.members ?? [],
-    said: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-    messages: refusals.map((d) => d.message),
+    members: read,
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    messages: diagnostics.refusals.map((d) => d.message),
   };
 }
 
@@ -37,15 +55,13 @@ const named = (parameters: HandlerDeclaration['parameters']) =>
 
 /** One member read on its own by `read`, with nothing around it. */
 function alone<T>(text: string, read: (p: Parser) => T): { made: T; messages: string[] } {
-  const diagnostics = new Diagnostics();
-  const p = new Parser(new SourceFile('k.sprout', text), diagnostics, new Map());
-  const made = read(p);
-  return { made, messages: diagnostics.refusals.map((d) => d.message) };
+  const { read: made, refusals } = readWith(read, text, { name: 'k.sprout', readers: new Map() });
+  return { made, messages: refusals.map((d) => d.message) };
 }
 
 describe('a handler', () => {
   it('is read as the spec writes its four', () => {
-    const { members, said } = readMembers(
+    const { members, said, rest } = readMembers(
       [
         'on :illuminating (from, value) { self.set(:illuminated, value) }',
         'on :fired (from) { }',
@@ -54,6 +70,7 @@ describe('a handler', () => {
       ].join('\n  '),
     );
     expect(said).toEqual([]);
+    expect(rest).toBe('}\n');
     expect(unspanned(members)).toEqual([]);
     expect(handlers(members).map((h) => [h.message.text, named(h.parameters)])).toEqual([
       ['illuminating', ['from', 'value']],
@@ -74,7 +91,7 @@ describe('a handler', () => {
   });
 
   it('refuses a message written without its colon, naming it with one', () => {
-    const { said, members } = readMembers('on stir { }\n  :lit false');
+    const { said, members, rest } = readMembers('on stir { }\n  :lit false');
     expect(said).toEqual([
       [
         'k.sprout:2:6',
@@ -82,16 +99,18 @@ describe('a handler', () => {
         'Write `on :stir`, as in `on :stir { … }`.',
       ],
     ]);
-    // The block after it is its own, and the property after that is kept.
-    expect(members.map((m) => m.kind)).toEqual(['property']);
+    // The block after it is its own, and the property after that is left to the body.
+    expect(members).toEqual([]);
+    expect(rest).toBe(':lit false\n}\n');
   });
 
   it('refuses a handler with no block, and keeps the member after it', () => {
-    const { said, members } = readMembers('on :stir (from)\n  :lit false');
+    const { said, members, rest } = readMembers('on :stir (from)\n  :lit false');
     expect(said).toEqual([
       ['k.sprout:2:18', 'What `on :stir` does goes in braces.', 'Write `on :stir { … }`.'],
     ]);
-    expect(members.map((m) => m.kind)).toEqual(['property']);
+    expect(members).toEqual([]);
+    expect(rest).toBe(':lit false\n}\n');
   });
 
   it('refuses empty brackets, a stray comma and a word of the language as a parameter', () => {
@@ -126,24 +145,14 @@ describe('a handler', () => {
     ]);
   });
 
-  it('is named, with its message, when written after the `}` that ends a body', () => {
-    const { refusals } = read(
-      'kind Lamp {\n  :lit false\n}\n  on :stir (from) { self.set(:lit, true) }\n  pass any (false)\n}\n',
-      'k.sprout',
-    );
-    expect(refusals.map((d) => d.message)).toEqual([
-      '`on :stir` and `pass any` are written after the `}` that ends `Lamp`.',
-    ]);
-  });
-
   it('is written in a world’s body and an object’s', () => {
-    const { declarations, refusals } = read(
-      'world w is sprout.World {\n  on :gust { }\n  object o is K { on :gust { } }\n}\n',
-    );
-    expect(refusals).toEqual([]);
-    const world = declarations.find((d): d is WorldDeclaration => d.kind === 'world')!;
-    expect(world.members.map((m) => m.kind)).toEqual(['handler']);
-    expect(world.objects[0]!.members.map((m) => m.kind)).toEqual(['handler']);
+    // An object's body is read by the one table of members a kind's is, and the world's by its own.
+    const text = 'object o is K { on :gust { } }';
+    const object = atMember(text, text.indexOf('on'), 'o');
+    expect(object.readers.get('on')!()).toMatchObject({ kind: 'handler' });
+    const { p, diagnostics } = atMember('on :gust { }', 0);
+    expect(worldMembers(p, 'w').get('on')!()).toMatchObject({ kind: 'handler' });
+    expect([...object.diagnostics.refusals, ...diagnostics.refusals]).toEqual([]);
   });
 });
 
@@ -174,9 +183,10 @@ describe('a hook', () => {
   });
 
   it('is what `without` names when no block follows, and a member when one does', () => {
-    const { members, messages } = readMembers(
+    const { members, messages, rest } = readMembers(
       'without changed :lit from Light\n  changed :lit { }\n  without on :stir from Bellows\n  on :stir { }',
     );
+    expect(rest).toBe('}\n');
     expect(messages).toEqual([]);
     expect(members.map((m) => m.kind)).toEqual(['without', 'hook', 'without', 'handler']);
   });

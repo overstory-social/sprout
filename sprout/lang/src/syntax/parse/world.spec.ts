@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { DECLARATIONS } from '../parse.js';
 import { locationOf, textOf } from '../../source/source.js';
-import { readProperty, readWorld } from '../../fixtures/parse.js';
+import { readWith, rest } from '../../fixtures/readers.js';
+import { DECLARATION_READERS } from './declarations.js';
+import { worldDeclaration } from './world.js';
+
+/** The world `text` starts with, read by `worldDeclaration`, what it left, and what was said. */
+function readWorld(text: string) {
+  const { read: world, p, refusals } = readWith(worldDeclaration, text, { name: 'w.sprout' });
+  return { world, rest: rest(p), refusals };
+}
 
 /** A world's members as plain words, for a suite that is not about nodes. */
 const membersOf = (declared: { members: readonly { kind: string }[] }): string[] =>
@@ -96,7 +104,7 @@ describe('a world declaration', () => {
     ];
     for (const [text, said, fate] of table) {
       const { world, refusals } = readWorld(text);
-      if (fate === 'lost') expect(world, text).toBeUndefined();
+      if (fate === 'lost') expect(world, text).toBeNull();
       else expect(membersOf(world!), text).toEqual([]);
       expect(refusals.map((d) => d.message).join(' '), text).toContain(said);
       for (const refusal of refusals) {
@@ -221,11 +229,8 @@ describe('a world declaration', () => {
       'world w',
       'world w nonsense here',
     ]) {
-      const { declarations, refusals } = readWorld(`${broken}\nenum Ward { oak }\n`);
-      expect(
-        declarations.map((d) => d.name.text),
-        broken,
-      ).toContain('Ward');
+      const { rest, refusals } = readWorld(`${broken}\nenum Ward { oak }\n`);
+      expect(rest, broken).toBe('enum Ward { oak }\n');
       // Exactly one, not merely at least one: a world that gives up
       // steps to the next declaration itself, so the file does not then
       // add "Sprout does not know what to do with X here" about the
@@ -247,7 +252,7 @@ describe('a world declaration', () => {
       'message :stir',
       'world inner is sprout.World { }',
     ]) {
-      const { refusals, declarations } = readWorld(`world w is sprout.World {\n  ${inner}\n}\n`);
+      const { refusals, rest } = readWorld(`world w is sprout.World {\n  ${inner}\n}\n`);
       expect(
         refusals.map((d) => d.message),
         inner,
@@ -256,8 +261,8 @@ describe('a world declaration', () => {
         refusals.filter((d) => d.message.startsWith('A world is not made of')),
         inner,
       ).toHaveLength(0);
-      // And what was written inside it is kept, as the file's own.
-      expect(declarations.length, inner).toBeGreaterThan(0);
+      // And what was written inside it is left for the file, as its own.
+      expect(rest, inner).toBe(`${inner}\n}\n`);
     }
   });
 
@@ -267,7 +272,7 @@ describe('a world declaration', () => {
     // `:wet`'s bare option would lose `message :omega` with nothing
     // said about it. The world is still never closed, and `message
     // :omega` reads as its own declaration once it is not swallowed.
-    const { declarations, refusals } = readWorld(
+    const { world, rest, refusals } = readWorld(
       'world w is sprout.World {\n  :faulty :wet\nmessage :omega\n',
     );
     expect(refusals.map((d) => d.message)).toEqual([
@@ -275,22 +280,18 @@ describe('a world declaration', () => {
       '`:wet` has no value where one should be.',
       '`w` is never closed.',
     ]);
-    expect(declarations.find((d) => d.kind === 'world')).toBeUndefined();
-    const message = declarations.find((d) => d.kind === 'message');
-    expect(message?.name.text).toBe('omega');
+    expect(world).toBeNull();
+    expect(rest).toBe('message :omega\n');
   });
 
   it('does not let a member’s own recovery run past the declaration after it', () => {
     // A list hunting for its `]` must not run to the end of the file:
     // `file()` is still reading behind a property inside a world.
     for (const member of [':x [', 'remembers { :a [', ':remembers [a: 0']) {
-      const { declarations, refusals } = readWorld(
+      const { rest, refusals } = readWorld(
         `world w is sprout.World { ${member}\n}\nenum Ward { oak }\n`,
       );
-      expect(
-        declarations.map((d) => d.name.text),
-        member,
-      ).toContain('Ward');
+      expect(rest, member).toBe('enum Ward { oak }\n');
       expect(refusals.length, member).toBeGreaterThan(0);
     }
   });
@@ -321,26 +322,16 @@ describe('a world declaration', () => {
     // Nothing member-shaped stands between the stray `}` and the next
     // declaration, so there is nothing to name: the world simply ends
     // early, as it always has, and `Next` is the file's.
-    const { declarations, refusals } = readWorld(`world w is sprout.World {
+    const { world, rest, refusals } = readWorld(`world w is sprout.World {
   :alpha 0
   }
 enum Next { x }
 `);
-    const world = declarations.find((d) => d.kind === 'world');
     expect(world!.members.map((m) => (m.kind === 'property' ? m.name.text : m.kind))).toEqual([
       'alpha',
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Next']);
+    expect(rest).toBe('enum Next { x }\n');
     expect(refusals).toEqual([]);
-  });
-
-  it('still reads a word that only spells a declaration, where one may stand', () => {
-    // Nothing reserves an option's name, and what FOLLOWS the word is
-    // what decides: `[oak, enum]` is a list of two options.
-    for (const text of [':x [Ward] default [oak, enum]', ':x [Ward] default [oak, message]']) {
-      expect(readProperty(text).declared, text).not.toBeNull();
-      expect(readProperty(text).refusals, text).toEqual([]);
-    }
   });
 
   it('says when a comma is missing between the kinds it composes', () => {
@@ -406,11 +397,31 @@ enum Next { x }
     expect(refusals[0]!.remedy).toContain('`contains`');
   });
 
-  it('is one of the words this compiler reads', () => {
+  it('is one of the words this compiler reads, and what reads it', () => {
     expect(DECLARATIONS).toContain('world');
-    // And the message for a word it does not read names it, because
-    // both come from the one table.
-    const { refusals } = readWorld('nonsense\n');
-    expect(refusals[0]!.remedy).toContain('world');
+    // The one table a file reads its declarations by, which also names them.
+    expect(DECLARATION_READERS.get('world')).toBe(worldDeclaration);
+  });
+});
+
+describe('where a world’s visitors arrive, written as a path', () => {
+  it('is read to the end of the path', () => {
+    const { world, refusals } = readWorld(
+      'world w is sprout.World {\n  visitors are P\n  visitors arrive at house.hall\n}',
+    );
+    expect(refusals).toEqual([]);
+    const arrive = world!.members[1]!;
+    expect(arrive.kind).toBe('visitors-arrive-at');
+    expect(textOf(arrive.at)).toBe('visitors arrive at house.hall');
+  });
+
+  it('is refused where the path is not written out, and the member after it still read', () => {
+    const { world, refusals } = readWorld(
+      'world w is sprout.World {\n  visitors arrive at house.\n  :season 1\n}',
+    );
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['w.sprout:2:27', 'This path ends in a dot.'],
+    ]);
+    expect(membersOf(world!)).toEqual(['property']);
   });
 });

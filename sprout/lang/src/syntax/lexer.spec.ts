@@ -254,7 +254,7 @@ describe('the lexer is pulled, and peeking reads what pulling would', () => {
 });
 
 describe('the spec worked example reads as tokens', () => {
-  // The spec's A worked microworld › world.sprout, as written there.
+  // The spec's A worked microworld › printers_shop.sprout, as written there.
   const WORLD = [
     'world printers_shop is sprout.World {',
     '  contains',
@@ -276,7 +276,7 @@ describe('the spec worked example reads as tokens', () => {
     '',
   ].join('\n');
 
-  const source = new SourceFile('world.sprout', WORLD);
+  const source = new SourceFile('printers_shop.sprout', WORLD);
   const diagnostics = new Diagnostics();
   const tokens = tokenise(source, diagnostics);
 
@@ -315,7 +315,7 @@ describe('the spec worked example reads as tokens', () => {
 
   it('names the column of the property, not of the world it is in', () => {
     const season = tokens.find((t) => t.kind === 'symbol' && t.text === 'season')!;
-    expect(locationOf(season.at)).toBe('world.sprout:5:3');
+    expect(locationOf(season.at)).toBe('printers_shop.sprout:5:3');
   });
 });
 

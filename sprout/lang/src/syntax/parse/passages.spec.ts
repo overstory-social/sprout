@@ -13,7 +13,10 @@ import { unspanned } from '../../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { tokenise } from '../lexer.js';
 import { chooser, read } from '../../fixtures/parse.js';
-import { isPassage } from './passages.js';
+import { atMember, inKindBody, rest } from '../../fixtures/readers.js';
+import { isPassage, passage } from './passages.js';
+import { property } from './properties.js';
+import { worldMembers } from './world.js';
 
 /**
  * Each thing that may hold a passage, opened and closed as it is written;
@@ -51,14 +54,40 @@ const membersOf = (declarations: readonly Declaration[]): string[] =>
         : m.kind,
   ) ?? [];
 
+/**
+ * The passages written one after another from `at` in `text`, each read by
+ * `passage` with the member readers of the body it is in, a world's where
+ * `world` says so; what they left, and what was said.
+ */
+function passagesAt(text: string, at: number, world = false) {
+  const { p, diagnostics, readers } = atMember(text, at, 'K', { name: 'k.sprout' });
+  const table = world ? worldMembers(p, 'w') : readers;
+  const read: PassageDeclaration[] = [];
+  while (p.at('name', 'passage')) {
+    const one = passage(p, table);
+    if (one !== null) read.push(one);
+  }
+  return { passages: read, rest: rest(p), refusals: diagnostics.refusals };
+}
+
+/** The passages `members` starts with, in the body of `kind K`. */
+function readPassages(members: string) {
+  const { p } = inKindBody(members, 'K');
+  return passagesAt(p.source.text, p.peek().at.start);
+}
+
 describe('a passage, as a world, a kind and an object write one', () => {
   for (const owner of OWNERS) {
     it(`${owner.kind}: reads its name, whether it yields, and its words as written`, () => {
       const text = `${owner.open}\n  passage greeting {\n    It's late. Who's there?\n  }\n  passage taken default { You take {target}. }\n  :a 1\n${owner.close}\n`;
-      const { declarations, refusals } = read(text, 'k.sprout');
+      const { passages, rest, refusals } = passagesAt(
+        text,
+        text.indexOf('passage'),
+        owner.kind === 'world',
+      );
       expect(refusals).toEqual([]);
-      expect(unspanned(declarations)).toEqual([]);
-      const [greeting, taken] = passagesOf(declarations);
+      expect(unspanned(passages)).toEqual([]);
+      const [greeting, taken] = passages;
       expect([greeting!.name.text, greeting!.yields, greeting!.body.text]).toEqual([
         'greeting',
         false,
@@ -71,7 +100,8 @@ describe('a passage, as a world, a kind and an object write one', () => {
       ]);
       expect(textOf(taken!.at)).toBe('passage taken default { You take {target}. }');
       expect(locationOf(taken!.name.at)).toBe(`k.sprout:${owner.kind === 'object' ? 6 : 5}:11`);
-      expect(membersOf(declarations)).toEqual(['passage greeting', 'passage taken', ':a']);
+      expect(passages.map((one) => one.name.text)).toEqual(['greeting', 'taken']);
+      expect(rest.startsWith(':a 1\n')).toBe(true);
     });
   }
 
@@ -92,15 +122,14 @@ kind Actor {
   passage held_fast default   { {self} is not something you can carry off. }
 }
 `;
-    const { declarations, refusals } = read(text);
-    expect(refusals).toEqual([]);
-    expect(
-      declarations.flatMap((d) =>
-        d.kind === 'kind'
-          ? d.members.filter(isPassage).map((m) => `${m.name.text}:${m.yields}`)
-          : [],
-      ),
-    ).toEqual([
+    // Each passage read where it stands in its kind's body.
+    const starts = [...text.matchAll(/^ {2}passage /gm)].map((m) => m.index + 2);
+    const read = starts.map((at) => {
+      const { p, diagnostics, readers } = atMember(text, at, 'K');
+      return { one: passage(p, readers), refusals: diagnostics.refusals };
+    });
+    expect(read.flatMap(({ refusals }) => refusals)).toEqual([]);
+    expect(read.map(({ one }) => `${one!.name.text}:${one!.yields}`)).toEqual([
       'unknown:true',
       'which:true',
       'nothing_happens:true',
@@ -110,24 +139,24 @@ kind Actor {
   });
 
   it('tells a passage from every other member', () => {
-    const { declarations } = read('kind K {\n  passage p { . }\n  :a 1\n  contains\n}\n');
-    expect(owned(declarations)!.members.map(isPassage)).toEqual([true, false, false]);
+    const { p, readers } = inKindBody('passage p { . }\n  :a 1\n  contains', 'K');
+    const members = [passage(p, readers)!, property(p)!, readers.get('contains')!()!];
+    expect(members.map(isPassage)).toEqual([true, false, false]);
   });
 });
 
 describe('a header that cannot be read is refused at its defect, and costs nothing after it', () => {
-  /** Each refusal as its place, its words and its remedy, with the members read after it. */
+  /** Each refusal as its place, its words and its remedy, with the passages read and what they left. */
   const said = (line: string) => {
-    const { declarations, refusals } = read(
-      `kind K {\n  ${line}\n  :a 1\n  contains\n}\n`,
-      'k.sprout',
-    );
+    const { passages, rest, refusals } = readPassages(`${line}\n  :a 1\n  contains`);
     return {
       refusals: refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-      members: membersOf(declarations),
+      passages: passages.map((one) => one.name.text),
+      rest,
     };
   };
-  const AFTER = [':a', 'contains'];
+  /** What the body's next members are, left to it. */
+  const AFTER = ':a 1\n  contains\n}\n';
 
   const CASES: readonly [string, string, string, string][] = [
     [
@@ -218,18 +247,19 @@ describe('a header that cannot be read is refused at its defect, and costs nothi
 
   for (const [line, at, message, remedy] of CASES) {
     it(`\`${line}\``, () => {
-      const { refusals, members } = said(line);
+      const { refusals, passages, rest } = said(line);
       expect(refusals).toEqual([[at, message, remedy]]);
-      expect(members).toEqual(AFTER);
+      expect(passages).toEqual([]);
+      expect(rest).toBe(AFTER);
     });
   }
 
   it('says nothing more of a header word the lexer already refused a character in', () => {
-    const { refusals, members } = said("passage greet'ing { Hello. }");
+    const { refusals, rest } = said("passage greet'ing { Hello. }");
     expect(refusals.map(([, message]) => message)).toEqual([
       'Sprout does not use the character "\'".',
     ]);
-    expect(members).toEqual(AFTER);
+    expect(rest).toBe(AFTER);
   });
 
   it('never takes a member on the line after a header left without braces', () => {
@@ -239,8 +269,9 @@ describe('a header that cannot be read is refused at its defect, and costs nothi
       'without accept from Crate',
       'passage b { . }',
     ]) {
-      const { declarations } = read(`kind K {\n  passage greeting\n  ${next}\n}\n`);
-      expect(membersOf(declarations), next).toHaveLength(1);
+      const { p, readers } = inKindBody(`passage greeting\n  ${next}`, 'K');
+      expect(passage(p, readers), next).toBeNull();
+      expect(rest(p), next).toBe(`${next}\n}\n`);
     }
   });
 
@@ -253,8 +284,9 @@ describe('a header that cannot be read is refused at its defect, and costs nothi
         'Write \\\\ if you meant a backslash of its own.',
       ],
     ]);
-    expect(escape.members).toEqual(['passage greeting', ...AFTER]);
-    const { refusals } = read('kind K {\n  passage greeting { {a {b\n}\n', 'k.sprout');
+    expect(escape.passages).toEqual(['greeting']);
+    expect(escape.rest).toBe(AFTER);
+    const { refusals } = readPassages('passage greeting { {a {b\n}\n');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['k.sprout:2:20', 'The passage `greeting` opens here and is never closed.'],
     ]);
@@ -387,13 +419,11 @@ describe('over generated bodies of members, a passage is never lost to a neighbo
 
 describe('a passage’s words are read as prose', () => {
   it('holds its slots and blocks, spanned where they are written', () => {
-    const { declarations, refusals } = read(
-      'kind K {\n  passage p { A {self}.\n\n  {if self.count > 0}Full.{/if} }\n}\n',
-      'k.sprout',
+    const { passages, refusals } = readPassages(
+      'passage p { A {self}.\n\n  {if self.count > 0}Full.{/if} }',
     );
     expect(refusals).toEqual([]);
-    const [passage] = passagesOf(declarations);
-    const pieces = passage!.body.prose.pieces;
+    const pieces = passages[0]!.body.prose.pieces;
     expect(pieces.map((piece) => piece.kind)).toEqual([
       'prose-words',
       'prose-slot',
@@ -406,17 +436,18 @@ describe('a passage’s words are read as prose', () => {
   });
 
   it('says a mistake in its words where it is, and keeps the passage', () => {
-    const { declarations, refusals } = read('kind K {\n  passage p { {/if} }\n}\n', 'k.sprout');
+    const { passages, refusals } = readPassages('passage p { {/if} }');
     expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
       ['k.sprout:2:15', '`{/if}` closes no `{if}`.'],
     ]);
-    expect(passagesOf(declarations).map((one) => one.name.text)).toEqual(['p']);
+    expect(passages.map((one) => one.name.text)).toEqual(['p']);
   });
 
   it('reads nothing of a body that took the rest of the file, which has been said', () => {
     // The stray `{/if}` in what it took is not said as well.
-    const { refusals } = read('kind K {\n  passage p { {/if}\n', 'k.sprout');
-    expect(refusals.map((d) => d.message)).toEqual([
+    const { p, diagnostics, readers } = atMember('kind K {\n  passage p { {/if}\n', 11, 'K');
+    passage(p, readers);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'The passage `p` opens here and is never closed.',
     ]);
   });

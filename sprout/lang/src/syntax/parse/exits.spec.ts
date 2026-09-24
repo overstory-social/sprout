@@ -2,15 +2,46 @@ import { describe, expect, it } from 'vitest';
 
 import { writtenPath, type KindDeclaration } from '../ast.js';
 import type { GrammarDeclaration, GrammarExit, GrammarLink } from '../ast-grammar.js';
-import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
-import { locationOf, SourceFile, textOf } from '../../source/source.js';
+import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read, shape } from '../../fixtures/parse.js';
-import { exitLine, linkLine } from './exits.js';
-import { Parser } from './parser.js';
+import { atMember, parserOver, rest } from '../../fixtures/readers.js';
+import { exitLine, linkLine, type LineEnds } from './exits.js';
+import type { Parser } from './parser.js';
 
-/** The ways out of the one grammar block in `kind Cell`, and what reading them said. */
+/** The words a grammar block's lines start with. */
+const LINE_WORDS = ['name', 'article', 'nouns', 'exit', 'link'];
+
+/** Where a grammar block's next line, or its close, starts, which a line never reads into. */
+const ENDS: LineEnds = {
+  atLineEnd: (p: Parser) =>
+    p.done ||
+    p.at('punct', '}') ||
+    (p.peek().kind === 'name' && LINE_WORDS.includes(p.peek().text)),
+};
+
+/**
+ * The exits and links `lines` starts with, read one after another by
+ * their own readers where a grammar block in `kind Cell` holds them, what
+ * they left, and what reading them said.
+ */
 function readWays(lines: string) {
+  const text = `kind Cell {\n  grammar {\n    ${lines}\n  }\n}\n`;
+  const { p, diagnostics } = atMember(text, text.indexOf(lines), 'Cell', { name: 'c.sprout' });
+  const read: (GrammarExit | GrammarLink)[] = [];
+  while (p.at('name', 'exit') || p.at('name', 'link')) {
+    const line = p.at('name', 'exit') ? exitLine(p, ENDS) : linkLine(p, ENDS);
+    if (line !== null) read.push(line);
+  }
+  return {
+    lines: read,
+    rest: rest(p),
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+  };
+}
+
+/** The lines of the one grammar block in `kind Cell`, read whole, and what reading them said. */
+function readBlock(lines: string) {
   const { declarations, refusals } = read(
     `kind Cell {\n  grammar {\n    ${lines}\n  }\n}\n`,
     'c.sprout',
@@ -43,8 +74,9 @@ describe('an exit line and a link line', () => {
       'link onward "deeper into the dark"',
       'link back_2 "the way you came"',
     ];
-    const { lines, said } = readWays(text.join('\n    '));
+    const { lines, said, rest } = readWays(text.join('\n    '));
     expect(said).toEqual([]);
+    expect(rest).toBe('}\n}\n');
     expect(unspanned(lines)).toEqual([]);
     expect(ways(lines).map((line) => textOf(line.at))).toEqual(text);
     expect(ways(lines).map(written)[1]).toMatch(
@@ -53,12 +85,9 @@ describe('an exit line and a link line', () => {
   });
 
   it('are read by their own readers, one after the other', () => {
-    const diagnostics = new Diagnostics();
-    const p = new Parser(
-      new SourceFile('c.sprout', 'exit in "in" -> hall link out "out"'),
-      diagnostics,
-      new Map(),
-    );
+    const { p, diagnostics } = parserOver('exit in "in" -> hall link out "out"', {
+      readers: new Map(),
+    });
     const atLineEnd = (at: Parser) => at.done || at.at('name', 'link');
     const exit = exitLine(p, { atLineEnd });
     const link = linkLine(p, { atLineEnd });
@@ -92,13 +121,15 @@ describe('an exit line and a link line', () => {
         'Write `exit north "x" -> yard`, naming the place it leads to.',
       ],
     ]);
-    expect(readWays('exit north "x" ->\n    name "cell"').said).toEqual([
+    const beforeName = readWays('exit north "x" ->\n    name "cell"');
+    expect(beforeName.said).toEqual([
       [
         'c.sprout:3:22',
         'After `->` comes the place the exit leads to.',
         'Name it in lower case, as in `exit north "x" -> yard`, or by its path, as in `-> bedroom.wardrobe`.',
       ],
     ]);
+    expect(beforeName.rest.startsWith('name "cell"')).toBe(true);
   });
 
   it('refuse a `when` with no condition, an empty one, or one never closed', () => {
@@ -139,13 +170,15 @@ describe('an exit line and a link line', () => {
         'Write `link onward …`, as in `link onward "deeper into the dark"`.',
       ],
     ]);
-    expect(readWays('link back\n    name "cell"').said).toEqual([
+    const beforeName = readWays('link back\n    name "cell"');
+    expect(beforeName.said).toEqual([
       [
         'c.sprout:3:14',
         '`link back` is followed by its label in quotes: what a visitor reads, and may type, for the way out.',
         'Write the label after the name, as in `link back "deeper into the dark"`.',
       ],
     ]);
+    expect(beforeName.rest.startsWith('name "cell"')).toBe(true);
   });
 
   it('refuse a link that names a place, since the world connects it', () => {
@@ -177,14 +210,14 @@ describe('an exit or a link never vanishes silently, and never takes the line af
     const c = chooser(20_260_924);
     for (let run = 0; run < 200; run++) {
       const line = c.one(WELL_FORMED);
-      const whole = readWays(`${line}\n    name "cell"`);
+      const whole = readBlock(`${line}\n    name "cell"`);
       expect(whole.said, line).toEqual([]);
       const tokens = [...line.matchAll(/"[^"]*"|->|[()!.:]|&&|\w+/g)];
       const dropped = tokens[c.below(tokens.length)]!;
       const gap = `${line.slice(0, dropped.index)}${line.slice(dropped.index + dropped[0].length)}`;
-      let readGap: ReturnType<typeof readWays> | undefined;
+      let readGap: ReturnType<typeof readBlock> | undefined;
       expect(() => {
-        readGap = readWays(`${gap}\n    name "cell"`);
+        readGap = readBlock(`${gap}\n    name "cell"`);
       }, gap).not.toThrow();
       expect(
         readGap!.lines.some((one) => one.kind === 'grammar-name' && one.text === 'cell'),

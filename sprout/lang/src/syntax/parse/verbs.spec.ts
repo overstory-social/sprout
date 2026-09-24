@@ -5,6 +5,8 @@ import type { RoleDeclaration, VerbDeclaration } from '../ast-verbs.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
+import { readWith, rest } from '../../fixtures/readers.js';
+import { verbDeclaration } from './verbs.js';
 import {
   FOLLOWING,
   nothingVanishes,
@@ -16,12 +18,17 @@ import {
 const verbsOf = (declarations: readonly Declaration[]): VerbDeclaration[] =>
   declarations.filter((d): d is VerbDeclaration => d.kind === 'verb');
 
+/** The verb `text` starts with, read by `verbDeclaration`, what it left, and what was said. */
+function readVerb(text: string) {
+  const { read: verb, p, refusals } = readWith(verbDeclaration, text, { name: 'v.sprout' });
+  return { verb, rest: rest(p), refusals };
+}
+
 /** One verb, read with nothing refused. */
 function verb(text: string): VerbDeclaration {
-  const { declarations, refusals } = read(text, 'v.sprout');
+  const { verb: only, refusals } = readVerb(text);
   expect(refusals, text).toEqual([]);
-  const [only] = verbsOf(declarations);
-  expect(only, text).toBeDefined();
+  expect(only, text).not.toBeNull();
   return only!;
 }
 
@@ -38,7 +45,7 @@ function roleShape(role: RoleDeclaration): string {
 
 /** What was said, as `line:column message`. */
 function said(text: string): string[] {
-  return read(text, 'v.sprout').refusals.map((d) => `${locationOf(d.at)} ${d.message}`);
+  return readVerb(text).refusals.map((d) => `${locationOf(d.at)} ${d.message}`);
 }
 
 describe('a verb, as the spec and its standard library write them', () => {
@@ -106,11 +113,12 @@ describe('a verb, as the spec and its standard library write them', () => {
   });
 
   it('keeps the declarations either side of it', () => {
-    const { declarations, refusals } = read(
-      'enum Ward { oak }\nverb take { role target  "take [target]" }\nmessage :stir\n',
+    const { verb, rest, refusals } = readVerb(
+      'verb take { role target  "take [target]" }\nmessage :stir\n',
     );
     expect(refusals).toEqual([]);
-    expect(declarations.map((d) => d.kind)).toEqual(['enum', 'verb', 'message']);
+    expect(verb?.name.text).toBe('take');
+    expect(rest).toBe('message :stir\n');
   });
 });
 
@@ -121,7 +129,7 @@ describe('what the verb reader refuses, at the token', () => {
       'v.sprout:1:27 A slot names a role in lower case, and `Target` starts with a capital.',
     ]);
     expect(said('verb\nenum Ward { oak }')).toEqual(['v.sprout:2:1 `verb` needs a name.']);
-    expect(read('verb\nenum Ward { oak }').declarations.map((d) => d.kind)).toEqual(['enum']);
+    expect(readVerb('verb\nenum Ward { oak }').rest).toBe('enum Ward { oak }');
   });
 
   it('a word of the language as its name, and a member’s word in the member’s own terms', () => {
@@ -136,11 +144,12 @@ describe('what the verb reader refuses, at the token', () => {
   });
 
   it('a verb called `passage`, whose braces the lexer takes as prose, costs only itself', () => {
-    const { declarations, refusals } = read('verb passage { role target }\nenum Ward { oak }');
+    const { verb, rest, refusals } = readVerb('verb passage { role target }\nenum Ward { oak }');
     expect(refusals.map((d) => d.message)).toEqual([
       '`passage` names a member of a kind, so it cannot name a verb.',
     ]);
-    expect(declarations.map((d) => d.kind)).toEqual(['enum']);
+    expect(verb).toBeNull();
+    expect(rest).toBe('enum Ward { oak }');
   });
 
   it('a capitalised name, a missing brace, and a verb never closed', () => {
@@ -163,11 +172,11 @@ describe('what the verb reader refuses, at the token', () => {
       'v.sprout:1:15 `exit` is a word of the language, so it cannot name a role.',
     ]);
     // Kept under the name the remedy offers, so the phrase is not refused too.
-    const capital = read('verb v { role MagicWord  "v [magic_word]" }', 'v.sprout');
+    const capital = readVerb('verb v { role MagicWord  "v [magic_word]" }');
     expect(capital.refusals.map((d) => d.remedy)).toEqual([
       'Write `role magic_word`. A kind that fills it comes after a colon: `role target: MagicWord`.',
     ]);
-    expect(verbsOf(capital.declarations)[0]!.roles.map(roleShape)).toEqual(['magic_word']);
+    expect(capital.verb!.roles.map(roleShape)).toEqual(['magic_word']);
   });
 
   it('a filler that is none of a kind, `symbol`, `integer` or nothing', () => {
@@ -188,10 +197,7 @@ describe('what the verb reader refuses, at the token', () => {
   });
 
   it('a filler written against its colon, which the lexer reads as a property', () => {
-    const { refusals } = read(
-      'verb v { role topic:symbol  role box:sprout.Container }',
-      'v.sprout',
-    );
+    const { refusals } = readVerb('verb v { role topic:symbol  role box:sprout.Container }');
     expect(refusals.map((d) => [locationOf(d.at), d.remedy])).toEqual([
       ['v.sprout:1:20', 'Write `role topic: symbol`, with a space after the colon.'],
       ['v.sprout:1:37', 'Write `role box: sprout.Container`, with a space after the colon.'],
@@ -204,7 +210,7 @@ describe('what the verb reader refuses, at the token', () => {
     expect(said('verb v { role tools many optional }')).toEqual([`v.sprout:1:26 ${message}`]);
     expect(said('verb v { role tools optional many }')).toEqual([`v.sprout:1:21 ${message}`]);
     // The role keeps `many`, so nothing downstream reads it as optional.
-    const kept = verbsOf(read('verb v { role tools optional many }').declarations)[0]!;
+    const kept = readVerb('verb v { role tools optional many }').verb!;
     expect(kept.roles.map(roleShape)).toEqual(['tools many']);
     expect(said('verb v { role tools many many }')).toEqual([
       'v.sprout:1:26 `tools` is marked `many` twice.',
@@ -218,6 +224,14 @@ describe('what the verb reader refuses, at the token', () => {
     expect(said('verb ask { role topic: symbol from :knows }')).toEqual([
       "v.sprout:1:31 A verb does not say where a role's options come from.",
     ]);
+  });
+
+  it('a phrase it cannot read costs that phrase and nothing else in the verb', () => {
+    const { verb, refusals } = readVerb(
+      'verb take { role target  "take [Target]"  "get [target]" }',
+    );
+    expect(refusals).toHaveLength(1);
+    expect(verb!.phrases.map((p) => p.text)).toEqual(['get [target]']);
   });
 });
 
