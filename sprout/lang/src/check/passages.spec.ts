@@ -21,7 +21,7 @@ const SPROUT_TEXT = `kind Actor { contains }
 kind Visitor is Actor { }
 kind World {
   contains
-  passage unreachable default { You cannot reach {thing} from here. }
+  passage not_here default { You see nothing like that here. }
   passage fault default { Something has gone wrong. }
 }
 kind Place { contains actors  passage arrives default { {item} arrives. } }
@@ -289,6 +289,13 @@ describe('the engine says its own lines with what it binds for each', () => {
       [],
     );
     expect(checked(`kind Loud { passage fault { {actor} feels {here} shake. } }`)).toEqual([]);
+    expect(checked(`kind Loud { passage not_here { {actor} looks round {here}. } }`)).toEqual([]);
+    expect(checked(`kind Loud { passage not_here { No {thing} here. } }`)).toEqual([
+      [
+        'shop.sprout:4:36',
+        'The engine says `not_here` with `{actor}` and `{here}` bound, and nothing is called `thing` there.',
+      ],
+    ]);
     expect(checked(`kind Loud { passage unseen { {here} shakes. } }`)).toEqual([
       [
         'shop.sprout:4:31',
