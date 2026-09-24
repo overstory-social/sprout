@@ -12,6 +12,7 @@ import { ListFull } from './lists.js';
 import { MoveFault } from './move.js';
 import { DestroyedReference, NameOutOfRange } from './named.js';
 import { readerOf, type StateReader } from './state.js';
+import { WakeFault } from './wakes.js';
 
 describe('what a fault is', () => {
   it('names the object for every rule that is about one', () => {
@@ -21,6 +22,7 @@ describe('what a fault is', () => {
       new ActFault(BELL, 'gone'),
       new DestroyedReference(BELL),
       new NameOutOfRange('hall.bell', BELL, HALL),
+      new WakeFault(BELL, 'asked past the cap'),
     ];
     for (const error of about) {
       expect(faultOf(error)).toEqual({

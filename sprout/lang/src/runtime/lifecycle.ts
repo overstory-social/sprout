@@ -18,6 +18,7 @@ import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import type { Draft } from './draft.js';
 import type { InstanceId } from './ids.js';
+import type { HostSeconds } from './time.js';
 import { isLive, liveTree } from './live.js';
 import { reaches, type PassRule } from './range.js';
 import { newInstance, type Made } from './state.js';
@@ -81,7 +82,7 @@ export type EngineSend =
     }
   | { readonly message: 'spawned'; readonly recipient: InstanceId; readonly from: InstanceId };
 
-/** What a spawn reads and writes. */
+/** What a spawn, a destroy and a `wake` read and write. */
 export interface LifecycleContext {
   readonly draft: Draft;
   readonly catalogue: Catalogue;
@@ -93,6 +94,8 @@ export interface LifecycleContext {
    * the turn; null where it sets no bound.
    */
   readonly mayHold: number | null;
+  /** The instant the turn runs, in host seconds, which a `wake` is asked at. */
+  readonly now: HostSeconds;
 }
 
 export interface Spawned {

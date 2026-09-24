@@ -1,0 +1,7 @@
+// A wake waits no longer than `elapsed` can carry when it arrives, which
+// is some sixty-eight years.
+kind Cellar is sprout.Place {
+  on :tick {
+    wake in 600000 hours
+  }
+}

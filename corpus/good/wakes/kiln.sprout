@@ -1,0 +1,15 @@
+kind Kiln {
+  :state Firing default cool
+
+  as target for fire {
+    do {
+      self.set(:state, :firing)
+      wake in 3 hours
+      say "The chamber takes the flame."
+    }
+  }
+
+  on :woke (elapsed) {
+    self.set(:state, :cool)
+  }
+}

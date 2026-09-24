@@ -303,6 +303,32 @@ export class Draft implements StateReader {
   }
 }
 
+/**
+ * What changed from `base` to `after`, a state committed from it through
+ * one draft or several: every record not the one `base` held, and every
+ * record `base` held that `after` does not.
+ */
+export function changesBetween(base: WorldState, after: WorldState): StateChanges {
+  const sorted = <T extends string>(ids: Iterable<T>): T[] => [...ids].sort(compare);
+  const held = (state: WorldState, id: InstanceId): boolean =>
+    state.instances.has(id) || state.dormant.has(id);
+  return {
+    serial: after.serial,
+    written: sorted(
+      [...after.instances].filter(([id, one]) => base.instances.get(id) !== one).map(([id]) => id),
+    ),
+    removed: sorted(
+      [...base.instances.keys(), ...base.dormant.keys()].filter((id) => !held(after, id)),
+    ),
+    tombstoned: sorted([...after.tombstones].filter((id) => !base.tombstones.has(id))),
+    visitors: sorted(
+      [...after.visitors]
+        .filter(([visit, one]) => base.visitors.get(visit) !== one)
+        .map(([visit]) => visit),
+    ),
+  };
+}
+
 /** What a store writes for one committed turn, in the stored form. */
 export interface StoredChanges {
   /** The world's serial after the turn. */

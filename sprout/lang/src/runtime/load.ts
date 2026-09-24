@@ -10,9 +10,10 @@
 // absent, is kept dormant and saved back exactly as it was read, so a file
 // restored brings its objects back as they were. Links, wakes and ticks
 // are kept as stored: a link its kind no longer declares applies nowhere
-// and is kept, so a line restored brings it back; B36 reconciles wakes
-// against the host's cap. A visitor whose place is gone keeps its record; B42
-// applies the absent table's rows when they next arrive.
+// and is kept, so a line restored brings it back, and a wake list longer
+// than the host's cap is kept whole, since the cap is on asking. A
+// visitor whose place is gone keeps its record; B42 applies the absent
+// table's rows when they next arrive.
 //
 // A tombstone is kept as stored, and a declared object with one is never
 // made again, nor anything declared inside it, what a kind gives it and

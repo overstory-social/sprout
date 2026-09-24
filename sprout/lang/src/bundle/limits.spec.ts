@@ -102,12 +102,12 @@ describe('every limit says what it is and what exceeding it means', () => {
     }
   });
 
-  it('describes every runtime budget, as a fault', () => {
+  it('describes every runtime budget, as a fault, but the wake floor, which raises what is asked', () => {
     for (const name of Object.keys(DEFAULT_LIMITS.budgets) as RuntimeBudgetName[]) {
       const row = LIMIT_TABLE.find((l) => l.name === name);
       expect(row, `${name} has no row in LIMIT_TABLE`).toBeDefined();
       expect(row!.kind).toBe('budget');
-      expect(row!.exceeded).toBe('fault');
+      expect(row!.exceeded, name).toBe(name === 'shortestWakeSeconds' ? 'raised' : 'fault');
     }
   });
 

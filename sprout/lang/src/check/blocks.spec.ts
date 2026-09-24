@@ -77,7 +77,7 @@ const DO: BodyKind = { body: 'do' };
 
 describe('a deciding body only reads and decides', () => {
   const doing =
-    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()';
+    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    wake in 3 hours';
 
   it('names a guard in what it refuses, and the guard in a `say`', () => {
     expect(check(doing, GUARD).map(([, message]) => message)).toEqual([
@@ -87,6 +87,7 @@ describe('a deciding body only reads and decides', () => {
       '`destroy self` removes something, and a guard only reads and decides.',
       '`move` moves something, and a guard only reads and decides.',
       '`act` performs a verb, and a guard only reads and decides.',
+      '`wake` asks for a wake, and a guard only reads and decides.',
     ]);
   });
 
@@ -98,6 +99,7 @@ describe('a deciding body only reads and decides', () => {
       ['b.sprout:6:5', '`destroy self` removes something, and a `permit` only reads and decides.'],
       ['b.sprout:7:5', '`move` moves something, and a `permit` only reads and decides.'],
       ['b.sprout:8:5', '`act` performs a verb, and a `permit` only reads and decides.'],
+      ['b.sprout:9:5', '`wake` asks for a wake, and a `permit` only reads and decides.'],
     ]);
   });
 
@@ -116,10 +118,10 @@ describe('a deciding body only reads and decides', () => {
 });
 
 describe('a `do` acts', () => {
-  it('takes the writes, `say`, `spawn`, `destroy`, `move` and a `let` naming a spawn', () => {
+  it('takes the writes, `say`, `spawn`, `destroy`, `move`, `wake` and a `let` naming a spawn', () => {
     expect(
       check(
-        'self.set(:inked, true)\n    say "Hi."\n    let v = spawn Vessel in self\n    move v to actor\n    if (v != self) { destroy self }',
+        'self.set(:inked, true)\n    say "Hi."\n    let v = spawn Vessel in self\n    move v to actor\n    wake in 3 hours\n    if (v != self) { destroy self }',
         DO,
       ),
     ).toEqual([]);
@@ -147,6 +149,12 @@ describe('a `do` acts', () => {
         'b.sprout:3:22',
         '`Vessel` does not hold actors, so nobody could stand where this link leads.',
       ],
+    ]);
+  });
+
+  it('checks a `wake` as a statement, whose wait must fit what `elapsed` carries', () => {
+    expect(check('wake in 999999 hours', DO)).toEqual([
+      ['b.sprout:3:13', '`wake in 999999 hours` waits longer than a wake can.'],
     ]);
   });
 

@@ -1,0 +1,7 @@
+crate.sprout:7:5   `wake` asks for a wake, and a guard only reads and decides.
+                   Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
+
+crate.sprout:12:7  `wake` asks for a wake, and a `permit` only reads and decides.
+                   Move it to `do`; a `permit` ends in `allow` or `refuse`.
+
+refused: 2 problems

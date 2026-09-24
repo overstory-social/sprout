@@ -179,6 +179,7 @@ export function contextOf(one: Turn): ReadingContext {
     passes: (container) => (container === one.draft.world ? WORLD_PASSES_ANYTHING : true),
     budget: one.budget,
     mayHold: null,
+    now: 0,
   };
 }
 

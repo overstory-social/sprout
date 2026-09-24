@@ -1,17 +1,23 @@
 import {
   commandTurn,
   loadWorld,
+  maintenanceTurn,
   pollTurn,
   tickTurn,
+  wakeTurn,
   writeTurn,
+  type CaughtUp,
   type CommandHost,
   type CommandTurn,
   type Command,
+  type Committed,
   type Polled,
   type PollTurn,
   type Tick,
   type TickTurn,
   type TurnHost,
+  type Wake,
+  type WakeTurn,
   type WorldState,
   type WriteInputs,
   type WriteTurn,
@@ -30,7 +36,8 @@ import type { SproutStore } from './store.js';
 // fault writes nothing of the world. A poll reads a snapshot and takes no
 // lock. Each is safe to run twice, as the port's re-run rule asks, since
 // a turn is a function of the state it read and its inputs. Recording a
-// turn in the log is B40's; when to tick is `ticks.ts`'s.
+// turn in the log is B40's; when to tick is `ticks.ts`'s, and when to
+// deliver a wake, live or as catch-up, is the host's (Time › Absence).
 
 /** The stored state, read against the bundle the host runs. */
 function loaded(stored: StoredState, host: TurnHost): WorldState {
@@ -81,6 +88,44 @@ export function runTick(
   return store.transaction(microworldId, async (tx) => {
     const turn = tickTurn(loaded(await tx.state(), host), host, tick);
     if (turn.committed) await tx.putState(turn.changes);
+    return turn;
+  });
+}
+
+/**
+ * Run `wake` as one wake turn on `microworldId`, under its lock. A wake
+ * that faulted writes only its consumption, and one no longer pending
+ * writes nothing.
+ */
+export function runWake(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+  wake: Wake,
+): Promise<WakeTurn> {
+  return store.transaction(microworldId, async (tx) => {
+    const turn = wakeTurn(loaded(await tx.state(), host), host, wake);
+    if (turn.committed) await tx.putState(turn.changes);
+    else if ('consumed' in turn) await tx.putState(turn.consumed.changes);
+    return turn;
+  });
+}
+
+/**
+ * Run catch-up as one maintenance turn on `microworldId`, under its lock,
+ * before an arriving visitor is admitted. It writes what it kept, a fault
+ * included, and the host admits the visitor once it resolves, whatever it
+ * did (B42 admits).
+ */
+export function runMaintenance(
+  store: SproutStore,
+  microworldId: string,
+  host: TurnHost,
+  inputs: WriteInputs,
+): Promise<Committed<CaughtUp>> {
+  return store.transaction(microworldId, async (tx) => {
+    const turn = maintenanceTurn(loaded(await tx.state(), host), host, inputs);
+    await tx.putState(turn.changes);
     return turn;
   });
 }

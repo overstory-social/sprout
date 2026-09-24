@@ -358,6 +358,20 @@ export interface BroadcastStatement extends Node {
   readonly value: Expr | null;
 }
 
+/** The unit a `wake` counts in, as written. */
+export type WakeUnit = 'seconds' | 'minutes' | 'hours';
+
+/**
+ * `wake in 3 hours` — `self` asks to be woken once, the count a whole
+ * number written out (the spec's Time › Wakes). How long it waits at
+ * least is the host's floor, and whether it may ask is the host's cap.
+ */
+export interface WakeStatement extends Node {
+  readonly kind: 'wake';
+  readonly count: IntegerLiteral;
+  readonly unit: WakeUnit;
+}
+
 /**
  * `{ … }` — statements in the order written, which run in that order and
  * are a scope of their own: a `let` in a block lives to its `}`.
@@ -424,6 +438,7 @@ export type Statement =
   | ActStatement
   | SendStatement
   | BroadcastStatement
+  | WakeStatement
   | IfStatement
   | RefuseStatement
   | AllowStatement

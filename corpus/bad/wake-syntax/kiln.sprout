@@ -1,0 +1,13 @@
+// A wake says `in`, a whole number written out, and `seconds`, `minutes`
+// or `hours`, always plural.
+kind Kiln {
+  :delay 3 min 0 max 9
+
+  on :stir {
+    wake 3 hours
+    wake in 1 hour
+    wake in 3
+    wake in self.get(:delay) minutes
+    wake in 2 days
+  }
+}

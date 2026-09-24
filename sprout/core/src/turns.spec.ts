@@ -11,6 +11,7 @@ import {
   newInstance,
   SourceFile,
   STANDARD_LIBRARY,
+  dueWakes,
   storedChanges,
   visitKey,
   type CommandHost,
@@ -22,11 +23,20 @@ import {
 import { reentrant } from './conformance.js';
 import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
-import { committedState, runCommand, runPoll, runTick, runWriteTurn } from './turns.js';
+import {
+  committedState,
+  runCommand,
+  runMaintenance,
+  runPoll,
+  runTick,
+  runWake,
+  runWriteTurn,
+} from './turns.js';
 
 // A counter in a hall, one kind per file: bumping it counts, and
 // smashing it counts and then overflows, so the turn faults after it
-// wrote.
+// wrote; resting it asks for a wake a minute on, and a wake sets it to
+// the seconds it waited, which it holds only up to 99.
 const FILES: Record<string, string> = {
   'world.sprout': `world tally is sprout.World {
   visitors are Person
@@ -37,12 +47,15 @@ const FILES: Record<string, string> = {
 }
 verb bump  { role target  "bump [target]" }
 verb smash { role target  "smash [target]" }
+verb rest  { role target  "rest [target]" }
 `,
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
   'counter.sprout': `kind Counter {
   :n 0 min 0 max 99
   as target for bump  { do { self.adjust(:n, 1)  say "Click." } }
   as target for smash { do { self.adjust(:n, 1)  if (2147483647 + 1 > 0) { say "Crunch." } } }
+  as target for rest  { do { wake in 1 minutes  say "Resting." } }
+  on :woke (elapsed) { self.set(:n, elapsed) }
 }
 `,
 };
@@ -87,7 +100,7 @@ const parse: Parser = (text, actor) => {
   return { reading: { verb, actor, bindings: new Map([['target', { object: COUNTER }]]) } };
 };
 const host: CommandHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, parse };
-const command = (text: string) => ({ visit: MARTA, text, seed: 1, mayHold: null });
+const command = (text: string, now = 0) => ({ visit: MARTA, text, seed: 1, mayHold: null, now });
 
 /** A store holding the tally with Marta standing in the hall. */
 async function seeded(store: SproutStore = memoryStore()): Promise<SproutStore> {
@@ -198,7 +211,7 @@ describe('a write turn of any kind against a store', () => {
       'w',
       'wake',
       host,
-      { seed: 3, mayHold: null },
+      { seed: 3, mayHold: null, now: 0 },
       (turn) => {
         turn.draft.mint();
         throw new Error('the body gave up');
@@ -211,7 +224,7 @@ describe('a write turn of any kind against a store', () => {
       'w',
       'maintenance',
       host,
-      { seed: 4, mayHold: null },
+      { seed: 4, mayHold: null, now: 0 },
       (turn) => turn.draft.nextSerial(),
     );
     expect(minted).toMatchObject({ committed: true, value: before.serial + 1 });
@@ -239,5 +252,53 @@ describe('a tick turn against a store', () => {
     const before = await stored(store);
     await expect(runTick(store, 'w', host, tick(40))).rejects.toThrow('does not run backwards');
     expect(await stored(store)).toEqual(before);
+  });
+});
+
+describe('a wake turn against a store', () => {
+  /** Rest the counter at `asked`, and hand back the wake that asks for, as at `now`. */
+  async function rested(store: SproutStore, asked: number, now: number) {
+    await runCommand(store, 'w', host, command('rest counter', asked));
+    const [due] = dueWakes(await committedState(store, 'w', host), now);
+    if (due === undefined) throw new Error('nothing is due');
+    return { object: due.object, serial: due.serial, now, seed: 5, mayHold: null };
+  }
+
+  it('asks at the command’s instant, and writes what the wake did where it commits', async () => {
+    const store = await seeded();
+    const wake = await rested(store, 100, 190);
+    expect(dueWakes(await committedState(store, 'w', host), 159)).toEqual([]);
+    expect(await runWake(store, 'w', host, wake)).toMatchObject({
+      committed: true,
+      value: { elapsed: 90 },
+    });
+    expect(await count(store)).toBe(90);
+    expect((await stored(store)).instances.find((r) => r.id === COUNTER)?.wakes).toEqual([]);
+    expect(await runWake(store, 'w', host, wake)).toEqual({ committed: false, unwoken: true });
+  });
+
+  it('writes only the wake’s consumption where it faults, so it is not retried', async () => {
+    const store = await seeded();
+    const wake = await rested(store, 0, 500);
+    const turn = await runWake(store, 'w', host, wake);
+    expect(turn).toMatchObject({ committed: false, fault: { name: 'ValueOutOfRange' } });
+    expect(await count(store)).toBe(0);
+    expect((await stored(store)).instances.find((r) => r.id === COUNTER)?.wakes).toEqual([]);
+  });
+});
+
+describe('a maintenance turn against a store', () => {
+  it('writes what catch-up kept, and a fault is consumed in the same write', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    const kept = await runMaintenance(store, 'w', host, { now: 75, seed: 6, mayHold: null });
+    expect(kept.value).toMatchObject({ faulted: null, abandoned: [] });
+    expect(await count(store)).toBe(75);
+
+    await runCommand(store, 'w', host, command('rest counter', 100));
+    const faulted = await runMaintenance(store, 'w', host, { now: 900, seed: 7, mayHold: null });
+    expect(faulted.value.faulted?.fault).toMatchObject({ name: 'ValueOutOfRange' });
+    expect(await count(store)).toBe(75);
+    expect(dueWakes(await committedState(store, 'w', host), 10_000)).toEqual([]);
   });
 });

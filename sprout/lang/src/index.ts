@@ -81,6 +81,9 @@ export type { Answer, AnswerName, Choice } from './runtime/parser/answers.js';
 export type { CommandExit } from './runtime/parser/exits.js';
 export * from './runtime/time.js';
 export * from './runtime/tick.js';
+export * from './runtime/wakes.js';
+export * from './runtime/wake.js';
+export * from './runtime/maintenance.js';
 
 export * from './prose/names.js';
 export * from './prose/reflow.js';

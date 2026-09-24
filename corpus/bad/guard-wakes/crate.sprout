@@ -1,0 +1,16 @@
+// A guard and a `permit` only read and decide, so neither may ask to be
+// woken: the engine asks them before anything happens.
+kind Crate {
+  contains
+
+  release (item, to) {
+    wake in 5 minutes
+  }
+
+  as target for pack {
+    permit {
+      wake in 1 hours
+      allow
+    }
+  }
+}
