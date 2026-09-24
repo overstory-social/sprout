@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
-import { shop } from '../fixtures/bundle.js';
+import { compiledWorld, shop } from '../fixtures/bundle.js';
 import { catalogueOf } from './catalogue.js';
 import { Draft } from './draft.js';
 import { declaredId, mintedId, type InstanceId } from './ids.js';
@@ -27,9 +27,9 @@ import type { Named } from '../declare/names.js';
 import type { Frame } from './evaluate.js';
 import { spawnInstance, type LifecycleContext } from './lifecycle.js';
 import { readerOf } from './state.js';
-import { compiledWorld } from '../fixtures/bundle.js';
 import { Budget } from './budget.js';
 import { passRules } from './passes.js';
+import { Draws } from './draws.js';
 import type { Bundle } from '../bundle/bundle.js';
 
 const catalogue = catalogueOf(shop(), DEFAULT_LIMITS.caps);
@@ -208,7 +208,7 @@ function lampsTurn(): LifecycleContext {
     budget,
     names: catalogue.names,
   });
-  return { draft, catalogue, passes, budget, mayHold: null, now: 0 };
+  return { draft, catalogue, passes, budget, draws: new Draws(7), mayHold: null, now: 0 };
 }
 
 describe('a name in a kind’s body, while the world runs', () => {
