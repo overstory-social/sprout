@@ -1,0 +1,4 @@
+cat.sprout:2:18  This `{one of}` has one choice, so it says the same words every time.
+                 Write another choice after an `{or}`, or take out `{one of}` and `{/one of}` and keep the words.
+
+ok: 6 declarations in 3 files, 1 warning

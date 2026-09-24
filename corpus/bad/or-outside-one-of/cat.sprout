@@ -1,0 +1,4 @@
+// An `{or}` outside any choice.
+kind Cat {
+  passage stare { The cat stares.{or}The cat blinks. }
+}

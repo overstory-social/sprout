@@ -1,4 +1,4 @@
-world one_of_one_choice is sprout.World {
+world or_outside_one_of is sprout.World {
   visitors are Person
   visitors arrive at yard
 

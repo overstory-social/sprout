@@ -1,0 +1,8 @@
+kind Kiln {
+  as target for fire {
+    do {
+      wake in 3 hours
+      say "The chamber takes the flame."
+    }
+  }
+}
