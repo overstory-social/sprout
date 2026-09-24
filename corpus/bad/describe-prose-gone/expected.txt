@@ -1,7 +1,7 @@
 mirror.sprout:3:3  This `describe` says nothing while `Mirror`'s `.prose` file is absent: every `text` in it names a passage that file holds.
                    Restore the file, or give the description words of its own in quotes, as in `text "A lever, waist high."`.
 
-sprout.json:15:63  The manifest names the file "mirror.prose", and it did not travel with the world.
+sprout.json:15:77  The manifest names the file "mirror.prose", and it did not travel with the world.
                    Add the file, or take its name out of the manifest.
 
 refused: 2 problems

@@ -45,7 +45,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * world's own `Place` beside the standard library's.
  */
 const bundle = compiledWorld('printers_shop', {
-  'world.sprout': [
+  'printers_shop.sprout': [
     'world printers_shop is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is Room {',
     '    object shelf is Shelf {',

@@ -12,5 +12,5 @@
       "sha": "7a5954b9fe180b1e30f28d1b6448b81d247baf3da73c0e78479d126592666084"
     }
   ],
-  "files": ["world.sprout", "person.sprout", "creature.sprout"]
+  "files": ["visitor_kind_behaviour.sprout", "person.sprout", "creature.sprout"]
 }

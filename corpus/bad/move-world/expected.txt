@@ -1,4 +1,4 @@
-world.sprout:8:15  `move self` here would move the world, and the world goes nowhere.
-                   Write it in the body of the thing that should move.
+move_world.sprout:8:15  `move self` here would move the world, and the world goes nowhere.
+                        Write it in the body of the thing that should move.
 
 refused: 1 problem

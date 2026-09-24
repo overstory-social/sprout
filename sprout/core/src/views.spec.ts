@@ -28,7 +28,7 @@ import { runView, ViewCache } from './views.js';
 // A hall with a lamp in it, one kind per file: the hall says whether the
 // lamp is lit, and lighting it lights it.
 const FILES: Record<string, string> = {
-  'world.sprout': `world lamplight is sprout.World {
+  'lamplight.sprout': `world lamplight is sprout.World {
   visitors are Person
   visitors arrive at hall
   object hall is sprout.Place {

@@ -10,7 +10,7 @@ import { libraryHash, type Bundle, type Manifest } from '../bundle/bundle.js';
 import { compileBundle, type BundleResult } from '../bundle/compile/compile.js';
 import { DEFAULT_LIMITS, type Limits } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
-import { kindFileName } from '../declare/kind-files.js';
+import { fileNamedFor } from '../declare/file-names.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 import type { KindDeclaration } from '../syntax/ast.js';
@@ -45,11 +45,11 @@ function laidOut(
   for (const [name, text] of Object.entries(files)) {
     if (!name.endsWith('.sprout')) continue;
     const kinds = parseDeclarations(new SourceFile(name, text), new Diagnostics()).filter(
-      (d): d is KindDeclaration => d.kind === 'kind' && kindFileName(d.name.text) !== name,
+      (d): d is KindDeclaration => d.kind === 'kind' && fileNamedFor(d.name.text) !== name,
     );
     let kept = text;
     for (const { name: kindName, at } of kinds) {
-      const target = kindFileName(kindName.text);
+      const target = fileNamedFor(kindName.text);
       moved.push({
         target,
         alone: only(text, at.start, at.end),
@@ -126,7 +126,7 @@ export function compileWorld(
  * tin the box holds still composes.
  */
 export const SHOP: Readonly<Record<string, string>> = {
-  'world.sprout': [
+  'printers_shop.sprout': [
     'world printers_shop is sprout.World { contains visitors are Person visitors arrive at hall :open true',
     '  object hall is Room {',
     '    object shelf is Shelf {',

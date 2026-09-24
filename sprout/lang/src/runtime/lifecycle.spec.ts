@@ -28,7 +28,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * which here holds actors; the kiln is still absent with its kind's file
  * withheld.
  */
-const catalogueSource = `${SHOP['world.sprout']!.replace(
+const catalogueSource = `${SHOP['printers_shop.sprout']!.replace(
   'object kiln is Crate',
   'object kiln is Kiln { object cat is Creature }',
 )}kind Cup { :full false }\n${[
@@ -41,7 +41,7 @@ const KILN_SOURCE = 'kind Kiln { contains actors }\n';
 const catalogue = catalogueOf(
   compiledWorld('printers_shop', {
     ...SHOP,
-    'world.sprout': catalogueSource,
+    'printers_shop.sprout': catalogueSource,
     'kiln.sprout': KILN_SOURCE,
   }),
   CAPS,
@@ -70,7 +70,7 @@ const withheld = (): WorldState =>
     catalogueOf(
       compiledWorld(
         'printers_shop',
-        { ...SHOP, 'world.sprout': catalogueSource, 'kiln.sprout': KILN_SOURCE },
+        { ...SHOP, 'printers_shop.sprout': catalogueSource, 'kiln.sprout': KILN_SOURCE },
         {
           mode: 'load',
           withheld: ['crate.sprout', 'kiln.sprout'],

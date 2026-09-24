@@ -151,7 +151,7 @@ describe('compileBundle loads a world under the caps it recorded, or refuses it'
     });
     expect(bundle!.caps.optionsPerEnum).toBe(4);
     expect(bundle!.absent.map((a) => [a.what, a.reason])).toContainEqual([
-      'world.sprout',
+      'printers_shop.sprout',
       'broken',
     ]);
   });

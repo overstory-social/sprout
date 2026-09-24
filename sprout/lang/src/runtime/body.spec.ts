@@ -61,7 +61,7 @@ const VERBS = [
  * do, and one `permit`. `Loud` composes it and writes its own `done`.
  */
 const bundle = compiledWorld('shop', {
-  'world.sprout': [
+  'shop.sprout': [
     'world shop is sprout.World {',
     '  contains visitors are Person visitors arrive at hall',
     '  object hall is Room {',

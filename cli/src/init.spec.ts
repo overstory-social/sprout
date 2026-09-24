@@ -19,7 +19,7 @@ describe('initWorld', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Paper Store');
     expect(initWorld(dir, 'marta')).toEqual([
       'sprout.json',
-      'world.sprout',
+      'paper_store.sprout',
       'person.sprout',
       'README.md',
     ]);
@@ -32,9 +32,9 @@ describe('initWorld', () => {
       level: 1,
       extensions: [],
       libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(STANDARD_LIBRARY) }],
-      files: ['world.sprout', 'person.sprout'],
+      files: ['paper_store.sprout', 'person.sprout'],
     });
-    expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain(
+    expect(readFileSync(join(dir, 'paper_store.sprout'), 'utf8')).toContain(
       'world paper_store is sprout.World {',
     );
   });
@@ -42,16 +42,16 @@ describe('initWorld', () => {
   it('writes a world that composes `sprout.World`, as every world does', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
-    const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
+    const written = readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8');
     expect(written).toContain('world kiln_yard is sprout.World {');
     // What a beginner is handed is what the compiler takes.
-    expect(checkShape(new SourceFile('world.sprout', written)).diagnostics).toEqual([]);
+    expect(checkShape(new SourceFile('kiln_yard.sprout', written)).diagnostics).toEqual([]);
   });
 
   it('writes the place visitors arrive at, written in the world’s body, holding actors', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
-    const written = readFileSync(join(dir, 'world.sprout'), 'utf8');
+    const written = readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8');
     expect(written).toContain('  visitors arrive at hall\n');
     expect(written).toMatch(
       /world kiln_yard is sprout.World \{[^}]*\n {2}object hall is sprout.Place\n\}/,
@@ -66,7 +66,9 @@ describe('initWorld', () => {
   it('writes the kind visitors are made of: the world’s own, composing `sprout.Visitor`, in the file named for it', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
     initWorld(dir, 'marta');
-    expect(readFileSync(join(dir, 'world.sprout'), 'utf8')).toContain('  visitors are Person\n');
+    expect(readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8')).toContain(
+      '  visitors are Person\n',
+    );
     const person = readFileSync(join(dir, 'person.sprout'), 'utf8');
     expect(person).toBe('kind Person is sprout.Visitor { }\n');
     expect(checkShape(new SourceFile('person.sprout', person)).diagnostics).toEqual([]);
@@ -78,6 +80,21 @@ describe('initWorld', () => {
     expect(bundle!.visitor!.composes.has('sprout.Visitor')).toBe(true);
     expect(bundle!.visitor!.composes.has('sprout.Actor')).toBe(true);
     expect(bundle!.world!.composes.has('sprout.World')).toBe(true);
+  });
+
+  it('makes the visitors of a world called `person` of `Guest`, since the world holds `person.sprout`', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'person');
+    expect(initWorld(dir, 'marta')).toEqual([
+      'sprout.json',
+      'person.sprout',
+      'guest.sprout',
+      'README.md',
+    ]);
+    expect(readFileSync(join(dir, 'person.sprout'), 'utf8')).toContain('  visitors are Guest\n');
+    expect(readFileSync(join(dir, 'guest.sprout'), 'utf8')).toBe(
+      'kind Guest is sprout.Visitor { }\n',
+    );
+    expect(compileBundle(readWorld(dir).source!).diagnostics).toEqual([]);
   });
 
   it('refuses a folder that already has something in it', () => {

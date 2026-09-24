@@ -30,7 +30,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * draw.
  */
 export const MILL: Bundle = compiledWorld('mill', {
-  'world.sprout': [
+  'mill.sprout': [
     'world mill is sprout.World { contains visitors are Person visitors arrive at yard',
     '  object yard is sprout.Place {',
     '    object press is Press',
@@ -141,6 +141,7 @@ export function proseTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets, seed
       passes: (container) => (container === draft.world ? WORLD_PASSES_ANYTHING : true),
       nicknames: new Map([[marta.id, 'Marta']]),
       draws: new LineDraws(new Draws(seed)),
+      actor: marta.id,
     },
   };
 }

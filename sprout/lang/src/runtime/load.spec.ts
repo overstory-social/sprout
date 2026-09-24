@@ -247,7 +247,10 @@ describe('a declared object is read against its kind now', () => {
     const before = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace('      object cup is Jar\n', ''),
+        'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
+          '      object cup is Jar\n',
+          '',
+        ),
       }),
       CAPS,
     );
@@ -293,7 +296,7 @@ describe('a declared object destroyed is gone for good', () => {
     const later = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace(
+        'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
           '      object cup is Jar\n',
           '      object cup is Jar\n      object bowl is Jar\n',
         ),
@@ -311,7 +314,7 @@ describe('a declared object destroyed is gone for good', () => {
     const lantern = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace(
+        'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
           '    object kiln is Crate\n',
           '    object kiln is Crate\n    object lamp is Lantern\n',
         ).concat('kind Lantern { contains object wick is Jar }\n'),
@@ -371,7 +374,10 @@ describe('what cannot be decoded now is kept dormant, untouched', () => {
     const moved = catalogueOf(
       compiledWorld('printers_shop', {
         ...SHOP,
-        'world.sprout': SHOP['world.sprout']!.replace('      object cup is Jar\n', '').replace(
+        'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
+          '      object cup is Jar\n',
+          '',
+        ).replace(
           '    object kiln is Crate\n',
           '    object kiln is Crate\n    object cup is Jar\n',
         ),

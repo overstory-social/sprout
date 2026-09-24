@@ -23,7 +23,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * `Place`, so a bare `Place` in its bodies is not `sprout.Place`.
  */
 const bundle = compiledWorld('keep', {
-  'world.sprout': [
+  'keep.sprout': [
     'world keep is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is sprout.Place {',
     '    object crate is Crate {',

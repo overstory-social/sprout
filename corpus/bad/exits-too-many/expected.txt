@@ -1,4 +1,4 @@
-world.sprout:17:7  `yard` writes more than 8 exits and links, and 8 is as many as a place may have.
-                   Keep the ways out a visitor needs here: several guarded exits in one direction each count.
+exits_too_many.sprout:17:7  `yard` writes more than 8 exits and links, and 8 is as many as a place may have.
+                            Keep the ways out a visitor needs here: several guarded exits in one direction each count.
 
 refused: 1 problem

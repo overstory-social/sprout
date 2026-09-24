@@ -1,4 +1,4 @@
-world.sprout:5:11  `}` is not a value.
-                   Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.
+valueless_property_before_closer.sprout:5:11  `}` is not a value.
+                                              Write `true` or `false`, a whole number, text in quotes, an option of an enum, or a list.
 
 refused: 1 problem

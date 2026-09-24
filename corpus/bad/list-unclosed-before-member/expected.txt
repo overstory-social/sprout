@@ -1,4 +1,4 @@
-world.sprout:9:3  This list is never closed.
-                  Add a ] after its elements.
+list_unclosed_before_member.sprout:9:3  This list is never closed.
+                                        Add a ] after its elements.
 
 refused: 1 problem

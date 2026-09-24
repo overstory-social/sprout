@@ -1,10 +1,10 @@
-candle.sprout:6:10  `Candle` holds two objects called `wick`.
-                    Give one of them another name, or remove it.
+candle.sprout:6:10                   `Candle` holds two objects called `wick`.
+                                     Give one of them another name, or remove it.
 
-case.sprout:3:10    `composing_room.storm` holds two objects called `wick`.
-                    Give one of them another name, or remove it.
+case.sprout:3:10                     `composing_room.storm` holds two objects called `wick`.
+                                     Give one of them another name, or remove it.
 
-world.sprout:9:14   `composing_room.lantern` holds two objects called `wick`.
-                    Give one of them another name, or remove it.
+kind_contents_same_name.sprout:9:14  `composing_room.lantern` holds two objects called `wick`.
+                                     Give one of them another name, or remove it.
 
 refused: 3 problems

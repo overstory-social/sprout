@@ -15,7 +15,7 @@ import { Report } from './report.js';
 function warned(own: string, lib = ''): string[] {
   const parsing = new Diagnostics();
   const byLibrary = new Map<string, Declaration[]>([
-    ['shop', parseDeclarations(new SourceFile('world.sprout', own), parsing)],
+    ['shop', parseDeclarations(new SourceFile('shop.sprout', own), parsing)],
     ['lib', parseDeclarations(new SourceFile('lib.sprout', lib), parsing)],
     ['sprout', STANDARD_LIBRARY.files.flatMap((file) => parseDeclarations(file, parsing))],
   ]);
@@ -47,7 +47,7 @@ describe('a verb with phrases that nothing `say`s for', () => {
     expect(
       warned(`${PULL}\nkind Lever { as target for pull { do { tell "It gives." } } }`),
     ).toEqual([
-      'world.sprout:1:6 Nothing that takes part in `pull` ever `say`s anything, so typing it is answered with the world\'s `nothing_happens`. Say what happens in a role\'s `do`, as in `as target for pull { do { say "…" } }`.',
+      'shop.sprout:1:6 Nothing that takes part in `pull` ever `say`s anything, so typing it is answered with the world\'s `nothing_happens`. Say what happens in a role\'s `do`, as in `as target for pull { do { say "…" } }`.',
     ]);
   });
 

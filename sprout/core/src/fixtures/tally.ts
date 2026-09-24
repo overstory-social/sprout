@@ -43,13 +43,13 @@ const MANIFEST: Manifest = {
       sha: libraryHash(STANDARD_LIBRARY),
     },
   ],
-  files: ['world.sprout', 'person.sprout', 'counter.sprout'],
+  files: ['tally.sprout', 'person.sprout', 'counter.sprout'],
 };
 
 /** The tally's files, a bump saying `click`. */
 function files(click: string): Record<string, string> {
   return {
-    'world.sprout': `world tally is sprout.World {
+    'tally.sprout': `world tally is sprout.World {
   visitors are Person
   visitors arrive at hall
   object hall is sprout.Place {

@@ -1,4 +1,4 @@
-world.sprout:9:12  `porter` composes `sprout.Visitor`, what a person is made of, and nothing declares a visitor: each one is a person who arrives.
-                   For an NPC, use a kind that composes `sprout.Actor` and not `sprout.Visitor`; to share it with the visitors, write `kind Creature is sprout.Actor { … }` and `kind Person is Creature, sprout.Visitor { }`.
+object_is_a_visitor.sprout:9:12  `porter` composes `sprout.Visitor`, what a person is made of, and nothing declares a visitor: each one is a person who arrives.
+                                 For an NPC, use a kind that composes `sprout.Actor` and not `sprout.Visitor`; to share it with the visitors, write `kind Creature is sprout.Actor { … }` and `kind Person is Creature, sprout.Visitor { }`.
 
 refused: 1 problem

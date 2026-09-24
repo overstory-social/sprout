@@ -162,7 +162,7 @@ describe('the engine’s own refusals', () => {
   it('refuse a thing going into itself in the world’s own words, where it writes them', () => {
     const own = catalogueOf(
       compiledWorld('den', {
-        'world.sprout': [
+        'den.sprout': [
           'world den is sprout.World { contains visitors are Pup visitors arrive at lair',
           '  passage inside_itself { {item} will not fold into itself. }',
           '  object lair is sprout.Place {',
@@ -207,6 +207,58 @@ describe('the engine’s own refusals', () => {
       'engine not-a-place: "{item} cannot stand in {to}."',
     );
     expect(snapshot(draft)).toBe(before);
+  });
+});
+
+describe('the host’s bound on a crowd', () => {
+  const bounded = (people: number | null) =>
+    new Budget({ ...DEFAULT_LIMITS.budgets, peoplePerPlace: people });
+
+  it('refuses a person going into a place that holds as many people as the host allows, before any guard', () => {
+    const { draft, visitor } = turn();
+    visitorIn(draft, ALCOVE);
+    const before = snapshot(draft);
+    const budget = bounded(1);
+    const refused = moveInstance(context(draft, { budget }), visitor, visitor, ALCOVE);
+    expect(refused).toMatchObject({
+      engine: 'full',
+      said: { text: 'There is no room in {to} for {item}.' },
+      bindings: new Map([
+        ['item', boundObject(visitor)],
+        ['to', boundObject(ALCOVE)],
+      ]),
+    });
+    expect(snapshot(draft)).toBe(before);
+    // A stranger carrying the person off is turned away by the host before
+    // `sprout.Actor`'s `depart` refuses it.
+    expect(said(moveInstance(context(draft, { budget: bounded(1) }), MARTA, visitor, ALCOVE))).toBe(
+      'engine full: "There is no room in {to} for {item}."',
+    );
+  });
+
+  it('lets a person in while there is room, and anyone at all where the host set no bound', () => {
+    const { draft, visitor } = turn();
+    visitorIn(draft, ALCOVE);
+    moved(moveInstance(context(draft, { budget: bounded(2) }), visitor, visitor, ALCOVE));
+    const again = turn();
+    for (let i = 0; i < 12; i++) visitorIn(again.draft, ALCOVE);
+    moved(
+      moveInstance(
+        context(again.draft, { budget: bounded(null) }),
+        again.visitor,
+        again.visitor,
+        ALCOVE,
+      ),
+    );
+  });
+
+  it('never counts or turns away an NPC', () => {
+    const { draft, visitor } = turn();
+    visitorIn(draft, ALCOVE);
+    // The alcove holds one person, its bound, and still lets Marta, an NPC, in.
+    moved(moveInstance(context(draft, { budget: bounded(1) }), MARTA, MARTA, ALCOVE));
+    // With room for two, Marta beside that person takes none of it.
+    moved(moveInstance(context(draft, { budget: bounded(2) }), visitor, visitor, ALCOVE));
   });
 });
 

@@ -1,4 +1,4 @@
-world.sprout:8:27  A `remembers` block holds properties, and `faulty` is not one.
-                   Write `:faulty` and its value, as a property is written.
+remembers_list_default_closer.sprout:8:27  A `remembers` block holds properties, and `faulty` is not one.
+                                           Write `:faulty` and its value, as a property is written.
 
 refused: 1 problem

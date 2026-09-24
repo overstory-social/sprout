@@ -1,19 +1,19 @@
-lamp.sprout:6:5    `self.set` writes, and a `describe` only reads.
-                   Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
+describe_writes.sprout:11:9  Nothing handles `:looked`, so sending it does nothing.
+                             Write `on :looked { … }` in the kind that should hear it, or take the message out.
 
-lamp.sprout:7:5    `move` moves something, and a `describe` only reads.
-                   Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
+lamp.sprout:6:5              `self.set` writes, and a `describe` only reads.
+                             Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
 
-lamp.sprout:8:5    `spawn` makes a new thing, and a `describe` only reads.
-                   Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
+lamp.sprout:7:5              `move` moves something, and a `describe` only reads.
+                             Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
 
-lamp.sprout:9:5    `send` sends a message, and a `describe` only reads.
-                   Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
+lamp.sprout:8:5              `spawn` makes a new thing, and a `describe` only reads.
+                             Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
 
-lamp.sprout:10:5   `destroy self` removes something, and a `describe` only reads.
-                   Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
+lamp.sprout:9:5              `send` sends a message, and a `describe` only reads.
+                             Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
 
-world.sprout:11:9  Nothing handles `:looked`, so sending it does nothing.
-                   Write `on :looked { … }` in the kind that should hear it, or take the message out.
+lamp.sprout:10:5             `destroy self` removes something, and a `describe` only reads.
+                             Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
 
 refused: 5 problems

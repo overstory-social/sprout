@@ -23,17 +23,17 @@ describe('checkWorld', () => {
   });
 
   it('refuses a broken file by file, line and column, as a page and as JSON', () => {
-    const dir = worldWith({ 'world.sprout': 'world w is sprout.World {\n  visitors are 42\n}\n' });
+    const dir = worldWith({ 'w.sprout': 'world w is sprout.World {\n  visitors are 42\n}\n' });
     const result = checkWorld(dir);
     expect(result.ok).toBe(false);
     expect(result.bundle).toBeNull();
     const page = formatCheck(result);
-    expect(page).toContain('world.sprout:2:');
+    expect(page).toContain('w.sprout:2:');
     expect(page).toMatch(/refused: \d+ problems?\n$/);
     const json = JSON.parse(formatCheckJson(result));
     expect(json.ok).toBe(false);
     expect(json.diagnostics[0]).toMatchObject({
-      file: 'world.sprout',
+      file: 'w.sprout',
       line: 2,
       severity: 'refusal',
     });

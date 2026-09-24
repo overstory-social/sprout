@@ -34,6 +34,7 @@ export const LoggedBudgets = z.object({
   spawnsPerTurn: whole,
   shortestWakeSeconds: whole,
   pendingWakesPerObject: whole,
+  peoplePerPlace: whole.nullable(),
   wallClockMs: whole.nullable(),
 }) satisfies z.ZodType<RuntimeBudgets>;
 export type LoggedBudgets = z.infer<typeof LoggedBudgets>;

@@ -1,7 +1,7 @@
-world.sprout:9:35   `shelf` does not hold actors, so nobody could stand where this exit leads.
-                    Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.
+exit_to_non_place.sprout:9:35   `shelf` does not hold actors, so nobody could stand where this exit leads.
+                                Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.
 
-world.sprout:10:39  `exit_to_non_place` is the world, and an exit leads to a place inside it.
-                    Lead the exit to a place in the world: something that composes `sprout.Place` or writes `contains actors`.
+exit_to_non_place.sprout:10:39  `exit_to_non_place` is the world, and an exit leads to a place inside it.
+                                Lead the exit to a place in the world: something that composes `sprout.Place` or writes `contains actors`.
 
 refused: 2 problems

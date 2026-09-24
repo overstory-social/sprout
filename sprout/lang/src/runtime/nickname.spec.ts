@@ -129,7 +129,7 @@ describe('re-asking after a republish', () => {
   const republished = catalogueOf(
     compiledWorld('harbour', {
       ...HARBOUR_FILES,
-      'world.sprout': HARBOUR_FILES['world.sprout']!.replace(
+      'harbour.sprout': HARBOUR_FILES['harbour.sprout']!.replace(
         'object gull is Gull',
         'object gull is Gull\n    object rose is Flower',
       ),

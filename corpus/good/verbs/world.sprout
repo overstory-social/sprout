@@ -1,9 +1,0 @@
-// Verbs, as far as the compiler reads them today: roles open, by kind
-// and by value, a set role, a tool some phrase leaves out, a verb with no
-// phrases and one with no roles.
-world verbs is sprout.World {
-  visitors are Potter
-  visitors arrive at studio
-
-  object studio is sprout.Place
-}

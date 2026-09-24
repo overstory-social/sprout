@@ -28,7 +28,7 @@ export const CAPS = DEFAULT_LIMITS.caps;
  * party was not.
  */
 const KEEP = {
-  'world.sprout': [
+  'keep.sprout': [
     'world keep is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is sprout.Place {',
     '    object alcove is sprout.Place { passage arrives { {item} squeezes in. } }',

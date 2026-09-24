@@ -37,7 +37,7 @@ const CAPS = DEFAULT_LIMITS.caps;
  * waves at. The world holds things and not actors.
  */
 export const YARD = compiledWorld('yard', {
-  'world.sprout': [
+  'yard.sprout': [
     'world yard is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is Room {',
     '    object both is Both',

@@ -3,6 +3,7 @@ import { userInfo } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
 import {
+  fileNamedFor,
   LANGUAGE_LEVEL,
   libraryHash,
   MANIFEST_FILE,
@@ -10,8 +11,9 @@ import {
   type Manifest,
 } from '@overstory/sprout/lang';
 
-// `sprout init [dir]`: a folder with a manifest, a world, the kind its
-// visitors are made of in the file named for it, and a README line. The
+// `sprout init [dir]`: a folder with a manifest, the world in the file
+// named for its name, the kind its visitors are made of in the file named
+// for it, and a README line. The
 // manifest pins the standard library the CLI carries, since every world
 // composes `sprout.World`. What it writes passes `sprout check`.
 
@@ -24,6 +26,11 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
   const name = basename(root)
     .toLowerCase()
     .replace(/[^a-z0-9_]+/g, '_');
+  const worldFile = fileNamedFor(name);
+  // The visitor kind's file may not be the world's, so a world called
+  // `person` has its visitors made of `Guest`.
+  const visitor = worldFile === fileNamedFor('Person') ? 'Guest' : 'Person';
+  const visitorFile = fileNamedFor(visitor);
   const manifest: Manifest = {
     name,
     namespace: name,
@@ -39,7 +46,7 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
         sha: libraryHash(STANDARD_LIBRARY),
       },
     ],
-    files: ['world.sprout', 'person.sprout'],
+    files: [worldFile, visitorFile],
   };
   const { namespace: _namespace, ...written } = manifest;
   // A visitor is made of the world's own kind composing `sprout.Visitor`,
@@ -49,19 +56,19 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
   // in a file of its own, as every kind is.
   const world = [
     `world ${name} is sprout.World {`,
-    '  visitors are Person',
+    `  visitors are ${visitor}`,
     '  visitors arrive at hall',
     '',
     '  object hall is sprout.Place',
     '}',
     '',
   ].join('\n');
-  const person = 'kind Person is sprout.Visitor { }\n';
+  const person = `kind ${visitor} is sprout.Visitor { }\n`;
   const readme = `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it.\n`;
   const files = [
     [MANIFEST_FILE, `${JSON.stringify(written, null, 2)}\n`],
-    ['world.sprout', world],
-    ['person.sprout', person],
+    [worldFile, world],
+    [visitorFile, person],
     ['README.md', readme],
   ] as const;
   for (const [file, text] of files) writeFileSync(join(root, file), text);

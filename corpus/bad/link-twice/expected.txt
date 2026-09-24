@@ -1,4 +1,4 @@
-world.sprout:10:12  `yard` writes two links `onward`, and `connect onward` could not say which it means.
-                    Give each link a name of its own.
+link_twice.sprout:10:12  `yard` writes two links `onward`, and `connect onward` could not say which it means.
+                         Give each link a name of its own.
 
 refused: 1 problem

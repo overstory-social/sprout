@@ -197,14 +197,45 @@ describe('what each reader reads is charged to their own output', () => {
     expect(context.budget.spentOutput(BRASS_KEY)).toBe('Tick tock.'.length);
   });
 
-  it('and more than the host allows one reader faults the turn', () => {
+  it('and more than the host allows the turn’s actor faults the turn', () => {
+    const turn = tight(12);
+    const context = contextOf(turn, new Draws(7), turn.marta);
+    const lines = [
+      { said: line('Tick tock.', [turn.marta], turn.marta) },
+      { said: line('Tick tock.', [turn.marta], turn.marta) },
+    ];
+    expect(() => renderEffects(lines, context)).toThrow(BudgetExhausted);
+  });
+
+  it('and anyone else it would take past it is cut short, reading nothing more, for everyone else unchanged', () => {
+    const turn = tight(14);
+    const context = contextOf(turn, new Draws(7), turn.marta);
+    const effects = renderEffects(
+      [
+        { said: line('Tick tock.', [turn.marta, BRASS_KEY], turn.marta) },
+        { said: line('Tick tock.', [BRASS_KEY], turn.marta) },
+        { said: line('Hm.', [BRASS_KEY, turn.marta], turn.marta) },
+      ],
+      context,
+    );
+    // The key would have room for `Hm.`, and still reads nothing after the line that did not fit.
+    expect(effects.map((one) => [one.visit, one.paragraphs])).toEqual([
+      [MARTA, ['Tick tock.']],
+      [KEY, ['Tick tock.']],
+      [MARTA, ['Hm.']],
+    ]);
+    expect(context.budget.cutShort).toEqual([BRASS_KEY]);
+  });
+
+  it('and a turn with no actor never faults on it, whoever reads too much', () => {
     const turn = tight(12);
     const context = contextOf(turn);
     const lines = [
       { said: line('Tick tock.', [turn.marta], turn.marta) },
       { said: line('Tick tock.', [turn.marta], turn.marta) },
     ];
-    expect(() => renderEffects(lines, context)).toThrow(BudgetExhausted);
+    expect(renderEffects(lines, context).map((one) => one.paragraphs)).toEqual([['Tick tock.']]);
+    expect(context.budget.cutShort).toEqual([turn.marta]);
   });
 });
 

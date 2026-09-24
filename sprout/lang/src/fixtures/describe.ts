@@ -34,7 +34,7 @@ import { compiledWorld } from './bundle.js';
 import { renderEffects } from '../prose/effects.js';
 
 export const STUDY: Bundle = compiledWorld('study', {
-  'world.sprout': `world study is sprout.World {
+  'study.sprout': `world study is sprout.World {
   visitors are Person
   visitors arrive at hall
 
@@ -174,11 +174,19 @@ export function lookingAt(state: WorldState): DescribeContext & {
   };
 }
 
-/** What rendering reads over `state`: its names, a fresh budget, and no draws, as a poll renders. */
-export function renderingIn(state: WorldState, seed: number | null = null): RenderContext {
+/**
+ * What rendering reads over `state`: its names, a fresh budget, and no
+ * draws, as a poll renders; `actor` is whose output faults the turn.
+ */
+export function renderingIn(
+  state: WorldState,
+  seed: number | null = null,
+  actor: InstanceId | null = null,
+): RenderContext {
   return {
     ...lookingAt(state),
     draws: seed === null ? null : new LineDraws(new Draws(seed)),
+    actor,
   };
 }
 
