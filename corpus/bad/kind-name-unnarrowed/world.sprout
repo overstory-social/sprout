@@ -1,0 +1,9 @@
+world kind_name_unnarrowed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+    object lantern is Lantern
+  }
+}

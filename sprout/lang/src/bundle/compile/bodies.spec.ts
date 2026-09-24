@@ -46,9 +46,10 @@ function checking(text: string) {
   ).toEqual([]);
   const diagnostics = new Diagnostics();
   const options = checkBodies(
-    kinds
-      .all()
-      .map((kind) => ({ kind, vantage: { in: 'kind' as const, giver: kindName(kind), path: [] } })),
+    kinds.all().map((kind) => ({
+      kind,
+      vantage: { in: 'kind' as const, giver: kindName(kind), path: [], self: kind },
+    })),
     {
       kinds,
       verbs,

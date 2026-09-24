@@ -1,0 +1,4 @@
+loft.sprout:4:44  Nothing called `shelf` holds actors, so nobody could stand where this exit leads.
+                  Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.
+
+refused: 1 problem

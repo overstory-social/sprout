@@ -4,9 +4,11 @@
 // about).
 //
 // An exit or a link is declared only on a place, since only a place holds
-// visitors. An exit's destination is named from where its body is
-// written, as any name in that body is, and must be a place other than
-// the world. Its `when` is a condition over `self`, the place, read-only
+// visitors. An exit's destination is named as any name in its body is,
+// and must be a place other than the world; in a kind's body, where each
+// instance's place decides which object it is, one of those it could be
+// must be a place, and the run leads nowhere through one that is not. Its
+// `when` is a condition over `self`, the place, read-only
 // and pure as a pass rule's is: nobody is acting while it is polled, so
 // `actor` and `here` are not bound. `connect` assigns one of `self`'s
 // links, named by its direction, to a binding: a link leads only where
@@ -75,6 +77,18 @@ function checkDestination(path: ObjectPath, self: KindRef, setting: ExitSetting)
       path.at,
       `\`${written}\` is the world, and an exit leads to a place inside it.`,
       `Lead the exit to a place in the world: ${A_PLACE}.`,
+    );
+    return false;
+  }
+  const named = names.table.get(path);
+  if (named?.names === 'placed') {
+    // Which object it is is each instance's; refused only where none it could be holds actors.
+    const reached = named.candidates.filter((one) => one.steps.length === path.parts.length);
+    if (reached.some((one) => one.kind === null || one.kind.containsActors)) return true;
+    diagnostics.refuse(
+      path.at,
+      `Nothing called \`${written}\` holds actors, so nobody could stand where this exit leads.`,
+      `Lead it to a place: ${A_PLACE}.`,
     );
     return false;
   }

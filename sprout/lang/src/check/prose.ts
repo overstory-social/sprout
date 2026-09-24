@@ -36,6 +36,7 @@ import {
 } from './bindings.js';
 import { branchScope, checkCondition, resolveKind, typeOf, type CheckContext } from './check.js';
 import { kindName } from '../declare/kinds.js';
+import { placedWords } from './names.js';
 import { EFFECTS } from './check/writes.js';
 import type { ProseRecord } from './speech.js';
 
@@ -137,10 +138,12 @@ function renderedPassage(
     return;
   }
   if (type.kind === null) {
+    const placed = placedWords(receiver, 'render one of its passages from', context);
     context.diagnostics.refuse(
       member.at,
-      'Sprout does not know what this is, so it cannot render one of its passages.',
-      'Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
+      placed?.message ??
+        'Sprout does not know what this is, so it cannot render one of its passages.',
+      placed?.remedy ?? 'Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
     );
     return;
   }
@@ -230,6 +233,17 @@ function forVariable(block: ProseFor, context: CheckContext): Binding | null {
   return null;
 }
 
+/** The words for walking what a name of the object type holds. */
+function walkingPlaced(over: Expr, context: CheckContext): [string, string] {
+  const placed = placedWords(over, 'walk', context);
+  return placed === null
+    ? [
+        'Sprout does not know whether this holds anything.',
+        'Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',
+      ]
+    : [placed.message, placed.remedy];
+}
+
 /** Whether `{for … in}` can walk what `over` is: a thing whose kind holds things. */
 function walkable(type: BindingType, over: Expr, context: CheckContext): boolean {
   if (type.binds === 'object' && type.kind !== null && type.kind.contains) return true;
@@ -240,10 +254,7 @@ function walkable(type: BindingType, over: Expr, context: CheckContext): boolean
           'Walk a list or a role marked `many` with `{for x of …}`.',
         ]
       : type.kind === null
-        ? [
-            'Sprout does not know whether this holds anything.',
-            'Narrow it first, as in `{if thing.is(sprout.Container)}…{/if}`.',
-          ]
+        ? walkingPlaced(over, context)
         : [
             `\`${shownName(kindName(type.kind), context.from)}\` holds nothing, so there is nothing to walk.`,
             'Containment is a declaration: a kind that holds things writes `contains`.',
