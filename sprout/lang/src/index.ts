@@ -77,3 +77,5 @@ export * from './runtime/parser.js';
 export type { Address } from './runtime/parser/address.js';
 export type { Answer, AnswerName, Choice } from './runtime/parser/answers.js';
 export type { CommandExit } from './runtime/parser/exits.js';
+export * from './runtime/time.js';
+export * from './runtime/tick.js';

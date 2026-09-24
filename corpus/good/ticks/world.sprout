@@ -1,0 +1,15 @@
+// Ticks: a place that keeps time from what each tick hands it and stirs
+// its contents by broadcasting, since the tick reaches the place and no
+// further; and a hut inside it, a place of its own, ticked on its own
+// while somebody stands in it, which counts ticks and names no `elapsed`.
+world ticks is sprout.World {
+  visitors are Person
+  visitors arrive at moor
+
+  object moor is Moor {
+    object flag is Flag
+    object hut is Hut
+  }
+}
+
+message :gust
