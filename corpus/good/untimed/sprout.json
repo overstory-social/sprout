@@ -1,0 +1,16 @@
+{
+  "name": "untimed",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "ea58a82a45588ac8eb0fea93f2ebbff96d3660cc9d9e6c12dd086a83628e451a"
+    }
+  ],
+  "files": ["world.sprout", "person.sprout", "cat.sprout", "kiln.sprout", "bell.sprout"]
+}

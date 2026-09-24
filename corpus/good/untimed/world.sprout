@@ -1,0 +1,16 @@
+// A handler or a wake that never meets its other half is warned about: a
+// cat that is not a place keeps an `on :tick` only a place is sent, a kiln
+// asks to be woken and answers no `:woke`, and a bell answers a `:woke`
+// that nothing here asks for.
+world untimed is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object cat is Cat
+    object kiln is Kiln
+    object bell is Bell
+  }
+}
+
+verb fire { role target  "fire [target]" }

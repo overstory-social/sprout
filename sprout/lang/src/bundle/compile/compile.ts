@@ -30,7 +30,8 @@
 // fields, the files, the libraries, what the bundle weighs, the first tier over every file,
 // the `.prose` files each kind points at, the one world, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
-// bodies every kind writes, and which of them destroy a declared object.
+// bodies every kind writes, which of them destroy a declared object, and
+// what they leave unsent, unhandled, untimed or unsaid.
 
 import type { KindDeclaration } from '../../syntax/ast.js';
 import type { CompileMode } from '../absent.js';
@@ -52,6 +53,7 @@ import { arrivalPlace } from './arrival.js';
 import { checkBodies } from './bodies.js';
 import { warnDestroyingDeclared } from './destroyed.js';
 import { warnUnsentAndUnhandled } from './events.js';
+import { warnUntimed } from './timed.js';
 import { warnUnsaid } from './unsaid.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
@@ -214,6 +216,14 @@ export function compileBundle(
   warnUnsentAndUnhandled({
     kinds: everyKind,
     messages: tables.messages,
+    namespace: manifest.namespace,
+    diagnostics: report.diagnostics,
+  });
+  warnUntimed({
+    kinds: everyKind,
+    lookup: tables.kinds,
+    composed: tables.composed,
+    tree: tables.tree,
     namespace: manifest.namespace,
     diagnostics: report.diagnostics,
   });
