@@ -88,13 +88,27 @@ describe('a description, rendered', () => {
     );
   });
 
-  it('is charged to the reader’s output, so a description too long faults as any line does', () => {
+  it('is charged to the reader’s output, so a description too long for the actor faults as any line does', () => {
     const state = study();
-    const described = describeFor(LAMP, actorOf(state, MARTA), lookingAt(state));
+    const marta = actorOf(state, MARTA);
+    const described = describeFor(LAMP, marta, lookingAt(state));
     const tight = {
-      ...renderingIn(state),
+      ...renderingIn(state, null, marta),
       budget: new Budget({ ...DEFAULT_LIMITS.budgets, output: 10 }, 'poll'),
     };
     expect(() => renderDescription(described, tight)).toThrow(BudgetExhausted);
+  });
+
+  it('reads as nothing, not even `unremarkable`, to someone else it would take past their output', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    const described = describeFor(LAMP, marta, lookingAt(state));
+    const tight = {
+      ...renderingIn(state),
+      budget: new Budget({ ...DEFAULT_LIMITS.budgets, output: 10 }),
+    };
+    expect(renderDescription(described, tight)).toEqual({ reader: marta, paragraphs: [] });
+    expect(tight.budget.cutShort).toEqual([marta]);
+    expect(tight.budget.spentOutput(marta)).toBe(0);
   });
 });

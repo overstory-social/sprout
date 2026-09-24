@@ -3,9 +3,11 @@
 // is rendered once for each of its readers, in the order said, and each
 // reading is one effect carrying its words; a description is one effect
 // to the one looking. What each reader reads is charged to their own
-// output, so a crowd costs the host and never the one acting, and every
-// reader of one line reads the same draw, taken from the turn's stream
-// after every draw its bodies made.
+// output, so a crowd costs the host and never the one acting: only the
+// turn's actor's output faults the turn (`output.ts`), so a tick or a wake
+// never faults on it, and anyone else past the figure is cut short and
+// reads nothing more. Every reader of one line reads the same draw, taken
+// from the turn's stream after every draw its bodies made.
 
 import type { Effect, EffectContext, Unrendered } from '../runtime/effects.js';
 import type { InstanceId, VisitKey } from '../runtime/ids.js';
@@ -16,8 +18,9 @@ import type { RenderContext } from './render.js';
 
 /** `lines`, rendered for each reader in turn, as the effects the host is given. */
 export function renderEffects(lines: readonly Unrendered[], context: EffectContext): Effect[] {
-  const { state, catalogue, passes, budget, nicknames } = context;
+  const { state, catalogue, passes, budget, nicknames, actor } = context;
   const rendering: RenderContext = {
+    actor,
     state,
     catalogue,
     passes,

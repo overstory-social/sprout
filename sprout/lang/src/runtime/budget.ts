@@ -13,9 +13,15 @@
 // can prove the backstop fires without waiting for it.
 //
 // What is charged belongs to the code doing it: range walks are
-// `range.ts`'s, the objects a set role binds `reading.ts`'s, parsing
-// the parser's (B27), and `each` the item that brings it. What is here is the meter they all charge
-// against, so that none of them invents a second one.
+// `range.ts`'s, the objects a set role binds `reading.ts`'s, parsing the
+// parser's, and what each reader is told `prose/`'s. What is here is the
+// meter they all charge against, so that none of them invents a second
+// one.
+//
+// Output is per recipient (Limits › Cost that scales with people). Only
+// the actor's own past the host's figure is exhausted, by `say`; anyone
+// else is `offer`ed each line, and one that would pass it cuts them
+// short: they are told nothing more this turn, and the turn goes on.
 
 import type { RuntimeBudgetName, RuntimeBudgets } from '../bundle/limits.js';
 
@@ -60,6 +66,7 @@ export class Budget {
   private passages = 0;
   private nextClockCheck = CLOCK_STRIDE;
   private readonly output = new Map<string, number>();
+  private readonly cut: string[] = [];
   private readonly deadline: number | null;
   private outOf: RuntimeBudgetName | null = null;
 
@@ -143,7 +150,15 @@ export class Budget {
     }
   }
 
-  /** Charge characters of prose to one recipient. The budget is per recipient, so a crowd is the host's cost. */
+  /** Everyone but the actor a line would have taken past their output, in the order it happened. */
+  get cutShort(): readonly string[] {
+    return this.cut;
+  }
+
+  /**
+   * Charge characters of prose to the actor, whose output past the host's
+   * figure faults the turn.
+   */
   say(recipient: string, characters: number): void {
     const spent = this.spentOutput(recipient) + characters;
     this.output.set(recipient, spent);
@@ -154,6 +169,23 @@ export class Budget {
         `one turn may say ${this.limits.output} characters to any one person.`,
       );
     }
+  }
+
+  /**
+   * Offer characters of prose to someone other than the actor: charged and
+   * true where they fit what that person may still be told; otherwise
+   * false, and nothing more is offered them this turn, so what they read
+   * is what was said to them up to the line that did not fit.
+   */
+  offer(recipient: string, characters: number): boolean {
+    if (this.cut.includes(recipient)) return false;
+    const spent = this.spentOutput(recipient) + characters;
+    if (spent > this.limits.output) {
+      this.cut.push(recipient);
+      return false;
+    }
+    this.output.set(recipient, spent);
+    return true;
   }
 
   /** Charge one event. */

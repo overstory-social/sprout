@@ -35,7 +35,10 @@
 // decision, not a figure in this table: a `spawn` faults when the host
 // will not hold another. How many wakes one object may have pending is
 // the table's, held across turns rather than spent in one. There is no
-// cap on spawns over time.
+// cap on spawns over time. How many people may stand in one place is
+// the host's too (The host contract › Enforcement): the spec gives it no
+// figure, so it is unbounded until a host sets one, and a move that would
+// pass it is refused in the engine's words rather than faulted.
 //
 // A bundle records the static caps it was checked against, and a load
 // compares them with the host's own (`capsExceeding`): a world checked
@@ -93,7 +96,11 @@ export interface RuntimeBudgets {
   readonly steps: number;
   /** Steps in one poll, which is a turn with its own budget and no seed. */
   readonly pollSteps: number;
-  /** Characters of output in one turn, PER RECIPIENT, so a crowded place never faults the turn. */
+  /**
+   * Characters of output in one turn, PER RECIPIENT. Only the actor's own
+   * past it faults the turn; anyone else is told nothing more that turn, so
+   * who else was there never faults it.
+   */
   readonly output: number;
   /** Events in one turn. */
   readonly events: number;
@@ -109,6 +116,12 @@ export interface RuntimeBudgets {
   readonly shortestWakeSeconds: number;
   /** Wakes one object may have pending, held across turns; a `wake` past it faults. */
   readonly pendingWakesPerObject: number;
+  /**
+   * People who may stand in one place at once, held across turns: a move
+   * that would bring one more in is refused. The spec gives no figure (The
+   * host contract › Enforcement): the host bounds the crowd, or nothing does.
+   */
+  readonly peoplePerPlace: number | null;
   /**
    * The wall-clock backstop, in milliseconds. The spec gives no figure:
    * it is a backstop against something the step budget failed to catch,
@@ -157,15 +170,17 @@ export const DEFAULT_LIMITS: Limits = {
     spawnsPerTurn: 8,
     shortestWakeSeconds: 60,
     pendingWakesPerObject: 1,
+    peoplePerPlace: null,
     wallClockMs: null,
   },
 };
 
 /**
  * What going past a limit does: refuse the world at compile, fault the
- * turn at run time, or, for a floor, raise what was asked to it.
+ * turn at run time, for a floor raise what was asked to it, or refuse the
+ * move that would pass it.
  */
-export type WhenExceeded = 'refusal' | 'fault' | 'raised';
+export type WhenExceeded = 'refusal' | 'fault' | 'raised' | 'move-refused';
 
 /** What a limit is counted against. */
 export type LimitScope =
@@ -299,7 +314,8 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     kind: 'budget',
     scope: 'recipient',
     exceeded: 'fault',
-    bounds: 'characters of output in one turn, per recipient',
+    bounds:
+      'characters of output in one turn, per recipient; only the actor’s own faults the turn, and anyone else is told nothing more that turn',
   },
   {
     name: 'events',
@@ -351,6 +367,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     bounds: 'wakes one object may have pending, held across turns',
   },
   {
+    name: 'peoplePerPlace',
+    kind: 'budget',
+    scope: 'place',
+    exceeded: 'move-refused',
+    bounds: 'people standing in one place at once, a move that would bring one more in refused',
+  },
+  {
     name: 'wallClockMs',
     kind: 'budget',
     scope: 'turn',
@@ -376,6 +399,7 @@ const UNBOUNDABLE = new Set<LimitName>([
   'kinds',
   'files',
   'sourceBytes',
+  'peoplePerPlace',
   'wallClockMs',
 ]);
 

@@ -4,13 +4,14 @@
 // where it becomes words, once for each reader, since a line naming its
 // reader says "you" to them and their name to everyone else, and what it
 // draws is drawn once, for every reader (`line-draws.ts`). What it
-// renders is charged to that reader's output, so a crowd costs the host
-// and never the one acting.
+// renders is charged to that reader's output (`output.ts`), so a crowd
+// costs the host and never the one acting.
 
 import { libraryOf } from '../declare/enums.js';
 import type { Speech } from '../runtime/body.js';
 import type { Evaluated } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
+import { charged } from './output.js';
 import { reflow } from './reflow.js';
 import { renderProse, type RenderContext } from './render.js';
 
@@ -23,8 +24,9 @@ export interface Line {
 
 /**
  * The paragraphs `line` renders to for `reader`, charged to what `reader`
- * may be told this turn. A named passage runs one passage deep; one that
- * is absent renders nothing.
+ * may be told this turn; none where they do not fit someone other than
+ * the actor. A named passage runs one passage deep; one that is absent
+ * renders nothing.
  */
 export function renderFor(line: Line, reader: InstanceId, context: RenderContext): string[] {
   const { said } = line;
@@ -49,9 +51,6 @@ export function renderFor(line: Line, reader: InstanceId, context: RenderContext
           draws,
         );
   const paragraphs = reflow(rendered);
-  context.budget.say(
-    reader,
-    paragraphs.reduce((sum, paragraph) => sum + [...paragraph].length, 0),
-  );
-  return paragraphs;
+  const characters = paragraphs.reduce((sum, paragraph) => sum + [...paragraph].length, 0);
+  return charged(context, reader, characters) ? paragraphs : [];
 }

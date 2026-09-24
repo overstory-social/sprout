@@ -141,6 +141,7 @@ export function proseTurn(budgets: RuntimeBudgets = DEFAULT_LIMITS.budgets, seed
       passes: (container) => (container === draft.world ? WORLD_PASSES_ANYTHING : true),
       nicknames: new Map([[marta.id, 'Marta']]),
       draws: new LineDraws(new Draws(seed)),
+      actor: marta.id,
     },
   };
 }

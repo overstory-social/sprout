@@ -83,7 +83,12 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   const place = committed.instance(actor)?.container ?? null;
   if (place === null) throw new Error(`\`${visit}\` is not in this world, so has no view.`);
   const nicknames = nicknamesIn(state);
-  const rendering = (turn: PollTurn): RenderContext => ({ ...turn, nicknames, draws: null });
+  const rendering = (turn: PollTurn): RenderContext => ({
+    ...turn,
+    nicknames,
+    draws: null,
+    actor,
+  });
 
   const polled = pollTurn(state, host, (turn) => {
     const context = rendering(turn);
