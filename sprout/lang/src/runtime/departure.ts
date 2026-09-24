@@ -6,12 +6,16 @@
 // is asked, since a person is never held in a world; the place they left
 // is sent `:left`, its range reads `leaves` and is sent `:departed`, with
 // the world as `to`, and the one leaving is told so in the engine's words.
+// What it says is one sequence of effects: the words to the one leaving,
+// the place's `leaves`, then what the queue said.
 //
 // A departure that faults is abandoned like every write turn, and the
 // visitor then goes away in a turn of its own with nothing sent, as a
-// faulted wake is consumed, so nobody is kept in by a world's fault.
+// faulted wake is consumed, so nobody is kept in by a world's fault; the
+// one leaving is still told so.
 
 import { drain, type Drained } from './bus.js';
+import { noticeLines, saidLines, type Speaking } from './effects.js';
 import { engineLine } from './engine-lines.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { EngineSend } from './lifecycle.js';
@@ -79,38 +83,61 @@ export function departureTurn(
   const from = committed.instance(record.instance)?.container ?? null;
   if (from === null) throw new Error(`\`${departure.visit}\` is not in this world to leave it.`);
 
-  const left = writeTurn<Departed>(state, 'departure', host, departure, (turn) => {
-    const away = goAway(turn, departure.visit, from);
-    // A place that is gone has nobody in range to tell.
-    if (!isPlace(readerOf(state), from)) return { ...away, drained: null };
-    const { draft, passes, budget } = turn;
-    const spoke = placeLeft(
-      draft,
-      { tree: liveTree(draft), passes, budget },
-      from,
-      record.instance,
-      draft.world,
-    );
-    const sends = [
-      { message: 'left', recipient: from, item: record.instance, to: draft.world } as const,
-      ...spoke.sends,
-    ];
-    return {
-      ...away,
-      sends,
-      notices: spoke.notices,
-      drained: drain({ sends, destroyed: [], marked: [] }, turn),
-    };
-  });
+  const left = writeTurn<Departed>(
+    state,
+    'departure',
+    host,
+    departure,
+    (turn) => {
+      const away = goAway(turn, departure.visit, from);
+      // A place that is gone has nobody in range to tell.
+      if (!isPlace(readerOf(state), from)) return { ...away, drained: null };
+      const { draft, passes, budget } = turn;
+      const spoke = placeLeft(
+        draft,
+        { tree: liveTree(draft), passes, budget },
+        from,
+        record.instance,
+        draft.world,
+      );
+      const sends = [
+        { message: 'left', recipient: from, item: record.instance, to: draft.world } as const,
+        ...spoke.sends,
+      ];
+      return {
+        ...away,
+        sends,
+        notices: spoke.notices,
+        drained: drain({ sends, destroyed: [], marked: [] }, turn),
+      };
+    },
+    departureSpeaking,
+  );
   if (left.committed) return left;
-  const quietly = writeTurn<Departed>(state, 'departure', host, departure, (turn) => ({
-    ...goAway(turn, departure.visit, from),
-    drained: null,
-  }));
+  const quietly = writeTurn<Departed>(
+    state,
+    'departure',
+    host,
+    departure,
+    (turn) => ({ ...goAway(turn, departure.visit, from), drained: null }),
+    departureSpeaking,
+  );
   if (!quietly.committed) {
     throw new Error(`\`${departure.visit}\` could not go away: ${quietly.fault.detail}`);
   }
   return { ...left, quietly };
+}
+
+/** What a departure says, in order, and whose turn it is: the one leaving. */
+function departureSpeaking(done: Departed): Speaking {
+  return {
+    actor: done.instance,
+    lines: [
+      { said: done.told },
+      ...saidLines(noticeLines(done.notices)),
+      ...saidLines(done.drained?.said ?? []),
+    ],
+  };
 }
 
 /** Take `visit`'s visitor out of the tree, keeping `from` as where they last stood. */

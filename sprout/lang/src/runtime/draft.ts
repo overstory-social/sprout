@@ -81,6 +81,12 @@ export class Draft implements StateReader {
     return this.visitors.get(visit) ?? this.base.visitors.get(visit);
   }
 
+  /** Every visitor record as the turn stands, in code-unit order of the visit. */
+  everyVisitor(): VisitorRecord[] {
+    const visits = new Set([...this.base.visitors.keys(), ...this.visitors.keys()]);
+    return [...visits].sort(compare).map((visit) => this.visitor(visit)!);
+  }
+
   tombstoned(id: InstanceId): boolean {
     return this.buried.has(id) || this.base.tombstones.has(id);
   }

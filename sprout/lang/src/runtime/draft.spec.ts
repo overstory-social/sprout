@@ -283,6 +283,21 @@ describe('writing, placing, adding and removing', () => {
     expect(draft.visitor(visit)!.nickname).toBe('Marta');
     expect(base.visitors.has(visit)).toBe(false);
   });
+
+  it('gives every visitor as the turn stands, a record it wrote over the committed one, by visit', () => {
+    const first = new Draft(initialState(catalogue));
+    const [ines, marta] = [visitKey('v-ines'), visitKey('v-marta')];
+    first.putVisitor({ visit: marta, nickname: 'Marta', instance: minted(1), lastPlace: null });
+    const base = first.commit().state;
+    const draft = new Draft(base);
+    draft.putVisitor({ visit: marta, nickname: 'Mar', instance: minted(1), lastPlace: null });
+    draft.putVisitor({ visit: ines, nickname: 'Ines', instance: minted(2), lastPlace: null });
+    expect(draft.everyVisitor().map((one) => [one.visit, one.nickname])).toEqual([
+      [ines, 'Ines'],
+      [marta, 'Mar'],
+    ]);
+    expect(new Draft(base).everyVisitor().map((one) => one.nickname)).toEqual(['Marta']);
+  });
 });
 
 describe('committing', () => {
