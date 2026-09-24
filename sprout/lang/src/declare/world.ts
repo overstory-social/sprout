@@ -11,9 +11,9 @@
 // actors` is what makes a place a place. `visitors arrive at` is a path
 // read from the world's body, where it is written, and what it
 // reaches must be a place inside the world, never the world itself, even
-// one that declares `contains actors` (`resolveArrival`); a world's
-// written pass rules compose as any kind's, and B42 puts a visitor there
-// at run time.
+// one that declares `contains actors` (`resolveArrival`), and it is where
+// a new visitor stands at run time; a world's written pass rules compose
+// as any kind's.
 
 import {
   writtenPath,
@@ -251,7 +251,7 @@ export interface ArrivalContext {
 }
 
 /** Where visitors arrive, as `resolveArrival` finds it. */
-export type Arrival =
+export type ResolvedArrival =
   /** A place inside the world, by its path. */
   | { readonly found: 'place'; readonly path: TreePath }
   /**
@@ -277,7 +277,10 @@ export type Arrival =
  * The world itself is refused, whatever it declares (the spec's Actors
  * and visitors).
  */
-export function resolveArrival(declared: WorldDeclaration, context: ArrivalContext): Arrival {
+export function resolveArrival(
+  declared: WorldDeclaration,
+  context: ArrivalContext,
+): ResolvedArrival {
   const { tree, diagnostics } = context;
   const path = arrivalOf(declared, diagnostics);
   if (path === null) return { found: 'refused' };
@@ -287,7 +290,12 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
     return { found: 'refused' };
   }
   const last = path.parts.at(-1)!;
-  const absent = (message: string, remedy: string, said: boolean, at: Span = last.at): Arrival => ({
+  const absent = (
+    message: string,
+    remedy: string,
+    said: boolean,
+    at: Span = last.at,
+  ): ResolvedArrival => ({
     found: 'absent',
     path,
     at,
@@ -295,7 +303,7 @@ export function resolveArrival(declared: WorldDeclaration, context: ArrivalConte
     remedy,
     said,
   });
-  const notAPlace = (name: string, remedy: string): Arrival => {
+  const notAPlace = (name: string, remedy: string): ResolvedArrival => {
     diagnostics.refuse(last.at, `\`${name}\` is not a place, and visitors arrive in one.`, remedy);
     return { found: 'refused' };
   };

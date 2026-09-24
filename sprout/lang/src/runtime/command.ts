@@ -14,6 +14,7 @@
 // the reading they make, or a line said to the actor in place of one, as
 // an unknown word or a `which` is answered.
 
+import { displace, type Displaced } from './arrival.js';
 import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
 import type { Draw } from './draws.js';
@@ -21,6 +22,7 @@ import { engineAnswers, type EngineAnswer } from './engine-verbs.js';
 import type { Catalogue } from './catalogue.js';
 import { faultTold } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
+import { standsInPlace } from './live.js';
 import type { Choice } from './parser/answers.js';
 import type { PassRule } from './range.js';
 import {
@@ -76,7 +78,11 @@ export interface Command extends WriteInputs {
   readonly text: string;
 }
 
-/** What a committed command turn did. */
+/**
+ * What a committed command turn did. A visitor standing in a place that
+ * is gone is displaced instead, and what they typed is not read, since it
+ * was typed about where they no longer are (the spec's What absent means).
+ */
 export type Commanded =
   | { readonly answered: Said; readonly choices: readonly Choice[] }
   | { readonly refused: PermitRefusal }
@@ -85,7 +91,8 @@ export type Commanded =
       readonly drained: Drained;
       /** What the engine answered once the queue was empty: each arrival read, then the command's own. */
       readonly answers: readonly EngineAnswer[];
-    };
+    }
+  | { readonly displaced: Displaced };
 
 /** A command turn: committed, or faulted and abandoned, with the actor told so. */
 export type CommandTurn =
@@ -103,7 +110,9 @@ export type CommandTurn =
 export function commandTurn(state: WorldState, host: CommandHost, command: Command): CommandTurn {
   const committed = readerOf(state);
   const actor = presentActor(committed, command.visit);
+  const gone = !standsInPlace(committed, actor);
   const written = writeTurn<Commanded>(state, 'command', host, command, (turn) => {
+    if (gone) return { displaced: displace(turn, command.visit) };
     const { draft, catalogue, passes, budget, draws } = turn;
     const nicknames = nicknamesIn(state);
     const parsed = host.parse(command.text, actor, {

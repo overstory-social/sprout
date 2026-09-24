@@ -259,35 +259,81 @@ export function moveInstance(
   const notices: Notice[] = [];
   // An actor is only ever in a place, so it has moved between two.
   if (actor) {
-    const notice = (name: 'leaves' | 'arrives', place: InstanceId) =>
-      draft.instance(place)?.kind.passages.get(name);
-    const leaves = notice('leaves', from);
-    const arrives = notice('arrives', to);
-    const left = told(draft, range, from, item, leaves !== undefined);
-    const entered = told(draft, range, to, item, arrives !== undefined);
-    for (const recipient of left.sent)
-      sends.push({ message: 'departed', recipient, actor: item, to });
-    for (const recipient of entered.sent)
-      sends.push({ message: 'arrived', recipient, actor: item, from });
-    if (leaves !== undefined)
-      notices.push({
-        notice: 'leaves',
-        place: from,
-        passage: leaves,
-        bindings: { item },
-        audience: left.read,
-      });
-    if (arrives !== undefined)
-      notices.push({
-        notice: 'arrives',
-        place: to,
-        passage: arrives,
-        bindings: { item },
-        audience: entered.read,
-      });
-    notices.push({ notice: 'described', place: to, audience: [item] });
+    const left = placeLeft(draft, range, from, item, to);
+    const entered = placeEntered(draft, range, to, item, from);
+    sends.push(...left.sends, ...entered.sends);
+    notices.push(...left.notices, ...entered.notices);
   }
   return { item, from, to, sends, notices };
+}
+
+/** What a place speaks and sends of one actor, as the tree stands after the move. */
+export interface PlaceSpoke {
+  /** Every `:departed`, or every `:arrived`, nearest first. */
+  readonly sends: readonly PlaceSend[];
+  /** The place's `leaves`; or its `arrives`, then the description the actor reads. */
+  readonly notices: readonly Notice[];
+}
+
+/**
+ * What `place` says of `actor` leaving it for `to`: its `leaves` to the
+ * visitors in its range, and `:departed (actor, to)` to everything else
+ * there (the spec's Places).
+ */
+export function placeLeft(
+  draft: Draft,
+  range: RangeContext<InstanceId>,
+  place: InstanceId,
+  actor: InstanceId,
+  to: InstanceId,
+): PlaceSpoke {
+  const leaves = draft.instance(place)?.kind.passages.get('leaves');
+  const heard = told(draft, range, place, actor, leaves !== undefined);
+  return {
+    sends: heard.sent.map((recipient) => ({ message: 'departed', recipient, actor, to })),
+    notices:
+      leaves === undefined
+        ? []
+        : [
+            {
+              notice: 'leaves',
+              place,
+              passage: leaves,
+              bindings: { item: actor },
+              audience: heard.read,
+            },
+          ],
+  };
+}
+
+/**
+ * What `place` says of `actor` arriving from `from`: its `arrives` to the
+ * visitors in its range and `:arrived (actor, from)` to everything else
+ * there, then its description to the actor (the spec's Places).
+ */
+export function placeEntered(
+  draft: Draft,
+  range: RangeContext<InstanceId>,
+  place: InstanceId,
+  actor: InstanceId,
+  from: InstanceId,
+): PlaceSpoke {
+  const arrives = draft.instance(place)?.kind.passages.get('arrives');
+  const heard = told(draft, range, place, actor, arrives !== undefined);
+  const notices: Notice[] = [];
+  if (arrives !== undefined)
+    notices.push({
+      notice: 'arrives',
+      place,
+      passage: arrives,
+      bindings: { item: actor },
+      audience: heard.read,
+    });
+  notices.push({ notice: 'described', place, audience: [actor] });
+  return {
+    sends: heard.sent.map((recipient) => ({ message: 'arrived', recipient, actor, from })),
+    notices,
+  };
 }
 
 /**
