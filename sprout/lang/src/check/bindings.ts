@@ -563,6 +563,45 @@ export class Scope {
   }
 
   /**
+   * What is in reach here, as a scope of its own that later names in this
+   * block do not reach: what a passage said from here is checked against
+   * (the spec's Prose › Passages). `except` leaves names out, and a
+   * withheld name stays withheld.
+   */
+  carried(except: ReadonlySet<string> = new Set()): Scope {
+    const copy = Scope.root();
+    const chain: Scope[] = [this];
+    for (let scope = this.parent; scope !== null; scope = scope.parent) chain.push(scope);
+    // Outermost first, so a nearer binding of a name replaces a further one.
+    for (const scope of chain.reverse()) {
+      for (const [name, binding] of scope.bindings) {
+        if (!except.has(name)) copy.bindings.set(name, binding);
+      }
+      for (const [name, withheld] of scope.withholding) {
+        if (!except.has(name)) copy.withholding.set(name, withheld);
+      }
+    }
+    return copy;
+  }
+
+  /** Every name bound here, nearest first, with what it is. */
+  bound(): Binding[] {
+    return this.names().flatMap((name) => {
+      const binding = this.lookup(name);
+      return binding === null ? [] : [binding];
+    });
+  }
+
+  /** Every name withheld here, nearest first. */
+  withheldNames(): string[] {
+    const seen = new Set<string>(this.withholding.keys());
+    for (let scope = this.parent; scope !== null; scope = scope.parent) {
+      for (const name of scope.withholding.keys()) seen.add(name);
+    }
+    return [...seen];
+  }
+
+  /**
    * `if (x.is(K)) { … }` — the branch, where `x` is known to be a `K` and
    * a kind's own properties are readable through it. This is the one
    * re-binding of a name that is not shadowing: it does not introduce a

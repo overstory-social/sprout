@@ -1,0 +1,4 @@
+mirror.sprout:4:32  `{one of}` is not something this compiler reads.
+                    A passage's blocks are `{if …}` and `{for …}`. Write one line in place of the choice.
+
+refused: 1 problem

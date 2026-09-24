@@ -1,0 +1,6 @@
+// A kind filter on a walk of a list.
+kind Mirror {
+  :mood Mood default drowsy
+  :moods [Mood] default [drowsy]
+  passage greeting { {for m: Mirror of self.get(:moods)}{m}{/for} }
+}

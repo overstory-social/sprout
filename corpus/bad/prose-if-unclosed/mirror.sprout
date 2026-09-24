@@ -1,0 +1,8 @@
+// An `{if}` whose `{/if}` was never written.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting {
+    {if self.get(:mood) == :drowsy}
+    Nothing in it looks back.
+  }
+}

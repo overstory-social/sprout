@@ -1,0 +1,4 @@
+lever.sprout:4:24  This slot is never closed.
+                   Add a } where it ends, or write \{ for a brace that is only a character.
+
+refused: 1 problem

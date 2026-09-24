@@ -1,0 +1,9 @@
+world prose_slot_set is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object press is Press
+  }
+}
+verb work { role target  role tools many  "work [target] with [tools]" }

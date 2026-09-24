@@ -1,0 +1,4 @@
+mirror.sprout:4:38  This slot is empty.
+                    Write what it renders between the braces, as in `{self}`, or \{ for a brace that is only a character.
+
+refused: 1 problem

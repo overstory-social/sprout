@@ -1,0 +1,27 @@
+// Passages and `.prose` files: slots, blocks, loops and reflow, a line in
+// quotes that carries slots, and passages that use the bindings of the
+// bodies that say them. The composing room's longer words are in its own
+// `.prose` file, which an object may point at as a kind does.
+world prose is sprout.World {
+  visitors are Person
+  visitors arrive at composing_room
+
+  passage unreachable { {thing} is out of reach from where you stand. }
+
+  object composing_room is sprout.Place {
+    prose "composing_room.prose"
+    remembers { :visits 0 min 0 max 99 }
+
+    as target for peer { do { say arrival } }
+
+    object press is Press
+    object wooden_rib is Rib
+    object bone_rib is Rib
+    object cabinet is Cabinet
+  }
+}
+
+enum Mood { bone_dry, drowsy, wide_awake }
+
+verb ink  { role target  role tools many  "ink [target] with [tools]"  "ink [target]" }
+verb peer { role target  "peer at [target]" }

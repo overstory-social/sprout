@@ -1,0 +1,4 @@
+mirror.sprout:5:22  `{for}` needs a name, `in` or `of`, and what it walks.
+                    Write `{for thing in self}`, `{for pot: Vessel in self}` or `{for key of self.get(:keys)}`.
+
+refused: 1 problem

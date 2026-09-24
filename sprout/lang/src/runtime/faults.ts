@@ -15,6 +15,7 @@
 import type { ResolvedPassage } from '../declare/passages.js';
 import { ActFault } from './act.js';
 import { ValueOutOfRange, type Speech } from './body.js';
+import { engineLine } from './engine-lines.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow, type Evaluated } from './evaluate.js';
 import type { InstanceId } from './ids.js';
@@ -88,12 +89,13 @@ function objectOf(error: Error): InstanceId | null | undefined {
 /** The world's passage `name`, as it applies on the world's kind, or its stock line where the world has none. */
 export function worldSpeech(state: StateReader, name: FaultPassage): Speech {
   const passage: ResolvedPassage | undefined = state.instance(state.world)?.kind.passages.get(name);
-  return passage === undefined ? { text: STOCK[name] } : { passage };
+  return passage === undefined ? engineLine(STOCK[name]) : { passage };
 }
 
 /**
  * What `actor` is told of a fault: the world's `fault`, from the world,
- * rendered with `actor` and, where the actor stands somewhere, `here`.
+ * rendered with `actor` and `here` (the spec's Faults). A command's actor
+ * stands where the abandoned turn found them, so `here` is always theirs.
  */
 export function faultTold(state: StateReader, actor: InstanceId): Said {
   const bindings = new Map<string, Evaluated>([['actor', boundObject(actor)]]);

@@ -1,0 +1,4 @@
+mirror.sprout:3:26  `$last` is a loop's own, and only a `{for}` binds it.
+                    Use it between `{for …}` and the `{/for}` that closes it.
+
+refused: 1 problem

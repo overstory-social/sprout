@@ -29,6 +29,7 @@
 import type {
   Declaration,
   Expr,
+  PassageDeclaration,
   PropertyDeclaration,
   RemembersDeclaration,
   Statement,
@@ -42,6 +43,9 @@ import { Parser } from './parse/parser.js';
 import { property } from './parse/properties.js';
 import { remembers } from './parse/remembers.js';
 import { notAStatement, statement } from './parse/statements.js';
+import { proseFileBody } from './parse/prose-file.js';
+import { readProse } from './parse/prose.js';
+import type { Prose } from './ast-prose.js';
 
 export { DEEPEST } from './parse/parser.js';
 
@@ -127,4 +131,24 @@ export function parseRemembers(
     return null;
   }
   return remembers(p, () => false);
+}
+
+/**
+ * Every passage in a `.prose` file (the spec's Prose › Passages). The
+ * file holds nothing else, and whose passages they are is the bundle's.
+ */
+export function parseProseFile(
+  source: SourceFile,
+  diagnostics: Diagnostics,
+  caps?: StaticCaps,
+): PassageDeclaration[] {
+  return proseFileBody(new Parser(source, diagnostics, new Map(), caps));
+}
+
+/**
+ * Prose read on its own, as a one-line passage in quotes is: the whole of
+ * `source` is its words. What the engine says in fixed words is written so.
+ */
+export function parseProse(source: SourceFile, diagnostics: Diagnostics): Prose {
+  return readProse(new Parser(source, diagnostics, DECLARATION_READERS), 0, source.text.length);
 }

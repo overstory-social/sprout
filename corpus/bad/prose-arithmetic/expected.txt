@@ -1,0 +1,4 @@
+mirror.sprout:4:23  A passage reads what is there and does no arithmetic.
+                    Render a number as it is held, as in `{self.count}`, and let an `{if}` choose the words around it.
+
+refused: 1 problem

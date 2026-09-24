@@ -1,0 +1,4 @@
+press.sprout:4:37  A slot does not render a set of objects whole: how its things are joined, and what is said when there are none, is yours.
+                   Walk it: `{for x of <set>}{x}{if $last}.{else}, {/if}{/for}`.
+
+refused: 1 problem

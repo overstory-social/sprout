@@ -1,0 +1,4 @@
+mirror.sprout:4:28  A passage only reads, and `set` writes.
+                    Write it in the body that says the passage, before the passage is said.
+
+refused: 1 problem

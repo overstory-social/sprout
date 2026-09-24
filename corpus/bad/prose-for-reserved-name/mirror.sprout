@@ -1,0 +1,6 @@
+// A loop variable named with a word of the language.
+kind Mirror {
+  :mood Mood default drowsy
+  contains
+  passage greeting { {for say in self}x{/for} }
+}

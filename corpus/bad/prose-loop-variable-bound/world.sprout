@@ -1,0 +1,6 @@
+world prose_loop_variable_bound is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

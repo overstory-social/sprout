@@ -1,0 +1,4 @@
+crate.sprout:4:40  The passage `inside` renders `{target}`, and nothing it is rendered with is called `target`.
+                   A passage a slot renders is given only `actor` and `here`, where they are bound: say it from a body that binds `target` instead.
+
+refused: 1 problem

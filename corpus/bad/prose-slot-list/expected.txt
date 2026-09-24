@@ -1,0 +1,4 @@
+mirror.sprout:4:30  A slot does not render [Mood] whole: how its elements are joined, and what is said when there are none, is yours.
+                    Walk it: `{for x of <list>}{x}{if $last}.{else}, {/if}{/for}`.
+
+refused: 1 problem

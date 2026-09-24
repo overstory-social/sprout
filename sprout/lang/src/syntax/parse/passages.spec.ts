@@ -384,3 +384,40 @@ describe('over generated bodies of members, a passage is never lost to a neighbo
     });
   }
 });
+
+describe('a passage’s words are read as prose', () => {
+  it('holds its slots and blocks, spanned where they are written', () => {
+    const { declarations, refusals } = read(
+      'kind K {\n  passage p { A {self}.\n\n  {if self.count > 0}Full.{/if} }\n}\n',
+      'k.sprout',
+    );
+    expect(refusals).toEqual([]);
+    const [passage] = passagesOf(declarations);
+    const pieces = passage!.body.prose.pieces;
+    expect(pieces.map((piece) => piece.kind)).toEqual([
+      'prose-words',
+      'prose-slot',
+      'prose-words',
+      'prose-paragraph',
+      'prose-if',
+      'prose-words',
+    ]);
+    expect(locationOf(pieces[1]!.at)).toBe('k.sprout:2:17');
+  });
+
+  it('says a mistake in its words where it is, and keeps the passage', () => {
+    const { declarations, refusals } = read('kind K {\n  passage p { {/if} }\n}\n', 'k.sprout');
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['k.sprout:2:15', '`{/if}` closes no `{if}`.'],
+    ]);
+    expect(passagesOf(declarations).map((one) => one.name.text)).toEqual(['p']);
+  });
+
+  it('reads nothing of a body that took the rest of the file, which has been said', () => {
+    // The stray `{/if}` in what it took is not said as well.
+    const { refusals } = read('kind K {\n  passage p { {/if}\n', 'k.sprout');
+    expect(refusals.map((d) => d.message)).toEqual([
+      'The passage `p` opens here and is never closed.',
+    ]);
+  });
+});

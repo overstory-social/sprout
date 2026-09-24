@@ -1,0 +1,4 @@
+mirror.sprout:5:5  This `{if}` is never closed.
+                   Add `{/if}` where the words it guards end.
+
+refused: 1 problem

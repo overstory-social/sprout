@@ -1,4 +1,7 @@
-kinds.sprout:9:1  `Mirror` is never closed.
-                  Add a } after what the kind is made of. If there is one, a { inside the passage `greeting` has no } of its own, and took it.
+kinds.sprout:6:46  A slot renders one thing, and more is written after it.
+                   Write one reading in each slot, as in `{self.get(:mood)}`.
 
-refused: 1 problem
+kinds.sprout:9:1   `Mirror` is never closed.
+                   Add a } after what the kind is made of. If there is one, a { inside the passage `greeting` has no } of its own, and took it.
+
+refused: 2 problems

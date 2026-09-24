@@ -1,0 +1,5 @@
+// Two things written in one slot.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { The glass is {self.get(:mood) self}. }
+}

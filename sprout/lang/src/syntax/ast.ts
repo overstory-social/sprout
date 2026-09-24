@@ -12,6 +12,7 @@
 import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
 import type { VerbDeclaration } from './ast-verbs.js';
+import type { Prose, ProseLiteral } from './ast-prose.js';
 
 /** A name as written: an identifier, an enum's option, a kind's name. */
 export interface Ident extends Node {
@@ -373,7 +374,7 @@ export interface IfStatement extends Node {
  */
 export interface RefuseStatement extends Node {
   readonly kind: 'refuse';
-  readonly said: StringLiteral | Ident;
+  readonly said: ProseLiteral | Ident;
 }
 
 /**
@@ -383,7 +384,7 @@ export interface RefuseStatement extends Node {
  */
 export interface SayStatement extends Node {
   readonly kind: 'say';
-  readonly said: StringLiteral | Ident;
+  readonly said: ProseLiteral | Ident;
 }
 
 /** `allow` — a guard's consent, said before its end (the spec's Movement and consent). */
@@ -547,14 +548,13 @@ export interface WithoutDeclaration extends Node {
 // --- passages -------------------------------------------------------------
 
 /**
- * A passage's words, between its braces, exactly as written: escapes,
- * slots, blocks and line breaks all still in them. B29 reads slots,
- * `{if}`, `{for}` and reflow; until then the body is carried whole. Its
- * span covers the braces.
+ * A passage's words, between its braces: the text exactly as written, and
+ * the prose it reads as. Its span covers the braces.
  */
 export interface PassageBody extends Node {
   readonly kind: 'passage-body';
   readonly text: string;
+  readonly prose: Prose;
 }
 
 /**
@@ -570,6 +570,16 @@ export interface PassageDeclaration extends Node {
   /** Whether it was written `default`. */
   readonly yields: boolean;
   readonly body: PassageBody;
+}
+
+/**
+ * `prose "mirror.prose"` — the file a kind's longer passages live in,
+ * named so a reader of the kind can see it has words and where they are
+ * (the spec's Prose › Passages).
+ */
+export interface ProseFileDeclaration extends Node {
+  readonly kind: 'prose-file';
+  readonly file: StringLiteral;
 }
 
 // --- consent guards -------------------------------------------------------
@@ -688,6 +698,7 @@ export type KindMember =
   | ContainsDeclaration
   | WithoutDeclaration
   | PassageDeclaration
+  | ProseFileDeclaration
   | GuardDeclaration
   | PlayDeclaration
   | HandlerDeclaration

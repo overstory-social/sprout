@@ -1,0 +1,4 @@
+lever.sprout:4:14  This line is 611 characters long, and 600 is as long as a `say` in quotes may be.
+                   Put the words in a passage, which has no length cap of its own, and say it by name, as in `say greeting`.
+
+refused: 1 problem

@@ -106,6 +106,24 @@ describe('a catalogue says what one bundle holds as instances', () => {
     );
   });
 
+  it('carries the slots of prose that render an option, as the bundle holds them', () => {
+    const bundle = compiledWorld('mill', {
+      'world.sprout': [
+        'world mill is sprout.World { visitors are Person visitors arrive at yard',
+        '  object yard is sprout.Place',
+        '  passage season { It is {self.get(:season)}. }',
+        '  :season Season default autumn',
+        '}',
+        'enum Season { spring, autumn }',
+        'kind Person is sprout.Visitor { }',
+        '',
+      ].join('\n'),
+    });
+    const from = catalogueOf(bundle, DEFAULT_LIMITS.caps);
+    expect(from.optionSlots).toBe(bundle.optionSlots);
+    expect(from.optionSlots.size).toBe(1);
+  });
+
   it('takes the world’s kind and the visitor kind from the bundle', () => {
     const bundle = shop();
     const from = catalogueOf(bundle, DEFAULT_LIMITS.caps);

@@ -1,0 +1,5 @@
+// A close for a block no passage opens.
+kind Mirror {
+  :mood Mood default drowsy
+  passage greeting { Nothing in it looks back.{/while} }
+}

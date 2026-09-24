@@ -1,0 +1,4 @@
+mirror.sprout:4:48  `{else}` belongs inside an `{if}`.
+                    Write it between `{if …}` and the `{/if}` that closes it.
+
+refused: 1 problem

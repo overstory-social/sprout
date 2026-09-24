@@ -1,0 +1,4 @@
+mirror.sprout:4:45  A slot cannot hold another slot.
+                    Close the first with } before opening the next, or write \{ for a brace that is only a character.
+
+refused: 1 problem

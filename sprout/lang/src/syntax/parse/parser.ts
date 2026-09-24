@@ -10,7 +10,7 @@
 
 import type { Declaration, Ident } from '../ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
-import { Lexer, type Token, type TokenKind } from '../lexer.js';
+import { Lexer, type LexerWindow, type Token, type TokenKind } from '../lexer.js';
 import { DEFAULT_LIMITS, type StaticCaps } from '../../bundle/limits.js';
 import type { SourceFile, Span } from '../../source/source.js';
 
@@ -165,8 +165,10 @@ export class Parser {
     /** Each declaration this compiler reads, and what reads it. */
     readonly readers: ReadonlyMap<string, DeclarationReader>,
     readonly caps: StaticCaps = DEFAULT_LIMITS.caps,
+    /** The part of the file to read, where it is one slot of prose and not the whole. */
+    window?: LexerWindow,
   ) {
-    this.lexer = new Lexer(source, diagnostics);
+    this.lexer = new Lexer(source, diagnostics, window);
   }
 
   peek(ahead = 0): Token {

@@ -1,0 +1,4 @@
+mirror.sprout:4:52  A slot renders one thing, and more is written after it.
+                    Write one reading in each slot, as in `{self.get(:mood)}`.
+
+refused: 1 problem

@@ -1,0 +1,7 @@
+world say_slot_unclosed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+verb pull { role target  "pull [target]" }

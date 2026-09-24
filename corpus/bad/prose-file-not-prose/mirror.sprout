@@ -1,0 +1,5 @@
+// `prose` names a `.prose` file.
+kind Mirror {
+  :mood Mood default drowsy
+  prose "mirror.txt"
+}

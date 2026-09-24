@@ -1,0 +1,6 @@
+// A passage that renders `{target}`, said from a guard, where nothing is called that.
+kind Crate {
+  contains
+  accept (item, from) { if (self.count >= 2) { refuse full } }
+  passage full { There is no room for {target}. }
+}

@@ -15,12 +15,22 @@ import { checkBodies } from './bodies.js';
 
 /** Every kind and verb in `text`, resolved in `shop`, then every body checked: what that said. */
 function checked(text: string): string[][] {
+  return checking(text).said;
+}
+
+/** The same, with the slots of prose that render an option. */
+function checking(text: string) {
   const setup = new Diagnostics();
   const declared = parseDeclarations(new SourceFile('shop.sprout', text), setup);
   const verbDeclarations = declared.filter((d): d is VerbDeclaration => d.kind === 'verb');
   const names = new VerbNames();
   names.add('shop', verbDeclarations);
   const enums = new EnumTable();
+  enums.add(
+    'shop',
+    declared.filter((d) => d.kind === 'enum'),
+    setup,
+  );
   const kinds = new KindTable();
   kinds.add(
     'shop',
@@ -35,7 +45,7 @@ function checked(text: string): string[][] {
     'the fixture composes',
   ).toEqual([]);
   const diagnostics = new Diagnostics();
-  checkBodies(
+  const options = checkBodies(
     kinds
       .all()
       .map((kind) => ({ kind, vantage: { in: 'kind' as const, giver: kindName(kind), path: [] } })),
@@ -49,7 +59,10 @@ function checked(text: string): string[][] {
       names: new Map(),
     },
   );
-  return diagnostics.refusals.map((d) => [locationOf(d.at), d.message]);
+  return {
+    said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message]),
+    options: [...options].map((slot) => locationOf(slot.at)),
+  };
 }
 
 describe('each body is checked once, against the kind that wrote it', () => {
@@ -94,5 +107,36 @@ kind Both is Brass, Iron { }`),
 kind Lever { as target for pull { do { say pulled } } }
 kind Brass is Lever { passage pulled { Clunk. } }`),
     ).toEqual([['shop.sprout:2:44', '`Lever` has no passage `pulled`.']]);
+  });
+});
+
+describe('then every passage, against the bodies that say it', () => {
+  it('refuses a passage said where what it renders is not bound, where it is said', () => {
+    expect(
+      checked(`verb pull { role target  "pull [target]" }
+kind Lever {
+  contains
+  accept (item, from) { refuse stuck }
+  as target for pull { do { say stuck } }
+  passage stuck { {actor} cannot move {self}. }
+}`),
+    ).toEqual([
+      [
+        'shop.sprout:4:32',
+        'The passage `stuck` renders `{actor}`, and nothing here is called `actor`.',
+      ],
+    ]);
+  });
+
+  it('gives back each slot that renders an option, wherever it was checked', () => {
+    const { said, options } = checking(`enum Mood { wet, dry }
+verb pull { role target  "pull [target]" }
+kind Lever {
+  :mood Mood default dry
+  as target for pull { do { say "It is {self.get(:mood)}."  say mood } }
+  passage mood { {self.get(:mood)}, and {self.get(:mood)}. }
+}`);
+    expect(said).toEqual([]);
+    expect(options.sort()).toEqual(['shop.sprout:5:40', 'shop.sprout:6:18', 'shop.sprout:6:41']);
   });
 });

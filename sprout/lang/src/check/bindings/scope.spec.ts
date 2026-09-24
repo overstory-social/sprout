@@ -355,3 +355,54 @@ describe('a name withheld where it stands', () => {
     ]);
   });
 });
+
+describe('what a scope carries to a passage said from it', () => {
+  const withheldTool = {
+    name: 'tool',
+    at: at('tool'),
+    unread: { message: '`tool` may be missing here.', remedy: 'Ask `bound tool` first.' },
+    bound: { bindable: false as const, words: { message: 'never', remedy: 'never' } },
+  };
+
+  it('is everything in reach, nearest winning, as one scope of its own', () => {
+    const outer = Scope.root();
+    outer.introduce(selfBinding(VESSEL, at('self')), new Diagnostics());
+    outer.withhold(withheldTool, new Diagnostics());
+    const inner = outer.inner();
+    inner.introduce(letBinding('n', valueOf(integer()), at('n')), new Diagnostics());
+    const carried = inner.carried();
+    expect(
+      carried
+        .bound()
+        .map((binding) => binding.name)
+        .sort(),
+    ).toEqual(['n', 'self']);
+    expect(carried.withheldNames()).toEqual(['tool']);
+    expect(carried.withheld('tool')?.unread.message).toBe('`tool` may be missing here.');
+  });
+
+  it('keeps the narrowed type a branch gave a name', () => {
+    const outer = Scope.root();
+    const target = roleBinding('target', { fills: 'open' }, null, at('target'), new Diagnostics())!;
+    outer.introduce(target, new Diagnostics());
+    const branch = outer.narrowing(thingNamed(target), CONTAINER);
+    expect(branch.carried().lookup('target')!.type).toEqual(objectOf(CONTAINER));
+  });
+
+  it('leaves out what it is told to', () => {
+    const outer = Scope.root();
+    outer.introduce(selfBinding(VESSEL, at('self')), new Diagnostics());
+    outer.introduce(hereBinding(at('here')), new Diagnostics());
+    outer.withhold(withheldTool, new Diagnostics());
+    const carried = outer.carried(new Set(['self', 'tool']));
+    expect(carried.names()).toEqual(['here']);
+    expect(carried.withheldNames()).toEqual([]);
+  });
+
+  it('is not reached by what the scope it came from takes in afterwards', () => {
+    const outer = Scope.root();
+    const carried = outer.carried();
+    outer.introduce(hereBinding(at('here')), new Diagnostics());
+    expect(carried.lookup('here')).toBeNull();
+  });
+});
