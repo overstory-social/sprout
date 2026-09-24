@@ -96,6 +96,7 @@ export * from './runtime/wakes.js';
 export * from './runtime/wake.js';
 export * from './runtime/maintenance.js';
 export * from './runtime/arrival.js';
+export * from './runtime/nickname.js';
 export * from './runtime/departure.js';
 
 export * from './prose/names.js';
