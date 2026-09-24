@@ -31,6 +31,7 @@ import {
   FILE,
   fromProperty,
   fromRange,
+  HERE_UNKNOWN,
   KNOWS,
   LOCKABLE,
   message,
@@ -66,7 +67,7 @@ describe('a scope says what is in reach', () => {
   it('lists every name in reach, nearest first and each once', () => {
     const outer = Scope.root();
     outer.introduce(selfBinding(VESSEL, at('self')), new Diagnostics());
-    outer.introduce(hereBinding(at('here')), new Diagnostics());
+    outer.introduce(hereBinding(HERE_UNKNOWN, at('here')), new Diagnostics());
     const inner = outer.inner();
     inner.introduce(letBinding('n', valueOf(integer()), at('n')), new Diagnostics());
 
@@ -85,7 +86,7 @@ describe('a scope goes as deep as blocks nest, and says so rather than dying', (
   function nested(depth: number): Scope {
     const root = Scope.root();
     root.introduce(selfBinding(VESSEL, at('self')), new Diagnostics());
-    root.introduce(hereBinding(at('here')), new Diagnostics());
+    root.introduce(hereBinding(HERE_UNKNOWN, at('here')), new Diagnostics());
     let scope = root;
     for (let i = 0; i < depth; i++) scope = scope.inner();
     return scope;
@@ -157,7 +158,7 @@ describe('shadowing is a compile error', () => {
 
   it('says where the second one was written, not where the first was', () => {
     const scope = Scope.root();
-    scope.introduce(hereBinding(at('here')), new Diagnostics());
+    scope.introduce(hereBinding(HERE_UNKNOWN, at('here')), new Diagnostics());
     const { diagnostics } = trying((d) =>
       scope.introduce(letBinding('here', valueOf(BOOLEAN), at('here')), d),
     );
@@ -183,7 +184,7 @@ describe('shadowing is a compile error', () => {
 describe('`is()` narrows, which is not shadowing', () => {
   it('reads a kind’s own properties through a binding of object type', () => {
     const scope = Scope.root();
-    const thing = hereBinding(at('here'));
+    const thing = hereBinding(HERE_UNKNOWN, at('here'));
     scope.introduce(thing, new Diagnostics());
     expect(isObjectBinding(thing)).toBe(true);
 
@@ -347,7 +348,7 @@ describe('a name withheld where it stands', () => {
     ]);
 
     const other = Scope.root();
-    other.introduce(hereBinding(at('here')), new Diagnostics());
+    other.introduce(hereBinding(HERE_UNKNOWN, at('here')), new Diagnostics());
     const again = new Diagnostics();
     expect(other.withhold({ ...withheld(), name: 'here' }, again)).toBe(false);
     expect(again.refusals.map((d) => d.message)).toEqual([
@@ -392,7 +393,7 @@ describe('what a scope carries to a passage said from it', () => {
   it('leaves out what it is told to', () => {
     const outer = Scope.root();
     outer.introduce(selfBinding(VESSEL, at('self')), new Diagnostics());
-    outer.introduce(hereBinding(at('here')), new Diagnostics());
+    outer.introduce(hereBinding(HERE_UNKNOWN, at('here')), new Diagnostics());
     outer.withhold(withheldTool, new Diagnostics());
     const carried = outer.carried(new Set(['self', 'tool']));
     expect(carried.names()).toEqual(['here']);
@@ -402,7 +403,7 @@ describe('what a scope carries to a passage said from it', () => {
   it('is not reached by what the scope it came from takes in afterwards', () => {
     const outer = Scope.root();
     const carried = outer.carried();
-    outer.introduce(hereBinding(at('here')), new Diagnostics());
+    outer.introduce(hereBinding(HERE_UNKNOWN, at('here')), new Diagnostics());
     expect(carried.lookup('here')).toBeNull();
   });
 });

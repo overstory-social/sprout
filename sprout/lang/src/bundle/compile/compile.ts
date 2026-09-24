@@ -46,6 +46,7 @@ import type { Node } from '../../source/nodes.js';
 import { checkActors, isVisitorKind } from '../../declare/actors.js';
 import { WORLD } from '../../declare/sprout-world.js';
 import { everyContent } from '../../declare/contents.js';
+import { hereKindOf } from '../../declare/places.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
@@ -150,6 +151,17 @@ export function compileBundle(
     diagnostics: report.diagnostics,
   });
 
+  // Every composed kind: the named ones, what each gives its instances,
+  // every declared object's own, and the world's.
+  const everyKind = [
+    ...tables.kinds.all(),
+    ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
+    ...tables.composed.flatMap(({ kind, giver }) =>
+      kind === null || giver !== null ? [] : [kind],
+    ),
+    ...(world === null ? [] : [world]),
+  ];
+
   // Every body, against the kind that wrote it: a kind's content once,
   // however many instances hold a copy.
   const names = new Map<Node, Named>();
@@ -172,6 +184,7 @@ export function compileBundle(
     ],
     {
       kinds: tables.kinds,
+      here: hereKindOf(everyKind, tables.kinds),
       verbs: tables.verbs,
       diagnostics: report.diagnostics,
       messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
@@ -199,16 +212,6 @@ export function compileBundle(
     },
   );
   warnDestroyingDeclared(tables.composed, tables.tree, report.diagnostics);
-  // Every composed kind: the named ones, what each gives its instances,
-  // every declared object's own, and the world's.
-  const everyKind = [
-    ...tables.kinds.all(),
-    ...everyContent(tables.contents).flatMap(({ kind }) => (kind === null ? [] : [kind])),
-    ...tables.composed.flatMap(({ kind, giver }) =>
-      kind === null || giver !== null ? [] : [kind],
-    ),
-    ...(world === null ? [] : [world]),
-  ];
   warnUnsentAndUnhandled({
     kinds: everyKind,
     messages: tables.messages,

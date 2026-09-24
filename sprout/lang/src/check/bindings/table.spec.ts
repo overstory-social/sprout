@@ -32,11 +32,15 @@ import {
   at,
   FILE,
   fromProperty,
+  HERE_PLACE,
+  HERE_UNKNOWN,
   KNOWS,
   LOCKABLE,
   message,
   NOTE,
   parameters,
+  PLACE,
+  ROOM,
   SEALED,
   trying,
   VESSEL,
@@ -56,8 +60,19 @@ describe('where types come from — the table, row by row', () => {
     expect(actorBinding(null, at('actor')).type).toEqual(OPEN_OBJECT);
   });
 
-  it('`here` — object; the actor’s place', () => {
-    expect(hereBinding(at('here')).type).toEqual(OPEN_OBJECT);
+  it('`here` — `sprout.Place`; the actor’s place', () => {
+    expect(hereBinding(HERE_PLACE, at('here')).type).toEqual(objectOf(PLACE));
+    expect(hereBinding(HERE_PLACE, at('here')).origin).toBe('here');
+  });
+
+  it('`here` — object, with a remedy naming the kind, where one holds actors without `sprout.Place`', () => {
+    expect(hereBinding({ place: null, unlike: ROOM }, at('here')).type).toEqual({
+      binds: 'object',
+      kind: null,
+      remedy:
+        '`Room` holds actors without composing `sprout.Place`, so `here` may be a place that is not one: compose `sprout.Place` into `Room`, or narrow `here` first with `is()`.',
+    });
+    expect(hereBinding(HERE_UNKNOWN, at('here')).type).toEqual(OPEN_OBJECT);
   });
 
   it('`mover`, in a guard — object; whatever proposed the move', () => {
@@ -168,7 +183,7 @@ describe('where types come from — the table, row by row', () => {
     const every: Binding[] = [
       selfBinding(VESSEL, at('self')),
       actorBinding(VISITOR, at('actor')),
-      hereBinding(at('here')),
+      hereBinding(HERE_PLACE, at('here')),
       moverBinding(at('mover')),
       setRoleBinding('tools', null, at('tools')),
       loopBinding('pot', VESSEL, at('pot')),
@@ -192,7 +207,7 @@ describe('only `self` writes `self`', () => {
   it('and nothing else is', () => {
     const every: Binding[] = [
       actorBinding(VISITOR, at('actor')),
-      hereBinding(at('here')),
+      hereBinding(HERE_PLACE, at('here')),
       moverBinding(at('mover')),
       setRoleBinding('tools', VESSEL, at('tools')),
       loopBinding('pot', VESSEL, at('pot')),

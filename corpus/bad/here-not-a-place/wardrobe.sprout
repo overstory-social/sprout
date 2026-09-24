@@ -1,0 +1,4 @@
+// Something to stand in, which holds actors without being a `sprout.Place`.
+kind Wardrobe {
+  contains actors
+}

@@ -179,6 +179,8 @@ describe('`spawn` makes a kind in something that holds things', () => {
   it('makes the kind it names, in a container the body can name', () => {
     expect(spawned('spawn Rib in self', vessel())).toEqual({ kind: 'shop.Rib', said: [] });
     expect(spawned('spawn Key in actor', vessel())).toEqual({ kind: 'shop.Key', said: [] });
+    // The worked microworld writes `spawn Sheet in here`, and `here` is a `sprout.Place`.
+    expect(spawned('spawn Rib in here', vessel())).toEqual({ kind: 'shop.Rib', said: [] });
     expect(spawned('spawn sprout.Container in self', vessel())).toEqual({
       kind: 'sprout.Container',
       said: [],
@@ -186,9 +188,6 @@ describe('`spawn` makes a kind in something that holds things', () => {
   });
 
   it('accepts a container of the bare object type, which the engine checks when it runs', () => {
-    // The worked microworld writes `spawn Sheet in here`, and `here` is
-    // the object type: whether it holds things is known only then.
-    expect(spawned('spawn Rib in here', vessel())).toEqual({ kind: 'shop.Rib', said: [] });
     expect(spawned('spawn Rib in target', vessel())).toEqual({ kind: 'shop.Rib', said: [] });
   });
 

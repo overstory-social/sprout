@@ -32,6 +32,7 @@
 import type { Ident } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindRef } from '../declare/kinds.js';
+import { PLACE, type HereKind } from '../declare/places.js';
 import { kindName } from '../declare/kinds.js';
 import type { DeclaredMessage } from '../declare/messages.js';
 import type { EngineMessage } from '../declare/engine-messages.js';
@@ -50,8 +51,12 @@ import { readable } from '../source/words.js';
  */
 export type BindingType =
   | { readonly binds: 'value'; readonly type: ValueType }
-  /** A thing in the world. `kind` is null where the compiler cannot know it. */
-  | { readonly binds: 'object'; readonly kind: KindRef | null }
+  /**
+   * A thing in the world. `kind` is null where the compiler cannot know
+   * it; `remedy`, where there is one, says what the author can write so
+   * that it would.
+   */
+  | { readonly binds: 'object'; readonly kind: KindRef | null; readonly remedy?: string }
   /** A set role: every object the visitor named, at the role's kind. */
   | { readonly binds: 'set'; readonly kind: KindRef | null };
 
@@ -176,9 +181,16 @@ export function actorBinding(actor: KindRef | null, at: Span): Binding {
   return bind('actor', actor === null ? OPEN_OBJECT : objectOf(actor), 'actor', at);
 }
 
-/** `here` — object; the actor's place. */
-export function hereBinding(at: Span): Binding {
-  return bind('here', OPEN_OBJECT, 'here', at);
+/**
+ * `here` — `sprout.Place`, the actor's place; the object type where a kind
+ * holding actors does not compose it, with a remedy naming that kind, or
+ * where the standard library's kind is absent, which has been said.
+ */
+export function hereBinding(here: HereKind, at: Span): Binding {
+  if (here.place !== null) return bind('here', objectOf(here.place), 'here', at);
+  if (here.unlike === null) return bind('here', OPEN_OBJECT, 'here', at);
+  const remedy = `\`${here.unlike.name}\` holds actors without composing \`${PLACE}\`, so \`here\` may be a place that is not one: compose \`${PLACE}\` into \`${here.unlike.name}\`, or narrow \`here\` first with \`is()\`.`;
+  return bind('here', { binds: 'object', kind: null, remedy }, 'here', at);
 }
 
 /** `mover`, in a guard — object; whatever proposed the move. */
