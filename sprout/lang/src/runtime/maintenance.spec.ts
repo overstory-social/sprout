@@ -46,6 +46,7 @@ describe('a maintenance turn', () => {
     expect(heldIn(turn.state, CANDLE, 'lit')).toBe(false);
     // The candle told the bed it guttered; what catch-up gives back holds none of it.
     expect(Object.keys(turn.value).sort()).toEqual(['abandoned', 'delivered', 'faulted']);
+    expect(turn.effects).toEqual([]);
   });
 
   it('leaves a wake a delivered one asks for to live time, though it is due already', () => {

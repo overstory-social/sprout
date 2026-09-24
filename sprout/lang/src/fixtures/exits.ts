@@ -24,6 +24,7 @@ import { initialState } from '../runtime/load.js';
 import { parseCommand } from '../runtime/parser.js';
 import { newInstance, type WorldState } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
+import { renderEffects } from '../prose/effects.js';
 
 export const WAYS: Bundle = compiledWorld('ways', {
   'world.sprout': `world ways is sprout.World {
@@ -130,6 +131,7 @@ export const waysHost = (): CommandHost => ({
   catalogue: CATALOGUE,
   budgets: DEFAULT_LIMITS.budgets,
   parse: parseCommand,
+  render: renderEffects,
 });
 
 export const MARTA: VisitKey = visitKey('v-marta');

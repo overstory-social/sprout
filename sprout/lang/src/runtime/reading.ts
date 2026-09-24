@@ -20,9 +20,11 @@
 // that says, refusal included, joins this one's. A plain `tell` reaches
 // the people in the teller's place less every participant, and `tell <x>`
 // reaches `x` where `x` is in the teller's range (`audience.ts`). What
-// the effect pass says, tells and sends is kept in body order. Nothing is
-// rendered here: `prose/` renders what is said for each reader, `bus.ts`
-// drains the queue after, and B37 polls the consent pass alone.
+// the effect pass says, tells and sends is kept in body order, what a
+// place says of an actor moved between two among it as the move is made.
+// Nothing is rendered here: the turn renders what is said once its work
+// is done (`effects.ts`), `bus.ts` drains the queue after, and B37 polls
+// the consent pass alone.
 
 import { libraryOf, SPROUT } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
@@ -30,6 +32,7 @@ import { ENGINE_ANSWERS, type ResolvedRole, type ResolvedVerb } from '../declare
 import { readingOfAct } from './act.js';
 import { isPerson, toldToOne, toldToPlace } from './audience.js';
 import { runBody, type ActSink, type Proposed, type Speech } from './body.js';
+import { noticeLines } from './effects.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.js';
@@ -95,19 +98,21 @@ export interface Said {
    * `act`'s reading refused, whose words are said to its actor as a
    * refusal (the spec's Verbs › Moving something, Acting); a line of a
    * description, to the one looking; or spoken by the engine, as a fault
-   * is (The runtime › Effects).
+   * is, or by a place of someone arriving or leaving (The runtime › Effects).
    */
   readonly effect: 'said' | 'told' | 'refused' | 'described' | 'notice';
   /**
    * Who reads it, each a person: for what is said, the actor, where a
    * person acts, and where an NPC acts, those who would hear its `tell`;
-   * for what is told, its audience (the spec's Other people › Who hears it).
+   * for what is told, its audience (the spec's Other people › Who hears
+   * it); for a place's notice, the visitors in its range. A line with no
+   * reader is no effect.
    */
   readonly to: readonly InstanceId[];
   /**
    * Whose body said it, which is `self` when it renders: for a refused
    * move, the party whose guard refused; the world, for `nothing_happens`
-   * and for the engine's own refusal of a move.
+   * and for the engine's own refusal of a move; the place, for its notice.
    */
   readonly by: InstanceId;
   /**
@@ -127,10 +132,11 @@ export interface Said {
 
 /** What the effect pass did, in order. */
 export interface Acted {
+  /** What was said, told and refused, and what the places spoke of each actor moved between two, in body order. */
   readonly said: readonly Said[];
   /** What each spawn and move tells the world, and what each `send` and `broadcast` queued, in body order. */
   readonly sends: readonly Sent[];
-  /** What the places speak of each move an actor made between two, for `prose/` to render. */
+  /** What the places speak of each move an actor made between two, the description the mover reads among it. */
   readonly notices: readonly Notice[];
   /** What destroyed itself, and everything it held; the queue drops everything pending on each. */
   readonly destroyed: readonly InstanceId[];
@@ -355,6 +361,8 @@ export function actingSink(
     }
     sends.push(...outcome.sends);
     notices.push(...outcome.notices);
+    // What the places say of an actor moved between them is said as the move is made.
+    said.push(...noticeLines(outcome.notices));
     return 'done';
   };
   const sink: ActSink = {

@@ -41,11 +41,12 @@ export interface Drained {
    * What handlers had said: what they told, heard by the teller's place
    * with nobody left out, since no reading is running, or by the one
    * named where it is in the teller's range; a refused `move`, said to
-   * nobody, since nobody is acting; and an NPC's reading performed with
-   * `act`, heard as its own is.
+   * nobody, since nobody is acting; an NPC's reading performed with
+   * `act`, heard as its own is; and what the places spoke of each actor a
+   * handler moved between two.
    */
   readonly said: readonly Said[];
-  /** What the places spoke of each actor a handler moved between two. */
+  /** What the places spoke of each actor a handler moved between two, the description the mover reads among it. */
   readonly notices: readonly Notice[];
   /** Everything destroyed while the queue drained, and once it was empty. */
   readonly destroyed: readonly InstanceId[];

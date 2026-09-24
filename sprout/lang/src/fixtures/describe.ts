@@ -24,13 +24,14 @@ import { commandTurn, type CommandHost, type CommandTurn } from '../runtime/comm
 import type { DescribeContext } from '../runtime/describe.js';
 import { Draft } from '../runtime/draft.js';
 import { Draws } from '../runtime/draws.js';
-import type { EngineAnswer } from '../runtime/engine-verbs.js';
+import type { Unrendered } from '../runtime/effects.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
 import { initialState } from '../runtime/load.js';
 import { parseCommand } from '../runtime/parser.js';
 import { newInstance, readerOf, type WorldState } from '../runtime/state.js';
 import type { Value } from '../runtime/values.js';
 import { compiledWorld } from './bundle.js';
+import { renderEffects } from '../prose/effects.js';
 
 export const STUDY: Bundle = compiledWorld('study', {
   'world.sprout': `world study is sprout.World {
@@ -119,6 +120,7 @@ export const studyHost = (): CommandHost => ({
   catalogue: CATALOGUE,
   budgets: DEFAULT_LIMITS.budgets,
   parse: parseCommand,
+  render: renderEffects,
 });
 
 export const MARTA: VisitKey = visitKey('v-marta');
@@ -202,7 +204,7 @@ export function typedIn(state: WorldState, visit: VisitKey, text: string) {
 }
 
 /** What the engine answered a committed turn, if it acted. */
-export function answersOf(turn: ReturnType<typeof typedIn>): readonly EngineAnswer[] {
+export function answersOf(turn: ReturnType<typeof typedIn>): readonly Unrendered[] {
   const done = turn.value;
   if (!('acted' in done)) throw new Error('the turn did not act');
   return done.answers;
