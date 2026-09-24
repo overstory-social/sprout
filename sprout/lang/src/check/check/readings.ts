@@ -41,7 +41,7 @@ export function memberType(
     );
     return null;
   }
-  return countable(type, member.at, context) ? valueOf(integer()) : null;
+  return countable(type, member.at, context, receiver) ? valueOf(integer()) : null;
 }
 
 /** `x.m(…)` on a receiver already typed: what the reading gives, or null having said why. */
@@ -67,7 +67,7 @@ export function callType(
     case 'get':
       return getCall(receiver, type, method, args, context);
     case 'recall':
-      return recallCall(type, method, args, context);
+      return recallCall(receiver, type, method, args, context);
     case 'is':
       return isCall(type, method, args, context) ? valueOf(BOOLEAN) : null;
     case 'holds':
@@ -76,7 +76,7 @@ export function callType(
       return includesCall(type, method, args, context) ? valueOf(BOOLEAN) : null;
     case 'count':
       if (!arity(method, args, 1, context)) return null;
-      if (!countable(type, method.at, context)) return null;
+      if (!countable(type, method.at, context, receiver)) return null;
       // `count(K)` counts the contents that compose a kind, which a
       // list has none of: a list holds values, and `[Ward]` is the
       // whole of what it holds.
@@ -108,7 +108,7 @@ export function getCall(
   context: CheckContext,
 ): BindingType | null {
   if (!arity(method, args, 1, context)) return null;
-  const kind = receiverKind(type, method.at, 'read a property from', context);
+  const kind = receiverKind(type, method.at, 'read a property from', context, receiver);
   if (kind === null) return null;
   const named = propertyName(args[0]!, context);
   if (named === null) return null;
@@ -131,13 +131,14 @@ export function getCall(
  * no object can read another object's memory of anyone.
  */
 export function recallCall(
+  receiver: Expr,
   type: BindingType,
   method: Ident,
   args: readonly Expr[],
   context: CheckContext,
 ): BindingType | null {
   if (!arity(method, args, 1, context)) return null;
-  if (!remembers(type, method.at, context)) return null;
+  if (!remembers(type, method.at, context, receiver)) return null;
   const named = propertyName(args[0]!, context);
   if (named === null) return null;
   const property = ownMemory(named, context);
@@ -172,7 +173,7 @@ export function holdsCall(
   context: Checker,
 ): boolean {
   if (!arity(method, args, 1, context)) return false;
-  if (!container(type, method.at, context)) return false;
+  if (!container(type, method.at, context, receiver)) return false;
   const held = context.typeOf(args[0]!);
   if (held === null) return false;
   if (held.binds !== 'object') {

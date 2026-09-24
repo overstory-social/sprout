@@ -168,10 +168,10 @@ export function compileBundle(
     [
       ...tables.kinds.all().map((kind) => ({
         kind,
-        vantage: { in: 'kind' as const, giver: kindName(kind), path: [] },
+        vantage: { in: 'kind' as const, giver: kindName(kind), path: [], self: kind },
       })),
       ...everyContent(tables.contents).flatMap(({ kind, giver, path }) =>
-        kind === null ? [] : [{ kind, vantage: { in: 'kind' as const, giver, path } }],
+        kind === null ? [] : [{ kind, vantage: { in: 'kind' as const, giver, path, self: kind } }],
       ),
       ...tables.composed.flatMap((object) => {
         const placement = tables.tree.placements.get(object);

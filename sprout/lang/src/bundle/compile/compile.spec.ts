@@ -207,14 +207,20 @@ describe('what a compiled bundle knows of its bodies', () => {
   it('records what each name a body writes reaches, and the messages a send reaches them in', () => {
     const files = worldFiles(
       `${worldLine('object bell is Bell')}\nmessage :rang`,
-      'kind Bell { on :rang { send hall :rang } }',
+      'kind Bell { on :rang { send hall :rang  send printers_shop.hall :rang } }',
     );
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toEqual([]);
     expect(bundle!.messages.qualified('printers_shop', 'rang')).not.toBeNull();
-    expect([...bundle!.names.values()]).toContainEqual(
-      expect.objectContaining({ names: 'declared', path: ['hall'] }),
+    const names = [...bundle!.names.values()];
+    // From a kind's body, a bare name is the run's to resolve; the world's name fixes one.
+    expect(names).toContainEqual(
+      expect.objectContaining({
+        names: 'placed',
+        candidates: [expect.objectContaining({ steps: [{ in: 'tree', path: ['hall'] }] })],
+      }),
     );
+    expect(names).toContainEqual(expect.objectContaining({ names: 'declared', path: ['hall'] }));
   });
 });
 

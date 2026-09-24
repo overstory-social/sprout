@@ -1,0 +1,25 @@
+// A lantern kindles whichever lamp is nearest it. Which object `lamp` is
+// depends on where the lantern sits, so Sprout knows it only as an object,
+// and the lantern names it with `let` and narrows it with `is()` before
+// reading it. Its wick is its own in every lantern, so the wick is read
+// directly.
+kind Lantern {
+  contains
+  :lit false
+
+  as target for light {
+    do {
+      self.set(:lit, wick.get(:trimmed))
+      send lamp :kindle
+      send wick :kindle
+      let near = lamp
+      if (near.is(Lamp)) {
+        if (near.get(:lit)) { say "The lamp beside it is already burning." }
+      }
+      say "The lantern catches."
+    }
+  }
+
+  object wick is Wick
+  object oil is Oil
+}

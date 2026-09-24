@@ -1,0 +1,5 @@
+// A loft's way down leads to whichever `shelf` is nearest each loft, and
+// no object of that name holds actors, so nobody could stand there.
+kind Loft is sprout.Place {
+  grammar { exit down "down the ladder" -> shelf }
+}

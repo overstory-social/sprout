@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { nameSource } from '../fixtures/names.js';
-import { nameFrom, namesInReach, type Naming } from './names.js';
+import { inKind, nameSource } from '../fixtures/names.js';
+import { nameFrom, namesInReach, type DeclaredAt, type Naming } from './names.js';
 
 const source = nameSource();
+
+const at = (step: DeclaredAt): string =>
+  step.in === 'tree' ? step.path.join('.') : `${step.giver}:${step.path.join('.')}`;
 
 /** A naming as a short shape: what it names and where. */
 function shaped(naming: Naming): string {
@@ -12,8 +15,10 @@ function shaped(naming: Naming): string {
       return 'the world';
     case 'declared':
       return `declared ${naming.path.join('.')}`;
-    case 'given':
-      return `given ${naming.giver} ${naming.path.join('.')} from ${naming.depth} out`;
+    case 'own':
+      return `own ${naming.parts.join('.')} via ${naming.steps.map(at).join(' ')}`;
+    case 'placed':
+      return `placed ${naming.candidates.map((one) => one.steps.map(at).join('>')).join(' | ')}`;
     case 'missing':
       return `missing at ${naming.step} in ${naming.within ?? 'reach'}`;
     case 'world-inside':
@@ -22,10 +27,9 @@ function shaped(naming: Naming): string {
 }
 
 const inTree = (...path: string[]) => ({ in: 'tree' as const, path });
-const inKind = (giver: string, ...path: string[]) => ({ in: 'kind' as const, giver, path });
 
-describe('a name in a body resolves from where the body is written', () => {
-  it('from a declared object’s body, nearest first, the hall’s lamp hiding the world’s', () => {
+describe('a name in the world’s or a declared object’s body resolves at compile time', () => {
+  it('nearest first, the hall’s lamp hiding the world’s', () => {
     expect(shaped(nameFrom(source, inTree('hall', 'bench'), ['lamp']))).toBe('declared hall.lamp');
     expect(shaped(nameFrom(source, inTree('cellar'), ['lamp']))).toBe('declared lamp');
     expect(shaped(nameFrom(source, inTree('hall', 'bench'), ['cushion']))).toBe(
@@ -41,35 +45,66 @@ describe('a name in a body resolves from where the body is written', () => {
     expect(shaped(nameFrom(source, inTree('hall'), ['shop']))).toBe('the world');
   });
 
-  it('a kind’s copies, from the kind’s body, as what each instance was given', () => {
-    expect(shaped(nameFrom(source, inKind('shop.Lantern'), ['wick']))).toBe(
-      'given shop.Lantern wick from 0 out',
-    );
-    expect(shaped(nameFrom(source, inKind('shop.Lantern'), ['wick', 'flame']))).toBe(
-      'given shop.Lantern wick.flame from 0 out',
-    );
-    // From the wick's own body, `flame` is its own and `wick` is itself, one out.
-    expect(shaped(nameFrom(source, inKind('shop.Lantern', 'wick'), ['flame']))).toBe(
-      'given shop.Lantern wick.flame from 1 out',
-    );
-  });
-
-  it('from a kind’s body, what the world’s body holds and nothing nearer any instance', () => {
-    expect(shaped(nameFrom(source, inKind('shop.Lantern'), ['lamp']))).toBe('declared lamp');
-    expect(shaped(nameFrom(source, inKind('shop.Lantern'), ['bench']))).toBe(
-      'missing at 0 in reach',
-    );
-    expect(shaped(nameFrom(source, inKind('shop.Lantern'), ['hall', 'bench']))).toBe(
-      'declared hall.bench',
-    );
-  });
-
   it('is missing where a step names nothing, and refused where the world is a later step', () => {
     expect(shaped(nameFrom(source, inTree(), ['hall', 'stool']))).toBe('missing at 1 in hall');
-    expect(shaped(nameFrom(source, inKind('shop.Lantern'), ['wick', 'smoke']))).toBe(
+    expect(shaped(nameFrom(source, inTree(), ['hall', 'shop']))).toBe('the world inside at 1');
+  });
+});
+
+describe('a name in a kind’s body', () => {
+  it('is the running instance’s own copy where its own body always declares it', () => {
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['wick']))).toBe(
+      'own wick via shop.Lantern:wick',
+    );
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['wick', 'flame']))).toBe(
+      'own wick.flame via shop.Lantern:wick shop.Lantern:wick.flame',
+    );
+    // From the wick's own body, `flame` is its own.
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern', 'wick'), ['flame']))).toBe(
+      'own flame via shop.Lantern:wick.flame',
+    );
+  });
+
+  it('is every object the bundle declares by the name, for the run to choose the nearest', () => {
+    // Both lamps, and neither fixed: which one a lantern reaches is where it sits.
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['lamp']))).toBe(
+      'placed lamp | hall.lamp',
+    );
+    // Not in the world's body, and still reachable by a lantern in the hall.
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['bench']))).toBe(
+      'placed hall.bench',
+    );
+    // The wick is its lantern's own, so from the wick's body `wick` is anyone's.
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern', 'wick'), ['wick']))).toBe(
+      'placed hall.lantern.wick | shop.Lantern:wick',
+    );
+  });
+
+  it('follows each declaration down the path, and is missing where none holds the rest', () => {
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['hall', 'bench']))).toBe(
+      'placed hall>hall.bench',
+    );
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['lamp', 'cushion']))).toBe(
+      'missing at 1 in lamp',
+    );
+  });
+
+  it('keeps the world’s name as a first step fixed', () => {
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['shop', 'lamp']))).toBe(
+      'declared lamp',
+    );
+  });
+
+  it('is missing where the bundle declares nothing by the name, or where its own copy stops', () => {
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['stool']))).toBe(
+      'missing at 0 in reach',
+    );
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['wick', 'smoke']))).toBe(
       'missing at 1 in wick',
     );
-    expect(shaped(nameFrom(source, inTree(), ['hall', 'shop']))).toBe('the world inside at 1');
+    expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['hall', 'shop']))).toBe(
+      'the world inside at 1',
+    );
   });
 });
 
@@ -86,12 +121,16 @@ describe('the names in reach of a body', () => {
     ]);
   });
 
-  it('from a kind’s body are what it gives, then the world’s body', () => {
-    expect(namesInReach(source, inKind('shop.Lantern'))).toEqual([
+  it('from a kind’s body are its instance’s own, then every name the bundle declares', () => {
+    expect(namesInReach(source, inKind(source, 'shop.Lantern'))).toEqual([
       'wick',
       'hall',
       'cellar',
       'lamp',
+      'bench',
+      'lantern',
+      'cushion',
+      'flame',
       'shop',
     ]);
   });

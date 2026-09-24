@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ObjectPath } from '../syntax/ast.js';
 import type { Vantage } from '../declare/names.js';
 import { bodyOf, read, VESSEL } from '../fixtures/check.js';
-import { nameSource } from '../fixtures/names.js';
+import { inKind, nameSource } from '../fixtures/names.js';
 import { showBindingType, type BindingType } from './bindings.js';
 import type { CheckContext } from './check.js';
 import { dottedType, identifierType, identifiersInReach, type NameScope } from './names.js';
@@ -52,12 +52,30 @@ describe('an identifier in a body', () => {
     expect(read('cellar.count', context).said).toEqual([]);
   });
 
+  it('in a kind’s body, is of the object type where the instance’s place decides it', () => {
+    const { context, scope } = writtenAt(inKind(source, 'shop.Lantern'));
+    const { expr, shown: type, said } = read('lamp', context);
+    expect(said).toEqual([]);
+    expect(type).toBe('an object');
+    expect(scope.table.get(expr.kind === 'binding' ? expr.name : expr)).toMatchObject({
+      names: 'placed',
+    });
+    expect(read('wick', context).shown).toBe('shop.wick');
+  });
+
+  it('in a kind’s body, is read through only by way of a `let` and `is()`', () => {
+    const { context } = writtenAt(inKind(source, 'shop.Lantern'));
+    expect(read('cellar.count', context).said).toEqual([
+      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot count it. Name it with `let` and narrow that, as in `let found = cellar` and then `if (found.is(Room)) { … }`; a passage said inside the branch may read `found` too.',
+    ]);
+  });
+
   it('is refused where nothing in reach answers, naming what does', () => {
-    const { context } = writtenAt({ in: 'kind', giver: 'shop.Lantern', path: [] });
+    const { context } = writtenAt(inKind(source, 'shop.Lantern'));
     const { said, shown: type } = read('wik', context);
     expect(type).toBeNull();
     expect(said).toEqual([
-      'Nothing here is called `wik`. Did you mean `wick`? In reach: `self`, `actor`, `here`, `wick`, `hall`, `cellar`, `lamp` and `shop`.',
+      'Nothing here is called `wik`. Did you mean `wick`? In reach: `self`, `actor`, `here`, `wick`, `hall`, `cellar`, `lamp`, `bench`, `lantern`, `cushion`, `flame` and `shop`.',
     ]);
     expect(identifiersInReach(context)).toContain('wick');
   });
@@ -71,11 +89,19 @@ describe('an identifier in a body', () => {
 
 describe('a dotted path in a body', () => {
   it('names what the last step reaches, and is recorded at the path', () => {
-    const { context, scope } = writtenAt({ in: 'kind', giver: 'shop.Lantern', path: [] });
+    const { context, scope } = writtenAt({ in: 'tree', path: ['cellar'] });
     const written = path('hall.bench.cushion');
     expect(shown(dottedType(written, context))).toBe('shop.cushion');
     expect(scope.table.get(written)).toMatchObject({ names: 'declared' });
+  });
+
+  it('in a kind’s body, is typed at its kind only where it is the instance’s own', () => {
+    const { context, scope } = writtenAt(inKind(source, 'shop.Lantern'));
     expect(shown(dottedType(path('wick.flame'), context))).toBe('shop.flame');
+    const placed = path('hall.bench.cushion');
+    expect(shown(dottedType(placed, context))).toBe('an object');
+    expect(scope.table.get(placed)).toMatchObject({ names: 'placed' });
+    expect(shown(dottedType(path('shop.lamp'), context))).toBe('shop.lamp');
   });
 
   it('refuses a step nothing answers to, and the world’s name as a later step', () => {

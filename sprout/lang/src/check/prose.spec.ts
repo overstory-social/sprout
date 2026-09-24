@@ -7,6 +7,8 @@ import { readProseText } from '../fixtures/parse.js';
 import { at, bodyOf, saidBy, vessel, VESSEL, warded, WARDED } from '../fixtures/check.js';
 import type { CheckContext } from './check.js';
 import { checkProse } from './prose.js';
+import { Diagnostics } from '../source/diagnostics.js';
+import { inKind, nameSource } from '../fixtures/names.js';
 import type { PassageRendered } from './speech.js';
 
 /** `text` checked as prose in `context`, with what it recorded. */
@@ -104,6 +106,22 @@ describe('a slot that renders a passage names it through a thing of a kind that 
     ]);
     expect(checked('{target.greeting}', vessel()).said).toEqual([
       'Sprout does not know what this is, so it cannot render one of its passages. Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.',
+    ]);
+  });
+
+  it('refuses a passage or a walk through a kind’s name the run decides, naming the `let` that narrows it', () => {
+    const source = nameSource();
+    const context = {
+      ...bodyOf(withPassage),
+      names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
+    };
+    expect(checked('{cellar.greeting}', context).said).toEqual([
+      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot render one of its passages from it. Name it with `let` and narrow that, as in `let found = cellar` and then `if (found.is(Room)) { … }`; a passage said inside the branch may read `found` too.',
+    ]);
+    expect(
+      checked('{for t in cellar}{t}{/for}', { ...context, diagnostics: new Diagnostics() }).said,
+    ).toEqual([
+      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot walk it. Name it with `let` and narrow that, as in `let found = cellar` and then `if (found.is(Room)) { … }`; a passage said inside the branch may read `found` too.',
     ]);
   });
 });
