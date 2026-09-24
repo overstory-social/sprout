@@ -6,13 +6,14 @@
 // answers. `parseCommand` is what a command turn reads through.
 //
 // Every line has exactly one outcome: a reading, or one of the world's
-// answers, `which`, `unreachable` or `unknown`, never nothing. Phrases
-// are tried in order and the first reading wins; failing one, the first
-// `which` asked; failing that, a noun that names something the actor
-// cannot reach is `unreachable`, and anything else is `unknown`. Every
-// noun tried, every way of placing the slots and every object a range
-// walk visits is a step, so a line that costs too much to read faults the
-// turn as any other work would.
+// answers, `which` or `unknown`, never nothing. A noun resolves only
+// against the actor's range (the spec's Range), so no answer names
+// anything out of it: a noun nothing in range answers to is `unknown`.
+// Phrases are tried in order and the first reading wins; failing one, the
+// first `which` asked; failing that, `unknown`. Every noun tried, every way
+// of placing the slots and every object the range walk visits is a step,
+// so a line that costs too much to read faults the turn as any other work
+// would.
 
 import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole } from '../declare/verbs.js';
@@ -29,7 +30,7 @@ import { answer, type Answer, type Choice } from './parser/answers.js';
 import type { CommandExit } from './parser/exits.js';
 import { fillSlot, valueOf, type Filled } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
-import { nounIn, type Candidate } from './parser/nouns.js';
+import type { Candidate } from './parser/nouns.js';
 import type { TypedPhrase } from './parser/phrases.js';
 
 /** What reading a line reads: the turn's state, the bundle, the pass rules and the meter. */
@@ -46,12 +47,6 @@ export interface CommandContext {
 
 /** A line's one outcome: understood as a reading, or answered. */
 export type CommandOutcome = { readonly understood: Reading } | Answer;
-
-/** A slot of one phrase that named nothing the actor can reach, kept for `unreachable`. */
-interface Unreached {
-  readonly role: ResolvedRole;
-  readonly words: readonly string[];
-}
 
 /** `line`, typed by `actor`, as a reading or the world's answer to it. */
 export function readCommand(
@@ -75,7 +70,6 @@ export function readCommand(
   const fill = { candidates, exits: context.exits, budget };
 
   let which: Answer | null = null;
-  const unreached: Unreached[] = [];
   for (const phrase of catalogue.phrases) {
     const filled = new Map<string, Filled>();
     const fillOf = (span: SlotSpan): Filled => {
@@ -104,40 +98,11 @@ export function readCommand(
         );
         continue;
       }
-      const missing = spans.findIndex((_, at) => fills[at]!.fills === 'nothing');
-      if (missing >= 0) {
-        const span = spans[missing]!;
-        const noun = fills[missing]!;
-        if (noun.fills === 'nothing') {
-          const start = span.start + noun.start;
-          unreached.push({
-            role: phrase.verb.roles[span.role]!,
-            words: words.slice(start, span.start + noun.end),
-          });
-        }
-        continue;
-      }
+      if (fills.some((one) => one.fills === 'nothing')) continue;
       return { understood: readingOf(phrase, actor, spans, fills, context) };
     }
   }
-  if (which !== null) return which;
-
-  // Nothing the actor can reach was named: something further off is.
-  if (unreached.length > 0) {
-    const beyond = rangeOf({ tree, passes: () => true, budget }, actor, 'any')
-      .reached.map(({ node }) => node)
-      .filter((node) => !range.within.has(node));
-    const far = candidatesOf(state, beyond, addressing);
-    for (const { role, words: named } of unreached) {
-      const found = nounIn(named, role, far, budget);
-      const thing =
-        found.found === 'one' ? found.id : found.found === 'which' ? found.candidates[0] : null;
-      if (thing !== null && thing !== undefined) {
-        return answer(state, 'unreachable', actor, here, { thing });
-      }
-    }
-  }
-  return answer(state, 'unknown', actor, here);
+  return which ?? answer(state, 'unknown', actor, here);
 }
 
 /** What may be named among `nodes`, nearest first: every live thing but the world. */

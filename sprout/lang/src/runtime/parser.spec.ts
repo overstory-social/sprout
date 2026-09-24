@@ -12,8 +12,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { chooser } from '../fixtures/parse.js';
 import {
-  BARREL,
   BRASS_KEY,
+  CHEST,
   COIN,
   commandContext,
   DIAL,
@@ -31,9 +31,12 @@ import {
   STUDY,
   STUDY_FILES,
   typed,
+  type Study,
 } from '../fixtures/parser.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { commandTurn } from './command.js';
+import { liveTree } from './live.js';
+import { rangeOf } from './range.js';
 import { parseCommand, type CommandOutcome } from './parser.js';
 import { readerOf } from './state.js';
 import {
@@ -61,6 +64,33 @@ function understood(outcome: CommandOutcome): { verb: string; bindings: Record<s
 function answered(outcome: CommandOutcome): Answer {
   if ('understood' in outcome) throw new Error(`understood as \`${outcome.understood.verb.name}\``);
   return outcome;
+}
+
+/** `one` with the chest's lid up, so what it holds is in range. */
+function openChest(one: Study): Study {
+  const chest = one.draft.instance(CHEST)!;
+  one.draft.write({ ...chest, properties: new Map([...chest.properties, ['open', true]]) });
+  return one;
+}
+
+/** Every object an outcome names: what its reading binds, or what its answer binds and offers. */
+function named(outcome: CommandOutcome): InstanceId[] {
+  if ('understood' in outcome) {
+    return [...outcome.understood.bindings.values()].flatMap((bound) =>
+      'object' in bound ? [bound.object] : 'set' in bound ? [...bound.set] : [],
+    );
+  }
+  const bound = [...outcome.bindings.values()].flatMap((one) =>
+    one.binds === 'object' ? [one.id] : one.binds === 'set' ? [...one.ids] : [],
+  );
+  return [...bound, ...outcome.choices.map((choice) => choice.id)];
+}
+
+/** What the first visitor in `one` can name: their range, walked by the study's pass rules. */
+function rangeIn(one: Study): ReadonlySet<InstanceId> {
+  const { passes } = commandContext(one);
+  const budget = new Budget({ ...DEFAULT_LIMITS.budgets, steps: 1e9 });
+  return rangeOf({ tree: liveTree(one.draft), passes, budget }, one.people[0]!, 'any').within;
 }
 
 /** The words of the passage an answer says, as the standard library writes it. */
@@ -248,20 +278,21 @@ describe('the answers', () => {
     ]);
   });
 
-  it("says `unreachable`, in the world's words, of a thing that is there and out of reach", () => {
+  it('names nothing out of range: a noun nothing in range answers to is `unknown`', () => {
     const one = study();
-    const inChest = answered(typed(one, 'take coin'));
-    expect(inChest.answer).toBe('unreachable');
-    expect(inChest.bindings.get('thing')).toEqual({ binds: 'object', id: COIN });
-    expect(words(inChest)).toBe('You cannot reach {thing} from here.');
-    const inRun = answered(typed(one, 'juggle gong and the coin'));
-    expect([inRun.answer, inRun.bindings.get('thing')]).toEqual([
-      'unreachable',
-      { binds: 'object', id: COIN },
-    ]);
-    const inCellar = answered(typed(one, 'x the barrel'));
-    expect(inCellar.answer).toBe('unreachable');
-    expect(inCellar.bindings.get('thing')).toEqual({ binds: 'object', id: BARREL });
+    // The coin is in the shut chest, and the barrel in another place.
+    for (const line of ['take coin', 'juggle gong and the coin', 'x the barrel', 'take barrel']) {
+      const unknown = answered(typed(one, line));
+      expect(unknown.answer, line).toBe('unknown');
+      expect(words(unknown), line).toBe('That is not something you can do here.');
+      expect([...unknown.bindings.keys()].sort(), line).toEqual(['actor', 'here']);
+    }
+  });
+
+  it('names what a lid held once it is open', () => {
+    const open = openChest(study());
+    expect(understood(typed(open, 'take coin')).bindings).toEqual({ target: { object: COIN } });
+    expect(answered(typed(open, 'x the barrel')).answer).toBe('unknown');
   });
 
   it("says `unknown`, in the world's words, of anything else, the empty line included", () => {
@@ -383,16 +414,8 @@ describe('every line has exactly one outcome (generated)', () => {
       expect(() => (outcome = typed(one, line)), line).not.toThrow();
       const kinds = ['understood' in outcome! ? 'understood' : outcome!.answer];
       expect(kinds, line).toHaveLength(1);
-      expect(['understood', 'which', 'unreachable', 'unknown'], line).toContain(kinds[0]);
-      if ('understood' in outcome!) {
-        // Every thing it names is one the visitor can name.
-        for (const bound of outcome.understood.bindings.values()) {
-          const ids: InstanceId[] =
-            'object' in bound ? [bound.object] : 'set' in bound ? [...bound.set] : [];
-          for (const id of ids) expect([COIN, BARREL], line).not.toContain(id);
-        }
-        continue;
-      }
+      expect(['understood', 'which', 'unknown'], line).toContain(kinds[0]);
+      if ('understood' in outcome!) continue;
       expect('passage' in outcome!.said, line).toBe(true);
       if (outcome!.answer !== 'which') continue;
       // A `which` offers two or more, and typing any offered line asks it no more.
@@ -406,6 +429,29 @@ describe('every line has exactly one outcome (generated)', () => {
         expect(same, `${line} → ${choice.line}`).toBe(false);
       }
     }
+  });
+
+  it("never names an object outside the visitor's range, the chest shut or open", () => {
+    const c = chooser(102);
+    // A verb's phrase, then words that are mostly nouns, near and far.
+    const verbs = ['take', 'x the', 'juggle', 'give', 'unlock door with', ''];
+    const nouns = ['coin', 'the coin', 'barrel', 'chest', 'gong', 'key', 'and', ','];
+    let coinNamed = 0;
+    for (let run = 0; run < 400; run++) {
+      const tail = Array.from({ length: 1 + c.below(4) }, () =>
+        c.below(4) === 0 ? c.one(VOCABULARY) : c.one(nouns),
+      );
+      const line = [c.one(verbs), ...tail].join(' ');
+      const one = study(['Marta B', 'Pip'], new Budget({ ...DEFAULT_LIMITS.budgets, steps: 1e9 }));
+      if (c.below(2) === 0) openChest(one);
+      const range = rangeIn(one);
+      for (const id of named(typed(one, line))) {
+        expect(range.has(id), `${line}: ${id}`).toBe(true);
+        if (id === COIN) coinNamed++;
+      }
+    }
+    // The coin, in range only with the lid up, is named often enough for the rule to bite.
+    expect(coinNamed).toBeGreaterThan(0);
   });
 
   it('with too little budget, faults as a budget and in no other way', () => {
