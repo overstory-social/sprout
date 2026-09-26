@@ -11,18 +11,22 @@ import {
   type WorldState,
 } from '@overstory/sprout/lang';
 
+import { saidEntry } from './log/said.js';
+import { loaded } from './steps.js';
 import type { SproutStore } from './store.js';
 import { committedState } from './turns.js';
 
 // Conversation between visitors (the spec's Other people › Talking to
 // each other; The host contract › Conversation): free text is the host's,
-// beside the world and never in it. A line said here reads the committed
-// state, with no lock, only to find who stands with the speaker; it runs
-// no turn, writes nothing of the world, appends nothing to the log and is
-// not an effect, and nothing of it is stored, so forgetting a visitor has
-// nothing of theirs here to take. The host delivers what is said, beside
-// the world's words; its length cap, its pace and its moderation are the
-// host's, and every refusal carries words the speaker is shown.
+// beside the world and never in it. A line said here runs no turn,
+// writes nothing of the world and is not an effect; it reads the state
+// only to find who stands with the speaker, and is written to the log
+// with who heard it, under the world's lock so the hearers logged are who
+// stood there as it landed, and never replayed. The speaker is among the
+// hearers, so a line said with nobody else there is said to them alone.
+// The host delivers what is said, beside the world's words; its length
+// cap, its pace and its moderation are the host's, and every refusal
+// carries words the speaker is shown.
 
 /** What the host sets for conversation; null in either leaves it unbounded. */
 export interface ConversationRules {
@@ -35,7 +39,7 @@ export interface ConversationRules {
 /** What the host decides of conversation beyond the world. */
 export interface ConversationHost {
   readonly rules: ConversationRules;
-  /** Whether the host's moderation lets `visit` say `text`, as it is kept; asked only of what someone would hear. */
+  /** Whether the host's moderation lets `visit` say `text`, as it is kept; asked of every line that is words. */
   readonly moderate: (text: string, visit: VisitKey) => boolean | Promise<boolean>;
 }
 
@@ -68,8 +72,6 @@ export type ConversationRefusalReason =
   | 'not-words'
   /** It is longer than the host's cap. */
   | 'too-long'
-  /** Nobody else stands in the speaker's place to hear it. */
-  | 'nobody-here'
   /** The speaker has said as much as the host's pace allows for now. */
   | 'too-fast'
   /** The host's moderation declined it. */
@@ -140,7 +142,7 @@ function mustBePresent(state: WorldState, visit: VisitKey): void {
   }
 }
 
-/** Each visitor's recent sayings, per world, so the host's pace can be kept; the only thing conversation holds, and only in memory. */
+/** Each visitor's recent sayings, per world, so the host's pace can be kept; held only in memory. */
 export class ConversationPace {
   private readonly times = new Map<string, Map<VisitKey, HostSeconds[]>>();
 
@@ -176,10 +178,11 @@ export class ConversationPace {
 
 /**
  * Say `saying` in `microworldId` to the people standing with its visitor:
- * the text checked against the host's rules, then who would hear it, then
- * the host's pace, then its moderation, and who hears it read again once
- * moderation answers, since people may have come and gone meanwhile.
- * Asking for one who is away, or who never came, is the host's defect.
+ * the text checked against the host's rules, then the host's pace, then
+ * its moderation, and who hears it read under the world's lock once
+ * moderation answers, since people may have come and gone meanwhile, and
+ * logged there. Asking for one who is away, or who never came, is the
+ * host's defect.
  */
 export async function runConversation(
   store: SproutStore,
@@ -194,9 +197,7 @@ export async function runConversation(
   const bad = sayingRefusal(rules, saying.text);
   if (bad !== null) return bad;
   const text = keptSaying(saying.text);
-  const before = await committedState(store, microworldId, host);
-  mustBePresent(before, saying.visit);
-  if (withOthers(hearers(before, saying.visit)) === null) return NOBODY_HERE;
+  mustBePresent(await committedState(store, microworldId, host), saying.visit);
   if (!pace.admit(microworldId, saying.visit, at, rules.pace)) {
     const { messages, seconds } = rules.pace!;
     return refused(
@@ -207,30 +208,26 @@ export async function runConversation(
   if (!(await conversation.moderate(text, saying.visit))) {
     return refused('moderated', 'That cannot be said here.');
   }
-  const state = await committedState(store, microworldId, host);
-  const standing = hearers(state, saying.visit);
-  if (standing === null) return GONE;
-  const heard = withOthers(standing);
-  if (heard === null) return NOBODY_HERE;
-  return {
-    said: true,
-    from: saying.visit,
-    nickname: state.visitors.get(saying.visit)!.nickname,
-    text,
-    place: heard.place,
-    to: heard.to,
-    at,
-  };
-}
-
-/** `heard` where it holds someone beside the speaker, else null. */
-function withOthers(heard: Heard | null): Heard | null {
-  return heard !== null && heard.to.length > 1 ? heard : null;
+  return store.transaction(microworldId, async (tx) => {
+    const state = loaded(await tx.state(), host);
+    const heard = hearers(state, saying.visit);
+    if (heard === null) return GONE;
+    const said: Said = {
+      said: true,
+      from: saying.visit,
+      nickname: state.visitors.get(saying.visit)!.nickname,
+      text,
+      place: heard.place,
+      to: heard.to,
+      at,
+    };
+    await tx.appendLog(saidEntry(said));
+    return said;
+  });
 }
 
 function refused(reason: ConversationRefusalReason, words: string): ConversationRefused {
   return { said: false, reason, words };
 }
 
-const NOBODY_HERE = refused('nobody-here', 'There is nobody else here to hear you.');
 const GONE = refused('gone', 'You left before that was said: say it again where you are now.');

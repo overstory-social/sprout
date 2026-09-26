@@ -28,10 +28,12 @@ in it (the spec's _The host contract › Conversation_): `runConversation`
 checks a line against the host's `ConversationRules` (a length cap and a
 pace, each unbounded where unset), a `ConversationPace` and the host's
 `moderate`, and gives back who stands in the speaker's place to read it,
-or a refusal with words the speaker is shown (`conversation.ts`). It
-runs no turn, writes nothing of the world, appends nothing to the log
-and stores nothing; delivering it, beside the world's words, is the
-host's.
+the speaker among them and alone where nobody else is there, or a
+refusal with words the speaker is shown (`conversation.ts`). It runs no
+turn and writes nothing of the world; each line said is written to the
+log with who said it and who heard it (`log/said.ts`), never replayed,
+so a moderator can read it back; delivering it, beside the world's
+words, is the host's.
 
 What each client is sent is negotiated with it (the spec's _Extensions ›
 Effects are additive_): `negotiate` reads a client's `ClientDeclaration`,
