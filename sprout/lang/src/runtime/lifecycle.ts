@@ -1,11 +1,14 @@
 // Making and unmaking instances while a world runs (the spec's The world
-// model › Spawning, Destroying; Limits › Runtime budgets). A spawn makes
-// an instance of a declared kind at its defaults, under a minted id, last
-// in a container in range, and with it a copy of everything its kinds'
-// bodies give it, all the way down, each under a minted id of its own; a
-// destroy removes an instance and everything inside it, all the way down,
-// dormant records included, tombstones every declared object among them,
-// which is gone for good, and tells no one.
+// model › Objects, Spawning, Destroying; Limits › Runtime budgets). A
+// spawn makes an instance of a declared kind at its defaults, under a
+// minted id, last in a container in range, and with it a copy of
+// everything its kinds' bodies give it, all the way down, each under a
+// minted id of its own; a visitor arriving for the first time is given
+// the same copy of what its kind holds (`giveContents`), as the spec's
+// Actors and visitors makes it as a spawn is; a destroy removes an
+// instance and everything inside it, all the way down, dormant records
+// included, tombstones every declared object among them, which is gone
+// for good, and tells no one.
 //
 // Two invariants. Nothing is written until every check has passed, so a
 // fault leaves the draft as it was, and a spawn makes all of what it
@@ -109,11 +112,11 @@ export interface Spawned {
   readonly sends: readonly EngineSend[];
 }
 
-/** One instance a spawn makes: its kind, how it was made, and which of the others holds it. */
+/** One content a spawn or a first arrival makes: its kind, how it was made, and which of the others holds it. */
 interface Making {
   readonly kind: KindRef;
   readonly made: Made;
-  /** The index in the list of the one that holds it; null for the instance spawned. */
+  /** The index in the list of the one that holds it; null for the instance given them, which is not in the list. */
   readonly holder: number | null;
 }
 
@@ -141,7 +144,7 @@ export function spawnInstance(
   kind: string,
   container: InstanceId,
 ): Spawned {
-  const { draft, catalogue, passes, budget, mayHold } = context;
+  const { draft, catalogue, passes, budget } = context;
   const made = catalogue.kinds.get(kind);
   const shown = `\`${shownKind(kind)}\``;
   if (made === undefined) {
@@ -175,36 +178,17 @@ export function spawnInstance(
       `\`${container}\` holds no actors, so ${shown}, an actor, could not be spawned in it.`,
     );
   }
-  const making = madeWith(made, kind, catalogue.contents);
-  for (const one of making) {
-    const holder = one.holder === null ? null : making[one.holder]!;
-    if (holder !== null && isActor(one.kind) && !holder.kind.containsActors) {
-      throw new LifecycleFault(
-        'holds-no-actors',
-        container,
-        `\`${one.kind.name}\`, an actor, would be inside \`${holder.kind.name}\`, which holds no actors, so ${shown} could not be spawned.`,
-      );
-    }
-  }
-  for (let n = 0; n < making.length; n++) budget.spawn();
-  if (mayHold !== null && draft.held + making.length > mayHold) {
-    throw new LifecycleFault(
-      'instances',
-      container,
-      `the host will hold no more instances in this world, so ${shown} could not be spawned.`,
-    );
-  }
-  const ids: InstanceId[] = [];
-  for (const one of making) {
-    const id = draft.mint();
-    const into = one.holder === null ? container : ids[one.holder]!;
-    draft.add(newInstance(id, one.made, one.kind, into, draft.nextSerial(), catalogue.caps));
-    ids.push(id);
-  }
-  const [id] = ids as [InstanceId, ...InstanceId[]];
+  const outcome = `${shown} could not be spawned`;
+  const making = contentsOf(made, catalogue.contents);
+  holdsEach(making, made, container, outcome);
+  charge(context, 1 + making.length, container, outcome);
+  const id = draft.mint();
+  draft.add(
+    newInstance(id, { from: 'spawned', kind }, made, container, draft.nextSerial(), catalogue.caps),
+  );
   return {
     id,
-    contents: ids.slice(1),
+    contents: makeContents(context, id, making),
     sends: [
       { message: 'entered', recipient: container, item: id, from: spawner },
       { message: 'spawned', recipient: id, from: spawner },
@@ -213,16 +197,39 @@ export function spawnInstance(
 }
 
 /**
- * Everything a spawn of `made`, by qualified name `kind`, makes: the
- * instance first, then each content after what holds it, what a holder's
- * kinds give before what its own body holds. A content whose kind is
- * absent is not made, and nor is what it holds.
+ * Give `holder`, made this turn and holding nothing yet, its own copy of
+ * everything its kinds' bodies hold, as a spawn of its kind is given
+ * them, and return their ids, each after what holds it; nothing is sent
+ * for any of them. Faults, writing nothing, as a spawn does: where an
+ * actor among them would stand in what holds no actors, or the turn's
+ * cap or the host's bound is reached by any of them.
  */
-function madeWith(made: KindRef, kind: string, contents: KindContents): Making[] {
-  const making: Making[] = [{ kind: made, made: { from: 'spawned', kind }, holder: null }];
-  const inside = (holder: number, own: readonly KindContent[]): [KindContent, number][] =>
-    [...givenBy(contents, making[holder]!.kind), ...own].map((content) => [content, holder]);
-  const pending = inside(0, []).reverse();
+export function giveContents(context: LifecycleContext, holder: InstanceId): InstanceId[] {
+  const { draft, catalogue } = context;
+  const instance = draft.instance(holder);
+  if (instance === undefined) throw new Error(`\`${holder}\` is not an instance in this world.`);
+  const outcome = `\`${instance.kind.name}\` could not be made with what its kinds hold`;
+  const making = contentsOf(instance.kind, catalogue.contents);
+  holdsEach(making, instance.kind, holder, outcome);
+  charge(context, making.length, holder, outcome);
+  return makeContents(context, holder, making);
+}
+
+/**
+ * Everything an instance of `kind` is given: each content after what
+ * holds it, what a holder's kinds give before what its own body holds. A
+ * content whose kind is absent is not made, and nor is what it holds.
+ */
+function contentsOf(kind: KindRef, contents: KindContents): Making[] {
+  const making: Making[] = [];
+  const kindOf = (holder: number | null): KindRef =>
+    holder === null ? kind : making[holder]!.kind;
+  const inside = (
+    holder: number | null,
+    own: readonly KindContent[],
+  ): [KindContent, number | null][] =>
+    [...givenBy(contents, kindOf(holder)), ...own].map((content) => [content, holder]);
+  const pending = inside(null, []).reverse();
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     const [content, holder] = next;
     if (content.kind === null) continue;
@@ -234,6 +241,60 @@ function madeWith(made: KindRef, kind: string, contents: KindContents): Making[]
     pending.push(...inside(making.length - 1, content.holds).reverse());
   }
   return making;
+}
+
+/** Fault, about `object`, where an actor among `making` would stand in what holds no actors, `root` being what holds the first of them. */
+function holdsEach(
+  making: readonly Making[],
+  root: KindRef,
+  object: InstanceId,
+  outcome: string,
+): void {
+  for (const one of making) {
+    const holder = one.holder === null ? root : making[one.holder]!.kind;
+    if (isActor(one.kind) && !holder.containsActors) {
+      throw new LifecycleFault(
+        'holds-no-actors',
+        object,
+        `\`${one.kind.name}\`, an actor, would be inside \`${holder.name}\`, which holds no actors, so ${outcome}.`,
+      );
+    }
+  }
+}
+
+/** Charge `count` instances to the turn's cap and the host's bound, faulting about `object` past either. */
+function charge(
+  context: LifecycleContext,
+  count: number,
+  object: InstanceId,
+  outcome: string,
+): void {
+  const { draft, budget, mayHold } = context;
+  for (let n = 0; n < count; n++) budget.spawn();
+  if (mayHold !== null && draft.held + count > mayHold) {
+    throw new LifecycleFault(
+      'instances',
+      object,
+      `the host will hold no more instances in this world, so ${outcome}.`,
+    );
+  }
+}
+
+/** Write each of `making` under a minted id, into `root` or the one of them that holds it, and return the ids in that order. */
+function makeContents(
+  context: LifecycleContext,
+  root: InstanceId,
+  making: readonly Making[],
+): InstanceId[] {
+  const { draft, catalogue } = context;
+  const ids: InstanceId[] = [];
+  for (const one of making) {
+    const id = draft.mint();
+    const into = one.holder === null ? root : ids[one.holder]!;
+    draft.add(newInstance(id, one.made, one.kind, into, draft.nextSerial(), catalogue.caps));
+    ids.push(id);
+  }
+  return ids;
 }
 
 /**

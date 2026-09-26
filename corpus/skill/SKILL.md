@@ -212,6 +212,8 @@ Only `self` writes `self`; anything else is asked, with a message.
 | `self.remove(:opens, :oak)` | takes a value out of a list |
 | `actor.remember(:visits, 1)` | sets what `self` remembers about an actor |
 
+A turn’s lines are rendered once its work is done, against what it wrote, so a line reads a property as the turn left it whichever comes first: `say "{self.get(:count)} left"` followed by `self.adjust(:count, -1)` says the count after the adjust.
+
 ### Chance
 
 In prose, `{one of}…{or}…{/one of}` picks one choice. A draw may stand in a `do` and a handler or hook, and in no other body.
@@ -434,6 +436,40 @@ world bench is sprout.World {
 ```text
 bench.sprout:6:13  Nothing says `arrive`, and nothing `hall` is made of has a passage of that name for it to replace. Did you mean `arrives`?
                    Write `passage arrives { … }` to replace that line, or say this one by name where it should be heard, as in `say arrive` in a role's `do`.
+```
+
+### `contains` written twice in one body
+
+`crate.sprout`:
+
+```sprout
+kind Crate {
+  contains
+  :open true
+  contains
+}
+```
+
+```text
+crate.sprout:4:3  `Crate` writes `contains` twice.
+                  Once is enough: take this one out.
+```
+
+### A statement after `allow` or `refuse`
+
+`lid.sprout`:
+
+```sprout
+kind Lid {
+  as target for pry { permit { refuse "The lid is stuck fast."  allow } do { say "The lid comes free." } }
+}
+
+verb pry { role target  "pry [target]" }
+```
+
+```text
+lid.sprout:2:65  This never runs: the `refuse` above it has already decided.
+                 Take it out, or put it before the `refuse`; a `permit` ends at its `refuse`.
 ```
 
 ### An exit whose `when` is `false`

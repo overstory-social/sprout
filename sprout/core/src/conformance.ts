@@ -185,7 +185,8 @@ async function mintOne(tx: StoreTx): Promise<number> {
 
 // One entry of every kind the log holds, with a seed at the top of its
 // range and instants past a 32-bit integer, so a store that narrows
-// either is caught.
+// either is caught, and a line said with text past ASCII, so a store
+// that narrows what a visitor said is caught too.
 const turnInputs = (now: number, seed = 4_294_967_295) => ({
   seed,
   mayHold: 40,
@@ -235,6 +236,14 @@ const LOG: readonly LogEntry[] = [
         payload: { src: 'lamp.png', size: [3, 4.5], lit: true, caption: null },
       },
     ],
+  },
+  {
+    kind: 'said',
+    now: 3_000_000_002,
+    from: 'v-marta',
+    place: 'shop.hall',
+    to: ['v-marta', 'v-ines'],
+    text: 'it caught, Ines — “see” \u{1F56F}',
   },
   {
     kind: 'command',

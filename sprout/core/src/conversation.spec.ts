@@ -148,34 +148,87 @@ describe('saying something against a store', () => {
     });
   });
 
-  it('writes nothing of the world and nothing to its log', async () => {
+  it('writes nothing of the world, and writes the line to its log with who said it and who heard it', async () => {
     const store = await hall();
-    const before = await stored(store);
-    await runConversation(store, 'w', host, OPEN, new ConversationPace(), say('hello'));
-    await runConversation(store, 'w', host, OPEN, new ConversationPace(), say(''));
-    expect(await stored(store)).toEqual(before);
+    const { state, log } = await stored(store);
+    await runConversation(store, 'w', host, OPEN, new ConversationPace(), say(' hello  there ', 7));
+    const after = await stored(store);
+    expect(after.state).toEqual(state);
+    expect(after.log).toEqual([
+      ...log,
+      {
+        seq: log.length + 1,
+        entry: {
+          kind: 'said',
+          now: 7,
+          from: MARTA,
+          place: HALL,
+          to: [MARTA, INES],
+          text: 'hello there',
+        },
+      },
+    ]);
   });
 
-  it('refuses where nobody else is there to hear it, and asks no moderation', async () => {
+  it('logs nothing of a line that was not said', async () => {
+    const store = await hall();
+    const before = await stored(store);
+    const pace = new ConversationPace();
+    // The declined `bad` counts against the pace, so one `ok` is said and the second is too fast.
+    const strict: ConversationHost = {
+      rules: { characters: 3, pace: { messages: 2, seconds: 60 } },
+      moderate: (text) => text !== 'bad',
+    };
+    for (const text of ['', 'bell\u0007', 'far too long', 'bad', 'ok', 'ok']) {
+      await runConversation(store, 'w', host, strict, pace, say(text));
+    }
+    const { state, log } = await stored(store);
+    expect(state).toEqual(before.state);
+    expect(log.slice(before.log.length).map(({ entry }) => entry)).toEqual([
+      { kind: 'said', now: 0, from: MARTA, place: HALL, to: [MARTA, INES], text: 'ok' },
+    ]);
+  });
+
+  it('leaves the line in the log when the speaker is forgotten, as it leaves every entry', async () => {
+    const store = await hall();
+    await runConversation(store, 'w', host, OPEN, new ConversationPace(), say('remember me'));
+    const { log } = await stored(store);
+    await store.forgetVisitor(MARTA);
+    expect((await stored(store)).log).toEqual(log);
+    expect(log.at(-1)?.entry).toMatchObject({ kind: 'said', from: MARTA, text: 'remember me' });
+  });
+
+  it('is said to the speaker alone where nobody else is there, moderation asked as for any line', async () => {
     const asked: string[] = [];
     const moderating: ConversationHost = {
       rules: UNBOUNDED,
-      moderate: (text) => (asked.push(text), true),
+      moderate: (text) => (asked.push(text), text !== 'rude'),
     };
-    const said = await runConversation(
-      await hall(true),
-      'w',
-      host,
-      moderating,
-      new ConversationPace(),
-      say('anyone?'),
-    );
-    expect(said).toEqual({
-      said: false,
-      reason: 'nobody-here',
-      words: 'There is nobody else here to hear you.',
+    const store = await hall(true);
+    const pace = new ConversationPace();
+    expect(await runConversation(store, 'w', host, moderating, pace, say('anyone?', 3))).toEqual({
+      said: true,
+      from: MARTA,
+      nickname: 'Marta',
+      text: 'anyone?',
+      place: HALL,
+      to: [MARTA],
+      at: 3,
     });
-    expect(asked).toEqual([]);
+    expect(await runConversation(store, 'w', host, moderating, pace, say('rude', 4))).toEqual({
+      said: false,
+      reason: 'moderated',
+      words: 'That cannot be said here.',
+    });
+    expect(asked).toEqual(['anyone?', 'rude']);
+    expect((await stored(store)).log.at(-1)?.entry).toEqual({
+      kind: 'said',
+      now: 3,
+      from: MARTA,
+      place: HALL,
+      to: [MARTA],
+      text: 'anyone?',
+    });
   });
 
   it("asks the host's moderation with the text as kept and who says it, and tells the speaker when it declines", async () => {
@@ -235,13 +288,9 @@ describe('saying something against a store', () => {
         return true;
       },
     };
-    expect(
-      await runConversation(store, 'w', host, slow, new ConversationPace(), say('hi')),
-    ).toEqual({
-      said: false,
-      reason: 'nobody-here',
-      words: 'There is nobody else here to hear you.',
-    });
+    const said = await runConversation(store, 'w', host, slow, new ConversationPace(), say('hi'));
+    expect(said).toMatchObject({ said: true, to: [MARTA] });
+    expect((await stored(store)).log.at(-1)?.entry).toMatchObject({ kind: 'said', to: [MARTA] });
   });
 
   it('tells a speaker who left while moderation decided that it was not said, not that nobody was there', async () => {

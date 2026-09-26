@@ -1,0 +1,11 @@
+// A visitor kind's body may hold objects, as any kind's may. The first
+// time a person arrives they are made as a spawn is, with their own copy
+// of each, so everyone comes into the yard carrying a satchel of their
+// own; a returning visitor comes back with what they carried away, and is
+// never given those contents again. `transcripts/satchel.txt` plays it.
+world visitor_contents is sprout.World {
+  visitors are Visitor
+  visitors arrive at yard
+
+  object yard is sprout.Place { }
+}

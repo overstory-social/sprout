@@ -1,0 +1,35 @@
+# Every visitor's first arrival makes them with a satchel of their own, as a
+# spawn of their kind would be made, and nothing is said of it. A returning
+# visitor comes back with what they carried away, and is never given
+# another: Marta keeps hers across a visit, and once she has dropped it in
+# the yard she comes back empty-handed.
+@arrive Marta
+  Marta (described): There is nothing special about a yard.
+Marta> inventory
+  Marta (said): You are carrying a satchel.
+@arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): There is nothing special about a yard.
+Ines> inventory
+  Ines (said): You are carrying a satchel.
+@leave Marta
+  Marta (notice): You leave, and take what you carry with you.
+  Ines (notice): Marta leaves.
+@arrive Marta
+  Ines (notice): Marta arrives.
+  Marta (described): There is nothing special about a yard.
+Marta> inventory
+  Marta (said): You are carrying a satchel.
+Marta> drop satchel
+  Marta (said): You put a satchel down.
+  Ines (told): Marta puts a satchel down.
+@leave Marta
+  Marta (notice): You leave, and take what you carry with you.
+  Ines (notice): Marta leaves.
+@arrive Marta
+  Ines (notice): Marta arrives.
+  Marta (described): There is nothing special about a yard.
+Marta> inventory
+  Marta (said): You are carrying nothing.
+Marta> look
+  Marta (described): There is nothing special about a yard.
