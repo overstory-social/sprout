@@ -74,6 +74,13 @@ export const HARBOUR_FILES: Readonly<Record<string, string>> = {
 
 export const HARBOUR: Bundle = compiledWorld('harbour', HARBOUR_FILES);
 
+/** The harbour whose `Person` holds a satchel, so everyone comes in with one of their own. */
+export const HARBOUR_SATCHELS: Bundle = compiledWorld('harbour', {
+  ...HARBOUR_FILES,
+  'person.sprout': 'kind Person is Traveller, sprout.Visitor { object satchel is Satchel }\n',
+  'satchel.sprout': 'kind Satchel is sprout.Container { grammar { nouns "satchel" } }\n',
+});
+
 /** The harbour loaded with `cellar.sprout` withheld: the cellar is absent. */
 export const HARBOUR_NO_CELLAR: Bundle = compiledWorld('harbour', HARBOUR_FILES, {
   mode: 'load',
@@ -89,6 +96,7 @@ export const CELLAR = at('cellar');
 
 export const CATALOGUE = catalogueOf(HARBOUR, DEFAULT_LIMITS.caps);
 export const NO_CELLAR = catalogueOf(HARBOUR_NO_CELLAR, DEFAULT_LIMITS.caps);
+export const SATCHELS = catalogueOf(HARBOUR_SATCHELS, DEFAULT_LIMITS.caps);
 
 /** The host over `catalogue`, reading commands with the command parser. */
 export const harbourHost = (catalogue: Catalogue = CATALOGUE): CommandHost => ({
