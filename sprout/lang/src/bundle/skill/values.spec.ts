@@ -4,6 +4,7 @@ import { compileSnippet } from './bench.js';
 import {
   DRAW_TABLE,
   READING_TABLE,
+  RENDERED_AFTER,
   TYPE_TABLE,
   valuesProbe,
   valuesSection,
@@ -37,5 +38,15 @@ describe('the values the skill lists', () => {
       'A draw may stand in a `do` and a handler or hook, and in no other body.',
     );
     expect(section).toContain('ranges over -2,147,483,648 to 2,147,483,647');
+  });
+
+  it('tells an author that a turn’s lines are rendered after its work is done, by a compiled example', () => {
+    const probe = valuesProbe().files?.['probe.sprout'] ?? '';
+    expect(probe.indexOf(RENDERED_AFTER.line)).toBeLessThan(probe.indexOf(RENDERED_AFTER.write));
+    expect(valuesSection()).toContain(
+      'A turn’s lines are rendered once its work is done, against what it wrote, so a line reads a ' +
+        'property as the turn left it whichever comes first: ' +
+        '`say "{self.get(:count)} left"` followed by `self.adjust(:count, -1)` says the count after the adjust.',
+    );
   });
 });

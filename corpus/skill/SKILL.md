@@ -212,6 +212,8 @@ Only `self` writes `self`; anything else is asked, with a message.
 | `self.remove(:opens, :oak)` | takes a value out of a list |
 | `actor.remember(:visits, 1)` | sets what `self` remembers about an actor |
 
+A turn’s lines are rendered once its work is done, against what it wrote, so a line reads a property as the turn left it whichever comes first: `say "{self.get(:count)} left"` followed by `self.adjust(:count, -1)` says the count after the adjust.
+
 ### Chance
 
 In prose, `{one of}…{or}…{/one of}` picks one choice. A draw may stand in a `do` and a handler or hook, and in no other body.
