@@ -1,0 +1,15 @@
+// A place the host says is full refuses through the world's `crowded`,
+// which `sprout.World` writes as a default and a world may replace, said
+// with `{item}` and `{to}` bound: the person turned away, and the place.
+// The host's `peoplePerPlace` decides when; `sprout check` runs at the
+// defaults, where no place is ever full, so this pins only that the line
+// is the world's to write.
+world crowded is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  passage crowded { {to} has no room left for {item}. }
+
+  object yard is sprout.Place
+  object shed is sprout.Place
+}

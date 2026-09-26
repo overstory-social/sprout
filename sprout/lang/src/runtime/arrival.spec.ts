@@ -365,15 +365,15 @@ describe('a place the host says is full', () => {
     ...harbourHost(),
     budgets: { ...DEFAULT_LIMITS.budgets, peoplePerPlace: people },
   });
-  const FULL = 'There is no room in {to} for {item}.';
+  const CROWDED = 'sprout.World crowded: There is no room in {to} for {item}.';
 
-  it('turns a new visitor away in the engine’s words, before its `accept` is asked, writing nothing', () => {
+  it('turns a new visitor away through the world’s `crowded`, before its `accept` is asked, writing nothing', () => {
     // The quay is closed too, and its own refusal is not the one read.
     const state = harbour([{ visit: INES, in: QUAY }], [[QUAY, 'closed', true]]);
     const turn = arrivalTurn(state, crowded(1), arriving(MARTA));
     if (turn.committed || !('refused' in turn)) throw new Error('not refused');
     expect(turn.refused).toMatchObject({ effect: 'refused', by: WORLD, speaker: null });
-    expect(words(turn.refused.said)).toBe(FULL);
+    expect(words(turn.refused.said)).toBe(CROWDED);
     const reader = turn.refused.to[0]!;
     expect([...turn.refused.bindings.keys()]).toEqual(['item', 'to']);
     expect(turn.refused.bindings.get('item')).toMatchObject({ id: reader });
