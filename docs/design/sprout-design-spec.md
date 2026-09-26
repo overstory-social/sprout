@@ -93,7 +93,7 @@ object composing_room is sprout.Place {
 
 `contains actors` is a declared capability beside `contains`, not a kind the engine knows by name. An actor's **place** is the nearest ancestor declaring it: that is what `tell` reaches, what a visitor leaves when they go, and what a description describes. A wardrobe that declares it can be entered, and everything that follows from being somewhere follows from that one line.
 
-A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads its `arrives` passage, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: `leaves` and `:departed (actor, to)`, across the range of the place left. (The two message names await Eric's confirmation: the notes' Open 69.)
+A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads its `arrives` passage, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: `leaves` and `:departed (actor, to)`, across the range of the place left.
 
 Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads.
 
@@ -126,7 +126,7 @@ An object names its kinds after `is`, and declares everything a visitor may say 
 
 Kinds are declared at a file's top level, and a kind's body may hold objects too: every instance of the kind, declared or spawned, starts with its own copy of each, inside it. So `kind Lantern is sprout.Container { object wick is Wick }` gives every lantern a wick, and spawning a lantern spawns its wick with it, telling only the lantern `:spawned` and its container `:entered`. An object in a kind's body that is made of that kind, directly or through another kind's contents, would never end, and is refused. A declared instance's own body may hold more beside what its kinds give it; a name its kinds' contents already use is two objects of one name in one body. An `object` at a file's top level, outside the world, is refused.
 
-Each kind is declared in a file of its own, named for it: the kind's name in lower case with `_` between its words, compared exactly against the last part of the file's path, so `kind Chest` is in `chest.sprout`, `kind PrintedSheet` in `printed_sheet.sprout` and `kind TVSet` in `tv_set.sprout`. A kind in a file not named for it is refused at publish and warned about at load, where it stands. The world is declared in the file named for the world's name, `world printers_shop` in `printers_shop.sprout`. Enums, verbs and messages may sit in any file, alone or beside a kind or the world, and a library is held to the same rule. Nothing is imported, since every name resolves across the whole closed bundle, so no two files can refer to each other in a circle.
+Each kind is declared in a file of its own, named for it: the kind's name in lower case with `_` between its words, compared exactly against the last part of the file's path, so `kind Chest` is in `chest.sprout`, `kind PrintedSheet` in `printed_sheet.sprout` and `kind TVSet` in `tv_set.sprout`. A kind in a file not named for it is refused at publish and warned about at load, where it stands. The world is declared in the file named for the world's name, `world printers_shop` in `printers_shop.sprout`; a kind of the world's own name is refused, since that file is the world's. Which file the world belongs in only the whole-bundle compile can say, since the manifest names the world, so a world in the wrong file is refused at publish and warned about at load, and a one-file check does not report it. Enums, verbs and messages may sit in any file, alone or beside a kind or the world, and a library is held to the same rule. Nothing is imported, since every name resolves across the whole closed bundle, so no two files can refer to each other in a circle.
 
 An object's identifier belongs to the body it is written in, so two chests may each hold a `key`; how a name is seen from other bodies is under Identifiers and scope. Where an example in this document shows an object on its own, it is an excerpt from the body that holds it.
 
@@ -176,9 +176,9 @@ kind Tagged is sprout.Actor {
 
 `sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
-A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
+A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. The first time it arrives it is made as a spawn is, with its own copy of each object its kind's body holds, so a world gives its visitors a satchel by writing one in the visitor kind; on a later visit it arrives with what it carried away, and never with those contents again. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
-The only actors are visitors and NPCs: an instance of the visitor kind is a visitor, and every other object composing `sprout.Actor` is an NPC. Nothing declares or spawns a visitor, so an object or a `spawn` of a kind composing `sprout.Visitor` is refused. An actor is only ever inside something that declares `contains actors`, so every actor has a place: declaring one elsewhere is refused, and moving or spawning one elsewhere is refused or faults.
+The only actors are visitors and NPCs: an instance of the visitor kind is a visitor, and every other object composing `sprout.Actor` is an NPC. Nothing declares or spawns a visitor, so an object or a `spawn` of a kind composing `sprout.Visitor` is refused. An actor is only ever inside something that declares `contains actors`, so every actor has a place: declaring one elsewhere is refused, and moving or spawning one elsewhere is refused or faults. A kind's body is judged by each instance, since a declared instance's own body may add `contains actors`: a kind that is only ever spawned, whose body puts an NPC where nothing holds actors, compiles, and every `spawn` of it faults.
 
 An **NPC** is an object composing `sprout.Actor`, and not `sprout.Visitor`, with nobody behind it. It is declared like any object, has a name rather than a nickname, acts on `:tick` or on a message rather than on typing, performs verbs with `act`, and reads nothing: prose addressed to it goes nowhere. Its presence does not keep a place ticking; only a person's does.
 
@@ -208,7 +208,7 @@ kind Clay {
 
 A `spawn` whose target, when it runs, is out of range or does not hold things, or does not hold actors where the kind is an actor, is a fault, never nothing: the statement yields a binding, and there is no null for it to hold. The world is a target like any other, so a spawn into it is allowed wherever the world is in range.
 
-A spawned instance has no identifier — an identifier is a declaration written in its container's body, and a spawn declares nothing. It is addressed by its kind's nouns, and where several things written alike, with one article and one name, answer to the same words, nothing is asked: the nearest in range is meant, and among equally near ones a draw from the turn's seed, so no world comes to depend on an order it never chose.
+A spawned instance has no identifier — an identifier is a declaration written in its container's body, and a spawn declares nothing. It is addressed by its kind's nouns, and where several things written alike, with one article and one name, answer to the same words, nothing is asked: the nearest in range is meant, and among equally near ones a draw from the turn's seed decides, so no world comes to depend on an order it never chose. Nearness is the ring of the range walk a thing is reached in, and then how deep inside that ring's container it lies: one in the actor's hands is nearer than one on the floor, which is nearer than one in an open chest on the floor, and two on the floor are equally near. A container's order breaks no tie.
 
 A place may be spawned like anything else. Nothing can *exit* to one, because an exit names its target by identifier and a spawned object has none; a **link**, described under Verbs, is the way out that is assigned while the world runs, and it is how a spawned place is reached.
 
@@ -236,7 +236,7 @@ kind Match {
 }
 ```
 
-The destroy then happens exactly as `destroy self` would, at the end of the turn's cascade, with nothing further delivered to the object. Only `destroy self` may follow `finally`. Written twice, or beside a `destroy self`, it is once; a fault abandons the turn and the mark with it. (These details await Eric's confirmation: the notes' Open 66.)
+The destroy then happens exactly as `destroy self` would, at the end of the turn's cascade, with nothing further delivered to the object. Only `destroy self` may follow `finally`. Written twice, or beside a `destroy self`, it is once; a fault abandons the turn and the mark with it.
 
 There is no sweep primitive. An object that should not outlive its usefulness asks to be woken and destroys itself, which puts the policy in the world that cares about it.
 
@@ -476,7 +476,7 @@ Something deeper than a body can see is named by its dotted path, written withou
 
 An object hides anything of its name written further out: in the body of the container around its own, or of any container beyond that out to the world. The compiler warns at the inner declaration and names the path the outer one is now reached by. Two objects of one name in sibling containers hide nothing, since neither is further out than the other.
 
-A kind has no place in the tree, so a name in a kind's body, and in the body of an object a kind gives its instances, resolves at run time from where the instance running it sits, by the same rule: nearest wins, counted from that instance. Two instances of one kind may so reach different objects by one name. The compiler cannot know which, except for the world's name as a first step and a name the instance's own body always declares, what its kinds give it; so it holds any other such name to less: a name no object in the bundle declares is refused; a read through one is of the object type and needs `is()`, as a handler's sender does; and one that reaches nothing when it runs is out of range, so a `get` through it faults and a `send` to it does nothing.
+A kind has no place in the tree, so a name in a kind's body, and in the body of an object a kind gives its instances, resolves at run time from where the instance running it sits, by the same rule: nearest wins, counted from that instance, and judged by what each container holds when the body runs rather than by what its body declares, so a lamp carried out of the hall is not the hall's `lamp` while it is away, and one spawned into the hall is. Two instances of one kind may so reach different objects by one name. The compiler cannot know which, except for the world's name as a first step and a name the instance's own body always declares, what its kinds give it; so it holds any other such name to less: a name no object in the bundle declares is refused; a read through one is of the object type and needs `is()`, as a handler's sender does; and one that reaches nothing when it runs is out of range, so a `get` through it faults and a `send` to it does nothing.
 
 An identifier in the world's or an object's own body resolves at compile time. Either is a target at run time only if it is in range; a `send` to an identifier out of range does nothing, and a `get` through one is a fault.
 
@@ -500,7 +500,7 @@ object brass_key is Key {
 | `nouns` | the full name and its last word — "brass key" is addressable as both `brass key` and `key` |
 | `article` | `a`, written `an` before a name beginning with `a`, `e`, `i`, `o` or `u`; `the` and `none` only where written |
 
-A name never contains an article, and the compiler refuses one that begins with `a`, `an` or `the`. Additional `nouns` are added to the defaults, not substituted for them, and like every other part of the block they compose: a kind's nouns and its composer's both apply.
+A name never contains an article, and the compiler refuses one that begins with `a`, `an` or `the`. Several nouns may stand on one `nouns` line, with or without a comma between them. Additional `nouns` are added to the defaults, not substituted for them, and like every other part of the block they compose: a kind's nouns and its composer's both apply.
 
 ### Articles
 
@@ -517,10 +517,10 @@ A visitor is known in a microworld by a nickname they choose on entering. It is 
 A nickname is accepted only if it is addressable without ambiguity, which means it must collide with nothing the parser knows:
 
 - Not with any noun in the world, nor any token of one. Because names are declaration syntax and immutable, and every spawn instantiates a declared kind, **a microworld's complete noun set is known at compile time** and travels with the bundle. "Marta B" is accepted where no object answers to `marta` or `b`; "brass rose" is refused in a world containing a rose.
-- Not with any other word the parser reads: a direction, an article, a connector, or a word in any verb's phrases. "North", "With" and "Open" are refused.
+- Not with any other word the parser reads: a direction, an article, a connector, or a word in any verb's phrases. "North", "With" and "Open" are refused. Nor with a reserved word of the language, nor a name shaped like source: a word beginning with a colon, or a period inside a word.
 - Not with another visitor's nickname. A second Marta is asked for another — "Marta B" — before entering.
 
-The host checks all three against the bundle's word set with no scan of live state. A visitor with no nickname does not enter, so the engine always has a name to render and never has to write an absence.
+The host checks the first two against the bundle's word set, with no scan of live state, and the third against the visitors present. A refusal names the word it collided on, so the person knows what to change. A nickname is at most as long as Limits allows. A visitor with no nickname does not enter, so the engine always has a name to render and never has to write an absence.
 
 Nicknames are matched longest-first, as multi-word nouns are, so `give key to marta b` resolves to the visitor rather than to a `marta` who is not there.
 ## Properties, types and values
@@ -600,7 +600,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | --- | --- |
 | `self` | the composed kind |
 | `actor` | `sprout.Actor`, a visitor or an NPC; anything more is read through `is()` |
-| `here` | `sprout.Place`; the actor's place |
+| `here` | the actor's place: `sprout.Place` where every kind in the world that holds actors composes it, else object |
 | `mover`, in a guard | object; whatever proposed the move |
 | a role | the kind or value type the verb declares; object if it declares none |
 | a set role | as above, as a set |
@@ -618,10 +618,11 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `$index`, `$count` in a passage loop | integer |
 | `thing` in the world's `unremarkable` | object |
 | `candidates` in the world's `which` | a set of objects |
-| `actor` and `here` in the world's `unknown`, `not_here`, `which`, `nothing_happens` and `fault` | as above |
-| `item` in the world's `inside_itself` and a place's `arrives` and `leaves` | object |
+| `actor` and `here` in the world's `unknown`, `not_here`, `which`, `nothing_happens`, `help` and `fault` | as above |
+| `readings` in the world's `help` | a set of readings; one renders as the words a visitor types for it |
+| `item` in the world's `inside_itself`, `item` and `to` in the world's `crowded`, and `item` in a place's `arrives` and `leaves` | object |
 
-An engine line is given exactly what this table names for it: `unremarkable` only `thing`, and `unseen`, `missing` and `displaced` nothing.
+An engine line is given exactly what this table names for it: `unremarkable` only `thing`, and `unseen`, `missing`, `displaced` and `waited` nothing.
 
 A kind named in a role or an `each` matches **nominally**, and by composition rather than by exact kind: `role into: sprout.Container` admits anything that composes `sprout.Container`, whatever else it composes, and nothing that merely resembles one.
 
@@ -646,10 +647,10 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.includes(e)` | `x` a list or a set role; `e` its element type |
 | `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope |
 | `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` |
-| `x.is(K)` | `K` is a kind in scope; `x` an object binding |
+| `x.is(K)` | `K` is a kind in scope; `x` an object binding, or a name read through the object type |
 | `bound x` | `x` an optional tool; inside the branch it guards, `x` is bound |
 
-Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so a kind's own properties are readable there. That is how anything of object type is read.
+Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so a kind's own properties are readable there. That is how anything of object type is read. A name in a kind's body narrows the same way, `if (lamp.is(Lamp)) { lamp.get(:lit) }`, and the branch holds the object the condition resolved, so a move inside it cannot change what the name reaches.
 
 A `set` or `remember` whose value is out of range at run time is a fault; `adjust` clamps. The compiler catches the literal cases.
 
@@ -691,7 +692,7 @@ Identity is therefore available for the length of a turn and never longer. Nothi
 
 ### Walking contents
 
-`each` visits the direct contents of a container in range, one at a time, in the container's order:
+`each` visits the direct contents of a container in range, one at a time, in the container's order, and only those in range of `self`, so a shut chest walked from outside is walked as empty. It may stand in any body, a guard, a `permit` and a `describe` among them, since walking only reads, and its body is held to what the body it stands in allows:
 
 ```sprout
 each pot: Vessel in self { send pot :fired }
@@ -807,7 +808,7 @@ The **consent pass** runs every `permit`. These are read-only — no writing, se
 
 The **effect pass** runs every `do`, in the same order. The first role's usually carries the sentence; the others act and mostly stay quiet, so a wheel can learn it is dirty without saying so. When the pass ends, the queue drains.
 
-A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence; an NPC's is not; the compiler warns about a verb that no player ever `say`s for.
+A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
 
 ### Word order stops mattering
 
@@ -941,7 +942,7 @@ object cat is Creature {
 
 Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, in fixed words the engine supplies rather than a passage. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
-An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move.
+An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` only as the destination of an exit or a link of the mover's place that applies, so an NPC walks the map as a visitor does and can go nowhere a visitor could not; a place reached no such way is out of range, and the move faults.
 
 ### Moving something
 
@@ -1033,11 +1034,11 @@ kind MazeCell is sprout.Place {
 }
 ```
 
-`link <name> "<label>"` declares the way out and leaves it unset. A link's name is not a direction: it is a word of the author's, lower-case letters, digits and underscores beginning with a letter, and neither a reserved word nor a word of the closed set, so `go north` never means a link. It is source's alone: a visitor takes a link by typing its label, as an exit's label is typed, and `connect <name> to <binding>` names it. Two links of one name in one body are refused, and a link, like an exit, is not composed: a place's own link of a name replaces its kinds'.
+`link <name> "<label>"` declares the way out and leaves it unset. A link's name is not a direction: it is a word of the author's, lower-case letters, digits and underscores beginning with a letter, and neither a reserved word nor a word of the closed set, so `go north` never means a link. It is source's alone: a visitor takes a link by typing its label, as an exit's label is typed, and `connect <name> to <binding>` names it. Two links of one name in one body are refused, and a link, like an exit, is not composed: a place's own link of a name replaces its kinds', and two of its kinds writing one link name are refused as two writing one direction are, unless the place writes its own.
 
 An unset link does not apply — not offered, not traversable, not mentioned — which is the rule conditional exits already follow, so nothing needs a null to mean "nowhere yet."
 
-`connect` assigns it, and writes only to self; it names a link its own body writes, and faults where it runs on an instance without that link, as a composer's instance is; its destination is a binding, never an identifier or a path, since a place written in source is reached by an exit. A cell connects its own way forward; the new cell connects its own way back inside `on :spawned (from)`, where the spawner is already bound. `spawn` yields an ordinary object binding, so `let cell = spawn MazeCell in self` names the new place for the rest of the block.
+`connect` assigns it, and writes only to self; it names a link among the ways out of the instance it runs on, which for a kind's body is the kind's own links and for an object's body its own and those of the kinds its `is` names, so a kind's `connect` of a link that only a kind it composes writes is refused, since links do not compose; its destination is a binding, never an identifier or a path, since a place written in source is reached by an exit. A cell connects its own way forward; the new cell connects its own way back inside `on :spawned (from)`, where the spawner is already bound. `spawn` yields an ordinary object binding, so `let cell = spawn MazeCell in self` names the new place for the rest of the block.
 
 ### Why this does not reopen stored references
 
@@ -1054,8 +1055,8 @@ Six verbs are the engine's, because they read the world rather than change it: `
 - `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
 - `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the world's `unremarkable` passage if it has none.
 - `inventory` renders the actor's own `inventory` passage, which `sprout.Actor` supplies.
-- `wait` is a turn in which nothing is done, so a client can show what has changed.
-- `help` renders what the actor can currently do, as text: the same derivation the chips come from.
+- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the world's `waited` passage, "Time passes." unless a world says otherwise.
+- `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the world's `help` passage, which `sprout.World` supplies as a default and a world may replace; the passage is given `readings`, and each reading renders as the line a visitor would type for it.
 
 Everything else a visitor can do by default — `take`, `drop`, `put`, `give`, `open`, `close`, `unlock`, `ask` — is a standard library verb written in Sprout, and a world that wants them to say or do something else writes its own.
 
@@ -1207,6 +1208,7 @@ Three statements put words in front of a visitor, and each has an audience.
 | `say` | the actor | a role's `do` |
 | `tell` | everyone in the place except the actor and the participants | a role's `do`, a handler, a hook, a tick, a wake |
 | `tell <x>` | one actor, `x` | the same |
+| `tell inside`, `tell outside` | the teller's own occupants, or the place around it | the same, in a kind that holds actors |
 
 A **passage** is a named block of words belonging to a kind, for prose too long to sit in the middle of behaviour, and any of the four takes one in place of a string, as does `refuse`.
 
@@ -1242,7 +1244,7 @@ passage greeting {
 }
 ```
 
-A passage belongs to its kind, so every slot in it type-checks against a known `self`. It may also use the bindings of the body that invokes it — `actor`, `here`, a role by name, an `each` variable — and it may then only be invoked from a body where those bindings exist; the compiler checks this exactly, so `say taken` in the actor's `do` for `take` may render `{target}` and a handler may not. Lines in source are reflowed; a blank line is a paragraph break; a block that renders nothing leaves no paragraph behind.
+A passage belongs to its kind, so every slot in it type-checks against a known `self`. It may also use the bindings of the body that invokes it — `actor`, `here`, a role by name, an `each` variable — and it may then only be invoked from a body where those bindings exist; the compiler checks this exactly, so `say taken` in the actor's `do` for `take` may render `{target}` and a handler may not. Lines in source are reflowed; a blank line is a paragraph break; a block that renders nothing leaves no paragraph behind. A `describe` all of whose lines render nothing reads the world's `unremarkable` in their place, so looking never reads as silence.
 
 A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and carries slots. Nothing else does: a `name`, a noun, an exit label and a string property are plain text, and `{` in them is a brace.
 
@@ -1318,11 +1320,13 @@ kind Lever {
 
 ### Who hears it
 
-A plain `tell` reaches every actor in the telling object's **place** — its nearest ancestor declaring `contains actors` — except the actor and except any participant in the current reading. Participants are people the author is already addressing: the actor with `say`, and a role-player who is a person with `tell self`, in the second person, in their own sentence. So a visitor who has climbed into a wardrobe that declares it hears the wardrobe's occupants and not the room, which is what being inside something should mean, and nobody reads the same event twice.
+A plain `tell` reaches every actor in the telling object's **place** — its nearest ancestor declaring `contains actors` — that the teller reaches, except the actor and except any participant in the current reading. Participants are people the author is already addressing: the actor with `say`, and a role-player who is a person with `tell self`, in the second person, in their own sentence. So a visitor who has climbed into a wardrobe that declares it hears the wardrobe's occupants and not the room, which is what being inside something should mean, and nobody reads the same event twice.
+
+A teller that itself holds actors, the wardrobe, has two audiences: the people inside it and the people in the place around it. Its plain `tell` reaches both. `tell inside "…"` reaches only its occupants and `tell outside "…"` only the place around it, so a wardrobe may say "Get inside me." to the room and then "I am a people eater." to whoever did; either form is refused in a body whose kind does not declare `contains actors`.
 
 `tell <x>` reaches one actor, whoever `x` is bound to — `self` in a role a person is playing, `item` in an `:entered` handler, a loop variable — and only if `x` is in the teller's range when the `tell` runs. Told to someone out of range, or to an NPC, it goes nowhere, with no fault, as a `send` out of range does nothing. `x` is a binding: an object of the world is never a person, so `tell hall` is refused.
 
-Pass rules do not apply, because prose is not a message: a voice from inside a shut chest is heard, and an author who wants otherwise writes the condition.
+Pass rules govern speech as they govern range, since who hears a voice is a question of what stands between: a thing inside a shut chest is heard by nothing outside the chest, while the chest itself, shut, is still heard in the room, since nothing stands between them. An author who wants a voice to carry through a lid writes a pass rule on the container.
 
 `tell` is refused in `describe` and in every guard and `permit`, all of which are read-only, and it is dropped during catch-up after an absence. `say` is refused wherever `actor` is not bound; ambience is told to the place or it is not said at all.
 
@@ -1342,7 +1346,7 @@ One `tell` produces a line for every actor present. The output budget is counted
 
 ### Talking to each other
 
-Two people in one place have no verb for speaking freely to each other, because free text is the one thing a world must never carry. Conversation between visitors is the host's, alongside the world and outside its log, and a client shows it beside the world's words. Within the world, people speak through the verbs it declares — `ask`, `tag`, whatever the author gives them — and through what they do.
+Two people in one place have no verb for speaking freely to each other, because free text is the one thing a world must never carry. Conversation between visitors is the host's, alongside the world and never in its state, logged beside its turns and never replayed, and a client shows it beside the world's words. Within the world, people speak through the verbs it declares — `ask`, `tag`, whatever the author gives them — and through what they do.
 
 ## Time
 
@@ -1489,21 +1493,21 @@ The boundary is the point. A world may carry any library it likes, because a lib
 
 ### The rule
 
-**An extension statement records an effect; it never performs one.** `run` is handed a frozen, read-only view of the frame and returns a value appended to the turn's outcome. What happens because of that effect — a viewer panel opening, a signed URL, a line in a terminal — happens after the turn, outside the evaluator, and the world never learns whether it happened.
+**An extension statement records an effect; it never performs one.** `run` is handed its arguments as plain values, the id of the object whose body ran it and the actor's id where the body binds one, all frozen and nothing else of the world; each run is a step beyond the statement's own, and it returns a value appended to the turn's outcome. What happens because of that effect — a viewer panel opening, a signed URL, a line in a terminal — happens after the turn, outside the evaluator, and the world never learns whether it happened.
 
 This is what keeps every other guarantee intact. An extension cannot write world state, cannot move anything, cannot be waited on, and cannot make a turn take longer than its budget allows.
 
 ### What an extension may add
 
-A **value type**: how it is written as a literal, how it persists, what it defaults to, how it prints. A type must also declare how it compares and how it renders in prose, or declare that it does neither — so the compiler always knows whether `==` and a `{slot}` are legal for it, rather than discovering at runtime that there is no answer.
+A **value type**: how it is written as a literal, how it persists, how it prints. It has no default of its own: a property of it writes one, as every property does, as a literal the type reads. A list may not hold an extension's value. A type must also declare how it compares and how it renders in prose, or declare that it does neither — so the compiler always knows whether `==` and a `{slot}` are legal for it, rather than discovering at runtime that there is no answer.
 
-**Statements**, with their arguments, a compile-time check, and whether they may appear in `describe`. A statement allowed in `describe` records its effect into the view; one that is not is refused there. None may appear in a guard or a `permit`. An **effect** shape a host validates against. A **transcript line** — the words a text-only client shows instead. And a paragraph for the generated skill, in a builder's terms.
+**Statements**, with their arguments, a compile-time check, and whether they may appear in `describe`. A statement allowed in `describe` records its effect into the view; one that is not is refused there. None may appear in a guard or a `permit`. Who reads what a statement records follows where it stands: in a reading's `do`, whoever reads what that body says; in a handler, a hook, a tick or a wake, the people in the recorder's place, as a plain `tell` reaches them; in a `describe`, the one looking. Recorded with nobody to read it, it is no effect. An **effect** shape a host validates against, each statement's own: the effect carries the extension, the statement, its payload and, as its words, its transcript line, and a payload that is not plain JSON or that its schema refuses, or a transcript that is empty, faults the turn naming the extension. A **transcript line** — the words a text-only client shows instead, made from the payload when the statement runs and charged to each reader's output. And a paragraph for the generated skill, in a builder's terms.
 
 An extension may **not** add properties to every object. A property belongs to the kind that declares it, so an extension that wants one ships a library alongside: `media.Illustrated` declares `:image`, and an object composes it. The value type is the extension's; the property is ordinary.
 
 ### Activation and absence
 
-A world names the extensions it uses, pinned by major version, in its manifest and at the top of each source that uses one. A host without that extension, or with an incompatible major version, does not refuse the world: the extension's statements record nothing, its value types hold their defaults, and the visitor is told once, on entry, through the world's `missing` passage, that the world uses something this host does not provide and will be missing some of itself.
+A world names the extensions it uses, pinned by major version, in its manifest and at the top of each source that uses one, as `extension media 2`, one line for each above the file's first declaration; `extension` is read only there and is not a reserved word. A line after a declaration, a name the manifest does not pin, a major other than the manifest's, and one extension named twice are refused, and so is a file that writes a type or a statement of an extension it does not name. In a file that names it, `media.` starts the extension's statement, `media.show(self.get(:image), "a cat")`, which stands where a statement stands; its type is written `media.Image`, beside the enums; and a literal of that type is quoted text the extension reads, written as a property's default or a statement's argument and nowhere else. An extension's name is lower-case and no reserved word. A host without that extension, or with an incompatible major version, does not refuse the world: the extension's statements record nothing; a value of its type keeps the text it was written or stored with, unread, so it renders nothing, compares as that text and is stored back unchanged; and the visitor is told at every arrival while any extension the world pins is absent, first in the arrival's sequence, through the world's `missing` passage, that the world uses something this host does not provide and will be missing some of itself.
 
 This is the `absent` rule again. A gap is visible and survivable; a world does not go dark because of what is missing around it.
 
@@ -1513,11 +1517,11 @@ This is the `absent` rule again. A gap is visible and survivable; a world does n
 
 That rule is what makes the rest of the negotiation possible. Clients differ in what they can render, and a client declares what it can handle; the host sends an effect's payload where it can be used and the transcript line where it cannot. The world is not told which happened, and cannot be — otherwise prose would fork by client, and the promise that a microworld is words would be gone.
 
-The protocol by which a client declares its capabilities belongs to the host contract, not to the language.
+The protocol by which a client declares its capabilities belongs to the host contract, not to the language. Its shape is fixed here: a client says which extensions' statements it renders, at which major, and is granted each one the world pins that the host supplies, negotiated per world, the rest declined with a reason; the five prose kinds are never negotiated, since every client renders words. An effect is sent as its payload where the client renders it and as its transcript line where it does not, never both. A client that speaks announces every effect in order and takes its urgency from the kind alone: a refusal interrupts, since it is all its turn says, and everything else waits its turn.
 
 ### Trust
 
-Extensions are host-trusted code, not sandboxed, on the server and now in the visitor's browser. The evaluator contains a buggy extension the way it contains a faulting object — a throw becomes a fault naming the extension, every run is charged, effects per turn are capped — but it cannot contain a malicious one.
+Extensions are host-trusted code, not sandboxed, on the server and now in the visitor's browser. The evaluator contains a buggy extension the way it contains a faulting object — a throw becomes a fault naming the extension, every run is charged, effects per turn are capped by the host's budget for them — but it cannot contain a malicious one.
 
 So installing an extension is a decision about the safety of everyone who visits any world on that host, not only about the server. Extension names are one flat, host-curated namespace, and preventing collisions between them is the administrator's job at install time.
 
@@ -1567,10 +1571,13 @@ Nesting has no cap. The compiler bounds its own recursion so that pathologically
 | spawns per turn | 8 |
 | shortest wake | 60 seconds |
 | pending wakes per object | 1 |
+| people in one place | unbounded |
+| effects extensions record per turn | unbounded |
+| a nickname's length | 24 characters |
 | steps per poll | 10,000 |
 | wall clock | a backstop that should never fire |
 
-A turn is a typed command, a tick, a wake, a maintenance turn, or a poll; the budgets are per turn, except pending wakes, which an object holds across turns. Parsing is charged to steps because typed slots make it real work, and a command that costs too much to read is a fault like any other.
+A turn is a typed command, a tick, a wake, a maintenance turn, or a poll; the budgets are per turn, except pending wakes, which an object holds across turns, the crowd a place holds, which outlives any turn, and a nickname's length, which is checked once at admission. Parsing is charged to steps because typed slots make it real work, and a command that costs too much to read is a fault like any other.
 
 Two bounds are the world's rather than a turn's, and outlive any turn. How many live instances a world may hold — every instance the host stores, dormant ones included — is the host's storage decision, not a figure in this table: when the host will not hold another, a `spawn` faults. How many wakes an object may have pending is the table's: a `wake` past it faults the same way, and with live instances it bounds how many wakes a world has waiting. There is no cap on spawns over time; what a world can accumulate is bounded by what the host will store.
 
@@ -1582,7 +1589,7 @@ It is also **deterministic**, which is why it is primary. A step fault replays i
 
 Most limits bound what an author wrote. Three scale with how many people are present, and they are the ones to watch:
 
-- A `tell` produces a line for every actor in the place. The output budget is per recipient, so a crowded place costs the host and never faults the turn; the host bounds the crowd.
+- A `tell` produces a line for every actor in the place. The output budget is per recipient, and only the actor's own output past it faults the turn; anyone else is cut short at the first whole line that would take them past it, reads nothing more that turn, and is named to the host. Rendering a line for each reader is charged to the turn's one step budget, so a heavy passage told to a crowd can cost the turn its steps; the host bounds the crowd.
 - Ticks cost the tick interval times the number of *occupied* places. Empty places are never ticked, so the figure follows people rather than worlds.
 - Write turns on one world are serialized. This keeps a pathological world from harming any other, and the step budget is what keeps it from harming its own visitors — it bounds how long any turn can hold the lock.
 
@@ -1611,7 +1618,7 @@ So an editor cannot catch every error live. That is a consequence worth stating 
 
 ### Strict and lenient
 
-Saving and publishing are **strict**: any problem is a refusal. Loading is **lenient**: a file that is missing, withheld or broken reads as absent, what referred to it keeps compiling, and the world runs with a visible gap.
+Saving and publishing are **strict**: any problem is a refusal. Loading is **lenient**: a file that is missing, withheld or broken reads as absent, what referred to it keeps compiling, and the world runs with a visible gap. A file that parses and is then refused by the checker, a default of the wrong type among them, is not broken in this sense: its refusal stands at load as at publish, so the world does not load, and no instance ever starts at a value its property does not hold.
 
 ### What absent means
 
@@ -1628,7 +1635,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | a place the world says visitors arrive at | the world does not admit anyone; entry fails as a host matter, the way a crash does, and the host says so outside the world |
 | the `world` declaration | the same: the world does not admit anyone, and the host says so outside it |
 | the world's visitor kind | the same: the world does not admit anyone, and the host says so outside it |
-| an extension | its statements record nothing and its types hold their defaults |
+| an extension | its statements record nothing, and a value of its type keeps its text unread |
 
 Stored state for absent objects is kept, untouched, so that a file restored brings its objects back as they were.
 
@@ -1653,13 +1660,15 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
 - A `move` whose destination is not a container; an exit declared on something that is not a place, or leading to something that does not hold actors.
 - An `object` at a file's top level; an object inside something whose kind does not hold things; an actor declared inside something that does not hold actors; an object composing `sprout.Visitor`, and a `spawn` of such a kind; the world's name as a step of a path other than the first, or as an object's name; two objects of one name in one body.
-- `visitors arrive at` naming the world itself.
+- `visitors arrive at` naming the world itself; a kind named for the world.
+- `tell inside` or `tell outside` in a body whose kind does not declare `contains actors`.
+- An `extension` line after a declaration, naming an extension the manifest does not pin or at another major, or naming one twice; an extension's type or statement in a file that does not name it; a list of an extension's type.
 - A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
 - Any static cap exceeded.
 
 ### What it warns about
 
-A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name, except a kind that composes the library kind it hides, as `kind Visitor is Creature, sprout.Visitor` does. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, and a role in a verb nothing fills. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`. A passage on an object or the world that nothing invokes and nothing it composes declares, which is most often a misspelt override. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at. An `on :tick` on an object, declared or spawnable, whose kind does not declare `contains actors`, since only a place is ticked: "`cat` is not a place, so `on :tick` never runs." A `wake` on a kind that answers no `:woke`, and an `on :woke` on a kind whose bodies never write `wake`: "Nothing here asks to be woken, so `on :woke` never runs." These two are warned rather than refused, since what a kind is composed with may bring the other half. A `{one of}` with one choice, which says the same words every time and is most often a missing `{or}`.
+A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name, except a kind that composes the library kind it hides, as `kind Visitor is Creature, sprout.Visitor` does. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, where what can play is what the world can hold: each declared object, what a kind's body gives its instances, the world, the visitor kind and each kind some body spawns; and a role in a verb nothing fills: a kind role that nothing which can take part composes, or a value role that no `from` narrows and no `act` names, a role anything may fill never. Both only for the world's own verbs. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`, `say` alone counting. A passage on an object or the world that nothing says, tells, refuses or renders by name and the engine does not say, and nothing it composes declares, which is most often a misspelt override; the warning offers the nearest name it probably meant. `contains` or `contains actors` written twice in one body. A statement after `allow` or `refuse` in a guard or a `permit`, which never runs. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at. An `on :tick` on an object, declared or spawnable, whose kind does not declare `contains actors`, since only a place is ticked: "`cat` is not a place, so `on :tick` never runs." A `wake` on a kind that answers no `:woke`, and an `on :woke` on a kind whose bodies never write `wake`: "Nothing here asks to be woken, so `on :woke` never runs." These two are warned rather than refused, since what a kind is composed with may bring the other half. A `{one of}` with one choice, which says the same words every time and is most often a missing `{or}`.
 
 ### Diagnostics
 
@@ -1692,7 +1701,11 @@ The language starts at level 1, and nothing here is shaped by compatibility with
 
 ### The generated skill
 
-The builder's reference is generated from the compiler's own tables — the statements it accepts, the caps it enforces, the refusals it issues, the standard library's verbs and their phrases. It cannot describe a language the compiler does not implement, which matters because most Sprout will be written with a model in the loop, reading that reference. It is also the document ordered for an author — the worked example first, composition and routing last — where this one is ordered for someone checking the design.
+The builder's reference is generated from the compiler's own tables — the statements it accepts, the caps it enforces, the refusals it issues, the standard library's verbs and their phrases. It cannot describe a language the compiler does not implement, which matters because most Sprout will be written with a model in the loop, reading that reference. It is also the document ordered for an author — the worked example first, composition and routing last — where this one is ordered for someone checking the design. It is one Markdown page with a skill's front matter, opening with a small whole world of its own that is compiled when the skill is generated; where each statement may stand is found by compiling an example in each kind of body, the commonest refusals and every warning are shown by an example each in the compiler's own words, and the page tells an author that a turn's lines are rendered after its work is done.
+
+### The command line
+
+`sprout` is the compiler's command line. Every command runs the world as it loads, under the host's default limits, with no clock and with no extension installed, so a world that pins one is refused by `sprout check`. `sprout init` writes a world, its manifest and a first test. `sprout check` compiles as publishing does and prints every refusal and warning. `sprout parse <dir> "<line>"` reads a line as a command turn would, charged as one, a tie among things written alike drawn from seed 0, asks its consent pass and runs nothing, so the page names the reading, what fills each role and any refusal in the refuser's words; `sprout view` prints a visitor's view. Both admit one visitor by a real arrival turn, `Inspector` unless `--as` names another, and `--at <path>` brings them in as a returning visitor to that place, so its `accept` and the crowd bound are asked. `sprout play <dir> <script>` plays a script of typed lines, `Marta> take brass key`, and host events, `@arrive`, `@leave`, `@tick`, `@advance 40 minutes` and `@seed 7`, through real turns, and prints the script with what each reader read under each line, `Ines (told): Marta takes a brass key.`, a spawned thing by its minted id and a declared one by its path; wakes are delivered only while someone is in the world, otherwise caught up on the next arrival, and the seed is 0 until `@seed`. `sprout test [dir]` runs every `.txt` in the world's `tests/` folder, which sits beside the manifest and is not listed in it: a test is a play script with what the author expects indented under a line, each expected line matched in order against what that line made, as the whole transcript line or as its words alone, `(nothing)` expecting silence; a fault nobody wrote under its line fails the test, a test that expects nothing at all fails, and every test starts from a freshly loaded world at time 0 and seed 0. An author accepts what the world now says by copying it in. `sprout skill` prints the generated skill.
 
 ## The runtime
 
@@ -1714,13 +1727,13 @@ Within a command turn, the order is fixed: parse; the consent pass; the effect p
 
 ### The view
 
-A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role — with the result of its consent pass, so a client can offer a chip, grey it, and say why. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
+A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. Two things written alike give two offers typed alike, as the parser would ask `which` of them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
 
-A poll that exhausts its budget yields a view whose description is the world's `unseen` passage, and is logged as an authoring fault against the object whose `describe` cost too much.
+A poll that exhausts its budget yields a view whose description is the world's `unseen` passage and which keeps every other part the poll derived without faulting. The fault is logged against the object it names, or against the actor's place where the budget ran out with none named, with the time of the poll and not who was looking.
 
 ### Effects
 
-A turn's output is a sequence of effects, each carrying its kind, the object it came from, the actor if there was one, and its recipient:
+A turn's output is a sequence of effects, each carrying its kind, the object it came from, the turn's actor if the turn had one, and its recipient; a line said where nobody is there to read it is no effect, costs nothing and is not logged:
 
 | effect | what it is |
 | --- | --- |
@@ -1729,9 +1742,9 @@ A turn's output is a sequence of effects, each carrying its kind, the object it 
 | `refused` | the consent pass's refusal text, to the actor |
 | `described` | a description, to the one who moved or looked |
 | `notice` | an engine-spoken passage — arrivals, faults, unknown words |
-| an extension's | as it declares |
+| `extension` | an extension statement's effect: the extension, the statement, its payload, and its transcript line as its words |
 
-Every prose effect carries its rendered line, because words are true at the time they are said and moved state or a changed nickname cannot re-render them. A client that speaks — a screen reader — has in the effect kind what it needs to decide what to announce and how urgently, and a client that is a moderator reads the same record.
+Every prose effect carries its rendered line. A turn's lines are rendered once its work is done, against the state it commits, so a line whose slot reads a property that a later statement of the same turn sets renders the value that was set, and a nickname changed in the turn reads as changed; the rendered line is then fixed, since a later turn cannot re-render what was said. A client that speaks — a screen reader — has in the effect kind what it needs to decide what to announce and how urgently, and a client that is a moderator reads the same record.
 
 ### State
 
@@ -1743,17 +1756,19 @@ Where stored state no longer fits a declared type, the value is dropped and the 
 
 ### The log
 
-The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator; and every effect. Polls are not logged. Replaying the log against its bundles reproduces the world exactly.
+The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator, as the whole set of files then withheld and the hash of the bundle the host then runs, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
 
 ### Faults
 
 | what faulted | what happens |
 | --- | --- |
 | a command turn | the transaction is abandoned; the actor is told through the world's `fault` passage; nothing else is logged but the fault |
-| a tick | dropped |
+| an arrival | abandoned; the visitor is not admitted, and the host says so outside the world |
+| a departure | abandoned; the visitor then leaves quietly, with nothing sent |
+| a tick | dropped, and logged with its fault |
 | a wake | consumed and logged; the object is not woken again unless it asks |
 | a part of a maintenance turn | that part is abandoned and its wake consumed; the rest of the catch-up is still delivered, and the visitor is admitted |
-| a poll | the view carries the world's `unseen` passage |
+| a poll | the view's description is the world's `unseen` passage, and the rest of it is whatever the poll derived without faulting |
 
 Anything a turn's body throws is a fault, told as the table says, a defect of the engine's own that no rule of the language explains included; the host is told which faults are the engine's, to report loudly.
 
@@ -1765,13 +1780,17 @@ The language describes a world. The host runs it, and owns everything a world mu
 
 A visitor enters with a **nickname**, and the host guarantees one exists before the world ever sees them, so the language never has to render an absence.
 
-The host accepts a nickname only if it collides with nothing in the bundle's word set: no noun or token of one, no direction, article, connector or phrase word, and no other visitor's nickname. The word set travels with the bundle and is fixed at compile time, so this is a lookup rather than a scan of live state. A second Marta is asked for another name before entering.
+The host accepts a nickname only if it collides with nothing in the bundle's word set: no noun or token of one, no direction, article, connector or phrase word, no reserved word, nothing shaped like source; and with no other visitor's nickname. The word set travels with the bundle and is fixed at compile time, so all but the last is a lookup rather than a scan of live state, and the last reads only who is present. A second Marta is asked for another name before entering, and a refusal names the word it collided on.
 
 A nickname may be kept and reclaimed on a later visit if it is still free. Reservations are soft; nothing is held against a returning visitor who has not come back. A republish that adds a noun a current visitor is named by does not evict them; they are asked for a new name on their next entry.
 
-The host moderates nicknames before they are ever rendered, and length-caps them. It never exposes platform identity to a world — a nickname is scoped to one microworld and says nothing about who a visitor is anywhere else.
+The host moderates nicknames before they are ever rendered, and length-caps them at the figure in Limits. It never exposes platform identity to a world — a nickname is scoped to one microworld and says nothing about who a visitor is anywhere else.
 
 The host places an arriving visitor where the world says visitors arrive, or where they last stood if that place still exists and accepts them. Entry is a move, with `accept`, `:entered`, `arrives` and the description, like any other.
+
+An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A visitor found at load inside something that no longer holds actors is named to the host and displaced on their next turn; an NPC so found stays. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
+
+Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told in the engine's own words, "You leave, and take what you carry with you." A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
 
 ### Time
 
@@ -1783,7 +1802,7 @@ In both cases the host supplies `elapsed` truthfully. It is the only time the la
 
 ### Conversation
 
-Visitors who want to talk to each other do so through the host, outside the world: a chat beside the world's text, moderated as the host moderates, never entering the world's state or its log. A client shows the two side by side and never mixes them.
+Visitors who want to talk to each other do so through the host, outside the world: a chat beside the world's text, moderated as the host moderates, never entering the world's state. A line reaches everyone standing directly in the speaker's place, the speaker among them, so they read their own line; one said where nobody else is there is still said, to the speaker alone, since people talk to themselves. Every line is written to the log with who said it and who heard it, so a moderator can read it back, and it is never replayed, since it changed nothing. What may be said is words: the text is kept single-spaced and refused with a control or format character in it, as a nickname is; the host caps its length and its pace, both unbounded where unset, and a line declined by moderation still counts against the pace. A client shows the two side by side and never mixes them.
 
 ### Storage
 
@@ -1795,15 +1814,15 @@ The host persists the state described under The runtime, serializes write turns 
 
 **Blessing a library is a quota decision.** A library is Sprout; it runs in the evaluator and can do nothing a world could not already do. Blessing changes only whether its bytes count against an author's caps. The host keeps a set of trusted hashes — not a package manager, since nothing is resolved or fetched at run time — and blessing is its state, not a world's: a load honours what the host blesses now, both ways, so a library blessed since publish is exempt and one un-blessed since counts. A world an un-blessing pushes past the host's caps is the host's to handle. A modified copy is the author's own source and counts as it.
 
-Where a world pins an extension the host cannot supply, the host tells the visitor once, on entry, that the world will be missing some of itself, and runs it anyway.
+Where a world pins an extension the host cannot supply, the host tells the visitor at each arrival that the world will be missing some of itself, and runs it anyway.
 
 ### Enforcement
 
-The host sets every limit in Limits and enforces every runtime budget, including the wall-clock backstop that should never fire and is logged loudly when it does. It bounds how many people may be in one place, since that is the one cost the language cannot.
+The host sets every limit in Limits and enforces every runtime budget, including the wall-clock backstop that should never fire and is logged loudly when it does. It bounds how many people may be in one place, since that is the one cost the language cannot: only people count, standing directly in the place, and a move that would bring one more in — by `go`, by a `move` in a body, on arrival or on displacement — is refused before any guard is asked, through the world's `crowded` passage, which `sprout.World` supplies as a default, "There is no room in {to} for {item}.", and a world may replace; a returning visitor whose last place is full comes in at the arrival place.
 
 ### Moderation and takedown
 
-A file the host removes or withholds reads as absent: what referred to it keeps compiling and the world keeps running. A moderator reads the world's own source, with blessed libraries collapsed, and replays the log to see what actually happened. What objects remember about a visitor is opaque to that visitor: it shows only in how the world behaves and describes itself to them, and a debugging view may one day show it to the world's author. It is erased only when the visitor is deleted, when the host removes every entry keyed by them with their instance and everything it holds, all the way down, which is possible because memory is declared and keyed and nothing else about them is stored. An export for that visitor carries it, each remembering object's entry, since what an export hands on is the host's to decide.
+A file the host removes or withholds reads as absent: what referred to it keeps compiling and the world keeps running. A moderator reads the world's own source, with blessed libraries collapsed, and replays the log to see what actually happened. What objects remember about a visitor is opaque to that visitor: it shows only in how the world behaves and describes itself to them, and a debugging view may one day show it to the world's author. It is erased only when the visitor is deleted, when the host removes every entry keyed by them with their instance and everything it holds, all the way down, which is possible because memory is declared and keyed and nothing else about them is stored in the world; the log keeps what it holds of them, since replaying it is what reproduces the world, and an export does not carry the log. An export for that visitor carries it, each remembering object's entry, since what an export hands on is the host's to decide.
 
 ### What the host may not do
 
@@ -1829,6 +1848,9 @@ kind World {
   passage missing default         { This world uses something this host does not provide, and will be missing some of itself. }
   passage displaced default       { The place you were standing is gone. }
   passage inside_itself default   { {item} cannot go inside itself. }
+  passage crowded default         { There is no room in {to} for {item}. }
+  passage waited default          { Time passes. }
+  passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
 }
 
 // sprout/engine.sprout — phrases for the verbs whose behaviour is the engine's
@@ -1947,7 +1969,7 @@ kind Container {
   passage closes default { {actor} shuts {self}. }
 }
 
-// sprout/lock.sprout
+// sprout/lockable.sprout
 verb unlock {
   role target: Lockable
   role tool
@@ -2249,7 +2271,7 @@ kind Sheet {
   on :spawned (from) { wake in 40 minutes }
 
   on :woke (elapsed) {
-    if (elapsed > 7200) { self.set(:state, :cured) }
+    if (elapsed >= 7200) { self.set(:state, :cured) }
     else {
       self.set(:state, :touch_dry)
       wake in 2 hours
