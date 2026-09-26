@@ -42,6 +42,21 @@ describe('standIn', () => {
       '"crate" is a word this world already reads, so "crate" would not always mean you: choose another nickname. Give one with --as.',
     );
   });
+
+  it('refuses a nickname the language reserves, one shaped like source, or one past the default length, as a host would', () => {
+    expect(() => standIn(lane(), { nickname: 'Marta When' })).toThrow(
+      '"when" is a word every world here reads, so "Marta When" would not always mean you: choose another nickname. Give one with --as.',
+    );
+    expect(() => standIn(lane(), { nickname: ':marta' })).toThrow(
+      'A nickname\'s word may not begin with a colon, and ":marta" does: choose another nickname. Give one with --as.',
+    );
+    expect(() => standIn(lane(), { nickname: 'marta.b' })).toThrow(
+      'A nickname\'s word may not have a period inside it, and "marta.b" does: choose another nickname. Give one with --as.',
+    );
+    expect(() => standIn(lane(), { nickname: 'Marta the Twenty-Fifth Inspector' })).toThrow(
+      '"Marta the Twenty-Fifth Inspector" is 32 characters, and a nickname here may have at most 24: choose a shorter one. Give one with --as.',
+    );
+  });
 });
 
 describe('pathOf', () => {

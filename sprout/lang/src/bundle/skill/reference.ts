@@ -209,6 +209,7 @@ const EXCEEDED: Readonly<Record<WhenExceeded, string>> = {
   fault: 'the turn faults, and nothing it did happens',
   raised: 'a sooner one waits this long',
   'move-refused': 'the move is refused',
+  'nickname-refused': 'the nickname is refused',
 };
 
 /** The limits section: every limit, what it bounds, the figure it is at and what passing it does. */

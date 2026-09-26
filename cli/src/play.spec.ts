@@ -103,6 +103,15 @@ describe('playScript', () => {
     expect(page).toMatch(/^@arrive kiln\n {2}nickname refused: /);
   });
 
+  it('refuses a nickname the language reserves or one shaped like source, in the host’s words', () => {
+    expect(play('@arrive When\n')).toBe(
+      '@arrive When\n  nickname refused: "when" is a word every world here reads, so "When" would not always mean you: choose another nickname.\n',
+    );
+    expect(play('@arrive :marta\n')).toBe(
+      '@arrive :marta\n  nickname refused: A nickname\'s word may not begin with a colon, and ":marta" does: choose another nickname.\n',
+    );
+  });
+
   it('throws, naming the line and what to write, for a line it cannot play', () => {
     expect(() => play('take kiln\n')).toThrow(
       'yard.txt:1: a line is what someone types, as in `Marta> take brass key`',

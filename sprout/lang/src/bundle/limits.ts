@@ -30,7 +30,7 @@
 // refused rather than crashing it, and that bound is the parser's own,
 // not a figure a host sets and not something a bundle records.
 //
-// Two bounds outlive a turn, per the spec's Limits › Runtime budgets.
+// Three bounds outlive a turn, per the spec's Limits › Runtime budgets.
 // How many live instances a world may hold is the host's storage
 // decision, not a figure in this table: a `spawn` faults when the host
 // will not hold another. How many wakes one object may have pending is
@@ -41,6 +41,8 @@
 // pass it is refused in the engine's words rather than faulted. The
 // effects extensions record in a turn are capped with no figure either
 // (Extensions › Trust), so they too are unbounded until a host sets one.
+// A nickname's length is the table's, checked once at admission rather
+// than spent in a turn, and a nickname past it is refused, not faulted.
 //
 // A bundle records the static caps it was checked against, and a load
 // compares them with the host's own (`capsExceeding`): a world checked
@@ -130,6 +132,8 @@ export interface RuntimeBudgets {
    * Trust): the host says, or nothing does.
    */
   readonly extensionEffects: number | null;
+  /** Characters a nickname may have, counted as it is kept; checked once at admission, which refuses one past it. */
+  readonly nicknameCharacters: number;
   /**
    * The wall-clock backstop, in milliseconds. The spec gives no figure:
    * it is a backstop against something the step budget failed to catch,
@@ -180,16 +184,17 @@ export const DEFAULT_LIMITS: Limits = {
     pendingWakesPerObject: 1,
     peoplePerPlace: null,
     extensionEffects: null,
+    nicknameCharacters: 24,
     wallClockMs: null,
   },
 };
 
 /**
  * What going past a limit does: refuse the world at compile, fault the
- * turn at run time, for a floor raise what was asked to it, or refuse the
- * move that would pass it.
+ * turn at run time, for a floor raise what was asked to it, refuse the
+ * move that would pass it, or refuse the nickname at admission.
  */
-export type WhenExceeded = 'refusal' | 'fault' | 'raised' | 'move-refused';
+export type WhenExceeded = 'refusal' | 'fault' | 'raised' | 'move-refused' | 'nickname-refused';
 
 /** What a limit is counted against. */
 export type LimitScope =
@@ -205,7 +210,8 @@ export type LimitScope =
   | 'turn'
   | 'poll'
   | 'recipient'
-  | 'role';
+  | 'role'
+  | 'nickname';
 
 export interface LimitDescription {
   readonly name: LimitName;
@@ -388,6 +394,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     scope: 'turn',
     exceeded: 'fault',
     bounds: 'effects the statements of extensions record in one turn',
+  },
+  {
+    name: 'nicknameCharacters',
+    kind: 'budget',
+    scope: 'nickname',
+    exceeded: 'nickname-refused',
+    bounds: 'characters in a nickname, counted as it is kept, checked once at admission',
   },
   {
     name: 'wallClockMs',

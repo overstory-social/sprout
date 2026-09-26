@@ -153,8 +153,8 @@ export function closedIn(state: StateReader, catalogue: Catalogue): ClosedReason
 /**
  * Run `arrival` as one arrival turn over the committed `state`. A visit
  * already standing in the world, or a nickname `nicknameRefusal` refuses
- * with no cap on its length, which only the host knows, is the host's
- * defect, thrown before the turn opens.
+ * under the host's budgets, is the host's defect, thrown before the turn
+ * opens.
  */
 export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival): ArrivalTurn {
   const committed = readerOf(state);
@@ -162,7 +162,7 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
   const unadmitted = nicknameRefusal(
     state,
     catalogue,
-    { characters: null },
+    host.budgets,
     arrival.visit,
     arrival.nickname,
   );

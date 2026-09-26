@@ -17,7 +17,7 @@ import { committedState, runArrival, runDeparture, type NicknameHost } from './t
 
 const { host } = tally();
 const INES = visitKey('v-ines');
-const OPEN_NICKNAMES: NicknameHost = { rules: { characters: null }, moderate: () => true };
+const OPEN_NICKNAMES: NicknameHost = { moderate: () => true };
 const UNBOUNDED: ConversationRules = { characters: null, pace: null };
 /** A host that caps nothing and whose moderation declines nothing. */
 const OPEN: ConversationHost = { rules: UNBOUNDED, moderate: () => true };

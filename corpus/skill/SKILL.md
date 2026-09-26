@@ -792,6 +792,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 | `pendingWakesPerObject` | wakes one object may have pending, held across turns | 1 | the turn faults, and nothing it did happens |
 | `peoplePerPlace` | people standing in one place at once, a move that would bring one more in refused | the host’s to set; none by default | the move is refused |
 | `extensionEffects` | effects the statements of extensions record in one turn | the host’s to set; none by default | the turn faults, and nothing it did happens |
+| `nicknameCharacters` | characters in a nickname, counted as it is kept, checked once at admission | 24 | the nickname is refused |
 | `wallClockMs` | the wall-clock backstop, which should never fire and is logged loudly when it does | the host’s to set; none by default | the turn faults, and nothing it did happens |
 
 ## Reserved words
