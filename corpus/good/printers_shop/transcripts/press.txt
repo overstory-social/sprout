@@ -79,12 +79,14 @@ Marta> take sheet
   Marta (refused): The ink is still wet; it would smear.
 # The second sheet's wake falls due 40 minutes after its pull, the first
 # sheet's two hours after its own. A wake delivered on time hands a sheet
-# exactly 7200 seconds, which `elapsed > 7200` does not cure, so each asks
-# again; the working notes' Open list has it.
+# exactly 7200 seconds, which cures it: each sheet's second wake is its
+# last, and a further four hours brings none.
 @advance 3 hours
   printers_shop#14 woke, 2400 seconds after it asked
   printers_shop#9 woke, 7200 seconds after it asked
   printers_shop#14 woke, 7200 seconds after it asked
+@advance 4 hours
+  (nothing)
 Ines> drop sheet
   Ines (said): You put a printed sheet down.
   Marta (told): Ines puts a printed sheet down.

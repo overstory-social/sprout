@@ -133,6 +133,54 @@ describe('a deciding body only reads and decides', () => {
   });
 });
 
+describe('a statement after `allow` or `refuse` never runs', () => {
+  /** What checking `statements` as `kind` warned about. */
+  function warned(statements: string, kind: BodyKind) {
+    const context = bodyOf(VESSEL);
+    const acting = { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } };
+    checkBlock(blockOf(statements), { ...context, acting }, kind);
+    expect(context.diagnostics.refusals.map((d) => d.message)).toEqual([]);
+    return context.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  }
+
+  it('warns at the first statement after an `allow` in a `permit`, naming the `permit`', () => {
+    expect(warned('allow\n    let n = self.count\n    let m = self.count', PERMIT)).toEqual([
+      [
+        'b.sprout:4:5',
+        'This never runs: the `allow` above it has already decided.',
+        'Take it out, or put it before the `allow`; a `permit` ends at its `allow`.',
+      ],
+    ]);
+  });
+
+  it('warns after a `refuse` in a guard, naming the guard', () => {
+    expect(warned('refuse "No."\n    allow', GUARD)).toEqual([
+      [
+        'b.sprout:4:5',
+        'This never runs: the `refuse` above it has already decided.',
+        'Take it out, or put it before the `refuse`; a guard ends at its `refuse`.',
+      ],
+    ]);
+  });
+
+  it('warns inside the block the deciding ends, and not for what follows an `if` that decides', () => {
+    expect(warned('if (self.count > 1) { refuse "Full."  let n = 1 }\n    allow', PERMIT)).toEqual([
+      [
+        'b.sprout:3:43',
+        'This never runs: the `refuse` above it has already decided.',
+        'Take it out, or put it before the `refuse`; a `permit` ends at its `refuse`.',
+      ],
+    ]);
+    expect(warned('if (self.count > 1) { refuse "Full." }\n    allow', PERMIT)).toEqual([]);
+  });
+
+  it('says nothing for an `allow` or a `refuse` that ends its block', () => {
+    expect(
+      warned('let n = self.count\n    if (n > 1) { refuse "Full." } else { allow }', GUARD),
+    ).toEqual([]);
+  });
+});
+
 describe('a deciding body draws nothing', () => {
   it('refuses `chance`, `random` and `{one of}` in a guard, naming the guard', () => {
     expect(
