@@ -1,0 +1,14 @@
+// A guard and a `permit` end at their `allow` or `refuse`, so a statement
+// after one in the same block never runs: the first is warned about
+// where it is written, and the world still runs.
+world never_runs is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object crate is Crate
+    object lid is Lid
+  }
+}
+
+verb pry { role target  "pry [target]" }

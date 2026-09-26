@@ -106,6 +106,7 @@ function compose(
     kind,
     unknown,
     said: diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy] as const),
+    warned: diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy] as const),
   };
 }
 
@@ -417,8 +418,42 @@ describe('`contains` and `contains actors` are idempotent, so they hold across t
   });
 
   it('takes its own line as well as what it composes', () => {
-    const { kind } = compose(`${HOLDERS}kind Den is Box { contains actors }`);
+    const { kind, warned } = compose(`${HOLDERS}kind Den is Box { contains actors }`);
     expect([kind!.contains, kind!.containsActors]).toEqual([true, true]);
+    expect(warned).toEqual([]);
+  });
+
+  it('warns at the second of one line written twice in one body, and still holds', () => {
+    const { kind, warned } = compose(
+      'kind Den {\n  contains actors\n  :open true\n  contains actors\n}',
+    );
+    expect([kind!.contains, kind!.containsActors]).toEqual([true, true]);
+    expect(warned).toEqual([
+      [
+        'shop.sprout:4:3',
+        '`Den` writes `contains actors` twice.',
+        'Once is enough: take this one out.',
+      ],
+    ]);
+    expect(compose('kind Box { contains\n  contains }').warned).toEqual([
+      ['shop.sprout:2:3', '`Box` writes `contains` twice.', 'Once is enough: take this one out.'],
+    ]);
+  });
+
+  it('warns at the second where the two lines differ, since `contains actors` says both', () => {
+    const both =
+      '`Den` writes `contains` and `contains actors`, and `contains actors` alone says both.';
+    expect(compose('kind Den { contains\n  contains actors }').warned).toEqual([
+      ['shop.sprout:2:3', both, 'Keep this one and take the `contains` above it out.'],
+    ]);
+    expect(compose('kind Den { contains actors\n  contains }').warned).toEqual([
+      ['shop.sprout:2:3', both, 'Take this one out: `contains actors` already holds things.'],
+    ]);
+  });
+
+  it('warns once for each line past the first, and never for a line a composed kind writes', () => {
+    expect(compose('kind Den { contains\n  contains\n  contains }').warned).toHaveLength(2);
+    expect(compose(`${HOLDERS}kind Den is Box, Room { contains actors }`).warned).toEqual([]);
   });
 });
 
