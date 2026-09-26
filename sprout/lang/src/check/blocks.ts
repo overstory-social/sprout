@@ -17,9 +17,10 @@
 // says, and never refuses. Who each of `say`, `tell` and `text` speaks to
 // is `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
 // binds `tool`, for the branch each guards, and an `each` binds its
-// variable for its body (`each.ts`). Statements after an `allow`
-// or a `refuse` are accepted and never run. Where an extension's statement
-// may stand is `extensions.ts`'s.
+// variable for its body (`each.ts`). A statement after an `allow` or a
+// `refuse` in the same block is accepted, checked, and never runs, and
+// the first one is warned about (What it warns about). Where an
+// extension's statement may stand is `extensions.ts`'s.
 
 import type { Block, CallExpr, Expr, IfStatement, Statement } from '../syntax/ast.js';
 import type { GuardName } from '../syntax/ast.js';
@@ -52,7 +53,36 @@ export function checkBlock(block: Block, outer: CheckContext, kind: BodyKind): v
     scope: outer.scope.inner(),
     ...(undrawn === null ? {} : { undrawn }),
   };
-  for (const statement of block.statements) checkStatement(statement, context, kind);
+  let decided: 'allow' | 'refuse' | null = null;
+  for (const statement of block.statements) {
+    if (decided !== null) {
+      neverRuns(statement.at, decided, context, kind);
+      decided = null;
+    }
+    checkStatement(statement, context, kind);
+    if ((statement.kind === 'allow' || statement.kind === 'refuse') && decides(kind))
+      decided = statement.kind;
+  }
+}
+
+/** Whether a body decides: a guard or a `permit`, which end at their `allow` or `refuse`. */
+function decides(kind: BodyKind): boolean {
+  return kind.body === 'guard' || kind.body === 'permit';
+}
+
+/** The statement after an `allow` or a `refuse`, which the deciding already ended the body before. */
+function neverRuns(
+  at: Span,
+  word: 'allow' | 'refuse',
+  context: CheckContext,
+  kind: BodyKind,
+): void {
+  const body = kind.body === 'guard' ? 'a guard' : 'a `permit`';
+  context.diagnostics.warn(
+    at,
+    `This never runs: the \`${word}\` above it has already decided.`,
+    `Take it out, or put it before the \`${word}\`; ${body} ends at its \`${word}\`.`,
+  );
 }
 
 /**
@@ -69,7 +99,7 @@ function undrawnBy(kind: BodyKind): Undrawn | null {
 type Reads = Extract<BodyKind, { body: 'guard' | 'permit' | 'describe' }>;
 
 function checkStatement(statement: Statement, context: CheckContext, kind: BodyKind): void {
-  const decides = kind.body === 'guard' || kind.body === 'permit';
+  const deciding = decides(kind);
   const reads: Reads | null =
     kind.body === 'guard' || kind.body === 'permit' || kind.body === 'describe' ? kind : null;
   switch (statement.kind) {
@@ -87,7 +117,7 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
       return;
     }
     case 'refuse':
-      if (decides) checkPassage(statement, context);
+      if (deciding) checkPassage(statement, context);
       else if (kind.body === 'handler') undecided(statement.at, 'refuse', kind.written, context);
       else if (kind.body === 'describe') undescribed(statement.at, 'refuse', context);
       else acts(statement.at, 'refuse', context);
@@ -95,7 +125,7 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'allow':
       if (kind.body === 'handler') undecided(statement.at, 'allow', kind.written, context);
       else if (kind.body === 'describe') undescribed(statement.at, 'allow', context);
-      else if (!decides) acts(statement.at, 'allow', context);
+      else if (!deciding) acts(statement.at, 'allow', context);
       return;
     case 'say':
     case 'tell':

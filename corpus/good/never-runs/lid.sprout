@@ -1,0 +1,14 @@
+// A `permit` that has allowed decides nothing more. A `refuse` inside an
+// `if` ends the `permit` only where its condition holds, so what follows
+// the `if` is not warned about; what follows the `refuse` in its block is.
+kind Lid {
+  :stuck true
+  as target for pry {
+    permit {
+      if (self.get(:stuck)) { refuse "The lid is stuck fast."  allow }
+      allow
+      refuse "Never said."
+    }
+    do { say "The lid comes free." }
+  }
+}

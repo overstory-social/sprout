@@ -26,6 +26,7 @@
 
 import {
   writtenMember,
+  type ContainsDeclaration,
   type KindExpr,
   type KindMember,
   type MemberRef,
@@ -286,14 +287,20 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
 
   // Idempotent under composition (How members combine), so either line
   // anywhere in the closure holds, and `contains actors` implies `contains`.
+  // One body writing it twice is warned about, at the second (What it
+  // warns about).
   let contains = composed.some(({ kind }) => kind.contains);
   let containsActors = composed.some(({ kind }) => kind.containsActors);
+  let writtenContains: ContainsDeclaration | null = null;
   const withouts: WithoutDeclaration[] = [];
   for (const member of composer.members) {
     switch (member.kind) {
       case 'contains':
         contains = true;
         containsActors = containsActors || member.actors;
+        if (writtenContains !== null)
+          warnContainsTwice(composer.name, writtenContains, member, diagnostics);
+        writtenContains = member;
         break;
       case 'remembers':
         for (const entry of member.properties) hold(entry, true);
@@ -447,6 +454,36 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     containsActors,
     suppressed,
   };
+}
+
+/**
+ * `contains` or `contains actors` written twice in one body: warned at
+ * the second, since one line says it and the two together say no more
+ * than `contains actors` alone.
+ */
+function warnContainsTwice(
+  name: string,
+  first: ContainsDeclaration,
+  second: ContainsDeclaration,
+  diagnostics: Diagnostics,
+): void {
+  const written = (one: ContainsDeclaration): string =>
+    one.actors ? 'contains actors' : 'contains';
+  if (first.actors === second.actors) {
+    diagnostics.warn(
+      second.at,
+      `\`${name}\` writes \`${written(second)}\` twice.`,
+      'Once is enough: take this one out.',
+    );
+    return;
+  }
+  diagnostics.warn(
+    second.at,
+    `\`${name}\` writes \`contains\` and \`contains actors\`, and \`contains actors\` alone says both.`,
+    second.actors
+      ? 'Keep this one and take the `contains` above it out.'
+      : 'Take this one out: `contains actors` already holds things.',
+  );
 }
 
 /**
