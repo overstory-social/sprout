@@ -3,7 +3,8 @@
 // must pass, and a world's turns run against a store under its lock, its
 // occupied places ticked in rounds, and a visitor's view polled and kept
 // until a committed write turn names it stale; conversation between
-// visitors, beside the world and never in it; what each client is
+// visitors, beside the world and never in it, logged and never replayed;
+// what each client is
 // negotiated to be sent of a turn's effects and a view, and what a screen
 // reader speaks of them; and the event log every
 // write turn appends to, what the host reads back of it, and its replay.
@@ -33,6 +34,7 @@ export * from './log/arrival.js';
 export * from './log/departure.js';
 export * from './log/publish.js';
 export * from './log/withholding.js';
+export * from './log/said.js';
 export * from './log/poll-fault.js';
 export * from './log/entry.js';
 export * from './log/replay.js';

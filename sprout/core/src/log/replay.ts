@@ -30,8 +30,9 @@ import type { WithholdingEntry } from './withholding.js';
 // backstop cannot fire where it did not. A turn reproduces when running
 // it again gives exactly the entry logged, its effects and fault among
 // it; any other outcome is a divergence, which is what a moderator is
-// looking for. A poll's fault is not run again, since a poll writes
-// nothing.
+// looking for. A line a visitor said and a poll's fault are not run
+// again, since neither changed the world: a replay reproduces it exactly
+// with or without them.
 
 /** What a replay runs one bundle's turns under; each turn's budgets are its own. */
 export type ReplayHost = Pick<CommandHost, 'catalogue' | 'render' | 'parse'>;
@@ -73,7 +74,7 @@ export function replayLog(
       host = hosts(entry);
       continue;
     }
-    if (entry.kind === 'poll-fault') continue;
+    if (entry.kind === 'said' || entry.kind === 'poll-fault') continue;
     if (host === null) {
       throw new Error(
         `The log's entry ${seq}, of kind \`${entry.kind}\`, comes before any publish, so nothing says which bundle it ran against.`,
