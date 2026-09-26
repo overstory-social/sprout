@@ -10,7 +10,7 @@ kind Sheet {
   on :spawned (from) { wake in 40 minutes }
 
   on :woke (elapsed) {
-    if (elapsed > 7200) { self.set(:state, :cured) }
+    if (elapsed >= 7200) { self.set(:state, :cured) }
     else {
       self.set(:state, :touch_dry)
       wake in 2 hours
