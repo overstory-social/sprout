@@ -70,7 +70,7 @@ export function standIn(bundle: Bundle, options: StandOptions = {}): Standing {
   const visit = visitKey('inspector');
   const nickname = options.nickname ?? INSPECTOR;
 
-  const unadmitted = nicknameRefusal(loaded, catalogue, { characters: null }, visit, nickname);
+  const unadmitted = nicknameRefusal(loaded, catalogue, host.budgets, visit, nickname);
   if (unadmitted !== null) {
     throw new Error(`${unadmitted.words} Give one with --as.`);
   }

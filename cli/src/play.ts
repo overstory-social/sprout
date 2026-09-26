@@ -143,7 +143,7 @@ function inputs(stage: Stage): { seed: number; mayHold: null; now: HostSeconds }
 function arrive(stage: Stage, nickname: string): Made[] {
   const visit = stage.visits.get(nickname) ?? visitKey(`visit:${nickname}`);
   const { catalogue } = stage.host;
-  const refused = nicknameRefusal(stage.state, catalogue, { characters: null }, visit, nickname);
+  const refused = nicknameRefusal(stage.state, catalogue, stage.host.budgets, visit, nickname);
   if (refused !== null) return [hostLineOf(`nickname refused: ${refused.words}`)];
   stage.visits.set(nickname, visit);
   const caught = maintenanceTurn(stage.state, stage.host, inputs(stage));

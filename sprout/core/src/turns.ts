@@ -15,7 +15,6 @@ import {
   type Departure,
   type DepartureTurn,
   type NicknameRefused,
-  type NicknameRules,
   type Polled,
   type PollTurn,
   type Tick,
@@ -120,9 +119,8 @@ export function runMaintenance(
   );
 }
 
-/** What the host decides of a nickname beyond the bundle (the spec's The host contract › Admission and identity). */
+/** What the host decides of a nickname beyond the bundle and its budgets (the spec's The host contract › Admission and identity). */
 export interface NicknameHost {
-  readonly rules: NicknameRules;
   /** Whether the host's moderation lets `nickname`, as the world would keep it, be rendered there; asked only of one the world would admit. */
   readonly moderate: (nickname: string) => boolean | Promise<boolean>;
 }
@@ -141,7 +139,7 @@ export interface Admission {
 
 /**
  * Admit `arrival`'s visitor to `microworldId`: their nickname checked
- * against the bundle, the world and `nicknames`, then catch-up as a
+ * against the bundle, the host's budgets, the world and `nicknames`, then catch-up as a
  * maintenance turn at `catchUp`, committed first, so nobody walks into a
  * place about to rearrange itself, then the arrival as a turn of its own
  * (the spec's The host contract › Time, Admission and identity). A world
@@ -163,7 +161,7 @@ export async function runArrival(
     };
   }
   const refusalIn = (state: WorldState): NicknameRefused | null =>
-    nicknameRefusal(state, host.catalogue, nicknames.rules, arrival.visit, arrival.nickname);
+    nicknameRefusal(state, host.catalogue, host.budgets, arrival.visit, arrival.nickname);
   const before = await store.read(microworldId, async (tx) =>
     refusalIn(loaded(await tx.state(), host)),
   );
@@ -176,13 +174,13 @@ export async function runArrival(
     return { caughtUp: null, arrived: { committed: false, nicknameRefused: refused } };
   }
   const caughtUp = await runMaintenance(store, microworldId, host, catchUp);
-  const arrived = await runArrivalTurn(store, microworldId, host, arrival, nicknames.rules);
+  const arrived = await runArrivalTurn(store, microworldId, host, arrival);
   return { caughtUp, arrived };
 }
 
 /**
  * Run `arrival` as one arrival turn on `microworldId`, under its lock,
- * its nickname checked again against `rules` and the world as the turn
+ * its nickname checked again against the host and the world as the turn
  * finds it, since someone may have come in under it since it was
  * checked. `runArrival` runs it once catch-up has committed.
  */
@@ -191,11 +189,16 @@ export function runArrivalTurn(
   microworldId: string,
   host: TurnHost,
   arrival: Arrival,
-  rules: NicknameRules,
 ): Promise<ArrivalTurn | NicknameRefusedTurn> {
   return store.transaction(microworldId, async (tx): Promise<ArrivalTurn | NicknameRefusedTurn> => {
     const state = loaded(await tx.state(), host);
-    const taken = nicknameRefusal(state, host.catalogue, rules, arrival.visit, arrival.nickname);
+    const taken = nicknameRefusal(
+      state,
+      host.catalogue,
+      host.budgets,
+      arrival.visit,
+      arrival.nickname,
+    );
     if (taken !== null) return { committed: false, nicknameRefused: taken };
     return landed(tx, arrivalStep(state, host, arrival));
   });

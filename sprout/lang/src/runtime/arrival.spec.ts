@@ -223,12 +223,21 @@ describe('what the host must not hand over', () => {
     );
   });
 
-  it('is a nickname the host could not have admitted: empty, a word of the world, or one someone present holds', () => {
+  it('is a nickname the host could not have admitted: empty, past the budget, shaped like source, a word of the world or the language, or one someone present holds', () => {
     expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, '  '))).toThrow(
       /did not admit: Choose a nickname/,
     );
+    expect(() =>
+      arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Marta '.repeat(5).trim())),
+    ).toThrow(/did not admit: "Marta Marta Marta Marta Marta" is 29 characters/);
+    expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Marta.B'))).toThrow(
+      /did not admit: A nickname's word may not have a period inside it/,
+    );
     expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Gull Marta'))).toThrow(
       /did not admit: "gull" is a word this world already reads/,
+    );
+    expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Marta When'))).toThrow(
+      /did not admit: "when" is a word every world here reads/,
     );
     const state = harbour([{ visit: INES, in: QUAY }]);
     expect(() => arrivalTurn(state, harbourHost(), arriving(MARTA, 'INES'))).toThrow(

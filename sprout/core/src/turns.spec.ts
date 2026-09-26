@@ -7,6 +7,7 @@ import {
   visitKey,
   type CommandHost,
   type CommandTurn,
+  type NicknameRefusalReason,
 } from '@overstory/sprout/lang';
 
 import { reentrant } from './conformance.js';
@@ -229,8 +230,8 @@ describe('a maintenance turn against a store', () => {
   });
 });
 
-/** A host that caps no nickname and whose moderation declines none. */
-const OPEN: NicknameHost = { rules: { characters: null }, moderate: () => true };
+/** A host whose moderation declines no nickname. */
+const OPEN: NicknameHost = { moderate: () => true };
 
 describe('admitting and letting go of a visitor against a store', () => {
   const at = (now: number) => ({ now, seed: 4, mayHold: null });
@@ -300,8 +301,15 @@ describe('admitting a nickname against a store', () => {
   const INES = visitKey('v-ines');
   const PAT = visitKey('v-pat');
 
-  it('refuses one the world reads, or one someone present holds, running no catch-up, asking no moderation and writing nothing', async () => {
-    for (const nickname of ['Counter', 'Hall Ines', 'MARTA']) {
+  it('refuses one the world or the language reads, one shaped like source, or one someone present holds, running no catch-up, asking no moderation and writing nothing', async () => {
+    const reasons: Record<string, NicknameRefusalReason> = {
+      Counter: 'world-word',
+      'Hall Ines': 'world-word',
+      'Ines When': 'reserved',
+      ':ines': 'source-shaped',
+      MARTA: 'held',
+    };
+    for (const [nickname, reason] of Object.entries(reasons)) {
       const store = await seeded();
       await runCommand(store, 'w', host, command('rest counter', 0));
       const before = await stored(store);
@@ -322,27 +330,35 @@ describe('admitting a nickname against a store', () => {
       expect(admitted.arrived.committed, nickname).toBe(false);
       const refused =
         'nicknameRefused' in admitted.arrived ? admitted.arrived.nicknameRefused : null;
-      expect(refused?.reason, nickname).toBe(nickname === 'MARTA' ? 'held' : 'world-word');
-      expect(refused?.words.length, nickname).toBeGreaterThan(0);
+      expect(refused?.reason, nickname).toBe(reason);
+      expect(refused?.words, nickname).toMatch(/: choose another nickname\.$/);
       expect(asked, nickname).toEqual([]);
       expect(await stored(store), nickname).toEqual(before);
     }
   });
 
-  it('refuses one past the host’s cap before its moderation is asked', async () => {
+  it('refuses one past the host’s nickname budget before its moderation is asked', async () => {
     const store = await seeded();
-    const capped: NicknameHost = { rules: { characters: 4 }, moderate: () => true };
+    const capped: CommandHost = {
+      ...host,
+      budgets: { ...DEFAULT_LIMITS.budgets, nicknameCharacters: 4 },
+    };
+    const asked: string[] = [];
+    const moderating: NicknameHost = { moderate: (name) => (asked.push(name), true) };
     const admitted = await runArrival(
       store,
       'w',
-      host,
+      capped,
       at(0),
       { visit: INES, nickname: 'Ines B', ...at(0) },
-      capped,
+      moderating,
     );
-    expect('nicknameRefused' in admitted.arrived && admitted.arrived.nicknameRefused.reason).toBe(
-      'too-long',
+    const refused = 'nicknameRefused' in admitted.arrived ? admitted.arrived.nicknameRefused : null;
+    expect(refused?.reason).toBe('too-long');
+    expect(refused?.words).toBe(
+      '"Ines B" is 6 characters, and a nickname here may have at most 4: choose a shorter one.',
     );
+    expect(asked).toEqual([]);
   });
 
   it('asks the host’s moderation of the nickname as it would be kept, and refuses one it declines, writing nothing', async () => {

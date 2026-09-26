@@ -22,7 +22,7 @@ import { replayLog, type ReplayHosts } from './replay.js';
 
 const first = tally();
 const second = tally('Clack.');
-const OPEN: NicknameHost = { rules: { characters: null }, moderate: () => true };
+const OPEN: NicknameHost = { moderate: () => true };
 const at = (now: number) => ({ now, seed: now * 7919, mayHold: null });
 const record: MicroworldRecord = {
   id: 'w',
