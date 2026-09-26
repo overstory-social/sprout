@@ -5,10 +5,11 @@
 // that place still exists and accepts them, and otherwise where the world
 // says visitors arrive, told through the world's `displaced` when the
 // place they stood in is gone. Entry is a move from outside the tree: the
-// host's bound on a crowd is asked (`crowd.ts`), then the place's
-// `accept`, with the world as `from`; then the place is sent `:entered`,
-// the visitor `:moved`, the place's range `arrives` and `:arrived`, and
-// the visitor reads the place's description once the queue is empty.
+// host's bound on a crowd is asked (`crowd.ts`), refusing through the
+// world's `crowded`, then the place's `accept`, with the world as `from`;
+// then the place is sent `:entered`, the visitor `:moved`, the place's
+// range `arrives` and `:arrived`, and the visitor reads the place's
+// description once the queue is empty.
 // What it says is one sequence of effects: the world's `missing`, where
 // the world pins an extension this host does not supply (Extensions ›
 // Activation and absence), `displaced`, where it is told, the place's
@@ -22,7 +23,7 @@
 import { runGuard } from './guards.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
-import { FULL, turnedAway } from './crowd.js';
+import { crowded, turnedAway } from './crowd.js';
 import { noticeLines, saidLines, type Effect, type Speaking, type Unrendered } from './effects.js';
 import { arrivalsRead } from './engine-verbs.js';
 import { engineLine } from './engine-lines.js';
@@ -92,7 +93,7 @@ export interface Entered {
   readonly said: readonly Said[];
 }
 
-/** An entry: made, or refused by the place's `accept`, whose words the visitor reads. */
+/** An entry: made, or refused, by the host's bound through the world's `crowded` or by the place's `accept`, whose words the visitor reads. */
 export type Entry = Entered | { readonly refused: Said };
 
 /** What a committed arrival did. */
@@ -270,7 +271,7 @@ export function enter(turn: WriteTurn, visitor: InstanceId, place: InstanceId): 
         to: [visitor],
         by: from,
         speaker: null,
-        said: FULL,
+        said: crowded(draft),
         bindings: new Map([
           ['item', boundObject(visitor)],
           ['to', boundObject(place)],

@@ -1,13 +1,17 @@
 // The host's bound on how many people stand in one place: who counts, and
-// the engine's words for someone turned away. How a move, `go` and an
+// the world's words for someone turned away. How a move, `go` and an
 // arrival ask it is in their own specs.
 
 import { describe, expect, it } from 'vitest';
 
-import { ALCOVE, HALL, MARTA, turn, visitorIn } from '../fixtures/move.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import { ALCOVE, CAPS, HALL, MARTA, turn, visitorIn } from '../fixtures/move.js';
 import { boundObject as bound, proseTurn, YARD } from '../fixtures/prose.js';
 import { renderFor } from '../prose/speech.js';
-import { FULL, turnedAway } from './crowd.js';
+import { catalogueOf } from './catalogue.js';
+import { crowded, turnedAway } from './crowd.js';
+import { Draft } from './draft.js';
+import { initialState } from './load.js';
 
 describe('a place the host bounds', () => {
   it('turns away a person once it holds as many other people as the host allows', () => {
@@ -39,11 +43,18 @@ describe('a place the host bounds', () => {
 });
 
 describe('the words for someone turned away', () => {
+  it('are the world’s `crowded`, which `sprout.World` writes as a default', () => {
+    const { draft } = turn();
+    expect(crowded(draft)).toMatchObject({
+      passage: { origin: 'sprout.World', name: 'crowded', yields: true },
+    });
+  });
+
   it('name the place, and the person as the reader reads them', () => {
     const prose = proseTurn();
     const line = {
       by: prose.draft.world,
-      said: FULL,
+      said: crowded(prose.draft),
       bindings: new Map([
         ['item', bound(prose.marta)],
         ['to', bound(YARD)],
@@ -52,5 +63,29 @@ describe('the words for someone turned away', () => {
     expect(renderFor(line, prose.marta, prose.context)).toEqual([
       'There is no room in a yard for you.',
     ]);
+  });
+
+  it('are the world’s own where it writes a `crowded` of its own', () => {
+    const own = catalogueOf(
+      compiledWorld('den', {
+        'den.sprout': [
+          'world den is sprout.World { contains visitors are Pup visitors arrive at lair',
+          '  passage crowded { {to} has no room left for {item}. }',
+          '  object lair is sprout.Place',
+          '}',
+          'kind Pup is sprout.Visitor { }',
+          '',
+        ].join('\n'),
+      }),
+      CAPS,
+    );
+    const draft = new Draft(initialState(own));
+    expect(crowded(draft)).toMatchObject({
+      passage: {
+        origin: 'den.den',
+        name: 'crowded',
+        body: { text: ' {to} has no room left for {item}. ' },
+      },
+    });
   });
 });
