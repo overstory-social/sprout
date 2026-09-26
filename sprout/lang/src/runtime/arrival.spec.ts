@@ -13,8 +13,10 @@ import {
   MARTA,
   NO_CELLAR,
   QUAY,
+  SATCHELS,
   WORLD,
   whereIs,
+  departing,
 } from '../fixtures/arrival.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { words } from '../fixtures/reading.js';
@@ -33,6 +35,7 @@ import {
 } from './arrival.js';
 import type { Catalogue } from './catalogue.js';
 import { commandTurn } from './command.js';
+import { departureTurn } from './departure.js';
 import { Draft } from './draft.js';
 import type { InstanceId } from './ids.js';
 import { readerOf, type WorldState } from './state.js';
@@ -137,6 +140,76 @@ describe('a new visitor', () => {
     if (turn.committed || !('fault' in turn)) throw new Error('not faulted');
     expect(turn.fault.name).toBe('IntegerOverflow');
     expect(turn.words).toBe(ENTRY_FAILED);
+  });
+});
+
+describe('a visitor whose kind holds an object', () => {
+  const satchelled = () => harbour([], [], SATCHELS);
+  const host = () => harbourHost(SATCHELS);
+  /** What `id` holds in `state`. */
+  const holds = (state: WorldState, id: InstanceId) => state.children.get(id) ?? [];
+
+  it('is made with its own copy of it the first time, inside them, as a spawn is', () => {
+    const done = admitted(arrivalTurn(satchelled(), host(), arriving(MARTA)));
+    expect(done.given).toHaveLength(1);
+    const satchel = done.state.instances.get(done.given[0]!)!;
+    expect(satchel.made).toEqual({ from: 'given', kind: 'harbour.Person', path: ['satchel'] });
+    expect(satchel.container).toBe(done.instance);
+    expect(holds(done.state, done.instance)).toEqual(done.given);
+    // A plain arrival's sends, and nothing of the satchel to anyone.
+    expect(done.entered.sends.map((one) => one.message)).toEqual([
+      'entered',
+      'moved',
+      'arrived',
+      'arrived',
+      'arrived',
+    ]);
+    const turn = arrivalTurn(satchelled(), host(), arriving(MARTA));
+    if (!turn.committed) throw new Error('not admitted');
+    expect(turn.effects.map((one) => [one.kind, one.from])).toEqual([['described', QUAY]]);
+  });
+
+  it('gives each person a copy of their own', () => {
+    const first = admitted(arrivalTurn(satchelled(), host(), arriving(MARTA)));
+    const second = admitted(arrivalTurn(first.state, host(), arriving(INES)));
+    expect(second.given).toHaveLength(1);
+    expect(second.given).not.toEqual(first.given);
+    expect(holds(second.state, first.instance)).toEqual(first.given);
+    expect(holds(second.state, second.instance)).toEqual(second.given);
+  });
+
+  it('comes back with what they carried away, and is never given those contents again', () => {
+    const first = admitted(arrivalTurn(satchelled(), host(), arriving(MARTA)));
+    const left = departureTurn(first.state, host(), departing(MARTA));
+    if (!left.committed) throw new Error('did not leave');
+    const again = admitted(arrivalTurn(left.state, host(), arriving(MARTA)));
+    expect(again.returning).toBe(true);
+    expect(again.given).toEqual([]);
+    expect(holds(again.state, again.instance)).toEqual(first.given);
+    expect(again.state.instances.size).toBe(first.state.instances.size);
+  });
+
+  it('is not admitted where the host will hold no more instances, as a spawn past the bound faults', () => {
+    const state = satchelled();
+    const turn = arrivalTurn(state, host(), {
+      ...arriving(MARTA),
+      mayHold: state.instances.size + 1,
+    });
+    if (turn.committed || !('fault' in turn)) throw new Error('not faulted');
+    expect(turn.fault.name).toBe('LifecycleFault');
+    expect(turn.words).toBe(ENTRY_FAILED);
+    const room = admitted(
+      arrivalTurn(state, host(), { ...arriving(MARTA), mayHold: state.instances.size + 2 }),
+    );
+    expect(room.given).toHaveLength(1);
+  });
+
+  it('is refused by the place with nothing written, its contents included', () => {
+    const state = harbour([], [[QUAY, 'closed', true]], SATCHELS);
+    const turn = arrivalTurn(state, host(), arriving(MARTA));
+    if (turn.committed || !('refused' in turn)) throw new Error('not refused');
+    expect(state.visitors.has(MARTA)).toBe(false);
+    expect(turn.seen.instances.size).toBe(state.instances.size + 2);
   });
 });
 
