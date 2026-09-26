@@ -436,6 +436,40 @@ bench.sprout:6:13  Nothing says `arrive`, and nothing `hall` is made of has a pa
                    Write `passage arrives { … }` to replace that line, or say this one by name where it should be heard, as in `say arrive` in a role's `do`.
 ```
 
+### `contains` written twice in one body
+
+`crate.sprout`:
+
+```sprout
+kind Crate {
+  contains
+  :open true
+  contains
+}
+```
+
+```text
+crate.sprout:4:3  `Crate` writes `contains` twice.
+                  Once is enough: take this one out.
+```
+
+### A statement after `allow` or `refuse`
+
+`lid.sprout`:
+
+```sprout
+kind Lid {
+  as target for pry { permit { refuse "The lid is stuck fast."  allow } do { say "The lid comes free." } }
+}
+
+verb pry { role target  "pry [target]" }
+```
+
+```text
+lid.sprout:2:65  This never runs: the `refuse` above it has already decided.
+                 Take it out, or put it before the `refuse`; a `permit` ends at its `refuse`.
+```
+
 ### An exit whose `when` is `false`
 
 `bench.sprout`:
