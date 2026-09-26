@@ -1,0 +1,9 @@
+// A guard that has refused reads nothing more.
+kind Crate {
+  contains
+  accept (item, from) {
+    refuse "The crate is nailed shut."
+    let open = self.count == 0
+    if (open) { allow }
+  }
+}
