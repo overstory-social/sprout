@@ -30,7 +30,8 @@ import {
  * hands, and scraps itself after moving to where the actor stands; a
  * pin moves itself into whatever it pins, which holds nothing; a walker
  * takes as the standard library's `take` does, and an anvil will not
- * depart, though it clangs when anyone tries.
+ * depart, though it clangs when anyone tries; a walker shooed climbs
+ * into the cart without a word.
  */
 const DEPOT = compiledWorld('depot', {
   'depot.sprout': [
@@ -52,10 +53,12 @@ const DEPOT = compiledWorld('depot', {
     'verb scrap { role target  "scrap [target]" }',
     'verb fix   { role target  role tool  "fix [target] with [tool]" }',
     'verb take  { role target  "take [target]" }',
+    'verb shoo  { role target  "shoo [target]" }',
     'kind Walker is sprout.Actor {',
     '  passage taken { Taken. }',
     '  as actor for board { do { move self to target } }',
     '  as actor for take  { do { move target to self  say taken } }',
+    '  as target for shoo { do { move self to cart } }',
     '}',
     'kind Person is Walker, sprout.Visitor { }',
     'kind Anvil {',
@@ -125,6 +128,20 @@ describe('a `move` in a `do`', () => {
       ['said', YARD_ID, [visitor], NOTHING],
     ]);
     expect([...done.said[0]!.bindings]).toEqual([['item', boundObject(visitor!)]]);
+  });
+
+  it('answers with `nothing_happens` where only what the places spoke of someone moved reached the actor', () => {
+    const one = turn(DEPOT, [at('yard')]);
+    const [visitor] = one.people;
+    const done = run(one, 'shoo', visitor!, { target: { object: CAT_ID! } });
+    expect(one.draft.instance(CAT_ID!)!.container).toBe(CART);
+    // The yard's `leaves` and the cart's `arrives` reach the actor, and
+    // neither is an answer (the spec's The two passes).
+    expect(done.said.map((line) => [line.effect, line.by, line.to, words(line.said)])).toEqual([
+      ['notice', at('yard'), [visitor], 'sprout.Place leaves: {item} leaves.'],
+      ['notice', CART, [visitor], 'sprout.Place arrives: {item} arrives.'],
+      ['said', YARD_ID, [visitor], NOTHING],
+    ]);
   });
 
   it('says a guard’s refusal to the actor, from the refusing party, and ends the body there', () => {

@@ -1,0 +1,3 @@
+// A second place in the hall, so the cat shooed into it earns both the
+// hall's `leaves` and its own `arrives`.
+kind Cupboard is sprout.Place { }
