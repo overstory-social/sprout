@@ -162,6 +162,11 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
   const { catalogue } = stage.host;
   const refused = nicknameRefusal(stage.state, catalogue, stage.host.budgets, visit, nickname);
   if (refused !== null) return [hostLineOf(`nickname refused: ${refused.words}`)];
+  // Reinserted, not merely set, so a returning nickname moves to the end
+  // of `visits`' iteration order: `defaultVisitor` reads that order as
+  // who arrived most recently, and a `Map` does not reorder a key its
+  // `set` already held.
+  stage.visits.delete(nickname);
   stage.visits.set(nickname, visit);
   const caught = maintenanceTurn(stage.state, stage.host, inputs(stage));
   stage.state = caught.state;

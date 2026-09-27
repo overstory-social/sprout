@@ -1,3 +1,5 @@
+import { PassThrough } from 'node:stream';
+
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
@@ -87,5 +89,31 @@ describe('playInteractively', () => {
     expect(io.out()).not.toContain('Marta> fire kiln');
     expect(io.out()).toContain('Marta> ');
     expect(io.out()).toContain('Marta (said): The chamber takes the flame.');
+  });
+
+  it('plays on past everyone leaving, since a host line needs no addressee to revive the session', async () => {
+    const io = captured('@leave Marta\n@arrive Ines\nlook\n');
+    expect(await playInteractively(kilnYard, { nickname: 'Marta' }, io)).toBe(0);
+    expect(io.out()).toBe(
+      asScript('@arrive Marta\n@leave Marta\n@arrive Ines\nInes> look\n@leave Ines\n'),
+    );
+  });
+
+  it('writes the prompt before reading a line, not after, so a real terminal shows it while waiting', async () => {
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    const stdin = new PassThrough();
+    let out = '';
+    stdout.on('data', (c: Buffer | string) => (out += c.toString()));
+    const io = { stdout, stderr, stdin };
+    (io.stdin as unknown as { isTTY: boolean }).isTTY = true;
+    const played = playInteractively(kilnYard, { nickname: 'Marta' }, io);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(out).toBe('@arrive Marta\n  Marta (described): A kiln yard.\nMarta> ');
+    stdin.write('fire kiln\n');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(out).toContain('Marta (said): The chamber takes the flame.');
+    stdin.end();
+    expect(await played).toBe(0);
   });
 });

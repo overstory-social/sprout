@@ -62,24 +62,28 @@ export async function playInteractively(
   const input = io.stdin ?? process.stdin;
   const tty = (input as NodeJS.ReadStream).isTTY === true;
   const lines = createInterface({ input, terminal: false });
+  // A real terminal's own echo shows what is typed right after this, so
+  // it must be written before each read, not after — a script line
+  // needs no addressee, so nobody standing to default to is not the end
+  // of the session, only of a prompt worth showing.
+  const prompt = () => {
+    const current = defaultVisitor(stage);
+    if (tty && current !== null) io.stdout.write(`${current}> `);
+  };
   let at = 1;
   try {
+    prompt();
     for await (const raw of lines) {
       at += 1;
-      const current = defaultVisitor(stage);
-      if (current === null) break;
-      if (tty) io.stdout.write(`${current}> `);
-      let outcome;
-      try {
-        outcome = playInteractive(stage, raw, `stdin:${at}`);
-      } catch (err) {
-        return refuse(io, err);
-      }
+      const outcome = playInteractive(stage, raw, `stdin:${at}`);
       if (!tty) io.stdout.write(`${outcome.line}\n`);
       if (outcome.made !== null) {
         for (const one of heard(outcome.made)) io.stdout.write(`  ${one.text}\n`);
       }
+      prompt();
     }
+  } catch (err) {
+    return refuse(io, err);
   } finally {
     lines.close();
   }

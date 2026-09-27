@@ -6,6 +6,7 @@ import {
   defaultVisitor,
   freshStage,
   heard,
+  leave,
   playInteractive,
   playLines,
   playScript,
@@ -204,6 +205,16 @@ describe('defaultVisitor', () => {
     expect(defaultVisitor(stage)).toBe('Marta');
     arrive(stage, 'Ines');
     expect(defaultVisitor(stage)).toBe('Ines');
+  });
+
+  it('moves a returning nickname to the front again, ahead of who stood while they were away', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    leave(stage, 'Marta', 'test');
+    arrive(stage, 'Ines');
+    expect(defaultVisitor(stage)).toBe('Ines');
+    arrive(stage, 'Marta');
+    expect(defaultVisitor(stage)).toBe('Marta');
   });
 });
 
