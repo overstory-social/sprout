@@ -14,9 +14,9 @@
 // and the refusal of a `move` it proposes, reach the actor, or, where the
 // actor is an NPC, whoever would hear its `tell`, from it, and a refused
 // `move` or `act` ends the `do` that ran it, not the pass; a person's
-// command that no participant said, told or refused anything to them in
-// is answered with the world's `nothing_happens`, a place's notice of
-// someone the reading moved not counting, and an NPC's reading is not
+// command is answered with the world's `nothing_happens` when no
+// participant said, told or refused anything to them, a place's notice
+// of someone the reading moved not counting, and an NPC's reading is not
 // answered. An `act` in a `do` runs
 // its own reading there, one deeper against the cascade depth, and what
 // that says, refusal included, joins this one's. A plain `tell` reaches
