@@ -1,5 +1,5 @@
 {
-  "name": "moving",
+  "name": "rounds",
   "version": "0.1.0",
   "author": "corpus",
   "license": "MIT",
@@ -12,17 +12,5 @@
       "sha": "95f1eba2f3f81e2f4939f52990e472af035b39a14e44effc39d7c0ff1b98da74"
     }
   ],
-  "files": [
-    "moving.sprout",
-    "creature.sprout",
-    "person.sprout",
-    "cart.sprout",
-    "thing.sprout",
-    "shelf.sprout",
-    "sheet.sprout",
-    "press.sprout",
-    "ball.sprout",
-    "cat.sprout",
-    "cupboard.sprout"
-  ]
+  "files": ["rounds.sprout", "person.sprout", "watchman.sprout"]
 }

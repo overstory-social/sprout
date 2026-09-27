@@ -58,6 +58,7 @@ const VERBS = [
   'announce',
   'sort',
   'empty',
+  'peer',
 ];
 
 /**
@@ -74,6 +75,7 @@ const bundle = compiledWorld('shop', {
     '    object loud is Loud',
     '    object cat is Pet',
     '    object pit is Pit',
+    '    object watcher is Watcher',
     '  }',
     '  object yard is Room { object far is Heeds }',
     '}',
@@ -119,6 +121,10 @@ const bundle = compiledWorld('shop', {
     '  as target for dig { do { let hole = spawn Pit in self  connect below to hole  connect below to hole  say "Dug." } }',
     '  as target for hail { do { tell inside "Echoes from below."  tell outside "A voice from the pit." } }',
     '}',
+    '// `near` is whatever is nearest each watcher; narrowed, the branch holds the one found.',
+    'kind Watcher {',
+    '  as target for peer { do { if (near.is(Heeds)) { move near to yard  say "Still {near}." }  say "Peered." } }',
+    '}',
     'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
     'kind Pet is Creature {',
     '  as target for poke  { do { act nuzzle (target: actor, toys: here)  say "After." } }',
@@ -138,6 +144,8 @@ const CAT = id('hall', 'cat');
 const NEAR = id('hall', 'near');
 const FAR = id('yard', 'far');
 const PIT = id('hall', 'pit');
+const WATCHER = id('hall', 'watcher');
+const YARD = id('yard');
 
 /** What an acting body did, as the sink heard it. */
 interface Heard {
@@ -676,6 +684,23 @@ describe('what a `do` is charged', () => {
     act(one, CAT, 'poke', budget);
     // The `act` and its two names, and a `say`.
     expect(budget.spentSteps).toBe(4);
+  });
+});
+
+describe('a name in a kind’s body narrowed by `is()`', () => {
+  it('is held by the branch as the object the condition found, so a move inside it changes nothing the name reaches', () => {
+    const one = turn();
+    // The move is answered by taking effect: `near` is in the yard by the time the branch says it.
+    const heard = act(one, WATCHER, 'peer', undefined, undefined, () => {
+      one.draft.place(NEAR, YARD);
+      return 'done';
+    });
+    expect(heard.moves).toEqual([[WATCHER, NEAR, YARD]]);
+    expect(one.draft.instance(NEAR)!.container).toBe(YARD);
+    expect(heard.spoken.map((line) => line.bindings.get('near'))).toEqual([
+      boundObject(NEAR),
+      undefined,
+    ]);
   });
 });
 

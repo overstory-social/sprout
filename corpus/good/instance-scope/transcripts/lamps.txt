@@ -1,0 +1,29 @@
+# A name in a kind's body is judged by what each container holds when the
+# body runs. The hall's lamp carried off is nobody's `lamp` in the hall, so
+# the lantern there kindles nothing; set down in the cellar it is the
+# cellar's `lamp`; and a lamp the cupboard spawns into the hall is the
+# hall's, narrowed with `is()` in the cupboard's own body.
+@arrive Marta
+  Marta (described): There is nothing special about a hall.
+Marta> take lamp
+  Marta (said): You take a lamp.
+Marta> light lantern
+  Marta (said): The lantern catches.
+Marta> examine lamp
+  Marta (described): It is dark.
+Marta> go down
+  Marta (described): There is nothing special about a cellar.
+Marta> drop lamp
+  Marta (said): You put a lamp down.
+Marta> light lantern
+  Marta (said): The lantern catches.
+Marta> examine lamp
+  Marta (described): It burns steadily.
+Marta> go up
+  Marta (described): There is nothing special about a hall.
+Marta> open cupboard
+  Marta (said): A new lamp is set out, unlit.
+Marta> light lantern
+  Marta (said): The lantern catches.
+Marta> examine lamp
+  Marta (described): It burns steadily.

@@ -25,12 +25,15 @@ export const CAPS = DEFAULT_LIMITS.caps;
  * A keep whose hall holds places, containers, people and things, each
  * kind answering one question a move asks. `Tripwire`'s `release` and
  * `accept` fault if they are ever asked, which is how a test proves a
- * party was not.
+ * party was not. The hall's one exit leads out to the porch, out of its
+ * range otherwise, so an actor's move to it proves the exit is what
+ * reached it; the yard has none, and stays out of range.
  */
 const KEEP = {
   'keep.sprout': [
     'world keep is sprout.World { contains visitors are Person visitors arrive at hall',
     '  object hall is sprout.Place {',
+    '    grammar { exit out "out to the porch" -> porch }',
     '    object alcove is sprout.Place { passage arrives { {item} squeezes in. } }',
     '    object cellar is Room',
     '    object nook is Room {',
@@ -65,6 +68,7 @@ const KEEP = {
     '    object vase is Fragile { depart (to) { refuse "Not by that hand." } }',
     '  }',
     '  object yard is sprout.Place',
+    '  object porch is sprout.Place',
     '}',
     'kind Creature is sprout.Actor {',
     '  :capacity 2',
@@ -99,6 +103,7 @@ export const TOM = id('hall', 'nook', 'tom');
 export const CLOSET = id('hall', 'closet');
 export const SAM = id('hall', 'closet', 'sam');
 export const YARD = id('yard');
+export const PORCH = id('porch');
 export const MARTA = id('hall', 'marta');
 export const TRAY = id('hall', 'tray');
 export const STONE = id('hall', 'stone');

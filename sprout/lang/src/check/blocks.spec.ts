@@ -11,6 +11,7 @@ import { checkBlock, type BodyKind } from './blocks.js';
 import { PassageSites } from './speech.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import { readProseText } from '../fixtures/parse.js';
+import { inKind, nameSource } from '../fixtures/names.js';
 
 /** A passage `full` for a kind to have, as composing resolves one. */
 const FULL: ResolvedPassage = (() => {
@@ -74,6 +75,36 @@ function check(statements: string, kind: BodyKind) {
 const GUARD: BodyKind = { body: 'guard', guard: 'depart' };
 const PERMIT: BodyKind = { body: 'permit' };
 const DO: BodyKind = { body: 'do' };
+
+describe('an `if` over a name in a kind’s body', () => {
+  /** `statements` checked in a lantern's body, where `lamp` is whatever is nearest each instance. */
+  function checkInLantern(statements: string): string[] {
+    const source = nameSource();
+    const context = {
+      ...bodyOf(VESSEL),
+      names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
+      acting: { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } },
+    };
+    checkBlock(blockOf(statements), context, PERMIT);
+    return context.diagnostics.refusals.map((d) => d.message);
+  }
+
+  it('narrows the name with `is()` for the branch, where its kind’s properties read', () => {
+    expect(checkInLantern('if (lamp.is(Vessel)) { if (lamp.get(:inked)) { allow } }')).toEqual([]);
+    expect(
+      checkInLantern('if (lamp.is(Vessel)) { allow }\n    if (lamp.get(:inked)) { allow }'),
+    ).toEqual([
+      '`lamp` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot read a property from it.',
+    ]);
+  });
+
+  it('holds the name for the branch, so a `let` of it there is shadowing', () => {
+    expect(checkInLantern('if (lamp.is(Vessel)) { let lamp = self }')).toEqual([
+      '`lamp` already names the thing `is()` narrowed here.',
+    ]);
+    expect(checkInLantern('let lamp = self')).toEqual([]);
+  });
+});
 
 describe('a deciding body only reads and decides', () => {
   const doing =

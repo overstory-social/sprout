@@ -43,6 +43,7 @@ import {
   boundObject,
   evaluate,
   evaluateCondition,
+  narrowedFrame,
   type Evaluated,
   type Frame,
 } from './evaluate.js';
@@ -331,10 +332,15 @@ function runEach(statement: EachStatement, frame: Frame, run: Run): Ended {
   return 'end';
 }
 
-/** An `if` and each `else if` after it, as the chain it is; each link tested is a step. */
+/**
+ * An `if` and each `else if` after it, as the chain it is; each link
+ * tested is a step. A condition that narrows a name binds it, for the
+ * condition and the branch it guards, to what it reaches now.
+ */
 function runIf(statement: IfStatement, frame: Frame, run: Run): Ended {
   for (let link: IfStatement = statement; ;) {
-    if (evaluateCondition(link.condition, frame)) return runBlock(link.then, frame, run);
+    const inner = narrowedFrame(link.condition, frame);
+    if (evaluateCondition(link.condition, inner)) return runBlock(link.then, inner, run);
     const otherwise = link.otherwise;
     if (otherwise === null) return 'end';
     if (otherwise.kind === 'block') return runBlock(otherwise, frame, run);

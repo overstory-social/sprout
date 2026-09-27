@@ -1,0 +1,7 @@
+// An NPC's `move` reaches another place only as the destination of an
+// exit or link of its own place that applies (the spec's Verbs › Acting),
+// so the watchman, hearing `:departed` as everything else in the yard's
+// range does, walks the same way out that whoever left just took.
+kind Watchman is sprout.Actor {
+  on :departed (actor, there) { move self to there }
+}

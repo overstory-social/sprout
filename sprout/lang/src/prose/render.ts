@@ -24,6 +24,7 @@ import {
   boundValue,
   evaluate,
   evaluateCondition,
+  narrowedFrame,
   type Evaluated,
   type Frame,
 } from '../runtime/evaluate.js';
@@ -185,7 +186,11 @@ function passageOf(
   });
 }
 
-/** An `{if}` chain: the first branch whose condition holds, each condition tested a step. */
+/**
+ * An `{if}` chain: the first branch whose condition holds, each condition
+ * tested a step. A condition that narrows a name binds it, for the
+ * condition and the branch it guards, to what it reaches now.
+ */
 function branch(
   block: ProseIf,
   frame: Frame,
@@ -195,8 +200,9 @@ function branch(
 ): void {
   for (let link: ProseIf = block; ;) {
     frame.budget.spend();
-    if (evaluateCondition(link.condition, frame)) {
-      pieces(link.then, frame, reader, context, out);
+    const inner = narrowedFrame(link.condition, frame);
+    if (evaluateCondition(link.condition, inner)) {
+      pieces(link.then, inner, reader, context, out);
       return;
     }
     const otherwise = link.otherwise;

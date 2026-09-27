@@ -6,14 +6,14 @@
 // The world's body and a declared object's own body have a place in the
 // tree, and resolve from it at compile time. A kind's body has none, and
 // nor has the body of an object a kind gives: a name there resolves at run
-// time from where the instance running it sits, so a compile says only
-// which declarations it may reach, nearest first counted from that
-// instance. One it can fix: a name the running instance's own body always
-// declares, which is what the kind and its closure give, is that copy in
-// every instance.
+// time from where the instance running it sits, judged by what each
+// container holds then, so a compile says only what each step of the name
+// is answered to by, and which declarations it may reach. One it can fix:
+// a name the running instance's own body always declares, which is what
+// the kind and its closure give, is that copy in every instance.
 
 import type { ObjectDeclaration } from '../syntax/ast.js';
-import type { KindRef } from './kinds.js';
+import { kindName, type KindRef } from './kinds.js';
 import {
   contentAt,
   everyContent,
@@ -60,6 +60,18 @@ export interface Candidate {
   readonly declaration: ObjectDeclaration;
 }
 
+/**
+ * One step of a name judged by contents while the world runs: what an
+ * instance directly held answers to it by. A declared object or a copy
+ * answers by its identifier; a spawned instance, which has none, answers
+ * where it is made of what some declaration of the name is made of.
+ */
+export interface PlacedStep {
+  readonly name: string;
+  /** For each declaration of `name` in the bundle, the kinds it is made of, by qualified name. */
+  readonly madeOf: readonly (readonly string[])[];
+}
+
 /** What a name reaches. */
 export type Named =
   | { readonly names: 'world' }
@@ -77,11 +89,17 @@ export type Named =
       readonly kind: KindRef | null;
     }
   /**
-   * Whichever of `candidates` is nearest the running instance when the
-   * body runs: the first whose first step the instance's body, or a
-   * container's outward to the world's, declares.
+   * Whatever is nearest the running instance when the body runs: the
+   * first step among what the instance holds, or a container outward to
+   * the world holds, and each step after among what the one before holds.
+   * `candidates` are the declarations it may so reach, for what the
+   * compiler can still say of them.
    */
-  | { readonly names: 'placed'; readonly candidates: readonly Candidate[] };
+  | {
+      readonly names: 'placed';
+      readonly steps: readonly PlacedStep[];
+      readonly candidates: readonly Candidate[];
+    };
 
 /** A name resolved, or where it failed. */
 export type Naming =
@@ -215,7 +233,23 @@ function placedNaming(source: NameSource, parts: readonly string[]): Naming {
       within: reached === 0 ? null : parts.slice(0, reached).join('.'),
     };
   }
-  return { names: 'placed', candidates };
+  const steps = parts.map((name) => ({ name, madeOf: madeOf(source, name) }));
+  return { names: 'placed', steps, candidates };
+}
+
+/**
+ * What each declaration of `name` in the bundle is made of: its kinds by
+ * qualified name, less the anonymous kind that names the object itself.
+ * One whose kind is absent is left out, since nothing is made of it.
+ */
+function madeOf(source: NameSource, name: string): (readonly string[])[] {
+  const declared = [
+    ...[...source.tree.placed.values()].filter((one) => one.path.at(-1) === name),
+    ...everyContent(source.contents).filter((one) => one.declaration.name.text === name),
+  ];
+  return declared.flatMap(({ kind }) =>
+    kind === null ? [] : [kind.order.filter((identity) => identity !== kindName(kind))],
+  );
 }
 
 /**
