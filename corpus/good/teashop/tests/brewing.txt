@@ -1,0 +1,12 @@
+# Brewing fills the pot once, and a friend in the room sees it happen.
+@arrive Marta
+@arrive Ben
+Marta> north
+Ben> north
+Marta> brew teapot
+  Marta (said): You warm the pot, spoon in the leaves and pour. It smells like rain.
+  Ben (told): Marta brews a pot of tea.
+Ben> brew pot
+  It is already full of tea.
+Ben> x teapot
+  The teapot is warm and full.

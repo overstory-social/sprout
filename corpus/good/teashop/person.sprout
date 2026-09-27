@@ -1,0 +1,2 @@
+// What visitors are made of: the library's person, as it comes.
+kind Person is sprout.Visitor { }

@@ -1,0 +1,10 @@
+# A pot of tea goes cold after twenty minutes.
+@arrive Marta
+Marta> north
+Marta> brew pot
+@advance 19 minutes
+  (nothing)
+@advance 1 minute
+  The teapot has gone cold. Someone tips it out.
+Marta> x pot
+  A brown teapot, empty.

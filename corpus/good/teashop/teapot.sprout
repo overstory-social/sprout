@@ -1,0 +1,27 @@
+// A teapot: empty until someone brews in it, and cold again
+// twenty minutes after.
+kind Teapot {
+  grammar { nouns "pot" }
+
+  :brewed false
+
+  describe {
+    if (self.get(:brewed)) { text "The teapot is warm and full." }
+    else                   { text "A brown teapot, empty." }
+  }
+
+  as target for brew {
+    permit { if (self.get(:brewed)) { refuse "It is already full of tea." } }
+    do {
+      self.set(:brewed, true)
+      wake in 20 minutes
+      say  "You warm the pot, spoon in the leaves and pour. It smells like rain."
+      tell "{actor} brews a pot of tea."
+    }
+  }
+
+  on :woke (elapsed) {
+    self.set(:brewed, false)
+    tell "The teapot has gone cold. Someone tips it out."
+  }
+}

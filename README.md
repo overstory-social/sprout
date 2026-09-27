@@ -7,6 +7,10 @@ world answers in prose. It is being built to
 [`docs/design/sprout-design-spec.md`](docs/design/sprout-design-spec.md),
 which is the language whole and the authority where anything disagrees.
 
+**New to Sprout?** Start with [the manual](docs/manual/README.md): what
+Sprout is, how to play a world from the terminal, a quickstart that
+builds a first world, and the language reference.
+
 ```sprout
 world printers_shop is sprout.World {
   visitors are Creature
@@ -61,6 +65,7 @@ sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check, the inspectors: parse (what a world accepts) and view (what a visitor is offered), play, test (an author's own tests of their world), and skill
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
+docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
 ```
 
