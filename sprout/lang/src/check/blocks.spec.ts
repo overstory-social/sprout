@@ -11,6 +11,7 @@ import { checkBlock, type BodyKind } from './blocks.js';
 import { PassageSites } from './speech.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import { readProseText } from '../fixtures/parse.js';
+import { inKind, nameSource } from '../fixtures/names.js';
 
 /** A passage `full` for a kind to have, as composing resolves one. */
 const FULL: ResolvedPassage = (() => {
@@ -75,6 +76,36 @@ const GUARD: BodyKind = { body: 'guard', guard: 'depart' };
 const PERMIT: BodyKind = { body: 'permit' };
 const DO: BodyKind = { body: 'do' };
 
+describe('an `if` over a name in a kind’s body', () => {
+  /** `statements` checked in a lantern's body, where `lamp` is whatever is nearest each instance. */
+  function checkInLantern(statements: string): string[] {
+    const source = nameSource();
+    const context = {
+      ...bodyOf(VESSEL),
+      names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
+      acting: { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } },
+    };
+    checkBlock(blockOf(statements), context, PERMIT);
+    return context.diagnostics.refusals.map((d) => d.message);
+  }
+
+  it('narrows the name with `is()` for the branch, where its kind’s properties read', () => {
+    expect(checkInLantern('if (lamp.is(Vessel)) { if (lamp.get(:inked)) { allow } }')).toEqual([]);
+    expect(
+      checkInLantern('if (lamp.is(Vessel)) { allow }\n    if (lamp.get(:inked)) { allow }'),
+    ).toEqual([
+      '`lamp` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot read a property from it.',
+    ]);
+  });
+
+  it('holds the name for the branch, so a `let` of it there is shadowing', () => {
+    expect(checkInLantern('if (lamp.is(Vessel)) { let lamp = self }')).toEqual([
+      '`lamp` already names the thing `is()` narrowed here.',
+    ]);
+    expect(checkInLantern('let lamp = self')).toEqual([]);
+  });
+});
+
 describe('a deciding body only reads and decides', () => {
   const doing =
     'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    wake in 3 hours';
@@ -130,6 +161,54 @@ describe('a deciding body only reads and decides', () => {
     expect(check('each thing in self { }\n    if (thing == actor) { allow }', PERMIT)).toHaveLength(
       1,
     );
+  });
+});
+
+describe('a statement after `allow` or `refuse` never runs', () => {
+  /** What checking `statements` as `kind` warned about. */
+  function warned(statements: string, kind: BodyKind) {
+    const context = bodyOf(VESSEL);
+    const acting = { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } };
+    checkBlock(blockOf(statements), { ...context, acting }, kind);
+    expect(context.diagnostics.refusals.map((d) => d.message)).toEqual([]);
+    return context.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  }
+
+  it('warns at the first statement after an `allow` in a `permit`, naming the `permit`', () => {
+    expect(warned('allow\n    let n = self.count\n    let m = self.count', PERMIT)).toEqual([
+      [
+        'b.sprout:4:5',
+        'This never runs: the `allow` above it has already decided.',
+        'Take it out, or put it before the `allow`; a `permit` ends at its `allow`.',
+      ],
+    ]);
+  });
+
+  it('warns after a `refuse` in a guard, naming the guard', () => {
+    expect(warned('refuse "No."\n    allow', GUARD)).toEqual([
+      [
+        'b.sprout:4:5',
+        'This never runs: the `refuse` above it has already decided.',
+        'Take it out, or put it before the `refuse`; a guard ends at its `refuse`.',
+      ],
+    ]);
+  });
+
+  it('warns inside the block the deciding ends, and not for what follows an `if` that decides', () => {
+    expect(warned('if (self.count > 1) { refuse "Full."  let n = 1 }\n    allow', PERMIT)).toEqual([
+      [
+        'b.sprout:3:43',
+        'This never runs: the `refuse` above it has already decided.',
+        'Take it out, or put it before the `refuse`; a `permit` ends at its `refuse`.',
+      ],
+    ]);
+    expect(warned('if (self.count > 1) { refuse "Full." }\n    allow', PERMIT)).toEqual([]);
+  });
+
+  it('says nothing for an `allow` or a `refuse` that ends its block', () => {
+    expect(
+      warned('let n = self.count\n    if (n > 1) { refuse "Full." } else { allow }', GUARD),
+    ).toEqual([]);
   });
 });
 

@@ -1,14 +1,18 @@
 // A visitor's arrival (the spec's The host contract › Admission and
 // identity; The world model › Actors and visitors; The compiler › What
 // absent means). A new visitor is an instance of the visitor kind, made
-// as they arrive; a returning one comes back where they last stood if
-// that place still exists and accepts them, and otherwise where the world
-// says visitors arrive, told through the world's `displaced` when the
-// place they stood in is gone. Entry is a move from outside the tree: the
-// host's bound on a crowd is asked (`crowd.ts`), then the place's
-// `accept`, with the world as `from`; then the place is sent `:entered`,
-// the visitor `:moved`, the place's range `arrives` and `:arrived`, and
-// the visitor reads the place's description once the queue is empty.
+// as they arrive the way a spawn is, with its own copy of each object
+// its kind's body holds (`lifecycle.ts`), of which nothing is sent; a
+// returning one comes back with what they carried away, never given
+// those contents again, where they last stood if that place still exists
+// and accepts them, and otherwise where the world says visitors arrive,
+// told through the world's `displaced` when the place they stood in is
+// gone. Entry is a move from outside the tree: the host's bound on a
+// crowd is asked (`crowd.ts`), refusing through the world's `crowded`,
+// then the place's `accept`, with the world as `from`; then the place is
+// sent `:entered`, the visitor `:moved`, the place's range `arrives` and
+// `:arrived`, and the visitor reads the place's description once the
+// queue is empty.
 // What it says is one sequence of effects: the world's `missing`, where
 // the world pins an extension this host does not supply (Extensions ›
 // Activation and absence), `displaced`, where it is told, the place's
@@ -22,14 +26,14 @@
 import { runGuard } from './guards.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
-import { FULL, turnedAway } from './crowd.js';
+import { crowded, turnedAway } from './crowd.js';
 import { noticeLines, saidLines, type Effect, type Speaking, type Unrendered } from './effects.js';
 import { arrivalsRead } from './engine-verbs.js';
 import { engineLine } from './engine-lines.js';
 import { boundObject } from './evaluate.js';
 import type { Speech } from './body.js';
 import type { InstanceId, VisitKey } from './ids.js';
-import type { EngineSend } from './lifecycle.js';
+import { giveContents, type EngineSend } from './lifecycle.js';
 import { isPlace, liveTree } from './live.js';
 import { placeEntered, type Notice, type PlaceSend } from './move.js';
 import { keptNickname, nicknameRefusal } from './nickname.js';
@@ -92,7 +96,7 @@ export interface Entered {
   readonly said: readonly Said[];
 }
 
-/** An entry: made, or refused by the place's `accept`, whose words the visitor reads. */
+/** An entry: made, or refused, by the host's bound through the world's `crowded` or by the place's `accept`, whose words the visitor reads. */
 export type Entry = Entered | { readonly refused: Said };
 
 /** What a committed arrival did. */
@@ -102,6 +106,8 @@ export interface Admitted {
   readonly instance: InstanceId;
   /** Whether the visit was one the world had seen. */
   readonly returning: boolean;
+  /** What its kind's body gave a new visitor, each after what holds it; nothing for a returning one. */
+  readonly given: readonly InstanceId[];
   /** The world's `missing`, told first, where the world pins an extension this host does not supply. */
   readonly missing: Said | null;
   /** The world's `displaced`, told next, where the place the visitor stood in is gone. */
@@ -153,8 +159,8 @@ export function closedIn(state: StateReader, catalogue: Catalogue): ClosedReason
 /**
  * Run `arrival` as one arrival turn over the committed `state`. A visit
  * already standing in the world, or a nickname `nicknameRefusal` refuses
- * with no cap on its length, which only the host knows, is the host's
- * defect, thrown before the turn opens.
+ * under the host's budgets, is the host's defect, thrown before the turn
+ * opens.
  */
 export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival): ArrivalTurn {
   const committed = readerOf(state);
@@ -162,7 +168,7 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
   const unadmitted = nicknameRefusal(
     state,
     catalogue,
-    { characters: null },
+    host.budgets,
     arrival.visit,
     arrival.nickname,
   );
@@ -195,11 +201,13 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
     (turn) => {
       const { draft } = turn;
       let id: InstanceId;
+      let given: readonly InstanceId[] = [];
       if (record === undefined) {
         id = draft.mint();
         draft.add(
           newInstance(id, { from: 'visitor' }, catalogue.visitorKind!, null, null, catalogue.caps),
         );
+        given = giveContents(turn, id);
       } else id = record.instance;
       const lastPlace = record?.lastPlace ?? null;
       draft.putVisitor({ visit: arrival.visit, nickname, instance: id, lastPlace });
@@ -215,6 +223,7 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
         visit: arrival.visit,
         instance: id,
         returning: record !== undefined,
+        given,
         missing: missesExtensions(catalogue) ? missingLine(draft, id) : null,
         displaced: gone ? displacedLine(draft, id) : null,
         entered: entry,
@@ -270,7 +279,7 @@ export function enter(turn: WriteTurn, visitor: InstanceId, place: InstanceId): 
         to: [visitor],
         by: from,
         speaker: null,
-        said: FULL,
+        said: crowded(draft),
         bindings: new Map([
           ['item', boundObject(visitor)],
           ['to', boundObject(place)],

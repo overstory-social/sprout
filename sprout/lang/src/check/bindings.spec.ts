@@ -58,6 +58,7 @@ describe('a binding type is not a property type', () => {
       'for',
       'let',
       'parameter',
+      'name',
     ];
     for (const origin of every) {
       expect(describeOrigin(origin), origin).not.toBe('');

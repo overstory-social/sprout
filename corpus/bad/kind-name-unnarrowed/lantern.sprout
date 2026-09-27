@@ -1,6 +1,6 @@
 // A name in a kind's body reaches whatever is called that nearest each
 // instance, so Sprout knows it only as an object: reading a property
-// through it is refused until a `let` names it and `is()` narrows that.
+// through it is refused until `is()` narrows it for a branch.
 kind Lantern {
   as target for rub {
     do {

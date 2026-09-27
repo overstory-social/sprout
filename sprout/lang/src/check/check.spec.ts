@@ -26,6 +26,7 @@ import {
   vessel,
   warded,
 } from '../fixtures/check.js';
+import { inKind, nameSource } from '../fixtures/names.js';
 
 // --- the table ------------------------------------------------------------
 
@@ -220,5 +221,24 @@ describe('a condition opens the branch it guards', () => {
     const narrowed = branchScope(expression('target.is(Vessel)'), context);
     expect(narrowed.lookup('target')!.type).toEqual(objectOf(VESSEL));
     expect(branchScope(expression('self.count > 1'), context)).toBe(context.scope);
+  });
+
+  it('narrows a name in a kind’s body that the run resolves, binding it for the branch alone', () => {
+    const source = nameSource();
+    const context: CheckContext = {
+      ...bodyOf(VESSEL),
+      names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
+    };
+    const condition = expression('lamp.is(Vessel)');
+    expect(checkCondition(condition, context)).toBe(true);
+    const narrowing = narrowingOf(condition, context);
+    expect(narrowing).toMatchObject({ kind: VESSEL, binding: { name: 'lamp', origin: 'name' } });
+    const branch = branchScope(condition, context);
+    expect(branch.lookup('lamp')).toMatchObject({ origin: 'name', type: objectOf(VESSEL) });
+    expect(context.scope.lookup('lamp')).toBeNull();
+    // A name the compile fixed at its kind is typed already, and narrows nothing.
+    const own = expression('wick.is(Vessel)');
+    expect(checkCondition(own, context)).toBe(true);
+    expect(narrowingOf(own, context)).toBeNull();
   });
 });

@@ -10,6 +10,7 @@ import { Draft } from './draft.js';
 import { declaredId, mintedId, visitKey, type InstanceId } from './ids.js';
 import {
   destroyInstance,
+  giveContents,
   LifecycleFault,
   spawnInstance,
   type LifecycleContext,
@@ -433,6 +434,80 @@ describe('a spawn of a kind whose body holds objects', () => {
     const loaded = loadWorld(saveWorld(draft.commit().state), catalogue);
     expect(loaded.dormant).toEqual([]);
     expect(loaded.state.children.get(spawned.contents[0]!)).toEqual([spawned.contents[1]]);
+  });
+});
+
+describe('what a first arrival gives an instance', () => {
+  const LANTERN = 'printers_shop.Lantern';
+  const STORM = 'printers_shop.Storm';
+
+  /** An instance of `kind` made this turn in `container`, holding nothing yet, as a visitor is before it is given anything. */
+  const madeBare = (draft: Draft, kind: string, container: InstanceId): InstanceId => {
+    const id = draft.mint();
+    const made = catalogue.kinds.get(kind)!;
+    draft.add(
+      newInstance(id, { from: 'spawned', kind }, made, container, draft.nextSerial(), CAPS),
+    );
+    return id;
+  };
+
+  it('is its own copy of what each of its kinds holds, inside it, each after what holds it', () => {
+    const draft = new Draft(initialState(catalogue));
+    const storm = madeBare(draft, STORM, SHELF);
+    const given = giveContents(context(draft), storm);
+    expect(
+      given.map((one) => {
+        const { made, container } = draft.instance(one)!;
+        return [
+          made.from === 'given' ? `${made.kind} ${made.path.join('.')}` : made.from,
+          container,
+        ];
+      }),
+    ).toEqual([
+      [`${LANTERN} wick`, storm],
+      [`${LANTERN} wick.flame`, given[0]],
+      [`${STORM} vent`, storm],
+    ]);
+    expect(draft.children(storm)).toEqual([given[0], given[2]]);
+  });
+
+  it('is nothing for one whose kinds hold nothing', () => {
+    const draft = new Draft(initialState(catalogue));
+    const held = draft.held;
+    expect(giveContents(context(draft), visitorIn(draft, HALL))).toEqual([]);
+    expect(draft.held).toBe(held + 1);
+  });
+
+  it('charges each against the turn’s cap, and makes none of them past it', () => {
+    const draft = new Draft(initialState(catalogue));
+    const storm = madeBare(draft, STORM, SHELF);
+    const held = draft.held;
+    const budget = new Budget(limitsFrom({ budgets: { spawnsPerTurn: 2 } }).budgets);
+    expect(() => giveContents(context(draft, { budget }), storm)).toThrow(BudgetExhausted);
+    expect(draft.held).toBe(held);
+    const room = new Budget(limitsFrom({ budgets: { spawnsPerTurn: 3 } }).budgets);
+    giveContents(context(draft, { budget: room }), storm);
+    expect(room.spentSpawns).toBe(3);
+  });
+
+  it('faults, making nothing, where the host will not hold them all, or an actor would stand in what holds no actors', () => {
+    const draft = new Draft(initialState(catalogue));
+    const storm = madeBare(draft, STORM, SHELF);
+    const held = draft.held;
+    const bounded = faultOf(() => giveContents(context(draft, { mayHold: held + 2 }), storm));
+    expect(bounded.reason).toBe('instances');
+    expect(bounded.object).toBe(storm);
+    expect(bounded.message).toBe(
+      'the host will hold no more instances in this world, so `Storm` could not be made with what its kinds hold.',
+    );
+    expect(draft.held).toBe(held);
+    const hutch = madeBare(draft, 'printers_shop.Hutch', HALL);
+    const fault = faultOf(() => giveContents(context(draft), hutch));
+    expect(fault.reason).toBe('holds-no-actors');
+    expect(fault.message).toBe(
+      '`rabbit`, an actor, would be inside `Hutch`, which holds no actors, so `Hutch` could not be made with what its kinds hold.',
+    );
+    expect(draft.held).toBe(held + 1);
   });
 });
 

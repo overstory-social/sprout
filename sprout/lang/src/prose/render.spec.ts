@@ -16,6 +16,7 @@ import {
 } from '../fixtures/prose.js';
 import { reflow } from './reflow.js';
 import { renderProse } from './render.js';
+import { NameOutOfRange } from '../runtime/named.js';
 import { Draws } from '../runtime/draws.js';
 import { chooser } from '../fixtures/parse.js';
 
@@ -60,6 +61,20 @@ describe('a slot renders what it reads', () => {
       'In the crate: an apple, a rib, a spare rib.',
       'A rib first, a rib',
     ]);
+  });
+});
+
+describe('a name in a kind’s body narrowed by `{if}`', () => {
+  it('is bound for the branch to the object the condition found, and read through its kind there', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'nearby', turn.marta)).toEqual(['The_albion']);
+  });
+
+  it('faults where it reaches nothing here now, as any read through it does', () => {
+    const turn = proseTurn();
+    // In the crate, the press is nothing the yard holds directly.
+    turn.draft.place(PRESS, CRATE);
+    expect(() => rendered(turn, ECHO, 'nearby', turn.marta)).toThrow(NameOutOfRange);
   });
 });
 

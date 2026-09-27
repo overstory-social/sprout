@@ -115,6 +115,26 @@ export function evaluateCondition(expr: Expr, frame: Frame): boolean {
   return asBoolean(evaluate(expr, frame));
 }
 
+/**
+ * The frame a condition and the branch it guards run in: for `name.is(K)`
+ * over a name in a kind's body that the run resolves, `frame` with the
+ * name bound to what it reaches now, so that a move inside the branch
+ * cannot change what it reaches (the spec's What the compiler checks);
+ * for any other condition, `frame` itself.
+ */
+export function narrowedFrame(condition: Expr, frame: Frame): Frame {
+  if (condition.kind !== 'call' || condition.method.text !== 'is') return frame;
+  const receiver = condition.receiver;
+  if (receiver.kind !== 'binding' || condition.arguments.length !== 1) return frame;
+  const name = receiver.name;
+  if (name.text === 'self' || frame.bindings.has(name.text)) return frame;
+  const named = frame.names.get(name);
+  if (named?.names !== 'placed') return frame;
+  const bindings = new Map(frame.bindings);
+  bindings.set(name.text, boundObject(reachedByName(named, name.text, frame)));
+  return { ...frame, bindings };
+}
+
 function leaf(expr: Expr, frame: Frame): Evaluated {
   frame.budget.spend();
   switch (expr.kind) {

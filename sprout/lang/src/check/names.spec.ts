@@ -6,7 +6,13 @@ import { bodyOf, read, VESSEL } from '../fixtures/check.js';
 import { inKind, nameSource } from '../fixtures/names.js';
 import { showBindingType, type BindingType } from './bindings.js';
 import type { CheckContext } from './check.js';
-import { dottedType, identifierType, identifiersInReach, type NameScope } from './names.js';
+import {
+  dottedType,
+  identifierType,
+  identifiersInReach,
+  placedBinding,
+  type NameScope,
+} from './names.js';
 
 const source = nameSource();
 
@@ -63,11 +69,30 @@ describe('an identifier in a body', () => {
     expect(read('wick', context).shown).toBe('shop.wick');
   });
 
-  it('in a kind’s body, is read through only by way of a `let` and `is()`', () => {
+  it('in a kind’s body, is read through only where `is()` has narrowed it', () => {
     const { context } = writtenAt(inKind(source, 'shop.Lantern'));
     expect(read('cellar.count', context).said).toEqual([
-      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot count it. Name it with `let` and narrow that, as in `let found = cellar` and then `if (found.is(Room)) { … }`; a passage said inside the branch may read `found` too.',
+      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot count it. Narrow it with `is()` and read it inside the branch, as in `if (cellar.is(Room)) { … }` in a body or `{if cellar.is(Room)}…{/if}` in a passage.',
     ]);
+  });
+
+  it('in a kind’s body, is the binding `is()` narrows for its branch, and nowhere else', () => {
+    const { context } = writtenAt(inKind(source, 'shop.Lantern'));
+    const { expr } = read('lamp', context);
+    const ident = expr.kind === 'binding' ? expr.name : null;
+    expect(ident).not.toBeNull();
+    expect(placedBinding(ident!, context)).toEqual({
+      name: 'lamp',
+      type: { binds: 'object', kind: null },
+      origin: 'name',
+      at: ident!.at,
+      writable: false,
+    });
+    // A name the compile fixed is typed already, and a binding hides a name.
+    const own = read('wick', context).expr;
+    expect(placedBinding(own.kind === 'binding' ? own.name : ident!, context)).toBeNull();
+    const bound = read('self', context).expr;
+    expect(placedBinding(bound.kind === 'binding' ? bound.name : ident!, context)).toBeNull();
   });
 
   it('is refused where nothing in reach answers, naming what does', () => {

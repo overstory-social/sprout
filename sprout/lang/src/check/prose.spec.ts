@@ -109,20 +109,39 @@ describe('a slot that renders a passage names it through a thing of a kind that 
     ]);
   });
 
-  it('refuses a passage or a walk through a kind’s name the run decides, naming the `let` that narrows it', () => {
+  it('refuses a passage or a walk through a kind’s name the run decides, naming the `is()` that narrows it', () => {
     const source = nameSource();
     const context = {
       ...bodyOf(withPassage),
       names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
     };
     expect(checked('{cellar.greeting}', context).said).toEqual([
-      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot render one of its passages from it. Name it with `let` and narrow that, as in `let found = cellar` and then `if (found.is(Room)) { … }`; a passage said inside the branch may read `found` too.',
+      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot render one of its passages from it. Narrow it with `is()` and read it inside the branch, as in `if (cellar.is(Room)) { … }` in a body or `{if cellar.is(Room)}…{/if}` in a passage.',
     ]);
     expect(
       checked('{for t in cellar}{t}{/for}', { ...context, diagnostics: new Diagnostics() }).said,
     ).toEqual([
-      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot walk it. Name it with `let` and narrow that, as in `let found = cellar` and then `if (found.is(Room)) { … }`; a passage said inside the branch may read `found` too.',
+      '`cellar` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot walk it. Narrow it with `is()` and read it inside the branch, as in `if (cellar.is(Room)) { … }` in a body or `{if cellar.is(Room)}…{/if}` in a passage.',
     ]);
+  });
+
+  it('narrows a kind’s name the run decides with `is()`, for the branch it guards', () => {
+    const source = nameSource();
+    const context = {
+      ...bodyOf(withPassage),
+      names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
+    };
+    // `Vessel` is the checker's own kind of that name; what `cellar` is
+    // declared as does not bind which kind narrows it.
+    expect(
+      checked('{if cellar.is(Vessel)}{cellar.get(:capacity)}{/if}{cellar}', context).said,
+    ).toEqual([]);
+    expect(
+      checked('{if cellar.is(Vessel)}x{/if}{cellar.get(:capacity)}', {
+        ...context,
+        diagnostics: new Diagnostics(),
+      }).said,
+    ).toHaveLength(1);
   });
 });
 

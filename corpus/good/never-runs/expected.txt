@@ -1,0 +1,10 @@
+crate.sprout:6:5  This never runs: the `refuse` above it has already decided.
+                  Take it out, or put it before the `refuse`; a guard ends at its `refuse`.
+
+lid.sprout:8:64   This never runs: the `refuse` above it has already decided.
+                  Take it out, or put it before the `refuse`; a `permit` ends at its `refuse`.
+
+lid.sprout:10:7   This never runs: the `allow` above it has already decided.
+                  Take it out, or put it before the `allow`; a `permit` ends at its `allow`.
+
+ok: 8 declarations in 4 files, 3 warnings
