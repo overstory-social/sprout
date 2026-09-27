@@ -1,0 +1,487 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sprout prose",
+  "scopeName": "source.sprout-prose",
+  "fileTypes": ["prose"],
+  "patterns": [
+    {
+      "name": "comment.block.sprout-prose",
+      "begin": "/\\*",
+      "end": "\\*/",
+      "beginCaptures": { "1": { "name": "punctuation.definition.comment.begin.sprout-prose" } },
+      "endCaptures": { "1": { "name": "punctuation.definition.comment.end.sprout-prose" } }
+    },
+    {
+      "name": "comment.line.double-slash.sprout-prose",
+      "begin": "//",
+      "end": "$",
+      "beginCaptures": { "0": { "name": "punctuation.definition.comment.sprout-prose" } }
+    },
+    { "include": "#passage" }
+  ],
+  "repository": {
+    "passage": {
+      "name": "meta.passage.sprout-prose",
+      "begin": "\\b(passage)\\s+([a-z_][a-z0-9_]*)(?:\\s+(default))?\\s*(\\{)",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.other.sprout-prose" },
+        "2": { "name": "entity.name.function.passage.sprout-prose" },
+        "3": { "name": "keyword.other.sprout-prose" },
+        "4": { "name": "punctuation.section.passage.begin.sprout-prose" }
+      },
+      "endCaptures": { "0": { "name": "punctuation.section.passage.end.sprout-prose" } },
+      "contentName": "meta.embedded.block.sprout-prose",
+      "patterns": [{ "include": "#body" }]
+    },
+    "body": {
+      "patterns": [
+        { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+        { "match": "\\\\." },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(/)\\s*(if)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.conditional.sprout-prose" },
+            "3": { "name": "keyword.control.conditional.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(/)\\s*(for)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.loop.sprout-prose" },
+            "3": { "name": "keyword.control.loop.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(/)\\s*(one\\s+of)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.choice.sprout-prose" },
+            "3": { "name": "keyword.control.choice.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(one\\s+of)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.choice.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(or)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.choice.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(else)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.conditional.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "begin": "(\\{)\\s*(else\\s+if|if)\\b",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.conditional.sprout-prose" }
+          },
+          "endCaptures": { "0": { "name": "punctuation.definition.tag.end.sprout-prose" } },
+          "patterns": [
+            {
+              "name": "string.quoted.double.sprout-prose",
+              "begin": "\"",
+              "end": "\"|$",
+              "beginCaptures": {
+                "0": { "name": "punctuation.definition.string.begin.sprout-prose" }
+              },
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.sprout-prose" } },
+              "patterns": [
+                { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+                { "match": "\\\\." }
+              ]
+            },
+            {
+              "name": "variable.language.loop.sprout-prose",
+              "match": "\\$(?:first|last|index|count)\\b"
+            },
+            { "name": "variable.language.sprout-prose", "match": "\\b(?:self|actor|here)\\b" },
+            { "name": "constant.language.boolean.sprout-prose", "match": "\\b(?:true|false)\\b" },
+            {
+              "match": "(:)([a-z][a-z0-9_]*)",
+              "name": "constant.other.symbol.sprout-prose",
+              "captures": { "1": { "name": "punctuation.definition.symbol.sprout-prose" } }
+            },
+            { "name": "constant.numeric.integer.sprout-prose", "match": "\\b[0-9]+\\b" },
+            {
+              "match": "\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])",
+              "captures": {
+                "1": { "name": "entity.name.namespace.sprout-prose" },
+                "2": { "name": "punctuation.accessor.sprout-prose" }
+              }
+            },
+            {
+              "name": "entity.name.type.sprout-prose",
+              "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "entity.name.function.sprout-prose",
+              "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()"
+            },
+            { "name": "variable.other.sprout-prose", "match": "\\b[a-z_][a-z0-9_]*" },
+            {
+              "name": "keyword.operator.sprout-prose",
+              "match": "==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]"
+            },
+            { "name": "punctuation.accessor.sprout-prose", "match": "\\." },
+            { "name": "punctuation.separator.sprout-prose", "match": "," },
+            { "name": "punctuation.section.parens.sprout-prose", "match": "[()]" },
+            { "name": "punctuation.separator.label.sprout-prose", "match": ":" }
+          ]
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "begin": "(\\{)\\s*(for)\\b",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.loop.sprout-prose" }
+          },
+          "endCaptures": { "0": { "name": "punctuation.definition.tag.end.sprout-prose" } },
+          "patterns": [
+            { "name": "keyword.control.loop.sprout-prose", "match": "\\b(?:in|of)\\b" },
+            {
+              "name": "string.quoted.double.sprout-prose",
+              "begin": "\"",
+              "end": "\"|$",
+              "beginCaptures": {
+                "0": { "name": "punctuation.definition.string.begin.sprout-prose" }
+              },
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.sprout-prose" } },
+              "patterns": [
+                { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+                { "match": "\\\\." }
+              ]
+            },
+            {
+              "name": "variable.language.loop.sprout-prose",
+              "match": "\\$(?:first|last|index|count)\\b"
+            },
+            { "name": "variable.language.sprout-prose", "match": "\\b(?:self|actor|here)\\b" },
+            { "name": "constant.language.boolean.sprout-prose", "match": "\\b(?:true|false)\\b" },
+            {
+              "match": "(:)([a-z][a-z0-9_]*)",
+              "name": "constant.other.symbol.sprout-prose",
+              "captures": { "1": { "name": "punctuation.definition.symbol.sprout-prose" } }
+            },
+            { "name": "constant.numeric.integer.sprout-prose", "match": "\\b[0-9]+\\b" },
+            {
+              "match": "\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])",
+              "captures": {
+                "1": { "name": "entity.name.namespace.sprout-prose" },
+                "2": { "name": "punctuation.accessor.sprout-prose" }
+              }
+            },
+            {
+              "name": "entity.name.type.sprout-prose",
+              "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "entity.name.function.sprout-prose",
+              "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()"
+            },
+            { "name": "variable.other.sprout-prose", "match": "\\b[a-z_][a-z0-9_]*" },
+            {
+              "name": "keyword.operator.sprout-prose",
+              "match": "==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]"
+            },
+            { "name": "punctuation.accessor.sprout-prose", "match": "\\." },
+            { "name": "punctuation.separator.sprout-prose", "match": "," },
+            { "name": "punctuation.section.parens.sprout-prose", "match": "[()]" },
+            { "name": "punctuation.separator.label.sprout-prose", "match": ":" }
+          ]
+        },
+        {
+          "name": "meta.slot.sprout-prose",
+          "begin": "\\{",
+          "end": "\\}",
+          "beginCaptures": { "0": { "name": "punctuation.definition.tag.begin.sprout-prose" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.tag.end.sprout-prose" } },
+          "patterns": [
+            {
+              "name": "string.quoted.double.sprout-prose",
+              "begin": "\"",
+              "end": "\"|$",
+              "beginCaptures": {
+                "0": { "name": "punctuation.definition.string.begin.sprout-prose" }
+              },
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.sprout-prose" } },
+              "patterns": [
+                { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+                { "match": "\\\\." }
+              ]
+            },
+            {
+              "name": "variable.language.loop.sprout-prose",
+              "match": "\\$(?:first|last|index|count)\\b"
+            },
+            { "name": "variable.language.sprout-prose", "match": "\\b(?:self|actor|here)\\b" },
+            { "name": "constant.language.boolean.sprout-prose", "match": "\\b(?:true|false)\\b" },
+            {
+              "match": "(:)([a-z][a-z0-9_]*)",
+              "name": "constant.other.symbol.sprout-prose",
+              "captures": { "1": { "name": "punctuation.definition.symbol.sprout-prose" } }
+            },
+            { "name": "constant.numeric.integer.sprout-prose", "match": "\\b[0-9]+\\b" },
+            {
+              "match": "\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])",
+              "captures": {
+                "1": { "name": "entity.name.namespace.sprout-prose" },
+                "2": { "name": "punctuation.accessor.sprout-prose" }
+              }
+            },
+            {
+              "name": "entity.name.type.sprout-prose",
+              "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "entity.name.function.sprout-prose",
+              "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()"
+            },
+            { "name": "variable.other.sprout-prose", "match": "\\b[a-z_][a-z0-9_]*" },
+            {
+              "name": "keyword.operator.sprout-prose",
+              "match": "==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]"
+            },
+            { "name": "punctuation.accessor.sprout-prose", "match": "\\." },
+            { "name": "punctuation.separator.sprout-prose", "match": "," },
+            { "name": "punctuation.section.parens.sprout-prose", "match": "[()]" },
+            { "name": "punctuation.separator.label.sprout-prose", "match": ":" }
+          ]
+        }
+      ]
+    },
+    "inline": {
+      "patterns": [
+        { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+        { "match": "\\\\." },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(/)\\s*(if)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.conditional.sprout-prose" },
+            "3": { "name": "keyword.control.conditional.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(/)\\s*(for)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.loop.sprout-prose" },
+            "3": { "name": "keyword.control.loop.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(/)\\s*(one\\s+of)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.choice.sprout-prose" },
+            "3": { "name": "keyword.control.choice.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(one\\s+of)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.choice.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(or)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.choice.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "match": "(\\{)\\s*(else)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.conditional.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          }
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "begin": "(\\{)\\s*(else\\s+if|if)\\b",
+          "end": "\\}|(?=\")",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.conditional.sprout-prose" }
+          },
+          "endCaptures": { "0": { "name": "punctuation.definition.tag.end.sprout-prose" } },
+          "patterns": [
+            {
+              "name": "variable.language.loop.sprout-prose",
+              "match": "\\$(?:first|last|index|count)\\b"
+            },
+            { "name": "variable.language.sprout-prose", "match": "\\b(?:self|actor|here)\\b" },
+            { "name": "constant.language.boolean.sprout-prose", "match": "\\b(?:true|false)\\b" },
+            {
+              "match": "(:)([a-z][a-z0-9_]*)",
+              "name": "constant.other.symbol.sprout-prose",
+              "captures": { "1": { "name": "punctuation.definition.symbol.sprout-prose" } }
+            },
+            { "name": "constant.numeric.integer.sprout-prose", "match": "\\b[0-9]+\\b" },
+            {
+              "match": "\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])",
+              "captures": {
+                "1": { "name": "entity.name.namespace.sprout-prose" },
+                "2": { "name": "punctuation.accessor.sprout-prose" }
+              }
+            },
+            {
+              "name": "entity.name.type.sprout-prose",
+              "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "entity.name.function.sprout-prose",
+              "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()"
+            },
+            { "name": "variable.other.sprout-prose", "match": "\\b[a-z_][a-z0-9_]*" },
+            {
+              "name": "keyword.operator.sprout-prose",
+              "match": "==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]"
+            },
+            { "name": "punctuation.accessor.sprout-prose", "match": "\\." },
+            { "name": "punctuation.separator.sprout-prose", "match": "," },
+            { "name": "punctuation.section.parens.sprout-prose", "match": "[()]" },
+            { "name": "punctuation.separator.label.sprout-prose", "match": ":" }
+          ]
+        },
+        {
+          "name": "meta.tag.sprout-prose",
+          "begin": "(\\{)\\s*(for)\\b",
+          "end": "\\}|(?=\")",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.loop.sprout-prose" }
+          },
+          "endCaptures": { "0": { "name": "punctuation.definition.tag.end.sprout-prose" } },
+          "patterns": [
+            { "name": "keyword.control.loop.sprout-prose", "match": "\\b(?:in|of)\\b" },
+            {
+              "name": "variable.language.loop.sprout-prose",
+              "match": "\\$(?:first|last|index|count)\\b"
+            },
+            { "name": "variable.language.sprout-prose", "match": "\\b(?:self|actor|here)\\b" },
+            { "name": "constant.language.boolean.sprout-prose", "match": "\\b(?:true|false)\\b" },
+            {
+              "match": "(:)([a-z][a-z0-9_]*)",
+              "name": "constant.other.symbol.sprout-prose",
+              "captures": { "1": { "name": "punctuation.definition.symbol.sprout-prose" } }
+            },
+            { "name": "constant.numeric.integer.sprout-prose", "match": "\\b[0-9]+\\b" },
+            {
+              "match": "\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])",
+              "captures": {
+                "1": { "name": "entity.name.namespace.sprout-prose" },
+                "2": { "name": "punctuation.accessor.sprout-prose" }
+              }
+            },
+            {
+              "name": "entity.name.type.sprout-prose",
+              "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "entity.name.function.sprout-prose",
+              "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()"
+            },
+            { "name": "variable.other.sprout-prose", "match": "\\b[a-z_][a-z0-9_]*" },
+            {
+              "name": "keyword.operator.sprout-prose",
+              "match": "==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]"
+            },
+            { "name": "punctuation.accessor.sprout-prose", "match": "\\." },
+            { "name": "punctuation.separator.sprout-prose", "match": "," },
+            { "name": "punctuation.section.parens.sprout-prose", "match": "[()]" },
+            { "name": "punctuation.separator.label.sprout-prose", "match": ":" }
+          ]
+        },
+        {
+          "name": "meta.slot.sprout-prose",
+          "begin": "\\{",
+          "end": "\\}|(?=\")",
+          "beginCaptures": { "0": { "name": "punctuation.definition.tag.begin.sprout-prose" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.tag.end.sprout-prose" } },
+          "patterns": [
+            {
+              "name": "variable.language.loop.sprout-prose",
+              "match": "\\$(?:first|last|index|count)\\b"
+            },
+            { "name": "variable.language.sprout-prose", "match": "\\b(?:self|actor|here)\\b" },
+            { "name": "constant.language.boolean.sprout-prose", "match": "\\b(?:true|false)\\b" },
+            {
+              "match": "(:)([a-z][a-z0-9_]*)",
+              "name": "constant.other.symbol.sprout-prose",
+              "captures": { "1": { "name": "punctuation.definition.symbol.sprout-prose" } }
+            },
+            { "name": "constant.numeric.integer.sprout-prose", "match": "\\b[0-9]+\\b" },
+            {
+              "match": "\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])",
+              "captures": {
+                "1": { "name": "entity.name.namespace.sprout-prose" },
+                "2": { "name": "punctuation.accessor.sprout-prose" }
+              }
+            },
+            {
+              "name": "entity.name.type.sprout-prose",
+              "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "entity.name.function.sprout-prose",
+              "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()"
+            },
+            { "name": "variable.other.sprout-prose", "match": "\\b[a-z_][a-z0-9_]*" },
+            {
+              "name": "keyword.operator.sprout-prose",
+              "match": "==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]"
+            },
+            { "name": "punctuation.accessor.sprout-prose", "match": "\\." },
+            { "name": "punctuation.separator.sprout-prose", "match": "," },
+            { "name": "punctuation.section.parens.sprout-prose", "match": "[()]" },
+            { "name": "punctuation.separator.label.sprout-prose", "match": ":" }
+          ]
+        }
+      ]
+    }
+  }
+}
