@@ -26,7 +26,9 @@ import {
 // admits anyone (the spec's The host contract › Admission and identity):
 // at the place visitors arrive at, or, named with `--at`, at another
 // place as a returning visitor comes back to where they last stood, so
-// that place's `accept` is asked as it would be.
+// that place's `accept` is asked as it would be. `seatReturning` is the
+// shared machinery for that, reused by `sprout play`'s interactive
+// admission over a world already running its own turns.
 
 /** The visitor's nickname where none is given. */
 export const INSPECTOR = 'Inspector';
@@ -74,19 +76,7 @@ export function standIn(bundle: Bundle, options: StandOptions = {}): Standing {
   if (unadmitted !== null) {
     throw new Error(`${unadmitted.words} Give one with --as.`);
   }
-  const wanted = options.at === undefined ? null : placeNamed(loaded, catalogue, options.at);
-
-  let before = loaded;
-  if (wanted !== null) {
-    // A returning visitor, away, whose last place is the one named.
-    const draft = new Draft(loaded);
-    const instance = draft.mint();
-    const kind = catalogue.visitorKind;
-    if (kind === null) throw new Error('This world has nothing for a visitor to be made of.');
-    draft.add(newInstance(instance, { from: 'visitor' }, kind, null, null, catalogue.caps));
-    draft.putVisitor({ visit, nickname, instance, lastPlace: wanted });
-    before = draft.commit().state;
-  }
+  const { before, wanted } = seatReturning(loaded, catalogue, options.at, visit, nickname);
 
   const arrived = arrivalTurn(before, host, { visit, nickname, seed: 0, mayHold: null, now: 0 });
   if (!arrived.committed) {
@@ -106,12 +96,41 @@ export function standIn(bundle: Bundle, options: StandOptions = {}): Standing {
   const actor = arrived.value.instance;
   const place = arrived.value.entered.place;
   if (wanted !== null && place !== wanted) {
-    throw new Error(
-      `\`${options.at}\` does not let a visitor in, so they came in at \`${pathOf(world, place)}\`: ` +
-        `its \`accept\`, or a bound on how many may stand there, turned them away.`,
-    );
+    throw seatingMismatch(world, options.at!, place);
   }
   return { state, host, visit, actor, place };
+}
+
+/**
+ * `loaded`, with `nickname` seated as a returning visitor to `at`'s
+ * place, so their arrival asks that place's `accept` and crowd bound as
+ * a returning visitor's would; unchanged, with no place wanted, where
+ * `at` is undefined. Thrown, listing every place, where `at` names none.
+ */
+export function seatReturning(
+  loaded: WorldState,
+  catalogue: Catalogue,
+  at: string | undefined,
+  visit: VisitKey,
+  nickname: string,
+): { before: WorldState; wanted: InstanceId | null } {
+  if (at === undefined) return { before: loaded, wanted: null };
+  const wanted = placeNamed(loaded, catalogue, at);
+  const draft = new Draft(loaded);
+  const instance = draft.mint();
+  const kind = catalogue.visitorKind;
+  if (kind === null) throw new Error('This world has nothing for a visitor to be made of.');
+  draft.add(newInstance(instance, { from: 'visitor' }, kind, null, null, catalogue.caps));
+  draft.putVisitor({ visit, nickname, instance, lastPlace: wanted });
+  return { before: draft.commit().state, wanted };
+}
+
+/** Thrown where `--at <at>` did not seat a visitor at `wanted`, but at `place` instead. */
+export function seatingMismatch(world: InstanceId, at: string, place: InstanceId): Error {
+  return new Error(
+    `\`${at}\` does not let a visitor in, so they came in at \`${pathOf(world, place)}\`: ` +
+      `its \`accept\`, or a bound on how many may stand there, turned them away.`,
+  );
 }
 
 /** The declared place `written` names, as a path under the world; thrown, listing every place in declared order, where it names none. */

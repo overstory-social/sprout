@@ -8,4 +8,11 @@ process.stdout.on('error', (err) => {
   throw err;
 });
 
-process.exitCode = main(process.argv.slice(2));
+const result = main(process.argv.slice(2));
+if (result instanceof Promise) {
+  result.then((code) => {
+    process.exitCode = code;
+  });
+} else {
+  process.exitCode = result;
+}

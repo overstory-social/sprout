@@ -6,9 +6,11 @@
 # view. It checks the worked microworld and plays each of its golden
 # transcripts, which must print exactly what they hold; runs its own tests,
 # which must pass, and its transcripts as tests, which must pass too; and
-# runs a test that must fail, printing what the world said. It prints the
-# generated skill exactly as corpus/skill/SKILL.md holds it. Runs locally
-# only — there is no CI on this repository.
+# runs a test that must fail, printing what the world said. It plays the
+# new world interactively from a here-document, with and without `-` for
+# the script, and checks the page against the same lines played as a
+# script. It prints the generated skill exactly as corpus/skill/SKILL.md
+# holds it. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 sha=$(git rev-parse --short HEAD)
@@ -40,6 +42,14 @@ for transcript in "$shop"/transcripts/*.txt; do
 done
 npx sprout test "$shop"
 npx sprout test "$shop" "$shop"/transcripts/*.txt | tail -1
+printf 'look\n' | npx sprout play shed > interactive.txt
+printf '@arrive Inspector\nInspector> look\n@leave Inspector\n' > interactive-script.txt
+npx sprout play shed interactive-script.txt > interactive-expected.txt
+diff -u interactive-expected.txt interactive.txt
+echo "played shed interactively from a here-document, equal to the same lines as a script"
+printf 'look\n' | npx sprout play shed - > interactive-dash.txt
+diff -u interactive-expected.txt interactive-dash.txt
+echo "\`-\` for the script plays interactively too"
 printf '@arrive Marta\nMarta> open cabinet\n  You open the type cabinet.\n' > locked.txt
 if npx sprout test "$shop" locked.txt > tested.txt; then
   echo "a failing test passed" >&2
@@ -50,4 +60,4 @@ tail -1 tested.txt
 npx sprout skill > SKILL.md
 cmp SKILL.md "$skill"
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (init, check, parse, view, play, test and skill from the installed CLI at $sha)"
+echo "e2e: green (init, check, parse, view, play (scripted and interactive), test and skill from the installed CLI at $sha)"

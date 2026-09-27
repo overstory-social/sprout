@@ -115,8 +115,11 @@ sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir script              play a script of typed lines and host events through real turns;
-                                      the transcript, each line followed by what every reader read
+  sprout play dir [script] [--at place] [--as name]
+                                      play a script of typed lines and host events through real turns,
+                                      or, with no script (or `-`), interactively from stdin under one
+                                      visitor's own prompt; the transcript, each line followed by what
+                                      every reader read
   sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
                                       with what the world should say indented under a line, the whole line or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure

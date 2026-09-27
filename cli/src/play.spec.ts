@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
-import { heard, playLines, playScript } from './play.js';
+import {
+  arrive,
+  defaultVisitor,
+  freshStage,
+  heard,
+  playInteractive,
+  playLines,
+  playScript,
+} from './play.js';
 import { KILN_YARD, worldFolder } from './testing.js';
 
 const bundle = checkWorld(worldFolder('kiln_yard', KILN_YARD)).bundle!;
@@ -160,5 +168,82 @@ describe('playLines', () => {
     const played = playLines(bundle, '@seed 3\n@arrive Marta\nMarta> go in\n@tick\n');
     expect(played.lines.map((line) => line.made?.length ?? null)).toEqual([null, 1, 1, 0]);
     expect(heard([])).toEqual([{ text: '(nothing)', words: null, fault: false }]);
+  });
+});
+
+describe('freshStage', () => {
+  it('is a world as it loads, at time 0, seed 0, nobody yet arrived', () => {
+    const stage = freshStage(bundle);
+    expect(stage.now).toBe(0);
+    expect(stage.seed).toBe(0);
+    expect(stage.visits.size).toBe(0);
+    expect(defaultVisitor(stage)).toBeNull();
+  });
+});
+
+describe('arrive', () => {
+  it('seats a returning visitor at the place `at` names, its `accept` asked as a returning visitor’s is', () => {
+    const stage = freshStage(bundle);
+    expect(arrive(stage, 'Marta', 'shed')).toEqual([
+      { text: 'Marta (described): A dark shed.', words: 'A dark shed.', fault: false },
+    ]);
+  });
+
+  it('throws where `at` names no place, or does not seat them there, since both are a bad --at', () => {
+    expect(() => arrive(freshStage(bundle), 'Marta', 'nowhere')).toThrow(
+      '`nowhere` is not a place in kiln_yard',
+    );
+  });
+});
+
+describe('defaultVisitor', () => {
+  it('names whoever most recently arrived and still stands, falling back once they leave', () => {
+    const stage = freshStage(bundle);
+    expect(defaultVisitor(stage)).toBeNull();
+    arrive(stage, 'Marta');
+    expect(defaultVisitor(stage)).toBe('Marta');
+    arrive(stage, 'Ines');
+    expect(defaultVisitor(stage)).toBe('Ines');
+  });
+});
+
+describe('playInteractive', () => {
+  it('reads a `Name> text` line exactly as the script grammar does', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    const outcome = playInteractive(stage, 'Marta> fire kiln', 'stdin:2');
+    expect(outcome.line).toBe('Marta> fire kiln');
+    expect(outcome.made).toEqual([
+      {
+        text: 'Marta (said): The chamber takes the flame.',
+        words: 'The chamber takes the flame.',
+        fault: false,
+      },
+    ]);
+  });
+
+  it('reads a host line, a comment and a blank line as the script grammar does, making nothing to echo', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    expect(playInteractive(stage, '# aside', 'stdin:2')).toEqual({ line: '# aside', made: null });
+    expect(playInteractive(stage, '', 'stdin:3')).toEqual({ line: '', made: null });
+    expect(playInteractive(stage, '@tick', 'stdin:4').made).not.toBeNull();
+  });
+
+  it('fills in a bare line’s addressee, and throws naming where, where nobody stands to address it', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    const outcome = playInteractive(stage, 'fire kiln', 'stdin:2');
+    expect(outcome.line).toBe('Marta> fire kiln');
+    expect(outcome.made).toEqual([
+      {
+        text: 'Marta (said): The chamber takes the flame.',
+        words: 'The chamber takes the flame.',
+        fault: false,
+      },
+    ]);
+    expect(() => playInteractive(freshStage(bundle), 'look', 'stdin:1')).toThrow(
+      'stdin:1: nobody is standing to hear it',
+    );
   });
 });

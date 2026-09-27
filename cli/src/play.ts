@@ -23,7 +23,7 @@ import {
   type WorldState,
 } from '@overstory/sprout/lang';
 
-import { pathOf } from './stand.js';
+import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 
 // `sprout play`: a script of what visitors type and what the host does,
 // played through real turns over a freshly loaded world, and the
@@ -46,6 +46,13 @@ import { pathOf } from './stand.js';
 // its own golden, and a changed line is a changed behaviour. `sprout
 // test` reads the same script through `playLines`, keeping what the author
 // indented under each line as what they expect of it.
+//
+// `playLine` is one line of that grammar against a `Stage`; `sprout play`
+// with no script drives the same `Stage` and `playLine` interactively,
+// one line at a time from stdin, so a typed session is a script by
+// construction. `playInteractive` is its line, widened to admit a bare
+// line (no `Name>` before it) for whoever most recently arrived and
+// still stands, which the script grammar itself never admits.
 
 /** What playing gave: the transcript. */
 export interface Played {
@@ -84,13 +91,16 @@ export interface PlayedLines {
 }
 
 /** The host's side of one play: the world as it stands, the instant, the seed, and each nickname's visit. */
-interface Stage {
+export interface Stage {
   readonly host: CommandHost;
   state: WorldState;
   now: HostSeconds;
   seed: number;
   readonly visits: Map<string, VisitKey>;
 }
+
+/** `Marta> take brass key`: who types it and what they typed. */
+const TYPED_LINE = /^([^\s>@#][^>]*)> ?(.*)$/;
 
 const UNITS: Readonly<Record<string, number>> = {
   second: 1,
@@ -139,8 +149,15 @@ function inputs(stage: Stage): { seed: number; mayHold: null; now: HostSeconds }
   return { seed: stage.seed, mayHold: null, now: stage.now };
 }
 
-/** `@arrive Marta`: catch-up, then the arrival, as a host admits anyone. */
-function arrive(stage: Stage, nickname: string): Made[] {
+/**
+ * `@arrive Marta`: catch-up, then the arrival, as a host admits anyone.
+ * `at` seats them as a returning visitor to that place first, as the
+ * interactive session's own first line does (`--at`, as `sprout parse`
+ * takes it); the script grammar never passes it, since `@arrive` names
+ * no place. Thrown where `at` names no place, or does not seat them
+ * there, since both are a bad `--at` rather than a turn's outcome.
+ */
+export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
   const visit = stage.visits.get(nickname) ?? visitKey(`visit:${nickname}`);
   const { catalogue } = stage.host;
   const refused = nicknameRefusal(stage.state, catalogue, stage.host.budgets, visit, nickname);
@@ -159,9 +176,14 @@ function arrive(stage: Stage, nickname: string): Made[] {
       hostLineOf(`left for live time: ${pathOf(stage.state.world, wake.object)}'s wake`),
     ),
   ];
+  const { before, wanted } = seatReturning(stage.state, catalogue, at, visit, nickname);
+  stage.state = before;
   const arrived = arrivalTurn(stage.state, stage.host, { ...inputs(stage), visit, nickname });
   if (arrived.committed) {
     stage.state = arrived.state;
+    if (wanted !== null && arrived.value.entered.place !== wanted) {
+      throw seatingMismatch(stage.state.world, at!, arrived.value.entered.place);
+    }
     return [...out, ...effectLines(stage, arrived.effects)];
   }
   if ('closed' in arrived) return [...out, hostLineOf(`closed: ${arrived.closed.words}`)];
@@ -174,7 +196,7 @@ function arrive(stage: Stage, nickname: string): Made[] {
 }
 
 /** `@leave Marta`: a departure turn. */
-function leave(stage: Stage, nickname: string, where: string): Made[] {
+export function leave(stage: Stage, nickname: string, where: string): Made[] {
   const visit = present(stage, nickname, where);
   const left = departureTurn(stage.state, stage.host, { ...inputs(stage), visit });
   if (left.committed) {
@@ -248,17 +270,35 @@ function advance(stage: Stage, seconds: number): Made[] {
   return out;
 }
 
-/** The visit `nickname` is standing in the world under; thrown where they are not. */
-function present(stage: Stage, nickname: string, where: string): VisitKey {
+/** Whether `nickname` is standing in the world under `stage`'s state. */
+function isPresent(stage: Stage, nickname: string): boolean {
   const visit = stage.visits.get(nickname);
   const record = visit === undefined ? undefined : stage.state.visitors.get(visit);
-  const here = record !== undefined && stage.state.instances.get(record.instance)?.container;
-  if (visit === undefined || !here) {
+  return record !== undefined && Boolean(stage.state.instances.get(record.instance)?.container);
+}
+
+/** The visit `nickname` is standing in the world under; thrown where they are not. */
+function present(stage: Stage, nickname: string, where: string): VisitKey {
+  if (!isPresent(stage, nickname)) {
     throw new Error(
       `${where}: ${nickname} is not in the world: write \`@arrive ${nickname}\` first.`,
     );
   }
-  return visit;
+  return stage.visits.get(nickname)!;
+}
+
+/**
+ * Who a bare interactive line addresses: whoever most recently arrived
+ * and still stands, arrival order among those who ever have; null where
+ * nobody does. The script grammar never needs this, since every typed
+ * line names who it is.
+ */
+export function defaultVisitor(stage: Stage): string | null {
+  const arrived = [...stage.visits.keys()];
+  for (let i = arrived.length - 1; i >= 0; i--) {
+    if (isPresent(stage, arrived[i]!)) return arrived[i]!;
+  }
+  return null;
 }
 
 /**
@@ -297,10 +337,10 @@ function hostLine(stage: Stage, line: string, where: string): Made[] | null {
   }
 }
 
-/** Play `script` over a freshly loaded `bundle`, line by line, keeping what each line had indented under it. */
-export function playLines(bundle: Bundle, script: string, name = 'the script'): PlayedLines {
+/** A fresh stage over `bundle`'s world: as it loads, time at 0, seed 0, nobody yet arrived. */
+export function freshStage(bundle: Bundle): Stage {
   const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
-  const stage: Stage = {
+  return {
     host: {
       catalogue,
       budgets: DEFAULT_LIMITS.budgets,
@@ -312,6 +352,59 @@ export function playLines(bundle: Bundle, script: string, name = 'the script'): 
     seed: 0,
     visits: new Map(),
   };
+}
+
+/**
+ * The script grammar's own reading of one line against `stage`: null for
+ * a comment, a blank line or `@seed`. Thrown, saying what to write,
+ * where the line is neither what someone types, what the host does, nor
+ * a comment.
+ */
+function playLine(stage: Stage, trimmed: string, where: string): readonly Made[] | null {
+  if (trimmed === '' || trimmed.startsWith('#')) return null;
+  if (trimmed.startsWith('@')) return hostLine(stage, trimmed, where);
+  const typed = TYPED_LINE.exec(trimmed);
+  if (typed === null) {
+    throw new Error(
+      `${where}: a line is what someone types, as in \`Marta> take brass key\`, what the host does, ` +
+        'as in `@arrive Marta`, or a `#` comment; what a line made is indented under it.',
+    );
+  }
+  return command(stage, typed[1]!.trim(), typed[2]!, where);
+}
+
+/**
+ * One line typed at the interactive prompt against `stage`: `Marta>
+ * take brass key` addresses Marta by name, as the script grammar reads
+ * it; a bare `take brass key` addresses whoever `defaultVisitor` names,
+ * since the prompt already said whose turn it is. The canonical line it
+ * is, with a bare line's addressee filled in, and what it made — the
+ * same shape a script line and its made lines are, so the pair, printed,
+ * is a script line played again. Thrown, naming where, where nobody
+ * stands to address a bare line.
+ */
+export function playInteractive(
+  stage: Stage,
+  raw: string,
+  where: string,
+): { line: string; made: readonly Made[] | null } {
+  const trimmed = raw.trimEnd();
+  if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('@')) {
+    return { line: trimmed, made: playLine(stage, trimmed, where) };
+  }
+  if (TYPED_LINE.test(trimmed)) {
+    return { line: trimmed, made: playLine(stage, trimmed, where) };
+  }
+  const nickname = defaultVisitor(stage);
+  if (nickname === null) {
+    throw new Error(`${where}: nobody is standing to hear it: write \`@arrive Marta\` first.`);
+  }
+  return { line: `${nickname}> ${trimmed}`, made: command(stage, nickname, trimmed, where) };
+}
+
+/** Play `script` over a freshly loaded `bundle`, line by line, keeping what each line had indented under it. */
+export function playLines(bundle: Bundle, script: string, name = 'the script'): PlayedLines {
+  const stage = freshStage(bundle);
   const played: { at: number; line: string; made: readonly Made[] | null; under: Written[] }[] = [];
   const before: Written[] = [];
   const lines = script.split('\n');
@@ -324,19 +417,7 @@ export function playLines(bundle: Bundle, script: string, name = 'the script'): 
       continue;
     }
     const trimmed = line.trimEnd();
-    const made = (): readonly Made[] | null => {
-      if (trimmed === '' || trimmed.startsWith('#')) return null;
-      if (trimmed.startsWith('@')) return hostLine(stage, trimmed, where);
-      const typed = /^([^\s>@#][^>]*)> ?(.*)$/.exec(trimmed);
-      if (typed === null) {
-        throw new Error(
-          `${where}: a line is what someone types, as in \`Marta> take brass key\`, what the host does, ` +
-            'as in `@arrive Marta`, or a `#` comment; what a line made is indented under it.',
-        );
-      }
-      return command(stage, typed[1]!.trim(), typed[2]!, where);
-    };
-    played.push({ at, line: trimmed, made: made(), under: [] });
+    played.push({ at, line: trimmed, made: playLine(stage, trimmed, where), under: [] });
   }
   return { lines: played, before };
 }
