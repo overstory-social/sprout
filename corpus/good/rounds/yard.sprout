@@ -1,0 +1,5 @@
+// The yard wakes its own crow once a tick, rather than the crow keeping
+// itself ticking, since only a place is ticked (the spec's Time › Ticks).
+kind Yard is sprout.Place {
+  on :tick (_) { send crow :go }
+}

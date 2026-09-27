@@ -6,12 +6,15 @@
 // leaves it out.
 
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { playsOf } from '../declare/roles.js';
 import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { compiledWorld } from './bundle.js';
-import type { Speech } from '../runtime/body.js';
+import { runBody, type ActSink, type Speech } from '../runtime/body.js';
 import { Budget } from '../runtime/budget.js';
 import { catalogueOf, type Catalogue } from '../runtime/catalogue.js';
 import { Draft } from '../runtime/draft.js';
+import { Draws } from '../runtime/draws.js';
+import type { Frame } from '../runtime/evaluate.js';
 import type { Refusal } from '../runtime/guards.js';
 import { declaredId, type InstanceId } from '../runtime/ids.js';
 import { initialState } from '../runtime/load.js';
@@ -73,6 +76,8 @@ const KEEP = {
     'kind Creature is sprout.Actor {',
     '  :capacity 2',
     '  passage hands_full { {self} has no hand free. }',
+    '  as target for walk   { do { move self to porch } }',
+    '  as target for wander { do { move self to yard } }',
     '}',
     'kind Person is Creature, sprout.Visitor { }',
     'kind Room { contains actors }',
@@ -88,6 +93,8 @@ const KEEP = {
     'kind Heavy { depart (to) { refuse "It is too heavy." } }',
     'kind Fragile { depart (to) { refuse "It would break." } }',
     'kind Easy { depart (to) { allow } }',
+    'verb walk { role target "walk [target] out" }',
+    'verb wander { role target "wander [target] off" }',
     '',
   ].join('\n'),
 };
@@ -156,6 +163,62 @@ export function visitorIn(draft: Draft, container: InstanceId | null, from: Cata
 export function turn(): { draft: Draft; visitor: InstanceId } {
   const draft = new Draft(initialState(catalogue));
   return { draft, visitor: visitorIn(draft, HALL) };
+}
+
+/**
+ * Run `self`'s `do` as the target of `verb`, restrictive `passing()`
+ * throughout, so a name out of range faults as it would over the real
+ * world's pass rule. Every `move` it proposed, mover, item and
+ * destination in the order it ran; a `move` is not carried out, so the
+ * tree is untouched.
+ */
+export function acted(
+  draft: Draft,
+  self: InstanceId,
+  verb: string,
+): readonly (readonly [InstanceId, InstanceId, InstanceId])[] {
+  const plays = playsOf(draft.instance(self)!.kind.plays, 'keep', verb, 'target');
+  const block = plays[0]?.declaration.do;
+  if (block === undefined || block === null) throw new Error(`no \`do\` for ${verb}`);
+  const budget = new Budget(DEFAULT_LIMITS.budgets);
+  const moves: [InstanceId, InstanceId, InstanceId][] = [];
+  const sink: ActSink = {
+    lifecycle: {
+      draft,
+      catalogue,
+      passes: passing(),
+      budget,
+      draws: new Draws(1),
+      mayHold: null,
+      now: 0,
+    },
+    say: () => {},
+    tell: () => {},
+    sent: () => {},
+    record: () => {},
+    destroyed: () => {},
+    marked: () => {},
+    move: (mover, item, to) => {
+      moves.push([mover, item, to]);
+      return 'done';
+    },
+    act: () => {
+      throw new Error('`acted` does not run an `act`.');
+    },
+  };
+  const frame: Frame = {
+    state: draft,
+    kinds: catalogue.lookup,
+    library: 'keep',
+    self,
+    names: catalogue.names,
+    passes: passing(),
+    bindings: new Map(),
+    budget,
+    caps: CAPS,
+  };
+  runBody(block, frame, 'act', sink);
+  return moves;
 }
 
 export function moved(outcome: Moved | Refused): Moved {
