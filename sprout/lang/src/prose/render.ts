@@ -143,7 +143,7 @@ function slot(
     throw new Error('a slot rendered a set or `readings` whole, which the checker refuses.');
   }
   if (typeof value.value === 'boolean' || value.value instanceof SproutList) {
-    throw new Error('a slot rendered a set, a boolean or a list, which the checker refuses.');
+    throw new Error('a slot rendered a boolean or a list, which the checker refuses.');
   }
   const text =
     typeof value.value === 'number'

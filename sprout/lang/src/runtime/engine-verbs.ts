@@ -159,7 +159,7 @@ function helpFor(actor: InstanceId, here: InstanceId, context: OfferContext): Sa
  * Whether some participant of `reading` plays a part in it: a `permit`
  * or a `do` written for the role they fill. One of the engine's own six
  * verbs needs none, since the engine answers it itself rather than a
- * play (the spec's Engine verbs: `help`).
+ * play (the spec's Engine verbs: `help`; working notes Open 425).
  */
 function someParticipantPlays(reading: Reading, context: OfferContext): boolean {
   const { verb } = reading;
