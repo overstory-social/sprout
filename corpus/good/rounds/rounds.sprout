@@ -1,0 +1,15 @@
+// The watchman keeps to his own rounds: an NPC composing only
+// `sprout.Actor`, who follows whoever leaves the yard out through its
+// one exit, exactly as a visitor's own `go` would (the spec's Verbs ›
+// Acting). The shed has no way back, so once he is in it he stays.
+world rounds is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { exit in "in through the low door" -> shed }
+    object watchman is Watchman
+  }
+
+  object shed is sprout.Place
+}

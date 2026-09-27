@@ -23,6 +23,7 @@ import {
   moved,
   passing,
   PEBBLE,
+  PORCH,
   POT,
   PURSE,
   refusalOf,
@@ -38,6 +39,7 @@ import {
   VASE,
   visitorIn,
   WORLD_ID,
+  YARD,
 } from '../fixtures/move.js';
 import { chooser } from '../fixtures/parse.js';
 import { Budget } from './budget.js';
@@ -99,6 +101,42 @@ describe('a move asks the thing, then where it is, then where it goes', () => {
     reaches(walk, fresh.visitor, TRAY, 'any');
     // The statement that proposed it is its body's step, not the move's.
     expect(budget.spentSteps).toBe(ranged.spentSteps);
+  });
+});
+
+describe('an actor’s move reaches another place through its own exits and links', () => {
+  it('reaches a place out of its mover’s range as the destination of an exit of the mover’s own place', () => {
+    // Marta, an NPC in the hall, walks herself out through its one exit,
+    // as the poll offers a visitor the same way (the spec's Verbs › Acting).
+    // The move then runs as any other: the hall's `leaves` and the
+    // porch's `arrives`, read by whoever is there to hear them.
+    const { draft } = turn();
+    const outcome = moved(moveInstance(context(draft), MARTA, MARTA, PORCH));
+    expect(draft.instance(MARTA)!.container).toBe(PORCH);
+    expect(outcome.notices.map((notice) => [notice.notice, notice.place])).toEqual([
+      ['leaves', HALL],
+      ['arrives', PORCH],
+      ['described', PORCH],
+    ]);
+  });
+
+  it('stays out of range of a place no exit or link of the mover’s own place reaches, and faults', () => {
+    // The yard has no exit from the hall, so it is out of range for Marta
+    // exactly as it is for a visitor (`move/faults.spec.ts`).
+    const { draft } = turn();
+    let thrown: unknown;
+    try {
+      moveInstance(context(draft), MARTA, MARTA, YARD);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(MoveFault);
+    const fault = thrown as MoveFault;
+    expect(fault.reason).toBe('out-of-range');
+    expect(fault.message).toBe(
+      `\`${YARD}\` is out of range of \`${MARTA}\`, so nothing could be moved into it.`,
+    );
+    expect(draft.instance(MARTA)!.container).toBe(HALL);
   });
 });
 

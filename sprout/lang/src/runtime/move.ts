@@ -12,18 +12,26 @@
 // the messages for the queue (`bus.ts`), and the notices a place speaks,
 // for `prose/` to render, the new place's description to the one who
 // moved among them (`engine-verbs.ts`). A move is charged for what it
-// runs, its range walks and its guards' bodies, and nothing for itself:
-// the statement that proposed it is its body's step.
+// runs, its range walks, the guards of its place's ways out and its
+// guards' bodies, and nothing for itself: the statement that proposed it
+// is its body's step.
+//
+// Another place is in range of an actor's `move` only as the destination
+// of an exit or a link of the mover's place that applies, asked as the
+// poll asks it (the spec's Verbs › Acting), so an NPC walks the map as a
+// visitor does; a place reached no such way is out of range and faults.
 
 import { isActor } from '../declare/actors.js';
 import type { GuardName } from '../syntax/ast.js';
 import type { ResolvedPassage } from '../declare/passages.js';
+import { placeOfTeller } from './audience.js';
 import type { Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { crowded, turnedAway } from './crowd.js';
 import type { Draft } from './draft.js';
 import { boundObject, type Evaluated } from './evaluate.js';
+import { exitsFrom } from './exits.js';
 import { runGuard, type Refusal } from './guards.js';
 import type { InstanceId } from './ids.js';
 import { engineLine } from './engine-lines.js';
@@ -159,7 +167,7 @@ export type Reach = 'range' | 'exit';
  * three parties' guards, then the one write.
  * Faults, writing nothing, when the item is the world or an away visitor,
  * the item is out of `mover`'s range, `to` is not live or, reached
- * through range, out of it, or `to` holds nothing.
+ * through range, out of the move's range, or `to` holds nothing.
  */
 export function moveInstance(
   context: MoveContext,
@@ -189,7 +197,7 @@ export function moveInstance(
       `\`${item}\` is out of range of \`${mover}\`, so it could not be moved.`,
     );
   }
-  if (!isLive(draft, to) || (reach === 'range' && !reaches(range, mover, to, 'any'))) {
+  if (!isLive(draft, to) || (reach === 'range' && !reachedForMove(context, range, mover, to))) {
     throw new MoveFault(
       'out-of-range',
       to,
@@ -381,6 +389,27 @@ function worldPassage(draft: Draft, name: string): ResolvedPassage {
   if (passage === undefined)
     throw new Error(`the world composes no \`${name}\` passage, which \`sprout.World\` writes.`);
   return passage;
+}
+
+/**
+ * Whether `to` is in range of a move `mover` proposes: in `mover`'s range,
+ * or, where `mover` is an actor, the destination of an exit or a link of
+ * its place that applies now (the spec's Verbs › Acting). Only the mover's
+ * own place's ways out count, so any other place is out of range.
+ */
+function reachedForMove(
+  context: MoveContext,
+  range: RangeContext<InstanceId>,
+  mover: InstanceId,
+  to: InstanceId,
+): boolean {
+  const { draft, catalogue, passes, budget } = context;
+  if (reaches(range, mover, to, 'any')) return true;
+  const kind = draft.instance(mover)?.kind;
+  if (kind === undefined || !isActor(kind)) return false;
+  const place = placeOfTeller(draft, mover);
+  if (place === null) return false;
+  return exitsFrom(place, { state: draft, catalogue, budget, passes }).some((way) => way.to === to);
 }
 
 /** Whether `node` is `outer` or anywhere inside it, climbing the draft's containers. */
