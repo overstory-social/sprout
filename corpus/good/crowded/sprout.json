@@ -1,0 +1,16 @@
+{
+  "name": "crowded",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "95f1eba2f3f81e2f4939f52990e472af035b39a14e44effc39d7c0ff1b98da74"
+    }
+  ],
+  "files": ["crowded.sprout", "person.sprout"]
+}
