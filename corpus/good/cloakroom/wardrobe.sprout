@@ -1,0 +1,6 @@
+kind Wardrobe {
+  contains actors
+  :open false
+  pass any (self.get(:open))
+  describe { text "A wardrobe, its door {if self.get(:open)}standing open{else}pulled shut{/if}." }
+}

@@ -6,19 +6,22 @@
 // know when asked, and one refuses to witness a vouching; a keypad hears
 // a code from 1 to 12, and a dial hears a notch within its own property's
 // range. A pebble lies in the yard and a coin in a purse there, for a
-// visitor to be handed. The world's own `unseen` costs a step to say.
+// visitor to be handed. A wardrobe stands open with a hare inside it, and
+// a trunk stands shut with a mole inside it, for who is in range under
+// the pass rules. The world's own `unseen` costs a step to say. Its
+// context asks each container's own pass rule, as a write turn does.
 // `runtime/options.spec.ts`, `runtime/view.spec.ts`
 // and `prose/view.spec.ts` share it. Spec support: the package build
 // leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
-import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { Budget } from '../runtime/budget.js';
 import { catalogueOf } from '../runtime/catalogue.js';
 import { Draft } from '../runtime/draft.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
 import { initialState } from '../runtime/load.js';
+import { passRules } from '../runtime/passes.js';
 import { renderEffects } from '../prose/effects.js';
 import type { OfferContext } from '../runtime/offers.js';
 import { newInstance, nicknamesIn, readerOf, type WorldState } from '../runtime/state.js';
@@ -43,6 +46,8 @@ export const GATEHOUSE: Bundle = compiledWorld('gatehouse', {
     object dial is Dial
     object pebble is Pebble
     object purse is Purse { object coin is Pebble }
+    object wardrobe is Wardrobe { :open true  object hare is Rabbit }
+    object trunk is Wardrobe { object mole is Rabbit }
   }
   object tower is sprout.Place {
     grammar { link stair "down the back stair" }
@@ -96,6 +101,13 @@ enum Topic { bridge, toll, weather, old_road }
 `,
   'pebble.sprout': 'kind Pebble { }\n',
   'purse.sprout': 'kind Purse { contains }\n',
+  'wardrobe.sprout': `kind Wardrobe {
+  contains actors
+  :open false
+  pass any (self.get(:open))
+}
+`,
+  'rabbit.sprout': 'kind Rabbit is sprout.Actor { }\n',
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
 });
 
@@ -109,6 +121,10 @@ export const DIAL = at('yard', 'dial');
 export const PEBBLE = at('yard', 'pebble');
 export const PURSE = at('yard', 'purse');
 export const COIN = at('yard', 'purse', 'coin');
+export const WARDROBE = at('yard', 'wardrobe');
+export const HARE = at('yard', 'wardrobe', 'hare');
+export const TRUNK = at('yard', 'trunk');
+export const MOLE = at('yard', 'trunk', 'mole');
 
 export const GATE_CATALOGUE = catalogueOf(GATEHOUSE, DEFAULT_LIMITS.caps);
 
@@ -169,13 +185,21 @@ export function gatehouse(
 export const actorOf = (state: WorldState, visit: VisitKey): InstanceId =>
   state.visitors.get(visit)!.instance;
 
-/** What deriving a view reads over the committed `state`, under a fresh poll budget. */
+/** What deriving a view reads over the committed `state`, under a fresh poll budget, asking each container's own pass rule. */
 export function pollingIn(state: WorldState, pollSteps?: number): OfferContext {
+  const reader = readerOf(state);
+  const budget = new Budget(gateHost(pollSteps).budgets, 'poll');
   return {
-    state: readerOf(state),
+    state: reader,
     catalogue: GATE_CATALOGUE,
-    budget: new Budget(gateHost(pollSteps).budgets, 'poll'),
-    passes: (container) => (container === state.world ? WORLD_PASSES_ANYTHING : true),
+    budget,
+    passes: passRules({
+      state: reader,
+      kinds: GATE_CATALOGUE.lookup,
+      caps: GATE_CATALOGUE.caps,
+      budget,
+      names: GATE_CATALOGUE.names,
+    }),
     nicknames: nicknamesIn(state),
   };
 }
