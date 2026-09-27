@@ -1,0 +1,10 @@
+# The watchman hears `:departed` when Marta leaves the yard, and follows
+# her out through its one exit: the yard's own `leaves`, read by Ines who
+# stays, and the shed's `arrives`, read by Marta who went ahead.
+@arrive Marta
+@arrive Ines
+Marta> go in
+  Ines (notice): Marta leaves.
+  Ines (notice): A watchman leaves.
+  Marta (notice): A watchman arrives.
+  Marta (described): There is nothing special about a shed.
