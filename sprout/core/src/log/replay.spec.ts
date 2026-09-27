@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS, dueWakes } from '@overstory/sprout/lang';
 
+import { ConversationPace, runConversation } from '../conversation.js';
 import { command, GAUGE, HALL, MARTA, tally } from '../fixtures/tally.js';
 import { memoryStore } from '../memory-store.js';
 import type { MicroworldRecord } from '../records.js';
@@ -42,10 +43,12 @@ const hosts: ReplayHosts = (opening) => {
   throw new Error(`no bundle ${opening.bundle}`);
 };
 
+const TALK = { rules: { characters: null, pace: null }, moderate: () => true };
+
 /**
- * A world played from its first publish: Marta arrives, types, is
- * ticked and woken, faults twice, leaves, comes back to a catch-up that
- * faults, and plays on after a republish; one poll faults.
+ * A world played from its first publish: Marta arrives, types, says
+ * something, is ticked and woken, faults twice, leaves, comes back to a
+ * catch-up that faults, and plays on after a republish; one poll faults.
  */
 async function played(): Promise<SproutStore> {
   const store = memoryStore();
@@ -53,6 +56,11 @@ async function played(): Promise<SproutStore> {
   await publishWorld(store, record, first.bundle, 0);
   await runArrival(store, 'w', host, at(1), { visit: MARTA, nickname: 'Marta', ...at(1) }, OPEN);
   await runCommand(store, 'w', host, command('bump counter', 2));
+  await runConversation(store, 'w', host, TALK, new ConversationPace(), {
+    visit: MARTA,
+    text: 'one more',
+    at: 2,
+  });
   await runCommand(store, 'w', host, command('smash counter', 3));
   const tight = { ...host, budgets: { ...host.budgets, steps: 1 } };
   await runCommand(store, 'w', tight, command('bump gauge', 4));
@@ -78,14 +86,17 @@ async function played(): Promise<SproutStore> {
   return store;
 }
 
+const NOT_TURNS = ['publish', 'withholding', 'said', 'poll-fault'];
 const turnsIn = (log: readonly Logged[]) =>
-  log.filter(({ entry }) => !['publish', 'withholding', 'poll-fault'].includes(entry.kind)).length;
+  log.filter(({ entry }) => !NOT_TURNS.includes(entry.kind)).length;
 
 describe('replaying the log', () => {
   it('reproduces the world exactly, every turn against the bundle published before it', async () => {
     const store = await played();
     const log = await wholeLog(store, 'w', 4);
-    expect(log.map(({ entry }) => entry.kind)).toContain('poll-fault');
+    expect(log.map(({ entry }) => entry.kind)).toEqual(
+      expect.arrayContaining(['said', 'poll-fault']),
+    );
     const replayed = replayLog(log, hosts);
     expect(replayed.diverged).toEqual([]);
     expect(replayed.turns).toBe(turnsIn(log));
@@ -141,15 +152,16 @@ describe('replaying the log', () => {
     );
   });
 
-  it('never replays a poll’s fault, and writes nothing for it', async () => {
+  it('never replays a poll’s fault or a line said, and writes nothing for either', async () => {
     const log = await wholeLog(await played(), 'w', 100);
-    const polls = log.filter(({ entry }) => entry.kind === 'poll-fault');
-    expect(polls).toHaveLength(1);
-    const without = replayLog(
-      log.filter(({ entry }) => entry.kind !== 'poll-fault'),
-      hosts,
-    );
-    expect(without).toEqual(replayLog(log, hosts));
-    expect(without.state.instances.find((i) => i.id === GAUGE)).toBeDefined();
+    for (const kind of ['poll-fault', 'said']) {
+      expect(log.filter(({ entry }) => entry.kind === kind)).toHaveLength(1);
+      const without = replayLog(
+        log.filter(({ entry }) => entry.kind !== kind),
+        hosts,
+      );
+      expect(without).toEqual(replayLog(log, hosts));
+      expect(without.state.instances.find((i) => i.id === GAUGE)).toBeDefined();
+    }
   });
 });

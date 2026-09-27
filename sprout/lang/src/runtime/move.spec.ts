@@ -222,7 +222,7 @@ describe('the host’s bound on a crowd', () => {
     const refused = moveInstance(context(draft, { budget }), visitor, visitor, ALCOVE);
     expect(refused).toMatchObject({
       engine: 'full',
-      said: { text: 'There is no room in {to} for {item}.' },
+      said: { passage: { origin: 'sprout.World', name: 'crowded' } },
       bindings: new Map([
         ['item', boundObject(visitor)],
         ['to', boundObject(ALCOVE)],
@@ -232,7 +232,7 @@ describe('the host’s bound on a crowd', () => {
     // A stranger carrying the person off is turned away by the host before
     // `sprout.Actor`'s `depart` refuses it.
     expect(said(moveInstance(context(draft, { budget: bounded(1) }), MARTA, visitor, ALCOVE))).toBe(
-      'engine full: "There is no room in {to} for {item}."',
+      'engine full: sprout.World crowded: There is no room in {to} for {item}.',
     );
   });
 

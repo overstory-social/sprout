@@ -1,0 +1,9 @@
+// The engine says the world's `crowded` with `{item}` and `{to}` alone.
+world crowded_unbound is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  passage crowded { {actor} cannot fit in {to}. }
+
+  object yard is sprout.Place
+}

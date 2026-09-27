@@ -32,6 +32,7 @@ kind World {
   passage missing default         { This world uses something this host does not provide, and will be missing some of itself. }
   passage displaced default       { The place you were standing is gone. }
   passage inside_itself default   { {item} cannot go inside itself. }
+  passage crowded default         { There is no room in {to} for {item}. }
 }
 `;
 

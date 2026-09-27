@@ -92,6 +92,24 @@ export const WARNING_TABLE: readonly ProblemEntry[] = [
     snippet: { hall: '    passage arrive { Someone comes in out of the rain. }' },
   },
   {
+    about: '`contains` written twice in one body',
+    snippet: kind(
+      'crate.sprout',
+      'kind Crate {\n  contains\n  :open true\n  contains\n}\n',
+      'crate',
+      'Crate',
+    ),
+  },
+  {
+    about: 'A statement after `allow` or `refuse`',
+    snippet: kind(
+      'lid.sprout',
+      'kind Lid {\n  as target for pry { permit { refuse "The lid is stuck fast."  allow } do { say "The lid comes free." } }\n}\n\nverb pry { role target  "pry [target]" }\n',
+      'lid',
+      'Lid',
+    ),
+  },
+  {
     about: 'An exit whose `when` is `false`',
     snippet: { hall: '    grammar { exit north "a bricked-up door" -> hall when (false) }' },
   },

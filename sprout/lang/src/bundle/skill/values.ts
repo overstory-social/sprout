@@ -93,23 +93,37 @@ export const WRITE_TABLE: readonly Entry[] = [
   },
 ];
 
+/** A line said before a write of what it reads: rendered after the write, since a turn's lines render once its work is done. */
+export const RENDERED_AFTER = {
+  property: ':count 3 min 0 max 99',
+  line: 'say "{self.get(:count)} left"',
+  write: 'self.adjust(:count, -1)',
+} as const;
+
 /** Each draw, which a body that decides or describes may not make. */
 export const DRAW_TABLE: readonly Entry[] = [
   { word: 'chance', example: 'chance(3)', means: 'true one time in three' },
   { word: 'random', example: 'random(6)', means: 'a whole number from 0 to 5' },
 ];
 
-/** The kind every example stands in: each type a property, each reading a `let`, each write and draw in its `do`. */
+/** The kind every example stands in: each type a property, each reading a `let`, each write and draw in its `do`, and the line said before its write. */
 export function valuesProbe(): Snippet {
   const readings = READING_TABLE.map((entry, i) => `let r${i} = ${entry.example}`);
   const draws = DRAW_TABLE.map((entry, i) => `let d${i} = ${entry.example}`);
-  const statements = [...readings, ...draws, ...WRITE_TABLE.map((entry) => entry.example)];
+  const statements = [
+    ...readings,
+    ...draws,
+    ...WRITE_TABLE.map((entry) => entry.example),
+    RENDERED_AFTER.line,
+    RENDERED_AFTER.write,
+  ];
   return {
     hall: '    object probe is Probe',
     files: {
       'probe.sprout': [
         'kind Probe is sprout.Actor {',
         ...TYPE_TABLE.map((entry) => `  ${entry.example}`),
+        `  ${RENDERED_AFTER.property}`,
         '  as target for poke {',
         '    do {',
         ...statements.map((statement) => `      ${statement}`),
@@ -153,6 +167,10 @@ export function valuesSection(): string {
     heading(3, 'Writing'),
     'Only `self` writes `self`; anything else is asked, with a message.',
     table(['written', 'does'], rows(entriesFor('write', [...EFFECTS], WRITE_TABLE))),
+    'A turn’s lines are rendered once its work is done, against what it wrote, so a line reads a ' +
+      'property as the turn left it whichever comes first: ' +
+      `${code(RENDERED_AFTER.line)} followed by ${code(RENDERED_AFTER.write)} says the count ` +
+      'after the adjust.',
     heading(3, 'Chance'),
     'In prose, `{one of}…{or}…{/one of}` picks one choice. ' +
       `A draw may stand in ${listed(drawsStand)}, and in no other body.`,

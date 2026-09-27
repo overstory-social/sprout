@@ -7,6 +7,7 @@ import { DepartureEntry } from './departure.js';
 import { MaintenanceEntry } from './maintenance.js';
 import { PollFaultEntry } from './poll-fault.js';
 import { PublishEntry } from './publish.js';
+import { SaidEntry } from './said.js';
 import { TickEntry } from './tick.js';
 import { WakeEntry } from './wake.js';
 import { WithholdingEntry } from './withholding.js';
@@ -16,10 +17,11 @@ import { WithholdingEntry } from './withholding.js';
 // holds every write turn with its inputs and seed — commands, ticks,
 // wakes and maintenance, and every visitor's entry, exit and nickname —
 // with what each said; every publish and withholding, with the bundle's
-// hash; and a poll's fault, which is the one thing of a poll it holds.
-// Each entry is appended inside the transaction of the turn it records,
-// so a turn and its entry land together, and the order is the order the
-// world's lock let them run.
+// hash; every line a visitor said to the others, with who heard it; and
+// a poll's fault, which is the one thing of a poll it holds. Each turn's
+// entry is appended inside the transaction of the turn it records, so a
+// turn and its entry land together, and the order is the order the
+// world's lock let them run; a line said is appended under the same lock.
 
 export const LogEntry = z.discriminatedUnion('kind', [
   CommandEntry,
@@ -30,6 +32,7 @@ export const LogEntry = z.discriminatedUnion('kind', [
   DepartureEntry,
   PublishEntry,
   WithholdingEntry,
+  SaidEntry,
   PollFaultEntry,
 ]);
 export type LogEntry = z.infer<typeof LogEntry>;
@@ -39,7 +42,10 @@ export const Logged = z.object({ seq: z.number().int().positive(), entry: LogEnt
 export type Logged = z.infer<typeof Logged>;
 
 /** A logged entry that records a write turn, which a replay runs again. */
-export type TurnEntry = Exclude<LogEntry, PublishEntry | WithholdingEntry | PollFaultEntry>;
+export type TurnEntry = Exclude<
+  LogEntry,
+  PublishEntry | WithholdingEntry | SaidEntry | PollFaultEntry
+>;
 
 /** The entries of `microworldId`'s log after `after` (0 for the first), oldest first, at most `limit`. */
 export function readLog(

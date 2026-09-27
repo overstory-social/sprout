@@ -1,0 +1,7 @@
+contains_twice.sprout:12:7  `den` writes `contains` and `contains actors`, and `contains actors` alone says both.
+                            Keep this one and take the `contains` above it out.
+
+crate.sprout:4:3            `Crate` writes `contains` twice.
+                            Once is enough: take this one out.
+
+ok: 6 declarations in 3 files, 2 warnings
