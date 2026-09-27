@@ -58,7 +58,12 @@ export type BindingType =
    */
   | { readonly binds: 'object'; readonly kind: KindRef | null; readonly remedy?: string }
   /** A set role: every object the visitor named, at the role's kind. */
-  | { readonly binds: 'set'; readonly kind: KindRef | null };
+  | { readonly binds: 'set'; readonly kind: KindRef | null }
+  /**
+   * `readings` in the world's `help`: a set of readings, walked only by
+   * `{for … of}`, each rendering as the words a visitor types for it.
+   */
+  | { readonly binds: 'readings' };
 
 export function valueOf(type: ValueType): BindingType {
   return { binds: 'value', type };
@@ -75,6 +80,9 @@ export function setOf(kind: KindRef | null): BindingType {
   return { binds: 'set', kind };
 }
 
+/** `readings` in the world's `help`: a set of readings, each rendering as the words a visitor types for it. */
+export const READINGS: BindingType = { binds: 'readings' };
+
 /** A binding type as a message names it. */
 export function showBindingType(type: BindingType): string {
   switch (type.binds) {
@@ -84,6 +92,8 @@ export function showBindingType(type: BindingType): string {
       return type.kind === null ? 'an object' : kindName(type.kind);
     case 'set':
       return type.kind === null ? 'a set of objects' : `a set of ${kindName(type.kind)}`;
+    case 'readings':
+      return 'the readings help offers';
   }
 }
 

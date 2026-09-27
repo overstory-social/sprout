@@ -25,7 +25,6 @@ import {
   HALL,
   KEY,
   lines,
-  NOTHING,
   LOCK,
   reading,
   refused,
@@ -264,12 +263,12 @@ describe('a reading of the engine’s `go`', () => {
 });
 
 describe('a reading the engine answers', () => {
-  it('is one of the standard library’s `look`, `examine`, `inventory` and `help`, and no other', () => {
+  it('is one of the standard library’s `look`, `examine`, `inventory`, `wait` and `help`, and no other', () => {
     const verb = (library: string, name: string) => STUDY.verbs.qualified(library, name)!;
-    for (const name of ['look', 'examine', 'inventory', 'help']) {
+    for (const name of ['look', 'examine', 'inventory', 'wait', 'help']) {
       expect(answeredByEngine(verb('sprout', name)), name).toBe(true);
     }
-    for (const name of ['go', 'wait', 'take']) {
+    for (const name of ['go', 'take']) {
       expect(answeredByEngine(verb('sprout', name)), name).toBe(false);
     }
     expect(answeredByEngine(verb('study', 'pull'))).toBe(false);
@@ -282,6 +281,7 @@ describe('a reading the engine answers', () => {
       ['look', {}],
       ['examine', { target: { object: STUDY_LAMP } }],
       ['inventory', {}],
+      ['wait', {}],
       ['help', {}],
     ] as const) {
       const done = acted(
@@ -289,7 +289,5 @@ describe('a reading the engine answers', () => {
       );
       expect(done.said, name).toEqual([]);
     }
-    const waited = acted(runReading(reading(STUDY, 'wait', looker, {}, 'sprout'), contextOf(one)));
-    expect(waited.said.map((line) => words(line.said))).toEqual([NOTHING]);
   });
 });

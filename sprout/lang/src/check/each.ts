@@ -39,7 +39,7 @@ function eachVariable(statement: EachStatement, context: CheckContext): Binding 
       `\`each … of\` walks a role marked \`many\`, and this is ${shown(type, context)}.`,
       type.binds === 'object'
         ? `To walk what it holds, write \`each ${variable.text} in …\`.`
-        : type.type.type === 'list'
+        : type.binds === 'value' && type.type.type === 'list'
           ? 'A list holds values, not things, so nothing walks it with `each`: render it in a passage with `{for … of}`.'
           : 'Name a role marked `many`, as in `each tool of tools { … }`.',
     );

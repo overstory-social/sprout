@@ -139,12 +139,11 @@ function slot(
     out.push({ words: objectWords(value.id, reader, context) });
     return;
   }
-  if (
-    value.binds === 'set' ||
-    typeof value.value === 'boolean' ||
-    value.value instanceof SproutList
-  ) {
-    throw new Error('a slot rendered a set, a boolean or a list, which the checker refuses.');
+  if (value.binds === 'set' || value.binds === 'readings') {
+    throw new Error('a slot rendered a set or `readings` whole, which the checker refuses.');
+  }
+  if (typeof value.value === 'boolean' || value.value instanceof SproutList) {
+    throw new Error('a slot rendered a boolean or a list, which the checker refuses.');
   }
   const text =
     typeof value.value === 'number'
@@ -251,11 +250,16 @@ function loop(
   });
 }
 
-/** What a `{for}` walks: a container's contents, those composing its kind, a set, or a list's elements. */
+/**
+ * What a `{for}` walks: a container's contents, those composing its
+ * kind, a set, a list's elements, or the readings `help` offers, each
+ * already the line a visitor would type for it.
+ */
 function walk(block: ProseFor, frame: Frame): Evaluated[] {
   const over = evaluate(block.over, frame);
   if (block.walks === 'of') {
     if (over.binds === 'set') return over.ids.map(boundObject);
+    if (over.binds === 'readings') return over.typed.map(boundValue);
     if (over.binds === 'value' && over.value instanceof SproutList) {
       return over.value.elements.map(boundValue);
     }

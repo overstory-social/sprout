@@ -52,4 +52,4 @@ Marta> go out
   Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
   Marta (described): A wooden rib, a bone rib, the press,
 Marta> wait
-  Marta (said): Nothing much comes of that.
+  Marta (said): Time passes.

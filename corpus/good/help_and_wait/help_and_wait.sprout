@@ -1,0 +1,15 @@
+// A world overrides the engine's `waited` and `help`, as it overrides
+// `inside_itself` (the spec's Verbs › Engine verbs). `help` is given
+// `readings`, a set of readings, each rendering as the words a visitor
+// would type for it.
+world help_and_wait is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  passage waited { The candle burns a little lower. }
+  passage help   { You could: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
+
+  object yard is sprout.Place {
+    object bell is sprout.Fixture { grammar { name "bell" article the } }
+  }
+}

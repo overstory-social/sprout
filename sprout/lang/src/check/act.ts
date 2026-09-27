@@ -187,6 +187,8 @@ function shown(type: BindingType, context: CheckContext): string {
       return type.kind === null ? 'an object of no known kind' : `a${kind(type.kind)}`;
     case 'set':
       return type.kind === null ? 'a set of objects' : `a set of${kind(type.kind)}`;
+    case 'readings':
+      throw new Error('`act` fills a role with `readings`, which a passage cannot name.');
   }
 }
 
