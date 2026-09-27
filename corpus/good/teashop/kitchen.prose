@@ -1,0 +1,5 @@
+passage kitchen_view {
+  A narrow kitchen, all steam and copper. A kettle mutters on the range.
+
+  {for thing in self}{if thing != actor} There is {thing} here.{/if}{/for}
+}

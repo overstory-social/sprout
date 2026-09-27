@@ -1,0 +1,4 @@
+// A spoon, in a file of its own because every kind has one.
+kind Spoon {
+  grammar { name "caddy spoon" }
+}

@@ -1,0 +1,3 @@
+# The first thing a visitor reads.
+@arrive Marta
+  Six small tables, a bell over the door, and the smell of bergamot.

@@ -1,0 +1,42 @@
+// A two-room tea shop: the world the manual's quickstart builds.
+world teashop is sprout.World {
+  visitors are Person
+  visitors arrive at front_room
+
+  object front_room is sprout.Place {
+    grammar {
+      name    "front room"
+      article the
+      exit north "through the bead curtain" -> kitchen
+    }
+
+    describe {
+      text "Six small tables, a bell over the door, and the smell of bergamot."
+    }
+
+    object counter is sprout.Fixture {
+      grammar { article the }
+      describe { text "Zinc-topped and cold to the touch." }
+      passage immovable { The counter is bolted to the floor. }
+    }
+  }
+
+  object kitchen is sprout.Place {
+    grammar {
+      article the
+      exit south "back to the front room" -> front_room
+    }
+
+    prose "kitchen.prose"
+    describe { text kitchen_view }
+
+    object teapot is Teapot
+    object caddy is sprout.Container {
+      grammar { name "tea caddy" nouns "tin" }
+      :open false
+      object spoon is Spoon
+    }
+  }
+}
+
+verb brew { role target: Teapot  "brew [target]"  "make tea in [target]" }

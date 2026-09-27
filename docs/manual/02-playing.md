@@ -1,0 +1,276 @@
+# Playing Sprout
+
+The quickest way to meet Sprout is to walk around a world. This chapter
+sets Sprout up on your computer and takes you through the sample world
+that comes with it, a Victorian printer's shop.
+
+## Setting up
+
+You need [Node.js](https://nodejs.org) version 22 or newer, and `git`.
+
+Sprout has not been published to npm yet, so for now you get it by
+copying this repository and building it:
+
+```sh
+git clone https://github.com/overstory-social/sprout.git
+cd sprout
+npm ci
+npm run build
+```
+
+That gives you the `sprout` command. Inside the `sprout` folder, run it
+with `npx`:
+
+```sh
+npx sprout help
+```
+
+If you want to use it from other folders too, point an alias at it. Put
+this in your shell's startup file, with the path to where you cloned
+Sprout:
+
+```sh
+alias sprout="node ~/sprout/cli/bin/sprout.js"
+```
+
+The rest of this manual writes plain `sprout`; use `npx sprout` instead if
+you have not set up the alias.
+
+## Starting a game
+
+The printer's shop lives in the `corpus/good/printers_shop` folder. To
+walk into it:
+
+```sh
+sprout play corpus/good/printers_shop
+```
+
+You arrive, read where you are, and get a prompt with your name on it:
+
+```text
+@arrive Inspector
+  Inspector (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Inspector (described): You have not stood in here before, and the room somehow knows it.
+  Inspector (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Inspector>
+```
+
+Type a command after the prompt and press Enter. When you are done, press
+**Ctrl-D** to leave the world.
+
+Unless you say otherwise, you are called `Inspector`. To pick your own
+name, add `--as`:
+
+```sh
+sprout play corpus/good/printers_shop --as Marta
+```
+
+A name can be more than one word, but it cannot be a word the world
+already uses — you cannot call yourself `North` or `Key` in a world with a
+north exit or a key in it, because then `give key to key` would be
+ambiguous. If your name clashes with something, Sprout says which word
+and asks for another.
+
+## Reading the screen
+
+Every line the world says to you comes with a label in brackets, which
+tells you what kind of line it is:
+
+| label         | means                                                      |
+| ------------- | ---------------------------------------------------------- |
+| `described`   | a description: of the place you are in, or a thing you examined |
+| `said`        | the world answering what you just did                      |
+| `told`        | something you noticed happening — usually someone else's doing |
+| `refused`     | you could not do that, and here is why                     |
+| `notice`      | Sprout itself speaking: someone arriving, a word it did not understand |
+
+A normal game client would just show the words. The labels are there
+because the command line is also a testing tool, and they make it easy to
+see exactly who read what.
+
+## What you can type
+
+Every world understands these, whatever else it adds:
+
+| type                               | to                                             |
+| ---------------------------------- | ---------------------------------------------- |
+| `look` or `l`                      | read the description of where you are again    |
+| `examine the key`, `x key`, `look at key` | look closely at one thing               |
+| `take key`, `get key`, `pick up key` | pick something up                            |
+| `drop key`, `put down key`         | put it down where you stand                    |
+| `put key in chest`                 | put something inside something else            |
+| `give key to Ines`                 | hand something to someone                      |
+| `open chest`, `close chest`        | open or shut a container                       |
+| `unlock chest with key`            | unlock something (if the world has locks)      |
+| `inventory` or `i`                 | list what you are carrying                     |
+| `go north`, `north`, `n`           | walk through a way out                         |
+| `wait` or `z`                      | let a moment pass                              |
+| `help` or `?`                      | list everything you can do right now           |
+
+Ways out are named by direction — north, south, east, west, the four
+diagonals, up, down, in and out — and each also has a description, like
+"out to the press yard". You can type either: `go out` and `out to the
+press yard` do the same thing.
+
+A few more things worth knowing:
+
+- **Articles are optional.** `take the brass key` and `take brass key` are
+  the same. So are `my`, `this` and `that`.
+- **You can use a short name.** "brass key" also answers to `key`. If two
+  things answer, the world asks which you meant, and shows the choices.
+- **You can only name what you can reach.** A key inside a shut cabinet
+  cannot be named until the cabinet is open. If you ask for something
+  that is not there, you read "You see nothing like that here."
+- **`help` is a real list.** It shows every command that makes sense right
+  now, built from what is in front of you.
+- Each world adds its own verbs. In the printer's shop you can `ink the
+  press`, `work the press`, `lower the ladder` and `ask the apprentice
+  about the press`. `help` will show you them.
+
+## A short walk
+
+Here is a few minutes in the printer's shop, as Marta. Lines after the
+prompt are what she typed; the indented lines are what came back.
+
+```text
+Marta> take cabinet
+  Marta (refused): It is a cabinet. It stays where it is.
+Marta> open cabinet
+  Marta (refused): It is locked.
+Marta> take key
+  Marta (said): You take a brass key.
+Marta> unlock cabinet with key
+  Marta (said): The lock turns over.
+Marta> open cabinet
+  Marta (said): You open the type cabinet.
+Marta> take shop key
+  Marta (said): You take a shop key.
+Marta> ask apprentice about the press
+  Marta (said): Bar's stiff, he says. Mind your knuckles.
+Marta> go out
+  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+  Marta (described): A wooden rib, a bone rib, the press,
+Marta> take rib
+  Marta (notice): Which do you mean: a wooden rib, a bone rib?
+  choices: take wooden rib | take bone rib
+```
+
+Notice that `take key` picked up the brass key, not the shop key: the
+shop key was still locked in the cabinet, out of reach, so there was only
+one key it could mean.
+
+There is more to find — the paper store, the loft above it, and what
+happens when you ink the press and pull it. The cat has opinions too.
+
+## More than one visitor
+
+Sprout worlds are built for several people at once, and you can try that
+on your own. A line that starts with `@` is not something a visitor
+types: it is you, playing the part of the server. `@arrive` brings in
+another visitor:
+
+```text
+Marta> @arrive Ines
+  Marta (notice): Ines arrives.
+  Ines (described): Lead and lamp oil. ...
+Ines>
+```
+
+The prompt now says `Ines>`: a plain command goes to whoever arrived most
+recently. To act as someone else, put their name and `>` in front:
+
+```text
+Ines> Marta> take brass key
+  Marta (said): You take a brass key.
+  Ines (told): Marta takes a brass key.
+```
+
+Both people's lines are shown, each under their own name, so you can see
+that Marta read "You take…" while Ines read "Marta takes…".
+
+`@leave Ines` sends Ines away. She keeps what she was carrying, and if she
+comes back with `@arrive Ines` she returns to where she last stood.
+
+## Letting time pass
+
+Sprout worlds can change on their own: an ink sheet dries, a kettle
+cools, a cat wanders over. On a real server this happens with real time.
+In `sprout play`, the clock only moves when you say so:
+
+| type                  | does                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `@advance 40 minutes` | moves time forward (use `seconds`, `minutes` or `hours`)     |
+| `@tick`               | gives every place with someone in it one "moment of ambience" |
+| `@seed 7`             | changes the dice, so random things turn out differently      |
+
+For example, in the press yard a freshly printed sheet is wet for forty
+minutes before you can pick it up (after `ink press` and `work press`):
+
+```text
+Marta> take sheet
+  Marta (refused): The ink is still wet; it would smear.
+Marta> @advance 40 minutes
+  printers_shop#4 woke, 2400 seconds after it asked
+Marta> take sheet
+  Marta (said): You take a printed sheet.
+```
+
+The line in the middle, with no label, is the server's own note that
+something in the world woke up.
+
+Dice in Sprout are not truly random: each moment rolls from a number
+called the _seed_, which starts at 0. That is what makes worlds
+repeatable. If the cat never does anything interesting, try `@seed 14`
+and then `@tick`.
+
+## Starting somewhere else
+
+To skip straight to a particular place, use `--at` with the place's name
+as the world's source writes it. A place inside another place is written
+with a dot:
+
+```sh
+sprout play corpus/good/printers_shop --at press_yard
+sprout play corpus/good/printers_shop --at composing_room.paper_store
+```
+
+The place still gets to decide whether to let you in, as it would for
+anyone coming back to it. The paper store starts out locked, so the
+second command stops with a message saying the paper store turned you
+away — useful when you are checking that a door of your own works.
+
+## Replaying a session
+
+What `sprout play` prints is a script it can play back. Save your typing
+in a file — one command per line, each starting with the name of who
+types it — and pass the file:
+
+```text
+# walk.txt
+@arrive Marta
+Marta> take brass key
+Marta> go out
+```
+
+```sh
+sprout play corpus/good/printers_shop walk.txt
+```
+
+Sprout plays it and prints each line with what the world said. The
+[Quickstart](03-quickstart.md) shows how to turn scripts like this into
+tests for your own world.
+
+## Peeking behind the curtain
+
+Two more commands are handy when you are curious about a world, or
+writing one:
+
+- `sprout view <world>` shows everything a visitor standing there is
+  offered: the description, the ways out, who is there, what they carry,
+  and every command they could type, each with whether it would be
+  refused and why.
+- `sprout parse <world> "take the brass key"` shows how the world
+  understands a line — which verb, which thing — and whether it would be
+  refused, without actually doing it.
+
+Both take `--at` and `--as` like `play` does.
