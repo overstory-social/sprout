@@ -13,7 +13,7 @@ import {
 } from '../check/bindings.js';
 import { typeOf } from '../check/check.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
-import type { Named } from '../declare/names.js';
+import type { Named as PlacedName } from '../declare/names.js';
 import type { Node } from '../source/nodes.js';
 import type { Expr } from '../syntax/ast.js';
 import { compiledWorld } from '../fixtures/bundle.js';
@@ -531,8 +531,8 @@ describe('a condition that narrows a name in a kind’s body', () => {
   function lanternFrame(text: string): { condition: Expr; frame: Frame; draft: Draft } {
     const one = eventTurn();
     const condition = expression(text);
-    const names = new Map<Node, Named>();
-    const placed: Named = {
+    const names = new Map<Node, PlacedName>();
+    const placed: PlacedName = {
       names: 'placed',
       steps: [{ name: 'lamp', madeOf: [] }],
       candidates: [],
