@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "95f1eba2f3f81e2f4939f52990e472af035b39a14e44effc39d7c0ff1b98da74"
+      "sha": "2169d77710dad6eb34c37a80e7ad9aae1e44293c98940c643171cc45ec5e4548"
     }
   ],
   "files": ["wake_too_long.sprout", "person.sprout", "cellar.sprout"]

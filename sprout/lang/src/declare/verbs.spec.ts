@@ -418,7 +418,7 @@ describe('what the table refuses, at the thing', () => {
   });
 
   it('names the engine verbs it answers with what the actor reads, each an engine verb', () => {
-    expect(ENGINE_ANSWERS).toEqual(['look', 'examine', 'inventory', 'help']);
+    expect(ENGINE_ANSWERS).toEqual(['look', 'examine', 'inventory', 'wait', 'help']);
     for (const name of ENGINE_ANSWERS) expect(ENGINE_VERBS, name).toContain(name);
   });
 

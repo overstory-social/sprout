@@ -14,6 +14,7 @@ import {
   isObjectBinding,
   objectOf,
   OPEN_OBJECT,
+  READINGS,
   selfBinding,
   setOf,
   setRoleBinding,
@@ -36,6 +37,7 @@ describe('a binding type is not a property type', () => {
       [OPEN_OBJECT, 'an object'],
       [setOf(LOCKABLE), 'a set of sprout.Lockable'],
       [setOf(null), 'a set of objects'],
+      [READINGS, 'the readings help offers'],
     ];
     for (const [type, said] of every) expect(showBindingType(type)).toBe(said);
   });

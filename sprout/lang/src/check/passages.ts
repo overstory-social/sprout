@@ -41,6 +41,7 @@ import {
   actorBinding,
   hereBinding,
   OPEN_OBJECT,
+  READINGS,
   Scope,
   selfBinding,
   setOf,
@@ -165,7 +166,7 @@ function engineBinding(
   if (binds === 'here') return { ...hereBinding(setting.here, at), name };
   return {
     name,
-    type: binds === 'set' ? setOf(null) : OPEN_OBJECT,
+    type: binds === 'set' ? setOf(null) : binds === 'readings' ? READINGS : OPEN_OBJECT,
     origin: 'parameter',
     at,
     writable: false,

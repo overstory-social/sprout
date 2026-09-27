@@ -6,6 +6,7 @@ import type { ResolvedPassage } from '../declare/passages.js';
 import { readProseText } from '../fixtures/parse.js';
 import { at, bodyOf, saidBy, vessel, VESSEL, warded, WARDED } from '../fixtures/check.js';
 import type { CheckContext } from './check.js';
+import { READINGS, type Binding } from './bindings.js';
 import { checkProse } from './prose.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { inKind, nameSource } from '../fixtures/names.js';
@@ -22,6 +23,18 @@ function checked(text: string, context: CheckContext) {
     option: (slot) => options.push(slot),
   });
   return { said: saidBy(context), rendered, options: options.map((slot) => textOf(slot.at)) };
+}
+
+/** A body given `readings`, as the world's `help` is (the spec's Engine verbs). */
+function withReadings(): CheckContext {
+  const readings: Binding = {
+    name: 'readings',
+    type: READINGS,
+    origin: 'parameter',
+    at: at('self'),
+    writable: false,
+  };
+  return bodyOf(VESSEL, readings);
 }
 
 /** A passage of `name` for a kind to have, as composing resolves one. */
@@ -58,6 +71,9 @@ describe('a slot renders an object, an option, a number, a string, or a passage'
     ]);
     expect(checked('{tools}', vessel()).said).toEqual([
       'A slot does not render a set of shop.Rib whole: how its things are joined, and what is said when there are none, is yours. Walk it: `{for x of <set>}{x}{if $last}.{else}, {/if}{/for}`.',
+    ]);
+    expect(checked('{readings}', withReadings()).said).toEqual([
+      'A slot does not render the readings help offers whole: how its things are joined, and what is said when there are none, is yours. Walk it: `{for x of <set>}{x}{if $last}.{else}, {/if}{/for}`.',
     ]);
   });
 
@@ -182,6 +198,10 @@ describe('a loop walks contents, a kind among them, a list or a set', () => {
     ]);
     expect(options).toEqual([]);
     expect(checked('{for w of self.get(:row)}{w}{/for}', warded()).options).toEqual(['{w}']);
+  });
+
+  it('walks `readings`, its variable typed a string, each rendering as the words a visitor would type', () => {
+    expect(checked('{for reading of readings}{reading}{/for}', withReadings()).said).toEqual([]);
   });
 
   it('binds the loop’s own names inside it, and nowhere else', () => {

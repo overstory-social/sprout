@@ -15,7 +15,7 @@ import {
   STUDY,
   typedIn,
 } from '../fixtures/describe.js';
-import { NOTHING, words } from '../fixtures/reading.js';
+import { words } from '../fixtures/reading.js';
 import { arrivalsRead, engineAnswers } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
 import type { Notice } from './move.js';
@@ -81,30 +81,35 @@ describe('what the engine answers a command, once the queue is empty', () => {
     ]);
   });
 
-  it('`help` is what the actor can do there, in the engine’s words, each reading its consent pass allows', () => {
+  it('`help` is what the actor can do there, through the world’s `help`, less what no participant plays a part in', () => {
     const state = study(undefined, [[LAMP, 'lit', true]]);
     const [[reader, [line]]] = readAnswers(typedIn(state, MARTA, 'help')) as unknown as [
       [string, [string]],
     ];
     expect(reader).toBe(actorOf(state, MARTA));
-    expect(line).toMatch(/^You can type: pull hall, pull mirror, /);
-    // The lamp refuses to be pulled once lit, so it is not offered.
-    expect(line).not.toContain('pull lamp');
+    // Nothing but the lamp plays `pull`, and the lamp refuses it once lit,
+    // so `pull` is offered for nothing.
+    expect(line).not.toMatch(/\bpull /);
+    // Only the cat plays `ask`, so every other target is left out.
+    expect(line).toContain('ask cat about …');
+    expect(line).not.toMatch(/\bask (hall|lamp|mirror|stool|blank|box|pin) /);
     for (const typed of ['go north', 'look', 'examine lamp', 'inventory', 'wait', 'help']) {
       expect(line, typed).toContain(typed);
     }
-    // `sprout.Actor` refuses to drop or give what it does not hold, and Marta holds nothing.
+    // `sprout.Actor` plays the actor's own part in every `take`, whatever
+    // the target, and refuses to drop or give what it does not hold,
+    // which Marta holds nothing of.
     expect(line.endsWith('take pin.')).toBe(true);
     expect(line).not.toMatch(/\b(drop|give|put) /);
     const [answer] = answersOf(typedIn(state, MARTA, '?'));
     expect(answer !== undefined && 'said' in answer && answer.said.effect).toBe('notice');
   });
 
-  it('`wait` does nothing, and is answered as any command that says nothing is', () => {
-    const turn = typedIn(study(), MARTA, 'wait');
-    expect(answersOf(turn)).toEqual([]);
-    expect(saidIn(turn)).toEqual([NOTHING]);
-    expect(saidIn(typedIn(study(), MARTA, 'z'))).toEqual([NOTHING]);
+  it('`wait` says the world’s `waited`, “Time passes.” by default', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    expect(readAnswers(typedIn(state, MARTA, 'wait'))).toEqual([[marta, ['Time passes.']]]);
+    expect(readAnswers(typedIn(state, MARTA, 'z'))).toEqual([[marta, ['Time passes.']]]);
   });
 
   it('`go` is answered with the place arrived in, described to the one who went', () => {

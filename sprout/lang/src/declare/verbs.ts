@@ -237,10 +237,10 @@ export const ENGINE_VERBS: readonly string[] = [
 /**
  * The engine verbs the engine answers with what the actor reads, once the
  * queue is empty (the spec's Engine verbs): a description, the inventory,
- * or what they can do. `go` answers with where it arrived, and `wait` is
- * a turn in which nothing is done.
+ * the world's `waited`, or what they can do. `go` answers with where it
+ * arrived.
  */
-export const ENGINE_ANSWERS: readonly string[] = ['look', 'examine', 'inventory', 'help'];
+export const ENGINE_ANSWERS: readonly string[] = ['look', 'examine', 'inventory', 'wait', 'help'];
 
 /** The one verb whose role an exit may fill (the spec's Exits). */
 const GO = 'go';

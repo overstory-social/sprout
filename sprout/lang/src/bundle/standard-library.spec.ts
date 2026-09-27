@@ -453,6 +453,8 @@ describe('the standard library', () => {
       'unremarkable',
       'inside_itself',
       'crowded',
+      'waited',
+      'help',
     ];
     const spoken = [...new Set([...told, ...engine])];
     expect(told.length).toBeGreaterThan(0);
@@ -474,7 +476,7 @@ describe('the standard library', () => {
 
   it('lets a world that writes none of them take every stock line, still yielding', () => {
     const world = compiled().bundle!.world!;
-    expect(world.passages.size).toBe(11);
+    expect(world.passages.size).toBe(13);
     for (const passage of world.passages.values()) {
       expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
     }
@@ -493,7 +495,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '95f1eba2f3f81e2f4939f52990e472af035b39a14e44effc39d7c0ff1b98da74',
+      '2169d77710dad6eb34c37a80e7ad9aae1e44293c98940c643171cc45ec5e4548',
     );
   });
 });

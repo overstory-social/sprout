@@ -1,0 +1,16 @@
+{
+  "name": "help_and_wait",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "2169d77710dad6eb34c37a80e7ad9aae1e44293c98940c643171cc45ec5e4548"
+    }
+  ],
+  "files": ["help_and_wait.sprout", "person.sprout"]
+}

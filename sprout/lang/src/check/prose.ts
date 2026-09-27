@@ -26,7 +26,7 @@ import {
   type ProseSlot,
 } from '../syntax/ast-prose.js';
 import { nearestOption, shownName } from '../declare/enums.js';
-import { BOOLEAN, integer, showType } from '../declare/types.js';
+import { BOOLEAN, integer, showType, STRING } from '../declare/types.js';
 import { readable } from '../source/words.js';
 import {
   forElementBinding,
@@ -103,7 +103,7 @@ function checkSlot(slot: ProseSlot, context: CheckContext, rendered: ProseRecord
   }
   const type = typeOf(expr, context);
   if (type === null) return;
-  if (type.binds === 'set') {
+  if (type.binds === 'set' || type.binds === 'readings') {
     context.diagnostics.refuse(
       expr.at,
       `A slot does not render ${showBindingType(type)} whole: how its things are joined, and what is said when there are none, is yours.`,
@@ -252,6 +252,7 @@ function forVariable(block: ProseFor, context: CheckContext): Binding | null {
   if (type.binds === 'value' && type.type.type === 'list') {
     return forElementBinding(variable.text, type.type.element, variable.at);
   }
+  if (type.binds === 'readings') return forElementBinding(variable.text, STRING, variable.at);
   const shown =
     type.binds === 'object' && type.kind !== null
       ? `\`${shownName(kindName(type.kind), context.from)}\``

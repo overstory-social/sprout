@@ -100,5 +100,7 @@ function bound(
     case 'set':
       if (!role.many) throw new Error(`a set filled \`${name}\`, which is not marked \`many\`.`);
       return { set: evaluated.ids.map(inRange) };
+    case 'readings':
+      throw new Error(`\`act\` filled \`${name}\` with \`readings\`, which a passage cannot name.`);
   }
 }
