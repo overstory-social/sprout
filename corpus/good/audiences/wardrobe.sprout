@@ -1,8 +1,18 @@
-// A wardrobe that holds actors is a place of its own: who steps in is
-// told, and so is whoever is already inside, and nobody in the hall.
+// A wardrobe that holds actors has two audiences: whoever steps in is
+// told alone, and the coats' rustle, a plain `tell`, reaches both its own
+// occupants and the hall around it. `peer`s into it hear only the one
+// audience its own kind of nosiness belongs to.
 kind Wardrobe is sprout.Place {
   on :entered (item, from) {
     tell item "Coats close around you."
     tell "The coats rustle."
+  }
+
+  as target for peer {
+    do {
+      say "You peer in among the coats."
+      tell outside "The wardrobe door creaks ajar."
+      tell inside "Someone is looking in at you."
+    }
   }
 }

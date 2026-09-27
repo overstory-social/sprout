@@ -19,48 +19,69 @@ import { Budget } from './budget.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
 import { reaches } from './range.js';
-import { isPerson, placeOfTeller, toldToOne, toldToPlace } from './audience.js';
+import { isPerson, toldInside, toldOutside, toldToOne, toldToPlace } from './audience.js';
 
-describe('where what is told is heard', () => {
-  it('is the teller where it holds actors, else its nearest container that does', () => {
-    const one = turn(YARD, [HALL]);
-    expect(placeOfTeller(one.draft, STONE)).toBe(HALL);
-    // Inside a container that holds only things, the hall around it.
-    expect(placeOfTeller(one.draft, BEAD)).toBe(HALL);
-    // A place tells its own occupants, as a place ticking does.
-    expect(placeOfTeller(one.draft, HALL)).toBe(HALL);
-    expect(placeOfTeller(one.draft, WARDROBE)).toBe(WARDROBE);
-    expect(placeOfTeller(one.draft, one.people[0]!)).toBe(HALL);
+/** What a plain, an `inside` or an `outside` `tell` reads in `one`, where `shut` refuses everything and the world refuses too. */
+const telling = (one: Turn, ...shut: InstanceId[]) => ({
+  state: one.draft,
+  passes: (container: InstanceId) =>
+    container === one.draft.world ? WORLD_PASSES_ANYTHING : !shut.includes(container),
+  budget: one.budget,
+});
+
+describe('who reads `tell inside` and `tell outside`', () => {
+  it('is a teller’s own occupants, and nobody’s where it holds no actors', () => {
+    const one = turn(YARD, [HALL, WARDROBE, HALL]);
+    const [, bo] = one.people;
+    // The wardrobe holds actors, so its own occupant is Bo; the bubble does not.
+    expect(toldInside(telling(one), WARDROBE, [])).toEqual([bo]);
+    expect(toldInside(telling(one), BUBBLE, [])).toEqual([]);
+  });
+
+  it('is the place around a teller, less a hearer a shut container stands between', () => {
+    const one = turn(YARD, [HALL, WARDROBE, HALL]);
+    const [marta, , ivo] = one.people;
+    expect(toldOutside(telling(one), WARDROBE, [])).toEqual([marta, ivo]);
+    // The wardrobe's own shut-ness does not stand between it and the hall
+    // around it: nothing does, so it is still heard there.
+    expect(toldOutside(telling(one, WARDROBE), WARDROBE, [])).toEqual([marta, ivo]);
+    // The bead, inside the shut bubble, carries no voice out past it.
+    expect(toldOutside(telling(one, BUBBLE), BEAD, [])).toEqual([]);
+    expect(toldOutside(telling(one), BEAD, [])).toEqual([marta, ivo]);
   });
 
   it('is nowhere where nothing around the teller holds actors', () => {
     const one = turn(YARD, []);
-    expect(placeOfTeller(one.draft, WORLD_ID)).toBeNull();
+    expect(toldOutside(telling(one), WORLD_ID, [])).toEqual([]);
   });
 });
 
 describe('who reads a plain `tell`', () => {
-  it('is every person directly in the place, in contents order, less those left out', () => {
+  it('is every person the teller reaches, its own occupants first, less those left out', () => {
     const one = turn(YARD, [HALL, WARDROBE, HALL]);
     const [marta, bo, ivo] = one.people;
     // The cat and the dog stand in the hall and are NPCs; Bo is in the
     // wardrobe, a place of its own.
-    expect(toldToPlace(one.draft, BUBBLE, [])).toEqual([marta, ivo]);
-    expect(toldToPlace(one.draft, BEAD, [marta!])).toEqual([ivo]);
-    expect(toldToPlace(one.draft, WARDROBE, [])).toEqual([bo]);
-    expect(toldToPlace(one.draft, WORLD_ID, [])).toEqual([]);
+    expect(toldToPlace(telling(one), BUBBLE, [])).toEqual([marta, ivo]);
+    expect(toldToPlace(telling(one), BEAD, [marta!])).toEqual([ivo]);
+    // The wardrobe holds actors, so its plain `tell` reaches both its own
+    // occupant and, around it, the hall's.
+    expect(toldToPlace(telling(one), WARDROBE, [])).toEqual([bo, marta, ivo]);
+    expect(toldToPlace(telling(one), WORLD_ID, [])).toEqual([]);
+  });
+
+  it('leaves out a hearer a shut container stands between, either audience', () => {
+    const one = turn(YARD, [HALL, WARDROBE, HALL]);
+    const [marta, bo, ivo] = one.people;
+    // A thing inside the shut bubble reaches nothing outside it, but the
+    // wardrobe's own occupant is always heard, shut or not.
+    expect(toldToPlace(telling(one, BUBBLE), BEAD, [])).toEqual([]);
+    expect(toldToPlace(telling(one), BEAD, [])).toEqual([marta, ivo]);
+    expect(toldToPlace(telling(one, WARDROBE), WARDROBE, [])).toEqual([bo, marta, ivo]);
   });
 });
 
 describe('who reads `tell x`', () => {
-  /** What `tell x` reads in `one`, where `shut` refuses everything and the world refuses too. */
-  const telling = (one: Turn, ...shut: InstanceId[]) => ({
-    state: one.draft,
-    passes: (container: InstanceId) =>
-      container === one.draft.world ? WORLD_PASSES_ANYTHING : !shut.includes(container),
-    budget: one.budget,
-  });
-
   it('is `x`, where it is a person in the teller’s range, and nobody otherwise', () => {
     const one = turn(YARD, [WARDROBE, HALL]);
     const [bo, away] = one.people;

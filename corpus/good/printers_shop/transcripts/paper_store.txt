@@ -28,10 +28,12 @@ Marta> take shop key
   Ines (told): Marta takes a shop key.
 Marta> unlock paper store with shop key
   Marta (said): The lock turns over.
+  Ines (told): Marta unlocks the paper store.
 Marta> go in
   Marta (refused): The paper store is shut.
 Marta> open paper store
   Marta (said): You open the paper store.
+  Ines (told): Marta opens the paper store.
 Marta> go in
   Ines (notice): Marta leaves.
   Ines (notice): Marta arrives.
@@ -68,6 +70,7 @@ Marta> go out
   Marta (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines,
 Marta> open paper store
   Marta (said): You open the paper store.
+  Ines (told): Marta opens the paper store.
 Marta> go out
   Ines (notice): Marta leaves.
   Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.

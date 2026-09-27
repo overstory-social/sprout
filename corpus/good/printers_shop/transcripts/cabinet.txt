@@ -58,5 +58,6 @@ Ines> x cabinet
   Ines (described): There is nothing special about the type cabinet.
 Marta> unlock paper store with shop key
   Marta (said): The lock turns over.
+  Ines (told): Marta unlocks the paper store.
 Marta> i
   Marta (said): You are carrying a shop key.

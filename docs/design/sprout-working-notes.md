@@ -331,6 +331,10 @@ Found while keeping a refused default's property (#282):
 
 - **420. Whether a file the checker refuses reads as absent at load.** Strict and lenient says a file "missing, withheld or broken reads as absent" at load, and does not say whether a file that parses and is then refused by the checker, a default of another type among them, is broken. Built: such a refusal stands at load as at publish, so a world with a refused default does not load, and no instance ever starts at a value its property does not hold; the property is kept for checking only, with its declared name and type, so its uses are not refused again. The alternative: the file reads as absent at load, and then what it declares is a gap and no default of it is ever read. *Accepted as built 2026-09-26*, triaged by Claude on Eric's behalf as a call made where the spec was silent; the spec now says so.
 
+Found while building `tell inside` and `tell outside` (#285, #286):
+
+- **421. Whether `inside` and `outside` are reserved words.** The statement table adds `tell inside` and `tell outside`, and The compiler's Lexical rules enumerates the reserved words by name and lists neither, so a binding named `inside` or `outside` is legal and would collide with the new syntax. Built: `inside` and `outside` direct a `tell` only where a second word or words in quotes follow them on `tell`'s own line, the same shape that already picks out who a plain `tell x` names, so `tell inside` alone, nothing following, is unaffected: a passage may still be named `inside`. Neither word joins the reserved set, since `reserved.spec.ts` checks it against the spec's own sentence exactly and a drift there is refused. The alternative: add both to the reserved words, refusing them as any binding's name. *Accepted as built 2026-09-26*, triaged by Claude on Eric's behalf as a call made where the spec was silent. Code: #285.
+
 **Decided 2026-09-24, morning**, now in the spec except where an entry says otherwise:
 
 - 125: a passage nothing says, and the engine does not, is checked with its own `self` alone, as built. No spec change.

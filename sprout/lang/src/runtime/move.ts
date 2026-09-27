@@ -24,7 +24,7 @@
 import { isActor } from '../declare/actors.js';
 import type { GuardName } from '../syntax/ast.js';
 import type { ResolvedPassage } from '../declare/passages.js';
-import { placeOfTeller } from './audience.js';
+import { surroundOf } from './audience.js';
 import type { Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
@@ -407,7 +407,7 @@ function reachedForMove(
   if (reaches(range, mover, to, 'any')) return true;
   const kind = draft.instance(mover)?.kind;
   if (kind === undefined || !isActor(kind)) return false;
-  const place = placeOfTeller(draft, mover);
+  const place = surroundOf(draft, mover);
   if (place === null) return false;
   return exitsFrom(place, { state: draft, catalogue, budget, passes }).some((way) => way.to === to);
 }
