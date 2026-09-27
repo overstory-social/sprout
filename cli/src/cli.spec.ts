@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { generateSkill } from '@overstory/sprout/lang';
 
+import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
-import { captured, LANE, worldFolder } from './testing.js';
+import { playScript } from './play.js';
+import { captured, KILN_YARD, LANE, worldFolder } from './testing.js';
 
 describe('parseArgs', () => {
   it('reads a command, positionals, --flag value, --flag=value and --flag alone', () => {
@@ -124,7 +126,7 @@ describe('main', () => {
     expect(named.err()).toBe('sprout: --as wants a nickname after it: --as Marta\n');
   });
 
-  it('play prints the transcript a script makes, and wants a script and a line it can play', () => {
+  it('play prints the transcript a script makes, and wants a line it can play', () => {
     const dir = worldFolder('lane', LANE);
     const script = join(mkdtempSync(join(tmpdir(), 'sprout-play-')), 'walk.txt');
     writeFileSync(script, '@arrive Marta\nMarta> go in\n');
@@ -133,13 +135,66 @@ describe('main', () => {
     expect(io.out()).toBe(
       '@arrive Marta\n  Marta (described): A muddy yard.\nMarta> go in\n  Marta (described): Tools hang in rows.\n',
     );
-    const none = captured();
-    expect(main(['play', dir], none)).toBe(1);
-    expect(none.err()).toContain('play wants a script after the folder');
     writeFileSync(script, 'go in\n');
     const bad = captured();
     expect(main(['play', dir, script], bad)).toBe(1);
     expect(bad.err()).toMatch(/^sprout: walk\.txt:1: a line is what someone types/);
+    const missing = captured();
+    expect(main(['play', dir, join(dir, 'nowhere.txt')], missing)).toBe(1);
+    expect(missing.err()).toContain('no such file or directory');
+  });
+
+  it('play with no script (or `-`) plays interactively, admitting Inspector unless --as names another', async () => {
+    const dir = worldFolder('kiln_yard', KILN_YARD);
+    const asScript = (lines: string) =>
+      playScript(checkWorld(dir).bundle!, `@arrive Marta\n${lines}@leave Marta\n`).page;
+
+    const typed = 'Marta> fire kiln\n@tick\n@advance 2 hours\nMarta> look\n';
+    const io = captured(typed);
+    await expect(main(['play', dir, '--as', 'Marta'], io)).resolves.toBe(0);
+    expect(io.out()).toBe(asScript(typed));
+
+    const dashed = captured(typed);
+    await expect(main(['play', dir, '-', '--as', 'Marta'], dashed)).resolves.toBe(0);
+    expect(dashed.out()).toBe(asScript(typed));
+  });
+
+  it('a bare typed line addresses whoever most recently arrived and still stands', async () => {
+    const dir = worldFolder('kiln_yard', KILN_YARD);
+    const bare = captured('fire kiln\n@tick\n');
+    await expect(main(['play', dir, '--as', 'Marta'], bare)).resolves.toBe(0);
+    expect(bare.out()).toBe(
+      playScript(checkWorld(dir).bundle!, '@arrive Marta\nMarta> fire kiln\n@tick\n@leave Marta\n')
+        .page,
+    );
+
+    const second = captured('@arrive Ines\nlook\n');
+    await expect(main(['play', dir, '--as', 'Marta'], second)).resolves.toBe(0);
+    expect(second.out()).toBe(
+      playScript(checkWorld(dir).bundle!, '@arrive Marta\n@arrive Ines\nInes> look\n@leave Ines\n')
+        .page,
+    );
+  });
+
+  it('ends the session with a departure turn for whoever is left standing, on Ctrl-D', async () => {
+    const dir = worldFolder('kiln_yard', KILN_YARD);
+    const io = captured('');
+    await expect(main(['play', dir], io)).resolves.toBe(0);
+    expect(io.out()).toBe(
+      playScript(checkWorld(dir).bundle!, '@arrive Inspector\n@leave Inspector\n').page,
+    );
+  });
+
+  it('refuses a nickname or --at as sprout parse would, admitting nobody', async () => {
+    const dir = worldFolder('lane', LANE);
+    const refused = captured('');
+    await expect(main(['play', dir, '--as', 'crate'], refused)).resolves.toBe(0);
+    expect(refused.out()).toBe(
+      '@arrive crate\n  nickname refused: "crate" is a word this world already reads, so "crate" would not always mean you: choose another nickname.\n',
+    );
+    const nowhere = captured();
+    await expect(main(['play', dir, '--at', 'loft'], nowhere)).resolves.toBe(1);
+    expect(nowhere.err()).toContain('write one of its places');
   });
 
   it('test runs the world’s own tests and exits 1 on a failure, printing what the world said instead', () => {

@@ -15,14 +15,17 @@ export interface CapturedIo extends Io {
   err(): string;
 }
 
-export function captured(): CapturedIo {
+/** An `Io` whose output is captured; `input` is what `play` with no script reads as its typed lines. */
+export function captured(input = ''): CapturedIo {
   const stdout = new PassThrough();
   const stderr = new PassThrough();
+  const stdin = new PassThrough();
+  stdin.end(input);
   let out = '';
   let err = '';
   stdout.on('data', (c: Buffer | string) => (out += c.toString()));
   stderr.on('data', (c: Buffer | string) => (err += c.toString()));
-  return { stdout, stderr, out: () => out, err: () => err };
+  return { stdout, stderr, stdin, out: () => out, err: () => err };
 }
 
 /** A world folder holding `files`, its manifest naming each in order and pinning the standard library. */

@@ -6,6 +6,7 @@
 export * from './check.js';
 export * from './cli.js';
 export * from './init.js';
+export * from './interactive.js';
 export * from './parse.js';
 export * from './play.js';
 export * from './stand.js';

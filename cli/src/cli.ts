@@ -5,6 +5,7 @@ import { generateSkill, type Bundle } from '@overstory/sprout/lang';
 
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { initWorld } from './init.js';
+import { playInteractively } from './interactive.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { playScript } from './play.js';
 import { catalogueFor, standIn, type StandOptions } from './stand.js';
@@ -14,8 +15,10 @@ import { inspectView } from './view.js';
 // The `sprout` command: six verbs on a microworld folder, and `skill`,
 // the builder's reference this compiler generates from its own tables.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true. The
-// first bare word is the command, the next the path. Playing
-// interactively, and `serve`, are not built.
+// first bare word is the command, the next the path. `serve` is not
+// built. Every command but `play` with no script is synchronous; that
+// one alone reads from stdin, so `main` alone may hand back a promise
+// of its exit code rather than the code itself.
 
 export const USAGE = `sprout — a Sprout microworld on the command line
 
@@ -26,8 +29,11 @@ export const USAGE = `sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir script              play a script of typed lines and host events through real turns;
-                                      the transcript, each line followed by what every reader read
+  sprout play dir [script] [--at place] [--as name]
+                                      play a script of typed lines and host events through real turns,
+                                      or, with no script (or \`-\`), interactively from stdin under one
+                                      visitor's own prompt; the transcript, each line followed by what
+                                      every reader read
   sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
                                       with what the world should say indented under a line, the whole line or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure
@@ -38,6 +44,8 @@ export const USAGE = `sprout — a Sprout microworld on the command line
 export interface Io {
   stdout: NodeJS.WritableStream;
   stderr: NodeJS.WritableStream;
+  /** Where `play` with no script reads typed lines; the process's own stdin unless given another. */
+  stdin?: NodeJS.ReadableStream;
 }
 
 export interface Parsed {
@@ -79,10 +87,14 @@ function standing(flags: Parsed['flags']): StandOptions {
   return { ...(at === undefined ? {} : { at }), ...(as === undefined ? {} : { nickname: as }) };
 }
 
-const defaultIo = (): Io => ({ stdout: process.stdout, stderr: process.stderr });
+const defaultIo = (): Io => ({
+  stdout: process.stdout,
+  stderr: process.stderr,
+  stdin: process.stdin,
+});
 
-/** Run the command line; the exit code. */
-export function main(argv: readonly string[], io: Io = defaultIo()): number {
+/** Run the command line; the exit code, or, for `play` with no script, a promise of it. */
+export function main(argv: readonly string[], io: Io = defaultIo()): number | Promise<number> {
   const { command, positional, flags } = parseArgs(argv);
   const say = (text: string) => io.stdout.write(text);
   try {
@@ -126,15 +138,13 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number {
       }
       case 'play': {
         const [dir = '.', script] = positional;
-        if (script === undefined) {
-          throw new Error(
-            'play wants a script after the folder, as in `sprout play shop opening.txt`: lines like `@arrive Marta` and `Marta> look`.',
-          );
-        }
         const checked = compiled(dir, say);
         if (checked === null) return 1;
-        const text = readFileSync(script === '-' ? 0 : script, 'utf8');
-        say(playScript(checked, text, script === '-' ? 'the script' : basename(script)).page);
+        if (script === undefined || script === '-') {
+          return playInteractively(checked, standing(flags), io);
+        }
+        const text = readFileSync(script, 'utf8');
+        say(playScript(checked, text, basename(script)).page);
         return 0;
       }
       case 'test': {
