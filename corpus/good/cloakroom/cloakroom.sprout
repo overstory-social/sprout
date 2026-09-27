@@ -1,0 +1,18 @@
+world cloakroom is sprout.World {
+  visitors are Walker
+  visitors arrive at hall
+
+  // A place inside a place: the wardrobe is a place of its own, since it
+  // declares `contains actors`, and its door is a pass rule keyed to a
+  // property rather than always open or always shut.
+  object hall is sprout.Place {
+    describe { text "A narrow hall, coats on hooks." }
+    object wardrobe is Wardrobe {
+      :open true
+      object hare is Rabbit
+    }
+    object trunk is Wardrobe {
+      object mole is Rabbit
+    }
+  }
+}

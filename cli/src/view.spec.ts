@@ -63,7 +63,7 @@ what they could type
     expect(inspectView(holding).page).toContain('\ncarrying\n  a brass key (yard.brass_key)\n');
   });
 
-  it('shows the world’s `unseen` where the poll runs out, then the fault the host would log', () => {
+  it('shows the world’s `unseen`, keeping the parts derived first, then the fault the host would log', () => {
     const standing = at();
     const { budgets } = standing.host;
     const starved = {
@@ -72,8 +72,24 @@ what they could type
     };
     const inspected = inspectView(starved);
     expect(inspected.ok).toBe(false);
-    expect(inspected.page).toMatch(
-      /^standing in yard\n\ndescription\n {2}Something here is too much to take in\.\n\nways out\n {2}none\n[^]*\nthe poll faulted, against yard, BudgetExhausted: pollSteps: /,
-    );
+    expect(inspected.page).toBe(`standing in yard
+
+description
+  Something here is too much to take in.
+
+ways out
+  exit in "into the shed" -> shed
+
+who else is here
+  nobody
+
+carrying
+  nothing
+
+what they could type
+  nothing
+
+the poll faulted, against yard, BudgetExhausted: pollSteps: a poll turn may take 2 steps.
+`);
   });
 });

@@ -4,12 +4,14 @@
 // nothing; what it derives (`runtime/view.ts`) is rendered here with the
 // visitor as its one reader, what the place's description records of
 // extensions beside its words (the spec's Extensions › What an extension
-// may add). A poll that faults yields a view whose
-// description is the world's `unseen` and which offers nothing else, its
-// fault laid against the place whose description the poll was deriving
-// where the fault names no object of its own, and given back beside the
-// view for the host to log, the one thing of a poll the log holds. A view
-// is valid until a committed write turn names its visitor stale.
+// may add). A poll that faults yields a view whose description is the
+// world's `unseen` and whose every other part is whatever the poll
+// derived before it faulted, rendered fresh since the budget that
+// faulted can afford nothing more; its fault is laid against the place
+// whose description the poll was deriving where the fault names no
+// object of its own, and given back beside the view for the host to log,
+// the one thing of a poll the log holds. A view is valid until a
+// committed write turn names its visitor stale.
 
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
 import type { Plain } from '../declare/extensions.js';
@@ -22,7 +24,13 @@ import type { OptionRange, RoleOptions } from '../runtime/options.js';
 import type { CommandExit } from '../runtime/parser/exits.js';
 import { nicknamesIn, readerOf, type WorldState } from '../runtime/state.js';
 import { pollTurn, type PollTurn, type TurnHost } from '../runtime/turn.js';
-import { viewOf, type View, type ViewReading } from '../runtime/view.js';
+import {
+  emptyViewParts,
+  viewOf,
+  type View,
+  type ViewParts,
+  type ViewReading,
+} from '../runtime/view.js';
 import { renderDescription } from './describe.js';
 import { objectWords } from './names.js';
 import type { RenderContext } from './render.js';
@@ -85,7 +93,7 @@ export interface SeenView {
 export interface PolledView {
   readonly visit: VisitKey;
   readonly view: SeenView;
-  /** The authoring fault, against the object whose description cost too much; null where the poll did not fault. */
+  /** The authoring fault, against the object the poll was deriving when it ran out; null where the poll did not fault. */
   readonly fault: Fault | null;
 }
 
@@ -109,6 +117,7 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
     actor,
   });
 
+  const parts = emptyViewParts();
   const polled = pollTurn(state, host, (turn) => {
     const context = rendering(turn);
     // A visitor whose place is gone reads what their next command will
@@ -117,10 +126,14 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
       const displaced = renderFor(displacedLine(turn.state, actor), actor, context);
       return onlySaying(displaced.length > 0 ? displaced : [DISPLACED_STOCK]);
     }
-    return renderView(viewOf(actor, context), context);
+    return renderView(viewOf(actor, context, parts), context);
   });
   if (!polled.faulted) return { visit, view: polled.view, fault: null };
 
+  // The description is always the world's `unseen`, and every other part
+  // is whatever `parts` holds of what the poll derived before it faulted
+  // (the spec's Faults); both render under a fresh budget of the poll's
+  // own, since the one that faulted can afford nothing more.
   const unseen = pollTurn(state, host, (turn) =>
     renderFor(
       { by: state.world, said: polled.unseen, bindings: new Map() },
@@ -128,12 +141,15 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
       rendering(turn),
     ),
   );
+  const kept = pollTurn(state, host, (turn) => renderKept(parts, actor, rendering(turn)));
   const { fault } = polled;
   return {
     visit,
-    view: onlySaying(
-      !unseen.faulted && unseen.view.length > 0 ? unseen.view : [stockLine('unseen')],
-    ),
+    view: {
+      description: !unseen.faulted && unseen.view.length > 0 ? unseen.view : [stockLine('unseen')],
+      effects: [],
+      ...(kept.faulted ? emptyKept() : kept.view),
+    },
     fault: fault.engine || fault.object !== null ? fault : { ...fault, object: place },
   };
 }
@@ -150,6 +166,25 @@ export function renderView(view: View, context: RenderContext): SeenView {
     carried: view.carried.map(named),
     readings: view.readings.map((reading) => seenReading(reading, actor, context)),
   };
+}
+
+/** What a faulted poll's `parts` render into, its description left to the caller (the spec's Faults). */
+type Kept = Pick<SeenView, 'exits' | 'occupants' | 'carried' | 'readings'>;
+
+/** `parts`, whatever a faulted poll derived before it faulted, as its visitor reads them. */
+function renderKept(parts: ViewParts, actor: InstanceId, context: RenderContext): Kept {
+  const named = (id: InstanceId): SeenThing => ({ id, name: objectWords(id, actor, context) });
+  return {
+    exits: parts.exits,
+    occupants: parts.occupants.map(named),
+    carried: parts.carried.map(named),
+    readings: parts.readings.map((reading) => seenReading(reading, actor, context)),
+  };
+}
+
+/** Nothing kept: `parts` rendered under a fresh budget faulted too. */
+function emptyKept(): Kept {
+  return { exits: [], occupants: [], carried: [], readings: [] };
 }
 
 function seenReading(reading: ViewReading, actor: InstanceId, context: RenderContext): SeenReading {

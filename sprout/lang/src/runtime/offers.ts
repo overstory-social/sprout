@@ -14,7 +14,7 @@ import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
-import { rangeOf } from './range.js';
+import { rangeOf, type RangeWalk } from './range.js';
 import {
   consentPass,
   type Bound,
@@ -50,19 +50,22 @@ type Filling = { readonly bound: Bound; readonly words: string } | null;
  * Every reading `actor` could type where they stand, in the order the
  * parser tries the verbs; `go` by each of `exits`, the exits and links
  * that apply on their place, asked here where the caller has not asked
- * them already.
+ * them already. `range` is `actor`'s own, asked here where the caller has
+ * not walked it already, since it is the one walk the view's `occupants`
+ * needs too.
  */
 export function offersTo(
   actor: InstanceId,
   context: OfferContext,
   exits?: readonly CommandExit[],
+  range?: RangeWalk<InstanceId>,
 ): Offer[] {
   const { state, budget, passes } = context;
   const here = state.instance(actor)?.container ?? null;
   if (here === null) throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
-  const range = rangeOf({ tree: liveTree(state), passes, budget }, actor, 'any');
-  const things = range.reached.flatMap(({ node }) => {
+  const walked = range ?? rangeOf({ tree: liveTree(state), passes, budget }, actor, 'any');
+  const things = walked.reached.flatMap(({ node }) => {
     const instance = node === state.world || node === actor ? undefined : state.instance(node);
     return instance === undefined ? [] : [instance];
   });

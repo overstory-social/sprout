@@ -5,6 +5,7 @@ import {
   gatehouse,
   gateHost,
   GUARD,
+  HARE,
   INES,
   MARTA,
   PEBBLE,
@@ -55,6 +56,7 @@ describe('polling a visitor’s view', () => {
       { id: GUARD, name: 'a guard' },
       { id: SENTRY, name: 'a sentry' },
       { id: actorOf(state, INES), name: 'Ines' },
+      { id: HARE, name: 'a hare' },
     ]);
     expect(view.carried).toEqual([{ id: PEBBLE, name: 'a pebble' }]);
   });
@@ -87,18 +89,35 @@ describe('polling a visitor’s view', () => {
     ]);
   });
 
-  it('is the world’s `unseen` and nothing else where it runs out, laid against the place', () => {
+  it('is the world’s `unseen`, keeping the parts it derived before it ran out, laid against the place', () => {
     const polled = pollView(gatehouse(), gateHost(20), MARTA);
     expect(polled.view).toEqual({
       description: ['Too much happens here to take in.'],
       effects: [],
-      exits: [],
+      exits: [{ direction: 'up', label: 'up the ladder', to: TOWER }],
       occupants: [],
       carried: [],
       readings: [],
     });
     expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', object: YARD, engine: false });
     expect(polled.fault?.detail).toContain('pollSteps');
+  });
+
+  it('keeps who is there and what is carried too, where the poll got that far before it ran out', () => {
+    const polled = pollView(gatehouse(undefined, [PEBBLE]), gateHost(29), MARTA);
+    expect(polled.view).toEqual({
+      description: ['Too much happens here to take in.'],
+      effects: [],
+      exits: [{ direction: 'up', label: 'up the ladder', to: TOWER }],
+      occupants: [
+        { id: GUARD, name: 'a guard' },
+        { id: SENTRY, name: 'a sentry' },
+        { id: HARE, name: 'a hare' },
+      ],
+      carried: [{ id: PEBBLE, name: 'a pebble' }],
+      readings: [],
+    });
+    expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', engine: false });
   });
 
   it('is `unseen` where its description is more than the one looking may read', () => {
@@ -160,7 +179,12 @@ describe('rendering a view', () => {
     const ines = actorOf(state, INES);
     const context = { ...pollingIn(state), draws: null, actor: ines };
     const seen = renderView(viewOf(ines, context), context);
-    expect(seen.occupants.map((one) => one.name)).toEqual(['a guard', 'a sentry', 'Marta']);
+    expect(seen.occupants.map((one) => one.name)).toEqual([
+      'a guard',
+      'a sentry',
+      'Marta',
+      'a hare',
+    ]);
     expect(seen.carried).toEqual([]);
   });
 });
