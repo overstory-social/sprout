@@ -43,11 +43,12 @@ export function occupantsOf(state: StateReader, teller: InstanceId): readonly In
 }
 
 /**
- * The place around `teller`: its nearest container, strictly outward,
- * whose kind declares `contains actors`; null where none does.
+ * The place around `id`: its nearest container, strictly outward, whose
+ * kind declares `contains actors`; null where none does. For an actor or
+ * a visitor, whose own kind never holds actors, this is where they stand.
  */
-function surroundOf(state: StateReader, teller: InstanceId): InstanceId | null {
-  const instance = state.instance(teller);
+export function surroundOf(state: StateReader, id: InstanceId): InstanceId | null {
+  const instance = state.instance(id);
   if (instance === undefined) return null;
   for (let at = instance.container; at !== null;) {
     const container = state.instance(at);
