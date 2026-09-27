@@ -12,7 +12,7 @@ import { type Grammar, type Rule, SCHEMA, named } from './rule.ts';
 const S = 'sprout';
 const PROSE = 'source.sprout-prose';
 
-const NAME = '[a-z_][A-Za-z0-9_]*';
+const NAME = '[a-z_][a-z0-9_]*';
 const TYPE = '[A-Z][A-Za-z0-9_]*';
 
 const COMMENTS: readonly Rule[] = [
@@ -95,7 +95,7 @@ const DECLARATIONS: readonly Rule[] = [
     captures: named(KEYWORD, `entity.name.tag.object.${S}`),
   },
   {
-    match: `\\b(message)\\s+(:)([a-z][A-Za-z0-9_]*)`,
+    match: `\\b(message)\\s+(:)([a-z][a-z0-9_]*)`,
     captures: named(
       KEYWORD,
       `punctuation.definition.symbol.${S}`,
@@ -186,14 +186,15 @@ const WORDS: readonly Rule[] = [
     ),
   },
   {
-    match: '(:)([a-z][A-Za-z0-9_]*)',
+    match: '(:)([a-z][a-z0-9_]*)',
     name: `constant.other.symbol.${S}`,
     captures: named(`punctuation.definition.symbol.${S}`),
   },
   { name: `constant.numeric.integer.${S}`, match: '\\b[0-9]+\\b' },
-  { name: `entity.name.type.${S}`, match: `\\b${TYPE}\\b` },
+  // A capital ends a lower-case word, as the lexer reads `visitsCount` as `visits` and `Count`.
+  { name: `entity.name.type.${S}`, match: `(?:\\b|(?<=[a-z0-9_]))${TYPE}\\b` },
   { name: `entity.name.function.${S}`, match: `\\b${NAME}(?=\\s*\\()` },
-  { name: `variable.other.${S}`, match: `\\b${NAME}\\b` },
+  { name: `variable.other.${S}`, match: `\\b${NAME}` },
   { name: `keyword.operator.arrow.${S}`, match: '->' },
   { name: `keyword.operator.${S}`, match: '==|!=|<=|>=|&&|\\|\\||[<>!=+\\-*/]' },
   { name: `punctuation.section.block.begin.${S}`, match: '\\{' },

@@ -110,6 +110,14 @@ describe('the .sprout grammar', () => {
     expect(iff?.scopes.some((s) => s.startsWith('string'))).toBe(false);
   });
 
+  it('reads a lower-case word only as far as the lexer does', async () => {
+    const [tokens] = await tokenise('source.sprout', ':visitsCount');
+    expect(tokens!.find((t) => t.text === 'visits')?.scopes).toContain(
+      'constant.other.symbol.sprout',
+    );
+    expect(tokens!.find((t) => t.text === 'Count')?.scopes).toContain('entity.name.type.sprout');
+  });
+
   it('ends quoted text that is never closed at the end of its line', async () => {
     const lines = await tokenise('source.sprout', 'say "never closed\nkind Key');
     expect(lines[1]!.find((t) => t.text === 'Key')?.scopes).toContain(

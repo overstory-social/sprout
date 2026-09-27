@@ -41,18 +41,18 @@ function expression(inline: boolean): Rule[] {
     { name: `variable.language.${S}`, match: '\\b(?:self|actor|here)\\b' },
     { name: `constant.language.boolean.${S}`, match: `\\b(?:${LITERALS.join('|')})\\b` },
     {
-      match: '(:)([a-z][A-Za-z0-9_]*)',
+      match: '(:)([a-z][a-z0-9_]*)',
       name: `constant.other.symbol.${S}`,
       captures: named(`punctuation.definition.symbol.${S}`),
     },
     { name: `constant.numeric.integer.${S}`, match: '\\b[0-9]+\\b' },
     {
-      match: '\\b([a-z_][A-Za-z0-9_]*)(\\.)(?=[A-Z])',
+      match: '\\b([a-z_][a-z0-9_]*)(\\.)(?=[A-Z])',
       captures: named(`entity.name.namespace.${S}`, `punctuation.accessor.${S}`),
     },
-    { name: `entity.name.type.${S}`, match: '\\b[A-Z][A-Za-z0-9_]*\\b' },
-    { name: `entity.name.function.${S}`, match: '\\b[a-z_][A-Za-z0-9_]*(?=\\s*\\()' },
-    { name: `variable.other.${S}`, match: '\\b[a-z_][A-Za-z0-9_]*\\b' },
+    { name: `entity.name.type.${S}`, match: '(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b' },
+    { name: `entity.name.function.${S}`, match: '\\b[a-z_][a-z0-9_]*(?=\\s*\\()' },
+    { name: `variable.other.${S}`, match: '\\b[a-z_][a-z0-9_]*' },
     { name: `keyword.operator.${S}`, match: '==|!=|<=|>=|&&|\\|\\||[<>!+\\-*/]' },
     { name: `punctuation.accessor.${S}`, match: '\\.' },
     { name: `punctuation.separator.${S}`, match: ',' },
@@ -124,7 +124,7 @@ function tags(inline: boolean): Rule[] {
 /** `passage name { … }`, or `passage name default { … }`, its body read as prose. */
 export const PASSAGE: Rule = {
   name: `meta.passage.${S}`,
-  begin: '\\b(passage)\\s+([a-z_][A-Za-z0-9_]*)(?:\\s+(default))?\\s*(\\{)',
+  begin: '\\b(passage)\\s+([a-z_][a-z0-9_]*)(?:\\s+(default))?\\s*(\\{)',
   end: '\\}',
   beginCaptures: named(
     `keyword.other.${S}`,

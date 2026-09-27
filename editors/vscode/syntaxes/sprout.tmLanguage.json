@@ -20,7 +20,7 @@
     { "include": "source.sprout-prose#passage" },
     { "include": "#declarations" },
     {
-      "begin": "\\b(say|tell|text|refuse)\\b(?:\\s+([a-z_][A-Za-z0-9_]*(?:\\.[a-z_][A-Za-z0-9_]*)*))?\\s*(?=\")",
+      "begin": "\\b(say|tell|text|refuse)\\b(?:\\s+([a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)*))?\\s*(?=\")",
       "end": "(?<=\")|$",
       "beginCaptures": {
         "1": { "name": "keyword.other.sprout" },
@@ -55,7 +55,7 @@
     "declarations": {
       "patterns": [
         {
-          "match": "^\\s*(extension)\\s+([a-z_][A-Za-z0-9_]*)\\s+([0-9]+)\\b",
+          "match": "^\\s*(extension)\\s+([a-z_][a-z0-9_]*)\\s+([0-9]+)\\b",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "entity.name.namespace.sprout" },
@@ -93,7 +93,7 @@
               "end": "$",
               "beginCaptures": { "0": { "name": "punctuation.definition.comment.sprout" } }
             },
-            { "name": "variable.other.enummember.sprout", "match": "\\b[a-z_][A-Za-z0-9_]*\\b" },
+            { "name": "variable.other.enummember.sprout", "match": "\\b[a-z_][a-z0-9_]*\\b" },
             { "name": "punctuation.separator.sprout", "match": "," }
           ]
         },
@@ -105,14 +105,14 @@
           }
         },
         {
-          "match": "^\\s*(world|object)\\s+([a-z_][A-Za-z0-9_]*)",
+          "match": "^\\s*(world|object)\\s+([a-z_][a-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "entity.name.tag.object.sprout" }
           }
         },
         {
-          "match": "\\b(message)\\s+(:)([a-z][A-Za-z0-9_]*)",
+          "match": "\\b(message)\\s+(:)([a-z][a-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "punctuation.definition.symbol.sprout" },
@@ -121,7 +121,7 @@
         },
         {
           "name": "meta.verb.sprout",
-          "begin": "\\b(verb)\\s+([a-z_][A-Za-z0-9_]*)\\s*(\\{)",
+          "begin": "\\b(verb)\\s+([a-z_][a-z0-9_]*)\\s*(\\{)",
           "end": "\\}",
           "beginCaptures": {
             "1": { "name": "keyword.other.sprout" },
@@ -153,7 +153,7 @@
                 { "name": "constant.character.escape.sprout", "match": "\\\\[\"\\\\n{]" },
                 { "match": "\\\\." },
                 {
-                  "match": "(\\[)\\s*([a-z_][A-Za-z0-9_]*)\\s*(\\])",
+                  "match": "(\\[)\\s*([a-z_][a-z0-9_]*)\\s*(\\])",
                   "captures": {
                     "1": { "name": "punctuation.definition.role.begin.sprout" },
                     "2": { "name": "variable.parameter.role.sprout" },
@@ -166,14 +166,14 @@
           ]
         },
         {
-          "match": "\\b(verb)\\s+([a-z_][A-Za-z0-9_]*)",
+          "match": "\\b(verb)\\s+([a-z_][a-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "entity.name.function.verb.sprout" }
           }
         },
         {
-          "match": "\\b(as)\\s+([a-z_][A-Za-z0-9_]*)\\s+(for)\\s+([a-z_][A-Za-z0-9_]*)",
+          "match": "\\b(as)\\s+([a-z_][a-z0-9_]*)\\s+(for)\\s+([a-z_][a-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "variable.parameter.role.sprout" },
@@ -182,14 +182,14 @@
           }
         },
         {
-          "match": "\\b(role)\\s+([a-z_][A-Za-z0-9_]*)",
+          "match": "\\b(role)\\s+([a-z_][a-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "variable.parameter.role.sprout" }
           }
         },
         {
-          "match": "\\b(exit|link|connect)\\s+([a-z_][A-Za-z0-9_]*)",
+          "match": "\\b(exit|link|connect)\\s+([a-z_][a-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.sprout" },
             "2": { "name": "entity.name.label.sprout" }
@@ -211,7 +211,7 @@
         { "name": "keyword.other.sprout", "match": "\\bis\\b(?!\\s*\\()" },
         { "name": "variable.language.sprout", "match": "\\b(?:self|actor|here)\\b" },
         {
-          "match": "\\b([a-z_][A-Za-z0-9_]*)(\\.)([A-Z][A-Za-z0-9_]*)\\b",
+          "match": "\\b([a-z_][a-z0-9_]*)(\\.)([A-Z][A-Za-z0-9_]*)\\b",
           "captures": {
             "1": { "name": "entity.name.namespace.sprout" },
             "2": { "name": "punctuation.accessor.sprout" },
@@ -219,7 +219,7 @@
           }
         },
         {
-          "match": "\\b([A-Z][A-Za-z0-9_]*)(\\.)([a-z_][A-Za-z0-9_]*)\\b",
+          "match": "\\b([A-Z][A-Za-z0-9_]*)(\\.)([a-z_][a-z0-9_]*)\\b",
           "captures": {
             "1": { "name": "entity.name.type.sprout" },
             "2": { "name": "punctuation.accessor.sprout" },
@@ -227,14 +227,17 @@
           }
         },
         {
-          "match": "(:)([a-z][A-Za-z0-9_]*)",
+          "match": "(:)([a-z][a-z0-9_]*)",
           "name": "constant.other.symbol.sprout",
           "captures": { "1": { "name": "punctuation.definition.symbol.sprout" } }
         },
         { "name": "constant.numeric.integer.sprout", "match": "\\b[0-9]+\\b" },
-        { "name": "entity.name.type.sprout", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" },
-        { "name": "entity.name.function.sprout", "match": "\\b[a-z_][A-Za-z0-9_]*(?=\\s*\\()" },
-        { "name": "variable.other.sprout", "match": "\\b[a-z_][A-Za-z0-9_]*\\b" },
+        {
+          "name": "entity.name.type.sprout",
+          "match": "(?:\\b|(?<=[a-z0-9_]))[A-Z][A-Za-z0-9_]*\\b"
+        },
+        { "name": "entity.name.function.sprout", "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()" },
+        { "name": "variable.other.sprout", "match": "\\b[a-z_][a-z0-9_]*" },
         { "name": "keyword.operator.arrow.sprout", "match": "->" },
         { "name": "keyword.operator.sprout", "match": "==|!=|<=|>=|&&|\\|\\||[<>!=+\\-*/]" },
         { "name": "punctuation.section.block.begin.sprout", "match": "\\{" },
