@@ -1,7 +1,8 @@
 // What a reading tells, and to whom (the spec's Other people › Who hears
 // it): a plain `tell` reaches the people in the teller's place less every
 // participant, `tell <x>` reaches `x` only in the teller's range, and
-// neither answers the actor. The town below is this file's own world.
+// neither answers the actor. The town and the burrow below are this
+// file's own worlds.
 
 import { describe, expect, it } from 'vitest';
 
@@ -129,6 +130,44 @@ describe('a `tell <x>` out of the teller’s range', () => {
     expect(heard(drained.said)).toEqual([
       ['told', INN, [], null, 'Come back soon.'],
       ['told', MILL, [marta], null, 'Welcome to the mill.'],
+    ]);
+  });
+});
+
+/**
+ * A burrow of two places, the den and, inside it, a nook that itself
+ * holds actors: a `rap` on the nook has two audiences, whoever is inside
+ * it and whoever is in the den around it, and `tell inside`/`tell
+ * outside` direct it to only one.
+ */
+const BURROW = compiledWorld('burrow', {
+  'burrow.sprout': [
+    'world burrow is sprout.World { visitors are Person visitors arrive at den',
+    '  object den is Den { object nook is Nook }',
+    '}',
+    'verb rap { role target  "rap on [target]" }',
+    'kind Person is sprout.Visitor { }',
+    'kind Den is sprout.Place { }',
+    'kind Nook is sprout.Place {',
+    '  as target for rap { do { tell inside "Someone taps from inside."  tell outside "A tap from the nook." } }',
+    '}',
+    '',
+  ].join('\n'),
+});
+const inBurrow = (...path: string[]) => declaredId('burrow', path);
+const [WORLD_BURROW, DEN, NOOK] = [inBurrow(), inBurrow('den'), inBurrow('den', 'nook')];
+
+describe('`tell inside` and `tell outside` in a reading', () => {
+  it('reach only a teller’s own occupants, or only the place around it, less the participants', () => {
+    const one = turn(BURROW, [DEN, NOOK, DEN]);
+    const [inDen, inNook, alsoInDen] = one.people;
+    const said = acted(
+      runReading(reading(BURROW, 'rap', inDen!, { target: { object: NOOK } }), contextOf(one)),
+    ).said;
+    expect(heard(said)).toEqual([
+      ['told', NOOK, [inNook], null, 'Someone taps from inside.'],
+      ['told', NOOK, [alsoInDen], null, 'A tap from the nook.'],
+      ['said', WORLD_BURROW, [inDen], null, NOTHING],
     ]);
   });
 });
