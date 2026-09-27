@@ -154,16 +154,20 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   };
 }
 
+/** `id` as `actor` reads it: its article and name, or a visitor's nickname. */
+function seenThing(id: InstanceId, actor: InstanceId, context: RenderContext): SeenThing {
+  return { id, name: objectWords(id, actor, context) };
+}
+
 /** `view` as its visitor reads it, rendered with no draws. */
 export function renderView(view: View, context: RenderContext): SeenView {
   const { actor } = view;
-  const named = (id: InstanceId): SeenThing => ({ id, name: objectWords(id, actor, context) });
   return {
     description: renderDescription(view.description, context).paragraphs,
     effects: view.description.recorded.flatMap((line) => seenEffect(line, actor, context)),
     exits: view.exits,
-    occupants: view.occupants.map(named),
-    carried: view.carried.map(named),
+    occupants: view.occupants.map((id) => seenThing(id, actor, context)),
+    carried: view.carried.map((id) => seenThing(id, actor, context)),
     readings: view.readings.map((reading) => seenReading(reading, actor, context)),
   };
 }
@@ -173,11 +177,10 @@ type Kept = Pick<SeenView, 'exits' | 'occupants' | 'carried' | 'readings'>;
 
 /** `parts`, whatever a faulted poll derived before it faulted, as its visitor reads them. */
 function renderKept(parts: ViewParts, actor: InstanceId, context: RenderContext): Kept {
-  const named = (id: InstanceId): SeenThing => ({ id, name: objectWords(id, actor, context) });
   return {
     exits: parts.exits,
-    occupants: parts.occupants.map(named),
-    carried: parts.carried.map(named),
+    occupants: parts.occupants.map((id) => seenThing(id, actor, context)),
+    carried: parts.carried.map((id) => seenThing(id, actor, context)),
     readings: parts.readings.map((reading) => seenReading(reading, actor, context)),
   };
 }
