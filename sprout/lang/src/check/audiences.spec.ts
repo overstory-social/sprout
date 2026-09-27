@@ -4,9 +4,10 @@ import type { RefuseStatement, Statement } from '../syntax/ast.js';
 import { compileBundle } from '../bundle/compile/compile.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { locationOf } from '../source/source.js';
+import type { KindRef } from '../declare/kinds.js';
 import { integer } from '../declare/types.js';
 import { readStatement } from '../fixtures/parse.js';
-import { bodyOf, KEY, VESSEL, at } from '../fixtures/check.js';
+import { bodyOf, KEY, PLACE, VESSEL, at } from '../fixtures/check.js';
 import { refusals, world, worldFiles, worldLine } from '../fixtures/compile.js';
 import { actorBinding, letBinding, setRoleBinding, valueOf } from './bindings.js';
 import type { BodyKind } from './blocks.js';
@@ -31,12 +32,13 @@ function statementOf(text: string): Statement {
 }
 
 /**
- * `text` checked where `kind` stands, in a vessel's body with a set role
- * `tools`, a count `n`, and `actor` withheld where the body is a handler's.
+ * `text` checked where `kind` stands, in `self`'s body (a vessel, holding
+ * no actors, unless a case gives another) with a set role `tools`, a
+ * count `n`, and `actor` withheld where the body is a handler's.
  */
-function spoken(text: string, kind: BodyKind) {
+function spoken(text: string, kind: BodyKind, self: KindRef = VESSEL) {
   const base = bodyOf(
-    VESSEL,
+    self,
     setRoleBinding('tools', KEY, at('tools')),
     letBinding('n', valueOf(integer(0, 9)), at('n')),
   );
@@ -130,6 +132,32 @@ describe('`tell` speaks to the place or to one person, in a `do` or a handler', 
     ]);
     expect(spoken('tell n "Hi."', DO)).toEqual([
       ['body.sprout:1:6', '`tell` speaks to one person, and `n` is integer 0 to 9.', remedy],
+    ]);
+  });
+});
+
+describe('`tell inside` and `tell outside` direct it to one of a teller’s two audiences', () => {
+  it('is checked in a `do` and a handler where `self`’s kind holds actors', () => {
+    expect(spoken('tell inside "The coats rustle."', DO, PLACE)).toEqual([]);
+    expect(spoken('tell outside "The coats rustle."', HANDLER, PLACE)).toEqual([]);
+  });
+
+  it('refuses either direction where `self`’s kind does not declare `contains actors`', () => {
+    expect(spoken('tell inside "Get in!"', DO)).toEqual([
+      [
+        'body.sprout:1:6',
+        '`Vessel` holds no actors, so `tell inside` has nobody to reach.',
+        'Write `contains actors` in `Vessel`\'s body, or tell the place plainly, as in `tell "{actor} pulls the lever."`.',
+      ],
+    ]);
+    expect(spoken('tell outside "Stand back!"', DO).map(([, message]) => message)).toEqual([
+      '`Vessel` holds no actors, so `tell outside` has nobody to reach.',
+    ]);
+  });
+
+  it('refuses it in a guard and a `permit`, which only decide, before asking whether `self` holds actors', () => {
+    expect(spoken('tell inside "Hi."', GUARD, PLACE).map(([, message]) => message)).toEqual([
+      '`tell` speaks, and `depart` only reads and decides.',
     ]);
   });
 });

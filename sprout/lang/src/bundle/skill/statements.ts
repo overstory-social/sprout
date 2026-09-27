@@ -58,7 +58,9 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
   {
     word: 'tell',
     example: 'tell "Hello."',
-    does: 'speaks to everyone else there, or `tell p "…"` to one person',
+    does:
+      'speaks to everyone else there, `tell p "…"` to one person, or, where the body’s kind holds ' +
+      'actors, `tell inside "…"` to only its own occupants and `tell outside "…"` to only the place around it',
   },
   { word: 'text', example: 'text "Hello."', does: 'gives a description its words' },
   { word: 'let', example: 'let lit = self.get(:lit)', does: 'names a value, once, for the block' },

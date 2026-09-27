@@ -94,7 +94,8 @@ kind GlassCase {
   pass any (false)
 }
 
-// A gem hums when a bell rings, heard in its place however shut away.
+// A gem hums when a bell rings, heard in its place unless something shut
+// stands between, as the one in the chest is not.
 kind Gem {
   :rung false
   on :rang {

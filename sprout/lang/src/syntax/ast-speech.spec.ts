@@ -25,12 +25,13 @@ describe('the nodes of words for a reader keep the rule every node keeps', () =>
     const said = [
       read('say "You pull {target}."'),
       read('tell kiln.shelf pulled'),
+      read('tell inside "The coats rustle."'),
       read('text greeting'),
     ];
     expect(unspanned(said)).toEqual([]);
-    expect(said.map((statement) => statement.kind)).toEqual(['say', 'tell', 'text']);
+    expect(said.map((statement) => statement.kind)).toEqual(['say', 'tell', 'tell', 'text']);
     const kinds = new Set([...nodesOf(said)].map((node) => node.kind));
-    for (const kind of ['prose-literal', 'prose-slot', 'path', 'ident']) {
+    for (const kind of ['prose-literal', 'prose-slot', 'path', 'ident', 'direction']) {
       expect(kinds.has(kind), kind).toBe(true);
     }
   });
@@ -39,6 +40,14 @@ describe('the nodes of words for a reader keep the rule every node keeps', () =>
     const told = read('tell kiln.shelf pulled') as TellStatement;
     expect(textOf(told.to!.at)).toBe('kiln.shelf');
     expect((read('tell pulled') as TellStatement).to).toBeNull();
+  });
+
+  it('keeps a direction as the word written, spanned, and none where it is not directed', () => {
+    const directed = read('tell inside pulled') as TellStatement;
+    expect(directed.direction).toMatchObject({ kind: 'direction', word: 'inside' });
+    expect(textOf(directed.direction!.at)).toBe('inside');
+    expect((read('tell pulled') as TellStatement).direction).toBeNull();
+    expect((read('tell kiln.shelf pulled') as TellStatement).direction).toBeNull();
   });
 });
 

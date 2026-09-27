@@ -34,7 +34,13 @@ function written(statement: Statement | null): string {
     return statement.kind;
   }
   const to =
-    statement.kind === 'tell' && statement.to !== null ? ` ${writtenPath(statement.to)}` : '';
+    statement.kind !== 'tell'
+      ? ''
+      : statement.direction !== null
+        ? ` ${statement.direction.word}`
+        : statement.to !== null
+          ? ` ${writtenPath(statement.to)}`
+          : '';
   const said = statement.said.kind === 'ident' ? statement.said.text : `"${statement.said.value}"`;
   return `${statement.kind}${to} ${said}`;
 }
@@ -138,6 +144,53 @@ describe('`tell` speaks to the place, or to the one it names', () => {
   });
 });
 
+describe('`tell inside` and `tell outside` direct it to one of a teller’s two audiences', () => {
+  it('reads either direction, in quotes or by a passage’s name', () => {
+    for (const [text, direction] of [
+      ['tell inside "Get in!"', 'inside'],
+      ['tell outside "Stand back!"', 'outside'],
+      ['tell inside pulled', 'inside'],
+      ['tell outside pulled', 'outside'],
+    ] as const) {
+      const { statement, refusals } = read(text);
+      expect(refusals, text).toEqual([]);
+      if (statement?.kind !== 'tell') return expect.unreachable(`${text} is a \`tell\``);
+      expect(statement.to, text).toBeNull();
+      expect(statement.direction?.word, text).toBe(direction);
+      expect(textOf(statement.at), text).toBe(text);
+      expect(unspanned(statement), text).toEqual([]);
+    }
+  });
+
+  it('reads a lone `inside` or `outside`, nothing following, as a passage of that name, not a direction', () => {
+    for (const word of ['inside', 'outside']) {
+      const { statement, refusals } = read(`tell ${word}`);
+      expect(refusals, word).toEqual([]);
+      if (statement?.kind !== 'tell') return expect.unreachable(`tell ${word} is a \`tell\``);
+      expect(statement.direction, word).toBeNull();
+      expect(statement.to, word).toBeNull();
+      expect(statement.said).toMatchObject({ kind: 'ident', text: word });
+    }
+  });
+
+  it('reads a dotted path starting with `inside` or `outside` as who is told, not a direction', () => {
+    const { statement } = read('tell inside.pocket "Warm."');
+    if (statement?.kind !== 'tell') return expect.unreachable('a `tell` was written');
+    expect(statement.direction).toBeNull();
+    expect(writtenPath(statement.to!)).toBe('inside.pocket');
+  });
+
+  it('refuses a directed `tell` whose words are written wrong', () => {
+    expect(read('tell inside 4').said).toEqual([
+      [
+        'body.sprout:1:13',
+        '`tell inside` says something.',
+        'Write the words in quotes, as in `tell inside "{actor} pulls the lever."`, or name a passage, as in `tell inside pulled`.',
+      ],
+    ]);
+  });
+});
+
 describe('`text` gives a `describe` its words', () => {
   it('reads the words in quotes, or a passage’s name', () => {
     expect(written(read('text greeting').statement)).toBe('text greeting');
@@ -214,7 +267,7 @@ function blockOf(text: string) {
   return {
     kinds:
       kept?.statements.map((one) =>
-        one.kind === 'tell' && one.to === null
+        one.kind === 'tell' && one.to === null && one.direction === null
           ? written(one).replace('tell ', 'tell place ')
           : written(one),
       ) ?? null,
@@ -233,17 +286,20 @@ function blockOf(text: string) {
 
 const WORDS = ['"The bolt slides back."', '"{actor} tags {self}."', 'taken', 'greeting'];
 const TOLD = ['self', 'item', 'actor', 'kiln.shelf'];
+const DIRECTIONS = ['inside', 'outside'];
 
 function wellFormed(c: ReturnType<typeof chooser>): string {
-  switch (c.below(4)) {
+  switch (c.below(5)) {
     case 0:
       return `say ${c.one(WORDS)}`;
     case 1:
       return `text ${c.one(WORDS)}`;
     case 2:
       return `tell ${c.one(WORDS)}`;
-    default:
+    case 3:
       return `tell ${c.one(TOLD)} ${c.one(WORDS)}`;
+    default:
+      return `tell ${c.one(DIRECTIONS)} ${c.one(WORDS)}`;
   }
 }
 
@@ -307,7 +363,16 @@ describe('words for a reader never vanish silently, and never take what follows 
 
   it('keeps the statements either side of a defective one, and says one thing', () => {
     const c = chooser(30);
-    const DEFECTIVE = ['say', 'tell', 'text', 'tell kiln.shelf', 'say 4', 'tell self 4', 'text 4'];
+    const DEFECTIVE = [
+      'say',
+      'tell',
+      'text',
+      'tell kiln.shelf',
+      'say 4',
+      'tell self 4',
+      'tell inside 4',
+      'text 4',
+    ];
     for (let run = 0; run < 200; run++) {
       const [before, beforeKind] = c.one(FOLLOWING);
       const [after, afterKind] = c.one(FOLLOWING);

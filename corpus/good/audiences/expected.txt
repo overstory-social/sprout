@@ -1,1 +1,1 @@
-ok: 19 declarations in 9 files
+ok: 20 declarations in 9 files

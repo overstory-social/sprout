@@ -5,6 +5,7 @@ import {
   BELL,
   BUBBLE,
   BUS,
+  CHEST,
   DOG,
   eventTurn,
   GEM,
@@ -12,6 +13,7 @@ import {
   LAMP,
   MATCH,
   MOTH,
+  setOn,
   STRAY,
   TIDIER,
   WICK,
@@ -156,15 +158,22 @@ describe('the queue drains', () => {
     expect(held(one, TIDIER, 'tried')).toBe(false);
   });
 
-  it('tells a handler’s words to the people in its place, nobody left out, since no reading runs', () => {
+  it('tells a handler’s words to the people its place reaches, nobody left out, since no reading runs', () => {
     const one = eventTurn();
+    setOn(one, CHEST, { open: true });
     const drained = drain(queued(sent('rang', GEM, BELL), sent('rang', STRAY, BELL)), context(one));
-    // The gem in the shut chest is heard in the hall; the stray in the
-    // empty yard is heard by nobody, and is still what it told.
+    // Open, the chest carries the gem's voice to the hall; the stray in
+    // the empty yard is heard by nobody, and is still what it told.
     expect(drained.said.map((said) => [said.effect, said.by, said.to, said.speaker])).toEqual([
       ['told', GEM, [one.visitor], null],
       ['told', STRAY, [], null],
     ]);
+  });
+
+  it('leaves a handler’s words unheard where a shut container stands between it and its place', () => {
+    const one = eventTurn();
+    const drained = drain(queued(sent('rang', GEM, BELL)), context(one));
+    expect(drained.said).toEqual([expect.objectContaining({ effect: 'told', by: GEM, to: [] })]);
   });
 
   it('hands the light down a kind’s own copy, named from the kind’s body', () => {

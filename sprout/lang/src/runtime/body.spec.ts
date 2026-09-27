@@ -53,6 +53,7 @@ const VERBS = [
   'sink',
   'ring',
   'dig',
+  'hail',
   'rest',
   'announce',
   'sort',
@@ -116,6 +117,7 @@ const bundle = compiledWorld('shop', {
     '  contains actors',
     '  grammar { link below "down into the dark" }',
     '  as target for dig { do { let hole = spawn Pit in self  connect below to hole  connect below to hole  say "Dug." } }',
+    '  as target for hail { do { tell inside "Echoes from below."  tell outside "A voice from the pit." } }',
     '}',
     'verb nuzzle { role target  role toys many  "nuzzle [target] with [toys]" }',
     'kind Pet is Creature {',
@@ -340,6 +342,20 @@ describe('what a `do` says, spawns and destroys', () => {
       ['actor', 'here'],
       ['actor', 'here', 'a'],
       ['actor', 'here', 'a'],
+    ]);
+  });
+
+  it('carries `inside` and `outside` on a `tell` that is directed, and neither on the others', () => {
+    const one = turn();
+    const heard = act(one, PIT, 'hail');
+    expect(heard.told.map((told) => [told.one, told.direction, words(told)])).toEqual([
+      [null, 'inside', 'Echoes from below.'],
+      [null, 'outside', 'A voice from the pit.'],
+    ]);
+    expect(act(one, COUNTER, 'announce').told.map((told) => told.direction)).toEqual([
+      null,
+      null,
+      null,
     ]);
   });
 

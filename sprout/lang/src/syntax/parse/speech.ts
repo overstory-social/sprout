@@ -1,18 +1,20 @@
 // The statements that put words in front of a reader, and the words they
 // take (the spec's Prose; Other people › Who hears it): `say`, `tell`,
-// `tell <x>` and `text`, each followed by words in quotes, a one-line
-// passage, or a passage's name; `refuse` takes its words the same way.
-// Words in quotes after `say`, `tell`, `text` or `refuse` are held to the
-// host's cap on a literal line (Limits › Static caps), which a passage is
-// not.
+// `tell <x>`, `tell inside`, `tell outside` and `text`, each followed by
+// words in quotes, a one-line passage, or a passage's name; `refuse`
+// takes its words the same way. Words in quotes after `say`, `tell`,
+// `text` or `refuse` are held to the host's cap on a literal line (Limits
+// › Static caps), which a passage is not.
 //
-// `tell` names who is told only where a second word or words in quotes
-// follow the first on its line, so `tell pulled` is a passage said to the
-// place and `tell self pulled` the same passage said to `self`. Where each
-// statement may stand is the checker's.
+// `tell` names who is told, or directs itself with `inside` or `outside`,
+// only where a second word or words in quotes follow the first on its
+// line, so `tell pulled` is a passage said to the place and `tell self
+// pulled` the same passage said to `self`, while `tell inside pulled`
+// directs it to the teller's own occupants. Where each statement may
+// stand, and where a direction is refused, is the checker's.
 
 import type { Ident, ObjectPath } from '../ast.js';
-import type { SayStatement, TellStatement, TextStatement } from '../ast-speech.js';
+import type { SayStatement, TellDirection, TellStatement, TextStatement } from '../ast-speech.js';
 import { writtenPath } from '../ast.js';
 import type { ProseLiteral } from '../ast-prose.js';
 import type { Token } from '../lexer.js';
@@ -51,20 +53,39 @@ export function textStatement(p: Parser, within: Enclosing): TextStatement | nul
 
 /**
  * `tell "…"` or `tell pulled`, to the place; `tell self "…"`, `tell item
- * pulled` or `tell kiln.shelf "…"`, to the one named. Null having said why.
+ * pulled` or `tell kiln.shelf "…"`, to the one named; `tell inside "…"` or
+ * `tell outside "…"`, to the teller's own occupants or to the place around
+ * it (the spec's Other people › Who hears it). Null having said why.
  */
 export function tellStatement(p: Parser, within: Enclosing): TellStatement | null {
   const keyword = p.next();
   let to: ObjectPath | null = null;
+  let direction: TellDirection | null = null;
   const head = p.peek();
-  if (namesWhoIsTold(p, within, head)) {
+  if (isDirected(head) && !punct(p.peek(1), '.') && namesWhoIsTold(p, within, head)) {
+    p.next();
+    direction = { kind: 'direction', at: head.at, word: head.text as 'inside' | 'outside' };
+  } else if (namesWhoIsTold(p, within, head)) {
     p.next();
     to = objectPath(p, head);
     if (to === null) return null;
   }
-  const lead = to === null ? 'tell' : `tell ${writtenPath(to)}`;
-  const said = capped(p, spoken(p, (to ?? keyword).at, within, 'tell', lead), 'tell', lead);
-  return said === null ? null : { kind: 'tell', at: spanning(keyword.at, said.at), to, said };
+  const lead =
+    direction !== null
+      ? `tell ${direction.word}`
+      : to === null
+        ? 'tell'
+        : `tell ${writtenPath(to)}`;
+  const after = direction !== null ? direction.at : (to ?? keyword).at;
+  const said = capped(p, spoken(p, after, within, 'tell', lead), 'tell', lead);
+  return said === null
+    ? null
+    : { kind: 'tell', at: spanning(keyword.at, said.at), to, direction, said };
+}
+
+/** Whether a token is the word `inside` or `outside`, which directs a `tell` when it names who is told. */
+function isDirected(token: Token): token is Token & { text: 'inside' | 'outside' } {
+  return token.kind === 'name' && (token.text === 'inside' || token.text === 'outside');
 }
 
 /**

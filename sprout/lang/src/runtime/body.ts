@@ -100,10 +100,16 @@ export interface Spoken {
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
-/** One `tell`, as the body said it: to the teller's place, or to the one it named. */
+/**
+ * One `tell`, as the body said it: to the teller's place, to the one it
+ * named, or, directed, to only its own occupants or only the place
+ * around it.
+ */
 export interface Told extends Spoken {
-  /** Who was named after `tell`; null where it was said to the place. */
+  /** Who was named after `tell`; null where it was said to the place, directed or not. */
   readonly one: InstanceId | null;
+  /** `inside` or `outside`, where the statement is directed; null where it is not. */
+  readonly direction: 'inside' | 'outside' | null;
 }
 
 /** Where an acting body's effects go, and what its spawns and writes reach. */
@@ -292,6 +298,7 @@ function runStatement(
       acting(run, '`tell`').tell({
         by: frame.self,
         one: statement.to === null ? null : objectAt(statement.to, frame),
+        direction: statement.direction === null ? null : statement.direction.word,
         said: speechOf(statement, frame),
         bindings: new Map(bindings),
       });

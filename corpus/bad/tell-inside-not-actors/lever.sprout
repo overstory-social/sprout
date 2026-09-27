@@ -1,0 +1,10 @@
+// Neither `tell inside` nor `tell outside` has anyone to reach on a kind
+// that does not declare `contains actors`.
+kind Lever {
+  as target for pull {
+    do {
+      tell inside "Get in!"
+      tell outside "Stand back!"
+    }
+  }
+}

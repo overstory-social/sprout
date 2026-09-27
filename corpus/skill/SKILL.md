@@ -233,7 +233,7 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `refuse "Not now."` | decides no, in text in quotes or a passage by its name | yes | yes | — | — | — |
 | `allow` | decides yes, and nothing after it runs | yes | yes | — | — | — |
 | `say "Hello."` | speaks to the one acting, in text or a passage | — | — | yes | — | — |
-| `tell "Hello."` | speaks to everyone else there, or `tell p "…"` to one person | — | — | yes | — | yes |
+| `tell "Hello."` | speaks to everyone else there, `tell p "…"` to one person, or, where the body’s kind holds actors, `tell inside "…"` to only its own occupants and `tell outside "…"` to only the place around it | — | — | yes | — | yes |
 | `text "Hello."` | gives a description its words | — | — | — | yes | — |
 | `let lit = self.get(:lit)` | names a value, once, for the block | yes | yes | yes | yes | yes |
 | `spawn Crumb in self` | makes a new object of a kind inside something; `let c = spawn …` names it | — | — | yes | — | yes |

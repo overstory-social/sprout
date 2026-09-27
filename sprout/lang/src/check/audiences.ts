@@ -1,17 +1,22 @@
 // Who a statement's words are for, and where each may stand (the spec's
 // Prose; Other people › Who hears it; The compiler › What it refuses).
 // `say` speaks to the actor, so it stands only in a role's `do`; `tell`
-// speaks to the teller's place or to one actor it names, so it stands in
-// a `do`, a handler and a hook, a tick's and a wake's among them; `text`
-// gives a `describe` its words and stands nowhere else, and neither of
-// the others stands in a `describe`, which whoever looks reads. A guard
-// and a `permit` only decide, so none of the three stands in either.
+// speaks to the teller's place, to one actor it names, or, directed with
+// `inside` or `outside`, to only the teller's own occupants or only the
+// place around it, so it stands in a `do`, a handler and a hook, a tick's
+// and a wake's among them; `text` gives a `describe` its words and stands
+// nowhere else, and neither of the others stands in a `describe`, which
+// whoever looks reads. A guard and a `permit` only decide, so none of the
+// three stands in either.
 //
 // `tell <x>` names a binding: `self`, a role, a handler's parameter, a
 // `let`. An object of the world is never a person, so telling one by its
-// identifier would never be read, and is refused. What the statement says
-// is checked as `refuse`'s words are: words in quotes in place, a passage
-// by name recorded with what is in scope for `passages.ts`.
+// identifier would never be read, and is refused. `tell inside` and
+// `tell outside` are refused where `self`'s kind does not declare
+// `contains actors`, since neither has anyone to reach there. What the
+// statement says is checked as `refuse`'s words are: words in quotes in
+// place, a passage by name recorded with what is in scope for
+// `passages.ts`.
 
 import type { ObjectPath, RefuseStatement } from '../syntax/ast.js';
 import type { SayStatement, TellStatement, TextStatement } from '../syntax/ast-speech.js';
@@ -45,7 +50,8 @@ export function checkSpoken(statement: Spoken, context: CheckContext, kind: Body
       return;
     case 'tell':
       if (kind.body === 'do' || kind.body === 'handler') {
-        if (statement.to !== null) checkTold(statement.to, context);
+        if (statement.direction !== null) checkDirected(statement, context);
+        else if (statement.to !== null) checkTold(statement.to, context);
         checkPassage(statement, context);
       } else if (kind.body === 'describe') refuseInDescribe(statement, context);
       else refuseTell(statement, context, kind);
@@ -89,9 +95,13 @@ export function checkPassage(
   }
   if (speech?.absent?.(self, said.text, said.at) === true) return;
   const lead =
-    statement.kind === 'tell' && statement.to !== null
-      ? `tell ${writtenPath(statement.to)}`
-      : statement.kind;
+    statement.kind !== 'tell'
+      ? statement.kind
+      : statement.direction !== null
+        ? `tell ${statement.direction.word}`
+        : statement.to !== null
+          ? `tell ${writtenPath(statement.to)}`
+          : statement.kind;
   const meant = nearestOption(said.text, [...self.passages.keys()]);
   context.diagnostics.refuse(
     said.at,
@@ -130,6 +140,24 @@ function checkTold(to: ObjectPath, context: CheckContext): void {
       ? `\`${written}\` holds several things, and \`tell ${written}\` speaks to one person.`
       : `\`tell\` speaks to one person, and \`${written}\` is ${showBindingType(type)}.`,
     'Tell one person a body has bound, as in `tell actor "…"`, or tell the place, as in `tell "{actor} pulls the lever."`.',
+  );
+}
+
+/**
+ * `tell inside` or `tell outside`: refused where `self`'s kind does not
+ * declare `contains actors`, since a body that holds no actors has
+ * nobody inside it and no reader for either direction (the spec's What
+ * it refuses).
+ */
+function checkDirected(statement: TellStatement, context: CheckContext): void {
+  const direction = statement.direction;
+  if (direction === null) return;
+  const self = context.self;
+  if (self === null || self.containsActors) return;
+  context.diagnostics.refuse(
+    direction.at,
+    `\`${self.name}\` holds no actors, so \`tell ${direction.word}\` has nobody to reach.`,
+    `Write \`contains actors\` in \`${self.name}\`'s body, or tell the place plainly, as in \`tell "{actor} pulls the lever."\`.`,
   );
 }
 

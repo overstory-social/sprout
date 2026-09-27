@@ -20,14 +20,28 @@ export interface SayStatement extends Node {
 }
 
 /**
- * `tell "{actor} pulls the lever."`, `tell self greeting` — words for
- * everyone else in the teller's place, or, with a binding after `tell`,
- * for that one actor (the spec's Other people › Who hears it).
+ * `inside` or `outside` after `tell`, directing it to a teller's own
+ * occupants or to the place around it rather than to the place as a
+ * whole (the spec's Other people › Who hears it).
+ */
+export interface TellDirection extends Node {
+  readonly kind: 'direction';
+  readonly word: 'inside' | 'outside';
+}
+
+/**
+ * `tell "{actor} pulls the lever."`, `tell self greeting`, `tell inside
+ * "…"` — words for everyone else in the teller's place, for one actor
+ * named after `tell`, or, directed with `inside` or `outside`, for only
+ * the teller's own occupants or only the place around it (the spec's
+ * Other people › Who hears it).
  */
 export interface TellStatement extends Node {
   readonly kind: 'tell';
-  /** Who is told, where one is named; null where it is the place. */
+  /** Who is told, where one is named; null where it is the place, directed or not. */
   readonly to: ObjectPath | null;
+  /** `inside` or `outside`, where the statement is directed; null where it is not. */
+  readonly direction: TellDirection | null;
   readonly said: ProseLiteral | Ident;
 }
 

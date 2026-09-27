@@ -1,9 +1,9 @@
 import {
   hostSeconds,
-  placeOfTeller,
+  isPerson,
+  occupantsOf,
   readerOf,
   standsInPlace,
-  toldToPlace,
   type HostSeconds,
   type InstanceId,
   type TurnHost,
@@ -124,10 +124,12 @@ export function hearers(state: WorldState, visit: VisitKey): Heard | null {
   const reader = readerOf(state);
   const visitor = reader.visitor(visit);
   if (visitor === undefined || !standsInPlace(reader, visitor.instance)) return null;
-  const place = placeOfTeller(reader, visitor.instance);
-  if (place === null) return null;
+  // `standsInPlace` already confirms the visitor's own container is a
+  // place, so it is where they stand: nothing further to climb to.
+  const place = reader.instance(visitor.instance)!.container!;
   const visits = new Map([...state.visitors.values()].map((one) => [one.instance, one.visit]));
-  const to = toldToPlace(reader, visitor.instance, [])
+  const to = occupantsOf(reader, place)
+    .filter((id) => isPerson(reader, id))
     .map((id) => visits.get(id))
     .filter((one): one is VisitKey => one !== undefined);
   return { place, to };

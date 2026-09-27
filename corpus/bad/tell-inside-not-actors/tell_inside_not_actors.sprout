@@ -1,0 +1,13 @@
+// `tell inside` and `tell outside` direct a plain `tell` to a teller's own
+// occupants or to the place around it, and either is refused where the
+// teller's kind holds no actors, since there is nobody there to have
+// either audience.
+world tell_inside_not_actors is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lever is Lever
+  }
+}
+verb pull { role target  "pull [target]" }

@@ -30,7 +30,14 @@ import { libraryOf, SPROUT } from '../declare/enums.js';
 import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
 import { ENGINE_ANSWERS, type ResolvedRole, type ResolvedVerb } from '../declare/verbs.js';
 import { readingOfAct } from './act.js';
-import { isPerson, toldToOne, toldToPlace } from './audience.js';
+import {
+  isPerson,
+  toldInside,
+  toldOutside,
+  toldToOne,
+  toldToPlace,
+  type TellContext,
+} from './audience.js';
 import { runBody, type ActSink, type Proposed, type Speech } from './body.js';
 import { noticeLines } from './effects.js';
 import type { Budget } from './budget.js';
@@ -222,9 +229,11 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
 export function effectPass(reading: Reading, context: ReadingContext, depth = 0): Acted {
   const { draft } = context;
   const state = turnState(draft);
+  const tellContext: TellContext = { state, passes: context.passes, budget: context.budget };
   const participants = participantsOf(reading);
   const person = isPerson(state, reading.actor);
-  const heardBy = (): readonly InstanceId[] => hearersOf(state, reading.actor, participants).to;
+  const heardBy = (): readonly InstanceId[] =>
+    hearersOf(tellContext, reading.actor, participants).to;
   const speaker = person ? null : reading.actor;
   const leftOut = participants.map((participant) => participant.id);
   const { sink, acted, propose } = actingSink(context, depth, {
@@ -348,6 +357,7 @@ export function actingSink(
   const { heardBy, speaker, leftOut, records } = hearing;
   const { draft } = context;
   const state = turnState(draft);
+  const tellContext: TellContext = { state, passes: context.passes, budget: context.budget };
   const said: Said[] = [];
   const sends: Sent[] = [];
   const notices: Notice[] = [];
@@ -381,24 +391,24 @@ export function actingSink(
   const sink: ActSink = {
     lifecycle: context,
     say: (spoken) => said.push({ effect: 'said', ...spoken, to: heardBy(), speaker }),
-    tell: ({ one, ...told }) =>
+    tell: ({ one, direction, ...told }) =>
       said.push({
         effect: 'told',
         ...told,
         to:
-          one === null
-            ? toldToPlace(state, told.by, leftOut)
-            : toldToOne(
-                { state: draft, passes: context.passes, budget: context.budget },
-                told.by,
-                one,
-              ),
+          one !== null
+            ? toldToOne(tellContext, told.by, one)
+            : direction === 'inside'
+              ? toldInside(tellContext, told.by, leftOut)
+              : direction === 'outside'
+                ? toldOutside(tellContext, told.by, leftOut)
+                : toldToPlace(tellContext, told.by, leftOut),
         speaker: null,
       }),
     record: (by, recorded) =>
       said.push({
         effect: 'extension',
-        to: records === 'as-said' ? heardBy() : toldToPlace(state, by, leftOut),
+        to: records === 'as-said' ? heardBy() : toldToPlace(tellContext, by, leftOut),
         by,
         speaker: null,
         said: { recorded },
@@ -415,7 +425,7 @@ export function actingSink(
       const outcome = runReading(performing, context, depth + 1);
       if ('refused' in outcome) {
         const { by, said: words, bindings } = outcome.refused;
-        const heard = hearersOf(state, actor, participantsOf(performing));
+        const heard = hearersOf(tellContext, actor, participantsOf(performing));
         said.push({ effect: 'refused', ...heard, by, said: words, bindings });
         return 'refused';
       }
@@ -463,14 +473,14 @@ function exitOf(reading: Reading): CommandExit | null {
  * from it (the spec's Acting).
  */
 function hearersOf(
-  state: StateReader,
+  context: TellContext,
   actor: InstanceId,
   participants: readonly Participant[],
 ): { readonly to: readonly InstanceId[]; readonly speaker: InstanceId | null } {
-  return isPerson(state, actor)
+  return isPerson(context.state, actor)
     ? { to: [actor], speaker: null }
     : {
-        to: toldToPlace(state, actor, [
+        to: toldToPlace(context, actor, [
           actor,
           ...participants.map((participant) => participant.id),
         ]),
