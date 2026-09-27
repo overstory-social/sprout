@@ -80,6 +80,19 @@ describe('a name in a kind’s body', () => {
     );
   });
 
+  it('says what each step is answered to by: its identifier, or being made of what a declaration of it is', () => {
+    const named = nameFrom(source, inKind(source, 'shop.Lantern'), ['hall', 'bench']);
+    expect(named.names === 'placed' && named.steps).toEqual([
+      { name: 'hall', madeOf: [['shop.Room']] },
+      { name: 'bench', madeOf: [['shop.Holder']] },
+    ]);
+    // Two declarations of `lamp`, each made of a thing; neither's anonymous kind is what a spawn is made of.
+    const lamp = nameFrom(source, inKind(source, 'shop.Lantern'), ['lamp']);
+    expect(lamp.names === 'placed' && lamp.steps).toEqual([
+      { name: 'lamp', madeOf: [['shop.Thing'], ['shop.Thing']] },
+    ]);
+  });
+
   it('follows each declaration down the path, and is missing where none holds the rest', () => {
     expect(shaped(nameFrom(source, inKind(source, 'shop.Lantern'), ['hall', 'bench']))).toBe(
       'placed hall>hall.bench',

@@ -38,6 +38,22 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
       spawnsPerTurn: 8,
       shortestWakeSeconds: 60,
       pendingWakesPerObject: 1,
+      nicknameCharacters: 24,
+    });
+  });
+
+  it('bounds a nickname’s length at admission, 24 characters by default, refusing the nickname rather than faulting', () => {
+    // The spec's Limits › Runtime budgets: checked once at admission, and
+    // a nickname past it is refused (Names › Nicknames).
+    expect(DEFAULT_LIMITS.budgets.nicknameCharacters).toBe(24);
+    expect(limitsFrom({ budgets: { nicknameCharacters: 8 } }).budgets.nicknameCharacters).toBe(8);
+    expect(() => limitsFrom({ budgets: { nicknameCharacters: null as never } })).toThrow(
+      /cannot be unset/,
+    );
+    expect(LIMIT_TABLE.find((l) => l.name === 'nicknameCharacters')).toMatchObject({
+      kind: 'budget',
+      scope: 'nickname',
+      exceeded: 'nickname-refused',
     });
   });
 
@@ -115,12 +131,14 @@ describe('every limit says what it is and what exceeding it means', () => {
     }
   });
 
-  it('describes every runtime budget, as a fault, but the wake floor and the crowd', () => {
-    // The wake floor raises what is asked to it, and a full place refuses
-    // the move that would bring one more person in.
+  it('describes every runtime budget, as a fault, but the wake floor, the crowd and the nickname', () => {
+    // The wake floor raises what is asked to it, a full place refuses the
+    // move that would bring one more person in, and a nickname past its
+    // length is refused at admission.
     const otherwise: Partial<Record<RuntimeBudgetName, string>> = {
       shortestWakeSeconds: 'raised',
       peoplePerPlace: 'move-refused',
+      nicknameCharacters: 'nickname-refused',
     };
     for (const name of Object.keys(DEFAULT_LIMITS.budgets) as RuntimeBudgetName[]) {
       const row = LIMIT_TABLE.find((l) => l.name === name);

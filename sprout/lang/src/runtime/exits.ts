@@ -72,7 +72,11 @@ function destinationOf(
   return to;
 }
 
-/** What an exit's destination names from `place`; null where it reaches nothing now. */
+/**
+ * What an exit's destination names from `place`; null where it reaches
+ * nothing now. It names its target by identifier, which a spawned place
+ * has none of (the spec's Spawning), so only what has one answers.
+ */
 function pathEnd(path: ObjectPath, place: Instance, context: ExitContext): InstanceId | null {
   const named = context.catalogue.names.get(path);
   if (named === undefined) {
@@ -81,7 +85,7 @@ function pathEnd(path: ObjectPath, place: Instance, context: ExitContext): Insta
     );
   }
   try {
-    return objectNamed(named, context.state, place.id);
+    return objectNamed(named, context.state, place.id, 'identifiers');
   } catch (thrown) {
     if (thrown instanceof DestroyedReference) return null;
     throw thrown;

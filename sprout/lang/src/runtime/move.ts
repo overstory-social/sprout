@@ -28,7 +28,7 @@ import { placeOfTeller } from './audience.js';
 import type { Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
-import { FULL, turnedAway } from './crowd.js';
+import { crowded, turnedAway } from './crowd.js';
 import type { Draft } from './draft.js';
 import { boundObject, type Evaluated } from './evaluate.js';
 import { exitsFrom } from './exits.js';
@@ -80,9 +80,9 @@ export type EngineRefusal = 'inside-itself' | 'not-a-place' | 'full';
 /** The engine's refusal of a move, with the words the actor reads and the bindings they render with. */
 export interface EngineRefused {
   readonly engine: EngineRefusal;
-  /** For a thing inside itself, the world's `inside_itself` as it applies on the world's kind. */
+  /** The world's `inside_itself` or `crowded` as it applies on the world's kind, or the engine's fixed words. */
   readonly said: Speech;
-  /** `item` for `inside_itself`; `item` and `to` for the fixed words. */
+  /** `item` for `inside_itself`; `item` and `to` for `crowded` and the fixed words. */
   readonly bindings: ReadonlyMap<string, Evaluated>;
 }
 
@@ -236,7 +236,7 @@ export function moveInstance(
   if (turnedAway(draft, item, to, budget.limits.peoplePerPlace)) {
     return {
       engine: 'full',
-      said: FULL,
+      said: crowded(draft),
       bindings: new Map([
         ['item', boundObject(item)],
         ['to', boundObject(to)],

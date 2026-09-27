@@ -13,8 +13,10 @@ import {
   MARTA,
   NO_CELLAR,
   QUAY,
+  SATCHELS,
   WORLD,
   whereIs,
+  departing,
 } from '../fixtures/arrival.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { words } from '../fixtures/reading.js';
@@ -33,6 +35,7 @@ import {
 } from './arrival.js';
 import type { Catalogue } from './catalogue.js';
 import { commandTurn } from './command.js';
+import { departureTurn } from './departure.js';
 import { Draft } from './draft.js';
 import type { InstanceId } from './ids.js';
 import { readerOf, type WorldState } from './state.js';
@@ -140,6 +143,76 @@ describe('a new visitor', () => {
   });
 });
 
+describe('a visitor whose kind holds an object', () => {
+  const satchelled = () => harbour([], [], SATCHELS);
+  const host = () => harbourHost(SATCHELS);
+  /** What `id` holds in `state`. */
+  const holds = (state: WorldState, id: InstanceId) => state.children.get(id) ?? [];
+
+  it('is made with its own copy of it the first time, inside them, as a spawn is', () => {
+    const done = admitted(arrivalTurn(satchelled(), host(), arriving(MARTA)));
+    expect(done.given).toHaveLength(1);
+    const satchel = done.state.instances.get(done.given[0]!)!;
+    expect(satchel.made).toEqual({ from: 'given', kind: 'harbour.Person', path: ['satchel'] });
+    expect(satchel.container).toBe(done.instance);
+    expect(holds(done.state, done.instance)).toEqual(done.given);
+    // A plain arrival's sends, and nothing of the satchel to anyone.
+    expect(done.entered.sends.map((one) => one.message)).toEqual([
+      'entered',
+      'moved',
+      'arrived',
+      'arrived',
+      'arrived',
+    ]);
+    const turn = arrivalTurn(satchelled(), host(), arriving(MARTA));
+    if (!turn.committed) throw new Error('not admitted');
+    expect(turn.effects.map((one) => [one.kind, one.from])).toEqual([['described', QUAY]]);
+  });
+
+  it('gives each person a copy of their own', () => {
+    const first = admitted(arrivalTurn(satchelled(), host(), arriving(MARTA)));
+    const second = admitted(arrivalTurn(first.state, host(), arriving(INES)));
+    expect(second.given).toHaveLength(1);
+    expect(second.given).not.toEqual(first.given);
+    expect(holds(second.state, first.instance)).toEqual(first.given);
+    expect(holds(second.state, second.instance)).toEqual(second.given);
+  });
+
+  it('comes back with what they carried away, and is never given those contents again', () => {
+    const first = admitted(arrivalTurn(satchelled(), host(), arriving(MARTA)));
+    const left = departureTurn(first.state, host(), departing(MARTA));
+    if (!left.committed) throw new Error('did not leave');
+    const again = admitted(arrivalTurn(left.state, host(), arriving(MARTA)));
+    expect(again.returning).toBe(true);
+    expect(again.given).toEqual([]);
+    expect(holds(again.state, again.instance)).toEqual(first.given);
+    expect(again.state.instances.size).toBe(first.state.instances.size);
+  });
+
+  it('is not admitted where the host will hold no more instances, as a spawn past the bound faults', () => {
+    const state = satchelled();
+    const turn = arrivalTurn(state, host(), {
+      ...arriving(MARTA),
+      mayHold: state.instances.size + 1,
+    });
+    if (turn.committed || !('fault' in turn)) throw new Error('not faulted');
+    expect(turn.fault.name).toBe('LifecycleFault');
+    expect(turn.words).toBe(ENTRY_FAILED);
+    const room = admitted(
+      arrivalTurn(state, host(), { ...arriving(MARTA), mayHold: state.instances.size + 2 }),
+    );
+    expect(room.given).toHaveLength(1);
+  });
+
+  it('is refused by the place with nothing written, its contents included', () => {
+    const state = harbour([], [[QUAY, 'closed', true]], SATCHELS);
+    const turn = arrivalTurn(state, host(), arriving(MARTA));
+    if (turn.committed || !('refused' in turn)) throw new Error('not refused');
+    expect(state.visitors.has(MARTA)).toBe(false);
+    expect(turn.seen.instances.size).toBe(state.instances.size + 2);
+  });
+});
+
 describe('a returning visitor', () => {
   it('comes back where they last stood, if it still exists and accepts them', () => {
     const state = harbour([{ visit: MARTA, away: LOFT }]);
@@ -223,12 +296,21 @@ describe('what the host must not hand over', () => {
     );
   });
 
-  it('is a nickname the host could not have admitted: empty, a word of the world, or one someone present holds', () => {
+  it('is a nickname the host could not have admitted: empty, past the budget, shaped like source, a word of the world or the language, or one someone present holds', () => {
     expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, '  '))).toThrow(
       /did not admit: Choose a nickname/,
     );
+    expect(() =>
+      arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Marta '.repeat(5).trim())),
+    ).toThrow(/did not admit: "Marta Marta Marta Marta Marta" is 29 characters/);
+    expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Marta.B'))).toThrow(
+      /did not admit: A nickname's word may not have a period inside it/,
+    );
     expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Gull Marta'))).toThrow(
       /did not admit: "gull" is a word this world already reads/,
+    );
+    expect(() => arrivalTurn(harbour(), harbourHost(), arriving(MARTA, 'Marta When'))).toThrow(
+      /did not admit: "when" is a word every world here reads/,
     );
     const state = harbour([{ visit: INES, in: QUAY }]);
     expect(() => arrivalTurn(state, harbourHost(), arriving(MARTA, 'INES'))).toThrow(
@@ -365,15 +447,15 @@ describe('a place the host says is full', () => {
     ...harbourHost(),
     budgets: { ...DEFAULT_LIMITS.budgets, peoplePerPlace: people },
   });
-  const FULL = 'There is no room in {to} for {item}.';
+  const CROWDED = 'sprout.World crowded: There is no room in {to} for {item}.';
 
-  it('turns a new visitor away in the engine’s words, before its `accept` is asked, writing nothing', () => {
+  it('turns a new visitor away through the world’s `crowded`, before its `accept` is asked, writing nothing', () => {
     // The quay is closed too, and its own refusal is not the one read.
     const state = harbour([{ visit: INES, in: QUAY }], [[QUAY, 'closed', true]]);
     const turn = arrivalTurn(state, crowded(1), arriving(MARTA));
     if (turn.committed || !('refused' in turn)) throw new Error('not refused');
     expect(turn.refused).toMatchObject({ effect: 'refused', by: WORLD, speaker: null });
-    expect(words(turn.refused.said)).toBe(FULL);
+    expect(words(turn.refused.said)).toBe(CROWDED);
     const reader = turn.refused.to[0]!;
     expect([...turn.refused.bindings.keys()]).toEqual(['item', 'to']);
     expect(turn.refused.bindings.get('item')).toMatchObject({ id: reader });

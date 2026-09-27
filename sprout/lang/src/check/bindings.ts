@@ -104,7 +104,9 @@ export type BindingOrigin =
   | 'for'
   | 'let'
   /** A handler's or a hook's: a sender, a carried value, `was`, `elapsed`. */
-  | 'parameter';
+  | 'parameter'
+  /** A name in a kind's body that the run resolves, narrowed by `is()` for the branch it guards. */
+  | 'name';
 
 /** A binding's origin, as a sentence about it reads. */
 export function describeOrigin(origin: BindingOrigin): string {
@@ -127,6 +129,8 @@ export function describeOrigin(origin: BindingOrigin): string {
       return 'a name for a value';
     case 'parameter':
       return 'a parameter of this body';
+    case 'name':
+      return 'the thing `is()` narrowed';
   }
 }
 

@@ -15,7 +15,10 @@ world moving is sprout.World {
   object press is Press
   object ball is Ball
   object duster is Thing
-  object hall is sprout.Place
+  object hall is sprout.Place {
+    object cat is Cat { grammar { name "cat" article the } }
+    object cupboard is Cupboard
+  }
 }
 
 verb board  { role target: Cart  "board [target]"  "climb into [target]" }
@@ -23,3 +26,4 @@ verb shelve { role target  role tool: Shelf  "shelve [target] on [tool]" }
 verb tidy   { role target: Shelf  role tool  "tidy [target] with [tool]"  "tidy [target]" }
 verb pull   { role target  "pull [target]" }
 verb kick   { role target  "kick [target]" }
+verb shoo   { role target: Cat  "shoo [target]" }

@@ -57,6 +57,9 @@ describe('the skill’s reference sections', () => {
       /\| `places` \| [^|]+ \| the host’s to set; none by default \| the world is refused \|/,
     );
     expect(limitsSection(DEFAULT_LIMITS)).toMatch(/\| `steps` \| [^|]+ \| 50,000 \|/);
+    expect(limitsSection(DEFAULT_LIMITS)).toMatch(
+      /\| `nicknameCharacters` \| [^|]+ \| 24 \| the nickname is refused \|/,
+    );
   });
 
   it('lists every reserved word, and the member words no message or verb may take', () => {
