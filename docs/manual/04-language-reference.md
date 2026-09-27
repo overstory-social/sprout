@@ -1767,8 +1767,8 @@ any of its lines. `sprout skill` prints its full source.
 
 | verb     | roles                              | phrases                                                     |
 | -------- | ---------------------------------- | ----------------------------------------------------------- |
-| `take`   | `target`                           | `take`, `get`, `pick up`, `grab [target]`                   |
-| `drop`   | `target`                           | `drop`, `put down [target]`                                 |
+| `take`   | `target`                           | `take [target]`, `get [target]`, `pick up [target]`, `grab [target]` |
+| `drop`   | `target`                           | `drop [target]`, `put down [target]`                        |
 | `put`    | `item`, `container: Container`     | `put [item] in [container]`, `put [item] into [container]`  |
 | `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`  |
 | `open`   | `target: Container`                | `open [target]`                                             |
@@ -1944,7 +1944,7 @@ reads the world's `fault` passage.
 | steps per turn (every statement, expression, loop iteration, object reached, noun tried) | 50,000 |
 | steps per poll (building a visitor's view)  | 10,000          |
 | characters of output per turn, per reader   | 8,000           |
-| message deliveries per turn                 | 256             |
+| deliveries that run a handler or hook, per turn (one however many handlers run) | 256 |
 | depth of messages causing messages          | 20              |
 | depth of passages using passages            | 8               |
 | objects in one set role                     | 8               |
