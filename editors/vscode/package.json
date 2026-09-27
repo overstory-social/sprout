@@ -1,0 +1,70 @@
+{
+  "name": "sprout-vscode",
+  "displayName": "Sprout",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Colours Sprout worlds in VS Code: `.sprout` sources and the `.prose` files their passages live in.",
+  "license": "MIT",
+  "publisher": "overstory",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overstory-social/sprout.git",
+    "directory": "editors/vscode"
+  },
+  "engines": {
+    "vscode": "^1.80.0",
+    "node": ">=22"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "sprout",
+        "aliases": [
+          "Sprout",
+          "sprout"
+        ],
+        "extensions": [
+          ".sprout"
+        ],
+        "configuration": "./sprout.language-configuration.json"
+      },
+      {
+        "id": "sprout-prose",
+        "aliases": [
+          "Sprout prose",
+          "sprout-prose"
+        ],
+        "extensions": [
+          ".prose"
+        ],
+        "configuration": "./sprout-prose.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sprout",
+        "scopeName": "source.sprout",
+        "path": "./syntaxes/sprout.tmLanguage.json"
+      },
+      {
+        "language": "sprout-prose",
+        "scopeName": "source.sprout-prose",
+        "path": "./syntaxes/sprout-prose.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@overstory/sprout": "0.1.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}

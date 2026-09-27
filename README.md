@@ -59,6 +59,7 @@ sprout/lang/src
 sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
 sprout/store-sql  sprout/store-document   the two store adapters
 cli/src           init and check, the inspectors: parse (what a world accepts) and view (what a visitor is offered), play, test (an author's own tests of their world), and skill
+editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/design/      the spec, the working notes, the backlog, the reviews
 ```
