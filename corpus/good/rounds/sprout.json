@@ -12,5 +12,5 @@
       "sha": "2169d77710dad6eb34c37a80e7ad9aae1e44293c98940c643171cc45ec5e4548"
     }
   ],
-  "files": ["rounds.sprout", "person.sprout", "watchman.sprout"]
+  "files": ["rounds.sprout", "person.sprout", "watchman.sprout", "crow.sprout", "yard.sprout"]
 }

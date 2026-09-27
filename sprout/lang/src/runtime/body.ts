@@ -55,10 +55,12 @@ import {
   type Destroyed,
   type LifecycleContext,
 } from './lifecycle.js';
+import { isLive, liveTree } from './live.js';
 import { sameValue, SproutList } from './lists.js';
 import type { Performed } from './act.js';
 import { connectLink } from './links.js';
-import { objectNamed, reachedByName } from './named.js';
+import { reachedForMove } from './move.js';
+import { NameOutOfRange, objectNamed, reachedByName } from './named.js';
 import { broadcastFrom, sendTo, type Sent } from './sends.js';
 import { reachMessage, type DeclaredMessage } from '../declare/messages.js';
 import { writtenPath } from '../syntax/ast.js';
@@ -241,7 +243,7 @@ function runStatement(
     case 'move': {
       const sink = acting(run, '`move`');
       const item = objectAt(statement.thing, frame);
-      const to = objectAt(statement.destination, frame);
+      const to = moveDestinationAt(statement.destination, frame, sink);
       if (sink.move(frame.self, item, to) === 'refused') run.stopped = 'refused';
       return 'end';
     }
@@ -408,9 +410,47 @@ function evaluatedAt(path: ObjectPath, frame: Frame): Evaluated {
   return boundObject(reachedByName(named, writtenPath(path), frame));
 }
 
-/** A spawn's container or either side of a move: one object, read through in range. */
+/** A spawn's container or the moved thing itself: one object, read through in range. */
 function objectAt(path: ObjectPath, frame: Frame): InstanceId {
   return asObject(evaluatedAt(path, frame));
+}
+
+/**
+ * `move`'s destination: a binding read as any object is, or an
+ * identifier or path read under the move's own range rule rather than
+ * the general name gate — in range of the mover, or, where the mover
+ * composes `sprout.Actor`, the destination of an exit or a link of its
+ * place that applies (the spec's Verbs › Acting) — so `move self to
+ * yard` binds a bare identifier without faulting before `moveInstance`
+ * is asked.
+ */
+function moveDestinationAt(path: ObjectPath, frame: Frame, sink: ActSink): InstanceId {
+  const [only, ...rest] = path.parts;
+  if (only !== undefined && rest.length === 0) {
+    const bound = only.text === 'self' ? boundObject(frame.self) : frame.bindings.get(only.text);
+    if (bound !== undefined) {
+      frame.budget.spend();
+      return asObject(bound);
+    }
+  }
+  frame.budget.spend();
+  const named = frame.names.get(rest.length === 0 && only !== undefined ? only : path);
+  if (named === undefined) {
+    throw new Error(
+      `\`${writtenPath(path)}\` reached the runtime unresolved; the checker resolves it.`,
+    );
+  }
+  const written = writtenPath(path);
+  const target = objectNamed(named, frame.state, frame.self);
+  const range = { tree: liveTree(frame.state), passes: frame.passes, budget: frame.budget };
+  if (
+    target === null ||
+    !isLive(frame.state, target) ||
+    !reachedForMove(sink.lifecycle, range, frame.self, target)
+  ) {
+    throw new NameOutOfRange(written, target, frame.self);
+  }
+  return target;
 }
 
 /**

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import {
+  acted,
   ALCOVE,
   BELL,
   CAPS,
@@ -49,6 +50,7 @@ import { declaredId, type InstanceId } from './ids.js';
 import { boundObject, IntegerOverflow } from './evaluate.js';
 import { initialState } from './load.js';
 import { MoveFault, moveInstance, type Moved, type Refused } from './move.js';
+import { NameOutOfRange } from './named.js';
 import { reaches } from './range.js';
 import { liveTree } from './live.js';
 
@@ -137,6 +139,24 @@ describe('an actor’s move reaches another place through its own exits and link
       `\`${YARD}\` is out of range of \`${MARTA}\`, so nothing could be moved into it.`,
     );
     expect(draft.instance(MARTA)!.container).toBe(HALL);
+  });
+});
+
+describe('a `move` statement’s destination, where the mover composes `sprout.Actor`', () => {
+  it('binds a bare identifier reached only through the mover’s place’s exit, as `moveInstance` itself would reach it', () => {
+    // Marta's own `do { move self to porch }`: `porch` is out of her
+    // ordinary range, and binds only because her place's exit reaches it
+    // (the spec's Verbs › Acting), so the statement's own name read must
+    // use the move's range rule, not the general name gate.
+    const { draft } = turn();
+    expect(acted(draft, MARTA, 'walk')).toEqual([[MARTA, MARTA, PORCH]]);
+  });
+
+  it('still faults for an identifier no exit or link of the mover’s place reaches', () => {
+    // `yard` has no exit from the hall, so `move self to yard` faults
+    // exactly as any other out-of-range identifier does.
+    const { draft } = turn();
+    expect(() => acted(draft, MARTA, 'wander')).toThrow(NameOutOfRange);
   });
 });
 
