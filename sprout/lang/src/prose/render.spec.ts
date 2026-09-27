@@ -18,7 +18,8 @@ import { reflow } from './reflow.js';
 import { renderProse } from './render.js';
 import { NameOutOfRange } from '../runtime/named.js';
 import { Draws } from '../runtime/draws.js';
-import { chooser } from '../fixtures/parse.js';
+import { chooser, readProseText } from '../fixtures/parse.js';
+import { boundReadings } from '../runtime/evaluate.js';
 
 /** `name` of `by`, rendered for `reader` and laid out, charging nothing to output. */
 function rendered(
@@ -102,6 +103,21 @@ describe('a block renders what it guards, and a loop what it walks', () => {
     const moods = turn.draft.instance(PRESS)!.properties.get('moods') as SproutList;
     setOn(turn, PRESS, { moods: moods.remove('bone_dry') });
     expect(rendered(turn, PRESS, 'moods', turn.marta)).toEqual(['1 of 1: drowsy']);
+  });
+
+  it('walks `readings`, each already the words a visitor would type for it', () => {
+    const turn = proseTurn();
+    const { prose } = readProseText(
+      '{for reading of readings}{reading}{if $last}.{else}, {/if}{/for}',
+    );
+    const voice = {
+      self: PRESS,
+      library: 'mill',
+      bindings: new Map([['readings', boundReadings(['look', 'wait'])]]),
+    };
+    expect(reflow(renderProse(prose, voice, turn.marta, turn.context, null))).toEqual([
+      'Look, wait.',
+    ]);
   });
 
   it('walks nothing where there is nothing, and says nothing for it', () => {

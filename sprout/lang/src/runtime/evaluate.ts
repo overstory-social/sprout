@@ -40,13 +40,16 @@ import type { Draw } from './draws.js';
 
 /**
  * What a name is bound to, and what an expression evaluates to: a value,
- * a thing in the world, or a set of things, the three arms a binding's
- * type has. An object is its id, which is what identity compares.
+ * a thing in the world, a set of things, or the readings `help` offers,
+ * the four arms a binding's type has. An object is its id, which is what
+ * identity compares.
  */
 export type Evaluated =
   | { readonly binds: 'value'; readonly value: Value }
   | { readonly binds: 'object'; readonly id: InstanceId }
-  | { readonly binds: 'set'; readonly ids: readonly InstanceId[] };
+  | { readonly binds: 'set'; readonly ids: readonly InstanceId[] }
+  /** `readings` in the world's `help`: each the line a visitor would type for it. */
+  | { readonly binds: 'readings'; readonly typed: readonly string[] };
 
 /** What a body is evaluated inside. */
 export interface Frame {
@@ -85,6 +88,11 @@ export class IntegerOverflow extends Error {
 
 export function boundValue(value: Value): Evaluated {
   return { binds: 'value', value };
+}
+
+/** `readings` in the world's `help`, each already typed as the line a visitor would type for it. */
+export function boundReadings(typed: readonly string[]): Evaluated {
+  return { binds: 'readings', typed };
 }
 
 export function boundObject(id: InstanceId): Evaluated {
@@ -257,6 +265,8 @@ function member(expr: MemberExpr, receiver: Evaluated, frame: Frame): Evaluated 
       return boundValue(receiver.ids.length);
     case 'value':
       return boundValue(asList(receiver).count);
+    case 'readings':
+      throw unchecked('`.count` on `readings`, which only `{for … of}` may walk');
   }
 }
 

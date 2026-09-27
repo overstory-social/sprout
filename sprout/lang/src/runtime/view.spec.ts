@@ -5,8 +5,10 @@ import {
   COIN,
   gatehouse,
   GUARD,
+  HARE,
   INES,
   MARTA,
+  MOLE,
   PEBBLE,
   pollingIn,
   PURSE,
@@ -19,7 +21,7 @@ import { BudgetExhausted } from './budget.js';
 import { describeFor } from './describe.js';
 import { offersTo } from './offers.js';
 import { valueOptions } from './options.js';
-import { viewOf } from './view.js';
+import { emptyViewParts, viewOf } from './view.js';
 
 const OPEN = [[YARD, 'gate_open', true]] as const;
 
@@ -61,7 +63,7 @@ describe('a visitor’s view', () => {
     expect(going.map((one) => one.typed)).toEqual(['go down the back stair']);
   });
 
-  it('names every other actor standing there, in contents order, and nobody elsewhere or away', () => {
+  it('names every other actor in range under the pass rules, and nobody elsewhere or away', () => {
     const state = gatehouse([
       [MARTA, 'Marta', YARD],
       [INES, 'Ines', YARD],
@@ -69,7 +71,14 @@ describe('a visitor’s view', () => {
       [visitKey('v-away'), 'Away', null],
     ]);
     const view = viewOf(actorOf(state, MARTA), pollingIn(state));
-    expect(view.occupants).toEqual([GUARD, SENTRY, actorOf(state, INES)]);
+    expect(view.occupants).toEqual([GUARD, SENTRY, actorOf(state, INES), HARE]);
+  });
+
+  it('lists someone inside an open wardrobe, and not someone inside a shut one', () => {
+    const state = gatehouse();
+    const view = viewOf(actorOf(state, MARTA), pollingIn(state));
+    expect(view.occupants).toContain(HARE);
+    expect(view.occupants).not.toContain(MOLE);
   });
 
   it('lists what they hold, and not what is inside it', () => {
@@ -131,5 +140,16 @@ describe('a visitor’s view', () => {
   it('runs out as any work does when the poll cannot afford it', () => {
     const state = gatehouse();
     expect(() => viewOf(actorOf(state, MARTA), pollingIn(state, 3))).toThrow(BudgetExhausted);
+  });
+
+  it('fills `parts` one field at a time, so a fault partway through leaves what came before it', () => {
+    const state = gatehouse();
+    const marta = actorOf(state, MARTA);
+    const parts = emptyViewParts();
+    expect(() => viewOf(marta, pollingIn(state, 15), parts)).toThrow(BudgetExhausted);
+    expect(parts.exits).toEqual([{ direction: 'up', label: 'up the ladder', to: TOWER }]);
+    expect(parts.occupants).toEqual([]);
+    expect(parts.carried).toEqual([]);
+    expect(parts.readings).toEqual([]);
   });
 });

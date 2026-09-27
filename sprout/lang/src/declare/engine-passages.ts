@@ -2,16 +2,21 @@
 // does (the spec's A worked microworld › The standard library it needs;
 // Properties › Where types come from: `thing` in the world's
 // `unremarkable`, `candidates` in its `which`, `item` and `to` in its
-// `crowded`; Engine verbs). The world's lines are said on the world's
-// kind, a place's notices on the place's, the inventory on the actor's
-// own, and a passage the engine says is checked against exactly what the
-// engine binds where it says it: the person acting and their place, as
-// `actor` and `here` are in a body that binds them, an object, or a set
-// of objects, by name. A line a poll says, in place of a description or a
-// view, draws nothing.
+// `crowded`, `readings` in its `help`; Engine verbs). The world's lines
+// are said on the world's kind, a place's notices on the place's, the
+// inventory on the actor's own, and a passage the engine says is checked
+// against exactly what the engine binds where it says it: the person
+// acting and their place, as `actor` and `here` are in a body that binds
+// them, an object, a set of objects, or the readings `help` offers, each
+// a line a visitor would type for it. A line a poll says, in place of a
+// description or a view, draws nothing.
 
-/** What the engine binds a name to when it says a line: the one acting, their place, an object, or a set of them. */
-export type EngineBinds = 'actor' | 'here' | 'object' | 'set';
+/**
+ * What the engine binds a name to when it says a line: the one acting,
+ * their place, an object, a set of them, or the readings `help` offers,
+ * each rendering as the words a visitor types for it.
+ */
+export type EngineBinds = 'actor' | 'here' | 'object' | 'set' | 'readings';
 
 /** One line the engine says, and the names it says it with. */
 export interface EnginePassage {
@@ -37,6 +42,8 @@ export const WORLD_LINES: readonly EnginePassage[] = [
   { name: 'displaced', binds: {} },
   { name: 'inside_itself', binds: { item: 'object' } },
   { name: 'crowded', binds: { item: 'object', to: 'object' } },
+  { name: 'waited', binds: {} },
+  { name: 'help', binds: { ...ACTING, readings: 'readings' } },
 ];
 
 /** A place's notices of someone arriving and leaving, said on the place's composed kind. */
