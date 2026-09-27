@@ -19,7 +19,7 @@ or package it and install the `.vsix`:
 
 ```sh
 cd editors/vscode
-npx @vscode/vsce package --allow-missing-repository --skip-license
+npx @vscode/vsce package --no-dependencies --skip-license
 code --install-extension sprout-vscode-0.1.0.vsix
 ```
 
