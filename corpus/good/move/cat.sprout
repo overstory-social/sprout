@@ -1,0 +1,7 @@
+// A cat shooed slips into the cupboard without a word. The one who shooed
+// it reads the hall's `leaves` and the cupboard's `arrives`, and neither
+// is an answer to their `shoo`, so the world's `nothing_happens` follows
+// them (the spec's Verbs › The two passes).
+kind Cat is sprout.Actor {
+  as target for shoo { do { move self to cupboard } }
+}

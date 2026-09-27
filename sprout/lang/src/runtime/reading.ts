@@ -14,8 +14,10 @@
 // and the refusal of a `move` it proposes, reach the actor, or, where the
 // actor is an NPC, whoever would hear its `tell`, from it, and a refused
 // `move` or `act` ends the `do` that ran it, not the pass; a person's
-// command that said nothing to them is answered with the world's
-// `nothing_happens`, and an NPC's reading is not. An `act` in a `do` runs
+// command that no participant said, told or refused anything to them in
+// is answered with the world's `nothing_happens`, a place's notice of
+// someone the reading moved not counting, and an NPC's reading is not
+// answered. An `act` in a `do` runs
 // its own reading there, one deeper against the cascade depth, and what
 // that says, refusal included, joins this one's. A plain `tell` reaches
 // the people in the teller's place less every participant, and `tell <x>`
@@ -216,8 +218,10 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
 /**
  * Every `do` of every participant, in the consent pass's order. A
  * participant destroyed by an earlier `do` in the pass, one of its own
- * composed plays included, does nothing more. When nothing was said to
- * the actor, a refused move included, the world's `nothing_happens` is.
+ * composed plays included, does nothing more. When no participant said,
+ * told or refused anything to the actor, a refused move included, the
+ * world's `nothing_happens` is; what a place says of someone the pass
+ * moved, `leaves` or `arrives`, is no answer (the spec's The two passes).
  */
 export function effectPass(reading: Reading, context: ReadingContext, depth = 0): Acted {
   const { draft } = context;
@@ -265,7 +269,7 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
     depth > 0 ||
     went === 'done' ||
     answeredByEngine(reading.verb) ||
-    said.some((line) => line.to.includes(reading.actor));
+    said.some((line) => answersActor(line, reading.actor));
   if (!answered) {
     const world = instanceIn(state, state.world);
     const passage = world.kind.passages.get(NOTHING_HAPPENS);
@@ -441,6 +445,17 @@ export function runReading(reading: Reading, context: ReadingContext, depth = 0)
     if ('set' in bound) budget.setRole(bound.set.length);
   const refused = consentPass(reading, { state: draft, catalogue, budget, passes });
   return refused === null ? effectPass(reading, context, depth) : { refused };
+}
+
+/**
+ * Whether `line` answers `actor`'s reading: a participant said, told or
+ * refused it to them, or an extension statement in a participant's `do`
+ * recorded it to them, its transcript line being its words (the spec's
+ * The two passes; Extensions › Effects are additive). A place's notice
+ * of someone moved is not an answer, however it reaches them.
+ */
+function answersActor(line: Said, actor: InstanceId): boolean {
+  return line.effect !== 'notice' && line.to.includes(actor);
 }
 
 /** Whether the engine answers a reading of `verb` with what the actor reads (`engine-verbs.ts`). */
