@@ -5,9 +5,10 @@
 // written (`declare/names.ts`). One the compile fixes is typed at the
 // object's kind, so it reads without `is()`; one in a kind's body that
 // reaches whatever is nearest each instance is of the object type, read
-// only through `is()`. Each name resolved is recorded, by the node
-// written, for the runtime to find what it reaches, which is only ever a
-// target when it is in range.
+// only through `is()`, which narrows it for its branch as it narrows a
+// binding. Each name resolved is recorded, by the node written, for the
+// runtime to find what it reaches, which is only ever a target when it is
+// in range.
 
 import type { Expr, Ident, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
@@ -23,7 +24,7 @@ import {
   type NameSource,
   type Vantage,
 } from '../declare/names.js';
-import { objectOf, OPEN_OBJECT, type BindingType } from './bindings.js';
+import { objectOf, OPEN_OBJECT, type BindingType, type ObjectBinding } from './bindings.js';
 import type { CheckContext } from './check.js';
 
 /** Every name a bundle's bodies resolved, by the node written, for the runtime. */
@@ -117,8 +118,8 @@ function typed(named: Named, scope: NameScope): BindingType {
 /**
  * Where `receiver` is a name in a kind's body that reaches whatever is
  * nearest each instance, the words for reading through it: say so, and
- * narrow it through a `let`, since `is()` narrows a binding and a passage
- * reads the bindings of the body that says it. Null for any other receiver.
+ * narrow it with `is()`, in a body or in a passage. Null for any other
+ * receiver.
  */
 export function placedWords(
   receiver: Expr,
@@ -133,6 +134,24 @@ export function placedWords(
   const kind = made.length === 0 ? 'Key' : writtenKind(made[0]!);
   return {
     message: `\`${name}\` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot ${doing} it.`,
-    remedy: `Name it with \`let\` and narrow that, as in \`let found = ${name}\` and then \`if (found.is(${kind})) { … }\`; a passage said inside the branch may read \`found\` too.`,
+    remedy: `Narrow it with \`is()\` and read it inside the branch, as in \`if (${name}.is(${kind})) { … }\` in a body or \`{if ${name}.is(${kind})}…{/if}\` in a passage.`,
+  };
+}
+
+/**
+ * A name in a kind's body that the run resolves, as the binding `is()`
+ * narrows for the branch it guards: of the object type, at the name as
+ * written. Null for a name in scope, or one the compile fixed, since those
+ * are typed already.
+ */
+export function placedBinding(ident: Ident, context: CheckContext): ObjectBinding | null {
+  if (context.scope.lookup(ident.text) !== null) return null;
+  if (context.names?.table.get(ident)?.names !== 'placed') return null;
+  return {
+    name: ident.text,
+    type: { binds: 'object', kind: null },
+    origin: 'name',
+    at: ident.at,
+    writable: false,
   };
 }

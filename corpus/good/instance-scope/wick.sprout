@@ -1,6 +1,12 @@
 // A wick draws on the oil nearest it: the oil its own lantern holds, for
-// every lantern, declared or made.
+// every lantern, declared or made. A `let` names it and `is()` narrows
+// that, the other way a name in a kind's body is read.
 kind Wick {
   :trimmed true
-  on :kindle { send oil :kindle }
+  on :kindle {
+    let fuel = oil
+    if (fuel.is(Oil)) {
+      if (!fuel.get(:drawn)) { send fuel :kindle }
+    }
+  }
 }

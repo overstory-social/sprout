@@ -161,6 +161,7 @@ describe('an exit, against the whole bundle', () => {
     // A kind has no place, so which `yard` its exit leads to is each instance's.
     expect(exit.kind === 'grammar-exit' && table.get(exit.destination)).toEqual({
       names: 'placed',
+      steps: [{ name: 'yard', madeOf: [['sprout.Place', 'ways.Cell']] }],
       candidates: [
         {
           steps: [{ in: 'tree', path: ['yard'] }],

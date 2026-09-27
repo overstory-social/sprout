@@ -1,21 +1,24 @@
 // A name in a kind's body resolves from where each instance sits, nearest
-// first (Identifiers and scope). The hall's lantern and the cellar's each
-// name `lamp`, and each reaches the lamp in its own room; a lantern the
-// cupboard makes reaches the hall's, the nearest round it. The world's name
-// fixes a name from anywhere, as `instance_scope.beacon` does. The cellar's
-// stair is a kind's too, and leads up to whichever `hall` is nearest it.
+// first and judged by what each container holds when the body runs
+// (Identifiers and scope). The hall's lantern and the cellar's each name
+// `lamp`: the hall's lamp carried off is nobody's `lamp` in the hall, set
+// down in the cellar it is the cellar's, and a lamp the cupboard spawns
+// into the hall is the hall's. The world's name fixes a name from
+// anywhere, as `instance_scope.beacon` does. The cellar's stair is a
+// kind's too, and leads up to whichever `hall` is nearest it.
 world instance_scope is sprout.World {
   visitors are Creature
   visitors arrive at hall
 
   object hall is sprout.Place {
+    grammar { exit down "down the stair" -> cellar }
     object lamp is Lamp
     object lantern is Lantern
     object cupboard is Cupboard
   }
 
   object cellar is sprout.Place {
-    object lamp is Lamp
+    grammar { exit up "up the stair" -> hall }
     object lantern is Lantern
     object stair is Stair
   }

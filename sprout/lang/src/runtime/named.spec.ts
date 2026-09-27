@@ -26,7 +26,7 @@ import {
 import type { Named } from '../declare/names.js';
 import type { Frame } from './evaluate.js';
 import { spawnInstance, type LifecycleContext } from './lifecycle.js';
-import { readerOf } from './state.js';
+import { newInstance, readerOf } from './state.js';
 import { Budget } from './budget.js';
 import { passRules } from './passes.js';
 import { Draws } from './draws.js';
@@ -228,6 +228,73 @@ describe('a name in a kind’s body, while the world runs', () => {
     expect(objectNamed(lamp, turn.draft, lantern.id)).toBe(inLamps('yard', 'lamp'));
   });
 
+  it('is judged by what each container holds now: a lamp carried off is the `lamp` of where it is set down, and no longer of where it was', () => {
+    const turn = lampsTurn();
+    const lamp = placedName('lamp');
+    turn.draft.place(inLamps('hall', 'lamp'), inLamps('cellar'));
+    // The hall holds no lamp now, so its lantern reaches outward to the world's.
+    expect(objectNamed(lamp, turn.draft, inLamps('hall', 'lantern'))).toBe(inLamps('lamp'));
+    // The cellar holds the hall's, which is the cellar's `lamp` while it is there.
+    const lantern = spawnInstance(turn, inLamps('cellar'), 'lamps.Lantern', inLamps('cellar'));
+    expect(objectNamed(lamp, turn.draft, lantern.id)).toBe(inLamps('hall', 'lamp'));
+    // Carried by a person, it is directly in nobody's room.
+    const person = turn.draft.mint();
+    turn.draft.add(
+      newInstance(
+        person,
+        { from: 'visitor' },
+        turn.catalogue.visitorKind!,
+        inLamps('cellar'),
+        turn.draft.nextSerial(),
+        turn.catalogue.caps,
+      ),
+    );
+    turn.draft.place(inLamps('hall', 'lamp'), person);
+    expect(objectNamed(lamp, turn.draft, lantern.id)).toBe(inLamps('lamp'));
+  });
+
+  it('is answered to by a spawned instance made of what a declaration of the name is made of, after what is declared', () => {
+    const turn = lampsTurn();
+    const lamp = placedName('lamp');
+    const cellar = inLamps('cellar');
+    const lantern = spawnInstance(turn, cellar, 'lamps.Lantern', cellar);
+    // An oil is made of nothing a `lamp` is declared as; a spawned lamp is.
+    spawnInstance(turn, cellar, 'lamps.Oil', cellar);
+    expect(objectNamed(lamp, turn.draft, lantern.id)).toBe(inLamps('lamp'));
+    const spawned = spawnInstance(turn, cellar, 'lamps.Lamp', cellar);
+    expect(objectNamed(lamp, turn.draft, lantern.id)).toBe(spawned.id);
+    // In the hall, the declared lamp comes first in the hall's contents.
+    const other = spawnInstance(turn, inLamps('hall'), 'lamps.Lamp', inLamps('hall'));
+    expect(other.id).not.toBe(inLamps('hall', 'lamp'));
+    expect(objectNamed(lamp, turn.draft, inLamps('hall', 'lantern'))).toBe(inLamps('hall', 'lamp'));
+  });
+
+  it('answers only to identifiers where asked to, as an exit’s destination is, so a spawned instance is passed over', () => {
+    const turn = lampsTurn();
+    const lamp = placedName('lamp');
+    const cellar = inLamps('cellar');
+    const lantern = spawnInstance(turn, cellar, 'lamps.Lantern', cellar);
+    spawnInstance(turn, cellar, 'lamps.Lamp', cellar);
+    expect(objectNamed(lamp, turn.draft, lantern.id, 'identifiers')).toBe(inLamps('lamp'));
+  });
+
+  it('follows each step of a path among what the one before holds now', () => {
+    const turn = lampsTurn();
+    const yardLamp: Named = {
+      names: 'placed',
+      steps: [
+        { name: 'yard', madeOf: [] },
+        { name: 'lamp', madeOf: [] },
+      ],
+      candidates: [],
+    };
+    expect(objectNamed(yardLamp, turn.draft, inLamps('hall', 'lantern'))).toBe(
+      inLamps('yard', 'lamp'),
+    );
+    turn.draft.place(inLamps('yard', 'lamp'), inLamps('hall'));
+    expect(objectNamed(yardLamp, turn.draft, inLamps('hall', 'lantern'))).toBeNull();
+  });
+
   it('from a copy’s body, reaches what its holder’s body gives, wherever that holder was made', () => {
     const turn = lampsTurn();
     const oil = placedName('oil');
@@ -239,7 +306,7 @@ describe('a name in a kind’s body, while the world runs', () => {
     expect(objectNamed(oil, turn.draft, wick!)).toBe(spawnedOil);
   });
 
-  it('reaches nothing where no body around the instance declares the name, and faults read through', () => {
+  it('reaches nothing where nothing around the instance holds one of the name, and faults read through', () => {
     const turn = lampsTurn();
     const oil = placedName('oil');
     const wick = inLamps('hall', 'lantern', 'wick');

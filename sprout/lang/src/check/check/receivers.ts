@@ -18,8 +18,8 @@ import type { CheckContext } from './checker.js';
 
 /**
  * The kind a receiver is, or a refusal naming what to do about the object
- * type: narrow it, through a `let` where `receiver` is a name in a kind's
- * body that no compile can fix.
+ * type: narrow it with `is()`, said for the name where `receiver` is one
+ * in a kind's body that no compile can fix.
  */
 export function receiverKind(
   type: BindingType,
