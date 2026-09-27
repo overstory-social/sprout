@@ -13,6 +13,9 @@ import {
 } from '../check/bindings.js';
 import { typeOf } from '../check/check.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
+import type { Named } from '../declare/names.js';
+import type { Node } from '../source/nodes.js';
+import type { Expr } from '../syntax/ast.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import { expression } from '../fixtures/check.js';
 import { chooser } from '../fixtures/parse.js';
@@ -29,6 +32,7 @@ import {
   evaluate,
   evaluateCondition,
   IntegerOverflow,
+  narrowedFrame,
   type Evaluated,
   type Frame,
 } from './evaluate.js';
@@ -519,5 +523,62 @@ describe('an identifier in an expression', () => {
 
   it('faults where what it names is out of range', () => {
     expect(() => throughName('stray', ['yard', 'stray'])).toThrow(NameOutOfRange);
+  });
+});
+
+describe('a condition that narrows a name in a kind’s body', () => {
+  /** A frame over the lantern's body, where `lamp` is whatever is nearest it, and `mine` is bound. */
+  function lanternFrame(text: string): { condition: Expr; frame: Frame; draft: Draft } {
+    const one = eventTurn();
+    const condition = expression(text);
+    const names = new Map<Node, Named>();
+    const placed: Named = {
+      names: 'placed',
+      steps: [{ name: 'lamp', madeOf: [] }],
+      candidates: [],
+    };
+    const bound = (expr: Expr): void => {
+      if (expr.kind === 'binding' && expr.name.text === 'lamp') names.set(expr.name, placed);
+      if (expr.kind === 'call') bound(expr.receiver);
+    };
+    bound(condition);
+    return {
+      condition,
+      draft: one.draft,
+      frame: {
+        state: one.draft,
+        kinds: one.catalogue.lookup,
+        library: 'bus',
+        self: LANTERN,
+        bindings: new Map([['mine', boundObject(LAMP)]]),
+        budget: one.budget,
+        caps: one.catalogue.caps,
+        names,
+        passes: one.passes,
+      },
+    };
+  }
+
+  it('binds the name to what it reaches now, for the condition and its branch', () => {
+    const { condition, frame } = lanternFrame('lamp.is(Lamp)');
+    const inner = narrowedFrame(condition, frame);
+    expect(inner).not.toBe(frame);
+    expect(inner.bindings.get('lamp')).toEqual(boundObject(LAMP));
+    expect(inner.bindings.get('mine')).toEqual(boundObject(LAMP));
+    expect(frame.bindings.has('lamp')).toBe(false);
+    expect(evaluateCondition(condition, inner)).toBe(true);
+  });
+
+  it('faults where the name reaches nothing, as any read through it does', () => {
+    const { condition, frame, draft } = lanternFrame('lamp.is(Lamp)');
+    draft.place(LAMP, draft.world);
+    expect(() => narrowedFrame(condition, frame)).toThrow(NameOutOfRange);
+  });
+
+  it('leaves the frame as it is for a binding, for `self`, and for any other condition', () => {
+    for (const text of ['mine.is(Lamp)', 'self.is(Lamp)', 'lamp.count > 0', '!lamp.is(Lamp)']) {
+      const { condition, frame } = lanternFrame(text);
+      expect(narrowedFrame(condition, frame), text).toBe(frame);
+    }
   });
 });

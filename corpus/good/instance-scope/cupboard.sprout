@@ -1,14 +1,20 @@
-// Opening the cupboard makes a lantern inside it, whose `lamp` is the
-// hall's, the nearest round the cupboard, and kindles the beacon in the world,
-// which the world's name fixes from anywhere.
+// Opening the cupboard sets a new lamp out in the hall around it, which is
+// then the hall's `lamp`, being made as one is declared. Which object
+// `lamp` is depends on where the cupboard sits, so Sprout knows it only as
+// an object until `is()` narrows it, and the branch holds the lamp the
+// condition found. The beacon in the world is kindled by the world's name,
+// which fixes a name from anywhere.
 kind Cupboard {
   contains
 
   as target for open {
     do {
-      spawn Lantern in self
+      spawn Lamp in hall
+      if (lamp.is(Lamp)) {
+        if (lamp.get(:lit)) { say "A lamp is already burning here." }
+        else { say "A new lamp is set out, unlit." }
+      }
       send instance_scope.beacon :kindle
-      say "A lantern is waiting on the top shelf."
     }
   }
 }

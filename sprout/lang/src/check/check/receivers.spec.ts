@@ -181,12 +181,12 @@ function inLantern(): { context: CheckContext; lamp: Expr } {
 }
 
 const NARROW_LAMP =
-  'Name it with `let` and narrow that, as in `let found = lamp` and then `if (found.is(Thing)) { … }`; a passage said inside the branch may read `found` too.';
+  'Narrow it with `is()` and read it inside the branch, as in `if (lamp.is(Thing)) { … }` in a body or `{if lamp.is(Thing)}…{/if}` in a passage.';
 const placedLamp = (doing: string) =>
   `\`lamp\` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot ${doing} it. ${NARROW_LAMP}`;
 
 describe('a name in a kind’s body as the receiver, asked directly', () => {
-  it('is refused with the `let` that narrows it, by every question of its kind', () => {
+  it('is refused with the `is()` that narrows it, by every question of its kind', () => {
     const { context, lamp } = inLantern();
     expect(receiverKind(OPEN_OBJECT, lamp.at, 'read a property from', context, lamp)).toBeNull();
     expect(remembers(OPEN_OBJECT, lamp.at, context, lamp)).toBe(false);

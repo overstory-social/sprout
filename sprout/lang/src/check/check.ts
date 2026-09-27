@@ -45,6 +45,7 @@ import { leafType } from './check/leaves.js';
 import { aboveType } from './check/operators.js';
 import { EFFECTS, effectCall } from './check/writes.js';
 import { matches } from './check/values.js';
+import { placedBinding } from './names.js';
 import type { ValueType } from '../declare/types.js';
 
 export type { ActSetting, CheckContext, MessageSetting } from './check/checker.js';
@@ -119,8 +120,9 @@ export function checkCondition(expr: Expr, context: CheckContext): boolean {
 
 /**
  * `x.is(K)` written as a whole condition — what it narrows, for the
- * branch it guards. The narrowing itself is `Scope.narrowing`, and
- * applying it belongs to whoever writes `if`.
+ * branch it guards: an object binding, or a name in a kind's body that
+ * the run resolves, which the branch then binds. The narrowing itself is
+ * `Scope.narrowing`, and applying it belongs to whoever writes `if`.
  */
 export function narrowingOf(
   expr: Expr,
@@ -128,7 +130,8 @@ export function narrowingOf(
 ): { readonly binding: ObjectBinding; readonly kind: KindRef } | null {
   if (expr.kind !== 'call' || expr.method.text !== 'is') return null;
   if (expr.receiver.kind !== 'binding' || expr.arguments.length !== 1) return null;
-  const binding = context.scope.lookup(expr.receiver.name.text);
+  const binding =
+    context.scope.lookup(expr.receiver.name.text) ?? placedBinding(expr.receiver.name, context);
   if (binding === null || !isObjectBinding(binding)) return null;
   const written = expr.arguments[0]!;
   if (written.kind !== 'kind-expr') return null;
