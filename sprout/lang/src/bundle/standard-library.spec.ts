@@ -149,7 +149,7 @@ describe('the standard library', () => {
       ],
       ['sprout/visitor.sprout', ['import from actor', 'kind Visitor']],
       ['sprout/fixture.sprout', ['import from actor', 'kind Fixture']],
-      ['sprout/container.sprout', ['verb open', 'verb close', 'kind Container']],
+      ['sprout/container.sprout', ['verb open', 'verb close', 'verb look_in', 'kind Container']],
       ['sprout/lockable.sprout', ['import from container', 'verb unlock', 'kind Lockable']],
       ['sprout/talk.sprout', ['verb ask']],
     ]);
@@ -184,7 +184,7 @@ describe('the standard library', () => {
     });
   });
 
-  it('gives a container `open` and `close`, and a lock `unlock` with a tool no phrase leaves out', () => {
+  it('gives a container `open`, `close` and `look_in`, and a lock `unlock` with a tool no phrase leaves out', () => {
     const verbs = [
       ...verbsByFile().get('sprout/container.sprout')!,
       ...verbsByFile().get('sprout/lockable.sprout')!,
@@ -192,8 +192,14 @@ describe('the standard library', () => {
     expect(Object.fromEntries(verbs.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
       open: ['target:sprout.Container'],
       close: ['target:sprout.Container'],
+      look_in: ['target:sprout.Container'],
       unlock: ['target:sprout.Lockable', 'tool:open'],
     });
+    expect(verbs.find((verb) => verb.name === 'look_in')!.phrases.map((one) => one.text)).toEqual([
+      'look in [target]',
+      'look inside [target]',
+      'what is in [target]',
+    ]);
     const unlock = verbs.find((verb) => verb.name === 'unlock')!;
     expect(unlock.phrases.map((phrase) => phrase.text)).toEqual([
       'unlock [target] with [tool]',
@@ -275,13 +281,24 @@ describe('the standard library', () => {
     expect(playsOf('Container')).toEqual({
       'as target for sprout.open': 'sprout.Container: permit do',
       'as target for sprout.close': 'sprout.Container: permit do',
+      'as target for sprout.look_in': 'sprout.Container: permit do',
     });
     expect(
-      defaultLines('Container', ['shut', 'full', 'opened', 'opens', 'closed', 'closes']),
+      defaultLines('Container', [
+        'contents',
+        'shut',
+        'full',
+        'opened',
+        'opens',
+        'closed',
+        'closes',
+      ]),
     ).toEqual({
+      contents:
+        '{if self.get(:open)}{if self.count == 0}It is empty.{else}Inside: {for thing in self}{thing}{if $last}.{else}, {/if}{/for}{/if}{/if}',
       shut: '{self} is shut.',
       full: 'There is no room in {self}.',
-      opened: 'You open {self}.',
+      opened: 'You open {self}. {self.contents}',
       opens: '{actor} opens {self}.',
       closed: 'You shut {self}.',
       closes: '{actor} shuts {self}.',
@@ -507,7 +524,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '3ee5bf259090f4a777291357177a16b6495bad4139902cae235856a3b4f545cc',
+      '3f3fd4f9ba60a34b5651ed8e0711ada0fd44eb3bcf47d3446da6ac068567ba3e',
     );
   });
 });

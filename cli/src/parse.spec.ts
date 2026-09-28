@@ -75,6 +75,11 @@ sprout.close (target: sprout.Container)
   close [target]
   shut [target]
 
+sprout.look_in (target: sprout.Container)
+  look in [target]
+  look inside [target]
+  what is in [target]
+
 sprout.unlock (target: sprout.Lockable, tool)
   unlock [target] with [tool]
   use [tool] on [target]

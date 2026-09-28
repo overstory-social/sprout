@@ -150,10 +150,12 @@ kind Fixture {
 `;
 
 const CONTAINER = `// sprout.Container: a lid and a capacity, the pass rule that lets a
-// message in only while it is open (the spec's Containers route), and the
-// \`open\` and \`close\` it plays the target of.
-verb open  { role target: Container  "open [target]" }
-verb close { role target: Container  "close [target]"  "shut [target]" }
+// message in only while it is open (the spec's Containers route), the
+// \`open\`, \`close\` and \`look_in\` it plays the target of, and its
+// \`contents\`, which \`examine\` says after its description.
+verb open    { role target: Container  "open [target]" }
+verb close   { role target: Container  "close [target]"  "shut [target]" }
+verb look_in { role target: Container  "look in [target]"  "look inside [target]"  "what is in [target]" }
 
 kind Container {
   contains
@@ -177,9 +179,18 @@ kind Container {
     do     { self.set(:open, false)  say closed  tell closes }
   }
 
+  as target for look_in {
+    permit { if (!self.get(:open)) { refuse shut } }
+    do     { say contents }
+  }
+
+  passage contents default {
+    {if self.get(:open)}{if self.count == 0}It is empty.{else}Inside: {for thing in self}{thing}{if $last}.{else}, {/if}{/for}{/if}{/if}
+  }
+
   passage shut default   { {self} is shut. }
   passage full default   { There is no room in {self}. }
-  passage opened default { You open {self}. }
+  passage opened default { You open {self}. {self.contents} }
   passage opens default  { {actor} opens {self}. }
   passage closed default { You shut {self}. }
   passage closes default { {actor} shuts {self}. }

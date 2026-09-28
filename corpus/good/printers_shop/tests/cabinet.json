@@ -1,9 +1,12 @@
 {
-  "about": "The type cabinet stays shut until the brass key unlocks it, and Ines sees Marta do it. Only the lines that matter are written; the rest of what each line makes is played and not checked.",
+  "about": "The type cabinet stays shut until the brass key unlocks it, and Ines sees Marta do it; opened, it says what is inside, however it is asked. Only the lines that matter are written; the rest of what each line makes is played and not checked.",
   "steps": [
     { "arrive": "Marta" },
     { "arrive": "Ines", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "Ines arrives." }
+    ] },
+    { "as": "Marta", "type": "look in cabinet", "expect": [
+      { "words": "The type cabinet is shut." }
     ] },
     { "as": "Marta", "type": "open cabinet", "expect": [
       { "words": "It is locked." }
@@ -13,7 +16,13 @@
       { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
     ] },
     { "as": "Marta", "type": "open cabinet", "expect": [
-      { "words": "You open the type cabinet." }
+      { "words": "You open the type cabinet. Inside: a shop key." }
+    ] },
+    { "as": "Marta", "type": "what is in the cabinet?", "expect": [
+      { "words": "Inside: a shop key." }
+    ] },
+    { "as": "Marta", "type": "x cabinet", "expect": [
+      { "words": "Inside: a shop key." }
     ] },
     { "as": "Marta", "type": "take shop key", "expect": [
       { "words": "You take a shop key." }

@@ -118,6 +118,18 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
         say(run, { passage, scope, from: { from: 'engine', line }, undrawn });
       }
     }
+    // A thing's own `contents`, which `examine` says after its description
+    // and holds to a description's rules (the spec's Engine verbs).
+    const contents = kind.passages.get(CONTENTS.name);
+    if (contents !== undefined) {
+      const scope = engineScope(CONTENTS, contents.at, setting);
+      say(run, {
+        passage: contents,
+        scope,
+        from: { from: 'engine', line: CONTENTS },
+        undrawn: { by: 'contents' },
+      });
+    }
   }
   for (const site of setting.sites.rendered) rendered(run, site);
   drain(run);
@@ -198,6 +210,9 @@ function engineBinding(
     writable: false,
   };
 }
+
+/** A thing's `contents`, as `examine` says it: to the one looking, where they stand. */
+const CONTENTS: EnginePassage = { name: 'contents', binds: { actor: 'actor', here: 'here' } };
 
 /** The passages still to check, and what has been checked and said. */
 interface Run {
@@ -284,6 +299,8 @@ function undrawnKey(undrawn: Undrawn | null): string {
       return `pass ${undrawn.written}`;
     case 'poll':
       return `poll ${undrawn.line}`;
+    case 'contents':
+      return 'contents';
   }
 }
 

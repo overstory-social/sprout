@@ -471,3 +471,27 @@ kind Tower {
     expect(said.map(([at]) => at)).toEqual(['shop.sprout:6:32', 'shop.sprout:7:24']);
   });
 });
+
+describe('a thing’s `contents`, which `examine` says after its description', () => {
+  it('is said with `actor` and `here`, and nothing else beside `self`', () => {
+    expect(
+      checked('kind Tin { contains  passage contents { {actor} peers in: {self.count} inside. } }'),
+    ).toEqual([]);
+    expect(checked('kind Tin { contains  passage contents { {target} is inside. } }')).toEqual([
+      [
+        'shop.sprout:4:42',
+        'The engine says `contents` with `{actor}` and `{here}` bound, and nothing is called `target` there.',
+      ],
+    ]);
+  });
+
+  it('draws nothing, as a description does not', () => {
+    expect(
+      checked(
+        'kind Tin { contains  passage contents { {one of}It rattles.{or}It clinks.{/one of} } }',
+      ).map(([, message]) => message),
+    ).toEqual([
+      "A thing's `contents` may not use `{one of}`: `examine` says it as part of the thing’s description, which a roll would change while nobody acts.",
+    ]);
+  });
+});

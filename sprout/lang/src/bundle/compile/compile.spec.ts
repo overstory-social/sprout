@@ -228,6 +228,7 @@ describe('what a compiled bundle carries', () => {
       'Fixture',
       'open',
       'close',
+      'look_in',
       'Container',
       'unlock',
       'Lockable',

@@ -20,7 +20,8 @@ export type Undrawn =
   | { readonly by: 'describe' }
   | { readonly by: 'when' }
   | { readonly by: 'pass'; readonly written: string }
-  | { readonly by: 'poll'; readonly line: string };
+  | { readonly by: 'poll'; readonly line: string }
+  | { readonly by: 'contents' };
 
 /** The free calls that draw, which are the only free calls there are. */
 export const DRAWS: ReadonlySet<string> = new Set(['chance', 'random']);
@@ -63,6 +64,11 @@ function words(undrawn: Undrawn): { readonly what: string; readonly why: string 
       return {
         what: `the world's \`${undrawn.line}\``,
         why: 'a poll says it, and a poll draws nothing',
+      };
+    case 'contents':
+      return {
+        what: "a thing's `contents`",
+        why: '`examine` says it as part of the thing’s description, which a roll would change while nobody acts',
       };
   }
 }

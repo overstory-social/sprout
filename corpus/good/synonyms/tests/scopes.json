@@ -11,13 +11,13 @@
       { "reader": "Marta", "kind": "said", "words": "The bell booms." }
     ] },
     { "as": "Marta", "type": "jimmy chest", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the chest." }
+      { "reader": "Marta", "kind": "said", "words": "You open the chest. It is empty." }
     ] },
     { "as": "Marta", "type": "force chest", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
     ] },
     { "as": "Marta", "type": "force cabinet", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the cabinet." }
+      { "reader": "Marta", "kind": "said", "words": "You open the cabinet. It is empty." }
     ] }
   ]
 }
