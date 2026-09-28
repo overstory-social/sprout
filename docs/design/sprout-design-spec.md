@@ -1059,10 +1059,12 @@ Three things come with it. Procedural space counts against live instances like e
 Six verbs are the engine's, because they read the world rather than change it: `go`, `look`, `examine`, `inventory`, `wait` and `help`. Their phrases are declared in the standard library like any verb's — `look` answers to `l`, `examine` to `x` and `look at` — so their words can be added to and translated, but they have no `do`:
 
 - `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
-- `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the world's `unremarkable` passage if it has none.
-- `inventory` renders the actor's own `inventory` passage, which `sprout.Actor` supplies.
-- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the world's `waited` passage, "Time passes." unless a world says otherwise.
-- `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the world's `help` passage, which `sprout.World` supplies as a default and a world may replace; the passage is given `readings`, and each reading renders as the line a visitor would type for it.
+- `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none.
+- `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
+- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise.
+- `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the `help` line, whose default `sprout.World` supplies; the line is given `readings`, and each reading renders as the line a visitor would type for it.
+
+Each of these lines is found as every engine line is, under Prose › Engine lines: the actor's own, then its place's, then the world's, then the library's default.
 
 Everything else a visitor can do by default — `take`, `drop`, `put`, `give`, `open`, `close`, `unlock`, `ask` — is a standard library verb written in Sprout, and a world that wants them to say or do something else writes its own.
 
@@ -1818,7 +1820,7 @@ The host places an arriving visitor where the world says visitors arrive, or whe
 
 An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A visitor found at load inside something that no longer holds actors is named to the host and displaced on their next turn; an NPC so found stays. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
 
-Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told the `gone_away` line, "You leave, and take what you carry with you." unless a world or an actor words it otherwise A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
+Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told the `gone_away` line, "You leave, and take what you carry with you.", unless an actor, place or world words it otherwise. A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
 
 ### Time
 
