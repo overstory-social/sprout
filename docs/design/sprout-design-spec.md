@@ -269,7 +269,7 @@ There is no sweep primitive. An object that should not outlive its usefulness as
 
 A microworld is a manifest, some `.sprout` files in whatever folders its author likes, the `.prose` files they point at, and the vendored source of every library they use. A name crosses from one file to another by an import, under Imports, and resolves inside a file by the scope rules in Names.
 
-A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
+A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world runs, and the gap is visible rather than fatal. A running world's files are fixed when it starts, so any change to them redeploys it, under State › Redeploying. What "absent" means at each kind of reference is a table under The compiler.
 
 ### Imports
 
@@ -292,7 +292,7 @@ The first makes `Key`, declared at the top level of `blacksmith/key.sprout`, a n
 - A name in a kind's body that resolves when the body runs, from where the instance sits, under Identifiers and scope, is not imported, since no one declaration is its own. Every other name a file writes — a kind, an enum, a verb, a message, an object resolved when the file compiles — is declared in the file or imported.
 - Imports govern what source may name, not what a visitor may type. Every verb declared in the bundle or in a library it uses is in the world's grammar whether any file imports it or not, and the engine's six verbs always are.
 
-A kind is identified by where it is declared and its name: its file in the world, or its library. Moving a kind to another file makes it another kind in source and changes nothing stored, since an instance is stored by its declared path or minted id and a property by its name, under State.
+A kind is identified by where it is declared and its name: its file in the world, or its library. Moving a kind to another file makes it another kind, which costs nothing stored, since changing the files redeploys the world from its initial state, under State › Redeploying.
 
 ### The manifest
 
@@ -409,7 +409,7 @@ A restatement by a kind that itself composes the property's origin supersedes th
 
 Changing a property's type in a composing kind is a refusal, not an override. And because every standard library property name is one an author cannot use freely without a merge decision, the standard library declares as few as it can.
 
-A property's name is its identity in storage. Renaming one in source is a new property with the declared default; the old one's values are dropped.
+A property's name is its identity in storage. Renaming one in source changes the files, which redeploys the world from its initial state, under State › Redeploying.
 
 ### Prose does not compose
 
@@ -1783,7 +1783,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | an extension | its statements record nothing, and a value of its type keeps its text unread |
 | a file, in an import | each name imported from it reads as absent by its own row: a kind as a kind does, a verb as a verb does |
 
-Stored state for absent objects is kept, untouched, so that a file restored brings its objects back as they were.
+A world's state belongs to the files it started with. Restoring a file is a change to them, and redeploys the world from its initial state, under State › Redeploying.
 
 ### What it refuses
 
@@ -1911,13 +1911,13 @@ The level is part of the record, so every host and every client filters the same
 
 The engine keeps, for every instance: a stable **id**; its kinds; its property map; its container's id; the destination of each link; its pending wakes; and its memory of each actor, keyed by that actor's id. For every place, when it last ticked. For every visitor, the visit, the nickname, the instance, and where they last stood. The visit is a UUID the host mints, keyed by the host's own opaque id for the person, so a person who returns finds their visit again, or starts a new one.
 
-A declared object's id is its declared path — `printers_shop.composing_room.cabinet`. Names never change while a world runs; changing one in source, the world's own included, changes every id under it. Moving or renaming it in source is therefore a new object with the declared defaults; the old one's state is kept as for an absent object, in case the move was a mistake. A spawned object's id is minted at spawn and never reused.
+A declared object's id is its declared path — `printers_shop.composing_room.cabinet`. Names never change while a world runs; changing one in source, the world's own included, changes every id under it. Renaming it or moving it changes the files, which redeploys the world, so no id has to survive either. A spawned object's id is minted at spawn and never reused.
 
-Where stored state no longer fits a declared type, the value is dropped and the declared default stands. An actor found at load inside something that no longer holds actors, because the source changed under it, is an engine error the host reports loudly: nothing the language can do puts one there, since `contains actors` is fixed when the world compiles.
+**Redeploying.** A running world's files are fixed when it starts. Every change to them — an author's republish, a moderator withholding a file or lifting a withholding — redeploys the world: it starts again from its initial state, as a world does the first time it loads. The log records the redeploy with the new bundle's hash, and everyone present is admitted again where visitors arrive, carrying nothing, as is anyone who comes back later, since where they last stood was the world's. What a world stores is kept across a host's restart only while its files are the same; a visit and its nickname are the host's, and survive a redeploy. So nothing a world stores has to survive a change to its source: an id, a kind's identity and a property's type are always read against the files that made them.
 
 ### The log
 
-The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator, as the whole set of files then withheld and the hash of the bundle the host then runs, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. Every entry carries its level, under Levels: a fault is an error, a line cut short is a warning, an effect is prose, and every other entry is info. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
+The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every redeploy, with the bundle's hash, so that a segment of the log is read against the bundle that produced it and starts from that bundle's initial state: a publish, and a withholding by a moderator, as the whole set of files then withheld, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. Every entry carries its level, under Levels: a fault is an error, a line cut short is a warning, an effect is prose, and every other entry is info. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
 
 ### Faults
 
@@ -1943,13 +1943,13 @@ A visitor enters with a **nickname**, and the host guarantees one exists before 
 
 The host accepts a nickname only if it collides with nothing in the bundle's word set: no noun or token of one, no direction, article, connector or phrase word, no reserved word, nothing shaped like source; and with no other visitor's nickname. The word set travels with the bundle and is fixed at compile time, so all but the last is a lookup rather than a scan of live state, and the last reads only who is present. A second Marta is asked for another name before entering, and a refusal names the word it collided on.
 
-A nickname may be kept and reclaimed on a later visit if it is still free. Reservations are soft; nothing is held against a returning visitor who has not come back. A republish that adds a noun a current visitor is named by does not evict them; they are asked for a new name on their next entry.
+A nickname may be kept and reclaimed on a later visit if it is still free. Reservations are soft; nothing is held against a returning visitor who has not come back. A redeploy that adds a noun a current visitor is named by does not keep them out; they are asked for a new name as they are admitted again.
 
 The host moderates nicknames before they are ever rendered, and length-caps them at the figure in Limits. It never exposes platform identity to a world — a nickname is scoped to one microworld and says nothing about who a visitor is anywhere else.
 
 The host places an arriving visitor where the world says visitors arrive, or where they last stood if that place still exists and accepts them. Entry is a move, with `accept`, `:entered`, `arrives` and the description, like any other.
 
-An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A visitor found at load inside something that no longer holds actors is named to the host and displaced on their next turn; an NPC so found stays. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
+An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
 
 Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told the `gone_away` line, "You leave, and take what you carry with you.", unless an actor, place or world words it otherwise. A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
 
@@ -1983,7 +1983,7 @@ The host sets every limit in Limits and enforces every runtime budget, including
 
 ### Moderation and takedown
 
-A file the host removes or withholds reads as absent: what referred to it keeps compiling and the world keeps running. A moderator reads the world's own source, with blessed libraries collapsed, and replays the log to see what actually happened. What objects remember about a visitor is opaque to that visitor: it shows only in how the world behaves and describes itself to them, and a debugging view may one day show it to the world's author. It is erased only when the visitor is deleted, when the host removes every entry keyed by them with their instance and everything it holds, all the way down, which is possible because memory is declared and keyed and nothing else about them is stored in the world; the log keeps what it holds of them, since replaying it is what reproduces the world, and an export does not carry the log. An export for that visitor carries it, each remembering object's entry, since what an export hands on is the host's to decide.
+A file the host removes or withholds reads as absent: the world is redeployed without it, from its initial state, and what referred to it keeps compiling. A moderator reads the world's own source, with blessed libraries collapsed, and replays the log to see what actually happened. What objects remember about a visitor is opaque to that visitor: it shows only in how the world behaves and describes itself to them, and a debugging view may one day show it to the world's author. It is erased only when the visitor is deleted, when the host removes every entry keyed by them with their instance and everything it holds, all the way down, which is possible because memory is declared and keyed and nothing else about them is stored in the world; the log keeps what it holds of them, since replaying it is what reproduces the world, and an export does not carry the log. An export for that visitor carries it, each remembering object's entry, since what an export hands on is the host's to decide.
 
 ### What the host may not do
 

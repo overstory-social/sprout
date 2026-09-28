@@ -110,9 +110,10 @@ that id is a token:
 With `--watch`, the server watches each world's folder. On a change it
 compiles the world strictly, as publishing does:
 
-- If it compiles, it is published: the running world moves to the new
-  bundle, the publish is logged with the bundle's hash, and visitors carry
-  on.
+- If it compiles, it is published, which redeploys the world: it starts
+  again from its initial state on the new bundle, the publish is logged
+  with the bundle's hash, and everyone connected is admitted again where
+  visitors arrive, as the spec's _State › Redeploying_ says.
 - If it is refused, the refusal is logged and the running world is left as
   it was.
 
