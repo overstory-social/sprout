@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { KindDeclaration } from '../../syntax/ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
+import { nodesOf } from '../../source/nodes.js';
 import { SourceFile } from '../../source/source.js';
 import { parseDeclarations } from '../../syntax/parse.js';
 import { libraryScope, rewrite } from './renames.js';
@@ -35,5 +36,34 @@ describe('a file’s names as its imports from libraries mean them', () => {
     expect(crate.composes[0]!.at).toBe(original.composes[0]!.at);
     expect(crate.composes[2]).toBe(original.composes[2]);
     expect(rewrite(original, { names: new Map(), namespaces: new Map() })).toBe(original);
+  });
+});
+
+describe('a verb and a message under another name', () => {
+  const written = read(
+    'kind Crate {\n  as actor for grab { do { send self :shake  broadcast :shake } }\n  on :shake { act grab (target: self) }\n}\n',
+  );
+  const scope = {
+    names: new Map([
+      ['grab', { library: 'sprout', name: 'take', fromLibrary: true, object: null }],
+      ['shake', { library: 'shop', name: 'stir', fromLibrary: false, object: null }],
+    ]),
+    namespaces: new Map<string, string>(),
+  };
+  const crate = rewrite(written[0] as KindDeclaration, scope);
+  const named = (field: 'verb' | 'message') =>
+    [...nodesOf([crate])].flatMap((node) => {
+      const value = (node as unknown as Record<string, unknown>)[field];
+      return value !== null && typeof value === 'object' && 'text' in value
+        ? [`${node.kind} ${(value as { text: string }).text}`]
+        : [];
+    });
+
+  it('reads a play’s and an `act`’s verb as the one imported', () => {
+    expect(named('verb')).toEqual(['role-ref take', 'act take']);
+  });
+
+  it('reads a send’s, a broadcast’s and a handler’s message as the one imported', () => {
+    expect(named('message').sort()).toEqual(['broadcast stir', 'handler stir', 'send stir'].sort());
   });
 });

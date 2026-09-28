@@ -317,9 +317,24 @@ function placeObjects(
     }
     waiting = still;
   }
+  // An object is in a circle where following what each waiting object's
+  // path runs through, one waiting object to the next, comes back to it.
+  const through = (object: ObjectDeclaration): ObjectDeclaration | undefined => {
+    const path = object.placedIn!.parts.map((part) => part.text);
+    return waiting.find((other) => other !== object && path.includes(other.name.text));
+  };
+  const inCircle = (object: ObjectDeclaration): boolean => {
+    const seen = new Set<ObjectDeclaration>();
+    for (let next = through(object); next !== undefined; next = through(next)) {
+      if (next === object) return true;
+      if (seen.has(next)) return false;
+      seen.add(next);
+    }
+    return false;
+  };
   for (const object of waiting) {
     const path = object.placedIn!.parts.map((part) => part.text);
-    const circle = waiting.some((other) => other !== object && path.includes(other.name.text));
+    const circle = inCircle(object);
     report.diagnostics.refuse(
       object.placedIn!.at,
       circle

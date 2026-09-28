@@ -136,6 +136,17 @@ describe('an object in a file of its own', () => {
     ]);
   });
 
+  it('says an object waits on one that names nothing, not that the two are a circle', () => {
+    const result = world('', {
+      'rooms.sprout':
+        'object a is sprout.Place in x.thing\nobject x is sprout.Place, sprout.Container in nowhere\n',
+    });
+    expect(refused(result).map(([, message]) => message)).toEqual([
+      '`in x.thing` names nothing in the world for `a` to sit in.',
+      '`in nowhere` names nothing in the world for `x` to sit in.',
+    ]);
+  });
+
   it('refuses two objects each placed inside the other', () => {
     const result = world('', {
       'rooms.sprout':
