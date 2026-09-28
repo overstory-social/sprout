@@ -4,15 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// The CLI imports the Sprout packages and node:* — nothing of any host.
+// The player imports the language and node:* — nothing of any host or client.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
-const ALLOWED = ['@overstory/sprout/lang', '@overstory/sprout-player', '@overstory/sprout-repl'];
-const ALLOWED_IN_SPECS = [
-  'vitest',
-  '@overstory/sprout-player/fixtures',
-  '@overstory/sprout-repl/fixtures',
-];
+const ALLOWED = ['@overstory/sprout/lang'];
+const ALLOWED_IN_SPECS = ['vitest'];
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
@@ -24,7 +20,7 @@ function sources(dir: string): string[] {
   );
 }
 
-describe('@overstory/sprout-cli imports the Sprout packages and node:* only', () => {
+describe('@overstory/sprout-player imports the language and node:* only', () => {
   const files = sources(SRC);
   it('has files to check', () => expect(files.length).toBeGreaterThan(5));
   for (const file of files) {

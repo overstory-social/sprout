@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkWorld } from './check.js';
 import {
   arrive,
   defaultVisitor,
@@ -11,9 +10,9 @@ import {
   playLines,
   playScript,
 } from './play.js';
-import { KILN_YARD, worldFolder } from './testing.js';
+import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
-const bundle = checkWorld(worldFolder('kiln_yard', KILN_YARD)).bundle!;
+const bundle = bundleOf('kiln_yard', KILN_YARD);
 const play = (script: string): string => playScript(bundle, script, 'yard.txt').page;
 
 describe('playScript', () => {

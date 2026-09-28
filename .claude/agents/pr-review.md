@@ -56,7 +56,7 @@ names the bug faster than you will find it by reading. Compare what you
 saw with the receipts in the PR body: a receipt for a different sha than
 `headRefOid`, or a claimed green you cannot reproduce, is blocking and
 says so in those words. Run `npm run e2e` the same way when the diff
-touches `cli/`, `sprout/core`, packaging, or the corpus; otherwise
+touches `cli/`, `player/`, `repl/`, `sprout/core`, packaging, or the corpus; otherwise
 the author's e2e receipt is enough.
 
 ## Read, in this order

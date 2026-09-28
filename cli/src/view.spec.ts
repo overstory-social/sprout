@@ -2,8 +2,8 @@ import { declaredId, Draft } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
-import { standIn, type Standing } from './stand.js';
-import { LANE, worldFolder } from './testing.js';
+import { standIn, type Standing } from '@overstory/sprout-player';
+import { LANE, worldFolder } from '@overstory/sprout-player/fixtures';
 import { inspectView } from './view.js';
 
 const at = (place?: string): Standing =>

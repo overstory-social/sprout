@@ -8,8 +8,9 @@ import { generateSkill } from '@overstory/sprout/lang';
 
 import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
-import { playScript } from './play.js';
-import { captured, KILN_YARD, LANE, worldFolder } from './testing.js';
+import { playScript } from '@overstory/sprout-player';
+import { KILN_YARD, LANE, worldFolder } from '@overstory/sprout-player/fixtures';
+import { captured } from '@overstory/sprout-repl/fixtures';
 
 describe('parseArgs', () => {
   it('reads a command, positionals, --flag value, --flag=value and --flag alone', () => {

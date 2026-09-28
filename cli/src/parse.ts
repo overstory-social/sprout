@@ -19,7 +19,7 @@ import {
   type ResolvedVerb,
 } from '@overstory/sprout/lang';
 
-import { pathOf, type Standing } from './stand.js';
+import { pathOf, type Standing } from '@overstory/sprout-player';
 
 // `sprout parse`: what a world accepts. With no line, every phrase a
 // visitor may type, in the order the command parser tries them, the first

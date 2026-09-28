@@ -2,14 +2,19 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 import { generateSkill, type Bundle } from '@overstory/sprout/lang';
+import {
+  catalogueFor,
+  playScript,
+  runTests,
+  standIn,
+  testFiles,
+  type StandOptions,
+} from '@overstory/sprout-player';
+import { playInteractively, type Io } from '@overstory/sprout-repl';
 
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { initWorld } from './init.js';
-import { playInteractively } from './interactive.js';
 import { formatGrammar, parseLine } from './parse.js';
-import { playScript } from './play.js';
-import { catalogueFor, standIn, type StandOptions } from './stand.js';
-import { runTests, testFiles } from './test.js';
 import { inspectView } from './view.js';
 
 // The `sprout` command: six verbs on a microworld folder, and `skill`,
@@ -40,13 +45,6 @@ export const USAGE = `sprout — a Sprout microworld on the command line
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
 `;
-
-export interface Io {
-  stdout: NodeJS.WritableStream;
-  stderr: NodeJS.WritableStream;
-  /** Where `play` with no script reads typed lines; the process's own stdin unless given another. */
-  stdin?: NodeJS.ReadableStream;
-}
 
 export interface Parsed {
   command: string | null;

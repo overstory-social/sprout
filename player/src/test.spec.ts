@@ -4,12 +4,11 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { checkWorld } from './check.js';
 import { playScript } from './play.js';
 import { runTests, testFiles } from './test.js';
-import { KILN_YARD, worldFolder } from './testing.js';
+import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
-const bundle = checkWorld(worldFolder('kiln_yard', KILN_YARD)).bundle!;
+const bundle = bundleOf('kiln_yard', KILN_YARD);
 const run = (...texts: string[]) =>
   runTests(
     bundle,

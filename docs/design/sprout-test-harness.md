@@ -89,7 +89,7 @@ of which must be among what the line made in the order written. A turn
 that faults fails the test unless its fault is written under it.
 `npm run check` runs `sprout test` on every `good/` world with a `tests/`
 folder and requires it to pass; the page a failing test prints is pinned
-in `cli/src/test.spec.ts`. The worked microworld carries tests written
+in `player/src/test.spec.ts`. The worked microworld carries tests written
 the way an author would, and its transcripts pass as tests too.
 
 ### 3. Invariants over generated input
@@ -121,7 +121,7 @@ host with its own adapter runs it too.
 
 ### 6. End to end
 
-`npm run e2e` packs both tarballs, installs them into an empty folder, and
+`npm run e2e` packs every tarball, installs them into an empty folder, and
 runs the installed CLI: `init` a world, `check` it, and `check` a corpus
 world. It proves the published packages work from outside the repository,
 which nothing else does. It also checks the worked microworld and plays

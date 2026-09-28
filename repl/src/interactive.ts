@@ -2,20 +2,20 @@ import { createInterface } from 'node:readline';
 
 import type { Bundle } from '@overstory/sprout/lang';
 
-import type { Io } from './cli.js';
 import {
   arrive,
   defaultVisitor,
   freshStage,
   heard,
+  INSPECTOR,
   leave,
   playInteractive,
   type Made,
-} from './play.js';
-import { INSPECTOR, type StandOptions } from './stand.js';
+  type StandOptions,
+} from '@overstory/sprout-player';
 
 // `sprout play` with no script (or `-`): the same stage and grammar
-// `play.ts` gives a script, driven one line at a time from `io`'s stdin
+// the player gives a script, driven one line at a time from `io`'s stdin
 // instead, under the prompt of whoever is standing — the notes' Holes in
 // the spec record that interactive play is not in the spec's The
 // compiler › The command line (427). A line typed where stdin is a real
@@ -25,6 +25,14 @@ import { INSPECTOR, type StandOptions } from './stand.js';
 // indented, so the page printed is what a script of the same lines
 // would print. `Ctrl-D` ends the session with a departure turn for
 // whoever is still standing, as a last `@leave` would.
+
+/** The streams a session reads and writes. */
+export interface Io {
+  stdout: NodeJS.WritableStream;
+  stderr: NodeJS.WritableStream;
+  /** Where `play` with no script reads typed lines; the process's own stdin unless given another. */
+  stdin?: NodeJS.ReadableStream;
+}
 
 /** `line`, then what `made` gave, as a script's page holds them. */
 function announce(io: Io, line: string, made: readonly Made[] | null): void {

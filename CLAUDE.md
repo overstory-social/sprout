@@ -116,12 +116,12 @@ for. The short form:
 There is **no CI**. Every check runs on the machine of whoever is
 committing, and a PR carries the evidence.
 
-- **`npm run gate` before every commit** — lint, prettier, both builds,
+- **`npm run gate` before every commit** — lint, prettier, every build,
   every suite, the spec typechecks, the corpus. Green, or the commit does
   not happen. There is no "legacy" category of failure any more: a red gate
   is a bug in the change.
-- **`npm run e2e` before opening a PR** — packs both tarballs, installs them
-  into an empty folder, and runs `sprout init` and `sprout check` from the
+- **`npm run e2e` before opening a PR** — packs every package's tarball,
+  installs them into an empty folder, and runs `sprout init` and `sprout check` from the
   installed CLI over a fresh world and a corpus world. B49 (the worked
   microworld as a fixture, with golden transcripts) extends it.
 - **The PR body carries the receipts**: the short sha the gate ran at, its
