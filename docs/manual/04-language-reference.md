@@ -1134,7 +1134,7 @@ whole:
 2. then the one that matched more of the line's words;
 3. then the one whose things are nearer.
 
-Readings still tied are drawn with the dice, and the server logs the draw
+Readings still tied are drawn with the dice, and the host logs the draw
 as a warning. Where the drawn reading names a thing its rivals did not,
 the visitor is first told which, through the world's `meant` passage:
 "(A wooden rib)". Things written exactly alike (same name, same article)

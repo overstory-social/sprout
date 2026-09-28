@@ -201,6 +201,11 @@ describe('a line read as a reading', () => {
       target: { object: GUARD },
       topic: { value: 'old_press' },
     });
+    // `ask [target] [topic]` also reads the line, with "about old press" as a
+    // topic that binds nothing; words that bind no value are not matched, so
+    // it ranks below and nothing is drawn.
+    const asked = typed(one, 'ask oskar about old press');
+    expect('understood' in asked && asked.drawn).toBeNull();
     expect(understood(typed(one, 'ask oskar about the bridge')).bindings['topic']).toEqual({
       value: 'bridge',
     });
