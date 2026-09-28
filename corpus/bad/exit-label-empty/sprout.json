@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "2169d77710dad6eb34c37a80e7ad9aae1e44293c98940c643171cc45ec5e4548"
+      "sha": "66ca315d625634f8152089719f7c33abfd6973575b9fc892250ba60968be33a2"
     }
   ],
   "files": ["exit_label_empty.sprout", "person.sprout"]

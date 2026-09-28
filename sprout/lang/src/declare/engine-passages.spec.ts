@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { ACTOR_LINES, PLACE_LINES, WORLD_LINES } from './engine-passages.js';
 
 describe('the lines the engine says for itself', () => {
-  it('are the world’s thirteen and a place’s two, each named once', () => {
+  it('are the world’s fourteen and a place’s two, each named once', () => {
     const names = [...WORLD_LINES, ...PLACE_LINES].map((line) => line.name);
-    expect(WORLD_LINES).toHaveLength(13);
+    expect(WORLD_LINES).toHaveLength(14);
     expect(PLACE_LINES.map((line) => line.name)).toEqual(['arrives', 'leaves']);
     expect(new Set(names).size).toBe(names.length);
   });
@@ -21,6 +21,15 @@ describe('the lines the engine says for itself', () => {
     expect(binds.arrives).toEqual({ item: 'object' });
     expect(binds.leaves).toEqual({ item: 'object' });
     expect(binds.help).toEqual({ actor: 'actor', here: 'here', readings: 'readings' });
+  });
+
+  it('bind `actor` and the line they typed as text in `acted`, which a poll says', () => {
+    const acted = WORLD_LINES.find((line) => line.name === 'acted');
+    expect(acted).toEqual({
+      name: 'acted',
+      binds: { actor: 'actor', reading: 'text' },
+      polled: true,
+    });
   });
 
   it('bind the one acting and where, for a line said to the one acting, and only as the engine does', () => {

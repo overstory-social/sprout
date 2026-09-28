@@ -442,7 +442,8 @@ describe('the standard library', () => {
     // reads, a noun nothing in range answers to, a noun that could be several things, a
     // reading that says nothing, a thing with nothing to say; and the moves
     // the engine refuses: a container that would hold itself, and a person
-    // going into a place the host says is full.
+    // going into a place the host says is full; and what someone else
+    // typed, as a shared console shows it.
     const engine = [
       'fault',
       'unseen',
@@ -455,6 +456,7 @@ describe('the standard library', () => {
       'crowded',
       'waited',
       'help',
+      'acted',
     ];
     const spoken = [...new Set([...told, ...engine])];
     expect(told.length).toBeGreaterThan(0);
@@ -476,7 +478,7 @@ describe('the standard library', () => {
 
   it('lets a world that writes none of them take every stock line, still yielding', () => {
     const world = compiled().bundle!.world!;
-    expect(world.passages.size).toBe(13);
+    expect(world.passages.size).toBe(14);
     for (const passage of world.passages.values()) {
       expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
     }
@@ -495,7 +497,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '2169d77710dad6eb34c37a80e7ad9aae1e44293c98940c643171cc45ec5e4548',
+      '66ca315d625634f8152089719f7c33abfd6973575b9fc892250ba60968be33a2',
     );
   });
 });

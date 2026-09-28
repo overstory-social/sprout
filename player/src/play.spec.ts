@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  actedBy,
   arrive,
   defaultVisitor,
   freshStage,
@@ -154,12 +155,22 @@ describe('playLines', () => {
     ]);
     const [arrived, aside, kicked] = played.lines;
     expect(arrived!.made).toEqual([
-      { text: 'Marta (described): A kiln yard.', words: 'A kiln yard.', fault: false },
+      {
+        text: 'Marta (described): A kiln yard.',
+        words: 'A kiln yard.',
+        fault: false,
+        shown: 'A kiln yard.',
+        reader: 'Marta',
+      },
     ]);
     expect(aside!.made).toBeNull();
     expect(kicked!.made!.map((made) => [made.words === null, made.fault])).toEqual([
       [false, false],
       [true, true],
+    ]);
+    expect(kicked!.made!.map((made) => [made.shown, made.reader])).toEqual([
+      [kicked!.made![0]!.words, 'Marta'],
+      ['[error] IntegerOverflow', null],
     ]);
     expect(kicked!.made![1]!.text).toMatch(/^the command faulted, IntegerOverflow: /);
   });
@@ -167,7 +178,9 @@ describe('playLines', () => {
   it('gives `@seed` nothing made, and a line that made nothing an empty list the page writes as (nothing)', () => {
     const played = playLines(bundle, '@seed 3\n@arrive Marta\nMarta> go in\n@tick\n');
     expect(played.lines.map((line) => line.made?.length ?? null)).toEqual([null, 1, 1, 0]);
-    expect(heard([])).toEqual([{ text: '(nothing)', words: null, fault: false }]);
+    expect(heard([])).toEqual([
+      { text: '(nothing)', words: null, fault: false, shown: null, reader: null },
+    ]);
   });
 });
 
@@ -185,7 +198,13 @@ describe('arrive', () => {
   it('seats a returning visitor at the place `at` names, its `accept` asked as a returning visitor’s is', () => {
     const stage = freshStage(bundle);
     expect(arrive(stage, 'Marta', 'shed')).toEqual([
-      { text: 'Marta (described): A dark shed.', words: 'A dark shed.', fault: false },
+      {
+        text: 'Marta (described): A dark shed.',
+        words: 'A dark shed.',
+        fault: false,
+        shown: 'A dark shed.',
+        reader: 'Marta',
+      },
     ]);
   });
 
@@ -223,11 +242,14 @@ describe('playInteractive', () => {
     arrive(stage, 'Marta');
     const outcome = playInteractive(stage, 'Marta> fire kiln', 'stdin:2');
     expect(outcome.line).toBe('Marta> fire kiln');
+    expect(outcome.typed).toEqual({ nickname: 'Marta', text: 'fire kiln' });
     expect(outcome.made).toEqual([
       {
         text: 'Marta (said): The chamber takes the flame.',
         words: 'The chamber takes the flame.',
         fault: false,
+        shown: 'The chamber takes the flame.',
+        reader: 'Marta',
       },
     ]);
   });
@@ -235,8 +257,12 @@ describe('playInteractive', () => {
   it('reads a host line, a comment and a blank line as the script grammar does, making nothing to echo', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
-    expect(playInteractive(stage, '# aside', 'stdin:2')).toEqual({ line: '# aside', made: null });
-    expect(playInteractive(stage, '', 'stdin:3')).toEqual({ line: '', made: null });
+    expect(playInteractive(stage, '# aside', 'stdin:2')).toEqual({
+      line: '# aside',
+      made: null,
+      typed: null,
+    });
+    expect(playInteractive(stage, '', 'stdin:3')).toEqual({ line: '', made: null, typed: null });
     expect(playInteractive(stage, '@tick', 'stdin:4').made).not.toBeNull();
   });
 
@@ -245,15 +271,46 @@ describe('playInteractive', () => {
     arrive(stage, 'Marta');
     const outcome = playInteractive(stage, 'fire kiln', 'stdin:2');
     expect(outcome.line).toBe('Marta> fire kiln');
+    expect(outcome.typed).toEqual({ nickname: 'Marta', text: 'fire kiln' });
     expect(outcome.made).toEqual([
       {
         text: 'Marta (said): The chamber takes the flame.',
         words: 'The chamber takes the flame.',
         fault: false,
+        shown: 'The chamber takes the flame.',
+        reader: 'Marta',
       },
     ]);
     expect(() => playInteractive(freshStage(bundle), 'look', 'stdin:1')).toThrow(
       'stdin:1: nobody is standing to hear it',
     );
+  });
+});
+
+describe('actedBy', () => {
+  it('is the world’s `acted` for someone else’s line, as the one watching reads it', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    arrive(stage, 'Ines');
+    playInteractive(stage, 'Marta> fire kiln', 'stdin:3');
+    expect(actedBy(stage, 'Ines', 'Marta', 'fire kiln')).toEqual(['Marta tries to fire kiln.']);
+  });
+
+  it('is the typed line itself where the one watching has never visited', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    expect(actedBy(stage, 'Ines', 'Marta', 'fire kiln')).toEqual(['Marta: fire kiln']);
+  });
+});
+
+describe('a refusal at the door', () => {
+  it('is shown at the console whoever it refused, in its own words', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    const [refused] = arrive(stage, 'fire');
+    expect(refused!.text).toMatch(/^nickname refused: /);
+    expect(refused!.words).toBeNull();
+    expect(refused!.reader).toBeNull();
+    expect(refused!.text).toBe(`nickname refused: ${refused!.shown}`);
   });
 });

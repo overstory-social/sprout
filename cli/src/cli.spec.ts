@@ -21,6 +21,14 @@ describe('parseArgs', () => {
     });
     expect(parseArgs([])).toEqual({ command: null, positional: [], flags: {} });
   });
+
+  it('never takes the word after --json or --debug as its value', () => {
+    expect(parseArgs(['play', '--debug', 'shed', '--json', 'x'])).toEqual({
+      command: 'play',
+      positional: ['shed', 'x'],
+      flags: { debug: true, json: true },
+    });
+  });
 });
 
 describe('main', () => {
@@ -145,32 +153,42 @@ describe('main', () => {
     expect(missing.err()).toContain('no such file or directory');
   });
 
-  it('play with no script (or `-`) plays interactively, admitting Inspector unless --as names another', async () => {
+  it('play with no script shows only the prose the visitor reads, without --debug', async () => {
+    const dir = worldFolder('kiln_yard', KILN_YARD);
+    const io = captured('fire kiln\n');
+    await expect(main(['play', dir, '--as', 'Marta'], io)).resolves.toBe(0);
+    expect(io.out()).toBe(
+      'A kiln yard.\nMarta> fire kiln\nThe chamber takes the flame.\n' +
+        'You leave, and take what you carry with you.\n',
+    );
+  });
+
+  it('play with no script (or `-`) and --debug prints the transcript, admitting Inspector unless --as names another', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const asScript = (lines: string) =>
       playScript(checkWorld(dir).bundle!, `@arrive Marta\n${lines}@leave Marta\n`).page;
 
     const typed = 'Marta> fire kiln\n@tick\n@advance 2 hours\nMarta> look\n';
     const io = captured(typed);
-    await expect(main(['play', dir, '--as', 'Marta'], io)).resolves.toBe(0);
+    await expect(main(['play', dir, '--as', 'Marta', '--debug'], io)).resolves.toBe(0);
     expect(io.out()).toBe(asScript(typed));
 
     const dashed = captured(typed);
-    await expect(main(['play', dir, '-', '--as', 'Marta'], dashed)).resolves.toBe(0);
+    await expect(main(['play', dir, '-', '--as', 'Marta', '--debug'], dashed)).resolves.toBe(0);
     expect(dashed.out()).toBe(asScript(typed));
   });
 
   it('a bare typed line addresses whoever most recently arrived and still stands', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const bare = captured('fire kiln\n@tick\n');
-    await expect(main(['play', dir, '--as', 'Marta'], bare)).resolves.toBe(0);
+    await expect(main(['play', dir, '--as', 'Marta', '--debug'], bare)).resolves.toBe(0);
     expect(bare.out()).toBe(
       playScript(checkWorld(dir).bundle!, '@arrive Marta\nMarta> fire kiln\n@tick\n@leave Marta\n')
         .page,
     );
 
     const second = captured('@arrive Ines\nlook\n');
-    await expect(main(['play', dir, '--as', 'Marta'], second)).resolves.toBe(0);
+    await expect(main(['play', dir, '--debug', '--as', 'Marta'], second)).resolves.toBe(0);
     expect(second.out()).toBe(
       playScript(checkWorld(dir).bundle!, '@arrive Marta\n@arrive Ines\nInes> look\n@leave Ines\n')
         .page,
@@ -180,7 +198,7 @@ describe('main', () => {
   it('ends the session with a departure turn for whoever is left standing, on Ctrl-D', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const io = captured('');
-    await expect(main(['play', dir], io)).resolves.toBe(0);
+    await expect(main(['play', '--debug', dir], io)).resolves.toBe(0);
     expect(io.out()).toBe(
       playScript(checkWorld(dir).bundle!, '@arrive Inspector\n@leave Inspector\n').page,
     );
@@ -189,7 +207,7 @@ describe('main', () => {
   it('refuses a nickname or --at as sprout parse would, admitting nobody', async () => {
     const dir = worldFolder('lane', LANE);
     const refused = captured('');
-    await expect(main(['play', dir, '--as', 'crate'], refused)).resolves.toBe(0);
+    await expect(main(['play', dir, '--as', 'crate', '--debug'], refused)).resolves.toBe(0);
     expect(refused.out()).toBe(
       '@arrive crate\n  nickname refused: "crate" is a word this world already reads, so "crate" would not always mean you: choose another nickname.\n',
     );

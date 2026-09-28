@@ -9,6 +9,7 @@ import {
   nicknameRefusal,
   occupiedPlaces,
   parseCommand,
+  renderActed,
   renderEffects,
   tickTurn,
   visitKey,
@@ -59,11 +60,18 @@ export interface Played {
   readonly page: string;
 }
 
-/** One line of what a line made: its text in the transcript, the words where a reader read them, and whether a turn faulted. */
+/**
+ * One line of what a line made: its text in the transcript, the words
+ * where a reader read them, and whether a turn faulted. `shown` is the
+ * line as a player's screen shows it, or null for the host's own notes;
+ * `reader` is whose screen, or null for whoever is at the console.
+ */
 export interface Made {
   readonly text: string;
   readonly words: string | null;
   readonly fault: boolean;
+  readonly shown: string | null;
+  readonly reader: string | null;
 }
 
 /** An indented line as the script holds it, trimmed, and the line number it stands on. */
@@ -99,6 +107,13 @@ export interface Stage {
   readonly visits: Map<string, VisitKey>;
 }
 
+/** One interactive line played: the script line it is, what it made, and who typed what, where someone did. */
+export interface Interactive {
+  readonly line: string;
+  readonly made: readonly Made[] | null;
+  readonly typed: { readonly nickname: string; readonly text: string } | null;
+}
+
 /** `Marta> take brass key`: who types it and what they typed. */
 const TYPED_LINE = /^([^\s>@#][^>]*)> ?(.*)$/;
 
@@ -118,7 +133,12 @@ export function heard(made: readonly Made[]): readonly Made[] {
 
 /** A line the host writes, which no reader read. */
 function hostLineOf(text: string): Made {
-  return { text, words: null, fault: false };
+  return { text, words: null, fault: false, shown: null, reader: null };
+}
+
+/** The host refusing someone at the door: its words are shown at the console, whoever was refused. */
+function refusedLineOf(what: string, words: string): Made {
+  return { text: `${what}: ${words}`, words: null, fault: false, shown: words, reader: null };
 }
 
 /** `effects`, one line to each paragraph each reader read, under the reader's nickname and the kind. */
@@ -129,11 +149,16 @@ function effectLines(stage: Stage, effects: readonly Effect[]): Made[] {
       text: `${reader} (${effect.kind}): ${words}`,
       words,
       fault: false,
+      shown: words,
+      reader,
     }));
   });
 }
 
-/** A fault as the host would log it, against the object it names. */
+/**
+ * A fault as the host would log it, against the object it names; a
+ * player's screen shows only its name, as an error.
+ */
 function faultLine(stage: Stage, what: string, fault: Fault): Made {
   const against =
     fault.object === null ? '' : `, against ${pathOf(stage.state.world, fault.object)}`;
@@ -141,6 +166,8 @@ function faultLine(stage: Stage, what: string, fault: Fault): Made {
     text: `${what} faulted${against}, ${fault.name}: ${fault.detail}`,
     words: null,
     fault: true,
+    shown: `[error] ${fault.name}`,
+    reader: null,
   };
 }
 
@@ -161,7 +188,7 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
   const visit = stage.visits.get(nickname) ?? visitKey(`visit:${nickname}`);
   const { catalogue } = stage.host;
   const refused = nicknameRefusal(stage.state, catalogue, stage.host.budgets, visit, nickname);
-  if (refused !== null) return [hostLineOf(`nickname refused: ${refused.words}`)];
+  if (refused !== null) return [refusedLineOf('nickname refused', refused.words)];
   // Reinserted, not merely set, so a returning nickname moves to the end
   // of `visits`' iteration order: `defaultVisitor` reads that order as
   // who arrived most recently, and a `Map` does not reorder a key its
@@ -191,11 +218,11 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     }
     return [...out, ...effectLines(stage, arrived.effects)];
   }
-  if ('closed' in arrived) return [...out, hostLineOf(`closed: ${arrived.closed.words}`)];
+  if ('closed' in arrived) return [...out, refusedLineOf('closed', arrived.closed.words)];
   if ('refused' in arrived) return [...out, ...effectLines(stage, arrived.effects)];
   return [
     ...out,
-    hostLineOf(`not admitted: ${arrived.words}`),
+    refusedLineOf('not admitted', arrived.words),
     faultLine(stage, 'the arrival', arrived.fault),
   ];
 }
@@ -388,23 +415,45 @@ function playLine(stage: Stage, trimmed: string, where: string): readonly Made[]
  * is a script line played again. Thrown, naming where, where nobody
  * stands to address a bare line.
  */
-export function playInteractive(
-  stage: Stage,
-  raw: string,
-  where: string,
-): { line: string; made: readonly Made[] | null } {
+export function playInteractive(stage: Stage, raw: string, where: string): Interactive {
   const trimmed = raw.trimEnd();
   if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('@')) {
-    return { line: trimmed, made: playLine(stage, trimmed, where) };
+    return { line: trimmed, made: playLine(stage, trimmed, where), typed: null };
   }
-  if (TYPED_LINE.test(trimmed)) {
-    return { line: trimmed, made: playLine(stage, trimmed, where) };
+  const named = TYPED_LINE.exec(trimmed);
+  if (named !== null) {
+    const typed = { nickname: named[1]!.trim(), text: named[2]! };
+    return { line: trimmed, made: playLine(stage, trimmed, where), typed };
   }
   const nickname = defaultVisitor(stage);
   if (nickname === null) {
     throw new Error(`${where}: nobody is standing to hear it: write \`@arrive Marta\` first.`);
   }
-  return { line: `${nickname}> ${trimmed}`, made: command(stage, nickname, trimmed, where) };
+  return {
+    line: `${nickname}> ${trimmed}`,
+    made: command(stage, nickname, trimmed, where),
+    typed: { nickname, text: trimmed },
+  };
+}
+
+/**
+ * What `nickname` typing `text` looks like to `viewer` at the same
+ * console: the world's `acted`, rendered for them, or the typed line
+ * itself where that renders nothing.
+ */
+export function actedBy(
+  stage: Stage,
+  viewer: string,
+  nickname: string,
+  text: string,
+): readonly string[] {
+  const visit = stage.visits.get(viewer);
+  const actor = stage.state.visitors.get(stage.visits.get(nickname)!)?.instance;
+  const rendered =
+    visit === undefined || actor === undefined
+      ? null
+      : renderActed(stage.state, stage.host, visit, actor, text);
+  return rendered !== null && rendered.length > 0 ? rendered : [`${nickname}: ${text}`];
 }
 
 /** Play `script` over a freshly loaded `bundle`, line by line, keeping what each line had indented under it. */

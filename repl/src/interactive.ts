@@ -3,6 +3,7 @@ import { createInterface } from 'node:readline';
 import type { Bundle } from '@overstory/sprout/lang';
 
 import {
+  actedBy,
   arrive,
   defaultVisitor,
   freshStage,
@@ -14,17 +15,19 @@ import {
   type StandOptions,
 } from '@overstory/sprout-player';
 
-// `sprout play` with no script (or `-`): the same stage and grammar
-// the player gives a script, driven one line at a time from `io`'s stdin
-// instead, under the prompt of whoever is standing — the notes' Holes in
-// the spec record that interactive play is not in the spec's The
-// compiler › The command line (427). A line typed where stdin is a real
-// terminal is already shown by its own echo, right after the prompt; one
-// typed anywhere else is not, so it is written out under the prompt as a
-// script's line would be. Either way the effects it made follow it
-// indented, so the page printed is what a script of the same lines
-// would print. `Ctrl-D` ends the session with a departure turn for
-// whoever is still standing, as a last `@leave` would.
+// `sprout play` with no script (or `-`): the same stage and grammar the
+// player gives a script, driven one line at a time from `io`'s stdin
+// instead, under the prompt of whoever is standing (the spec's The
+// compiler › The command line). The prompt's visitor is whoever most
+// recently arrived and still stands, and the screen shows only the prose
+// they read, one paragraph to a line, and a fault's name as an error; a
+// line typed for someone else shows as the world's `acted`. With
+// `debug`, the page is instead what a script of the same lines would
+// print, every reader's line and the host's notes indented under it. A
+// line typed where stdin is a real terminal is already shown by its own
+// echo, right after the prompt; one typed anywhere else is written out
+// as a script's line would be. `Ctrl-D` ends the session with a departure
+// turn for whoever is still standing, as a last `@leave` would.
 
 /** The streams a session reads and writes. */
 export interface Io {
@@ -34,10 +37,16 @@ export interface Io {
   stdin?: NodeJS.ReadableStream;
 }
 
-/** `line`, then what `made` gave, as a script's page holds them. */
-function announce(io: Io, line: string, made: readonly Made[] | null): void {
-  io.stdout.write(`${line}\n`);
-  if (made !== null) for (const one of heard(made)) io.stdout.write(`  ${one.text}\n`);
+/** Where and as whom a session stands, and whether it prints everything, as a script's page does. */
+export interface SessionOptions extends StandOptions {
+  readonly debug?: boolean;
+}
+
+/** What `made` shows on `viewer`'s screen: the lines they read, and the console's own. */
+function shownTo(viewer: string | null, made: readonly Made[]): string[] {
+  return made.flatMap((one) =>
+    one.shown !== null && (one.reader === null || one.reader === viewer) ? [one.shown] : [],
+  );
 }
 
 /** `sprout: <message>`, to `io`'s stderr, as `main`'s own catch writes a refusal. */
@@ -55,13 +64,25 @@ function refuse(io: Io, err: unknown): 1 {
  */
 export async function playInteractively(
   bundle: Bundle,
-  options: StandOptions,
+  options: SessionOptions,
   io: Io,
 ): Promise<number> {
   const stage = freshStage(bundle);
+  const debug = options.debug === true;
+  const write = (lines: readonly string[]) => {
+    for (const line of lines) io.stdout.write(`${line}\n`);
+  };
+  /** What `made` prints: indented under its line in debug, and otherwise what the screen shows. */
+  const print = (made: readonly Made[] | null, viewer: string | null) => {
+    if (made === null) return;
+    write(debug ? heard(made).map((one) => `  ${one.text}`) : shownTo(viewer, made));
+  };
+
   const nickname = options.nickname ?? INSPECTOR;
   try {
-    announce(io, `@arrive ${nickname}`, arrive(stage, nickname, options.at));
+    const made = arrive(stage, nickname, options.at);
+    if (debug) write([`@arrive ${nickname}`]);
+    print(made, nickname);
   } catch (err) {
     return refuse(io, err);
   }
@@ -83,11 +104,17 @@ export async function playInteractively(
     prompt();
     for await (const raw of lines) {
       at += 1;
+      const before = defaultVisitor(stage);
       const outcome = playInteractive(stage, raw, `stdin:${at}`);
-      if (!tty) io.stdout.write(`${outcome.line}\n`);
-      if (outcome.made !== null) {
-        for (const one of heard(outcome.made)) io.stdout.write(`  ${one.text}\n`);
+      if (!tty) write([outcome.line]);
+      // Whoever the prompt is now watches: an arrival hands the screen to
+      // the one who came in, and the last departure leaves it with them.
+      const viewer = defaultVisitor(stage) ?? before;
+      if (!debug && viewer !== null && outcome.typed !== null) {
+        const { nickname: typist, text } = outcome.typed;
+        if (typist !== viewer) write(actedBy(stage, viewer, typist, text));
       }
+      print(outcome.made, viewer);
       prompt();
     }
   } catch (err) {
@@ -99,7 +126,8 @@ export async function playInteractively(
   const departing = defaultVisitor(stage);
   if (departing !== null) {
     if (tty) io.stdout.write('\n');
-    announce(io, `@leave ${departing}`, leave(stage, departing, 'end of session'));
+    if (debug) write([`@leave ${departing}`]);
+    print(leave(stage, departing, 'end of session'), departing);
   }
   return 0;
 }

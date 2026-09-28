@@ -48,10 +48,9 @@ sprout play corpus/good/printers_shop
 You arrive, read where you are, and get a prompt with your name on it:
 
 ```text
-@arrive Inspector
-  Inspector (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
-  Inspector (described): You have not stood in here before, and the room somehow knows it.
-  Inspector (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+You have not stood in here before, and the room somehow knows it.
+The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
 Inspector>
 ```
 
@@ -73,8 +72,27 @@ and asks for another.
 
 ## Reading the screen
 
-Every line the world says to you comes with a label in brackets, which
-tells you what kind of line it is:
+What you see is what you read: the world's words, one paragraph to a
+line. When something in the world breaks, you read the world's own
+apology, then a short line such as `[error] BudgetExhausted` naming what
+went wrong, for whoever wrote the world.
+
+To see everything instead, add `--debug`:
+
+```sh
+sprout play corpus/good/printers_shop --debug
+```
+
+Now each line the world says is indented under what caused it, with who
+read it and a label in brackets that tells you what kind of line it is:
+
+```text
+@arrive Inspector
+  Inspector (described): Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite.
+  Inspector (described): You have not stood in here before, and the room somehow knows it.
+  Inspector (described): The paper store, the type cabinet, a brass key, the apprentice, the shop cat,
+Inspector>
+```
 
 | label         | means                                                      |
 | ------------- | ---------------------------------------------------------- |
@@ -84,9 +102,10 @@ tells you what kind of line it is:
 | `refused`     | you could not do that, and here is why                     |
 | `notice`      | Sprout itself speaking: someone arriving, a word it did not understand |
 
-A normal game client would just show the words. The labels are there
-because the command line is also a testing tool, and they make it easy to
-see exactly who read what.
+Debug output also shows the server's own notes — a wake delivered, a
+fault in full — and what every visitor read, not only you. It is the
+command line's testing view: lines to read, not a script to play back
+(for that, see [Replaying a session](#replaying-a-session)).
 
 ## What you can type
 
@@ -130,29 +149,28 @@ A few more things worth knowing:
 ## A short walk
 
 Here is a few minutes in the printer's shop, as Marta. Lines after the
-prompt are what she typed; the indented lines are what came back.
+prompt are what she typed; the lines under them are what came back.
 
 ```text
 Marta> take cabinet
-  Marta (refused): It is a cabinet. It stays where it is.
+It is a cabinet. It stays where it is.
 Marta> open cabinet
-  Marta (refused): It is locked.
+It is locked.
 Marta> take key
-  Marta (said): You take a brass key.
+You take a brass key.
 Marta> unlock cabinet with key
-  Marta (said): The lock turns over.
+The lock turns over.
 Marta> open cabinet
-  Marta (said): You open the type cabinet.
+You open the type cabinet.
 Marta> take shop key
-  Marta (said): You take a shop key.
+You take a shop key.
 Marta> ask apprentice about the press
-  Marta (said): Bar's stiff, he says. Mind your knuckles.
+Bar's stiff, he says. Mind your knuckles.
 Marta> go out
-  Marta (described): Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
-  Marta (described): A wooden rib, a bone rib, the press,
+Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
+A wooden rib, a bone rib, the press,
 Marta> take rib
-  Marta (notice): Which do you mean: a wooden rib, a bone rib?
-  choices: take wooden rib | take bone rib
+Which do you mean: a wooden rib, a bone rib?
 ```
 
 Notice that `take key` picked up the brass key, not the shop key: the
@@ -171,22 +189,26 @@ another visitor:
 
 ```text
 Marta> @arrive Ines
-  Marta (notice): Ines arrives.
-  Ines (described): Lead and lamp oil. ...
+Lead and lamp oil. ...
 Ines>
 ```
 
-The prompt now says `Ines>`: a plain command goes to whoever arrived most
-recently. To act as someone else, put their name and `>` in front:
+The prompt now says `Ines>`, and the screen is Ines's: you read what she
+reads, starting with where she arrived. A plain command goes to whoever
+arrived most recently. To act as someone else, put their name and `>` in
+front:
 
 ```text
 Ines> Marta> take brass key
-  Marta (said): You take a brass key.
-  Ines (told): Marta takes a brass key.
+Marta tries to take brass key.
+Marta takes a brass key.
 ```
 
-Both people's lines are shown, each under their own name, so you can see
-that Marta read "You take…" while Ines read "Marta takes…".
+The first line is Sprout telling you what was typed on Marta's behalf;
+a world can word it its own way, by writing its own `acted` passage. The
+second is what Ines saw happen. Marta's own "You take a brass key." is
+hers, so it is not on Ines's screen; `--debug` shows every visitor's
+lines, each under their name.
 
 `@leave Ines` sends Ines away. She keeps what she was carrying, and if she
 comes back with `@arrive Ines` she returns to where she last stood.
@@ -208,15 +230,15 @@ minutes before you can pick it up (after `ink press` and `work press`):
 
 ```text
 Marta> take sheet
-  Marta (refused): The ink is still wet; it would smear.
+The ink is still wet; it would smear.
 Marta> @advance 40 minutes
-  printers_shop#4 woke, 2400 seconds after it asked
 Marta> take sheet
-  Marta (said): You take a printed sheet.
+You take a printed sheet.
 ```
 
-The line in the middle, with no label, is the server's own note that
-something in the world woke up.
+With `--debug`, `@advance` also shows the server's own note that
+something in the world woke up: `printers_shop#4 woke, 2400 seconds after
+it asked`.
 
 Dice in Sprout are not truly random: each moment rolls from a number
 called the _seed_, which starts at 0. That is what makes worlds
@@ -241,9 +263,9 @@ away — useful when you are checking that a door of your own works.
 
 ## Replaying a session
 
-What `sprout play` prints is a script it can play back. Save your typing
-in a file — one command per line, each starting with the name of who
-types it — and pass the file:
+`sprout play` can also play a script instead of reading from you. Save
+your typing in a file — one command per line, each starting with the
+name of who types it — and pass the file:
 
 ```text
 # walk.txt
