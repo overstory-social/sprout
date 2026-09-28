@@ -22,7 +22,7 @@ import type { StateReader } from './state.js';
 export const STOCK_LINES: Readonly<Record<EngineLineName, string>> = {
   unknown: 'That is not something you can do here.',
   not_here: 'You see nothing like that here.',
-  which: 'Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for}',
+  meant: '({thing})',
   nothing_happens: 'Nothing much comes of that.',
   unremarkable: 'There is nothing special about {thing}.',
   unseen: 'Something here is too much to take in.',

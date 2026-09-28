@@ -474,7 +474,7 @@ describe('the standard library', () => {
       'unseen',
       'unknown',
       'not_here',
-      'which',
+      'meant',
       'nothing_happens',
       'unremarkable',
       'inside_itself',
@@ -524,7 +524,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '3f3fd4f9ba60a34b5651ed8e0711ada0fd44eb3bcf47d3446da6ac068567ba3e',
+      '27f431cbc8a88b462ad70cdd8800abbab0884b14a21fe92392590f9b13841ef4',
     );
   });
 });

@@ -7,25 +7,26 @@
 
 import { optionFromWords } from '../../declare/enums.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
-import type { InstanceId } from '../ids.js';
 import { heardBy, type Bound, type Reading } from '../reading.js';
 import type { StateReader } from '../state.js';
 import type { Value } from '../values.js';
 import { exitNamed, type CommandExit } from './exits.js';
-import { forms, nounIn, runIn, type Candidate, type NounContext, type NounFound } from './nouns.js';
+import { forms, nounIn, runIn, type Candidate, type NounContext } from './nouns.js';
+
+/** One way a slot's words fill its role: what it binds, how near, and how many words it matched literally. */
+export interface FillOption {
+  readonly bound: Bound;
+  /** The nearness of what it binds, a set's summed; 0 for an exit. */
+  readonly near: number;
+  readonly literal: number;
+}
 
 /** What a slot's words come to for its role. */
 export type Filled =
-  | { readonly fills: 'bound'; readonly bound: Bound }
+  /** Every way they fill it, nearest first; the parser ranks the readings they make. */
+  | { readonly fills: 'options'; readonly options: readonly FillOption[] }
   /** A value role's words, bound or not once the reading's participants are known. */
   | { readonly fills: 'words'; readonly words: readonly string[] }
-  /** Several things fit and differ, nearest first; the noun that asks runs from `start` to `end` of the slot's words. */
-  | {
-      readonly fills: 'which';
-      readonly candidates: readonly InstanceId[];
-      readonly start: number;
-      readonly end: number;
-    }
   /** Nothing in range answers to the noun running from `start` to `end` of the slot's words. */
   | { readonly fills: 'nothing'; readonly start: number; readonly end: number }
   /** The phrase does not match: something answers and cannot fill the role, or the words name no exit. */
@@ -48,29 +49,32 @@ export function fillSlot(
   if (filler?.fills === 'exit') {
     context.budget.spend();
     const exit = exitNamed(words, context.exits);
-    return exit === null ? { fills: 'unfit' } : { fills: 'bound', bound: { exit } };
+    if (exit === null) return { fills: 'unfit' };
+    return { fills: 'options', options: [{ bound: { exit }, near: 0, literal: words.length }] };
   }
   if (role.many) {
     const found = runIn(words, role, context.candidates, context);
-    return found.found === 'set'
-      ? { fills: 'bound', bound: { set: found.ids } }
-      : fromNoun(found, found.start, found.end, true);
+    if (found.found !== 'sets') {
+      return found.found === 'nothing'
+        ? { fills: 'nothing', start: found.start, end: found.end }
+        : { fills: 'unfit' };
+    }
+    return {
+      fills: 'options',
+      options: found.sets.map(({ ids, near, literal }) => ({ bound: { set: ids }, near, literal })),
+    };
   }
-  return fromNoun(nounIn(words, role, context.candidates, context), 0, words.length, false);
-}
-
-/** What one noun found fills a role with, the noun running from `start` to `end` of the slot's words. */
-function fromNoun(found: NounFound, start: number, end: number, many: boolean): Filled {
-  switch (found.found) {
-    case 'one':
-      return { fills: 'bound', bound: many ? { set: [found.id] } : { object: found.id } };
-    case 'which':
-      return { fills: 'which', candidates: found.candidates, start, end };
-    case 'nothing':
-      return { fills: 'nothing', start, end };
-    case 'unfit':
-      return { fills: 'unfit' };
-  }
+  const found = nounIn(words, role, context.candidates, context);
+  if (found.found === 'nothing') return { fills: 'nothing', start: 0, end: words.length };
+  if (found.found === 'unfit') return { fills: 'unfit' };
+  return {
+    fills: 'options',
+    options: found.things.map(({ id, near, literal }) => ({
+      bound: { object: id },
+      near,
+      literal,
+    })),
+  };
 }
 
 /** A name an option may have, which is all a symbol role can bind. */

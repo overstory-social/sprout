@@ -49,6 +49,20 @@ describe('a command in the log', () => {
     expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
   });
 
+  it('keeps a reading drawn from several that tied as a warning, with how many it was drawn from', async () => {
+    const typed = command('bump counter');
+    const turn = commandTurn(await state(), host, typed);
+    if (!turn.committed || !('acted' in turn.value)) throw new Error('did not act');
+    expect(commandEntry(typed, host, turn).drawn).toBeNull();
+    const drawn = { ...turn, value: { ...turn.value, drawn: { among: 3, meant: null } } };
+    const entry = commandEntry(typed, host, drawn);
+    expect(entry.drawn).toEqual({ level: 'warning', among: 3 });
+    expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
+    expect(
+      CommandEntry.safeParse({ ...entry, drawn: { level: 'warning', among: 1 } }).success,
+    ).toBe(false);
+  });
+
   it('hands back the command as the host handed it over', async () => {
     const typed = { ...command('rest gauge', 9), seed: 3 };
     const entry = commandEntry(typed, host, commandTurn(await state(), host, typed));

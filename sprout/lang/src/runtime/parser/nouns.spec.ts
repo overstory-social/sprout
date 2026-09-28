@@ -13,7 +13,6 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
-import { Draws } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
 import { answersTo, fits, forms, nounIn, nounsOfRun, runIn, type Candidate } from './nouns.js';
@@ -25,14 +24,14 @@ const candidate = (id: InstanceId, near = 2): Candidate => {
   const instance = one.draft.instance(id)!;
   return { instance, address: addressOf(instance, context), near };
 };
+// Each nearer than the next, as the list is ordered.
 const HERE = [BRASS_KEY, IRON_KEY, LAMP, GONG, PEBBLE_A, PEBBLE_B, DOOR].map(candidate);
 const role = (verb: string, name: string, library = 'study'): ResolvedRole =>
   STUDY.verbs.qualified(library, verb)!.roles.find((one) => one.name === name)!;
 const TAKE = role('take', 'target', 'sprout');
 const TOOL = role('unlock', 'tool');
 const THINGS = role('juggle', 'things');
-const draws = new Draws(7);
-const within = { budget: one.budget, draws };
+const within = { budget: one.budget };
 const noun = (line: string, as = TAKE) => nounIn(typedWords(line), as, HERE, within);
 
 describe('what a noun names', () => {
@@ -48,49 +47,35 @@ describe('what a noun names', () => {
     expect(answersTo(['iron'], candidate(BRASS_KEY).address)).toBeNull();
   });
 
-  it('is the one thing that answers and fits', () => {
-    expect(noun('this gong')).toEqual({ found: 'one', id: GONG });
-    expect(noun('brass key', TOOL)).toEqual({ found: 'one', id: BRASS_KEY });
-  });
-
-  it('asks which, nearest first, among things that fit and differ', () => {
-    expect(noun('key')).toEqual({ found: 'which', candidates: [BRASS_KEY, IRON_KEY] });
+  it('is every thing that answers and fits, with how near it is and how many words it matched', () => {
+    expect(noun('this gong')).toEqual({
+      found: 'some',
+      things: [{ id: GONG, near: 3, literal: 1 }],
+    });
+    expect(noun('brass key', TOOL)).toEqual({
+      found: 'some',
+      things: [{ id: BRASS_KEY, near: 0, literal: 2 }],
+    });
+    // The parser ranks the readings they make; nothing is asked, and nothing is drawn here.
+    expect(noun('key')).toEqual({
+      found: 'some',
+      things: [
+        { id: BRASS_KEY, near: 0, literal: 1 },
+        { id: IRON_KEY, near: 1, literal: 1 },
+      ],
+    });
+    const alike = [candidate(PEBBLE_A), candidate(PEBBLE_B, 1)];
+    expect(nounIn(['pebble'], TAKE, alike, within)).toEqual({
+      found: 'some',
+      things: [
+        { id: PEBBLE_A, near: 2, literal: 1 },
+        { id: PEBBLE_B, near: 1, literal: 1 },
+      ],
+    });
   });
 
   it('prefers what was named in full', () => {
-    expect(noun('lamp')).toEqual({ found: 'one', id: LAMP });
-  });
-
-  it('takes the nearest of things written alike, drawing nothing', () => {
-    const fresh = new Draws(7);
-    const nearer = [candidate(PEBBLE_A), candidate(PEBBLE_B, 1)];
-    const found = nounIn(['pebble'], TAKE, nearer, { budget: one.budget, draws: fresh });
-    expect(found).toEqual({ found: 'one', id: PEBBLE_B });
-    expect(fresh.drawn).toBe(0);
-  });
-
-  it('draws from the turn’s seed among things written alike and equally near, one step', () => {
-    const alike = [candidate(PEBBLE_A), candidate(PEBBLE_B)];
-    const taken = (seed: number) => {
-      const stream = new Draws(seed);
-      const before = one.budget.spentSteps;
-      const found = nounIn(['pebble'], TAKE, alike, { budget: one.budget, draws: stream });
-      expect(one.budget.spentSteps - before, `seed ${seed}`).toBe(alike.length + 1);
-      expect(stream.drawn, `seed ${seed}`).toBe(1);
-      return found.found === 'one' ? found.id : null;
-    };
-    const seeds = Array.from({ length: 32 }, (_, seed) => seed);
-    for (const seed of seeds) expect(taken(seed), `seed ${seed}`).toBe(taken(seed));
-    // Either may be meant, as the seed decides, and never anything else.
-    expect(new Set(seeds.map(taken))).toEqual(new Set([PEBBLE_A, PEBBLE_B]));
-  });
-
-  it('draws nothing where one thing answers or the visitor is asked which', () => {
-    const fresh = new Draws(7);
-    const context = { budget: one.budget, draws: fresh };
-    nounIn(['gong'], TAKE, HERE, context);
-    nounIn(['key'], TAKE, HERE, context);
-    expect(fresh.drawn).toBe(0);
+    expect(noun('lamp')).toEqual({ found: 'some', things: [{ id: LAMP, near: 2, literal: 1 }] });
   });
 
   it('is unfit where what answers cannot fill the role, and nothing where nothing answers', () => {
@@ -123,17 +108,22 @@ describe('what a set role’s run names', () => {
     expect(at('gong , , lamp')).toEqual(['gong', '', 'lamp']);
   });
 
-  it('is every thing in the order typed, each once', () => {
-    expect(run('lamp and gong and lamp')).toEqual({ found: 'set', ids: [LAMP, GONG] });
+  it('is every set its nouns make, each thing once, in the order typed', () => {
+    expect(run('lamp and gong and lamp')).toEqual({
+      found: 'sets',
+      sets: [{ ids: [LAMP, GONG], near: 7, literal: 3 }],
+    });
+    // A noun that names two things makes a set with each.
+    expect(run('gong and key')).toEqual({
+      found: 'sets',
+      sets: [
+        { ids: [GONG, BRASS_KEY], near: 3, literal: 2 },
+        { ids: [GONG, IRON_KEY], near: 4, literal: 2 },
+      ],
+    });
   });
 
-  it('is decided by its first noun that names no one thing, with where that noun runs', () => {
-    expect(run('gong and key and lamp')).toEqual({
-      found: 'which',
-      candidates: [BRASS_KEY, IRON_KEY],
-      start: 2,
-      end: 3,
-    });
+  it('is decided by its first noun that names nothing it may take, with where that noun runs', () => {
     expect(run('gong and unicorn')).toEqual({ found: 'nothing', start: 2, end: 3 });
     expect(run('gong and')).toEqual({ found: 'unfit', start: 2, end: 2 });
   });

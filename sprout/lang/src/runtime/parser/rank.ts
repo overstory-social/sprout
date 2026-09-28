@@ -1,0 +1,95 @@
+// Choosing a reading (the spec's Parsing › Choosing a reading). Every
+// reading a line makes is ranked whole, so a hint in one role can decide
+// another: one whose consent pass allows before one it refuses, then the
+// one that matched more of the line's words literally, then the one whose
+// things are nearer, role by role in the order the verb declares them.
+// Readings still tied are drawn from the turn's stream, which is a step,
+// and the host logs the draw as a warning. Where the drawn reading names
+// a thing a rival did not and words could tell the two apart, `meant`
+// tells the visitor which; things written alike are drawn without it.
+
+import type { Budget } from '../budget.js';
+import type { Draw } from '../draws.js';
+import type { InstanceId } from '../ids.js';
+import type { Reading } from '../reading.js';
+
+/** A reading, and what it is ranked by. */
+export interface Ranked {
+  readonly reading: Reading;
+  /** Whether its consent pass allows it. */
+  readonly allowed: boolean;
+  /** How many of the line's words it matched literally: phrase words, nouns, values and exits. */
+  readonly literal: number;
+  /** The nearness of what fills each role, in the order the verb declares them; 0 for none. */
+  readonly near: readonly number[];
+}
+
+/** A reading drawn from a tie: among how many, and the thing `meant` names, if any. */
+export interface Drawn {
+  readonly among: number;
+  readonly meant: InstanceId | null;
+}
+
+/** The reading chosen, and the draw it was, where it was drawn. */
+export interface Chosen {
+  readonly reading: Reading;
+  readonly drawn: Drawn | null;
+}
+
+/** Negative where `a` ranks before `b`, positive where after, 0 where they tie. */
+export function compareRanked(a: Ranked, b: Ranked): number {
+  if (a.allowed !== b.allowed) return a.allowed ? -1 : 1;
+  if (a.literal !== b.literal) return b.literal - a.literal;
+  for (let at = 0; at < Math.max(a.near.length, b.near.length); at++) {
+    const difference = (a.near[at] ?? 0) - (b.near[at] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+/**
+ * The best of `readings`, drawn from `draws` where several tie, a step
+ * on `budget`; `written` is how the engine writes a thing, which is all
+ * a visitor could tell two apart by. `readings` is never empty.
+ */
+export function chooseReading(
+  readings: readonly Ranked[],
+  written: (id: InstanceId) => string,
+  draws: Draw,
+  budget: Budget,
+): Chosen {
+  const ordered = [...readings].sort(compareRanked);
+  const tied = ordered.filter((one) => compareRanked(one, ordered[0]!) === 0);
+  if (tied.length === 1) return { reading: tied[0]!.reading, drawn: null };
+  budget.spend();
+  const drawn = tied[draws.below(tied.length)]!.reading;
+  const rivals = tied.map((one) => one.reading).filter((one) => one !== drawn);
+  return { reading: drawn, drawn: { among: tied.length, meant: meantIn(drawn, rivals, written) } };
+}
+
+/**
+ * The first thing `drawn` binds, in the order its verb declares its
+ * roles, that some rival binds another thing in place of and that is
+ * written otherwise; null where there is none.
+ */
+function meantIn(
+  drawn: Reading,
+  rivals: readonly Reading[],
+  written: (id: InstanceId) => string,
+): InstanceId | null {
+  for (const role of drawn.verb.roles) {
+    const mine = objectOf(drawn, role.name);
+    if (mine === null) continue;
+    for (const rival of rivals) {
+      const theirs = objectOf(rival, role.name);
+      if (theirs !== null && theirs !== mine && written(theirs) !== written(mine)) return mine;
+    }
+  }
+  return null;
+}
+
+/** The one object `reading` binds `role` to; null where it binds none, or a set, an exit or a value. */
+function objectOf(reading: Reading, role: string): InstanceId | null {
+  const bound = reading.bindings.get(role);
+  return bound !== undefined && 'object' in bound ? bound.object : null;
+}

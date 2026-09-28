@@ -12,7 +12,6 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
-import { Draws } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import type { Reading } from '../reading.js';
 import { addressOf } from './address.js';
@@ -24,48 +23,44 @@ const candidates = [BRASS_KEY, IRON_KEY, GONG, GUARD, DIAL].map((id: InstanceId)
   const instance = one.draft.instance(id)!;
   return { instance, address: addressOf(instance, addressing), near: 2 };
 });
-const context = { candidates, exits: EXITS, budget: one.budget, draws: new Draws(7) };
+const context = { candidates, exits: EXITS, budget: one.budget };
 const verb = (name: string, library = 'study') => STUDY.verbs.qualified(library, name)!;
 const role = (verbName: string, name: string, library = 'study'): ResolvedRole =>
   verb(verbName, library).roles.find((one) => one.name === name)!;
 const fill = (r: ResolvedRole, line: string) => fillSlot(r, typedWords(line), context);
 
 describe('what a slot’s words fill its role with', () => {
-  it('is one thing for a thing role, and a set, even of one, for a set role', () => {
+  it('is each thing for a thing role, and a set, even of one, for a set role', () => {
     expect(fill(role('take', 'target', 'sprout'), 'gong')).toEqual({
-      fills: 'bound',
-      bound: { object: GONG },
+      fills: 'options',
+      options: [{ bound: { object: GONG }, near: 2, literal: 1 }],
     });
     expect(fill(role('juggle', 'things'), 'gong')).toEqual({
-      fills: 'bound',
-      bound: { set: [GONG] },
+      fills: 'options',
+      options: [{ bound: { set: [GONG] }, near: 2, literal: 1 }],
     });
     expect(fill(role('juggle', 'things'), 'gong and brass key')).toEqual({
-      fills: 'bound',
-      bound: { set: [GONG, BRASS_KEY] },
+      fills: 'options',
+      options: [{ bound: { set: [GONG, BRASS_KEY] }, near: 4, literal: 3 }],
+    });
+  });
+
+  it('is every thing a noun may name, for the readings they make to be ranked', () => {
+    expect(fill(role('take', 'target', 'sprout'), 'the key')).toEqual({
+      fills: 'options',
+      options: [
+        { bound: { object: BRASS_KEY }, near: 2, literal: 1 },
+        { bound: { object: IRON_KEY }, near: 2, literal: 1 },
+      ],
     });
   });
 
   it('is the exit named for an exit role, and does not match where none is', () => {
     expect(fill(role('go', 'way', 'sprout'), 'n')).toEqual({
-      fills: 'bound',
-      bound: { exit: EXITS[0] },
+      fills: 'options',
+      options: [{ bound: { exit: EXITS[0] }, near: 0, literal: 1 }],
     });
     expect(fill(role('go', 'way', 'sprout'), 'gong')).toEqual({ fills: 'unfit' });
-  });
-
-  it('asks which about the noun in doubt, saying where it runs in the slot', () => {
-    expect(fill(role('take', 'target', 'sprout'), 'the key')).toEqual({
-      fills: 'which',
-      candidates: [BRASS_KEY, IRON_KEY],
-      start: 0,
-      end: 2,
-    });
-    expect(fill(role('juggle', 'things'), 'gong, key')).toMatchObject({
-      fills: 'which',
-      start: 2,
-      end: 3,
-    });
   });
 
   it('says where the noun that names nothing runs, in a run as in one slot', () => {

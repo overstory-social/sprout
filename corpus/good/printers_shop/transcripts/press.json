@@ -37,13 +37,16 @@
     { "as": "Ines", "type": "ink press", "expect": [
       { "reader": "Ines", "kind": "refused", "words": "The forme is inked already." }
     ] },
+    { "comment": "Both ribs answer to `rib`, and either reading ranks as well as the other," },
+    { "comment": "so one is drawn and Marta is told which." },
     { "as": "Marta", "type": "take rib", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "Which do you mean: a wooden rib, a bone rib?" },
-      { "level": "info", "text": "choices: take wooden rib | take bone rib" }
+      { "reader": "Marta", "kind": "notice", "words": "(A wooden rib)" },
+      { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a wooden rib." },
+      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
     ] },
     { "as": "Marta", "type": "take wooden rib", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." },
-      { "reader": "Ines", "kind": "told", "words": "Marta takes a wooden rib." }
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
     ] },
     { "as": "Marta", "type": "take bone rib", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You take a bone rib." },
@@ -86,8 +89,9 @@
     { "as": "Ines", "type": "i", "expect": [
       { "reader": "Ines", "kind": "said", "words": "You are carrying a printed sheet." }
     ] },
-    { "comment": "A second pull. The sheet Ines holds is nearer to her than the one on the" },
-    { "comment": "flagstones, so `take sheet` reads the one she has." },
+    { "comment": "A second pull. Taking the sheet Ines holds is refused by her own hands," },
+    { "comment": "so `take sheet` reads the one on the flagstones, whose `depart` keeps it" },
+    { "comment": "where it lies while it is wet." },
     { "as": "Marta", "type": "ink press", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You beat the ink over the forme until it shines." }
     ] },
@@ -96,7 +100,7 @@
       { "reader": "Ines", "kind": "told", "words": "Marta works the press." }
     ] },
     { "as": "Ines", "type": "take sheet", "expect": [
-      { "reader": "Ines", "kind": "refused", "words": "You already have it." }
+      { "reader": "Ines", "kind": "refused", "words": "The ink is still wet; it would smear." }
     ] },
     { "as": "Marta", "type": "take sheet", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "The ink is still wet; it would smear." }
@@ -117,7 +121,8 @@
     ] },
     { "as": "Ines", "type": "take sheet", "expect": [
       { "reader": "Ines", "kind": "said", "words": "You take a printed sheet." },
-      { "reader": "Marta", "kind": "told", "words": "Ines takes a printed sheet." }
+      { "reader": "Marta", "kind": "told", "words": "Ines takes a printed sheet." },
+      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
     ] }
   ]
 }
