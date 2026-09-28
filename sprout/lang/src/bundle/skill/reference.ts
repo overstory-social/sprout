@@ -142,6 +142,12 @@ export const MEMBER_TABLE: readonly Entry[] = [
     means: 'whether a message sent inside it passes out, or from outside in',
   },
   { word: 'object', example: 'object pin is Pin', means: 'a thing inside it' },
+  {
+    word: 'synonyms',
+    example: 'synonyms poke: "prod"',
+    means:
+      'another word for a verb, throughout the world or, on an object, only where that object takes part; never in a kind’s body. A verb writes its own as `synonyms "prod"`',
+  },
 ];
 
 /** The member words a body's readers answer to: a kind's and an object's, and the world's. */
@@ -153,11 +159,17 @@ function memberWords(): { kind: Set<string>; world: Set<string> } {
   };
 }
 
-/** Every member example but the world's own, in one kind, with what each needs beside it. */
+/**
+ * Every member example but the world's own, in one kind, with what each
+ * needs beside it; `synonyms`, which no kind holds, on the object of it.
+ */
 export function membersProbe(): Snippet {
-  const own = MEMBER_TABLE.filter((entry) => entry.word !== 'visitors');
+  const own = MEMBER_TABLE.filter(
+    (entry) => entry.word !== 'visitors' && entry.word !== 'synonyms',
+  );
+  const synonyms = MEMBER_TABLE.find((entry) => entry.word === 'synonyms')!;
   return {
-    hall: '    object probe is Probe',
+    hall: `    object probe is Probe { ${synonyms.example} }`,
     files: {
       'probe.sprout': [
         'kind Probe is Bell {',

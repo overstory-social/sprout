@@ -1,0 +1,16 @@
+{
+  "name": "synonyms_in_kind",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "3ee5bf259090f4a777291357177a16b6495bad4139902cae235856a3b4f545cc"
+    }
+  ],
+  "files": ["chest.sprout", "person.sprout", "synonyms_in_kind.sprout"]
+}

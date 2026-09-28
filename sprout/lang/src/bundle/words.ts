@@ -6,7 +6,7 @@
 // exit or link label a kind or an object writes, of every identifier and
 // of every kind's name as a spawn is called by default, the directions
 // and their abbreviations, the articles and determiners, the connectors,
-// and the words of every phrase. A link's name is not among them: a
+// and the words of every phrase and every synonym. A link's name is not among them: a
 // visitor takes a link by its label, and the name is source's alone.
 
 import {
@@ -18,6 +18,7 @@ import {
 } from '../declare/addressing.js';
 import { ABBREVIATIONS, DIRECTIONS } from '../declare/directions.js';
 import type { KindRef } from '../declare/kinds.js';
+import type { ScopedSynonym } from '../declare/synonyms.js';
 import type { ResolvedVerb } from '../declare/verbs.js';
 import type { WordSet } from './bundle.js';
 
@@ -30,6 +31,8 @@ export interface WordSources {
   /** Every object's identifier, at every depth, a kind's contents' included. */
   readonly identifiers: readonly string[];
   readonly verbs: readonly ResolvedVerb[];
+  /** The world's synonyms and its objects'; a verb's own are on the verb. */
+  readonly synonyms: readonly ScopedSynonym[];
 }
 
 /** The word set: single words, sorted, each once. A comma separates and is no word. */
@@ -49,7 +52,9 @@ export function wordSetOf(sources: WordSources): WordSet {
     for (const phrase of verb.phrases) {
       for (const part of phrase.parts) if (part.part === 'words') add(part.text);
     }
+    for (const synonym of verb.synonyms) add(synonym);
   }
+  for (const synonym of sources.synonyms) add(synonym.words);
   for (const word of [...DIRECTIONS, ...ABBREVIATIONS.keys(), ...DETERMINERS, ...CONNECTORS]) {
     add(word);
   }

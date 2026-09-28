@@ -1,0 +1,4 @@
+synonyms_unknown_verb.sprout:10:12  `synonyms pyr:` names a verb, and nothing declares `pyr`. Did you mean `pry`?
+                                    Write `synonyms pry: …`.
+
+refused: 1 problem

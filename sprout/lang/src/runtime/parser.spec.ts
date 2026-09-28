@@ -57,10 +57,11 @@ import {
   MARTA,
   typed as command,
 } from '../fixtures/turns.js';
-import { words as spoken } from '../fixtures/reading.js';
+import { turn, words as spoken } from '../fixtures/reading.js';
+import { compiledWorld } from '../fixtures/bundle.js';
 import type { Answer } from './parser/answers.js';
 import { typedWords } from '../declare/addressing.js';
-import type { InstanceId } from './ids.js';
+import { declaredId, type InstanceId } from './ids.js';
 import type { Bound } from './reading.js';
 
 /** A reading as a case compares it: the verb by library and name, and each role's filler. */
@@ -575,5 +576,47 @@ describe('a line ending in `?`', () => {
   it('keeps a `?` alone, which is one of the phrases of `help`', () => {
     expect(understood(typed(study(), '?')).verb).toBe('sprout.help');
     expect(understood(typed(study(), ' ? ')).verb).toBe('sprout.help');
+  });
+});
+
+describe('a line typed with a synonym', () => {
+  const YARD = compiledWorld('yard', {
+    'yard.sprout': [
+      'world yard is sprout.World { visitors are Person visitors arrive at hall',
+      '  synonyms pry: "lever"',
+      '  object hall is sprout.Place {',
+      '    object chest is sprout.Fixture { synonyms pry: "force" }',
+      '    object crate is sprout.Fixture',
+      '  }',
+      '}',
+      'verb pry { role target  "pry [target]"  "use a bar on [target]"  synonyms "prise" }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const [hall, chest, crate] = [['hall'], ['hall', 'chest'], ['hall', 'crate']].map((path) =>
+    declaredId('yard', path),
+  );
+  const at = (line: string) => {
+    const one: Study = { ...turn(YARD, [hall!]), nicknames: new Map() };
+    return typed(one, line, []);
+  };
+
+  it('reads as the verb, a verb’s own or the world’s, whatever it is typed with', () => {
+    for (const line of ['prise crate', 'lever crate', 'pry crate']) {
+      expect(understood(at(line)), line).toEqual({
+        verb: 'yard.pry',
+        bindings: { target: { object: crate } },
+      });
+    }
+  });
+
+  it('reads an object’s only where that object takes part, and is otherwise not understood', () => {
+    expect(understood(at('force chest'))).toEqual({
+      verb: 'yard.pry',
+      bindings: { target: { object: chest } },
+    });
+    expect(at('force crate')).toMatchObject({ answer: 'unknown' });
+    // A phrase that does not write the name gives nothing.
+    expect(at('use a lever on crate')).toMatchObject({ answer: 'unknown' });
   });
 });

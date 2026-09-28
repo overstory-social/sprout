@@ -74,6 +74,7 @@ import { Report } from './report.js';
 import { weighBundle } from './weight.js';
 import { wordSetOf } from '../words.js';
 import { objectsIn } from '../../declare/objects.js';
+import { resolveScopedSynonyms } from '../../declare/synonyms.js';
 import { oneWorld, worldKinds } from './world.js';
 
 /** What a host brings to a compile. */
@@ -183,6 +184,13 @@ export function compileBundle(
     tree: tables.tree,
     objects: tables.composed,
     world,
+    diagnostics: report.diagnostics,
+  });
+  const synonyms = resolveScopedSynonyms(theWorld, tables.tree, {
+    library: manifest.namespace,
+    verbs: tables.verbs,
+    named: (from) => tables.verbNames.named(from),
+    caps,
     diagnostics: report.diagnostics,
   });
 
@@ -354,6 +362,7 @@ export function compileBundle(
     objects: tables.objects,
     tree: tables.tree,
     arrival,
+    synonyms,
     words: wordSetOf({
       kinds: everyKind,
       named: tables.kinds.all().filter((kind) => !kind.composes.has(WORLD) && !isVisitorKind(kind)),
@@ -363,6 +372,7 @@ export function compileBundle(
           : [],
       ),
       verbs: tables.verbs.all(),
+      synonyms,
     }),
     level,
     extensions: [...extensions.pinned.values()],

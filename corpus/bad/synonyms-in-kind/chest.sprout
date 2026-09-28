@@ -1,0 +1,7 @@
+// A synonym is a verb's, the world's or one object's, and never a kind's.
+import * as sprout from 'sprout'
+import {open} from 'sprout'
+
+kind Chest is sprout.Container {
+  synonyms open: "jimmy"
+}

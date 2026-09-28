@@ -12,7 +12,7 @@
 import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
 import type { HandlerDeclaration, HookDeclaration, PassDeclaration } from './ast-events.js';
-import type { VerbDeclaration } from './ast-verbs.js';
+import type { SynonymsDeclaration, VerbDeclaration } from './ast-verbs.js';
 import type { ExtensionStatement, ExtensionUse } from './ast-extensions.js';
 import type { ImportDeclaration } from './ast-imports.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
@@ -715,7 +715,8 @@ export type KindMember =
   | HookDeclaration
   | PassDeclaration
   | GrammarDeclaration
-  | DescribeDeclaration;
+  | DescribeDeclaration
+  | SynonymsDeclaration;
 
 /** What may be written inside a world: what a kind may, and what it says about visitors. */
 export type WorldMember = KindMember | VisitorsAre | VisitorsArriveAt;

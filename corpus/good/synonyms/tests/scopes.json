@@ -1,0 +1,23 @@
+{
+  "about": "A verb's own synonyms, the world's and an object's: `toll` rings the bell, `jimmy` opens anything, and `force` opens the cabinet alone.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the shop." }
+    ] },
+    { "as": "Marta", "type": "toll bell", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bell booms." }
+    ] },
+    { "as": "Marta", "type": "sound bell", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bell booms." }
+    ] },
+    { "as": "Marta", "type": "jimmy chest", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the chest." }
+    ] },
+    { "as": "Marta", "type": "force chest", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "force cabinet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the cabinet." }
+    ] }
+  ]
+}

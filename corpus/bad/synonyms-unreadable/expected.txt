@@ -1,0 +1,13 @@
+pry.sprout:5:12                   `synonyms` needs the words, in quotes.
+                                  Write each in quotes, a comma between two: `synonyms "unseal", "prise open"`.
+
+pry.sprout:6:20                   A synonym is the words a visitor types in place of the verb’s name, and holds no slot.
+                                  Write the words alone, as in `synonyms "unseal", "prise open"`; the verb's phrases say where its roles go.
+
+pry.sprout:6:31                   This synonym has no words in it.
+                                  Write the words a visitor types, as in `synonyms "unseal", "prise open"`, or take it out.
+
+synonyms_unreadable.sprout:10:12  `synonyms` in a body names the verb they are for, then a colon.
+                                  Write the verb, a colon and the words: `synonyms open: "jimmy"`.
+
+refused: 4 problems

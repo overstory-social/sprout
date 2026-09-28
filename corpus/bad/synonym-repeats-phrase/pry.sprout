@@ -1,0 +1,6 @@
+// Its own synonym gives it `prise [target]`.
+verb pry {
+  role target
+  "pry [target]"
+  synonyms "prise"
+}

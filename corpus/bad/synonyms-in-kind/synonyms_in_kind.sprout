@@ -1,0 +1,13 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Chest} from 'chest'
+
+world synonyms_in_kind is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object chest is Chest
+  }
+
+}
