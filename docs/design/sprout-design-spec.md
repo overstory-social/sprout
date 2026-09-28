@@ -163,7 +163,7 @@ An object reaches a target when nothing strictly between them on the containment
 
 An object always reaches **itself and its own contents**: a shut chest can still count what it holds and speak to it, because a lid stops others looking in, not the chest looking down. Without that, every container would go blind the moment it closed. It also always reaches **the surface of its own container** — the thing it is inside, even when nothing beyond it is — so a visitor shut in a wardrobe can still name the wardrobe and open it.
 
-A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a `which`, then `not_here`, then `unknown`: a `which` names what the visitor may have meant, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
+A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
 
 Because the world's pass rule refuses, places are out of range of one another until the world says otherwise. One place hearing another is a deliberate act by the world, not a consequence of sharing a microworld.
 
@@ -546,6 +546,8 @@ object brass_key is Key {
 | `name` | the identifier, humanised in lower case — `oak_door` becomes "oak door" |
 | `nouns` | the full name and its last word — "brass key" is addressable as both `brass key` and `key` |
 | `article` | `a`, written `an` before a name beginning with `a`, `e`, `i`, `o` or `u`; `the` and `none` only where written |
+| `adjectives` | the name's words before its last — "brass key" has `brass` — which name the thing only more weakly than a noun, under Parsing |
+| `pronouns` | none: `she`, `he`, `it` or `they` where written, under Parsing › Pronouns |
 
 A name never contains an article, and the compiler refuses one that begins with `a`, `an` or `the`. Several nouns may stand on one `nouns` line, with or without a comma between them. Additional `nouns` are added to the defaults, not substituted for them, and like every other part of the block they compose: a kind's nouns and its composer's both apply.
 
@@ -553,7 +555,7 @@ A name never contains an article, and the compiler refuses one that begins with 
 
 On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`.
 
-On output the engine uses the declared article for everything it writes itself — chips, disambiguation prompts, arrival notices. There is no first-mention tracking and no indefinite-to-definite progression; a thing is addressed the way its author declared, consistently.
+On output the engine uses the declared article for everything it writes itself — chips, the parser's `meant`, arrival notices. There is no first-mention tracking and no indefinite-to-definite progression; a thing is addressed the way its author declared, consistently.
 
 Authored prose is unaffected. A passage writes its own words, so an author who wants "your brass key" or "that wretched key" simply writes it.
 
@@ -564,7 +566,7 @@ A visitor is known in a microworld by a nickname they choose on entering. It is 
 A nickname is accepted only if it is addressable without ambiguity, which means it must collide with nothing the parser knows:
 
 - Not with any noun in the world, nor any token of one. Because names are declaration syntax and immutable, and every spawn instantiates a declared kind, **a microworld's complete noun set is known at compile time** and travels with the bundle. "Marta B" is accepted where no object answers to `marta` or `b`; "brass rose" is refused in a world containing a rose.
-- Not with any other word the parser reads: a direction, an article, a connector, or a word in any verb's phrases. "North", "With" and "Open" are refused. Nor with a reserved word of the language, nor a name shaped like source: a word beginning with a colon, or a period inside a word.
+- Not with any other word the parser reads: a direction, an article, a connector, a word in any verb's or intent's phrases or a synonym's, a pronoun, or a word of the parser's own — `all`, `except`, `then`, `again`, `g`, and the words of its relative phrases. "North", "With", "Open" and "Again" are refused. Nor with a reserved word of the language, nor a name shaped like source: a word beginning with a colon, or a period inside a word.
 - Not with another visitor's nickname. A second Marta is asked for another — "Marta B" — before entering.
 
 The host checks the first two against the bundle's word set, with no scan of live state, and the third against the visitors present. A refusal names the word it collided on, so the person knows what to change. A nickname is at most as long as Limits allows. A visitor with no nickname does not enter, so the engine always has a name to render and never has to write an absence.
@@ -664,8 +666,10 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `$first`, `$last` in a passage loop | boolean |
 | `$index`, `$count` in a passage loop | integer |
 | `thing` in `unremarkable` | object |
-| `candidates` in `which` | a set of objects |
-| `actor` and `here` in `unknown`, `not_here`, `which`, `nothing_happens`, `help` and `fault` | as above |
+| `thing` in `meant` and `pronoun_correction` | object |
+| `pronoun` in `pronoun_correction` | string: the pronoun the thing declares |
+| `reading` in `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
+| `actor` and `here` in `unknown`, `not_here`, `cannot`, `meant`, `nothing_happens`, `help` and `fault` | as above |
 | `actor` in `gone_away` and `npc_says` | as above |
 | `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
 | `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
@@ -877,7 +881,7 @@ A verb is offered when its roles can be filled; `permit` decides what happens wh
 
 A slot in a phrase names a role. Nouns resolve through an object's identifier and the `nouns` in its grammar block, and a role's declared kind narrows what may fill it — it constrains matching and is never a source of refusal text. When nothing present can fill a required role, the phrase does not match.
 
-Position decides which slot a noun fills. The literal words already do most of the work — in `"use [tool] on [target]"`, `on` pins both — and where they do not, the order in the phrase does.
+Position decides which slot a noun fills. The literal words already do most of the work — in `"use [tool] on [target]"`, `on` pins both — and where they do not, the order in the phrase does. How a line is split and which reading wins is under Parsing.
 
 ### Set roles
 
@@ -1118,6 +1122,87 @@ Everything else a visitor can do by default — `take`, `drop`, `put`, `give`, `
 ### Reserved names
 
 An authored message may not take the name of an engine message: `:spawned`, `:woke`, `:tick`, `:moved`, `:left`, `:entered`, `:arrived` or `:departed`. A world's verb may not take the name of an engine verb. `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` name members and are not available as message or verb names either. A reserved word, listed under The compiler › Lexical rules, may not name an enum's option, a role, a `let` or any other binding.
+## Parsing
+
+A visitor types English, and the world understands as much of it as its grammar can say, the same way every time. The grammar is closed and known when the world compiles: every phrase of every verb in the bundle and its libraries, every synonym, and every intent. Nothing here guesses, and what a host may do with a line the grammar cannot read is the host's, never the world's.
+
+### Synonyms
+
+```sprout
+verb open {
+  role target: Container
+  "open [target]"
+  synonyms "unseal", "prise open"
+}
+
+world printers_shop is sprout.World {
+  synonyms open: "jimmy"
+
+  object cabinet is sprout.Container {
+    synonyms open: "force"
+  }
+}
+```
+
+A synonym is another word for a verb, and it takes every phrase of the verb that writes the verb's name: `"open [target]"` gives `"unseal [target]"`, `"prise open [target]"` and `"jimmy [target]"`, and a phrase that does not write the name, `"use [tool] on [target]"` for `unlock`, gives nothing. Synonyms come from three scopes and only ever add. A verb's own `synonyms` line holds everywhere the verb does; a world's `synonyms verb: …` holds throughout the world; an object's holds only in readings that object takes part in, so `force cabinet` opens the cabinet and `force chest` is not understood. A generated phrase collides with another as a written one does. Synonyms and the phrases they generate do not count toward the phrases a verb may have.
+
+### Intents
+
+```sprout
+intent open_with {
+  "open [y] with [x]"
+  "use [x] to open [y]"
+  do unlock (target: y, tool: x) when (y.get(:locked)) then open (target: y)
+}
+```
+
+An intent is a canonical phrase, the first, with other phrases that mean the same, and the steps it stands for. It is declared beside verbs, at a file's top level, and a world's intent of a library intent's name replaces the library's. Its slots are its own names, and each takes what fills the role it is given to in at least one step.
+
+- Each step's `when` is read before the line runs, against the world as the visitor typed into it. A step whose `when` is false, or whose roles what was bound cannot fill, is skipped silently.
+- The steps that run run in order, each its own turn with its own seed and log entry, as a sequence the visitor typed would, under Sequences; a step refused stops the rest, and the steps before it stay done.
+- A step that runs is logged at info; it usually says something of its own as well.
+- A `when` is a guard: it reads, and it may not write, draw or narrate.
+
+The standard library declares the intents that make ordinary English work — `open [y] with [x]` meaning unlock, then open — and every one may be replaced by a world's own.
+
+### Matching a line
+
+A line is matched against every phrase at once, and every way each phrase can match is a **reading**: a verb or an intent, and what fills each role.
+
+- A phrase's literal words split the line wherever they can: every place its prepositions could fall is tried, so a name that holds one, "the man with the hat", is still read.
+- Articles, `my`, `this` and `that` are dropped wherever a noun is expected, under Articles.
+- A thing is named by its nouns and adjectives, under Addressing and display. A name that uses a noun is a stronger match than one of adjectives alone: `red box` and `box` name the red box outright, and `red` names it only where nothing else is named better.
+- A closed set of relative phrases narrows a name by containment: `the key in the cabinet`, `the key on the shelf`, `the key that is in the cabinet`, `the one in the cabinet`. In and on are read through the containment tree the engine owns.
+- A pronoun, `it`, `them`, `him` or `her`, names what the visitor's own last command was about, under Pronouns.
+
+Every noun the parser tries is a step against the turn's budget, and so is every reading it builds.
+
+### Choosing a reading
+
+Readings are ranked whole, never one noun at a time, so a hint in one role can decide another:
+
+1. A reading whose consent pass allows beats one whose consent pass refuses.
+2. Of those, the one that matched more of the line's words literally — phrase words and nouns rather than adjectives alone — wins.
+3. Of those, nearer things beat further ones, as Spawning measures nearness.
+
+Readings still tied are drawn from the turn's seed, and the draw is logged as a warning. Where the drawn reading names a thing its rivals did not, the visitor is told which, through the world's `meant` line, "(the wooden rib)", before what the reading says; things written alike, which no word could tell apart, are drawn without it. The parser never asks which was meant.
+
+### Pronouns
+
+Each visitor has their own pronouns, set by their own last command: `it` and `them` name what it was done to, and `him` and `her` name the same where it is a person or declares those pronouns. They are part of the visitor's stored state, so replay and a poll read them as a turn does. A thing may declare its pronouns in its grammar block, `pronouns she`; where it does and the visitor used another pronoun for it, and the line is otherwise clear, the action goes ahead and the visitor first reads the world's `pronoun_correction` line, "The cat is a she." A thing that declares none is never corrected.
+
+### Sequences, again and all
+
+`take key then open cabinet` and `take key. open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. The first answered by a refusal, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
+
+`again`, or `g`, runs the visitor's last reading again: the same verb and the same things, not the same words, so a line whose nouns would now mean something else still means what it meant. Its consent pass is asked afresh, and a thing no longer in reach is answered with `not_here`.
+
+`all` fills a role with everything it may take, and `except` leaves things out, by kind or by name: `take all`, `take all except the bronze key`. What `all` takes is every thing in reach whose kind plays a part in the verb or composes the role's kind; for a role only the actor plays, as `take`'s target, it is every thing in reach that is not a person and not the visitor's own place. A set role takes them all at once. A role that takes one thing runs once for each, as a sequence would, in the order the range walk reaches them, and stops at the first refusal; a line of `all` runs at most as many turns as a set role may bind objects.
+
+### When nothing matches
+
+A line no phrase reads is answered with the world's `unknown`. A line that names nothing in reach is answered with `not_here`. A line some phrase read in part — its verb understood, a role filled with something it cannot take — is answered with the world's `cannot` line, given the reading as far as it was understood, so the visitor learns what the world made of it: "You can't open the cabinet with the apprentice." The partial reading chosen is the one that matched most of the line's words, then bound most roles, and never the one written first.
+
 ## Events, messages and the bus
 
 Objects change their own state and tell each other about it. A message is **queued, never called**: the sending body runs to completion, then the queue drains, breadth-first, in insertion order. Within one body your own state holds still, which is the invariant everything below protects.
@@ -1305,7 +1390,7 @@ A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and ca
 
 ### Engine lines
 
-Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `which`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `cannot`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
 
 When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
 
@@ -1606,7 +1691,8 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 | --- | --- |
 | options per enum | 100 |
 | roles per verb | 8, counting a set role as one |
-| phrases per verb | 8, each at most 80 characters |
+| phrases per verb or intent | 8, each at most 80 characters; synonyms and the phrases they generate do not count |
+| steps per intent | 8 |
 | nouns per object | 8, each word at most 40 characters |
 | exits per place | 8 |
 | elements in a list | 16 |
@@ -1788,7 +1874,7 @@ Within a command turn, the order is fixed: parse; the consent pass; the effect p
 
 ### The view
 
-A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. Two things written alike give two offers typed alike, as the parser would ask `which` of them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
+A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
 
 A poll that exhausts its budget yields a view whose description is the world's `unseen` passage and which keeps every other part the poll derived without faulting. The fault is logged against the object it names, or against the actor's place where the budget ran out with none named, with the time of the poll and not who was looking.
 
@@ -1813,7 +1899,7 @@ Everything a turn produces, and everything the host records of it, is at one of 
 
 | level | what | for example |
 | --- | --- | --- |
-| prose | every effect: what a person in the world reads | a description, a refusal, `which` with its choices, the world's `fault` passage |
+| prose | every effect: what a person in the world reads | a description, a refusal, the parser's `meant`, the world's `fault` passage |
 | error | something broke, named | a fault, by its name: `BudgetExhausted` |
 | warning | something the engine settled one way where it could have gone another | a line cut short past a bystander's output budget |
 | info | the host's record of what happened, as events | a turn and its seed, an arrival or departure, a wake delivered, a catch-up, a publish |
@@ -1915,7 +2001,9 @@ kind World {
 
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
-  passage which default           { Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for} }
+  passage cannot default          { You can't {reading}. }
+  passage meant default           { ({thing}) }
+  passage pronoun_correction default { {thing} is a {pronoun}. }
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }
   passage unseen default          { Something here is too much to take in. }
@@ -2077,6 +2165,12 @@ kind Lockable {
 
   passage unlocked default { The lock turns over. }
   passage unlocks default  { {actor} unlocks {self}. }
+}
+
+intent open_with {
+  "open [y] with [x]"
+  "use [x] to open [y]"
+  do unlock (target: y, tool: x) when (y.get(:locked)) then open (target: y)
 }
 
 // sprout/talk.sprout
