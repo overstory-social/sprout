@@ -1,0 +1,7 @@
+// A synonym is words in quotes, holding no slot, and not empty.
+verb pry {
+  role target
+  "pry [target]"
+  synonyms lever
+  synonyms "pry at [target]", " ", "prise"
+}

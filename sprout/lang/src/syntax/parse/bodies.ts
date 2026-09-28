@@ -37,6 +37,7 @@ import { ARTICLE, type Owner } from './composition.js';
 import { without } from './without.js';
 import { grammar } from './grammar.js';
 import { describe } from './describe.js';
+import { synonymsMember } from './synonyms.js';
 
 /** What may be written inside a body, by the word each member begins with. */
 export type MemberReaders<M> = ReadonlyMap<string, () => M | null>;
@@ -68,6 +69,7 @@ export function kindMembers(
   readers.set('passage', () => passage(p, readers));
   readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
+  readers.set('synonyms', () => synonymsMember(p));
   readers.set('grammar', () => grammar(p, startsMemberOf(p, readers)));
   readers.set('describe', () => describe(p, owner, startsMemberOf(p, readers)));
   addGuards(p, owner, readers);

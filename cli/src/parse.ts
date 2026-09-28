@@ -22,8 +22,8 @@ import {
 import { pathOf, type Standing } from '@overstory/sprout-player';
 
 // `sprout parse`: what a world accepts. With no line, every phrase a
-// visitor may type, in the order the command parser tries them, the first
-// that reads winning (the spec's Verbs › Slots; the working notes' "Not
+// visitor may type, those its synonyms give among them, in the order the
+// command parser tries them, the first that reads winning (the spec's Verbs › Slots; the working notes' "Not
 // language questions, but blocking"). With a line, what a visitor
 // standing somewhere would make of it: the reading, each role and what
 // fills it, and its consent pass's answer, or the world's answer where it
@@ -48,9 +48,14 @@ export function formatGrammar(catalogue: Catalogue): string {
   const phrases = new Map<ResolvedVerb, string[]>();
   for (const phrase of catalogue.phrases) {
     const { verb } = phrase;
-    const words = phrase.parts
+    const written = phrase.parts
       .map((part) => ('slot' in part ? `[${verb.roles[part.slot]!.name}]` : part.words.join(' ')))
       .join(' ');
+    // An object's synonym reads only where the object takes part.
+    const words =
+      phrase.only === null
+        ? written
+        : `${written}   (only with ${pathOf(catalogue.world, phrase.only)})`;
     if (!phrases.has(verb)) {
       verbs.push(verb);
       phrases.set(verb, []);

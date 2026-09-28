@@ -25,6 +25,7 @@ import { passage } from './passages.js';
 import { proseFile } from './prose-file.js';
 import { objectPath } from './paths.js';
 import { recover } from './recovery.js';
+import { synonymsMember } from './synonyms.js';
 
 export function worldDeclaration(p: Parser): WorldDeclaration | null {
   const keyword = p.next();
@@ -80,6 +81,7 @@ export function worldMembers(
   readers.set('passage', () => passage(p, readers));
   readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
+  readers.set('synonyms', () => synonymsMember(p));
   addGuards(p, owner, readers);
   addPlays(p, owner, readers);
   addEvents(p, owner, readers);
