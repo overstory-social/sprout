@@ -1,3 +1,8 @@
+import * as sprout from 'sprout'
+import {Ward} from 'printers_shop'
+import {unlock} from 'sprout'
+import {Key} from 'key'
+
 kind Warded is sprout.Lockable {
   :ward Ward default brass
 

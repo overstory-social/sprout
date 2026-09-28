@@ -1,5 +1,7 @@
 // An extension's statement records an effect, and a guard and a `permit`
 // only read and decide: neither may hold one, on any host.
+import {open} from 'sprout'
+
 extension media 1
 
 kind Cabinet {

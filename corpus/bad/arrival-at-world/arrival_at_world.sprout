@@ -1,5 +1,8 @@
 // Visitors arrive in a place inside the world, never the world itself,
 // even one that holds people: the remedy names a place that is there.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 world arrival_at_world is sprout.World {
   contains actors
   visitors are Creature

@@ -1,1 +1,3 @@
+import * as sprout from 'sprout'
+
 kind Burrow is sprout.Place { grammar { link onward "down the burrow" } }

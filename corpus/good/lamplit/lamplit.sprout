@@ -1,6 +1,12 @@
 // `here` is the actor's place, and a `sprout.Place` wherever every kind
 // holding actors composes it, as `Room` does: the lamp walks and counts
 // it without narrowing it first.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Room} from 'room'
+import {Lamp} from 'lamp'
+import {Stool} from 'stool'
+
 world lamplit is sprout.World {
   visitors are Person
   visitors arrive at hall

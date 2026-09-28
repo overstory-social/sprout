@@ -1,3 +1,6 @@
+import {Iron} from 'iron'
+import {Wood} from 'wood'
+
 kind Press is Iron, Wood {
   describe { text "Iron on oak, and heavier than both." }
 }

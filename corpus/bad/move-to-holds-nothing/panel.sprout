@@ -1,3 +1,5 @@
+import {press} from 'move_to_holds_nothing'
+
 kind Panel {
   as target for press {
     do { move self to tool }

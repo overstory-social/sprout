@@ -1,5 +1,7 @@
 // The lamp answers `:illuminating` by writing its own state, and a hook
 // on that state counts every change, with the value it had before.
+import {:illuminating, :gust} from 'kinds'
+
 kind Lamp {
   :lit false
   :flickers 0 min 0 max 99

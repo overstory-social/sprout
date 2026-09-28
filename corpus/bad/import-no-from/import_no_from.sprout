@@ -1,4 +1,7 @@
 // An import that does not say where from.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world import_no_from is sprout.World {
   visitors are Person
   visitors arrive at yard

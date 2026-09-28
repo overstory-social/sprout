@@ -1,5 +1,7 @@
 // A guard and a `permit` only read and decide, so neither may ask to be
 // woken: the engine asks them before anything happens.
+import {pack} from 'guard_wakes'
+
 kind Crate {
   contains
 

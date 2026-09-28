@@ -1,4 +1,6 @@
 // A kind points at a `.prose` file the world does not have.
+import {Mood} from 'prose_file_missing'
+
 kind Mirror {
   :mood Mood default drowsy
   prose "mirorr.prose"

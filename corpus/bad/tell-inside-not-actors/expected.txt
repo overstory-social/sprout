@@ -1,7 +1,7 @@
-lever.sprout:6:12  `Lever` holds no actors, so `tell inside` has nobody to reach.
+lever.sprout:8:12  `Lever` holds no actors, so `tell inside` has nobody to reach.
                    Write `contains actors` in `Lever`'s body, or tell the place plainly, as in `tell "{actor} pulls the lever."`.
 
-lever.sprout:7:12  `Lever` holds no actors, so `tell outside` has nobody to reach.
+lever.sprout:9:12  `Lever` holds no actors, so `tell outside` has nobody to reach.
                    Write `contains actors` in `Lever`'s body, or tell the place plainly, as in `tell "{actor} pulls the lever."`.
 
 refused: 2 problems

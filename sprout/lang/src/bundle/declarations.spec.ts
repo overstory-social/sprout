@@ -7,6 +7,7 @@ import { locationOf, SourceFile } from '../source/source.js';
 import { kindName } from '../declare/kinds.js';
 import type { Absent } from './absent.js';
 import { resolveDeclarations, type DeclarationReport } from './declarations.js';
+import { compileWorld } from '../fixtures/bundle.js';
 
 /** The world these tables are built for: its namespace and its name. */
 const SHOP = { namespace: 'shop', name: 'shop' };
@@ -153,120 +154,16 @@ describe('every table is built over every library, in the order they depend on o
   });
 });
 
-describe('a world declaration shadowing a standard library name warns once, at its own name', () => {
-  it('warns for a kind, an enum and a message the standard library also declares', () => {
-    const report = loading();
-    const tables = resolveDeclarations(
-      byLibrary({
-        sprout: 'kind Container { contains }\nenum Ward { oak, silver }\nmessage :opened',
-        shop: 'kind Container { }\nenum Ward { brass }\nmessage :opened',
-      }),
-      SHOP,
-      report,
-    );
-    expect(report.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual(
-      [
-        [
-          'shop.sprout:1:6',
-          '`Container` hides `sprout.Container`: a bare `Container` in this world is now yours.',
-          "Write `sprout.Container` where the library's is meant, or give yours another name.",
-        ],
-        [
-          'shop.sprout:2:6',
-          '`Ward` hides `sprout.Ward`: a bare `Ward` in this world is now yours.',
-          "Write `sprout.Ward` where the library's is meant, or give yours another name.",
-        ],
-        [
-          'shop.sprout:3:9',
-          '`opened` hides `sprout.opened`: a bare `opened` in this world is now yours.',
-          "Write `sprout.opened` where the library's is meant, or give yours another name.",
-        ],
-      ],
-    );
-    // The qualified name still reaches the library's kind after the shadow.
-    expect(tables.kinds.qualified('sprout', 'Container')!.library).toBe('sprout');
-  });
-
-  it('warns for a verb the standard library also declares, and says how the library’s is kept', () => {
-    const report = loading();
-    const { verbs } = resolveDeclarations(
-      byLibrary({
-        sprout: 'verb take { role target  "take [target]" }',
-        shop: 'verb take { role target  "nab [target]" }',
-      }),
-      SHOP,
-      report,
-    );
-    expect(report.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual(
-      [
-        [
-          'shop.sprout:1:6',
-          '`take` hides `sprout.take`: a bare `take` in this world is now yours.',
-          "Where the library's `take` is still meant, give yours another name.",
-        ],
-      ],
-    );
-    expect(verbs.unqualified('take', 'shop')!.library).toBe('shop');
-    expect(verbs.qualified('sprout', 'take')).not.toBeNull();
-  });
-
-  it('does not warn for a kind that composes the library kind it hides, directly or not', () => {
-    for (const shop of [
-      'kind Creature { }\nkind Visitor is Creature, sprout.Visitor { }',
-      'kind Person is sprout.Visitor { }\nkind Visitor is Person { }',
-    ]) {
-      const report = loading();
-      resolveDeclarations(
-        byLibrary({ sprout: 'kind Actor { }\nkind Visitor is Actor { }', shop }),
-        SHOP,
-        report,
-      );
-      expect(report.diagnostics.warnings, shop).toEqual([]);
-    }
-    // One that does not compose it is still warned.
-    const report = loading();
-    resolveDeclarations(
-      byLibrary({
-        sprout: 'kind Actor { }\nkind Visitor is Actor { }',
-        shop: 'kind Visitor is sprout.Actor { }',
-      }),
-      SHOP,
-      report,
-    );
-    expect(report.diagnostics.warnings.map((d) => d.message)).toEqual([
-      '`Visitor` hides `sprout.Visitor`: a bare `Visitor` in this world is now yours.',
-    ]);
-  });
-
-  it('does not warn for an engine verb’s name, which is refused and hides nothing', () => {
-    const report = loading();
-    resolveDeclarations(
-      byLibrary({ sprout: 'verb look { "look" }', shop: 'verb look { "peer" }' }),
-      SHOP,
-      report,
-    );
-    expect(report.diagnostics.warnings).toEqual([]);
-    expect(report.diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:6']);
-  });
-
-  it('does not warn for a name only a second library declares: it is reachable only qualified', () => {
-    const report = loading();
-    resolveDeclarations(
-      byLibrary({ textiles: 'kind Bolt { }', shop: 'kind Bolt { }' }),
-      SHOP,
-      report,
-    );
-    expect(report.diagnostics.warnings).toEqual([]);
-  });
-
-  it('does not warn on the standard library’s own declarations of themselves', () => {
-    const report = loading();
-    resolveDeclarations(
-      byLibrary({ sprout: 'kind Container { contains }' }),
-      { namespace: 'sprout', name: 'sprout' },
-      report,
-    );
-    expect(report.diagnostics.warnings).toEqual([]);
+describe('a world declaration may take a standard library name, since nothing is in scope unimported', () => {
+  it('says nothing of a kind, an enum, a message or a verb the standard library also declares', () => {
+    const { bundle, diagnostics } = compileWorld('shop', {
+      'shop.sprout':
+        'world shop is sprout.World { visitors are Person visitors arrive at hall object hall is sprout.Place object box is Container }\nenum Ward { oak }\nmessage :opened\nverb take { role target  "grab [target]" }\n',
+      'person.sprout': 'kind Person is sprout.Visitor { }\n',
+      'container.sprout': 'kind Container { contains }\n',
+    });
+    expect(bundle).not.toBeNull();
+    expect(diagnostics.filter((d) => /hides/.test(d.message))).toEqual([]);
   });
 });
 

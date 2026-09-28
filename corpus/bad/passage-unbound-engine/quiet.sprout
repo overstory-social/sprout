@@ -1,4 +1,6 @@
 // The engine says a place's `arrives` with `{item}` alone.
+import * as sprout from 'sprout'
+
 kind Quiet is sprout.Place {
   passage arrives { {actor} arrives. }
 }

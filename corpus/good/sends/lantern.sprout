@@ -1,5 +1,8 @@
 // A lantern hands the light on to its own wick, the copy it gives every
 // lantern, named from the kind's own body.
+import {:lit} from 'kinds'
+import {Wick} from 'wick'
+
 kind Lantern {
   contains
   on :lit (_, value) { send wick :lit with value }

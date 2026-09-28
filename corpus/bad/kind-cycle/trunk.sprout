@@ -1,1 +1,3 @@
+import {Lidded} from 'lidded'
+
 kind Trunk is Lidded { }

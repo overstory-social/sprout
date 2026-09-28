@@ -1,6 +1,11 @@
 // An object takes the links of the kinds its `is` names, and `connect`
 // names a link by its name, so two of them writing one name cannot both
 // give it; the object says which with its own.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Burrow} from 'burrow'
+import {Tunnel} from 'tunnel'
+
 world link_two_sources is sprout.World {
   visitors are Person
   visitors arrive at yard

@@ -2,14 +2,14 @@
 // exit may be conditional, Places inside places, Links; Limits › Static
 // caps).
 //
-// The first tier checks one body's lines against themselves: an exit
+// Reading its file checks one body's lines against themselves: an exit
 // leads in a direction of the closed set, written out; a link is named by
 // a word of the author's that is neither a direction nor a reserved word,
 // and one body never writes two links of one name, since `connect` names
 // a link by it; a label is not empty; and the body writes no more exits
 // and links than the host's cap.
 //
-// The second tier gives each kind and object its ways out. Exits and
+// Across the bundle, each kind and object is given its ways out. Exits and
 // links are not composed (the spec's How members combine): a kind has
 // only its own, and an object has its own and those of the kinds its
 // `is` names, its own exit in a direction replacing theirs there and its
@@ -176,7 +176,7 @@ function checkLinkName(
 }
 
 /**
- * What a body writes: each exit whose direction the first tier accepted,
+ * What a body writes: each exit whose direction reading its file accepted,
  * and each link whose name it did, in the order written.
  */
 export function ownExits(members: readonly KindMember[], origin: string): ResolvedExit[] {

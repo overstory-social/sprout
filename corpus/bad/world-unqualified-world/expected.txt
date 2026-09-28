@@ -1,4 +1,4 @@
-unqualified_world.sprout:1:7  `unqualified_world` does not compose `sprout.World`.
-                              `World` on its own is not `sprout.World`; write the library too: `world unqualified_world is sprout.World { … }`.
+unqualified_world.sprout:6:22  Nothing here is called `hall`.
+                               Name something directly in the world, or something deeper by its path, as in `kiln.shelf`.
 
 refused: 1 problem

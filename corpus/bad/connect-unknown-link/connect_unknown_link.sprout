@@ -1,4 +1,8 @@
 // A place connects only a link it declares.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cell} from 'cell'
+
 world connect_unknown_link is sprout.World {
   visitors are Person
   visitors arrive at yard

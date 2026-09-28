@@ -1,4 +1,6 @@
 // `prose` names its file in quotes.
+import {Mood} from 'prose_file_not_quoted'
+
 kind Mirror {
   :mood Mood default drowsy
   prose mirror

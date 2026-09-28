@@ -1,5 +1,10 @@
 // A printer's shop, as far as the compiler reads today: enums, messages,
 // the world root, and the place visitors arrive at.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Season, Ward} from 'kinds'
+import {Room} from 'room'
+
 world shop is sprout.World {
   contains
   visitors are Creature

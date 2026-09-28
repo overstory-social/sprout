@@ -1,4 +1,6 @@
 // A whole list in a slot.
+import {Mood} from 'prose_slot_list'
+
 kind Mirror {
   :moods [Mood] default [drowsy]
   passage greeting { Moods: {self.get(:moods)}. }

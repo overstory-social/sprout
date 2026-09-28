@@ -12,6 +12,9 @@ import {
 } from '@overstory/sprout/lang';
 import { writeScript } from '@overstory/sprout-player';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 // `sprout init [dir]`: a folder with a manifest, the world in the file
 // named for its name, the kind its visitors are made of in the file named
 // for it, a first test in `tests/`, and a README line. The manifest pins
@@ -51,11 +54,14 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
   };
   const { namespace: _namespace, ...written } = manifest;
   // A visitor is made of the world's own kind composing `sprout.Visitor`,
-  // named `Person` because a `Visitor` of its own would hide the
-  // library's, and arrives in a place, which `sprout.Place` is, written in
-  // the world's body because it sits directly in the world. The kind is
-  // in a file of its own, as every kind is.
+  // and arrives in a place, which `sprout.Place` is, written in the
+  // world's body because it sits directly in the world. The kind is in a
+  // file of its own, and each file imports the library and what it names
+  // from the other.
   const world = [
+    `import * as sprout from ${Q}sprout${Q}`,
+    `import {${visitor}} from ${Q}${visitorFile.replace(/\.sprout$/, '')}${Q}`,
+    '',
     `world ${name} is sprout.World {`,
     `  visitors are ${visitor}`,
     '  visitors arrive at hall',
@@ -64,7 +70,7 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
     '}',
     '',
   ].join('\n');
-  const person = `kind ${visitor} is sprout.Visitor { }\n`;
+  const person = `import * as sprout from ${Q}sprout${Q}\n\nkind ${visitor} is sprout.Visitor { }\n`;
   const readme =
     `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it, and ` +
     '`sprout test .` runs its tests, the scripts in `tests/`.\n';

@@ -1,8 +1,8 @@
 // A file's `import` lines, read (the spec's The world model › Imports):
 // names brought in from a file, `import {Key, Ward as Guard, :stir}` from
 // the specifier `blacksmith/key`, or all of a library under a namespace,
-// `import * as sprout` from `sprout`, each at the top of the file beside
-// its `extension` lines and before anything it declares. What each specifier reaches, and
+// `import * as sprout` from `sprout`, each anywhere at the file's top
+// level, as an import is in TypeScript. What each specifier reaches, and
 // whether it declares what is named, is the bundle's to say.
 
 import type { ImportDeclaration, ImportedName } from '../ast-imports.js';
@@ -18,21 +18,9 @@ const Q = "'";
 
 const EXAMPLE = `Write \`import {Key} from ${Q}blacksmith/key${Q}\`, or \`import * as sprout from ${Q}sprout${Q}\` for all of a library.`;
 
-/**
- * `import …`, where `first` says nothing but `extension` and `import` lines
- * came before it in the file. Null having said why it is not one.
- */
-export function importDeclaration(p: Parser, first: boolean): ImportDeclaration | null {
+/** `import …`, anywhere at a file's top level. Null having said why it is not one. */
+export function importDeclaration(p: Parser): ImportDeclaration | null {
   const keyword = p.next();
-  if (!first) {
-    p.diagnostics.refuse(
-      keyword.at,
-      '`import` belongs at the top of the file, before anything it declares.',
-      'Move this line above the first declaration.',
-    );
-    restOfLine(p);
-    return null;
-  }
   let names: ImportedName[] | null = null;
   let namespace = null;
   if (p.at('punct', '*')) {

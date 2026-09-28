@@ -4,6 +4,13 @@
 // kind's, and a composer writes the one paragraph for two kinds that
 // each describe. A person is described by the visitor kind, and a
 // stool with no describe reads the world's `unremarkable`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Hall} from 'hall'
+import {Lamp} from 'lamp'
+import {Stool} from 'stool'
+import {Press} from 'press'
+
 world descriptions is sprout.World {
   visitors are Person
   visitors arrive at hall

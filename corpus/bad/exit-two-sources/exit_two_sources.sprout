@@ -1,5 +1,10 @@
 // One place says where a direction leads: an object made of two kinds
 // that each lead out cannot take both, and says which with its own.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {FrontDoor} from 'front_door'
+import {BackDoor} from 'back_door'
+
 world exit_two_sources is sprout.World {
   visitors are Person
   visitors arrive at yard

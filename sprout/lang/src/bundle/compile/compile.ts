@@ -1,17 +1,14 @@
-// Compiling, in two tiers and two modes (the spec's The compiler › Two
-// tiers, Strict and lenient, What absent means).
+// Compiling, in one tier and two modes (the spec's The compiler › One
+// tier, Strict and lenient, What absent means).
 //
-// THE TIERS. A single definition can be checked ALONE for its shape:
-// syntax, the caps that apply to it, its own declarations agreeing with
-// themselves, every write going to `self`. That is `checkShape`, in
-// `first-tier.ts`, and it is what an editor runs on each keystroke.
-// Everything typed needs the
-// WHOLE BUNDLE: composition resolved across kinds, properties merged,
+// ONE TIER. Everything is checked against the WHOLE BUNDLE: imports
+// resolved, composition resolved across kinds, properties merged,
 // exclusive members checked for collision, every `get` and `set` against
 // a resolved kind, `chance` and `actor` reachability through passages,
-// the world's word set. That is `compileBundle`. Because libraries are
-// vendored the bundle is closed, so whole-bundle checking is exact
-// rather than a guess — and an editor cannot catch every error live.
+// the world's word set. Each file is read first, and what it can be
+// checked for on its own is checked then (`reading.ts`). Because
+// libraries are vendored the bundle is closed, so the check is exact
+// rather than a guess.
 //
 // THE MODES. Saving and publishing are STRICT: any problem is a refusal.
 // Loading is LENIENT: a file that is missing, withheld, mismatched or
@@ -27,7 +24,7 @@
 //
 // `compileBundle` runs the steps in order, each a module of this folder
 // taking the report: the caps to check against, the manifest's own
-// fields, the files, the libraries, what the bundle weighs, the first tier over every file,
+// fields, the files, the libraries, what the bundle weighs, every file read,
 // what each file imports and where each object in a file of its own sits,
 // the `.prose` files each kind points at, the one world, the extensions it
 // pins, the declarations, what the world and its visitors are made
@@ -63,8 +60,9 @@ import { warnUnsaid } from './unsaid.js';
 import { warnUnplayed } from './unplayed.js';
 import { spawnedKinds } from './written.js';
 import { checkFiles } from './files.js';
-import { readFirstTier } from './first-tier.js';
-import { resolveImports } from './imports.js';
+import { readFiles } from './reading.js';
+import { objectKey, resolveImports } from './imports.js';
+import type { Placement } from '../../declare/tree.js';
 import { attachProse } from './prose.js';
 import { absenceRule } from '../absent.js';
 import { checkLibraries } from './libraries.js';
@@ -114,7 +112,7 @@ export interface BundleResult {
 }
 
 /**
- * The second tier: a closed bundle, checked whole. Strict at publish,
+ * A closed bundle, checked whole. Strict at publish,
  * lenient at load.
  */
 export function compileBundle(
@@ -138,14 +136,25 @@ export function compileBundle(
     options.compilerLevel ?? LANGUAGE_LEVEL,
     report,
   );
-  const first = readFirstTier(arrived, usable, manifest.namespace, caps, report);
+  const first = readFiles(arrived, usable, manifest.namespace, caps, report);
   const { ownFileRefused } = first;
   const imported = resolveImports(
     first.byLibrary,
     manifest.namespace,
-    new Set(manifest.files),
+    {
+      files: new Set(manifest.files),
+      libraries: new Set(manifest.libraries.map((library) => library.name)),
+      extensions: new Set(manifest.extensions.map((extension) => extension.name)),
+    },
     report,
   );
+  // A file names an object by its first step where it declares it, or
+  // imports it from the file of its own it is written in.
+  const nameable = (file: string, placement: Placement): boolean => {
+    const declared = placement.declaration.at.source.name;
+    const key = objectKey(declared, placement.declaration.name.text);
+    return declared === file || imported.objects.get(file)?.has(key) === true;
+  };
   const { declarations, byLibrary, gone } = attachProse(
     imported.byLibrary,
     { prose: first.prose, named: new Set(manifest.files) },
@@ -153,7 +162,7 @@ export function compileBundle(
   );
   const theWorld = oneWorld(source, byLibrary, ownFileRefused, report);
 
-  // The second tier over what parsed, with the extensions the world pins
+  // The bundle over what parsed, with the extensions the world pins
   // against the ones the host installed.
   const extensions = pinnedExtensions(source, options.extensions ?? [], byLibrary, report);
   const tables = resolveDeclarations(
@@ -169,7 +178,7 @@ export function compileBundle(
       ? { world: null, visitor: null }
       : worldKinds(theWorld, tables, manifest.namespace, ownFileRefused, report);
   const arrival =
-    theWorld === null ? null : arrivalPlace(theWorld, tables, manifest.namespace, report);
+    theWorld === null ? null : arrivalPlace(theWorld, tables, manifest.namespace, nameable, report);
   checkActors({
     tree: tables.tree,
     objects: tables.composed,
@@ -213,7 +222,11 @@ export function compileBundle(
     verbs: tables.verbs,
     diagnostics: report.diagnostics,
     messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
-    source: { tree: tables.tree, contents: tables.contents },
+    source: {
+      tree: tables.tree,
+      contents: tables.contents,
+      nameable,
+    },
     world,
     names,
     extensions,

@@ -1,1 +1,4 @@
+import {Lantern} from 'lantern'
+import {Case} from 'case'
+
 kind StormLantern is Lantern, Case { }

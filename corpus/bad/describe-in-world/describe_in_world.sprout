@@ -1,4 +1,7 @@
 // Nothing looks at the world, so its own body writes no describe.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world describe_in_world is sprout.World {
   visitors are Person
   visitors arrive at hall

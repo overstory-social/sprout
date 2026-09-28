@@ -1,3 +1,5 @@
+import {unlock} from 'verbs'
+
 kind Door {
   as target for unlock {
     do { say "The lock turns over." }

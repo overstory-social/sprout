@@ -1,5 +1,7 @@
 // A stray `}` inside a world body must not silently drop what is
 // written after it.
+import * as sprout from 'sprout'
+
 world world_stray_brace is sprout.World {
   visitors are Creature
   visitors arrive at hall

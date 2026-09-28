@@ -1,4 +1,4 @@
-printers_shop.sprout:1:7  `shop` is not this world's name.
+printers_shop.sprout:3:7  `shop` is not this world's name.
                           The manifest names it `printers_shop`; write `world printers_shop is sprout.World { … }`, or change the manifest.
 
 refused: 1 problem

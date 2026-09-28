@@ -1,4 +1,4 @@
-safety_crate.sprout:4:29  `SafetyCrate` does not compose `LightSource`, so there is nothing of its to leave out.
+safety_crate.sprout:7:29  `SafetyCrate` does not compose `LightSource`, so there is nothing of its to leave out.
                           After `from`, name a kind `SafetyCrate` composes, or take this line out.
 
 refused: 1 problem

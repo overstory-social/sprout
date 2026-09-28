@@ -1,6 +1,11 @@
 // Nobody owns the containment tree, so a move asks everyone with standing:
 // the thing (`depart`), the container it leaves (`release`) and the one
 // it enters (`accept`), in that order, and the first refusal decides.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Creature} from 'creature'
+import {Tool} from 'tool'
+
 world consent is sprout.World {
   visitors are Person
   visitors arrive at yard

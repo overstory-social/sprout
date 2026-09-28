@@ -1,4 +1,7 @@
 // A role named is given something to fill it.
+import {Creature} from 'creature'
+import {pet} from 'act_role_unfilled'
+
 kind Cat is Creature {
   as target for pet {
     do {

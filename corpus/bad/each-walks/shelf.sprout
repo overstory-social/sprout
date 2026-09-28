@@ -1,3 +1,5 @@
+import {Ward, sort} from 'each_walks'
+
 kind Shelf {
   :wards [Ward] default [oak]
 

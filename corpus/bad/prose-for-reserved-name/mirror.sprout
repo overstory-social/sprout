@@ -1,4 +1,6 @@
 // A loop variable named with a word of the language.
+import {Mood} from 'prose_for_reserved_name'
+
 kind Mirror {
   :mood Mood default drowsy
   contains

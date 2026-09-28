@@ -1,7 +1,7 @@
-name_article.sprout:8:17   A name never begins with an article, and `the brass key` begins with `the`.
+name_article.sprout:12:17  A name never begins with an article, and `the brass key` begins with `the`.
                            Write `name "brass key"`, and say the article on its own line: `article the`.
 
-name_article.sprout:11:17  A name never begins with an article, and `A lamp` begins with `A`.
+name_article.sprout:15:17  A name never begins with an article, and `A lamp` begins with `A`.
                            Write `name "lamp"`, and say the article on its own line: `article a`.
 
 refused: 2 problems

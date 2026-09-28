@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Cuff, nuzzle} from 'printers_shop'
+
 kind Creature is sprout.Actor {
   :capacity 4
   :cuff     Cuff default dry

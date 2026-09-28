@@ -1,5 +1,8 @@
 // A person answers no message, watches no property and says nothing of
 // what passes in its own body; a kind it composes may.
+import * as sprout from 'sprout'
+import {:stir} from 'kinds'
+
 kind Person is sprout.Visitor {
   :stamina 3 min 0 max 9
 

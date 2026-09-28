@@ -1,3 +1,9 @@
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Room} from 'room'
+import {Watched} from 'watched'
+import {Greeted} from 'greeted'
+
 world remembers_two_origins is sprout.World {
   visitors are Creature
   visitors arrive at composing_room

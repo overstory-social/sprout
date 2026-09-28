@@ -1,6 +1,9 @@
 // A link is named by a word of the author's: not a direction, so `go
 // north` never means a link, not a word of the language, and starting
 // with a letter.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world link_not_a_name is sprout.World {
   visitors are Person
   visitors arrive at yard

@@ -27,7 +27,7 @@ function arriving(own: string, mode: 'publish' | 'load' = 'publish') {
   const tables = resolveDeclarations(byLibrary, { namespace: 'shop', name: 'shop' }, report);
   const declared = byLibrary.get('shop')!.find((d): d is WorldDeclaration => d.kind === 'world')!;
   const before = report.diagnostics.all.length;
-  const path = arrivalPlace(declared, tables, 'shop', report);
+  const path = arrivalPlace(declared, tables, 'shop', () => true, report);
   return {
     path,
     said: report.diagnostics.all.slice(before).map((d) => `${locationOf(d.at)} ${d.message}`),

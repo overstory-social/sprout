@@ -1,3 +1,5 @@
+import * as sprout from 'sprout'
+
 kind Room is sprout.World {
   contains actors
 }

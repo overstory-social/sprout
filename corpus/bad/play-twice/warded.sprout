@@ -1,4 +1,6 @@
 // One kind plays one role once: two `permit`s go in one play.
+import {unlock} from 'sprout'
+
 kind Warded {
   :sealed false
 

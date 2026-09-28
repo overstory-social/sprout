@@ -1,3 +1,5 @@
+import {pull} from 'tell_too_long'
+
 kind Lever {
   as target for pull {
     do {

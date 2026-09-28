@@ -1,3 +1,5 @@
+import {work} from 'printers_shop'
+
 kind Rib {
   :cracked false
   :used    false

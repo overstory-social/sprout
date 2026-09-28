@@ -1,3 +1,5 @@
+import {pet} from 'one_of_one_choice'
+
 kind Cat {
   passage purr { {one of}The cat purrs.{/one of} }
   as target for pet { do { say purr } }

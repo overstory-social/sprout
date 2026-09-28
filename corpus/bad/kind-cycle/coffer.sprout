@@ -1,2 +1,4 @@
 // Composing a kind in the loop says nothing more about it.
+import {Chest} from 'chest'
+
 kind Coffer is Chest { }

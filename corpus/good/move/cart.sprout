@@ -1,1 +1,3 @@
+import * as sprout from 'sprout'
+
 kind Cart is sprout.Place { }

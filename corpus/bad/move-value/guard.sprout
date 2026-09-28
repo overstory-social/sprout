@@ -1,5 +1,7 @@
 // A value role holds a word the visitor typed, not a thing in the world,
 // so there is nothing to move.
+import {Topic, enquire} from 'move_value'
+
 kind Guard {
   contains
   :knows [Topic] default [bridge, toll]

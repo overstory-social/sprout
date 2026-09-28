@@ -1,3 +1,5 @@
+import {:kindle} from 'kinds'
+
 kind Lamp {
   :lit false
   on :kindle { self.set(:lit, true) }

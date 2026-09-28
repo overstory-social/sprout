@@ -1,3 +1,5 @@
+import {Mood, ink, peer} from 'prose'
+
 kind Press {
   prose "press.prose"
   :mood   Mood default drowsy

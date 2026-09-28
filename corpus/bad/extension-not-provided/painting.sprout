@@ -1,3 +1,5 @@
+import {view} from 'extension_not_provided'
+
 extension media 1
 
 kind Painting {

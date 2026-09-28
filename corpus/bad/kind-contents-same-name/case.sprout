@@ -1,3 +1,5 @@
+import {Wick} from 'wick'
+
 kind Case {
   contains
   object wick is Wick

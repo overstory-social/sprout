@@ -34,7 +34,14 @@ import {
   type WithoutDeclaration,
 } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { nearestOption, qualifiedName, shownName, SPROUT, type EnumTable } from './enums.js';
+import {
+  lookingFrom,
+  nearestOption,
+  qualifiedName,
+  shownName,
+  SPROUT,
+  type EnumTable,
+} from './enums.js';
 import type { KindRef, Suppression } from './kinds.js';
 import { refuseComposingWorld, WORLD, writesWorld } from './sprout-world.js';
 import {
@@ -151,7 +158,7 @@ function messageSetting(library: string, context: ComposeContext): MessageSettin
  */
 export function identityOf(written: KindExpr, from: string, kinds: KindSource): string {
   if (written.library !== null) return qualifiedName(written.library.text, written.name.text);
-  const own = qualifiedName(from, written.name.text);
+  const own = qualifiedName(lookingFrom(from), written.name.text);
   return kinds.declares(own) ? own : qualifiedName(SPROUT, written.name.text);
 }
 
@@ -170,7 +177,9 @@ export function unknownKind(
   const name = written.name.text;
   const library = written.library?.text ?? null;
   const nearby =
-    library === null ? [...kinds.named(from), ...kinds.named(SPROUT)] : kinds.named(library);
+    library === null
+      ? [...kinds.named(lookingFrom(from)), ...kinds.named(SPROUT)]
+      : kinds.named(library);
   const meant = nearestOption(name, nearby);
   const as = (bare: string): string => (library === null ? bare : `${library}.${bare}`);
   const message = `Nothing here is a \`${writtenKind(written)}\`.`;

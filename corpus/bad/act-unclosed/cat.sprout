@@ -1,5 +1,8 @@
 // An `act`'s bracket left open costs only the `act`: the `say` after it
 // is still read.
+import {Creature} from 'creature'
+import {pet} from 'act_unclosed'
+
 kind Cat is Creature {
   as target for pet {
     do {

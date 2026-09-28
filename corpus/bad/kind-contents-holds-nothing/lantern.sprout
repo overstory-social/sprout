@@ -1,6 +1,8 @@
 // A kind's body may hold objects only where the kind holds things, and
 // a lantern that does not write `contains` holds nothing. It is said once,
 // at the kind, however many lanterns there are.
+import {Wick} from 'wick'
+
 kind Lantern {
   object wick is Wick
 }

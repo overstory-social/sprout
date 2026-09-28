@@ -15,6 +15,9 @@ import { readCommand, type CommandContext, type CommandOutcome } from '../runtim
 import type { CommandExit } from '../runtime/parser/exits.js';
 import { declaredId, type InstanceId } from '../runtime/ids.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /**
  * The corpus world `good/grammar`, file by file, as its folder holds it;
  * `runtime/parser.spec.ts` holds the two to each other.
@@ -23,9 +26,23 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
   'study.sprout': [
     '// What a thing is called and answers to, and the words a visitor types',
     '// for it: names and articles written and left to their defaults, nouns',
-    "// added by an object and by its kind, a kind's name given to every",
+    `// added by an object and by its kind, a kind${Q}s name given to every`,
     '// instance of it, and verbs typed with a thing of a kind, a set of',
     '// things, a number and a topic in their slots.',
+    `import * as sprout from ${Q}sprout${Q}`,
+    `import {Person} from ${Q}person${Q}`,
+    `import {Key} from ${Q}key${Q}`,
+    `import {Lamp} from ${Q}lamp${Q}`,
+    `import {Oil} from ${Q}oil${Q}`,
+    `import {Gong} from ${Q}gong${Q}`,
+    `import {Pebble} from ${Q}pebble${Q}`,
+    `import {Chest} from ${Q}chest${Q}`,
+    `import {Coin} from ${Q}coin${Q}`,
+    `import {Guard} from ${Q}guard${Q}`,
+    `import {Dial} from ${Q}dial${Q}`,
+    `import {Door} from ${Q}door${Q}`,
+    `import {Barrel} from ${Q}barrel${Q}`,
+    '',
     'world study is sprout.World {',
     '  visitors are Person',
     '  visitors arrive at hall',
@@ -73,12 +90,21 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
   'verbs.sprout': [
     '// A verb for each kind of slot: a thing of a kind with a tool one phrase',
     '// leaves out, a set of things, and a number.',
+    `import {Door} from ${Q}door${Q}`,
+    `import {Key} from ${Q}key${Q}`,
+    `import {Dial} from ${Q}dial${Q}`,
+    '',
     'verb unlock { role target: Door  role tool: Key  "unlock [target] with [tool]"  "unlock [target]" }',
     'verb juggle { role things many  "juggle [things]" }',
     'verb turn   { role target: Dial  role number: integer  "turn [target] to [number]" }',
     '',
   ].join('\n'),
-  'person.sprout': ['kind Person is sprout.Visitor { }', ''].join('\n'),
+  'person.sprout': [
+    `import * as sprout from ${Q}sprout${Q}`,
+    '',
+    'kind Person is sprout.Visitor { }',
+    '',
+  ].join('\n'),
   'key.sprout': [
     '// Every key answers to `metal` as well as to its own name.',
     'kind Key {',
@@ -88,7 +114,7 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
   ].join('\n'),
   'lamp.sprout': ['kind Lamp { }', ''].join('\n'),
   'oil.sprout': [
-    "// Oil answers to `lamp` too, and a lamp's own name is still what `lamp` means.",
+    `// Oil answers to \`lamp\` too, and a lamp${Q}s own name is still what \`lamp\` means.`,
     'kind Oil {',
     '  grammar { nouns "lamp" }',
     '}',
@@ -115,6 +141,9 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
   'coin.sprout': ['kind Coin { }', ''].join('\n'),
   'guard.sprout': [
     '// The topics a guard hears are the ones it knows.',
+    `import {Topic} from ${Q}study${Q}`,
+    `import {ask} from ${Q}sprout${Q}`,
+    '',
     'kind Guard {',
     '  :knows [Topic] default [bridge, old_press]',
     '',
@@ -128,6 +157,8 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
     '',
   ].join('\n'),
   'dial.sprout': [
+    `import {turn} from ${Q}verbs${Q}`,
+    '',
     'kind Dial {',
     '  as target for turn {',
     '    number from 1 to 12',
@@ -139,6 +170,8 @@ export const STUDY_FILES: Readonly<Record<string, string>> = {
     '',
   ].join('\n'),
   'door.sprout': [
+    `import {unlock} from ${Q}verbs${Q}`,
+    '',
     'kind Door {',
     '  as target for unlock {',
     '    do { say "The lock turns over." }',

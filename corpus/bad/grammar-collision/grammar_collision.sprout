@@ -1,4 +1,9 @@
 // Two kinds that each name a thing, or each give it an article, collide in whatever composes both.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Brass} from 'brass'
+import {Coin} from 'coin'
+
 world grammar_collision is sprout.World {
   visitors are Person
   visitors arrive at hall

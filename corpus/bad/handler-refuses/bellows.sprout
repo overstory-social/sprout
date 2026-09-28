@@ -1,3 +1,5 @@
+import {:unlock_attempt} from 'kinds'
+
 kind Bellows {
   on :spawned (from) { broadcast :unlock_attempt }
 }

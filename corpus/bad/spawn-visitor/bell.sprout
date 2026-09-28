@@ -1,5 +1,9 @@
 // Nothing spawns a visitor either: a porter the bell summons is an NPC,
 // made of `Creature`, which the people here share with it.
+import {ring} from 'spawn_visitor'
+import {Creature} from 'creature'
+import {Person} from 'person'
+
 kind Bell {
   as target for ring {
     do {

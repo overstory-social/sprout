@@ -1,6 +1,10 @@
 // A world may pin an extension; publishing it on a host that does not
 // provide that extension is refused, since the world would go out with a
 // piece missing. The same world loads on such a host, and runs without it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Painting} from 'painting'
+
 world extension_not_provided is sprout.World {
   visitors are Person
   visitors arrive at hall

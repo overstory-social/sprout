@@ -1,5 +1,9 @@
 // `each` walks what a thing holds, or a set role: a list holds values,
 // and a thing that holds nothing has nothing to walk.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Shelf} from 'shelf'
+
 world each_walks is sprout.World {
   visitors are Person
   visitors arrive at hall

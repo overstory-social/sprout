@@ -1,6 +1,6 @@
-// The second tier's tables: every declaration in the closed bundle, the
+// The bundle's tables: every declaration in the closed bundle, the
 // world's and its libraries' alike, resolved against the rest (the
-// spec's The compiler › Two tiers). Each table is built for every
+// spec's The compiler › One tier). Each table is built for every
 // library before the next, in the order they depend on one another:
 // enums, then messages, which may carry an option; the names of the
 // verbs, which a kind's plays name; kinds, whose properties may hold an
@@ -16,18 +16,12 @@
 // with nothing to fill it; a verb a play names (`verb`) leaves the play
 // out.
 
-import type {
-  Declaration,
-  EnumDeclaration,
-  KindDeclaration,
-  MessageDeclaration,
-  WorldDeclaration,
-} from '../syntax/ast.js';
+import type { Declaration, KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
 import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { EnumTable, SPROUT } from '../declare/enums.js';
+import { EnumTable } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
-import { composesKind, KindTable } from '../declare/kinds.js';
+import { KindTable } from '../declare/kinds.js';
 import { VerbTable } from '../declare/verbs.js';
 import { resolveContents, type KindContents } from '../declare/contents.js';
 import {
@@ -152,14 +146,6 @@ export function resolveDeclarations(
     );
   }
 
-  warnShadows(world.namespace, byLibrary.get(world.namespace) ?? [], {
-    enums,
-    messages,
-    kinds,
-    verbs,
-    diagnostics,
-  });
-
   const contents = resolveContents(
     new Map(
       [...byLibrary].map(([library, declared]) => [
@@ -243,78 +229,4 @@ export function unknownMessageGap(report: DeclarationReport): OnUnknownMessage {
       message,
       remedy,
     );
-}
-
-/** The tables a shadowing warning asks whether the standard library declares a name. */
-interface ShadowTables {
-  readonly enums: EnumTable;
-  readonly messages: MessageTable;
-  readonly kinds: KindTable;
-  readonly verbs: VerbTable;
-  readonly diagnostics: Diagnostics;
-}
-
-/**
- * Warn, once per name, where the world's own declarations take a name the
- * standard library also declares (the spec's Kinds, composition and
- * libraries › Libraries and namespaces: "A world's own declaration taking
- * a standard library name shadows the unqualified form, with a
- * warning."). Only `sprout` counts: a name shared with another pinned
- * library is reachable only qualified and shadows nothing. A world
- * namespaced `sprout` is refused at the manifest before this runs; here
- * it would only mean the standard library's own declarations of
- * themselves, so it warns of nothing.
- */
-function warnShadows(
-  namespace: string,
-  own: readonly Declaration[],
-  { enums, messages, kinds, verbs, diagnostics }: ShadowTables,
-): void {
-  if (namespace === SPROUT) return;
-  const warned = new Set<string>();
-  const shadow = (
-    category: 'enum' | 'message' | 'kind' | 'verb',
-    declared: EnumDeclaration | MessageDeclaration | KindDeclaration | VerbDeclaration,
-    declaresInStandard: boolean,
-  ): void => {
-    const name = declared.name.text;
-    const key = `${category}:${name}`;
-    if (warned.has(key) || !declaresInStandard) return;
-    warned.add(key);
-    diagnostics.warn(
-      declared.name.at,
-      `\`${name}\` hides \`${SPROUT}.${name}\`: a bare \`${name}\` in this world is now yours.`,
-      // No syntax writes a verb with its library, so the library's is
-      // reached only by leaving the name to it.
-      category === 'verb'
-        ? `Where the library's \`${name}\` is still meant, give yours another name.`
-        : `Write \`${SPROUT}.${name}\` where the library's is meant, or give yours another name.`,
-    );
-  };
-  for (const declared of own) {
-    switch (declared.kind) {
-      case 'enum':
-        shadow('enum', declared, enums.qualified(SPROUT, declared.name.text) !== null);
-        break;
-      case 'message':
-        shadow('message', declared, messages.qualified(SPROUT, declared.name.text) !== null);
-        break;
-      case 'kind': {
-        // A kind that composes the one it hides plainly means both.
-        const hidden = kinds.qualified(SPROUT, declared.name.text);
-        const mine = kinds.qualified(namespace, declared.name.text);
-        shadow('kind', declared, hidden !== null && (mine === null || !composesKind(mine, hidden)));
-        break;
-      }
-      case 'verb':
-        // An engine verb's name was refused, and hides nothing.
-        shadow(
-          'verb',
-          declared,
-          verbs.qualified(namespace, declared.name.text) !== null &&
-            verbs.qualified(SPROUT, declared.name.text) !== null,
-        );
-        break;
-    }
-  }
 }

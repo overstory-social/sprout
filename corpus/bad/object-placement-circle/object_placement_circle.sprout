@@ -1,4 +1,7 @@
 // Two objects each placed inside the other.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world object_placement_circle is sprout.World {
   visitors are Person
   visitors arrive at yard

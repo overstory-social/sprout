@@ -1,6 +1,8 @@
 // Written against `elapsed`, so a wake delivered late, after an absence,
 // grows the seedling as far as the time that passed, in one step, and it
 // asks again only until ten hours' growth is in.
+import {fire} from 'wakes'
+
 kind Seedling {
   :growing 0 min 0 max 36000
 

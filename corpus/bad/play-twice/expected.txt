@@ -1,4 +1,4 @@
-warded.sprout:9:3  `Warded` plays `target` for `unlock` twice.
-                   Keep one, and write what both do in it.
+warded.sprout:11:3  `Warded` plays `target` for `unlock` twice.
+                    Keep one, and write what both do in it.
 
 refused: 1 problem

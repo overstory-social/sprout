@@ -4,12 +4,14 @@
 // skill is generated, and what the skill says of it is what compiling it
 // said: so the skill cannot show text the compiler does not accept, or
 // put words in the compiler's mouth. A snippet is compiled on the bench,
-// a world of one place that nothing else is in.
+// a world of one place that nothing else is in, each file importing what
+// it needs at its top.
 
 import { LANGUAGE_LEVEL, libraryHash, type Manifest, type MicroworldSource } from '../bundle.js';
 import { DEFAULT_BLESSED } from '../blessed.js';
 import { compileBundle, type BundleResult } from '../compile/compile.js';
 import { MANIFEST_FILE } from '../manifest.js';
+import { neededImports } from '../needed-imports.js';
 import { STANDARD_LIBRARY } from '../standard-library.js';
 import { SourceFile } from '../../source/source.js';
 
@@ -24,6 +26,8 @@ export interface Snippet {
   readonly files?: Readonly<Record<string, string>>;
   /** Written inside `object hall is sprout.Place { … }`, indented as its members are. */
   readonly hall?: string;
+  /** Leave the snippet's own files exactly as written, importing nothing for them. */
+  readonly bare?: true;
 }
 
 /** The bench world's name. */
@@ -79,13 +83,34 @@ export function onTheBench(snippet: Snippet = {}): ExampleWorld {
     '}',
     '',
   ].join('\n');
-  return {
-    name: BENCH,
-    files: {
-      [`${BENCH}.sprout`]: world,
-      'person.sprout': 'kind Person is sprout.Visitor { }\n',
-      ...snippet.files,
+  return importing(
+    {
+      name: BENCH,
+      files: {
+        [`${BENCH}.sprout`]: world,
+        'person.sprout': 'kind Person is sprout.Visitor { }\n',
+        ...snippet.files,
+      },
     },
+    snippet.bare === true ? new Set(Object.keys(snippet.files ?? {})) : new Set(),
+  );
+}
+
+/** `world` with the imports each file but those `bare` needs written at its top, as an author writes them. */
+export function importing(
+  world: ExampleWorld,
+  bare: ReadonlySet<string> = new Set(),
+): ExampleWorld {
+  const files = Object.entries(world.files).map(([name, text]) => new SourceFile(name, text));
+  const needed = neededImports(files, [STANDARD_LIBRARY]);
+  return {
+    name: world.name,
+    files: Object.fromEntries(
+      Object.entries(world.files).map(([name, text]) => {
+        const lines = bare.has(name) ? undefined : needed.get(name);
+        return [name, lines === undefined ? text : `${lines.join('\n')}\n\n${text}`];
+      }),
+    ),
   };
 }
 

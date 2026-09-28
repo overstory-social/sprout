@@ -1,4 +1,8 @@
 // One body writes two describes.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
 world describe_twice is sprout.World {
   visitors are Person
   visitors arrive at hall

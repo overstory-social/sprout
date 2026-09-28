@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world handler_reads_actor is sprout.World {
   visitors are Person
   visitors arrive at hall

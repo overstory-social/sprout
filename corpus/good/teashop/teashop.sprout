@@ -1,4 +1,9 @@
 // A two-room tea shop: the world the manual's quickstart builds.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Teapot} from 'teapot'
+import {Spoon} from 'spoon'
+
 world teashop is sprout.World {
   visitors are Person
   visitors arrive at front_room

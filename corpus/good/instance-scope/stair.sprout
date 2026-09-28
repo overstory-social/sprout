@@ -1,4 +1,6 @@
 // A stair leads up to whichever `hall` is nearest it.
+import * as sprout from 'sprout'
+
 kind Stair is sprout.Place {
   grammar { exit up "up the stair" -> hall }
 }

@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world act_roles_no_comma is sprout.World {
   contains actors
   visitors are Person

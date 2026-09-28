@@ -1,4 +1,7 @@
 // The topics a guard hears are the ones it knows.
+import {Topic} from 'study'
+import {ask} from 'sprout'
+
 kind Guard {
   :knows [Topic] default [bridge, old_press]
 

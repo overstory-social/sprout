@@ -1,4 +1,6 @@
 // A passage read off a role of no kind.
+import {work} from 'prose_passage_open_object'
+
 kind Press {
   as target for work {
     do { say "{tool.shine}" }

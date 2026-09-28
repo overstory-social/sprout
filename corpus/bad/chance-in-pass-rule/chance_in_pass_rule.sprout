@@ -1,3 +1,7 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Sieve} from 'sieve'
+
 world chance_in_pass_rule is sprout.World {
   visitors are Person
   visitors arrive at yard

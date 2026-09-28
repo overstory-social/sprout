@@ -1,3 +1,5 @@
+import {:stir, pet} from 'chance'
+
 kind Cat {
   :asleep false
   on :stir { self.set(:asleep, !self.get(:asleep)) }

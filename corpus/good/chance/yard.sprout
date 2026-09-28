@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {:stir} from 'chance'
+
 kind Yard is sprout.Place {
   on :tick (elapsed) {
     if (chance(8)) { broadcast :stir }

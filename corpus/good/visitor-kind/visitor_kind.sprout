@@ -1,3 +1,7 @@
+import * as sprout from 'sprout'
+import {Visitor} from 'visitor'
+import {Creature} from 'creature'
+
 world visitor_kind is sprout.World {
   visitors are Visitor
   visitors arrive at kitchen

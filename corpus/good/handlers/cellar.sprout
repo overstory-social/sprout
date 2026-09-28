@@ -1,5 +1,8 @@
 // The engine's messages bind what they name, positionally, under the
 // author's names, and are read only through `is()`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 kind Cellar is sprout.Place {
   :arrivals 0 min 0 max 999
   on :entered (thing, _) {

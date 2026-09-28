@@ -6,6 +6,13 @@
 // into the hall is the hall's. The world's name fixes a name from
 // anywhere, as `instance_scope.beacon` does. The cellar's stair is a
 // kind's too, and leads up to whichever `hall` is nearest it.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Lamp} from 'lamp'
+import {Lantern} from 'lantern'
+import {Cupboard} from 'cupboard'
+import {Stair} from 'stair'
+
 world instance_scope is sprout.World {
   visitors are Creature
   visitors arrive at hall

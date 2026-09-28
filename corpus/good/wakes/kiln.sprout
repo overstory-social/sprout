@@ -1,3 +1,5 @@
+import {Firing, fire} from 'wakes'
+
 kind Kiln {
   :state Firing default cool
 

@@ -1,6 +1,8 @@
 // A shelf takes what it is named with onto itself, and says no when full.
 // Where a visitor named a tool, the tool goes up too, read only once
 // `bound` has said it is there.
+import {shelve, tidy} from 'moving'
+
 kind Shelf {
   contains
   :capacity 3 min 0 max 9

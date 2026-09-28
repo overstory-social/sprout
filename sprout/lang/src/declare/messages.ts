@@ -18,7 +18,7 @@ import { isMemberWord } from '../syntax/reserved.js';
 import { readable } from '../source/words.js';
 import { ENGINE_MESSAGES, engineMessage, type EngineMessage } from './engine-messages.js';
 import type { EnumTable } from './enums.js';
-import { nearestOption, qualifiedName, SPROUT } from './enums.js';
+import { lookingFrom, nearestOption, qualifiedName, SPROUT } from './enums.js';
 import { resolveType, type ValueType } from './types.js';
 
 const ENGINE_NAMES = ENGINE_MESSAGES.map((message) => `:${message.name}`);
@@ -154,7 +154,7 @@ export class MessageTable implements MessageLookup {
 
   /** A message written without a library: the asking world's own first, then `sprout`'s. */
   unqualified(name: string, from: string): DeclaredMessage | null {
-    return this.qualified(from, name) ?? this.qualified(SPROUT, name);
+    return this.qualified(lookingFrom(from), name) ?? this.qualified(SPROUT, name);
   }
 
   /** Every message in the bundle, in the order it was added. */

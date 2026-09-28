@@ -1,4 +1,4 @@
-safety_lamp.sprout:4:11  `LightSource` has no `changed :lit` to leave out.
+safety_lamp.sprout:6:11  `LightSource` has no `changed :lit` to leave out.
                          `without` names a member the kind after `from` declares itself. Take this line out, or name the kind that declares `changed :lit`.
 
 refused: 1 problem

@@ -1,1 +1,4 @@
+import {FrontDoor} from 'front_door'
+import {BackDoor} from 'back_door'
+
 kind Porch is FrontDoor, BackDoor { }

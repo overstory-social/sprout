@@ -1,4 +1,6 @@
 // A lamp shows whatever stands where the one lighting it is.
+import {light} from 'here_not_a_place'
+
 kind Lamp {
   as target for light {
     do {

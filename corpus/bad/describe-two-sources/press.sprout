@@ -1,1 +1,4 @@
+import {Iron} from 'iron'
+import {Wood} from 'wood'
+
 kind Press is Iron, Wood { }

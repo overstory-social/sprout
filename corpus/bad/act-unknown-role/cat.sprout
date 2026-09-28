@@ -1,4 +1,7 @@
 // A role is one the verb declares, and the target is never left out.
+import {Creature} from 'creature'
+import {pet, nuzzle} from 'act_unknown_role'
+
 kind Cat is Creature {
   as target for pet {
     do {

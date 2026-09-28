@@ -1,5 +1,9 @@
 // A lock rusted open at the plate: `Lockable`'s refusal and bolt are left
 // out, and `Warded`'s ward still runs.
+import {Warded} from 'warded'
+import {unlock} from 'roles'
+import {Lockable} from 'lockable'
+
 kind Rusted is Warded {
   without as target for unlock from Lockable
 }

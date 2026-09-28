@@ -1,8 +1,7 @@
 // The source parser's context, which every grammar module beside it
 // takes as its first argument: the cursor over the lexer's tokens, the
 // depth bound and its once-per-declaration report, and the two questions
-// of whether a declaration starts here (the first tier of the spec's The
-// compiler › Two tiers).
+// of whether a declaration starts here.
 //
 // `readers` is the table of what it reads: every place that asks "does a
 // declaration start here?" reads that one table, so the answer cannot
@@ -49,6 +48,9 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
   // `message :stir` — the colon before the name is the whole of it, and
   // there is no brace to fall back on.
   ['message', (name: Token) => name.kind === 'symbol'],
+  // `import {Key} from …` or `import * as sprout from …` — the brace or
+  // the star is the whole of it.
+  ['import', (name: Token) => punct(name, '{') || punct(name, '*')],
   // `verb take { … }` — a name, then the brace its roles and phrases go
   // in: lower-case, or capitalised so that the refusal can say so. Or
   // the brace on its own, as for an enum.

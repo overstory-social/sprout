@@ -1,6 +1,9 @@
 // A link is its name, a word of the author's in lower case, then its
 // label in quotes; each line written wrong is refused once, and the good
 // line after it is kept.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world link_lines is sprout.World {
   visitors are Person
   visitors arrive at yard

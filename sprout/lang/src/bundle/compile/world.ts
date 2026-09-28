@@ -6,9 +6,8 @@
 // whose own body declares no behaviour. None, or two, is the absent
 // table's `world` row, and so is a kind the world is made of that is not
 // there; a visitor kind that is not there is its `visitor-kind` row.
-// Each is refused at publish, and at load the world admits no one. The
-// world in a file not named for the manifest's name is refused at
-// publish and warned about at load, as a misplaced kind is, and stands.
+// Each is refused at publish, and at load the world admits no one. Which
+// file holds the world is the author's to choose.
 
 import type { Declaration, WorldDeclaration } from '../../syntax/ast.js';
 import type { MicroworldSource } from '../bundle.js';
@@ -16,8 +15,6 @@ import type { KindRef } from '../../declare/kinds.js';
 import { writtenKind } from '../../declare/compose.js';
 import { composeWorld, resolveVisitors } from '../../declare/world.js';
 import { checkVisitorBody } from '../../declare/actors.js';
-import { checkWorldFile } from '../../declare/file-names.js';
-import { Diagnostics } from '../../source/diagnostics.js';
 import type { Span } from '../../source/source.js';
 import { absenceRule } from '../absent.js';
 import { unknownMessageGap, unknownVerbGap, type DeclarationTables } from '../declarations.js';
@@ -43,7 +40,7 @@ export function oneWorld(
   const ownWorlds = (byLibrary.get(manifest.namespace) ?? []).filter(
     (d): d is WorldDeclaration => d.kind === 'world',
   );
-  // At publish, a file the first tier refused may well be the one that
+  // At publish, a file refused as it was read may well be the one that
   // holds the world, and the bundle is refused for that defect already,
   // so "none" is not said until every file reads. At load that file is
   // absent instead, and "none" is answered over what is usable, the same
@@ -100,17 +97,7 @@ export function oneWorld(
       );
     }
   }
-  const theWorld =
-    ownWorlds.length === 1 && ownWorlds[0]!.name.text === manifest.name ? ownWorlds[0]! : null;
-  // The manifest's name picks the world's file. A world under another
-  // name is refused for that alone: which file it goes in follows from
-  // whichever of the two names is kept.
-  if (theWorld !== null) {
-    const layout = new Diagnostics();
-    checkWorldFile(theWorld, manifest.name, layout);
-    for (const { at, message, remedy } of layout.all) report.strict(at, message, remedy);
-  }
-  return theWorld;
+  return ownWorlds.length === 1 && ownWorlds[0]!.name.text === manifest.name ? ownWorlds[0]! : null;
 }
 
 /** What the world and a visitor are made of; each null only in a loaded world that admits no one. */

@@ -1,3 +1,8 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+import {Lantern} from 'lantern'
+
 world kind_name_unnarrowed is sprout.World {
   visitors are Person
   visitors arrive at hall

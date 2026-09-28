@@ -1,6 +1,9 @@
 // The world's own `take`, beside the standard library's: a bare `take`
 // in this world is now this one, and the warning says so once, at the
 // declaration.
+import * as sprout from 'sprout'
+import {Actor} from 'sprout'
+
 verb take {
   role target
   "take [target]"

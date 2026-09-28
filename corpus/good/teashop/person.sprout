@@ -1,2 +1,4 @@
 // What visitors are made of: the library's person, as it comes.
+import * as sprout from 'sprout'
+
 kind Person is sprout.Visitor { }

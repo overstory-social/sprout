@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world act_no_roles_verb is sprout.World {
   contains actors
   visitors are Person

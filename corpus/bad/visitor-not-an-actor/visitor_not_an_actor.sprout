@@ -1,5 +1,8 @@
 // A world's visitors are made of an actor: a kind composing
 // `sprout.Actor`. A hall holds actors, and is not one.
+import * as sprout from 'sprout'
+import {Hall} from 'hall'
+
 world visitor_not_an_actor is sprout.World {
   visitors are Hall
   visitors arrive at hall

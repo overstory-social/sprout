@@ -1,4 +1,6 @@
 // A draw is given one number above zero, written out.
+import {roll} from 'chance_bounds'
+
 kind Die {
   :face 0 min 0 max 5
   as target for roll {

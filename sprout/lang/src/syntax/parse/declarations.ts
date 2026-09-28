@@ -1,5 +1,5 @@
-// A file, and the declarations it holds: the `extension` and `import`
-// lines at its top, then `enum`, `kind`, `message`, `verb` and `world` (the spec's
+// A file, and the declarations it holds: the `extension` lines at its
+// top, `import` lines anywhere at its top level, then `enum`, `kind`, `message`, `verb` and `world` (the spec's
 // Extensions › Activation and absence, Properties › Enums, Kinds ›
 // Declaring and composing, Events › Declaring a message, Verbs ›
 // Declaring a verb, The world model). `DECLARATION_READERS` is the one table of the words
@@ -32,12 +32,7 @@ export function file(p: Parser): Declaration[] {
       if (used !== null) declarations.push(used);
       continue;
     }
-    if (token.kind === 'name' && token.text === 'import') {
-      const imported = importDeclaration(p, !started);
-      if (imported !== null) declarations.push(imported);
-      continue;
-    }
-    started = true;
+    if (token.kind !== 'name' || token.text !== 'import') started = true;
     const read = token.kind === 'name' ? p.readers.get(token.text) : undefined;
     if (read !== undefined) {
       // Each declaration is owed its own account of being too deep.
@@ -228,6 +223,7 @@ export const DECLARATION_READERS: ReadonlyMap<string, DeclarationReader> = new M
   DeclarationReader
 >([
   ['enum', enumDeclaration],
+  ['import', importDeclaration],
   ['kind', kindDeclaration],
   ['message', messageDeclaration],
   ['object', topLevelObject],

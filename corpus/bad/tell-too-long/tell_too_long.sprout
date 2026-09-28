@@ -1,4 +1,7 @@
 // A line in quotes longer than the host lets a `tell` be.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world tell_too_long is sprout.World {
   visitors are Person
   visitors arrive at hall

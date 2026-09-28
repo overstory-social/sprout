@@ -1,4 +1,9 @@
 // An open tool, which `"unlock [target]"` leaves out, so it is optional.
+import * as sprout from 'sprout'
+import {Lockable} from 'lockable'
+import {Clay} from 'clay'
+import {Rib} from 'rib'
+
 verb unlock {
   role target: Lockable
   role tool

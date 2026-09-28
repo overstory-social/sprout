@@ -1,5 +1,8 @@
 // Every lantern holds a wick, which holds a flame: what a kind's body
 // holds may hold objects of its own.
+import {Wick} from 'wick'
+import {Flame} from 'flame'
+
 kind Lantern {
   contains
   :lit false

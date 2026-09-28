@@ -1,5 +1,9 @@
 // An exit leads somewhere a visitor can stand: a shelf holds things, and
 // not people; the world holds the places.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Shelf} from 'shelf'
+
 world exit_to_non_place is sprout.World {
   visitors are Person
   visitors arrive at yard

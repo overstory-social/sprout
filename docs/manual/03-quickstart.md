@@ -29,6 +29,9 @@ teashop/
 Open `teashop.sprout`:
 
 ```sprout
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world teashop is sprout.World {
   visitors are Person
   visitors arrive at hall
@@ -39,6 +42,11 @@ world teashop is sprout.World {
 
 Line by line:
 
+- `import * as sprout from 'sprout'` — brings in the _standard library_
+  that comes with Sprout, so this file can write `sprout.World` and
+  `sprout.Place`. A file uses only what it imports.
+- `import {Person} from 'person'` — brings in `Person` from
+  `person.sprout`.
 - `world teashop is sprout.World` — this is the world, and it is built on
   `sprout.World`, which comes with Sprout and supplies the stock phrases
   like "You see nothing like that here." Everything in the world goes
@@ -65,7 +73,8 @@ It works, but it is not much of a tea shop. Press Ctrl-D to leave.
 
 ## 2. Describe the front room
 
-Replace the world with this:
+Keep the two `import` lines at the top, and replace the world below them
+with this:
 
 ```sprout
 world teashop is sprout.World {
@@ -209,13 +218,20 @@ spoon in it to the kitchen, after its `describe`:
 - The spoon is made of `Spoon`, which does not exist yet.
 
 Every object is made of one or more _kinds_: a kind says what a sort of
-thing is and does. Each kind lives in its own file, named after it. Make
-`teashop/spoon.sprout`:
+thing is and does. A kind can go in any file; this one gets a file of its
+own. Make `teashop/spoon.sprout`:
 
 ```sprout
 kind Spoon {
   grammar { name "caddy spoon" }
 }
+```
+
+A file uses only what it imports, so add this line to the top of
+`teashop.sprout`, beside the other two:
+
+```sprout
+import {Spoon} from 'spoon'
 ```
 
 Then tell the manifest about the new file. Open `sprout.json` and add
@@ -260,10 +276,13 @@ teapot` both work, and `brew spoon` does not, because the spoon is not a
 teapot.
 
 The verb only says what may be typed. What _happens_ is up to the teapot.
-Make `teashop/teapot.sprout`:
+Make `teashop/teapot.sprout`. It imports `brew` from the world's file,
+where the verb is declared:
 
 ```sprout
 // A teapot: empty until someone brews in it.
+import {brew} from 'teashop'
+
 kind Teapot {
   grammar { nouns "pot" }
 
@@ -303,6 +322,12 @@ Put a teapot in the kitchen, beside the caddy:
 
 ```sprout
     object teapot is Teapot
+```
+
+Import it at the top of `teashop.sprout`, where the verb names it too:
+
+```sprout
+import {Teapot} from 'teapot'
 ```
 
 Add `teapot.sprout` to the manifest's `files`, then play:
@@ -482,14 +507,14 @@ you the file, the line and the column, what is wrong, and what to write
 instead. Misspell the property in the teapot's `describe`:
 
 ```text
-teapot.sprout:9:18  `Teapot` has no `:brewd`. Did you mean `:brewed`?
-                    It has `:brewed`: name one of those, or declare `:brewd` in `Teapot` with its default.
+teapot.sprout:11:18  `Teapot` has no `:brewd`. Did you mean `:brewed`?
+                     It has `:brewed`: name one of those, or declare `:brewd` in `Teapot` with its default.
 ```
 
 Or give it the wrong sort of value, `self.set(:brewed, "yes")`:
 
 ```text
-teapot.sprout:16:25  `:brewed` holds true or false, and "yes" is text in quotes.
+teapot.sprout:18:25  `:brewed` holds true or false, and "yes" is text in quotes.
                      Write `true` or `false`, or a condition, as in `self.get(:open)`.
 ```
 
@@ -502,9 +527,10 @@ Some tips:
 - **Warnings are not errors.** `sprout check` also warns about things that
   are allowed but probably a mistake — a message nothing listens for, a
   wake nothing answers. Read them; they are usually right.
-- **Every kind in its own file**, named after the kind: `kind Teapot` in
-  `teapot.sprout`, `kind TeaCaddy` in `tea_caddy.sprout`. And every file
-  listed in `sprout.json`.
+- **Import what a file uses.** A name another file declares, or the
+  standard library's, needs an `import` at the top of the file that uses
+  it; the compiler says which one is missing and the line to write. And
+  every file is listed in `sprout.json`.
 
 ## What you have learned
 

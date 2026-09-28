@@ -3,6 +3,13 @@
 // `hall.shelf.brass.wick` and `hall.shelf.tin.wick`, and the brass one
 // holds a spare beside it, written in its own body. A lantern the
 // cupboard makes comes with its wick too.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Shelf} from 'shelf'
+import {Lantern} from 'lantern'
+import {Wick} from 'wick'
+import {Cupboard} from 'cupboard'
+
 world kind_contents is sprout.World {
   visitors are Creature
   visitors arrive at hall

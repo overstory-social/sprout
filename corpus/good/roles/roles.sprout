@@ -2,6 +2,15 @@
 // played for with `permit` and `do`, an optional tool read under
 // `bound`, a value tool narrowed with `from`, two kinds playing one role
 // and composing, a play left out with `without`, and the actor's own part.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lever} from 'lever'
+import {Warded} from 'warded'
+import {Rusted} from 'rusted'
+import {Key} from 'key'
+import {Guard} from 'guard'
+import {Lockable} from 'lockable'
+
 world roles is sprout.World {
   visitors are Person
   visitors arrive at hall

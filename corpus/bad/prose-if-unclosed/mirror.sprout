@@ -1,4 +1,6 @@
 // An `{if}` whose `{/if}` was never written.
+import {Mood} from 'prose_if_unclosed'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting {

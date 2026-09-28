@@ -3,6 +3,9 @@
 // of each, so everyone comes into the yard carrying a satchel of their
 // own; a returning visitor comes back with what they carried away, and is
 // never given those contents again. `transcripts/satchel.txt` plays it.
+import * as sprout from 'sprout'
+import {Visitor} from 'visitor'
+
 world visitor_contents is sprout.World {
   visitors are Visitor
   visitors arrive at yard

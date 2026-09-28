@@ -1,4 +1,6 @@
 // A restatement changes a default and keeps the type, range and all.
+import {Wooden} from 'wooden'
+
 kind Chest is Wooden {
   :worn 0 min 0 max 99
 }

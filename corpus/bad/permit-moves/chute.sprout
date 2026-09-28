@@ -1,5 +1,7 @@
 // A `permit` is asked before anything happens, so it may only read and
 // decide. Moving the actor belongs in `do`.
+import {pull} from 'permit_moves'
+
 kind Chute {
   contains actors
 

@@ -1,3 +1,5 @@
+import {:pong} from 'kinds'
+
 kind Ball {
   on :pong (from, n) { send n :pong with n }
 }

@@ -2,6 +2,12 @@
 // in a `do`, a handler and a hook, and in a passage those say. A cat whose
 // sleep is changed by a tick, not by the die, so two visitors in the
 // yard see the same cat; a coin that lands on a face and counts heads.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Yard} from 'yard'
+import {Cat} from 'cat'
+import {Coin} from 'coin'
+
 world chance is sprout.World {
   visitors are Person
   visitors arrive at yard

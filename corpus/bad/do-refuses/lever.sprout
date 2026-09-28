@@ -1,5 +1,7 @@
 // A `do` runs once every `permit` has allowed, so it has nothing left to
 // refuse.
+import {pull} from 'do_refuses'
+
 kind Lever {
   :pulled false
 

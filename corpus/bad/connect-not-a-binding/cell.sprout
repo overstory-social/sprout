@@ -1,3 +1,7 @@
+import * as sprout from 'sprout'
+import {dig} from 'connect_not_a_binding'
+import {Pebble} from 'pebble'
+
 kind Cell is sprout.Place {
   grammar { link onward "deeper into the dark"  link back "back" }
   as target for dig {

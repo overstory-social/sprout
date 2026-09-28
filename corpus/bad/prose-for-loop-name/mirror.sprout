@@ -1,4 +1,6 @@
 // A loop variable named as a loop's own names are.
+import {Mood} from 'prose_for_loop_name'
+
 kind Mirror {
   :mood Mood default drowsy
   contains

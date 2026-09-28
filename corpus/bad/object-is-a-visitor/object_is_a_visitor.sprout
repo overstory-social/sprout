@@ -1,6 +1,9 @@
 // Nothing declares a visitor: each one is a person who arrives. A porter
 // with nobody behind it is an NPC, made of what a person shares with it
 // and not of what a person is made of.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world object_is_a_visitor is sprout.World {
   visitors are Person
   visitors arrive at hall

@@ -2,6 +2,14 @@
 // world writes its own `nothing_happens`, which replaces `sprout.World`'s
 // stock line, and composes `Terse` beside it, whose `unknown` is not a
 // default and so replaces that one too.
+import * as sprout from 'sprout'
+import {Terse} from 'terse'
+import {Creature} from 'creature'
+import {Hushed} from 'hushed'
+import {Mirror} from 'mirror'
+import {Bold} from 'bold'
+import {Both} from 'both'
+
 world passage_composition is sprout.World, Terse {
   visitors are Creature
   visitors arrive at hall

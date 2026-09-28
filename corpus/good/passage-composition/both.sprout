@@ -1,1 +1,4 @@
+import {Left} from 'left'
+import {Right} from 'right'
+
 kind Both is Left, Right { }

@@ -1,4 +1,7 @@
 // Opening the cupboard makes a lantern, wick and flame and all.
+import {open} from 'kinds'
+import {Lantern} from 'lantern'
+
 kind Cupboard {
   contains
 

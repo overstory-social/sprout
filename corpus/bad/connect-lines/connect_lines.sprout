@@ -1,5 +1,8 @@
 // `connect` names one of `self`'s links by its name, `to`, and what
 // it leads to; each written wrong is refused once.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world connect_lines is sprout.World {
   visitors are Person
   visitors arrive at yard

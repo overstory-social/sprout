@@ -1,4 +1,4 @@
-cat.sprout:5:18  `act` performs a verb, and is not something to read.
+cat.sprout:8:18  `act` performs a verb, and is not something to read.
                  Write it on its own line, as in `act nuzzle (target: p)`.
 
 refused: 1 problem

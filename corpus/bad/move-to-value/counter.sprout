@@ -1,4 +1,6 @@
 // What a thing goes into is a thing that holds things, never a number.
+import {bump} from 'move_to_value'
+
 kind Counter {
   :n 0 min 0 max 9
 

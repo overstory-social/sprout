@@ -1,4 +1,6 @@
 // So would a lantern whose wick holds a lantern, through two kinds.
+import {Wick} from 'wick'
+
 kind Lantern {
   contains
   object wick is Wick

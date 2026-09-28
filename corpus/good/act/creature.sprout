@@ -1,4 +1,7 @@
 // Everyone, a person or a cat, nuzzles the same way.
+import * as sprout from 'sprout'
+import {nuzzle} from 'acting'
+
 kind Creature is sprout.Actor {
   as actor for nuzzle { do { say "You nuzzle {target}." } }
 }

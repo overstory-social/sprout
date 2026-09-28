@@ -1,5 +1,7 @@
 // `SafetyLamp` composes `LightSource`, but nothing in `LightSource` is
 // a `changed :lit` hook, so there is nothing to leave out.
+import {LightSource} from 'light_source'
+
 kind SafetyLamp is LightSource {
   without changed :lit from LightSource
 }

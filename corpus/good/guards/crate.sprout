@@ -1,4 +1,6 @@
 // A lid and a capacity, and a passage for each refusal.
+import {Creature} from 'creature'
+
 kind Crate {
   contains
   :open true

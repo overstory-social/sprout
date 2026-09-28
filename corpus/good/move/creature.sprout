@@ -2,6 +2,9 @@
 // `actor` is the one whose body runs, so it is the mover, and
 // `sprout.Actor`'s `depart` consents. The part is written on a kind a
 // person composes, since a person's own kind has no behaviour.
+import * as sprout from 'sprout'
+import {board} from 'moving'
+
 kind Creature is sprout.Actor {
   as actor for board { do { move actor to target  say "You climb aboard." } }
 }

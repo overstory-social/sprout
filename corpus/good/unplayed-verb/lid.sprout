@@ -1,3 +1,5 @@
+import {pry} from 'unplayed_verb'
+
 kind Lid {
   as target for pry { do { say "The lid gives with a crack." } }
 }

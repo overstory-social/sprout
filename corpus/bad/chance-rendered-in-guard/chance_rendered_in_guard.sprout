@@ -1,3 +1,8 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Tower} from 'tower'
+import {Bell} from 'bell'
+
 world chance_rendered_in_guard is sprout.World {
   visitors are Person
   visitors arrive at yard

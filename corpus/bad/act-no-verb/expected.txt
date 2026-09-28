@@ -1,4 +1,4 @@
-cat.sprout:5:10  `act` does not say which verb to perform.
+cat.sprout:8:10  `act` does not say which verb to perform.
                  Write the verb and its roles, as in `act nuzzle (target: p)`.
 
 refused: 1 problem

@@ -1,4 +1,6 @@
 // A porter carries twelve, and restates the same `:capacity` for itself.
+import * as sprout from 'sprout'
+
 kind Porter is sprout.Actor {
   :capacity 12
 }

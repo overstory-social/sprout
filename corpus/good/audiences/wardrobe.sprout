@@ -2,6 +2,9 @@
 // told alone, and the coats' rustle, a plain `tell`, reaches both its own
 // occupants and the hall around it. `peer`s into it hear only the one
 // audience its own kind of nosiness belongs to.
+import * as sprout from 'sprout'
+import {peer} from 'audiences'
+
 kind Wardrobe is sprout.Place {
   on :entered (item, from) {
     tell item "Coats close around you."

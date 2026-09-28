@@ -1,4 +1,6 @@
 // The kind points at its `.prose` file.
+import {Mood} from 'prose_file_holds_other'
+
 kind Mirror {
   :mood Mood default drowsy
   prose "mirror.prose"

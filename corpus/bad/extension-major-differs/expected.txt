@@ -1,4 +1,4 @@
-painting.sprout:3:17  The manifest pins `media` at major version 1, and this file names 2.
+painting.sprout:5:17  The manifest pins `media` at major version 1, and this file names 2.
                       Write `extension media 1`, the major version the manifest pins.
 
 sprout.json:7:28      This host does not provide the extension `media`.

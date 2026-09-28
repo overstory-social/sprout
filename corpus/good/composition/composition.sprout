@@ -1,4 +1,11 @@
 // A printer's shop made of kinds and objects the world declares itself.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Room} from 'room'
+import {Lidded} from 'lidded'
+import {Heavy} from 'heavy'
+import {Chest} from 'chest'
+
 world composition is sprout.World {
   contains
   visitors are Creature
