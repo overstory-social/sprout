@@ -1,0 +1,19 @@
+{
+  "about": "Brewing fills the pot once, and a friend in the room sees it happen.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "arrive": "Ben" },
+    { "as": "Marta", "type": "north" },
+    { "as": "Ben", "type": "north" },
+    { "as": "Marta", "type": "brew teapot", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You warm the pot, spoon in the leaves and pour. It smells like rain." },
+      { "reader": "Ben", "kind": "told", "words": "Marta brews a pot of tea." }
+    ] },
+    { "as": "Ben", "type": "brew pot", "expect": [
+      { "words": "It is already full of tea." }
+    ] },
+    { "as": "Ben", "type": "x teapot", "expect": [
+      { "words": "The teapot is warm and full." }
+    ] }
+  ]
+}

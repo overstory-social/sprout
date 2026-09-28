@@ -1,9 +1,9 @@
 // `npm run check`, its second half: the golden transcripts. Every
-// `corpus/good/<world>/transcripts/*.txt` is a script `sprout play` plays
-// through real turns, and is also what playing it prints, so a transcript
-// that plays back other than as written is a changed behaviour. `--write`
-// replays each and writes what it printed; review the diff like any other
-// change.
+// `corpus/good/<world>/transcripts/*.json` is a script `sprout play` plays
+// through real turns, each step expecting all it made, and is also what
+// playing it prints, so a transcript that plays back other than as written
+// is a changed behaviour. `--write` replays each and writes what it
+// printed; review the diff like any other change.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -24,7 +24,7 @@ for (const name of readdirSync('corpus/good').sort()) {
   const world = join('corpus/good', name);
   const folder = join(world, 'transcripts');
   if (!existsSync(folder)) continue;
-  for (const file of readdirSync(folder).filter((f) => f.endsWith('.txt')).sort()) {
+  for (const file of readdirSync(folder).filter((f) => f.endsWith('.json')).sort()) {
     const script = join(folder, file);
     const { code, out } = play(world, script);
     played++;

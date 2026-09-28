@@ -5,5 +5,6 @@
 // visitor standing in a world for the inspectors to look through.
 
 export * from './play.js';
+export * from './script.js';
 export * from './stand.js';
 export * from './test.js';

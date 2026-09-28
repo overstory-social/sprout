@@ -1,0 +1,13 @@
+{
+  "about": "A `do` that moves the cat out of the hall without a word. Marta reads the hall's `leaves` and the cupboard's `arrives`, and a place's notice of someone moved is not an answer, so the world's `nothing_happens` is still said.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "shoo cat", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "The cat leaves." },
+      { "reader": "Marta", "kind": "notice", "words": "The cat arrives." },
+      { "reader": "Marta", "kind": "said", "words": "Nothing much comes of that." }
+    ] }
+  ]
+}

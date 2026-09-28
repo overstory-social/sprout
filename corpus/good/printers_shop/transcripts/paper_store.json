@@ -1,0 +1,100 @@
+{
+  "about": "The paper store: a place inside the composing room that is also a container, so its lid rule is `pass any (self.get(:open))` and its `accept` keeps people out while it is shut. Its iron ward wants the shop key. Inside, the loft's exit applies only once the ladder is down, and the loft's way down names the store by its path. A visitor shut in can still open it from inside.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The paper store is shut." }
+    ] },
+    { "as": "Marta", "type": "unlock paper store with brass key", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It goes in, and turns nothing." }
+    ] },
+    { "as": "Marta", "type": "unlock cabinet with brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "open cabinet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta opens the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "take shop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a shop key." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a shop key." }
+    ] },
+    { "as": "Marta", "type": "unlock paper store with shop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "reader": "Ines", "kind": "told", "words": "Marta unlocks the paper store." }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The paper store is shut." }
+    ] },
+    { "as": "Marta", "type": "open paper store", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the paper store." },
+      { "reader": "Ines", "kind": "told", "words": "Marta opens the paper store." }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
+    ] },
+    { "as": "Ines", "type": "look", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "as": "Marta", "type": "go up", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "take ladder", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The ladder is chained to the shelving." }
+    ] },
+    { "as": "Marta", "type": "lower ladder", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You let the ladder down. The hatch above it swings open." }
+    ] },
+    { "as": "Marta", "type": "lower ladder", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is down already." }
+    ] },
+    { "as": "Marta", "type": "go up", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Marta", "kind": "described", "words": "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
+    ] },
+    { "as": "Marta", "type": "go down", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
+    ] },
+    { "as": "Ines", "type": "close paper store", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You shut the paper store." },
+      { "reader": "Marta", "kind": "told", "words": "Ines shuts the paper store." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
+    ] },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines," }
+    ] },
+    { "as": "Marta", "type": "open paper store", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the paper store." },
+      { "reader": "Ines", "kind": "told", "words": "Marta opens the paper store." }
+    ] },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] }
+  ]
+}

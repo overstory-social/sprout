@@ -1,0 +1,25 @@
+{
+  "about": "A pulled sheet is wet for forty minutes, and then it can be taken.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "go out" },
+    { "as": "Marta", "type": "ink press", "expect": [
+      { "words": "You beat the ink over the forme until it shines." }
+    ] },
+    { "as": "Marta", "type": "take bone rib" },
+    { "as": "Marta", "type": "work press with bone rib", "expect": [
+      { "words": "The bar comes over, and the yard is briefly very quiet." }
+    ] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "words": "The ink is still wet; it would smear." }
+    ] },
+    { "advance": "39 minutes", "expect": [] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "words": "The ink is still wet; it would smear." }
+    ] },
+    { "advance": "1 minute" },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "words": "You take a printed sheet." }
+    ] }
+  ]
+}

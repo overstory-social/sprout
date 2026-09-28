@@ -22,7 +22,7 @@ teashop/
   sprout.json         the manifest: the world's name, author, and list of files
   teashop.sprout      the world itself
   person.sprout       what a visitor is
-  tests/arrival.txt   a first test
+  tests/arrival.json  a first test
   README.md
 ```
 
@@ -58,7 +58,7 @@ sprout play teashop
 
 ```text
 Inspector> look
-  Inspector (described): There is nothing special about a hall.
+There is nothing special about a hall.
 ```
 
 It works, but it is not much of a tea shop. Press Ctrl-D to leave.
@@ -104,24 +104,29 @@ sprout test teashop
 ```
 
 ```text
-arrival.txt: failed
-  line 3, after `@arrive Marta`, the world did not say:
+arrival.json: failed
+  step 1, `@arrive Marta`, the world did not say:
     There is nothing special about a hall.
   it said:
     Marta (described): Six small tables, a bell over the door, and the smell of bergamot.
 
-Where the world is right and a test is not, `sprout play` prints what the world says now, to copy under the line.
+Where the world is right and a test is not, `sprout play` prints the script with what the world says now filled in.
 1 test: 0 passed, 1 failed
 ```
 
 The test still expects the old hall. That is the point of a test: it
 notices when the world says something different. Here the world is right
-and the test is out of date, so open `tests/arrival.txt` and update it:
+and the test is out of date, so open `tests/arrival.json` and update it:
 
-```text
-# The first thing a visitor reads.
-@arrive Marta
-  Six small tables, a bell over the door, and the smell of bergamot.
+```json
+{
+  "about": "The first thing a visitor reads.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "words": "Six small tables, a bell over the door, and the smell of bergamot." }
+    ] }
+  ]
+}
 ```
 
 Now `sprout test teashop` passes. There is more on tests in step 8.
@@ -228,13 +233,13 @@ Check and play. The spoon cannot be named until the caddy is open:
 
 ```text
 Inspector> north
-  Inspector (described): A narrow kitchen, all steam and copper.
+A narrow kitchen, all steam and copper.
 Inspector> take spoon
-  Inspector (notice): You see nothing like that here.
+You see nothing like that here.
 Inspector> open tin
-  Inspector (said): You open a tea caddy.
+You open a tea caddy.
 Inspector> take spoon
-  Inspector (said): You take a caddy spoon.
+You take a caddy spoon.
 ```
 
 ## 5. A thing that does something
@@ -304,15 +309,15 @@ Add `teapot.sprout` to the manifest's `files`, then play:
 
 ```text
 Inspector> n
-  Inspector (described): A narrow kitchen, all steam and copper.
+A narrow kitchen, all steam and copper.
 Inspector> x pot
-  Inspector (described): A brown teapot, empty.
+A brown teapot, empty.
 Inspector> brew pot
-  Inspector (said): You warm the pot, spoon in the leaves and pour. It smells like rain.
+You warm the pot, spoon in the leaves and pour. It smells like rain.
 Inspector> brew pot
-  Inspector (refused): It is already full of tea.
+It is already full of tea.
 Inspector> x pot
-  Inspector (described): The teapot is warm and full.
+The teapot is warm and full.
 ```
 
 ## 6. Longer writing in its own file
@@ -350,8 +355,8 @@ Add `kitchen.prose` to the manifest's `files`, and look around:
 
 ```text
 Inspector> n
-  Inspector (described): A narrow kitchen, all steam and copper. A kettle mutters on the range.
-  Inspector (described): There is a teapot here. There is a tea caddy here.
+A narrow kitchen, all steam and copper. A kettle mutters on the range.
+There is a teapot here. There is a tea caddy here.
 ```
 
 Take the teapot and look again, and it drops off the list.
@@ -385,56 +390,70 @@ In `sprout play`, time only moves when you move it:
 
 ```text
 Inspector> brew pot
-  Inspector (said): You warm the pot, spoon in the leaves and pour. It smells like rain.
+You warm the pot, spoon in the leaves and pour. It smells like rain.
 Inspector> @advance 20 minutes
-  kitchen.teapot woke, 1200 seconds after it asked
-  Inspector (told): The teapot has gone cold. Someone tips it out.
+The teapot has gone cold. Someone tips it out.
 ```
 
 ## 8. Write tests
 
-A test is a script of what visitors type, with what the world should say
-written underneath, indented. Make `teashop/tests/brewing.txt`:
+A test is a script: a list of _steps_, each something a visitor types or
+something the server does, and under a step, what the world should say
+in answer. Make `teashop/tests/brewing.json`:
 
-```text
-# Brewing fills the pot once, and a friend in the room sees it happen.
-@arrive Marta
-@arrive Ben
-Marta> north
-Ben> north
-Marta> brew teapot
-  Marta (said): You warm the pot, spoon in the leaves and pour. It smells like rain.
-  Ben (told): Marta brews a pot of tea.
-Ben> brew pot
-  It is already full of tea.
-Ben> x teapot
-  The teapot is warm and full.
+```json
+{
+  "about": "Brewing fills the pot once, and a friend in the room sees it happen.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "arrive": "Ben" },
+    { "as": "Marta", "type": "north" },
+    { "as": "Ben", "type": "north" },
+    { "as": "Marta", "type": "brew teapot", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You warm the pot, spoon in the leaves and pour. It smells like rain." },
+      { "reader": "Ben", "kind": "told", "words": "Marta brews a pot of tea." }
+    ] },
+    { "as": "Ben", "type": "brew pot", "expect": [
+      { "words": "It is already full of tea." }
+    ] },
+    { "as": "Ben", "type": "x teapot", "expect": [
+      { "words": "The teapot is warm and full." }
+    ] }
+  ]
+}
 ```
 
 How a test reads:
 
-- `@arrive Marta` brings a visitor in. `Marta> north` is Marta typing.
-- An indented line is something the world must say in answer to the line
-  above. Write it in full, `Ben (told): Marta brews a pot of tea.`, to
-  check who read it, or just the words, `It is already full of tea.`, if
-  anyone reading them will do.
-- A line with nothing under it is played but not checked.
-- `(nothing)` under a line means the world must say nothing at all.
-- Lines starting with `#` are comments.
+- `{ "arrive": "Marta" }` brings a visitor in. `{ "as": "Marta", "type":
+  "north" }` is Marta typing `north`.
+- `expect` lists what the world must say in answer, in order. Write a
+  line in full, with its `reader` and `kind`, to check who read it, or
+  just its `words`, if anyone reading them will do.
+- A step with no `expect` is played but not checked.
+- `"expect": []` means the world must say nothing at all.
+- `about` says what the test is for; a `{ "comment": "…" }` step is a
+  note along the way.
 
-And one for the tea going cold, `teashop/tests/cooling.txt`:
+And one for the tea going cold, `teashop/tests/cooling.json`. The server's
+clock moves with `advance`:
 
-```text
-# A pot of tea goes cold after twenty minutes.
-@arrive Marta
-Marta> north
-Marta> brew pot
-@advance 19 minutes
-  (nothing)
-@advance 1 minute
-  The teapot has gone cold. Someone tips it out.
-Marta> x pot
-  A brown teapot, empty.
+```json
+{
+  "about": "A pot of tea goes cold after twenty minutes.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "north" },
+    { "as": "Marta", "type": "brew pot" },
+    { "advance": "19 minutes", "expect": [] },
+    { "advance": "1 minute", "expect": [
+      { "words": "The teapot has gone cold. Someone tips it out." }
+    ] },
+    { "as": "Marta", "type": "x pot", "expect": [
+      { "words": "A brown teapot, empty." }
+    ] }
+  ]
+}
 ```
 
 Run them:
@@ -444,16 +463,17 @@ sprout test teashop
 ```
 
 ```text
-arrival.txt: passed, 1 expected line said
-brewing.txt: passed, 4 expected lines said
-cooling.txt: passed, 3 expected lines said
+arrival.json: passed, 1 expected line said
+brewing.json: passed, 4 expected lines said
+cooling.json: passed, 3 expected lines said
 
 3 tests: all passed
 ```
 
 Each test starts from a fresh copy of the world, so tests never affect
 each other. The easy way to write one is to play the world with
-`sprout play`, then copy the lines you care about into a test file.
+`sprout play teashop --record tests/new.json`, then keep the lines you
+care about under each step and delete the rest.
 
 ## 9. When the compiler says no
 

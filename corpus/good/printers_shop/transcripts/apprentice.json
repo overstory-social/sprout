@@ -1,0 +1,63 @@
+{
+  "about": "The apprentice: a `Creature`, so an actor that nobody is behind. `ask`'s topic is a value role filled only from his `:knows`, so a topic of the world's enum he does not know, and a word that is no topic at all, leave it unbound and he shrugs. Nothing is carried off from a person, and a gift goes into his hands, out of reach.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
+    ] },
+    { "as": "Marta", "type": "ask apprentice about the press", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Bar's stiff, he says. Mind your knuckles." }
+    ] },
+    { "as": "Marta", "type": "ask boy about the cat", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "She's not ours, he says. She just decided." }
+    ] },
+    { "as": "Marta", "type": "ask the apprentice the press", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Bar's stiff, he says. Mind your knuckles." }
+    ] },
+    { "as": "Ines", "type": "ask apprentice about the cellar", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "He shrugs. Not something he knows about." }
+    ] },
+    { "as": "Ines", "type": "ask apprentice about the weather", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "He shrugs. Not something he knows about." }
+    ] },
+    { "as": "Ines", "type": "ask cat about the press", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "Nothing much comes of that." }
+    ] },
+    { "as": "Marta", "type": "take apprentice", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The apprentice cannot stand in you." }
+    ] },
+    { "as": "Marta", "type": "take boy", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The apprentice cannot stand in you." }
+    ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }
+    ] },
+    { "as": "Marta", "type": "give brass key to apprentice", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You give a brass key to the apprentice." },
+      { "reader": "Ines", "kind": "told", "words": "Marta gives a brass key to the apprentice." }
+    ] },
+    { "as": "Marta", "type": "give brass key to apprentice", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "i", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying nothing." }
+    ] },
+    { "as": "Ines", "type": "take brass key", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "give apprentice to Ines", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are not holding the apprentice." }
+    ] },
+    { "as": "Marta", "type": "give Ines to apprentice", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are not holding Ines." }
+    ] }
+  ]
+}

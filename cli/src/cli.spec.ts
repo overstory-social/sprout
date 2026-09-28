@@ -8,8 +8,14 @@ import { generateSkill } from '@overstory/sprout/lang';
 
 import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
-import { playScript } from '@overstory/sprout-player';
-import { KILN_YARD, LANE, worldFolder } from '@overstory/sprout-player/fixtures';
+import { playScript, writeScript } from '@overstory/sprout-player';
+import {
+  KILN_YARD,
+  LANE,
+  scriptOf,
+  transcriptOf,
+  worldFolder,
+} from '@overstory/sprout-player/fixtures';
 import { captured } from '@overstory/sprout-repl/fixtures';
 
 describe('parseArgs', () => {
@@ -30,6 +36,10 @@ describe('parseArgs', () => {
     });
   });
 });
+
+/** What a session of `lines` prints with --debug in the world at `dir`: the transcript of that script played. */
+const transcript = (dir: string, lines: string) =>
+  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json'));
 
 describe('main', () => {
   it('prints the usage and fails with no command, succeeds on help, names an unknown command', () => {
@@ -57,7 +67,7 @@ describe('main', () => {
     const init = captured();
     expect(main(['init', dir, '--author', 'marta'], init)).toBe(0);
     expect(init.out()).toBe(
-      `wrote ${dir}/sprout.json\nwrote ${dir}/shed.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/tests/arrival.txt\nwrote ${dir}/README.md\n`,
+      `wrote ${dir}/sprout.json\nwrote ${dir}/shed.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/tests/arrival.json\nwrote ${dir}/README.md\n`,
     );
     expect(JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'))).toMatchObject({
       name: 'shed',
@@ -69,7 +79,7 @@ describe('main', () => {
     expect(check.out()).toBe('ok: 3 declarations in 2 files\n');
     const test = captured();
     expect(main(['test', dir], test)).toBe(0);
-    expect(test.out()).toBe('arrival.txt: passed, 1 expected line said\n\n1 test: passed\n');
+    expect(test.out()).toBe('arrival.json: passed, 1 expected line said\n\n1 test: passed\n');
   });
 
   it('check --json on a broken world fails and names the problem by file, line and column', () => {
@@ -135,22 +145,54 @@ describe('main', () => {
     expect(named.err()).toBe('sprout: --as wants a nickname after it: --as Marta\n');
   });
 
-  it('play prints the transcript a script makes, and wants a line it can play', () => {
+  it('play prints a script with every step expecting all it made, --write saves it, and a bad one is refused', () => {
     const dir = worldFolder('lane', LANE);
-    const script = join(mkdtempSync(join(tmpdir(), 'sprout-play-')), 'walk.txt');
-    writeFileSync(script, '@arrive Marta\nMarta> go in\n');
+    const script = join(mkdtempSync(join(tmpdir(), 'sprout-play-')), 'walk.json');
+    const written = '{ "steps": [{ "arrive": "Marta" }, { "as": "Marta", "type": "go in" }] }\n';
+    const filled = writeScript({
+      steps: [
+        {
+          arrive: 'Marta',
+          expect: [{ reader: 'Marta', kind: 'described', words: 'A muddy yard.' }],
+        },
+        {
+          as: 'Marta',
+          type: 'go in',
+          expect: [{ reader: 'Marta', kind: 'described', words: 'Tools hang in rows.' }],
+        },
+      ],
+    });
+    writeFileSync(script, written);
     const io = captured();
     expect(main(['play', dir, script], io)).toBe(0);
-    expect(io.out()).toBe(
-      '@arrive Marta\n  Marta (described): A muddy yard.\nMarta> go in\n  Marta (described): Tools hang in rows.\n',
-    );
-    writeFileSync(script, 'go in\n');
+    expect(io.out()).toBe(filled);
+    expect(readFileSync(script, 'utf8')).toBe(written);
+
+    const saved = captured();
+    expect(main(['play', dir, script, '--write'], saved)).toBe(0);
+    expect(saved.out()).toBe(`wrote ${script}\n`);
+    expect(readFileSync(script, 'utf8')).toBe(filled);
+
+    writeFileSync(script, 'Marta> go in\n');
     const bad = captured();
     expect(main(['play', dir, script], bad)).toBe(1);
-    expect(bad.err()).toMatch(/^sprout: walk\.txt:1: a line is what someone types/);
+    expect(bad.err()).toMatch(/^sprout: walk\.json: not JSON: /);
     const missing = captured();
-    expect(main(['play', dir, join(dir, 'nowhere.txt')], missing)).toBe(1);
+    expect(main(['play', dir, join(dir, 'nowhere.json')], missing)).toBe(1);
     expect(missing.err()).toContain('no such file or directory');
+  });
+
+  it('play with no script and --record writes the session as a script that plays back as written', async () => {
+    const dir = worldFolder('kiln_yard', KILN_YARD);
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-record-')), 'session.json');
+    const io = captured('fire kiln\n');
+    await expect(main(['play', dir, '--as', 'Marta', '--record', file], io)).resolves.toBe(0);
+    const replayed = captured();
+    expect(main(['play', dir, file], replayed)).toBe(0);
+    expect(replayed.out()).toBe(readFileSync(file, 'utf8'));
+    const bare = captured('');
+    expect(main(['play', dir, '--record'], bare)).toBe(1);
+    expect(bare.err()).toContain('--record wants a file after it');
   });
 
   it('play with no script shows only the prose the visitor reads, without --debug', async () => {
@@ -165,8 +207,7 @@ describe('main', () => {
 
   it('play with no script (or `-`) and --debug prints the transcript, admitting Inspector unless --as names another', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
-    const asScript = (lines: string) =>
-      playScript(checkWorld(dir).bundle!, `@arrive Marta\n${lines}@leave Marta\n`).page;
+    const asScript = (lines: string) => transcript(dir, `@arrive Marta\n${lines}@leave Marta\n`);
 
     const typed = 'Marta> fire kiln\n@tick\n@advance 2 hours\nMarta> look\n';
     const io = captured(typed);
@@ -183,15 +224,13 @@ describe('main', () => {
     const bare = captured('fire kiln\n@tick\n');
     await expect(main(['play', dir, '--as', 'Marta', '--debug'], bare)).resolves.toBe(0);
     expect(bare.out()).toBe(
-      playScript(checkWorld(dir).bundle!, '@arrive Marta\nMarta> fire kiln\n@tick\n@leave Marta\n')
-        .page,
+      transcript(dir, '@arrive Marta\nMarta> fire kiln\n@tick\n@leave Marta\n'),
     );
 
     const second = captured('@arrive Ines\nlook\n');
     await expect(main(['play', dir, '--debug', '--as', 'Marta'], second)).resolves.toBe(0);
     expect(second.out()).toBe(
-      playScript(checkWorld(dir).bundle!, '@arrive Marta\n@arrive Ines\nInes> look\n@leave Ines\n')
-        .page,
+      transcript(dir, '@arrive Marta\n@arrive Ines\nInes> look\n@leave Ines\n'),
     );
   });
 
@@ -199,9 +238,7 @@ describe('main', () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const io = captured('');
     await expect(main(['play', '--debug', dir], io)).resolves.toBe(0);
-    expect(io.out()).toBe(
-      playScript(checkWorld(dir).bundle!, '@arrive Inspector\n@leave Inspector\n').page,
-    );
+    expect(io.out()).toBe(transcript(dir, '@arrive Inspector\n@leave Inspector\n'));
   });
 
   it('refuses a nickname or --at as sprout parse would, admitting nobody', async () => {
@@ -219,19 +256,20 @@ describe('main', () => {
   it('test runs the world’s own tests and exits 1 on a failure, printing what the world said instead', () => {
     const dir = worldFolder('lane', LANE);
     mkdirSync(join(dir, 'tests'));
-    writeFileSync(
-      join(dir, 'tests', 'walk.txt'),
-      '@arrive Marta\nMarta> go in\n  Tools hang in rows.\n',
-    );
+    const goIn = (words: string) =>
+      writeScript({
+        steps: [{ arrive: 'Marta' }, { as: 'Marta', type: 'go in', expect: [{ words }] }],
+      });
+    writeFileSync(join(dir, 'tests', 'walk.json'), goIn('Tools hang in rows.'));
     const io = captured();
     expect(main(['test', dir], io)).toBe(0);
-    expect(io.out()).toBe('walk.txt: passed, 1 expected line said\n\n1 test: passed\n');
-    const other = join(mkdtempSync(join(tmpdir(), 'sprout-test-')), 'shed.txt');
-    writeFileSync(other, '@arrive Marta\nMarta> go in\n  A muddy yard.\n');
+    expect(io.out()).toBe('walk.json: passed, 1 expected line said\n\n1 test: passed\n');
+    const other = join(mkdtempSync(join(tmpdir(), 'sprout-test-')), 'shed.json');
+    writeFileSync(other, goIn('A muddy yard.'));
     const failing = captured();
     expect(main(['test', dir, other], failing)).toBe(1);
     expect(failing.out()).toMatch(
-      /^shed\.txt: failed\n {2}line 2, after `Marta> go in`, the world did not say:\n {4}A muddy yard\.\n {2}it said:\n {4}Marta \(described\): Tools hang in rows\.\n[^]*\n1 test: 0 passed, 1 failed\n$/,
+      /^shed\.json: failed\n {2}step 2, `Marta> go in`, the world did not say:\n {4}A muddy yard\.\n {2}it said:\n {4}Marta \(described\): Tools hang in rows\.\n[^]*\n1 test: 0 passed, 1 failed\n$/,
     );
     const none = captured();
     expect(main(['test', worldFolder('lane', LANE)], none)).toBe(1);

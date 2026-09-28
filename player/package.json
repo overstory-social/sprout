@@ -12,8 +12,8 @@
       "default": "./dist/index.js"
     },
     "./fixtures": {
-      "types": "./dist/fixtures/worlds.d.ts",
-      "default": "./dist/fixtures/worlds.js"
+      "types": "./dist/fixtures/index.d.ts",
+      "default": "./dist/fixtures/index.js"
     },
     "./package.json": "./package.json"
   },

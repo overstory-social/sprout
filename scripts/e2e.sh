@@ -8,9 +8,10 @@
 # which must pass, and its transcripts as tests, which must pass too; and
 # runs a test that must fail, printing what the world said. It plays the
 # new world interactively from a here-document, with and without `-` for
-# the script, and checks the page against the same lines played as a
-# script, with --debug, and without it checks the page shows only the
-# prose the visitor reads. It prints the generated skill exactly as corpus/skill/SKILL.md
+# the script, recording the session, and plays the recording back, which
+# must print exactly what it holds; without --debug it checks the page
+# shows only the prose the visitor reads. It prints the generated skill
+# exactly as corpus/skill/SKILL.md
 # holds it. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -36,20 +37,20 @@ npx sprout parse "$grammar" >/dev/null
 npx sprout parse "$grammar" "take metal"
 npx sprout view "$grammar" --at cellar
 npx sprout check "$shop"
-for transcript in "$shop"/transcripts/*.txt; do
-  npx sprout play "$shop" "$transcript" > played.txt
-  diff -u "$transcript" played.txt
+for transcript in "$shop"/transcripts/*.json; do
+  npx sprout play "$shop" "$transcript" > played.json
+  diff -u "$transcript" played.json
   echo "played $(basename "$transcript") as written"
 done
 npx sprout test "$shop"
-npx sprout test "$shop" "$shop"/transcripts/*.txt | tail -1
-printf 'look\n' | npx sprout play shed --debug > interactive.txt
-printf '@arrive Inspector\nInspector> look\n@leave Inspector\n' > interactive-script.txt
-npx sprout play shed interactive-script.txt > interactive-expected.txt
-diff -u interactive-expected.txt interactive.txt
-echo "played shed interactively from a here-document, equal to the same lines as a script"
+npx sprout test "$shop" "$shop"/transcripts/*.json | tail -1
+printf 'look\n' | npx sprout play shed --debug --record session.json > interactive.txt
+grep -qx '  Inspector (described): There is nothing special about a hall.' interactive.txt
+npx sprout play shed session.json > replayed.json
+diff -u session.json replayed.json
+echo "played shed interactively from a here-document and recorded it; the recording plays back as written"
 printf 'look\n' | npx sprout play shed - --debug > interactive-dash.txt
-diff -u interactive-expected.txt interactive-dash.txt
+diff -u interactive.txt interactive-dash.txt
 echo "\`-\` for the script plays interactively too"
 printf 'look\n' | npx sprout play shed > interactive-prose.txt
 if grep -q '(described)\|^@\|^  ' interactive-prose.txt; then
@@ -58,8 +59,8 @@ if grep -q '(described)\|^@\|^  ' interactive-prose.txt; then
 fi
 grep -qx 'Inspector> look' interactive-prose.txt
 echo "without --debug, interactive play shows only the prose"
-printf '@arrive Marta\nMarta> open cabinet\n  You open the type cabinet.\n' > locked.txt
-if npx sprout test "$shop" locked.txt > tested.txt; then
+printf '{ "steps": [{ "arrive": "Marta" }, { "as": "Marta", "type": "open cabinet", "expect": [{ "words": "You open the type cabinet." }] }] }\n' > locked.json
+if npx sprout test "$shop" locked.json > tested.txt; then
   echo "a failing test passed" >&2
   exit 1
 fi

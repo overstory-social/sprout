@@ -8,13 +8,15 @@ import {
   heard,
   leave,
   playInteractive,
-  playLines,
+  playSteps,
   playScript,
 } from './play.js';
+import { scriptOf, transcriptOf } from './fixtures/scripts.js';
 import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
-const play = (script: string): string => playScript(bundle, script, 'yard.txt').page;
+const play = (lines: string): string =>
+  transcriptOf(playScript(bundle, scriptOf(lines), 'yard.json'));
 
 describe('playScript', () => {
   it('writes each line, then what every reader read of it, under their nickname and the kind', () => {
@@ -34,25 +36,56 @@ describe('playScript', () => {
     );
   });
 
-  it('keeps comments and blank lines, and writes what a line made afresh', () => {
-    const script =
-      '# A walk.\n\n@arrive Marta\n  Marta (said): whatever was here before\nMarta> go in\n';
-    expect(play(script)).toBe(
-      [
-        '# A walk.',
-        '',
-        '@arrive Marta',
-        '  Marta (described): A kiln yard.',
-        'Marta> go in',
-        '  Marta (described): A dark shed.',
-        '',
-      ].join('\n'),
+  it('keeps what the script is about and its comments, and fills each step’s `expect` afresh', () => {
+    const played = playScript(
+      bundle,
+      {
+        about: 'A walk.',
+        steps: [
+          { comment: 'in we go' },
+          { arrive: 'Marta', expect: [{ words: 'whatever was here before' }] },
+          { as: 'Marta', type: 'go in' },
+        ],
+      },
+      'walk.json',
     );
+    expect(played).toEqual({
+      about: 'A walk.',
+      steps: [
+        { comment: 'in we go' },
+        {
+          arrive: 'Marta',
+          expect: [{ reader: 'Marta', kind: 'described', words: 'A kiln yard.' }],
+        },
+        {
+          as: 'Marta',
+          type: 'go in',
+          expect: [{ reader: 'Marta', kind: 'described', words: 'A dark shed.' }],
+        },
+      ],
+    });
   });
 
-  it('is its own golden: a transcript played again plays as written', () => {
-    const once = play('@arrive Marta\nMarta> fire kiln\n@tick\n@advance 2 hours\nMarta> look\n');
-    expect(play(once)).toBe(once);
+  it('is its own golden: a script played again plays as written', () => {
+    const script = scriptOf(
+      '@arrive Marta\nMarta> fire kiln\n@tick\n@advance 2 hours\nMarta> look\n',
+    );
+    const once = playScript(bundle, script, 'yard.json');
+    expect(playScript(bundle, once, 'yard.json')).toEqual(once);
+  });
+
+  it('expects a host line at its level: a note at info, a fault at error', () => {
+    const played = playScript(
+      bundle,
+      scriptOf('@arrive Marta\nMarta> fire kiln\n@advance 2 hours\nMarta> kick kiln\n'),
+      'yard.json',
+    );
+    const expected = played.steps.flatMap((step) => ('expect' in step ? (step.expect ?? []) : []));
+    expect(expected).toContainEqual({
+      level: 'info',
+      text: 'yard.kiln woke, 3600 seconds after it asked',
+    });
+    expect(expected.filter((one) => 'level' in one && one.level === 'error')).toHaveLength(1);
   });
 
   it('ticks each place a visitor stands in, and says so where a tick says nothing', () => {
@@ -121,44 +154,30 @@ describe('playScript', () => {
     );
   });
 
-  it('throws, naming the line and what to write, for a line it cannot play', () => {
-    expect(() => play('take kiln\n')).toThrow(
-      'yard.txt:1: a line is what someone types, as in `Marta> take brass key`',
-    );
-    expect(() => play('@dance\n')).toThrow(
-      'yard.txt:1: `@dance` is not something the host does here.',
-    );
-    expect(() => play('@advance soon\n')).toThrow(
-      'yard.txt:1: write how long passes, as in `@advance 40 minutes`.',
-    );
+  it('throws, naming the step and what to write, for a step it cannot play', () => {
     expect(() => play('@arrive Marta\nInes> look\n')).toThrow(
-      'yard.txt:2: Ines is not in the world: write `@arrive Ines` first.',
+      'yard.json, step 2: Ines is not in the world: write `@arrive Ines` first.',
     );
     expect(() => play('@arrive Marta\n@leave Marta\nMarta> look\n')).toThrow(
-      'yard.txt:3: Marta is not in the world',
+      'yard.json, step 3: Marta is not in the world',
     );
   });
 });
 
-describe('playLines', () => {
-  it('keeps what is indented under each line, and marks what a reader read and what faulted', () => {
-    const played = playLines(
+describe('playSteps', () => {
+  it('gives each step what it made, marking what a reader read and what faulted', () => {
+    const played = playSteps(
       bundle,
-      '  above everything\n@arrive Marta\n  A kiln yard.\n# aside\n  under a comment\nMarta> kick kiln\n',
-      'yard.txt',
+      scriptOf('@arrive Marta\n# aside\nMarta> kick kiln\n'),
+      'yard.json',
     );
-    expect(played.before).toEqual([{ at: 1, text: 'above everything' }]);
-    expect(played.lines.map(({ at, line, under }) => [at, line, under])).toEqual([
-      [2, '@arrive Marta', [{ at: 3, text: 'A kiln yard.' }]],
-      [4, '# aside', [{ at: 5, text: 'under a comment' }]],
-      [6, 'Marta> kick kiln', []],
-    ]);
-    const [arrived, aside, kicked] = played.lines;
+    const [arrived, aside, kicked] = played;
     expect(arrived!.made).toEqual([
       {
         text: 'Marta (described): A kiln yard.',
         words: 'A kiln yard.',
         fault: false,
+        kind: 'described',
         shown: 'A kiln yard.',
         reader: 'Marta',
       },
@@ -175,11 +194,15 @@ describe('playLines', () => {
     expect(kicked!.made![1]!.text).toMatch(/^the command faulted, IntegerOverflow: /);
   });
 
-  it('gives `@seed` nothing made, and a line that made nothing an empty list the page writes as (nothing)', () => {
-    const played = playLines(bundle, '@seed 3\n@arrive Marta\nMarta> go in\n@tick\n');
-    expect(played.lines.map((line) => line.made?.length ?? null)).toEqual([null, 1, 1, 0]);
+  it('gives `@seed` nothing made, and a step that made nothing an empty list the transcript writes as (nothing)', () => {
+    const played = playSteps(
+      bundle,
+      scriptOf('@seed 3\n@arrive Marta\nMarta> go in\n@tick\n'),
+      'yard.json',
+    );
+    expect(played.map((one) => one.made?.length ?? null)).toEqual([null, 1, 1, 0]);
     expect(heard([])).toEqual([
-      { text: '(nothing)', words: null, fault: false, shown: null, reader: null },
+      { text: '(nothing)', words: null, fault: false, kind: null, shown: null, reader: null },
     ]);
   });
 });
@@ -202,6 +225,7 @@ describe('arrive', () => {
         text: 'Marta (described): A dark shed.',
         words: 'A dark shed.',
         fault: false,
+        kind: 'described',
         shown: 'A dark shed.',
         reader: 'Marta',
       },
@@ -242,28 +266,42 @@ describe('playInteractive', () => {
     arrive(stage, 'Marta');
     const outcome = playInteractive(stage, 'Marta> fire kiln', 'stdin:2');
     expect(outcome.line).toBe('Marta> fire kiln');
-    expect(outcome.typed).toEqual({ nickname: 'Marta', text: 'fire kiln' });
+    expect(outcome.step).toEqual({ as: 'Marta', type: 'fire kiln' });
     expect(outcome.made).toEqual([
       {
         text: 'Marta (said): The chamber takes the flame.',
         words: 'The chamber takes the flame.',
         fault: false,
+        kind: 'said',
         shown: 'The chamber takes the flame.',
         reader: 'Marta',
       },
     ]);
   });
 
-  it('reads a host line, a comment and a blank line as the script grammar does, making nothing to echo', () => {
+  it('reads a host line and a comment as steps, and a blank line as none, the comment and blank making nothing', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
     expect(playInteractive(stage, '# aside', 'stdin:2')).toEqual({
       line: '# aside',
+      step: { comment: 'aside' },
       made: null,
-      typed: null,
     });
-    expect(playInteractive(stage, '', 'stdin:3')).toEqual({ line: '', made: null, typed: null });
-    expect(playInteractive(stage, '@tick', 'stdin:4').made).not.toBeNull();
+    expect(playInteractive(stage, '', 'stdin:3')).toEqual({ line: '', step: null, made: null });
+    const ticked = playInteractive(stage, '@tick', 'stdin:4');
+    expect(ticked.step).toEqual({ tick: true });
+    expect(ticked.made).not.toBeNull();
+  });
+
+  it('throws, naming where and what to write, for a line none of the grammar reads', () => {
+    const stage = freshStage(bundle);
+    arrive(stage, 'Marta');
+    expect(() => playInteractive(stage, '@dance', 'stdin:2')).toThrow(
+      'stdin:2: `@dance` is not something the host does here.',
+    );
+    expect(() => playInteractive(stage, '@advance soon', 'stdin:3')).toThrow(
+      'stdin:3: write how long passes, as in `@advance 40 minutes`.',
+    );
   });
 
   it('fills in a bare line’s addressee, and throws naming where, where nobody stands to address it', () => {
@@ -271,12 +309,13 @@ describe('playInteractive', () => {
     arrive(stage, 'Marta');
     const outcome = playInteractive(stage, 'fire kiln', 'stdin:2');
     expect(outcome.line).toBe('Marta> fire kiln');
-    expect(outcome.typed).toEqual({ nickname: 'Marta', text: 'fire kiln' });
+    expect(outcome.step).toEqual({ as: 'Marta', type: 'fire kiln' });
     expect(outcome.made).toEqual([
       {
         text: 'Marta (said): The chamber takes the flame.',
         words: 'The chamber takes the flame.',
         fault: false,
+        kind: 'said',
         shown: 'The chamber takes the flame.',
         reader: 'Marta',
       },

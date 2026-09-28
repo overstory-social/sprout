@@ -2,3 +2,5 @@ SKILL.md
 CHANGELOG.md
 docs/
 corpus/bad/*/expect.json
+corpus/good/*/tests/*.json
+corpus/good/*/transcripts/*.json

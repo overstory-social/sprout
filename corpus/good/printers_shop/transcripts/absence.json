@@ -1,0 +1,67 @@
+{
+  "about": "Time while nobody is there. This host runs no wakes while the world is empty: the next arrival's catch-up delivers each object's oldest due wake, says nothing of it, and the elapsed time is the whole absence, so a sheet left wet overnight is cured rather than stepped through touch-dry; being cured, it asks for no more wakes. A creature's hands hold four things.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." }
+    ] },
+    { "as": "Marta", "type": "unlock cabinet with brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." }
+    ] },
+    { "as": "Marta", "type": "open cabinet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "take shop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a shop key." }
+    ] },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] },
+    { "as": "Marta", "type": "take wooden rib", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." }
+    ] },
+    { "as": "Marta", "type": "take bone rib", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a bone rib." }
+    ] },
+    { "as": "Marta", "type": "ink press", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You beat the ink over the forme until it shines." }
+    ] },
+    { "as": "Marta", "type": "work press with wooden rib", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bar comes over, and the yard is briefly very quiet." }
+    ] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The ink is still wet; it would smear." }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." }
+    ] },
+    { "advance": "24 hours", "expect": [] },
+    { "arrive": "Marta", "expect": [
+      { "level": "info", "text": "caught up: printers_shop#8 woke, 86400 seconds after it asked" },
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "The press, a printed sheet," }
+    ] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You cannot carry any more." }
+    ] },
+    { "as": "Marta", "type": "drop brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a brass key down." }
+    ] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a printed sheet." }
+    ] },
+    { "as": "Marta", "type": "i", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying a shop key, a wooden rib, a bone rib, a printed sheet." }
+    ] },
+    { "advance": "5 hours", "expect": [] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "The press, a brass key." }
+    ] }
+  ]
+}

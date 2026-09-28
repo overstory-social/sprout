@@ -1,13 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 import { generateSkill, type Bundle } from '@overstory/sprout/lang';
 import {
   catalogueFor,
   playScript,
+  readScript,
   runTests,
   standIn,
   testFiles,
+  writeScript,
   type StandOptions,
 } from '@overstory/sprout-player';
 import { playInteractively, type Io } from '@overstory/sprout-repl';
@@ -20,7 +22,7 @@ import { inspectView } from './view.js';
 // The `sprout` command: six verbs on a microworld folder, and `skill`,
 // the builder's reference this compiler generates from its own tables.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
-// `--json` and `--debug` are always alone. The first bare word is the command, the next the path. `serve` is not
+// `--json`, `--debug` and `--write` are always alone. The first bare word is the command, the next the path. `serve` is not
 // built. Every command but `play` with no script is synchronous; that
 // one alone reads from stdin, so `main` alone may hand back a promise
 // of its exit code rather than the code itself.
@@ -34,14 +36,16 @@ export const USAGE = `sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir [script] [--at place] [--as name] [--debug]
-                                      play a script of typed lines and host events through real turns:
-                                      the transcript, each line followed by what every reader read;
-                                      or, with no script (or \`-\`), interactively from stdin under one
-                                      visitor's own prompt, showing only what that visitor reads, or,
-                                      with --debug, the transcript
-  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
-                                      with what the world should say indented under a line, the whole line or its
+  sprout play dir script.json [--write]
+                                      play a script, JSON steps of what visitors type and what the host does,
+                                      through real turns, and print it with every step expecting all it made;
+                                      --write saves that over the script
+  sprout play dir [--at place] [--as name] [--debug] [--record file.json]
+                                      play interactively from stdin under one visitor's own prompt, showing
+                                      only what that visitor reads, or, with --debug, every reader's lines and
+                                      the host's; --record writes the session as a script
+  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.json or the scripts named: each a script
+                                      whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
@@ -54,7 +58,7 @@ export interface Parsed {
 }
 
 /** Flags that stand alone and never take the word after them as their value. */
-const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug']);
+const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug', 'write']);
 
 export function parseArgs(argv: readonly string[]): Parsed {
   const positional: string[] = [];
@@ -145,10 +149,23 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         if (checked === null) return 1;
         if (script === undefined || script === '-') {
           const debug = flags['debug'] !== undefined;
-          return playInteractively(checked, { ...standing(flags), debug }, io);
+          const record = flags['record'];
+          if (record === true)
+            throw new Error('--record wants a file after it: --record walk.json');
+          return playInteractively(
+            checked,
+            { ...standing(flags), debug, ...(record === undefined ? {} : { record }) },
+            io,
+          );
         }
-        const text = readFileSync(script, 'utf8');
-        say(playScript(checked, text, basename(script)).page);
+        const name = basename(script);
+        const played = writeScript(
+          playScript(checked, readScript(readFileSync(script, 'utf8'), name), name),
+        );
+        if (flags['write'] !== undefined) {
+          writeFileSync(script, played);
+          say(`wrote ${script}\n`);
+        } else say(played);
         return 0;
       }
       case 'test': {

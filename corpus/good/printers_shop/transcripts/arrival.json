@@ -1,0 +1,70 @@
+{
+  "about": "Arriving, and coming back. The composing room counts each creature that enters it in its own memory of them (`remembers { :visits … }`, bumped in `on :entered`), and its description says the first visit only. A second visitor's arrival is a notice to the first. Leaving takes what you carry; a returning visitor comes back to where they last stood.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "as": "Marta", "type": "inventory", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying nothing." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines." }
+    ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }
+    ] },
+    { "as": "Ines", "type": "go out", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves." },
+      { "reader": "Ines", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Ines", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] },
+    { "as": "Ines", "type": "go in", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, the apprentice, the shop cat, Marta," }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, the apprentice, the shop cat, Ines," }
+    ] },
+    { "as": "Marta", "type": "i", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying a brass key." }
+    ] },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." }
+    ] }
+  ]
+}
