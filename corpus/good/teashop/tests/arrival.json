@@ -1,0 +1,8 @@
+{
+  "about": "The first thing a visitor reads.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "words": "Six small tables, a bell over the door, and the smell of bergamot." }
+    ] }
+  ]
+}

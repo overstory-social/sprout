@@ -2088,8 +2088,8 @@ no clock and no extensions.
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
 | `parse`        | with no line: every phrase the world accepts, in the order they are tried. With a line: how a visitor would read it, and whether it would be refused, without running it. |
 | `view`         | what a visitor is shown and could type.                                                                                   |
-| `play`         | plays a script, or with no script (or `-`) plays interactively.                                                           |
-| `test`         | runs every `.txt` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                           |
+| `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`). |
+| `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |
 | `skill`        | prints the builder's reference, generated from the compiler, as a skill for an AI assistant: `sprout skill > .claude/skills/sprout/SKILL.md`. |
 
 `--as name` sets the visitor's nickname (default `Inspector`). `--at
@@ -2099,54 +2099,65 @@ so the place's `accept` is still asked.
 
 ### Scripts
 
-`play` and `test` read the same script format:
+`play` and `test` read the same script, a JSON file of _steps_:
 
-| line                   | means                                                                  |
-| ---------------------- | ---------------------------------------------------------------------- |
-| `Marta> take key`      | Marta types `take key`                                                 |
-| `@arrive Marta`        | Marta arrives                                                          |
-| `@leave Marta`         | Marta leaves                                                           |
-| `@tick`                | every occupied place gets a tick                                       |
-| `@advance 40 minutes`  | time moves on; due wakes happen (`seconds`, `minutes`, `hours`)        |
-| `@seed 7`              | the dice use seed 7 from now on                                        |
-| `# …`                  | a comment                                                              |
-| an indented line       | what the line above made                                               |
+```json
+{
+  "about": "What this script is for.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "brew teapot", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You warm the pot, spoon in the leaves and pour. It smells like rain." }
+    ] }
+  ]
+}
+```
 
-`play` prints each line followed by what it made, one indented line per
-paragraph each reader read, as `Reader (kind): words`. Lines with no
-label are the host's own notes, such as a wake being delivered or
-`choices:` offered after a `which`. The printed transcript is itself a
-valid script.
+| step                                      | means                                                           |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| `{ "as": "Marta", "type": "take key" }`   | Marta types `take key`                                          |
+| `{ "arrive": "Marta" }`                   | Marta arrives                                                   |
+| `{ "leave": "Marta" }`                    | Marta leaves                                                    |
+| `{ "tick": true }`                        | every occupied place gets a tick                                |
+| `{ "advance": "40 minutes" }`             | time moves on; due wakes happen (`seconds`, `minutes`, `hours`) |
+| `{ "seed": 7 }`                           | the dice use seed 7 from now on                                 |
+| `{ "comment": "…" }`                      | a note, kept as written                                         |
 
-Time starts at 0 and the seed at 0. Wakes are delivered as time advances
-while someone is in the world; while nobody is, they wait for the next
-`@arrive`.
+Any step but `seed` and `comment` may carry `expect`, the lines it should
+make:
 
-Interactively, a line with no `Name>` goes to whoever arrived most
-recently and is still there. Ctrl-D ends the session, and whoever is
-still standing leaves.
+| expected line                                            | matches                                       |
+| -------------------------------------------------------- | --------------------------------------------- |
+| `{ "reader": "Ben", "kind": "told", "words": "…" }`      | that reader reading those words, as that kind |
+| `{ "words": "…" }`                                       | anyone reading those words                    |
+| `{ "level": "info", "text": "…" }`                       | a note of the host's, such as a wake delivered |
+| `{ "level": "error", "text": "…" }`                      | a fault                                       |
+
+`"expect": []` means the step makes nothing at all.
+
+`play` prints the script back with every step expecting everything it
+made, and `--write` saves that over the file, so a played script is its
+own golden. Time starts at 0 and the seed at 0. Wakes are delivered as
+time advances while someone is in the world; while nobody is, they wait
+for the next arrival.
+
+Interactively, you type the same steps written short: `Marta> take key`,
+`@arrive Marta`, `@leave Marta`, `@tick`, `@advance 40 minutes`,
+`@seed 7`, and `#` for a comment. A line with no `Name>` goes to whoever
+arrived most recently and is still there. Ctrl-D ends the session, and
+whoever is still standing leaves. `--record file.json` writes the session
+as a script.
 
 ### Tests
 
-A test is a script with what the world should say indented under a line:
+A test is a script whose steps expect what the world should say:
 
-```text
-Marta> brew teapot
-  Marta (said): You warm the pot, spoon in the leaves and pour. It smells like rain.
-  Ben (told): Marta brews a pot of tea.
-Ben> brew pot
-  It is already full of tea.
-```
-
-- An expected line may be the whole transcript line, which also checks
-  who read it and how, or just the words, which match whoever read them.
-- Expected lines must appear among what the line made, in the order
+- Expected lines must appear among what the step made, in the order
   written; other lines may come between.
-- A line with nothing under it is played but not checked — but if its
-  turn faults, the test fails unless the fault is written under it.
-- `(nothing)` expects the line to make nothing at all.
+- A step with no `expect` is played but not checked — but if its turn
+  faults, the test fails unless the fault is expected.
 - A test that expects nothing anywhere fails, since it tests nothing.
 - Every test starts from a freshly loaded world, at time 0 and seed 0.
 
 When the world is right and a test is wrong, `sprout play` the test file
-and copy what the world says now.
+and keep what the world says now.

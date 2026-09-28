@@ -22,7 +22,7 @@ describe('initWorld', () => {
       'sprout.json',
       'paper_store.sprout',
       'person.sprout',
-      'tests/arrival.txt',
+      'tests/arrival.json',
       'README.md',
     ]);
     const manifest = JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'));
@@ -90,7 +90,7 @@ describe('initWorld', () => {
       'sprout.json',
       'person.sprout',
       'guest.sprout',
-      'tests/arrival.txt',
+      'tests/arrival.json',
       'README.md',
     ]);
     expect(readFileSync(join(dir, 'person.sprout'), 'utf8')).toContain('  visitors are Guest\n');
@@ -106,7 +106,7 @@ describe('initWorld', () => {
     const bundle = compileBundle(readWorld(dir).source!).bundle!;
     expect(runTests(bundle, testFiles(dir, []))).toEqual({
       ok: true,
-      page: 'arrival.txt: passed, 1 expected line said\n\n1 test: passed\n',
+      page: 'arrival.json: passed, 1 expected line said\n\n1 test: passed\n',
     });
   });
 

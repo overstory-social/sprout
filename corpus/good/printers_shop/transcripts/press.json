@@ -1,0 +1,123 @@
+{
+  "about": "The press yard. The press is a `sprout.Fixture` with a `permit` on `work` that reads its `tools` set role; each `Rib` opts in to that role with `as tools for work`, so nothing empty marks it. A pull spawns a `Sheet`, whose `depart` keeps it where it lies while it is wet, and which asks to be woken 40 minutes on and then every two hours.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
+    ] },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] },
+    { "as": "Ines", "type": "go out", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Ines", "kind": "described", "words": "A wooden rib, a bone rib, the press, Marta," }
+    ] },
+    { "as": "Marta", "type": "take press", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The press is bolted to the yard." }
+    ] },
+    { "as": "Marta", "type": "work press", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "Dry type. It would print nothing but a bruise." }
+    ] },
+    { "as": "Marta", "type": "pull press", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "Dry type. It would print nothing but a bruise." }
+    ] },
+    { "as": "Marta", "type": "ink press", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You beat the ink over the forme until it shines." }
+    ] },
+    { "as": "Ines", "type": "ink press", "expect": [
+      { "reader": "Ines", "kind": "refused", "words": "The forme is inked already." }
+    ] },
+    { "as": "Marta", "type": "take rib", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Which do you mean: a wooden rib, a bone rib?" },
+      { "level": "info", "text": "choices: take wooden rib | take bone rib" }
+    ] },
+    { "as": "Marta", "type": "take wooden rib", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a wooden rib." }
+    ] },
+    { "as": "Marta", "type": "take bone rib", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a bone rib." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a bone rib." }
+    ] },
+    { "as": "Marta", "type": "work press with wooden rib and bone rib", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "Two ribs at once is one rib too many." }
+    ] },
+    { "as": "Marta", "type": "work press with bone rib", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bar comes over, and the yard is briefly very quiet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta works the press." }
+    ] },
+    { "as": "Ines", "type": "work press with wooden rib", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "The press, Ines, a printed sheet." }
+    ] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The ink is still wet; it would smear." }
+    ] },
+    { "as": "Ines", "type": "take printed sheet", "expect": [
+      { "reader": "Ines", "kind": "refused", "words": "The ink is still wet; it would smear." }
+    ] },
+    { "as": "Marta", "type": "x sheet", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a printed sheet." }
+    ] },
+    { "advance": "39 minutes", "expect": [] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The ink is still wet; it would smear." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "printers_shop#9 woke, 2400 seconds after it asked" }
+    ] },
+    { "as": "Ines", "type": "take sheet", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You take a printed sheet." },
+      { "reader": "Marta", "kind": "told", "words": "Ines takes a printed sheet." }
+    ] },
+    { "as": "Ines", "type": "i", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You are carrying a printed sheet." }
+    ] },
+    { "comment": "A second pull. The sheet Ines holds is nearer to her than the one on the" },
+    { "comment": "flagstones, so `take sheet` reads the one she has." },
+    { "as": "Marta", "type": "ink press", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You beat the ink over the forme until it shines." }
+    ] },
+    { "as": "Marta", "type": "work press", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bar comes over, and the yard is briefly very quiet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta works the press." }
+    ] },
+    { "as": "Ines", "type": "take sheet", "expect": [
+      { "reader": "Ines", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "take sheet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The ink is still wet; it would smear." }
+    ] },
+    { "comment": "The second sheet's wake falls due 40 minutes after its pull, the first" },
+    { "comment": "sheet's two hours after its own. A wake delivered on time hands a sheet" },
+    { "comment": "exactly 7200 seconds, which cures it: each sheet's second wake is its" },
+    { "comment": "last, and a further four hours brings none." },
+    { "advance": "3 hours", "expect": [
+      { "level": "info", "text": "printers_shop#14 woke, 2400 seconds after it asked" },
+      { "level": "info", "text": "printers_shop#9 woke, 7200 seconds after it asked" },
+      { "level": "info", "text": "printers_shop#14 woke, 7200 seconds after it asked" }
+    ] },
+    { "advance": "4 hours", "expect": [] },
+    { "as": "Ines", "type": "drop sheet", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You put a printed sheet down." },
+      { "reader": "Marta", "kind": "told", "words": "Ines puts a printed sheet down." }
+    ] },
+    { "as": "Ines", "type": "take sheet", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You take a printed sheet." },
+      { "reader": "Marta", "kind": "told", "words": "Ines takes a printed sheet." }
+    ] }
+  ]
+}

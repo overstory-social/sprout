@@ -1,8 +1,0 @@
-# The world overrides the engine's `waited` and `help` (the spec's Verbs
-# › Engine verbs), as it overrides `inside_itself`: `wait` says its own
-# line, and `help` renders `readings` in its own words.
-@arrive Marta
-Marta> wait
-  The candle burns a little lower.
-Marta> help
-  You could: look, examine yard, examine bell, inventory, wait, help, take yard, take bell.

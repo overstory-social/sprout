@@ -1,0 +1,12 @@
+{
+  "about": "The world overrides the engine's `waited` and `help` (the spec's Verbs › Engine verbs), as it overrides `inside_itself`: `wait` says its own line, and `help` renders `readings` in its own words.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "words": "The candle burns a little lower." }
+    ] },
+    { "as": "Marta", "type": "help", "expect": [
+      { "words": "You could: look, examine yard, examine bell, inventory, wait, help, take yard, take bell." }
+    ] }
+  ]
+}

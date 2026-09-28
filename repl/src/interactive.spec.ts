@@ -1,16 +1,26 @@
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { playScript } from '@overstory/sprout-player';
-import { bundleOf, KILN_YARD, LANE } from '@overstory/sprout-player/fixtures';
+import { playScript, readScript } from '@overstory/sprout-player';
+import {
+  bundleOf,
+  KILN_YARD,
+  LANE,
+  scriptOf,
+  transcriptOf,
+} from '@overstory/sprout-player/fixtures';
 
 import { captured } from './fixtures/io.js';
 import { playInteractively } from './interactive.js';
 
 const kilnYard = bundleOf('kiln_yard', KILN_YARD);
 const lane = bundleOf('lane', LANE);
-const asScript = (script: string) => playScript(kilnYard, script).page;
+const asScript = (lines: string) =>
+  transcriptOf(playScript(kilnYard, scriptOf(lines), 'yard.json'));
 
 describe('playInteractively with debug, which prints what a script of the same lines prints', () => {
   it('admits Inspector, unless told another name, prints what they read, and prompts nothing more when stdin is empty', async () => {
@@ -188,5 +198,55 @@ describe('playInteractively, as a player plays', () => {
     (io.stdin as unknown as { isTTY: boolean }).isTTY = true;
     expect(await playInteractively(kilnYard, { nickname: 'Marta' }, io)).toBe(0);
     expect(io.out()).toBe(`A kiln yard.\nMarta> The chamber takes the flame.\nMarta> \n${LEFT}\n`);
+  });
+});
+
+describe('playInteractively with record', () => {
+  const recording = () => join(mkdtempSync(join(tmpdir(), 'sprout-record-')), 'session.json');
+
+  it('writes the session as a script, each step expecting all it made, which plays back as written', async () => {
+    const file = recording();
+    const typed = 'fire kiln\n@arrive Ines\nMarta> look\n@tick\n# done\n';
+    const io = captured(typed);
+    expect(await playInteractively(kilnYard, { nickname: 'Marta', record: file }, io)).toBe(0);
+    const recorded = readScript(readFileSync(file, 'utf8'), 'session.json');
+    expect(recorded.steps.map((step) => Object.keys(step)[0])).toEqual([
+      'arrive',
+      'as',
+      'arrive',
+      'as',
+      'tick',
+      'comment',
+      'leave',
+    ]);
+    expect(recorded.steps[1]).toEqual({
+      as: 'Marta',
+      type: 'fire kiln',
+      expect: [{ reader: 'Marta', kind: 'said', words: 'The chamber takes the flame.' }],
+    });
+    expect(playScript(kilnYard, recorded, 'session.json')).toEqual(recorded);
+  });
+
+  it('prints with --debug exactly the transcript of what it records', async () => {
+    const file = recording();
+    const io = captured('fire kiln\n@advance 2 hours\n@leave Marta\n@arrive Ines\nlook\n');
+    expect(
+      await playInteractively(kilnYard, { nickname: 'Marta', debug: true, record: file }, io),
+    ).toBe(0);
+    expect(io.out()).toBe(transcriptOf(readScript(readFileSync(file, 'utf8'), 'session.json')));
+  });
+
+  it('keeps what played before a line it refuses', async () => {
+    const file = recording();
+    const io = captured('fire kiln\n@dance\n');
+    expect(await playInteractively(kilnYard, { nickname: 'Marta', record: file }, io)).toBe(1);
+    const recorded = readScript(readFileSync(file, 'utf8'), 'session.json');
+    expect(recorded.steps).toHaveLength(2);
+  });
+
+  it('refuses --at, since a script brings everyone in where visitors arrive', async () => {
+    const io = captured('look\n');
+    expect(await playInteractively(lane, { at: 'shed', record: recording() }, io)).toBe(1);
+    expect(io.err()).toContain('--record cannot keep --at');
   });
 });

@@ -1,0 +1,47 @@
+{
+  "about": "Every visitor's first arrival makes them with a satchel of their own, as a spawn of their kind would be made, and nothing is said of it. A returning visitor comes back with what they carried away, and is never given another: Marta keeps hers across a visit, and once she has dropped it in the yard she comes back empty-handed.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "as": "Marta", "type": "inventory", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying a satchel." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "as": "Ines", "type": "inventory", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You are carrying a satchel." }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "as": "Marta", "type": "inventory", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying a satchel." }
+    ] },
+    { "as": "Marta", "type": "drop satchel", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a satchel down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a satchel down." }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "as": "Marta", "type": "inventory", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying nothing." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] }
+  ]
+}

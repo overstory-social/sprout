@@ -1,0 +1,15 @@
+{
+  "about": "A pot of tea goes cold after twenty minutes.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "north" },
+    { "as": "Marta", "type": "brew pot" },
+    { "advance": "19 minutes", "expect": [] },
+    { "advance": "1 minute", "expect": [
+      { "words": "The teapot has gone cold. Someone tips it out." }
+    ] },
+    { "as": "Marta", "type": "x pot", "expect": [
+      { "words": "A brown teapot, empty." }
+    ] }
+  ]
+}
