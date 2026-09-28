@@ -115,14 +115,16 @@ sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir [script] [--at place] [--as name] [--debug]
-                                      play a script of typed lines and host events through real turns:
-                                      the transcript, each line followed by what every reader read;
-                                      or, with no script (or `-`), interactively from stdin under one
-                                      visitor's own prompt, showing only what that visitor reads, or,
-                                      with --debug, the transcript
-  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
-                                      with what the world should say indented under a line, the whole line or its
+  sprout play dir script.json [--write]
+                                      play a script, JSON steps of what visitors type and what the host does,
+                                      through real turns, and print it with every step expecting all it made;
+                                      --write saves that over the script
+  sprout play dir [--at place] [--as name] [--debug] [--record file.json]
+                                      play interactively from stdin under one visitor's own prompt, showing
+                                      only what that visitor reads, or, with --debug, every reader's lines and
+                                      the host's; --record writes the session as a script
+  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.json or the scripts named: each a script
+                                      whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md

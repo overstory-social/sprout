@@ -1,0 +1,69 @@
+{
+  "about": "The cat. A tick reaches the composing room and no further; the room forwards it with `broadcast :stir`. The cat sometimes remarks on itself, and for each `Creature` in the room other than itself, sometimes performs `nuzzle` on them: a verb with no phrases, which nobody can type. The one nuzzled is told in the second person by their own kind's play, and the room reads the cat's line about them. Which of these happens is drawn from each tick's seed.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
+    ] },
+    { "seed": 1 },
+    { "tick": true, "expect": [] },
+    { "seed": 14 },
+    { "tick": true, "expect": [
+      { "reader": "Marta", "kind": "told", "words": "The cat regards the door and declines to go through it." },
+      { "reader": "Ines", "kind": "told", "words": "The cat regards the door and declines to go through it." },
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round Marta's ankles." }
+    ] },
+    { "seed": 4 },
+    { "tick": true, "expect": [
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning." },
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round Ines's ankles." }
+    ] },
+    { "seed": 6 },
+    { "tick": true, "expect": [
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." }
+    ] },
+    { "seed": 17 },
+    { "tick": true, "expect": [
+      { "reader": "Marta", "kind": "told", "words": "The cat resettles." },
+      { "reader": "Ines", "kind": "told", "words": "The cat resettles." },
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." },
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round Marta's ankles." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning." },
+      { "reader": "Marta", "kind": "told", "words": "The shop cat winds round Ines's ankles." }
+    ] },
+    { "comment": "Nobody is behind the cat, so `nuzzle` is not something a visitor can do." },
+    { "as": "Marta", "type": "nuzzle cat", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "comment": "The press yard has no tick of its own, and an empty room is not ticked." },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
+    ] },
+    { "seed": 9 },
+    { "tick": true, "expect": [
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round the apprentice's ankles." },
+      { "reader": "Ines", "kind": "told", "words": "The shop cat winds round your ankles and licks your hand. Your cuff will be damp all morning." }
+    ] },
+    { "as": "Ines", "type": "go out", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
+      { "reader": "Ines", "kind": "described", "words": "A wooden rib, a bone rib, the press, Marta," }
+    ] },
+    { "tick": true, "expect": [] }
+  ]
+}

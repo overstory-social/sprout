@@ -10,6 +10,7 @@ import {
   STANDARD_LIBRARY,
   type Manifest,
 } from '@overstory/sprout/lang';
+import { writeScript } from '@overstory/sprout-player';
 
 // `sprout init [dir]`: a folder with a manifest, the world in the file
 // named for its name, the kind its visitors are made of in the file named
@@ -67,18 +68,17 @@ export function initWorld(dir: string, author = userInfo().username): string[] {
   const readme =
     `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it, and ` +
     '`sprout test .` runs its tests, the scripts in `tests/`.\n';
-  const test = [
-    '# What a visitor reads on arriving. `sprout test` plays this and checks',
-    '# that the world says each indented line; change them as the world grows.',
-    '@arrive Marta',
-    '  There is nothing special about a hall.',
-    '',
-  ].join('\n');
+  const test = writeScript({
+    about:
+      'What a visitor reads on arriving. `sprout test` plays this and checks that the world says ' +
+      'what each step expects; change it as the world grows.',
+    steps: [{ arrive: 'Marta', expect: [{ words: 'There is nothing special about a hall.' }] }],
+  });
   const files = [
     [MANIFEST_FILE, `${JSON.stringify(written, null, 2)}\n`],
     [worldFile, world],
     [visitorFile, person],
-    ['tests/arrival.txt', test],
+    ['tests/arrival.json', test],
     ['README.md', readme],
   ] as const;
   mkdirSync(join(root, 'tests'));

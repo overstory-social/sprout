@@ -24,41 +24,35 @@ import {
   type WorldState,
 } from '@overstory/sprout/lang';
 
+import {
+  lineOf,
+  secondsOf,
+  stepOfLine,
+  TYPED_LINE,
+  type Expectation,
+  plays,
+  type Script,
+  type Step,
+} from './script.js';
 import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 
-// `sprout play`: a script of what visitors type and what the host does,
-// played through real turns over a freshly loaded world, and the
-// transcript it makes (the spec's The runtime › Turns; The host contract
-// › Admission and identity, Time). The world runs under the host's
-// default limits and no clock. Time starts at 0 and moves only when the
-// script says. While anyone stands in the world, every due wake is
-// delivered live at the instant it falls due; while nobody does, the
-// world waits, and the next arrival's catch-up delivers what fell due
-// (the spec's Time › Absence leaves the choice to the host). Each turn's
-// seed is the script's, 0 until it sets one.
+// `sprout play`: a script of what visitors type and what the host does
+// (`script.ts`), played through real turns over a freshly loaded world
+// (the spec's The runtime › Turns; The host contract › Admission and
+// identity, Time). The world runs under the host's default limits and no
+// clock. Time starts at 0 and moves only when the script says. While
+// anyone stands in the world, every due wake is delivered live at the
+// instant it falls due; while nobody does, the world waits, and the next
+// arrival's catch-up delivers what fell due (the spec's Time › Absence
+// leaves the choice to the host). Each turn's seed is the script's, 0
+// until it sets one.
 //
-// A script is a transcript. `Marta> take brass key` is Marta typing;
-// `@arrive Marta`, `@leave Marta`, `@tick`, `@advance 40 minutes` and
-// `@seed 7`, which sets the seed every turn after it is given, are the
-// host's; `#` starts a comment, kept as written, and a
-// blank line is kept. Every line indented is what the line above it made,
-// which playing writes afresh: one line per paragraph each reader read,
-// under their nickname and the effect's kind. So a transcript played is
-// its own golden, and a changed line is a changed behaviour. `sprout
-// test` reads the same script through `playLines`, keeping what the author
-// indented under each line as what they expect of it.
-//
-// `playLine` is one line of that grammar against a `Stage`; `sprout play`
-// with no script drives the same `Stage` and `playLine` interactively,
-// one line at a time from stdin, so a typed session is a script by
-// construction. `playInteractive` is its line, widened to admit a bare
-// line (no `Name>` before it) for whoever most recently arrived and
-// still stands, which the script grammar itself never admits.
-
-/** What playing gave: the transcript. */
-export interface Played {
-  readonly page: string;
-}
+// Playing a script gives it back with every step's `expect` filled in
+// with all it made, so a script played is its own golden, and a changed
+// expectation is a changed behaviour. `playStep` is one step against a
+// `Stage`; `sprout play` with no script drives the same `Stage` one
+// typed line at a time, read into the same steps, so what a session
+// records is a script by construction.
 
 /**
  * One line of what a line made: its text in the transcript, the words
@@ -70,32 +64,16 @@ export interface Made {
   readonly text: string;
   readonly words: string | null;
   readonly fault: boolean;
+  /** The effect's kind where a reader read it, `said` or `told`; null for a host line. */
+  readonly kind: string | null;
   readonly shown: string | null;
   readonly reader: string | null;
 }
 
-/** An indented line as the script holds it, trimmed, and the line number it stands on. */
-export interface Written {
-  readonly at: number;
-  readonly text: string;
-}
-
-/**
- * One line of a script and what playing it made: null for a comment, a
- * blank line and `@seed`, which make nothing. `under` is what the script
- * had indented beneath it.
- */
-export interface PlayedLine {
-  readonly at: number;
-  readonly line: string;
+/** One step of a script and what playing it made: null for a comment and `@seed`, which make nothing. */
+export interface PlayedStep {
+  readonly step: Step;
   readonly made: readonly Made[] | null;
-  readonly under: readonly Written[];
-}
-
-/** A script played line by line, and whatever it had indented above its first line. */
-export interface PlayedLines {
-  readonly lines: readonly PlayedLine[];
-  readonly before: readonly Written[];
 }
 
 /** The host's side of one play: the world as it stands, the instant, the seed, and each nickname's visit. */
@@ -107,24 +85,12 @@ export interface Stage {
   readonly visits: Map<string, VisitKey>;
 }
 
-/** One interactive line played: the script line it is, what it made, and who typed what, where someone did. */
+/** One interactive line played: the line as the grammar writes it, the step it is, and what it made. */
 export interface Interactive {
   readonly line: string;
+  readonly step: Step | null;
   readonly made: readonly Made[] | null;
-  readonly typed: { readonly nickname: string; readonly text: string } | null;
 }
-
-/** `Marta> take brass key`: who types it and what they typed. */
-const TYPED_LINE = /^([^\s>@#][^>]*)> ?(.*)$/;
-
-const UNITS: Readonly<Record<string, number>> = {
-  second: 1,
-  seconds: 1,
-  minute: 60,
-  minutes: 60,
-  hour: 3600,
-  hours: 3600,
-};
 
 /** What a line made, as the transcript writes it: `(nothing)` where nothing was. */
 export function heard(made: readonly Made[]): readonly Made[] {
@@ -133,12 +99,19 @@ export function heard(made: readonly Made[]): readonly Made[] {
 
 /** A line the host writes, which no reader read. */
 function hostLineOf(text: string): Made {
-  return { text, words: null, fault: false, shown: null, reader: null };
+  return { text, words: null, fault: false, kind: null, shown: null, reader: null };
 }
 
 /** The host refusing someone at the door: its words are shown at the console, whoever was refused. */
 function refusedLineOf(what: string, words: string): Made {
-  return { text: `${what}: ${words}`, words: null, fault: false, shown: words, reader: null };
+  return {
+    text: `${what}: ${words}`,
+    words: null,
+    fault: false,
+    kind: null,
+    shown: words,
+    reader: null,
+  };
 }
 
 /** `effects`, one line to each paragraph each reader read, under the reader's nickname and the kind. */
@@ -149,6 +122,7 @@ function effectLines(stage: Stage, effects: readonly Effect[]): Made[] {
       text: `${reader} (${effect.kind}): ${words}`,
       words,
       fault: false,
+      kind: effect.kind,
       shown: words,
       reader,
     }));
@@ -166,6 +140,7 @@ function faultLine(stage: Stage, what: string, fault: Fault): Made {
     text: `${what} faulted${against}, ${fault.name}: ${fault.detail}`,
     words: null,
     fault: true,
+    kind: null,
     shown: `[error] ${fault.name}`,
     reader: null,
   };
@@ -334,39 +309,23 @@ export function defaultVisitor(stage: Stage): string | null {
 }
 
 /**
- * What a host line does, `@` and all, or null for `@seed`, which does
- * nothing of itself; thrown, saying what to write, where it is not one.
+ * What `step` makes against `stage`, or null for a comment and `@seed`,
+ * which make nothing; thrown, naming `where`, where it cannot be played.
  */
-function hostLine(stage: Stage, line: string, where: string): Made[] | null {
-  const [word, ...rest] = line.slice(1).trim().split(/\s+/);
-  const arg = rest.join(' ');
-  switch (word) {
-    case 'arrive':
-    case 'leave':
-      if (arg === '')
-        throw new Error(`${where}: \`@${word}\` wants a nickname, as in \`@${word} Marta\`.`);
-      return word === 'arrive' ? arrive(stage, arg) : leave(stage, arg, where);
-    case 'tick':
-      if (arg !== '') throw new Error(`${where}: \`@tick\` stands alone.`);
-      return tick(stage);
-    case 'advance': {
-      const [count, unit] = rest;
-      const each = unit === undefined ? undefined : UNITS[unit];
-      if (rest.length !== 2 || !/^\d+$/.test(count!) || each === undefined) {
-        throw new Error(`${where}: write how long passes, as in \`@advance 40 minutes\`.`);
-      }
-      return advance(stage, Number(count) * each);
-    }
-    case 'seed':
-      if (!/^\d+$/.test(arg)) throw new Error(`${where}: write a whole number, as in \`@seed 7\`.`);
-      stage.seed = Number(arg);
-      return null;
-    default:
-      throw new Error(
-        `${where}: \`@${word ?? ''}\` is not something the host does here. ` +
-          'Write `@arrive`, `@leave`, `@tick`, `@advance` or `@seed`.',
-      );
+export function playStep(stage: Stage, step: Step, where: string): Made[] | null {
+  if ('comment' in step) return null;
+  if ('seed' in step) {
+    stage.seed = step.seed;
+    return null;
   }
+  if ('as' in step) return command(stage, step.as, step.type, where);
+  if ('arrive' in step) return arrive(stage, step.arrive);
+  if ('leave' in step) return leave(stage, step.leave, where);
+  if ('tick' in step) return tick(stage);
+  const seconds = secondsOf(step.advance);
+  if (seconds === null)
+    throw new Error(`${where}: write how long passes, as in \`@advance 40 minutes\`.`);
+  return advance(stage, seconds);
 }
 
 /** A fresh stage over `bundle`'s world: as it loads, time at 0, seed 0, nobody yet arrived. */
@@ -387,53 +346,27 @@ export function freshStage(bundle: Bundle): Stage {
 }
 
 /**
- * The script grammar's own reading of one line against `stage`: null for
- * a comment, a blank line or `@seed`. Thrown, saying what to write,
- * where the line is neither what someone types, what the host does, nor
- * a comment.
- */
-function playLine(stage: Stage, trimmed: string, where: string): readonly Made[] | null {
-  if (trimmed === '' || trimmed.startsWith('#')) return null;
-  if (trimmed.startsWith('@')) return hostLine(stage, trimmed, where);
-  const typed = TYPED_LINE.exec(trimmed);
-  if (typed === null) {
-    throw new Error(
-      `${where}: a line is what someone types, as in \`Marta> take brass key\`, what the host does, ` +
-        'as in `@arrive Marta`, or a `#` comment; what a line made is indented under it.',
-    );
-  }
-  return command(stage, typed[1]!.trim(), typed[2]!, where);
-}
-
-/**
- * One line typed at the interactive prompt against `stage`: `Marta>
- * take brass key` addresses Marta by name, as the script grammar reads
- * it; a bare `take brass key` addresses whoever `defaultVisitor` names,
- * since the prompt already said whose turn it is. The canonical line it
- * is, with a bare line's addressee filled in, and what it made — the
- * same shape a script line and its made lines are, so the pair, printed,
- * is a script line played again. Thrown, naming where, where nobody
- * stands to address a bare line.
+ * One line typed at the interactive prompt against `stage`, in the typed
+ * line grammar: `Marta> take brass key` addresses Marta by name; a bare
+ * `take brass key` addresses whoever `defaultVisitor` names, since the
+ * prompt already said whose turn it is. The line with a bare line's
+ * addressee filled in, the step it is (null for a blank line), and what
+ * it made. Thrown, naming where, where nobody stands to address a bare
+ * line or the line is none of the grammar's.
  */
 export function playInteractive(stage: Stage, raw: string, where: string): Interactive {
-  const trimmed = raw.trimEnd();
-  if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('@')) {
-    return { line: trimmed, made: playLine(stage, trimmed, where), typed: null };
-  }
-  const named = TYPED_LINE.exec(trimmed);
-  if (named !== null) {
-    const typed = { nickname: named[1]!.trim(), text: named[2]! };
-    return { line: trimmed, made: playLine(stage, trimmed, where), typed };
-  }
-  const nickname = defaultVisitor(stage);
-  if (nickname === null) {
-    throw new Error(`${where}: nobody is standing to hear it: write \`@arrive Marta\` first.`);
-  }
-  return {
-    line: `${nickname}> ${trimmed}`,
-    made: command(stage, nickname, trimmed, where),
-    typed: { nickname, text: trimmed },
-  };
+  const trimmed = raw.trim();
+  const bare = trimmed !== '' && !/^[@#]/.test(trimmed) && !TYPED_LINE.test(trimmed);
+  let step: Step | null;
+  if (bare) {
+    const nickname = defaultVisitor(stage);
+    if (nickname === null) {
+      throw new Error(`${where}: nobody is standing to hear it: write \`@arrive Marta\` first.`);
+    }
+    step = { as: nickname, type: trimmed };
+  } else step = stepOfLine(trimmed, where);
+  if (step === null) return { line: '', step: null, made: null };
+  return { line: lineOf(step), step, made: playStep(stage, step, where) };
 }
 
 /**
@@ -456,31 +389,28 @@ export function actedBy(
   return rendered !== null && rendered.length > 0 ? rendered : [`${nickname}: ${text}`];
 }
 
-/** Play `script` over a freshly loaded `bundle`, line by line, keeping what each line had indented under it. */
-export function playLines(bundle: Bundle, script: string, name = 'the script'): PlayedLines {
-  const stage = freshStage(bundle);
-  const played: { at: number; line: string; made: readonly Made[] | null; under: Written[] }[] = [];
-  const before: Written[] = [];
-  const lines = script.split('\n');
-  if (lines.at(-1) === '') lines.pop();
-  for (const [i, line] of lines.entries()) {
-    const at = i + 1;
-    const where = `${name}:${at}`;
-    if (/^\s/.test(line) && line.trim() !== '') {
-      (played.at(-1)?.under ?? before).push({ at, text: line.trim() });
-      continue;
-    }
-    const trimmed = line.trimEnd();
-    played.push({ at, line: trimmed, made: playLine(stage, trimmed, where), under: [] });
-  }
-  return { lines: played, before };
+/** What a step made, as a script expects it: each reader's line whole, and each host line at its level. */
+export function expectationsOf(made: readonly Made[]): Expectation[] {
+  return made.map((one) =>
+    one.reader !== null && one.kind !== null && one.words !== null
+      ? { reader: one.reader, kind: one.kind, words: one.words }
+      : { level: one.fault ? 'error' : 'info', text: one.text },
+  );
 }
 
-/** Play `script` over a freshly loaded `bundle`: the transcript, each line followed by what it made. */
-export function playScript(bundle: Bundle, script: string, name = 'the script'): Played {
-  const page = playLines(bundle, script, name).lines.flatMap(({ line, made }) => [
-    line,
-    ...(made === null ? [] : heard(made).map((one) => `  ${one.text}`)),
-  ]);
-  return { page: page.map((line) => `${line}\n`).join('') };
+/** Play `script` over a freshly loaded `bundle`, step by step; thrown, naming the step, where one cannot be played. */
+export function playSteps(bundle: Bundle, script: Script, name: string): PlayedStep[] {
+  const stage = freshStage(bundle);
+  return script.steps.map((step, i) => ({
+    step,
+    made: playStep(stage, step, `${name}, step ${i + 1}`),
+  }));
+}
+
+/** `script` played over a freshly loaded `bundle`, every step that plays expecting all it made. */
+export function playScript(bundle: Bundle, script: Script, name: string): Script {
+  const steps = playSteps(bundle, script, name).map(({ step, made }) =>
+    made === null || !plays(step) ? step : { ...step, expect: expectationsOf(made) },
+  );
+  return script.about === undefined ? { steps } : { about: script.about, steps };
 }

@@ -67,12 +67,13 @@ them shows as a diff of the page, read like any other.
 
 ### 2a. Golden transcripts
 
-A `good/` world may carry `transcripts/*.txt`. Each is a script that
-`sprout play` plays through real turns over the world as it loads: what
-visitors type, `Marta> take brass key`, and what the host does,
-`@arrive Marta`, `@leave`, `@tick`, `@advance 40 minutes`, `@seed 7`.
-Playing it prints the script with what every reader read of each line
-indented under it, so a transcript is its own golden: `npm run check`
+A `good/` world may carry `transcripts/*.json`. Each is a script that
+`sprout play` plays through real turns over the world as it loads, JSON
+steps of what visitors type, `{ "as": "Marta", "type": "take brass key" }`,
+and what the host does, `{ "arrive": "Marta" }`, `leave`, `tick`,
+`{ "advance": "40 minutes" }`, `{ "seed": 7 }`. Playing it prints the
+script with every step expecting all it made, each reader's line and
+each host line, so a transcript is its own golden: `npm run check`
 plays each and compares, and `node scripts/check-transcripts.mjs
 --write` replays each and writes what it printed. The diff is read as a
 page's is. The worked microworld's transcripts play every chain in it
@@ -82,11 +83,11 @@ transcript pins what happens and the working notes' Open list says why
 
 ### 2b. A world's own tests
 
-A world may also carry `tests/*.txt`, which are what an author writes
+A world may also carry `tests/*.json`, which are what an author writes
 and runs with `sprout test`: the same scripts, with only the lines the
-author expects indented under a line, whole or as the words alone, each
-of which must be among what the line made in the order written. A turn
-that faults fails the test unless its fault is written under it.
+author expects under a step, whole or as the words alone, each of which
+must be among what the step made in the order written. A turn that
+faults fails the test unless its fault is expected.
 `npm run check` runs `sprout test` on every `good/` world with a `tests/`
 folder and requires it to pass; the page a failing test prints is pinned
 in `player/src/test.spec.ts`. The worked microworld carries tests written

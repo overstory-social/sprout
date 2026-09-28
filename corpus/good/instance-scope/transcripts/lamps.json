@@ -1,0 +1,41 @@
+{
+  "about": "A name in a kind's body is judged by what each container holds when the body runs. The hall's lamp carried off is nobody's `lamp` in the hall, so the lantern there kindles nothing; set down in the cellar it is the cellar's `lamp`; and a lamp the cupboard spawns into the hall is the hall's, narrowed with `is()` in the cupboard's own body.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." }
+    ] },
+    { "as": "Marta", "type": "light lantern", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lantern catches." }
+    ] },
+    { "as": "Marta", "type": "examine lamp", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It is dark." }
+    ] },
+    { "as": "Marta", "type": "go down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a cellar." }
+    ] },
+    { "as": "Marta", "type": "drop lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp down." }
+    ] },
+    { "as": "Marta", "type": "light lantern", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lantern catches." }
+    ] },
+    { "as": "Marta", "type": "examine lamp", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It burns steadily." }
+    ] },
+    { "as": "Marta", "type": "go up", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "open cupboard", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A new lamp is set out, unlit." }
+    ] },
+    { "as": "Marta", "type": "light lantern", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lantern catches." }
+    ] },
+    { "as": "Marta", "type": "examine lamp", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It burns steadily." }
+    ] }
+  ]
+}

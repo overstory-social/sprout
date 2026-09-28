@@ -1,0 +1,85 @@
+{
+  "about": "The type cabinet: a `sprout.Container` that is `Warded` (and so `sprout.Lockable`) and a `sprout.Fixture`. Its lock is a `permit` on the library's own `open`; `Warded` narrows the open `tool` with `is(Key)` before reading `:opens`; the brass key's ward is the cabinet's, and the shop key inside opens both. The fixture's words are the cabinet's own.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Marta", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
+      { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
+    ] },
+    { "as": "Marta", "type": "take cabinet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is a cabinet. It stays where it is." }
+    ] },
+    { "as": "Marta", "type": "open cabinet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is locked." }
+    ] },
+    { "as": "Marta", "type": "close cabinet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is already shut." }
+    ] },
+    { "as": "Marta", "type": "unlock cabinet with apprentice", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The apprentice is not a key." }
+    ] },
+    { "as": "Marta", "type": "unlock cabinet with brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }
+    ] },
+    { "as": "Marta", "type": "unlock cabinet with brass key", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is already unlocked." }
+    ] },
+    { "as": "Marta", "type": "unlock cabinet with key", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is already unlocked." }
+    ] },
+    { "as": "Marta", "type": "open type", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta opens the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "open cabinet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is already open." }
+    ] },
+    { "as": "Marta", "type": "take shop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a shop key." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a shop key." }
+    ] },
+    { "as": "Marta", "type": "take iron key", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Ines", "type": "close cabinet", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You shut the type cabinet." },
+      { "reader": "Marta", "kind": "told", "words": "Ines shuts the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "put brass key in cabinet", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The type cabinet is shut." }
+    ] },
+    { "as": "Ines", "type": "open cabinet", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Marta", "kind": "told", "words": "Ines opens the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "put brass key in cabinet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a brass key in the type cabinet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a brass key in the type cabinet." }
+    ] },
+    { "as": "Ines", "type": "take brass key", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You take a brass key." },
+      { "reader": "Marta", "kind": "told", "words": "Ines takes a brass key." }
+    ] },
+    { "as": "Ines", "type": "x cabinet", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the type cabinet." }
+    ] },
+    { "as": "Marta", "type": "unlock paper store with shop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "reader": "Ines", "kind": "told", "words": "Marta unlocks the paper store." }
+    ] },
+    { "as": "Marta", "type": "i", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying a shop key." }
+    ] }
+  ]
+}

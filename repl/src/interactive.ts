@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 import type { Bundle } from '@overstory/sprout/lang';
@@ -6,13 +7,17 @@ import {
   actedBy,
   arrive,
   defaultVisitor,
+  expectationsOf,
   freshStage,
   heard,
   INSPECTOR,
   leave,
   playInteractive,
+  plays,
+  writeScript,
   type Made,
   type StandOptions,
+  type Step,
 } from '@overstory/sprout-player';
 
 // `sprout play` with no script (or `-`): the same stage and grammar the
@@ -27,7 +32,9 @@ import {
 // line typed where stdin is a real terminal is already shown by its own
 // echo, right after the prompt; one typed anywhere else is written out
 // as a script's line would be. `Ctrl-D` ends the session with a departure
-// turn for whoever is still standing, as a last `@leave` would.
+// turn for whoever is still standing, as a last `@leave` would. With
+// `record`, the session is also written as a script, each step expecting
+// all it made, so playing it back makes the same.
 
 /** The streams a session reads and writes. */
 export interface Io {
@@ -37,9 +44,10 @@ export interface Io {
   stdin?: NodeJS.ReadableStream;
 }
 
-/** Where and as whom a session stands, and whether it prints everything, as a script's page does. */
+/** Where and as whom a session stands, whether it prints everything, and where to record it as a script. */
 export interface SessionOptions extends StandOptions {
   readonly debug?: boolean;
+  readonly record?: string;
 }
 
 /** What `made` shows on `viewer`'s screen: the lines they read, and the console's own. */
@@ -67,8 +75,27 @@ export async function playInteractively(
   options: SessionOptions,
   io: Io,
 ): Promise<number> {
+  if (options.record !== undefined && options.at !== undefined) {
+    return refuse(
+      io,
+      new Error(
+        '--record cannot keep --at: a script brings everyone in where visitors arrive. Leave out --at, ' +
+          'and walk there.',
+      ),
+    );
+  }
   const stage = freshStage(bundle);
   const debug = options.debug === true;
+  const recorded: Step[] = [];
+  const keep = (step: Step | null, made: readonly Made[] | null) => {
+    if (step === null) return;
+    recorded.push(made === null || !plays(step) ? step : { ...step, expect: expectationsOf(made) });
+  };
+  const saved = <T>(code: T): T => {
+    if (options.record !== undefined)
+      writeFileSync(options.record, writeScript({ steps: recorded }));
+    return code;
+  };
   const write = (lines: readonly string[]) => {
     for (const line of lines) io.stdout.write(`${line}\n`);
   };
@@ -81,12 +108,13 @@ export async function playInteractively(
   const nickname = options.nickname ?? INSPECTOR;
   try {
     const made = arrive(stage, nickname, options.at);
+    keep({ arrive: nickname }, made);
     if (debug) write([`@arrive ${nickname}`]);
     print(made, nickname);
   } catch (err) {
     return refuse(io, err);
   }
-  if (defaultVisitor(stage) === null) return 0;
+  if (defaultVisitor(stage) === null) return saved(0);
 
   const input = io.stdin ?? process.stdin;
   const tty = (input as NodeJS.ReadStream).isTTY === true;
@@ -106,19 +134,20 @@ export async function playInteractively(
       at += 1;
       const before = defaultVisitor(stage);
       const outcome = playInteractive(stage, raw, `stdin:${at}`);
+      keep(outcome.step, outcome.made);
       if (!tty) write([outcome.line]);
       // Whoever the prompt is now watches: an arrival hands the screen to
       // the one who came in, and the last departure leaves it with them.
       const viewer = defaultVisitor(stage) ?? before;
-      if (!debug && viewer !== null && outcome.typed !== null) {
-        const { nickname: typist, text } = outcome.typed;
-        if (typist !== viewer) write(actedBy(stage, viewer, typist, text));
+      const { step } = outcome;
+      if (!debug && viewer !== null && step !== null && 'as' in step && step.as !== viewer) {
+        write(actedBy(stage, viewer, step.as, step.type));
       }
       print(outcome.made, viewer);
       prompt();
     }
   } catch (err) {
-    return refuse(io, err);
+    return saved(refuse(io, err));
   } finally {
     lines.close();
   }
@@ -127,7 +156,9 @@ export async function playInteractively(
   if (departing !== null) {
     if (tty) io.stdout.write('\n');
     if (debug) write([`@leave ${departing}`]);
-    print(leave(stage, departing, 'end of session'), departing);
+    const made = leave(stage, departing, 'end of session');
+    keep({ leave: departing }, made);
+    print(made, departing);
   }
-  return 0;
+  return saved(0);
 }

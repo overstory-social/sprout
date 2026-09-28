@@ -263,24 +263,35 @@ away — useful when you are checking that a door of your own works.
 
 ## Replaying a session
 
-`sprout play` can also play a script instead of reading from you. Save
-your typing in a file — one command per line, each starting with the
-name of who types it — and pass the file:
-
-```text
-# walk.txt
-@arrive Marta
-Marta> take brass key
-Marta> go out
-```
+To keep a session, add `--record` with a file name:
 
 ```sh
-sprout play corpus/good/printers_shop walk.txt
+sprout play corpus/good/printers_shop --as Marta --record walk.json
 ```
 
-Sprout plays it and prints each line with what the world said. The
-[Quickstart](03-quickstart.md) shows how to turn scripts like this into
-tests for your own world.
+When you leave, `walk.json` holds everything you did as a _script_: a
+list of steps, each with everything the world said in answer. Pass the
+file to `sprout play` and it plays it again, from a fresh world:
+
+```sh
+sprout play corpus/good/printers_shop walk.json
+```
+
+You can also write a script by hand:
+
+```json
+{
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "take brass key" },
+    { "as": "Marta", "type": "go out" }
+  ]
+}
+```
+
+Sprout plays it and prints it back with what the world said under each
+step. The [Quickstart](03-quickstart.md) shows how to turn scripts like
+this into tests for your own world.
 
 ## Peeking behind the curtain
 
