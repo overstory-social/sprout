@@ -1,0 +1,12 @@
+// A kind another file declares, used without importing it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world import_missing is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object crate is Crate
+  }
+}

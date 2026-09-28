@@ -1,0 +1,16 @@
+{
+  "name": "import_missing",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "1f2fb7869f3ee12fbb456d0477d49dc5a84a128582a560c41bdc66c29d85b836"
+    }
+  ],
+  "files": ["crate.sprout", "import_missing.sprout", "person.sprout"]
+}
