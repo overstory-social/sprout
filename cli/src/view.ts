@@ -7,7 +7,7 @@ import {
   type SeenThing,
 } from '@overstory/sprout/lang';
 
-import { pathOf, type Standing } from './stand.js';
+import { pathOf, type Standing } from '@overstory/sprout-player';
 
 // `sprout view`: what a visitor standing somewhere is shown and offered,
 // as a poll gives it (the spec's The runtime › The view): the place's

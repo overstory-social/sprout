@@ -1,22 +1,23 @@
 {
-  "name": "@overstory/sprout-cli",
+  "name": "@overstory/sprout-player",
   "version": "0.1.0",
-  "description": "The Sprout command line: init, check, parse, view and skill on a microworld folder, and play and test through the player and the REPL.",
+  "description": "Sprout's player: a microworld played from a script through real turns, its transcript, and an author's own tests checked against it.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "bin": {
-    "sprout": "bin/sprout.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./fixtures": {
+      "types": "./dist/fixtures/worlds.d.ts",
+      "default": "./dist/fixtures/worlds.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "bin",
     "dist",
     "LICENSE",
     "README.md"
@@ -28,16 +29,12 @@
     "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
   },
   "dependencies": {
-    "@overstory/sprout": "0.1.0",
-    "@overstory/sprout-player": "0.1.0",
-    "@overstory/sprout-repl": "0.1.0",
-    "zod": "^4.4.2"
+    "@overstory/sprout": "0.1.0"
   },
-  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/overstory-social/sprout.git",
-    "directory": "cli"
+    "directory": "player"
   },
   "engines": {
     "node": ">=22"

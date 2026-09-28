@@ -20,11 +20,11 @@ shop=$(pwd)/corpus/good/printers_shop
 skill=$(pwd)/corpus/skill/SKILL.md
 packs=$(mktemp -d)
 npm run build >/dev/null
-npm pack -w sprout -w cli --pack-destination "$packs" >/dev/null
+npm pack -w sprout -w player -w repl -w cli --pack-destination "$packs" >/dev/null
 sandbox=$(mktemp -d)
 cd "$sandbox"
 npm init -y >/dev/null
-npm install --silent "$packs"/overstory-sprout-*.tgz "$packs"/overstory-sprout-cli-*.tgz
+npm install --silent "$packs"/overstory-sprout-*.tgz
 npx sprout init shed --author e2e
 npx sprout check shed
 npx sprout test shed

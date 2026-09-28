@@ -9,10 +9,10 @@ import {
   SourceFile,
   STANDARD_LIBRARY,
 } from '@overstory/sprout/lang';
+import { runTests, testFiles } from '@overstory/sprout-player';
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
-import { runTests, testFiles } from './test.js';
 import { readWorld } from './world.js';
 
 describe('initWorld', () => {

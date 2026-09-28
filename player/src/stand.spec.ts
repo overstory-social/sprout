@@ -1,11 +1,10 @@
 import { declaredId, mintedId, type InstanceId } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
-import { checkWorld } from './check.js';
 import { catalogueFor, INSPECTOR, pathOf, standIn } from './stand.js';
-import { LANE, worldFolder } from './testing.js';
+import { bundleOf, LANE } from './fixtures/worlds.js';
 
-const lane = () => checkWorld(worldFolder('lane', LANE)).bundle!;
+const lane = () => bundleOf('lane', LANE);
 const id = (...path: string[]): InstanceId => declaredId('lane', path);
 
 describe('standIn', () => {

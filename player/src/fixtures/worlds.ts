@@ -1,37 +1,23 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PassThrough } from 'node:stream';
 
-import { libraryHash, STANDARD_LIBRARY } from '@overstory/sprout/lang';
+import {
+  compileBundle,
+  DEFAULT_BLESSED,
+  libraryHash,
+  parseManifest,
+  Diagnostics,
+  SourceFile,
+  STANDARD_LIBRARY,
+  type Bundle,
+} from '@overstory/sprout/lang';
 
-import type { Io } from './cli.js';
+// Spec support for the player, the REPL and the CLI, never imported by a
+// command: two small worlds, compiled in memory as `sprout check` compiles
+// a folder, or written out as a folder for the commands that read one.
 
-// Spec support, never imported by a command: an Io whose output is
-// captured, and world folders to run the commands over.
-
-export interface CapturedIo extends Io {
-  out(): string;
-  err(): string;
-}
-
-/** An `Io` whose output is captured; `input` is what `play` with no script reads as its typed lines. */
-export function captured(input = ''): CapturedIo {
-  const stdout = new PassThrough();
-  const stderr = new PassThrough();
-  const stdin = new PassThrough();
-  stdin.end(input);
-  let out = '';
-  let err = '';
-  stdout.on('data', (c: Buffer | string) => (out += c.toString()));
-  stderr.on('data', (c: Buffer | string) => (err += c.toString()));
-  return { stdout, stderr, stdin, out: () => out, err: () => err };
-}
-
-/** A world folder holding `files`, its manifest naming each in order and pinning the standard library. */
-export function worldFolder(name: string, files: Record<string, string>): string {
-  const dir = join(mkdtempSync(join(tmpdir(), 'sprout-world-')), name);
-  mkdirSync(dir);
+function manifestOf(name: string, files: Record<string, string>): string {
   const manifest = {
     name,
     version: '0.1.0',
@@ -42,9 +28,30 @@ export function worldFolder(name: string, files: Record<string, string>): string
     libraries: [{ name: 'sprout', version: '0.1.0', sha: libraryHash(STANDARD_LIBRARY) }],
     files: Object.keys(files),
   };
-  writeFileSync(join(dir, 'sprout.json'), JSON.stringify(manifest, null, 2));
+  return JSON.stringify(manifest, null, 2);
+}
+
+/** A world folder holding `files`, its manifest naming each in order and pinning the standard library. */
+export function worldFolder(name: string, files: Record<string, string>): string {
+  const dir = join(mkdtempSync(join(tmpdir(), 'sprout-world-')), name);
+  mkdirSync(dir);
+  writeFileSync(join(dir, 'sprout.json'), manifestOf(name, files));
   for (const [file, text] of Object.entries(files)) writeFileSync(join(dir, file), text);
   return dir;
+}
+
+/** The world `files` make, compiled strictly with the standard library vendored; throws where it is refused. */
+export function bundleOf(name: string, files: Record<string, string>): Bundle {
+  const diagnostics = new Diagnostics();
+  const manifestFile = new SourceFile('sprout.json', manifestOf(name, files));
+  const manifest = parseManifest(manifestFile, diagnostics)!;
+  const sources = Object.entries(files).map(([file, text]) => new SourceFile(file, text));
+  const { bundle } = compileBundle(
+    { manifestFile, manifest, files: sources, libraries: [STANDARD_LIBRARY] },
+    { mode: 'publish', blessed: DEFAULT_BLESSED },
+  );
+  if (bundle === null) throw new Error(`${name} does not compile`);
+  return bundle;
 }
 
 /**

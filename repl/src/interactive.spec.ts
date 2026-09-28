@@ -2,13 +2,14 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { checkWorld } from './check.js';
 import { playInteractively } from './interactive.js';
-import { playScript } from './play.js';
-import { captured, KILN_YARD, LANE, worldFolder } from './testing.js';
+import { playScript } from '@overstory/sprout-player';
+import { bundleOf, KILN_YARD, LANE } from '@overstory/sprout-player/fixtures';
 
-const kilnYard = checkWorld(worldFolder('kiln_yard', KILN_YARD)).bundle!;
-const lane = checkWorld(worldFolder('lane', LANE)).bundle!;
+import { captured } from './fixtures/io.js';
+
+const kilnYard = bundleOf('kiln_yard', KILN_YARD);
+const lane = bundleOf('lane', LANE);
 const asScript = (script: string) => playScript(kilnYard, script).page;
 
 describe('playInteractively', () => {

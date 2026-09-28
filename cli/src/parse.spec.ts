@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
 import { formatGrammar, parseLine } from './parse.js';
-import { catalogueFor, standIn, type Standing } from './stand.js';
-import { LANE, worldFolder } from './testing.js';
+import { catalogueFor, standIn, type Standing } from '@overstory/sprout-player';
+import { LANE, worldFolder } from '@overstory/sprout-player/fixtures';
 
 const lane = () => checkWorld(worldFolder('lane', LANE)).bundle!;
 const at = (place?: string): Standing => standIn(lane(), place === undefined ? {} : { at: place });
