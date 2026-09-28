@@ -1,13 +1,13 @@
-path_malformed.sprout:5:27   Two dots in a row leave a name out.
+path_malformed.sprout:9:27   Two dots in a row leave a name out.
                              Write one name between each pair of dots, as in `kiln.shelf`.
 
-path_malformed.sprout:7:32   This path ends in a dot.
+path_malformed.sprout:11:32  This path ends in a dot.
                              After a dot comes the name of what is inside the thing before it, as in `kiln.shelf`; or take the dot out.
 
-path_malformed.sprout:9:27   `4` is a number, not the name of anything in `kiln`.
+path_malformed.sprout:13:27  `4` is a number, not the name of anything in `kiln`.
                              After a dot comes the name of what is inside the thing before it, in lower case, as in `kiln.shelf`.
 
-path_malformed.sprout:11:22  A path is written without spaces around its dots.
+path_malformed.sprout:15:22  A path is written without spaces around its dots.
                              Write `kiln.shelf`.
 
 refused: 4 problems

@@ -4,6 +4,14 @@
 // A kind has only its own: a porch made of both doors takes neither and
 // is not refused, and a dead end made of a turning takes none of its
 // ways out, though the turning's `dig` still reaches it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {FrontDoor} from 'front_door'
+import {BackDoor} from 'back_door'
+import {Porch} from 'porch'
+import {MazeCell} from 'maze_cell'
+import {DeadEnd} from 'dead_end'
+
 world ways_own is sprout.World {
   visitors are Person
   visitors arrive at yard

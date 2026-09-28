@@ -2,6 +2,9 @@
 // `inside_itself` (the spec's Verbs › Engine verbs). `help` is given
 // `readings`, a set of readings, each rendering as the words a visitor
 // would type for it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world help_and_wait is sprout.World {
   visitors are Person
   visitors arrive at yard

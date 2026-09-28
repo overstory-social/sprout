@@ -2,7 +2,7 @@
 // Imports). A name brought in under `as`, one brought in from a library,
 // and a member of a namespace are rewritten to the declaration each names,
 // keeping where it was written, so whatever reads the file afterwards
-// reads what the import means. The first tier applies a file's imports
+// reads what the import means. Reading a file applies its imports
 // from libraries before it checks the file; the bundle applies the rest.
 
 import type { Declaration, Ident, ObjectDeclaration } from '../../syntax/ast.js';

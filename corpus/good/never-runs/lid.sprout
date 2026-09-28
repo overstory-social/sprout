@@ -1,6 +1,8 @@
 // A `permit` that has allowed decides nothing more. A `refuse` inside an
 // `if` ends the `permit` only where its condition holds, so what follows
 // the `if` is not warned about; what follows the `refuse` in its block is.
+import {pry} from 'never_runs'
+
 kind Lid {
   :stuck true
   as target for pry {

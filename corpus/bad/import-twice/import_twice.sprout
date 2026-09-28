@@ -1,4 +1,7 @@
 // One name imported twice.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world import_twice is sprout.World {
   visitors are Person
   visitors arrive at yard

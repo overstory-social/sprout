@@ -1,5 +1,7 @@
 // A `permit` is asked before anything happens, so it may only read and
 // decide. Moving the lever belongs in `do`.
+import {pull} from 'permit_writes'
+
 kind Lever {
   :pulled false
 

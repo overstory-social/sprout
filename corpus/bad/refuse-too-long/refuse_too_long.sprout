@@ -1,4 +1,7 @@
 // A refusal in quotes longer than the host lets a `refuse` be.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world refuse_too_long is sprout.World {
   visitors are Person
   visitors arrive at hall

@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "66ca315d625634f8152089719f7c33abfd6973575b9fc892250ba60968be33a2"
+      "sha": "1f2fb7869f3ee12fbb456d0477d49dc5a84a128582a560c41bdc66c29d85b836"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -88,21 +88,20 @@ is listed but missing, or present but not listed, is reported.
 
 ### Which file holds what
 
-- **The world** is declared in the file named for it: `world
-  printers_shop` in `printers_shop.sprout`. An object is declared inside
-  the body of what holds it, or in a file of its own that says where it
-  sits (see [Objects](#objects)).
-- **Each kind** is declared in a file of its own, named for the kind in
-  lower case with `_` between words: `kind Chest` in `chest.sprout`,
-  `kind PrintedSheet` in `printed_sheet.sprout`, `kind TVSet` in
-  `tv_set.sprout`.
-- **Enums, verbs and messages** may go in any `.sprout` file, alone or
-  beside a kind or the world.
+Files and folders are yours to arrange.
+
+- **The world** is declared once, in whichever file you like; `sprout
+  init` calls it after the world, as `printers_shop.sprout`. An object is
+  declared inside the body of what holds it, or in a file of its own
+  that says where it sits (see [Objects](#objects)).
+- **Kinds, enums, verbs and messages** may go in any `.sprout` file,
+  several to a file, alone or beside the world. Two files may even
+  declare kinds of one name; a file that needs both imports one under
+  another name.
 - **Passages** may be written inline in a body, or in a `.prose` file that
   a body points at with `prose "name.prose"`.
 
-A file may import names from another file, or a whole library, at its
-top:
+A file names what another file declares only by importing it:
 
 ```sprout
 import {Chest as Box} from 'things/chest'
@@ -116,17 +115,28 @@ import * as sprout from 'sprout'
   everything a library declares writable as `sprout.Container`.
 - A name may be imported once per file, and not under a name the file
   itself declares. The world's own name is never imported.
+- An object another file declares is named from the world instead, as
+  `printers_shop.hall`, unless it is written in a file of its own and
+  imported.
+- Imports may go anywhere at the top level of a file; at the top is
+  easiest to read.
 
-For now, a name written without an import still resolves across the
-whole world and the libraries it uses. That is going to change: every
-name from another file will need its import.
+Nothing is in scope without an import: not the standard library, and
+not what your other files declare. Forget one and the compiler says
+which name, where it is declared, and the line to write. The engine's
+own messages, `:entered`, `:tick` and the rest, are never imported, and
+every verb any file declares is typeable whether or not a file imports
+it.
+
+Examples in this reference are excerpts: a file that writes
+`sprout.Place` has imported `* as sprout from 'sprout'`.
 
 ### Libraries
 
 A library is a set of kinds, enums, verbs and messages, written in
-Sprout, that a world can use. The standard library, `sprout`, is always
-available; its declarations can be written with or without the `sprout.`
-prefix. A library's full source travels with every world that uses it,
+Sprout, that a world can use. The standard library, `sprout`, is imported
+like any file, by its name: `import {Container} from 'sprout'`, or
+`import * as sprout from 'sprout'` for all of it as `sprout.Container`. A library's full source travels with every world that uses it,
 checked against the hash in the manifest, so a world never changes
 because a library changed somewhere else.
 
@@ -1901,7 +1911,7 @@ cat.sprout:4:14  `say` has nobody to speak to inside `on :stir`.
 - Objects in the wrong place: outside the world, inside something that
   holds nothing, an actor where actors cannot be, two of one name in one
   body.
-- A kind in a file not named for it.
+- A name another file or a library declares, used without importing it.
 - Any static cap exceeded (see [Limits](#22-limits)).
 
 ### It warns about

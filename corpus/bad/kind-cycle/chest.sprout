@@ -1,1 +1,3 @@
+import {Trunk} from 'trunk'
+
 kind Chest is Trunk { }

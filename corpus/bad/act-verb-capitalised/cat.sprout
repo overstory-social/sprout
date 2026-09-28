@@ -1,4 +1,7 @@
 // A verb is named in lower case, as it was declared.
+import {Creature} from 'creature'
+import {pet} from 'act_verb_capitalised'
+
 kind Cat is Creature {
   as target for pet {
     do {

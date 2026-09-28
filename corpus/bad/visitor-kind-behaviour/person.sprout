@@ -1,5 +1,9 @@
 // What a person has and is described by is the visitor kind's to say, and
 // behaviour it composes runs; its own body writes none.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {wave} from 'visitor_kind_behaviour'
+
 kind Person is Creature, sprout.Visitor {
   :stamina 3 min 0 max 9
 

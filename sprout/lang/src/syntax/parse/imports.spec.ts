@@ -12,7 +12,7 @@ const said = (text: string) =>
 
 const EXAMPLE = `Write \`import {Key} from ${Q}blacksmith/key${Q}\`, or \`import * as sprout from ${Q}sprout${Q}\` for all of a library.`;
 
-describe('`import` lines, at the top of a file', () => {
+describe('`import` lines, at a file’s top level', () => {
   it('reads names, `as`, messages and a namespace, beside `extension` lines and before the declarations', () => {
     const { declarations, refusals } = read(
       `import {Key} from ${Q}key${Q}\nextension media 2\nimport * as sprout from "sprout"\nkind Crate { }\n`,
@@ -25,15 +25,13 @@ describe('`import` lines, at the top of a file', () => {
     expect(third!.namespace?.text).toBe('sprout');
   });
 
-  it('refuses an import after a declaration, and keeps reading after it', () => {
+  it('reads an import anywhere at the top level, as TypeScript does', () => {
     const { declarations, refusals } = read(
       `kind Crate { }\nimport {Key} from ${Q}key${Q}\nenum Ward { oak }\n`,
       'shop.sprout',
     );
-    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
-      ['shop.sprout:2:1', '`import` belongs at the top of the file, before anything it declares.'],
-    ]);
-    expect(declarations.map((d) => d.kind)).toEqual(['kind', 'enum']);
+    expect(refusals).toEqual([]);
+    expect(declarations.map((d) => d.kind)).toEqual(['kind', 'import', 'enum']);
   });
 
   it('refuses each malformed import in the one set of words, and loses nothing after it', () => {

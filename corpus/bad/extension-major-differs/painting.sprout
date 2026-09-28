@@ -1,5 +1,7 @@
 // A file names an extension at the major version the manifest pins, so
 // every file of one world means the same extension by the name.
+import {view} from 'extension_major_differs'
+
 extension media 2
 
 kind Painting {

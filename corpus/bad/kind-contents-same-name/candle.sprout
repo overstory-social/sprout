@@ -1,5 +1,7 @@
 // Two written in one kind's body are two of one name there, whether or
 // not anything is made of the kind.
+import {Wick} from 'wick'
+
 kind Candle {
   contains
   object wick is Wick

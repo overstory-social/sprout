@@ -1,1 +1,3 @@
+import {MazeCell} from 'maze_cell'
+
 kind DeadEnd is MazeCell { }

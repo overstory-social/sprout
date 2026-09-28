@@ -1,5 +1,7 @@
 // A spark lights the lamp it is spawned beside, then goes once every
 // message the turn has sent has been handled.
+import {:lit} from 'kinds'
+
 kind Spark {
   on :spawned (from) {
     send sending.hall.lamp :lit with true

@@ -1,0 +1,9 @@
+// The standard library written with its name, and never imported.
+import {Person} from 'person'
+
+world namespace_missing is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

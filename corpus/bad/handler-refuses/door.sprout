@@ -1,3 +1,5 @@
+import {:unlock_attempt} from 'kinds'
+
 kind Door {
   :locked true
   on :unlock_attempt (from) {

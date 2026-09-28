@@ -11,6 +11,7 @@
 // in range.
 
 import type { Expr, Ident, ObjectPath } from '../syntax/ast.js';
+import { pathKey } from '../declare/tree.js';
 import { writtenPath } from '../syntax/ast.js';
 import type { Node } from '../source/nodes.js';
 import { readable } from '../source/words.js';
@@ -48,6 +49,7 @@ export function identifierType(ident: Ident, context: CheckContext): BindingType
   if (scope === undefined) return null;
   const naming = nameFrom(scope.source, scope.vantage, [ident.text]);
   if (naming.names === 'missing' || naming.names === 'world-inside') return null;
+  checkNameable(ident, [ident.text], context);
   scope.table.set(ident, naming);
   return typed(naming, scope);
 }
@@ -105,8 +107,34 @@ export function dottedType(path: ObjectPath, context: CheckContext): BindingType
     );
     return null;
   }
+  checkNameable(path.parts[0]!, parts, context);
   scope.table.set(path, naming);
   return typed(naming, scope);
+}
+
+/**
+ * Refuse a name in the world's tree whose first step reaches an object
+ * another file declares and this one does not import (the spec's
+ * Identifiers and scope): it is named from the world instead. A name in a
+ * kind's body, which each instance reaches for itself, is never refused.
+ */
+function checkNameable(first: Ident, parts: readonly string[], context: CheckContext): void {
+  const scope = context.names;
+  const nameable = scope?.source.nameable;
+  if (scope === undefined || nameable === undefined || scope.vantage.in !== 'tree') return;
+  const { tree } = scope.source;
+  if (parts[0] === tree.world) return;
+  const step = nameFrom(scope.source, scope.vantage, [parts[0]!]);
+  if (step.names !== 'declared') return;
+  const placement = tree.placed.get(pathKey(step.path));
+  const file = first.at.source.name;
+  if (placement === undefined || nameable(file, placement)) return;
+  const path = [tree.world, ...placement.path].join('.');
+  context.diagnostics.refuse(
+    first.at,
+    `\`${first.text}\` is written in \`${placement.declaration.at.source.name}\`, and this file does not import it.`,
+    `Name it from the world, as \`${[path, ...parts.slice(1)].join('.')}\`.`,
+  );
 }
 
 function typed(named: Named, scope: NameScope): BindingType {

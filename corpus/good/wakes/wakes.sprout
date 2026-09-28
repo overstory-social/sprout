@@ -2,6 +2,11 @@
 // cools when it is; and a seedling, warmed by the same firing, that
 // grows by however long actually passed each time it wakes rather than
 // by counting its wakes, and asks again until it is grown.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Kiln} from 'kiln'
+import {Seedling} from 'seedling'
+
 world wakes is sprout.World {
   visitors are Person
   visitors arrive at yard

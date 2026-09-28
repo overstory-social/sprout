@@ -1,3 +1,5 @@
+import * as sprout from 'sprout'
+
 kind Satchel is sprout.Container {
   grammar { nouns "satchel" }
 }

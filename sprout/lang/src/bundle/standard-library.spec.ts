@@ -9,10 +9,11 @@ import { ABSENT_TABLE } from './absent.js';
 import { resolveDeclarations } from './declarations.js';
 import { libraryHash, type LibrarySource, type Manifest } from './bundle.js';
 import { compileBundle } from './compile/compile.js';
-import { checkShape } from './compile/first-tier.js';
+import { readFile } from './compile/reading.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { nameOf } from '../fixtures/parse.js';
+import { withImports } from '../fixtures/imports.js';
 
 /**
  * A world with nothing of its own but a place to arrive at and a kind
@@ -36,14 +37,14 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
     {
       manifestFile: new SourceFile('sprout.json', JSON.stringify(manifest, null, 2)),
       manifest,
-      files: [
+      files: withImports([
         new SourceFile(
           'shed.sprout',
           'world shed is sprout.World { visitors are Person visitors arrive at yard object yard is Yard }\n',
         ),
         new SourceFile('person.sprout', 'kind Person is sprout.Visitor { }\n'),
         new SourceFile('yard.sprout', 'kind Yard { contains actors }\n'),
-      ],
+      ]),
       libraries: [library],
     },
     { blessed: new Set([sha]) },
@@ -53,7 +54,7 @@ function compiled(library: LibrarySource = STANDARD_LIBRARY) {
 /** The library's own verbs, resolved as the second tier resolves them, by file. */
 function verbsByFile(): Map<string, ResolvedVerb[]> {
   const declared = new Map<string, Declaration[]>([
-    ['sprout', STANDARD_LIBRARY.files.flatMap((file) => [...checkShape(file).declarations])],
+    ['sprout', STANDARD_LIBRARY.files.flatMap((file) => [...readFile(file).declarations])],
   ]);
   const diagnostics = new Diagnostics();
   const { verbs } = resolveDeclarations(
@@ -124,27 +125,32 @@ describe('the standard library', () => {
 
   it('reads clean through the first tier, each kind in the file named for it', () => {
     for (const file of STANDARD_LIBRARY.files) {
-      const { declarations, diagnostics } = checkShape(file);
+      const { declarations, diagnostics } = readFile(file);
       expect(diagnostics, file.name).toEqual([]);
       expect(declarations.length, file.name).toBeGreaterThan(0);
       expect(declarations.filter((d) => d.kind === 'kind').length, file.name).toBeLessThan(2);
     }
   });
 
-  it('declares exactly the worked microworld’s library, each kind beside the verbs it plays', () => {
+  it('declares exactly the worked microworld’s library, each kind beside the verbs it plays and after what it imports', () => {
     const declared = STANDARD_LIBRARY.files.map((file) => [
       file.name,
-      checkShape(file).declarations.map((d) => `${d.kind} ${nameOf(d)}`),
+      readFile(file).declarations.map((d) =>
+        d.kind === 'import' ? `import from ${d.from.text}` : `${d.kind} ${nameOf(d)}`,
+      ),
     ]);
     expect(declared).toEqual([
       ['sprout/world.sprout', ['kind World']],
       ['sprout/engine.sprout', ENGINE_VERBS.map((name) => `verb ${name}`)],
       ['sprout/place.sprout', ['kind Place']],
-      ['sprout/actor.sprout', ['verb take', 'verb drop', 'verb put', 'verb give', 'kind Actor']],
-      ['sprout/visitor.sprout', ['kind Visitor']],
-      ['sprout/fixture.sprout', ['kind Fixture']],
+      [
+        'sprout/actor.sprout',
+        ['import from container', 'verb take', 'verb drop', 'verb put', 'verb give', 'kind Actor'],
+      ],
+      ['sprout/visitor.sprout', ['import from actor', 'kind Visitor']],
+      ['sprout/fixture.sprout', ['import from actor', 'kind Fixture']],
       ['sprout/container.sprout', ['verb open', 'verb close', 'kind Container']],
-      ['sprout/lockable.sprout', ['verb unlock', 'kind Lockable']],
+      ['sprout/lockable.sprout', ['import from container', 'verb unlock', 'kind Lockable']],
       ['sprout/talk.sprout', ['verb ask']],
     ]);
   });
@@ -498,7 +504,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '66ca315d625634f8152089719f7c33abfd6973575b9fc892250ba60968be33a2',
+      '1f2fb7869f3ee12fbb456d0477d49dc5a84a128582a560c41bdc66c29d85b836',
     );
   });
 });

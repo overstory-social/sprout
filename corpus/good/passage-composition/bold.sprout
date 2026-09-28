@@ -1,3 +1,5 @@
+import {Plain} from 'plain'
+
 kind Bold is Plain {
   passage taken { You seize it. }
 }

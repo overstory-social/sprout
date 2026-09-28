@@ -1,0 +1,15 @@
+// A room in a file of its own names the yard, which the world's file
+// declares, without naming it from the world.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {cellar} from 'cellar'
+
+world object_across_files is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { exit down "down to the cellar" -> cellar }
+  }
+  object cellar
+}

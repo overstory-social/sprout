@@ -1,4 +1,7 @@
 // A guard only reads and decides, so it performs nothing.
+import {Creature} from 'creature'
+import {nuzzle} from 'guard_acts'
+
 kind Cat is Creature {
   depart (to) {
     act nuzzle (target: to)

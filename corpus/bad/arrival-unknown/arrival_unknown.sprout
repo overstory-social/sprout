@@ -1,4 +1,8 @@
 // Visitors arrive at a place named as it was declared.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Room} from 'room'
+
 world arrival_unknown is sprout.World {
   visitors are Creature
   visitors arrive at hal

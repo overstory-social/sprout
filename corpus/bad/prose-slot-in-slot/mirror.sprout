@@ -1,4 +1,6 @@
 // A slot opened inside a slot.
+import {Mood} from 'prose_slot_in_slot'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { The glass is {self.get({:mood})}. }

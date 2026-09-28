@@ -1,7 +1,13 @@
-creature.sprout:1:18                Nothing here is a `sprout.Visitor`.
+creature.sprout:1:25                `'sprout'` reaches no file of this world, and no library its manifest pins.
+                                    A specifier is a file's path from the world's folder, without `.sprout`, as `'rooms/cellar'` is `rooms/cellar.sprout`, or a library's name, as `'sprout'`.
+
+creature.sprout:3:18                Nothing here is a `sprout.Visitor`.
                                     Check the spelling, and that the world uses the library `sprout` and it declares `Visitor`.
 
-library_sprout_unnamed.sprout:3:33  `sprout.World` is not here, because the library `sprout` is not.
+library_sprout_unnamed.sprout:3:25  `'sprout'` reaches no file of this world, and no library its manifest pins.
+                                    A specifier is a file's path from the world's folder, without `.sprout`, as `'rooms/cellar'` is `rooms/cellar.sprout`, or a library's name, as `'sprout'`.
+
+library_sprout_unnamed.sprout:7:33  `sprout.World` is not here, because the library `sprout` is not.
                                     Every world composes `sprout.World` from the library `sprout`: name it among the manifest's libraries and vendor it with the world, as `sprout init` does.
 
-refused: 2 problems
+refused: 4 problems

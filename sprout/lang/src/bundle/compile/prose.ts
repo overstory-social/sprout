@@ -20,7 +20,7 @@ import type {
 } from '../../syntax/ast.js';
 import { qualifiedName } from '../../declare/enums.js';
 import { absenceRule } from '../absent.js';
-import type { ProseRead } from './first-tier.js';
+import type { ProseRead } from './reading.js';
 import type { Report } from './report.js';
 
 /** The declarations with each kind's `.prose` passages among its members, and the kinds whose file is gone. */

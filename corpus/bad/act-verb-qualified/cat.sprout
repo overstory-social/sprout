@@ -1,5 +1,8 @@
 // A verb is named alone: this world's own is reached first, then the
 // standard library's.
+import {Creature} from 'creature'
+import {pet} from 'act_verb_qualified'
+
 kind Cat is Creature {
   as target for pet {
     do {

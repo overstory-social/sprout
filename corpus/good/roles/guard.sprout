@@ -1,5 +1,8 @@
 // The standard library's `ask`, whose topic this guard narrows to what it
 // knows; anything else a visitor names arrives unbound.
+import {Topic} from 'kinds'
+import {ask} from 'sprout'
+
 kind Guard {
   :knows [Topic] default [bridge, toll]
 

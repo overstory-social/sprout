@@ -2,6 +2,13 @@
 // is gone for good. The world compiles, and the compiler warns at each
 // `destroy self` a declared object runs, in its own body or in a kind it
 // is made of, and says nothing of one only spawns run.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Paper} from 'paper'
+import {Taper} from 'taper'
+import {Candle} from 'candle'
+import {Flint} from 'flint'
+
 world destroy_declared is sprout.World {
   visitors are Person
   visitors arrive at kitchen

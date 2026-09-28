@@ -1,4 +1,7 @@
 // The roles go in brackets after the verb.
+import {Creature} from 'creature'
+import {pet} from 'act_no_brackets'
+
 kind Cat is Creature {
   as target for pet {
     do {

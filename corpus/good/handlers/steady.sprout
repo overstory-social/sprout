@@ -1,4 +1,7 @@
 // A kind may leave out a composed kind's handler and write its own.
+import {Lamp} from 'lamp'
+import {:gust} from 'kinds'
+
 kind Steady is Lamp {
   without on :gust from Lamp
   on :gust { }

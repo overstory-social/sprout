@@ -2,6 +2,12 @@
 // the world's `nothing_happens`, and a role nothing can fill, or a value
 // role nothing narrows, is never bound: each is warned about where it is
 // written, and the world still runs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lid} from 'lid'
+import {Guard} from 'guard'
+import {Crowbar} from 'crowbar'
+
 world unplayed_verb is sprout.World {
   visitors are Person
   visitors arrive at hall

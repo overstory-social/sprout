@@ -1,5 +1,8 @@
 // An unclosed `remembers` block must not swallow the member written after
 // it, or the body's own closing brace.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 world remembers_unclosed_before_member is sprout.World {
   visitors are Creature
   visitors arrive at hall

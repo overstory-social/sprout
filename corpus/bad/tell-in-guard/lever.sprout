@@ -1,3 +1,5 @@
+import {pull} from 'tell_in_guard'
+
 kind Lever {
   as target for pull {
     permit { tell "{actor} reaches for the lever." }

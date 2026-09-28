@@ -113,6 +113,13 @@ export type Naming =
 export interface NameSource {
   readonly tree: ObjectTree;
   readonly contents: KindContents;
+  /**
+   * Whether the file `file` may name `placement` by its first step: one
+   * declared in the file itself, or an object written in a file of its
+   * own that the file imports (the spec's Identifiers and scope). Every
+   * name may be reached from the world's name.
+   */
+  readonly nameable?: (file: string, placement: Placement) => boolean;
 }
 
 /** Resolve `parts`, a name or a dotted path, from inside `vantage`. */

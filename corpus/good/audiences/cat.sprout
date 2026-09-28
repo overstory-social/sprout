@@ -1,6 +1,9 @@
 // A cat is a creature with nobody behind it. Someone arriving is nuzzled:
 // its `say` is heard from it by the rest of the room, and the one it
 // nuzzles is told.
+import {Creature} from 'creature'
+import {nuzzle} from 'audiences'
+
 kind Cat is Creature {
   on :arrived (who, from) { act nuzzle (target: who) }
 

@@ -1,3 +1,5 @@
+import {:creak} from 'kinds'
+
 kind Door {
   on :spawned (from) { send from creak }
   on :creak { }

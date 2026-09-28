@@ -1,3 +1,5 @@
+import {:rang} from 'handler_tells_actor'
+
 kind Rope {
   on :spawned (from) { broadcast :rang }
 }

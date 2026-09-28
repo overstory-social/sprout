@@ -1,4 +1,4 @@
-unqualified_world.sprout:1:7  `unqualified_world` does not compose `sprout.World`.
-                              `World` on its own is not `sprout.World`; write the library too: `world unqualified_world is sprout.World { … }`.
+unqualified_world.sprout:3:7  `unqualified_world` does not compose `sprout.World`.
+                              `World` on its own is not the standard library's until this file imports it: `import {World} from 'sprout'`.
 
 refused: 1 problem

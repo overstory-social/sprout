@@ -1,3 +1,5 @@
+import {sort} from 'each_head'
+
 kind Shelf {
   contains
 

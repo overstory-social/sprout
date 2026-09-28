@@ -1,4 +1,7 @@
 // `act` performs a verb and gives nothing back to name.
+import {Creature} from 'creature'
+import {pet} from 'act_as_value'
+
 kind Cat is Creature {
   as target for pet {
     do {

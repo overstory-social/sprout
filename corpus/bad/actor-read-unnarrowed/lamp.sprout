@@ -1,3 +1,6 @@
+import {light} from 'actor_read_unnarrowed'
+import {Person} from 'person'
+
 kind Lamp {
   as target for light {
     permit { if (actor.get(:oil) == 0) { refuse "You have no oil." } }

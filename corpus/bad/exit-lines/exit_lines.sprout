@@ -1,6 +1,9 @@
 // An exit is a direction, a label in quotes, `->` and where it leads,
 // and a `when` has its condition in brackets; each line written wrong is
 // refused once, and the good line after it is kept.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world exit_lines is sprout.World {
   visitors are Person
   visitors arrive at yard

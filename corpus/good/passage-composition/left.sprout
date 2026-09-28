@@ -1,1 +1,3 @@
+import {Voice} from 'voice'
+
 kind Left is Voice { }

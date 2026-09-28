@@ -1,4 +1,4 @@
-shed.sprout:1:32  `in cellar` names nothing in the world for `shed` to sit in.
+shed.sprout:3:32  `in cellar` names nothing in the world for `shed` to sit in.
                   Write the path of what holds it from the world's body, as in `in composing_room.paper_store`.
 
 refused: 1 problem

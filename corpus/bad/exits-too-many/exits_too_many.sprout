@@ -1,5 +1,8 @@
 // A place has as many ways out as the host allows, eight by default,
 // guarded exits in one direction and links each counting.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world exits_too_many is sprout.World {
   visitors are Person
   visitors arrive at yard

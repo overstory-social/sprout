@@ -1,5 +1,9 @@
 // A `{one of}` with one choice is warned about, since it says the same
 // words every time, and it says them: petting the cat always purrs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cat} from 'cat'
+
 world one_of_one_choice is sprout.World {
   visitors are Person
   visitors arrive at yard

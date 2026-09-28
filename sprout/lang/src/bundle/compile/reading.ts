@@ -1,21 +1,16 @@
-// The first tier (the spec's The compiler › Two tiers): a single file
-// checked alone for its shape, which is what an editor runs on each
-// keystroke, and that check over every file in the closed bundle, the
-// world's own and every usable library's, since they compile together;
-// a `.prose` file is read for its passages, whose kind is the bundle's
-// to say.
-// A file that does not compile refuses at publish; at load it reads as
-// absent, what it declared is not in the world, and what referred to it
-// keeps compiling. A kind in the wrong file is not a file that does not
-// compile: it refuses at publish and is warned about at load, and what
-// the file declares stands either way.
+// Every file in the closed bundle read, the world's own and every usable
+// library's, since they compile together, each checked for what it can
+// be checked for on its own (the spec's The compiler › One tier); a
+// `.prose` file is read for its passages, whose kind is the bundle's to
+// say. A file that does not compile refuses at publish; at load it reads
+// as absent, what it declared is not in the world, and what referred to
+// it keeps compiling.
 
 import type { Declaration, PassageDeclaration } from '../../syntax/ast.js';
 import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
 import { checkEnumDeclaration, SPROUT } from '../../declare/enums.js';
 import { checkGrammar } from '../../declare/grammar.js';
-import { checkKindFiles } from '../../declare/file-names.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';
@@ -27,47 +22,39 @@ import { FILE_GONE, isCode, isProse } from './files.js';
 import type { Report } from './report.js';
 import { libraryScope, rewrite } from './renames.js';
 
-/** What the first tier makes of one file: a `.sprout` file's declarations, a `.prose` file's passages. */
-export interface ShapeResult {
+/** What reading one file makes of it: a `.sprout` file's declarations, a `.prose` file's passages. */
+export interface FileReading {
   readonly declarations: readonly Declaration[];
   readonly passages: readonly PassageDeclaration[];
   readonly diagnostics: readonly Diagnostic[];
 }
 
 /**
- * The first tier: one file, checked alone for its shape. Today that is
- * its syntax, the options cap, a verb's roles and phrases and its caps,
- * `sprout.World` written on the world and nowhere else, an object
- * naming a kind, a body's grammar lines and their caps, and each kind in
- * the file named for it; the rest of the caps that apply to a definition
- * on its own, its declarations agreeing with themselves and every write
- * going to `self` join it as the syntax that expresses them lands. The
- * caps are the host's, as every limit is.
+ * One file, read and checked as far as it can be alone: its syntax, the
+ * options cap, a verb's roles and phrases and their caps, the standard
+ * library's `World` written on the world and nowhere else, an object
+ * naming a kind, and a body's grammar lines and their caps. The caps are
+ * the host's, as every limit is.
  */
-export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
-  const { declarations, passages, diagnostics, layout } = readShape(file, caps);
-  return { declarations, passages, diagnostics: [...diagnostics, ...layout] };
-}
-
-/** One file's shape, with what is said of where its kinds are written kept apart. */
-function readShape(
+export function readFile(
   file: SourceFile,
   caps?: StaticCaps,
   libraries: ReadonlySet<string> = new Set([SPROUT]),
-): ShapeResult & { readonly layout: readonly Diagnostic[] } {
+): FileReading {
   const diagnostics = new Diagnostics();
   const using = caps ?? DEFAULT_LIMITS.caps;
   if (isProse(file)) {
     const passages = parseProseFile(file, diagnostics, using);
-    return { declarations: [], passages, diagnostics: diagnostics.all, layout: [] };
+    return { declarations: [], passages, diagnostics: diagnostics.all };
   }
-  if (!isCode(file)) return { declarations: [], passages: [], diagnostics: [], layout: [] };
-  // What the file imports from a library is read as it means before the
-  // file is checked, so `import {World} from …` names the library's world.
-  const written = parseDeclarations(file, diagnostics, using);
-  const scope = libraryScope(written, libraries);
-  const declarations = written.map((declared) => rewrite(declared, scope));
-  for (const declared of declarations) {
+  if (!isCode(file)) return { declarations: [], passages: [], diagnostics: [] };
+  // Each declaration is checked as the file's imports from libraries mean
+  // it, so `import {World} from …` names the library's world; what is
+  // handed on is what was written, which the bundle checks and rewrites.
+  const declarations = parseDeclarations(file, diagnostics, using);
+  const scope = libraryScope(declarations, libraries);
+  for (const written of declarations) {
+    const declared = rewrite(written, scope);
     if (declared.kind === 'enum') {
       checkEnumDeclaration(declared, using.optionsPerEnum, diagnostics);
     }
@@ -77,7 +64,7 @@ function readShape(
       checkVerbDeclaration(declared, using, diagnostics);
     }
     // One declaration answers on its own whether it wrote
-    // `sprout.World`, so the first tier is where a world that did not
+    // `sprout.World`, so reading its file is where a world that did not
     // is refused.
     if (declared.kind === 'world') {
       checkWorldDeclaration(declared, diagnostics);
@@ -98,13 +85,11 @@ function readShape(
       }
     }
   }
-  const layout = new Diagnostics();
-  checkKindFiles(file.name, declarations, layout);
-  return { declarations, passages: [], diagnostics: diagnostics.all, layout: layout.all };
+  return { declarations, passages: [], diagnostics: diagnostics.all };
 }
 
-/** What the first tier makes of a whole bundle. */
-export interface FirstTier {
+/** What reading every file of a bundle makes of them. */
+export interface Reading {
   /** Every declaration in a file that compiled, in the order read. */
   readonly declarations: readonly Declaration[];
   /** The same, by the library they are declared in: the world's under its namespace. */
@@ -125,13 +110,13 @@ export interface ProseRead {
  * Check every file alone: the world's own that `arrived`, read in
  * `namespace`, and every usable library's.
  */
-export function readFirstTier(
+export function readFiles(
   arrived: readonly SourceFile[],
   usable: readonly VendoredLibrary[],
   namespace: string,
   caps: StaticCaps,
   report: Report,
-): FirstTier {
+): Reading {
   const readable: { library: string; file: SourceFile }[] = [
     ...arrived.map((file) => ({ library: namespace, file })),
     ...usable.flatMap((library) => library.files.map((file) => ({ library: library.name, file }))),
@@ -140,11 +125,10 @@ export function readFirstTier(
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
   const prose = new Map<string, ProseRead>();
-  /** Whether one of the world's own files was refused by the first tier. */
+  /** Whether one of the world's own files was refused as it was read. */
   let ownFileRefused = false;
   for (const { library, file } of readable) {
-    const shape = readShape(file, caps, libraries);
-    for (const { at, message, remedy } of shape.layout) report.strict(at, message, remedy);
+    const shape = readFile(file, caps, libraries);
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
     if (refused && library === namespace) ownFileRefused = true;
     if (!refused) {

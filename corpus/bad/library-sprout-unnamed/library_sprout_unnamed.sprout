@@ -1,5 +1,9 @@
 // Every world composes `sprout.World`, from the standard library, which
 // its manifest names among the libraries it uses. This manifest names none.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Room} from 'room'
+
 world library_sprout_unnamed is sprout.World {
   visitors are Creature
   visitors arrive at hall

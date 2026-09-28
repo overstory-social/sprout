@@ -1,1 +1,3 @@
+import * as sprout from 'sprout'
+
 object shed is sprout.Place in

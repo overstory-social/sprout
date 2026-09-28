@@ -1,4 +1,6 @@
 // A `{for}` with neither `in` nor `of`.
+import {Mood} from 'prose_for_malformed'
+
 kind Mirror {
   :mood Mood default drowsy
   contains

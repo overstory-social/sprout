@@ -1,4 +1,7 @@
 // A verb with no roles is performed with empty brackets.
+import {Creature} from 'creature'
+import {pet, purr} from 'act_no_roles_verb'
+
 kind Cat is Creature {
   as target for pet {
     do {

@@ -1,5 +1,8 @@
 // A role is filled by the name of something in reach, never by a value
 // written out.
+import {Creature} from 'creature'
+import {pet} from 'act_filler_not_a_name'
+
 kind Cat is Creature {
   as target for pet {
     do {

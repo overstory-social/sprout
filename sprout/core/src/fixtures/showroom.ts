@@ -24,6 +24,7 @@ import {
 
 import { memoryStore } from '../memory-store.js';
 import type { SproutStore } from '../store.js';
+import { withImports } from './imports.js';
 
 // The showroom, the world core's client specs run: a dark hall whose
 // description shows a slide, and a magic lantern that throws another
@@ -114,7 +115,7 @@ export function showroomCatalogue(): Catalogue {
     {
       manifestFile: new SourceFile('sprout.json', JSON.stringify(MANIFEST)),
       manifest: MANIFEST,
-      files: Object.entries(FILES).map(([name, text]) => new SourceFile(name, text)),
+      files: withImports(Object.entries(FILES).map(([name, text]) => new SourceFile(name, text))),
       libraries: [STANDARD_LIBRARY],
     },
     { mode: 'publish', limits: DEFAULT_LIMITS, extensions: [SLIDES] },

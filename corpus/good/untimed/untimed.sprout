@@ -2,6 +2,12 @@
 // cat that is not a place keeps an `on :tick` only a place is sent, a kiln
 // asks to be woken and answers no `:woke`, and a bell answers a `:woke`
 // that nothing here asks for.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cat} from 'cat'
+import {Kiln} from 'kiln'
+import {Bell} from 'bell'
+
 world untimed is sprout.World {
   visitors are Person
   visitors arrive at yard

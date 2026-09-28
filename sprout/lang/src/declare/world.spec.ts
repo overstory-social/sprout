@@ -15,6 +15,9 @@ import { SourceFile, textOf } from '../source/source.js';
 import { checkWorldDeclaration, composeWorld } from './world.js';
 import { ENUMS, KINDS, kindsOf, LIBRARIES, SHOP, world } from '../fixtures/world.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 describe('a world is the root of the one tree', () => {
   it('reads the spec’s own world', () => {
     const { kind, visitor, said } = world(SHOP);
@@ -50,14 +53,14 @@ describe('a world is the root of the one tree', () => {
   });
 });
 
-describe('every world writes `sprout.World`', () => {
+describe('every world composes the standard library’s `World`', () => {
   it('and is refused at its name where it does not, and not composed', () => {
     const { kind, said, diagnostics } = world(`world w {
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual(['`w` does not compose `sprout.World`.']);
     expect(diagnostics.refusals[0]!.remedy).toBe(
-      'Every world writes it: `world w is sprout.World { … }`.',
+      `Every world composes it: \`world w is sprout.World { … }\`, having imported \`* as sprout from ${Q}sprout${Q}\`.`,
     );
     // At the name, which is what the sentence is about — not at a
     // composition list that is not there to point at.
@@ -65,13 +68,13 @@ describe('every world writes `sprout.World`', () => {
     expect(kind).toBeNull();
   });
 
-  it('with the library named, because `World` on its own is another kind', () => {
+  it('imported, because `World` on its own is another kind', () => {
     const { said, diagnostics } = world(`world w is World {
   visitors are Creature
   visitors arrive at y }`);
     expect(said).toEqual(['`w` does not compose `sprout.World`.']);
     expect(diagnostics.refusals[0]!.remedy).toBe(
-      '`World` on its own is not `sprout.World`; write the library too: `world w is sprout.World { … }`.',
+      `\`World\` on its own is not the standard library's until this file imports it: \`import {World} from ${Q}sprout${Q}\`.`,
     );
   });
 

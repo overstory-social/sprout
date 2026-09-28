@@ -1,3 +1,5 @@
+import {strike, :illuminating} from 'kinds'
+
 kind Lighter {
   as target for strike {
     do {

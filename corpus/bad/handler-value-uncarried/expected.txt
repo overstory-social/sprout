@@ -1,4 +1,4 @@
-candle.sprout:3:19  `:gust` carries no value.
+candle.sprout:5:19  `:gust` carries no value.
                     Write `on :gust (from)`, or declare the value with `message :gust with <type>`.
 
 refused: 1 problem

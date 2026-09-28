@@ -1,4 +1,7 @@
 // A kind the visitor kind composes may play and guard as any kind may.
+import * as sprout from 'sprout'
+import {wave} from 'visitor_kind_behaviour'
+
 kind Creature is sprout.Actor {
   as actor for wave { permit { if (self.count >= self.get(:capacity)) { refuse "Your hands are full." } } }
 }

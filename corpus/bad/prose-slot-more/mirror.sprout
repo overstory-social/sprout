@@ -1,4 +1,6 @@
 // Two things written in one slot.
+import {Mood} from 'prose_slot_more'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { The glass is {self.get(:mood) self}. }

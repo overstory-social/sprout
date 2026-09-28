@@ -3,11 +3,11 @@
 // the grammar block: all apply" and "`name`, `article`: refuse"; Limits ›
 // Static caps).
 //
-// The first tier checks one body's lines against themselves: one `name`
+// Reading its file checks one body's lines against themselves: one `name`
 // and one `article` however many blocks hold them, a name that is not
 // empty and does not begin with an article, and the host's caps on nouns;
 // its exits and links are `exits.ts`'s.
-// The second tier composes: a composer's own `name` or `article` replaces
+// Across the bundle, composing: a composer's own `name` or `article` replaces
 // what it composes, one source's applies, and two sources are refused;
 // nouns from every source apply, in closure order, the composer's own
 // last. What applies where nothing is written is the runtime's to say,
@@ -148,7 +148,7 @@ export function checkGrammar(
   checkExitLines(owner, declared.members, caps, diagnostics);
 }
 
-/** What a composer's own body writes, which the first tier has checked. */
+/** What a composer's own body writes, which was checked as its file was read. */
 export function ownGrammar(members: readonly KindMember[], origin: string): ComposedGrammar {
   let name: GrammarSource<string> | null = null;
   let article: GrammarSource<Article> | null = null;

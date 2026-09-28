@@ -47,6 +47,9 @@ import {
   type TreePath,
 } from './tree.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /**
  * What a world's own pass rule answers where it writes none: nothing
  * crosses. This is why places cannot reach one another, and it is a
@@ -69,8 +72,8 @@ export function checkWorldDeclaration(declared: WorldDeclaration, diagnostics: D
     declared.name.at,
     `\`${declared.name.text}\` does not compose \`${WORLD}\`.`,
     bare
-      ? `\`World\` on its own is not \`${WORLD}\`; write the library too: \`world ${declared.name.text} is ${WORLD} { … }\`.`
-      : `Every world writes it: \`world ${declared.name.text} is ${WORLD} { … }\`.`,
+      ? `\`World\` on its own is not the standard library's until this file imports it: \`import {World} from ${Q}sprout${Q}\`.`
+      : `Every world composes it: \`world ${declared.name.text} is ${WORLD} { … }\`, having imported \`* as sprout from ${Q}sprout${Q}\`.`,
   );
 }
 

@@ -1,3 +1,6 @@
+import {Topic} from 'kinds'
+import {ask} from 'sprout'
+
 kind Guard {
   :knows [Topic] default [bridge, toll]
 

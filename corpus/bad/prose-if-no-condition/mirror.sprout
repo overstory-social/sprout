@@ -1,4 +1,6 @@
 // An `{if}` with nothing to test.
+import {Mood} from 'prose_if_no_condition'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { {if}Asleep.{/if} }

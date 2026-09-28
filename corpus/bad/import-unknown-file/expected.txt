@@ -1,4 +1,4 @@
-crate.sprout:1:19  `'boxes'` reaches no file or library of this world.
+crate.sprout:1:19  `'boxes'` reaches no file of this world, and no library its manifest pins.
                    A specifier is a file's path from the world's folder, without `.sprout`, as `'rooms/cellar'` is `rooms/cellar.sprout`, or a library's name, as `'sprout'`.
 
 refused: 1 problem

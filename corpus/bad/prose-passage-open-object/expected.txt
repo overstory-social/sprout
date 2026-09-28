@@ -1,4 +1,4 @@
-press.sprout:4:21  Sprout does not know what this is, so it cannot render one of its passages.
+press.sprout:6:21  Sprout does not know what this is, so it cannot render one of its passages.
                    Narrow it first, as in `{if thing.is(Pot)}{thing.greeting}{/if}`.
 
 refused: 1 problem

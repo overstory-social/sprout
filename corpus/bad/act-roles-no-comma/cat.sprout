@@ -1,4 +1,7 @@
 // Roles are separated by commas.
+import {Creature} from 'creature'
+import {pet} from 'act_roles_no_comma'
+
 kind Cat is Creature {
   as target for pet {
     do {

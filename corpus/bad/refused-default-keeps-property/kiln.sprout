@@ -1,3 +1,7 @@
+import * as sprout from 'sprout'
+import {Door} from 'door'
+import {Person} from 'person'
+
 kind Kiln is sprout.Place {
   :hatch Door default "closed"
   remembers { :warmed boolean default 0 }

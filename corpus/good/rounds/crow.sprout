@@ -2,6 +2,8 @@
 // departure, naming the shed by its own bare identifier rather than a
 // bound parameter, so a move's destination binds through the mover's own
 // place's exit however it is written (the spec's Verbs › Acting).
+import * as sprout from 'sprout'
+
 message :go
 
 kind Crow is sprout.Actor {

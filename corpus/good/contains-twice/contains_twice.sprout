@@ -1,6 +1,10 @@
 // `contains` and `contains actors` are idempotent, so a body writing
 // either twice holds no more than it would with one line: the second is
 // warned about where it is written, and the world still runs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Crate} from 'crate'
+
 world contains_twice is sprout.World {
   visitors are Person
   visitors arrive at hall

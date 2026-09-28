@@ -1,6 +1,11 @@
 // A wardrobe holds actors without composing `sprout.Place`, so it could be
 // someone's place, and `here` is not known to be a `sprout.Place`: the
 // lamp's walk and count of it are refused, naming the wardrobe.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+import {Wardrobe} from 'wardrobe'
+
 world here_not_a_place is sprout.World {
   visitors are Person
   visitors arrive at hall

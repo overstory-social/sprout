@@ -1,4 +1,7 @@
 // The world's `unseen` is said by a poll, which draws nothing.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world chance_in_unseen is sprout.World {
   visitors are Person
   visitors arrive at yard

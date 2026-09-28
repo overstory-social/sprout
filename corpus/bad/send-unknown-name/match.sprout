@@ -1,3 +1,5 @@
+import {:lit} from 'kinds'
+
 kind Match {
   on :spawned (from) { send hal.lamp :lit with true }
 }

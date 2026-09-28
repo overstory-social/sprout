@@ -1,5 +1,7 @@
 // Neither `tell inside` nor `tell outside` has anyone to reach on a kind
 // that does not declare `contains actors`.
+import {pull} from 'tell_inside_not_actors'
+
 kind Lever {
   as target for pull {
     do {

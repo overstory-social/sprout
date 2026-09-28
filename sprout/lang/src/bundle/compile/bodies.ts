@@ -1,6 +1,6 @@
 // The bodies a bundle's kinds write, checked against the kinds they belong
 // to, and then every passage against the bodies that say it (the spec's
-// The compiler › Two tiers: everything typed needs the whole bundle,
+// The compiler › One tier: everything typed needs the whole bundle,
 // `actor` reachability through passages among it). Every composed kind is
 // checked for what it wrote itself — a named kind, an object's anonymous
 // kind, the world — and nothing is checked twice for being composed: a

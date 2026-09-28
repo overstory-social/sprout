@@ -7,8 +7,8 @@
 // three problems is owed all three. A role whose name or filler is
 // refused is still kept, so its phrases are not refused a second time for
 // naming it; the refusal already keeps the file from being used. Whether
-// the roles and phrases agree with each other is the first tier's
-// (`declare/verbs.ts`); which kind a role names is resolved a tier later.
+// the roles and phrases agree with each other is checked as the file is
+// read (`declare/verbs.ts`); which kind a role names is resolved later.
 
 import type { Ident, KindExpr } from '../ast.js';
 import type {

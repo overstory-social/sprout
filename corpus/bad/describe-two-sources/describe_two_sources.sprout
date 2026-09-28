@@ -1,5 +1,9 @@
 // Two kinds that each describe, composed with neither replaced: a
 // thing has one voice, and its composer writes the one paragraph.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Press} from 'press'
+
 world describe_two_sources is sprout.World {
   visitors are Person
   visitors arrive at hall

@@ -1,5 +1,8 @@
 // An entry without its colon, right after an entry whose default is a
 // list, is the block's to refuse, not more of that list.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 enum Ward { oak, silver }
 
 world remembers_list_default_closer is sprout.World {

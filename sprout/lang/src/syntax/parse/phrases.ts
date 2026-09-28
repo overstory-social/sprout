@@ -5,7 +5,7 @@
 // the quotes mean, after escapes. Each part is spanned on the source
 // between the quotes, walking the escapes as the lexer does, so a slot's
 // span is exact however many escapes stand before it. Which role a slot
-// names is the first tier's to check (`declare/verbs.ts`); matching a
+// names is checked as its file is read (`declare/verbs.ts`); matching a
 // typed command against a phrase is B27's.
 
 import type { PhraseDeclaration, PhrasePart } from '../ast-verbs.js';

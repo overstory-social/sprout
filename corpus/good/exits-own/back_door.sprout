@@ -1,1 +1,3 @@
+import * as sprout from 'sprout'
+
 kind BackDoor is sprout.Place { grammar { exit out "to the lane" -> lane } }

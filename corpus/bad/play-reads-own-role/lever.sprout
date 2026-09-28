@@ -1,5 +1,7 @@
 // Inside `as target for pull`, the target is the lever itself, and is
 // written `self`.
+import {pull} from 'play_reads_own_role'
+
 kind Lever {
   :pulled false
 

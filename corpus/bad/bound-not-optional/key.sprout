@@ -1,5 +1,7 @@
 // Every phrase of `unlock` fills its target, so there is nothing for
 // `bound` to ask about it.
+import {unlock} from 'sprout'
+
 kind Key {
   as tool for unlock {
     permit {

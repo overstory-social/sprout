@@ -1,6 +1,5 @@
 // Stepping over what could not be read, so that a declaration the parser
-// cannot read costs that declaration and not the file (the first tier of
-// the spec's The compiler › Two tiers). Nothing here says anything to the
+// cannot read costs that declaration and not the file. Nothing here says anything to the
 // author: each caller names what it abandoned, and these only move the
 // cursor past it.
 

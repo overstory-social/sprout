@@ -1,4 +1,6 @@
 // An `{else}` outside any `{if}`.
+import {Mood} from 'prose_else_stray'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { Nothing in it looks back. {else} Something does. }

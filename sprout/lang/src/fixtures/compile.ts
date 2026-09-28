@@ -3,19 +3,20 @@
 // visitor kind, named as the manifest names it, with the standard library
 // pinned and vendored. `world()` takes the overrides a case wants to move
 // — the manifest, the files, the libraries, what is withheld — and hands
-// back a source ready for `compileBundle`; `firstTierOf()` reads the
-// world's own files through the first tier, for a stage that runs after
+// back a source ready for `compileBundle`; `readingOf()` reads the
+// world's own files as compiling reads them, for a stage that runs after
 // it to take directly. Spec support: the package build leaves it out.
 
 import type { CompileMode } from '../bundle/absent.js';
 import { libraryHash, type LibrarySource, type Manifest } from '../bundle/bundle.js';
-import { readFirstTier, type FirstTier } from '../bundle/compile/first-tier.js';
+import { readFiles, type Reading } from '../bundle/compile/reading.js';
 import { Report } from '../bundle/compile/report.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { fileNamedFor } from '../declare/file-names.js';
 import { SourceFile } from '../source/source.js';
 import type { Diagnostic } from '../source/diagnostics.js';
+import { withImports } from './imports.js';
 
 /** A source file by name and text, the shorthand every case in this family writes. */
 export const file = (name: string, text: string): SourceFile => new SourceFile(name, text);
@@ -51,8 +52,6 @@ export const worldLine = (inside = ''): string =>
 /** The world's own declaration, holding the hall and nothing else. */
 export const WORLD_LINE = worldLine();
 export const WORLD_TEXT = `${WORLD_LINE}\nenum Season { spring, summer, autumn, winter }`;
-/** Exactly the world's own source, its two files: blessed fits, unblessed does not. */
-export const OWN_BYTES = WORLD_TEXT.length + PERSON.text.length;
 
 /**
  * `printers_shop.sprout` holding `text`, `person.sprout`, and each of `kinds` in
@@ -91,7 +90,7 @@ export function world(
   return {
     manifestFile: file('sprout.json', overrides.manifestText ?? MANIFEST),
     manifest,
-    files: overrides.files ?? worldFiles(WORLD_TEXT),
+    files: withImports(overrides.files ?? worldFiles(WORLD_TEXT)),
     libraries: overrides.libraries ?? [STANDARD_LIBRARY],
     ...(overrides.withheld === undefined ? {} : { withheld: overrides.withheld }),
   };
@@ -103,15 +102,21 @@ export const warnings = (diagnostics: readonly Diagnostic[]): Diagnostic[] =>
   diagnostics.filter((d) => d.severity === 'warning');
 
 /**
- * The world's own `files`, read alone by the first tier in `mode` under
+ * The world's own `files`, read as compiling reads them, in `mode` under
  * the host's default caps, and the report a later stage says its own
  * findings to. No library is read.
  */
-export function firstTierOf(
+export function readingOf(
   files: readonly SourceFile[],
   mode: CompileMode = 'publish',
-): { readonly first: FirstTier; readonly report: Report } {
+): { readonly first: Reading; readonly report: Report } {
   const report = new Report(mode, file('sprout.json', MANIFEST).span(0, 0));
-  const first = readFirstTier(files, [], 'printers_shop', DEFAULT_LIMITS.caps, report);
+  const first = readFiles(files, [], 'printers_shop', DEFAULT_LIMITS.caps, report);
   return { first, report };
 }
+
+/** Exactly the world's own source, its two files with what they import: blessed fits, unblessed does not. */
+export const OWN_BYTES = withImports(worldFiles(WORLD_TEXT)).reduce(
+  (bytes, one) => bytes + one.text.length,
+  0,
+);

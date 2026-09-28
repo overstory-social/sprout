@@ -1,4 +1,7 @@
 // A name the file imported from does not declare.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world import_unknown_name is sprout.World {
   visitors are Person
   visitors arrive at yard

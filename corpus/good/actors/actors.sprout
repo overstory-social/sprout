@@ -2,6 +2,12 @@
 // a person is an actor, and has hands. What a person shares with the
 // world's NPCs is written on a kind they both compose, and here their hands
 // hold four things rather than eight.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Basket} from 'basket'
+import {Creature} from 'creature'
+import {Porter} from 'porter'
+
 world actors is sprout.World {
   visitors are Person
   visitors arrive at composing_room

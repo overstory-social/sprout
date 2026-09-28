@@ -1,5 +1,7 @@
 // A topic is bound only to the options this guard hears, and with no
 // `from` it hears none.
+import {ask} from 'sprout'
+
 kind Guard {
   as target for ask {
     do {

@@ -1,5 +1,8 @@
 // A handler nothing sends to never runs, and a message nothing handles
 // goes nowhere; both are said, as warnings, so neither is a silence.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world unsent_unhandled is sprout.World {
   visitors are Person
   visitors arrive at hall

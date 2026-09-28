@@ -1,3 +1,6 @@
 // The world's own `Visitor` composes the library's `sprout.Visitor`, so it
 // plainly means both, and taking the name is not warned.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 kind Visitor is Creature, sprout.Visitor { }

@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Door} from 'door'
+
 kind Kiln is sprout.Place {
   :door Door default open
   :lit false

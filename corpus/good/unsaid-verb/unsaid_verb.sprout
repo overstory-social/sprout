@@ -1,6 +1,10 @@
 // A verb a visitor can type whose plays never `say` anything answers
 // every command with the world's `nothing_happens`, so it is warned
 // about; a verb with no phrases only an NPC performs, and is not.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lever} from 'lever'
+
 world unsaid_verb is sprout.World {
   visitors are Person
   visitors arrive at hall

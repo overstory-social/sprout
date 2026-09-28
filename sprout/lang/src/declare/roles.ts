@@ -18,7 +18,7 @@ import type { RoleDeclaration, VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import { readable } from '../source/words.js';
-import { nearestOption, qualifiedName, SPROUT } from './enums.js';
+import { lookingFrom, nearestOption, qualifiedName, SPROUT } from './enums.js';
 import type { Suppression } from './kinds.js';
 import type { ResolvedProperty } from './properties.js';
 import { composeContributions } from './contributions.js';
@@ -73,7 +73,7 @@ export class VerbNames {
   /** A verb written without a library, from inside `from`: its own first, then `sprout`'s. */
   unqualified(name: string, from: string): NamedVerb | null {
     return (
-      this.byQualified.get(qualifiedName(from, name)) ??
+      this.byQualified.get(qualifiedName(lookingFrom(from), name)) ??
       this.byQualified.get(qualifiedName(SPROUT, name)) ??
       null
     );

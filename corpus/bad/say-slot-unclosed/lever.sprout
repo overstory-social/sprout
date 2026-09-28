@@ -1,4 +1,6 @@
 // A slot in quoted words never closed.
+import {pull} from 'say_slot_unclosed'
+
 kind Lever {
   as target for pull {
     do { say "You pull {self." }

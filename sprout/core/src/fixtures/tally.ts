@@ -20,6 +20,7 @@ import {
 
 import { memoryStore } from '../memory-store.js';
 import type { SproutStore } from '../store.js';
+import { withImports } from './imports.js';
 
 // The tally, the world core's turn and log specs run: a counter and a
 // gauge in a hall, both of one kind, one kind per file. Bumping one
@@ -84,7 +85,9 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     {
       manifestFile: new SourceFile('sprout.json', JSON.stringify(MANIFEST)),
       manifest: MANIFEST,
-      files: Object.entries(files(click)).map(([name, text]) => new SourceFile(name, text)),
+      files: withImports(
+        Object.entries(files(click)).map(([name, text]) => new SourceFile(name, text)),
+      ),
       libraries: [STANDARD_LIBRARY],
     },
     { mode: 'publish', limits: DEFAULT_LIMITS },

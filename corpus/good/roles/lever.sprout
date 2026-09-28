@@ -1,4 +1,6 @@
 // A `permit` decides and a `do` acts.
+import {pull} from 'roles'
+
 kind Lever {
   :pulled false
 

@@ -1,4 +1,4 @@
-cat.sprout:5:11  `Nuzzle` starts with a capital, and a verb's name does not.
+cat.sprout:8:11  `Nuzzle` starts with a capital, and a verb's name does not.
                  Write the verb's name in lower case, as in `act nuzzle (target: p)`.
 
 refused: 1 problem

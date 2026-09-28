@@ -134,23 +134,16 @@ describe('a bundle holds one world, named as the manifest', () => {
     expect(one(WORLD).world).not.toBeNull();
   });
 
-  it('refuses the world in another file at publish, and warns at load, keeping it', () => {
+  it('takes the world in whichever file its author chose', () => {
     for (const mode of ['publish', 'load'] as const) {
       const { world, said, absent } = oneFrom('world.sprout', WORLD, mode);
       expect(world, mode).not.toBeNull();
-      expect(said, mode).toEqual([
-        [
-          mode === 'publish' ? 'refusal' : 'warning',
-          'world.sprout:1:7',
-          'The world `shop` is declared in `world.sprout`, and the world is declared in the file named for it.',
-          "Move `world shop` to a file called `shop.sprout`, and name that file in the manifest's files.",
-        ],
-      ]);
+      expect(said, mode).toEqual([]);
       expect(absent, mode).toEqual([]);
     }
   });
 
-  it('says only the name of a world named otherwise, since its file follows the name kept', () => {
+  it('says only the name of a world named otherwise', () => {
     expect(oneFrom('yard.sprout', 'world yard is sprout.World { }').said).toEqual([
       ['refusal', 'yard.sprout:1:7', "`yard` is not this world's name.", expect.any(String)],
     ]);
@@ -391,7 +384,7 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
   });
 
   it('does not also say the world is missing when its only file is refused for its own defect', () => {
-    // `checkShape` still returns the `world` declaration it parsed
+    // `readFile` still returns the `world` declaration it parsed
     // alongside the refusal about the malformed list — a value inside a
     // property recovers without discarding the world around it — and
     // publish is about to refuse the bundle for that defect regardless.

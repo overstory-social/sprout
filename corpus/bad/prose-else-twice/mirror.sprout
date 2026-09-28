@@ -1,4 +1,6 @@
 // Two `{else}`s in one `{if}`.
+import {Mood} from 'prose_else_twice'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { {if self.get(:mood) == :drowsy}Asleep.{else}Awake.{else}Both.{/if} }

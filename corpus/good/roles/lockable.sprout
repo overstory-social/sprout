@@ -1,4 +1,6 @@
 // The ordinary refusal, which a lock of any kind carries.
+import {unlock} from 'roles'
+
 kind Lockable {
   :locked true
 

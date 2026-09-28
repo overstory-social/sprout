@@ -1,1 +1,3 @@
+import * as sprout from 'sprout'
+
 kind Creature is sprout.Visitor { }

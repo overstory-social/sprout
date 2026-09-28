@@ -26,8 +26,7 @@ if (bundle === null) console.error(renderDiagnostics(diagnostics));
 
 `compileBundle` is strict at publish and lenient at load: at load a file
 that is missing, withheld or broken reads as absent and the world runs
-around the gap. `checkShape` is the first tier, one file alone, for an
-editor.
+around the gap.
 
 ## Layout
 

@@ -1,4 +1,8 @@
 // The host's caps on what a thing answers to: how many nouns, and how long a word.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Key} from 'key'
+
 world grammar_caps is sprout.World {
   visitors are Person
   visitors arrive at hall

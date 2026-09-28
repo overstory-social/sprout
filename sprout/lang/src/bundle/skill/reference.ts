@@ -20,6 +20,9 @@ import { worldMembers } from '../../syntax/parse/world.js';
 import { Diagnostics, renderDiagnostics } from '../../source/diagnostics.js';
 import { SourceFile } from '../../source/source.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /** The manifest section: every field, and what to write for it. */
 export function manifestSection(): string {
   const rows = Object.entries(MANIFEST_FIELDS).map(([field, write]) => [code(field), write]);
@@ -40,6 +43,12 @@ export const DECLARATION_TABLE: readonly Entry[] = [
     means: 'a named set of options, which a property or a value role holds one of',
   },
   {
+    word: 'import',
+    example: `import {Lamp} from ${Q}lamp${Q}`,
+    means:
+      'a name another file declares, by its path from the world without `.sprout`; `import * as sprout from` a library for all of it',
+  },
+  {
     word: 'kind',
     example: 'kind Lamp is sprout.Fixture { … }',
     means: 'what things are made of; a kind composes others with `is`',
@@ -52,7 +61,8 @@ export const DECLARATION_TABLE: readonly Entry[] = [
   {
     word: 'object',
     example: 'object lamp is Lamp { … }',
-    means: 'a thing in the world, written inside the world or inside what holds it',
+    means:
+      'a thing in the world, written inside what holds it, or in a file of its own with `in` naming what holds it',
   },
   {
     word: 'verb',

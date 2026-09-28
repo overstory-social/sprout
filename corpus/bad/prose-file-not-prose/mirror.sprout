@@ -1,4 +1,6 @@
 // `prose` names a `.prose` file.
+import {Mood} from 'prose_file_not_prose'
+
 kind Mirror {
   :mood Mood default drowsy
   prose "mirror.txt"

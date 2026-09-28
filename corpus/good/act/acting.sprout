@@ -1,6 +1,11 @@
 // `act`, as far as the compiler reads it today: an actor, a kind composing
 // `sprout.Actor`, performs a verb itself, from a `do`, with its roles named
 // rather than typed.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cat} from 'cat'
+import {Toy} from 'toy'
+
 world acting is sprout.World {
   contains actors
   visitors are Person

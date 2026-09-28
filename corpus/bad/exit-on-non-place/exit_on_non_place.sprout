@@ -1,4 +1,8 @@
 // Only a place holds visitors, so only a place has ways out.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cupboard} from 'cupboard'
+
 world exit_on_non_place is sprout.World {
   visitors are Person
   visitors arrive at yard

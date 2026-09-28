@@ -1,3 +1,8 @@
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Room} from 'room'
+import {Thing} from 'thing'
+
 world container_holds_nothing is sprout.World {
   visitors are Creature
   visitors arrive at hall

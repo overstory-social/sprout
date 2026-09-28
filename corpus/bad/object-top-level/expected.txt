@@ -1,4 +1,4 @@
-objects.sprout:3:8  `bench` is written in a file of its own, and nothing places it in the world.
+objects.sprout:5:8  `bench` is written in a file of its own, and nothing places it in the world.
                     Name what holds it with `in`, as in `object bench is <Kind> in <place> { … }`, or write `object bench` in the body it sits in and import it there.
 
 refused: 1 problem

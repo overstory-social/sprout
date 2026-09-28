@@ -1,4 +1,6 @@
 // A passage read off something that is not a thing.
+import {Mood} from 'prose_passage_not_object'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { {self.get(:mood).shine} }

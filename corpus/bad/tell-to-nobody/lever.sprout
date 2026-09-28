@@ -1,3 +1,5 @@
+import {pull} from 'tell_to_nobody'
+
 kind Lever {
   as target for pull {
     do {

@@ -1,7 +1,7 @@
 // Every passage, checked against each place it is said from (the spec's
 // Prose › Passages: a passage may use the bindings of the body that
 // invokes it, and may then only be invoked from a body where those
-// bindings exist; The compiler › Two tiers, What it refuses).
+// bindings exist; The compiler › One tier, What it refuses).
 //
 // A passage's `self` is the kind that wrote it, and the rest of its scope
 // is the invoking body's. The places a passage is said from are exact: a

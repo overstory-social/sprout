@@ -1,3 +1,6 @@
 // Two kinds each declare `:open`, and mean different things by it: a
 // lid off, and a futon unfolded. Composing both is two claims on one slot.
+import {Lidded} from 'lidded'
+import {Futon} from 'futon'
+
 kind Chest is Lidded, Futon { }

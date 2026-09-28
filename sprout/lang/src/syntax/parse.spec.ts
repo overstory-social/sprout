@@ -6,6 +6,9 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { read, optionsOf } from '../fixtures/parse.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /**
  * One well-formed declaration for each word this compiler reads.
  *
@@ -18,6 +21,7 @@ import { read, optionsOf } from '../fixtures/parse.js';
  */
 const A_DECLARATION: Record<string, string> = {
   enum: 'enum Two { a }',
+  import: `import {Two} from ${Q}two${Q}`,
   kind: 'kind Two is sprout.Container { :open true }',
   message: 'message :stir',
   object: 'object two is Crate { contains }',
@@ -39,6 +43,7 @@ const A_DECLARATION: Record<string, string> = {
  */
 const ALSO_WRITTEN: Record<string, string[]> = {
   kind: ['kind Two { }', 'kind Two is Crate, sprout.Container { contains actors }'],
+  import: [`import * as two from ${Q}two${Q}`],
   object: [
     'object two is Crate',
     'object two is Crate, sprout.Fixture { }',

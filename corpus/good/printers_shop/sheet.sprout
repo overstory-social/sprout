@@ -1,3 +1,5 @@
+import {Drying} from 'printers_shop'
+
 kind Sheet {
   grammar { name "printed sheet" nouns "sheet", "print" }
 

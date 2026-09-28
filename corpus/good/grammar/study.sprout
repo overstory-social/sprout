@@ -3,6 +3,20 @@
 // added by an object and by its kind, a kind's name given to every
 // instance of it, and verbs typed with a thing of a kind, a set of
 // things, a number and a topic in their slots.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Key} from 'key'
+import {Lamp} from 'lamp'
+import {Oil} from 'oil'
+import {Gong} from 'gong'
+import {Pebble} from 'pebble'
+import {Chest} from 'chest'
+import {Coin} from 'coin'
+import {Guard} from 'guard'
+import {Dial} from 'dial'
+import {Door} from 'door'
+import {Barrel} from 'barrel'
+
 world study is sprout.World {
   visitors are Person
   visitors arrive at hall

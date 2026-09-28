@@ -1,4 +1,8 @@
 // A role that names a kind is filled by something known to be one.
+import {Creature} from 'creature'
+import {pet} from 'act_filler_wrong_kind'
+import {unlock} from 'sprout'
+
 kind Cat is Creature {
   as target for pet {
     do { act unlock (target: actor, tool: self) }

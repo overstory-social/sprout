@@ -10,11 +10,19 @@ import { MANIFEST_FILE } from '../manifest.js';
 import { renderDiagnostics } from '../../source/diagnostics.js';
 import { readable } from '../../source/words.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /** A yard, a shed off it, a lamp that lights once and a chest that starts shut. */
 export const WORKED_EXAMPLE: ExampleWorld = {
   name: 'lantern_yard',
   files: {
     'lantern_yard.sprout': `// The world: its places, what is in them, and the verbs it adds.
+import * as sprout from ${Q}sprout${Q}
+import {Person} from ${Q}person${Q}
+import {Lamp} from ${Q}lamp${Q}
+import {Match} from ${Q}match${Q}
+
 world lantern_yard is sprout.World {
   visitors are Person
   visitors arrive at yard
@@ -38,11 +46,15 @@ world lantern_yard is sprout.World {
 verb light { role target: Lamp  "light [target]" }
 `,
     'person.sprout': `// Whoever visits: the library's visitor, with hands for three things.
+import * as sprout from ${Q}sprout${Q}
+
 kind Person is sprout.Visitor {
   :capacity 3
 }
 `,
     'lamp.sprout': `// A lamp: dark until someone lights it, and then it says so.
+import {light} from ${Q}lantern_yard${Q}
+
 kind Lamp {
   :lit false
 

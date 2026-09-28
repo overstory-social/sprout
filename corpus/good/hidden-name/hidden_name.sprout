@@ -1,6 +1,11 @@
 // A nearer name wins, and hides the one further out: the world compiles,
 // and the compiler says so at the inner declaration, naming the path the
 // outer one is still reached by.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Thing} from 'thing'
+import {Chest} from 'chest'
+
 world hidden_name is sprout.World {
   visitors are Creature
   visitors arrive at shop_floor

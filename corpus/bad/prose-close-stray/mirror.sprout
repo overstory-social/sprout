@@ -1,4 +1,6 @@
 // A `{/if}` with no `{if}` before it.
+import {Mood} from 'prose_close_stray'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { Nothing in it looks back.{/if} }

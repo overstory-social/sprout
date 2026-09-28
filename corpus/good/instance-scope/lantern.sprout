@@ -3,6 +3,10 @@
 // where the room holds none, since a send to a name that reaches nothing
 // does nothing. Its wick is its own in every lantern, so the wick is read
 // directly.
+import {light, :kindle} from 'kinds'
+import {Wick} from 'wick'
+import {Oil} from 'oil'
+
 kind Lantern {
   contains
   :lit false

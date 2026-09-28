@@ -1,3 +1,7 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lock} from 'lock'
+
 world chance_in_permit_passage is sprout.World {
   visitors are Person
   visitors arrive at yard

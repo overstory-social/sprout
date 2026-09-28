@@ -47,10 +47,6 @@ export const WARNING_TABLE: readonly ProblemEntry[] = [
     ),
   },
   {
-    about: 'A declaration hiding a standard library name',
-    snippet: one('fixture.sprout', 'kind Fixture { }\n'),
-  },
-  {
     about: 'An object hiding one of its name further out',
     snippet: one(
       'lamp.sprout',
@@ -216,11 +212,14 @@ export const REFUSAL_TABLE: readonly ProblemEntry[] = [
     snippet: one('lamp.sprout', 'kind Lamp : sprout.Fixture { }\n'),
   },
   {
-    about: 'A kind in a file not named for it',
-    snippet: one('things.sprout', 'kind Lamp { }\n'),
+    about: 'A name from another file, not imported',
+    snippet: {
+      files: { 'lamp.sprout': 'kind Lamp is Fixture { }\n' },
+      bare: true,
+    },
   },
   {
-    about: 'An object outside the world',
+    about: 'An object in a file of its own that nothing places',
     snippet: one('lamp.sprout', 'object lamp is sprout.Fixture\n'),
   },
   {

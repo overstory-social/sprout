@@ -1,0 +1,4 @@
+cellar.sprout:4:41  `yard` is written in `object_across_files.sprout`, and this file does not import it.
+                    Name it from the world, as `object_across_files.yard`.
+
+refused: 1 problem

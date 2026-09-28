@@ -1,4 +1,6 @@
 // A walk of contents through a role of no kind.
+import {work} from 'prose_for_in_unknown'
+
 kind Press {
   as target for work {
     do { say "{for t in tool}{t}{/for}" }

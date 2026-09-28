@@ -1,5 +1,10 @@
 // Visitors arrive in a place: something that holds actors. A bench
 // holds things, and not people.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Room} from 'room'
+import {Bench} from 'bench'
+
 world arrival_not_a_place is sprout.World {
   visitors are Creature
   visitors arrive at hall.bench
