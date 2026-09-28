@@ -56,6 +56,7 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'grammar',
   'hours',
   'if',
+  'import',
   'in',
   'kind',
   'let',

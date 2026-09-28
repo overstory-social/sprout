@@ -28,7 +28,9 @@ export interface NestedObject {
  * each after what holds it and in the order written: a body's objects in
  * order, each followed by what it holds.
  */
-export function objectsIn(body: WorldDeclaration | KindDeclaration): NestedObject[] {
+export function objectsIn(
+  body: WorldDeclaration | KindDeclaration | ObjectDeclaration,
+): NestedObject[] {
   const found: NestedObject[] = [];
   const pending: NestedObject[] = body.objects
     .map((declaration) => ({ declaration, within: null }))

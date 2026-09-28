@@ -2,7 +2,7 @@
 // entry point of `syntax/parse.ts` over a string and hands back what it
 // built and what it said. Spec support: the package build leaves it out.
 
-import type { EnumDeclaration, Expr } from '../syntax/ast.js';
+import type { Declaration, EnumDeclaration, Expr } from '../syntax/ast.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import {
   parseDeclarations,
@@ -21,6 +21,10 @@ export function read(text: string, name = 'ward.sprout') {
 }
 
 /** An enum's options as plain words, for a suite that is not about nodes. */
+/** The name a declaration is written with, or its word where it has none, as an import has not. */
+export const nameOf = (declared: Declaration): string =>
+  'name' in declared ? declared.name.text : declared.kind;
+
 export const optionsOf = (declared: EnumDeclaration): string[] =>
   declared.options.map((option) => option.name.text);
 

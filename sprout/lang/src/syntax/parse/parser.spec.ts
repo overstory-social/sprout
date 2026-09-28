@@ -4,7 +4,7 @@ import type { EnumDeclaration, WorldDeclaration } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { DECLARATIONS } from '../parse.js';
 import { SourceFile } from '../../source/source.js';
-import { optionsOf, shape } from '../../fixtures/parse.js';
+import { optionsOf, shape, nameOf } from '../../fixtures/parse.js';
 import { parserOver, readWith } from '../../fixtures/readers.js';
 import { DECLARATION_READERS, file } from './declarations.js';
 import { expression } from './expressions.js';
@@ -271,14 +271,14 @@ describe('recovery and reading ask the same word different questions', () => {
       '`w` is never closed.',
       'A message needs a name.',
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+    expect(declarations.map((d) => nameOf(d))).toEqual(['Ward']);
   });
 
   it('a list literal, past an element it could not read: it would lose the world', () => {
     const { declarations, refusals } = read(
       'world w is sprout.World {\n  :x [- message foo]\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
-    expect(declarations.map((d) => d.name.text)).toEqual(['w', 'Ward']);
+    expect(declarations.map((d) => nameOf(d))).toEqual(['w', 'Ward']);
     // `message` is what the sign stood before, and goes with it.
     expect(refusals.map((d) => d.message)).toEqual(['A minus sign needs a number after it.']);
   });
@@ -287,7 +287,7 @@ describe('recovery and reading ask the same word different questions', () => {
     const { declarations, refusals } = read(
       'world outer is sprout.World {\n  remembers { :oops - message foo }\n  visitors are Creature\n  visitors arrive at start\n}\nenum Ward { oak }\n',
     );
-    expect(declarations.map((d) => d.name.text)).toEqual(['outer', 'Ward']);
+    expect(declarations.map((d) => nameOf(d))).toEqual(['outer', 'Ward']);
     // `message foo` is the abandoned entry's own text, stepped over
     // whole rather than retried as a sibling, so only the one thing
     // wrong with `oops` is said.
@@ -376,7 +376,7 @@ describe('a declaration\u2019s own word is an ordinary name wherever a name may 
         word,
       ).toEqual([]);
       expect(
-        declarations.map((d) => d.name.text),
+        declarations.map((d) => nameOf(d)),
         word,
       ).toEqual(['w', 'Ward']);
     }
@@ -552,7 +552,7 @@ message :b with ${deep}Ward
     // never wrote as one is worse than saying nothing.
     const atFile = new Diagnostics();
     const declared = over(file, `message :first with ${trap}\nmessage :second\n`, atFile);
-    expect(declared.map((d) => d.name.text)).toEqual(['second']);
+    expect(declared.map((d) => nameOf(d))).toEqual(['second']);
     expect(atFile.refusals.map((d) => d.message)).toEqual([TOO_DEEP]);
   });
 

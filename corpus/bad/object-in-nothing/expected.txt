@@ -1,0 +1,4 @@
+shed.sprout:1:29  `in` names the place or thing this object sits in.
+                  Write its path from the world, as in `object ladder is sprout.Fixture in composing_room.paper_store { … }`.
+
+refused: 1 problem

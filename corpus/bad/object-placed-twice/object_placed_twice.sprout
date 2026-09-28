@@ -1,0 +1,9 @@
+// An object placed by its own in clause and by a stub.
+import {shed} from 'shed'
+world object_placed_twice is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+  object shed
+}

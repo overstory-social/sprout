@@ -19,6 +19,7 @@ import {
   worldFiles,
   worldLine,
 } from '../../fixtures/compile.js';
+import { nameOf } from '../../fixtures/parse.js';
 
 const file = (name: string, text: string): SourceFile => new SourceFile(name, text);
 
@@ -167,8 +168,8 @@ describe('the first tier reads every file in the bundle', () => {
     expect(report.diagnostics.all).toEqual([]);
     expect(tier.ownFileRefused).toBe(false);
     expect([...tier.byLibrary.keys()]).toEqual(['shop', 'sprout']);
-    expect(tier.byLibrary.get('shop')!.map((d) => d.name.text)).toEqual(['Season']);
-    expect(tier.declarations.map((d) => d.name.text)).toEqual([
+    expect(tier.byLibrary.get('shop')!.map((d) => nameOf(d))).toEqual(['Season']);
+    expect(tier.declarations.map((d) => nameOf(d))).toEqual([
       'Season',
       'World',
       'go',
@@ -207,7 +208,7 @@ describe('the first tier reads every file in the bundle', () => {
       'load',
     );
     expect(tier.ownFileRefused).toBe(true);
-    expect(tier.byLibrary.get('shop')!.map((d) => d.name.text)).toEqual(['A']);
+    expect(tier.byLibrary.get('shop')!.map((d) => nameOf(d))).toEqual(['A']);
     expect(report.absent.map((a) => [a.what, a.kind, a.reason])).toEqual([
       ['shop.sprout', 'file', 'broken'],
     ]);

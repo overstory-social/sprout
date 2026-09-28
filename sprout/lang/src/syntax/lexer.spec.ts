@@ -6,6 +6,9 @@ import { unspanned } from '../source/nodes.js';
 import { locationOf, SourceFile, textOf } from '../source/source.js';
 import { chooser } from '../fixtures/parse.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /** Tokenise a scrap of source, with the diagnostics it raised. */
 function read(text: string, name = 'kiln.sprout'): { tokens: Token[]; diagnostics: Diagnostics } {
   const diagnostics = new Diagnostics();
@@ -223,7 +226,7 @@ describe('a problem names its own character and reading carries on', () => {
   });
 
   it('never throws, whatever it is given', () => {
-    for (const text of ['"', '\\', ':', '%', '"\\', ':::', '// ', '"a\n']) {
+    for (const text of ['"', `\\`, ':', '%', `"\\`, ':::', '// ', '"a\n']) {
       expect(() => read(text)).not.toThrow();
     }
   });
@@ -545,7 +548,7 @@ describe("a passage's body is one token, holding its words whole", () => {
 
   it('refuses a backslash at the end of a line on its own, and leaves the line break', () => {
     const { tokens, diagnostics } = read('passage p { a\\\n}');
-    expect(diagnostics.refusals.map((d) => textOf(d.at))).toEqual(['\\']);
+    expect(diagnostics.refusals.map((d) => textOf(d.at))).toEqual([`\\`]);
     expect(tokens[2]!.text).toBe(' a\\\n');
   });
 
@@ -618,7 +621,7 @@ describe("a passage's body is one token, holding its words whole", () => {
       '\n\n',
       '  ',
     ];
-    const ESCAPED = ['\\"', '\\\\', '\\n', '\\{'];
+    const ESCAPED = ['\\"', `\\\\`, '\\n', '\\{'];
     const slot = (depth: number): string => {
       const inner = Array.from({ length: c.below(3) }, () =>
         depth > 0 && c.below(3) === 0
@@ -671,6 +674,42 @@ describe('a window of a file, as a slot of prose is read', () => {
     const { diagnostics } = read('$index');
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       'Sprout does not use the character "$".',
+    ]);
+  });
+});
+
+describe('an import’s own tokens', () => {
+  it('reads a single-quoted specifier after `from`, and `*` after `import`', () => {
+    const { tokens, diagnostics } = read(`import * as sprout from ${Q}sprout/actor${Q}\n`);
+    expect(diagnostics.all).toEqual([]);
+    expect(tokens.map((t) => [t.kind, t.text])).toEqual([
+      ['name', 'import'],
+      ['punct', '*'],
+      ['name', 'as'],
+      ['name', 'sprout'],
+      ['name', 'from'],
+      ['string', 'sprout/actor'],
+      ['end', ''],
+    ]);
+  });
+
+  it('refuses a single quote or a `*` anywhere else, as a character the language does not use', () => {
+    for (const text of ["greet'ing", 'a * b', "import {Key} 'key'"]) {
+      const { diagnostics } = read(`${text}\n`);
+      expect(
+        diagnostics.all.some((d) => /does not use the character/.test(d.message)),
+        text,
+      ).toBe(true);
+    }
+  });
+
+  it('refuses a single-quoted specifier never closed, naming its own quote', () => {
+    const { diagnostics } = read(`import {Key} from ${Q}key\n`);
+    expect(diagnostics.all.map((d) => [d.message, d.remedy])).toEqual([
+      [
+        'This text is never closed.',
+        "Add a closing ' at the end of it. Text does not run past the end of a line.",
+      ],
     ]);
   });
 });

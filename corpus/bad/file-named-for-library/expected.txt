@@ -1,0 +1,4 @@
+sprout.sprout:1:1  This file cannot be called `sprout.sprout`: `'sprout'` names the library.
+                   Give the file another name.
+
+refused: 1 problem

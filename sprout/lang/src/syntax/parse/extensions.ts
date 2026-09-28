@@ -82,7 +82,7 @@ export function extensionUse(p: Parser, first: boolean): ExtensionUse | null {
 }
 
 /** Step over what is left of a refused `extension` line, so the next line reads on its own. */
-function restOfLine(p: Parser): void {
+export function restOfLine(p: Parser): void {
   while (!p.done && !firstOnItsLine(p, p.peek())) p.next();
 }
 

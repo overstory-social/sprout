@@ -1,0 +1,7 @@
+// An import under a name the file declares.
+world import_clashes is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

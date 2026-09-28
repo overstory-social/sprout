@@ -1,0 +1,4 @@
+object_placed_twice.sprout:8:10  `shed` is placed twice: by its own `in` clause and by this stub.
+                                 Keep one of them, so it sits in one place.
+
+refused: 1 problem

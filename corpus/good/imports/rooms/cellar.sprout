@@ -1,0 +1,6 @@
+import * as sprout from 'sprout'
+
+object cellar is sprout.Place {
+  grammar { exit up "up to the hall" -> hall }
+  describe { text "A cellar, cold and dry." }
+}

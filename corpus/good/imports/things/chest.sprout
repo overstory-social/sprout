@@ -1,0 +1,5 @@
+import {Container} from 'sprout'
+
+kind Chest is Container {
+  grammar { nouns "chest" }
+}

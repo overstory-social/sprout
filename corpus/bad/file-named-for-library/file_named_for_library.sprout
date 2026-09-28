@@ -1,0 +1,7 @@
+// A world file named for a library.
+world file_named_for_library is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

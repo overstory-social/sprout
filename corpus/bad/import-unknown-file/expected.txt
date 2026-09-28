@@ -1,0 +1,4 @@
+crate.sprout:1:19  `'boxes'` reaches no file or library of this world.
+                   A specifier is a file's path from the world's folder, without `.sprout`, as `'rooms/cellar'` is `rooms/cellar.sprout`, or a library's name, as `'sprout'`.
+
+refused: 1 problem

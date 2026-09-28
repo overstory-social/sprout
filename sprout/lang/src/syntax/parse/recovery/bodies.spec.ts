@@ -5,7 +5,9 @@
 // the body among them. Now and then the body is left never closed, so a
 // declaration written after it is checked against `closedByWhatFollows`
 // instead. An object sits in a world's body, so a stray `}` that closes
-// it early leaves what follows to the world, which keeps it there.
+// it early leaves what follows to the world, which keeps it there, and
+// one that closes the world leaves an object after it at the file's top
+// level, kept as an object in a file of its own.
 
 import { describe, expect, it } from 'vitest';
 
@@ -14,6 +16,7 @@ import { chooser, type Chooser } from '../../../fixtures/parse.js';
 import type { Declaration } from '../../ast.js';
 import {
   aroundOwner,
+  looseObjects,
   closedByWhatFollows,
   defectiveMember,
   explained,
@@ -135,7 +138,9 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         if (inRemembers) good.push('remembers.echo');
         const kept = [
           ...keptBy(owner, result),
-          ...(made.defect.sort === 'stray' ? aroundOwner(owner, result) : []),
+          ...(made.defect.sort === 'stray'
+            ? [...aroundOwner(owner, result), ...looseObjects(result)]
+            : []),
         ];
         const taken = unclosedBlock
           ? good.map((name) => `remembers.${name.replace(/^remembers\./, '')}`)

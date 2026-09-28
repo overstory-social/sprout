@@ -148,6 +148,8 @@ export class Lexer {
   private aheadAt = 0;
   /** Whether a character was refused since the last token was made. */
   private pendingRefusal = false;
+  /** The last name read, where it was the last token: `from` before a specifier, `import` before `*`. */
+  private lastName: string | null = null;
   /** The passage header being read, from the word `passage` to the `{` that opens its body. */
   private header: Header | null = null;
   /** Whether a comment or a passage body never closed took the rest of the file. */
@@ -210,12 +212,14 @@ export class Lexer {
   private token(kind: TokenKind, start: number, end: number, text?: string): Token {
     const afterRefusal = this.pendingRefusal;
     this.pendingRefusal = false;
-    return {
+    const token = {
       kind,
       at: this.span(start, end),
       text: text ?? this.source.text.slice(start, end),
       afterRefusal,
     };
+    this.lastName = kind === 'name' ? token.text : null;
+    return token;
   }
 
   /**
@@ -297,7 +301,14 @@ export class Lexer {
 
       const ch = text[start]!;
 
-      if (ch === '"') return this.readString(start);
+      // A single quote opens text only where an import's specifier
+      // stands, after `from`, and `*` is a token only in `import *`;
+      // anywhere else each is a stray character.
+      if (ch === '"' || (ch === "'" && this.lastName === 'from')) return this.readString(start, ch);
+      if (ch === '*' && this.lastName === 'import') {
+        this.at = start + 1;
+        return this.token('punct', start, this.at);
+      }
 
       // `$first`, `$last`, `$index` and `$count` inside a passage's
       // slots (the spec's Prose › Conditionals and loops).
@@ -362,18 +373,19 @@ export class Lexer {
   }
 
   /**
-   * `"…"`, with `\"`, `\\`, `\n` and `\{` inside it. Text does not span
-   * lines: a newline before the closing quote ends the token there and is
-   * refused, which keeps one missing quote from swallowing the file. An
-   * unescaped `{` is an ordinary character here; only a passage reads it.
+   * `"…"`, with `\"`, `\\`, `\n` and `\{` inside it, or `'…'`, as an
+   * import's specifier is written, with `\'` for its own quote. Text does
+   * not span lines: a newline before the closing quote ends the token there
+   * and is refused, which keeps one missing quote from swallowing the file.
+   * An unescaped `{` is an ordinary character here; only a passage reads it.
    */
-  private readString(start: number): Token {
+  private readString(start: number, quote: '"' | "'"): Token {
     const source = this.text;
     let i = start + 1;
     let value = '';
     while (i < source.length) {
       const ch = source[i]!;
-      if (ch === '"') {
+      if (ch === quote) {
         this.at = i + 1;
         return this.token('string', start, this.at, value);
       }
@@ -381,7 +393,7 @@ export class Lexer {
       if (ch === '\\') {
         const escape = source[i + 1] ?? '';
         if (escape === 'n') value += '\n';
-        else if (ESCAPES.has(escape)) value += escape;
+        else if (ESCAPES.has(escape) || escape === quote) value += escape;
         else {
           this.diagnostics.refuse(
             this.span(i, i + 2),
@@ -400,7 +412,7 @@ export class Lexer {
     this.diagnostics.refuse(
       this.span(start, i),
       'This text is never closed.',
-      'Add a closing " at the end of it. Text does not run past the end of a line.',
+      `Add a closing ${quote} at the end of it. Text does not run past the end of a line.`,
     );
     return this.token('string', start, i, value);
   }

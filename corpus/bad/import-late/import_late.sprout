@@ -1,0 +1,7 @@
+// An import after a declaration.
+world import_late is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

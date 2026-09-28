@@ -13,7 +13,7 @@
 import type { Declaration, PassageDeclaration } from '../../syntax/ast.js';
 import type { VendoredLibrary } from '../bundle.js';
 import { Diagnostics, type Diagnostic } from '../../source/diagnostics.js';
-import { checkEnumDeclaration } from '../../declare/enums.js';
+import { checkEnumDeclaration, SPROUT } from '../../declare/enums.js';
 import { checkGrammar } from '../../declare/grammar.js';
 import { checkKindFiles } from '../../declare/file-names.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
@@ -25,6 +25,7 @@ import { DEFAULT_LIMITS, type StaticCaps } from '../limits.js';
 import type { SourceFile } from '../../source/source.js';
 import { FILE_GONE, isCode, isProse } from './files.js';
 import type { Report } from './report.js';
+import { libraryScope, rewrite } from './renames.js';
 
 /** What the first tier makes of one file: a `.sprout` file's declarations, a `.prose` file's passages. */
 export interface ShapeResult {
@@ -52,6 +53,7 @@ export function checkShape(file: SourceFile, caps?: StaticCaps): ShapeResult {
 function readShape(
   file: SourceFile,
   caps?: StaticCaps,
+  libraries: ReadonlySet<string> = new Set([SPROUT]),
 ): ShapeResult & { readonly layout: readonly Diagnostic[] } {
   const diagnostics = new Diagnostics();
   const using = caps ?? DEFAULT_LIMITS.caps;
@@ -60,7 +62,11 @@ function readShape(
     return { declarations: [], passages, diagnostics: diagnostics.all, layout: [] };
   }
   if (!isCode(file)) return { declarations: [], passages: [], diagnostics: [], layout: [] };
-  const declarations = parseDeclarations(file, diagnostics, using);
+  // What the file imports from a library is read as it means before the
+  // file is checked, so `import {World} from …` names the library's world.
+  const written = parseDeclarations(file, diagnostics, using);
+  const scope = libraryScope(written, libraries);
+  const declarations = written.map((declared) => rewrite(declared, scope));
   for (const declared of declarations) {
     if (declared.kind === 'enum') {
       checkEnumDeclaration(declared, using.optionsPerEnum, diagnostics);
@@ -81,12 +87,13 @@ function readShape(
       }
     }
     // As it does whether a kind or an object wrote it, which anything
-    // but a world may not, and whether an object named a kind at all.
-    if (declared.kind === 'kind') {
+    // but a world may not, and whether an object named a kind at all; an
+    // object in a file of its own is checked as one in the world is.
+    if (declared.kind === 'kind' || declared.kind === 'object') {
       checkKindDeclaration(declared, diagnostics);
       checkGrammar(declared, using, diagnostics);
       for (const { declaration } of objectsIn(declared)) {
-        checkKindDeclaration(declaration, diagnostics);
+        checkKindDeclaration(declaration, diagnostics, declared.kind === 'kind');
         checkGrammar(declaration, using, diagnostics);
       }
     }
@@ -129,13 +136,14 @@ export function readFirstTier(
     ...arrived.map((file) => ({ library: namespace, file })),
     ...usable.flatMap((library) => library.files.map((file) => ({ library: library.name, file }))),
   ];
+  const libraries = new Set(usable.map((library) => library.name));
   const declarations: Declaration[] = [];
   const byLibrary = new Map<string, Declaration[]>();
   const prose = new Map<string, ProseRead>();
   /** Whether one of the world's own files was refused by the first tier. */
   let ownFileRefused = false;
   for (const { library, file } of readable) {
-    const shape = readShape(file, caps);
+    const shape = readShape(file, caps, libraries);
     for (const { at, message, remedy } of shape.layout) report.strict(at, message, remedy);
     const refused = shape.diagnostics.some((d) => d.severity === 'refusal');
     if (refused && library === namespace) ownFileRefused = true;

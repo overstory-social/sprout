@@ -18,6 +18,7 @@ import { atKey } from './manifest-fields.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import { file, MANIFEST, refusals, SPROUT_SHA, warnings, world } from '../../fixtures/compile.js';
+import { nameOf } from '../../fixtures/parse.js';
 
 const SHA = libraryHash(STANDARD_LIBRARY);
 const PIN = { name: 'sprout', version: '0.1.0', sha: SHA };
@@ -272,10 +273,8 @@ describe('the manifest records every library by version and by the hash of its s
       }),
     );
     expect(refusals(diagnostics)).toEqual([]);
-    const read = bundle!.definitions.filter(
-      (d) => d.name.at.source.name === 'printers_shop.sprout',
-    );
-    expect(read.map((d) => `${d.kind} ${d.name.text}`)).toEqual([
+    const read = bundle!.definitions.filter((d) => d.at.source.name === 'printers_shop.sprout');
+    expect(read.map((d) => `${d.kind} ${nameOf(d)}`)).toEqual([
       'world printers_shop',
       'enum Season',
       'enum Spare',

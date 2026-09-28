@@ -1,0 +1,16 @@
+{
+  "name": "import_twice",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "66ca315d625634f8152089719f7c33abfd6973575b9fc892250ba60968be33a2"
+    }
+  ],
+  "files": ["crate.sprout", "import_twice.sprout", "person.sprout"]
+}

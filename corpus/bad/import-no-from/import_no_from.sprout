@@ -1,0 +1,7 @@
+// An import that does not say where from.
+world import_no_from is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

@@ -1,0 +1,7 @@
+// A name the file imported from does not declare.
+world import_unknown_name is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

@@ -89,8 +89,9 @@ is listed but missing, or present but not listed, is reported.
 ### Which file holds what
 
 - **The world** is declared in the file named for it: `world
-  printers_shop` in `printers_shop.sprout`. Every object in the world is
-  declared inside the world's body, so they are all in this file too.
+  printers_shop` in `printers_shop.sprout`. An object is declared inside
+  the body of what holds it, or in a file of its own that says where it
+  sits (see [Objects](#objects)).
 - **Each kind** is declared in a file of its own, named for the kind in
   lower case with `_` between words: `kind Chest` in `chest.sprout`,
   `kind PrintedSheet` in `printed_sheet.sprout`, `kind TVSet` in
@@ -100,8 +101,25 @@ is listed but missing, or present but not listed, is reported.
 - **Passages** may be written inline in a body, or in a `.prose` file that
   a body points at with `prose "name.prose"`.
 
-There are no imports. Every name resolves across the whole world, and
-across the libraries it uses.
+A file may import names from another file, or a whole library, at its
+top:
+
+```sprout
+import {Chest as Box} from 'things/chest'
+import {cellar} from 'rooms/cellar'
+import * as sprout from 'sprout'
+```
+
+- The text after `from` is a file's path from the world's folder,
+  without `.sprout`, or a library's name.
+- `as` gives a name another name in this file. A namespace import makes
+  everything a library declares writable as `sprout.Container`.
+- A name may be imported once per file, and not under a name the file
+  itself declares. The world's own name is never imported.
+
+For now, a name written without an import still resolves across the
+whole world and the libraries it uses. That is going to change: every
+name from another file will need its import.
 
 ### Libraries
 
@@ -222,7 +240,27 @@ object cabinet is sprout.Container, Warded, sprout.Fixture {
   may restate a property its kinds declare to change its starting value.
 - It may hold other objects only if something it is made of declares
   `contains` (see [Containment](#containment)).
-- An `object` outside the world's body is an error.
+- An object may instead be written at the top of a file of its own, if
+  it says where it sits. Either name what holds it with `in`, a path from
+  the world's body:
+
+  ```sprout
+  object shed is sprout.Place in printers_shop { … }
+  object ladder is sprout.Fixture in composing_room.paper_store
+  ```
+
+  or import it where it sits and write it there with no kinds and no
+  body, a _stub_:
+
+  ```sprout
+  import {cellar} from 'rooms/cellar'
+
+  world printers_shop is sprout.World {
+    object cellar
+  }
+  ```
+
+  An object in its own file is placed exactly once, by one of the two.
 
 ### Kinds
 

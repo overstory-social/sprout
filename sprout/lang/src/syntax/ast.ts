@@ -14,6 +14,7 @@ import type { GrammarDeclaration } from './ast-grammar.js';
 import type { HandlerDeclaration, HookDeclaration, PassDeclaration } from './ast-events.js';
 import type { VerbDeclaration } from './ast-verbs.js';
 import type { ExtensionStatement, ExtensionUse } from './ast-extensions.js';
+import type { ImportDeclaration } from './ast-imports.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
 import type {
   DescribeDeclaration,
@@ -772,11 +773,19 @@ export interface ObjectDeclaration extends Node {
   readonly composes: readonly KindExpr[];
   readonly members: readonly KindMember[];
   readonly objects: readonly ObjectDeclaration[];
+  /** `in composing_room`, where an object at a file's top level names the container it sits in. */
+  readonly placedIn?: ObjectPath;
+  /**
+   * True for `object paper_store` with no kinds and no body, written in a
+   * body: a stub, placing there the object its file imports by that name.
+   */
+  readonly stub?: true;
 }
 
 /**
- * Everything a file holds at its top level. An object is not among them:
- * it is written in the body of what holds it. The union grows per item.
+ * Everything a file holds at its top level: an object among them only
+ * where it is written in a file of its own, placed by its `in` clause or
+ * by a stub.
  */
 export type Declaration =
   | EnumDeclaration
@@ -784,4 +793,6 @@ export type Declaration =
   | WorldDeclaration
   | KindDeclaration
   | VerbDeclaration
-  | ExtensionUse;
+  | ExtensionUse
+  | ImportDeclaration
+  | ObjectDeclaration;
