@@ -3,12 +3,11 @@
 // namespaces; Limits › Static caps), in both tiers.
 //
 // Reading its file checks a verb against itself: every slot names a role
-// the verb declares, once per phrase, and every phrase names the first
-// role, the target. Across the bundle, `VerbTable` resolves each
+// the verb declares, once per phrase, every phrase names the first role,
+// the target, and its own synonyms give no phrase it has already. Across the bundle, `VerbTable` resolves each
 // verb in the library that declared it: what fills each role, and
 // whether each role is optional, computed from the phrases. A verb's
-// identity is its library and its name, as a kind's is. B24 plays a
-// role and B27 parses a phrase; neither is here.
+// identity is its library and its name, as a kind's is.
 
 import type { KindExpr } from '../syntax/ast.js';
 import type {
@@ -22,6 +21,7 @@ import { textOf } from '../source/source.js';
 import { readable } from '../source/words.js';
 import { lookingFrom, nearestOption, qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import type { KindRef } from './kinds.js';
+import { checkVerbSynonyms } from './synonyms.js';
 import {
   identityOf,
   unknownKind,
@@ -45,6 +45,7 @@ export function checkVerbDeclaration(
 ): void {
   const verb = declared.name.text;
   checkCaps(declared, caps, diagnostics);
+  checkVerbSynonyms(declared, caps, diagnostics);
 
   const roles = new Map<string, RoleDeclaration>();
   for (const role of declared.roles) {
@@ -289,6 +290,8 @@ export interface ResolvedVerb {
   /** In the order declared, which is the order they are asked in; the first is the target. */
   readonly roles: readonly ResolvedRole[];
   readonly phrases: readonly ResolvedPhrase[];
+  /** Its own synonyms, which hold everywhere it does (`synonyms.ts`). */
+  readonly synonyms: readonly string[];
   readonly declaration: VerbDeclaration;
 }
 
@@ -401,7 +404,8 @@ function resolveVerb(
       declaration: role,
     };
   });
-  return { library, name: declared.name.text, roles, phrases, declaration: declared };
+  const synonyms = declared.synonyms.map((synonym) => synonym.text);
+  return { library, name: declared.name.text, roles, phrases, synonyms, declaration: declared };
 }
 
 /**

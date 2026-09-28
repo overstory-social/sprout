@@ -29,6 +29,7 @@ import type { KindContents } from '../declare/contents.js';
 import type { ResolvedObject } from '../declare/objects.js';
 import type { VerbLookup } from '../declare/verbs.js';
 import type { ObjectTree, TreePath } from '../declare/tree.js';
+import type { ScopedSynonym } from '../declare/synonyms.js';
 import type { SourceFile } from '../source/source.js';
 import type { StaticCaps } from './limits.js';
 import { hashOfNamed } from '../source/sha256.js';
@@ -238,6 +239,8 @@ export interface Bundle {
    * where, and `absent` records which.
    */
   readonly arrival: TreePath | null;
+  /** The synonyms the world's body and its objects' write, each with the phrases it gives (the spec's Parsing › Synonyms). */
+  readonly synonyms: readonly ScopedSynonym[];
   readonly words: WordSet;
   /** The highest level of any part, library source included. */
   readonly level: number;

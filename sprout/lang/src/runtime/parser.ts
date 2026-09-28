@@ -89,6 +89,14 @@ export function readCommand(
       budget.spend();
       const fills = spans.map(fillOf);
       if (fills.some((one) => one.fills === 'unfit')) continue;
+      // An object's synonym reads only where the object takes part, so a
+      // line it does not fit is not understood by it, nor asked about.
+      if (phrase.only !== null) {
+        if (takesPart(phrase.only, actor, fills)) {
+          return { understood: readingOf(phrase, actor, spans, fills, context) };
+        }
+        continue;
+      }
       const asked = spans.findIndex((_, at) => fills[at]!.fills === 'which');
       if (asked >= 0) {
         which ??= whichAnswer(
@@ -214,6 +222,18 @@ function whichAnswer(
     return { id, line: line.join(' ').replaceAll(' ,', ',') };
   });
   return answer(context.state, 'which', actor, here, choices);
+}
+
+/** Whether `object` is the actor or fills a role in `fills`, every one of which is decided. */
+function takesPart(object: InstanceId, actor: InstanceId, fills: readonly Filled[]): boolean {
+  if (fills.some((one) => one.fills !== 'bound' && one.fills !== 'words')) return false;
+  if (object === actor) return true;
+  return fills.some(
+    (one) =>
+      one.fills === 'bound' &&
+      (('object' in one.bound && one.bound.object === object) ||
+        ('set' in one.bound && one.bound.set.includes(object))),
+  );
 }
 
 /** The actor's place: its container, since an actor is only ever inside something that holds actors. */

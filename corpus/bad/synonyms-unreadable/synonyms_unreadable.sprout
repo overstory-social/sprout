@@ -1,0 +1,14 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {pry} from 'pry'
+
+world synonyms_unreadable is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  // A `synonyms` line in a body names its verb and a colon first.
+  synonyms "jimmy"
+
+  object yard is sprout.Place
+
+}

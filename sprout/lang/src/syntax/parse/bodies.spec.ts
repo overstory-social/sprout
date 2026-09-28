@@ -27,7 +27,7 @@ type Owner = (typeof OWNERS)[number];
 
 /** The members every body holds, with `holds` first where the owner says one more, and `grammar` and `describe` where it is a thing's. */
 const membersOf = (owner: Owner): string =>
-  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`prose\`, \`without\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
 
 /** A member by its name where it is a property, and otherwise by what it is. */
 const named = (members: readonly WorldMember[]): string[] =>

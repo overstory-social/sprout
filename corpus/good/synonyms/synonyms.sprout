@@ -1,0 +1,40 @@
+// Synonyms from their three scopes (the spec's Parsing › Synonyms):
+// `ring`'s own, which hold everywhere; the world's `jimmy` for `open`,
+// which holds throughout the world; and the cabinet's `force`, which
+// holds only where the cabinet takes part, so `force chest` is not
+// understood. Each takes every phrase of its verb that writes the verb's
+// name.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {open} from 'sprout'
+
+world synonyms is sprout.World {
+  visitors are Person
+  visitors arrive at shop
+
+  synonyms open: "jimmy"
+
+  object shop is sprout.Place {
+    grammar { article the }
+    object cabinet is sprout.Container {
+      :open false
+      grammar { article the }
+      synonyms open: "force"
+    }
+    object chest is sprout.Container {
+      :open false
+      grammar { article the }
+    }
+    object bell is Bell { grammar { article the } }
+  }
+}
+
+verb ring {
+  role target: Bell
+  "ring [target]"
+  synonyms "toll", "sound"
+}
+
+kind Bell {
+  as target for ring { do { say "The bell booms." } }
+}

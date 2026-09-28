@@ -180,6 +180,7 @@ A body is what is between a declaration’s braces. Besides these, every body ho
 | `passage hum { {self} hums. }` | named words, said by name | yes | yes |
 | `prose "probe.prose"` | passages written in a `.prose` file beside it | yes | yes |
 | `without on :stir from Bell` | leaves out one member it would take from a kind it composes | yes | yes |
+| `synonyms poke: "prod"` | another word for a verb, throughout the world or, on an object, only where that object takes part; never in a kind’s body. A verb writes its own as `synonyms "prod"` | yes | yes |
 | `grammar { name "probe"  nouns "gadget" }` | what it is called and answers to, and a place’s exits and links | yes | — |
 | `describe { text "A probe." }` | what whoever looks at it reads | yes | — |
 | `depart (to) { allow }` | a guard on it being moved away | yes | yes |

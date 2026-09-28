@@ -1,0 +1,4 @@
+pry.sprout:6:12  `"prise"` gives `pry` the phrase `"prise [target]"`, which it has already.
+                 Take the synonym out, or the phrase it repeats.
+
+refused: 1 problem

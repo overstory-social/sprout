@@ -13,6 +13,7 @@ import { checkEnumDeclaration, SPROUT } from '../../declare/enums.js';
 import { checkGrammar } from '../../declare/grammar.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
+import { refuseKindSynonyms } from '../../declare/synonyms.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';
 import { checkWorldDeclaration } from '../../declare/world.js';
 import { parseDeclarations, parseProseFile } from '../../syntax/parse.js';
@@ -78,6 +79,7 @@ export function readFile(
     // object in a file of its own is checked as one in the world is.
     if (declared.kind === 'kind' || declared.kind === 'object') {
       checkKindDeclaration(declared, diagnostics);
+      if (declared.kind === 'kind') refuseKindSynonyms(declared, diagnostics);
       checkGrammar(declared, using, diagnostics);
       for (const { declaration } of objectsIn(declared)) {
         checkKindDeclaration(declaration, diagnostics, declared.kind === 'kind');

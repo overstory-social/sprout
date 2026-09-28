@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compiledWorld } from '../../fixtures/bundle.js';
+import { declaredId } from '../ids.js';
 import { typedPhrasesOf, type TypedPhrase } from './phrases.js';
 
 const SHOP = compiledWorld('shop', {
@@ -45,5 +46,34 @@ describe('the phrases a visitor may type', () => {
   it('read their words as a typed line is read', () => {
     expect(phrases).toContain('sprout.help: ?');
     expect(phrases[0]).toBe('shop.take: take [target]');
+  });
+});
+
+describe('the phrases synonyms give', () => {
+  const YARD = compiledWorld('yard', {
+    'yard.sprout': [
+      'world yard is sprout.World { visitors are Person visitors arrive at hall',
+      '  object hall is sprout.Place { object chest is sprout.Fixture { synonyms pry: "force" } }',
+      '  synonyms pry: "lever"',
+      '}',
+      'verb pry { role target  "pry [target]"  "use a bar on [target]"  synonyms "prise" }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const phrases = typedPhrasesOf(YARD.verbs.all(), 'yard', YARD.synonyms);
+
+  it('follow the verb’s own, its synonyms’ first, then the world’s, then each object’s', () => {
+    expect(phrases.filter((one) => one.verb.name === 'pry').map(shown)).toEqual([
+      'yard.pry: pry [target]',
+      'yard.pry: use a bar on [target]',
+      'yard.pry: prise [target]',
+      'yard.pry: lever [target]',
+      'yard.pry: force [target]',
+    ]);
+  });
+
+  it('are for an object alone where its synonym gave them, and for anyone otherwise', () => {
+    const only = phrases.filter((one) => one.verb.name === 'pry').map((one) => one.only);
+    expect(only).toEqual([null, null, null, null, declaredId('yard', ['hall', 'chest'])]);
   });
 });

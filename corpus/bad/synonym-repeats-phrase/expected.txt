@@ -1,0 +1,7 @@
+synonym_repeats_phrase.sprout:10:17  `"prise"` gives `pry` the phrase `"prise [target]"`, which it has already.
+                                     Take the synonym out, or the phrase it repeats.
+
+synonym_repeats_phrase.sprout:14:52  `"lever"` gives `pry` the phrase `"lever [target]"`, which it has already.
+                                     Take the synonym out, or the phrase it repeats.
+
+refused: 2 problems

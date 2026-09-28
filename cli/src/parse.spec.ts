@@ -95,6 +95,22 @@ sprout.ask (target, topic: symbol optional)
     expect(page).toContain('lane.take (target)\n  take [target]\n');
     expect(page).not.toContain('sprout.take');
   });
+
+  it('lists the phrases synonyms give after the verb’s own, an object’s marked as its alone', () => {
+    const withSynonyms = worldFolder('lane', {
+      ...LANE,
+      'lane.sprout': LANE['lane.sprout']!.replace(
+        'object crate is Crate',
+        'object crate is Crate { synonyms take: "heft" }',
+      ).replace(
+        'object yard is sprout.Place {',
+        'synonyms take: "nab"\n  object yard is sprout.Place {',
+      ),
+    });
+    const page = formatGrammar(catalogueFor(checkWorld(withSynonyms).bundle!));
+    expect(page).toContain('  grab [target]\n  nab [target]\n');
+    expect(page).toContain('  heft [target]   (only with yard.crate)\n');
+  });
 });
 
 describe('parseLine', () => {

@@ -165,6 +165,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       'without on :stir',
       'without as target',
       'without as target for',
+      // A `synonyms` line with its verb, its colon or its words missing
+      // or wrong, or a synonym it refuses.
+      'synonyms',
+      'synonyms open',
+      'synonyms open:',
+      'synonyms open: 4',
+      'synonyms "jimmy"',
+      'synonyms open: "pry [target]"',
       // A passage's header wrong, with its body after it or without one.
       'passage',
       'passage { Hi. }',
@@ -221,7 +229,15 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
               text,
               ownedBy(owner, declared)?.members.map(nameOf) ?? [],
               ['alpha', 'remembers:omega'],
-              ['alpha', 'remembers:omega', 'b', 'contains', 'remembers:', 'remembers:b'],
+              [
+                'alpha',
+                'remembers:omega',
+                'b',
+                'contains',
+                'remembers:',
+                'remembers:b',
+                'synonyms',
+              ],
             ),
           ).toEqual([]);
           expect(diagnostics.refusals.length, `${text}: nothing was wrong with it`).toBeGreaterThan(

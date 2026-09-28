@@ -870,6 +870,45 @@ A verb names its **roles**, then its **phrases**.
 Verbs are declared at the top level, by a world or a library. Up to 8
 roles and 8 phrases per verb, each phrase up to 80 characters, by default.
 
+### Synonyms
+
+A **synonym** is another word for a verb. It takes every phrase that
+writes the verb's name, with its own words in the name's place:
+
+```sprout
+verb open {
+  role target: Container
+  "open [target]"
+  synonyms "unseal", "prise open"
+}
+
+world printers_shop is sprout.World {
+  synonyms open: "jimmy"
+
+  object cabinet is sprout.Container {
+    synonyms open: "force"
+  }
+}
+```
+
+`"open [target]"` gives `"unseal [target]"`, `"prise open [target]"` and
+`"jimmy [target]"`. A phrase that does not write the name, like `"use
+[tool] on [target]"` for `unlock`, gives nothing. A name with an
+underscore is written as its words, so `look_in` is written `look in`.
+
+Synonyms come from three places, and only ever add phrases:
+
+- a verb's own `synonyms` line holds everywhere the verb does;
+- a world's `synonyms verb: …` holds throughout the world;
+- an object's holds only when that object takes part in the command, so
+  `force cabinet` opens the cabinet and `force chest` is not understood.
+
+A kind's body holds no synonyms. A phrase a synonym gives may not repeat
+one its verb already has, and is held to the phrase length limit.
+Synonyms and the phrases they give don't count toward the 8 phrases. Every
+word of every synonym is a word the world reads, so nobody can take it as
+a nickname.
+
 ### Playing a role
 
 A kind or object takes part in a verb with `as <role> for <verb>`:

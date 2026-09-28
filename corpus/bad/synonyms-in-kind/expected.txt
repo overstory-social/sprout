@@ -1,0 +1,7 @@
+chest.sprout:6:3               `Chest` is a kind, and a kind's body holds no synonyms.
+                               A synonym is a verb's own, the world's, or one object's: write `synonyms open: …` in the world's body, or in the object's.
+
+synonyms_in_kind.sprout:10:21  Nothing here is a `Chest`.
+                               Declare it with `kind Chest { … }`, or check the spelling of a kind this world or a library it uses declares.
+
+refused: 2 problems
