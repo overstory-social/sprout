@@ -1,4 +1,3 @@
-import {World} from 'sprout'
 import {Creature} from 'creature'
 
 world unqualified_world is World {

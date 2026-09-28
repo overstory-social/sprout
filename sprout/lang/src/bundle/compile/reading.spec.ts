@@ -1,6 +1,7 @@
-// The first tier, which reads each file alone for its shape before the
-// bundle is closed (the spec's Two tiers), over the world's files and its
-// libraries alike; a library file that will not compile reads as absent.
+// Reading, the compile's first stage: each file is parsed and checked for
+// what one declaration shows alone, before the whole bundle is checked
+// (the spec's One tier), over the world's files and its libraries alike;
+// a library file that will not compile reads as absent.
 
 import { describe, expect, it } from 'vitest';
 
@@ -56,9 +57,7 @@ describe('each file is read, and checked for what it can be alone', () => {
   });
 
   it('refuses a world that does not write `sprout.World`', () => {
-    // One declaration answers this on its own — nothing has to be
-    // resolved — so it belongs to the tier an editor runs on each
-    // keystroke.
+    // One declaration answers this on its own, with nothing resolved.
     const { diagnostics } = readFile(
       file('shop.sprout', 'world shop {\n  visitors are Creature\n}\n'),
     );
@@ -254,7 +253,7 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
 });
 
 describe('a library’s own file reads as absent when it will not compile', () => {
-  // The tier-one pass walks the world's files and every usable library's
+  // Reading walks the world's files and every usable library's
   // alike, with no branch between them; this is the library half of the
   // world-file case above, kept because the two are only obviously the
   // same path if you have read the loop.

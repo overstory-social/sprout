@@ -1,4 +1,4 @@
-unqualified_world.sprout:6:22  Nothing here is called `hall`.
-                               Name something directly in the world, or something deeper by its path, as in `kiln.shelf`.
+unqualified_world.sprout:3:7  `unqualified_world` does not compose `sprout.World`.
+                              `World` on its own is not the standard library's until this file imports it: `import {World} from 'sprout'`.
 
 refused: 1 problem
