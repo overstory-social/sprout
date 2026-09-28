@@ -121,7 +121,7 @@ host with its own adapter runs it too.
 
 ### 6. End to end
 
-`npm run e2e` packs both tarballs, installs them into an empty folder, and
+`npm run e2e` packs every tarball, installs them into an empty folder, and
 runs the installed CLI: `init` a world, `check` it, and `check` a corpus
 world. It proves the published packages work from outside the repository,
 which nothing else does. It also checks the worked microworld and plays

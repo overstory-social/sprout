@@ -78,7 +78,7 @@ docs/design/      the spec, the working notes, the backlog, the reviews
 ```sh
 npm ci
 npm run gate      # before every commit: no conflict markers, lint, prettier, builds, every suite, spec typechecks, the corpus
-npm run e2e       # before opening a PR: install both tarballs into an empty folder, init and check
+npm run e2e       # before opening a PR: install every tarball into an empty folder, init and check
 npm run check     # the corpus, its golden transcripts, its worlds' own tests and the skill; `node scripts/check-corpus.mjs --write`
                   # and `node scripts/check-transcripts.mjs --write` regenerate them
 ```
