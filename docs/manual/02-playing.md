@@ -104,8 +104,8 @@ Inspector>
 
 Debug output also shows the server's own notes — a wake delivered, a
 fault in full — and what every visitor read, not only you. It is the
-command line's testing view, and it is exactly the script `sprout play`
-would play back (see [Replaying a session](#replaying-a-session)).
+command line's testing view: lines to read, not a script to play back
+(for that, see [Replaying a session](#replaying-a-session)).
 
 ## What you can type
 
@@ -263,9 +263,9 @@ away — useful when you are checking that a door of your own works.
 
 ## Replaying a session
 
-What `sprout play --debug` prints is a script it can play back. Save your typing
-in a file — one command per line, each starting with the name of who
-types it — and pass the file:
+`sprout play` can also play a script instead of reading from you. Save
+your typing in a file — one command per line, each starting with the
+name of who types it — and pass the file:
 
 ```text
 # walk.txt

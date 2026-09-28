@@ -17,9 +17,8 @@ import {
 
 // `sprout play` with no script (or `-`): the same stage and grammar the
 // player gives a script, driven one line at a time from `io`'s stdin
-// instead, under the prompt of whoever is standing — the notes' Holes in
-// the spec record that interactive play is not in the spec's The
-// compiler › The command line (427). The prompt's visitor is whoever most
+// instead, under the prompt of whoever is standing (the spec's The
+// compiler › The command line). The prompt's visitor is whoever most
 // recently arrived and still stands, and the screen shows only the prose
 // they read, one paragraph to a line, and a fault's name as an error; a
 // line typed for someone else shows as the world's `acted`. With
