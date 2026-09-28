@@ -73,8 +73,8 @@ There are no rooms. A **place** is any object that declares `contains actors`. T
 ```sprout
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves  default { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves  default { {item} leaves{if bound to} for {to}{/if}. }
 }
 
 object composing_room is sprout.Place {
@@ -93,7 +93,7 @@ object composing_room is sprout.Place {
 
 `contains actors` is a declared capability beside `contains`, not a kind the engine knows by name. An actor's **place** is the nearest ancestor declaring it: that is what `tell` reaches, what a visitor leaves when they go, and what a description describes. A wardrobe that declares it can be entered, and everything that follows from being somewhere follows from that one line.
 
-A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads its `arrives` passage, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: `leaves` and `:departed (actor, to)`, across the range of the place left.
+A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
 
 Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads.
 
@@ -616,13 +616,17 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | a guard's `to`, `item` or `from` | object |
 | `$first`, `$last` in a passage loop | boolean |
 | `$index`, `$count` in a passage loop | integer |
-| `thing` in the world's `unremarkable` | object |
-| `candidates` in the world's `which` | a set of objects |
-| `actor` and `here` in the world's `unknown`, `not_here`, `which`, `nothing_happens`, `help` and `fault` | as above |
-| `readings` in the world's `help` | a set of readings; one renders as the words a visitor types for it |
-| `actor` in the world's `acted` | as above |
-| `reading` in the world's `acted` | string; the line as it was typed |
-| `item` in the world's `inside_itself`, `item` and `to` in the world's `crowded`, and `item` in a place's `arrives` and `leaves` | object |
+| `thing` in `unremarkable` | object |
+| `candidates` in `which` | a set of objects |
+| `actor` and `here` in `unknown`, `not_here`, `which`, `nothing_happens`, `help` and `fault` | as above |
+| `actor` in `gone_away` and `npc_says` | as above |
+| `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
+| `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
+| `actor` in `acted` | as above |
+| `reading` in `acted` | string; the line as it was typed |
+| `item` in `inside_itself`, `item` and `to` in `crowded`, and `item` in `arrives` and `leaves` | object |
+| `from` in `arrives`, `to` in `leaves` | object: the place left or entered, inside `{if bound …}` only, since a visitor coming in from outside the world, or leaving it, has none |
+| `way` in `arrives` and `leaves` | string: the label of the exit or link the move went through, inside `{if bound way}` only |
 
 An engine line is given exactly what this table names for it: `unremarkable` only `thing`, and `unseen`, `missing`, `displaced` and `waited` nothing.
 
@@ -942,7 +946,7 @@ object cat is Creature {
 
 `act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done; a refused `act` ends the body it stands in, as a refused `move` does. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes `sprout.Actor`, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
 
-Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, in fixed words the engine supplies rather than a passage. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
+Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
 An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` only as the destination of an exit or a link of the mover's place that applies, so an NPC walks the map as a visitor does and can go nowhere a visitor could not; a place reached no such way is out of range, and the move faults.
 
@@ -1250,6 +1254,14 @@ A passage belongs to its kind, so every slot in it type-checks against a known `
 
 A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and carries slots. Nothing else does: a `name`, a noun, an exit label and a string property are plain text, and `{` in them is a brace.
 
+### Engine lines
+
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `which`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+
+When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
+
+A passage of an engine line's name, on anything an actor, a place or the world is made of, is that line, and is checked against what the engine gives it. Two sources of one line on one object collide as any exclusive member does, under How members combine.
+
 ### Slots
 
 A slot is `{…}`; `\{` is a literal brace, and a backslash escapes in a passage as it does in quoted text.
@@ -1288,7 +1300,7 @@ Not merely dry. Burning.
 
 `{for x in <container>}` walks contents, and `{for x: Kind in <container>}` walks only those composing the kind, typing `x` so its passages and properties are in reach; `{for x of <list>}` walks a list, and `{for x of <set role>}` a set role. All bind `$first`, `$last`, `$index`, counting from 1, and `$count`.
 
-Conditions take no parentheses — the braces already delimit, and a paragraph should not carry the noise. This is the one place the language spells a condition differently from a body. A condition may compare, narrow with `is()`, and test identity; it may not add.
+Conditions take no parentheses — the braces already delimit, and a paragraph should not carry the noise. This is the one place the language spells a condition differently from a body. A condition may compare, narrow with `is()`, test identity, and test `bound` on a name an engine line may leave unbound, as `{if bound way}`; it may not add.
 
 `{one of}…{or}…{/one of}` varies a block at random, under the restrictions in Chance below.
 
@@ -1748,6 +1760,20 @@ A turn's output is a sequence of effects, each carrying its kind, the object it 
 
 Every prose effect carries its rendered line. A turn's lines are rendered once its work is done, against the state it commits, so a line whose slot reads a property that a later statement of the same turn sets renders the value that was set, and a nickname changed in the turn reads as changed; the rendered line is then fixed, since a later turn cannot re-render what was said. A client that speaks — a screen reader — has in the effect kind what it needs to decide what to announce and how urgently, and a client that is a moderator reads the same record.
 
+### Levels
+
+Everything a turn produces, and everything the host records of it, is at one of five levels:
+
+| level | what | for example |
+| --- | --- | --- |
+| prose | every effect: what a person in the world reads | a description, a refusal, `which` with its choices, the world's `fault` passage |
+| error | something broke, named | a fault, by its name: `BudgetExhausted` |
+| warning | something the engine settled one way where it could have gone another | a line cut short past a bystander's output budget |
+| info | the host's record of what happened, as events | a turn and its seed, an arrival or departure, a wake delivered, a catch-up, a publish |
+| debug | all of the above in full: each effect with its reader and kind, and a fault with its detail | `Ines (told): Marta takes a brass key.` |
+
+The level is part of the record, so every host and every client filters the same way: a person playing sees prose and errors, and whoever is running or writing the world asks for more. An error shown in play names the fault beside the world's `fault` passage and never its detail, which is for the log. Levels only filter: nothing a turn reads or writes depends on them, a record's level is fixed by what it is, and a filtered view never reorders what it keeps.
+
 ### State
 
 The engine keeps, for every instance: a stable **id**; its kinds; its property map; its container's id; the destination of each link; its pending wakes; and its memory of each actor, keyed by that actor's id. For every place, when it last ticked. For every visitor, the visit, the nickname, the instance, and where they last stood. The visit is a UUID the host mints, keyed by the host's own opaque id for the person, so a person who returns finds their visit again, or starts a new one.
@@ -1758,13 +1784,13 @@ Where stored state no longer fits a declared type, the value is dropped and the 
 
 ### The log
 
-The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator, as the whole set of files then withheld and the hash of the bundle the host then runs, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
+The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator, as the whole set of files then withheld and the hash of the bundle the host then runs, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. Every entry carries its level, under Levels: a fault is an error, a line cut short is a warning, an effect is prose, and every other entry is info. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
 
 ### Faults
 
 | what faulted | what happens |
 | --- | --- |
-| a command turn | the transaction is abandoned; the actor is told through the world's `fault` passage; nothing else is logged but the fault |
+| a command turn | the transaction is abandoned; the actor is told through the world's `fault` passage, beside an error naming the fault; nothing else is logged but the fault |
 | an arrival | abandoned; the visitor is not admitted, and the host says so outside the world |
 | a departure | abandoned; the visitor then leaves quietly, with nothing sent |
 | a tick | dropped, and logged with its fault |
@@ -1792,7 +1818,7 @@ The host places an arriving visitor where the world says visitors arrive, or whe
 
 An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A visitor found at load inside something that no longer holds actors is named to the host and displaced on their next turn; an NPC so found stays. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
 
-Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told in the engine's own words, "You leave, and take what you carry with you." A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
+Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told the `gone_away` line, "You leave, and take what you carry with you." unless a world or an actor words it otherwise A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
 
 ### Time
 
@@ -1854,6 +1880,8 @@ kind World {
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
   passage acted default           { {actor} tries to {reading}. }
+  passage gone_away default       { You leave, and take what you carry with you. }
+  passage npc_says default        { {actor} says "{words}" }
 }
 
 // sprout/engine.sprout — phrases for the verbs whose behaviour is the engine's
@@ -1867,8 +1895,8 @@ verb help      { "help"  "?" }
 // sprout/place.sprout
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves default  { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves default  { {item} leaves{if bound to} for {to}{/if}. }
 }
 
 // sprout/actor.sprout
