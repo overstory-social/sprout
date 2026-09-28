@@ -6,18 +6,21 @@
 // `{ "comment": "…" }` step is kept as written. A step that plays may
 // carry `expect`, what it should make: a reader's line whole, `{ "reader",
 // "kind", "words" }`; the words alone, which any reader reading them
-// matches; or a host line at its level, `{ "level": "info" | "error",
-// "text" }`. `"expect": []` is silence.
+// matches; or any other line at its level, `{ "level", "text" }`, the
+// level one of the spec's five (The runtime › Levels). `"expect": []` is
+// silence.
 //
 // The typed line grammar an interactive session reads, `Marta> take brass
 // key` and `@arrive Marta`, is read into the same steps, so what a session
 // records is a script.
 
-/** What a step should make: one line a reader read, its words alone, or a host line at its level. */
+import { isLevel, type Level } from '@overstory/sprout/lang';
+
+/** What a step should make: one line a reader read, its words alone, or any other line at its level. */
 export type Expectation =
   | { readonly reader: string; readonly kind: string; readonly words: string }
   | { readonly words: string }
-  | { readonly level: 'info' | 'error'; readonly text: string };
+  | { readonly level: Level; readonly text: string };
 
 /** One step of a script. */
 export type Step = { readonly comment: string } | { readonly seed: number } | Playing;
@@ -85,13 +88,14 @@ function expectationOf(value: unknown, where: string): Expectation {
     if (keys === 'words' && typeof value['words'] === 'string') return { words: value['words'] };
     if (keys === 'level,text' && typeof value['text'] === 'string') {
       const level = value['level'];
-      if (level === 'info' || level === 'error') return { level, text: value['text'] };
+      if (isLevel(level)) return { level, text: value['text'] };
     }
   }
   throw new Error(
     `${where}: an expected line is \`{ "words": "You take a brass key." }\`, ` +
       '`{ "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }` ' +
-      'or a host line, `{ "level": "info", "text": "…" }`.',
+      'or a line at its level, `{ "level": "info", "text": "…" }`, the level one of ' +
+      '`prose`, `error`, `warning`, `info` and `debug`.',
   );
 }
 

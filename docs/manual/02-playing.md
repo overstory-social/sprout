@@ -77,6 +77,13 @@ line. When something in the world breaks, you read the world's own
 apology, then a short line such as `[error] BudgetExhausted` naming what
 went wrong, for whoever wrote the world.
 
+Everything the world and the server say is at one of five levels:
+`prose` is what a person in the world reads, `error` is something that
+broke, `warning` is something the server settled one way where it could
+have gone another (someone else's lines cut short because too much was
+said to them in one turn), `info` is the server's own notes, and `debug`
+is all of it in full. Playing shows prose and errors.
+
 To see everything instead, add `--debug`:
 
 ```sh

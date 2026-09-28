@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { departureTurn, type DepartureTurn } from '@overstory/sprout/lang';
 
-import { HALL, MARTA, seeded, tally } from '../fixtures/tally.js';
+import { COUNTER, HALL, MARTA, seeded, tally } from '../fixtures/tally.js';
 import { committedState } from '../turns.js';
 import { DepartureEntry, departureEntry, departureOf } from './departure.js';
 
@@ -23,13 +23,25 @@ describe('a visitor’s exit in the log', () => {
     expect(entry.effects.map((e) => e.visit)).toContain(MARTA);
     expect(DepartureEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
     expect(departureOf(entry)).toEqual(departure);
+    // Each reader the turn cut short is kept, in order, as a warning.
+    const turn = await departed();
+    const cut = { ...turn, cutShort: [COUNTER, HALL] };
+    expect(departureEntry(departure, host, cut).cutShort).toEqual([
+      { level: 'warning', to: COUNTER },
+      { level: 'warning', to: HALL },
+    ]);
   });
 
   it('keeps a fault, and what the quiet departure after it said', async () => {
     const quietly = await departed();
     const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false, extension: null };
     const entry = departureEntry(departure, host, { committed: false, fault, quietly });
-    expect(entry.fault).toEqual(fault);
+    expect(entry.fault).toEqual({ level: 'error', ...fault });
+    // The quiet departure's readers cut short are the ones kept.
+    const cut = { ...quietly, cutShort: [COUNTER] };
+    expect(
+      departureEntry(departure, host, { committed: false, fault, quietly: cut }).cutShort,
+    ).toEqual([{ level: 'warning', to: COUNTER }]);
     expect(entry.effects.map((e) => e.paragraphs)).toEqual(
       quietly.effects.map((e) => [...e.paragraphs]),
     );

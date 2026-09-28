@@ -51,7 +51,9 @@ describe('effects and faults as the log keeps them', () => {
       { kind: 'notice', from: COUNTER, actor: COUNTER, to: COUNTER, visit: MARTA, paragraphs: [] },
     ];
     const kept = loggedEffects(effects);
-    expect(kept).toEqual(effects.map((e) => ({ ...e, paragraphs: [...e.paragraphs] })));
+    expect(kept).toEqual(
+      effects.map((e) => ({ level: 'prose', ...e, paragraphs: [...e.paragraphs] })),
+    );
     expect(kept[0]!.paragraphs).not.toBe(paragraphs);
   });
 
@@ -68,16 +70,26 @@ describe('effects and faults as the log keeps them', () => {
       payload: { src: 'cat.png', size: [3, 4], shown: true, caption: null },
     };
     const [kept] = loggedEffects([recorded]);
-    expect(kept).toEqual(recorded);
-    expect(LoggedEffect.parse(JSON.parse(JSON.stringify(kept)))).toEqual(recorded);
-    expect(LoggedEffect.safeParse({ ...recorded, payload: undefined }).success).toBe(false);
-    expect(LoggedEffect.safeParse({ ...recorded, extension: '' }).success).toBe(false);
+    expect(kept).toEqual({ level: 'prose', ...recorded });
+    expect(LoggedEffect.parse(JSON.parse(JSON.stringify(kept)))).toEqual(kept);
+    expect(LoggedEffect.safeParse({ ...kept, payload: undefined }).success).toBe(false);
+    expect(LoggedEffect.safeParse({ ...kept, extension: '' }).success).toBe(false);
   });
 
   it('refuses an effect of a kind the spec does not name', () => {
-    const one = { kind: 'said', from: 'a', actor: null, to: 'b', visit: 'v', paragraphs: [] };
+    const one = {
+      kind: 'said',
+      level: 'prose',
+      from: 'a',
+      actor: null,
+      to: 'b',
+      visit: 'v',
+      paragraphs: [],
+    };
     expect(LoggedEffect.safeParse(one).success).toBe(true);
     expect(LoggedEffect.safeParse({ ...one, kind: 'shouted' }).success).toBe(false);
+    // An effect is prose, and at no other level.
+    expect(LoggedEffect.safeParse({ ...one, level: 'info' }).success).toBe(false);
   });
 
   it('keeps a fault’s rule, detail, object, whether it is the engine’s and the extension it names', () => {
@@ -88,8 +100,8 @@ describe('effects and faults as the log keeps them', () => {
       engine: false,
       extension: null,
     };
-    expect(loggedFault({ ...fault, extra: 1 } as Fault)).toEqual(fault);
+    expect(loggedFault({ ...fault, extra: 1 } as Fault)).toEqual({ level: 'error', ...fault });
     const extension: Fault = { ...fault, name: 'ExtensionFault', extension: 'media' };
-    expect(loggedFault(extension)).toEqual(extension);
+    expect(loggedFault(extension)).toEqual({ level: 'error', ...extension });
   });
 });

@@ -14,7 +14,12 @@ describe('a poll’s fault in the log', () => {
 
   it('keeps the fault, against the object it names, and the instant of the poll', () => {
     const entry = pollFaultEntry(fault, 12);
-    expect(entry).toEqual({ kind: 'poll-fault', now: 12, fault });
+    expect(entry).toEqual({
+      kind: 'poll-fault',
+      level: 'error',
+      now: 12,
+      fault: { level: 'error', ...fault },
+    });
     expect(PollFaultEntry.parse(entry)).toEqual(entry);
     expect(Object.keys(entry)).not.toContain('visit');
   });

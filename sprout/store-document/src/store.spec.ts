@@ -71,7 +71,7 @@ const turn = (over: Partial<StoredChanges> = {}): StoredChanges => ({
   visitors: [visitor('v-marta')],
   ...over,
 });
-const PUBLISH = { kind: 'publish', now: 3_000_000_000, bundle: 'a1' } as const;
+const PUBLISH = { kind: 'publish', level: 'info', now: 3_000_000_000, bundle: 'a1' } as const;
 
 describe('the keys', () => {
   it('put the microworld first, URL-encoded, so `<zone>/draft` is its own prefix', () => {

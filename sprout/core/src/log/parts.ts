@@ -5,6 +5,7 @@ import {
   type Effect,
   type EffectKind,
   type Fault,
+  type InstanceId,
   type Plain,
   type RuntimeBudgets,
   type TurnHost,
@@ -12,14 +13,16 @@ import {
 } from '@overstory/sprout/lang';
 
 // What every entry of the log is built from (the spec's The runtime ›
-// The log, Effects, Faults; Extensions): a turn's inputs, its effects,
-// an extension's with its payload, and its fault, as zod schemas, since an adapter validates what it reads back. A turn's
-// inputs are what the host handed it and everything that decides what it
-// does: the seed, the bound on stored instances, its instant, and the
-// host's runtime budgets as they were, so a replay under other figures
-// still reproduces what ran. The host's clock is not among them: the
-// wall-clock backstop is the one thing a replay does not reproduce
-// (Limits › Runtime budgets).
+// The log, Effects, Levels, Faults; Extensions): a turn's inputs, its
+// effects, an extension's with its payload, who it cut short, and its
+// fault, as zod schemas, since an adapter validates what it reads back.
+// Each carries its level: an effect is prose, a fault an error, and a
+// reader cut short a warning. A turn's inputs are what the host handed
+// it and everything that decides what it does: the seed, the bound on
+// stored instances, its instant, and the host's runtime budgets as they
+// were, so a replay under other figures still reproduces what ran. The
+// host's clock is not among them: the wall-clock backstop is the one
+// thing a replay does not reproduce (Limits › Runtime budgets).
 
 const whole = z.number().int().nonnegative();
 
@@ -74,6 +77,7 @@ const LoggedPayload: z.ZodType<Plain> = z.lazy(() =>
 
 /** What every effect carries: where it came from, whose turn, its reader and the words they read. */
 const EffectParts = {
+  level: z.literal('prose'),
   from: z.string().min(1),
   actor: z.string().min(1).nullable(),
   to: z.string().min(1),
@@ -103,6 +107,7 @@ export type LoggedEffect = z.infer<typeof LoggedEffect>;
  * it is about, whether it is the engine's, and the extension it names.
  */
 export const LoggedFault = z.object({
+  level: z.literal('error'),
   name: z.string().min(1),
   detail: z.string(),
   object: z.string().min(1).nullable(),
@@ -130,6 +135,7 @@ export function writeInputsOf(entry: TurnInputs): WriteInputs {
 export function loggedEffects(effects: readonly Effect[]): LoggedEffect[] {
   return effects.map((effect) => {
     const parts = {
+      level: 'prose' as const,
       from: effect.from,
       actor: effect.actor,
       to: effect.to,
@@ -145,5 +151,14 @@ export function loggedEffects(effects: readonly Effect[]): LoggedEffect[] {
 /** `fault` as the log keeps it. */
 export function loggedFault(fault: Fault): LoggedFault {
   const { name, detail, object, engine, extension } = fault;
-  return { name, detail, object, engine, extension };
+  return { level: 'error', name, detail, object, engine, extension };
+}
+
+/** Someone a turn's line would have taken past their output, who read nothing more that turn. */
+export const LoggedCut = z.object({ level: z.literal('warning'), to: z.string().min(1) });
+export type LoggedCut = z.infer<typeof LoggedCut>;
+
+/** `cutShort`, as the log keeps it, in the order it happened. */
+export function loggedCuts(cutShort: readonly InstanceId[]): LoggedCut[] {
+  return cutShort.map((to) => ({ level: 'warning', to }));
 }

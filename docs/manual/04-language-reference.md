@@ -2180,6 +2180,8 @@ make:
 | `{ "words": "…" }`                                       | anyone reading those words                    |
 | `{ "level": "info", "text": "…" }`                       | a note of the host's, such as a wake delivered |
 | `{ "level": "error", "text": "…" }`                      | a fault                                       |
+| `{ "level": "warning", "text": "…" }`                    | someone's lines cut short past their output   |
+| `{ "level": "prose", "text": "…" }`                      | the host's words to someone kept at the door  |
 
 `"expect": []` means the step makes nothing at all.
 

@@ -12,6 +12,7 @@ describe('a withholding in the log', () => {
     const entry = withholdingEntry(['cellar.sprout', 'Attic.sprout', 'cellar.sprout'], bundle, 9);
     expect(entry).toEqual({
       kind: 'withholding',
+      level: 'info',
       now: 9,
       withheld: ['Attic.sprout', 'cellar.sprout'],
       bundle: bundle.hash,

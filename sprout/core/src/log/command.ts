@@ -4,7 +4,9 @@ import { visitKey, type Command, type CommandTurn, type TurnHost } from '@overst
 
 import {
   inputsOf,
+  LoggedCut,
   LoggedEffect,
+  loggedCuts,
   LoggedFault,
   loggedEffects,
   loggedFault,
@@ -19,11 +21,14 @@ import {
 
 export const CommandEntry = TurnInputs.extend({
   kind: z.literal('command'),
+  level: z.literal('info'),
   visit: z.string().min(1),
   text: z.string(),
   /** Null where the turn committed. */
   fault: LoggedFault.nullable(),
   effects: z.array(LoggedEffect),
+  /** Who a line would have taken past their output, each a warning. */
+  cutShort: z.array(LoggedCut),
 });
 export type CommandEntry = z.infer<typeof CommandEntry>;
 
@@ -31,11 +36,13 @@ export type CommandEntry = z.infer<typeof CommandEntry>;
 export function commandEntry(command: Command, host: TurnHost, turn: CommandTurn): CommandEntry {
   return {
     kind: 'command',
+    level: 'info',
     ...inputsOf(command, host),
     visit: command.visit,
     text: command.text,
     fault: turn.committed ? null : loggedFault(turn.fault),
     effects: loggedEffects(turn.effects),
+    cutShort: turn.committed ? loggedCuts(turn.cutShort) : [],
   };
 }
 

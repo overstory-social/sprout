@@ -90,6 +90,12 @@ export interface Committed<T> {
   readonly stale: readonly VisitKey[];
   /** What the turn said, one effect for each reader of each line, in the order said (the spec's Effects). */
   readonly effects: readonly Effect[];
+  /**
+   * Everyone but the actor a line would have taken past their output, in
+   * the order it happened: they read nothing more this turn, and the
+   * host logs each as a warning (the spec's Levels).
+   */
+  readonly cutShort: readonly InstanceId[];
   /** What the body gave. */
   readonly value: T;
 }
@@ -182,6 +188,7 @@ export function writeUnder<T>(
       changes: storedChanges(committed.state, committed.changes),
       stale: present(committed.state),
       effects,
+      cutShort: [...budget.cutShort],
       value,
     };
   } catch (thrown) {
@@ -202,6 +209,7 @@ export function committedOver<T>(base: WorldState, after: WorldState, value: T):
     changes: storedChanges(after, changesBetween(base, after)),
     stale: present(after),
     effects: [],
+    cutShort: [],
     value,
   };
 }
