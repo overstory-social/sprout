@@ -19,8 +19,8 @@ import { inspectView } from './view.js';
 
 // The `sprout` command: six verbs on a microworld folder, and `skill`,
 // the builder's reference this compiler generates from its own tables.
-// Flags are `--name value` or `--name=value`; `--flag` alone is true. The
-// first bare word is the command, the next the path. `serve` is not
+// Flags are `--name value` or `--name=value`; `--flag` alone is true, and
+// `--json` and `--debug` are always alone. The first bare word is the command, the next the path. `serve` is not
 // built. Every command but `play` with no script is synchronous; that
 // one alone reads from stdin, so `main` alone may hand back a promise
 // of its exit code rather than the code itself.
@@ -34,11 +34,12 @@ export const USAGE = `sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir [script] [--at place] [--as name]
-                                      play a script of typed lines and host events through real turns,
+  sprout play dir [script] [--at place] [--as name] [--debug]
+                                      play a script of typed lines and host events through real turns:
+                                      the transcript, each line followed by what every reader read;
                                       or, with no script (or \`-\`), interactively from stdin under one
-                                      visitor's own prompt; the transcript, each line followed by what
-                                      every reader read
+                                      visitor's own prompt, showing only what that visitor reads, or,
+                                      with --debug, the transcript
   sprout test [dir] [script ...]      run the world's tests, dir/tests/*.txt or the scripts named: each a play script
                                       with what the world should say indented under a line, the whole line or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure
@@ -52,6 +53,9 @@ export interface Parsed {
   flags: Record<string, string | true>;
 }
 
+/** Flags that stand alone and never take the word after them as their value. */
+const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug']);
+
 export function parseArgs(argv: readonly string[]): Parsed {
   const positional: string[] = [];
   const flags: Record<string, string | true> = {};
@@ -60,6 +64,7 @@ export function parseArgs(argv: readonly string[]): Parsed {
     if (a.startsWith('--')) {
       const eq = a.indexOf('=');
       if (eq > 0) flags[a.slice(2, eq)] = a.slice(eq + 1);
+      else if (SWITCHES.has(a.slice(2))) flags[a.slice(2)] = true;
       else if (i + 1 < argv.length && !argv[i + 1]!.startsWith('-')) flags[a.slice(2)] = argv[++i]!;
       else flags[a.slice(2)] = true;
     } else positional.push(a);
@@ -139,7 +144,8 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const checked = compiled(dir, say);
         if (checked === null) return 1;
         if (script === undefined || script === '-') {
-          return playInteractively(checked, standing(flags), io);
+          const debug = flags['debug'] !== undefined;
+          return playInteractively(checked, { ...standing(flags), debug }, io);
         }
         const text = readFileSync(script, 'utf8');
         say(playScript(checked, text, basename(script)).page);

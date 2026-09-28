@@ -35,6 +35,7 @@ kind World {
   passage crowded default         { There is no room in {to} for {item}. }
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
+  passage acted default           { {actor} tries to {reading}. }
 }
 `;
 

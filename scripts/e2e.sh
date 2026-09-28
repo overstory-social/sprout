@@ -9,7 +9,8 @@
 # runs a test that must fail, printing what the world said. It plays the
 # new world interactively from a here-document, with and without `-` for
 # the script, and checks the page against the same lines played as a
-# script. It prints the generated skill exactly as corpus/skill/SKILL.md
+# script, with --debug, and without it checks the page shows only the
+# prose the visitor reads. It prints the generated skill exactly as corpus/skill/SKILL.md
 # holds it. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -42,14 +43,21 @@ for transcript in "$shop"/transcripts/*.txt; do
 done
 npx sprout test "$shop"
 npx sprout test "$shop" "$shop"/transcripts/*.txt | tail -1
-printf 'look\n' | npx sprout play shed > interactive.txt
+printf 'look\n' | npx sprout play shed --debug > interactive.txt
 printf '@arrive Inspector\nInspector> look\n@leave Inspector\n' > interactive-script.txt
 npx sprout play shed interactive-script.txt > interactive-expected.txt
 diff -u interactive-expected.txt interactive.txt
 echo "played shed interactively from a here-document, equal to the same lines as a script"
-printf 'look\n' | npx sprout play shed - > interactive-dash.txt
+printf 'look\n' | npx sprout play shed - --debug > interactive-dash.txt
 diff -u interactive-expected.txt interactive-dash.txt
 echo "\`-\` for the script plays interactively too"
+printf 'look\n' | npx sprout play shed > interactive-prose.txt
+if grep -q '(described)\|^@\|^  ' interactive-prose.txt; then
+  echo "interactive play without --debug showed a label, a host line or an indent" >&2
+  exit 1
+fi
+grep -qx 'Inspector> look' interactive-prose.txt
+echo "without --debug, interactive play shows only the prose"
 printf '@arrive Marta\nMarta> open cabinet\n  You open the type cabinet.\n' > locked.txt
 if npx sprout test "$shop" locked.txt > tested.txt; then
   echo "a failing test passed" >&2

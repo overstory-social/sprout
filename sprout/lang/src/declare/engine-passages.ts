@@ -7,16 +7,17 @@
 // inventory on the actor's own, and a passage the engine says is checked
 // against exactly what the engine binds where it says it: the person
 // acting and their place, as `actor` and `here` are in a body that binds
-// them, an object, a set of objects, or the readings `help` offers, each
-// a line a visitor would type for it. A line a poll says, in place of a
+// them, an object, a set of objects, the readings `help` offers, each
+// a line a visitor would type for it, or one such line as text. A line a poll says, in place of a
 // description or a view, draws nothing.
 
 /**
  * What the engine binds a name to when it says a line: the one acting,
- * their place, an object, a set of them, or the readings `help` offers,
- * each rendering as the words a visitor types for it.
+ * their place, an object, a set of them, the readings `help` offers,
+ * each rendering as the words a visitor types for it, or one typed line
+ * as a string.
  */
-export type EngineBinds = 'actor' | 'here' | 'object' | 'set' | 'readings';
+export type EngineBinds = 'actor' | 'here' | 'object' | 'set' | 'readings' | 'text';
 
 /** One line the engine says, and the names it says it with. */
 export interface EnginePassage {
@@ -44,6 +45,7 @@ export const WORLD_LINES: readonly EnginePassage[] = [
   { name: 'crowded', binds: { item: 'object', to: 'object' } },
   { name: 'waited', binds: {} },
   { name: 'help', binds: { ...ACTING, readings: 'readings' } },
+  { name: 'acted', binds: { actor: 'actor', reading: 'text' }, polled: true },
 ];
 
 /** A place's notices of someone arriving and leaving, said on the place's composed kind. */

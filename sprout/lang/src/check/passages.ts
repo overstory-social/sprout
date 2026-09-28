@@ -36,6 +36,7 @@ import {
 } from '../declare/engine-passages.js';
 import { composesKind, kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
+import { STRING } from '../declare/types.js';
 import type { HereKind } from '../declare/places.js';
 import {
   actorBinding,
@@ -46,7 +47,9 @@ import {
   selfBinding,
   setOf,
   showBindingType,
+  valueOf,
   type Binding,
+  type BindingType,
 } from './bindings.js';
 import type { CheckContext } from './check.js';
 import type { NameScope } from './names.js';
@@ -154,6 +157,20 @@ function engineScope(line: EnginePassage, at: Span, setting: PassageSetting): Sc
   );
 }
 
+/** What a name the engine binds, other than `actor` and `here`, holds. */
+function engineType(binds: Exclude<EngineBinds, 'actor' | 'here'>): BindingType {
+  switch (binds) {
+    case 'object':
+      return OPEN_OBJECT;
+    case 'set':
+      return setOf(null);
+    case 'readings':
+      return READINGS;
+    case 'text':
+      return valueOf(STRING);
+  }
+}
+
 function engineBinding(
   name: string,
   binds: EngineBinds,
@@ -166,7 +183,7 @@ function engineBinding(
   if (binds === 'here') return { ...hereBinding(setting.here, at), name };
   return {
     name,
-    type: binds === 'set' ? setOf(null) : binds === 'readings' ? READINGS : OPEN_OBJECT,
+    type: engineType(binds),
     origin: 'parameter',
     at,
     writable: false,
