@@ -1,17 +1,22 @@
 {
   "about": "The watchman hears `:departed` when Marta leaves the yard, and follows her out through its one exit: the yard's own `leaves`, read by Ines who stays, and the shed's `arrives`, read by Marta who went ahead. The crow makes the same crossing on the yard's own tick, naming the shed by its own bare identifier rather than a message's bound parameter.",
   "steps": [
-    { "arrive": "Marta" },
-    { "arrive": "Ines" },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
     { "as": "Marta", "type": "go in", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
-      { "reader": "Ines", "kind": "notice", "words": "A watchman leaves." },
-      { "reader": "Marta", "kind": "notice", "words": "A watchman arrives." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for a shed." },
+      { "reader": "Ines", "kind": "notice", "words": "A watchman leaves for a shed." },
+      { "reader": "Marta", "kind": "notice", "words": "A watchman arrives from a yard." },
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about a shed." }
     ] },
     { "tick": true, "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "A crow leaves." },
-      { "reader": "Marta", "kind": "notice", "words": "A crow arrives." }
+      { "reader": "Ines", "kind": "notice", "words": "A crow leaves for a shed." },
+      { "reader": "Marta", "kind": "notice", "words": "A crow arrives from a yard." }
     ] }
   ]
 }

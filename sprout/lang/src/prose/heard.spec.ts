@@ -6,6 +6,7 @@ import { Draws } from '../runtime/draws.js';
 import { engineLine } from '../runtime/engine-lines.js';
 import type { InstanceId } from '../runtime/ids.js';
 import type { Said } from '../runtime/reading.js';
+import type { StateReader } from '../runtime/state.js';
 import { renderHeard } from './heard.js';
 import { LineDraws } from './line-draws.js';
 
@@ -74,7 +75,7 @@ describe('a line too long for someone other than the actor', () => {
 });
 
 describe('a line an NPC says', () => {
-  it('is heard as the NPC speaking, in the engine’s fixed words, as one quotation', () => {
+  it('is heard as the NPC speaking, through the engine’s `npc_says`, as one quotation', () => {
     const turn = proseTurn();
     // The oak door stands in for an NPC, speaking a line the press's body said.
     const said = line(
@@ -94,6 +95,34 @@ describe('a line an NPC says', () => {
     const [heard] = renderHeard(line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta), turn.context);
     expect(heard!.paragraphs).toEqual(['An oak door says "Miaow."']);
     expect(turn.context.budget.spentOutput(BRASS_KEY)).toBe([...heard!.paragraphs[0]!].length);
+  });
+
+  it('is framed in the NPC’s own `npc_says`, where it words one', () => {
+    const turn = proseTurn();
+    const library = turn.draft.instance(turn.draft.world)!.kind.passages.get('npc_says')!;
+    const text = '{actor} rasps, "{words}"';
+    const own = {
+      ...library,
+      origin: 'mill.door',
+      yields: false,
+      body: { ...library.body, text, prose: engineLine(text).prose },
+    };
+    const door = turn.draft.instance(OAK_DOOR)!;
+    const state: StateReader = {
+      ...turn.draft,
+      world: turn.draft.world,
+      instance: (id) =>
+        id === OAK_DOOR
+          ? { ...door, kind: { ...door.kind, passages: new Map([['npc_says', own]]) } }
+          : turn.draft.instance(id),
+      children: (id) => turn.draft.children(id),
+      visitor: (visit) => turn.draft.visitor(visit),
+      tombstoned: (id) => turn.draft.tombstoned(id),
+    };
+    const said = line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta);
+    expect(renderHeard(said, { ...turn.context, state })).toEqual([
+      { reader: BRASS_KEY, paragraphs: ['An oak door rasps, "Miaow."'] },
+    ]);
   });
 });
 

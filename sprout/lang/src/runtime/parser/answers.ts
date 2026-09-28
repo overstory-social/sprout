@@ -1,7 +1,7 @@
 // What the engine says to a line it could not run as a reading (the
-// spec's A worked microworld › The standard library it needs; Properties
-// › Where types come from): the world's `unknown`, `not_here` and
-// `which` passages, with `actor` and `here` bound as every passage the
+// spec's Prose › Engine lines; Properties › Where types come from): the
+// engine's `unknown`, `not_here` and `which`, found as every engine line
+// is (`engine-lines.ts`), with `actor` and `here` bound as every passage the
 // engine speaks to an actor has them, and `candidates` in a `which`. No
 // answer binds a thing a noun names, so none names what is out of range.
 // Nothing is rendered here: `prose/` renders.
@@ -9,13 +9,13 @@
 // mean it, so the question is answered with a command and the parser
 // keeps nothing between turns.
 
-import type { ResolvedPassage } from '../../declare/passages.js';
 import type { Speech } from '../body.js';
+import { engineSaid } from '../engine-lines.js';
 import { boundObject, type Evaluated } from '../evaluate.js';
 import type { InstanceId } from '../ids.js';
 import type { StateReader } from '../state.js';
 
-/** The three answers, each named for the world's passage that says it. */
+/** The three answers, each named for the engine line that says it. */
 export type AnswerName = 'unknown' | 'not_here' | 'which';
 
 /** One candidate a `which` offers: the thing, and the line that means it. */
@@ -27,7 +27,8 @@ export interface Choice {
 /** A line answered rather than understood: what the actor reads, unrendered. */
 export interface Answer {
   readonly answer: AnswerName;
-  /** The world's passage of that name. */
+  /** The line of that name, and who says it. */
+  readonly by: InstanceId;
   readonly said: Speech;
   /** `actor` and `here`, and `candidates` for `which`. */
   readonly bindings: ReadonlyMap<string, Evaluated>;
@@ -50,15 +51,5 @@ export function answer(
   if (answer === 'which') {
     bindings.set('candidates', { binds: 'set', ids: choices.map((choice) => choice.id) });
   }
-  return { answer, said: { passage: worldPassage(state, answer) }, bindings, choices };
-}
-
-/** A passage the world composes, which `sprout.World` writes for every answer. */
-function worldPassage(state: StateReader, name: AnswerName): ResolvedPassage {
-  const world = state.instance(state.world);
-  const passage = world?.kind.passages.get(name);
-  if (passage === undefined) {
-    throw new Error(`the world composes no \`${name}\` passage, which \`sprout.World\` writes.`);
-  }
-  return passage;
+  return { answer, ...engineSaid(state, answer, actor, here), bindings, choices };
 }

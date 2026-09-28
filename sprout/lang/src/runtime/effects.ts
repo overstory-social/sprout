@@ -19,7 +19,7 @@ import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import type { Description } from './describe.js';
 import type { Draws } from './draws.js';
-import { boundObject } from './evaluate.js';
+import { boundObject, boundValue, type Evaluated } from './evaluate.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { Notice } from './move.js';
 import type { PassRule } from './range.js';
@@ -103,8 +103,8 @@ export function saidLines(said: readonly Said[]): Unrendered[] {
 }
 
 /**
- * What a place speaks of an actor leaving or entering it, as lines from
- * the place to the visitors in its range, in order; the description the
+ * What is said of an actor leaving or entering a place, as the engine's
+ * `leaves` and `arrives` to the visitors in its range, in order; the description the
  * one who moved reads is the engine's answer, derived once the queue is
  * empty, and is not among them. A notice nobody is in range to read is
  * not a line.
@@ -113,13 +113,18 @@ export function noticeLines(notices: readonly Notice[]): Said[] {
   const lines: Said[] = [];
   for (const notice of notices) {
     if (notice.notice === 'described' || notice.audience.length === 0) continue;
+    const { item, from, to, way } = notice.bindings;
+    const bindings = new Map<string, Evaluated>([['item', boundObject(item)]]);
+    if (from !== undefined) bindings.set('from', boundObject(from));
+    if (to !== undefined) bindings.set('to', boundObject(to));
+    if (way !== undefined) bindings.set('way', boundValue(way));
     lines.push({
       effect: 'notice',
       to: notice.audience,
-      by: notice.place,
+      by: notice.by,
       speaker: null,
-      said: { passage: notice.passage },
-      bindings: new Map([['item', boundObject(notice.bindings.item)]]),
+      said: notice.said,
+      bindings,
     });
   }
   return lines;

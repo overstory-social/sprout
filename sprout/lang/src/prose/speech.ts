@@ -29,14 +29,27 @@ export interface Line {
  * renders nothing.
  */
 export function renderFor(line: Line, reader: InstanceId, context: RenderContext): string[] {
+  const paragraphs = renderedFor(line, reader, context);
+  const characters = paragraphs.reduce((sum, paragraph) => sum + [...paragraph].length, 0);
+  return charged(context, reader, characters) ? paragraphs : [];
+}
+
+/**
+ * The paragraphs `line` renders to for `reader`, charged to nobody:
+ * drawing as `drawn` does, which is `line` itself unless a line rendered
+ * again for each reader with its own bindings shares one line's draws.
+ */
+export function renderedFor(
+  line: Line,
+  reader: InstanceId,
+  context: RenderContext,
+  drawn: Line = line,
+): string[] {
   const { said } = line;
   if ('absent' in said) return [];
-  if ('recorded' in said) {
-    // An extension's effect reads, on a text client, as its transcript line.
-    const { transcript } = said.recorded;
-    return charged(context, reader, [...transcript].length) ? [transcript] : [];
-  }
-  const draws = context.draws?.of(line) ?? null;
+  // An extension's effect reads, on a text client, as its transcript line.
+  if ('recorded' in said) return [said.recorded.transcript];
+  const draws = context.draws?.of(drawn) ?? null;
   const rendered =
     'passage' in said
       ? context.budget.passage(() =>
@@ -55,7 +68,5 @@ export function renderFor(line: Line, reader: InstanceId, context: RenderContext
           context,
           draws,
         );
-  const paragraphs = reflow(rendered);
-  const characters = paragraphs.reduce((sum, paragraph) => sum + [...paragraph].length, 0);
-  return charged(context, reader, characters) ? paragraphs : [];
+  return reflow(rendered);
 }

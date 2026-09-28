@@ -18,7 +18,7 @@ import { eachWalked } from './each.js';
 import { recordOf } from './extension-statements.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
-import { engineLine } from './engine-lines.js';
+import { engineSaid } from './engine-lines.js';
 import {
   boundObject,
   evaluate,
@@ -49,15 +49,9 @@ export interface Description {
   readonly lines: readonly Said[];
   /** What each extension's statement its describe ran recorded, in order, into the view or after the description. */
   readonly recorded: readonly Said[];
-  /** The world's `unremarkable`, with `thing` the thing: read where the lines render nothing. */
+  /** The engine's `unremarkable`, with `thing` the thing: read where the lines render nothing. */
   readonly unremarkable: Said;
 }
-
-/** The world's line for a thing with nothing to say for itself (the spec's Engine verbs). */
-const UNREMARKABLE = 'unremarkable';
-
-/** The stock line, in fixed words, for a world whose standard library leaves `unremarkable` out. */
-const STOCK = 'There is nothing special about {thing}.';
 
 /**
  * What `actor` reads looking at `thing`: its describe run, each statement
@@ -75,14 +69,13 @@ export function describeFor(
   const here = state.instance(actor)?.container ?? null;
   if (here === null) throw new Error(`\`${actor}\` is away, and an away visitor looks at nothing.`);
 
-  const world = state.instance(state.world);
-  const passage = world?.kind.passages.get(UNREMARKABLE);
+  const { by, said } = engineSaid(state, 'unremarkable', actor, here);
   const unremarkable: Said = {
     effect: 'described',
     to: [actor],
-    by: state.world,
+    by,
     speaker: null,
-    said: passage === undefined ? engineLine(STOCK) : { passage },
+    said,
     bindings: new Map([['thing', boundObject(thing)]]),
   };
 

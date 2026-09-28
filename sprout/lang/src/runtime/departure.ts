@@ -5,7 +5,7 @@
 // carries, and where they stood is kept for their next arrival. No guard
 // is asked, since a person is never held in a world; the place they left
 // is sent `:left`, its range reads `leaves` and is sent `:departed`, with
-// the world as `to`, and the one leaving is told so in the engine's words.
+// the world as `to`, and the one leaving is told the engine's `gone_away`.
 // What it says is one sequence of effects: the words to the one leaving,
 // the place's `leaves`, then what the queue said.
 //
@@ -15,8 +15,9 @@
 // one leaving is still told so.
 
 import { drain, type Drained } from './bus.js';
+import { boundObject } from './evaluate.js';
 import { noticeLines, saidLines, type Speaking } from './effects.js';
-import { engineLine } from './engine-lines.js';
+import { engineSaid } from './engine-lines.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { EngineSend } from './lifecycle.js';
 import { isPlace, liveTree } from './live.js';
@@ -37,9 +38,6 @@ export interface Departure extends WriteInputs {
   readonly visit: VisitKey;
 }
 
-/** The engine's words to the one who leaves: the spec gives the world no line for it. */
-const GONE_AWAY = engineLine('You leave, and take what you carry with you.');
-
 /** What a committed departure did. */
 export interface Departed {
   readonly visit: VisitKey;
@@ -47,7 +45,7 @@ export interface Departed {
   readonly instance: InstanceId;
   /** Where they stood, kept as where they last stood. */
   readonly from: InstanceId;
-  /** The engine's words to the one who left, from the world. */
+  /** The engine's `gone_away`, to the one who left. */
   readonly told: Said;
   /** `:left` to the place, then every `:departed`, nearest first; nothing where the place is gone. */
   readonly sends: readonly (EngineSend | PlaceSend)[];
@@ -144,6 +142,13 @@ function departureSpeaking(done: Departed): Speaking {
 function goAway(turn: WriteTurn, visit: VisitKey, from: InstanceId): Omit<Departed, 'drained'> {
   const { draft } = turn;
   const record = draft.visitor(visit)!;
+  // The line is about the one leaving, and then the place they left, where it is still there.
+  const { by, said } = engineSaid(
+    draft,
+    'gone_away',
+    record.instance,
+    draft.instance(from) === undefined ? null : from,
+  );
   draft.place(record.instance, null);
   draft.putVisitor({ ...record, lastPlace: from });
   return {
@@ -153,10 +158,10 @@ function goAway(turn: WriteTurn, visit: VisitKey, from: InstanceId): Omit<Depart
     told: {
       effect: 'notice',
       to: [record.instance],
-      by: draft.world,
+      by,
       speaker: null,
-      said: GONE_AWAY,
-      bindings: new Map(),
+      said,
+      bindings: new Map([['actor', boundObject(record.instance)]]),
     },
     sends: [],
     notices: [],

@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "1f2fb7869f3ee12fbb456d0477d49dc5a84a128582a560c41bdc66c29d85b836"
+      "sha": "3ee5bf259090f4a777291357177a16b6495bad4139902cae235856a3b4f545cc"
     }
   ],
   "files": ["act_unknown_verb.sprout", "creature.sprout", "person.sprout", "cat.sprout"]

@@ -16,8 +16,9 @@
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
 import type { Plain } from '../declare/extensions.js';
 import type { Said } from '../runtime/reading.js';
-import { DISPLACED_STOCK, displacedLine } from '../runtime/arrival.js';
-import { stockLine, type Fault } from '../runtime/faults.js';
+import { displacedLine } from '../runtime/arrival.js';
+import { engineSaid, STOCK_LINES } from '../runtime/engine-lines.js';
+import type { Fault } from '../runtime/faults.js';
 import type { InstanceId, VisitKey } from '../runtime/ids.js';
 import { standsInPlace } from '../runtime/live.js';
 import type { OptionRange, RoleOptions } from '../runtime/options.js';
@@ -124,7 +125,7 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
     // tell them, and is offered nothing until it has moved them.
     if (!standsInPlace(turn.state, actor)) {
       const displaced = renderFor(displacedLine(turn.state, actor), actor, context);
-      return onlySaying(displaced.length > 0 ? displaced : [DISPLACED_STOCK]);
+      return onlySaying(displaced.length > 0 ? displaced : [STOCK_LINES.displaced]);
     }
     return renderView(viewOf(actor, context, parts), context);
   });
@@ -136,7 +137,7 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   // own, since the one that faulted can afford nothing more.
   const unseen = pollTurn(state, host, (turn) =>
     renderFor(
-      { by: state.world, said: polled.unseen, bindings: new Map() },
+      { ...engineSaid(turn.state, 'unseen', actor, place), bindings: new Map() },
       actor,
       rendering(turn),
     ),
@@ -146,7 +147,7 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   return {
     visit,
     view: {
-      description: !unseen.faulted && unseen.view.length > 0 ? unseen.view : [stockLine('unseen')],
+      description: !unseen.faulted && unseen.view.length > 0 ? unseen.view : [STOCK_LINES.unseen],
       effects: [],
       ...(kept.faulted ? emptyKept() : kept.view),
     },

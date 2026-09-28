@@ -27,7 +27,6 @@ import {
   displacedLine,
   missesExtensions,
   missingLine,
-  MISSING_STOCK,
   ENTRY_FAILED,
   NOT_ADMITTING,
   type Admitted,
@@ -35,6 +34,7 @@ import {
 } from './arrival.js';
 import type { Catalogue } from './catalogue.js';
 import { commandTurn } from './command.js';
+import { STOCK_LINES } from './engine-lines.js';
 import { departureTurn } from './departure.js';
 import { Draft } from './draft.js';
 import type { InstanceId } from './ids.js';
@@ -436,7 +436,7 @@ describe('the world’s `missing`, on entry', () => {
     passages.delete('missing');
     worldless.write({ ...world, kind: { ...world.kind, passages } });
     const line = missingLine(worldless, state.world);
-    expect(line.said).toMatchObject({ text: MISSING_STOCK });
+    expect(line.said).toMatchObject({ text: STOCK_LINES.missing });
     expect(missesExtensions(catalogue)).toBe(true);
     expect(missesExtensions(galleryCatalogue())).toBe(false);
   });

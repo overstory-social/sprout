@@ -1,0 +1,38 @@
+{
+  "about": "Who words each engine line: the yard's notices name where someone went and came from, and name no place for someone coming into the world or leaving it, the shed's own `arrives` names the way in, the yard's `waited` beats the world's in the yard and the world's is said in the shed, and a person's own `gone_away` beats the world's.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the shed." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the shed." }
+    ] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Nothing stirs anywhere." }
+    ] },
+    { "as": "Ines", "type": "wait", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "The yard is quiet." }
+    ] },
+    { "as": "Ines", "type": "go in", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines ducks into the shed, through the low door." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the shed." }
+    ] },
+    { "as": "Ines", "type": "go out", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves for the yard." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "as": "Marta", "type": "go out", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from the shed." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You go, whistling." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." }
+    ] }
+  ]
+}

@@ -1,0 +1,7 @@
+// The engine gives a place's `arrives` a `{from}` only where someone came
+// from a place, so it is read inside `{if bound from}` and nowhere else.
+import * as sprout from 'sprout'
+
+kind Quiet is sprout.Place {
+  passage arrives { {item} comes in from {from}. }
+}

@@ -1,0 +1,10 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Quiet} from 'quiet'
+
+world passage_unbound_from is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is Quiet
+}
