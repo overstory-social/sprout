@@ -2,28 +2,26 @@
 // Verbs › Engine verbs; Chance › The forms: a description is derived
 // after the turn that moved the visitor). A person who moved between
 // places, by `go` or by any `move`, reads the place they arrived in; one
-// who typed `look` reads their place, `examine` the thing named,
-// `inventory` their own kind's `inventory`, `wait` the world's `waited`,
-// and `help` the world's `help`, given the readings `offers.ts` derives
-// whose consent pass allows and some participant plays a part in. An NPC
-// reads nothing. Every answer is carried unrendered, among what the turn
-// says (`effects.ts`).
+// who typed `look` reads their place, `examine` the thing named and then
+// the thing's own `contents` where its kinds write one, `inventory` the
+// engine's `inventory`, `wait` its `waited`, and `help` its `help`, each
+// found as every engine line is (`engine-lines.ts`), `help` given the
+// readings `offers.ts` derives whose consent pass allows and some
+// participant plays a part in. An NPC reads nothing. Every answer is
+// carried unrendered, among what the turn says (`effects.ts`).
 
 import { SPROUT } from '../declare/enums.js';
 import { playsOf } from '../declare/roles.js';
 import { ENGINE_VERBS } from '../declare/verbs.js';
 import { isPerson } from './audience.js';
 import { describeFor, type DescribeContext } from './describe.js';
+import { engineSaid } from './engine-lines.js';
 import type { Unrendered } from './effects.js';
 import { boundObject, boundReadings, type Evaluated } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import type { Notice } from './move.js';
 import { offersTo, type OfferContext } from './offers.js';
 import { answeredByEngine, participantsOf, type Reading, type Said } from './reading.js';
-import type { StateReader } from './state.js';
-
-/** The passage `inventory` says, on the kind of the actor who asked. */
-const INVENTORY = 'inventory';
 
 /**
  * What the engine answers `reading`, a person's typed command, and every
@@ -50,6 +48,8 @@ export function engineAnswers(
         throw new Error('a reading of `examine` names nothing to examine.');
       }
       answers.push({ description: describeFor(target.object, actor, context) });
+      const contents = contentsOf(target.object, actor, here, context);
+      if (contents !== null) answers.push({ said: contents });
       break;
     }
     case 'inventory':
@@ -87,6 +87,30 @@ export function arrivalsRead(notices: readonly Notice[], context: DescribeContex
   return answers;
 }
 
+/**
+ * `thing`'s own `contents`, where its kinds write one, as `examine` says
+ * it after the description: from the thing, to the one looking, with
+ * `actor` and `here` bound as a description has them (the spec's Engine
+ * verbs); null where it writes none.
+ */
+function contentsOf(
+  thing: InstanceId,
+  actor: InstanceId,
+  here: InstanceId,
+  context: OfferContext,
+): Said | null {
+  const passage = context.state.instance(thing)?.kind.passages.get('contents');
+  if (passage === undefined) return null;
+  return {
+    effect: 'described',
+    to: [actor],
+    by: thing,
+    speaker: null,
+    said: { passage },
+    bindings: acting(actor, here),
+  };
+}
+
 /** `actor` and `here`, as the engine binds them for a line said to the one acting. */
 function acting(actor: InstanceId, here: InstanceId): Map<string, Evaluated> {
   return new Map([
@@ -95,34 +119,17 @@ function acting(actor: InstanceId, here: InstanceId): Map<string, Evaluated> {
   ]);
 }
 
-/** The actor's own `inventory`, which `sprout.Actor` writes, said from them. */
+/** The engine's `inventory`, whose default `sprout.Actor` writes, to the one who asked. */
 function inventoryOf(actor: InstanceId, here: InstanceId, context: OfferContext): Said {
-  const passage = context.state.instance(actor)?.kind.passages.get(INVENTORY);
-  if (passage === undefined) {
-    throw new Error(
-      `\`${actor}\` has no \`${INVENTORY}\` passage, which \`${SPROUT}.Actor\` writes.`,
-    );
-  }
-  return {
-    effect: 'said',
-    to: [actor],
-    by: actor,
-    speaker: null,
-    said: { passage },
-    bindings: acting(actor, here),
-  };
+  const { by, said } = engineSaid(context.state, 'inventory', actor, here);
+  return { effect: 'said', to: [actor], by, speaker: null, said, bindings: acting(actor, here) };
 }
 
 /** `wait`, answered with the world's `waited`, which binds nothing (the spec's Where types come from). */
 function waitedFor(actor: InstanceId, context: OfferContext): Said {
-  return {
-    effect: 'said',
-    to: [actor],
-    by: context.state.world,
-    speaker: null,
-    said: worldPassage('waited', context.state),
-    bindings: new Map(),
-  };
+  const { state } = context;
+  const { by, said } = engineSaid(state, 'waited', actor, state.instance(actor)?.container ?? null);
+  return { effect: 'said', to: [actor], by, speaker: null, said, bindings: new Map() };
 }
 
 /**
@@ -145,14 +152,8 @@ function helpFor(actor: InstanceId, here: InstanceId, context: OfferContext): Sa
   }
   const bindings = acting(actor, here);
   bindings.set('readings', boundReadings(typed));
-  return {
-    effect: 'notice',
-    to: [actor],
-    by: context.state.world,
-    speaker: null,
-    said: worldPassage('help', context.state),
-    bindings,
-  };
+  const { by, said } = engineSaid(context.state, 'help', actor, here);
+  return { effect: 'notice', to: [actor], by, speaker: null, said, bindings };
 }
 
 /**
@@ -171,13 +172,4 @@ function someParticipantPlays(reading: Reading, context: OfferContext): boolean 
       playsOf(self.kind.plays, verb.library, verb.name, participant.role).length > 0
     );
   });
-}
-
-/** The world's line of `name`, as its composed kind has it; every world composes one for the engine's own lines. */
-function worldPassage(name: string, state: StateReader): Said['said'] {
-  const passage = state.instance(state.world)?.kind.passages.get(name);
-  if (passage === undefined) {
-    throw new Error(`the world composes no \`${name}\` passage, which \`${SPROUT}.World\` writes.`);
-  }
-  return { passage };
 }

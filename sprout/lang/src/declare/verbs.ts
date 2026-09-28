@@ -2,13 +2,12 @@
 // Value roles, Exits, Engine verbs, Reserved names; Kinds › Libraries and
 // namespaces; Limits › Static caps), in both tiers.
 //
-// The first tier checks a verb against itself: every slot names a role
-// the verb declares, once per phrase, and every phrase names the first
-// role, the target. The second tier is `VerbTable`, which resolves each
+// Reading its file checks a verb against itself: every slot names a role
+// the verb declares, once per phrase, every phrase names the first role,
+// the target, and its own synonyms give no phrase it has already. Across the bundle, `VerbTable` resolves each
 // verb in the library that declared it: what fills each role, and
 // whether each role is optional, computed from the phrases. A verb's
-// identity is its library and its name, as a kind's is. B24 plays a
-// role and B27 parses a phrase; neither is here.
+// identity is its library and its name, as a kind's is.
 
 import type { KindExpr } from '../syntax/ast.js';
 import type {
@@ -20,8 +19,9 @@ import type {
 import type { Diagnostics } from '../source/diagnostics.js';
 import { textOf } from '../source/source.js';
 import { readable } from '../source/words.js';
-import { nearestOption, qualifiedName, SPROUT, type EnumTable } from './enums.js';
+import { lookingFrom, nearestOption, qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import type { KindRef } from './kinds.js';
+import { checkVerbSynonyms } from './synonyms.js';
 import {
   identityOf,
   unknownKind,
@@ -45,6 +45,7 @@ export function checkVerbDeclaration(
 ): void {
   const verb = declared.name.text;
   checkCaps(declared, caps, diagnostics);
+  checkVerbSynonyms(declared, caps, diagnostics);
 
   const roles = new Map<string, RoleDeclaration>();
   for (const role of declared.roles) {
@@ -222,7 +223,7 @@ function meaningOf(phrase: PhraseDeclaration): string {
     .join(' ');
 }
 
-// --- the second tier: every verb the bundle declares ------------------------
+// --- every verb the bundle declares -----------------------------------------
 
 /** The verbs whose behaviour is the engine's (the spec's Engine verbs), in its order. */
 export const ENGINE_VERBS: readonly string[] = [
@@ -289,6 +290,8 @@ export interface ResolvedVerb {
   /** In the order declared, which is the order they are asked in; the first is the target. */
   readonly roles: readonly ResolvedRole[];
   readonly phrases: readonly ResolvedPhrase[];
+  /** Its own synonyms, which hold everywhere it does (`synonyms.ts`). */
+  readonly synonyms: readonly string[];
   readonly declaration: VerbDeclaration;
 }
 
@@ -357,7 +360,7 @@ export class VerbTable implements VerbLookup {
 
   /** A verb written without a library: the asking world's own first, then `sprout`'s. */
   unqualified(name: string, from: string): ResolvedVerb | null {
-    return this.qualified(from, name) ?? this.qualified(SPROUT, name);
+    return this.qualified(lookingFrom(from), name) ?? this.qualified(SPROUT, name);
   }
 
   /** Every verb in the bundle, in the order it was added. */
@@ -372,7 +375,7 @@ function resolveVerb(
   declared: VerbDeclaration,
   context: VerbContext,
 ): ResolvedVerb {
-  // A role declared twice was refused by the first tier; a slot names the first.
+  // A role declared twice was refused as its file was read; a slot names the first.
   const index = new Map<string, number>();
   declared.roles.forEach((role, at) => {
     if (!index.has(role.name.text)) index.set(role.name.text, at);
@@ -382,7 +385,7 @@ function resolveVerb(
     parts: phrase.parts.flatMap((part): ResolvedPhrasePart[] => {
       if (part.kind === 'phrase-words') return [{ part: 'words', text: part.text }];
       const role = index.get(part.role.text);
-      // A slot naming no role was refused by the first tier.
+      // A slot naming no role was refused as its file was read.
       return role === undefined ? [] : [{ part: 'slot', role }];
     }),
     declaration: phrase,
@@ -401,7 +404,8 @@ function resolveVerb(
       declaration: role,
     };
   });
-  return { library, name: declared.name.text, roles, phrases, declaration: declared };
+  const synonyms = declared.synonyms.map((synonym) => synonym.text);
+  return { library, name: declared.name.text, roles, phrases, synonyms, declaration: declared };
 }
 
 /**

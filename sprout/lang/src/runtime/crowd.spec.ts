@@ -9,7 +9,8 @@ import { ALCOVE, CAPS, HALL, MARTA, turn, visitorIn } from '../fixtures/move.js'
 import { boundObject as bound, proseTurn, YARD } from '../fixtures/prose.js';
 import { renderFor } from '../prose/speech.js';
 import { catalogueOf } from './catalogue.js';
-import { crowded, turnedAway } from './crowd.js';
+import { turnedAway } from './crowd.js';
+import { engineSaid } from './engine-lines.js';
 import { Draft } from './draft.js';
 import { initialState } from './load.js';
 
@@ -43,9 +44,9 @@ describe('a place the host bounds', () => {
 });
 
 describe('the words for someone turned away', () => {
-  it('are the world’s `crowded`, which `sprout.World` writes as a default', () => {
+  it('are the engine’s `crowded`, which `sprout.World` writes as a default', () => {
     const { draft } = turn();
-    expect(crowded(draft)).toMatchObject({
+    expect(engineSaid(draft, 'crowded', null, null).said).toMatchObject({
       passage: { origin: 'sprout.World', name: 'crowded', yields: true },
     });
   });
@@ -54,7 +55,7 @@ describe('the words for someone turned away', () => {
     const prose = proseTurn();
     const line = {
       by: prose.draft.world,
-      said: crowded(prose.draft),
+      said: engineSaid(prose.draft, 'crowded', null, null).said,
       bindings: new Map([
         ['item', bound(prose.marta)],
         ['to', bound(YARD)],
@@ -80,7 +81,7 @@ describe('the words for someone turned away', () => {
       CAPS,
     );
     const draft = new Draft(initialState(own));
-    expect(crowded(draft)).toMatchObject({
+    expect(engineSaid(draft, 'crowded', null, null).said).toMatchObject({
       passage: {
         origin: 'den.den',
         name: 'crowded',

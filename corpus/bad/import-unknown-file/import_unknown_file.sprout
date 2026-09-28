@@ -1,4 +1,7 @@
 // A specifier that reaches no file.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world import_unknown_file is sprout.World {
   visitors are Person
   visitors arrive at yard

@@ -20,6 +20,8 @@ import {
   type Effect,
   type Fault,
   type HostSeconds,
+  type InstanceId,
+  type Level,
   type VisitKey,
   type WorldState,
 } from '@overstory/sprout/lang';
@@ -55,18 +57,21 @@ import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 // records is a script by construction.
 
 /**
- * One line of what a line made: its text in the transcript, the words
- * where a reader read them, and whether a turn faulted. `shown` is the
- * line as a player's screen shows it, or null for the host's own notes;
- * `reader` is whose screen, or null for whoever is at the console.
+ * One line of what a line made, at its level (the spec's The runtime ›
+ * Levels): its text in the transcript, which is the line in full, the
+ * words where a reader read them, and `shown`, the line as a player's
+ * screen shows it; `reader` is whose screen, or null for whoever is at
+ * the console. An effect is prose, and so are the host's words to someone
+ * it keeps at the door; a fault is an error, a reader cut short a
+ * warning, and every other note of the host's info.
  */
 export interface Made {
+  readonly level: Level;
   readonly text: string;
   readonly words: string | null;
-  readonly fault: boolean;
   /** The effect's kind where a reader read it, `said` or `told`; null for a host line. */
   readonly kind: string | null;
-  readonly shown: string | null;
+  readonly shown: string;
   readonly reader: string | null;
 }
 
@@ -99,15 +104,15 @@ export function heard(made: readonly Made[]): readonly Made[] {
 
 /** A line the host writes, which no reader read. */
 function hostLineOf(text: string): Made {
-  return { text, words: null, fault: false, kind: null, shown: null, reader: null };
+  return { level: 'info', text, words: null, kind: null, shown: text, reader: null };
 }
 
 /** The host refusing someone at the door: its words are shown at the console, whoever was refused. */
 function refusedLineOf(what: string, words: string): Made {
   return {
+    level: 'prose',
     text: `${what}: ${words}`,
     words: null,
-    fault: false,
     kind: null,
     shown: words,
     reader: null,
@@ -119,14 +124,40 @@ function effectLines(stage: Stage, effects: readonly Effect[]): Made[] {
   return effects.flatMap((effect) => {
     const reader = stage.state.visitors.get(effect.visit)?.nickname ?? effect.visit;
     return effect.paragraphs.map((words) => ({
+      level: 'prose' as const,
       text: `${reader} (${effect.kind}): ${words}`,
       words,
-      fault: false,
       kind: effect.kind,
       shown: words,
       reader,
     }));
   });
+}
+
+/**
+ * What a committed turn said, and a warning for each reader it cut short
+ * past their output, as the host would log it.
+ */
+function turnLines(
+  stage: Stage,
+  turn: { readonly effects: readonly Effect[]; readonly cutShort: readonly InstanceId[] },
+): Made[] {
+  const { output } = stage.host.budgets;
+  return [
+    ...effectLines(stage, turn.effects),
+    ...turn.cutShort.map((id): Made => {
+      const text = `${whoIs(stage, id)} was cut short: one turn may say ${output} characters to any one person`;
+      return { level: 'warning', text, words: null, kind: null, shown: text, reader: null };
+    }),
+  ];
+}
+
+/** A reader by their nickname, or anything else by its path. */
+function whoIs(stage: Stage, id: InstanceId): string {
+  for (const record of stage.state.visitors.values()) {
+    if (record.instance === id) return record.nickname;
+  }
+  return pathOf(stage.state.world, id);
 }
 
 /**
@@ -137,9 +168,9 @@ function faultLine(stage: Stage, what: string, fault: Fault): Made {
   const against =
     fault.object === null ? '' : `, against ${pathOf(stage.state.world, fault.object)}`;
   return {
+    level: 'error',
     text: `${what} faulted${against}, ${fault.name}: ${fault.detail}`,
     words: null,
-    fault: true,
     kind: null,
     shown: `[error] ${fault.name}`,
     reader: null,
@@ -191,7 +222,7 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     if (wanted !== null && arrived.value.entered.place !== wanted) {
       throw seatingMismatch(stage.state.world, at!, arrived.value.entered.place);
     }
-    return [...out, ...effectLines(stage, arrived.effects)];
+    return [...out, ...turnLines(stage, arrived)];
   }
   if ('closed' in arrived) return [...out, refusedLineOf('closed', arrived.closed.words)];
   if ('refused' in arrived) return [...out, ...effectLines(stage, arrived.effects)];
@@ -208,7 +239,7 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
   const left = departureTurn(stage.state, stage.host, { ...inputs(stage), visit });
   if (left.committed) {
     stage.state = left.state;
-    return effectLines(stage, left.effects);
+    return turnLines(stage, left);
   }
   stage.state = left.quietly.state;
   return [faultLine(stage, 'the departure', left.fault)];
@@ -222,9 +253,11 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
     return [...effectLines(stage, turn.effects), faultLine(stage, 'the command', turn.fault)];
   }
   stage.state = turn.state;
-  const out = effectLines(stage, turn.effects);
-  if ('choices' in turn.value && turn.value.choices.length > 0) {
-    out.push(hostLineOf(`choices: ${turn.value.choices.map((choice) => choice.line).join(' | ')}`));
+  const out = turnLines(stage, turn);
+  // A reading drawn from a tie is the host's to log as a warning.
+  if ('drawn' in turn.value && turn.value.drawn !== null) {
+    const text = `drawn: the line read ${turn.value.drawn.among} ways that tied, and one was drawn`;
+    out.push({ level: 'warning', text, words: null, kind: null, shown: text, reader: null });
   }
   return out;
 }
@@ -240,7 +273,7 @@ function tick(stage: Stage): Made[] {
       continue;
     }
     stage.state = turn.state;
-    out.push(...effectLines(stage, turn.effects));
+    out.push(...turnLines(stage, turn));
   }
   return out;
 }
@@ -271,7 +304,7 @@ function advance(stage: Stage, seconds: number): Made[] {
     }
     stage.state = turn.state;
     out.push(hostLineOf(`${woken} woke, ${turn.value.elapsed} seconds after it asked`));
-    out.push(...effectLines(stage, turn.effects));
+    out.push(...turnLines(stage, turn));
   }
   stage.now = until;
   return out;
@@ -389,12 +422,12 @@ export function actedBy(
   return rendered !== null && rendered.length > 0 ? rendered : [`${nickname}: ${text}`];
 }
 
-/** What a step made, as a script expects it: each reader's line whole, and each host line at its level. */
+/** What a step made, as a script expects it: each reader's line whole, and every other line at its level. */
 export function expectationsOf(made: readonly Made[]): Expectation[] {
   return made.map((one) =>
     one.reader !== null && one.kind !== null && one.words !== null
       ? { reader: one.reader, kind: one.kind, words: one.words }
-      : { level: one.fault ? 'error' : 'info', text: one.text },
+      : { level: one.level, text: one.text },
   );
 }
 

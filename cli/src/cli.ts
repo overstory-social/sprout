@@ -31,7 +31,7 @@ export const USAGE = `sprout — a Sprout microworld on the command line
 
   sprout init [dir] [--author name]   a folder with sprout.json, a world and a README line
   sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
-  sprout parse [dir]                  every phrase the world accepts, in the order they are tried
+  sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]

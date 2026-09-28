@@ -1,6 +1,10 @@
 // An exit's `when` is a condition over the place, asked whoever looks:
 // it is true or false, `actor` is not bound in it, and one that is the
 // literal `false` never holds.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
 world exit_when is sprout.World {
   visitors are Person
   visitors arrive at yard

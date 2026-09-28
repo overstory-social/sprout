@@ -1,4 +1,6 @@
 // A set role binds every thing the visitor named, and `move` moves one.
+import {sort} from 'move_set'
+
 kind Tray {
   contains
 

@@ -10,9 +10,9 @@ const at = (place?: string): Standing => standIn(lane(), place === undefined ? {
 const read = (line: string, standing = at()) => parseLine(line, standing);
 
 describe('formatGrammar', () => {
-  it('lists every phrase under its verb and roles, the world’s verbs first, in the order they are tried', () => {
+  it('lists every phrase under its verb and roles, the world’s verbs first', () => {
     expect(formatGrammar(catalogueFor(lane()))).toBe(
-      `lane accepts these phrases, in the order they are tried; the first that reads wins.
+      `lane accepts these phrases. Every way a line reads is ranked whole, and the best is understood.
 
 lane.pry (target)
   pry [target]
@@ -75,6 +75,11 @@ sprout.close (target: sprout.Container)
   close [target]
   shut [target]
 
+sprout.look_in (target: sprout.Container)
+  look in [target]
+  look inside [target]
+  what is in [target]
+
 sprout.unlock (target: sprout.Lockable, tool)
   unlock [target] with [tool]
   use [tool] on [target]
@@ -94,6 +99,22 @@ sprout.ask (target, topic: symbol optional)
     const page = formatGrammar(catalogueFor(checkWorld(shadowed).bundle!));
     expect(page).toContain('lane.take (target)\n  take [target]\n');
     expect(page).not.toContain('sprout.take');
+  });
+
+  it('lists the phrases synonyms give after the verb’s own, an object’s marked as its alone', () => {
+    const withSynonyms = worldFolder('lane', {
+      ...LANE,
+      'lane.sprout': LANE['lane.sprout']!.replace(
+        'object crate is Crate',
+        'object crate is Crate { synonyms take: "heft" }',
+      ).replace(
+        'object yard is sprout.Place {',
+        'synonyms take: "nab"\n  object yard is sprout.Place {',
+      ),
+    });
+    const page = formatGrammar(catalogueFor(checkWorld(withSynonyms).bundle!));
+    expect(page).toContain('  grab [target]\n  nab [target]\n');
+    expect(page).toContain('  heft [target]   (only with yard.crate)\n');
   });
 });
 
@@ -129,12 +150,12 @@ refused by a crate (yard.crate) as target, in lane.Crate's permit:
 `);
   });
 
-  it('gives a `which` with the line that means each candidate', () => {
-    expect(read('take key').page)
-      .toBe(`in yard, "take key" not understood; the world answers with \`which\`:
-  Which do you mean: a brass key, an iron key?
-  "take brass key" means a brass key (yard.brass_key)
-  "take iron key" means an iron key (yard.iron_key)
+  it('says a reading was drawn from several that tied, and what the visitor is told it meant', () => {
+    expect(read('take key').page).toBe(`in yard, "take key" reads as sprout.take
+  target: a brass key (yard.brass_key)
+drawn from 2 readings that tied, as a turn seeded 0 draws it; the visitor is told first:
+  (A brass key)
+every participant consents
 `);
   });
 

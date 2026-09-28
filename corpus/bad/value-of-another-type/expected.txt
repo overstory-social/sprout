@@ -1,19 +1,19 @@
-kiln.sprout:4:23   `:hatch` holds one of open, closed, and "closed" is text in quotes.
+kiln.sprout:7:23   `:hatch` holds one of open, closed, and "closed" is text in quotes.
                    Write `closed`, without quotes.
 
-kiln.sprout:7:28   `:door` holds one of open, closed, and "closed" is text in quotes.
+kiln.sprout:10:28  `:door` holds one of open, closed, and "closed" is text in quotes.
                    Write `:closed`, without quotes.
 
-kiln.sprout:8:21   `:door` holds one of open, closed, and "open" is text in quotes.
+kiln.sprout:11:21  `:door` holds one of open, closed, and "open" is text in quotes.
                    Write `:open`, without quotes.
 
-kiln.sprout:9:21   `closed` is an option of `Door`, and an option is written with its colon here.
+kiln.sprout:12:21  `closed` is an option of `Door`, and an option is written with its colon here.
                    Write `:closed`.
 
-kiln.sprout:10:20  `:lit` holds true or false, and 1 is a number.
+kiln.sprout:13:20  `:lit` holds true or false, and 1 is a number.
                    Write `true` or `false`, or a condition, as in `self.get(:open)`.
 
-kiln.sprout:11:14  `Kiln` has no `:vent`.
+kiln.sprout:14:14  `Kiln` has no `:vent`.
                    It has `:door`, `:lit` and `:hatch`: name one of those, or declare `:vent` in `Kiln` with its default.
 
 refused: 6 problems

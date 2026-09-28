@@ -1,4 +1,7 @@
-// The engine says a place's `arrives` with `{item}` alone.
+// The engine says a place's `arrives` with `{item}`, and `{from}` and
+// `{way}` where the move has them; never with `{actor}`.
+import * as sprout from 'sprout'
+
 kind Quiet is sprout.Place {
   passage arrives { {actor} arrives. }
 }

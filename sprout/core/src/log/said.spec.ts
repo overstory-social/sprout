@@ -13,6 +13,7 @@ describe('a line said in the log', () => {
     const entry = saidEntry(said);
     expect(entry).toEqual({
       kind: 'said',
+      level: 'info',
       now: 7,
       from: MARTA,
       place: HALL,

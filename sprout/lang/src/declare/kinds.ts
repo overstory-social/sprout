@@ -17,7 +17,7 @@ import type { PassRules } from './passes.js';
 import type { ComposedGrammar } from './grammar.js';
 import type { ResolvedExit } from './exits.js';
 import type { ResolvedDescribe } from './describe.js';
-import { qualifiedName, SPROUT, type EnumTable } from './enums.js';
+import { lookingFrom, qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import {
   composeKind,
   type Found,
@@ -32,7 +32,7 @@ import { refuseComposingWorld, writesWorld } from './sprout-world.js';
  * object that names no kind (the spec's Objects: "An object names its
  * kinds after `is`"), unless it is a stub in the world, where `inKind` is false, and `sprout.World` written anywhere but on the
  * world, since it would make a thing into a world (The compiler › What
- * it refuses). Which kinds the names resolve to is the second tier's.
+ * it refuses). Which kinds the names resolve to is the bundle's to say.
  */
 export function checkKindDeclaration(
   declared: KindDeclaration | ObjectDeclaration,
@@ -285,8 +285,9 @@ export class KindTable implements KindLookup, KindSource {
    * any other failed kind.
    */
   unqualified(name: string, from: string): KindRef | null {
-    return this.declares(qualifiedName(from, name))
-      ? this.qualified(from, name)
+    const own = lookingFrom(from);
+    return this.declares(qualifiedName(own, name))
+      ? this.qualified(own, name)
       : this.qualified(SPROUT, name);
   }
 

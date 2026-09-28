@@ -1,3 +1,8 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Shelf} from 'shelf'
+import {Loft} from 'loft'
+
 world kind_exit_not_a_place is sprout.World {
   visitors are Person
   visitors arrive at barn

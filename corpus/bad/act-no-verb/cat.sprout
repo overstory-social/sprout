@@ -1,4 +1,7 @@
 // `act` names the verb it performs, then its roles.
+import {Creature} from 'creature'
+import {pet} from 'act_no_verb'
+
 kind Cat is Creature {
   as target for pet {
     do {

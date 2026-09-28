@@ -1,5 +1,8 @@
 // Written against `elapsed`, so a tick the host skipped changes nothing:
 // its seconds arrive with the next one. A place tells its own occupants.
+import * as sprout from 'sprout'
+import {:gust} from 'ticks'
+
 kind Moor is sprout.Place {
   :since_gust 0 min 0 max 3600
   on :tick (elapsed) {

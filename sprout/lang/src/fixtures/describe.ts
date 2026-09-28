@@ -89,8 +89,12 @@ verb ask  { role target  role topic: symbol  "ask [target] about [topic]" }
   describe { if (self.get(:shown)) { text "A card, now written on." } }
 }
 `,
-  'box.sprout':
-    'kind Box {\n  contains\n  describe { each thing in self { text "Something is in it." } }\n}\n',
+  'box.sprout': `kind Box {
+  contains
+  describe { each thing in self { text "Something is in it." } }
+  passage contents { {if self.count == 1}One thing is in it, where {actor} can see.{/if} }
+}
+`,
   'cat.sprout': `kind Cat is sprout.Actor {
   :knows [Topic] default [mice]
   as target for ask {

@@ -1,5 +1,7 @@
 // The spec's lever: the actor reads one line, everyone else in the hall
 // another, and the bell below answers what the lever sets going.
+import {pull, :rang} from 'audiences'
+
 kind Lever {
   :thrown false
 

@@ -684,12 +684,49 @@ describe('the standard library, played through command turns', () => {
       { Marta: ['You take a key.'], Ines: ['Marta takes a key.'] },
       { Marta: ['The lock turns over.'], Ines: ['Marta unlocks a chest.'] },
       { Marta: ['It is already unlocked.'] },
-      { Marta: ['You open a chest.'], Ines: ['Marta opens a chest.'] },
+      { Marta: ['You open a chest. It is empty.'], Ines: ['Marta opens a chest.'] },
       { Marta: ['It is already open.'] },
       { Marta: ['You put a pin in a chest.'], Ines: ['Marta puts a pin in a chest.'] },
       { Marta: ['You shut a chest.'], Ines: ['Marta shuts a chest.'] },
       { Marta: ['It is already shut.'] },
     ]);
+  });
+
+  it('says what a container holds while it is open, however it is asked, and nothing while it is shut', () => {
+    expect(
+      readIn(
+        [MARTA_AT, 'look in chest'],
+        [MARTA_AT, 'what is in crate?'],
+        [MARTA_AT, 'take pin'],
+        [MARTA_AT, 'put pin in crate'],
+        [MARTA_AT, 'look inside crate'],
+        [MARTA_AT, 'examine crate'],
+        [MARTA_AT, 'examine chest'],
+      ),
+    ).toEqual([
+      { Marta: ['A chest is shut.'] },
+      { Marta: ['It is empty.'] },
+      { Marta: ['You take a pin.'], Ines: ['Marta takes a pin.'] },
+      { Marta: ['You put a pin in a crate.'], Ines: ['Marta puts a pin in a crate.'] },
+      { Marta: ['Inside: a pin.'] },
+      // After its description, which it writes none of, what is in it.
+      { Marta: ['There is nothing special about a crate.', 'Inside: a pin.'] },
+      // Shut, it says only its description.
+      { Marta: ['There is nothing special about a chest.'] },
+    ]);
+  });
+
+  it('tells the actor which thing a line that could mean either was taken to mean, before the reading', () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 16; seed++) {
+      const [turn] = playedAll(workshop(), [[MARTA_AT, 'take spike']], seed);
+      const marta = turn!.read['Marta']!;
+      const taken = /^You take a (nail|tack)\.$/.exec(marta[1] ?? '')?.[1];
+      expect(taken, marta.join(' / ')).toBeDefined();
+      expect(marta[0]).toBe(`(A ${taken})`);
+      seen.add(taken!);
+    }
+    expect([...seen].sort()).toEqual(['nail', 'tack']);
   });
 
   it('gives from one person to another, the recipient told apart from the room', () => {

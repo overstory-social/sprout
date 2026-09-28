@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
-import type { Bundle } from '@overstory/sprout/lang';
+import { keeps, type Bundle } from '@overstory/sprout/lang';
 
 import {
   actedBy,
@@ -24,11 +24,12 @@ import {
 // player gives a script, driven one line at a time from `io`'s stdin
 // instead, under the prompt of whoever is standing (the spec's The
 // compiler › The command line). The prompt's visitor is whoever most
-// recently arrived and still stands, and the screen shows only the prose
-// they read, one paragraph to a line, and a fault's name as an error; a
-// line typed for someone else shows as the world's `acted`. With
-// `debug`, the page is instead what a script of the same lines would
-// print, every reader's line and the host's notes indented under it. A
+// recently arrived and still stands, and the screen shows what play
+// shows (the spec's The runtime › Levels): the prose they read, one
+// paragraph to a line, and a fault's name as an error; a line typed for
+// someone else shows as the world's `acted`. With `debug`, the page is
+// every level in full, as a script of the same lines would print it,
+// every reader's line and the host's notes indented under it. A
 // line typed where stdin is a real terminal is already shown by its own
 // echo, right after the prompt; one typed anywhere else is written out
 // as a script's line would be. `Ctrl-D` ends the session with a departure
@@ -50,10 +51,10 @@ export interface SessionOptions extends StandOptions {
   readonly record?: string;
 }
 
-/** What `made` shows on `viewer`'s screen: the lines they read, and the console's own. */
+/** What `made` shows on `viewer`'s screen, in order: the prose they read, the console's own, and errors. */
 function shownTo(viewer: string | null, made: readonly Made[]): string[] {
   return made.flatMap((one) =>
-    one.shown !== null && (one.reader === null || one.reader === viewer) ? [one.shown] : [],
+    keeps('error', one.level) && (one.reader === null || one.reader === viewer) ? [one.shown] : [],
   );
 }
 

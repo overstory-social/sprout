@@ -1,4 +1,8 @@
 // A name never begins with an article: the article is a line of its own.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Key} from 'key'
+
 world name_article is sprout.World {
   visitors are Person
   visitors arrive at hall

@@ -3,6 +3,14 @@
 // actors, `tell inside` to only its own occupants and `tell outside` to
 // only the place around it. A wardrobe is a place inside the hall, so its
 // plain `tell` reaches both whoever is inside it and the hall around it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lever} from 'lever'
+import {Bell} from 'bell'
+import {Kiln} from 'kiln'
+import {Cat} from 'cat'
+import {Wardrobe} from 'wardrobe'
+
 world audiences is sprout.World {
   visitors are Person
   visitors arrive at hall

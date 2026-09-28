@@ -23,6 +23,7 @@ import {
 import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
 import { Ticker, type Ticking } from './ticks.js';
+import { withImports } from './fixtures/imports.js';
 
 // Two moors that keep the gap each tick hands them, which holds at most
 // 1,000 seconds, and a cellar nobody stands in; one kind per file.
@@ -69,7 +70,7 @@ const { bundle } = compileBundle(
   {
     manifestFile: new SourceFile('sprout.json', JSON.stringify(MANIFEST)),
     manifest: MANIFEST,
-    files: Object.entries(FILES).map(([name, text]) => new SourceFile(name, text)),
+    files: withImports(Object.entries(FILES).map(([name, text]) => new SourceFile(name, text))),
     libraries: [STANDARD_LIBRARY],
   },
   { mode: 'publish', limits: DEFAULT_LIMITS },

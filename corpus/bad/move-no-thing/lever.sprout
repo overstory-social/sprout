@@ -1,4 +1,6 @@
 // `move` names what moves before `to`.
+import {pull} from 'move_no_thing'
+
 kind Lever {
   contains
 

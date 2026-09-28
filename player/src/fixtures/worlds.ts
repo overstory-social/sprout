@@ -1,11 +1,12 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import {
   compileBundle,
   DEFAULT_BLESSED,
   libraryHash,
+  neededImports,
   parseManifest,
   Diagnostics,
   SourceFile,
@@ -31,17 +32,43 @@ function manifestOf(name: string, files: Record<string, string>): string {
   return JSON.stringify(manifest, null, 2);
 }
 
-/** A world folder holding `files`, its manifest naming each in order and pinning the standard library. */
-export function worldFolder(name: string, files: Record<string, string>): string {
+/**
+ * `files`, each with the imports it needs written at its end, as the
+ * language works them out, so a case writes a world without them and
+ * nothing written moves.
+ */
+function importing(files: Record<string, string>): Record<string, string> {
+  const sources = Object.entries(files).map(([file, text]) => new SourceFile(file, text));
+  const needed = neededImports(sources, [STANDARD_LIBRARY]);
+  return Object.fromEntries(
+    Object.entries(files).map(([file, text]) => {
+      const lines = needed.get(file);
+      return [
+        file,
+        lines === undefined
+          ? text
+          : `${text}${text.endsWith('\n') ? '' : '\n'}${lines.join('\n')}\n`,
+      ];
+    }),
+  );
+}
+
+/** A world folder holding `files` with what each imports, its manifest naming each in order and pinning the standard library. */
+export function worldFolder(name: string, written: Record<string, string>): string {
+  const files = importing(written);
   const dir = join(mkdtempSync(join(tmpdir(), 'sprout-world-')), name);
   mkdirSync(dir);
   writeFileSync(join(dir, 'sprout.json'), manifestOf(name, files));
-  for (const [file, text] of Object.entries(files)) writeFileSync(join(dir, file), text);
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, file)), { recursive: true });
+    writeFileSync(join(dir, file), text);
+  }
   return dir;
 }
 
 /** The world `files` make, compiled strictly with the standard library vendored; throws where it is refused. */
-export function bundleOf(name: string, files: Record<string, string>): Bundle {
+export function bundleOf(name: string, written: Record<string, string>): Bundle {
+  const files = importing(written);
   const diagnostics = new Diagnostics();
   const manifestFile = new SourceFile('sprout.json', manifestOf(name, files));
   const manifest = parseManifest(manifestFile, diagnostics)!;

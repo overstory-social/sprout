@@ -1,0 +1,4 @@
+tin.sprout:6:22  A thing's `contents` may not use `{one of}`: `examine` says it as part of the thing’s description, which a roll would change while nobody acts.
+                 Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+refused: 1 problem

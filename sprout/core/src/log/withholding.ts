@@ -15,6 +15,7 @@ import type { SproutStore } from '../store.js';
 
 export const WithholdingEntry = z.object({
   kind: z.literal('withholding'),
+  level: z.literal('info'),
   now: z.number().int().nonnegative(),
   /** Every file withheld now, by name, in code-unit order; empty once none is. */
   withheld: z.array(z.string().min(1)),
@@ -31,6 +32,7 @@ export function withholdingEntry(
 ): WithholdingEntry {
   return {
     kind: 'withholding',
+    level: 'info',
     now: hostSeconds(now, 'a withholding’s time'),
     withheld: [...new Set(withheld)].sort(codeUnitOrder),
     bundle: bundle.hash,

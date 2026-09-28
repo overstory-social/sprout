@@ -1,4 +1,6 @@
 // Nobody is acting when a message arrives, so a handler tells the place.
+import {:rang} from 'audiences'
+
 kind Bell {
   on :rang { tell "Somewhere below, a bell answers." }
 }

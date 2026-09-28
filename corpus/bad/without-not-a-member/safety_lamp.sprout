@@ -1,5 +1,7 @@
 // `without` names a handler, a hook, a guard or a role; a property is
 // not one of them.
+import {LightSource} from 'light_source'
+
 kind SafetyLamp is LightSource {
   without :lit from LightSource
 }

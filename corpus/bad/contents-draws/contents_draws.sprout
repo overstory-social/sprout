@@ -1,0 +1,12 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Tin} from 'tin'
+
+world contents_draws is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object tin is Tin
+  }
+}

@@ -57,10 +57,11 @@ import {
   MARTA,
   typed as command,
 } from '../fixtures/turns.js';
-import { words as spoken } from '../fixtures/reading.js';
+import { turn, words as spoken } from '../fixtures/reading.js';
+import { compiledWorld } from '../fixtures/bundle.js';
 import type { Answer } from './parser/answers.js';
 import { typedWords } from '../declare/addressing.js';
-import type { InstanceId } from './ids.js';
+import { declaredId, type InstanceId } from './ids.js';
 import type { Bound } from './reading.js';
 
 /** A reading as a case compares it: the verb by library and name, and each role's filler. */
@@ -89,10 +90,9 @@ function named(outcome: CommandOutcome): InstanceId[] {
       'object' in bound ? [bound.object] : 'set' in bound ? [...bound.set] : [],
     );
   }
-  const bound = [...outcome.bindings.values()].flatMap((one) =>
+  return [...outcome.bindings.values()].flatMap((one) =>
     one.binds === 'object' ? [one.id] : one.binds === 'set' ? [...one.ids] : [],
   );
-  return [...bound, ...outcome.choices.map((choice) => choice.id)];
 }
 
 /** What the first visitor in `one` can name: their range, walked by the study's pass rules. */
@@ -201,6 +201,11 @@ describe('a line read as a reading', () => {
       target: { object: GUARD },
       topic: { value: 'old_press' },
     });
+    // `ask [target] [topic]` also reads the line, with "about old press" as a
+    // topic that binds nothing; words that bind no value are not matched, so
+    // it ranks below and nothing is drawn.
+    const asked = typed(one, 'ask oskar about old press');
+    expect('understood' in asked && asked.drawn).toBeNull();
     expect(understood(typed(one, 'ask oskar about the bridge')).bindings['topic']).toEqual({
       value: 'bridge',
     });
@@ -254,69 +259,82 @@ describe('what a thing answers to', () => {
     expect(understood(typed(study(), 'take lamp')).bindings['target']).toEqual({ object: LAMP });
   });
 
-  it('takes the nearest of things written alike, since no answer could tell them apart', () => {
+  it('takes the nearer of things alike, since nearer things rank first', () => {
     // The second pebble in the visitor's hands is nearer than the first on the floor.
     const one = study();
     one.draft.place(PEBBLE_B, one.people[0]!);
     for (let seed = 0; seed < 16; seed++) {
-      expect(understood(typed(one, 'take pebble', EXITS, seed)).bindings['target']).toEqual({
-        object: PEBBLE_B,
-      });
+      const read = typed(one, 'x pebble', EXITS, seed);
+      expect(understood(read).bindings['target']).toEqual({ object: PEBBLE_B });
+      expect('understood' in read && read.drawn).toBeNull();
     }
     // One in the open chest is farther than one on the floor beside it.
     const chested = openChest(study());
     chested.draft.place(PEBBLE_B, CHEST);
     for (let seed = 0; seed < 16; seed++) {
-      expect(understood(typed(chested, 'take pebble', EXITS, seed)).bindings['target']).toEqual({
+      expect(understood(typed(chested, 'x pebble', EXITS, seed)).bindings['target']).toEqual({
         object: PEBBLE_A,
       });
     }
   });
 
-  it('draws from the turn’s seed among things written alike and equally near', () => {
-    const meant = (seed: number): Bound | undefined =>
-      understood(typed(study(), 'take pebble', EXITS, seed)).bindings['target'];
+  it('draws from the turn’s seed among things written alike and equally near, and says nothing of it', () => {
+    const read = (seed: number) => typed(study(), 'take pebble', EXITS, seed);
+    const meant = (seed: number): Bound | undefined => understood(read(seed)).bindings['target'];
     const seeds = Array.from({ length: 32 }, (_, seed) => seed);
     for (const seed of seeds) expect(meant(seed), `seed ${seed}`).toEqual(meant(seed));
     expect(new Set(seeds.map((seed) => JSON.stringify(meant(seed))))).toEqual(
       new Set([PEBBLE_A, PEBBLE_B].map((object) => JSON.stringify({ object }))),
     );
+    // Drawn among two, and no word could tell them apart, so nothing is meant.
+    const one = read(0);
+    expect('understood' in one && one.drawn).toEqual({ among: 2, meant: null });
+  });
+});
+
+describe('choosing among readings', () => {
+  it('takes one whose consent pass allows over one it refuses, whatever the seed', () => {
+    const holding = study();
+    holding.draft.place(BRASS_KEY, holding.people[0]!);
+    for (let seed = 0; seed < 16; seed++) {
+      // Taking the brass key is refused, for it is held; dropping the iron key, for it is not.
+      const take = typed(holding, 'take key', EXITS, seed);
+      expect(understood(take).bindings['target']).toEqual({ object: IRON_KEY });
+      expect('understood' in take && take.drawn).toBeNull();
+      expect(understood(typed(holding, 'drop key', EXITS, seed)).bindings['target']).toEqual({
+        object: BRASS_KEY,
+      });
+    }
+  });
+
+  it('takes the reading that matched more words, whatever the seed', () => {
+    // `lamp oil` is one thing named in full, and no reading of `lamp` alone matches as much.
+    for (let seed = 0; seed < 8; seed++) {
+      expect(understood(typed(study(), 'x lamp oil', EXITS, seed)).bindings['target']).toEqual({
+        object: LAMP_OIL,
+      });
+    }
+  });
+
+  it('draws among things that differ, and says which through the world’s `meant`', () => {
+    const drawn = (seed: number) => typed(study(), 'take key', EXITS, seed);
+    const seeds = Array.from({ length: 32 }, (_, seed) => seed);
+    const taken = new Set<string>();
+    for (const seed of seeds) {
+      const read = drawn(seed);
+      if (!('understood' in read)) throw new Error('not understood');
+      const target = read.understood.bindings.get('target');
+      expect(read.drawn, `seed ${seed}`).toEqual({
+        among: 2,
+        meant: target !== undefined && 'object' in target ? target.object : null,
+      });
+      taken.add(JSON.stringify(target));
+    }
+    expect(taken.size).toBe(2);
   });
 });
 
 describe('the answers', () => {
-  it("asks `which` among things that differ, in the world's words, with the line that means each", () => {
-    const one = study();
-    for (const line of ['take key', 'take metal', 'take the key']) {
-      const which = answered(typed(one, line));
-      expect(which.answer, line).toBe('which');
-      expect(which.choices.map((choice) => choice.id)).toEqual([BRASS_KEY, IRON_KEY]);
-      expect(which.bindings.get('candidates')).toEqual({
-        binds: 'set',
-        ids: [BRASS_KEY, IRON_KEY],
-      });
-      expect(words(which)).toBe(
-        'Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for}',
-      );
-    }
-    expect(answered(typed(one, 'take key')).choices.map((choice) => choice.line)).toEqual([
-      'take brass key',
-      'take iron key',
-    ]);
-    // Typed again as offered, each choice is understood.
-    for (const choice of answered(typed(one, 'take key')).choices) {
-      expect(understood(typed(one, choice.line)).bindings['target']).toEqual({ object: choice.id });
-    }
-  });
-
-  it('asks about the one noun of a run that is in doubt, keeping the rest of the line', () => {
-    const which = answered(typed(study(), 'juggle gong, key and lamp'));
-    expect(which.choices.map((choice) => choice.line)).toEqual([
-      'juggle gong, brass key and lamp',
-      'juggle gong, iron key and lamp',
-    ]);
-  });
-
   it("says `not_here`, in the world's words, of a noun nothing in range answers to, naming nothing", () => {
     const one = study();
     // The coin is in the shut chest, the barrel in another place, and nothing is a unicorn.
@@ -335,13 +353,12 @@ describe('the answers', () => {
       expect(none.bindings.get('actor'), line).toEqual({ binds: 'object', id: one.people[0] });
       expect(none.bindings.get('here'), line).toEqual({ binds: 'object', id: HALL });
       expect([...none.bindings.keys()].sort(), line).toEqual(['actor', 'here']);
-      expect(none.choices, line).toEqual([]);
     }
   });
 
-  it('asks `which` before saying `not_here`, where one phrase asks and another names nothing', () => {
-    // `unlock [target] with [tool]` asks which key; `unlock [target]` finds no "door with key".
-    expect(answered(typed(study(), 'unlock door with key')).answer).toBe('which');
+  it('reads what one phrase reads, though another names nothing in range', () => {
+    // `unlock [target] with [tool]` reads; `unlock [target]` finds no "door with key".
+    expect(understood(typed(study(), 'unlock door with brass key')).verb).toBe('study.unlock');
   });
 
   it('names what a lid held once it is open', () => {
@@ -410,7 +427,6 @@ describe('the parser a command turn reads through', () => {
     expect(spoken(turn.value.answered.said)).toBe(
       'sprout.World unknown: That is not something you can do here.',
     );
-    expect(turn.value.choices).toEqual([]);
   });
 
   it('names a visitor by the nickname the world holds for them', () => {
@@ -433,12 +449,18 @@ describe('the parser a command turn reads through', () => {
     });
   });
 
-  it('carries a `which`’s choices, and reads no exit where the place gives none', () => {
+  it('tells the actor which thing a drawn reading meant, as a notice before the reading, and reads no exit where the place gives none', () => {
     const one = study();
     const context = commandContext(one);
-    const which = parseCommand('take key', one.people[0]!, context);
-    if (!('answered' in which)) throw new Error('not answered');
-    expect(which.choices.map((choice) => choice.line)).toEqual(['take brass key', 'take iron key']);
+    const parsed = parseCommand('take key', one.people[0]!, context);
+    if (!('reading' in parsed) || parsed.drawn === null) throw new Error('not drawn');
+    expect(parsed.drawn.among).toBe(2);
+    expect(parsed.drawn.meant).toMatchObject({ effect: 'notice', to: [one.people[0]] });
+    expect(spoken(parsed.drawn.meant!.said)).toBe('sprout.World meant: ({thing})');
+    expect(parsed.drawn.meant!.bindings.get('thing')).toEqual({
+      binds: 'object',
+      id: (parsed.reading.bindings.get('target') as { object: InstanceId }).object,
+    });
     expect('answered' in parseCommand('north', one.people[0]!, context)).toBe(true);
   });
 });
@@ -494,20 +516,21 @@ describe('every line has exactly one outcome (generated)', () => {
       expect(() => (outcome = typed(one, line, EXITS, seed)), line).not.toThrow();
       const kinds = ['understood' in outcome! ? 'understood' : outcome!.answer];
       expect(kinds, line).toHaveLength(1);
-      expect(['understood', 'which', 'not_here', 'unknown'], line).toContain(kinds[0]);
-      if ('understood' in outcome!) continue;
-      expect('passage' in outcome!.said, line).toBe(true);
-      if (outcome!.answer !== 'which') continue;
-      // A `which` offers two or more, and typing any offered line asks it no more.
-      expect(outcome!.choices.length, line).toBeGreaterThan(1);
-      for (const choice of outcome!.choices) {
-        const again = typed(one, choice.line, EXITS, seed);
-        const same =
-          !('understood' in again) &&
-          again.answer === 'which' &&
-          again.choices.map((x) => x.id).join() === outcome!.choices.map((x) => x.id).join();
-        expect(same, `${line} → ${choice.line}`).toBe(false);
+      expect(['understood', 'not_here', 'unknown'], line).toContain(kinds[0]);
+      if (!('understood' in outcome!)) {
+        expect('passage' in outcome!.said, line).toBe(true);
+        continue;
       }
+      // A reading drawn was drawn from two or more, and what it says was
+      // meant is a thing the reading binds.
+      const { understood: reading, drawn } = outcome!;
+      if (drawn === null) continue;
+      expect(drawn.among, line).toBeGreaterThan(1);
+      if (drawn.meant === null) continue;
+      const bound = [...reading.bindings.values()].flatMap((one) =>
+        'object' in one ? [one.object] : [],
+      );
+      expect(bound, line).toContain(drawn.meant);
     }
   });
 
@@ -558,5 +581,64 @@ describe('every line has exactly one outcome (generated)', () => {
 
   it('reads words however they are cased and spaced', () => {
     expect(typedWords('  Take   the BRASS key ')).toEqual(['take', 'the', 'brass', 'key']);
+  });
+});
+
+describe('a line ending in `?`', () => {
+  it('is read without it, as a question typed as a command', () => {
+    for (const line of ['look?', 'look ?', 'look?  ']) {
+      expect(understood(typed(study(), line)).verb, line).toBe('sprout.look');
+    }
+    expect(understood(typed(study(), 'examine lamp?'))).toEqual({
+      verb: 'sprout.examine',
+      bindings: { target: { object: LAMP } },
+    });
+  });
+
+  it('keeps a `?` alone, which is one of the phrases of `help`', () => {
+    expect(understood(typed(study(), '?')).verb).toBe('sprout.help');
+    expect(understood(typed(study(), ' ? ')).verb).toBe('sprout.help');
+  });
+});
+
+describe('a line typed with a synonym', () => {
+  const YARD = compiledWorld('yard', {
+    'yard.sprout': [
+      'world yard is sprout.World { visitors are Person visitors arrive at hall',
+      '  synonyms pry: "lever"',
+      '  object hall is sprout.Place {',
+      '    object chest is sprout.Fixture { synonyms pry: "force" }',
+      '    object crate is sprout.Fixture',
+      '  }',
+      '}',
+      'verb pry { role target  "pry [target]"  "use a bar on [target]"  synonyms "prise" }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const [hall, chest, crate] = [['hall'], ['hall', 'chest'], ['hall', 'crate']].map((path) =>
+    declaredId('yard', path),
+  );
+  const at = (line: string) => {
+    const one: Study = { ...turn(YARD, [hall!]), nicknames: new Map() };
+    return typed(one, line, []);
+  };
+
+  it('reads as the verb, a verb’s own or the world’s, whatever it is typed with', () => {
+    for (const line of ['prise crate', 'lever crate', 'pry crate']) {
+      expect(understood(at(line)), line).toEqual({
+        verb: 'yard.pry',
+        bindings: { target: { object: crate } },
+      });
+    }
+  });
+
+  it('reads an object’s only where that object takes part, and is otherwise not understood', () => {
+    expect(understood(at('force chest'))).toEqual({
+      verb: 'yard.pry',
+      bindings: { target: { object: chest } },
+    });
+    expect(at('force crate')).toMatchObject({ answer: 'unknown' });
+    // A phrase that does not write the name gives nothing.
+    expect(at('use a lever on crate')).toMatchObject({ answer: 'unknown' });
   });
 });

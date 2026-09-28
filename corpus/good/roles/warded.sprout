@@ -1,6 +1,10 @@
 // A second player of the same role: `Lockable`'s `permit` runs, then this
 // one, and either may refuse. The tool is read only once `bound` says a
 // visitor named one.
+import {Lockable} from 'lockable'
+import {unlock} from 'roles'
+import {Key} from 'key'
+
 kind Warded is Lockable {
   :sealed false
 

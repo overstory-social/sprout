@@ -1,6 +1,10 @@
 // A passage is a named block of words that a kind, an object or the
 // world writes inline. Its body is prose: an apostrophe, a question mark
 // or a `//` in it is a word, not code, and `\{` writes a brace.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Mirror} from 'mirror'
+
 world passages is sprout.World {
   visitors are Creature
   visitors arrive at hall

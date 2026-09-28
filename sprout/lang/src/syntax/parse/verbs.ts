@@ -2,19 +2,20 @@
 // [tool]" }` (the spec's Verbs › Declaring a verb, Set roles, Optional
 // tools, Value roles, Reserved names).
 //
-// A verb's body holds roles and phrases in any order. A member that
+// A verb's body holds roles, phrases and its `synonyms` in any order. A member that
 // cannot be read costs itself and the verb reads on, so an author owed
 // three problems is owed all three. A role whose name or filler is
 // refused is still kept, so its phrases are not refused a second time for
 // naming it; the refusal already keeps the file from being used. Whether
-// the roles and phrases agree with each other is the first tier's
-// (`declare/verbs.ts`); which kind a role names is resolved a tier later.
+// the roles and phrases agree with each other is checked as the file is
+// read (`declare/verbs.ts`); which kind a role names is resolved later.
 
 import type { Ident, KindExpr } from '../ast.js';
 import type {
   PhraseDeclaration,
   RoleDeclaration,
   RoleModifier,
+  SynonymWords,
   ValueFiller,
   VerbDeclaration,
 } from '../ast-verbs.js';
@@ -25,6 +26,7 @@ import { punct, type Parser } from './parser.js';
 import { kindName } from './composition.js';
 import { lowerCase, phrase } from './phrases.js';
 import { recover, stepPast } from './recovery.js';
+import { synonymList } from './synonyms.js';
 
 /** The value fillers, by the word after a role's colon. */
 const VALUE_FILLERS: ReadonlySet<string> = new Set(['symbol', 'integer', 'exit']);
@@ -70,6 +72,7 @@ export function verbDeclaration(p: Parser): VerbDeclaration | null {
     name,
     roles: read.roles,
     phrases: read.phrases,
+    synonyms: read.synonyms,
   };
 }
 
@@ -119,10 +122,11 @@ function verbName(p: Parser): Ident | null | undefined {
   return undefined;
 }
 
-/** A verb's body as read: its roles and phrases, and its `}` where it was closed. */
+/** A verb's body as read: its roles, phrases and synonyms, and its `}` where it was closed. */
 interface VerbBody {
   readonly roles: RoleDeclaration[];
   readonly phrases: PhraseDeclaration[];
+  readonly synonyms: SynonymWords[];
   readonly close: Token | null;
   /** The last thing read, for the span of a verb never closed. */
   readonly last: Span | null;
@@ -132,6 +136,7 @@ interface VerbBody {
 function verbBody(p: Parser, verb: string): VerbBody {
   const roles: RoleDeclaration[] = [];
   const phrases: PhraseDeclaration[] = [];
+  const synonyms: SynonymWords[] = [];
   let last: Span | null = null;
   const unclosed = (): VerbBody => {
     if (!(p.done && p.swallowedRest)) {
@@ -141,12 +146,12 @@ function verbBody(p: Parser, verb: string): VerbBody {
         'Add a } after its roles and phrases.',
       );
     }
-    return { roles, phrases, close: null, last };
+    return { roles, phrases, synonyms, close: null, last };
   };
 
   for (;;) {
     const close = p.take('punct', '}');
-    if (close !== null) return { roles, phrases, close, last };
+    if (close !== null) return { roles, phrases, synonyms, close, last };
     if (p.done || p.atDeclarationStart()) return unclosed();
 
     const token = p.peek();
@@ -164,6 +169,14 @@ function verbBody(p: Parser, verb: string): VerbBody {
       if (read !== null) phrases.push(read);
       continue;
     }
+    if (isSynonyms(token)) {
+      const read = synonymList(p, p.next());
+      last = read?.at(-1)?.at ?? token.at;
+      if (read !== null) synonyms.push(...read);
+      // Refused for what followed it, which is stepped over.
+      else if (!p.at('punct', '}') && !pastStray(p)) return unclosed();
+      continue;
+    }
 
     if (token.kind === 'name' && token.text === 'from') {
       p.diagnostics.refuse(
@@ -175,11 +188,16 @@ function verbBody(p: Parser, verb: string): VerbBody {
       p.diagnostics.refuse(
         token.at,
         `A verb is not made of ${p.describe(token)}.`,
-        'It holds its roles, as `role target`, and its phrases in quotes, as `"take [target]"`.',
+        'It holds its roles, as `role target`, its phrases in quotes, as `"take [target]"`, and its `synonyms`.',
       );
     }
     if (!pastStray(p)) return unclosed();
   }
+}
+
+/** Whether `token` starts a verb's `synonyms` line. */
+function isSynonyms(token: Token): boolean {
+  return token.kind === 'name' && token.text === 'synonyms';
 }
 
 /**
@@ -200,7 +218,12 @@ function pastStray(p: Parser): boolean {
       braces -= 1;
     } else if (braces === 0) {
       if (p.atRecoveryStop()) return false;
-      if (!first && (token.kind === 'string' || (token.kind === 'name' && token.text === 'role'))) {
+      if (
+        !first &&
+        (token.kind === 'string' ||
+          (token.kind === 'name' && token.text === 'role') ||
+          isSynonyms(token))
+      ) {
         return true;
       }
       first = false;

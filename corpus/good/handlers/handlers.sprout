@@ -2,6 +2,15 @@
 // that answers being lit and watches its own light, a glass case that lets
 // the light through and nothing else, a moth that answers the light with
 // the value it carries, and a room that counts what enters it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+import {GlassCase} from 'glass_case'
+import {Moth} from 'moth'
+import {Cellar} from 'cellar'
+import {Bellows} from 'bellows'
+import {Lighter} from 'lighter'
+
 world handlers is sprout.World {
   visitors are Person
   visitors arrive at hall

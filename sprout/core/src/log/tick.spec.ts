@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { tickTurn, type Faulted } from '@overstory/sprout/lang';
 
-import { HALL, seeded, tally } from '../fixtures/tally.js';
+import { COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
 import { committedState } from '../turns.js';
 import { TickEntry, tickEntry, tickOf } from './tick.js';
 
@@ -18,6 +18,12 @@ describe('a tick in the log', () => {
     expect(entry).toMatchObject({ kind: 'tick', place: HALL, now: 50, seed: 2, fault: null });
     expect(entry.effects).toEqual([]);
     expect(TickEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
+    // Each reader the turn cut short is kept, in order, as a warning.
+    const cut = { ...turn, cutShort: [COUNTER, HALL] };
+    expect(tickEntry(tick, host, cut).cutShort).toEqual([
+      { level: 'warning', to: COUNTER },
+      { level: 'warning', to: HALL },
+    ]);
   });
 
   it('keeps a dropped tick’s fault, and nothing it said', () => {
@@ -34,6 +40,7 @@ describe('a tick in the log', () => {
     expect(tickEntry(tick, host, dropped)).toMatchObject({
       fault: { name: 'BudgetExhausted', object: HALL },
       effects: [],
+      cutShort: [],
     });
   });
 

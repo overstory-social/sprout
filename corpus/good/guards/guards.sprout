@@ -3,6 +3,11 @@
 // entering (`accept`). The world writes all three, as a kind and an
 // object may. A guard only reads and decides; it ends in `allow`, in
 // `refuse`, or by reaching its end, which allows.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Crate} from 'crate'
+import {Vase} from 'vase'
+
 world guards is sprout.World {
   visitors are Creature
   visitors arrive at hall

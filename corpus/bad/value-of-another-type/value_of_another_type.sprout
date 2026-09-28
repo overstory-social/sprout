@@ -2,6 +2,10 @@
 // what the property holds and what to write instead: an option written
 // as text in quotes, or without its colon, and a number where true or
 // false belongs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Kiln} from 'kiln'
+
 world value_of_another_type is sprout.World {
   visitors are Person
   visitors arrive at kiln

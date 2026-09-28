@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { dueWakes, wakeTurn } from '@overstory/sprout/lang';
 
-import { command, COUNTER, seeded, tally } from '../fixtures/tally.js';
+import { command, COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
 import { committedState, runCommand } from '../turns.js';
 import { WakeEntry, wakeEntry, wakeOf } from './wake.js';
 
@@ -34,6 +34,12 @@ describe('a wake in the log', () => {
       effects: [],
     });
     expect(WakeEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
+    // Each reader the turn cut short is kept, in order, as a warning.
+    const cut = { ...turn, cutShort: [COUNTER, HALL] };
+    expect(wakeEntry(wake, host, cut).cutShort).toEqual([
+      { level: 'warning', to: COUNTER },
+      { level: 'warning', to: HALL },
+    ]);
   });
 
   it('keeps a consumed wake’s fault, and nothing it said', async () => {

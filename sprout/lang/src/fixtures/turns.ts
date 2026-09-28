@@ -159,7 +159,7 @@ const NOUNS: Readonly<Record<string, InstanceId>> = {
 /**
  * A parser that reads `verb noun`, one step a word, against the hall's
  * declared objects, and answers anything else with the world's
- * `unknown`. It stands where the parser proper will.
+ * `unknown`, standing in for the parser proper so a case needs no grammar.
  */
 export const parseBelfry: Parser = (text, actor, context) => {
   const typed = text.split(' ');
@@ -178,11 +178,11 @@ export const parseBelfry: Parser = (text, actor, context) => {
         said: { passage: unknown },
         bindings: new Map(),
       },
-      choices: [],
     };
   }
   return {
     reading: { verb: resolved, actor, bindings: new Map([['target', { object: target }]]) },
+    drawn: null,
   };
 };
 

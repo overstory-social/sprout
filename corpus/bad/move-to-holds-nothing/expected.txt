@@ -1,4 +1,4 @@
-panel.sprout:3:23  `Button` holds nothing, so nothing can be moved into it.
+panel.sprout:5:23  `Button` holds nothing, so nothing can be moved into it.
                    Write `contains` in the body of `Button` to let it hold things, or name something that does.
 
 refused: 1 problem

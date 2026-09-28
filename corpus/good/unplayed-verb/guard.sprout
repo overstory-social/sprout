@@ -1,3 +1,5 @@
+import {quiz} from 'unplayed_verb'
+
 kind Guard {
   as target for quiz { do { say "The guard shrugs." } }
 }

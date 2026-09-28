@@ -1,5 +1,8 @@
 // A passage that rolls, said from a `permit` and from a `do`: only the
 // `permit` is refused, where it says it.
+import {unlock} from 'sprout'
+import {peer} from 'chance_in_permit_passage'
+
 kind Lock {
   as target for unlock { permit { refuse stuck } }
   as target for peer { do { say stuck } }

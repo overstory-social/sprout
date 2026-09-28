@@ -1,4 +1,6 @@
 // A `{for}` whose `{/for}` was never written.
+import {Mood} from 'prose_for_unclosed'
+
 kind Mirror {
   :mood Mood default drowsy
   contains

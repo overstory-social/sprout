@@ -42,6 +42,7 @@ import {
 } from './audience.js';
 import { runBody, type ActSink, type Proposed, type Speech } from './body.js';
 import { noticeLines } from './effects.js';
+import { engineSaid } from './engine-lines.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.js';
@@ -169,9 +170,6 @@ export interface ConsentContext {
 /** What a whole reading reads and writes: the turn's draft, and what a spawn in a `do` needs. */
 export type ReadingContext = LifecycleContext;
 
-/** The world's line for a reading that said nothing to the actor (the spec's The two passes). */
-const NOTHING_HAPPENS = 'nothing_happens';
-
 /**
  * The actor, then each role's players in the order the verb declares its
  * roles: a set role's in the order typed, and none for a value role or
@@ -250,7 +248,8 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   // `go` is the engine's: its move is the reading's first effect, and a
   // refusal of it, said as a refused `move` is, ends the pass.
   const way = exitOf(reading);
-  const went = way === null ? null : propose(reading.actor, reading.actor, way.to, 'exit');
+  const went =
+    way === null ? null : propose(reading.actor, reading.actor, way.to, 'exit', way.label);
   for (const participant of went === 'refused' ? [] : participants) {
     const self = draft.instance(participant.id);
     if (self === undefined) continue;
@@ -280,22 +279,15 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
     answeredByEngine(reading.verb) ||
     said.some((line) => answersActor(line, reading.actor));
   if (!answered) {
-    const world = instanceIn(state, state.world);
-    const passage = world.kind.passages.get(NOTHING_HAPPENS);
-    if (passage === undefined) {
-      throw new Error(
-        `the world composes no \`${NOTHING_HAPPENS}\` passage, which \`sprout.World\` writes.`,
-      );
-    }
+    const here = placeOf(state, reading.actor);
     said.push({
       effect: 'said',
       to: heardBy(),
-      by: world.id,
+      ...engineSaid(state, 'nothing_happens', reading.actor, here),
       speaker,
-      said: { passage },
       bindings: new Map([
         ['actor', boundObject(reading.actor)],
-        ['here', boundObject(placeOf(state, reading.actor))],
+        ['here', boundObject(here)],
       ]),
     });
   }
@@ -355,8 +347,18 @@ export function actingSink(
 ): {
   readonly sink: ActSink;
   readonly acted: Acting;
-  /** A move `mover` proposes, reaching `to` as `reach` says, said or kept as the sink's `move` is. */
-  readonly propose: (mover: InstanceId, item: InstanceId, to: InstanceId, reach: Reach) => Proposed;
+  /**
+   * A move `mover` proposes, reaching `to` as `reach` says, through the
+   * exit or link labelled `way` where it goes through one; said or kept
+   * as the sink's `move` is.
+   */
+  readonly propose: (
+    mover: InstanceId,
+    item: InstanceId,
+    to: InstanceId,
+    reach: Reach,
+    way?: string | null,
+  ) => Proposed;
 } {
   const { heardBy, speaker, leftOut, records } = hearing;
   const { draft } = context;
@@ -367,23 +369,22 @@ export function actingSink(
   const notices: Notice[] = [];
   const destroyed: InstanceId[] = [];
   const marked: InstanceId[] = [];
-  const propose = (mover: InstanceId, item: InstanceId, to: InstanceId, reach: Reach): Proposed => {
-    const outcome = moveInstance(context, mover, item, to, reach);
+  const propose = (
+    mover: InstanceId,
+    item: InstanceId,
+    to: InstanceId,
+    reach: Reach,
+    way: string | null = null,
+  ): Proposed => {
+    const outcome = moveInstance(context, mover, item, to, reach, way);
     if ('refusal' in outcome) {
       const { by, said: words, bindings } = outcome.refusal;
       said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
       return 'refused';
     }
     if ('engine' in outcome) {
-      const { said: words, bindings } = outcome;
-      said.push({
-        effect: 'refused',
-        to: heardBy(),
-        by: draft.world,
-        speaker,
-        said: words,
-        bindings,
-      });
+      const { by, said: words, bindings } = outcome;
+      said.push({ effect: 'refused', to: heardBy(), by, speaker, said: words, bindings });
       return 'refused';
     }
     sends.push(...outcome.sends);

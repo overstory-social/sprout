@@ -1,4 +1,6 @@
 // `move` says where the thing goes, after `to`.
+import {pull} from 'move_no_to'
+
 kind Lever {
   contains
 

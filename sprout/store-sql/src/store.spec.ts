@@ -185,7 +185,7 @@ describe('sqlStore', () => {
     await store.transaction('w', async (tx) => {
       await tx.state();
       await tx.log({ after: 2, limit: 5 });
-      await tx.appendLog({ kind: 'publish', now: 0, bundle: 'a1' });
+      await tx.appendLog({ kind: 'publish', level: 'info', now: 0, bundle: 'a1' });
       await tx.misses({ limit: 5 });
     });
     await store.forgetVisitor('v');

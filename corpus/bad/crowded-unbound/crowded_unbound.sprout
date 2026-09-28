@@ -1,4 +1,7 @@
 // The engine says the world's `crowded` with `{item}` and `{to}` alone.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world crowded_unbound is sprout.World {
   visitors are Person
   visitors arrive at yard

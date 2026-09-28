@@ -1,1 +1,3 @@
+import {Candle} from 'candle'
+
 kind Taper is Candle { }

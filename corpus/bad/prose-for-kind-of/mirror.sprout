@@ -1,4 +1,6 @@
 // A kind filter on a walk of a list.
+import {Mood} from 'prose_for_kind_of'
+
 kind Mirror {
   :mood Mood default drowsy
   :moods [Mood] default [drowsy]

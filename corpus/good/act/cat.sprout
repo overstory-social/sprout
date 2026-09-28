@@ -2,6 +2,9 @@
 // whoever petted it, the same verb a visitor types, and then knead,
 // which has no phrases, so only an `act` performs it, and whose optional
 // tool is left out.
+import {Creature} from 'creature'
+import {Mood, pet, nuzzle, knead, play, bat, quiz, mew} from 'acting'
+
 kind Cat is Creature {
   :moods [Mood] default [calm, sleepy]
 

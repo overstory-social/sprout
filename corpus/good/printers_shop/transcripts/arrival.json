@@ -30,12 +30,12 @@
       { "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }
     ] },
     { "as": "Ines", "type": "go out", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "Ines leaves." },
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves for the press yard." },
       { "reader": "Ines", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
       { "reader": "Ines", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
     ] },
     { "as": "Ines", "type": "go in", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives from the press yard." },
       { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
       { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, the apprentice, the shop cat, Marta," }
     ] },
@@ -52,7 +52,7 @@
       { "reader": "Marta", "kind": "said", "words": "You are carrying a brass key." }
     ] },
     { "as": "Marta", "type": "go out", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the press yard." },
       { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
       { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
     ] },

@@ -1,3 +1,5 @@
+import {:illuminating} from 'kinds'
+
 kind Lamp {
   on :spawned (from) { broadcast :illuminating with 1 }
   on :illuminating (_, value) { }

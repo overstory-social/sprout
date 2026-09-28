@@ -6,9 +6,9 @@
 // returning one comes back with what they carried away, never given
 // those contents again, where they last stood if that place still exists
 // and accepts them, and otherwise where the world says visitors arrive,
-// told through the world's `displaced` when the place they stood in is
+// told through the engine's `displaced` when the place they stood in is
 // gone. Entry is a move from outside the tree: the host's bound on a
-// crowd is asked (`crowd.ts`), refusing through the world's `crowded`,
+// crowd is asked (`crowd.ts`), refusing through the engine's `crowded`,
 // then the place's `accept`, with the world as `from`; then the place is
 // sent `:entered`, the visitor `:moved`, the place's range `arrives` and
 // `:arrived`, and the visitor reads the place's description once the
@@ -26,12 +26,11 @@
 import { runGuard } from './guards.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
-import { crowded, turnedAway } from './crowd.js';
+import { turnedAway } from './crowd.js';
 import { noticeLines, saidLines, type Effect, type Speaking, type Unrendered } from './effects.js';
 import { arrivalsRead } from './engine-verbs.js';
-import { engineLine } from './engine-lines.js';
+import { engineSaid } from './engine-lines.js';
 import { boundObject } from './evaluate.js';
-import type { Speech } from './body.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import { giveContents, type EngineSend } from './lifecycle.js';
 import { isPlace, liveTree } from './live.js';
@@ -78,13 +77,6 @@ export const NOT_ADMITTING = 'This world is not letting anyone in just now.';
 /** What a host tells a person whose arrival faulted, outside the world, as for a crash. */
 export const ENTRY_FAILED = 'Something went wrong as you arrived, and you have not come in.';
 
-/** The stock line for a world whose standard library leaves `displaced` out. */
-export const DISPLACED_STOCK = 'The place you were standing is gone.';
-
-/** The stock line for a world whose standard library leaves `missing` out. */
-export const MISSING_STOCK =
-  'This world uses something this host does not provide, and will be missing some of itself.';
-
 /** Where a visitor came in, and what the engine sends and says of it. */
 export interface Entered {
   readonly place: InstanceId;
@@ -96,7 +88,7 @@ export interface Entered {
   readonly said: readonly Said[];
 }
 
-/** An entry: made, or refused, by the host's bound through the world's `crowded` or by the place's `accept`, whose words the visitor reads. */
+/** An entry: made, or refused, by the host's bound through the engine's `crowded` or by the place's `accept`, whose words the visitor reads. */
 export type Entry = Entered | { readonly refused: Said };
 
 /** What a committed arrival did. */
@@ -277,9 +269,9 @@ export function enter(turn: WriteTurn, visitor: InstanceId, place: InstanceId): 
       refused: {
         effect: 'refused',
         to: [visitor],
-        by: from,
         speaker: null,
-        said: crowded(draft),
+        // Not yet anywhere, so the line is about the visitor, and then the world's.
+        ...engineSaid(draft, 'crowded', visitor, null),
         bindings: new Map([
           ['item', boundObject(visitor)],
           ['to', boundObject(place)],
@@ -376,30 +368,20 @@ export function missesExtensions(catalogue: Catalogue): boolean {
   return [...catalogue.extensions.values()].some((pinned) => pinned.installed === null);
 }
 
-/** The world's `missing`, from the world, to `visitor`, rendered with nothing bound (the spec's bindings table). */
+/** The engine's `missing`, to `visitor`, rendered with nothing bound (the spec's bindings table). */
 export function missingLine(state: StateReader, visitor: InstanceId): Said {
-  const passage = state.instance(state.world)?.kind.passages.get('missing');
-  const said: Speech = passage === undefined ? engineLine(MISSING_STOCK) : { passage };
-  return {
-    effect: 'notice',
-    to: [visitor],
-    by: state.world,
-    speaker: null,
-    said,
-    bindings: new Map(),
-  };
+  const { by, said } = engineSaid(state, 'missing', visitor, standingIn(state, visitor));
+  return { effect: 'notice', to: [visitor], by, speaker: null, said, bindings: new Map() };
 }
 
-/** The world's `displaced`, from the world, to `visitor`, rendered with nothing bound (the spec's bindings table). */
+/** The engine's `displaced`, to `visitor`, rendered with nothing bound (the spec's bindings table). */
 export function displacedLine(state: StateReader, visitor: InstanceId): Said {
-  const passage = state.instance(state.world)?.kind.passages.get('displaced');
-  const said: Speech = passage === undefined ? engineLine(DISPLACED_STOCK) : { passage };
-  return {
-    effect: 'notice',
-    to: [visitor],
-    by: state.world,
-    speaker: null,
-    said,
-    bindings: new Map(),
-  };
+  const { by, said } = engineSaid(state, 'displaced', visitor, standingIn(state, visitor));
+  return { effect: 'notice', to: [visitor], by, speaker: null, said, bindings: new Map() };
+}
+
+/** The place `visitor` stands in, or null where they stand nowhere that is still there. */
+function standingIn(state: StateReader, visitor: InstanceId): InstanceId | null {
+  const place = state.instance(visitor)?.container ?? null;
+  return place !== null && state.instance(place) !== undefined ? place : null;
 }

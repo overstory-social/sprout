@@ -1,3 +1,5 @@
+import {:stir, :creak} from 'kinds'
+
 kind Cat {
   on :stir { }
   on :spawned (from) { send from :creak }

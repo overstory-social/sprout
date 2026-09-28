@@ -13,7 +13,7 @@ import { attachProse } from './prose.js';
 import { compileBundle } from './compile.js';
 import {
   file,
-  firstTierOf,
+  readingOf,
   PERSON,
   refusals,
   warnings,
@@ -34,7 +34,7 @@ function attached(
   files: Record<string, string>,
   options: { mode?: CompileMode; named?: string[] } = {},
 ) {
-  const { first, report } = firstTierOf(
+  const { first, report } = readingOf(
     Object.entries(files).map(([name, text]) => file(name, text)),
     options.mode,
   );

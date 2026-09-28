@@ -60,8 +60,14 @@ describe('an actor moved between places', () => {
     const leaves = outcome.notices.find((notice) => notice.notice === 'leaves')!;
     // The nook's visitor is not directly in the hall, and is in its range;
     // the closet's is not.
-    expect(leaves).toMatchObject({ place: HALL, bindings: { item: visitor }, audience: [near] });
-    expect('passage' in leaves && [leaves.passage.origin, leaves.passage.name]).toEqual([
+    expect(leaves).toMatchObject({
+      place: HALL,
+      by: HALL,
+      bindings: { item: visitor, to: ALCOVE },
+      audience: [near],
+    });
+    const said = 'said' in leaves ? leaves.said : null;
+    expect(said !== null && 'passage' in said && [said.passage.origin, said.passage.name]).toEqual([
       'sprout.Place',
       'leaves',
     ]);
@@ -106,10 +112,18 @@ describe('an actor moved between places', () => {
     const arrives = outcome.notices[1]!;
     // The alcove relays into the hall, so the nook is in its range too,
     // and its visitor reads both notices.
-    expect(arrives).toMatchObject({ place: ALCOVE, bindings: { item: visitor }, audience: [near] });
+    expect(arrives).toMatchObject({
+      place: ALCOVE,
+      by: ALCOVE,
+      bindings: { item: visitor, from: HALL },
+      audience: [near],
+    });
     // The alcove writes its own line, which replaces the library's default.
-    expect('passage' in arrives && arrives.passage.body.text.trim()).toBe('{item} squeezes in.');
-    expect('passage' in arrives && arrives.passage.yields).toBe(false);
+    const said = 'said' in arrives ? arrives.said : null;
+    expect(said !== null && 'passage' in said && said.passage.body.text.trim()).toBe(
+      '{item} squeezes in.',
+    );
+    expect(said !== null && 'passage' in said && said.passage.yields).toBe(false);
   });
 
   it('sends `:arrived (actor, from)` across the new place’s range, after every `:departed`', () => {
@@ -163,39 +177,45 @@ describe('an actor moved between places', () => {
     });
   });
 
-  it('reads no notice for a place whose kind has no such passage, and still sends and describes', () => {
+  it('has a place whose kind writes no notice read the engine’s own words, and still sends and describes', () => {
     const { draft, visitor } = turn();
     const { notices, sends } = moved(moveInstance(context(draft), visitor, visitor, CELLAR));
     expect(notices.map((notice) => [notice.notice, notice.place])).toEqual([
       ['leaves', HALL],
+      ['arrives', CELLAR],
       ['described', CELLAR],
     ]);
+    // Nothing along the way writes `arrives`, so the engine says the standard library's words.
+    expect(notices[1]).toMatchObject({
+      by: CELLAR,
+      said: { text: '{item} arrives{if bound from} from {from}{/if}.' },
+    });
     expect(sends.find((send) => send.message === 'arrived')!.recipient).toBe(CELLAR);
   });
 
-  it('sends the message to the visitors of a place that writes no notice, so nobody there is told nothing', () => {
+  it('never sends the message to a visitor in range, who reads the notice', () => {
     const { draft, visitor } = turn();
     const below = visitorIn(draft, CELLAR);
     const { notices, sends } = moved(moveInstance(context(draft), visitor, visitor, CELLAR));
-    // The cellar relays, so `below` is in the hall's range and reads its leave;
-    // the cellar writes no `arrives`, so of the arrival it is sent the message.
+    // The cellar relays, so `below` is in the hall's range and reads both.
     expect(
       notices.filter((notice) => notice.audience.includes(below)).map((n) => n.notice),
-    ).toEqual(['leaves']);
-    expect(sends).toContainEqual({
-      message: 'arrived',
-      recipient: below,
-      actor: visitor,
-      from: HALL,
-    });
-    // Leaving it is the same.
+    ).toEqual(['leaves', 'arrives']);
+    expect(sends.map((send) => send.recipient)).not.toContain(below);
     const back = moved(moveInstance(context(draft), visitor, visitor, HALL));
-    expect(back.sends).toContainEqual({
-      message: 'departed',
-      recipient: below,
-      actor: visitor,
-      to: HALL,
-    });
+    expect(back.sends.map((send) => send.recipient)).not.toContain(below);
+  });
+
+  it('gives both notices the exit or link the move went through, as `way`, where it went through one', () => {
+    const { draft, visitor } = turn();
+    const { notices } = moved(
+      moveInstance(context(draft), visitor, visitor, CELLAR, 'range', 'down the stair'),
+    );
+    expect(notices.map((notice) => notice.notice !== 'described' && notice.bindings)).toEqual([
+      { item: visitor, to: CELLAR, way: 'down the stair' },
+      { item: visitor, from: HALL, way: 'down the stair' },
+      false,
+    ]);
   });
 
   it('is moved by another the same way, the mover hearing as anyone there would', () => {
@@ -208,17 +228,9 @@ describe('an actor moved between places', () => {
       .filter((send) => send.message === 'departed' || send.message === 'arrived')
       .map((send) => send.recipient);
     expect(told).not.toContain(MARTA);
-    // The cellar writes no `arrives`, so the visitor in its range is sent the
-    // message instead of reading nothing; of the leave it read the words.
-    expect(sends).toContainEqual({
-      message: 'arrived',
-      recipient: visitor,
-      actor: MARTA,
-      from: HALL,
-    });
-    expect(
-      sends.filter((send) => send.message === 'departed').map((send) => send.recipient),
-    ).not.toContain(visitor);
+    // The visitor in the cellar's range reads its `arrives`, and is sent neither message.
+    expect(notices[1]).toMatchObject({ notice: 'arrives', place: CELLAR, audience: [visitor] });
+    expect(sends.map((send) => send.recipient)).not.toContain(visitor);
   });
 });
 
@@ -234,7 +246,15 @@ describe('what one place says of an actor, alone', () => {
     const near = visitorIn(draft, NOOK);
     const spoke = placeEntered(draft, range(draft), HALL, visitor, WORLD_ID);
     expect(spoke.notices.map((notice) => notice.notice)).toEqual(['arrives', 'described']);
-    expect(spoke.notices[0]).toMatchObject({ place: HALL, audience: [near] });
+    // Coming in from outside the world, there is no place left to name.
+    expect(spoke.notices[0]).toMatchObject({
+      place: HALL,
+      bindings: { item: visitor },
+      audience: [near],
+    });
+    expect(spoke.notices[0]!.notice === 'arrives' && 'from' in spoke.notices[0]!.bindings).toBe(
+      false,
+    );
     expect(spoke.notices[1]).toEqual({ notice: 'described', place: HALL, audience: [visitor] });
     expect(spoke.sends[0]).toEqual({
       message: 'arrived',
@@ -250,8 +270,14 @@ describe('what one place says of an actor, alone', () => {
     const near = visitorIn(draft, NOOK);
     draft.place(visitor, null);
     const spoke = placeLeft(draft, range(draft), HALL, visitor, WORLD_ID);
+    // Leaving the world, there is no place entered to name.
     expect(spoke.notices).toEqual([
-      expect.objectContaining({ notice: 'leaves', place: HALL, audience: [near] }),
+      expect.objectContaining({
+        notice: 'leaves',
+        place: HALL,
+        bindings: { item: visitor },
+        audience: [near],
+      }),
     ]);
     expect(spoke.sends.every((send) => send.message === 'departed')).toBe(true);
     expect(spoke.sends[0]).toEqual({

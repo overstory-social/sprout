@@ -64,6 +64,28 @@ export interface PhraseDeclaration extends Node {
 }
 
 /**
+ * `"prise open"` — another word for a verb, the words a visitor types in
+ * place of its name (the spec's Parsing › Synonyms). `text` is what the
+ * quotes mean, trimmed, its spaces single.
+ */
+export interface SynonymWords extends Node {
+  readonly kind: 'synonym';
+  readonly text: string;
+}
+
+/**
+ * `synonyms open: "jimmy", "force"` — another word for a verb, written in
+ * the world's body, where it holds throughout the world, or an object's,
+ * where it holds only in readings that object takes part in (the spec's
+ * Parsing › Synonyms). A verb's own are on its declaration.
+ */
+export interface SynonymsDeclaration extends Node {
+  readonly kind: 'synonyms';
+  readonly verb: Ident;
+  readonly words: readonly SynonymWords[];
+}
+
+/**
  * `verb unlock { role target: Lockable  role tool  "unlock [target] with
  * [tool]" }` — what may be typed, declared for the world or exported by a
  * library and never by an object (the spec's Verbs › Declaring a verb).
@@ -76,4 +98,6 @@ export interface VerbDeclaration extends Node {
   readonly name: Ident;
   readonly roles: readonly RoleDeclaration[];
   readonly phrases: readonly PhraseDeclaration[];
+  /** Its own `synonyms`, which hold everywhere the verb does. */
+  readonly synonyms: readonly SynonymWords[];
 }

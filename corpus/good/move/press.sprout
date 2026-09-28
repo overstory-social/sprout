@@ -1,4 +1,7 @@
 // A new sheet is made in the press, then handed to whoever pulled.
+import {pull} from 'moving'
+import {Sheet} from 'sheet'
+
 kind Press {
   contains
 

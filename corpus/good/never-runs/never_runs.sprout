@@ -1,6 +1,11 @@
 // A guard and a `permit` end at their `allow` or `refuse`, so a statement
 // after one in the same block never runs: the first is warned about
 // where it is written, and the world still runs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Crate} from 'crate'
+import {Lid} from 'lid'
+
 world never_runs is sprout.World {
   visitors are Person
   visitors arrive at hall

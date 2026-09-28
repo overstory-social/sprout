@@ -3,8 +3,8 @@
 // is the library's words. The chest is a `sprout.Container` and a
 // `sprout.Lockable`, shut and locked, and only the key fits it; the
 // crate is an open container that holds one thing; the anvil is a
-// `sprout.Fixture`; the pin and the key lie loose. Marta and Ines stand
-// in the hall. Spec support: the package build leaves it out.
+// `sprout.Fixture`; the pin and the key lie loose, and a nail and a tack,
+// both answering to "spike". Marta and Ines stand in the hall. Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
@@ -29,6 +29,8 @@ export const WORKSHOP: Bundle = compiledWorld('workshop', {
     object anvil is sprout.Fixture
     object pin is Pin
     object key is Key
+    object nail is Pin { grammar { nouns "spike" } }
+    object tack is Pin { grammar { nouns "spike" } }
   }
 }
 `,
@@ -96,12 +98,12 @@ export interface Played {
   readonly read: Readonly<Record<string, string[]>>;
 }
 
-/** `text`, typed by `visit`, as one command turn over `state`; a fault is thrown. */
-export function played(state: WorldState, visit: VisitKey, text: string): Played {
+/** `text`, typed by `visit`, as one command turn over `state` seeded `seed`; a fault is thrown. */
+export function played(state: WorldState, visit: VisitKey, text: string, seed = 7): Played {
   const turn: CommandTurn = commandTurn(state, host(), {
     visit,
     text,
-    seed: 7,
+    seed,
     mayHold: null,
     now: 0,
   });
@@ -118,11 +120,12 @@ export function played(state: WorldState, visit: VisitKey, text: string): Played
 export function playedAll(
   state: WorldState,
   commands: readonly (readonly [VisitKey, string])[],
+  seed = 7,
 ): Played[] {
   const out: Played[] = [];
   let now = state;
   for (const [visit, text] of commands) {
-    const turn = played(now, visit, text);
+    const turn = played(now, visit, text, seed);
     out.push(turn);
     now = turn.state;
   }

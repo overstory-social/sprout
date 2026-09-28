@@ -1,22 +1,23 @@
 // The command parser: a line a visitor typed, read as a reading (the
-// spec's Verbs › Slots, Set roles, Value roles, Engine verbs; Names ›
+// spec's Parsing › Matching a line, Choosing a reading, When nothing
+// matches; Verbs › Slots, Set roles, Value roles, Engine verbs; Names ›
 // Addressing and display, Articles, Nicknames; Limits › Runtime budgets).
 // The modules in `parser/` are its areas: the phrases a visitor may type,
-// what a thing is called, where slots fall, what a noun names, and the
-// answers. `parseCommand` is what a command turn reads through.
+// what a thing is called, where slots fall, what a noun names, how the
+// readings rank, and the answers. `parseCommand` is what a command turn
+// reads through.
 //
 // Every line has exactly one outcome: a reading, or one of the world's
-// answers, `which`, `not_here` or `unknown`, never nothing. A noun
-// resolves only against the actor's range (the spec's Range), so no
-// answer names anything out of it: a phrase that reads but has a noun
-// nothing in range answers to is `not_here`, which names nothing.
-// Phrases are tried in order and the first reading wins; failing one, the
-// first `which` asked; failing that, `not_here` if any phrase read; and
-// failing that, `unknown`. Every noun tried, every way of placing the
-// slots, every object the range walk visits and every tie drawn is a
-// step, so a line that costs too much to read faults the turn as any
-// other work would. A tie is drawn from the turn's stream, so a line
-// reads the same for the same seed.
+// answers, `not_here` or `unknown`, never nothing. Every phrase is tried
+// against the line, and every way it reads is a reading; they are ranked
+// whole (`parser/rank.ts`) and the best is the one understood, a tie
+// drawn from the turn's stream. A noun resolves only against the actor's
+// range (the spec's Range), so no answer names anything out of it: where
+// no phrase reads but one would with a noun nothing in range answers to,
+// the line is `not_here`, which names nothing, and otherwise `unknown`.
+// Every noun tried, every way of placing the slots, every reading built,
+// every object the range walk visits and every tie drawn is a step, so a
+// line that costs too much to read faults the turn as any other work would.
 
 import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole } from '../declare/verbs.js';
@@ -26,17 +27,20 @@ import type { Draw } from './draws.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
 import { rangeOf, type LiveTree, type PassRule, type Reached } from './range.js';
-import type { Bound, Reading } from './reading.js';
+import { consentPass, type Bound, type Reading, type Said } from './reading.js';
+import { engineSaid } from './engine-lines.js';
+import { boundObject } from './evaluate.js';
 import type { Parser } from './command.js';
 import type { StateReader } from './state.js';
 import { addressOf, type AddressContext } from './parser/address.js';
-import { answer, type Answer, type Choice } from './parser/answers.js';
+import { answer, type Answer } from './parser/answers.js';
 import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
-import { fillSlot, valueOf, type Filled } from './parser/fill.js';
+import { fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
-import type { Candidate } from './parser/nouns.js';
+import { writtenAs, type Candidate } from './parser/nouns.js';
 import type { TypedPhrase } from './parser/phrases.js';
+import { chooseReading, type Drawn, type Ranked } from './parser/rank.js';
 
 /** What reading a line reads: the turn's state, the bundle, the pass rules, the meter and the draws. */
 export interface CommandContext {
@@ -52,8 +56,9 @@ export interface CommandContext {
   readonly exits: readonly CommandExit[];
 }
 
-/** A line's one outcome: understood as a reading, or answered. */
-export type CommandOutcome = { readonly understood: Reading } | Answer;
+/** A line's one outcome: understood as a reading, drawn where it tied with others, or answered. */
+export type CommandOutcome =
+  { readonly understood: Reading; readonly drawn: Drawn | null } | Answer;
 
 /** `line`, typed by `actor`, as a reading or the world's answer to it. */
 export function readCommand(
@@ -63,16 +68,16 @@ export function readCommand(
 ): CommandOutcome {
   const { state, catalogue, budget } = context;
   const here = placeOf(state, actor);
-  const words = typedWords(line);
+  const words = typedWords(withoutQuestion(line));
   if (words.length === 0) return answer(state, 'unknown', actor, here);
 
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
   const tree = liveTree(state);
   const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
   const candidates = candidatesOf(state, tree, range.reached, addressing);
-  const fill = { candidates, exits: context.exits, budget, draws: context.draws };
+  const fill = { candidates, exits: context.exits, budget };
 
-  let which: Answer | null = null;
+  const readings = new Map<string, Ranked>();
   let notHere = false;
   for (const phrase of catalogue.phrases) {
     const filled = new Map<string, Filled>();
@@ -89,27 +94,83 @@ export function readCommand(
       budget.spend();
       const fills = spans.map(fillOf);
       if (fills.some((one) => one.fills === 'unfit')) continue;
-      const asked = spans.findIndex((_, at) => fills[at]!.fills === 'which');
-      if (asked >= 0) {
-        which ??= whichAnswer(
-          context,
-          actor,
-          here,
-          words,
-          spans[asked]!,
-          fills[asked]!,
-          addressing,
-        );
-        continue;
-      }
       if (fills.some((one) => one.fills === 'nothing')) {
-        notHere = true;
+        // An object's synonym reads only where the object takes part, so
+        // a noun nothing answers to is not about it.
+        if (phrase.only === null) notHere = true;
         continue;
       }
-      return { understood: readingOf(phrase, actor, spans, fills, context) };
+      for (const choice of choicesOf(fills)) {
+        budget.spend();
+        const reading = readingOf(phrase, actor, spans, choice, context);
+        if (phrase.only !== null && !takesPart(phrase.only, reading)) continue;
+        const ranked: Ranked = {
+          reading,
+          allowed: consentPass(reading, context) === null,
+          literal: literalOf(phrase) + matchedIn(choice, spans, reading),
+          near: reading.verb.roles.map((_, role) => {
+            const at = spans.findIndex((span) => span.role === role);
+            return at < 0 ? 0 : choice[at]!.near;
+          }),
+        };
+        // One reading made two ways is one reading: the way that matched more words.
+        const key = readingKey(reading);
+        const known = readings.get(key);
+        if (known === undefined || ranked.literal > known.literal) readings.set(key, ranked);
+      }
     }
   }
-  return which ?? answer(state, notHere ? 'not_here' : 'unknown', actor, here);
+  if (readings.size === 0) return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
+  const written = (id: InstanceId): string => writtenAs(addressOf(state.instance(id)!, addressing));
+  const chosen = chooseReading([...readings.values()], written, context.draws, budget);
+  return { understood: chosen.reading, drawn: chosen.drawn };
+}
+
+/** One slot's part in one reading: what it binds and how near and literally, or a value role's words. */
+type Choice =
+  | (FillOption & { readonly words?: undefined })
+  | { readonly words: readonly string[]; readonly near: 0; readonly literal: number };
+
+/** Every way to take one option from each slot's, in order: a value role's words once. */
+function choicesOf(fills: readonly Filled[]): Choice[][] {
+  let combined: Choice[][] = [[]];
+  for (const filled of fills) {
+    const options: Choice[] =
+      filled.fills === 'options'
+        ? [...filled.options]
+        : filled.fills === 'words'
+          ? [{ words: filled.words, near: 0, literal: filled.words.length }]
+          : [];
+    combined = combined.flatMap((partial) => options.map((one) => [...partial, one]));
+  }
+  return combined;
+}
+
+/**
+ * How many of the line's words `choice` matched literally in `reading`:
+ * each thing's and exit's, and a value role's only where they bound a value.
+ */
+function matchedIn(
+  choice: readonly Choice[],
+  spans: readonly SlotSpan[],
+  reading: Reading,
+): number {
+  return choice.reduce((sum, one, at) => {
+    if (one.words === undefined) return sum + one.literal;
+    const role = reading.verb.roles[spans[at]!.role]!;
+    return reading.bindings.has(role.name) ? sum + one.literal : sum;
+  }, 0);
+}
+
+/** How many words a phrase writes, each matched literally wherever it reads. */
+function literalOf(phrase: TypedPhrase): number {
+  return phrase.parts.reduce((sum, part) => sum + ('words' in part ? part.words.length : 0), 0);
+}
+
+/** A reading as a key two ways of making it share: its verb and what fills each role. */
+function readingKey(reading: Reading): string {
+  const { verb, bindings } = reading;
+  return JSON.stringify([verb.library, verb.name, [...bindings]]);
 }
 
 /**
@@ -168,12 +229,12 @@ function nearnessOf(
   return rank;
 }
 
-/** The reading one placement of a phrase's slots makes, every slot filled. */
+/** The reading one placement of a phrase's slots makes, every slot filled by `choice`. */
 function readingOf(
   phrase: TypedPhrase,
   actor: InstanceId,
   spans: readonly SlotSpan[],
-  fills: readonly Filled[],
+  choice: readonly Choice[],
   context: CommandContext,
 ): Reading {
   const { verb } = phrase;
@@ -181,9 +242,9 @@ function readingOf(
   const values: { role: ResolvedRole; words: readonly string[] }[] = [];
   spans.forEach((span, at) => {
     const role = verb.roles[span.role]!;
-    const filled = fills[at]!;
-    if (filled.fills === 'bound') bindings.set(role.name, filled.bound);
-    else if (filled.fills === 'words') values.push({ role, words: filled.words });
+    const chosen = choice[at]!;
+    if (chosen.words !== undefined) values.push({ role, words: chosen.words });
+    else bindings.set(role.name, chosen.bound);
   });
   // A value is bound once the things are, since who hears it depends on them.
   const things: Reading = { verb, actor, bindings: new Map(bindings) };
@@ -194,26 +255,25 @@ function readingOf(
   return { verb, actor, bindings };
 }
 
-/** The `which` one ambiguous slot asks, each candidate with the line that means it. */
-function whichAnswer(
-  context: CommandContext,
-  actor: InstanceId,
-  here: InstanceId,
-  words: readonly string[],
-  span: SlotSpan,
-  filled: Filled,
-  addressing: AddressContext,
-): Answer {
-  if (filled.fills !== 'which') return answer(context.state, 'which', actor, here);
-  const start = span.start + filled.start;
-  const end = span.start + filled.end;
-  const choices: Choice[] = filled.candidates.map((id) => {
-    const instance = context.state.instance(id)!;
-    const name = typedWords(addressOf(instance, addressing).name);
-    const line = [...words.slice(0, start), ...name, ...words.slice(end)];
-    return { id, line: line.join(' ').replaceAll(' ,', ',') };
-  });
-  return answer(context.state, 'which', actor, here, choices);
+/**
+ * `line` without a trailing `?`, which is read as nothing (`what is in the
+ * cabinet?`); a `?` alone is kept, since it is a phrase of `help`.
+ */
+function withoutQuestion(line: string): string {
+  const trimmed = line.trimEnd();
+  if (!trimmed.endsWith('?')) return line;
+  const rest = trimmed.slice(0, -1);
+  return rest.trim() === '' ? line : rest;
+}
+
+/** Whether `object` is `reading`'s actor or fills one of its roles. */
+function takesPart(object: InstanceId, reading: Reading): boolean {
+  if (object === reading.actor) return true;
+  return [...reading.bindings.values()].some(
+    (bound) =>
+      ('object' in bound && bound.object === object) ||
+      ('set' in bound && bound.set.includes(object)),
+  );
 }
 
 /** The actor's place: its container, since an actor is only ever inside something that holds actors. */
@@ -225,23 +285,39 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 
 /**
  * The parser a command turn reads through: `readCommand`, over the exits
- * that apply where the actor stands, with an answer said to the actor as
- * a notice from the world.
+ * that apply where the actor stands, with an answer, or the engine's
+ * `meant` for a reading drawn, said to the actor as a notice.
  */
 export const parseCommand: Parser = (text, actor, context) => {
-  const exits = exitsFrom(placeOf(context.state, actor), context);
+  const here = placeOf(context.state, actor);
+  const exits = exitsFrom(here, context);
   const outcome = readCommand(text, actor, { ...context, exits });
-  if ('understood' in outcome) return { reading: outcome.understood };
-  const { said, bindings, choices } = outcome;
-  return {
-    answered: {
-      effect: 'notice',
-      to: [actor],
-      by: context.state.world,
-      speaker: null,
-      said,
-      bindings,
-    },
-    choices,
-  };
+  if ('understood' in outcome) {
+    const { understood, drawn } = outcome;
+    if (drawn === null) return { reading: understood, drawn: null };
+    const meant = drawn.meant === null ? null : meantLine(context.state, actor, here, drawn.meant);
+    return { reading: understood, drawn: { among: drawn.among, meant } };
+  }
+  const { by, said, bindings } = outcome;
+  return { answered: { effect: 'notice', to: [actor], by, speaker: null, said, bindings } };
 };
+
+/** The engine's `meant`, telling `actor` the thing a reading drawn from a tie names. */
+function meantLine(
+  state: StateReader,
+  actor: InstanceId,
+  here: InstanceId,
+  thing: InstanceId,
+): Said {
+  return {
+    effect: 'notice',
+    to: [actor],
+    ...engineSaid(state, 'meant', actor, here),
+    speaker: null,
+    bindings: new Map([
+      ['actor', boundObject(actor)],
+      ['here', boundObject(here)],
+      ['thing', boundObject(thing)],
+    ]),
+  };
+}

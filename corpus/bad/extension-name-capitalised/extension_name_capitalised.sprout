@@ -1,5 +1,8 @@
 // An extension is named as its statements are written, `media.show(…)`:
 // lower-case, and then its major version.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 extension Media 1
 
 world extension_name_capitalised is sprout.World {

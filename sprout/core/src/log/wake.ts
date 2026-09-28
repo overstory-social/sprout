@@ -11,7 +11,9 @@ import {
 
 import {
   inputsOf,
+  LoggedCut,
   LoggedEffect,
+  loggedCuts,
   LoggedFault,
   loggedEffects,
   loggedFault,
@@ -27,11 +29,14 @@ import {
 
 export const WakeEntry = TurnInputs.extend({
   kind: z.literal('wake'),
+  level: z.literal('info'),
   object: z.string().min(1),
   serial: z.number().int().positive(),
   /** Null where the wake committed; a wake that faulted was consumed. */
   fault: LoggedFault.nullable(),
   effects: z.array(LoggedEffect),
+  /** Who a line would have taken past their output, each a warning. */
+  cutShort: z.array(LoggedCut),
 });
 export type WakeEntry = z.infer<typeof WakeEntry>;
 
@@ -43,11 +48,13 @@ export function wakeEntry(
 ): WakeEntry {
   return {
     kind: 'wake',
+    level: 'info',
     ...inputsOf(wake, host),
     object: wake.object,
     serial: wake.serial,
     fault: turn.committed ? null : loggedFault(turn.fault),
     effects: turn.committed ? loggedEffects(turn.effects) : [],
+    cutShort: turn.committed ? loggedCuts(turn.cutShort) : [],
   };
 }
 

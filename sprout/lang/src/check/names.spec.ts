@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ObjectPath } from '../syntax/ast.js';
 import type { Vantage } from '../declare/names.js';
-import { bodyOf, read, VESSEL } from '../fixtures/check.js';
+import { bodyOf, read, saidBy, VESSEL } from '../fixtures/check.js';
 import { inKind, nameSource } from '../fixtures/names.js';
 import { showBindingType, type BindingType } from './bindings.js';
 import type { CheckContext } from './check.js';
@@ -140,5 +140,51 @@ describe('a dotted path in a body', () => {
         "Leave the world's name out of the middle: write `hall`.",
       ],
     ]);
+  });
+});
+
+describe('an object another file declares, named in the world’s tree', () => {
+  /** A vessel's body at `vantage`, in a world whose files may name only what `nameable` allows. */
+  function importing(vantage: Vantage, nameable: (file: string) => boolean): CheckContext {
+    const scope: NameScope = {
+      source: { ...source, nameable: (file) => nameable(file) },
+      vantage,
+      world: null,
+      table: new Map(),
+    };
+    return { ...bodyOf(VESSEL), names: scope };
+  }
+
+  it('is refused unimported, and says the path from the world that names it', () => {
+    const context = importing({ in: 'tree', path: ['hall'] }, () => false);
+    const { said, expr } = read('lamp', context);
+    const file = expr.at.source.name;
+    expect(said).toEqual([
+      `\`lamp\` is written in \`shop.sprout\`, and this file does not import it. Name it from the world, as \`shop.hall.lamp\`.`,
+    ]);
+    expect(file).not.toBe('shop.sprout');
+    const dotted = importing({ in: 'tree', path: ['cellar'] }, () => false);
+    dottedType(path('hall.bench.cushion'), dotted);
+    expect(saidBy(dotted)).toEqual([
+      '`hall` is written in `shop.sprout`, and this file does not import it. Name it from the world, as `shop.hall.bench.cushion`.',
+    ]);
+  });
+
+  it('is taken where the file may name it, from the world, or from a kind’s body', () => {
+    expect(
+      read(
+        'lamp',
+        importing({ in: 'tree', path: ['hall'] }, () => true),
+      ).said,
+    ).toEqual([]);
+    const fromWorld = importing({ in: 'tree', path: ['cellar'] }, () => false);
+    dottedType(path('shop.hall.lamp'), fromWorld);
+    expect(saidBy(fromWorld)).toEqual([]);
+    expect(
+      read(
+        'lamp',
+        importing(inKind(source, 'shop.Lantern'), () => false),
+      ).said,
+    ).toEqual([]);
   });
 });

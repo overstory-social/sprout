@@ -1,3 +1,5 @@
+import {Creature} from 'creature'
+
 world unqualified_world is World {
   visitors are Creature
   visitors arrive at hall

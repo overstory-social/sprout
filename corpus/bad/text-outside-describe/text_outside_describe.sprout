@@ -1,5 +1,9 @@
 // `text` is how a `describe` gives whoever is looking its words; a `do`
 // says, and a handler tells.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lever} from 'lever'
+
 world text_outside_describe is sprout.World {
   visitors are Person
   visitors arrive at hall

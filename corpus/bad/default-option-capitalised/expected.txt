@@ -1,4 +1,4 @@
-default_option_capitalised.sprout:4:14  `Ward.` cannot name `Iron`, which starts with a capital.
+default_option_capitalised.sprout:7:14  `Ward.` cannot name `Iron`, which starts with a capital.
                                         An option is a lower-case word, as in `:ward Ward.iron`.
 
 refused: 1 problem

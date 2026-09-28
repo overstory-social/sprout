@@ -1,3 +1,8 @@
+import * as sprout from 'sprout'
+import {Walker} from 'walker'
+import {Wardrobe} from 'wardrobe'
+import {Rabbit} from 'rabbit'
+
 world cloakroom is sprout.World {
   visitors are Walker
   visitors arrive at hall

@@ -1,4 +1,7 @@
 // Two kinds each write a default line called `shrug`. A default gives
 // way only to a line that is not one, so two defaults collide as any two
 // sources do.
+import {Plain} from 'plain'
+import {Terse} from 'terse'
+
 kind Mirror is Plain, Terse { }

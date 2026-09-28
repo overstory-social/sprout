@@ -2,20 +2,18 @@
 // through `compileBundle` from the files given, under a manifest naming
 // exactly them and pinning the standard library, which travels with it
 // blessed, as a host starts from. A case writes its world in as few files
-// as it likes, and each kind is given the file named for it before the
-// world compiles, since what these specs test is not where a kind is
-// written. Spec support: the package build leaves it out.
+// as it likes, and, unless it says so, without what each file imports,
+// which `withImports` adds at the end of each file, so nothing written
+// moves. Spec support: the package build
+// leaves it out.
 
 import { libraryHash, type Bundle, type Manifest } from '../bundle/bundle.js';
 import { compileBundle, type BundleResult } from '../bundle/compile/compile.js';
 import { DEFAULT_LIMITS, type Limits } from '../bundle/limits.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
-import { fileNamedFor } from '../declare/file-names.js';
 import type { Extension } from '../declare/extensions.js';
-import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
-import type { KindDeclaration } from '../syntax/ast.js';
-import { parseDeclarations } from '../syntax/parse.js';
+import { withImports } from './imports.js';
 
 export interface WorldOptions {
   /** Strict unless a case says otherwise. */
@@ -27,48 +25,8 @@ export interface WorldOptions {
   readonly pins?: Manifest['extensions'];
   /** The extensions the host installed, none unless a case says so. */
   readonly installed?: readonly Extension[];
-}
-
-/** `text` with everything outside `[start, end)` blanked and its lines kept, so what stays reads at its own line and column. */
-function only(text: string, start: number, end: number): string {
-  const blank = (part: string): string => part.replace(/[^\n]/g, ' ');
-  return `${blank(text.slice(0, start))}${text.slice(start, end)}${blank(text.slice(end))}`;
-}
-
-/**
- * `files` with every kind moved to the file named for it, at the line and
- * column it was written at where that file is new, and what is withheld
- * widened to the files moved out of a withheld one.
- */
-function laidOut(
-  files: Readonly<Record<string, string>>,
-  withheld: readonly string[] = [],
-): { files: Record<string, string>; withheld: string[] } {
-  const out: Record<string, string> = { ...files };
-  const held = new Set(withheld);
-  const moved: { target: string; alone: string; written: string }[] = [];
-  for (const [name, text] of Object.entries(files)) {
-    if (!name.endsWith('.sprout')) continue;
-    const kinds = parseDeclarations(new SourceFile(name, text), new Diagnostics()).filter(
-      (d): d is KindDeclaration => d.kind === 'kind' && fileNamedFor(d.name.text) !== name,
-    );
-    let kept = text;
-    for (const { name: kindName, at } of kinds) {
-      const target = fileNamedFor(kindName.text);
-      moved.push({
-        target,
-        alone: only(text, at.start, at.end),
-        written: text.slice(at.start, at.end),
-      });
-      kept = `${kept.slice(0, at.start)}${' '.repeat(at.end - at.start)}${kept.slice(at.end)}`;
-      if (held.has(name)) held.add(target);
-    }
-    out[name] = kept;
-  }
-  for (const { target, alone, written } of moved) {
-    out[target] = target in out ? `${out[target]}\n${written}\n` : alone;
-  }
-  return { files: out, withheld: [...held] };
+  /** Compile the files exactly as written, adding no import a file needs. */
+  readonly asWritten?: true;
 }
 
 /**
@@ -94,7 +52,18 @@ export function compileWorld(
   files: Readonly<Record<string, string>>,
   options: WorldOptions = {},
 ): BundleResult {
-  const { files: laid, withheld } = laidOut(files, options.withheld);
+  const laid: Record<string, string> = { ...files };
+  const withheld = [...(options.withheld ?? [])];
+  return compileLaid(name, laid, withheld, options);
+}
+
+/** Compile files laid out already, under a manifest naming exactly them. */
+function compileLaid(
+  name: string,
+  laid: Record<string, string>,
+  withheld: readonly string[],
+  options: WorldOptions,
+): BundleResult {
   const sha = libraryHash(STANDARD_LIBRARY);
   const manifest: Manifest = {
     name,
@@ -111,7 +80,9 @@ export function compileWorld(
     {
       manifestFile: new SourceFile('sprout.json', JSON.stringify(manifest, null, 2)),
       manifest,
-      files: Object.entries(laid).map(([file, text]) => new SourceFile(file, text)),
+      files: (options.asWritten === undefined ? withImports : (files: SourceFile[]) => files)(
+        Object.entries(laid).map(([file, text]) => new SourceFile(file, text)),
+      ),
       libraries: [STANDARD_LIBRARY],
       ...(withheld.length === 0 ? {} : { withheld }),
     },
@@ -127,7 +98,7 @@ export function compileWorld(
  * A small shop: a world that is open, two rooms, a shelf holding a jar
  * and a cup, `Person` for visitors to be made of, sharing `Creature`
  * with any NPC a case declares, and a box and a kiln whose kind `Crate`
- * lives in `crate.sprout`, each kind in the file named for it. Withhold
+ * lives in `crate.sprout`. Withhold
  * `crate.sprout` at load and the box and the kiln are absent, while the
  * tin the box holds still composes.
  */

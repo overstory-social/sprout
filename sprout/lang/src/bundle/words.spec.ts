@@ -82,7 +82,7 @@ describe('the world’s word set', () => {
   });
 
   it('is drawn from what it is given and nothing else beside the fixed words', () => {
-    const fixed = wordSetOf({ kinds: [], named: [], identifiers: [], verbs: [] });
+    const fixed = wordSetOf({ kinds: [], named: [], identifiers: [], verbs: [], synonyms: [] });
     expect(fixed).toContain('north');
     expect(fixed).not.toContain('take');
     const shop = compiledWorld('shop', {
@@ -92,5 +92,15 @@ describe('the world’s word set', () => {
       'bench.sprout': 'kind Bench { grammar { nouns "seat" } }\n',
     });
     for (const word of ['old', 'bench', 'seat', 'hall']) expect(shop.words, word).toContain(word);
+  });
+
+  it('holds every word of every synonym, a verb’s own, the world’s and an object’s', () => {
+    const shop = compiledWorld('shop', {
+      'shop.sprout':
+        'world shop is sprout.World { visitors are Person visitors arrive at hall\n  synonyms poke: "jab"\n  object hall is sprout.Place { object bench is sprout.Fixture { synonyms poke: "elbow" } }\n}\n',
+      'person.sprout': 'kind Person is sprout.Visitor { }\n',
+      'poke.sprout': 'verb poke { role target  "poke [target]"  synonyms "prod gently" }\n',
+    });
+    for (const word of ['prod', 'gently', 'jab', 'elbow']) expect(shop.words, word).toContain(word);
   });
 });

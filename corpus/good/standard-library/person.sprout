@@ -1,4 +1,6 @@
 // Whoever visits carries three things, not the library's eight.
+import * as sprout from 'sprout'
+
 kind Person is sprout.Visitor {
   :capacity 3
 }

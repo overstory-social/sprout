@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "66ca315d625634f8152089719f7c33abfd6973575b9fc892250ba60968be33a2"
+      "sha": "27f431cbc8a88b462ad70cdd8800abbab0884b14a21fe92392590f9b13841ef4"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -88,21 +88,20 @@ is listed but missing, or present but not listed, is reported.
 
 ### Which file holds what
 
-- **The world** is declared in the file named for it: `world
-  printers_shop` in `printers_shop.sprout`. An object is declared inside
-  the body of what holds it, or in a file of its own that says where it
-  sits (see [Objects](#objects)).
-- **Each kind** is declared in a file of its own, named for the kind in
-  lower case with `_` between words: `kind Chest` in `chest.sprout`,
-  `kind PrintedSheet` in `printed_sheet.sprout`, `kind TVSet` in
-  `tv_set.sprout`.
-- **Enums, verbs and messages** may go in any `.sprout` file, alone or
-  beside a kind or the world.
+Files and folders are yours to arrange.
+
+- **The world** is declared once, in whichever file you like; `sprout
+  init` calls it after the world, as `printers_shop.sprout`. An object is
+  declared inside the body of what holds it, or in a file of its own
+  that says where it sits (see [Objects](#objects)).
+- **Kinds, enums, verbs and messages** may go in any `.sprout` file,
+  several to a file, alone or beside the world. Two files may even
+  declare kinds of one name; a file that needs both imports one under
+  another name.
 - **Passages** may be written inline in a body, or in a `.prose` file that
   a body points at with `prose "name.prose"`.
 
-A file may import names from another file, or a whole library, at its
-top:
+A file names what another file declares only by importing it:
 
 ```sprout
 import {Chest as Box} from 'things/chest'
@@ -116,17 +115,28 @@ import * as sprout from 'sprout'
   everything a library declares writable as `sprout.Container`.
 - A name may be imported once per file, and not under a name the file
   itself declares. The world's own name is never imported.
+- An object another file declares is named from the world instead, as
+  `printers_shop.hall`, unless it is written in a file of its own and
+  imported.
+- Imports may go anywhere at the top level of a file; at the top is
+  easiest to read.
 
-For now, a name written without an import still resolves across the
-whole world and the libraries it uses. That is going to change: every
-name from another file will need its import.
+Nothing is in scope without an import: not the standard library, and
+not what your other files declare. Forget one and the compiler says
+which name, where it is declared, and the line to write. The engine's
+own messages, `:entered`, `:tick` and the rest, are never imported, and
+every verb any file declares is typeable whether or not a file imports
+it.
+
+Examples in this reference are excerpts: a file that writes
+`sprout.Place` has imported `* as sprout from 'sprout'`.
 
 ### Libraries
 
 A library is a set of kinds, enums, verbs and messages, written in
-Sprout, that a world can use. The standard library, `sprout`, is always
-available; its declarations can be written with or without the `sprout.`
-prefix. A library's full source travels with every world that uses it,
+Sprout, that a world can use. The standard library, `sprout`, is imported
+like any file, by its name: `import {Container} from 'sprout'`, or
+`import * as sprout from 'sprout'` for all of it as `sprout.Container`. A library's full source travels with every world that uses it,
 checked against the hash in the manifest, so a world never changes
 because a library changed somewhere else.
 
@@ -419,8 +429,8 @@ plus two passages:
 ```sprout
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves  default { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves  default { {item} leaves{if bound to} for {to}{/if}. }
 }
 ```
 
@@ -428,10 +438,14 @@ An actor's **place** is the nearest thing around them that holds actors.
 That is where `tell` reaches, what they leave when they go, and what
 `look` describes.
 
-When someone enters a place, everyone else there reads its `arrives`
-passage, every other object in reach of the place is sent `:arrived`, and
-the one arriving reads the place's description. Leaving is the mirror:
-`leaves`, and `:departed`.
+When someone enters a place, every other visitor in reach of it reads the
+`arrives` line, every other object there is sent `:arrived`, and the one
+arriving reads the place's description. Leaving is the mirror: `leaves`,
+and `:departed`. `arrives` is given `from`, the place they came from, and
+`leaves` is given `to`, the place they went to; someone coming into the
+world or leaving it has none. Both are given `way`, the label of the exit
+they went through, when they went through one. A passage reads any of
+these only inside `{if bound …}`, as the defaults do.
 
 ### Exits
 
@@ -847,14 +861,53 @@ A verb names its **roles**, then its **phrases**.
   (see [Value roles](#value-roles)); or nothing, in which case anything
   that plays the role can fill it, and it has the object type.
 - Each phrase is text in quotes with `[role]` slots. Every phrase must name
-  the target. Phrases are tried in the order written; the first that reads
-  wins.
+  the target. Every phrase is tried, and the readings they make are ranked,
+  under [What the parser says](#what-the-parser-says).
 - A verb may have no roles, `verb look { "look" "l" }`, or no phrases, in
   which case nobody can type it and only a character can perform it with
   `act`.
 
 Verbs are declared at the top level, by a world or a library. Up to 8
 roles and 8 phrases per verb, each phrase up to 80 characters, by default.
+
+### Synonyms
+
+A **synonym** is another word for a verb. It takes every phrase that
+writes the verb's name, with its own words in the name's place:
+
+```sprout
+verb open {
+  role target: Container
+  "open [target]"
+  synonyms "unseal", "prise open"
+}
+
+world printers_shop is sprout.World {
+  synonyms open: "jimmy"
+
+  object cabinet is sprout.Container {
+    synonyms open: "force"
+  }
+}
+```
+
+`"open [target]"` gives `"unseal [target]"`, `"prise open [target]"` and
+`"jimmy [target]"`. A phrase that does not write the name, like `"use
+[tool] on [target]"` for `unlock`, gives nothing. A name with an
+underscore is written as its words, so `look_in` is written `look in`.
+
+Synonyms come from three places, and only ever add phrases:
+
+- a verb's own `synonyms` line holds everywhere the verb does;
+- a world's `synonyms verb: …` holds throughout the world;
+- an object's holds only when that object takes part in the command, so
+  `force cabinet` opens the cabinet and `force chest` is not understood.
+
+A kind's body holds no synonyms. A phrase a synonym gives may not repeat
+one its verb already has, and is held to the phrase length limit.
+Synonyms and the phrases they give don't count toward the 8 phrases. Every
+word of every synonym is a word the world reads, so nobody can take it as
+a nickname.
 
 ### Playing a role
 
@@ -1055,7 +1108,7 @@ you can add words or translate them.
 | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- |
 | `go`        | `go [way]`, `[way]`, `walk [way]`               | moves the actor through an exit or link, then describes the new place |
 | `look`      | `look`, `l`, `look around`                      | the actor's place's `describe`                                        |
-| `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]` | the thing's `describe`, or the world's `unremarkable`            |
+| `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]` | the thing's `describe`, or the world's `unremarkable`, then its `contents` |
 | `inventory` | `inventory`, `i`, `inv`                         | the actor's `inventory` passage                                       |
 | `wait`      | `wait`, `z`                                     | the world's `waited` passage ("Time passes.")                         |
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
@@ -1063,21 +1116,37 @@ you can add words or translate them.
 A kind may play `as actor for go`; its `permit` can refuse the move and
 its `do` runs after it.
 
+After a thing's description, `examine` says the thing's own `contents`
+passage where its kinds write one. `sprout.Container`'s lists what is
+inside while it is open, "Inside: a shop key." or "It is empty.", and says
+nothing while it is shut. A `contents` is held to a description's rules:
+it may not use `chance`, `random` or `{one of}`. A line typed with a `?`
+at the end is read without it, so `what is in the cabinet?` works; `?` on
+its own still means `help`.
+
 ### What the parser says
 
-When a line cannot be run, the visitor reads one of the world's passages.
-If phrases disagree about a line, a reading beats a `which`, which beats
-`not_here`, which beats `unknown`:
+Every phrase is tried against the whole line, and every way it reads is
+a **reading**: a verb and what fills each role. The readings are ranked
+whole:
+
+1. one whose `permit`s all allow beats one that is refused;
+2. then the one that matched more of the line's words;
+3. then the one whose things are nearer.
+
+Readings still tied are drawn with the dice, and the host logs the draw
+as a warning. Where the drawn reading names a thing its rivals did not,
+the visitor is first told which, through the world's `meant` passage:
+"(A wooden rib)". Things written exactly alike (same name, same article)
+are drawn without it, since no word could tell them apart. The parser
+never asks which you meant.
+
+When a line cannot be run, the visitor reads one of the world's passages:
 
 | passage    | when                                                               |
 | ---------- | ------------------------------------------------------------------ |
 | `unknown`  | no phrase matches: "That is not something you can do here."        |
 | `not_here` | a phrase matches but nothing in reach answers to the noun: "You see nothing like that here." |
-| `which`    | several things answer: "Which do you mean: a wooden rib, a bone rib?" |
-
-Where several things written exactly alike (same name, same article)
-answer to the same words, the parser does not ask: it takes the nearest,
-and among equally near ones, the dice decide.
 
 ---
 
@@ -1811,6 +1880,7 @@ any of its lines. `sprout skill` prints its full source.
 | `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`  |
 | `open`   | `target: Container`                | `open [target]`                                             |
 | `close`  | `target: Container`                | `close [target]`, `shut [target]`                           |
+| `look_in` | `target: Container`               | `look in [target]`, `look inside [target]`, `what is in [target]` |
 | `unlock` | `target: Lockable`, `tool`         | `unlock [target] with [tool]`, `use [tool] on [target]`     |
 | `ask`    | `target`, `topic: symbol`          | `ask [target] about [topic]`, `ask [target] [topic]`        |
 
@@ -1822,11 +1892,20 @@ Plus the six engine verbs, above. The standard library plays no part in
 These are `default` passages on `sprout.World`. Write a passage of the
 same name in your world's body to replace one.
 
+Every line the engine says, these and a place's `arrives` and `leaves`
+and an actor's `inventory`, is looked for first on the one it is about
+(whoever is acting, looking, moving or leaving), then on the place they
+stand in (for `leaves`, the place they left), then on the world. The first
+passage found that is not `default` is said; the standard library's are
+all `default`, so they are said only when nothing nearer words the line.
+So a character can have its own `arrives`, and a place its own
+`not_here`.
+
 | passage           | default words                                                       |
 | ----------------- | ------------------------------------------------------------------- |
 | `unknown`         | That is not something you can do here.                              |
 | `not_here`        | You see nothing like that here.                                     |
-| `which`           | Which do you mean: …?                                               |
+| `meant`           | ({thing})                                                           |
 | `nothing_happens` | Nothing much comes of that.                                         |
 | `unremarkable`    | There is nothing special about {thing}.                             |
 | `unseen`          | Something here is too much to take in.                              |
@@ -1837,13 +1916,20 @@ same name in your world's body to replace one.
 | `crowded`         | There is no room in {to} for {item}.                                |
 | `waited`          | Time passes.                                                        |
 | `help`            | You can type: …                                                     |
+| `acted`           | {actor} tries to {reading}.                                         |
+| `gone_away`       | You leave, and take what you carry with you.                        |
+| `npc_says`        | {actor} says "{words}"                                              |
+
+`gone_away` is what someone leaving the world is told. `npc_says` frames
+what a character says: `words` is their line, its paragraphs as one.
 
 ### The actor's and container's lines
 
 `sprout.Actor`: `taken`, `takes`, `dropped`, `drops`, `put_in`, `puts_in`,
 `given`, `received`, `gives`, `not_carried`, `not_held`, `held_fast`,
-`not_yours`, `hands_full`, `inventory`. `sprout.Container`: `shut`,
-`full`, `opened`, `opens`, `closed`, `closes`. `sprout.Lockable`:
+`not_yours`, `hands_full`, `inventory`. `sprout.Container`: `contents`,
+`shut`, `full`, `opened` (which includes `contents`), `opens`, `closed`,
+`closes`. `sprout.Lockable`:
 `unlocked`, `unlocks`. `sprout.Fixture`: `immovable`. `sprout.Place`:
 `arrives`, `leaves`.
 
@@ -1901,7 +1987,7 @@ cat.sprout:4:14  `say` has nobody to speak to inside `on :stir`.
 - Objects in the wrong place: outside the world, inside something that
   holds nothing, an actor where actors cannot be, two of one name in one
   body.
-- A kind in a file not named for it.
+- A name another file or a library declares, used without importing it.
 - Any static cap exceeded (see [Limits](#22-limits)).
 
 ### It warns about
@@ -2124,7 +2210,7 @@ no clock and no extensions.
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `init`         | makes a folder with a manifest, a world, a visitor kind and a first test. The folder must be empty or new.                |
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
-| `parse`        | with no line: every phrase the world accepts, in the order they are tried. With a line: how a visitor would read it, and whether it would be refused, without running it. |
+| `parse`        | with no line: every phrase the world accepts. With a line: how a visitor would read it, and whether it would be refused, without running it. |
 | `view`         | what a visitor is shown and could type.                                                                                   |
 | `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`). |
 | `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |
@@ -2170,6 +2256,8 @@ make:
 | `{ "words": "…" }`                                       | anyone reading those words                    |
 | `{ "level": "info", "text": "…" }`                       | a note of the host's, such as a wake delivered |
 | `{ "level": "error", "text": "…" }`                      | a fault                                       |
+| `{ "level": "warning", "text": "…" }`                    | someone's lines cut short past their output   |
+| `{ "level": "prose", "text": "…" }`                      | the host's words to someone kept at the door  |
 
 `"expect": []` means the step makes nothing at all.
 

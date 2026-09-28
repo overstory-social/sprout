@@ -2,4 +2,7 @@
 // unfolded: the library's names are not namespaced, so composing both
 // is two claims on one slot (the spec's Properties merge; they never
 // shadow).
+import * as sprout from 'sprout'
+import {Futon} from 'futon'
+
 kind Bed is sprout.Container, Futon { }

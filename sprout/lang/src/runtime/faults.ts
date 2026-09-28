@@ -8,15 +8,13 @@
 // defect of the engine's own, which is told the same way, since no turn
 // ends with nothing said, and is marked for the host to report loudly.
 //
-// A fault is told in the world's own passage, `fault` to a command's
-// actor and `unseen` for a poll, as it applies on the world's kind. A
-// world whose standard library leaves one out is told the stock line in
-// fixed words instead, so a fault is never silent.
+// A fault is told in the engine's line `fault` to a command's actor, and
+// `unseen` for a poll, each found as every engine line is
+// (`engine-lines.ts`), so a fault is never silent.
 
-import type { ResolvedPassage } from '../declare/passages.js';
 import { ActFault } from './act.js';
-import { ValueOutOfRange, type Speech } from './body.js';
-import { engineLine } from './engine-lines.js';
+import { ValueOutOfRange } from './body.js';
+import { engineLine, engineSaid, STOCK_LINES } from './engine-lines.js';
 import { ExtensionFault } from './extension-fault.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow, type Evaluated } from './evaluate.js';
@@ -43,20 +41,6 @@ export interface Fault {
   readonly engine: boolean;
   /** The extension whose code threw or gave what it may not, which the host reports as that extension's; null for every other fault. */
   readonly extension: string | null;
-}
-
-/** The world's passages a fault is told in: `fault` to a command's actor, `unseen` for a poll. */
-export type FaultPassage = 'fault' | 'unseen';
-
-/** The stock lines, in fixed words, for a world whose standard library leaves the passage out. */
-const STOCK: Readonly<Record<FaultPassage, string>> = {
-  fault: 'Something in this world has gone wrong, and nothing has changed.',
-  unseen: 'Something here is too much to take in.',
-};
-
-/** The stock line for `name`, in the engine's fixed words, which binds nothing. */
-export function stockLine(name: FaultPassage): string {
-  return STOCK[name];
 }
 
 /** What `thrown` says about the turn it ended. */
@@ -102,31 +86,21 @@ function objectOf(error: Error): InstanceId | null | undefined {
   return undefined;
 }
 
-/** The world's passage `name`, as it applies on the world's kind, or its stock line where the world has none. */
-export function worldSpeech(state: StateReader, name: FaultPassage): Speech {
-  const passage: ResolvedPassage | undefined = state.instance(state.world)?.kind.passages.get(name);
-  return passage === undefined ? engineLine(STOCK[name]) : { passage };
-}
-
 /**
- * What `actor` is told of a fault: the world's `fault`, from the world,
- * rendered with `actor` and `here` (the spec's Faults). Where the place
- * the actor stands in is gone, `here` cannot be bound, so the stock line
- * is told instead, which binds nothing.
+ * What `actor` is told of a fault: the engine's `fault`, rendered with
+ * `actor` and `here` (the spec's Faults). Where the place the actor
+ * stands in is gone, `here` cannot be bound, so the stock words are told
+ * instead, which bind nothing.
  */
 export function faultTold(state: StateReader, actor: InstanceId): Said {
   const bindings = new Map<string, Evaluated>([['actor', boundObject(actor)]]);
   const place = state.instance(actor)?.container ?? null;
   const gone = place === null || state.instance(place) === undefined;
   if (!gone) bindings.set('here', boundObject(place));
-  return {
-    effect: 'notice',
-    to: [actor],
-    by: state.world,
-    speaker: null,
-    said: gone ? engineLine(STOCK.fault) : worldSpeech(state, 'fault'),
-    bindings,
-  };
+  const { by, said } = gone
+    ? { by: state.world, said: engineLine(STOCK_LINES.fault) }
+    : engineSaid(state, 'fault', actor, place);
+  return { effect: 'notice', to: [actor], by, speaker: null, said, bindings };
 }
 
 /**
@@ -141,6 +115,6 @@ export function stockFaultEffect(state: StateReader, actor: InstanceId, visit: V
     actor,
     to: actor,
     visit,
-    paragraphs: [STOCK.fault],
+    paragraphs: [STOCK_LINES.fault],
   };
 }

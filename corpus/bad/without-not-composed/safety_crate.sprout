@@ -1,5 +1,8 @@
 // `without` leaves out what a kind it composes contributes, and `Crate`
 // does not compose `LightSource`.
+import {Crate} from 'crate'
+import {LightSource} from 'light_source'
+
 kind SafetyCrate is Crate {
   without changed :lit from LightSource
 }

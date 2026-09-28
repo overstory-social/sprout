@@ -77,6 +77,13 @@ line. When something in the world breaks, you read the world's own
 apology, then a short line such as `[error] BudgetExhausted` naming what
 went wrong, for whoever wrote the world.
 
+Everything the world and the server say is at one of five levels:
+`prose` is what a person in the world reads, `error` is something that
+broke, `warning` is something the server settled one way where it could
+have gone another (someone else's lines cut short because too much was
+said to them in one turn), `info` is the server's own notes, and `debug`
+is all of it in full. Playing shows prose and errors.
+
 To see everything instead, add `--debug`:
 
 ```sh
@@ -161,7 +168,7 @@ You take a brass key.
 Marta> unlock cabinet with key
 The lock turns over.
 Marta> open cabinet
-You open the type cabinet.
+You open the type cabinet. Inside: a shop key.
 Marta> take shop key
 You take a shop key.
 Marta> ask apprentice about the press
@@ -170,12 +177,15 @@ Marta> go out
 Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
 A wooden rib, a bone rib, the press,
 Marta> take rib
-Which do you mean: a wooden rib, a bone rib?
+(A wooden rib)
+You take a wooden rib.
 ```
 
 Notice that `take key` picked up the brass key, not the shop key: the
 shop key was still locked in the cabinet, out of reach, so there was only
-one key it could mean.
+one key it could mean. Two ribs answer to `rib`, and neither is a better
+fit than the other, so the world picked one and said which in brackets
+first. Type `take bone rib` to be exact.
 
 There is more to find — the paper store, the loft above it, and what
 happens when you ink the press and pull it. The cat has opinions too.

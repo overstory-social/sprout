@@ -1,2 +1,4 @@
 // A kind cannot be made of itself, however far round the loop is.
+import {Chest} from 'chest'
+
 kind Lidded is Chest { }

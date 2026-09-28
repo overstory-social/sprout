@@ -1,4 +1,6 @@
 // The lamp writes its own light, and answers whoever lit it.
+import {:lit, :answered, :rang} from 'kinds'
+
 kind Lamp {
   :lit false
   on :lit (from, value) {

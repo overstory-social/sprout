@@ -1,5 +1,9 @@
 // A grammar block holds `name`, `article`, `nouns`, `exit` and `link`, each
 // as it is written.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Key} from 'key'
+
 world grammar_lines is sprout.World {
   visitors are Person
   visitors arrive at hall

@@ -1,4 +1,7 @@
 // A role a thing fills takes one thing: neither a set nor a value.
+import {Creature} from 'creature'
+import {play, nuzzle} from 'act_filler_mismatch'
+
 kind Cat is Creature {
   :naps 0 min 0 max 9
 

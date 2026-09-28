@@ -5,16 +5,16 @@
 // present are marked stale, as every write turn that commits marks them.
 // The one who typed the command is always told something: the parser's
 // answer, the consent pass's refusal, what the effect pass said, what
-// the engine answered or the world's `nothing_happens`, or, when the turn
-// faults and is abandoned, the world's `fault`. What it says is one
+// the engine answered or its `nothing_happens`, or, when the turn
+// faults and is abandoned, the engine's `fault`. What it says is one
 // sequence of effects in that order: the effect pass's lines, then the
 // queue's, then the engine's answers (`effects.ts`).
 //
 // Reading typed words is the parser's, reached through `Parser`, which
 // `parser.ts` fills: the turn hands it the words, who typed them, each
 // visitor's nickname and the turn's state, meter and draws, and it gives back
-// the reading they make, or a line said to the actor in place of one, as
-// an unknown word or a `which` is answered.
+// the reading they make, drawn where several tied, or a line said to the
+// actor in place of one, as an unknown word is answered.
 
 import { displace, type Displaced } from './arrival.js';
 import type { Budget } from './budget.js';
@@ -26,7 +26,6 @@ import { saidLines, type Effect, type Unrendered } from './effects.js';
 import { faultTold, stockFaultEffect } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import { standsInPlace } from './live.js';
-import type { Choice } from './parser/answers.js';
 import type { PassRule } from './range.js';
 import {
   runReading,
@@ -59,13 +58,20 @@ export interface ParseContext {
   readonly nicknames: ReadonlyMap<InstanceId, string>;
 }
 
-/**
- * What the words typed make: a reading `actor` performs, or a line said
- * to them in place of one, with, for a `which`, the line to type again
- * for each candidate.
- */
+/** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
 export type Parsed =
-  { readonly reading: Reading } | { readonly answered: Said; readonly choices: readonly Choice[] };
+  { readonly reading: Reading; readonly drawn: DrawnReading | null } | { readonly answered: Said };
+
+/**
+ * A reading the parser drew from several that tied (the spec's Parsing ›
+ * Choosing a reading): among how many, which the host logs as a warning,
+ * and the engine's `meant` telling the actor which thing it named, where
+ * words could tell it from its rivals'.
+ */
+export interface DrawnReading {
+  readonly among: number;
+  readonly meant: Said | null;
+}
 
 /** Reads the words `actor` typed. */
 export type Parser = (text: string, actor: InstanceId, context: ParseContext) => Parsed;
@@ -88,9 +94,10 @@ export interface Command extends WriteInputs {
  * was typed about where they no longer are (the spec's What absent means).
  */
 export type Commanded =
-  | { readonly answered: Said; readonly choices: readonly Choice[] }
-  | { readonly refused: PermitRefusal }
+  | { readonly answered: Said }
+  | { readonly refused: PermitRefusal; readonly drawn: DrawnReading | null }
   | {
+      readonly drawn: DrawnReading | null;
       readonly acted: Acted;
       readonly drained: Drained;
       /** What the engine answered once the queue was empty: each arrival read, then the command's own. */
@@ -140,16 +147,16 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
             `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
           );
         }
-        return { answered: parsed.answered, choices: parsed.choices };
+        return { answered: parsed.answered };
       }
-      const { reading } = parsed;
+      const { reading, drawn } = parsed;
       if (reading.actor !== actor) {
         throw new Error(
           `\`${command.text}\` was read as \`${reading.actor}\`'s, not \`${actor}\`'s.`,
         );
       }
       const outcome = runReading(reading, turn);
-      if ('refused' in outcome) return outcome;
+      if ('refused' in outcome) return { ...outcome, drawn };
       const drained = drain(outcome, turn);
       const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
         state: turnState(draft),
@@ -158,7 +165,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
         budget,
         nicknames,
       });
-      return { acted: outcome, drained, answers };
+      return { drawn, acted: outcome, drained, answers };
     },
     (done) => ({ actor, lines: linesSaidBy(done, actor) }),
   );
@@ -169,12 +176,22 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
 /** What a committed command said, in the order it said it. */
 function linesSaidBy(done: Commanded, actor: InstanceId): Unrendered[] {
   if ('answered' in done) return [{ said: done.answered }];
+  if ('displaced' in done) return displacedLines(done.displaced);
+  // A reading drawn from a tie is told the thing it meant before what it says.
+  const meant: Unrendered[] = done.drawn?.meant == null ? [] : [{ said: done.drawn.meant }];
   if ('refused' in done) {
     const { by, said, bindings } = done.refused;
-    return [{ said: { effect: 'refused', to: [actor], by, speaker: null, said, bindings } }];
+    return [
+      ...meant,
+      { said: { effect: 'refused', to: [actor], by, speaker: null, said, bindings } },
+    ];
   }
-  if ('displaced' in done) return displacedLines(done.displaced);
-  return [...saidLines(done.acted.said), ...saidLines(done.drained.said), ...done.answers];
+  return [
+    ...meant,
+    ...saidLines(done.acted.said),
+    ...saidLines(done.drained.said),
+    ...done.answers,
+  ];
 }
 
 /** What a displaced visitor is told and what the entry says, in order, then the place they came in to. */

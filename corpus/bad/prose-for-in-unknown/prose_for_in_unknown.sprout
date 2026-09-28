@@ -1,3 +1,7 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Press} from 'press'
+
 world prose_for_in_unknown is sprout.World {
   visitors are Person
   visitors arrive at hall

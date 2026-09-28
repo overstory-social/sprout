@@ -24,6 +24,7 @@ import type { SproutStore } from './store.js';
 import { runCommand } from './turns.js';
 import { readLog } from './log/entry.js';
 import { runView, ViewCache } from './views.js';
+import { withImports } from './fixtures/imports.js';
 
 // A hall with a lamp in it, one kind per file: the hall says whether the
 // lamp is lit, and lighting it lights it.
@@ -70,7 +71,7 @@ const { bundle } = compileBundle(
   {
     manifestFile: new SourceFile('sprout.json', JSON.stringify(MANIFEST)),
     manifest: MANIFEST,
-    files: Object.entries(FILES).map(([name, text]) => new SourceFile(name, text)),
+    files: withImports(Object.entries(FILES).map(([name, text]) => new SourceFile(name, text))),
     libraries: [STANDARD_LIBRARY],
   },
   { mode: 'publish', limits: DEFAULT_LIMITS },
@@ -142,8 +143,10 @@ describe('a view polled against a store', () => {
         seq: 1,
         entry: {
           kind: 'poll-fault',
+          level: 'error',
           now: 7,
           fault: {
+            level: 'error',
             name: 'BudgetExhausted',
             detail: polled.fault!.detail,
             object: HALL,

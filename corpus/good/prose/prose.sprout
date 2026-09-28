@@ -2,6 +2,12 @@
 // quotes that carries slots, and passages that use the bindings of the
 // bodies that say them. The composing room's longer words are in its own
 // `.prose` file, which an object may point at as a kind does.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Press} from 'press'
+import {Rib} from 'rib'
+import {Cabinet} from 'cabinet'
+
 world prose is sprout.World {
   visitors are Person
   visitors arrive at composing_room

@@ -2,18 +2,15 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import {
-  checkShape,
-  compileBundle,
-  libraryHash,
-  SourceFile,
-  STANDARD_LIBRARY,
-} from '@overstory/sprout/lang';
+import { compileBundle, libraryHash, STANDARD_LIBRARY } from '@overstory/sprout/lang';
 import { runTests, testFiles } from '@overstory/sprout-player';
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
 import { readWorld } from './world.js';
+
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
 
 describe('initWorld', () => {
   it('writes a manifest, a world, its visitors’ kind, a first test and a README, named for the folder', () => {
@@ -46,8 +43,6 @@ describe('initWorld', () => {
     initWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8');
     expect(written).toContain('world kiln_yard is sprout.World {');
-    // What a beginner is handed is what the compiler takes.
-    expect(checkShape(new SourceFile('kiln_yard.sprout', written)).diagnostics).toEqual([]);
   });
 
   it('writes the place visitors arrive at, written in the world’s body, holding actors', () => {
@@ -72,8 +67,9 @@ describe('initWorld', () => {
       '  visitors are Person\n',
     );
     const person = readFileSync(join(dir, 'person.sprout'), 'utf8');
-    expect(person).toBe('kind Person is sprout.Visitor { }\n');
-    expect(checkShape(new SourceFile('person.sprout', person)).diagnostics).toEqual([]);
+    expect(person).toBe(
+      `import * as sprout from ${Q}sprout${Q}\n\nkind Person is sprout.Visitor { }\n`,
+    );
     const { bundle, diagnostics } = compileBundle(readWorld(dir).source!);
     // Not even a warning: a `Visitor` of the world's own would hide `sprout.Visitor`.
     expect(diagnostics).toEqual([]);
@@ -95,7 +91,7 @@ describe('initWorld', () => {
     ]);
     expect(readFileSync(join(dir, 'person.sprout'), 'utf8')).toContain('  visitors are Guest\n');
     expect(readFileSync(join(dir, 'guest.sprout'), 'utf8')).toBe(
-      'kind Guest is sprout.Visitor { }\n',
+      `import * as sprout from ${Q}sprout${Q}\n\nkind Guest is sprout.Visitor { }\n`,
     );
     expect(compileBundle(readWorld(dir).source!).diagnostics).toEqual([]);
   });

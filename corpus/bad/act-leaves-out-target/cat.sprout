@@ -1,4 +1,7 @@
 // Every reading fills the target.
+import {Creature} from 'creature'
+import {pet, nuzzle} from 'act_leaves_out_target'
+
 kind Cat is Creature {
   as target for pet {
     do {

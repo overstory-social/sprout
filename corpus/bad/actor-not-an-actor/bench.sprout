@@ -1,4 +1,6 @@
 // Only an actor plays the one acting, and a bench is not one.
+import {sit} from 'actor_not_an_actor'
+
 kind Bench {
   as actor for sit {
     do { }

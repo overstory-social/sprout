@@ -1,6 +1,8 @@
 // Imports and objects in files of their own: a library read through a
 // namespace, a kind brought in under another name, a room placed by a
 // stub where it sits, and one that names what holds it with `in`.
+import {Person} from 'person'
+
 import * as sprout from 'sprout'
 import {Chest as Box} from 'things/chest'
 import {cellar} from 'rooms/cellar'

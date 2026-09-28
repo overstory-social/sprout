@@ -1,6 +1,10 @@
 // A locked container: `sprout.Lockable`'s permit on `open` keeps the
 // lid down until it is unlocked, and which tool fits is this world's to
 // say, in a permit of its own beside the library's.
+import * as sprout from 'sprout'
+import {unlock} from 'sprout'
+import {Quoin} from 'quoin'
+
 kind TypeCase is sprout.Container, sprout.Lockable {
   :open false
 

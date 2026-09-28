@@ -4,6 +4,9 @@
 // an object until `is()` narrows it, and the branch holds the lamp the
 // condition found. The beacon in the world is kindled by the world's name,
 // which fixes a name from anywhere.
+import {open, :kindle} from 'kinds'
+import {Lamp} from 'lamp'
+
 kind Cupboard {
   contains
 

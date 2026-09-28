@@ -13,6 +13,9 @@ import type { Declaration, Ident, ObjectDeclaration, WorldDeclaration } from '..
 import type { ImportDeclaration } from '../../syntax/ast-imports.js';
 import type { Report } from './report.js';
 import { rewrite, type FileScope } from './renames.js';
+import { nodesOf } from '../../source/nodes.js';
+import { BUILT_IN_TYPE_WORDS } from '../../syntax/parse/types.js';
+import { engineMessage } from '../../declare/engine-messages.js';
 
 /** A single quote, as a specifier is written between them. */
 const Q = "'";
@@ -24,10 +27,25 @@ interface Part {
   readonly files: ReadonlyMap<string, readonly Declaration[]>;
 }
 
+/** What the manifest names: its own files, and the libraries it pins, each of which an import may name though it did not arrive. */
+export interface Named {
+  readonly files: ReadonlySet<string>;
+  readonly libraries: ReadonlySet<string>;
+  /** The extensions it pins, whose types a file names by its `extension` line and never imports. */
+  readonly extensions: ReadonlySet<string>;
+}
+
 /** What placing and rewriting leave: every declaration each library holds, imports and placed objects taken out. */
 export interface Imported {
   readonly byLibrary: ReadonlyMap<string, readonly Declaration[]>;
   readonly declarations: readonly Declaration[];
+  /** The objects each file imports, by the file, each as `objectKey` names it. */
+  readonly objects: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+/** An object written at a file's top level, as what imports it names it: its file and its name. */
+export function objectKey(file: string, name: string): string {
+  return `${file}:${name}`;
 }
 
 /** The specifier a file of `library` is reached by: its path from the part's root, without `.sprout`. */
@@ -63,9 +81,21 @@ function declaredName(declared: Declaration): { name: string; message: boolean }
 export function resolveImports(
   byLibrary: ReadonlyMap<string, readonly Declaration[]>,
   world: string,
-  named: ReadonlySet<string>,
+  named: Named,
   report: Report,
 ): Imported {
+  // A world namespaced as a library it uses is refused at its manifest;
+  // nothing it or that library imports can be told apart, so nothing
+  // more is said of either.
+  if (named.libraries.has(world)) {
+    const kept = new Map(
+      [...byLibrary].map(([library, declared]) => [
+        library,
+        declared.filter((one) => one.kind !== 'import'),
+      ]),
+    );
+    return { byLibrary: kept, declarations: [...kept.values()].flat(), objects: new Map() };
+  }
   const parts = new Map<string, Part>();
   for (const [library, declared] of byLibrary) {
     const files = new Map<string, Declaration[]>();
@@ -90,22 +120,50 @@ export function resolveImports(
 
   const scopes = new Map<string, FileScope>();
   const rewritten = new Map<string, Declaration[]>();
-  for (const [library, part] of parts) {
-    const kept: Declaration[] = [];
-    for (const [specifier, declared] of part.files) {
-      const scope = scopeOf(part, specifier, declared, parts, world, named, report);
-      scopes.set(declared[0]!.at.source.name, scope);
-      for (const one of declared) {
-        if (one.kind !== 'import') kept.push(rewrite(one, scope));
+  const index = declaredWhere(parts);
+  // A kind two of the world's files name alike is known by its file: the
+  // names written are aliases, and each import reaches the one it names.
+  const alike = new Map<string, string[]>();
+  for (const [specifier, declared] of own?.files ?? []) {
+    for (const one of declared) {
+      if (one.kind === 'kind') {
+        alike.set(one.name.text, [...(alike.get(one.name.text) ?? []), specifier]);
       }
     }
-    rewritten.set(library, kept);
+  }
+  const byFile = (name: string, specifier: string): string | null =>
+    (alike.get(name)?.length ?? 0) > 1 ? `${world}/${specifier}` : null;
+  for (const [library, part] of parts) {
+    rewritten.set(library, rewritten.get(library) ?? []);
+    for (const [specifier, declared] of part.files) {
+      const scope = scopeOf(part, specifier, declared, parts, world, named, byFile, report);
+      scopes.set(declared[0]!.at.source.name, scope);
+      checkImported(declared, scope, part, index, named, report);
+      for (const one of declared) {
+        if (one.kind === 'import') continue;
+        // Each kind known by its file is declared under that name.
+        const known =
+          library === world && one.kind === 'kind' ? byFile(one.name.text, specifier) : null;
+        const into = known ?? library;
+        rewritten.set(into, [...(rewritten.get(into) ?? []), rewrite(one, scope)]);
+      }
+    }
   }
 
   const placed = placeObjects(rewritten, world, scopes, report);
+  const objects = new Map<string, Set<string>>();
+  for (const [file, scope] of scopes) {
+    for (const target of scope.names.values()) {
+      if (target.object === null) continue;
+      const set = objects.get(file) ?? new Set<string>();
+      set.add(objectKey(target.object.at.source.name, target.object.name.text));
+      objects.set(file, set);
+    }
+  }
   return {
     byLibrary: placed,
     declarations: [...placed.values()].flat(),
+    objects,
   };
 }
 
@@ -116,7 +174,8 @@ function scopeOf(
   declared: readonly Declaration[],
   parts: ReadonlyMap<string, Part>,
   world: string,
-  named: ReadonlySet<string>,
+  named: Named,
+  byFile: (name: string, specifier: string) => string | null,
   report: Report,
 ): FileScope {
   const scope: FileScope = { names: new Map(), namespaces: new Map() };
@@ -160,15 +219,142 @@ function scopeOf(
       }
       const here = item.alias ?? item.name;
       if (!claim(here, scope, own, report)) continue;
+      const known =
+        found.kind === 'kind' && target.library === world
+          ? byFile(item.name.text, target.specifier)
+          : null;
       scope.names.set(here.text, {
-        library: target.library,
+        library: known ?? target.library,
         name: item.name.text,
-        fromLibrary: target.library !== world,
+        fromLibrary: known !== null || target.library !== world,
         object: found.kind === 'object' ? found : null,
       });
     }
   }
+  // The file's own kinds that another file names alike are its own by
+  // their file, wherever the file writes them.
+  if (part.library === world) {
+    for (const one of declared) {
+      if (one.kind !== 'kind') continue;
+      const known = byFile(one.name.text, specifier);
+      if (known === null) continue;
+      scope.names.set(one.name.text, {
+        library: known,
+        name: one.name.text,
+        fromLibrary: true,
+        object: null,
+      });
+    }
+  }
   return scope;
+}
+
+/** Where each name is declared at a file's top level: by part, the specifiers of the files that do. */
+type Index = ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
+
+/** For each part, each top-level name, a message by its colon, and the files that declare it. */
+function declaredWhere(parts: ReadonlyMap<string, Part>): Index {
+  const index = new Map<string, Map<string, string[]>>();
+  for (const [library, part] of parts) {
+    const names = new Map<string, string[]>();
+    for (const [specifier, declared] of part.files) {
+      for (const one of declared) {
+        const name = declaredName(one);
+        if (name === null || one.kind === 'world') continue;
+        const key = name.message ? `:${name.name}` : name.name;
+        names.set(key, [...(names.get(key) ?? []), specifier]);
+      }
+    }
+    index.set(library, names);
+  }
+  return index;
+}
+
+/**
+ * Refuse each name `declared`, one file as written, uses that another
+ * file or a library declares and the file does not import, once per name;
+ * a name nothing declares is left to whoever reads it to refuse.
+ */
+function checkImported(
+  declared: readonly Declaration[],
+  scope: FileScope,
+  part: Part,
+  index: Index,
+  named: Named,
+  report: Report,
+): void {
+  const own = new Set(
+    declared.flatMap((one) => {
+      const name = declaredName(one);
+      return name === null ? [] : [name.message ? `:${name.name}` : name.name];
+    }),
+  );
+  const said = new Set<string>();
+  // An extension's type, `media.Sound`, is named by the file's own
+  // `extension` line, and is never imported.
+  const extensions = new Set(
+    declared.flatMap((one) => (one.kind === 'extension-use' ? [one.name.text] : [])),
+  );
+  /** Where `key` is declared, as a refusal names it and an import reaches it; null where nothing declares it. */
+  const elsewhere = (key: string): { where: string; specifier: string } | null => {
+    const inPart = index.get(part.library)?.get(key)?.[0];
+    if (inPart !== undefined) return { where: `\`${inPart}.sprout\``, specifier: inPart };
+    for (const [library, names] of index) {
+      if (library !== part.library && names.has(key)) {
+        return { where: `the library \`${library}\``, specifier: library };
+      }
+    }
+    return null;
+  };
+  const refuse = (ident: Ident, key: string, written: string): void => {
+    if (said.has(key)) return;
+    const from = elsewhere(key);
+    if (from === null) return;
+    said.add(key);
+    report.diagnostics.refuse(
+      ident.at,
+      `\`${written}\` is declared in ${from.where}, and this file does not import it.`,
+      `Import it at the top of this file: \`import {${written}} from ${Q}${from.specifier}${Q}\`.`,
+    );
+  };
+  for (const node of nodesOf(declared)) {
+    if (node.kind === 'kind-expr' || node.kind === 'named-type') {
+      const { library, name } = node as unknown as { library: Ident | null; name: Ident };
+      if (library !== null) {
+        if (scope.namespaces.has(library.text) || extensions.has(library.text)) continue;
+        // A qualifier that names no library and no file, or an extension
+        // the file does not name, is left to whoever reads the name.
+        const known =
+          index.has(library.text) ||
+          named.libraries.has(library.text) ||
+          part.files.has(library.text);
+        if (!known || named.extensions.has(library.text)) continue;
+        const key = `.${library.text}`;
+        if (said.has(key)) continue;
+        said.add(key);
+        report.diagnostics.refuse(
+          library.at,
+          `\`${library.text}.${name.text}\` names \`${library.text}\`, which this file does not import as a namespace.`,
+          `Import it at the top of this file, as in \`import * as ${library.text} from ${Q}${library.text}${Q}\`, or import \`${name.text}\` itself.`,
+        );
+        continue;
+      }
+      if (BUILT_IN_TYPE_WORDS.has(name.text) || own.has(name.text) || scope.names.has(name.text))
+        continue;
+      refuse(name, name.text, name.text);
+      continue;
+    }
+    for (const field of ['verb', 'message'] as const) {
+      const written = (node as unknown as Record<string, unknown>)[field] as
+        Ident | null | undefined;
+      if (written === null || written === undefined || typeof written !== 'object') continue;
+      const message = field === 'message';
+      if (message && engineMessage(written.text) !== null) continue;
+      const key = message ? `:${written.text}` : written.text;
+      if (own.has(key) || scope.names.has(written.text)) continue;
+      refuse(written, key, message ? `:${written.text}` : written.text);
+    }
+  }
 }
 
 /** The declarations a specifier reaches, and how to name them in a refusal; null having said why there are none. */
@@ -177,30 +363,36 @@ function reach(
   part: Part,
   parts: ReadonlyMap<string, Part>,
   world: string,
-  named: ReadonlySet<string>,
+  named: Named,
   report: Report,
-): { library: string; declared: readonly Declaration[]; where: string } | null {
+): { library: string; specifier: string; declared: readonly Declaration[]; where: string } | null {
   const specifier = from.text;
   const library = parts.get(specifier);
   if (library !== undefined && specifier !== world && !specifier.includes('/')) {
     return {
       library: specifier,
+      specifier,
       declared: [...library.files.values()].flat(),
       where: `The library \`${specifier}\``,
     };
   }
   const file = part.files.get(specifier);
   if (file !== undefined) {
-    return { library: part.library, declared: file, where: `\`${specifier}.sprout\`` };
+    return { library: part.library, specifier, declared: file, where: `\`${specifier}.sprout\`` };
   }
   // A file the manifest names that did not arrive, or did not compile,
   // is absent: what it would have brought in reads as absent where used.
-  if (part.library === world && named.has(`${specifier}.sprout`)) {
-    return { library: part.library, declared: [], where: `\`${specifier}.sprout\`` };
+  if (named.libraries.has(specifier)) {
+    return { library: specifier, specifier, declared: [], where: `The library \`${specifier}\`` };
+  }
+  if (part.library === world && named.files.has(`${specifier}.sprout`)) {
+    return { library: part.library, specifier, declared: [], where: `\`${specifier}.sprout\`` };
   }
   report.diagnostics.refuse(
     from.at,
-    `\`'${specifier}'\` reaches no file or library of this world.`,
+    specifier.includes('/') || part.library !== world
+      ? `\`'${specifier}'\` reaches no file of this world.`
+      : `\`'${specifier}'\` reaches no file of this world, and no library its manifest pins.`,
     part.library === world
       ? "A specifier is a file's path from the world's folder, without `.sprout`, as `'rooms/cellar'` is `rooms/cellar.sprout`, or a library's name, as `'sprout'`."
       : "A specifier in a library is a file's path from the library's own root, without `.sprout`.",

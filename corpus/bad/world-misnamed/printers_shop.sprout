@@ -1,2 +1,4 @@
+import * as sprout from 'sprout'
+
 world shop is sprout.World {
 }

@@ -1,4 +1,8 @@
 // A guard only reads and decides, and connecting a link writes.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cell} from 'cell'
+
 world connect_in_guard is sprout.World {
   visitors are Person
   visitors arrive at yard

@@ -1,5 +1,10 @@
 // A guard and a `permit` only read and decide, so neither tells anyone
 // anything: the words belong in a handler, a `do`, or a `refuse`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lever} from 'lever'
+import {Box} from 'box'
+
 world tell_in_guard is sprout.World {
   visitors are Person
   visitors arrive at hall

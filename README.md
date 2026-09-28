@@ -12,6 +12,9 @@ Sprout is, how to play a world from the terminal, a quickstart that
 builds a first world, and the language reference.
 
 ```sprout
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 world printers_shop is sprout.World {
   visitors are Creature
   visitors arrive at composing_room

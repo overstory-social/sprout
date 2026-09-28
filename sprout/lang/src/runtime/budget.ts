@@ -24,6 +24,7 @@
 // short: they are told nothing more this turn, and the turn goes on.
 
 import type { RuntimeBudgetName, RuntimeBudgets } from '../bundle/limits.js';
+import type { InstanceId } from './ids.js';
 
 /**
  * The kinds of turn: the spec's five, and a visitor's arrival and
@@ -67,7 +68,7 @@ export class Budget {
   private passages = 0;
   private nextClockCheck = CLOCK_STRIDE;
   private readonly output = new Map<string, number>();
-  private readonly cut: string[] = [];
+  private readonly cut: InstanceId[] = [];
   private readonly deadline: number | null;
   private outOf: RuntimeBudgetName | null = null;
 
@@ -152,7 +153,7 @@ export class Budget {
   }
 
   /** Everyone but the actor a line would have taken past their output, in the order it happened. */
-  get cutShort(): readonly string[] {
+  get cutShort(): readonly InstanceId[] {
     return this.cut;
   }
 
@@ -178,7 +179,7 @@ export class Budget {
    * false, and nothing more is offered them this turn, so what they read
    * is what was said to them up to the line that did not fit.
    */
-  offer(recipient: string, characters: number): boolean {
+  offer(recipient: InstanceId, characters: number): boolean {
     if (this.cut.includes(recipient)) return false;
     const spent = this.spentOutput(recipient) + characters;
     if (spent > this.limits.output) {

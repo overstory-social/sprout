@@ -4,6 +4,9 @@
 // The host's `peoplePerPlace` decides when; `sprout check` runs at the
 // defaults, where no place is ever full, so this pins only that the line
 // is the world's to write.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world crowded is sprout.World {
   visitors are Person
   visitors arrive at yard

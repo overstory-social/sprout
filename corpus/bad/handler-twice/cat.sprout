@@ -1,3 +1,5 @@
+import {:stir} from 'kinds'
+
 kind Cat {
   :n 0 min 0 max 9
   on :stir { self.adjust(:n, 1) }

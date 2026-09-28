@@ -1,5 +1,7 @@
 // A teapot: empty until someone brews in it, and cold again
 // twenty minutes after.
+import {brew} from 'teashop'
+
 kind Teapot {
   grammar { nouns "pot" }
 

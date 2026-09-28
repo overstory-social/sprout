@@ -1,4 +1,4 @@
-cat.sprout:2:14  `say` has nobody to speak to inside `on :stir`.
+cat.sprout:4:14  `say` has nobody to speak to inside `on :stir`.
                  Use `tell` to speak to the room, or `tell p` to one person.
 
 refused: 1 problem

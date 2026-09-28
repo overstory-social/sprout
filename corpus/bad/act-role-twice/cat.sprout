@@ -1,4 +1,7 @@
 // Each role is named once.
+import {Creature} from 'creature'
+import {pet, nuzzle} from 'act_role_twice'
+
 kind Cat is Creature {
   as target for pet {
     do {

@@ -20,6 +20,9 @@ import { worldMembers } from '../../syntax/parse/world.js';
 import { Diagnostics, renderDiagnostics } from '../../source/diagnostics.js';
 import { SourceFile } from '../../source/source.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 /** The manifest section: every field, and what to write for it. */
 export function manifestSection(): string {
   const rows = Object.entries(MANIFEST_FIELDS).map(([field, write]) => [code(field), write]);
@@ -40,6 +43,12 @@ export const DECLARATION_TABLE: readonly Entry[] = [
     means: 'a named set of options, which a property or a value role holds one of',
   },
   {
+    word: 'import',
+    example: `import {Lamp} from ${Q}lamp${Q}`,
+    means:
+      'a name another file declares, by its path from the world without `.sprout`; `import * as sprout from` a library for all of it',
+  },
+  {
     word: 'kind',
     example: 'kind Lamp is sprout.Fixture { … }',
     means: 'what things are made of; a kind composes others with `is`',
@@ -52,7 +61,8 @@ export const DECLARATION_TABLE: readonly Entry[] = [
   {
     word: 'object',
     example: 'object lamp is Lamp { … }',
-    means: 'a thing in the world, written inside the world or inside what holds it',
+    means:
+      'a thing in the world, written inside what holds it, or in a file of its own with `in` naming what holds it',
   },
   {
     word: 'verb',
@@ -132,6 +142,12 @@ export const MEMBER_TABLE: readonly Entry[] = [
     means: 'whether a message sent inside it passes out, or from outside in',
   },
   { word: 'object', example: 'object pin is Pin', means: 'a thing inside it' },
+  {
+    word: 'synonyms',
+    example: 'synonyms poke: "prod"',
+    means:
+      'another word for a verb, throughout the world or, on an object, only where that object takes part; never in a kind’s body. A verb writes its own as `synonyms "prod"`',
+  },
 ];
 
 /** The member words a body's readers answer to: a kind's and an object's, and the world's. */
@@ -143,11 +159,17 @@ function memberWords(): { kind: Set<string>; world: Set<string> } {
   };
 }
 
-/** Every member example but the world's own, in one kind, with what each needs beside it. */
+/**
+ * Every member example but the world's own, in one kind, with what each
+ * needs beside it; `synonyms`, which no kind holds, on the object of it.
+ */
 export function membersProbe(): Snippet {
-  const own = MEMBER_TABLE.filter((entry) => entry.word !== 'visitors');
+  const own = MEMBER_TABLE.filter(
+    (entry) => entry.word !== 'visitors' && entry.word !== 'synonyms',
+  );
+  const synonyms = MEMBER_TABLE.find((entry) => entry.word === 'synonyms')!;
   return {
-    hall: '    object probe is Probe',
+    hall: `    object probe is Probe { ${synonyms.example} }`,
     files: {
       'probe.sprout': [
         'kind Probe is Bell {',

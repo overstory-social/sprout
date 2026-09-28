@@ -1,3 +1,5 @@
+import {turn} from 'verbs'
+
 kind Dial {
   as target for turn {
     number from 1 to 12

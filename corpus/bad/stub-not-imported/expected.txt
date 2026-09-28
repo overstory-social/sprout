@@ -1,4 +1,4 @@
-stub_not_imported.sprout:7:10  `object shed` names no object this file imports, and says nothing of its own.
-                               Import it, as in `import {shed} from 'rooms/shed'`, or give it its kinds: `object shed is <Kind> { … }`.
+stub_not_imported.sprout:10:10  `object shed` names no object this file imports, and says nothing of its own.
+                                Import it, as in `import {shed} from 'rooms/shed'`, or give it its kinds: `object shed is <Kind> { … }`.
 
 refused: 1 problem

@@ -1,5 +1,10 @@
 // Nobody is acting when a message arrives, so a handler has no `actor`
 // to tell, and cannot say a passage that renders one.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Bell} from 'bell'
+import {Rope} from 'rope'
+
 world handler_tells_actor is sprout.World {
   visitors are Person
   visitors arrive at hall

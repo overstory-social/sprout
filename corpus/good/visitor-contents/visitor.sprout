@@ -1,4 +1,7 @@
 // Every visitor is given a satchel on their first arrival, and never again.
+import * as sprout from 'sprout'
+import {Satchel} from 'satchel'
+
 kind Visitor is sprout.Visitor {
   object satchel is Satchel
 }

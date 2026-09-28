@@ -1,5 +1,9 @@
 // A describe with no `text` anywhere in it would be empty on a text
 // client.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
 world describe_no_text is sprout.World {
   visitors are Person
   visitors arrive at hall

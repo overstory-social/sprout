@@ -1,0 +1,38 @@
+// Each engine line is found on the one it is about, then where they
+// stand, then the world (the spec's Prose › Engine lines): a person's own
+// `gone_away` beats the world's, the yard's `waited` beats the world's
+// for whoever stands in the yard, and the shed words its own `arrives`,
+// naming the way in. The yard keeps the standard library's notices,
+// which name where someone came from and where they went, and leave it
+// out for someone coming into the world or leaving it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world engine_lines is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  passage waited    { Nothing stirs anywhere. }
+  passage gone_away { The gate clicks shut behind you. }
+
+  object yard is Yard {
+    grammar {
+      article the
+      exit in "through the low door" -> shed
+    }
+  }
+  object shed is Shed {
+    grammar {
+      article the
+      exit out "back into the yard" -> yard
+    }
+  }
+}
+
+kind Yard is sprout.Place {
+  passage waited { The yard is quiet. }
+}
+
+kind Shed is sprout.Place {
+  passage arrives { {item} ducks into the shed{if bound way}, {way}{/if}. }
+}

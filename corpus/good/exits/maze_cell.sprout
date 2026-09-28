@@ -2,6 +2,9 @@
 // new turning connects its own way back to the one that made it. Each
 // link is named by a word of the author's, and a visitor takes it by its
 // label. Every turning leads up to the yard.
+import * as sprout from 'sprout'
+import {dig} from 'ways'
+
 kind MazeCell is sprout.Place {
   :dug false
 

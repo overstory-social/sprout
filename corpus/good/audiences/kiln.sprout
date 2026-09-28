@@ -1,4 +1,6 @@
 // The spec's kiln: fired by someone, cooled by a wake nobody performs.
+import {fire} from 'audiences'
+
 kind Kiln {
   :hot false
 

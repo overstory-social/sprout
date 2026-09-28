@@ -1,5 +1,7 @@
 // A wake says `in`, a whole number written out, and `seconds`, `minutes`
 // or `hours`, always plural.
+import {:stir} from 'wake_syntax'
+
 kind Kiln {
   :delay 3 min 0 max 9
 

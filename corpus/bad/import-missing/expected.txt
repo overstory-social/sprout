@@ -1,0 +1,4 @@
+import_missing.sprout:10:21  `Crate` is declared in `crate.sprout`, and this file does not import it.
+                             Import it at the top of this file: `import {Crate} from 'crate'`.
+
+refused: 1 problem

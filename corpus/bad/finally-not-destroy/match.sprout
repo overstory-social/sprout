@@ -1,3 +1,5 @@
+import {:rang} from 'kinds'
+
 kind Match {
   on :rang { finally say "Gone." }
 }

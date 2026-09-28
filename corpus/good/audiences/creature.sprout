@@ -2,6 +2,9 @@
 // the second person, and the rest of the room reads it about both. Each
 // participant is someone the author already addresses, so the plain
 // `tell` leaves both out.
+import * as sprout from 'sprout'
+import {tag} from 'audiences'
+
 kind Creature is sprout.Actor {
   prose "creature.prose"
 

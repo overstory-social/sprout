@@ -1,6 +1,10 @@
 // `actor` is whoever is acting, a person or an NPC, so it is a
 // `sprout.Actor`: what only a person has is read once `is()` has said the
 // actor is one. The lamp asks after a person's lamp oil before it has.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
 world actor_read_unnarrowed is sprout.World {
   visitors are Person
   visitors arrive at hall

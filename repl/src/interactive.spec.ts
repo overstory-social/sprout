@@ -236,6 +236,18 @@ describe('playInteractively with record', () => {
     expect(io.out()).toBe(transcriptOf(readScript(readFileSync(file, 'utf8'), 'session.json')));
   });
 
+  it('records the same session whatever it shows, since a level only filters', async () => {
+    const typed = 'fire kiln\nkick kiln\n@advance 2 hours\n@arrive Ines\nlook\n';
+    const [plain, debug] = [recording(), recording()];
+    await playInteractively(kilnYard, { nickname: 'Marta', record: plain }, captured(typed));
+    await playInteractively(
+      kilnYard,
+      { nickname: 'Marta', debug: true, record: debug },
+      captured(typed),
+    );
+    expect(readFileSync(plain, 'utf8')).toBe(readFileSync(debug, 'utf8'));
+  });
+
   it('keeps what played before a line it refuses', async () => {
     const file = recording();
     const io = captured('fire kiln\n@dance\n');

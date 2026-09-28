@@ -3,6 +3,10 @@
 // override: the world's `nothing_happen` replaces no stock line, so the
 // stock `nothing_happens` is still what a visitor reads. Each is warned
 // about at its name, and the world still runs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Mirror} from 'mirror'
+
 world unheard_passage is sprout.World {
   visitors are Person
   visitors arrive at hall

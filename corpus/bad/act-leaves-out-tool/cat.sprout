@@ -1,5 +1,8 @@
 // A tool every phrase fills is never left out, and nor is one on a verb
 // with no phrases that does not mark it `optional`.
+import {Creature} from 'creature'
+import {pet, shove, poke} from 'act_leaves_out_tool'
+
 kind Cat is Creature {
   as target for pet {
     do {

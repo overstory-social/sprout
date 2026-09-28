@@ -1,6 +1,16 @@
 // `move`, as far as the compiler reads it today: a `do` proposes moving
 // a thing into a container, the object whose body runs it is the mover,
 // and the same three guards a typed command meets decide.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cart} from 'cart'
+import {Shelf} from 'shelf'
+import {Press} from 'press'
+import {Ball} from 'ball'
+import {Thing} from 'thing'
+import {Cat} from 'cat'
+import {Cupboard} from 'cupboard'
+
 world moving is sprout.World {
   contains actors
   visitors are Person

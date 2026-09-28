@@ -1,4 +1,6 @@
 // A glass case: the light gets in, nothing else does.
+import {:illuminating} from 'kinds'
+
 kind GlassCase {
   contains
   pass :illuminating (true)

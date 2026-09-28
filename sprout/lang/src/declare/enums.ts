@@ -35,6 +35,16 @@ export interface DeclaredEnum {
   readonly declaration: EnumDeclaration;
 }
 
+/**
+ * Where a name written without a library is looked up from inside `from`:
+ * a kind two of the world's files name alike is known by its file,
+ * `shop/rooms/cellar`, and reads the world's own names as the world does.
+ */
+export function lookingFrom(from: string): string {
+  const slash = from.indexOf('/');
+  return slash < 0 ? from : from.slice(0, slash);
+}
+
 /** `sprout.Ward` — an enum's full identity, which is its library and its name. */
 export function qualifiedName(library: string, name: string): string {
   return `${library}.${name}`;
@@ -117,8 +127,8 @@ export function nearestOption(word: string, options: readonly string[]): string 
 }
 
 /**
- * One enum, checked against itself: the first tier, where a declaration
- * has to agree with itself and nothing else is in scope yet.
+ * One enum, checked against itself as its file is read, where a
+ * declaration has to agree with itself and nothing else is in scope yet.
  *
  * `optionsPerEnum` is the host's figure for the spec's Limits › Static
  * caps. It is passed in because the number is never this layer's.
@@ -207,7 +217,7 @@ export class EnumTable {
    * `bundle/declarations.ts`'s; this is only the order.
    */
   unqualified(name: string, from: string): DeclaredEnum | null {
-    return this.qualified(from, name) ?? this.qualified(SPROUT, name);
+    return this.qualified(lookingFrom(from), name) ?? this.qualified(SPROUT, name);
   }
 
   /** Every enum in the bundle, in the order it was added. */

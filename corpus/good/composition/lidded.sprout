@@ -1,3 +1,5 @@
+import {Wooden} from 'wooden'
+
 kind Lidded is Wooden {
   contains
   :open true

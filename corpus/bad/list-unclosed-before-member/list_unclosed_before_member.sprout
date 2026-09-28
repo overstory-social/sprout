@@ -1,5 +1,8 @@
 // An unclosed list must not swallow the member written after it, or the
 // body's own closing brace.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 enum Ward { oak, silver }
 
 world list_unclosed_before_member is sprout.World {

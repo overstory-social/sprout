@@ -1,3 +1,6 @@
+import {Wick} from 'wick'
+import {:looked} from 'describe_writes'
+
 kind Lamp {
   contains
   :seen false

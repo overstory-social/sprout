@@ -1,5 +1,8 @@
 // `"pry [target]"` leaves the tool out, so a body reads it only once
 // `bound` has said it is there.
+import {pry} from 'optional_read_unguarded'
+import {Key} from 'key'
+
 kind Warded {
   as target for pry {
     permit {

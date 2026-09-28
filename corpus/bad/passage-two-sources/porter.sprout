@@ -1,4 +1,7 @@
 // Two kinds each write a line called `taken`, neither of them a default.
 // A thing speaks each line in one voice, so composing both is refused
 // until the composer writes its own.
+import {Plain} from 'plain'
+import {Terse} from 'terse'
+
 kind Porter is Plain, Terse { }

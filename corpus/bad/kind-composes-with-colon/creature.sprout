@@ -1,1 +1,4 @@
+import * as sprout from 'sprout'
+import {Fragile} from 'fragile'
+
 kind Creature: sprout.Visitor, Fragile { }

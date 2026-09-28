@@ -4,6 +4,12 @@
 // Acting). The shed has no way back, so once he is in it he stays. The
 // crow makes the same crossing on the yard's own tick, naming the shed
 // itself rather than a message's bound parameter.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Yard} from 'yard'
+import {Watchman} from 'watchman'
+import {Crow} from 'crow'
+
 world rounds is sprout.World {
   visitors are Person
   visitors arrive at yard

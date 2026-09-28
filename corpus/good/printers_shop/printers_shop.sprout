@@ -1,3 +1,12 @@
+import * as sprout from 'sprout'
+import {Visitor} from 'visitor'
+import {Creature} from 'creature'
+import {Warded} from 'warded'
+import {Key} from 'key'
+import {ask} from 'sprout'
+import {Rib} from 'rib'
+import {Sheet} from 'sheet'
+
 world printers_shop is sprout.World {
   contains
   visitors are Visitor

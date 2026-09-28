@@ -1,3 +1,6 @@
+import {Ward} from 'kinds'
+import {unlock} from 'sprout'
+
 kind Key {
   :opens [Ward] default [oak]
 

@@ -1,5 +1,7 @@
 // Each file that uses an extension names it at its top, as the world's
 // file does: this one uses `media` and does not say so.
+import {view} from 'extension_unnamed_in_file'
+
 kind Painting {
   :image media.Image default "cat.png"
   grammar { name "painting"  nouns "painting" }

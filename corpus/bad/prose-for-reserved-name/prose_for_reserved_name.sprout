@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world prose_for_reserved_name is sprout.World {
   visitors are Person
   visitors arrive at hall

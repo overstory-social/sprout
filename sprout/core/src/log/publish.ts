@@ -13,6 +13,7 @@ import type { SproutStore } from '../store.js';
 
 export const PublishEntry = z.object({
   kind: z.literal('publish'),
+  level: z.literal('info'),
   now: z.number().int().nonnegative(),
   /** The published bundle's hash (`Bundle.hash`). */
   bundle: z.string().min(1),
@@ -21,7 +22,12 @@ export type PublishEntry = z.infer<typeof PublishEntry>;
 
 /** What the log keeps of publishing `bundle` at `now`. */
 export function publishEntry(bundle: Bundle, now: HostSeconds): PublishEntry {
-  return { kind: 'publish', now: hostSeconds(now, 'a publish’s time'), bundle: bundle.hash };
+  return {
+    kind: 'publish',
+    level: 'info',
+    now: hostSeconds(now, 'a publish’s time'),
+    bundle: bundle.hash,
+  };
 }
 
 /**

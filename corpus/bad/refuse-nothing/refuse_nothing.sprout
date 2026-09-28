@@ -1,3 +1,6 @@
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 world refuse_nothing is sprout.World {
   visitors are Creature
   visitors arrive at hall

@@ -286,7 +286,7 @@ describe('what is refused, where, and what the author is told to write', () => {
       [
         'k.sprout:2:3',
         'A kind is not made of `visitors`.',
-        'It holds its properties, `remembers`, `contains`, `passage`, `prose`, `without`, `grammar`, `describe`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.',
+        'It holds its properties, `remembers`, `contains`, `passage`, `prose`, `without`, `synonyms`, `grammar`, `describe`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.',
       ],
     ]);
     expect(membersOf(kind!)).toEqual([':open']);

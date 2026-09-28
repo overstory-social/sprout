@@ -1,5 +1,7 @@
 // A bellows answers being made by fanning out a gust, and a lighter
 // lights whatever the light reaches.
+import {:gust} from 'kinds'
+
 kind Bellows {
   on :spawned (from) { broadcast :gust }
 }

@@ -1,4 +1,6 @@
 // `unlock` has a target and a tool, and nothing called `tool2`.
+import {unlock} from 'sprout'
+
 kind Key {
   as tool2 for unlock {
     do { }

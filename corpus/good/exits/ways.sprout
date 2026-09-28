@@ -5,6 +5,12 @@
 // holds, and an object's own exits in a direction replace its kind's
 // there. A link leads nowhere until the world connects it, from a `do`
 // and from `on :spawned`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+import {Ladder} from 'ladder'
+import {MazeCell} from 'maze_cell'
+
 world ways is sprout.World {
   visitors are Person
   visitors arrive at yard

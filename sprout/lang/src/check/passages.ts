@@ -1,7 +1,7 @@
 // Every passage, checked against each place it is said from (the spec's
 // Prose › Passages: a passage may use the bindings of the body that
 // invokes it, and may then only be invoked from a body where those
-// bindings exist; The compiler › Two tiers, What it refuses).
+// bindings exist; The compiler › One tier, What it refuses).
 //
 // A passage's `self` is the kind that wrote it, and the rest of its scope
 // is the invoking body's. The places a passage is said from are exact: a
@@ -27,13 +27,7 @@ import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import type { Node } from '../source/nodes.js';
 import type { Span } from '../source/source.js';
 import { readable } from '../source/words.js';
-import {
-  ACTOR_LINES,
-  PLACE_LINES,
-  WORLD_LINES,
-  type EngineBinds,
-  type EnginePassage,
-} from '../declare/engine-passages.js';
+import { ENGINE_LINES, type EngineBinds, type EnginePassage } from '../declare/engine-passages.js';
 import { composesKind, kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import { STRING } from '../declare/types.js';
@@ -45,7 +39,6 @@ import {
   READINGS,
   Scope,
   selfBinding,
-  setOf,
   showBindingType,
   valueOf,
   type Binding,
@@ -115,7 +108,7 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
         }
       }
     }
-    for (const line of [...WORLD_LINES, ...PLACE_LINES, ...ACTOR_LINES]) {
+    for (const line of ENGINE_LINES) {
       const passage = kind.passages.get(line.name);
       if (passage !== undefined) {
         const scope = engineScope(line, passage.at, setting);
@@ -123,6 +116,18 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
           line.polled === true ? { by: 'poll', line: line.name } : null;
         say(run, { passage, scope, from: { from: 'engine', line }, undrawn });
       }
+    }
+    // A thing's own `contents`, which `examine` says after its description
+    // and holds to a description's rules (the spec's Engine verbs).
+    const contents = kind.passages.get(CONTENTS.name);
+    if (contents !== undefined) {
+      const scope = engineScope(CONTENTS, contents.at, setting);
+      say(run, {
+        passage: contents,
+        scope,
+        from: { from: 'engine', line: CONTENTS },
+        undrawn: { by: 'contents' },
+      });
     }
   }
   for (const site of setting.sites.rendered) rendered(run, site);
@@ -149,12 +154,27 @@ function bodiesOf(kind: KindRef): Node[] {
   ];
 }
 
-/** What the engine binds when it says `line`, the one acting and their place typed as a body's `actor` and `here` are. */
+/**
+ * What the engine binds when it says `line`, the one acting and their
+ * place typed as a body's `actor` and `here` are; a name it may leave
+ * unbound is withheld, and read only inside `{if bound …}`.
+ */
 function engineScope(line: EnginePassage, at: Span, setting: PassageSetting): Scope {
-  return Object.entries(line.binds).reduce(
-    (built, [name, binds]) => built.bounding(engineBinding(name, binds, at, setting)),
+  const optional = line.optional ?? {};
+  const scope = Object.entries(line.binds).reduce(
+    (built, [name, binds]) =>
+      name in optional ? built : built.bounding(engineBinding(name, binds, at, setting)),
     Scope.root(),
   );
+  for (const [name, why] of Object.entries(optional)) {
+    const binding = engineBinding(name, line.binds[name]!, at, setting);
+    const unread = {
+      message: `\`${name}\` may be missing here: ${why}.`,
+      remedy: `Read it inside \`{if bound ${name}}\`, as in \`{if bound ${name}}{${name}}{/if}\`.`,
+    };
+    scope.withhold({ name, at, unread, bound: { bindable: true, binding } }, setting.diagnostics);
+  }
+  return scope;
 }
 
 /** What a name the engine binds, other than `actor` and `here`, holds. */
@@ -162,8 +182,6 @@ function engineType(binds: Exclude<EngineBinds, 'actor' | 'here'>): BindingType 
   switch (binds) {
     case 'object':
       return OPEN_OBJECT;
-    case 'set':
-      return setOf(null);
     case 'readings':
       return READINGS;
     case 'text':
@@ -189,6 +207,9 @@ function engineBinding(
     writable: false,
   };
 }
+
+/** A thing's `contents`, as `examine` says it: to the one looking, where they stand. */
+const CONTENTS: EnginePassage = { name: 'contents', binds: { actor: 'actor', here: 'here' } };
 
 /** The passages still to check, and what has been checked and said. */
 interface Run {
@@ -275,6 +296,8 @@ function undrawnKey(undrawn: Undrawn | null): string {
       return `pass ${undrawn.written}`;
     case 'poll':
       return `poll ${undrawn.line}`;
+    case 'contents':
+      return 'contents';
   }
 }
 

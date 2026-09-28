@@ -12,7 +12,7 @@ import {
   playScript,
 } from './play.js';
 import { scriptOf, transcriptOf } from './fixtures/scripts.js';
-import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
+import { bundleOf, KILN_YARD, LANE } from './fixtures/worlds.js';
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
 const play = (lines: string): string =>
@@ -174,18 +174,18 @@ describe('playSteps', () => {
     const [arrived, aside, kicked] = played;
     expect(arrived!.made).toEqual([
       {
+        level: 'prose',
         text: 'Marta (described): A kiln yard.',
         words: 'A kiln yard.',
-        fault: false,
         kind: 'described',
         shown: 'A kiln yard.',
         reader: 'Marta',
       },
     ]);
     expect(aside!.made).toBeNull();
-    expect(kicked!.made!.map((made) => [made.words === null, made.fault])).toEqual([
-      [false, false],
-      [true, true],
+    expect(kicked!.made!.map((made) => [made.words === null, made.level])).toEqual([
+      [false, 'prose'],
+      [true, 'error'],
     ]);
     expect(kicked!.made!.map((made) => [made.shown, made.reader])).toEqual([
       [kicked!.made![0]!.words, 'Marta'],
@@ -202,7 +202,14 @@ describe('playSteps', () => {
     );
     expect(played.map((one) => one.made?.length ?? null)).toEqual([null, 1, 1, 0]);
     expect(heard([])).toEqual([
-      { text: '(nothing)', words: null, fault: false, kind: null, shown: null, reader: null },
+      {
+        level: 'info',
+        text: '(nothing)',
+        words: null,
+        kind: null,
+        shown: '(nothing)',
+        reader: null,
+      },
     ]);
   });
 });
@@ -222,9 +229,9 @@ describe('arrive', () => {
     const stage = freshStage(bundle);
     expect(arrive(stage, 'Marta', 'shed')).toEqual([
       {
+        level: 'prose',
         text: 'Marta (described): A dark shed.',
         words: 'A dark shed.',
-        fault: false,
         kind: 'described',
         shown: 'A dark shed.',
         reader: 'Marta',
@@ -269,9 +276,9 @@ describe('playInteractive', () => {
     expect(outcome.step).toEqual({ as: 'Marta', type: 'fire kiln' });
     expect(outcome.made).toEqual([
       {
+        level: 'prose',
         text: 'Marta (said): The chamber takes the flame.',
         words: 'The chamber takes the flame.',
-        fault: false,
         kind: 'said',
         shown: 'The chamber takes the flame.',
         reader: 'Marta',
@@ -312,9 +319,9 @@ describe('playInteractive', () => {
     expect(outcome.step).toEqual({ as: 'Marta', type: 'fire kiln' });
     expect(outcome.made).toEqual([
       {
+        level: 'prose',
         text: 'Marta (said): The chamber takes the flame.',
         words: 'The chamber takes the flame.',
-        fault: false,
         kind: 'said',
         shown: 'The chamber takes the flame.',
         reader: 'Marta',
@@ -351,5 +358,40 @@ describe('a refusal at the door', () => {
     expect(refused!.words).toBeNull();
     expect(refused!.reader).toBeNull();
     expect(refused!.text).toBe(`nickname refused: ${refused!.shown}`);
+    // Prose, as play shows it, since the one at the door reads nothing else.
+    expect(refused!.level).toBe('prose');
+  });
+});
+
+describe('a reader cut short', () => {
+  it('is a warning, after what the turn said, naming who and the host’s figure', () => {
+    const fresh = freshStage(bundle);
+    const stage = {
+      ...fresh,
+      host: { ...fresh.host, budgets: { ...fresh.host.budgets, output: 12 } },
+    };
+    arrive(stage, 'Marta');
+    // Ines reads her 12 characters; Marta's 13 of `Ines arrives.` do not fit.
+    expect(arrive(stage, 'Ines').map((made) => [made.level, made.text])).toEqual([
+      ['prose', 'Ines (described): A kiln yard.'],
+      ['warning', 'Marta was cut short: one turn may say 12 characters to any one person'],
+    ]);
+  });
+});
+
+describe('a line read one of several ways that tied', () => {
+  it('is told which was meant before what it says, and the draw is a warning', () => {
+    const lane = bundleOf('lane', LANE);
+    const stage = freshStage(lane);
+    arrive(stage, 'Marta');
+    const made = playInteractive(stage, 'Marta> take key', 'stdin:2').made!;
+    const taken = /^You take an? (brass|iron) key\.$/.exec(made[1]!.words ?? '')?.[1];
+    expect(made.map((one) => [one.level, one.kind])).toEqual([
+      ['prose', 'notice'],
+      ['prose', 'said'],
+      ['warning', null],
+    ]);
+    expect(made[0]!.words).toBe(`(A ${taken} key)`);
+    expect(made[2]!.text).toBe('drawn: the line read 2 ways that tied, and one was drawn');
   });
 });

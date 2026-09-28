@@ -1,4 +1,7 @@
 // The world's `acted` is rendered as a poll renders, which draws nothing.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
 world chance_in_acted is sprout.World {
   visitors are Person
   visitors arrive at yard

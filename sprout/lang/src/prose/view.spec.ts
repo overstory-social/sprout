@@ -15,12 +15,11 @@ import {
   TOWER,
   YARD,
 } from '../fixtures/view.js';
-import { DISPLACED_STOCK } from '../runtime/arrival.js';
 import { Draft } from '../runtime/draft.js';
 import { visitKey } from '../runtime/ids.js';
 import { SproutList } from '../runtime/lists.js';
 import { saveWorld } from '../runtime/load.js';
-import { stockLine } from '../runtime/faults.js';
+import { STOCK_LINES } from '../runtime/engine-lines.js';
 import { viewOf } from '../runtime/view.js';
 import { pollView, renderView } from './view.js';
 import type { Catalogue } from '../runtime/catalogue.js';
@@ -134,7 +133,7 @@ describe('polling a visitor’s view', () => {
 
   it('says `unseen` in the stock words where rendering the world’s own cannot be afforded either', () => {
     const polled = pollView(gatehouse(), gateHost(0), MARTA);
-    expect(polled.view.description).toEqual([stockLine('unseen')]);
+    expect(polled.view.description).toEqual([STOCK_LINES.unseen]);
     expect(polled.fault?.name).toBe('BudgetExhausted');
   });
 
@@ -144,7 +143,7 @@ describe('polling a visitor’s view', () => {
     draft.place(actorOf(base, MARTA), PURSE);
     const polled = pollView(draft.commit().state, gateHost(), MARTA);
     expect(polled.fault).toBeNull();
-    expect(polled.view.description).toEqual([DISPLACED_STOCK]);
+    expect(polled.view.description).toEqual([STOCK_LINES.displaced]);
     expect(polled.view.readings).toEqual([]);
     expect(polled.view.exits).toEqual([]);
   });

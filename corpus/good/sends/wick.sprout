@@ -1,3 +1,5 @@
+import {:lit} from 'kinds'
+
 kind Wick {
   :burning false
   on :lit (_, value) { self.set(:burning, value) }

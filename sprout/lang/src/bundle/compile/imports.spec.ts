@@ -61,7 +61,10 @@ describe('what a file imports', () => {
       'crate.sprout': `import {Crate} from ${Q}boxes${Q}\nimport {Bag, Crate as C2} from ${Q}person${Q}\nkind Crate { }\n`,
     });
     expect(refused(result)).toEqual([
-      ['crate.sprout:1:21', "`'boxes'` reaches no file or library of this world."],
+      [
+        'crate.sprout:1:21',
+        "`'boxes'` reaches no file of this world, and no library its manifest pins.",
+      ],
       ['crate.sprout:2:9', '`person.sprout` declares no `Bag` at its top level.'],
       ['crate.sprout:2:14', '`person.sprout` declares no `Crate` at its top level.'],
     ]);
@@ -99,6 +102,27 @@ describe('what a file imports', () => {
       { mode: 'load', withheld: ['crate.sprout'] },
     );
     expect(refused(result)).toEqual([]);
+  });
+});
+
+describe('two kinds of one name, in two files', () => {
+  it('are two kinds, each known by its file, and a file that needs both names one under `as`', () => {
+    const result = compileWorld(
+      'w',
+      {
+        'w.sprout': `import * as sprout from ${Q}sprout${Q}\nimport {Key as IronKey} from ${Q}iron/key${Q}\nimport {Key as BrassKey} from ${Q}brass/key${Q}\nimport {Person} from ${Q}person${Q}\nworld w is sprout.World {\n  visitors are Person\n  visitors arrive at yard\n  object yard is sprout.Place {\n    object iron is IronKey\n    object brass is BrassKey\n  }\n}\n`,
+        'person.sprout': `import * as sprout from ${Q}sprout${Q}\nkind Person is sprout.Visitor { }\n`,
+        'iron/key.sprout': 'kind Key {\n  :heavy true\n}\n',
+        'brass/key.sprout': 'kind Key {\n  :shiny true\n}\n',
+      },
+      { asWritten: true },
+    );
+    expect(refused(result)).toEqual([]);
+    const made = (name: string) => result.bundle!.objects.find((object) => object.name === name)!;
+    expect(made('iron').kind.composes.has('w/iron/key.Key')).toBe(true);
+    expect(made('brass').kind.composes.has('w/brass/key.Key')).toBe(true);
+    expect([...made('iron').kind.properties.keys()]).toEqual(['heavy']);
+    expect([...made('brass').kind.properties.keys()]).toEqual(['shiny']);
   });
 });
 
@@ -145,6 +169,34 @@ describe('an object in a file of its own', () => {
       '`in x.thing` names nothing in the world for `a` to sit in.',
       '`in nowhere` names nothing in the world for `x` to sit in.',
     ]);
+  });
+
+  it('names an object another file declares only from the world, unless it imports it', () => {
+    const cellar = (exit: string) =>
+      world('  object cellar', {
+        'w.sprout': `import {cellar} from ${Q}rooms/cellar${Q}\nworld w is sprout.World {\n  visitors are Person\n  visitors arrive at yard\n  object yard is sprout.Place {\n    grammar { exit down "down" -> cellar }\n  }\n  object cellar\n}\n`,
+        'rooms/cellar.sprout': `object cellar is sprout.Place {\n  grammar { exit up "up" -> ${exit} }\n}\n`,
+      });
+    expect(refused(cellar('yard'))).toEqual([
+      [
+        'rooms/cellar.sprout:2:29',
+        '`yard` is written in `w.sprout`, and this file does not import it.',
+      ],
+    ]);
+    expect(refused(cellar('w.yard'))).toEqual([]);
+  });
+
+  it('names the place visitors arrive at from the world, where another file declares it', () => {
+    const arriving = (at: string) =>
+      compileWorld('w', {
+        'w.sprout': `world w is sprout.World {\n  visitors are Person\n  visitors arrive at ${at}\n  object yard is sprout.Place\n}\n`,
+        'person.sprout': 'kind Person is sprout.Visitor { }\n',
+        'shed.sprout': 'object shed is sprout.Place in w { }\n',
+      });
+    expect(refused(arriving('shed'))).toEqual([
+      ['w.sprout:3:22', '`shed` is written in `shed.sprout`, and this file does not import it.'],
+    ]);
+    expect(refused(arriving('w.shed'))).toEqual([]);
   });
 
   it('refuses two objects each placed inside the other', () => {

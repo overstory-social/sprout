@@ -122,7 +122,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     contents: bundle.contents,
     lookup: bundle.kindLookup,
     verbs: bundle.verbs,
-    phrases: typedPhrasesOf(bundle.verbs.all(), name),
+    phrases: typedPhrasesOf(bundle.verbs.all(), name, bundle.synonyms),
     messages: bundle.messages,
     names: bundle.names,
     optionSlots: bundle.optionSlots,

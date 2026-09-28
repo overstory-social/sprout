@@ -1,4 +1,6 @@
 // A passage the kind does not have.
+import {Mood} from 'prose_passage_unknown'
+
 kind Mirror {
   :mood Mood default drowsy
   passage greeting { {self.gretting} }

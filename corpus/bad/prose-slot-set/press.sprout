@@ -1,4 +1,6 @@
 // A whole set role in a slot.
+import {work} from 'prose_slot_set'
+
 kind Press {
   as target for work {
     do { say "You work {self} with {tools}." }

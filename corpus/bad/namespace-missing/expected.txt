@@ -1,0 +1,4 @@
+namespace_missing.sprout:4:28  `sprout.World` names `sprout`, which this file does not import as a namespace.
+                               Import it at the top of this file, as in `import * as sprout from 'sprout'`, or import `World` itself.
+
+refused: 1 problem

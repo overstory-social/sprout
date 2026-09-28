@@ -2,6 +2,10 @@
 // occupants or to the place around it, and either is refused where the
 // teller's kind holds no actors, since there is nobody there to have
 // either audience.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lever} from 'lever'
+
 world tell_inside_not_actors is sprout.World {
   visitors are Person
   visitors arrive at hall

@@ -1,5 +1,5 @@
-// Reading a file into declarations: the first tier of the spec's The
-// compiler › Two tiers.
+// Reading a file into declarations, the first thing compiling a bundle
+// does with each of its files (the spec's The compiler › One tier).
 //
 // This is the parser for SOURCE — what an author writes in a `.sprout`
 // file — and not the parser for what a visitor types, which is B27's.
@@ -59,7 +59,15 @@ export { DEEPEST } from './parse/parser.js';
  * spec holds that this list and that message name the same words, in
  * both directions.
  */
-export const DECLARATIONS = ['enum', 'kind', 'message', 'object', 'verb', 'world'] as const;
+export const DECLARATIONS = [
+  'enum',
+  'import',
+  'kind',
+  'message',
+  'object',
+  'verb',
+  'world',
+] as const;
 
 /** Every declaration in one file. Problems go to `diagnostics`; nothing is thrown. */
 export function parseDeclarations(

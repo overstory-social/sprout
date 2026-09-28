@@ -16,6 +16,9 @@
 import type { LibrarySource } from './bundle.js';
 import { SourceFile } from '../source/source.js';
 
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
 const WORLD = `// sprout.World: what every world composes (the spec's The world model),
 // and the words the engine speaks for itself, as default passages any
 // other source's line of the same name replaces.
@@ -24,7 +27,7 @@ kind World {
 
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
-  passage which default           { Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for} }
+  passage meant default           { ({thing}) }
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }
   passage unseen default          { Something here is too much to take in. }
@@ -36,6 +39,8 @@ kind World {
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
   passage acted default           { {actor} tries to {reading}. }
+  passage gone_away default       { You leave, and take what you carry with you. }
+  passage npc_says default        { {actor} says "{words}" }
 }
 `;
 
@@ -54,8 +59,8 @@ const PLACE = `// sprout.Place: a place is whatever holds actors (the spec's Pla
 // and the notices of someone arriving and leaving, as default passages.
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves default  { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves default  { {item} leaves{if bound to} for {to}{/if}. }
 }
 `;
 
@@ -65,6 +70,8 @@ const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that m
 // own part in each (The actor's own part), with the passages they say and
 // refuse through, and the inventory the engine's \`inventory\` says (Engine
 // verbs). Its pass rule makes a pocket private (Containers route).
+import {Container} from ${Q}container${Q}
+
 verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "grab [target]" }
 verb drop { role target  "drop [target]"  "put down [target]" }
 verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]" }
@@ -126,12 +133,16 @@ kind Actor {
 const VISITOR = `// sprout.Visitor: what a person is made of, an actor with somebody
 // behind it (the spec's Actors and visitors). A world's visitor kind
 // composes it, and no object or spawn is made of it.
+import {Actor} from ${Q}actor${Q}
+
 kind Visitor is Actor { }
 `;
 
 const FIXTURE = `// sprout.Fixture: a thing no actor carries off, said with a guard and a
 // passage rather than a property (the spec's The standard library is
 // written in Sprout).
+import {Actor} from ${Q}actor${Q}
+
 kind Fixture {
   depart (to) { if (to.is(Actor)) { refuse immovable } }
   passage immovable default { {self} is not something you can pick up. }
@@ -139,10 +150,12 @@ kind Fixture {
 `;
 
 const CONTAINER = `// sprout.Container: a lid and a capacity, the pass rule that lets a
-// message in only while it is open (the spec's Containers route), and the
-// \`open\` and \`close\` it plays the target of.
-verb open  { role target: Container  "open [target]" }
-verb close { role target: Container  "close [target]"  "shut [target]" }
+// message in only while it is open (the spec's Containers route), the
+// \`open\`, \`close\` and \`look_in\` it plays the target of, and its
+// \`contents\`, which \`examine\` says after its description.
+verb open    { role target: Container  "open [target]" }
+verb close   { role target: Container  "close [target]"  "shut [target]" }
+verb look_in { role target: Container  "look in [target]"  "look inside [target]"  "what is in [target]" }
 
 kind Container {
   contains
@@ -166,9 +179,18 @@ kind Container {
     do     { self.set(:open, false)  say closed  tell closes }
   }
 
+  as target for look_in {
+    permit { if (!self.get(:open)) { refuse shut } }
+    do     { say contents }
+  }
+
+  passage contents default {
+    {if self.get(:open)}{if self.count == 0}It is empty.{else}Inside: {for thing in self}{thing}{if $last}.{else}, {/if}{/for}{/if}{/if}
+  }
+
   passage shut default   { {self} is shut. }
   passage full default   { There is no room in {self}. }
-  passage opened default { You open {self}. }
+  passage opened default { You open {self}. {self.contents} }
   passage opens default  { {actor} opens {self}. }
   passage closed default { You shut {self}. }
   passage closes default { {actor} shuts {self}. }
@@ -180,6 +202,8 @@ const LOCKABLE = `// sprout.Lockable: a lock, which carries no pass rule of its 
 // until it is unlocked (the spec's A worked microworld, The standard
 // library it needs). Which tool fits is the world's to say, in a
 // \`permit\` of its own.
+import {open} from ${Q}container${Q}
+
 verb unlock {
   role target: Lockable
   role tool

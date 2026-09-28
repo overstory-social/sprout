@@ -1,4 +1,4 @@
-cat.sprout:7:7  The bracket after `act nuzzle` is never closed.
-                Add a ) after its last role.
+cat.sprout:10:7  The bracket after `act nuzzle` is never closed.
+                 Add a ) after its last role.
 
 refused: 1 problem

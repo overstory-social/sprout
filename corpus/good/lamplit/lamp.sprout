@@ -1,4 +1,6 @@
 // A lamp shows whatever stands where the one lighting it is.
+import {light} from 'lamplit'
+
 kind Lamp {
   as target for light {
     do {

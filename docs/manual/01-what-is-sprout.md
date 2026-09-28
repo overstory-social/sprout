@@ -17,6 +17,9 @@ Sprout is that kind of game, made small and made to share.
 Here is a complete room with a lamp in it:
 
 ```sprout
+import * as sprout from 'sprout'
+import {Lamp} from 'lamp'
+
 world lantern_yard is sprout.World {
   visitors are Person
   visitors arrive at yard
@@ -30,10 +33,14 @@ world lantern_yard is sprout.World {
 verb light { role target: Lamp  "light [target]" }
 ```
 
-The last line adds a verb, so visitors can type `light lamp`. And here is
-what a lamp is:
+The first lines bring in what the file uses: the standard library that
+comes with Sprout, and the lamp from its own file. The last line adds a
+verb, so visitors can type `light lamp`. And here is what a lamp is, in
+`lamp.sprout`:
 
 ```sprout
+import {light} from 'lantern_yard'
+
 kind Lamp {
   :lit false
 

@@ -23,7 +23,7 @@
       { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
     ] },
     { "as": "Marta", "type": "open cabinet", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet. Inside: a shop key." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the type cabinet." }
     ] },
     { "as": "Marta", "type": "take shop key", "expect": [
@@ -38,12 +38,12 @@
       { "reader": "Marta", "kind": "refused", "words": "The paper store is shut." }
     ] },
     { "as": "Marta", "type": "open paper store", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the paper store." },
+      { "reader": "Marta", "kind": "said", "words": "You open the paper store. Inside: a ladder." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the paper store." }
     ] },
     { "as": "Marta", "type": "go in", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
-      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the paper store." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from the composing room." },
       { "reader": "Marta", "kind": "described", "words": "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
     ] },
     { "as": "Ines", "type": "look", "expect": [
@@ -64,14 +64,14 @@
       { "reader": "Marta", "kind": "refused", "words": "It is down already." }
     ] },
     { "as": "Marta", "type": "go up", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the drying loft." },
       { "reader": "Marta", "kind": "described", "words": "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
     ] },
     { "as": "Marta", "type": "look", "expect": [
       { "reader": "Marta", "kind": "described", "words": "Lines strung wall to wall under the slates, and the smell of size. Nothing hangs on them yet." }
     ] },
     { "as": "Marta", "type": "go down", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from the drying loft." },
       { "reader": "Marta", "kind": "described", "words": "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
     ] },
     { "as": "Ines", "type": "close paper store", "expect": [
@@ -82,17 +82,17 @@
       { "reader": "Marta", "kind": "described", "words": "Reams in brown paper, shelved by weight. A ladder leans against the loft hatch." }
     ] },
     { "as": "Marta", "type": "go out", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
-      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the composing room." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from the paper store." },
       { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
       { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines," }
     ] },
     { "as": "Marta", "type": "open paper store", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the paper store." },
+      { "reader": "Marta", "kind": "said", "words": "You open the paper store. Inside: a ladder." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the paper store." }
     ] },
     { "as": "Marta", "type": "go out", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the press yard." },
       { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
       { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
     ] }
