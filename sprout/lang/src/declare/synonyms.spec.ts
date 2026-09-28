@@ -96,6 +96,17 @@ describe('a verb’s own synonyms, as its file is read', () => {
     ]);
   });
 
+  it('name every phrase one gives that the verb has, and not the first alone', () => {
+    expect(
+      said(
+        'verb pry { role target  "pry [target]"  "pry at [target]"  "lever [target]"  "lever at [target]"  synonyms "lever" }\n',
+      ).map((line) => line.slice(line.indexOf(' ') + 1)),
+    ).toEqual([
+      '`"lever"` gives `pry` the phrase `"lever [target]"`, which it has already.',
+      '`"lever"` gives `pry` the phrase `"lever at [target]"`, which it has already.',
+    ]);
+  });
+
   it('are refused where a phrase one gives is longer than a phrase may be, and do not count toward the phrases', () => {
     const caps = limitsFrom({ caps: { phraseCharacters: 17, phrasesPerVerb: 1 } }).caps;
     expect(

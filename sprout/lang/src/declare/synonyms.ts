@@ -86,8 +86,9 @@ interface Given {
 }
 
 /**
- * Refuse, at `synonym`, a phrase it gives that its verb already has or
- * that is longer than a phrase may be; add each other to `known`.
+ * Refuse, at `synonym`, each phrase it gives that its verb already has or
+ * that is longer than a phrase may be, every one named; add each other to
+ * `known`.
  */
 function checkGiven(
   given: readonly Given[],
@@ -103,7 +104,7 @@ function checkGiven(
         `\`"${one.synonym.text}"\` gives \`${one.verb}\` the phrase \`"${one.text}"\`, which is ${length} characters long, and ${caps.phraseCharacters} is as long as a phrase may be.`,
         'Say it in fewer words: a synonym takes the place of the verb’s name in each phrase.',
       );
-      return;
+      continue;
     }
     if (known.has(one.key)) {
       diagnostics.refuse(
@@ -111,7 +112,7 @@ function checkGiven(
         `\`"${one.synonym.text}"\` gives \`${one.verb}\` the phrase \`"${one.text}"\`, which it has already.`,
         'Take the synonym out, or the phrase it repeats.',
       );
-      return;
+      continue;
     }
     known.add(one.key);
   }
