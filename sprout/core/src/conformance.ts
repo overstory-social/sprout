@@ -195,6 +195,7 @@ const turnInputs = (now: number, seed = 4_294_967_295) => ({
 });
 const toMarta = (kind: 'said' | 'told' | 'refused' | 'described' | 'notice', words: string[]) => ({
   kind,
+  level: 'prose' as const,
   from: 'shop.hall.lamp',
   actor: 'shop#1',
   to: 'shop#1',
@@ -202,6 +203,7 @@ const toMarta = (kind: 'said' | 'told' | 'refused' | 'described' | 'notice', wor
   paragraphs: words,
 });
 const tangled = {
+  level: 'error' as const,
   name: 'BudgetExhausted',
   detail: 'steps: a wake turn may take 50000 steps.',
   object: 'shop#2',
@@ -209,18 +211,21 @@ const tangled = {
   extension: null,
 };
 const LOG: readonly LogEntry[] = [
-  { kind: 'publish', now: 3_000_000_000, bundle: 'a1'.repeat(32) },
+  { kind: 'publish', level: 'info', now: 3_000_000_000, bundle: 'a1'.repeat(32) },
   {
     kind: 'arrival',
+    level: 'info',
     ...turnInputs(3_000_000_001, 0),
     visit: 'v-marta',
     nickname: 'Marta',
     outcome: 'admitted',
     fault: null,
     effects: [{ ...toMarta('described', ['A hall.', 'Tëst “lamp” \u{1F56F}']), from: 'shop.hall' }],
+    cutShort: [],
   },
   {
     kind: 'command',
+    level: 'info',
     ...turnInputs(3_000_000_002),
     visit: 'v-marta',
     text: 'light lamp',
@@ -236,9 +241,11 @@ const LOG: readonly LogEntry[] = [
         payload: { src: 'lamp.png', size: [3, 4.5], lit: true, caption: null },
       },
     ],
+    cutShort: [{ level: 'warning', to: 'shop#4' }],
   },
   {
     kind: 'said',
+    level: 'info',
     now: 3_000_000_002,
     from: 'v-marta',
     place: 'shop.hall',
@@ -247,29 +254,36 @@ const LOG: readonly LogEntry[] = [
   },
   {
     kind: 'command',
+    level: 'info',
     ...turnInputs(3_000_000_003),
     visit: 'v-marta',
     text: 'juggle lamp',
     fault: { ...tangled, object: null, engine: true },
     effects: [{ ...toMarta('notice', ['Something has gone wrong.']), from: 'shop' }],
+    cutShort: [],
   },
   {
     kind: 'tick',
+    level: 'info',
     ...turnInputs(3_000_000_004),
     place: 'shop.hall',
     fault: null,
     effects: [{ ...toMarta('told', ['The wind rises.']), actor: null }],
+    cutShort: [],
   },
   {
     kind: 'wake',
+    level: 'info',
     ...turnInputs(3_000_000_005),
     object: 'shop#2',
     serial: 5,
     fault: tangled,
     effects: [],
+    cutShort: [],
   },
   {
     kind: 'maintenance',
+    level: 'info',
     ...turnInputs(3_000_000_006),
     delivered: [{ object: 'shop.hall.lamp', serial: 6 }],
     faulted: [{ object: 'shop#2', serial: 7, fault: tangled }],
@@ -277,19 +291,23 @@ const LOG: readonly LogEntry[] = [
   },
   {
     kind: 'departure',
+    level: 'info',
     ...turnInputs(3_000_000_007),
     visit: 'v-marta',
     fault: null,
     effects: [toMarta('notice', ['You leave.'])],
+    cutShort: [],
   },
   {
     kind: 'withholding',
+    level: 'info',
     now: 3_000_000_008,
     withheld: ['cellar.sprout'],
     bundle: 'b2'.repeat(32),
   },
   {
     kind: 'poll-fault',
+    level: 'error',
     now: 3_000_000_009,
     fault: {
       ...tangled,

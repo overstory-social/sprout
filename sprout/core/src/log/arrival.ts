@@ -4,7 +4,9 @@ import { visitKey, type Arrival, type ArrivalTurn, type TurnHost } from '@overst
 
 import {
   inputsOf,
+  LoggedCut,
   LoggedEffect,
+  loggedCuts,
   LoggedFault,
   loggedEffects,
   loggedFault,
@@ -22,12 +24,15 @@ import {
 
 export const ArrivalEntry = TurnInputs.extend({
   kind: z.literal('arrival'),
+  level: z.literal('info'),
   visit: z.string().min(1),
   nickname: z.string().min(1),
   outcome: z.enum(['admitted', 'refused', 'faulted']),
   /** Null unless it faulted. */
   fault: LoggedFault.nullable(),
   effects: z.array(LoggedEffect),
+  /** Who a line would have taken past their output, each a warning. */
+  cutShort: z.array(LoggedCut),
 });
 export type ArrivalEntry = z.infer<typeof ArrivalEntry>;
 
@@ -38,17 +43,30 @@ export type RanArrival = Exclude<ArrivalTurn, { readonly closed: unknown }>;
 export function arrivalEntry(arrival: Arrival, host: TurnHost, turn: RanArrival): ArrivalEntry {
   const base = {
     kind: 'arrival' as const,
+    level: 'info' as const,
     ...inputsOf(arrival, host),
     visit: arrival.visit,
     nickname: arrival.nickname,
   };
   if (turn.committed) {
-    return { ...base, outcome: 'admitted', fault: null, effects: loggedEffects(turn.effects) };
+    return {
+      ...base,
+      outcome: 'admitted',
+      fault: null,
+      effects: loggedEffects(turn.effects),
+      cutShort: loggedCuts(turn.cutShort),
+    };
   }
   if ('refused' in turn) {
-    return { ...base, outcome: 'refused', fault: null, effects: loggedEffects(turn.effects) };
+    return {
+      ...base,
+      outcome: 'refused',
+      fault: null,
+      effects: loggedEffects(turn.effects),
+      cutShort: [],
+    };
   }
-  return { ...base, outcome: 'faulted', fault: loggedFault(turn.fault), effects: [] };
+  return { ...base, outcome: 'faulted', fault: loggedFault(turn.fault), effects: [], cutShort: [] };
 }
 
 /** The arrival `entry` records, as the host handed it over. */

@@ -143,8 +143,10 @@ describe('a view polled against a store', () => {
         seq: 1,
         entry: {
           kind: 'poll-fault',
+          level: 'error',
           now: 7,
           fault: {
+            level: 'error',
             name: 'BudgetExhausted',
             detail: polled.fault!.detail,
             object: HALL,

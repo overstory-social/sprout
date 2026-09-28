@@ -14,6 +14,7 @@ const LoggedWake = z.object({ object: z.string().min(1), serial: z.number().int(
 
 export const MaintenanceEntry = TurnInputs.extend({
   kind: z.literal('maintenance'),
+  level: z.literal('info'),
   delivered: z.array(LoggedWake),
   faulted: z.array(LoggedWake.extend({ fault: LoggedFault })),
   abandoned: z.array(LoggedWake),
@@ -29,6 +30,7 @@ export function maintenanceEntry(
   const { delivered, faulted, abandoned } = turn.value;
   return {
     kind: 'maintenance',
+    level: 'info',
     ...inputsOf(inputs, host),
     delivered: delivered.map(({ object, serial }) => ({ object, serial })),
     faulted: faulted.map(({ wake, fault }) => ({

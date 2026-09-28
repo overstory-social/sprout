@@ -160,6 +160,7 @@ describe('saying something against a store', () => {
         seq: log.length + 1,
         entry: {
           kind: 'said',
+          level: 'info',
           now: 7,
           from: MARTA,
           place: HALL,
@@ -185,7 +186,15 @@ describe('saying something against a store', () => {
     const { state, log } = await stored(store);
     expect(state).toEqual(before.state);
     expect(log.slice(before.log.length).map(({ entry }) => entry)).toEqual([
-      { kind: 'said', now: 0, from: MARTA, place: HALL, to: [MARTA, INES], text: 'ok' },
+      {
+        kind: 'said',
+        level: 'info',
+        now: 0,
+        from: MARTA,
+        place: HALL,
+        to: [MARTA, INES],
+        text: 'ok',
+      },
     ]);
   });
 
@@ -223,6 +232,7 @@ describe('saying something against a store', () => {
     expect(asked).toEqual(['anyone?', 'rude']);
     expect((await stored(store)).log.at(-1)?.entry).toEqual({
       kind: 'said',
+      level: 'info',
       now: 3,
       from: MARTA,
       place: HALL,

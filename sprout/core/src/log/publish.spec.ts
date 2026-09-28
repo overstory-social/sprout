@@ -22,7 +22,12 @@ const record: MicroworldRecord = {
 describe('a publish in the log', () => {
   it('keeps the bundle’s hash and the instant, and two bundles that run differently log two hashes', () => {
     const first = publishEntry(tally().bundle, 3_000_000_000);
-    expect(first).toEqual({ kind: 'publish', now: 3_000_000_000, bundle: tally().bundle.hash });
+    expect(first).toEqual({
+      kind: 'publish',
+      level: 'info',
+      now: 3_000_000_000,
+      bundle: tally().bundle.hash,
+    });
     expect(PublishEntry.parse(first)).toEqual(first);
     expect(publishEntry(tally('Clack.').bundle, 0).bundle).not.toBe(first.bundle);
   });

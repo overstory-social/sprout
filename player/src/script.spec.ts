@@ -79,7 +79,7 @@ describe('readScript', () => {
       'A yard.',
       { words: 3 },
       { reader: 'Marta', words: 'A yard.' },
-      { level: 'warning', text: 'x' },
+      { level: 'fatal', text: 'x' },
     ]) {
       expect(() => read([{ arrive: 'Marta', expect: [{ words: 'ok' }, bad] }])).toThrow(
         'walk.json, step 1, expect 2: an expected line is `{ "words": "You take a brass key." }`',
@@ -88,6 +88,13 @@ describe('readScript', () => {
     expect(() => read([{ arrive: 'Marta', expect: 'A yard.' }])).toThrow(
       '`expect` is a list of lines, or `[]` for silence.',
     );
+  });
+
+  it('reads a line at any of the five levels', () => {
+    const levels = ['prose', 'error', 'warning', 'info', 'debug'] as const;
+    const lines = levels.map((level) => ({ level, text: 'x' }));
+    const [step] = read([{ arrive: 'Marta', expect: lines }]).steps;
+    expect(step).toEqual({ arrive: 'Marta', expect: lines });
   });
 });
 

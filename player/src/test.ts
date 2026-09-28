@@ -54,11 +54,7 @@ export function testFiles(dir: string, named: readonly string[]): TestFile[] {
 /** Whether `expected`, as an author wrote it, is `made`. */
 function matches(expected: Expectation, made: Made): boolean {
   if ('level' in expected) {
-    return (
-      made.words === null &&
-      made.text === expected.text &&
-      made.fault === (expected.level === 'error')
-    );
+    return made.words === null && made.text === expected.text && made.level === expected.level;
   }
   if ('reader' in expected) {
     return (
@@ -104,7 +100,7 @@ function problems(played: PlayedStep, at: number): string[] {
     ];
   }
   const faults = made.filter(
-    (one) => one.fault && !written.some((expected) => matches(expected, one)),
+    (one) => one.level === 'error' && !written.some((expected) => matches(expected, one)),
   );
   if (faults.length > 0) {
     return [`${where}, a turn faulted, and nothing the step expects is the fault:`, ...said(made)];

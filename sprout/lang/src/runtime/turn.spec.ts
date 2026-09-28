@@ -55,6 +55,7 @@ describe('a write turn', () => {
     // Ines is away, so nobody holds a view of hers.
     expect(written.stale).toEqual([MARTA]);
     expect(state.visitors.has(INES)).toBe(true);
+    expect(written.cutShort).toEqual([]);
   });
 
   it('abandons everything its body wrote when it throws, and says what was broken', () => {
@@ -338,6 +339,8 @@ describe('what a write turn says', () => {
       [MARTA, ['Hm.']],
       [MARTA, ['Ah.']],
     ]);
+    // And the turn says who was cut short, which the host logs as a warning.
+    expect(written.cutShort).toEqual([ines]);
   });
 
   it('never faults on output where the turn has no actor, whoever reads too much', () => {
@@ -367,6 +370,7 @@ describe('what a write turn says', () => {
         [INES, ['Hm.']],
         [INES, ['Ah.']],
       ]);
+      expect(written.cutShort).toEqual([marta]);
     }
   });
 

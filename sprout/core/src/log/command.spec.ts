@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { commandTurn } from '@overstory/sprout/lang';
 
-import { command, COUNTER, MARTA, seeded, tally } from '../fixtures/tally.js';
+import { command, COUNTER, GAUGE, MARTA, seeded, tally } from '../fixtures/tally.js';
 import { committedState } from '../turns.js';
 import { CommandEntry, commandEntry, commandOf } from './command.js';
 
@@ -20,8 +20,12 @@ describe('a command in the log', () => {
       seed: 7,
       mayHold: 12,
       now: 30,
+      level: 'info',
       fault: null,
-      effects: [{ kind: 'said', from: COUNTER, visit: MARTA, paragraphs: ['Click.'] }],
+      effects: [
+        { kind: 'said', level: 'prose', from: COUNTER, visit: MARTA, paragraphs: ['Click.'] },
+      ],
+      cutShort: [],
     });
     expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
   });
@@ -31,6 +35,18 @@ describe('a command in the log', () => {
     const entry = commandEntry(typed, host, commandTurn(await state(), host, typed));
     expect(entry.fault).toMatchObject({ name: 'IntegerOverflow', object: null, engine: false });
     expect(entry.effects.map((e) => [e.kind, e.visit])).toEqual([['notice', MARTA]]);
+  });
+
+  it('keeps each reader the turn cut short, in order, as a warning', async () => {
+    const typed = command('bump counter');
+    const turn = commandTurn(await state(), host, typed);
+    if (!turn.committed) throw new Error(turn.fault.detail);
+    const entry = commandEntry(typed, host, { ...turn, cutShort: [COUNTER, GAUGE] });
+    expect(entry.cutShort).toEqual([
+      { level: 'warning', to: COUNTER },
+      { level: 'warning', to: GAUGE },
+    ]);
+    expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
   });
 
   it('hands back the command as the host handed it over', async () => {

@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { Budget, BudgetExhausted, type TurnKind } from './budget.js';
 import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
+import { declaredId } from './ids.js';
 
 const budgets = DEFAULT_LIMITS.budgets;
+
+/** Two people other than the actor. */
+const B = declaredId('w', ['b']);
+const C = declaredId('w', ['c']);
 
 /** A meter with one figure moved, so a suite need not spend fifty thousand steps to prove a point. */
 const small = (overrides: Partial<typeof budgets>, kind: TurnKind = 'command') =>
@@ -96,23 +101,23 @@ describe('output is per recipient, so a crowd costs the host and never faults th
 
   it('offers anyone but the actor what fits, and cuts them short at the first that does not', () => {
     const budget = small({ output: 10 });
-    expect(budget.offer('b', 6)).toBe(true);
-    expect(budget.offer('b', 5)).toBe(false);
+    expect(budget.offer(B, 6)).toBe(true);
+    expect(budget.offer(B, 5)).toBe(false);
     // Nothing after the line that did not fit, though a shorter one would.
-    expect(budget.offer('b', 1)).toBe(false);
-    expect(budget.spentOutput('b')).toBe(6);
-    expect(budget.cutShort).toEqual(['b']);
+    expect(budget.offer(B, 1)).toBe(false);
+    expect(budget.spentOutput(B)).toBe(6);
+    expect(budget.cutShort).toEqual([B]);
     // Nobody else is touched, and nothing faults.
-    expect(budget.offer('c', 10)).toBe(true);
+    expect(budget.offer(C, 10)).toBe(true);
     expect(budget.exhausted).toBeNull();
   });
 
   it('lists who was cut short in the order it happened, each once', () => {
     const budget = small({ output: 1 });
-    budget.offer('c', 2);
-    budget.offer('b', 2);
-    budget.offer('c', 2);
-    expect(budget.cutShort).toEqual(['c', 'b']);
+    budget.offer(C, 2);
+    budget.offer(B, 2);
+    budget.offer(C, 2);
+    expect(budget.cutShort).toEqual([C, B]);
   });
 });
 

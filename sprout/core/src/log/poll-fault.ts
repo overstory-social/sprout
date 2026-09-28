@@ -12,6 +12,7 @@ import { LoggedFault, loggedFault } from './parts.js';
 
 export const PollFaultEntry = z.object({
   kind: z.literal('poll-fault'),
+  level: z.literal('error'),
   now: z.number().int().nonnegative(),
   fault: LoggedFault,
 });
@@ -19,5 +20,10 @@ export type PollFaultEntry = z.infer<typeof PollFaultEntry>;
 
 /** What the log keeps of a poll at `now` that faulted with `fault`. */
 export function pollFaultEntry(fault: Fault, now: HostSeconds): PollFaultEntry {
-  return { kind: 'poll-fault', now: hostSeconds(now, 'a poll’s time'), fault: loggedFault(fault) };
+  return {
+    kind: 'poll-fault',
+    level: 'error',
+    now: hostSeconds(now, 'a poll’s time'),
+    fault: loggedFault(fault),
+  };
 }

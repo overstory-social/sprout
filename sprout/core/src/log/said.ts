@@ -16,6 +16,7 @@ import {
 
 export const SaidEntry = z.object({
   kind: z.literal('said'),
+  level: z.literal('info'),
   now: z.number().int().nonnegative(),
   /** The speaker's visit. */
   from: z.string().min(1),
@@ -38,6 +39,7 @@ export function saidEntry(said: {
 }): SaidEntry {
   return {
     kind: 'said',
+    level: 'info',
     now: hostSeconds(said.at, 'the instant a thing is said'),
     from: said.from,
     place: said.place,

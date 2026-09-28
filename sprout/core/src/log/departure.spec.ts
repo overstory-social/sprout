@@ -29,7 +29,7 @@ describe('a visitor’s exit in the log', () => {
     const quietly = await departed();
     const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false, extension: null };
     const entry = departureEntry(departure, host, { committed: false, fault, quietly });
-    expect(entry.fault).toEqual(fault);
+    expect(entry.fault).toEqual({ level: 'error', ...fault });
     expect(entry.effects.map((e) => e.paragraphs)).toEqual(
       quietly.effects.map((e) => [...e.paragraphs]),
     );

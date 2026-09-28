@@ -11,7 +11,9 @@ import {
 
 import {
   inputsOf,
+  LoggedCut,
   LoggedEffect,
+  loggedCuts,
   LoggedFault,
   loggedEffects,
   loggedFault,
@@ -28,10 +30,13 @@ import {
 
 export const TickEntry = TurnInputs.extend({
   kind: z.literal('tick'),
+  level: z.literal('info'),
   place: z.string().min(1),
   /** Null where the tick committed; a tick that faulted was dropped. */
   fault: LoggedFault.nullable(),
   effects: z.array(LoggedEffect),
+  /** Who a line would have taken past their output, each a warning. */
+  cutShort: z.array(LoggedCut),
 });
 export type TickEntry = z.infer<typeof TickEntry>;
 
@@ -43,10 +48,12 @@ export function tickEntry(
 ): TickEntry {
   return {
     kind: 'tick',
+    level: 'info',
     ...inputsOf(tick, host),
     place: tick.place,
     fault: turn.committed ? null : loggedFault(turn.fault),
     effects: turn.committed ? loggedEffects(turn.effects) : [],
+    cutShort: turn.committed ? loggedCuts(turn.cutShort) : [],
   };
 }
 
