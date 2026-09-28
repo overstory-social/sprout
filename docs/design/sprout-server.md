@@ -58,7 +58,7 @@ blessed_libraries = ["sha256:…"]
 | key | what it sets | default |
 | --- | --- | --- |
 | `listen` | the address and port | `127.0.0.1:4700` |
-| `log_level` | the lowest level the server logs | `info` |
+| `log_level` | the lowest level the server writes to its own log, on stdout; each client chooses its own with `levels` | `info` |
 | `tick_seconds` | how often each occupied place is ticked | 5 |
 | `wakes_while_empty` | whether wakes run while nobody is in a world, which the spec leaves to the host | `false` |
 | `[store]` | where state and the log are kept | `memory` |
@@ -71,6 +71,13 @@ A secret is never written in the config. Where one is needed, as a
 Postgres password, the key names an environment variable (`url_env`).
 Installing an extension runs its module unsandboxed on the server, which
 is the safety decision the spec says it is.
+
+The server's own log goes to stdout, one record to a line, as text or,
+with `--log-format json`, as JSON.
+
+Moderation hooks (nickname moderation, conversation pace and length) are
+not in the first cut's config; the server applies the spec's defaults, and
+the hooks come with the moderation work.
 
 ## Time
 
@@ -138,7 +145,7 @@ message is validated with a zod schema in `core`, beside
 | --- | --- | --- |
 | `welcome` | `server`, `worlds`, `granted`, `declined` | the server's name, the worlds it serves, and which declared statements it will send payloads of |
 | `admitted` | `world`, `nickname`, `returning` | in, and whether this is a visit found again |
-| `refused` | `stage`, `text` | a hello, an admission or a frame refused; it always carries text a person can read |
+| `refused` | `stage`, `reason`, `text` | a hello, an admission or a frame refused: at which stage, a short machine-readable reason (`nickname`, `closed`, `malformed`, …), and text a person can read, always |
 | `effects` | `seq`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it |
 | `view` | `view` | the visitor's view, as `core`'s `sendView` makes it |
 | `status` | `place`, `exits` | the status line: where the visitor stands and the ways out, sent when either changes |
@@ -150,7 +157,7 @@ message is validated with a zod schema in `core`, beside
 `seq` pairs a turn's `effects` with the `command` or `poll` that caused
 it; effects of turns the visitor did not cause (a tick, someone else's
 command) carry none. A client that asks for no levels is sent prose and
-errors, as a person playing is under the spec's _Levels_.
+errors, as a person playing is under the output-levels decision, which the spec's _Levels_ records once its spec PR is approved.
 
 ### Reconnecting
 
