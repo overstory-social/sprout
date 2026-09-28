@@ -409,7 +409,7 @@ A restatement by a kind that itself composes the property's origin supersedes th
 
 Changing a property's type in a composing kind is a refusal, not an override. And because every standard library property name is one an author cannot use freely without a merge decision, the standard library declares as few as it can.
 
-A property's name is its identity in storage. Renaming one in source is a new property with the declared default; the old one's values are dropped.
+A property's name is its identity in storage. Renaming one in source changes the files, which redeploys the world from its initial state, under State › Redeploying.
 
 ### Prose does not compose
 
@@ -1949,7 +1949,7 @@ The host moderates nicknames before they are ever rendered, and length-caps them
 
 The host places an arriving visitor where the world says visitors arrive, or where they last stood if that place still exists and accepts them. Entry is a move, with `accept`, `:entered`, `arrives` and the description, like any other.
 
-An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A visitor found at load inside something that no longer holds actors is named to the host and displaced on their next turn; an NPC so found stays. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
+An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
 
 Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told the `gone_away` line, "You leave, and take what you carry with you.", unless an actor, place or world words it otherwise. A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
 
