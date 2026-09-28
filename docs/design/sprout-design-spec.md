@@ -58,11 +58,11 @@ world printers_shop is sprout.World {
 }
 ```
 
-The source is written in the shape of that tree. The world's body holds what sits directly in the world, beside what the world declares for itself, and each object's body holds what sits directly in that object, under Objects. The world's body is one block in one file, so every object in a world is declared in the file that declares the world; the kinds, enums, verbs and messages it uses may sit in any of its files, and a file that holds only those needs no world.
+The source is written in the shape of that tree. The world's body holds what sits directly in the world, beside what the world declares for itself, and each object's body holds what sits directly in that object, under Objects. An object may also be written in a file of its own and say where it sits, under Objects. The kinds, enums, verbs and messages a world uses may sit in any of its files, a file that holds only those needs no world, and a file names what another declares by importing it, under Imports.
 
 The world is the only object with no container, the only one that cannot move, and the only one that can be neither spawned nor destroyed. It holds what belongs to no single place, and — because a broadcast travels outward as well as inward — it is the only route by which one place can hear another. Its pass rule is `pass any (false)` unless it says otherwise, so nothing crosses between places unless the world says it may.
 
-Every world composes `sprout.World`, which carries the words the engine speaks for itself, and writes so: `world printers_shop is sprout.World { … }`, with the library named; an unqualified `World` does not stand for it. A world that leaves it out is refused, and anything but a world that composes it is refused, because it would make a place into a world. A world composes like a kind, so it may compose more beside it — `world printers_shop is sprout.World, victorian.Voice { … }` — which is how a library of stock lines in another register or another language is installed. Being explicit here is deliberate: a later level may make `sprout.World` implicit, and a level can relax a requirement it stated; it can never add one to worlds already accepted.
+Every world composes the standard library's `World`, which carries the words the engine speaks for itself, and names it as any file names a library's kind, by importing it: `import {World} from 'sprout'` and then `world printers_shop is World { … }`, or `sprout.World` after `import * as sprout from 'sprout'`. A world's own kind named `World` does not stand for it. A world that leaves it out is refused, and anything but a world that composes it is refused, because it would make a place into a world. A world composes like a kind, so it may compose more beside it — `world printers_shop is sprout.World, victorian.Voice { … }`, with both libraries imported as namespaces — which is how a library of stock lines in another register or another language is installed. Being explicit here is deliberate: a later level may make the standard library's `World` implicit, and a level can relax a requirement it stated; it can never add one to worlds already accepted.
 
 That is the whole shape. The containment tree is the one piece of state no object owns, which is why moving through it takes a protocol and nothing else does.
 
@@ -73,8 +73,8 @@ There are no rooms. A **place** is any object that declares `contains actors`. T
 ```sprout
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves  default { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves  default { {item} leaves{if bound to} for {to}{/if}. }
 }
 
 object composing_room is sprout.Place {
@@ -93,7 +93,7 @@ object composing_room is sprout.Place {
 
 `contains actors` is a declared capability beside `contains`, not a kind the engine knows by name. An actor's **place** is the nearest ancestor declaring it: that is what `tell` reaches, what a visitor leaves when they go, and what a description describes. A wardrobe that declares it can be entered, and everything that follows from being somewhere follows from that one line.
 
-A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads its `arrives` passage, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: `leaves` and `:departed (actor, to)`, across the range of the place left.
+A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
 
 Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads.
 
@@ -124,9 +124,34 @@ An object is declared inside the body of what holds it: the world's body for wha
 
 An object names its kinds after `is`, and declares everything a visitor may say to it in one block. A body may follow, which declares an anonymous kind for that object alone — the right form for a thing there is only one of — and holds the objects inside it. The two sit side by side: the cabinet's body restates `:open` for itself and holds the key. Only something whose kind holds things may hold an object, as the cabinet's does by composing `sprout.Container`; an object in the body of one whose kind does not is refused.
 
-Kinds are declared at a file's top level, and a kind's body may hold objects too: every instance of the kind, declared or spawned, starts with its own copy of each, inside it. So `kind Lantern is sprout.Container { object wick is Wick }` gives every lantern a wick, and spawning a lantern spawns its wick with it, telling only the lantern `:spawned` and its container `:entered`. An object in a kind's body that is made of that kind, directly or through another kind's contents, would never end, and is refused. A declared instance's own body may hold more beside what its kinds give it; a name its kinds' contents already use is two objects of one name in one body. An `object` at a file's top level, outside the world, is refused.
+Kinds are declared at a file's top level, and a kind's body may hold objects too: every instance of the kind, declared or spawned, starts with its own copy of each, inside it. So `kind Lantern is sprout.Container { object wick is Wick }` gives every lantern a wick, and spawning a lantern spawns its wick with it, telling only the lantern `:spawned` and its container `:entered`. An object in a kind's body that is made of that kind, directly or through another kind's contents, would never end, and is refused. A declared instance's own body may hold more beside what its kinds give it; a name its kinds' contents already use is two objects of one name in one body. An object may also be written outside the body that holds it, at a file's top level, in one of two ways:
 
-Each kind is declared in a file of its own, named for it: the kind's name in lower case with `_` between its words, compared exactly against the last part of the file's path, so `kind Chest` is in `chest.sprout`, `kind PrintedSheet` in `printed_sheet.sprout` and `kind TVSet` in `tv_set.sprout`. A kind in a file not named for it is refused at publish and warned about at load, where it stands. The world is declared in the file named for the world's name, `world printers_shop` in `printers_shop.sprout`; a kind of the world's own name is refused, since that file is the world's. Which file the world belongs in only the whole-bundle compile can say, since the manifest names the world, so a world in the wrong file is refused at publish and warned about at load, and a one-file check does not report it. Enums, verbs and messages may sit in any file, alone or beside a kind or the world, and a library is held to the same rule. Nothing is imported, since every name resolves across the whole closed bundle, so no two files can refer to each other in a circle.
+```sprout
+// rooms/press_yard.sprout — placed by its own `in` clause
+import * as sprout from 'sprout'
+
+object press_yard is sprout.Place in printers_shop {
+  grammar { name "press yard" article the }
+}
+
+// rooms/paper_store.sprout — placed by a stub where it sits
+import * as sprout from 'sprout'
+
+object paper_store is sprout.Place, sprout.Container { … }
+
+// printers_shop.sprout
+import {paper_store} from 'rooms/paper_store'
+
+world printers_shop is sprout.World {
+  object composing_room is sprout.Place {
+    object paper_store
+  }
+}
+```
+
+With an `in` clause an object names its container by path, from the world's body as `visitors arrive at` does: `object press_yard is sprout.Place in printers_shop { … }` sits directly in the world, and `object ladder is sprout.Fixture in composing_room.paper_store { … }` in the paper store. Or the container's body holds a stub, `object press_yard` with no kind and no body, naming an object its file imports; the imported declaration is the object, and the stub is where it sits. A top-level object is placed exactly once: one with neither an `in` clause nor a stub is refused, as is one with both or with two stubs. Either way the object stands in the tree as if its declaration were written where it sits: its identifier belongs to that body, and its path is that body's and its name. Importing an object does not place it.
+
+Files and folders are the author's to arrange: a file may hold any number of kinds, enums, verbs, messages and top-level objects, beside the world or without it, and a library is held to the same rule. A kind of the world's own name is refused. A file names what another declares only by importing it, under Imports, and files may import each other in a circle.
 
 An object's identifier belongs to the body it is written in, so two chests may each hold a `key`; how a name is seen from other bodies is under Identifiers and scope. Where an example in this document shows an object on its own, it is an excerpt from the body that holds it.
 
@@ -242,9 +267,32 @@ There is no sweep primitive. An object that should not outlive its usefulness as
 
 ### Files
 
-A microworld is a manifest, some `.sprout` files, the `.prose` files they point at, and the vendored source of every library they use. The file that declares the world declares every object in it, because the world's body is one block; kinds, enums, verbs and messages may sit in any file, and identifiers resolve across files by the scope rules in Names.
+A microworld is a manifest, some `.sprout` files in whatever folders its author likes, the `.prose` files they point at, and the vendored source of every library they use. A name crosses from one file to another by an import, under Imports, and resolves inside a file by the scope rules in Names.
 
 A file that is removed, withheld, named in the manifest and not delivered, or that fails to compile reads as absent. What referred to it keeps compiling, the rest of the world keeps running, and the gap is visible rather than fatal. What "absent" means at each kind of reference is a table under The compiler.
+
+### Imports
+
+A name declared in one file is used in another only by importing it:
+
+```sprout
+import {Key} from 'blacksmith/key'
+import {Ward as Guard, :stir} from 'shop'
+import * as sprout from 'sprout'
+```
+
+The first makes `Key`, declared at the top level of `blacksmith/key.sprout`, a name the importing file may write; the second names `Ward` as `Guard` there and imports the message `:stir`; the third makes every name the standard library declares writable as `sprout.Container`, `sprout.take`. Nothing is in scope without an import: not a name another file of the world declares, and not the standard library's. Examples in this document are excerpts, and read as if their file imported `* as sprout from 'sprout'`.
+
+- A specifier is a path without its extension, from the root of the part of the bundle the importing file belongs to: the world's folder for the world's own files, and a library's own root for a library's. `'blacksmith/key'` is `blacksmith/key.sprout`. A library is imported whole, by its name alone, `'sprout'`; a world file whose path is a library's name is refused, since the specifier could not reach it.
+- What a file declares at its top level may be imported from it: kinds, enums, verbs, messages, written with their colon, and objects. What a library declares in any of its files is imported from the library. The world's own name is never imported, since it is where every path may start.
+- A name imported twice into one file, or imported under a name the file itself declares, is refused; `as` gives one of them another name. An import of a name its file does not declare at its top level, or from a specifier that reaches no file or library of the bundle, is refused.
+- A dotted name is a namespace's member only where its first part is a namespace the file imports, `sprout.Container`; everywhere else a dot is an object path, under Identifiers and scope, and `blacksmith.Key` written without `import * as blacksmith` is refused.
+- Files may import each other in a circle, since declarations are read before bodies: a name imported from a file that imports this one is already known. A circle in containment — `a` placed in `b` and `b` in `a` — is still refused.
+- The engine's own messages, `:spawned`, `:woke`, `:tick`, `:moved`, `:left`, `:entered`, `:arrived` and `:departed`, are the engine's rather than a file's, and are never imported.
+- A name in a kind's body that resolves when the body runs, from where the instance sits, under Identifiers and scope, is not imported, since no one declaration is its own. Every other name a file writes — a kind, an enum, a verb, a message, an object resolved when the file compiles — is declared in the file or imported.
+- Imports govern what source may name, not what a visitor may type. Every verb declared in the bundle or in a library it uses is in the world's grammar whether any file imports it or not, and the engine's six verbs always are.
+
+A kind is identified by where it is declared and its name: its file in the world, or its library. Moving a kind to another file makes it another kind in source and changes nothing stored, since an instance is stored by its declared path or minted id and a property by its name, under State.
 
 ### The manifest
 
@@ -390,12 +438,11 @@ kind Container {
 
 ### Libraries and namespaces
 
-A kind's identity is its library and its name. `sprout.Container` and `ericworld.Container` are different kinds and may be composed together.
+A library's kind is identified by its library and its name. `sprout.Container` and a world's own `Container` are different kinds and may be composed together.
 
-- `sprout` is in scope in every microworld and its kinds, enums, verbs and messages may be written unqualified.
-- A world's own declarations are unqualified.
-- A world's own declaration taking a standard library name shadows the unqualified form, with a warning. The qualified name always reaches the library's.
-- A world's verb that shadows a library's takes its phrases with it: the library verb's phrases are not offered, so the world's verb answers only to the phrases it writes.
+- A library is imported like a file, whole, by its name: `import {Container} from 'sprout'` names one of its declarations, and `import * as sprout from 'sprout'` all of them as `sprout.Container`. The standard library is in scope only where a file imports it.
+- A world's own declaration may take a library's name freely, since the library's is only reachable through an import; a file that needs both imports one under `as`.
+- A world's verb of a library verb's name takes its phrases with it: the library verb's phrases are not offered, so the world's verb answers only to the phrases it writes.
 - Libraries namespace kinds, enums, verbs and messages. They do not namespace properties.
 
 Libraries are **statically linked**. A published microworld carries the full source of every library it uses, and nothing is resolved, fetched or versioned at runtime. A world's behaviour is a function of its own bundle, so replay stays exact, a library author cannot change worlds that have already shipped, and a withdrawn library cannot take live worlds with it.
@@ -466,11 +513,11 @@ An identifier names something in source. Its scope is the smallest one that work
 
 |  | scope | because |
 | --- | --- | --- |
-| kinds, enums, verbs, messages | their library | libraries namespace them, and linking is static |
+| kinds, enums, verbs, messages | the file that declares them, and every file that imports them | a name crosses files only by an import, and linking is static |
 | objects | the body they are written in, and everything inside it | that body is their container |
 | members — properties, passages | whatever declares them | a kind's passages are the kind's |
 
-One rule covers objects at every depth: an identifier belongs to the body it is written in and is visible from inside that body at any depth, the nearest declaration winning. From inside the cat, `cabinet` is the cabinet beside it and `composing_room` is the room around it; from inside a chest, `key` is the chest's own key even if the room has another. Places sitting directly in the world are written in the world's body, and every other object is inside it, so they are visible from every object's body and an exit can name one from anywhere. Two places may each hold a `shelf`, and two chests may each hold a `key`, and nobody writes `kiln_shelf` again.
+One rule covers objects at every depth: an identifier belongs to the body it is written in and is visible from inside that body at any depth, the nearest declaration winning. From inside the cat, `cabinet` is the cabinet beside it and `composing_room` is the room around it; from inside a chest, `key` is the chest's own key even if the room has another. Places sitting directly in the world are written in the world's body, and every other object is inside it, so they are visible from every object's body and an exit can name one from anywhere. Across files the rule holds through imports: an object whose declaration is in another file is named after importing it, or by its path from the world's name, which every file may write. Two places may each hold a `shelf`, and two chests may each hold a `key`, and nobody writes `kiln_shelf` again.
 
 Something deeper than a body can see is named by its dotted path, written without spaces around the dots: the first step is a name visible where the path is written, and each step after it is declared in the body of the one before. An exit names a wardrobe in another room as `-> bedroom.wardrobe`, and the world's `visitors arrive at`, written in the world's body, names a nested place the same way: `visitors arrive at composing_room.paper_store`. The world's name may be a path's first step, and no other: `printers_shop.lamp` names the lamp directly in the world from anywhere, even where something nearer is called `lamp`.
 
@@ -568,7 +615,7 @@ enum Ward  { oak, silver }
 enum Glaze { none, shino, tenmoku }
 ```
 
-An enum's options are in scope wherever the enum is. An option may always be written qualified, `Ward.iron` or `sprout.Ward.iron`, and bare as `:iron` wherever the enum is known from the other side (a typed property, the other operand, a restatement); which to write is the author's choice where both apply, and the qualified form is how an ambiguous one is disambiguated. A symbol literal is checked against the option set of whatever it is compared or assigned to, so `== :slver` is a compile error naming the options, not a comparison that is false forever.
+An enum's options are in scope wherever the enum is. An option may always be written qualified, `Ward.iron`, or `sprout.Ward.iron` through a namespace import, and bare as `:iron` wherever the enum is known from the other side (a typed property, the other operand, a restatement); which to write is the author's choice where both apply, and the qualified form is how an ambiguous one is disambiguated. A symbol literal is checked against the option set of whatever it is compared or assigned to, so `== :slver` is a compile error naming the options, not a comparison that is false forever.
 
 Options are separated by commas, and a comma after the last is allowed. An option may not be a reserved word. An enum holds at most as many options as the host allows.
 
@@ -618,15 +665,19 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | a guard's `to`, `item` or `from` | object |
 | `$first`, `$last` in a passage loop | boolean |
 | `$index`, `$count` in a passage loop | integer |
-| `thing` in the world's `unremarkable` | object |
-| `thing` in the world's `meant` and `pronoun_correction` | object |
-| `pronoun` in the world's `pronoun_correction` | string: the pronoun the thing declares |
-| `reading` in the world's `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
-| `actor` and `here` in the world's `unknown`, `not_here`, `cannot`, `meant`, `nothing_happens`, `help` and `fault` | as above |
-| `readings` in the world's `help` | a set of readings; one renders as the words a visitor types for it |
-| `actor` in the world's `acted` | as above |
-| `reading` in the world's `acted` | string; the line as it was typed |
-| `item` in the world's `inside_itself`, `item` and `to` in the world's `crowded`, and `item` in a place's `arrives` and `leaves` | object |
+| `thing` in `unremarkable` | object |
+| `thing` in `meant` and `pronoun_correction` | object |
+| `pronoun` in `pronoun_correction` | string: the pronoun the thing declares |
+| `reading` in `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
+| `actor` and `here` in `unknown`, `not_here`, `cannot`, `meant`, `nothing_happens`, `help` and `fault` | as above |
+| `actor` in `gone_away` and `npc_says` | as above |
+| `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
+| `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
+| `actor` in `acted` | as above |
+| `reading` in `acted` | string; the line as it was typed |
+| `item` in `inside_itself`, `item` and `to` in `crowded`, and `item` in `arrives` and `leaves` | object |
+| `from` in `arrives`, `to` in `leaves` | object: the place left or entered, inside `{if bound …}` only, since a visitor coming in from outside the world, or leaving it, has none |
+| `way` in `arrives` and `leaves` | string: the label of the exit or link the move went through, inside `{if bound way}` only |
 
 An engine line is given exactly what this table names for it: `unremarkable` only `thing`, and `unseen`, `missing`, `displaced` and `waited` nothing.
 
@@ -946,7 +997,7 @@ object cat is Creature {
 
 `act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done; a refused `act` ends the body it stands in, as a refused `move` does. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes `sprout.Actor`, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
 
-Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, in fixed words the engine supplies rather than a passage. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
+Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
 An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` only as the destination of an exit or a link of the mover's place that applies, so an NPC walks the map as a visitor does and can go nowhere a visitor could not; a place reached no such way is out of range, and the move faults.
 
@@ -1059,10 +1110,12 @@ Three things come with it. Procedural space counts against live instances like e
 Six verbs are the engine's, because they read the world rather than change it: `go`, `look`, `examine`, `inventory`, `wait` and `help`. Their phrases are declared in the standard library like any verb's — `look` answers to `l`, `examine` to `x` and `look at` — so their words can be added to and translated, but they have no `do`:
 
 - `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
-- `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the world's `unremarkable` passage if it has none.
-- `inventory` renders the actor's own `inventory` passage, which `sprout.Actor` supplies.
-- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the world's `waited` passage, "Time passes." unless a world says otherwise.
-- `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the world's `help` passage, which `sprout.World` supplies as a default and a world may replace; the passage is given `readings`, and each reading renders as the line a visitor would type for it.
+- `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none.
+- `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
+- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise.
+- `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the `help` line, whose default `sprout.World` supplies; the line is given `readings`, and each reading renders as the line a visitor would type for it.
+
+Each of these lines is found as every engine line is, under Prose › Engine lines: the actor's own, then its place's, then the world's, then the library's default.
 
 Everything else a visitor can do by default — `take`, `drop`, `put`, `give`, `open`, `close`, `unlock`, `ask` — is a standard library verb written in Sprout, and a world that wants them to say or do something else writes its own.
 
@@ -1335,6 +1388,14 @@ A passage belongs to its kind, so every slot in it type-checks against a known `
 
 A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and carries slots. Nothing else does: a `name`, a noun, an exit label and a string property are plain text, and `{` in them is a brace.
 
+### Engine lines
+
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `cannot`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+
+When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
+
+A passage of an engine line's name, on anything an actor, a place or the world is made of, is that line, and is checked against what the engine gives it. Two sources of one line on one object collide as any exclusive member does, under How members combine.
+
 ### Slots
 
 A slot is `{…}`; `\{` is a literal brace, and a backslash escapes in a passage as it does in quoted text.
@@ -1373,7 +1434,7 @@ Not merely dry. Burning.
 
 `{for x in <container>}` walks contents, and `{for x: Kind in <container>}` walks only those composing the kind, typing `x` so its passages and properties are in reach; `{for x of <list>}` walks a list, and `{for x of <set role>}` a set role. All bind `$first`, `$last`, `$index`, counting from 1, and `$count`.
 
-Conditions take no parentheses — the braces already delimit, and a paragraph should not carry the noise. This is the one place the language spells a condition differently from a body. A condition may compare, narrow with `is()`, and test identity; it may not add.
+Conditions take no parentheses — the braces already delimit, and a paragraph should not carry the noise. This is the one place the language spells a condition differently from a body. A condition may compare, narrow with `is()`, test identity, and test `bound` on a name an engine line may leave unbound, as `{if bound way}`; it may not add.
 
 `{one of}…{or}…{/one of}` varies a block at random, under the restrictions in Chance below.
 
@@ -1696,13 +1757,9 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
 - The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `in`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
-### Two tiers
+### One tier
 
-A single definition can be checked alone for its shape: syntax, the caps that apply to it, its own declarations agreeing with themselves, every write going to `self`. This is what an editor runs on each keystroke.
-
-Everything typed needs the whole bundle: composition resolved across kinds, properties merged, exclusive members checked for collision, every `get` and `set` against a resolved kind, `chance` and `actor` reachability through passages, the world's word set. Because libraries are vendored, the bundle is closed, and whole-bundle checking is exact rather than a guess.
-
-So an editor cannot catch every error live. That is a consequence worth stating rather than discovering.
+Everything is checked against the whole bundle: imports resolved, composition resolved across kinds, properties merged, exclusive members checked for collision, every `get` and `set` against a resolved kind, `chance` and `actor` reachability through passages, the world's word set. Because libraries are vendored, the bundle is closed, and checking it is exact rather than a guess. An editor checks the bundle it is editing; there is no check of one file alone.
 
 ### Strict and lenient
 
@@ -1724,6 +1781,7 @@ Saving and publishing are **strict**: any problem is a refusal. Loading is **len
 | the `world` declaration | the same: the world does not admit anyone, and the host says so outside it |
 | the world's visitor kind | the same: the world does not admit anyone, and the host says so outside it |
 | an extension | its statements record nothing, and a value of its type keeps its text unread |
+| a file, in an import | each name imported from it reads as absent by its own row: a kind as a kind does, a verb as a verb does |
 
 Stored state for absent objects is kept, untouched, so that a file restored brings its objects back as they were.
 
@@ -1737,7 +1795,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
 - A composition written with the colon rather than `is`.
-- A world that does not compose `sprout.World`, written as `sprout.World`; anything but a world composing it.
+- A world that does not compose the standard library's `World`; anything but a world composing it.
 - A bundle with no `world` declaration or with more than one; a `world` declaration whose name is not the manifest's `name`.
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose `sprout.Actor`; an `act` that leaves out a tool that is not optional.
@@ -1745,9 +1803,10 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - `optional` on any role of a verb that has phrases, or on the target of one that has none; a phrase that does not name the verb's target.
 - An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
 - `many` on a `symbol` or `integer` tool.
-- An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled.
+- An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled; a name declared in another file that the file does not import; a dotted name whose first part is neither an imported namespace nor an object path's first step.
+- An import from a specifier that reaches no file or library of the bundle, or of a name its file does not declare at its top level; one name imported twice into a file, or imported under a name the file declares; a world file whose path is a library's name.
 - A `move` whose destination is not a container; an exit declared on something that is not a place, or leading to something that does not hold actors.
-- An `object` at a file's top level; an object inside something whose kind does not hold things; an actor declared inside something that does not hold actors; an object composing `sprout.Visitor`, and a `spawn` of such a kind; the world's name as a step of a path other than the first, or as an object's name; two objects of one name in one body.
+- An `object` at a file's top level that is not placed exactly once, by its `in` clause or by one stub; a stub that names no object its file imports; a circle of placement; an object inside something whose kind does not hold things; an actor declared inside something that does not hold actors; an object composing `sprout.Visitor`, and a `spawn` of such a kind; the world's name as a step of a path other than the first, or as an object's name; two objects of one name in one body.
 - `visitors arrive at` naming the world itself; a kind named for the world.
 - `tell inside` or `tell outside` in a body whose kind does not declare `contains actors`.
 - An `extension` line after a declaration, naming an extension the manifest does not pin or at another major, or naming one twice; an extension's type or statement in a file that does not name it; a list of an extension's type.
@@ -1756,7 +1815,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 
 ### What it warns about
 
-A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. A world declaration shadowing an unqualified standard library name, except a kind that composes the library kind it hides, as `kind Visitor is Creature, sprout.Visitor` does. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, where what can play is what the world can hold: each declared object, what a kind's body gives its instances, the world, the visitor kind and each kind some body spawns; and a role in a verb nothing fills: a kind role that nothing which can take part composes, or a value role that no `from` narrows and no `act` names, a role anything may fill never. Both only for the world's own verbs. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`, `say` alone counting. A passage on an object or the world that nothing says, tells, refuses or renders by name and the engine does not say, and nothing it composes declares, which is most often a misspelt override; the warning offers the nearest name it probably meant. `contains` or `contains actors` written twice in one body. A statement after `allow` or `refuse` in a guard or a `permit`, which never runs. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at. An `on :tick` on an object, declared or spawnable, whose kind does not declare `contains actors`, since only a place is ticked: "`cat` is not a place, so `on :tick` never runs." A `wake` on a kind that answers no `:woke`, and an `on :woke` on a kind whose bodies never write `wake`: "Nothing here asks to be woken, so `on :woke` never runs." These two are warned rather than refused, since what a kind is composed with may bring the other half. A `{one of}` with one choice, which says the same words every time and is most often a missing `{or}`.
+A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, where what can play is what the world can hold: each declared object, what a kind's body gives its instances, the world, the visitor kind and each kind some body spawns; and a role in a verb nothing fills: a kind role that nothing which can take part composes, or a value role that no `from` narrows and no `act` names, a role anything may fill never. Both only for the world's own verbs. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`, `say` alone counting. A passage on an object or the world that nothing says, tells, refuses or renders by name and the engine does not say, and nothing it composes declares, which is most often a misspelt override; the warning offers the nearest name it probably meant. `contains` or `contains actors` written twice in one body. A statement after `allow` or `refuse` in a guard or a `permit`, which never runs. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at. An `on :tick` on an object, declared or spawnable, whose kind does not declare `contains actors`, since only a place is ticked: "`cat` is not a place, so `on :tick` never runs." A `wake` on a kind that answers no `:woke`, and an `on :woke` on a kind whose bodies never write `wake`: "Nothing here asks to be woken, so `on :woke` never runs." These two are warned rather than refused, since what a kind is composed with may bring the other half. A `{one of}` with one choice, which says the same words every time and is most often a missing `{or}`.
 
 ### Diagnostics
 
@@ -1834,6 +1893,20 @@ A turn's output is a sequence of effects, each carrying its kind, the object it 
 
 Every prose effect carries its rendered line. A turn's lines are rendered once its work is done, against the state it commits, so a line whose slot reads a property that a later statement of the same turn sets renders the value that was set, and a nickname changed in the turn reads as changed; the rendered line is then fixed, since a later turn cannot re-render what was said. A client that speaks — a screen reader — has in the effect kind what it needs to decide what to announce and how urgently, and a client that is a moderator reads the same record.
 
+### Levels
+
+Everything a turn produces, and everything the host records of it, is at one of five levels:
+
+| level | what | for example |
+| --- | --- | --- |
+| prose | every effect: what a person in the world reads | a description, a refusal, the parser's `meant`, the world's `fault` passage |
+| error | something broke, named | a fault, by its name: `BudgetExhausted` |
+| warning | something the engine settled one way where it could have gone another | a line cut short past a bystander's output budget |
+| info | the host's record of what happened, as events | a turn and its seed, an arrival or departure, a wake delivered, a catch-up, a publish |
+| debug | all of the above in full: each effect with its reader and kind, and a fault with its detail | `Ines (told): Marta takes a brass key.` |
+
+The level is part of the record, so every host and every client filters the same way: a person playing sees prose and errors, and whoever is running or writing the world asks for more. An error shown in play names the fault beside the world's `fault` passage and never its detail, which is for the log. Levels only filter: nothing a turn reads or writes depends on them, a record's level is fixed by what it is, and a filtered view never reorders what it keeps.
+
 ### State
 
 The engine keeps, for every instance: a stable **id**; its kinds; its property map; its container's id; the destination of each link; its pending wakes; and its memory of each actor, keyed by that actor's id. For every place, when it last ticked. For every visitor, the visit, the nickname, the instance, and where they last stood. The visit is a UUID the host mints, keyed by the host's own opaque id for the person, so a person who returns finds their visit again, or starts a new one.
@@ -1844,13 +1917,13 @@ Where stored state no longer fits a declared type, the value is dropped and the 
 
 ### The log
 
-The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator, as the whole set of files then withheld and the hash of the bundle the host then runs, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
+The host draws a seed for each write turn and records it beside the turn. The log holds, in order: every command, tick, wake and maintenance turn with its inputs and seed — the seed, the host's bound on stored instances, the instant, and the runtime budgets the turn ran under, so that it replays under the figures it faulted under, but never the host's clock, so a turn the wall-clock backstop faulted is a divergence on replay — and, where it faulted, its fault, a tick's included; every visitor's entry, exit and nickname; every publish, with the bundle's hash, so that a segment of the log is read against the bundle that produced it; every withholding by a moderator, as the whole set of files then withheld and the hash of the bundle the host then runs, so that a lifted withholding is the same entry with the file gone; every effect; every line a visitor says to the others, with who heard it, never replayed since it changed nothing; and a poll's fault, against its object, with the time of the poll, never replayed. Polls themselves are not logged. Every entry carries its level, under Levels: a fault is an error, a line cut short is a warning, an effect is prose, and every other entry is info. The log is kept whole: forgetting a visitor leaves their entries as they are, since replaying is what reproduces the world, and an export does not carry it; a host may replay from a state it kept rather than from the start. Replaying the log against its bundles reproduces the world exactly.
 
 ### Faults
 
 | what faulted | what happens |
 | --- | --- |
-| a command turn | the transaction is abandoned; the actor is told through the world's `fault` passage; nothing else is logged but the fault |
+| a command turn | the transaction is abandoned; the actor is told through the world's `fault` passage, beside an error naming the fault; nothing else is logged but the fault |
 | an arrival | abandoned; the visitor is not admitted, and the host says so outside the world |
 | a departure | abandoned; the visitor then leaves quietly, with nothing sent |
 | a tick | dropped, and logged with its fault |
@@ -1878,7 +1951,7 @@ The host places an arriving visitor where the world says visitors arrive, or whe
 
 An arrival is a write turn. Its `from`, in `:entered`, `:moved` and `:arrived`, is the world, since a person arriving came from nowhere in the tree. The arrival place's `accept` may refuse: a new visitor reads the refusal and is not admitted; a returning visitor whose last place refuses them is taken to the arrival place instead, and is not told `displaced`, which is for a place that is gone. An arrival that faults, in the place's `accept` or a handler it runs, admits nobody: the turn is abandoned and the host says so outside the world, "Something went wrong as you arrived, and you have not come in.", so an arrival place that always faults admits no one. A visitor found at load inside something that no longer holds actors is named to the host and displaced on their next turn; an NPC so found stays. A displaced visitor's next turn is the displacement alone, `displaced` and then the arrival, and what they typed is not read, since it was typed about a place that is no longer there.
 
-Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told in the engine's own words, "You leave, and take what you carry with you." A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
+Leaving is a write turn of its own. No guard is asked; the visitor leaves the tree with what they carry; the place is sent `:left (item, to)` with the world as `to`, its range reads `leaves` and is sent `:departed (actor, to)`; and the one leaving is told the `gone_away` line, "You leave, and take what you carry with you.", unless an actor, place or world words it otherwise. A departure that faults is abandoned, and the visitor then goes quietly with nothing sent, since a person is never held in a world.
 
 ### Time
 
@@ -1942,6 +2015,8 @@ kind World {
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
   passage acted default           { {actor} tries to {reading}. }
+  passage gone_away default       { You leave, and take what you carry with you. }
+  passage npc_says default        { {actor} says "{words}" }
 }
 
 // sprout/engine.sprout — phrases for the verbs whose behaviour is the engine's
@@ -1955,11 +2030,13 @@ verb help      { "help"  "?" }
 // sprout/place.sprout
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves default  { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves default  { {item} leaves{if bound to} for {to}{/if}. }
 }
 
 // sprout/actor.sprout
+import {Container} from 'container'
+
 verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "grab [target]" }
 verb drop { role target  "drop [target]"  "put down [target]" }
 verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]" }
@@ -2018,9 +2095,13 @@ kind Actor {
 }
 
 // sprout/visitor.sprout — what a person is made of: an actor, marked as one with somebody behind it
+import {Actor} from 'actor'
+
 kind Visitor is Actor { }
 
 // sprout/fixture.sprout
+import {Actor} from 'actor'
+
 kind Fixture {
   depart (to) { if (to.is(Actor)) { refuse immovable } }
   passage immovable default { {self} is not something you can pick up. }
@@ -2061,6 +2142,8 @@ kind Container {
 }
 
 // sprout/lockable.sprout
+import {open} from 'container'
+
 verb unlock {
   role target: Lockable
   role tool
@@ -2104,6 +2187,15 @@ That is the whole of it for this world. Things are carryable unless they say oth
 ### `printers_shop.sprout`
 
 ```sprout
+import * as sprout from 'sprout'
+import {ask} from 'sprout'
+import {Creature} from 'creature'
+import {Visitor} from 'visitor'
+import {Warded} from 'warded'
+import {Key} from 'key'
+import {Rib} from 'rib'
+import {Sheet} from 'sheet'
+
 world printers_shop is sprout.World {
   contains
   visitors are Visitor
@@ -2287,6 +2379,9 @@ verb nuzzle { role target: Creature }
 ### `creature.sprout`
 
 ```sprout
+import * as sprout from 'sprout'
+import {nuzzle, Cuff} from 'printers_shop'
+
 kind Creature is sprout.Actor {
   :capacity 4
   :cuff     Cuff default dry
@@ -2304,12 +2399,20 @@ kind Creature is sprout.Actor {
 ### `visitor.sprout`
 
 ```sprout
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+
 kind Visitor is Creature, sprout.Visitor { }
 ```
 
 ### `warded.sprout`
 
 ```sprout
+import * as sprout from 'sprout'
+import {unlock} from 'sprout'
+import {Ward} from 'printers_shop'
+import {Key} from 'key'
+
 kind Warded is sprout.Lockable {
   :ward Ward default brass
 
@@ -2326,6 +2429,9 @@ kind Warded is sprout.Lockable {
 ### `key.sprout`
 
 ```sprout
+import {unlock} from 'sprout'
+import {Ward} from 'printers_shop'
+
 kind Key {
   grammar { nouns "key" }
 
@@ -2342,6 +2448,8 @@ kind Key {
 ### `rib.sprout`
 
 ```sprout
+import {work} from 'printers_shop'
+
 kind Rib {
   :cracked false
   :used    false
@@ -2356,6 +2464,8 @@ kind Rib {
 ### `sheet.sprout`
 
 ```sprout
+import {Drying} from 'printers_shop'
+
 kind Sheet {
   grammar { name "printed sheet" nouns "sheet", "print" }
 
