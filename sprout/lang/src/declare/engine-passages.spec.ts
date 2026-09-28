@@ -11,12 +11,12 @@ describe('the lines the engine says for itself', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('bind what the spec’s table says: `thing` an object, `candidates` a set, `item` what moved, `to` where, `readings` what `help` offers', () => {
+  it('bind what the spec’s table says: `thing` an object, `item` what moved, `to` where, `readings` what `help` offers', () => {
     const binds = Object.fromEntries(
       [...WORLD_LINES, ...PLACE_LINES].map((line) => [line.name, line.binds]),
     );
     expect(binds.unremarkable).toEqual({ thing: 'object' });
-    expect(binds.which).toEqual({ actor: 'actor', here: 'here', candidates: 'set' });
+    expect(binds.meant).toEqual({ actor: 'actor', here: 'here', thing: 'object' });
     expect(binds.inside_itself).toEqual({ item: 'object' });
     expect(binds.crowded).toEqual({ item: 'object', to: 'object' });
     expect(binds.arrives).toEqual({ item: 'object', from: 'object', way: 'text' });

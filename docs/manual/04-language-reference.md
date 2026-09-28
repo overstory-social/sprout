@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "3f3fd4f9ba60a34b5651ed8e0711ada0fd44eb3bcf47d3446da6ac068567ba3e"
+      "sha": "27f431cbc8a88b462ad70cdd8800abbab0884b14a21fe92392590f9b13841ef4"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -861,8 +861,8 @@ A verb names its **roles**, then its **phrases**.
   (see [Value roles](#value-roles)); or nothing, in which case anything
   that plays the role can fill it, and it has the object type.
 - Each phrase is text in quotes with `[role]` slots. Every phrase must name
-  the target. Phrases are tried in the order written; the first that reads
-  wins.
+  the target. Every phrase is tried, and the readings they make are ranked,
+  under [What the parser says](#what-the-parser-says).
 - A verb may have no roles, `verb look { "look" "l" }`, or no phrases, in
   which case nobody can type it and only a character can perform it with
   `act`.
@@ -1126,19 +1126,27 @@ its own still means `help`.
 
 ### What the parser says
 
-When a line cannot be run, the visitor reads one of the world's passages.
-If phrases disagree about a line, a reading beats a `which`, which beats
-`not_here`, which beats `unknown`:
+Every phrase is tried against the whole line, and every way it reads is
+a **reading**: a verb and what fills each role. The readings are ranked
+whole:
+
+1. one whose `permit`s all allow beats one that is refused;
+2. then the one that matched more of the line's words;
+3. then the one whose things are nearer.
+
+Readings still tied are drawn with the dice, and the server logs the draw
+as a warning. Where the drawn reading names a thing its rivals did not,
+the visitor is first told which, through the world's `meant` passage:
+"(A wooden rib)". Things written exactly alike (same name, same article)
+are drawn without it, since no word could tell them apart. The parser
+never asks which you meant.
+
+When a line cannot be run, the visitor reads one of the world's passages:
 
 | passage    | when                                                               |
 | ---------- | ------------------------------------------------------------------ |
 | `unknown`  | no phrase matches: "That is not something you can do here."        |
 | `not_here` | a phrase matches but nothing in reach answers to the noun: "You see nothing like that here." |
-| `which`    | several things answer: "Which do you mean: a wooden rib, a bone rib?" |
-
-Where several things written exactly alike (same name, same article)
-answer to the same words, the parser does not ask: it takes the nearest,
-and among equally near ones, the dice decide.
 
 ---
 
@@ -1897,7 +1905,7 @@ So a character can have its own `arrives`, and a place its own
 | ----------------- | ------------------------------------------------------------------- |
 | `unknown`         | That is not something you can do here.                              |
 | `not_here`        | You see nothing like that here.                                     |
-| `which`           | Which do you mean: …?                                               |
+| `meant`           | ({thing})                                                           |
 | `nothing_happens` | Nothing much comes of that.                                         |
 | `unremarkable`    | There is nothing special about {thing}.                             |
 | `unseen`          | Something here is too much to take in.                              |
@@ -2202,7 +2210,7 @@ no clock and no extensions.
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `init`         | makes a folder with a manifest, a world, a visitor kind and a first test. The folder must be empty or new.                |
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
-| `parse`        | with no line: every phrase the world accepts, in the order they are tried. With a line: how a visitor would read it, and whether it would be refused, without running it. |
+| `parse`        | with no line: every phrase the world accepts. With a line: how a visitor would read it, and whether it would be refused, without running it. |
 | `view`         | what a visitor is shown and could type.                                                                                   |
 | `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`). |
 | `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |

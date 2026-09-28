@@ -27,7 +27,7 @@ kind World {
 
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
-  passage which default           { Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for} }
+  passage meant default           { ({thing}) }
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }
   passage unseen default          { Something here is too much to take in. }

@@ -99,7 +99,7 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     const verb = bundle.verbs.qualified('tally', word!);
     if (verb === null) throw new Error(`no verb in \`${text}\``);
     const object = noun === 'gauge' ? GAUGE : COUNTER;
-    return { reading: { verb, actor, bindings: new Map([['target', { object }]]) } };
+    return { reading: { verb, actor, bindings: new Map([['target', { object }]]) }, drawn: null };
   };
   const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
   return {

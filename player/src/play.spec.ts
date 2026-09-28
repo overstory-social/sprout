@@ -12,7 +12,7 @@ import {
   playScript,
 } from './play.js';
 import { scriptOf, transcriptOf } from './fixtures/scripts.js';
-import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
+import { bundleOf, KILN_YARD, LANE } from './fixtures/worlds.js';
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
 const play = (lines: string): string =>
@@ -376,5 +376,22 @@ describe('a reader cut short', () => {
       ['prose', 'Ines (described): A kiln yard.'],
       ['warning', 'Marta was cut short: one turn may say 12 characters to any one person'],
     ]);
+  });
+});
+
+describe('a line read one of several ways that tied', () => {
+  it('is told which was meant before what it says, and the draw is a warning', () => {
+    const lane = bundleOf('lane', LANE);
+    const stage = freshStage(lane);
+    arrive(stage, 'Marta');
+    const made = playInteractive(stage, 'Marta> take key', 'stdin:2').made!;
+    const taken = /^You take an? (brass|iron) key\.$/.exec(made[1]!.words ?? '')?.[1];
+    expect(made.map((one) => [one.level, one.kind])).toEqual([
+      ['prose', 'notice'],
+      ['prose', 'said'],
+      ['warning', null],
+    ]);
+    expect(made[0]!.words).toBe(`(A ${taken} key)`);
+    expect(made[2]!.text).toBe('drawn: the line read 2 ways that tied, and one was drawn');
   });
 });

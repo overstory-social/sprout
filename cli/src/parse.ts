@@ -10,7 +10,6 @@ import {
   renderFor,
   type Bound,
   type Catalogue,
-  type Choice,
   type InstanceId,
   type Line,
   type PollTurn,
@@ -22,12 +21,12 @@ import {
 import { pathOf, type Standing } from '@overstory/sprout-player';
 
 // `sprout parse`: what a world accepts. With no line, every phrase a
-// visitor may type, those its synonyms give among them, in the order the
-// command parser tries them, the first that reads winning (the spec's Verbs › Slots; the working notes' "Not
-// language questions, but blocking"). With a line, what a visitor
-// standing somewhere would make of it: the reading, each role and what
-// fills it, and its consent pass's answer, or the world's answer where it
-// is not understood. The line is read exactly as a command turn reads it,
+// visitor may type, those its synonyms give among them (the spec's Verbs
+// › Slots; Parsing; the working notes' "Not language questions, but
+// blocking"). With a line, what a visitor standing somewhere would make
+// of it: the reading chosen, each role and what fills it, the draw where
+// it tied with others, and its consent pass's answer, or the world's
+// answer where it is not understood. The line is read exactly as a command turn reads it,
 // and the reading is never run, so nothing in the world changes.
 
 /** A role as a verb declares it: its name, what fills it, `many` and `optional`. */
@@ -42,7 +41,7 @@ function roleWritten(role: ResolvedRole): string {
   return `${role.name}${fills}${role.many ? ' many' : ''}${role.optional ? ' optional' : ''}`;
 }
 
-/** Every phrase `catalogue`'s world accepts, under its verb, in the order they are tried. */
+/** Every phrase `catalogue`'s world accepts, under its verb. */
 export function formatGrammar(catalogue: Catalogue): string {
   const verbs: ResolvedVerb[] = [];
   const phrases = new Map<ResolvedVerb, string[]>();
@@ -68,7 +67,7 @@ export function formatGrammar(catalogue: Catalogue): string {
     return `${qualifiedName(verb.library, verb.name)}${roles}\n${typed.join('')}`;
   });
   return (
-    `${catalogue.world} accepts these phrases, in the order they are tried; the first that reads wins.\n\n` +
+    `${catalogue.world} accepts these phrases. Every way a line reads is ranked whole, and the best is understood.\n\n` +
     blocks.join('\n')
   );
 }
@@ -112,23 +111,27 @@ function readLine(line: string, standing: Standing, turn: PollTurn): string {
   const nicknames = nicknamesIn(state);
   const render: RenderContext = { ...turn, nicknames, draws: null, actor };
   const context: Reading = { world: turn.state.world, actor, render };
-  // A tie among things written alike is drawn as a turn seeded 0 draws it.
+  // A tie among readings is drawn as a turn seeded 0 draws it.
   const parsed = parseCommand(line, actor, { ...turn, draws: new Draws(0), nicknames });
   if ('answered' in parsed) {
     const { said } = parsed.answered;
     const name = 'passage' in said ? ` with \`${said.passage.name}\`` : '';
-    const choices = parsed.choices.map(
-      (choice: Choice) =>
-        `  "${choice.line}" means ${objectWords(choice.id, actor, render)} (${pathOf(context.world, choice.id)})\n`,
-    );
-    return `not understood; the world answers${name}:\n${spoken(parsed.answered, context)}${choices.join('')}`;
+    return `not understood; the world answers${name}:\n${spoken(parsed.answered, context)}`;
   }
-  const { reading } = parsed;
+  const { reading, drawn } = parsed;
   const { verb } = reading;
   const roles = verb.roles.map(
     (role) => `  ${role.name}: ${boundWords(reading.bindings.get(role.name), role, context)}\n`,
   );
-  const head = `reads as ${qualifiedName(verb.library, verb.name)}\n${roles.join('')}`;
+  const tie =
+    drawn === null
+      ? ''
+      : `drawn from ${drawn.among} readings that tied, as a turn seeded 0 draws it${
+          drawn.meant === null
+            ? '\n'
+            : `; the visitor is told first:\n${spoken(drawn.meant, context)}`
+        }`;
+  const head = `reads as ${qualifiedName(verb.library, verb.name)}\n${roles.join('')}${tie}`;
   const refused = consentPass(reading, turn);
   if (refused === null) return `${head}every participant consents\n`;
   const by = `${objectWords(refused.by, actor, render)} (${pathOf(context.world, refused.by)})`;

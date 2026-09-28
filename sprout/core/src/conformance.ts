@@ -242,6 +242,7 @@ const LOG: readonly LogEntry[] = [
       },
     ],
     cutShort: [{ level: 'warning', to: 'shop#4' }],
+    drawn: { level: 'warning', among: 2 },
   },
   {
     kind: 'said',
@@ -261,6 +262,7 @@ const LOG: readonly LogEntry[] = [
     fault: { ...tangled, object: null, engine: true },
     effects: [{ ...toMarta('notice', ['Something has gone wrong.']), from: 'shop' }],
     cutShort: [],
+    drawn: null,
   },
   {
     kind: 'tick',

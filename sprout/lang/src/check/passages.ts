@@ -39,7 +39,6 @@ import {
   READINGS,
   Scope,
   selfBinding,
-  setOf,
   showBindingType,
   valueOf,
   type Binding,
@@ -183,8 +182,6 @@ function engineType(binds: Exclude<EngineBinds, 'actor' | 'here'>): BindingType 
   switch (binds) {
     case 'object':
       return OPEN_OBJECT;
-    case 'set':
-      return setOf(null);
     case 'readings':
       return READINGS;
     case 'text':

@@ -6,17 +6,16 @@
 // the one it is about, then that one's place, then the world. A passage
 // of a line's name is checked against exactly what the engine binds: the
 // person acting and their place, as `actor` and `here` are in a body that
-// binds them, an object, a set of objects, the readings `help` offers,
-// or text; a name the engine may leave unbound is read only inside
+// binds them, an object, the readings `help` offers, or text; a name the engine may leave unbound is read only inside
 // `{if bound …}`. A line a poll says, in place of a description or a
 // view, draws nothing.
 
 /**
  * What the engine binds a name to when it says a line: the one acting,
- * their place, an object, a set of them, the readings `help` offers,
- * each rendering as the words a visitor types for it, or text.
+ * their place, an object, the readings `help` offers, each rendering as
+ * the words a visitor types for it, or text.
  */
-export type EngineBinds = 'actor' | 'here' | 'object' | 'set' | 'readings' | 'text';
+export type EngineBinds = 'actor' | 'here' | 'object' | 'readings' | 'text';
 
 /** One line the engine says, and the names it says it with. */
 export interface EnginePassage {
@@ -38,7 +37,7 @@ const ACTING = { actor: 'actor', here: 'here' } as const;
 export const WORLD_LINES = [
   { name: 'unknown', binds: ACTING },
   { name: 'not_here', binds: ACTING },
-  { name: 'which', binds: { ...ACTING, candidates: 'set' } },
+  { name: 'meant', binds: { ...ACTING, thing: 'object' } },
   { name: 'nothing_happens', binds: ACTING },
   { name: 'unremarkable', binds: { thing: 'object' }, polled: true },
   { name: 'unseen', binds: {}, polled: true },

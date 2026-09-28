@@ -254,8 +254,10 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
   }
   stage.state = turn.state;
   const out = turnLines(stage, turn);
-  if ('choices' in turn.value && turn.value.choices.length > 0) {
-    out.push(hostLineOf(`choices: ${turn.value.choices.map((choice) => choice.line).join(' | ')}`));
+  // A reading drawn from a tie is the host's to log as a warning.
+  if ('drawn' in turn.value && turn.value.drawn !== null) {
+    const text = `drawn: the line read ${turn.value.drawn.among} ways that tied, and one was drawn`;
+    out.push({ level: 'warning', text, words: null, kind: null, shown: text, reader: null });
   }
   return out;
 }

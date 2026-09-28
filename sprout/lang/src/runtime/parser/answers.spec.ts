@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BRASS_KEY, HALL, IRON_KEY, study } from '../../fixtures/parser.js';
+import { HALL, study } from '../../fixtures/parser.js';
 import type { StateReader } from '../state.js';
 import { answer } from './answers.js';
 
@@ -21,7 +21,6 @@ describe('the world’s answers to a line it could not run', () => {
       ['actor', { binds: 'object', id: actor }],
       ['here', { binds: 'object', id: HALL }],
     ]);
-    expect(unknown.choices).toEqual([]);
   });
 
   it('says `not_here` in the world’s words, with `actor` and `here` bound and nothing it names', () => {
@@ -32,22 +31,6 @@ describe('the world’s answers to a line it could not run', () => {
       'You see nothing like that here.',
     ]);
     expect([...none.bindings.keys()]).toEqual(['actor', 'here']);
-    expect(none.choices).toEqual([]);
-  });
-
-  it('asks `which` with the candidates bound as a set, in the order offered', () => {
-    const choices = [
-      { id: BRASS_KEY, line: 'take brass key' },
-      { id: IRON_KEY, line: 'take iron key' },
-    ];
-    const which = answer(one.draft, 'which', actor, HALL, choices);
-    expect(text(which.said)).toEqual([
-      'sprout.World',
-      'which',
-      'Which do you mean: {for thing of candidates}{thing}{if $last}?{else}, {/if}{/for}',
-    ]);
-    expect(which.bindings.get('candidates')).toEqual({ binds: 'set', ids: [BRASS_KEY, IRON_KEY] });
-    expect(which.choices).toEqual(choices);
   });
 
   it('is the standard library’s words, said by the engine, where nothing writes the line', () => {
