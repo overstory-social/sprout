@@ -722,8 +722,8 @@ object lamp is sprout.Fixture
 ```
 
 ```text
-lamp.sprout:1:1  `lamp` is written outside the world, and an object is written inside what holds it.
-                 Move `object lamp …` into the braces of the world, `world <name> is sprout.World { … }`, or of the object that holds it.
+lamp.sprout:1:8  `lamp` is written in a file of its own, and nothing places it in the world.
+                 Name what holds it with `in`, as in `object lamp is <Kind> in <place> { … }`, or write `object lamp` in the body it sits in and import it there.
 ```
 
 ### A `describe` with no `text`
@@ -807,7 +807,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 
 None of these may name an enum’s option or a binding:
 
-`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `in` `kind` `let` `link` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `prose` `refuse` `release` `remembers` `role` `say` `seconds` `send` `spawn` `tell` `text` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
+`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `kind` `let` `link` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `prose` `refuse` `release` `remembers` `role` `say` `seconds` `send` `spawn` `tell` `text` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
 
 And no message or verb may be called `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` or `prose`.
 

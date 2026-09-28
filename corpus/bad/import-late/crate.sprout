@@ -1,0 +1,2 @@
+kind Crate { }
+import {Person} from 'person'

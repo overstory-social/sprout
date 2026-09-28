@@ -12,6 +12,7 @@ import { compileBundle } from './compile/compile.js';
 import { checkShape } from './compile/first-tier.js';
 import { STANDARD_LIBRARY } from './standard-library.js';
 import { locationOf, SourceFile } from '../source/source.js';
+import { nameOf } from '../fixtures/parse.js';
 
 /**
  * A world with nothing of its own but a place to arrive at and a kind
@@ -133,7 +134,7 @@ describe('the standard library', () => {
   it('declares exactly the worked microworld’s library, each kind beside the verbs it plays', () => {
     const declared = STANDARD_LIBRARY.files.map((file) => [
       file.name,
-      checkShape(file).declarations.map((d) => `${d.kind} ${d.name.text}`),
+      checkShape(file).declarations.map((d) => `${d.kind} ${nameOf(d)}`),
     ]);
     expect(declared).toEqual([
       ['sprout/world.sprout', ['kind World']],

@@ -324,14 +324,14 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
     expect(locationOf(problem.at)).toBe('root.sprout:1:7');
   });
 
-  it('refuses an `object` at the top of a vendored library’s file, as of any file', () => {
+  it('refuses an `object` at the top of a vendored library’s file that nothing places, as of any file', () => {
     // The corpus vendors only the standard library the CLI carries, so this is pinned here.
     const withObject: LibrarySource = {
       ...STANDARD_LIBRARY,
       files: [...STANDARD_LIBRARY.files, file('box.sprout', 'kind Box { }\nobject box is Box')],
     };
-    const compiled = (mode: 'publish' | 'load') =>
-      compileBundle(
+    for (const mode of ['publish', 'load'] as const) {
+      const { bundle, diagnostics } = compileBundle(
         world({
           libraries: [withObject],
           manifest: {
@@ -340,19 +340,14 @@ describe('a bundle holds exactly one `world` declaration, named as the manifest'
         }),
         { mode },
       );
-    const { bundle, diagnostics } = compiled('publish');
-    expect(bundle).toBeNull();
-    expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
-      [
-        'box.sprout:2:1',
-        '`box` is written outside the world, and an object is written inside what holds it.',
-        'Move `object box …` into the braces of the world, `world <name> is sprout.World { … }`, or of the object that holds it.',
-      ],
-    ]);
-    // A file that does not compile reads as absent at load, and the world runs without it.
-    expect(compiled('load').bundle!.absent.map((a) => [a.what, a.kind])).toEqual([
-      ['box.sprout', 'file'],
-    ]);
+      expect(bundle, mode).toBeNull();
+      expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message])).toEqual([
+        [
+          'box.sprout:2:8',
+          '`box` is written in a file of its own, and nothing places it in the world.',
+        ],
+      ]);
+    }
   });
 
   it('is a gap at load when there is no `world` declaration, and still produces a bundle', () => {

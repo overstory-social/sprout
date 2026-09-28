@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseDeclarations } from '../../parse.js';
-import { chooser } from '../../../fixtures/parse.js';
+import { chooser, nameOf } from '../../../fixtures/parse.js';
 import {
   closedByWhatFollows,
   defectiveMember,
@@ -116,17 +116,14 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
           'kind Faulty is Crate Fixture { }',
         ]),
       () => `kind Faulty is sprout.Container {\n  ${defectiveMember(c).text}\n}`,
-      // An object at the top level, which is refused however well it is
-      // written: its name, what it composes, a container it names.
+      // An object at the top level, in a file of its own: its name, what
+      // it composes, and the path its `in` names.
       () =>
         option([
           'object',
           'object Faulty is Crate',
           'object faulty is 4',
           'object faulty: Crate',
-          'object faulty is Crate',
-          'object faulty is Crate { }',
-          'object faulty is Crate { contains }',
           'object faulty is Crate in { }',
           'object faulty is Crate in Yard',
           'object faulty is Crate in yard.',
@@ -190,7 +187,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         explained(
           text,
           'contained',
-          result.map((d) => d.name.text),
+          result.map((d) => nameOf(d)),
           good,
           [...good, 'faulty', 'Faulty', ...inside],
           said,

@@ -3,11 +3,12 @@
 // The world model › Objects). What each composes and its body are read
 // by `bodies.ts`, as a world's are; which kinds those name is resolved a
 // tier later. A kind writes its braces and stands at a file's top level.
-// An object's body is optional, and it is written in the body of what
-// holds it, so it never names its container: an `object` at a file's top
-// level is read whole and refused.
+// An object's body is optional. One written in the body of what holds it
+// never names its container; one at a file's top level names it with
+// `in`, or is placed by a stub, `object x` with no kinds and no body, in
+// the body it sits in (the spec's Objects), which the bundle checks.
 
-import type { KindDeclaration, KindMember, ObjectDeclaration } from '../ast.js';
+import type { KindDeclaration, KindMember, ObjectDeclaration, ObjectPath } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
@@ -87,8 +88,10 @@ export function objectDeclaration(p: Parser, nested: boolean): ObjectDeclaration
 
   const composes = composition(p, 'object', name);
   if (composes === null) return null;
-  const container = namesItsContainer(p, name);
-  const head = container ?? composes.at(-1)?.at ?? name.at;
+  const placedIn = nested ? null : placement(p);
+  const container = nested ? namesItsContainer(p, name) : null;
+  const head = container ?? placedIn?.at ?? composes.at(-1)?.at ?? name.at;
+  const placed = placedIn === null ? {} : { placedIn };
 
   const open = p.peek();
   if (!punct(open, '{')) {
@@ -99,6 +102,8 @@ export function objectDeclaration(p: Parser, nested: boolean): ObjectDeclaration
       composes,
       members: [],
       objects: [],
+      ...placed,
+      ...(nested && composes.length === 0 ? { stub: true as const } : {}),
     };
   }
   p.next();
@@ -123,27 +128,36 @@ export function objectDeclaration(p: Parser, nested: boolean): ObjectDeclaration
     name: p.ident(name),
     composes,
     ...apart(read.members, isKindMember),
+    ...placed,
   };
 }
 
 /**
- * An `object` at a file's top level: read whole, so its body is checked
- * and none of it is taken for the next declaration, and refused, since an
- * object is written inside the world or inside what holds it.
+ * An `object` at a file's top level, in a file of its own: read whole,
+ * with the container its `in` names, or none where a stub places it.
  */
-export function topLevelObject(p: Parser): null {
-  const keyword = p.peek();
+export function topLevelObject(p: Parser): ObjectDeclaration | null {
   const declared = objectDeclaration(p, false);
-  if (declared === null) {
-    recover(p);
+  if (declared === null) recover(p);
+  return declared;
+}
+
+/** `in composing_room.paper_store` after a top-level object's kinds: the path of what holds it. */
+function placement(p: Parser): ObjectPath | null {
+  const word = p.take('name', 'in');
+  if (word === null) return null;
+  // A word that starts the next declaration is not this path's first
+  // step: `in` left bare must not take `enum Omega { … }`'s word.
+  const head = p.atDeclarationStart() ? null : p.take('name');
+  if (head === null) {
+    p.diagnostics.refuse(
+      word.at,
+      '`in` names the place or thing this object sits in.',
+      'Write its path from the world, as in `object ladder is sprout.Fixture in composing_room.paper_store { … }`.',
+    );
     return null;
   }
-  p.diagnostics.refuse(
-    spanning(keyword.at, declared.name.at),
-    `\`${declared.name.text}\` is written outside the world, and an object is written inside what holds it.`,
-    `Move \`object ${declared.name.text} …\` into the braces of the world, \`world <name> is sprout.World { … }\`, or of the object that holds it.`,
-  );
-  return null;
+  return objectPath(p, head);
 }
 
 /**

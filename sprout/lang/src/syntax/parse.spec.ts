@@ -34,12 +34,17 @@ const A_DECLARATION: Record<string, string> = {
  * that leaves `sprout.World` out is refused a layer later, and the
  * parser has to read it as a world for that refusal to be reached. A
  * kind may compose nothing, an object may leave its body out or its kinds
- * (which is refused a layer later), and a verb may have no roles, no
- * phrases, or neither.
+ * (which is refused a layer later), or name its container with `in`, and
+ * a verb may have no roles, no phrases, or neither.
  */
 const ALSO_WRITTEN: Record<string, string[]> = {
   kind: ['kind Two { }', 'kind Two is Crate, sprout.Container { contains actors }'],
-  object: ['object two is Crate', 'object two is Crate, sprout.Fixture { }', 'object two { }'],
+  object: [
+    'object two is Crate',
+    'object two is Crate, sprout.Fixture { }',
+    'object two { }',
+    'object two is Crate in yard.shed { }',
+  ],
   verb: ['verb two { "two" }', 'verb two { }', 'verb two { role target  role tools many }'],
   world: [
     'world two is sprout.World, victorian.Voice { visitors are P\n visitors arrive at y }',
@@ -60,20 +65,11 @@ function sampleOf(word: string): string {
 
 /**
  * What a file keeps of one declaration written well at its top level: the
- * declaration, and nothing said. An `object` is the exception, since an
- * object is written inside what holds it: at the top level it is read
- * whole, so it ends what came before it and takes nothing after it, and
- * refused, and the file keeps nothing of it.
+ * declaration, and nothing said. An `object` there is one in a file of its
+ * own, which the bundle places, so it is kept like any other.
  */
-function keptAtTopLevel(word: string): { declarations: number; said: string[] } {
-  return word === 'object'
-    ? {
-        declarations: 0,
-        said: [
-          '`two` is written outside the world, and an object is written inside what holds it.',
-        ],
-      }
-    : { declarations: 1, said: [] };
+function keptAtTopLevel(_word: string): { declarations: number; said: string[] } {
+  return { declarations: 1, said: [] };
 }
 
 describe('a forgotten brace does not eat the declaration after it', () => {

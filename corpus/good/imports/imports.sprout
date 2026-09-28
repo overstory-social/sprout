@@ -1,0 +1,19 @@
+// Imports and objects in files of their own: a library read through a
+// namespace, a kind brought in under another name, a room placed by a
+// stub where it sits, and one that names what holds it with `in`.
+import * as sprout from 'sprout'
+import {Chest as Box} from 'things/chest'
+import {cellar} from 'rooms/cellar'
+
+world imports is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { exit down "down to the cellar" -> cellar }
+    describe { text "A bare hall, with steps going down." }
+    object box is Box
+  }
+
+  object cellar
+}

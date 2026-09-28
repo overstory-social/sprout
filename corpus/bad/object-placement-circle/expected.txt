@@ -1,0 +1,7 @@
+rooms.sprout:1:47  `a` is placed inside something that is placed inside it.
+                   Place one of them somewhere else, so neither holds the other.
+
+rooms.sprout:2:47  `b` is placed inside something that is placed inside it.
+                   Place one of them somewhere else, so neither holds the other.
+
+refused: 2 problems

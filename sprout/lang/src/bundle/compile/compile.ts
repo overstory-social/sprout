@@ -28,6 +28,7 @@
 // `compileBundle` runs the steps in order, each a module of this folder
 // taking the report: the caps to check against, the manifest's own
 // fields, the files, the libraries, what the bundle weighs, the first tier over every file,
+// what each file imports and where each object in a file of its own sits,
 // the `.prose` files each kind points at, the one world, the extensions it
 // pins, the declarations, what the world and its visitors are made
 // of, where visitors arrive, which actors may be declared where, the
@@ -63,6 +64,7 @@ import { warnUnplayed } from './unplayed.js';
 import { spawnedKinds } from './written.js';
 import { checkFiles } from './files.js';
 import { readFirstTier } from './first-tier.js';
+import { resolveImports } from './imports.js';
 import { attachProse } from './prose.js';
 import { absenceRule } from '../absent.js';
 import { checkLibraries } from './libraries.js';
@@ -138,8 +140,14 @@ export function compileBundle(
   );
   const first = readFirstTier(arrived, usable, manifest.namespace, caps, report);
   const { ownFileRefused } = first;
-  const { declarations, byLibrary, gone } = attachProse(
+  const imported = resolveImports(
     first.byLibrary,
+    manifest.namespace,
+    new Set(manifest.files),
+    report,
+  );
+  const { declarations, byLibrary, gone } = attachProse(
+    imported.byLibrary,
     { prose: first.prose, named: new Set(manifest.files) },
     report,
   );

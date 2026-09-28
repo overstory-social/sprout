@@ -1,0 +1,4 @@
+crate.sprout:1:9  `person.sprout` declares no `Visitor` at its top level.
+                  Import a name it declares, or declare this one there.
+
+refused: 1 problem

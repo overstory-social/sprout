@@ -1,0 +1,8 @@
+// A stub naming nothing its file imports.
+world stub_not_imported is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+  object shed
+}

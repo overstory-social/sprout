@@ -166,32 +166,40 @@ describe('an object declaration', () => {
 });
 
 describe('an object at a file’s top level', () => {
-  it('is read whole, and refused at its word and name, and the file keeps nothing of it', () => {
+  it('is read whole, with the container its `in` names, and costs nothing after it', () => {
     const { p, diagnostics } = parserOver(
-      'object bench is Bench {\n  :worn 2\n}\nenum Ward { oak }',
+      'object bench is Bench in yard.shed {\n  :worn 2\n}\nenum Ward { oak }',
     );
-    expect(topLevelObject(p)).toBeNull();
+    const read = topLevelObject(p);
+    expect(read?.name.text).toBe('bench');
+    expect(read?.placedIn?.parts.map((part) => part.text)).toEqual(['yard', 'shed']);
+    expect(read?.stub).toBeUndefined();
     expect(p.peek().text).toBe('enum');
-    expect(
-      diagnostics.refusals.map((d) => [locationOf(d.at), textOf(d.at), d.message, d.remedy]),
-    ).toEqual([
-      [
-        'k.sprout:1:1',
-        'object bench',
-        '`bench` is written outside the world, and an object is written inside what holds it.',
-        'Move `object bench …` into the braces of the world, `world <name> is sprout.World { … }`, or of the object that holds it.',
-      ],
-    ]);
+    expect(diagnostics.refusals).toEqual([]);
   });
 
-  it('says what is wrong inside it too, and costs nothing after it', () => {
+  it('is read with no container where a stub is to place it, which the bundle checks', () => {
+    const { p, refusals } = readWith(topLevelObject, 'object bench is Bench\nenum Ward { oak }\n');
+    expect(refusals).toEqual([]);
+    expect(rest(p)).toBe('enum Ward { oak }\n');
+  });
+
+  it('says what is wrong inside it, and costs nothing after it', () => {
     const { p, refusals } = readWith(
       topLevelObject,
       'object bench is Bench {\n  nonsense\n}\nenum Ward { oak }\n',
     );
-    expect(refusals.map((d) => d.message)).toEqual([
-      'An object is not made of `nonsense`.',
-      '`bench` is written outside the world, and an object is written inside what holds it.',
+    expect(refusals.map((d) => d.message)).toEqual(['An object is not made of `nonsense`.']);
+    expect(rest(p)).toBe('enum Ward { oak }\n');
+  });
+
+  it('refuses an `in` that names nothing, and never takes the next declaration for its path', () => {
+    const { p, refusals } = readWith(
+      topLevelObject,
+      'object bench is Bench in\nenum Ward { oak }\n',
+    );
+    expect(refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      ['ward.sprout:1:23', '`in` names the place or thing this object sits in.'],
     ]);
     expect(rest(p)).toBe('enum Ward { oak }\n');
   });

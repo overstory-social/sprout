@@ -1,0 +1,4 @@
+crate.sprout:2:9  `Person` is imported twice into this file.
+                  Give one of them another name with `as`, as in `import {Person as OtherPerson} from '…'`.
+
+refused: 1 problem

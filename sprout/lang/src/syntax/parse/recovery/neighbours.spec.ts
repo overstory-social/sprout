@@ -13,6 +13,7 @@ import { Diagnostics } from '../../../source/diagnostics.js';
 import { parseDeclarations, parseProperty, parseRemembers } from '../../parse.js';
 import { SourceFile } from '../../../source/source.js';
 import { nothingVanishes, ownedBy, tooDeep, OWNERS } from '../../../fixtures/recovery.js';
+import { nameOf } from '../../../fixtures/parse.js';
 
 describe('a defect in one item never loses a well-formed neighbour in silence', () => {
   // Each a defect in one property, as a body or a `remembers` block
@@ -82,8 +83,9 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     // Kinds and objects: a name or a composition missing or wrong, a
     // composition written with the colon, a brace missing, a member no
     // kind holds, a list never closed, a declaration inside the body, an
-    // object at the top level however it is written, a world's own
-    // member in an object's, and an object that names its container.
+    // object at the top level with no name or a broken `in`, a world's
+    // own member in an object's, and an object in a body that names its
+    // container.
     'kind',
     'kind K',
     'kind K is 4 { }',
@@ -92,8 +94,8 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
     'kind K { :x [ }',
     'kind K { enum Inner { oak } }',
     'object',
-    'object o is K { }',
-    'object o is K',
+    'object o is K in',
+    'object o is K in r.',
     'world w is sprout.World { object o is K { visitors are X } }',
     'world w is sprout.World { object o is K in r }',
     'world w is sprout.World { object O is K }',
@@ -281,7 +283,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
         expect(
           nothingVanishes(
             text,
-            declared.map((d) => d.name.text),
+            declared.map((d) => nameOf(d)),
             [...good],
             [...good, 'Ward', ...inside],
           ),

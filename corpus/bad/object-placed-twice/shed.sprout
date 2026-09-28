@@ -1,0 +1,1 @@
+object shed is sprout.Place in object_placed_twice { }

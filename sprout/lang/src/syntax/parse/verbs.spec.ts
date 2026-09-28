@@ -4,7 +4,7 @@ import type { Declaration } from '../ast.js';
 import type { RoleDeclaration, VerbDeclaration } from '../ast-verbs.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf, textOf } from '../../source/source.js';
-import { chooser, read } from '../../fixtures/parse.js';
+import { chooser, read, nameOf } from '../../fixtures/parse.js';
 import { readWith, rest } from '../../fixtures/readers.js';
 import { verbDeclaration } from './verbs.js';
 import {
@@ -251,7 +251,7 @@ describe('a defect in one member of a verb costs that member, not the verb', () 
       const { declarations, refusals } = read(text, 'v.sprout');
       expect(refusals.length, `${text}\n  nothing was wrong with it`).toBeGreaterThan(0);
       expect(
-        declarations.map((d) => d.name.text),
+        declarations.map((d) => nameOf(d)),
         text,
       ).toEqual(['v', 'Omega']);
       const kept = verbMemberNames(verbsOf(declarations)[0]!);
@@ -277,7 +277,7 @@ describe('a defect in one member of a verb costs that member, not the verb', () 
         text,
       ).toContain('`faulty` is never closed.');
       const from = text.indexOf(following.text);
-      const kept = declarations.some((d) => d.name.text === following.name);
+      const kept = declarations.some((d) => nameOf(d) === following.name);
       const refusedInIt = refusals.some(
         (d) => d.at.start >= from && d.message !== '`faulty` is never closed.',
       );

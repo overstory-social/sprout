@@ -20,6 +20,7 @@ import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import { DEEPEST } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
 import type { Chooser } from './parse.js';
+import { nameOf } from './parse.js';
 
 /** A construct nested one level past the parser's own depth bound, `DEEPEST`. */
 export const tooDeep = (inner: string) => '['.repeat(DEEPEST + 1) + inner + ']'.repeat(DEEPEST + 1);
@@ -65,6 +66,14 @@ export const aroundOwner = (owner: Owner, declared: readonly Declaration[]): str
     ...world.objects.filter((o) => o.name.text !== owner.name).map((o) => `object.${o.name.text}`),
   ];
 };
+
+/**
+ * The objects written at the file's top level, as a stray `}` that ends a
+ * world early leaves those written after it: kept, each an object in a
+ * file of its own.
+ */
+export const looseObjects = (declared: readonly Declaration[]): string[] =>
+  declared.flatMap((d) => (d.kind === 'object' ? [`object.${d.name.text}`] : []));
 
 /**
  * A world member by what it would be looked up as, a `remembers` block by
@@ -554,7 +563,7 @@ export function closedByWhatFollows(
   if (!said.some((d) => d.message === unclosedMessage)) {
     findings.push(`${text}\n  nothing says \`${world}\` is never closed`);
   }
-  const kept = declared.some((d) => d.name.text === following.name);
+  const kept = declared.some((d) => nameOf(d) === following.name);
   const from = text.lastIndexOf(following.text);
   const refused = said.some((d) => d.at.start >= from && d.message !== unclosedMessage);
   if (!(kept || (!following.wellFormed && refused))) {

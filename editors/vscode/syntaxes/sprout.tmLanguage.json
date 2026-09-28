@@ -206,7 +206,7 @@
         },
         {
           "name": "keyword.other.sprout",
-          "match": "\\b(?:broadcast|remembers|contains|describe|optional|visitors|article|changed|connect|default|destroy|finally|grammar|message|minutes|passage|release|seconds|without|accept|actors|arrive|depart|permit|refuse|allow|bound|hours|nouns|prose|spawn|world|each|else|enum|exit|from|kind|link|many|move|name|pass|role|send|tell|text|verb|wake|when|with|act|any|are|for|let|max|min|say|as|at|do|if|in|of|on|to)\\b"
+          "match": "\\b(?:broadcast|remembers|contains|describe|optional|visitors|article|changed|connect|default|destroy|finally|grammar|message|minutes|passage|release|seconds|without|accept|actors|arrive|depart|import|permit|refuse|allow|bound|hours|nouns|prose|spawn|world|each|else|enum|exit|from|kind|link|many|move|name|pass|role|send|tell|text|verb|wake|when|with|act|any|are|for|let|max|min|say|as|at|do|if|in|of|on|to)\\b"
         },
         { "name": "keyword.other.sprout", "match": "\\bis\\b(?!\\s*\\()" },
         { "name": "variable.language.sprout", "match": "\\b(?:self|actor|here)\\b" },

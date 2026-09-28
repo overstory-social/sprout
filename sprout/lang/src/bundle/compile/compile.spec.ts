@@ -21,6 +21,7 @@ import {
   worldLine,
 } from '../../fixtures/compile.js';
 import { locationOf, textOf } from '../../source/source.js';
+import { nameOf } from '../../fixtures/parse.js';
 
 describe('what a compiled bundle carries', () => {
   const { bundle } = compileBundle(world());
@@ -206,7 +207,7 @@ describe('what a compiled bundle carries', () => {
   it('carries the declarations it read, the world’s and its libraries’ alike', () => {
     // The union grows as the syntax lands. An object is not among them:
     // it is in the world's body.
-    expect(bundle!.definitions.map((d) => d.name.text)).toEqual([
+    expect(bundle!.definitions.map((d) => nameOf(d))).toEqual([
       'printers_shop',
       'Season',
       'Person',

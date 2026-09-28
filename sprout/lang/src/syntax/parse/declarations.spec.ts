@@ -4,7 +4,7 @@ import type { EnumDeclaration } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { DECLARATIONS } from '../parse.js';
 import { locationOf, textOf } from '../../source/source.js';
-import { optionsOf } from '../../fixtures/parse.js';
+import { optionsOf, nameOf } from '../../fixtures/parse.js';
 import { readWith } from '../../fixtures/readers.js';
 import { DECLARATION_READERS, file } from './declarations.js';
 
@@ -262,7 +262,7 @@ describe('what the parser refuses, and where it says so', () => {
         'Move it into the body of the one whose words these are, as in `kind Mirror { passage greeting { … } }`.',
       ],
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['Ward']);
+    expect(declarations.map((d) => nameOf(d))).toEqual(['Ward']);
   });
 
   it('refuses a guard at the top of a file, at its word, and reads what follows', () => {
@@ -276,7 +276,7 @@ describe('what the parser refuses, and where it says so', () => {
         'Move it into the body of the one it speaks for, as in `kind Crate { accept (item, from) { … } }`.',
       ],
     ]);
-    expect(declarations.map((d) => d.name.text)).toEqual(['Crate']);
+    expect(declarations.map((d) => nameOf(d))).toEqual(['Crate']);
   });
 
   it('names every declaration it reads, so the message grows with the compiler', () => {
@@ -327,14 +327,14 @@ describe('a declaration it cannot read costs that declaration, not the file', ()
       'The options of `Ward` go in braces.',
       'A message needs a name.',
     ]);
-    expect(bare.declarations.map((d) => d.name.text)).toEqual(['Glaze']);
+    expect(bare.declarations.map((d) => nameOf(d))).toEqual(['Glaze']);
 
     // The same through `recoverInBraces`, which hunts for a `}`.
     const nameless = read(
       'enum Ward { oak,\n42\nworld: v.X {\n  contains\n}\nenum Glaze { none, shino }\n',
     );
     expect(nameless.refusals.map((d) => d.message)).toContain('A world needs a name.');
-    expect(nameless.declarations.map((d) => d.name.text)).toEqual(['Ward', 'Glaze']);
+    expect(nameless.declarations.map((d) => nameOf(d))).toEqual(['Ward', 'Glaze']);
   });
 
   it('never throws, whatever it is given', () => {

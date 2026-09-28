@@ -1,0 +1,7 @@
+// One name imported twice.
+world import_twice is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

@@ -30,16 +30,20 @@ import { refuseComposingWorld, writesWorld } from './sprout-world.js';
 /**
  * Refuse what one kind or object declaration gets wrong on its own: an
  * object that names no kind (the spec's Objects: "An object names its
- * kinds after `is`"), and `sprout.World` written anywhere but on the
+ * kinds after `is`"), unless it is a stub in the world, where `inKind` is false, and `sprout.World` written anywhere but on the
  * world, since it would make a thing into a world (The compiler › What
  * it refuses). Which kinds the names resolve to is the second tier's.
  */
 export function checkKindDeclaration(
   declared: KindDeclaration | ObjectDeclaration,
   diagnostics: Diagnostics,
+  inKind = false,
 ): void {
   const name = declared.name.text;
-  if (declared.kind === 'object' && declared.composes.length === 0) {
+  // A stub in the world's body places an object its file imports, which
+  // the bundle checks; one in a kind's body could place nothing.
+  const stub = declared.kind === 'object' && declared.stub === true && !inKind;
+  if (declared.kind === 'object' && declared.composes.length === 0 && !stub) {
     diagnostics.refuse(
       declared.name.at,
       `\`${name}\` does not say what kind of thing it is.`,

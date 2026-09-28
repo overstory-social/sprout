@@ -1,0 +1,5 @@
+import * as sprout from 'sprout'
+
+object shed is sprout.Place in imports.hall {
+  describe { text "A shed built into the hall's corner." }
+}

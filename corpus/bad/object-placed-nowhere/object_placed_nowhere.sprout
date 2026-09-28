@@ -1,0 +1,7 @@
+// An in clause that names nothing in the world.
+world object_placed_nowhere is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

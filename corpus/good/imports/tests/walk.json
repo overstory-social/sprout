@@ -1,0 +1,14 @@
+{
+  "about": "The cellar a stub places is reached from the hall, and back.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "words": "A bare hall, with steps going down." }
+    ] },
+    { "as": "Marta", "type": "go down", "expect": [
+      { "words": "A cellar, cold and dry." }
+    ] },
+    { "as": "Marta", "type": "go up", "expect": [
+      { "words": "A bare hall, with steps going down." }
+    ] }
+  ]
+}

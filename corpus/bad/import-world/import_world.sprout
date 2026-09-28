@@ -1,0 +1,7 @@
+// The world imported by its name.
+world import_world is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place
+}

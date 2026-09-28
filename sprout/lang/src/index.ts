@@ -24,6 +24,7 @@ export * from './syntax/ast-speech.js';
 export * from './syntax/ast-grammar.js';
 export * from './syntax/ast-extensions.js';
 export * from './syntax/ast-events.js';
+export * from './syntax/ast-imports.js';
 export * from './syntax/parse.js';
 
 export * from './declare/types.js';

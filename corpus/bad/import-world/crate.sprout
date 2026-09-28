@@ -1,0 +1,2 @@
+import {import_world} from 'import_world'
+kind Crate { }

@@ -1,0 +1,2 @@
+object a is sprout.Place, sprout.Container in b
+object b is sprout.Place, sprout.Container in a
