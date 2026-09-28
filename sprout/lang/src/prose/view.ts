@@ -5,7 +5,7 @@
 // visitor as its one reader, what the place's description records of
 // extensions beside its words (the spec's Extensions › What an extension
 // may add). A poll that faults yields a view whose description is the
-// world's `unseen` and whose every other part is whatever the poll
+// engine's `unseen` and whose every other part is whatever the poll
 // derived before it faulted, rendered fresh since the budget that
 // faulted can afford nothing more; its fault is laid against the place
 // whose description the poll was deriving where the fault names no
@@ -131,7 +131,8 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   });
   if (!polled.faulted) return { visit, view: polled.view, fault: null };
 
-  // The description is always the world's `unseen`, and every other part
+  // The description is the engine's `unseen`, found for the one looking
+  // as every engine line is (`engine-lines.ts`), and every other part
   // is whatever `parts` holds of what the poll derived before it faulted
   // (the spec's Faults); both render under a fresh budget of the poll's
   // own, since the one that faulted can afford nothing more.

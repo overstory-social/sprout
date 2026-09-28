@@ -7,7 +7,7 @@
 // effect for the one looking, into the view in a poll (the spec's
 // Extensions › What an extension may add). What a line says is carried
 // unrendered, for `prose/` to render; where the lines render nothing, or the thing has no describe,
-// the world's `unremarkable` is read in their place, so looking at
+// the engine's `unremarkable` is read in their place, so looking at
 // anything always reads something.
 
 import type { Block, IfStatement, Statement } from '../syntax/ast.js';

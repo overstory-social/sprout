@@ -6,7 +6,7 @@
 // returning one comes back with what they carried away, never given
 // those contents again, where they last stood if that place still exists
 // and accepts them, and otherwise where the world says visitors arrive,
-// told through the world's `displaced` when the place they stood in is
+// told through the engine's `displaced` when the place they stood in is
 // gone. Entry is a move from outside the tree: the host's bound on a
 // crowd is asked (`crowd.ts`), refusing through the engine's `crowded`,
 // then the place's `accept`, with the world as `from`; then the place is

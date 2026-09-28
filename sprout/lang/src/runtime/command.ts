@@ -5,8 +5,8 @@
 // present are marked stale, as every write turn that commits marks them.
 // The one who typed the command is always told something: the parser's
 // answer, the consent pass's refusal, what the effect pass said, what
-// the engine answered or the world's `nothing_happens`, or, when the turn
-// faults and is abandoned, the world's `fault`. What it says is one
+// the engine answered or its `nothing_happens`, or, when the turn
+// faults and is abandoned, the engine's `fault`. What it says is one
 // sequence of effects in that order: the effect pass's lines, then the
 // queue's, then the engine's answers (`effects.ts`).
 //
