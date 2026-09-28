@@ -1110,7 +1110,7 @@ Three things come with it. Procedural space counts against live instances like e
 Six verbs are the engine's, because they read the world rather than change it: `go`, `look`, `examine`, `inventory`, `wait` and `help`. Their phrases are declared in the standard library like any verb's — `look` answers to `l`, `examine` to `x` and `look at` — so their words can be added to and translated, but they have no `do`:
 
 - `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
-- `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none.
+- `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none, and then the thing's own `contents` passage where its kinds write one, so a container says what it holds once you can see in. `sprout.Container`'s `contents` lists what is inside while it is open and says nothing while it is shut; an actor writes none, so what a person carries is never listed.
 - `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
 - `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise.
 - `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the `help` line, whose default `sprout.World` supplies; the line is given `readings`, and each reading renders as the line a visitor would type for it.
@@ -1609,7 +1609,7 @@ The same goes for the other two. A lever that grinds differently after its first
 
 ### Where chance is forbidden
 
-Not in `describe`, not in an exit's `when` guard, not in a consent guard, not in a `permit`, and not in a pass rule, `pass :m` or `pass any`. Nor in the lines the engine says where a poll does, the world's `unseen`, `unremarkable` and `acted`, wherever any is said.
+Not in `describe`, not in an exit's `when` guard, not in a consent guard, not in a `permit`, and not in a pass rule, `pass :m` or `pass any`. Nor in the lines the engine says where a poll does, the world's `unseen`, `unremarkable` and `acted`, wherever any is said, nor in a thing's `contents`, which `examine` renders as part of its description.
 
 All of them are polled or decisive rather than performed. A description re-runs on every poll, so a random one shimmers — the place rewrites itself while the visitor stands still and does nothing — and the engine's poll lines are held to a description's rule wherever they are said. An exit's guard is evaluated to build what a visitor can see and go, so a random one offers a way out that vanishes when taken. A pass rule is asked whenever range is walked, by a poll and by the parser among them, so a rolling one would let a sound or a hand through and then not while nobody acts. And a guard or a `permit` is asked as part of a decision it must not change.
 
@@ -1790,7 +1790,7 @@ Stored state for absent objects is kept, untouched, so that a file restored brin
 - A write to anything but `self`.
 - `say`, `tell`, `text`, or any write, send, move, act, spawn or destroy in a guard or a `permit`; any of those but `text` in `describe`.
 - `say`, `actor` or `here` in a handler, a hook, a tick or a wake, or in a passage reachable from one.
-- `chance`, `random` or `{one of}` in `describe`, in a `when` guard, in a consent guard, in a `permit`, in a pass rule, or in the world's `unseen`, `unremarkable` or `acted` — including in any passage reachable from one.
+- `chance`, `random` or `{one of}` in `describe`, in a `when` guard, in a consent guard, in a `permit`, in a pass rule, or in the world's `unseen`, `unremarkable` or `acted`, or a thing's `contents` — including in any passage reachable from one.
 - A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
@@ -2108,8 +2108,9 @@ kind Fixture {
 }
 
 // sprout/container.sprout
-verb open  { role target: Container  "open [target]" }
-verb close { role target: Container  "close [target]"  "shut [target]" }
+verb open    { role target: Container  "open [target]" }
+verb close   { role target: Container  "close [target]"  "shut [target]" }
+verb look_in { role target: Container  "look in [target]"  "look inside [target]"  "what is in [target]" }
 
 kind Container {
   contains
@@ -2133,9 +2134,18 @@ kind Container {
     do     { self.set(:open, false)  say closed  tell closes }
   }
 
+  as target for look_in {
+    permit { if (!self.get(:open)) { refuse shut } }
+    do     { say contents }
+  }
+
+  passage contents default {
+    {if self.get(:open)}{if self.count == 0}It is empty.{else}Inside: {for thing in self}{thing}{if $last}.{else}, {/if}{/for}{/if}{/if}
+  }
+
   passage shut default   { {self} is shut. }
   passage full default   { There is no room in {self}. }
-  passage opened default { You open {self}. }
+  passage opened default { You open {self}. {self.contents} }
   passage opens default  { {actor} opens {self}. }
   passage closed default { You shut {self}. }
   passage closes default { {actor} shuts {self}. }
