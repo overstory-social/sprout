@@ -289,8 +289,11 @@ describe('an admitted nickname, over generated nicknames', () => {
       const typedOnes = nickname.toLowerCase().split(/\s+/);
       const theWorlds = typedOnes.filter((word) => catalogue.words.has(word));
       const theLanguages = typedOnes.filter((word) => RESERVED_WORDS.has(word));
-      const expected: [string, string[]] | null =
-        shapedOnes.length > 0
+      // Past the host's length a nickname is refused for that, before its words are read.
+      const tooLong = [...keptNickname(nickname)].length > BUDGETS.nicknameCharacters;
+      const expected: [string, string[]] | null = tooLong
+        ? ['too-long', []]
+        : shapedOnes.length > 0
           ? ['source-shaped', shapedOnes]
           : theWorlds.length > 0
             ? ['world-word', theWorlds]
@@ -315,6 +318,7 @@ describe('an admitted nickname, over generated nicknames', () => {
       });
     }
     expect(admitted).toBeGreaterThan(50);
-    expect([...seen].sort()).toEqual(['reserved', 'source-shaped', 'world-word']);
+    for (const reason of ['reserved', 'source-shaped', 'world-word'])
+      expect(seen).toContain(reason);
   });
 });

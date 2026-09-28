@@ -39,7 +39,7 @@
       { "reader": "Marta", "kind": "refused", "words": "It is already unlocked." }
     ] },
     { "as": "Marta", "type": "open type", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet. Inside: a shop key." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the type cabinet." }
     ] },
     { "as": "Marta", "type": "open cabinet", "expect": [
@@ -60,7 +60,7 @@
       { "reader": "Marta", "kind": "refused", "words": "The type cabinet is shut." }
     ] },
     { "as": "Ines", "type": "open cabinet", "expect": [
-      { "reader": "Ines", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Ines", "kind": "said", "words": "You open the type cabinet. It is empty." },
       { "reader": "Marta", "kind": "told", "words": "Ines opens the type cabinet." }
     ] },
     { "as": "Marta", "type": "put brass key in cabinet", "expect": [
@@ -72,7 +72,8 @@
       { "reader": "Marta", "kind": "told", "words": "Ines takes a brass key." }
     ] },
     { "as": "Ines", "type": "x cabinet", "expect": [
-      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the type cabinet." }
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the type cabinet." },
+      { "reader": "Ines", "kind": "described", "words": "It is empty." }
     ] },
     { "as": "Marta", "type": "unlock paper store with shop key", "expect": [
       { "reader": "Marta", "kind": "said", "words": "The lock turns over." },

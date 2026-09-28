@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "3ee5bf259090f4a777291357177a16b6495bad4139902cae235856a3b4f545cc"
+      "sha": "3f3fd4f9ba60a34b5651ed8e0711ada0fd44eb3bcf47d3446da6ac068567ba3e"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -1069,13 +1069,21 @@ you can add words or translate them.
 | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- |
 | `go`        | `go [way]`, `[way]`, `walk [way]`               | moves the actor through an exit or link, then describes the new place |
 | `look`      | `look`, `l`, `look around`                      | the actor's place's `describe`                                        |
-| `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]` | the thing's `describe`, or the world's `unremarkable`            |
+| `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]` | the thing's `describe`, or the world's `unremarkable`, then its `contents` |
 | `inventory` | `inventory`, `i`, `inv`                         | the actor's `inventory` passage                                       |
 | `wait`      | `wait`, `z`                                     | the world's `waited` passage ("Time passes.")                         |
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
 
 A kind may play `as actor for go`; its `permit` can refuse the move and
 its `do` runs after it.
+
+After a thing's description, `examine` says the thing's own `contents`
+passage where its kinds write one. `sprout.Container`'s lists what is
+inside while it is open, "Inside: a shop key." or "It is empty.", and says
+nothing while it is shut. A `contents` is held to a description's rules:
+it may not use `chance`, `random` or `{one of}`. A line typed with a `?`
+at the end is read without it, so `what is in the cabinet?` works; `?` on
+its own still means `help`.
 
 ### What the parser says
 
@@ -1825,6 +1833,7 @@ any of its lines. `sprout skill` prints its full source.
 | `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`  |
 | `open`   | `target: Container`                | `open [target]`                                             |
 | `close`  | `target: Container`                | `close [target]`, `shut [target]`                           |
+| `look_in` | `target: Container`               | `look in [target]`, `look inside [target]`, `what is in [target]` |
 | `unlock` | `target: Lockable`, `tool`         | `unlock [target] with [tool]`, `use [tool] on [target]`     |
 | `ask`    | `target`, `topic: symbol`          | `ask [target] about [topic]`, `ask [target] [topic]`        |
 
@@ -1871,8 +1880,9 @@ what a character says: `words` is their line, its paragraphs as one.
 
 `sprout.Actor`: `taken`, `takes`, `dropped`, `drops`, `put_in`, `puts_in`,
 `given`, `received`, `gives`, `not_carried`, `not_held`, `held_fast`,
-`not_yours`, `hands_full`, `inventory`. `sprout.Container`: `shut`,
-`full`, `opened`, `opens`, `closed`, `closes`. `sprout.Lockable`:
+`not_yours`, `hands_full`, `inventory`. `sprout.Container`: `contents`,
+`shut`, `full`, `opened` (which includes `contents`), `opens`, `closed`,
+`closes`. `sprout.Lockable`:
 `unlocked`, `unlocks`. `sprout.Fixture`: `immovable`. `sprout.Place`:
 `arrives`, `leaves`.
 

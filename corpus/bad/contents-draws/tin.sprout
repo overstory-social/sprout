@@ -1,0 +1,7 @@
+// `examine` says a thing's `contents` as part of its description, so it
+// draws nothing, as a description does not.
+import * as sprout from 'sprout'
+
+kind Tin is sprout.Container {
+  passage contents { {one of}It rattles.{or}It clinks.{/one of} }
+}

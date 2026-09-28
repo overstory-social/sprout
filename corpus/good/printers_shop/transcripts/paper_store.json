@@ -23,7 +23,7 @@
       { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
     ] },
     { "as": "Marta", "type": "open cabinet", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." },
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet. Inside: a shop key." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the type cabinet." }
     ] },
     { "as": "Marta", "type": "take shop key", "expect": [
@@ -38,7 +38,7 @@
       { "reader": "Marta", "kind": "refused", "words": "The paper store is shut." }
     ] },
     { "as": "Marta", "type": "open paper store", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the paper store." },
+      { "reader": "Marta", "kind": "said", "words": "You open the paper store. Inside: a ladder." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the paper store." }
     ] },
     { "as": "Marta", "type": "go in", "expect": [
@@ -88,7 +88,7 @@
       { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines," }
     ] },
     { "as": "Marta", "type": "open paper store", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the paper store." },
+      { "reader": "Marta", "kind": "said", "words": "You open the paper store. Inside: a ladder." },
       { "reader": "Ines", "kind": "told", "words": "Marta opens the paper store." }
     ] },
     { "as": "Marta", "type": "go out", "expect": [

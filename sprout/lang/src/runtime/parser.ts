@@ -63,7 +63,7 @@ export function readCommand(
 ): CommandOutcome {
   const { state, catalogue, budget } = context;
   const here = placeOf(state, actor);
-  const words = typedWords(line);
+  const words = typedWords(withoutQuestion(line));
   if (words.length === 0) return answer(state, 'unknown', actor, here);
 
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
@@ -214,6 +214,17 @@ function whichAnswer(
     return { id, line: line.join(' ').replaceAll(' ,', ',') };
   });
   return answer(context.state, 'which', actor, here, choices);
+}
+
+/**
+ * `line` without a trailing `?`, which is read as nothing (`what is in the
+ * cabinet?`); a `?` alone is kept, since it is a phrase of `help`.
+ */
+function withoutQuestion(line: string): string {
+  const trimmed = line.trimEnd();
+  if (!trimmed.endsWith('?')) return line;
+  const rest = trimmed.slice(0, -1);
+  return rest.trim() === '' ? line : rest;
 }
 
 /** The actor's place: its container, since an actor is only ever inside something that holds actors. */

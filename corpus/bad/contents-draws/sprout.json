@@ -1,0 +1,16 @@
+{
+  "name": "contents_draws",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "3f3fd4f9ba60a34b5651ed8e0711ada0fd44eb3bcf47d3446da6ac068567ba3e"
+    }
+  ],
+  "files": ["contents_draws.sprout", "person.sprout", "tin.sprout"]
+}

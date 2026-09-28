@@ -36,6 +36,7 @@ describe('the standard library as the skill describes it', () => {
       'give',
       'open',
       'close',
+      'look_in',
       'unlock',
       'ask',
     ]);

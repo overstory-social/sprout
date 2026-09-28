@@ -560,3 +560,20 @@ describe('every line has exactly one outcome (generated)', () => {
     expect(typedWords('  Take   the BRASS key ')).toEqual(['take', 'the', 'brass', 'key']);
   });
 });
+
+describe('a line ending in `?`', () => {
+  it('is read without it, as a question typed as a command', () => {
+    for (const line of ['look?', 'look ?', 'look?  ']) {
+      expect(understood(typed(study(), line)).verb, line).toBe('sprout.look');
+    }
+    expect(understood(typed(study(), 'examine lamp?'))).toEqual({
+      verb: 'sprout.examine',
+      bindings: { target: { object: LAMP } },
+    });
+  });
+
+  it('keeps a `?` alone, which is one of the phrases of `help`', () => {
+    expect(understood(typed(study(), '?')).verb).toBe('sprout.help');
+    expect(understood(typed(study(), ' ? ')).verb).toBe('sprout.help');
+  });
+});

@@ -2,13 +2,13 @@
 // Verbs › Engine verbs; Chance › The forms: a description is derived
 // after the turn that moved the visitor). A person who moved between
 // places, by `go` or by any `move`, reads the place they arrived in; one
-// who typed `look` reads their place, `examine` the thing named,
-// `inventory` the engine's `inventory`, `wait` its `waited`, and `help`
-// its `help`, each found as every engine line is (`engine-lines.ts`),
-// `help` given the readings `offers.ts` derives whose consent pass allows
-// and some participant plays a part in. An NPC
-// reads nothing. Every answer is carried unrendered, among what the turn
-// says (`effects.ts`).
+// who typed `look` reads their place, `examine` the thing named and then
+// the thing's own `contents` where its kinds write one, `inventory` the
+// engine's `inventory`, `wait` its `waited`, and `help` its `help`, each
+// found as every engine line is (`engine-lines.ts`), `help` given the
+// readings `offers.ts` derives whose consent pass allows and some
+// participant plays a part in. An NPC reads nothing. Every answer is
+// carried unrendered, among what the turn says (`effects.ts`).
 
 import { SPROUT } from '../declare/enums.js';
 import { playsOf } from '../declare/roles.js';
@@ -48,6 +48,8 @@ export function engineAnswers(
         throw new Error('a reading of `examine` names nothing to examine.');
       }
       answers.push({ description: describeFor(target.object, actor, context) });
+      const contents = contentsOf(target.object, actor, here, context);
+      if (contents !== null) answers.push({ said: contents });
       break;
     }
     case 'inventory':
@@ -83,6 +85,30 @@ export function arrivalsRead(notices: readonly Notice[], context: DescribeContex
     answers.push({ description: describeFor(notice.place, mover, context) });
   }
   return answers;
+}
+
+/**
+ * `thing`'s own `contents`, where its kinds write one, as `examine` says
+ * it after the description: from the thing, to the one looking, with
+ * `actor` and `here` bound as a description has them (the spec's Engine
+ * verbs); null where it writes none.
+ */
+function contentsOf(
+  thing: InstanceId,
+  actor: InstanceId,
+  here: InstanceId,
+  context: OfferContext,
+): Said | null {
+  const passage = context.state.instance(thing)?.kind.passages.get('contents');
+  if (passage === undefined) return null;
+  return {
+    effect: 'described',
+    to: [actor],
+    by: thing,
+    speaker: null,
+    said: { passage },
+    bindings: acting(actor, here),
+  };
 }
 
 /** `actor` and `here`, as the engine binds them for a line said to the one acting. */

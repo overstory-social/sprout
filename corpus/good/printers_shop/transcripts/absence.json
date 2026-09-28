@@ -13,7 +13,7 @@
       { "reader": "Marta", "kind": "said", "words": "The lock turns over." }
     ] },
     { "as": "Marta", "type": "open cabinet", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet." }
+      { "reader": "Marta", "kind": "said", "words": "You open the type cabinet. Inside: a shop key." }
     ] },
     { "as": "Marta", "type": "take shop key", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You take a shop key." }

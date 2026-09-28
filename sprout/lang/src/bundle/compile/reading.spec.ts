@@ -180,6 +180,7 @@ describe('every file in the bundle is read', () => {
       'Fixture',
       'open',
       'close',
+      'look_in',
       'Container',
       'unlock',
       'Lockable',

@@ -62,6 +62,18 @@ describe('what the engine answers a command, once the queue is empty', () => {
     ]);
   });
 
+  it('`examine` says the thing’s own `contents` after its description, where its kinds write one', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    expect(readAnswers(typedIn(state, MARTA, 'examine box'))).toEqual([
+      [marta, ['Something is in it.']],
+      [marta, ['One thing is in it, where you can see.']],
+    ]);
+    // `look` says no `contents`, and a thing with none says only its description.
+    expect(readAnswers(typedIn(state, MARTA, 'look'))).toHaveLength(1);
+    expect(readAnswers(typedIn(state, MARTA, 'x lamp'))).toHaveLength(1);
+  });
+
   it('describes after the queue, so what the turn did is what the one looking reads', () => {
     const state = study(undefined, [[LAMP, 'lit', true]]);
     expect(readAnswers(typedIn(state, MARTA, 'x lamp'))[0]![1]).toEqual([
