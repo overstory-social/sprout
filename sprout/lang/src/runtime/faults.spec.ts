@@ -6,7 +6,7 @@ import { ActFault } from './act.js';
 import { ValueOutOfRange } from './body.js';
 import { BudgetExhausted } from './budget.js';
 import { boundObject, IntegerOverflow } from './evaluate.js';
-import { faultOf, faultTold, stockFaultEffect, stockLine, worldSpeech } from './faults.js';
+import { faultOf, faultTold, stockFaultEffect } from './faults.js';
 import { LifecycleFault } from './lifecycle.js';
 import { ListFull } from './lists.js';
 import { MoveFault } from './move.js';
@@ -75,41 +75,7 @@ describe('what a fault is', () => {
   });
 });
 
-describe('the world’s words for a fault', () => {
-  it('are its own passages, as they apply on its kind', () => {
-    const state = readerOf(belfry());
-    expect(words(worldSpeech(state, 'fault'))).toBe(FAULT);
-    expect(words(worldSpeech(state, 'unseen'))).toBe(
-      'sprout.World unseen: Something here is too much to take in.',
-    );
-  });
-
-  it('fall back to the stock line, in fixed words, where the world has no such passage', () => {
-    const committed = readerOf(belfry());
-    const world = committed.instance(committed.world)!;
-    const bare: StateReader = {
-      ...committed,
-      instance: (id) =>
-        id === committed.world
-          ? { ...world, kind: { ...world.kind, passages: new Map() } }
-          : committed.instance(id),
-    };
-    expect(worldSpeech(bare, 'fault')).toMatchObject({
-      text: 'Something in this world has gone wrong, and nothing has changed.',
-      library: 'sprout',
-    });
-    expect(worldSpeech(bare, 'unseen')).toMatchObject({
-      text: 'Something here is too much to take in.',
-    });
-  });
-
-  it('give the stock line itself for a caller that must say it with nothing to render with', () => {
-    expect(stockLine('unseen')).toBe('Something here is too much to take in.');
-    expect(stockLine('fault')).toBe(
-      'Something in this world has gone wrong, and nothing has changed.',
-    );
-  });
-
+describe('the words for a fault', () => {
   it('are told to the actor alone, from the world, as a notice, with `actor` and `here` bound', () => {
     const state = belfry();
     const marta = actorOf(state, MARTA);
@@ -122,6 +88,25 @@ describe('the world’s words for a fault', () => {
         ['here', boundObject(HALL)],
       ]),
     );
+  });
+
+  it('are the actor’s own `fault` where it writes one, said by them, as every engine line is found', () => {
+    const state = belfry();
+    const marta = actorOf(state, MARTA);
+    const committed = readerOf(state);
+    const own = {
+      ...committed.instance(committed.world)!.kind.passages.get('fault')!,
+      yields: false,
+    };
+    const self = committed.instance(marta)!;
+    const reader: StateReader = {
+      ...committed,
+      instance: (id) =>
+        id === marta
+          ? { ...self, kind: { ...self.kind, passages: new Map([['fault', own]]) } }
+          : committed.instance(id),
+    };
+    expect(faultTold(reader, marta)).toMatchObject({ by: marta, said: { passage: own } });
   });
 
   it('are the stock line, binding no `here`, to an actor whose place is gone', () => {

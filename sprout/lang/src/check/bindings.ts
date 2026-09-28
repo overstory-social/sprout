@@ -60,7 +60,7 @@ export type BindingType =
   /** A set role: every object the visitor named, at the role's kind. */
   | { readonly binds: 'set'; readonly kind: KindRef | null }
   /**
-   * `readings` in the world's `help`: a set of readings, walked only by
+   * `readings` in the engine's `help`: a set of readings, walked only by
    * `{for … of}`, each rendering as the words a visitor types for it.
    */
   | { readonly binds: 'readings' };
@@ -80,7 +80,7 @@ export function setOf(kind: KindRef | null): BindingType {
   return { binds: 'set', kind };
 }
 
-/** `readings` in the world's `help`: a set of readings, each rendering as the words a visitor types for it. */
+/** `readings` in the engine's `help`: a set of readings, each rendering as the words a visitor types for it. */
 export const READINGS: BindingType = { binds: 'readings' };
 
 /** A binding type as a message names it. */

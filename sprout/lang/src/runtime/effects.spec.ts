@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { belfry, HALL, LOFT, WORLD } from '../fixtures/turns.js';
 import { effectsTo, noticeLines, saidLines, SILENT, type Effect } from './effects.js';
-import { boundObject } from './evaluate.js';
+import { boundObject, boundValue } from './evaluate.js';
 import { visitKey, type InstanceId } from './ids.js';
 import type { Notice } from './move.js';
 import type { Said } from './reading.js';
@@ -12,20 +12,22 @@ const passage = (name: string) => state.instances.get(HALL)!.kind.passages.get(n
 const [marta, ines] = ['m', 'i'] as InstanceId[];
 const walker = 'w' as InstanceId;
 
-describe('what a place says of someone moved between places', () => {
-  it('is a notice from the place to its readers, with the one who moved as `item`', () => {
+describe('what is said of someone moved between places', () => {
+  it('is a notice from whoever words it to the place’s readers, with the one who moved as `item`', () => {
     const notices: Notice[] = [
       {
         notice: 'leaves',
         place: HALL,
-        passage: passage('leaves'),
-        bindings: { item: walker },
+        by: HALL,
+        said: { passage: passage('leaves') },
+        bindings: { item: walker, to: LOFT, way: 'up the ladder' },
         audience: [marta, ines],
       },
       {
         notice: 'arrives',
         place: LOFT,
-        passage: passage('arrives'),
+        by: LOFT,
+        said: { passage: passage('arrives') },
         bindings: { item: walker },
         audience: [ines],
       },
@@ -37,7 +39,13 @@ describe('what a place says of someone moved between places', () => {
     ]);
     expect(lines[0]!.said).toEqual({ passage: passage('leaves') });
     expect(lines[0]!.speaker).toBeNull();
-    expect([...lines[0]!.bindings]).toEqual([['item', boundObject(walker)]]);
+    // The place left or entered and the way are bound only where the move has them.
+    expect([...lines[0]!.bindings]).toEqual([
+      ['item', boundObject(walker)],
+      ['to', boundObject(LOFT)],
+      ['way', boundValue('up the ladder')],
+    ]);
+    expect([...lines[1]!.bindings]).toEqual([['item', boundObject(walker)]]);
   });
 
   it('leaves out the description, which the engine answers, and a notice nobody reads', () => {
@@ -45,7 +53,8 @@ describe('what a place says of someone moved between places', () => {
       {
         notice: 'leaves',
         place: HALL,
-        passage: passage('leaves'),
+        by: HALL,
+        said: { passage: passage('leaves') },
         bindings: { item: walker },
         audience: [],
       },

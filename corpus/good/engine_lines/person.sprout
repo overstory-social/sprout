@@ -1,0 +1,9 @@
+// What every visitor is made of, and a line of their own: each one who
+// leaves the world is told it in these words, not the world's.
+import * as sprout from 'sprout'
+
+kind Walker is sprout.Actor {
+  passage gone_away { You go, whistling. }
+}
+
+kind Person is Walker, sprout.Visitor { }

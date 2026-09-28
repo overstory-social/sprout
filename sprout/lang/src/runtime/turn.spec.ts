@@ -11,7 +11,6 @@ import {
   MARTA,
   STONE,
 } from '../fixtures/turns.js';
-import { words } from '../fixtures/reading.js';
 import { Draft } from './draft.js';
 import { saveWorld } from './load.js';
 import type { WorldState } from './state.js';
@@ -440,15 +439,13 @@ describe('a poll', () => {
     expect(polled).toEqual({ faulted: false, view: { draft: false, writes: false, draws: false } });
   });
 
-  it('yields the world’s `unseen` when its look faults', () => {
+  it('says what faulted when its look faults, and nothing more', () => {
     const polled = pollTurn(belfry(), belfryHost(), (turn) =>
       turn.budget.spend(DEFAULT_LIMITS.budgets.pollSteps + 1),
     );
     if (!polled.faulted) throw new Error('the poll did not fault');
     expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', engine: false });
     expect(polled.fault.detail).toContain('poll');
-    expect(words(polled.unseen)).toBe(
-      'sprout.World unseen: Something here is too much to take in.',
-    );
+    expect(Object.keys(polled)).toEqual(['faulted', 'fault']);
   });
 });

@@ -9,7 +9,7 @@
 //   RUNTIME BUDGETS bound what a turn may cost. They are counted while
 //   running, and exhausting one is a FAULT: the turn is abandoned, the
 //   world is left exactly as it was, and whoever acted is told through
-//   the world's `fault` passage.
+//   the engine's `fault` line.
 //
 // **The numbers are the host's.** The language defines which limits
 // exist and what exceeding each one means; the host running the world

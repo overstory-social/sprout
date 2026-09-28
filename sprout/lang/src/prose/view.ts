@@ -5,7 +5,7 @@
 // visitor as its one reader, what the place's description records of
 // extensions beside its words (the spec's Extensions › What an extension
 // may add). A poll that faults yields a view whose description is the
-// world's `unseen` and whose every other part is whatever the poll
+// engine's `unseen` and whose every other part is whatever the poll
 // derived before it faulted, rendered fresh since the budget that
 // faulted can afford nothing more; its fault is laid against the place
 // whose description the poll was deriving where the fault names no
@@ -16,8 +16,9 @@
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
 import type { Plain } from '../declare/extensions.js';
 import type { Said } from '../runtime/reading.js';
-import { DISPLACED_STOCK, displacedLine } from '../runtime/arrival.js';
-import { stockLine, type Fault } from '../runtime/faults.js';
+import { displacedLine } from '../runtime/arrival.js';
+import { engineSaid, STOCK_LINES } from '../runtime/engine-lines.js';
+import type { Fault } from '../runtime/faults.js';
 import type { InstanceId, VisitKey } from '../runtime/ids.js';
 import { standsInPlace } from '../runtime/live.js';
 import type { OptionRange, RoleOptions } from '../runtime/options.js';
@@ -124,19 +125,20 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
     // tell them, and is offered nothing until it has moved them.
     if (!standsInPlace(turn.state, actor)) {
       const displaced = renderFor(displacedLine(turn.state, actor), actor, context);
-      return onlySaying(displaced.length > 0 ? displaced : [DISPLACED_STOCK]);
+      return onlySaying(displaced.length > 0 ? displaced : [STOCK_LINES.displaced]);
     }
     return renderView(viewOf(actor, context, parts), context);
   });
   if (!polled.faulted) return { visit, view: polled.view, fault: null };
 
-  // The description is always the world's `unseen`, and every other part
+  // The description is the engine's `unseen`, found for the one looking
+  // as every engine line is (`engine-lines.ts`), and every other part
   // is whatever `parts` holds of what the poll derived before it faulted
   // (the spec's Faults); both render under a fresh budget of the poll's
   // own, since the one that faulted can afford nothing more.
   const unseen = pollTurn(state, host, (turn) =>
     renderFor(
-      { by: state.world, said: polled.unseen, bindings: new Map() },
+      { ...engineSaid(turn.state, 'unseen', actor, place), bindings: new Map() },
       actor,
       rendering(turn),
     ),
@@ -146,7 +148,7 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   return {
     visit,
     view: {
-      description: !unseen.faulted && unseen.view.length > 0 ? unseen.view : [stockLine('unseen')],
+      description: !unseen.faulted && unseen.view.length > 0 ? unseen.view : [STOCK_LINES.unseen],
       effects: [],
       ...(kept.faulted ? emptyKept() : kept.view),
     },

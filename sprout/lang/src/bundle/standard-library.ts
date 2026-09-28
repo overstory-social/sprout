@@ -39,6 +39,8 @@ kind World {
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
   passage acted default           { {actor} tries to {reading}. }
+  passage gone_away default       { You leave, and take what you carry with you. }
+  passage npc_says default        { {actor} says "{words}" }
 }
 `;
 
@@ -57,8 +59,8 @@ const PLACE = `// sprout.Place: a place is whatever holds actors (the spec's Pla
 // and the notices of someone arriving and leaving, as default passages.
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves default  { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves default  { {item} leaves{if bound to} for {to}{/if}. }
 }
 `;
 

@@ -50,7 +50,7 @@ describe('the world’s answers to a line it could not run', () => {
     expect(which.choices).toEqual(choices);
   });
 
-  it('is an engine error where the world composes no such passage', () => {
+  it('is the standard library’s words, said by the engine, where nothing writes the line', () => {
     const world = one.draft.instance(one.draft.world)!;
     const bare = { ...world, kind: { ...world.kind, passages: new Map() } };
     const state: StateReader = {
@@ -60,8 +60,9 @@ describe('the world’s answers to a line it could not run', () => {
       visitor: (visit) => one.draft.visitor(visit),
       tombstoned: (id) => one.draft.tombstoned(id),
     };
-    expect(() => answer(state, 'unknown', actor, HALL)).toThrow(
-      'the world composes no `unknown` passage, which `sprout.World` writes.',
-    );
+    expect(answer(state, 'unknown', actor, HALL)).toMatchObject({
+      by: one.draft.world,
+      said: { text: 'That is not something you can do here.' },
+    });
   });
 });

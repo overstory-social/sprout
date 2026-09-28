@@ -226,18 +226,18 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 /**
  * The parser a command turn reads through: `readCommand`, over the exits
  * that apply where the actor stands, with an answer said to the actor as
- * a notice from the world.
+ * a notice.
  */
 export const parseCommand: Parser = (text, actor, context) => {
   const exits = exitsFrom(placeOf(context.state, actor), context);
   const outcome = readCommand(text, actor, { ...context, exits });
   if ('understood' in outcome) return { reading: outcome.understood };
-  const { said, bindings, choices } = outcome;
+  const { by, said, bindings, choices } = outcome;
   return {
     answered: {
       effect: 'notice',
       to: [actor],
-      by: context.state.world,
+      by,
       speaker: null,
       said,
       bindings,

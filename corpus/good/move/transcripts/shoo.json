@@ -5,8 +5,8 @@
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
     ] },
     { "as": "Marta", "type": "shoo cat", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "The cat leaves." },
-      { "reader": "Marta", "kind": "notice", "words": "The cat arrives." },
+      { "reader": "Marta", "kind": "notice", "words": "The cat leaves for a cupboard." },
+      { "reader": "Marta", "kind": "notice", "words": "The cat arrives from a hall." },
       { "reader": "Marta", "kind": "said", "words": "Nothing much comes of that." }
     ] }
   ]

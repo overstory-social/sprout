@@ -27,13 +27,7 @@ import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import type { Node } from '../source/nodes.js';
 import type { Span } from '../source/source.js';
 import { readable } from '../source/words.js';
-import {
-  ACTOR_LINES,
-  PLACE_LINES,
-  WORLD_LINES,
-  type EngineBinds,
-  type EnginePassage,
-} from '../declare/engine-passages.js';
+import { ENGINE_LINES, type EngineBinds, type EnginePassage } from '../declare/engine-passages.js';
 import { composesKind, kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import { STRING } from '../declare/types.js';
@@ -115,7 +109,7 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
         }
       }
     }
-    for (const line of [...WORLD_LINES, ...PLACE_LINES, ...ACTOR_LINES]) {
+    for (const line of ENGINE_LINES) {
       const passage = kind.passages.get(line.name);
       if (passage !== undefined) {
         const scope = engineScope(line, passage.at, setting);
@@ -149,12 +143,27 @@ function bodiesOf(kind: KindRef): Node[] {
   ];
 }
 
-/** What the engine binds when it says `line`, the one acting and their place typed as a body's `actor` and `here` are. */
+/**
+ * What the engine binds when it says `line`, the one acting and their
+ * place typed as a body's `actor` and `here` are; a name it may leave
+ * unbound is withheld, and read only inside `{if bound …}`.
+ */
 function engineScope(line: EnginePassage, at: Span, setting: PassageSetting): Scope {
-  return Object.entries(line.binds).reduce(
-    (built, [name, binds]) => built.bounding(engineBinding(name, binds, at, setting)),
+  const optional = line.optional ?? {};
+  const scope = Object.entries(line.binds).reduce(
+    (built, [name, binds]) =>
+      name in optional ? built : built.bounding(engineBinding(name, binds, at, setting)),
     Scope.root(),
   );
+  for (const [name, why] of Object.entries(optional)) {
+    const binding = engineBinding(name, line.binds[name]!, at, setting);
+    const unread = {
+      message: `\`${name}\` may be missing here: ${why}.`,
+      remedy: `Read it inside \`{if bound ${name}}\`, as in \`{if bound ${name}}{${name}}{/if}\`.`,
+    };
+    scope.withhold({ name, at, unread, bound: { bindable: true, binding } }, setting.diagnostics);
+  }
+  return scope;
 }
 
 /** What a name the engine binds, other than `actor` and `here`, holds. */

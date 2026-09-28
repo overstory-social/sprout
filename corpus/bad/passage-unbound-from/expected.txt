@@ -1,0 +1,4 @@
+quiet.sprout:6:43  `from` may be missing here: someone coming into the world comes from no place.
+                   Read it inside `{if bound from}`, as in `{if bound from}{from}{/if}`.
+
+refused: 1 problem

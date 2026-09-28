@@ -23,18 +23,17 @@
 
 import { isActor } from '../declare/actors.js';
 import type { GuardName } from '../syntax/ast.js';
-import type { ResolvedPassage } from '../declare/passages.js';
 import { surroundOf } from './audience.js';
 import type { Speech } from './body.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
-import { crowded, turnedAway } from './crowd.js';
+import { turnedAway } from './crowd.js';
 import type { Draft } from './draft.js';
 import { boundObject, type Evaluated } from './evaluate.js';
 import { exitsFrom } from './exits.js';
 import { runGuard, type Refusal } from './guards.js';
 import type { InstanceId } from './ids.js';
-import { engineLine } from './engine-lines.js';
+import { engineLine, engineSaid } from './engine-lines.js';
 import type { EngineSend } from './lifecycle.js';
 import { isLive, liveTree } from './live.js';
 import { rangeOf, reaches, type PassRule, type RangeContext } from './range.js';
@@ -80,7 +79,8 @@ export type EngineRefusal = 'inside-itself' | 'not-a-place' | 'full';
 /** The engine's refusal of a move, with the words the actor reads and the bindings they render with. */
 export interface EngineRefused {
   readonly engine: EngineRefusal;
-  /** The world's `inside_itself` or `crowded` as it applies on the world's kind, or the engine's fixed words. */
+  /** The engine's `inside_itself` or `crowded`, found as every engine line is, or its fixed words; and who says it. */
+  readonly by: InstanceId;
   readonly said: Speech;
   /** `item` for `inside_itself`; `item` and `to` for `crowded` and the fixed words. */
   readonly bindings: ReadonlyMap<string, Evaluated>;
@@ -88,9 +88,6 @@ export interface EngineRefused {
 
 /** A move refused: by a party's guard, or by the engine. */
 export type Refused = { readonly refusal: Refusal } | EngineRefused;
-
-/** The world's line for a move that would make a container hold itself (the spec's After the move). */
-const INSIDE_ITSELF = 'inside_itself';
 
 /** The engine's fixed words for an actor moved into what holds no actors, a one-line passage of `item` and `to`. */
 const NOT_A_PLACE = engineLine('{item} cannot stand in {to}.');
@@ -127,8 +124,20 @@ export type Notice =
   | {
       readonly notice: 'leaves' | 'arrives';
       readonly place: InstanceId;
-      readonly passage: ResolvedPassage;
-      readonly bindings: { readonly item: InstanceId };
+      /** The line as found (`engine-lines.ts`), and who says it. */
+      readonly by: InstanceId;
+      readonly said: Speech;
+      /**
+       * The one who moved; the place left, for `arrives`, or entered, for
+       * `leaves`, where it is not the world; and the label of the exit or
+       * link the move went through, where it went through one.
+       */
+      readonly bindings: {
+        readonly item: InstanceId;
+        readonly from?: InstanceId;
+        readonly to?: InstanceId;
+        readonly way?: string;
+      };
       /** Every visitor in range of the place, nearest first, the one who moved left out. */
       readonly audience: readonly InstanceId[];
     }
@@ -175,6 +184,7 @@ export function moveInstance(
   item: InstanceId,
   to: InstanceId,
   reach: Reach = 'range',
+  way: string | null = null,
 ): Moved | Refused {
   const { draft, catalogue, passes, budget } = context;
 
@@ -214,10 +224,12 @@ export function moveInstance(
   // Live and not the world, so it is somewhere.
   const from = moving.container!;
 
+  // The engine's lines here are about the mover, where it is an actor that stands somewhere.
+  const standing = draft.instance(mover)?.container ?? null;
   if (within(draft, to, item)) {
     return {
       engine: 'inside-itself',
-      said: { passage: worldPassage(draft, INSIDE_ITSELF) },
+      ...engineSaid(draft, 'inside_itself', mover, standing),
       bindings: new Map([['item', boundObject(item)]]),
     };
   }
@@ -225,6 +237,7 @@ export function moveInstance(
   if (actor && !holdsActors(draft, to)) {
     return {
       engine: 'not-a-place',
+      by: draft.world,
       said: NOT_A_PLACE,
       bindings: new Map([
         ['item', boundObject(item)],
@@ -236,7 +249,7 @@ export function moveInstance(
   if (turnedAway(draft, item, to, budget.limits.peoplePerPlace)) {
     return {
       engine: 'full',
-      said: crowded(draft),
+      ...engineSaid(draft, 'crowded', mover, standing),
       bindings: new Map([
         ['item', boundObject(item)],
         ['to', boundObject(to)],
@@ -281,8 +294,8 @@ export function moveInstance(
   const notices: Notice[] = [];
   // An actor is only ever in a place, so it has moved between two.
   if (actor) {
-    const left = placeLeft(draft, range, from, item, to);
-    const entered = placeEntered(draft, range, to, item, from);
+    const left = placeLeft(draft, range, from, item, to, way);
+    const entered = placeEntered(draft, range, to, item, from, way);
     sends.push(...left.sends, ...entered.sends);
     notices.push(...left.notices, ...entered.notices);
   }
@@ -298,9 +311,11 @@ export interface PlaceSpoke {
 }
 
 /**
- * What `place` says of `actor` leaving it for `to`: its `leaves` to the
- * visitors in its range, and `:departed (actor, to)` to everything else
- * there (the spec's Places).
+ * What `place` says of `actor` leaving it for `to` by `way`: the engine's
+ * `leaves` to the visitors in its range, and `:departed (actor, to)` to
+ * everything else there (the spec's Places). `to` is left unbound where
+ * it is the world, as for someone leaving it, and `way` where the move
+ * went through no exit or link.
  */
 export function placeLeft(
   draft: Draft,
@@ -308,30 +323,34 @@ export function placeLeft(
   place: InstanceId,
   actor: InstanceId,
   to: InstanceId,
+  way: string | null = null,
 ): PlaceSpoke {
-  const leaves = draft.instance(place)?.kind.passages.get('leaves');
-  const heard = told(draft, range, place, actor, leaves !== undefined);
+  const heard = told(draft, range, place, actor);
   return {
     sends: heard.sent.map((recipient) => ({ message: 'departed', recipient, actor, to })),
-    notices:
-      leaves === undefined
-        ? []
-        : [
-            {
-              notice: 'leaves',
-              place,
-              passage: leaves,
-              bindings: { item: actor },
-              audience: heard.read,
-            },
-          ],
+    notices: [
+      {
+        notice: 'leaves',
+        place,
+        ...engineSaid(draft, 'leaves', actor, place),
+        bindings: {
+          item: actor,
+          ...(to === draft.world ? {} : { to }),
+          ...(way === null ? {} : { way }),
+        },
+        audience: heard.read,
+      },
+    ],
   };
 }
 
 /**
- * What `place` says of `actor` arriving from `from`: its `arrives` to the
- * visitors in its range and `:arrived (actor, from)` to everything else
- * there, then its description to the actor (the spec's Places).
+ * What `place` says of `actor` arriving from `from` by `way`: the
+ * engine's `arrives` to the visitors in its range and `:arrived (actor,
+ * from)` to everything else there, then its description to the actor
+ * (the spec's Places). `from` is left unbound where it is the world, as
+ * for someone coming into it, and `way` where the move went through no
+ * exit or link.
  */
 export function placeEntered(
   draft: Draft,
@@ -339,19 +358,23 @@ export function placeEntered(
   place: InstanceId,
   actor: InstanceId,
   from: InstanceId,
+  way: string | null = null,
 ): PlaceSpoke {
-  const arrives = draft.instance(place)?.kind.passages.get('arrives');
-  const heard = told(draft, range, place, actor, arrives !== undefined);
-  const notices: Notice[] = [];
-  if (arrives !== undefined)
-    notices.push({
+  const heard = told(draft, range, place, actor);
+  const notices: Notice[] = [
+    {
       notice: 'arrives',
       place,
-      passage: arrives,
-      bindings: { item: actor },
+      ...engineSaid(draft, 'arrives', actor, place),
+      bindings: {
+        item: actor,
+        ...(from === draft.world ? {} : { from }),
+        ...(way === null ? {} : { way }),
+      },
       audience: heard.read,
-    });
-  notices.push({ notice: 'described', place, audience: [actor] });
+    },
+    { notice: 'described', place, audience: [actor] },
+  ];
   return {
     sends: heard.sent.map((recipient) => ({ message: 'arrived', recipient, actor, from })),
     notices,
@@ -361,34 +384,23 @@ export function placeEntered(
 /**
  * Who is told that `actor` left or entered `place`, walking the place's
  * range as it stands after the move, nearest first, the actor left out:
- * the visitors, who read the place's notice where it writes one, and
- * everything else, the place itself, NPCs and a surface included, which is
- * sent the message; where the place writes no notice its visitors are sent
- * the message too, so nobody in range is told nothing.
+ * the visitors, who read the notice, and everything else, the place
+ * itself, NPCs and a surface included, which is sent the message.
  */
 function told(
   draft: Draft,
   range: RangeContext<InstanceId>,
   place: InstanceId,
   actor: InstanceId,
-  hasText: boolean,
 ): { readonly read: InstanceId[]; readonly sent: InstanceId[] } {
   const read: InstanceId[] = [];
   const sent: InstanceId[] = [];
   for (const { node } of rangeOf(range, place, 'any').reached) {
     if (node === actor) continue;
-    if (hasText && draft.instance(node)?.made.from === 'visitor') read.push(node);
+    if (draft.instance(node)?.made.from === 'visitor') read.push(node);
     else sent.push(node);
   }
   return { read, sent };
-}
-
-/** One of the engine's lines, as it applies on the world's composed kinds. */
-function worldPassage(draft: Draft, name: string): ResolvedPassage {
-  const passage = draft.instance(draft.world)?.kind.passages.get(name);
-  if (passage === undefined)
-    throw new Error(`the world composes no \`${name}\` passage, which \`sprout.World\` writes.`);
-  return passage;
 }
 
 /**

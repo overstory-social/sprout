@@ -123,11 +123,25 @@ describe('a `move` in a `do`', () => {
     const [visitor, other] = one.people;
     const done = run(one, 'board', visitor!, { target: { object: CART! } });
     expect(done.said.map((line) => [line.effect, line.by, line.to, words(line.said)])).toEqual([
-      ['notice', at('yard'), [other], 'sprout.Place leaves: {item} leaves.'],
-      ['notice', CART, [other], 'sprout.Place arrives: {item} arrives.'],
+      [
+        'notice',
+        at('yard'),
+        [other],
+        'sprout.Place leaves: {item} leaves{if bound to} for {to}{/if}.',
+      ],
+      [
+        'notice',
+        CART,
+        [other],
+        'sprout.Place arrives: {item} arrives{if bound from} from {from}{/if}.',
+      ],
       ['said', YARD_ID, [visitor], NOTHING],
     ]);
-    expect([...done.said[0]!.bindings]).toEqual([['item', boundObject(visitor!)]]);
+    // A `move` in a body goes through no exit or link, so there is no `way`.
+    expect([...done.said[0]!.bindings]).toEqual([
+      ['item', boundObject(visitor!)],
+      ['to', boundObject(CART!)],
+    ]);
   });
 
   it('answers with `nothing_happens` where only what the places spoke of someone moved reached the actor', () => {
@@ -138,8 +152,18 @@ describe('a `move` in a `do`', () => {
     // The yard's `leaves` and the cart's `arrives` reach the actor, and
     // neither is an answer (the spec's The two passes).
     expect(done.said.map((line) => [line.effect, line.by, line.to, words(line.said)])).toEqual([
-      ['notice', at('yard'), [visitor], 'sprout.Place leaves: {item} leaves.'],
-      ['notice', CART, [visitor], 'sprout.Place arrives: {item} arrives.'],
+      [
+        'notice',
+        at('yard'),
+        [visitor],
+        'sprout.Place leaves: {item} leaves{if bound to} for {to}{/if}.',
+      ],
+      [
+        'notice',
+        CART,
+        [visitor],
+        'sprout.Place arrives: {item} arrives{if bound from} from {from}{/if}.',
+      ],
       ['said', YARD_ID, [visitor], NOTHING],
     ]);
   });

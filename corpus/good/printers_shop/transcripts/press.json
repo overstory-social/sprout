@@ -13,12 +13,12 @@
       { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Marta," }
     ] },
     { "as": "Marta", "type": "go out", "expect": [
-      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the press yard." },
       { "reader": "Marta", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
       { "reader": "Marta", "kind": "described", "words": "A wooden rib, a bone rib, the press," }
     ] },
     { "as": "Ines", "type": "go out", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives from the composing room." },
       { "reader": "Ines", "kind": "described", "words": "Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with." },
       { "reader": "Ines", "kind": "described", "words": "A wooden rib, a bone rib, the press, Marta," }
     ] },

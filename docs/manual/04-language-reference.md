@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "1f2fb7869f3ee12fbb456d0477d49dc5a84a128582a560c41bdc66c29d85b836"
+      "sha": "3ee5bf259090f4a777291357177a16b6495bad4139902cae235856a3b4f545cc"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -429,8 +429,8 @@ plus two passages:
 ```sprout
 kind Place {
   contains actors
-  passage arrives default { {item} arrives. }
-  passage leaves  default { {item} leaves. }
+  passage arrives default { {item} arrives{if bound from} from {from}{/if}. }
+  passage leaves  default { {item} leaves{if bound to} for {to}{/if}. }
 }
 ```
 
@@ -438,10 +438,14 @@ An actor's **place** is the nearest thing around them that holds actors.
 That is where `tell` reaches, what they leave when they go, and what
 `look` describes.
 
-When someone enters a place, everyone else there reads its `arrives`
-passage, every other object in reach of the place is sent `:arrived`, and
-the one arriving reads the place's description. Leaving is the mirror:
-`leaves`, and `:departed`.
+When someone enters a place, every other visitor in reach of it reads the
+`arrives` line, every other object there is sent `:arrived`, and the one
+arriving reads the place's description. Leaving is the mirror: `leaves`,
+and `:departed`. `arrives` is given `from`, the place they came from, and
+`leaves` is given `to`, the place they went to; someone coming into the
+world or leaving it has none. Both are given `way`, the label of the exit
+they went through, when they went through one. A passage reads any of
+these only inside `{if bound …}`, as the defaults do.
 
 ### Exits
 
@@ -1832,6 +1836,15 @@ Plus the six engine verbs, above. The standard library plays no part in
 These are `default` passages on `sprout.World`. Write a passage of the
 same name in your world's body to replace one.
 
+Every line the engine says, these and a place's `arrives` and `leaves`
+and an actor's `inventory`, is looked for first on the one it is about
+(whoever is acting, looking, moving or leaving), then on the place they
+stand in (for `leaves`, the place they left), then on the world. The first
+passage found that is not `default` is said; the standard library's are
+all `default`, so they are said only when nothing nearer words the line.
+So a character can have its own `arrives`, and a place its own
+`not_here`.
+
 | passage           | default words                                                       |
 | ----------------- | ------------------------------------------------------------------- |
 | `unknown`         | That is not something you can do here.                              |
@@ -1847,6 +1860,12 @@ same name in your world's body to replace one.
 | `crowded`         | There is no room in {to} for {item}.                                |
 | `waited`          | Time passes.                                                        |
 | `help`            | You can type: …                                                     |
+| `acted`           | {actor} tries to {reading}.                                         |
+| `gone_away`       | You leave, and take what you carry with you.                        |
+| `npc_says`        | {actor} says "{words}"                                              |
+
+`gone_away` is what someone leaving the world is told. `npc_says` frames
+what a character says: `words` is their line, its paragraphs as one.
 
 ### The actor's and container's lines
 

@@ -1,6 +1,6 @@
 // The warning for a verb nobody speaks for (the spec's The compiler ›
 // What it warns about): a verb with phrases that no participant ever
-// `say`s for answers every command with the world's `nothing_happens`
+// `say`s for answers every command with the engine's `nothing_happens`
 // (Verbs › The two passes). Only the world's own verbs are warned about:
 // a library's are its author's, and a world may write their plays itself.
 //

@@ -10,7 +10,7 @@
 // it, so a line too long for the turn's actor faults the turn as any
 // budget spent does, and anyone else is cut short. A poll reads the
 // committed state itself, under the poll's own step budget; it can write
-// nothing, draws no seed, and one that faults yields the world's `unseen`.
+// nothing, draws no seed, and one that faults says what faulted.
 //
 // This is the frame, and it holds no store: serializing a world's write
 // turns under its lock, and writing a committed change set in the
@@ -21,13 +21,12 @@
 // here reads a clock but the backstop.
 
 import type { RuntimeBudgets } from '../bundle/limits.js';
-import type { Speech } from './body.js';
 import { Budget, type TurnKind } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import { changesBetween, Draft, storedChanges, type StoredChanges } from './draft.js';
 import { Draws } from './draws.js';
 import { SILENT, type Effect, type Renderer, type Speaking } from './effects.js';
-import { faultOf, worldSpeech, type Fault } from './faults.js';
+import { faultOf, type Fault } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
 import { passRules } from './passes.js';
@@ -272,10 +271,9 @@ export interface PollTurn {
   readonly budget: Budget;
 }
 
-/** A poll's outcome: what its look gave, or, where it faulted, the world's `unseen`. */
+/** A poll's outcome: what its look gave, or the fault it ended in. */
 export type Polled<T> =
-  | { readonly faulted: false; readonly view: T }
-  | { readonly faulted: true; readonly fault: Fault; readonly unseen: Speech };
+  { readonly faulted: false; readonly view: T } | { readonly faulted: true; readonly fault: Fault };
 
 /**
  * Run `look` as a poll over the committed `state`, writing nothing, under
@@ -301,7 +299,7 @@ export function pollTurn<T>(
   try {
     return { faulted: false, view: look({ state: reader, catalogue, passes, budget }) };
   } catch (thrown) {
-    return { faulted: true, fault: faultOf(thrown), unseen: worldSpeech(reader, 'unseen') };
+    return { faulted: true, fault: faultOf(thrown) };
   }
 }
 

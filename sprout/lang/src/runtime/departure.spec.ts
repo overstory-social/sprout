@@ -38,11 +38,11 @@ describe('a visitor going away', () => {
     expect(done.state.instances.has(done.instance)).toBe(true);
   });
 
-  it('is told so in the engine’s words, from the world', () => {
+  it('is told the engine’s `gone_away`, from the world where nothing nearer words it', () => {
     const state = harbour([{ visit: MARTA, in: QUAY }]);
     const done = departed(departureTurn(state, harbourHost(), departing(MARTA)));
     expect(done.told).toMatchObject({ to: [done.instance], by: WORLD, speaker: null });
-    expect(words(done.told.said)).toBe(GONE_AWAY);
+    expect(words(done.told.said)).toBe(`sprout.World gone_away: ${GONE_AWAY}`);
   });
 
   it('sends `:left` to the place and `:departed` across its range, with the world as `to`', () => {
@@ -88,7 +88,7 @@ describe('a visitor going away', () => {
     expect(done.drained).toBeNull();
     expect(whereIs(done.state, MARTA)).toBeNull();
     expect(done.state.visitors.get(MARTA)!.lastPlace).toBe(CELLAR);
-    expect(words(done.told.said)).toBe(GONE_AWAY);
+    expect(words(done.told.said)).toBe(`sprout.World gone_away: ${GONE_AWAY}`);
   });
 
   it('that faults goes away all the same, quietly, and is still told', () => {
@@ -101,7 +101,7 @@ describe('a visitor going away', () => {
     expect(quietly.value.sends).toEqual([]);
     expect(quietly.value.drained).toBeNull();
     expect(heldIn(quietly.state, QUAY, 'departures')).toBe(0);
-    expect(words(quietly.value.told.said)).toBe(GONE_AWAY);
+    expect(words(quietly.value.told.said)).toBe(`sprout.World gone_away: ${GONE_AWAY}`);
     expect(quietly.effects.map((one) => [one.kind, one.visit, one.paragraphs])).toEqual([
       ['notice', MARTA, [GONE_AWAY]],
     ]);
