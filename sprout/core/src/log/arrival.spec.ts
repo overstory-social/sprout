@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { arrivalTurn, visitKey, type Effect } from '@overstory/sprout/lang';
 
-import { HALL, seeded, tally } from '../fixtures/tally.js';
+import { COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
 import { committedState } from '../turns.js';
 import { ArrivalEntry, arrivalEntry, arrivalOf, type RanArrival } from './arrival.js';
 
@@ -30,6 +30,12 @@ describe('a visitor’s entry in the log', () => {
     expect(entry.effects.map((e) => [e.kind, e.visit])).toContainEqual(['described', INES]);
     expect(ArrivalEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
     expect(arrivalOf(entry)).toEqual(arrival);
+    // Each reader the turn cut short is kept, in order, as a warning.
+    const cut = { ...turn, cutShort: [COUNTER, HALL] };
+    expect(arrivalEntry(arrival, host, cut).cutShort).toEqual([
+      { level: 'warning', to: COUNTER },
+      { level: 'warning', to: HALL },
+    ]);
   });
 
   it('keeps a refusal and the words it said', () => {
