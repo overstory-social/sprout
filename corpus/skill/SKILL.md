@@ -149,6 +149,11 @@ sprout — a Sprout microworld on the command line
   sprout client connect host:port [--world w] [--as name] [--plain]
                                       play on a server as one visitor, in the terminal client; --plain for
                                       lines in and out; needs @overstory/sprout-tui installed
+  sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
+                                      serve the world to an agent as a visitor and only as a visitor, over MCP:
+                                      tools to arrive, say a line and leave, answered with the prose that visitor
+                                      reads; stdio for one visitor, --http for several in one world; --record
+                                      writes the session as a script; needs @overstory/sprout-mcp installed
   sprout server start --config server.toml [--watch] [--log-format text|json]
                                       serve the worlds the config names until stopped; --watch redeploys a
                                       world when its folder changes; needs @overstory/sprout-server installed

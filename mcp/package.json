@@ -1,0 +1,41 @@
+{
+  "name": "@overstory/sprout-mcp",
+  "version": "0.1.0",
+  "description": "A Sprout microworld as tools for an agent: one world, played as a visitor and only as a visitor, over the Model Context Protocol (`sprout mcp`).",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@overstory/sprout": "0.1.0",
+    "@overstory/sprout-player": "0.1.0",
+    "zod": "^4.4.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overstory-social/sprout.git",
+    "directory": "mcp"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -13,7 +13,8 @@
 # must print exactly what it holds; without --debug it checks the page
 # shows only the prose the visitor reads. It prints the generated skill
 # exactly as corpus/skill/SKILL.md
-# holds it. It serves the new world from the installed `sprout-server`, and
+# holds it. The installed MCP host plays a visitor over stdio, recording the
+# session, and the recording plays back as written. It serves the new world from the installed `sprout-server`, and
 # the installed terminal client, plain from a pipe, comes in, looks and
 # leaves before the server is stopped. The installed `sprout-language-server`
 # is sent an edit that breaks the new kind and answers with the refusal on
@@ -27,7 +28,7 @@ shop=$(pwd)/corpus/good/printers_shop
 skill=$(pwd)/corpus/skill/SKILL.md
 packs=$(mktemp -d)
 npm run build >/dev/null
-npm pack -w sprout -w player -w repl -w server -w tui -w cli -w editors/language-server --pack-destination "$packs" >/dev/null
+npm pack -w sprout -w player -w repl -w mcp -w server -w tui -w cli -w editors/language-server --pack-destination "$packs" >/dev/null
 sandbox=$(mktemp -d)
 cd "$sandbox"
 npm init -y >/dev/null
@@ -82,6 +83,30 @@ grep -qx '    Marta (refused): It is locked.' tested.txt
 tail -1 tested.txt
 npx sprout skill > SKILL.md
 cmp SKILL.md "$skill"
+# The installed MCP host, over stdio: an agent arrives and looks, and the recording plays back as written.
+cat > mcp.cjs <<'MCP'
+const { spawn } = require('node:child_process');
+const host = spawn('npx', ['sprout', 'mcp', 'shed', '--record', 'mcp.json', '--advance-per-turn', '30s']);
+const send = (message) => host.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`);
+let out = '';
+const give = (code, words) => { console.log(words); host.stdin.end(); setTimeout(() => process.exit(code), 500); };
+setTimeout(() => give(1, 'the MCP host never answered'), 20000);
+host.stdout.on('data', (data) => {
+  out += data;
+  const answers = out.split('\n').filter((line) => line.startsWith('{')).map((line) => JSON.parse(line));
+  const looked = answers.find((one) => one.id === 3);
+  if (looked !== undefined) give(0, `sprout mcp: ${looked.result.content[0].text.split('\n')[0]}`);
+});
+send({ id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '0' } } });
+send({ method: 'notifications/initialized' });
+send({ id: 2, method: 'tools/call', params: { name: 'arrive', arguments: { name: 'Marta' } } });
+send({ id: 3, method: 'tools/call', params: { name: 'say', arguments: { name: 'Marta', line: 'look' } } });
+MCP
+node mcp.cjs | tee mcp.txt
+grep -qx 'sprout mcp: There is nothing special about a hall.' mcp.txt
+npx sprout play shed mcp.json > mcp-played.json
+diff -u mcp.json mcp-played.json
+echo "the installed MCP host played a visitor over stdio, and its recording plays back as written"
 printf 'listen = "127.0.0.1:47931"\n[[worlds]]\npath = "./shed"\n' > server.toml
 ./node_modules/.bin/sprout-server start --config server.toml > server.log 2>&1 &
 server=$!
@@ -140,4 +165,4 @@ LSP
 node lsp.cjs | tee lsp.txt
 grep -q 'Fixtur' lsp.txt
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report) and skill from the installed CLI, a world served by the installed server to the installed client, and the installed language server, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server to the installed client, and the installed language server, at $sha)"

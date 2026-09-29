@@ -25,7 +25,7 @@ enum Season { spring, summer, autumn, winter }
 message :stir
 ```
 
-Six packages, one version:
+Seven packages, one version:
 
 | package                    | what                                                                                                                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -34,6 +34,7 @@ Six packages, one version:
 | `@overstory/sprout-repl`   | a world played interactively, one typed line at a time (`sprout play dir`)                                                                                                   |
 | `@overstory/sprout-server` | the reference host: worlds served to clients over a WebSocket (`sprout-server start`, or `sprout server start`)                                                              |
 | `@overstory/sprout-tui`    | the terminal client: one visitor on a server, with scrollback, history, completion and a status line (`sprout client connect`)                                               |
+| `@overstory/sprout-mcp`    | a world as tools for an agent, a visitor and only a visitor, over MCP (`sprout mcp`)                                                                                         |
 | `@overstory/sprout-cli`    | the `sprout` command: `scaffold · check · parse · view · skill` on a microworld folder, `play · test` through the player and the REPL, and `client · server` where installed |
 
 The compiler reads the declarations the backlog has reached (enums,
@@ -71,6 +72,7 @@ sprout/core/src   the store port, its records, the memory store, the conformance
 sprout/store-sql  sprout/store-document   the two store adapters
 player/src        play (a script through real turns, and its transcript), test (an author's own tests of their world), and standing a visitor in a world
 repl/src          play interactively, one typed line at a time under one visitor's prompt
+mcp/src           a world as tools for an agent: a session of visitors on the player's stage, its tools, over stdio or HTTP
 server/src        the reference host: its config, the worlds it serves and redeploys, the protocol's connections, and its clock
 tui/src           the terminal client: a session with a server, its screen (Ink) and its plain mode
 cli/src           the `sprout` command: scaffold and check, the inspectors parse (what a world accepts) and view (what a visitor is offered), skill, and play and test through the player and the REPL
