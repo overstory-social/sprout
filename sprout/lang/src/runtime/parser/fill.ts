@@ -46,7 +46,9 @@ export type Filled =
    * each thing that answers as an option a partial reading may name, or
    * the words name no exit or no set, with none.
    */
-  | { readonly fills: 'unfit'; readonly things: readonly FillOption[] };
+  | { readonly fills: 'unfit'; readonly things: readonly FillOption[] }
+  /** `all`, for a role that takes one thing: each thing it takes in turn, in the order reached (`all.ts`). */
+  | { readonly fills: 'all'; readonly things: readonly FillOption[] };
 
 /** What filling a slot reads: what the actor can reach, the exits that apply, the meter and the draws. */
 export interface FillContext extends NounContext {

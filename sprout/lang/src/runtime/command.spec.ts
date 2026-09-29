@@ -887,3 +887,27 @@ describe('`again`, through command turns', () => {
     expect(readIn('again')).toEqual([['That is not something you can do here.']]);
   });
 });
+
+describe('`all`, through command turns', () => {
+  const readIn = (...lines: string[]) =>
+    playedAll(
+      workshop(),
+      lines.map((line) => [MARTA_AT, line] as const),
+    ).map((turn) => ({ read: turn.read['Marta'], steps: turn.steps }));
+
+  it('runs a role that takes one thing once for each, in the order reached, leaving out what `except` names', () => {
+    expect(readIn('take all except the chest, the crate and the anvil')).toEqual([
+      {
+        read: ['You take a pin.', 'You take a key.', 'You take a nail.', 'You take a tack.'],
+        steps: ['take', 'take', 'take', 'take'],
+      },
+    ]);
+  });
+
+  it('takes nothing another role names, and stops at the first refusal', () => {
+    expect(readIn('take pin', 'take key', 'put all in crate')[2]).toEqual({
+      read: ['You put a pin in a crate.', 'There is no room in a crate.'],
+      steps: ['put', 'put'],
+    });
+  });
+});

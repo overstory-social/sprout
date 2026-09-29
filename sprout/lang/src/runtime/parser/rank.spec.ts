@@ -15,14 +15,14 @@ const ACTOR = 'study#1' as InstanceId;
 /** Taking `target`, ranked as a case says. */
 function taking(
   target: InstanceId,
-  rank: Partial<Omit<Ranked, 'reading' | 'pronounNamed'>> = {},
+  rank: Partial<Omit<Ranked, 'reading' | 'pronounNamed' | 'rest'>> = {},
 ): Ranked {
   const reading: Reading = {
     verb: TAKE,
     actor: ACTOR,
     bindings: new Map([['target', { object: target }]]),
   };
-  return { reading, allowed: true, literal: 2, near: [1], pronounNamed: [], ...rank };
+  return { reading, allowed: true, literal: 2, near: [1], pronounNamed: [], rest: [], ...rank };
 }
 
 /** How the engine writes each thing: the pebbles alike, everything else apart. */
@@ -99,7 +99,7 @@ describe('an intent’s reading, ranked among verbs’', () => {
         ['x', { object: x }],
       ]),
     };
-    return { reading, allowed: true, literal: 2, near: [1, 1], pronounNamed: [] };
+    return { reading, allowed: true, literal: 2, near: [1, 1], pronounNamed: [], rest: [] };
   };
 
   it('fills its slots by name, where a verb’s reading fills its roles', () => {

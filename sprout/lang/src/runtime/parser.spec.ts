@@ -941,3 +941,22 @@ describe('`again`, where the verb has changed since', () => {
     ).toBe('unknown');
   });
 });
+
+describe('`all`', () => {
+  it('reads a role that takes one thing as the first thing, and each after it as a reading to run', () => {
+    const outcome = typed(study(), 'unlock door with all');
+    if (!('understood' in outcome)) throw new Error('`unlock door with all` was answered');
+    const tools = [outcome.understood, ...outcome.rest].map((reading) =>
+      reading.bindings.get('tool'),
+    );
+    expect(tools).toEqual([{ object: BRASS_KEY }, { object: IRON_KEY }]);
+  });
+
+  it('reads a set role as every thing at once, with nothing after it', () => {
+    const outcome = typed(study(), 'juggle all except metal, the lamp and the oil');
+    expect(understood(outcome).bindings['things']).toEqual({
+      set: [GONG, PEBBLE_A, PEBBLE_B, CHEST, GUARD, DIAL, DOOR],
+    });
+    expect('rest' in outcome && outcome.rest).toEqual([]);
+  });
+});
