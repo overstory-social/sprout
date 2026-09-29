@@ -48,6 +48,14 @@ export interface Named {
   readonly id: InstanceId;
   readonly near: number;
   readonly literal: number;
+  /** The pronoun typed for it, where a pronoun named it. */
+  readonly pronoun?: Pronoun;
+}
+
+/** A thing a pronoun named, and the pronoun, which a correction is said for where it declares another. */
+export interface PronounNamed {
+  readonly id: InstanceId;
+  readonly pronoun: Pronoun;
 }
 
 /** What a run of words names among candidates. */
@@ -65,6 +73,8 @@ export interface NamedSet {
   /** The sum of its things' nearness. */
   readonly near: number;
   readonly literal: number;
+  /** Those of its things a pronoun named. */
+  readonly pronounNamed: readonly PronounNamed[];
 }
 
 /**
@@ -133,6 +143,7 @@ interface Answered {
   readonly candidate: Candidate;
   readonly by: By;
   readonly literal: number;
+  readonly pronoun?: Pronoun;
 }
 
 /** How strongly each way of answering names a thing, the strongest first. */
@@ -162,7 +173,7 @@ function named(
       context.budget.spend();
       const named = context.referents.includes(candidate.instance.id);
       return named && pronounNames(pronoun, candidate.instance, candidate.address)
-        ? [{ candidate, by: 'name', literal: 1 }]
+        ? [{ candidate, by: 'name', literal: 1, pronoun }]
         : [];
     });
   }
@@ -185,7 +196,7 @@ export function pronounIn(word: string): Pronoun | null {
  * command was done to: `it` and `they` always, `he` and `she` where it is
  * a person or declares that pronoun.
  */
-export function pronounNames(pronoun: Pronoun, thing: Instance, address: Address): boolean {
+function pronounNames(pronoun: Pronoun, thing: Instance, address: Address): boolean {
   if (pronoun === 'it' || pronoun === 'they') return true;
   return isActor(thing.kind) || address.pronoun === pronoun;
 }
@@ -255,10 +266,11 @@ export function thingsIn(
   const found = fit.length === 0 ? answered : fit;
   const byName = found.filter(({ by }) => by === 'name');
   const pool = byName.length > 0 ? byName : found;
-  const things = pool.map(({ candidate, literal }) => ({
+  const things = pool.map(({ candidate, literal, pronoun }) => ({
     id: candidate.instance.id,
     near: candidate.near,
     literal,
+    ...(pronoun === undefined ? {} : { pronoun }),
   }));
   return fit.length === 0 ? { found: 'unfit', things } : { found: 'some', things };
 }
@@ -275,7 +287,7 @@ export function runIn(
   candidates: readonly Candidate[],
   context: NounContext,
 ): RunFound {
-  let sets: NamedSet[] = [{ ids: [], near: 0, literal: 0 }];
+  let sets: NamedSet[] = [{ ids: [], near: 0, literal: 0, pronounNamed: [] }];
   for (const { start, end } of nounsOfRun(words)) {
     if (start === end) return { found: 'unfit', start, end };
     const found = nounIn(words.slice(start, end), role, candidates, context);
@@ -287,6 +299,10 @@ export function runIn(
           ids: set.ids.includes(thing.id) ? set.ids : [...set.ids, thing.id],
           near: set.near + thing.near,
           literal: set.literal + thing.literal,
+          pronounNamed:
+            thing.pronoun === undefined
+              ? set.pronounNamed
+              : [...set.pronounNamed, { id: thing.id, pronoun: thing.pronoun }],
         };
       }),
     );

@@ -127,13 +127,13 @@ describe('a pronoun', () => {
   it('names what the last command was done to, `it` and `them` always, where it is in reach', () => {
     expect(named('it', [LAMP])).toEqual({
       found: 'some',
-      things: [{ id: LAMP, near: 2, literal: 1 }],
+      things: [{ id: LAMP, near: 2, literal: 1, pronoun: 'it' }],
     });
     expect(named('them', [PEBBLE_A, PEBBLE_B])).toEqual({
       found: 'some',
       things: [
-        { id: PEBBLE_A, near: 4, literal: 1 },
-        { id: PEBBLE_B, near: 5, literal: 1 },
+        { id: PEBBLE_A, near: 4, literal: 1, pronoun: 'they' },
+        { id: PEBBLE_B, near: 5, literal: 1, pronoun: 'they' },
       ],
     });
     expect(named('it', [])).toEqual({ found: 'nothing' });
@@ -220,14 +220,14 @@ describe('what a set role’s run names', () => {
   it('is every set its nouns make, each thing once, in the order typed', () => {
     expect(run('lamp and gong and lamp')).toEqual({
       found: 'sets',
-      sets: [{ ids: [LAMP, GONG], near: 7, literal: 3 }],
+      sets: [{ ids: [LAMP, GONG], near: 7, literal: 3, pronounNamed: [] }],
     });
     // A noun that names two things makes a set with each.
     expect(run('gong and key')).toEqual({
       found: 'sets',
       sets: [
-        { ids: [GONG, BRASS_KEY], near: 3, literal: 2 },
-        { ids: [GONG, IRON_KEY], near: 4, literal: 2 },
+        { ids: [GONG, BRASS_KEY], near: 3, literal: 2, pronounNamed: [] },
+        { ids: [GONG, IRON_KEY], near: 4, literal: 2, pronounNamed: [] },
       ],
     });
   });

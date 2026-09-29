@@ -812,15 +812,18 @@ describe('a pronoun a thing declares another for', () => {
       '  object lawn is sprout.Place {',
       '    object cat is Pet { grammar { article the  pronouns she } }',
       '    object dog is Pet',
+      '    object ball is Ball',
       '  }',
       '}',
       'kind Pet { as target for pat { do { say "{self} wags." } } }',
+      'kind Ball { grammar { pronouns it } }',
       'verb pat { role target  "pat [target]" }',
+      'verb nudge { role target  role tool: Ball  "nudge [target] toward [tool]" }',
     ].join('\n'),
     'person.sprout': 'kind Person is sprout.Visitor { }\n',
   });
-  const [lawn, cat, dog] = [['lawn'], ['lawn', 'cat'], ['lawn', 'dog']].map((path) =>
-    declaredId('park', path),
+  const [lawn, cat, dog, ball] = [['lawn'], ['lawn', 'cat'], ['lawn', 'dog'], ['lawn', 'ball']].map(
+    (path) => declaredId('park', path),
   );
   /** What `line` is read as, typed by one whose last command was done to `referents`. */
   const parsed = (line: string, referents: readonly InstanceId[]) => {
@@ -854,5 +857,12 @@ describe('a pronoun a thing declares another for', () => {
     expect(corrected('pat her', [cat!])).toEqual([]);
     expect(corrected('pat it', [dog!])).toEqual([]);
     expect(corrected('pat cat', [cat!])).toEqual([]);
+  });
+
+  it('is said only for what the pronoun named, never for a thing another role named outright', () => {
+    expect(corrected('nudge cat toward it', [cat!, ball!])).toEqual([]);
+    expect(corrected('nudge it toward ball', [cat!])).toEqual([
+      [boundObject(cat!), boundValue('she')],
+    ]);
   });
 });

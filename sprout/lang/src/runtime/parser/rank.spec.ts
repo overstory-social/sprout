@@ -13,13 +13,16 @@ const TAKE = STUDY.verbs.qualified('sprout', 'take')!;
 const ACTOR = 'study#1' as InstanceId;
 
 /** Taking `target`, ranked as a case says. */
-function taking(target: InstanceId, rank: Partial<Omit<Ranked, 'reading'>> = {}): Ranked {
+function taking(
+  target: InstanceId,
+  rank: Partial<Omit<Ranked, 'reading' | 'pronounNamed'>> = {},
+): Ranked {
   const reading: Reading = {
     verb: TAKE,
     actor: ACTOR,
     bindings: new Map([['target', { object: target }]]),
   };
-  return { reading, allowed: true, literal: 2, near: [1], ...rank };
+  return { reading, allowed: true, literal: 2, near: [1], pronounNamed: [], ...rank };
 }
 
 /** How the engine writes each thing: the pebbles alike, everything else apart. */
@@ -96,7 +99,7 @@ describe('an intent’s reading, ranked among verbs’', () => {
         ['x', { object: x }],
       ]),
     };
-    return { reading, allowed: true, literal: 2, near: [1, 1] };
+    return { reading, allowed: true, literal: 2, near: [1, 1], pronounNamed: [] };
   };
 
   it('fills its slots by name, where a verb’s reading fills its roles', () => {
@@ -108,5 +111,14 @@ describe('an intent’s reading, ranked among verbs’', () => {
     const chosen = choose([opening(GONG, BRASS_KEY), opening(GONG, IRON_KEY)]);
     const x = (chosen.reading as IntentReading).bindings.get('x') as { object: InstanceId };
     expect(chosen.drawn).toEqual({ among: 2, meant: x.object });
+  });
+
+  it('carries what a pronoun named in the reading chosen, and only in it', () => {
+    const named = [{ id: GONG, pronoun: 'it' as const }];
+    expect(choose([{ ...taking(GONG), pronounNamed: named }]).pronounNamed).toEqual(named);
+    expect(
+      choose([taking(IRON_KEY), { ...taking(GONG, { literal: 1 }), pronounNamed: named }])
+        .pronounNamed,
+    ).toEqual([]);
   });
 });

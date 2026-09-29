@@ -43,7 +43,7 @@ import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
-import { pronounIn, pronounNames, writtenAs, type Candidate } from './parser/nouns.js';
+import { writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
@@ -67,7 +67,13 @@ export interface CommandContext {
 
 /** A line's one outcome: understood as a reading, drawn where it tied with others, or answered. */
 export type CommandOutcome =
-  { readonly understood: Understood; readonly drawn: Drawn | null } | Answer;
+  | {
+      readonly understood: Understood;
+      readonly drawn: Drawn | null;
+      /** What it binds that a pronoun named, and the pronoun typed. */
+      readonly pronounNamed: readonly PronounNamed[];
+    }
+  | Answer;
 
 /** `line`, typed by `actor`, as a reading or the world's answer to it. */
 export function readCommand(
@@ -125,6 +131,7 @@ export function readCommand(
             const at = spans.findIndex((span) => span.role === role);
             return at < 0 ? 0 : choice[at]!.near;
           }),
+          pronounNamed: pronounsIn(choice),
         };
         // One reading made two ways is one reading: the way that matched more words.
         const key = readingKey(reading);
@@ -172,6 +179,7 @@ export function readCommand(
             const at = spans.findIndex((span) => span.role === slot);
             return at < 0 ? 0 : choice[at]!.near;
           }),
+          pronounNamed: pronounsIn(choice),
         };
         const key = readingKey(reading);
         const known = readings.get(key);
@@ -187,7 +195,12 @@ export function readCommand(
   }
   const written = (id: InstanceId): string => writtenAs(address(id));
   const chosen = chooseReading([...readings.values()], written, context.draws, budget);
-  return { understood: chosen.reading, drawn: chosen.drawn };
+  return { understood: chosen.reading, drawn: chosen.drawn, pronounNamed: chosen.pronounNamed };
+}
+
+/** What a pronoun named among what `choice` binds. */
+function pronounsIn(choice: readonly Choice[]): PronounNamed[] {
+  return choice.flatMap((one) => (one.words === undefined ? (one.pronounNamed ?? []) : []));
 }
 
 /** One slot's part in one reading: what it binds and how near and literally, or a value role's words. */
@@ -364,7 +377,7 @@ export const parseCommand: Parser = (text, actor, context) => {
     const { understood, drawn } = outcome;
     const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);
     const was = drawn === null ? null : { among: drawn.among, meant };
-    const corrected = correctionsOf(text, understood, actor, here, context);
+    const corrected = correctionsOf(outcome.pronounNamed, actor, here, context);
     return 'intent' in understood
       ? { intended: understood, drawn: was, corrected }
       : { reading: understood, drawn: was, corrected };
@@ -374,30 +387,23 @@ export const parseCommand: Parser = (text, actor, context) => {
 };
 
 /**
- * The world's `pronoun_correction` for each thing `understood` binds that
- * a pronoun in `line` named and that declares a pronoun none typed agrees
- * with (the spec's Parsing › Pronouns); none where no pronoun was typed.
+ * The world's `pronoun_correction` for each thing a pronoun named that
+ * declares another pronoun (the spec's Parsing › Pronouns), each once.
  */
 function correctionsOf(
-  line: string,
-  understood: Understood,
+  named: readonly PronounNamed[],
   actor: InstanceId,
   here: InstanceId,
   context: ParseContext,
 ): Said[] {
-  const typed = typedWords(line).flatMap((word) => pronounIn(word) ?? []);
-  if (typed.length === 0) return [];
   const addressing = { world: context.state.world, nicknames: context.nicknames };
-  const things = [...understood.bindings.values()].flatMap((bound) =>
-    'object' in bound ? [bound.object] : 'set' in bound ? bound.set : [],
-  );
-  return [...new Set(things)].flatMap((id) => {
+  const corrected = new Set<InstanceId>();
+  return named.flatMap(({ id, pronoun }) => {
     const thing = context.state.instance(id);
-    if (thing === undefined || !context.referents.includes(id)) return [];
-    const address = addressOf(thing, addressing);
-    const declared = address.pronoun;
-    if (declared === null || typed.includes(declared)) return [];
-    if (!typed.some((pronoun) => pronounNames(pronoun, thing, address))) return [];
+    if (thing === undefined || corrected.has(id)) return [];
+    const declared = addressOf(thing, addressing).pronoun;
+    if (declared === null || declared === pronoun) return [];
+    corrected.add(id);
     return [
       {
         effect: 'notice',
