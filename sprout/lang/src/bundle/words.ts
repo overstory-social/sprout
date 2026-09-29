@@ -6,8 +6,8 @@
 // exit or link label a kind or an object writes, of every identifier and
 // of every kind's name as a spawn is called by default, the directions
 // and their abbreviations, the articles and determiners, the connectors,
-// the words of the parser's relative phrases, the pronouns a visitor
-// types, every adjective written, and
+// the words of the parser's relative phrases and its own, the pronouns a
+// visitor types, every adjective written, and
 // the words of every verb's and intent's phrase and every synonym. A link's
 // name is not among them: a visitor takes a link by its label, and the name
 // is source's alone.
@@ -16,6 +16,7 @@ import {
   CONNECTORS,
   DETERMINERS,
   humanisedIdentifier,
+  PARSER_WORDS,
   RELATIVE_WORDS,
   humanisedKind,
   typedWords,
@@ -74,6 +75,7 @@ export function wordSetOf(sources: WordSources): WordSet {
     ...DETERMINERS,
     ...CONNECTORS,
     ...RELATIVE_WORDS,
+    ...PARSER_WORDS,
     ...Object.keys(TYPED_PRONOUNS),
   ]) {
     add(word);

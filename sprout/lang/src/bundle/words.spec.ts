@@ -95,6 +95,8 @@ describe('the world’s word set', () => {
     for (const word of ['in', 'on', 'that', 'is', 'one']) expect(fixed, word).toContain(word);
     // So are the pronouns a visitor types.
     for (const word of ['it', 'them', 'him', 'her']) expect(fixed, word).toContain(word);
+    // And the parser's own words.
+    for (const word of ['then', 'again', 'g', 'all', 'except']) expect(fixed, word).toContain(word);
     expect(fixed).not.toContain('take');
     const shop = compiledWorld('shop', {
       'shop.sprout':

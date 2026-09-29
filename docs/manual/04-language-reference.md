@@ -1180,6 +1180,11 @@ could fall, so a name that holds one, "the rope with a knot", still reads.
 A name may be narrowed by what holds it: `the key in the cabinet`, `the
 key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
+A line may hold several commands, split at `.` or `then`: `take key then
+open cabinet`, `take key. open cabinet`. Each runs as its own turn, in
+order. A refusal, `unknown`, `not_here` or `cannot` stops the rest, and what
+ran before stays done.
+
 A pronoun, `it`, `them`, `him` or `her`, names what your own last command
 was done to, where it is still in reach: `take lamp`, then `drop it`.
 `him` and `her` name it only where it is a person or declares that

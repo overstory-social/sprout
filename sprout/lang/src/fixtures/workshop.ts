@@ -12,12 +12,12 @@ import type { Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { renderEffects } from '../prose/effects.js';
 import { catalogueOf } from '../runtime/catalogue.js';
-import { commandTurn, lineGoesOn, type CommandHost, type CommandTurn } from '../runtime/command.js';
+import { commandTurn, type CommandHost, type CommandTurn } from '../runtime/command.js';
+import { runLine } from '../runtime/line.js';
 import { Draft } from '../runtime/draft.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
 import { initialState } from '../runtime/load.js';
 import { parseCommand } from '../runtime/parser.js';
-import type { Reading } from '../runtime/reading.js';
 import { newInstance, type WorldState } from '../runtime/state.js';
 import { compiledWorld } from './bundle.js';
 
@@ -94,7 +94,8 @@ export function workshop(): WorldState {
 export const actorOf = (state: WorldState, visit: VisitKey): InstanceId =>
   state.visitors.get(visit)!.instance;
 
-const host = (): CommandHost => ({
+/** The host the workshop's turns run under: the spec's budgets and the command parser. */
+export const host = (): CommandHost => ({
   catalogue: CATALOGUE,
   budgets: DEFAULT_LIMITS.budgets,
   parse: parseCommand,
@@ -109,36 +110,30 @@ export interface Played {
 }
 
 /**
- * `text`, typed by `visit`, over `state` seeded `seed`: one command turn,
- * and one more for each step its intent planned, as the host runs them,
- * until one refuses. A fault is thrown.
+ * `text`, typed by `visit`, over `state` seeded `seed`: every command turn
+ * its line runs, as the host runs them, each after the first seeded one
+ * more than the last. A fault is thrown.
  */
 export function played(state: WorldState, visit: VisitKey, text: string, seed = 7): Played {
   const read: Record<string, string[]> = {};
   const steps: string[] = [];
   let now = state;
-  let planned: readonly (Reading | undefined)[] = [undefined];
-  for (let at = 0; at < planned.length; at++) {
-    const step = planned[at];
-    const turn: CommandTurn = commandTurn(now, host(), {
-      visit,
-      text,
-      seed,
-      mayHold: null,
-      now: 0,
-      ...(step === undefined ? {} : { planned: step }),
-    });
-    if (!turn.committed) throw new Error(`faulted: ${turn.fault.name}: ${turn.fault.detail}`);
-    for (const effect of turn.effects) {
-      const who = turn.state.visitors.get(effect.visit)!.nickname;
-      read[who] = [...(read[who] ?? []), ...effect.paragraphs];
-    }
-    now = turn.state;
-    const done = turn.value;
-    if ('step' in done && done.step !== null) steps.push(done.step.verb.name);
-    if (at === 0 && 'next' in done) planned = [undefined, ...done.next];
-    if (!lineGoesOn(turn)) break;
-  }
+  let next = seed;
+  runLine(
+    { visit, text, seed, mayHold: null, now: 0 },
+    (command) => {
+      const turn: CommandTurn = commandTurn(now, host(), command);
+      if (!turn.committed) throw new Error(`faulted: ${turn.fault.name}: ${turn.fault.detail}`);
+      for (const effect of turn.effects) {
+        const who = turn.state.visitors.get(effect.visit)!.nickname;
+        read[who] = [...(read[who] ?? []), ...effect.paragraphs];
+      }
+      now = turn.state;
+      if ('step' in turn.value && turn.value.step !== null) steps.push(turn.value.step.verb.name);
+      return turn;
+    },
+    () => (next += 1),
+  );
   return { state: now, read, steps };
 }
 
