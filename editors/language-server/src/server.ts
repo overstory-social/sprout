@@ -1,4 +1,4 @@
-import { relative } from 'node:path';
+import { relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
@@ -19,7 +19,8 @@ import { checkWorld, rangeOf, worldFolderOf, type CheckedWorld } from './world.j
 // The language server over one connection: each world folder an open file
 // sits in is checked whole a moment after the last edit to any of its
 // files, and its diagnostics replace the ones it last had, file by file;
-// a file that has none any more is cleared. Hover, go-to-definition and
+// a file that has none any more is cleared, as is every file of a folder
+// that is no longer a world. Hover, go-to-definition and
 // completion read the declarations of the world's last check.
 
 /** How the server is run. */
@@ -98,10 +99,13 @@ export function serve(connection: Connection, options: ServeOptions = {}): void 
     return checked;
   };
 
+  /** Check the world `uri` is in a moment from now, or the world it was in, whose manifest may be gone. */
   const schedule = (uri: string): void => {
     const path = pathOf(uri);
-    const root = path === null ? null : worldFolderOf(path);
-    if (root === null) return;
+    if (path === null) return;
+    const root =
+      worldFolderOf(path) ?? [...worlds.keys()].find((one) => path.startsWith(`${one}${sep}`));
+    if (root === undefined || root === null) return;
     const world = worldOf(root);
     if (world.timer !== null) clearTimeout(world.timer);
     world.timer = setTimeout(() => check(root), debounce);

@@ -40,7 +40,11 @@ export interface Declared {
   readonly at: Span;
   /** The declaration as its first line writes it, up to its body. */
   readonly head: string;
-  /** The world, kind, object or enum it is declared in, where it is a member. */
+  /**
+   * The world, kind, object or enum it is declared in, where it is a member
+   * or an object written in a body; null for what a file declares at its
+   * top level, which alone may be imported.
+   */
   readonly owner: string | null;
   /** The library it comes from, or null for the world's own files. */
   readonly library: string | null;
@@ -111,10 +115,10 @@ function declaredIn(
         proseOwners.set(besideOf(member.at.source.name, member.file.value), owner);
     }
   };
-  const object = (declared: ObjectDeclaration): void => {
-    one(declared.name, 'object', declared.at, null);
+  const object = (declared: ObjectDeclaration, owner: string | null): void => {
+    one(declared.name, 'object', declared.at, owner);
     members(declared.members, declared.name.text);
-    declared.objects.forEach(object);
+    for (const inside of declared.objects) object(inside, declared.name.text);
   };
   const declaration = (declared: Declaration): void => {
     switch (declared.kind) {
@@ -122,10 +126,10 @@ function declaredIn(
       case 'kind':
         one(declared.name, declared.kind, declared.at, null);
         members(declared.members, declared.name.text);
-        declared.objects.forEach(object);
+        for (const inside of declared.objects) object(inside, declared.name.text);
         return;
       case 'object':
-        return object(declared);
+        return object(declared, null);
       case 'enum':
         one(declared.name, 'enum', declared.at, null);
         for (const option of declared.options)

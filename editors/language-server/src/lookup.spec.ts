@@ -44,6 +44,15 @@ describe('declarationsNamed', () => {
     expect(found.map((one) => [one.name, one.library])).toEqual([['Place', 'sprout']]);
   });
 
+  it('reads a dot after anything but an imported namespace as an object path', () => {
+    const found = declarationsNamed(imports, 'imports.sprout', word('hall.bo|x'));
+    expect(found.map((one) => [one.name, one.as, one.owner])).toEqual([['box', 'object', 'hall']]);
+    // `sprout` is imported as a namespace in `imports.sprout`, and not in the chest's file.
+    expect(declarationsNamed(imports, 'things/chest.sprout', word('sprout.Pla|ce'))).toEqual(
+      declarationsNamed(imports, 'things/chest.sprout', word('Pla|ce')),
+    );
+  });
+
   it('finds a name no import names among the world’s own before a library’s', () => {
     // `Container` is imported by name in the chest's file, and is the library's.
     expect(
@@ -103,6 +112,12 @@ describe('completionsAt', () => {
     const offered = completionsAt(imports, 'imports.sprout', '  object hall is sprout.Pl');
     expect(offered.map((one) => one.label)).toContain('Place');
     expect(offered.every((one) => one.as !== 'keyword' && one.as !== 'property')).toBe(true);
+  });
+
+  it('offers no namespace after the dot of an object path, and no reserved words', () => {
+    const offered = completionsAt(imports, 'imports.sprout', '    object box is hall.');
+    expect(offered.map((one) => one.label)).toContain('box');
+    expect(offered.some((one) => one.as === 'keyword')).toBe(false);
   });
 
   it('offers properties, memories, options and messages after a colon', () => {

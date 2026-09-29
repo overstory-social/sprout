@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { pathToFileURL } from 'node:url';
@@ -121,6 +121,26 @@ describe('the language server', () => {
       textDocument: { uri: uriOf(chest) },
     });
     await client.published(uriOf(chest), (now) => now.length === 0);
+  });
+
+  it('clears a world’s diagnostics when its manifest goes, and goes on answering', async () => {
+    const root = copiedWorld('imports');
+    const chest = join(root, 'things', 'chest.sprout');
+    const client = await started();
+    await client.connection.sendNotification('textDocument/didOpen', {
+      textDocument: { uri: uriOf(chest), languageId: 'sprout', version: 1, text: 'kind {' },
+    });
+    await client.published(uriOf(chest), (now) => now.length > 0);
+    rmSync(join(root, 'sprout.json'));
+    await client.connection.sendNotification('workspace/didChangeWatchedFiles', {
+      changes: [{ uri: uriOf(join(root, 'sprout.json')), type: 3 }],
+    });
+    await client.published(uriOf(chest), (now) => now.length === 0);
+    const hover = await client.connection.sendRequest('textDocument/hover', {
+      textDocument: { uri: uriOf(chest) },
+      position: { line: 0, character: 1 },
+    });
+    expect(hover).toBeNull();
   });
 
   it('puts a refusal an edit to one file causes on the file it names', async () => {

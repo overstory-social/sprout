@@ -10,10 +10,13 @@ import {
 // What the name under the cursor declares, and what may be written where
 // the cursor is, following the spec's Imports: `sprout.Container` is a
 // member of the namespace the file imports as `sprout`, and `Guard` in a
-// file that imports `Ward as Guard` is that `Ward`. A name no import
-// names is the world's own where the world declares it, and a library's
-// where it does not; `:lit` is a property, a memory, an option or a
-// message. Every declaration a name could mean is offered, since a
+// file that imports `Ward as Guard` is that `Ward`. A dot after anything
+// else is an object path, and its last name is read as a bare name. A
+// bare name no import names is the world's own where the world declares
+// it, and a library's where it does not: a name in a body may resolve
+// from where the instance sits without an import, and one that needed an
+// import is refused by the check, in words, beside the hover. `:lit` is a
+// property, a memory, an option or a message. Every declaration a name could mean is offered, since a
 // property is declared once in each kind that has it.
 
 /** The name written around an offset. */
@@ -59,9 +62,10 @@ export function declarationsNamed(index: DeclarationIndex, file: string, word: W
       (one.name === null) === (word.qualifier !== null) &&
       one.message === (word.symbol && word.qualifier === null),
   );
-  const from = imported?.from ?? word.qualifier;
-  if (from !== null) {
-    const name = imported?.name ?? word.text;
+  // A dot after anything but an imported namespace is an object path, and its last name a bare name.
+  if (imported !== undefined) {
+    const { from } = imported;
+    const name = imported.name ?? word.text;
     return index.declared.filter(
       (one) => one.owner === null && one.name === name && specifierOf(one) === from,
     );
@@ -101,10 +105,10 @@ export interface Completion {
 
 /**
  * What may be written where `prefix`, the text of the line up to the
- * cursor in the file `file`, leaves off: after a namespace and its dot,
- * what it declares at its top level; after `:`, properties, memories,
- * options and messages; otherwise every declared name and the reserved
- * words.
+ * cursor in the file `file`, leaves off: after an imported namespace and
+ * its dot, what it declares at its top level; after an object path's dot,
+ * every declared name; after `:`, properties, memories, options and
+ * messages; otherwise every declared name and the reserved words.
  */
 export function completionsAt(index: DeclarationIndex, file: string, prefix: string): Completion[] {
   const qualified = /([A-Za-z_][A-Za-z0-9_]*)\.[A-Za-z0-9_]*$/.exec(prefix);
@@ -114,7 +118,7 @@ export function completionsAt(index: DeclarationIndex, file: string, prefix: str
       ? null
       : (index.imports.find(
           (one) => one.file === file && one.name === null && one.local === qualified[1],
-        )?.from ?? qualified[1]!);
+        )?.from ?? null);
   const offered = index.declared.filter((one) =>
     namespace !== null
       ? one.owner === null && specifierOf(one) === namespace
@@ -131,7 +135,7 @@ export function completionsAt(index: DeclarationIndex, file: string, prefix: str
     const owner = one.owner === null ? '' : ` of ${one.owner}`;
     out.push({ label: one.name, as: one.as, detail: `${one.as}${owner}` });
   }
-  if (namespace === null && !symbol)
+  if (qualified === null && !symbol)
     for (const word of [...RESERVED_WORDS].sort())
       out.push({ label: word, as: 'keyword', detail: 'reserved word' });
   return out;

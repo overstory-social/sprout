@@ -1,11 +1,11 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { STANDARD_LIBRARY } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
-import { corpusWorld } from './fixtures/worlds.js';
+import { copiedWorld, corpusWorld } from './fixtures/worlds.js';
 import { checkWorld, rangeOf, worldFolderOf } from './world.js';
 
 const IMPORTS = corpusWorld('imports');
@@ -43,6 +43,16 @@ describe('checkWorld', () => {
       severity: 'refusal',
       message:
         'Nothing here is a `Contaner`. Did you mean `Container`?\nWrite `Container`, or declare `Contaner` with `kind Contaner { … }`.',
+    });
+  });
+
+  it('checks a folder whose manifest is gone as nothing, rather than throwing', () => {
+    const root = copiedWorld('imports');
+    rmSync(join(root, 'sprout.json'));
+    expect(checkWorld(root, new Map())).toEqual({
+      root,
+      diagnostics: [],
+      index: { declared: [], imports: [] },
     });
   });
 

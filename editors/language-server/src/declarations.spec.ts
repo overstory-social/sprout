@@ -38,6 +38,17 @@ describe('declarationsOf', () => {
     ).toMatchObject({ as: 'memory' });
   });
 
+  it('gives an object written in a body what holds it, and a file’s top-level object none', () => {
+    const imports = own('imports');
+    const object = (name: string) =>
+      imports.find((one) => one.name === name && one.as === 'object');
+    expect(object('hall')?.owner).toBe('imports');
+    expect(object('box')?.owner).toBe('hall');
+    expect(
+      imports.find((one) => one.as === 'object' && one.at.source.name === 'rooms/cellar.sprout'),
+    ).toMatchObject({ name: 'cellar', owner: null });
+  });
+
   it('gives a `.prose` file’s passages to whoever names the file', () => {
     const arrival = shop.find((one) => one.name === 'arrival' && one.as === 'passage')!;
     expect(where(arrival)).toBe('composing_room.prose:1');

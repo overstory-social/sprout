@@ -52,9 +52,18 @@ export function worldFolderOf(path: string): string | null {
   }
 }
 
-/** Check the world in `root`, reading each file from `unsaved`, by resolved path, where it is there. */
+/**
+ * Check the world in `root`, reading each file from `unsaved`, by resolved
+ * path, where it is there. A folder that is no longer a world, its
+ * manifest or a file gone between listing and reading, checks as nothing.
+ */
 export function checkWorld(root: string, unsaved: ReadonlyMap<string, string>): CheckedWorld {
-  const read = readWorld(root, unsaved);
+  let read: ReturnType<typeof readWorld>;
+  try {
+    read = readWorld(root, unsaved);
+  } catch {
+    return { root: resolve(root), diagnostics: [], index: { declared: [], imports: [] } };
+  }
   if (read.source === null)
     return {
       root: read.path,

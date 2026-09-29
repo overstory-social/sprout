@@ -13,15 +13,16 @@ editor runs the `sprout-language-server` command over stdio.
   is written, and where it is.
 - **Go to definition** goes to the world's own declarations. A library's
   files are not on disk, so its names are shown on hover and not gone to.
-- **Completion** offers a namespace's names after its dot, properties,
+- **Completion** offers an imported namespace's names after its dot, properties,
   memories, options and messages after `:`, and otherwise every name the
   world declares and the reserved words.
 
 Names are found as the spec's _Imports_ reads them: `sprout.Container` is
 the member of the namespace the file imports as `sprout`, and `Guard` in
-a file that imports `Ward as Guard` is that `Ward`. A name no import names
-is the world's own where the world declares one, and otherwise a
-library's. Every declaration a name could mean is offered, since a
+a file that imports `Ward as Guard` is that `Ward`. A dot after anything
+else is an object path, so `hall.box` is the object `box`. A name no
+import names is the world's own where the world declares one, and
+otherwise a library's. Every declaration a name could mean is offered, since a
 property is declared once in each kind that has it. The declarations are
 read from each file on its own, so they are there while the world as a
 whole is refused.
