@@ -23,6 +23,7 @@ export * from './views.js';
 export * from './conversation.js';
 export * from './capabilities.js';
 export * from './delivery.js';
+export * from './protocol.js';
 export * from './screen-reader.js';
 export * from './steps.js';
 export * from './log/parts.js';
