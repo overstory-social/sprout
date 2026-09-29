@@ -201,12 +201,16 @@ describe('the standard library', () => {
     expect(verbs.find((verb) => verb.name === 'look_in')!.phrases.map((one) => one.text)).toEqual([
       'look in [target]',
       'look inside [target]',
+      'look into [target]',
+      'search [target]',
       'what is in [target]',
     ]);
     const unlock = verbs.find((verb) => verb.name === 'unlock')!;
     expect(unlock.phrases.map((phrase) => phrase.text)).toEqual([
       'unlock [target] with [tool]',
+      'unlock [target] using [tool]',
       'use [tool] on [target]',
+      'use [tool] to unlock [target]',
     ]);
   });
 
@@ -529,7 +533,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '35c43958326d038a89ab01513ae2177fbfb263bac32b870ff899d05dc16f5cff',
+      '19327e892718343c217baa47e849f0faa02cbe474212acae2d1942840d270b9c',
     );
   });
 });

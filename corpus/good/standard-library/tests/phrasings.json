@@ -1,0 +1,58 @@
+{
+  "about": "The standard library's everyday phrasings, each read as its verb.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a shop." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about a shop." }
+    ] },
+    { "as": "Marta", "type": "check press", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a press." }
+    ] },
+    { "as": "Marta", "type": "describe case", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a case." }
+    ] },
+    { "as": "Marta", "type": "pick quoin up", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a quoin." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a quoin." }
+    ] },
+    { "as": "Marta", "type": "put quoin down", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a quoin down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a quoin down." }
+    ] },
+    { "as": "Marta", "type": "take quoin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a quoin." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a quoin." }
+    ] },
+    { "as": "Marta", "type": "place quoin in drawer", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a quoin in a drawer." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a quoin in a drawer." }
+    ] },
+    { "as": "Marta", "type": "search drawer", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Inside: a quoin." }
+    ] },
+    { "as": "Marta", "type": "look into drawer", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Inside: a quoin." }
+    ] },
+    { "as": "Marta", "type": "use quoin to unlock case", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "reader": "Ines", "kind": "told", "words": "Marta unlocks a case." }
+    ] },
+    { "as": "Marta", "type": "unlock case using quoin", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is already unlocked." }
+    ] },
+    { "as": "Marta", "type": "take quoin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a quoin." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a quoin." }
+    ] },
+    { "as": "Marta", "type": "insert quoin into drawer", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a quoin in a drawer." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a quoin in a drawer." }
+    ] },
+    { "as": "Marta", "type": "offer drawer to ines", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are not holding a drawer." }
+    ] }
+  ]
+}
