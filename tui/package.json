@@ -1,0 +1,48 @@
+{
+  "name": "@overstory/sprout-tui",
+  "version": "0.1.0",
+  "description": "Sprout's terminal client: one visitor connected to a sprout-server, with real scrollback, history and completion, a status line, and a plain mode for pipes and screen readers.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@overstory/sprout": "0.1.0",
+    "ink": "^7.1.1",
+    "react": "^19.3.0",
+    "ws": "^8.22.0",
+    "zod": "^4.4.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overstory-social/sprout.git",
+    "directory": "tui"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@overstory/sprout-server": "0.1.0",
+    "@types/react": "^19.3.0",
+    "@types/ws": "^8.18.1",
+    "ink-testing-library": "^4.0.0"
+  }
+}

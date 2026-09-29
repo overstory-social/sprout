@@ -137,6 +137,12 @@ sprout — a Sprout microworld on the command line
                                       words alone, in order; what failed and what the world said; exit 1 on a failure
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
+  sprout client connect host:port [--world w] [--as name] [--plain]
+                                      play on a server as one visitor, in the terminal client; --plain for
+                                      lines in and out; needs @overstory/sprout-tui installed
+  sprout server start --config server.toml [--watch] [--log-format text|json]
+                                      serve the worlds the config names until stopped; --watch redeploys a
+                                      world when its folder changes; needs @overstory/sprout-server installed
 ```
 
 ## The manifest

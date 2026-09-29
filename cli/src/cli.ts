@@ -17,15 +17,17 @@ import { playInteractively, type Io } from '@overstory/sprout-repl';
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { initWorld } from './init.js';
 import { formatGrammar, parseLine } from './parse.js';
+import { clientConnect, serverStart } from './peers.js';
 import { inspectView } from './view.js';
 
-// The `sprout` command: six verbs on a microworld folder, and `skill`,
-// the builder's reference this compiler generates from its own tables.
+// The `sprout` command: six verbs on a microworld folder; `skill`, the
+// builder's reference this compiler generates from its own tables; and
+// `client` and `server`, handed to the terminal client and the server
+// where they are installed.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
-// `--json`, `--debug` and `--write` are always alone. The first bare word is the command, the next the path. `serve` is not
-// built. Every command but `play` with no script is synchronous; that
-// one alone reads from stdin, so `main` alone may hand back a promise
-// of its exit code rather than the code itself.
+// `--json`, `--debug` and `--write` are always alone. The first bare word is the command, the next the path. Every command
+// but `play` with no script, `client` and `server` is synchronous; those
+// hand back a promise of their exit code rather than the code itself.
 
 export const USAGE = `sprout — a Sprout microworld on the command line
 
@@ -49,6 +51,12 @@ export const USAGE = `sprout — a Sprout microworld on the command line
                                       words alone, in order; what failed and what the world said; exit 1 on a failure
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
+  sprout client connect host:port [--world w] [--as name] [--plain]
+                                      play on a server as one visitor, in the terminal client; --plain for
+                                      lines in and out; needs @overstory/sprout-tui installed
+  sprout server start --config server.toml [--watch] [--log-format text|json]
+                                      serve the worlds the config names until stopped; --watch redeploys a
+                                      world when its folder changes; needs @overstory/sprout-server installed
 `;
 
 export interface Parsed {
@@ -58,7 +66,7 @@ export interface Parsed {
 }
 
 /** Flags that stand alone and never take the word after them as their value. */
-const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug', 'write']);
+const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug', 'write', 'plain', 'watch']);
 
 export function parseArgs(argv: readonly string[]): Parsed {
   const positional: string[] = [];
@@ -179,6 +187,10 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
       case 'skill':
         say(generateSkill({ usage: USAGE }));
         return 0;
+      case 'client':
+        return clientConnect(positional, flags, io);
+      case 'server':
+        return serverStart(argv.slice(1), io);
       default:
         io.stderr.write(`sprout: no such command "${command}"\n\n${USAGE}`);
         return 1;

@@ -4,12 +4,18 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// The CLI imports the Sprout packages and node:* — nothing of any host.
+// The CLI imports the Sprout packages and node:*, and nothing of any host
+// at its start: the terminal client and the server it loads only when the
+// command that needs one runs, and only where it is installed, as optional
+// peers, so a CLI install need not carry Ink or `ws`.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['@overstory/sprout/lang', '@overstory/sprout-player', '@overstory/sprout-repl'];
+/** The packages the CLI may load only by `import()`, where they are installed. */
+const OPTIONAL_PEERS = ['@overstory/sprout-tui', '@overstory/sprout-server'];
 const ALLOWED_IN_SPECS = [
   'vitest',
+  '@overstory/sprout-server',
   '@overstory/sprout-player/fixtures',
   '@overstory/sprout-repl/fixtures',
 ];
@@ -31,7 +37,13 @@ describe('@overstory/sprout-cli imports the Sprout packages and node:* only', ()
     it(relative(SRC, file), () => {
       const text = readFileSync(file, 'utf8');
       const specifiers = [...text.matchAll(/(?:from|import)\s+'([^']+)'/g)].map((m) => m[1]!);
+      const loaded = [...text.matchAll(/import\(\s*'([^']+)'\s*\)/g)].map((m) => m[1]!);
       const allowed = file.endsWith('.spec.ts') ? [...ALLOWED, ...ALLOWED_IN_SPECS] : ALLOWED;
+      // An optional peer is loaded when its command runs, never imported at the start.
+      expect(loaded.filter((s) => !OPTIONAL_PEERS.includes(s) && !allowed.includes(s))).toEqual([]);
+      expect(
+        specifiers.filter((s) => OPTIONAL_PEERS.includes(s) && !file.endsWith('.spec.ts')),
+      ).toEqual([]);
       const foreign = specifiers.filter(
         (s) =>
           !s.startsWith('./') &&

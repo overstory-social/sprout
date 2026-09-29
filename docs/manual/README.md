@@ -3,7 +3,7 @@
 Sprout is a small language for writing interactive-fiction worlds that
 several people can visit at once, and the program that runs them.
 
-This manual has four parts. Read them in order if you are new; jump to
+This manual has five parts. Read them in order if you are new; jump to
 the reference once you are writing worlds of your own.
 
 1. [What is Sprout?](01-what-is-sprout.md) — the idea, in plain words.
@@ -13,6 +13,8 @@ the reference once you are writing worlds of your own.
    step by step, and test it.
 4. [Language reference](04-language-reference.md) — everything the
    language has, in detail.
+5. [Serving a world](05-serving.md) — run worlds on a server, and play
+   them together from the terminal client.
 
 Sprout is young. It is at version 0.1 and has not yet been published to
 npm, so for now you run it from a copy of this repository; the next
