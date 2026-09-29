@@ -13,8 +13,8 @@
 # shows only the prose the visitor reads. It prints the generated skill
 # exactly as corpus/skill/SKILL.md
 # holds it. It serves the new world from the installed `sprout-server`, and
-# a client over a socket admits itself, looks and leaves before the server
-# is stopped. Runs locally only — there is no CI on this repository.
+# the installed terminal client, plain from a pipe, comes in, looks and
+# leaves before the server is stopped. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 sha=$(git rev-parse --short HEAD)
@@ -24,7 +24,7 @@ shop=$(pwd)/corpus/good/printers_shop
 skill=$(pwd)/corpus/skill/SKILL.md
 packs=$(mktemp -d)
 npm run build >/dev/null
-npm pack -w sprout -w player -w repl -w server -w cli --pack-destination "$packs" >/dev/null
+npm pack -w sprout -w player -w repl -w server -w tui -w cli --pack-destination "$packs" >/dev/null
 sandbox=$(mktemp -d)
 cd "$sandbox"
 npm init -y >/dev/null
@@ -81,33 +81,14 @@ if ! grep -q 'listening' server.log; then
   cat server.log >&2
   exit 1
 fi
-cat > client.mjs <<'CLIENT'
-import WebSocket from 'ws';
-const socket = new WebSocket('ws://127.0.0.1:47931', 'sprout.1');
-setTimeout(() => { console.error('the server did not answer within 10 seconds'); process.exit(1); }, 10000);
-const said = [];
-socket.on('open', () => {
-  socket.send(JSON.stringify({ t: 'hello', protocol: 'sprout.1', client: 'e2e', token: 'e2e-token-0123456789', renders: [] }));
-  socket.send(JSON.stringify({ t: 'admit', world: 'shed', nickname: 'Marta' }));
-  socket.send(JSON.stringify({ t: 'command', seq: 1, line: 'look' }));
-});
-socket.on('message', (data) => {
-  const message = JSON.parse(data.toString());
-  if (message.t === 'refused') { console.error(JSON.stringify(message)); process.exit(1); }
-  if (message.t === 'effects') said.push(...message.effects.flatMap((one) => one.paragraphs ?? []));
-  if (message.t === 'effects' && message.seq === 1) {
-    console.log(said.join('\n'));
-    socket.send(JSON.stringify({ t: 'leave' }));
-  }
-  if (message.t === 'bye') process.exit(0);
-});
-CLIENT
-node client.mjs > client.txt
+# The installed terminal client, plain from a pipe, its token kept in the sandbox and not the real home.
+printf 'look\n' | HOME="$sandbox" timeout 20 npx sprout client connect 127.0.0.1:47931 --as Marta --plain > client.txt
 grep -qx 'There is nothing special about a hall.' client.txt
+grep -qx '\[a hall\]' client.txt
 kill -INT "$server"
 wait "$server"
 trap - EXIT
 grep -q 'info: stopped' server.log
-echo "the installed sprout-server served shed to a client over a socket, and stopped when asked"
+echo "the installed sprout-server served shed to the installed terminal client, and stopped when asked"
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (init, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, and a world served by the installed server, at $sha)"
+echo "e2e: green (init, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, and a world served by the installed server to the installed client, at $sha)"

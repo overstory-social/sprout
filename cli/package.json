@@ -1,7 +1,7 @@
 {
   "name": "@overstory/sprout-cli",
   "version": "0.1.0",
-  "description": "The Sprout command line: init, check, parse, view and skill on a microworld folder, and play and test through the player and the REPL.",
+  "description": "The Sprout command line: init, check, parse, view and skill on a microworld folder; play and test through the player and the REPL; and, where they are installed, the terminal client and the server.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -33,7 +33,10 @@
     "@overstory/sprout-repl": "0.1.0",
     "zod": "^4.4.2"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@overstory/sprout-server": "0.1.0",
+    "@overstory/sprout-tui": "0.1.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/overstory-social/sprout.git",
@@ -41,5 +44,17 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "peerDependencies": {
+    "@overstory/sprout-server": "0.1.0",
+    "@overstory/sprout-tui": "0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@overstory/sprout-server": {
+      "optional": true
+    },
+    "@overstory/sprout-tui": {
+      "optional": true
+    }
   }
 }
