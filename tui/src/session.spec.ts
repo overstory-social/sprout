@@ -19,7 +19,11 @@ describe('a session with a server', () => {
     await until(session, () => session.state.world === 'sequences');
     expect(session.state.nickname).toBe('Marta');
     await until(session, () => shows(session, 'There is nothing special about the cellar.'));
-    expect(session.state.status).toEqual({ place: 'the cellar', exits: [] });
+    expect(session.state.status).toEqual({
+      place: 'the cellar',
+      here: ['a key', 'a coin'],
+      exits: [],
+    });
   });
 
   it('sends each line as a command, and shows what it said', async () => {

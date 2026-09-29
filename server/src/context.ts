@@ -146,7 +146,8 @@ export async function fanOut(
 }
 
 /**
- * Send `connection` its status line, where it stands and the ways out, and
+ * Send `connection` its status line, where it stands, what else the place
+ * holds and the ways out, and
  * the lines it could type now, each only where it changed; and, where
  * `seq` is given, the whole view it polled for.
  */
@@ -173,10 +174,15 @@ export async function sendStatus(
   const capabilities = connection.capabilities.get(served.id)!;
   if (seq !== undefined)
     connection.send({ t: 'view', seq, view: sendView(polled.view, capabilities) });
-  const naming = { state: readerOf(state), nicknames: nicknamesIn(state) };
+  const reader = readerOf(state);
+  const naming = { state: reader, nicknames: nicknamesIn(state) };
   const status = {
     t: 'status',
     place: objectWords(place, visitor.instance, naming),
+    here: reader
+      .children(place)
+      .filter((id) => id !== visitor.instance)
+      .map((id) => ({ id, name: objectWords(id, visitor.instance, naming) })),
     exits: polled.view.exits,
   } as const;
   const shown = JSON.stringify(status);

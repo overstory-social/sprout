@@ -3,7 +3,7 @@ import { PROTOCOL, type ServerMessage } from '@overstory/sprout/core';
 
 import { link, tokenFor, type Link } from './connection.js';
 import { CLIENT_COMMANDS, typedOf } from './input.js';
-import { add, EMPTY, received, type ClientState } from './state.js';
+import { add, EMPTY, received, troubled, type ClientState } from './state.js';
 
 // One visitor connected to one server: `hello` with the person's token,
 // then admission to a world under a nickname, then every line typed sent
@@ -25,6 +25,8 @@ export interface SessionOptions {
   readonly tokens?: string;
   /** The client's name, as `hello` gives it. */
   readonly client?: string;
+  /** The client's clock, in milliseconds, which dates an error; the real one where left out. */
+  readonly now?: () => number;
 }
 
 /** A session with a server: its state, and what it does with each line typed. */
@@ -47,6 +49,16 @@ export class Session {
     this.nickname = options.nickname ?? null;
   }
 
+  /** The server connected to, as it was given. */
+  get address(): string {
+    return this.options.address;
+  }
+
+  /** The client's time, in milliseconds. */
+  now(): number {
+    return (this.options.now ?? Date.now)();
+  }
+
   /** Call `listener` on every change; the returned call stops it. */
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -64,7 +76,7 @@ export class Session {
       message: (message) => {
         if (opened !== null && this.connection === opened) this.receive(message);
       },
-      malformed: (words) => this.change(add(this.state, 'refused', words)),
+      malformed: (words) => this.change(troubled(add(this.state, 'refused', words), this.now())),
       closed: () => {
         if (opened === null || this.connection !== opened) return;
         this.connection = null;
@@ -186,7 +198,7 @@ export class Session {
   private receive(message: ServerMessage): void {
     if (message.t === 'effects' && message.seq !== null && message.last)
       this.answering.delete(message.seq);
-    this.change(received(this.state, message));
+    this.change(received(this.state, message, this.now()));
     if (message.t === 'welcome') {
       if (this.nickname === null)
         this.change(add(this.state, 'client', 'Type the nickname to be known by here.'));

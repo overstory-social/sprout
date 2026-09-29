@@ -71,6 +71,16 @@ describe('a connection’s status line', () => {
       'offered',
     ]);
   });
+
+  it('names what else the place holds, the other visitor among it, and never the one it is sent to', async () => {
+    const { context, world, marta } = await withTwo();
+    marta.lastStatus = null;
+    await sendStatus(context, world, marta);
+    const status = marta.sent.find((one) => (one as { t: string }).t === 'status') as {
+      here: { name: string }[];
+    };
+    expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin', 'Ines']);
+  });
 });
 
 describe('a host record', () => {
