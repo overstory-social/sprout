@@ -13,6 +13,7 @@ import { checkEnumDeclaration, SPROUT } from '../../declare/enums.js';
 import { checkGrammar } from '../../declare/grammar.js';
 import { checkKindDeclaration } from '../../declare/kinds.js';
 import { objectsIn } from '../../declare/objects.js';
+import { checkIntentDeclaration } from '../../declare/intents.js';
 import { refuseKindSynonyms } from '../../declare/synonyms.js';
 import { checkVerbDeclaration } from '../../declare/verbs.js';
 import { checkWorldDeclaration } from '../../declare/world.js';
@@ -63,6 +64,9 @@ export function readFile(
     // own, and its caps are the host's; so do a grammar block's lines.
     if (declared.kind === 'verb') {
       checkVerbDeclaration(declared, using, diagnostics);
+    }
+    if (declared.kind === 'intent') {
+      checkIntentDeclaration(declared, using, diagnostics);
     }
     // One declaration answers on its own whether it wrote
     // `sprout.World`, so reading its file is where a world that did not

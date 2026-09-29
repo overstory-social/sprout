@@ -28,6 +28,7 @@ import {
   runCommand,
   runDeparture,
   runMaintenance,
+  runCommandLine,
   runPoll,
   runTick,
   runWake,
@@ -124,6 +125,47 @@ describe('a command turn against a store', () => {
     const turn = await runCommand(store, 'w', host, command('bump counter'));
     expect(committedCount(turn)).toBe(1);
     expect(await count(store)).toBe(1);
+  });
+});
+
+describe('a line whose intent planned steps, against a store', () => {
+  /** Seeds 11, 12, … for the steps after the first. */
+  const seeds = () => {
+    let next = 10;
+    return () => (next += 1);
+  };
+
+  it('runs each step as a command turn of its own, each seeded and logged', async () => {
+    const store = await seeded();
+    const turns = await runCommandLine(store, 'w', host, command('twice counter'), seeds());
+    expect(turns.map(committedCount)).toEqual([1, 2]);
+    expect(await count(store)).toBe(2);
+    const logged = (await readLog(store, 'w', { limit: 10 })).map(({ entry }) => entry);
+    expect(logged).toMatchObject([
+      { kind: 'command', text: 'twice counter', seed: 1, planned: null },
+      {
+        kind: 'command',
+        text: 'twice counter',
+        seed: 11,
+        planned: {
+          verb: { library: 'tally', name: 'bump' },
+          bindings: [['target', { object: COUNTER }]],
+        },
+      },
+    ]);
+  });
+
+  it('runs no step after one that faults, keeping what ran before it', async () => {
+    const store = await seeded();
+    const turns = await runCommandLine(store, 'w', host, command('wreck counter'), seeds());
+    expect(turns.map((turn) => turn.committed)).toEqual([true, false]);
+    expect(await count(store)).toBe(1);
+  });
+
+  it('is the one turn for a line read as a verb', async () => {
+    const store = await seeded();
+    const turns = await runCommandLine(store, 'w', host, command('bump counter'), seeds());
+    expect(turns.map(committedCount)).toEqual([1]);
   });
 });
 

@@ -17,7 +17,16 @@ import {
 } from '../../fixtures/parser.js';
 import type { InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
-import { answersTo, fits, forms, nounIn, nounsOfRun, runIn, type Candidate } from './nouns.js';
+import {
+  answersTo,
+  fits,
+  forms,
+  nounIn,
+  nounsOfRun,
+  runIn,
+  thingsIn,
+  type Candidate,
+} from './nouns.js';
 
 const one = study();
 const context = { world: one.draft.world, nicknames: one.nicknames };
@@ -92,6 +101,20 @@ describe('what a noun names', () => {
     const before = one.budget.spentSteps;
     noun('gong');
     expect(one.budget.spentSteps - before).toBe(HERE.length);
+  });
+});
+
+describe('what a noun names, of what may fill a slot', () => {
+  const things = (line: string, fitting: (id: InstanceId) => boolean) =>
+    thingsIn(typedWords(line), (instance) => fitting(instance.id), HERE, within);
+
+  it('is what answers and what the slot says fits, as a role’s noun is', () => {
+    expect(things('key', (id) => id === IRON_KEY)).toEqual({
+      found: 'some',
+      things: [{ id: IRON_KEY, near: 1, literal: 1 }],
+    });
+    expect(things('key', () => false)).toEqual({ found: 'unfit' });
+    expect(things('zebra', () => true)).toEqual({ found: 'nothing' });
   });
 });
 

@@ -26,7 +26,12 @@ import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
 import type { Node } from '../source/nodes.js';
 import { declaredId, type InstanceId } from './ids.js';
-import { typedPhrasesOf, type TypedPhrase } from './parser/phrases.js';
+import {
+  typedIntentPhrasesOf,
+  typedPhrasesOf,
+  type TypedIntentPhrase,
+  type TypedPhrase,
+} from './parser/phrases.js';
 
 /** One object the tree places. */
 export interface DeclaredEntry {
@@ -67,6 +72,8 @@ export interface Catalogue {
   readonly verbs: VerbLookup;
   /** Every phrase a visitor may type, in the order the command parser tries them. */
   readonly phrases: readonly TypedPhrase[];
+  /** Every phrase of the intents a visitor may type (the spec's Parsing › Intents). */
+  readonly intentPhrases: readonly TypedIntentPhrase[];
   /** Every message the bundle declares, which a send's message is reached in. */
   readonly messages: MessageLookup;
   /** What each identifier and path a body writes names. */
@@ -123,6 +130,7 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
     lookup: bundle.kindLookup,
     verbs: bundle.verbs,
     phrases: typedPhrasesOf(bundle.verbs.all(), name, bundle.synonyms),
+    intentPhrases: typedIntentPhrasesOf(bundle.intents),
     messages: bundle.messages,
     names: bundle.names,
     optionSlots: bundle.optionSlots,

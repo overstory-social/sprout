@@ -22,6 +22,7 @@ const Q = "'";
 const A_DECLARATION: Record<string, string> = {
   enum: 'enum Two { a }',
   import: `import {Two} from ${Q}two${Q}`,
+  intent: 'intent two { "two [y]"  do take (target: y) when (y.count > 0) then drop (target: y) }',
   kind: 'kind Two is sprout.Container { :open true }',
   message: 'message :stir',
   object: 'object two is Crate { contains }',
@@ -44,6 +45,7 @@ const A_DECLARATION: Record<string, string> = {
 const ALSO_WRITTEN: Record<string, string[]> = {
   kind: ['kind Two { }', 'kind Two is Crate, sprout.Container { contains actors }'],
   import: [`import * as two from ${Q}two${Q}`],
+  intent: ['intent two { }', 'intent two { "two"  do look }'],
   object: [
     'object two is Crate',
     'object two is Crate, sprout.Fixture { }',

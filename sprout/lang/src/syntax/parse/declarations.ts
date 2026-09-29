@@ -1,9 +1,10 @@
 // A file, and the declarations it holds: the `extension` lines at its
-// top, `import` lines anywhere at its top level, then `enum`, `kind`, `message`, `verb` and `world` (the spec's
-// Extensions › Activation and absence, Properties › Enums, Kinds ›
-// Declaring and composing, Events › Declaring a message, Verbs ›
-// Declaring a verb, The world model). `DECLARATION_READERS` is the one table of the words
-// a declaration starts with; `object` is among them so an object written
+// top, `import` lines anywhere at its top level, then `enum`, `kind`,
+// `message`, `verb`, `intent` and `world` (the spec's Extensions ›
+// Activation and absence, Properties › Enums, Kinds › Declaring and
+// composing, Events › Declaring a message, Verbs › Declaring a verb,
+// Parsing › Intents, The world model). `DECLARATION_READERS` is the one
+// table of the words a declaration starts with; `object` is among them so an object written
 // at the top level is read whole and refused there, never skipped.
 
 import type { Declaration, EnumDeclaration, EnumOption, MessageDeclaration } from '../ast.js';
@@ -19,6 +20,7 @@ import { verbDeclaration } from './verbs.js';
 import { worldDeclaration } from './world.js';
 import { extensionUse } from './extensions.js';
 import { importDeclaration } from './imports.js';
+import { intentDeclaration } from './intents.js';
 
 /** Every declaration in the file, in the order they were written. */
 export function file(p: Parser): Declaration[] {
@@ -224,6 +226,7 @@ export const DECLARATION_READERS: ReadonlyMap<string, DeclarationReader> = new M
 >([
   ['enum', enumDeclaration],
   ['import', importDeclaration],
+  ['intent', intentDeclaration],
   ['kind', kindDeclaration],
   ['message', messageDeclaration],
   ['object', topLevelObject],

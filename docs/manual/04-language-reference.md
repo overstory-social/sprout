@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "27f431cbc8a88b462ad70cdd8800abbab0884b14a21fe92392590f9b13841ef4"
+      "sha": "976d0346d2a86812cf627a030928078c596895991692335efe91ce69755b4dd5"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -913,6 +913,50 @@ Synonyms and the phrases they give don't count toward the 8 phrases. Every
 word of every synonym is a word the world reads, so nobody can take it as
 a nickname.
 
+### Intents
+
+An **intent** is a phrase that stands for several verbs, one after
+another. It is declared beside verbs, at a file's top level:
+
+```sprout
+intent stow {
+  "stow [x] in [y]"
+  do take (target: x) then open (target: y) when (!y.get(:open)) then put (item: x, container: y)
+}
+```
+
+Its phrases come first, in quotes, the canonical one first, and then one
+`do` with its **steps** joined by `then`. The words in a phrase's
+brackets are the intent's own **slots**, and each step gives each role of
+its verb a slot: `take (target: x)`. A step's verb is named as any verb
+is, so a library's verb is imported into the file first. A slot holds a
+thing, never a value or a way out, and whatever the line names for it
+must fit a role it fills in at least one step.
+
+`stow coin in strongbox` then runs as `take coin`, `open strongbox` and
+`put coin in strongbox`:
+
+- Every step is planned before the line runs, against the world as the
+  visitor typed into it. A step whose `when` is false, or whose role the
+  slot's thing cannot fill, is left out without a word, so `stow` opens
+  the strongbox only where it is shut.
+- The steps that are left run in order, each its own turn, with its own
+  dice and its own entry in the log. The host notes each step at info as
+  it runs.
+- A step that is refused, by a `permit` or by its own body refusing its
+  actor, stops the rest; what ran before stays done.
+- Where every step is left out, the visitor reads the world's
+  `nothing_happens` passage.
+
+A `when` reads the world and may not change it or roll the dice. It sees
+`actor`, the one who typed, `here`, where they stand, and each slot, as
+the kind of the role the step gives it. An intent's phrases count toward
+the 8 phrases, and it has at most 8 steps, by default.
+
+The standard library declares `open_with`: `open [y] with [x]` and `use
+[x] to open [y]` unlock y with x where it is locked, then open it. A
+world's intent of the same name replaces a library's.
+
 ### Playing a role
 
 A kind or object takes part in a verb with `as <role> for <verb>`:
@@ -1135,8 +1179,10 @@ could fall, so a name that holds one, "the rope with a knot", still reads.
 A name may be narrowed by what holds it: `the key in the cabinet`, `the
 key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
-Every way the line reads is a **reading**: a verb and what fills each role. The readings are ranked
-whole:
+Every way the line reads is a **reading**: a verb and what fills each
+role, or an intent and what fills each slot. An intent's reading asks no
+`permit` of its own, so it counts as allowed; its steps ask theirs as
+they run. The readings are ranked whole:
 
 1. one whose `permit`s all allow beats one that is refused;
 2. then the one that matched more of the line's words, where a name of
@@ -1894,7 +1940,8 @@ any of its lines. `sprout skill` prints its full source.
 | `ask`    | `target`, `topic: symbol`          | `ask [target] about [topic]`, `ask [target] [topic]`        |
 
 Plus the six engine verbs, above. The standard library plays no part in
-`ask`: a world's own kinds answer it.
+`ask`: a world's own kinds answer it. It declares one intent, `open_with`,
+under Intents above.
 
 ### The world's lines
 
@@ -2056,7 +2103,8 @@ checked when the world compiles, and exceeding one refuses it.
 | ------------------------------------------- | ------- |
 | options in one enum                         | 100     |
 | roles in one verb (a set role counts once)  | 8       |
-| phrases in one verb                         | 8       |
+| phrases in one verb or intent               | 8       |
+| steps in one intent                         | 8       |
 | characters in one phrase                    | 80      |
 | nouns on one object                         | 8       |
 | characters in one noun word                 | 40      |

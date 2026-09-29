@@ -5,14 +5,17 @@ import {
   nicknamesIn,
   objectWords,
   parseCommand,
+  planIntent,
   pollTurn,
   qualifiedName,
   renderFor,
   type Bound,
   type Catalogue,
   type InstanceId,
+  type IntentReading,
   type Line,
   type PollTurn,
+  type Reading as LangReading,
   type RenderContext,
   type ResolvedRole,
   type ResolvedVerb,
@@ -66,6 +69,22 @@ export function formatGrammar(catalogue: Catalogue): string {
     const typed = phrases.get(verb)!.map((words) => `  ${words}\n`);
     return `${qualifiedName(verb.library, verb.name)}${roles}\n${typed.join('')}`;
   });
+  // Each intent after the verbs, with the steps it stands for.
+  const intents = [...new Set(catalogue.intentPhrases.map((phrase) => phrase.intent))];
+  for (const intent of intents) {
+    const typed = catalogue.intentPhrases
+      .filter((phrase) => phrase.intent === intent)
+      .map(
+        (phrase) =>
+          `  ${phrase.parts.map((part) => ('slot' in part ? `[${intent.slots[part.slot]!}]` : part.words.join(' '))).join(' ')}\n`,
+      );
+    const steps = intent.steps
+      .map((step) => qualifiedName(step.verb.library, step.verb.name))
+      .join(', then ');
+    blocks.push(
+      `intent ${qualifiedName(intent.library, intent.name)}, which does ${steps}\n${typed.join('')}`,
+    );
+  }
   return (
     `${catalogue.world} accepts these phrases. Every way a line reads is ranked whole, and the best is understood.\n\n` +
     blocks.join('\n')
@@ -118,11 +137,7 @@ function readLine(line: string, standing: Standing, turn: PollTurn): string {
     const name = 'passage' in said ? ` with \`${said.passage.name}\`` : '';
     return `not understood; the world answers${name}:\n${spoken(parsed.answered, context)}`;
   }
-  const { reading, drawn } = parsed;
-  const { verb } = reading;
-  const roles = verb.roles.map(
-    (role) => `  ${role.name}: ${boundWords(reading.bindings.get(role.name), role, context)}\n`,
-  );
+  const { drawn } = parsed;
   const tie =
     drawn === null
       ? ''
@@ -131,11 +146,48 @@ function readLine(line: string, standing: Standing, turn: PollTurn): string {
             ? '\n'
             : `; the visitor is told first:\n${spoken(drawn.meant, context)}`
         }`;
-  const head = `reads as ${qualifiedName(verb.library, verb.name)}\n${roles.join('')}${tie}`;
+  if ('intended' in parsed) return intentRead(parsed.intended, tie, turn, context);
+  const { reading } = parsed;
+  const head = `${readingWords(reading, context)}${tie}`;
   const refused = consentPass(reading, turn);
   if (refused === null) return `${head}every participant consents\n`;
   const by = `${objectWords(refused.by, actor, render)} (${pathOf(context.world, refused.by)})`;
   return `${head}refused by ${by} as ${refused.role}, in ${refused.origin}'s permit:\n${spoken(refused, context)}`;
+}
+
+/** A reading as the page writes it: its verb, then each role and what fills it. */
+function readingWords(reading: LangReading, context: Reading): string {
+  const { verb } = reading;
+  const roles = verb.roles.map(
+    (role) => `  ${role.name}: ${boundWords(reading.bindings.get(role.name), role, context)}\n`,
+  );
+  return `reads as ${qualifiedName(verb.library, verb.name)}\n${roles.join('')}`;
+}
+
+/** A line read as an intent: the intent, what fills each slot, and the steps it plans now, each as its own reading. */
+function intentRead(
+  intended: IntentReading,
+  tie: string,
+  turn: PollTurn,
+  context: Reading,
+): string {
+  const { intent } = intended;
+  const slots = intent.slots.map((slot) => {
+    const bound = intended.bindings.get(slot);
+    const words =
+      bound !== undefined && 'object' in bound
+        ? `${objectWords(bound.object, context.actor, context.render)} (${pathOf(context.world, bound.object)})`
+        : 'unbound';
+    return `  ${slot}: ${words}\n`;
+  });
+  const steps = planIntent(intended, turn);
+  const planned =
+    steps.length === 0
+      ? 'it plans no step that can run, and is answered with `nothing_happens`\n'
+      : `it runs ${steps.length === 1 ? 'one step' : `${steps.length} steps`}, each a turn of its own:\n${steps
+          .map((step) => readingWords(step, context).replace(/^(?=.)/gm, '  '))
+          .join('')}`;
+  return `reads as the intent ${qualifiedName(intent.library, intent.name)}\n${slots.join('')}${tie}${planned}`;
 }
 
 /** What parsing a line gave: the page, and whether it could be read at all. */

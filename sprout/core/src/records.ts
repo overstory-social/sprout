@@ -69,6 +69,7 @@ export const RecordedCaps = z.object({
   optionsPerEnum: cap,
   rolesPerVerb: cap,
   phrasesPerVerb: cap,
+  stepsPerIntent: cap,
   phraseCharacters: cap,
   nounsPerObject: cap,
   nounCharacters: cap,

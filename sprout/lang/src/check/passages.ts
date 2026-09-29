@@ -298,6 +298,8 @@ function undrawnKey(undrawn: Undrawn | null): string {
       return `poll ${undrawn.line}`;
     case 'contents':
       return 'contents';
+    case 'step':
+      return 'step';
   }
 }
 

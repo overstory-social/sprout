@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "27f431cbc8a88b462ad70cdd8800abbab0884b14a21fe92392590f9b13841ef4"
+      "sha": "976d0346d2a86812cf627a030928078c596895991692335efe91ce69755b4dd5"
     }
   ],
   "files": ["play_unknown_role.sprout", "person.sprout", "key.sprout"]

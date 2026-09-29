@@ -1,0 +1,28 @@
+intent_syntax.sprout:20:8   An intent's name is a lower-case word, and `Stash` starts with a capital.
+                            Write `intent stash { … }`.
+
+intent_syntax.sprout:21:14  The phrases and steps of `hoard` go in braces.
+                            Write `intent open_with { "open [y] with [x]"  do unlock (target: y, tool: x) then open (target: y) }`.
+
+intent_syntax.sprout:22:30  A step names the verb it performs.
+                            Write the verb, and the slot filling each of its roles: `unlock (target: y, tool: x)`.
+
+intent_syntax.sprout:23:38  A step's role is its name, a colon, and the slot that fills it.
+                            Write `target: y`, the slot as the intent’s phrases name it in brackets.
+
+intent_syntax.sprout:24:61  The roles of a step are separated by commas, and its brackets closed.
+                            Write `unlock (target: y, tool: x)`.
+
+intent_syntax.sprout:25:55  A step's `when` is followed by its condition in brackets.
+                            Write `unlock (target: y, tool: x) when (y.get(:locked))`.
+
+intent_syntax.sprout:26:48  `heft` writes its steps twice.
+                            Write one `do`, its steps joined by `then`.
+
+intent_syntax.sprout:27:27  An intent is not made of `role`.
+                            It holds its phrases in quotes and one `do` with its steps: `intent open_with { "open [y] with [x]"  do unlock (target: y, tool: x) then open (target: y) }`.
+
+intent_syntax.sprout:29:1   `keep` is never closed.
+                            Add a } after its phrases and steps.
+
+refused: 9 problems

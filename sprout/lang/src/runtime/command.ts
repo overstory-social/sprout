@@ -21,6 +21,9 @@ import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
 import type { Draw } from './draws.js';
 import { engineAnswers } from './engine-verbs.js';
+import { engineSaid } from './engine-lines.js';
+import { boundObject } from './evaluate.js';
+import { planIntent, type IntentReading } from './intents.js';
 import type { Catalogue } from './catalogue.js';
 import { saidLines, type Effect, type Unrendered } from './effects.js';
 import { faultTold, stockFaultEffect } from './faults.js';
@@ -60,7 +63,9 @@ export interface ParseContext {
 
 /** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
 export type Parsed =
-  { readonly reading: Reading; readonly drawn: DrawnReading | null } | { readonly answered: Said };
+  | { readonly reading: Reading; readonly drawn: DrawnReading | null }
+  | { readonly intended: IntentReading; readonly drawn: DrawnReading | null }
+  | { readonly answered: Said };
 
 /**
  * A reading the parser drew from several that tied (the spec's Parsing ›
@@ -86,6 +91,12 @@ export interface Command extends WriteInputs {
   /** Who typed it. */
   readonly visit: VisitKey;
   readonly text: string;
+  /**
+   * A step an earlier turn of the same line planned, run in place of
+   * reading `text` again (the spec's Parsing › Intents): its `when` was
+   * read before the line ran, against the world the visitor typed into.
+   */
+  readonly planned?: Reading;
 }
 
 /**
@@ -95,9 +106,20 @@ export interface Command extends WriteInputs {
  */
 export type Commanded =
   | { readonly answered: Said }
-  | { readonly refused: PermitRefusal; readonly drawn: DrawnReading | null }
+  | {
+      readonly refused: PermitRefusal;
+      readonly drawn: DrawnReading | null;
+      /** The step of an intent this turn ran, which the host logs at info; null for a line read as a verb. */
+      readonly step: Reading | null;
+    }
   | {
       readonly drawn: DrawnReading | null;
+      /** The step of an intent this turn ran, which the host logs at info; null for a line read as a verb. */
+      readonly step: Reading | null;
+      /** The steps of the line's intent still to run, in order, each as a turn of its own the host runs. */
+      readonly next: readonly Reading[];
+      /** Whether its body refused its actor something, which stops a line's steps as a refusal in the consent pass does. */
+      readonly refusedActor: boolean;
       readonly acted: Acted;
       readonly drained: Drained;
       /** What the engine answered once the queue was empty: each arrival read, then the command's own. */
@@ -133,14 +155,17 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       if (gone) return { displaced: displace(turn, command.visit) };
       const { draft, catalogue, passes, budget, draws } = turn;
       const nicknames = nicknamesIn(state);
-      const parsed = host.parse(command.text, actor, {
-        state: draft,
-        catalogue,
-        passes,
-        budget,
-        draws,
-        nicknames,
-      });
+      const parsed: Parsed =
+        command.planned !== undefined
+          ? { reading: command.planned, drawn: null }
+          : host.parse(command.text, actor, {
+              state: draft,
+              catalogue,
+              passes,
+              budget,
+              draws,
+              nicknames,
+            });
       if ('answered' in parsed) {
         if (!parsed.answered.to.includes(actor)) {
           throw new Error(
@@ -149,14 +174,29 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
         }
         return { answered: parsed.answered };
       }
-      const { reading, drawn } = parsed;
+      const { drawn } = parsed;
+      let reading: Reading;
+      let next: readonly Reading[] = [];
+      if ('intended' in parsed) {
+        const [first, ...rest] = planIntent(parsed.intended, {
+          state: draft,
+          catalogue,
+          passes,
+          budget,
+        });
+        // Every step left out, the line does nothing, and is answered so.
+        if (first === undefined) return { answered: nothingHappens(draft, actor) };
+        reading = first;
+        next = rest;
+      } else reading = parsed.reading;
       if (reading.actor !== actor) {
         throw new Error(
           `\`${command.text}\` was read as \`${reading.actor}\`'s, not \`${actor}\`'s.`,
         );
       }
       const outcome = runReading(reading, turn);
-      if ('refused' in outcome) return { ...outcome, drawn };
+      const step = command.planned !== undefined || 'intended' in parsed ? reading : null;
+      if ('refused' in outcome) return { ...outcome, drawn, step };
       const drained = drain(outcome, turn);
       const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
         state: turnState(draft),
@@ -165,12 +205,39 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
         budget,
         nicknames,
       });
-      return { drawn, acted: outcome, drained, answers };
+      const refusedActor = outcome.said.some(
+        (said) => said.effect === 'refused' && said.to.includes(actor),
+      );
+      return { drawn, step, next, refusedActor, acted: outcome, drained, answers };
     },
     (done) => ({ actor, lines: linesSaidBy(done, actor) }),
   );
   if (written.committed) return written;
   return { ...written, ...faultEffects(state, host, command, actor) };
+}
+
+/**
+ * Whether a line goes on past `turn` to the next step its intent planned:
+ * it committed and acted, and refused its actor nothing (the spec's
+ * Parsing › Intents: a step refused stops the rest).
+ */
+export function lineGoesOn(turn: CommandTurn): boolean {
+  return turn.committed && 'acted' in turn.value && !turn.value.refusedActor;
+}
+
+/** The engine's `nothing_happens`, to `actor`: what a line whose intent planned no step to run is answered with. */
+function nothingHappens(state: StateReader, actor: InstanceId): Said {
+  const here = state.instance(actor)!.container!;
+  return {
+    effect: 'said',
+    to: [actor],
+    ...engineSaid(state, 'nothing_happens', actor, here),
+    speaker: null,
+    bindings: new Map([
+      ['actor', boundObject(actor)],
+      ['here', boundObject(here)],
+    ]),
+  };
 }
 
 /** What a committed command said, in the order it said it. */

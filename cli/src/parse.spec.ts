@@ -87,6 +87,10 @@ sprout.unlock (target: sprout.Lockable, tool)
 sprout.ask (target, topic: symbol optional)
   ask [target] about [topic]
   ask [target] [topic]
+
+intent sprout.open_with, which does sprout.unlock, then sprout.open
+  open [y] with [x]
+  use [x] to open [y]
 `,
     );
   });
@@ -188,6 +192,42 @@ every participant consents
     expect(parsed.ok).toBe(false);
     expect(parsed.page).toBe(
       'in yard, "take key" faults as its turn would, BudgetExhausted: steps: a command turn may take 3 steps.\n',
+    );
+  });
+});
+
+describe('parseLine, for an intent', () => {
+  const vault = () =>
+    checkWorld(
+      worldFolder('lane', {
+        ...LANE,
+        'lane.sprout': LANE['lane.sprout']!.replace(
+          'object crate is Crate',
+          'object crate is Crate\n    object chest is Chest { :open false }\n    object gate is sprout.Lockable { :locked false }',
+        ),
+        'chest.sprout': 'kind Chest is sprout.Container, sprout.Lockable { }\n',
+      }),
+    ).bundle!;
+
+  it('names the intent, what fills each slot, and the steps it plans now, each as a reading', () => {
+    expect(parseLine('open chest with brass key', standIn(vault(), {})).page).toBe(
+      `in yard, "open chest with brass key" reads as the intent sprout.open_with
+  y: a chest (yard.chest)
+  x: a brass key (yard.brass_key)
+it runs 2 steps, each a turn of its own:
+  reads as sprout.unlock
+    target: a chest (yard.chest)
+    tool: a brass key (yard.brass_key)
+  reads as sprout.open
+    target: a chest (yard.chest)
+`,
+    );
+  });
+  it('says where it plans no step, and that the line is answered with `nothing_happens`', () => {
+    // The gate is unlocked, so no unlocking, and is no container, so no opening.
+    const page = parseLine('open gate with brass key', standIn(vault(), {})).page;
+    expect(page).toContain(
+      'it plans no step that can run, and is answered with `nothing_happens`\n',
     );
   });
 });

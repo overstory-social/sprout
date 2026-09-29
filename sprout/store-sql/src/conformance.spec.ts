@@ -114,6 +114,7 @@ describe('sqlStore passes the conformance suite on PGlite', () => {
         optionsPerEnum: 100,
         rolesPerVerb: 8,
         phrasesPerVerb: 8,
+        stepsPerIntent: 8,
         phraseCharacters: 80,
         nounsPerObject: 8,
         nounCharacters: 40,

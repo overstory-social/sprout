@@ -1,0 +1,16 @@
+intent_steps.sprout:20:32  This step performs `tkae`, and nothing declares that verb. Did you mean `take`?
+                           Write `take`.
+
+intent_steps.sprout:21:38  `take` has no role `lid`.
+                           Give one of the roles it declares: `target`.
+
+intent_steps.sprout:22:55  `topic` of `ask` takes a value, and a slot of an intent holds a thing.
+                           Give a step only the roles a thing fills.
+
+intent_steps.sprout:23:32  This step performs `unlock` and gives no slot to `tool`, which it needs.
+                           Give it one, as in `unlock (tool: y)`.
+
+intent_steps.sprout:24:26  This step performs `go`, which needs `way`, a way out, and a slot of an intent holds a thing.
+                           Perform a verb whose needed roles a thing fills.
+
+refused: 5 problems

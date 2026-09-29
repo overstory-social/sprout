@@ -1,0 +1,24 @@
+// Each step performs a verb there is, gives only roles it has, a thing to
+// each, and every role the verb needs, which a thing must be able to fill.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take, open, unlock, put, ask, go} from 'sprout'
+
+world intent_steps is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is Chest
+    object key is Loose
+  }
+}
+
+kind Chest is sprout.Container, sprout.Lockable { }
+kind Loose { }
+
+intent stash { "stash [y]"  do tkae (target: y) }
+intent hoard { "hoard [y]"  do take (lid: y) }
+intent grab { "grab [y] with [x]"  do ask (target: y, topic: x) }
+intent seize { "seize [y]"  do unlock (target: y) }
+intent spin { "spin"  do go }

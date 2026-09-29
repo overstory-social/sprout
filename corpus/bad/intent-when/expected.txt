@@ -1,0 +1,10 @@
+intent_when.sprout:20:55  A step's `when` says whether it runs, so it is true or false, and this is integer.
+                          Write a condition, as in `when (y.get(:locked))`.
+
+intent_when.sprout:21:61  `sprout.Container` has no `:locked`.
+                          `:locked` is a `Chest`'s. Read it as one first: `if (y.is(Chest)) { … y.get(:locked) … }`.
+
+intent_when.sprout:22:53  An intent's `when` may not use `chance`: it is read before the line runs, to decide which steps run, so a roll would decide unseen.
+                          Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+refused: 3 problems

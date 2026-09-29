@@ -69,12 +69,19 @@ import type { Bound } from './reading.js';
 /** A reading as a case compares it: the verb by library and name, and each role's filler. */
 function understood(outcome: CommandOutcome): { verb: string; bindings: Record<string, Bound> } {
   if (!('understood' in outcome)) throw new Error(`answered \`${outcome.answer}\``);
+  if (!('verb' in outcome.understood)) {
+    throw new Error(`understood as the intent \`${outcome.understood.intent.name}\``);
+  }
   const { verb, bindings } = outcome.understood;
   return { verb: `${verb.library}.${verb.name}`, bindings: Object.fromEntries(bindings) };
 }
 
 function answered(outcome: CommandOutcome): Answer {
-  if ('understood' in outcome) throw new Error(`understood as \`${outcome.understood.verb.name}\``);
+  if ('understood' in outcome) {
+    const { understood } = outcome;
+    const name = 'verb' in understood ? understood.verb.name : understood.intent.name;
+    throw new Error(`understood as \`${name}\``);
+  }
   return outcome;
 }
 
@@ -744,5 +751,51 @@ describe('a line whose nouns hold words a phrase or a relative phrase also reads
       object: at('hall', 'lamp'),
     });
     expect(understood(read('ring old')).bindings['target']).toEqual({ object: at('hall', 'lamp') });
+  });
+});
+
+describe('a line an intent’s phrase reads', () => {
+  const YARD = compiledWorld('yard', {
+    'yard.sprout': [
+      'world yard is sprout.World { visitors are Person visitors arrive at hall',
+      '  object hall is sprout.Place {',
+      '    object bell is Heavy',
+      '    object gong is sprout.Fixture',
+      '  }',
+      '}',
+      'kind Heavy { as target for shove { permit { refuse "It will not budge." } } }',
+      'verb shove { role target  "shove [target]" }',
+      'verb ring { role target  "ring [target]" }',
+      'intent nudge { "nudge [y]"  "shove [y]"  do ring (target: y) }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const bell = declaredId('yard', ['hall', 'bell']);
+  const at = (line: string) => {
+    const one: Study = { ...turn(YARD, [declaredId('yard', ['hall'])]), nicknames: new Map() };
+    return typed(one, line, []);
+  };
+  /** The intent `line` was read as, and what fills each slot. */
+  const intended = (line: string) => {
+    const outcome = at(line);
+    if (!('understood' in outcome) || !('intent' in outcome.understood)) {
+      throw new Error(`\`${line}\` was not read as an intent`);
+    }
+    const { intent, bindings } = outcome.understood;
+    return { intent: `${intent.library}.${intent.name}`, bindings: Object.fromEntries(bindings) };
+  };
+
+  it('is read as the intent, its slots bound by name', () => {
+    expect(intended('nudge bell')).toEqual({
+      intent: 'yard.nudge',
+      bindings: { y: { object: bell } },
+    });
+  });
+
+  it('ranks as allowed, since an intent asks no consent of its own, over a verb’s reading refused', () => {
+    expect(intended('shove bell')).toEqual({
+      intent: 'yard.nudge',
+      bindings: { y: { object: bell } },
+    });
   });
 });

@@ -1,0 +1,22 @@
+// A step's `when` is a condition, reads each slot as the kind of the role
+// the step gives it, and draws nothing, since it is read before the line runs.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take, open, unlock, put} from 'sprout'
+
+world intent_when is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is Chest
+    object key is Loose
+  }
+}
+
+kind Chest is sprout.Container, sprout.Lockable { }
+kind Loose { }
+
+intent stash { "stash [y]"  do open (target: y) when (y.get(:capacity)) }
+intent hoard { "hoard [y]"  do open (target: y) when (y.get(:locked)) }
+intent grab { "grab [y]"  do open (target: y) when (chance(2)) }

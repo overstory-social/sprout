@@ -21,7 +21,8 @@ export type Undrawn =
   | { readonly by: 'when' }
   | { readonly by: 'pass'; readonly written: string }
   | { readonly by: 'poll'; readonly line: string }
-  | { readonly by: 'contents' };
+  | { readonly by: 'contents' }
+  | { readonly by: 'step' };
 
 /** The free calls that draw, which are the only free calls there are. */
 export const DRAWS: ReadonlySet<string> = new Set(['chance', 'random']);
@@ -64,6 +65,11 @@ function words(undrawn: Undrawn): { readonly what: string; readonly why: string 
       return {
         what: `the world's \`${undrawn.line}\``,
         why: 'a poll says it, and a poll draws nothing',
+      };
+    case 'step':
+      return {
+        what: "an intent's `when`",
+        why: 'it is read before the line runs, to decide which steps run, so a roll would decide unseen',
       };
     case 'contents':
       return {

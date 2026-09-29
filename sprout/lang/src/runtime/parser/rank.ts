@@ -1,5 +1,5 @@
 // Choosing a reading (the spec's Parsing › Choosing a reading). Every
-// reading a line makes is ranked whole, so a hint in one role can decide
+// reading a line makes, a verb's or an intent's, is ranked whole, so a hint in one role can decide
 // another: one whose consent pass allows before one it refuses, then the
 // one that matched more of the line's words literally, then the one whose
 // things are nearer, role by role in the order the verb declares them.
@@ -11,16 +11,27 @@
 import type { Budget } from '../budget.js';
 import type { Draw } from '../draws.js';
 import type { InstanceId } from '../ids.js';
+import type { IntentReading } from '../intents.js';
 import type { Reading } from '../reading.js';
+
+/** What a line may be understood as: a verb's reading, or an intent's. */
+export type Understood = Reading | IntentReading;
+
+/** The names of what `understood` fills, in the order its verb declares its roles or its intent names its slots. */
+export function slotNamesOf(understood: Understood): readonly string[] {
+  return 'verb' in understood
+    ? understood.verb.roles.map((role) => role.name)
+    : understood.intent.slots;
+}
 
 /** A reading, and what it is ranked by. */
 export interface Ranked {
-  readonly reading: Reading;
+  readonly reading: Understood;
   /** Whether its consent pass allows it. */
   readonly allowed: boolean;
   /** How many of the line's words it matched literally: phrase words, nouns, values and exits. */
   readonly literal: number;
-  /** The nearness of what fills each role, in the order the verb declares them; 0 for none. */
+  /** The nearness of what fills each role or slot, in `slotNamesOf`'s order; 0 for none. */
   readonly near: readonly number[];
 }
 
@@ -32,7 +43,7 @@ export interface Drawn {
 
 /** The reading chosen, and the draw it was, where it was drawn. */
 export interface Chosen {
-  readonly reading: Reading;
+  readonly reading: Understood;
   readonly drawn: Drawn | null;
 }
 
@@ -68,20 +79,20 @@ export function chooseReading(
 }
 
 /**
- * The first thing `drawn` binds, in the order its verb declares its
- * roles, that some rival binds another thing in place of and that is
- * written otherwise; null where there is none.
+ * The first thing `drawn` binds, in `slotNamesOf`'s order, that some
+ * rival binds another thing in place of and that is written otherwise;
+ * null where there is none.
  */
 function meantIn(
-  drawn: Reading,
-  rivals: readonly Reading[],
+  drawn: Understood,
+  rivals: readonly Understood[],
   written: (id: InstanceId) => string,
 ): InstanceId | null {
-  for (const role of drawn.verb.roles) {
-    const mine = objectOf(drawn, role.name);
+  for (const role of slotNamesOf(drawn)) {
+    const mine = objectOf(drawn, role);
     if (mine === null) continue;
     for (const rival of rivals) {
-      const theirs = objectOf(rival, role.name);
+      const theirs = objectOf(rival, role);
       if (theirs !== null && theirs !== mine && written(theirs) !== written(mine)) return mine;
     }
   }
@@ -89,7 +100,7 @@ function meantIn(
 }
 
 /** The one object `reading` binds `role` to; null where it binds none, or a set, an exit or a value. */
-function objectOf(reading: Reading, role: string): InstanceId | null {
+function objectOf(reading: Understood, role: string): InstanceId | null {
   const bound = reading.bindings.get(role);
   return bound !== undefined && 'object' in bound ? bound.object : null;
 }

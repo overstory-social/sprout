@@ -1,0 +1,24 @@
+// An intent has at most as many steps as the host allows, 8 by default.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take, open, unlock, put} from 'sprout'
+
+world intent_too_many_steps is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is Chest
+    object key is Loose
+  }
+}
+
+kind Chest is sprout.Container, sprout.Lockable { }
+kind Loose { }
+
+intent fuss {
+  "fuss with [y]"
+  do open (target: y) then open (target: y) then open (target: y) then open (target: y)
+    then open (target: y) then open (target: y) then open (target: y) then open (target: y)
+    then open (target: y)
+}

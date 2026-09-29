@@ -66,6 +66,22 @@ describe('a command in the log', () => {
   it('hands back the command as the host handed it over', async () => {
     const typed = { ...command('rest gauge', 9), seed: 3 };
     const entry = commandEntry(typed, host, commandTurn(await state(), host, typed));
-    expect(commandOf(entry)).toEqual(typed);
+    expect(commandOf(entry, host.catalogue)).toEqual(typed);
+  });
+
+  it('keeps the step an intent planned, and hands it back as the reading it was', async () => {
+    const before = await state();
+    const actor = before.visitors.get(MARTA)!.instance;
+    const bump = host.catalogue.verbs.qualified('tally', 'bump')!;
+    const planned = { verb: bump, actor, bindings: new Map([['target', { object: GAUGE }]]) };
+    const typed = { ...command('twice gauge', 9), seed: 3, planned };
+    const entry = commandEntry(typed, host, commandTurn(before, host, typed));
+    expect(entry.planned).toEqual({
+      verb: { library: 'tally', name: 'bump' },
+      actor: expect.any(String),
+      bindings: [['target', { object: expect.any(String) }]],
+    });
+    expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
+    expect(commandOf(entry, host.catalogue)).toEqual(typed);
   });
 });

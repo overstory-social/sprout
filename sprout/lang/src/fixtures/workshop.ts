@@ -4,17 +4,20 @@
 // `sprout.Lockable`, shut and locked, and only the key fits it; the
 // crate is an open container that holds one thing; the anvil is a
 // `sprout.Fixture`; the pin and the key lie loose, and a nail and a tack,
-// both answering to "spike". Marta and Ines stand in the hall. Spec support: the package build leaves it out.
+// both answering to "spike". Its intents: `pick` unlocks only what is
+// locked, and `heft` takes a thing and drops it. Marta and Ines stand in
+// the hall. Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { renderEffects } from '../prose/effects.js';
 import { catalogueOf } from '../runtime/catalogue.js';
-import { commandTurn, type CommandHost, type CommandTurn } from '../runtime/command.js';
+import { commandTurn, lineGoesOn, type CommandHost, type CommandTurn } from '../runtime/command.js';
 import { Draft } from '../runtime/draft.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
 import { initialState } from '../runtime/load.js';
 import { parseCommand } from '../runtime/parser.js';
+import type { Reading } from '../runtime/reading.js';
 import { newInstance, type WorldState } from '../runtime/state.js';
 import { compiledWorld } from './bundle.js';
 
@@ -40,6 +43,12 @@ export const WORKSHOP: Bundle = compiledWorld('workshop', {
   }
 }
 `,
+  'pick.sprout': `intent pick {
+  "pick [y] with [x]"
+  do unlock (target: y, tool: x) when (y.get(:locked))
+}
+intent heft { "heft [y]"  do take (target: y) then drop (target: y) }
+`,
   'pin.sprout': 'kind Pin { }\n',
   'key.sprout': 'kind Key { }\n',
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
@@ -53,7 +62,7 @@ export const ANVIL = at('hall', 'anvil');
 export const PIN = at('hall', 'pin');
 export const KEY = at('hall', 'key');
 
-const CATALOGUE = catalogueOf(WORKSHOP, DEFAULT_LIMITS.caps);
+export const CATALOGUE = catalogueOf(WORKSHOP, DEFAULT_LIMITS.caps);
 
 export const MARTA: VisitKey = visitKey('v-marta');
 export const INES: VisitKey = visitKey('v-ines');
@@ -92,28 +101,45 @@ const host = (): CommandHost => ({
   render: renderEffects,
 });
 
-/** What one command turn left: the state it committed, and what each visitor read, by nickname. */
+/** What one line left: the state its last turn committed, what each visitor read, by nickname, and the verb of each step it ran. */
 export interface Played {
   readonly state: WorldState;
   readonly read: Readonly<Record<string, string[]>>;
+  readonly steps: readonly string[];
 }
 
-/** `text`, typed by `visit`, as one command turn over `state` seeded `seed`; a fault is thrown. */
+/**
+ * `text`, typed by `visit`, over `state` seeded `seed`: one command turn,
+ * and one more for each step its intent planned, as the host runs them,
+ * until one refuses. A fault is thrown.
+ */
 export function played(state: WorldState, visit: VisitKey, text: string, seed = 7): Played {
-  const turn: CommandTurn = commandTurn(state, host(), {
-    visit,
-    text,
-    seed,
-    mayHold: null,
-    now: 0,
-  });
-  if (!turn.committed) throw new Error(`faulted: ${turn.fault.name}: ${turn.fault.detail}`);
   const read: Record<string, string[]> = {};
-  for (const effect of turn.effects) {
-    const who = turn.state.visitors.get(effect.visit)!.nickname;
-    read[who] = [...(read[who] ?? []), ...effect.paragraphs];
+  const steps: string[] = [];
+  let now = state;
+  let planned: readonly (Reading | undefined)[] = [undefined];
+  for (let at = 0; at < planned.length; at++) {
+    const step = planned[at];
+    const turn: CommandTurn = commandTurn(now, host(), {
+      visit,
+      text,
+      seed,
+      mayHold: null,
+      now: 0,
+      ...(step === undefined ? {} : { planned: step }),
+    });
+    if (!turn.committed) throw new Error(`faulted: ${turn.fault.name}: ${turn.fault.detail}`);
+    for (const effect of turn.effects) {
+      const who = turn.state.visitors.get(effect.visit)!.nickname;
+      read[who] = [...(read[who] ?? []), ...effect.paragraphs];
+    }
+    now = turn.state;
+    const done = turn.value;
+    if ('step' in done && done.step !== null) steps.push(done.step.verb.name);
+    if (at === 0 && 'next' in done) planned = [undefined, ...done.next];
+    if (!lineGoesOn(turn)) break;
   }
-  return { state: turn.state, read };
+  return { state: now, read, steps };
 }
 
 /** Each command in turn, by `visit`, from `state`: the last turn's state, and what every turn was read as. */

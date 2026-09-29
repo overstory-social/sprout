@@ -150,7 +150,10 @@ describe('the standard library', () => {
       ['sprout/visitor.sprout', ['import from actor', 'kind Visitor']],
       ['sprout/fixture.sprout', ['import from actor', 'kind Fixture']],
       ['sprout/container.sprout', ['verb open', 'verb close', 'verb look_in', 'kind Container']],
-      ['sprout/lockable.sprout', ['import from container', 'verb unlock', 'kind Lockable']],
+      [
+        'sprout/lockable.sprout',
+        ['import from container', 'verb unlock', 'kind Lockable', 'intent open_with'],
+      ],
       ['sprout/talk.sprout', ['verb ask']],
     ]);
   });
@@ -524,7 +527,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '27f431cbc8a88b462ad70cdd8800abbab0884b14a21fe92392590f9b13841ef4',
+      '976d0346d2a86812cf627a030928078c596895991692335efe91ce69755b4dd5',
     );
   });
 });
