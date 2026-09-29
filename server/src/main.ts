@@ -27,17 +27,21 @@ export const USAGE = `sprout-server — Sprout's reference host
 /** Run the command line; resolves to its exit code once the server has stopped, or at once where it cannot start. */
 export async function main(argv: readonly string[], io: MainIo): Promise<number> {
   const [command, ...rest] = argv;
+  if (command === 'help') {
+    io.stdout.write(USAGE);
+    return 0;
+  }
   if (command !== 'start') {
     io.stderr.write(
-      command === undefined || command === 'help'
-        ? USAGE
-        : `sprout-server: no such command "${command}"\n\n${USAGE}`,
+      command === undefined ? USAGE : `sprout-server: no such command "${command}"\n\n${USAGE}`,
     );
-    return command === 'help' ? 0 : 1;
+    return 1;
   }
+  // A flag's value is the word after it, and never another flag.
   const flag = (name: string): string | null => {
     const at = rest.indexOf(`--${name}`);
-    return at >= 0 && at + 1 < rest.length ? rest[at + 1]! : null;
+    const value = at >= 0 ? rest[at + 1] : undefined;
+    return value === undefined || value.startsWith('--') ? null : value;
   };
   const path = flag('config');
   if (path === null) {

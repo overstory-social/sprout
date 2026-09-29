@@ -73,5 +73,14 @@ describe('`sprout-server`', () => {
       code: 1,
       err: expect.stringContaining('no such command "serve"'),
     });
+    expect(await run(['start', '--config', '--log-format', 'json'])).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('--config server.toml'),
+    });
+    expect(await run(['help'])).toMatchObject({
+      code: 0,
+      out: expect.stringContaining('sprout-server start'),
+      err: '',
+    });
   });
 });

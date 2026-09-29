@@ -73,10 +73,18 @@ cmp SKILL.md "$skill"
 printf 'listen = "127.0.0.1:47931"\n[[worlds]]\npath = "./shed"\n' > server.toml
 ./node_modules/.bin/sprout-server start --config server.toml > server.log 2>&1 &
 server=$!
+# Whatever fails from here, the server does not outlive the run.
+trap 'kill "$server" 2>/dev/null || true' EXIT
 for _ in $(seq 1 50); do grep -q 'listening' server.log && break; sleep 0.2; done
+if ! grep -q 'listening' server.log; then
+  echo "sprout-server never said it was listening:" >&2
+  cat server.log >&2
+  exit 1
+fi
 cat > client.mjs <<'CLIENT'
 import WebSocket from 'ws';
 const socket = new WebSocket('ws://127.0.0.1:47931', 'sprout.1');
+setTimeout(() => { console.error('the server did not answer within 10 seconds'); process.exit(1); }, 10000);
 const said = [];
 socket.on('open', () => {
   socket.send(JSON.stringify({ t: 'hello', protocol: 'sprout.1', client: 'e2e', token: 'e2e-token-0123456789', renders: [] }));
@@ -98,6 +106,7 @@ node client.mjs > client.txt
 grep -qx 'There is nothing special about a hall.' client.txt
 kill -INT "$server"
 wait "$server"
+trap - EXIT
 grep -q 'info: stopped' server.log
 echo "the installed sprout-server served shed to a client over a socket, and stopped when asked"
 cd / && rm -rf "$sandbox" "$packs"
