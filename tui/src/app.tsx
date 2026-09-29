@@ -6,16 +6,12 @@ import { furthestBack, rowsOf, shown } from './screen.js';
 import type { Session } from './session.js';
 import { healthOf, TROUBLED_FOR, visible, type Health, type Line } from './state.js';
 
-// The client on a terminal (Ink), filling the window: a header pinned to
-// the top with the connection's health and the world; the transcript under
-// it, the newest line at the foot, each line styled by what it is and a
-// visitor's words apart from the world's, PgUp and PgDn scrolling it and
-// Home and End going to its first and newest rows; the
-// input between two rules, with the lines typed before on up and down, tab
-// completing from what the world offers, and a popup of the client's own
-// commands while a `/` is being typed; and at the foot the place, what
-// else it holds, and the ways out. A host record is shown while its level
-// is shown.
+// The client on a terminal (Ink), filling the window: the header, then
+// the transcript, then the input between two rules, then the place, what
+// else it holds and its ways out (the manual's Serving a world ›
+// Connecting). The transcript is wrapped to the window and redrawn whole,
+// so a record shows while its level is shown, and scrolled back it holds
+// still as lines arrive.
 
 /** How each kind of line is shown. */
 const STYLE: Readonly<

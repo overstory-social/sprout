@@ -146,10 +146,9 @@ export async function fanOut(
 }
 
 /**
- * Send `connection` its status line, where it stands, what else the place
- * holds and the ways out, and
- * the lines it could type now, each only where it changed; and, where
- * `seq` is given, the whole view it polled for.
+ * Send `connection` its status, where it stands, what else the place holds
+ * and the ways out, and the lines it could type now, each only where it
+ * changed; and, where `seq` is given, the whole view it polled for.
  */
 export async function sendStatus(
   context: ServerContext,
