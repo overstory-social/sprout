@@ -1,0 +1,16 @@
+{
+  "name": "cannot",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "d99e972f76e3c7991d198cf8f879c4f97020bee95f5e97f42125ca30fe774d22"
+    }
+  ],
+  "files": ["cannot.sprout", "person.sprout"]
+}

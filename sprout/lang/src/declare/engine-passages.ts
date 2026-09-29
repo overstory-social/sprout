@@ -37,6 +37,7 @@ const ACTING = { actor: 'actor', here: 'here' } as const;
 export const WORLD_LINES = [
   { name: 'unknown', binds: ACTING },
   { name: 'not_here', binds: ACTING },
+  { name: 'cannot', binds: { ...ACTING, reading: 'text' } },
   { name: 'meant', binds: { ...ACTING, thing: 'object' } },
   { name: 'nothing_happens', binds: ACTING },
   { name: 'unremarkable', binds: { thing: 'object' }, polled: true },

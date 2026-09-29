@@ -1,0 +1,21 @@
+// A line some phrase reads only in part (the spec's Parsing › When nothing
+// matches): its verb or intent understood, a role given something it
+// cannot take, is answered with the world's `cannot`, saying what was
+// understood; a line whose noun nothing in reach answers to is still
+// `not_here`, and one no phrase reads `unknown`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world cannot is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object crate is sprout.Container
+    object key is Loose
+    object anvil is sprout.Fixture
+  }
+}
+
+kind Loose { }

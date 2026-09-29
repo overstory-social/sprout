@@ -27,6 +27,7 @@ kind World {
 
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
+  passage cannot default          { You can't {reading}. }
   passage meant default           { ({thing}) }
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }

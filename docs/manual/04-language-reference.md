@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "976d0346d2a86812cf627a030928078c596895991692335efe91ce69755b4dd5"
+      "sha": "d99e972f76e3c7991d198cf8f879c4f97020bee95f5e97f42125ca30fe774d22"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -1196,12 +1196,21 @@ the visitor is first told which, through the world's `meant` passage:
 are drawn without it, since no word could tell them apart. The parser
 never asks which you meant.
 
-When a line cannot be run, the visitor reads one of the world's passages:
+When a line cannot be run, the visitor reads one of the world's passages,
+the first of these that fits:
 
 | passage    | when                                                               |
 | ---------- | ------------------------------------------------------------------ |
-| `unknown`  | no phrase matches: "That is not something you can do here."        |
+| `cannot`   | a phrase matches, and something in reach answers to a noun but cannot fill its role: "You can't put the key in the anvil." |
 | `not_here` | a phrase matches but nothing in reach answers to the noun: "You see nothing like that here." |
+| `unknown`  | no phrase matches: "That is not something you can do here."        |
+
+`cannot`'s `reading` is the line as the world understood it, written as a
+visitor would type it: the phrase's words, each thing by its name after
+"the" (a proper name alone), a way out by its direction or label, and a
+value as typed. Where it could be read in part more than one way, the one
+that matched most of the line's words wins, then the one that filled most
+roles; any still tied are drawn with the dice.
 
 ---
 
@@ -1961,6 +1970,7 @@ So a character can have its own `arrives`, and a place its own
 | ----------------- | ------------------------------------------------------------------- |
 | `unknown`         | That is not something you can do here.                              |
 | `not_here`        | You see nothing like that here.                                     |
+| `cannot`          | You can't {reading}.                                                |
 | `meant`           | ({thing})                                                           |
 | `nothing_happens` | Nothing much comes of that.                                         |
 | `unremarkable`    | There is nothing special about {thing}.                             |

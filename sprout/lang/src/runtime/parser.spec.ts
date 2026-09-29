@@ -47,6 +47,7 @@ import {
   MOUTH,
   ways,
 } from '../fixtures/exits.js';
+import { boundValue } from './evaluate.js';
 import { readerOf } from './state.js';
 import {
   actorOf,
@@ -186,9 +187,11 @@ describe('a line read as a reading', () => {
       verb: 'study.unlock',
       bindings: { target: { object: DOOR } },
     });
-    // A gong answers and is no key, so the phrase does not match; `unlock [target]`
-    // reads, and nothing is called "door with gong".
-    expect(answered(typed(one, 'unlock door with gong')).answer).toBe('not_here');
+    // A gong answers and is no key, so the phrase reads only in part, and
+    // the world says what it understood; nothing is called "door with gong".
+    const gong = answered(typed(one, 'unlock door with gong'));
+    expect(gong.answer).toBe('cannot');
+    expect(gong.bindings.get('reading')).toEqual(boundValue('unlock the door with the brass disc'));
   });
 
   it('fills a set role with a run split on `and` and commas, in the order typed, duplicates collapsed', () => {

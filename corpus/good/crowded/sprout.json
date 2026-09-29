@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "976d0346d2a86812cf627a030928078c596895991692335efe91ce69755b4dd5"
+      "sha": "d99e972f76e3c7991d198cf8f879c4f97020bee95f5e97f42125ca30fe774d22"
     }
   ],
   "files": ["crowded.sprout", "person.sprout"]
