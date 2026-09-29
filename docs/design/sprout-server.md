@@ -123,7 +123,7 @@ Without `--watch`, a world changes only when the server restarts.
 
 One WebSocket per client, subprotocol `sprout.1`, `ws://` locally and
 `wss://` otherwise. Each frame is one JSON object with a type, `t`. Every
-message is validated with a zod schema in `core`, beside
+message is validated with a zod schema in `core`'s `protocol.ts`, beside
 `ClientDeclaration`. A frame that does not validate is answered with
 `refused`, never dropped silently.
 
@@ -138,17 +138,17 @@ message is validated with a zod schema in `core`, beside
 | `chat` | `line` | say something to the others, beside the world |
 | `levels` | `show` | the levels this client wants records at, from prose, error, warning, info and debug |
 | `leave` | — | leave the world, a departure turn |
-| `ping` | — | keep the connection alive |
+| `ping` | — | keep the connection alive; it is answered with nothing |
 
 ### Server to client
 
 | message | fields | meaning |
 | --- | --- | --- |
-| `welcome` | `server`, `worlds`, `granted`, `declined` | the server's name, the worlds it serves, and which declared statements it will send payloads of |
+| `welcome` | `server`, `worlds` | the server's name, and each world it serves with which of the declared statements it will send payloads of there, `granted`, and which not, `declined`, since what a world pins differs world to world |
 | `admitted` | `world`, `nickname`, `returning` | in, and whether this is a visit found again |
 | `refused` | `stage`, `reason`, `text` | a hello, an admission or a frame refused: at which stage, a short machine-readable reason (`nickname`, `closed`, `malformed`, …), and text a person can read, always |
 | `effects` | `seq`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it |
-| `view` | `view` | the visitor's view, as `core`'s `sendView` makes it |
+| `view` | `seq`, `view` | the visitor's view, as `core`'s `sendView` makes it; `seq` is the `poll`'s, or none for a view sent unasked |
 | `status` | `place`, `exits` | the status line: where the visitor stands and the ways out, sent when either changes |
 | `offered` | `lines` | the lines the visitor could type now, for completion, from the view's readings |
 | `record` | `level`, `text`, `at` | a log record at a level the client asked for; `at` is the host's time and never reaches a turn |
