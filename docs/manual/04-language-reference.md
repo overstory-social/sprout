@@ -1191,6 +1191,16 @@ Its `permit`s are asked afresh, and a thing no longer in reach is answered
 with `not_here`. Before your first command there is nothing to do again,
 and it is answered with `unknown`.
 
+`all` fills a role with everything in reach it may take: `take all`, `put
+all in the crate`. A role of a kind takes what is of that kind; a role
+only the actor plays, as `take`'s target, takes every thing that is not a
+person and not the place you stand in; another takes what plays a part in
+the verb. `except` leaves things out, by name or by kind: `take all except
+the brass key and the lamp`. A set role takes them all at once; any other
+role runs once for each, as a line of several commands would, in the order
+they are reached, and stops at the first refusal. No more are taken than a
+set role may hold, 8 by default.
+
 A pronoun, `it`, `them`, `him` or `her`, names what your own last command
 was done to, where it is still in reach: `take lamp`, then `drop it`.
 `him` and `her` name it only where it is a person or declares that

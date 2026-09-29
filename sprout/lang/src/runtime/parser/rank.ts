@@ -36,6 +36,8 @@ export interface Ranked {
   readonly near: readonly number[];
   /** What it binds that a pronoun named, and the pronoun. */
   readonly pronounNamed: readonly PronounNamed[];
+  /** The readings after it a line of `all` runs, each as a turn of its own. */
+  readonly rest: readonly Reading[];
 }
 
 /** A reading drawn from a tie: among how many, and the thing `meant` names, if any. */
@@ -47,6 +49,7 @@ export interface Drawn {
 /** The reading chosen, and the draw it was, where it was drawn. */
 export interface Chosen {
   readonly reading: Understood;
+  readonly rest: readonly Reading[];
   readonly pronounNamed: readonly PronounNamed[];
   readonly drawn: Drawn | null;
 }
@@ -76,7 +79,8 @@ export function chooseReading(
   const ordered = [...readings].sort(compareRanked);
   const tied = ordered.filter((one) => compareRanked(one, ordered[0]!) === 0);
   if (tied.length === 1) {
-    return { reading: tied[0]!.reading, pronounNamed: tied[0]!.pronounNamed, drawn: null };
+    const [only] = tied as [Ranked];
+    return { reading: only.reading, rest: only.rest, pronounNamed: only.pronounNamed, drawn: null };
   }
   budget.spend();
   const chosen = tied[draws.below(tied.length)]!;
@@ -84,6 +88,7 @@ export function chooseReading(
   const rivals = tied.map((one) => one.reading).filter((one) => one !== drawn);
   return {
     reading: drawn,
+    rest: chosen.rest,
     pronounNamed: chosen.pronounNamed,
     drawn: { among: tied.length, meant: meantIn(drawn, rivals, written) },
   };

@@ -112,6 +112,7 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     if (verb === null) throw new Error(`no verb in \`${text}\``);
     return {
       reading: { verb, actor, bindings: new Map([['target', { object }]]) },
+      rest: [],
       drawn: null,
       corrected: [],
     };

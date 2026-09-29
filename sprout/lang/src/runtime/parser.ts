@@ -47,6 +47,7 @@ import { exitsFrom } from './exits.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
+import { allIn } from './parser/all.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
@@ -74,6 +75,8 @@ export interface CommandContext {
 export type CommandOutcome =
   | {
       readonly understood: Understood;
+      /** The readings after it a line of `all` runs, each as a turn of its own, in order. */
+      readonly rest: readonly Reading[];
       readonly drawn: Drawn | null;
       /** What it binds that a pronoun named, and the pronoun typed. */
       readonly pronounNamed: readonly PronounNamed[];
@@ -99,6 +102,7 @@ export function readCommand(
     return again(context.lastReading, actor, here, candidates, context);
   }
   const fill = { candidates, exits: context.exits, budget, referents: context.referents };
+  const everything = { ...fill, actor, here, kinds: catalogue.kinds.values() };
 
   const readings = new Map<string, Ranked>();
   const partials: Partial[] = [];
@@ -110,7 +114,9 @@ export function readCommand(
       const key = `${span.role}:${span.start}:${span.end}`;
       let found = filled.get(key);
       if (found === undefined) {
-        found = fillSlot(phrase.verb.roles[span.role]!, words.slice(span.start, span.end), fill);
+        const role = phrase.verb.roles[span.role]!;
+        const typed = words.slice(span.start, span.end);
+        found = allIn(typed, role, phrase.verb, everything) ?? fillSlot(role, typed, fill);
         filled.set(key, found);
       }
       return found;
@@ -129,10 +135,13 @@ export function readCommand(
       }
       for (const choice of choicesOf(fills)) {
         budget.spend();
-        const reading = readingOf(phrase, actor, spans, choice, context);
+        const each = eachOf(phrase, actor, spans, choice, context);
+        if (each.length === 0) continue;
+        const [reading, ...rest] = each as [Reading, ...Reading[]];
         if (phrase.only !== null && !takesPart(phrase.only, reading)) continue;
         const ranked: Ranked = {
           reading,
+          rest,
           allowed: consentPass(reading, context) === null,
           literal: literalOf(phrase) + matchedIn(choice, spans, reading),
           near: reading.verb.roles.map((_, role) => {
@@ -188,6 +197,7 @@ export function readCommand(
             return at < 0 ? 0 : choice[at]!.near;
           }),
           pronounNamed: pronounsIn(choice),
+          rest: [],
         };
         const key = readingKey(reading);
         const known = readings.get(key);
@@ -203,7 +213,12 @@ export function readCommand(
   }
   const written = (id: InstanceId): string => writtenAs(address(id));
   const chosen = chooseReading([...readings.values()], written, context.draws, budget);
-  return { understood: chosen.reading, drawn: chosen.drawn, pronounNamed: chosen.pronounNamed };
+  return {
+    understood: chosen.reading,
+    rest: chosen.rest,
+    drawn: chosen.drawn,
+    pronounNamed: chosen.pronounNamed,
+  };
 }
 
 /** What a pronoun named among what `choice` binds. */
@@ -243,7 +258,7 @@ function again(
     return true;
   });
   if (!inReach) return answer(context.state, 'not_here', actor, here);
-  return { understood: { ...last, actor }, drawn: null, pronounNamed: [] };
+  return { understood: { ...last, actor }, rest: [], drawn: null, pronounNamed: [] };
 }
 
 /**
@@ -285,7 +300,11 @@ function stillFits(reading: Reading, state: StateReader): boolean {
 
 /** One slot's part in one reading: what it binds and how near and literally, or a value role's words. */
 type Choice =
-  | (FillOption & { readonly words?: undefined })
+  | (FillOption & {
+      readonly words?: undefined;
+      /** For `all` in a role that takes one thing, each thing it takes, this one first. */
+      readonly each?: readonly FillOption[];
+    })
   | { readonly words: readonly string[]; readonly near: 0; readonly literal: number };
 
 /** Every way to take one option from each slot's, in order: a value role's words once. */
@@ -295,9 +314,11 @@ function choicesOf(fills: readonly Filled[]): Choice[][] {
     const options: Choice[] =
       filled.fills === 'options'
         ? [...filled.options]
-        : filled.fills === 'words'
-          ? [{ words: filled.words, near: 0, literal: filled.words.length }]
-          : [];
+        : filled.fills === 'all'
+          ? [{ ...filled.things[0]!, each: filled.things }]
+          : filled.fills === 'words'
+            ? [{ words: filled.words, near: 0, literal: filled.words.length }]
+            : [];
     combined = combined.flatMap((partial) => options.map((one) => [...partial, one]));
   }
   return combined;
@@ -390,6 +411,43 @@ function nearnessOf(
   return rank;
 }
 
+/**
+ * The readings one placement of a phrase's slots makes: the one `choice`
+ * fills every slot with, or, where a slot is `all`, one for each thing it
+ * takes that no other slot names, in order, each a step; none where `all`
+ * takes nothing else.
+ */
+function eachOf(
+  phrase: TypedPhrase,
+  actor: InstanceId,
+  spans: readonly SlotSpan[],
+  choice: readonly Choice[],
+  context: CommandContext,
+): Reading[] {
+  const at = choice.findIndex((one) => one.words === undefined && one.each !== undefined);
+  if (at < 0) return [readingOf(phrase, actor, spans, choice, context)];
+  const named = new Set(
+    choice.flatMap((one, other) =>
+      other === at || one.words !== undefined
+        ? []
+        : 'object' in one.bound
+          ? [one.bound.object]
+          : 'set' in one.bound
+            ? one.bound.set
+            : [],
+    ),
+  );
+  const taken = choice[at]!;
+  const things = (taken.words === undefined ? (taken.each ?? []) : []).filter(
+    (one) => !('object' in one.bound && named.has(one.bound.object)),
+  );
+  return things.map((thing) => {
+    context.budget.spend();
+    const one = choice.map((chosen, slot) => (slot === at ? thing : chosen));
+    return readingOf(phrase, actor, spans, one, context);
+  });
+}
+
 /** The reading one placement of a phrase's slots makes, every slot filled by `choice`. */
 function readingOf(
   phrase: TypedPhrase,
@@ -460,7 +518,7 @@ export const parseCommand: Parser = (text, actor, context) => {
     const corrected = correctionsOf(outcome.pronounNamed, actor, here, context);
     return 'intent' in understood
       ? { intended: understood, drawn: was, corrected }
-      : { reading: understood, drawn: was, corrected };
+      : { reading: understood, rest: outcome.rest, drawn: was, corrected };
   }
   const { by, said, bindings } = outcome;
   return { answered: { effect: 'notice', to: [actor], by, speaker: null, said, bindings } };
