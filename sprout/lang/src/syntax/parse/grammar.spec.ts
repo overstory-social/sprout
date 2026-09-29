@@ -42,6 +42,8 @@ const written = (line: GrammarLine): string => {
       return `name ${line.text}`;
     case 'grammar-article':
       return `article ${line.article}`;
+    case 'grammar-pronouns':
+      return `pronouns ${line.pronoun}`;
     case 'grammar-nouns':
       return `nouns ${line.nouns.map((noun) => noun.text).join('|')}`;
     case 'grammar-adjectives':
@@ -160,6 +162,22 @@ describe('a grammar block', () => {
     expect(next.blocks[0]!.lines.map(written)).toEqual(['name key']);
   });
 
+  it('reads `pronouns` and the pronoun a thing declares, offering the declared form for one a visitor types', () => {
+    const { blocks, said } = readGrammar('grammar { pronouns she  name "cat" }');
+    expect(said).toEqual([]);
+    expect(blocks[0]!.lines.map(written)).toEqual(['pronouns she', 'name cat']);
+    expect(readGrammar('grammar { pronouns her }').said).toEqual([
+      [
+        'k.sprout:2:22',
+        '`pronouns` is followed by `she`, `he`, `it` or `they`.',
+        'Write `pronouns she`: a thing declares the pronoun it is, and a visitor may call it `her`.',
+      ],
+    ]);
+    expect(readGrammar('grammar { pronouns  name "cat" }').said.map((one) => one[2])).toEqual([
+      'Write `pronouns she`, the pronoun the thing is called by.',
+    ]);
+  });
+
   it('refuses an article it does not know, and nouns with none in quotes', () => {
     expect(readGrammar('grammar { article teh  nouns }').said).toEqual([
       [
@@ -183,7 +201,7 @@ describe('a grammar block', () => {
       [
         'k.sprout:3:5',
         'A grammar block is not made of `door`.',
-        'It holds `name`, `article`, `nouns`, `adjectives`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
+        'It holds `name`, `article`, `pronouns`, `nouns`, `adjectives`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
       ],
     ]);
     expect(blocks[0]!.lines.map(written)).toEqual(['name lamp']);
@@ -218,6 +236,7 @@ describe('a grammar block', () => {
 const WELL_FORMED_LINES = [
   { name: 'name brass key', text: 'name "brass key"' },
   { name: 'article the', text: 'article the' },
+  { name: 'pronouns they', text: 'pronouns they' },
   { name: 'nouns brass|key ring', text: 'nouns "brass" "key ring"' },
   { name: 'nouns cabinet|type', text: 'nouns "cabinet", "type"' },
   { name: 'exit out to the yard yard', text: 'exit out "to the yard" -> yard' },
@@ -240,6 +259,9 @@ const LINE_DEFECTS: readonly string[] = [
   'article teh',
   'article The',
   'article 4',
+  'pronouns',
+  'pronouns her',
+  'pronouns She',
   'nouns',
   'nouns 4',
   'nouns "brass",',

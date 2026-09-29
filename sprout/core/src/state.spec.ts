@@ -37,8 +37,8 @@ describe('applying a turn’s changes', () => {
         upsert: [record('shop.hall'), record('shop#2'), record('shop')],
         tombstones: ['shop.vase', 'shop.bench'],
         visitors: [
-          { visit: 'v-z', nickname: 'Zed', instance: 'shop#2', lastPlace: null },
-          { visit: 'v-a', nickname: 'Ada', instance: 'shop#3', lastPlace: null },
+          { visit: 'v-z', nickname: 'Zed', instance: 'shop#2', lastPlace: null, referents: [] },
+          { visit: 'v-a', nickname: 'Ada', instance: 'shop#3', lastPlace: null, referents: [] },
         ],
       }),
     );
@@ -52,7 +52,9 @@ describe('applying a turn’s changes', () => {
     const before: StoredState = {
       serial: 2,
       instances: [record('shop.lamp', { properties: { lit: { type: 'boolean', value: true } } })],
-      visitors: [{ visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: null }],
+      visitors: [
+        { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: null, referents: [] },
+      ],
       tombstones: ['shop.vase'],
     };
     const lamp = record('shop.lamp', { container: 'shop#1', arrival: 3 });
@@ -63,13 +65,15 @@ describe('applying a turn’s changes', () => {
         upsert: [lamp],
         remove: ['shop.lamp', 'shop.gone'],
         tombstones: ['shop.vase'],
-        visitors: [{ visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: 'shop.hall' }],
+        visitors: [
+          { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: 'shop.hall', referents: [] },
+        ],
       }),
     );
     expect(after.instances).toEqual([lamp]);
     expect(after.tombstones).toEqual(['shop.vase']);
     expect(after.visitors).toEqual([
-      { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: 'shop.hall' },
+      { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: 'shop.hall', referents: [] },
     ]);
     expect(before.instances[0]!.properties).toHaveProperty('lit');
   });

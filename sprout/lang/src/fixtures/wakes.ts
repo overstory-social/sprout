@@ -117,7 +117,13 @@ export function garden(
         CATALOGUE.caps,
       ),
     );
-    draft.putVisitor({ visit: MARTA, nickname: 'Marta', instance: id, lastPlace: BED });
+    draft.putVisitor({
+      visit: MARTA,
+      nickname: 'Marta',
+      instance: id,
+      lastPlace: BED,
+      referents: [],
+    });
     carried = draft.mint();
     draft.add(
       newInstance(

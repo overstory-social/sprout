@@ -125,7 +125,13 @@ describe('the records', () => {
       worlds: [
         {
           microworldId: 'w',
-          visitor: { visit: 'v-marta', nickname: 'Marta', instance: 'shop#1', lastPlace: null },
+          visitor: {
+            visit: 'v-marta',
+            nickname: 'Marta',
+            instance: 'shop#1',
+            lastPlace: null,
+            referents: [],
+          },
           instance: null,
           memory: { 'shop.lamp': { seen: { type: 'boolean', value: true } } },
         },

@@ -8,7 +8,10 @@
 // reads through.
 //
 // Every line has exactly one outcome: a reading, or one of the world's
-// answers, `cannot`, `not_here` or `unknown`, never nothing. Every phrase is tried
+// answers, `cannot`, `not_here` or `unknown`, never nothing. A reading
+// that a pronoun named a thing in, where the thing declares another, is
+// said after the world's `pronoun_correction` (the spec's Parsing ›
+// Pronouns). Every phrase is tried
 // against the line, and every way it reads is a reading; they are ranked
 // whole (`parser/rank.ts`) and the best is the one understood, a tie
 // drawn from the turn's stream. A noun resolves only against the actor's
@@ -31,8 +34,8 @@ import { liveTree } from './live.js';
 import { rangeOf, type LiveTree, type PassRule, type Reached } from './range.js';
 import { consentPass, type Bound, type Reading, type Said } from './reading.js';
 import { engineSaid } from './engine-lines.js';
-import { boundObject } from './evaluate.js';
-import type { Parser } from './command.js';
+import { boundObject, boundValue } from './evaluate.js';
+import type { ParseContext, Parser } from './command.js';
 import type { StateReader } from './state.js';
 import { addressOf, type AddressContext } from './parser/address.js';
 import { answer, type Answer } from './parser/answers.js';
@@ -40,7 +43,7 @@ import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
-import { writtenAs, type Candidate } from './parser/nouns.js';
+import { pronounIn, pronounNames, writtenAs, type Candidate } from './parser/nouns.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
@@ -58,6 +61,8 @@ export interface CommandContext {
   readonly nicknames: ReadonlyMap<InstanceId, string>;
   /** The exits that apply where the actor stands, in the order the place declares them. */
   readonly exits: readonly CommandExit[];
+  /** What the actor's pronouns name: what their own last command about a thing was done to. */
+  readonly referents: readonly InstanceId[];
 }
 
 /** A line's one outcome: understood as a reading, drawn where it tied with others, or answered. */
@@ -79,7 +84,7 @@ export function readCommand(
   const tree = liveTree(state);
   const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
   const candidates = candidatesOf(state, tree, range.reached, addressing);
-  const fill = { candidates, exits: context.exits, budget };
+  const fill = { candidates, exits: context.exits, budget, referents: context.referents };
 
   const readings = new Map<string, Ranked>();
   const partials: Partial[] = [];
@@ -359,13 +364,56 @@ export const parseCommand: Parser = (text, actor, context) => {
     const { understood, drawn } = outcome;
     const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);
     const was = drawn === null ? null : { among: drawn.among, meant };
+    const corrected = correctionsOf(text, understood, actor, here, context);
     return 'intent' in understood
-      ? { intended: understood, drawn: was }
-      : { reading: understood, drawn: was };
+      ? { intended: understood, drawn: was, corrected }
+      : { reading: understood, drawn: was, corrected };
   }
   const { by, said, bindings } = outcome;
   return { answered: { effect: 'notice', to: [actor], by, speaker: null, said, bindings } };
 };
+
+/**
+ * The world's `pronoun_correction` for each thing `understood` binds that
+ * a pronoun in `line` named and that declares a pronoun none typed agrees
+ * with (the spec's Parsing › Pronouns); none where no pronoun was typed.
+ */
+function correctionsOf(
+  line: string,
+  understood: Understood,
+  actor: InstanceId,
+  here: InstanceId,
+  context: ParseContext,
+): Said[] {
+  const typed = typedWords(line).flatMap((word) => pronounIn(word) ?? []);
+  if (typed.length === 0) return [];
+  const addressing = { world: context.state.world, nicknames: context.nicknames };
+  const things = [...understood.bindings.values()].flatMap((bound) =>
+    'object' in bound ? [bound.object] : 'set' in bound ? bound.set : [],
+  );
+  return [...new Set(things)].flatMap((id) => {
+    const thing = context.state.instance(id);
+    if (thing === undefined || !context.referents.includes(id)) return [];
+    const address = addressOf(thing, addressing);
+    const declared = address.pronoun;
+    if (declared === null || typed.includes(declared)) return [];
+    if (!typed.some((pronoun) => pronounNames(pronoun, thing, address))) return [];
+    return [
+      {
+        effect: 'notice',
+        to: [actor],
+        ...engineSaid(context.state, 'pronoun_correction', actor, here),
+        speaker: null,
+        bindings: new Map([
+          ['actor', boundObject(actor)],
+          ['here', boundObject(here)],
+          ['thing', boundObject(id)],
+          ['pronoun', boundValue(declared)],
+        ]),
+      },
+    ];
+  });
+}
 
 /** The engine's `meant`, telling `actor` the thing a reading drawn from a tie names. */
 function meantLine(

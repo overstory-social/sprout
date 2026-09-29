@@ -13,6 +13,18 @@ import type { Expr, Ident, ObjectPath } from './ast.js';
 export const ARTICLES = ['a', 'an', 'the', 'none'] as const;
 export type Article = (typeof ARTICLES)[number];
 
+/** The pronouns a grammar block may declare (the spec's Parsing › Pronouns). */
+export const PRONOUNS = ['she', 'he', 'it', 'they'] as const;
+export type Pronoun = (typeof PRONOUNS)[number];
+
+/** The pronouns a visitor types, each with the pronoun a thing declares that it agrees with. */
+export const TYPED_PRONOUNS: Readonly<Record<string, Pronoun>> = {
+  it: 'it',
+  them: 'they',
+  him: 'he',
+  her: 'she',
+};
+
 /** `name "brass key"`: what the engine calls the thing, and a noun it answers to. */
 export interface GrammarName extends Node {
   readonly kind: 'grammar-name';
@@ -24,6 +36,12 @@ export interface GrammarName extends Node {
 export interface GrammarArticle extends Node {
   readonly kind: 'grammar-article';
   readonly article: Article;
+}
+
+/** `pronouns she`: the pronoun the thing is called by, which a visitor's other pronoun for it is corrected to. */
+export interface GrammarPronouns extends Node {
+  readonly kind: 'grammar-pronouns';
+  readonly pronoun: Pronoun;
 }
 
 /** One noun in quotes after `nouns`, its own node so a refusal of it points at it. */
@@ -89,7 +107,13 @@ export interface GrammarLink extends Node {
 }
 
 export type GrammarLine =
-  GrammarName | GrammarArticle | GrammarNouns | GrammarAdjectives | GrammarExit | GrammarLink;
+  | GrammarName
+  | GrammarArticle
+  | GrammarPronouns
+  | GrammarNouns
+  | GrammarAdjectives
+  | GrammarExit
+  | GrammarLink;
 
 /**
  * `grammar { name "brass key"  article a  nouns "brass" }` — a kind's or
@@ -105,4 +129,8 @@ export interface GrammarDeclaration extends Node {
 /** Whether a word is one of the articles a grammar block may declare. */
 export function isArticle(word: string): word is Article {
   return (ARTICLES as readonly string[]).includes(word);
+}
+
+export function isPronoun(word: string): word is Pronoun {
+  return (PRONOUNS as readonly string[]).includes(word);
 }

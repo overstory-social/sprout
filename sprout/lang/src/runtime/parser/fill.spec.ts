@@ -23,7 +23,7 @@ const candidates = [BRASS_KEY, IRON_KEY, GONG, GUARD, DIAL].map((id: InstanceId)
   const instance = one.draft.instance(id)!;
   return { instance, address: addressOf(instance, addressing), near: 2 };
 });
-const context = { candidates, exits: EXITS, budget: one.budget };
+const context = { candidates, exits: EXITS, budget: one.budget, referents: [] };
 const verb = (name: string, library = 'study') => STUDY.verbs.qualified(library, name)!;
 const role = (verbName: string, name: string, library = 'study'): ResolvedRole =>
   verb(verbName, library).roles.find((one) => one.name === name)!;

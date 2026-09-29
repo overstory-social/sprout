@@ -61,6 +61,11 @@ export interface VisitorRecord {
   readonly instance: InstanceId;
   /** Where they last stood; null before they have stood anywhere. */
   readonly lastPlace: InstanceId | null;
+  /**
+   * What their pronouns name: what their own last command about a thing
+   * was done to, in order; none before one (the spec's Parsing › Pronouns).
+   */
+  readonly referents: readonly InstanceId[];
 }
 
 export interface WorldState {

@@ -1,0 +1,48 @@
+{
+  "about": "Pronouns name what the visitor's own last command was done to, a declared pronoun corrected before the action.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "take it", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a lamp." }
+    ] },
+    { "as": "Marta", "type": "drop it", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a lamp down." }
+    ] },
+    { "as": "Marta", "type": "examine it", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a lamp." }
+    ] },
+    { "as": "Marta", "type": "pet cat", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The cat purrs." }
+    ] },
+    { "as": "Marta", "type": "pet it", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "The cat is a she." },
+      { "reader": "Marta", "kind": "said", "words": "The cat purrs." }
+    ] },
+    { "as": "Marta", "type": "pet her", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The cat purrs." }
+    ] },
+    { "as": "Marta", "type": "pet him", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "examine ines", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about Ines." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "examine her", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about Ines." }
+    ] }
+  ]
+}

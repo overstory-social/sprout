@@ -121,7 +121,7 @@ export function seatReturning(
   const kind = catalogue.visitorKind;
   if (kind === null) throw new Error('This world has nothing for a visitor to be made of.');
   draft.add(newInstance(instance, { from: 'visitor' }, kind, null, null, catalogue.caps));
-  draft.putVisitor({ visit, nickname, instance, lastPlace: wanted });
+  draft.putVisitor({ visit, nickname, instance, lastPlace: wanted, referents: [] });
   return { before: draft.commit().state, wanted };
 }
 

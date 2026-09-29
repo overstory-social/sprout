@@ -23,6 +23,7 @@ import {
   forms,
   nounIn,
   nounsOfRun,
+  pronounIn,
   runIn,
   thingsIn,
   type Candidate,
@@ -42,7 +43,7 @@ const role = (verb: string, name: string, library = 'study'): ResolvedRole =>
 const TAKE = role('take', 'target', 'sprout');
 const TOOL = role('unlock', 'tool');
 const THINGS = role('juggle', 'things');
-const within = { budget: one.budget };
+const within = { budget: one.budget, referents: [] };
 const noun = (line: string, as = TAKE) => nounIn(typedWords(line), as, HERE, within);
 
 describe('what a noun names', () => {
@@ -104,6 +105,45 @@ describe('what a noun names', () => {
     const before = one.budget.spentSteps;
     noun('gong');
     expect(one.budget.spentSteps - before).toBe(HERE.length);
+  });
+});
+
+describe('a pronoun', () => {
+  const person = candidate(one.people[0]!);
+  const among = [...HERE, person];
+  const named = (word: string, referents: readonly InstanceId[]) =>
+    nounIn([word], TAKE, among, { budget: one.budget, referents });
+
+  it('is one a visitor types, as the pronoun a thing declares', () => {
+    expect(['it', 'them', 'him', 'her', 'lamp'].map(pronounIn)).toEqual([
+      'it',
+      'they',
+      'he',
+      'she',
+      null,
+    ]);
+  });
+
+  it('names what the last command was done to, `it` and `them` always, where it is in reach', () => {
+    expect(named('it', [LAMP])).toEqual({
+      found: 'some',
+      things: [{ id: LAMP, near: 2, literal: 1 }],
+    });
+    expect(named('them', [PEBBLE_A, PEBBLE_B])).toEqual({
+      found: 'some',
+      things: [
+        { id: PEBBLE_A, near: 4, literal: 1 },
+        { id: PEBBLE_B, near: 5, literal: 1 },
+      ],
+    });
+    expect(named('it', [])).toEqual({ found: 'nothing' });
+    expect(named('it', [COIN])).toEqual({ found: 'nothing' });
+  });
+
+  it('names it `him` or `her` only where it is a person or declares that pronoun', () => {
+    expect(named('her', [LAMP])).toEqual({ found: 'nothing' });
+    expect(named('him', [person.instance.id])).toMatchObject({ found: 'some' });
+    expect(named('her', [person.instance.id])).toMatchObject({ found: 'some' });
   });
 });
 

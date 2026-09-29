@@ -2,7 +2,7 @@
 // an object writes one (the spec's Names › Addressing and display,
 // Articles; Verbs › Exits, Links). The block holds lines, each led by its
 // word: `name` and one name in quotes, `article` and one of `a`, `an`,
-// `the` or `none`, `nouns` and one or more nouns in quotes, `adjectives`
+// `the` or `none`, `pronouns` and one of `she`, `he`, `it` or `they`, `nouns` and one or more nouns in quotes, `adjectives`
 // and one or more adjectives in quotes, and a place's
 // `exit` and `link` lines, which `exits.ts` reads. What the lines mean
 // together, and what they may not say, is `declare/grammar.ts`'s and
@@ -13,6 +13,8 @@
 
 import {
   isArticle,
+  isPronoun,
+  TYPED_PRONOUNS,
   type GrammarDeclaration,
   type GrammarAdjective,
   type GrammarLine,
@@ -28,7 +30,7 @@ import { type Parser } from './parser.js';
 const EXAMPLE = 'grammar { name "brass key"  article a  nouns "brass" }';
 
 /** The words a line of the block begins with. */
-const LINE_WORDS = ['name', 'article', 'nouns', 'adjectives', 'exit', 'link'] as const;
+const LINE_WORDS = ['name', 'article', 'pronouns', 'nouns', 'adjectives', 'exit', 'link'] as const;
 
 function isLineWord(word: string): boolean {
   return (LINE_WORDS as readonly string[]).includes(word);
@@ -140,6 +142,26 @@ function grammarLine(p: Parser, ends: LineEnds): GrammarLine | null {
       );
       // A word that is plainly the article meant, misspelt or capitalised,
       // is this line's; the block's next line is not.
+      const lineWord = next.kind === 'name' && isLineWord(next.text);
+      if ((next.kind === 'name' || next.kind === 'kind') && !lineWord) p.next();
+      return null;
+    }
+    case 'pronouns': {
+      const next = p.peek();
+      if (next.kind === 'name' && isPronoun(next.text)) {
+        p.next();
+        return { kind: 'grammar-pronouns', at: spanning(word.at, next.at), pronoun: next.text };
+      }
+      // A pronoun a visitor types for it, `her`, is the one it declares, `she`.
+      const meant = next.kind === 'name' && Object.hasOwn(TYPED_PRONOUNS, next.text);
+      p.diagnostics.refuse(
+        next.kind === 'end' ? p.source.span(word.at.end) : next.at,
+        '`pronouns` is followed by `she`, `he`, `it` or `they`.',
+        meant
+          ? `Write \`pronouns ${TYPED_PRONOUNS[next.text]!}\`: a thing declares the pronoun it is, and a visitor may call it \`${next.text}\`.`
+          : 'Write `pronouns she`, the pronoun the thing is called by.',
+      );
+      // A word that is plainly the pronoun meant is this line's; the block's next line is not.
       const lineWord = next.kind === 'name' && isLineWord(next.text);
       if ((next.kind === 'name' || next.kind === 'kind') && !lineWord) p.next();
       return null;

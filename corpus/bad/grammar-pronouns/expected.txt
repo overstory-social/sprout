@@ -1,0 +1,7 @@
+grammar_pronouns.sprout:11:55  `pronouns` is followed by `she`, `he`, `it` or `they`.
+                               Write `pronouns she`: a thing declares the pronoun it is, and a visitor may call it `her`.
+
+grammar_pronouns.sprout:12:59  `dog` writes its `pronouns` twice.
+                               A thing is called by one pronoun. Keep one `pronouns` line.
+
+refused: 2 problems

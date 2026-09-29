@@ -1,0 +1,4 @@
+grammar_pronouns_composed.sprout:17:19  `Owl` gets its `pronouns` from both `Bird` and `Pet`, and a thing has one.
+                                        Write `grammar { pronouns … }` in `Owl` to say which it is called by.
+
+refused: 1 problem

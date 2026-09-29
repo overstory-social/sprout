@@ -1,0 +1,16 @@
+{
+  "name": "grammar_pronouns_composed",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "35c43958326d038a89ab01513ae2177fbfb263bac32b870ff899d05dc16f5cff"
+    }
+  ],
+  "files": ["grammar_pronouns_composed.sprout", "person.sprout"]
+}

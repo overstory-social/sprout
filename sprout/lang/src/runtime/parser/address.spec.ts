@@ -12,7 +12,9 @@ import {
   study,
   UKULELE,
 } from '../../fixtures/parser.js';
-import { mintedId, type InstanceId } from '../ids.js';
+import { compiledWorld } from '../../fixtures/bundle.js';
+import { turn } from '../../fixtures/reading.js';
+import { declaredId, mintedId, type InstanceId } from '../ids.js';
 import { newInstance, type Instance } from '../state.js';
 import { addressOf, type Address } from './address.js';
 
@@ -39,6 +41,7 @@ describe('what a thing is called and answers to', () => {
     expect(of(BRASS_KEY)).toEqual({
       name: 'brass key',
       article: 'a',
+      pronoun: null,
       nouns: [['brass', 'key'], ['key'], ['metal'], ['shiny', 'thing']],
       adjectives: ['brass'],
     });
@@ -77,6 +80,7 @@ describe('what a thing is called and answers to', () => {
     expect(addressOf(made('study.Gong', 'spawned'), context)).toEqual({
       name: 'gong',
       article: 'a',
+      pronoun: null,
       nouns: [['gong']],
       adjectives: [],
     });
@@ -88,8 +92,36 @@ describe('what a thing is called and answers to', () => {
     expect(of(one.people[0]!)).toEqual({
       name: 'Marta B',
       article: 'none',
+      pronoun: null,
       nouns: [['marta', 'b']],
       adjectives: [],
     });
+  });
+});
+
+describe('the pronoun a thing declares', () => {
+  const PARK = compiledWorld('park', {
+    'park.sprout': [
+      'world park is sprout.World { visitors are Person visitors arrive at lawn',
+      '  object lawn is sprout.Place {',
+      '    object cat is Pet { grammar { pronouns she } }',
+      '    object dog is Pet',
+      '  }',
+      '}',
+      'kind Pet { grammar { pronouns it } }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const lawn = turn(PARK, [declaredId('park', ['lawn'])]);
+  const at = (name: string) =>
+    addressOf(lawn.draft.instance(declaredId('park', ['lawn', name]))!, {
+      world: lawn.draft.world,
+      nicknames: new Map(),
+    });
+
+  it('is its own, else its kind’s, and none where nothing declares one', () => {
+    expect(at('cat').pronoun).toBe('she');
+    expect(at('dog').pronoun).toBe('it');
+    expect(of(LAMP).pronoun).toBeNull();
   });
 });

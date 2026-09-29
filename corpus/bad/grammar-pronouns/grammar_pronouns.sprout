@@ -1,0 +1,14 @@
+// `pronouns` is followed by `she`, `he`, `it` or `they`, and is written
+// once; `her`, the pronoun a visitor types, is offered as `she`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world grammar_pronouns is sprout.World {
+  visitors are Person
+  visitors arrive at shed
+
+  object shed is sprout.Place {
+    object cat is sprout.Fixture { grammar { pronouns her } }
+    object dog is sprout.Fixture { grammar { pronouns he  pronouns it } }
+  }
+}

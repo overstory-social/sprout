@@ -126,7 +126,7 @@ describe('a reader of committed state', () => {
     instances: new Map([[jar.id, jar]]),
     dormant: new Map(),
     visitors: new Map([
-      [visit, { visit, nickname: 'Marta', instance: minted(1), lastPlace: null }],
+      [visit, { visit, nickname: 'Marta', instance: minted(1), lastPlace: null, referents: [] }],
     ]),
     tombstones: new Set([id('hall', 'lamp')]),
     children: new Map([[id('hall', 'shelf'), [jar.id]]]),

@@ -116,7 +116,13 @@ export function gallery(catalogue: Catalogue, visits: readonly VisitKey[] = [MAR
         catalogue.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname: visit.slice(2), instance: id, lastPlace: HALL });
+    draft.putVisitor({
+      visit,
+      nickname: visit.slice(2),
+      instance: id,
+      lastPlace: HALL,
+      referents: [],
+    });
   }
   return draft.commit().state;
 }

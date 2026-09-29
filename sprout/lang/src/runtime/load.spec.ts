@@ -535,6 +535,7 @@ describe('visitors and the world', () => {
       nickname: 'Marta',
       instance: 'printers_shop#1',
       lastPlace: 'printers_shop.hall',
+      referents: [],
     },
   ];
   const store: StoredWorld = { ...storing(fresh(), [marta], 1), visitors };
@@ -547,6 +548,7 @@ describe('visitors and the world', () => {
       nickname: 'Marta',
       instance: minted(1),
       lastPlace: id('hall'),
+      referents: [],
     });
   });
 
@@ -563,7 +565,7 @@ describe('visitors and the world', () => {
   it('keeps a visitor whose place and last place are gone', () => {
     const gone = {
       ...store,
-      visitors: [{ ...visitors[0]!, lastPlace: 'printers_shop.yard.kiln' }],
+      visitors: [{ ...visitors[0]!, lastPlace: 'printers_shop.yard.kiln', referents: [] }],
     };
     const away = storing(gone, [{ ...marta, container: 'printers_shop.yard.kiln' }]);
     const loaded = loadWorld(away, withheld);
@@ -655,8 +657,20 @@ describe('what a store holds, and in what order, never changes what loads', () =
         4,
       ),
       visitors: [
-        { visit: 'v-2', nickname: 'Ann', instance: 'printers_shop#3', lastPlace: null },
-        { visit: 'v-1', nickname: 'Marta', instance: 'printers_shop#1', lastPlace: null },
+        {
+          visit: 'v-2',
+          nickname: 'Ann',
+          instance: 'printers_shop#3',
+          lastPlace: null,
+          referents: [],
+        },
+        {
+          visit: 'v-1',
+          nickname: 'Marta',
+          instance: 'printers_shop#1',
+          lastPlace: null,
+          referents: [],
+        },
       ],
     }) satisfies StoredWorld;
 

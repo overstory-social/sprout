@@ -1,0 +1,17 @@
+// A thing gets its `pronouns` from one kind: two kinds it composes that
+// each declare one are refused, as two names or two articles are.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world grammar_pronouns_composed is sprout.World {
+  visitors are Person
+  visitors arrive at shed
+
+  object shed is sprout.Place {
+    object owl is Owl
+  }
+}
+
+kind Bird { grammar { pronouns it } }
+kind Pet { grammar { pronouns she } }
+kind Owl is Bird, Pet { }

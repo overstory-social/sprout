@@ -18,7 +18,7 @@ import {
   humanisedKind,
   typedWords,
 } from '../../declare/addressing.js';
-import type { Article } from '../../syntax/ast-grammar.js';
+import type { Article, Pronoun } from '../../syntax/ast-grammar.js';
 import { declaredPathOf, type InstanceId } from '../ids.js';
 import type { Instance } from '../state.js';
 
@@ -27,6 +27,8 @@ export interface Address {
   /** As the engine writes it, after its article. */
   readonly name: string;
   readonly article: Article;
+  /** The pronoun it declares, which a visitor's other pronoun for it is corrected to; null where it declares none. */
+  readonly pronoun: Pronoun | null;
   /** Every noun it answers to as words, the full name first, each once. */
   readonly nouns: readonly (readonly string[])[];
   /** Every adjective it answers to, each one word, each once: a name of these alone names it weakly. */
@@ -50,6 +52,7 @@ export function addressOf(instance: Instance, context: AddressContext): Address 
     return {
       name: nickname,
       article: 'none',
+      pronoun: grammar.pronoun?.value ?? null,
       nouns: once([typedWords(nickname), ...written]),
       adjectives: [...new Set(adjectives)],
     };
@@ -63,6 +66,7 @@ export function addressOf(instance: Instance, context: AddressContext): Address 
   return {
     name,
     article: grammar.article?.value ?? defaultArticle(name),
+    pronoun: grammar.pronoun?.value ?? null,
     nouns: once([...nouns, ...written]),
     adjectives: [...new Set([...defaultAdjectives(name), ...adjectives])],
   };

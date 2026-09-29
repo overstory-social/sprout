@@ -93,6 +93,8 @@ describe('the world’s word set', () => {
     expect(fixed).toContain('north');
     // The words of the parser's relative phrases are its own, so no nickname takes one.
     for (const word of ['in', 'on', 'that', 'is', 'one']) expect(fixed, word).toContain(word);
+    // So are the pronouns a visitor types.
+    for (const word of ['it', 'them', 'him', 'her']) expect(fixed, word).toContain(word);
     expect(fixed).not.toContain('take');
     const shop = compiledWorld('shop', {
       'shop.sprout':

@@ -126,13 +126,17 @@ const COIN = instance('shop#3', {
 });
 const INES = instance('shop#4', { made: { from: 'visitor' }, container: null, arrival: 4 });
 
-const visitor = (visit: string, nickname: string, id: string, lastPlace: string | null) => ({
-  visit,
-  nickname,
-  instance: id,
-  lastPlace,
-});
-const V_MARTA: StoredVisitor = visitor('v-marta', 'Marta', 'shop#1', 'shop.hall');
+const visitor = (
+  visit: string,
+  nickname: string,
+  id: string,
+  lastPlace: string | null,
+  referents: readonly string[] = [],
+) => ({ visit, nickname, instance: id, lastPlace, referents });
+const V_MARTA: StoredVisitor = visitor('v-marta', 'Marta', 'shop#1', 'shop.hall', [
+  'shop.hall.lamp',
+  'shop#4',
+]);
 const V_INES: StoredVisitor = visitor('v-ines', 'Ines', 'shop#4', 'shop.yard');
 
 /** The whole fixture world as one turn writes it, out of order, as a draft may list it. */
@@ -411,7 +415,7 @@ export const cases: ConformanceCase[] = [
         arrival: 6,
         properties: { lit: flag(false) },
       });
-      const moved = { ...V_MARTA, lastPlace: 'shop.yard' };
+      const moved = { ...V_MARTA, lastPlace: 'shop.yard', referents: [] };
       await store.transaction('w', async (tx) => {
         await tx.putMicroworld(microworld('w'));
         await tx.putState(FIRST_TURN);

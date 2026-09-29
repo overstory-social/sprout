@@ -157,6 +157,7 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
       nickname: visitor.nickname,
       instance: visitor.instance as InstanceId,
       lastPlace: visitor.lastPlace as InstanceId | null,
+      referents: visitor.referents.map((id) => id as InstanceId),
     });
   }
 
@@ -346,6 +347,7 @@ export function encodeVisitor(visitor: VisitorRecord): StoredVisitor {
     nickname: visitor.nickname,
     instance: visitor.instance,
     lastPlace: visitor.lastPlace,
+    referents: visitor.referents,
   };
 }
 

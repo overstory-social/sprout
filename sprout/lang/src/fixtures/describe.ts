@@ -150,7 +150,7 @@ export function study(
         CATALOGUE.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname, instance: id, lastPlace: where });
+    draft.putVisitor({ visit, nickname, instance: id, lastPlace: where, referents: [] });
   }
   for (const [id, name, value] of set) {
     const instance = draft.instance(id)!;

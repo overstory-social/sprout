@@ -155,7 +155,7 @@ export function ways(
         CATALOGUE.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname: visit, instance: id, lastPlace: where });
+    draft.putVisitor({ visit, nickname: visit, instance: id, lastPlace: where, referents: [] });
   }
   for (const [id, name, value] of set) {
     const instance = draft.instance(id)!;

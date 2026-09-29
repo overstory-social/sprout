@@ -7,7 +7,9 @@
 // adjectives alone, which names it weakly: those words count as none
 // matched literally. A relative phrase narrows a name by what holds it,
 // `the key in the cabinet`, `the key that is on the shelf`, `the one in
-// the cabinet`: `in` and `on` both mean held directly by. A role's kind
+// the cabinet`: `in` and `on` both mean held directly by. A pronoun alone,
+// `it`, `them`, `him` or `her`, names what the visitor's own last command
+// was done to, where it is in reach (the spec's Parsing › Pronouns). A role's kind
 // narrows what may fill it and is never a source of refusal text: a thing
 // that answers and is not of the kind makes the phrase not match. Among
 // several that fit, the ones whose whole name was typed are preferred to
@@ -16,9 +18,11 @@
 // readings they make whole (the spec's Parsing › Choosing a reading).
 // Every candidate a noun is tried against is one step.
 
+import { isActor } from '../../declare/actors.js';
 import { DETERMINERS, CONNECTORS } from '../../declare/addressing.js';
 import { kindName } from '../../declare/kinds.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
+import { TYPED_PRONOUNS, type Pronoun } from '../../syntax/ast-grammar.js';
 import type { Budget } from '../budget.js';
 import type { InstanceId } from '../ids.js';
 import type { Instance } from '../state.js';
@@ -32,9 +36,11 @@ export interface Candidate {
   readonly near: number;
 }
 
-/** What resolving a noun reads besides the candidates: the turn's meter. */
+/** What resolving a noun reads besides the candidates: the turn's meter, and what the visitor's pronouns name. */
 export interface NounContext {
   readonly budget: Budget;
+  /** What the one typing's own last command about a thing was done to (the spec's Parsing › Pronouns). */
+  readonly referents: readonly InstanceId[];
 }
 
 /** One thing a noun may name: how near it is, and how many of the typed words its name matched. */
@@ -150,6 +156,16 @@ function named(
       (one.by === known.by && one.literal > known.literal);
     if (stronger) found.set(one.candidate.instance.id, one);
   };
+  const pronoun = words.length === 1 ? pronounIn(words[0]!) : null;
+  if (pronoun !== null) {
+    return candidates.flatMap((candidate) => {
+      context.budget.spend();
+      const named = context.referents.includes(candidate.instance.id);
+      return named && pronounNames(pronoun, candidate.instance, candidate.address)
+        ? [{ candidate, by: 'name', literal: 1 }]
+        : [];
+    });
+  }
   for (const candidate of candidates) {
     context.budget.spend();
     const answer = answering(words, candidate.address);
@@ -157,6 +173,21 @@ function named(
   }
   for (const one of relatives(words, candidates, context)) keep(one);
   return candidates.flatMap((candidate) => found.get(candidate.instance.id) ?? []);
+}
+
+/** The pronoun `word` is, as a thing declares it; null where it is none a visitor types. */
+export function pronounIn(word: string): Pronoun | null {
+  return Object.hasOwn(TYPED_PRONOUNS, word) ? TYPED_PRONOUNS[word]! : null;
+}
+
+/**
+ * Whether `pronoun`, typed, names `thing`, which the visitor's last
+ * command was done to: `it` and `they` always, `he` and `she` where it is
+ * a person or declares that pronoun.
+ */
+export function pronounNames(pronoun: Pronoun, thing: Instance, address: Address): boolean {
+  if (pronoun === 'it' || pronoun === 'they') return true;
+  return isActor(thing.kind) || address.pronoun === pronoun;
 }
 
 /**

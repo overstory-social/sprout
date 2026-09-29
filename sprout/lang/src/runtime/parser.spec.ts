@@ -47,7 +47,7 @@ import {
   MOUTH,
   ways,
 } from '../fixtures/exits.js';
-import { boundValue } from './evaluate.js';
+import { boundObject, boundValue } from './evaluate.js';
 import { readerOf } from './state.js';
 import {
   actorOf,
@@ -450,6 +450,7 @@ describe('the parser a command turn reads through', () => {
       budget,
       draws: new Draws(7),
       nicknames: new Map([...state.visitors.values()].map((v) => [v.instance, v.nickname])),
+      referents: [],
     });
     const parsed = parseCommand(
       'sniff v-ines',
@@ -488,6 +489,7 @@ describe('the parser a command turn reads through', () => {
       budget: new Budget(DEFAULT_LIMITS.budgets),
       draws: new Draws(7),
       nicknames: new Map<InstanceId, string>(),
+      referents: [],
     };
     for (const line of ['north', 'go north', 'deeper into the dark']) {
       const parsed = parseCommand(line, actor, context);
@@ -800,5 +802,57 @@ describe('a line an intent’s phrase reads', () => {
       intent: 'yard.nudge',
       bindings: { y: { object: bell } },
     });
+  });
+});
+
+describe('a pronoun a thing declares another for', () => {
+  const PARK = compiledWorld('park', {
+    'park.sprout': [
+      'world park is sprout.World { visitors are Person visitors arrive at lawn',
+      '  object lawn is sprout.Place {',
+      '    object cat is Pet { grammar { article the  pronouns she } }',
+      '    object dog is Pet',
+      '  }',
+      '}',
+      'kind Pet { as target for pat { do { say "{self} wags." } } }',
+      'verb pat { role target  "pat [target]" }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const [lawn, cat, dog] = [['lawn'], ['lawn', 'cat'], ['lawn', 'dog']].map((path) =>
+    declaredId('park', path),
+  );
+  /** What `line` is read as, typed by one whose last command was done to `referents`. */
+  const parsed = (line: string, referents: readonly InstanceId[]) => {
+    const one = turn(PARK, [lawn!]);
+    return parseCommand(line, one.people[0]!, {
+      state: one.draft,
+      catalogue: one.catalogue,
+      passes: () => true,
+      budget: one.budget,
+      draws: new Draws(7),
+      nicknames: new Map(),
+      referents,
+    });
+  };
+  const corrected = (line: string, referents: readonly InstanceId[]) => {
+    const read = parsed(line, referents);
+    if (!('reading' in read)) throw new Error(`\`${line}\` was not understood`);
+    return read.corrected.map((said) => [said.bindings.get('thing'), said.bindings.get('pronoun')]);
+  };
+
+  it('is corrected before the action, with the thing and the pronoun it declares', () => {
+    expect(corrected('pat it', [cat!])).toEqual([[boundObject(cat!), boundValue('she')]]);
+    const read = parsed('pat it', [cat!]);
+    expect('reading' in read && read.corrected[0]).toMatchObject({
+      effect: 'notice',
+      said: { passage: { name: 'pronoun_correction' } },
+    });
+  });
+
+  it('is not corrected where the pronoun agrees, the thing declares none, or it was named', () => {
+    expect(corrected('pat her', [cat!])).toEqual([]);
+    expect(corrected('pat it', [dog!])).toEqual([]);
+    expect(corrected('pat cat', [cat!])).toEqual([]);
   });
 });
