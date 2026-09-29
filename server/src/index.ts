@@ -6,3 +6,4 @@
 export * from './config.js';
 export * from './log.js';
 export * from './server.js';
+export * from './main.js';

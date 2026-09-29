@@ -19,6 +19,18 @@ spec's _The host contract_ still binds it.
 
 In this build the store is kept in memory, and extensions are not loaded.
 
+```sh
+sprout-server start --config server.toml [--log-format text|json]
+```
+
+```toml
+listen = "127.0.0.1:4700"
+[[worlds]]
+path = "./worlds/printers_shop"
+```
+
+Or in-process:
+
 ```ts
 import { readConfig, serverLog, startServer } from '@overstory/sprout-server';
 ```

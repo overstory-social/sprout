@@ -18,7 +18,7 @@ import type { ServerLog } from './log.js';
 import { depart, frame, opened } from './session.js';
 import { compileWorld, publish } from './worlds.js';
 
-// `sprout server start` (docs/design/sprout-server.md): every world the
+// `sprout-server start` (docs/design/sprout-server.md): every world the
 // config names compiled strictly and published, a world refused logged and
 // not served while the rest start; a WebSocket server speaking `sprout.1`,
 // one connection one visitor; and the clock's rounds of ticks and wakes.

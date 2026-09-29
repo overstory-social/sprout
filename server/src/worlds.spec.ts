@@ -27,6 +27,7 @@ describe('a world the server serves', () => {
     writeFileSync(join(dir, 'sprout.json'), '{ "name": "broken" }');
     const compiled = compileWorld(dir, configFor());
     expect('refused' in compiled && compiled.refused.length).toBeGreaterThan(0);
+    expect(compileWorld('/nowhere', configFor())).toEqual({ refused: '/nowhere: no such folder' });
   });
 
   it('is published into the store, which logs the publish with the bundle’s hash', async () => {

@@ -14,6 +14,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "bin",
     "dist",
     "LICENSE",
     "README.md"
@@ -41,5 +42,8 @@
   },
   "devDependencies": {
     "@types/ws": "^8.18.1"
+  },
+  "bin": {
+    "sprout-server": "bin/sprout-server.js"
   }
 }
