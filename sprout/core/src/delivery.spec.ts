@@ -148,6 +148,7 @@ describe('what every client is sent, over generated effects', () => {
         to: `i-${visit}` as InstanceId,
         visit,
         paragraphs: [`line ${i}`],
+        written: [],
       };
       if (kind !== 'extension') effects.push({ kind, ...parts });
       else {

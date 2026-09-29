@@ -75,6 +75,7 @@ function effectOf(
     to: heard.reader,
     visit: visitOf(heard.reader, context.visits),
     paragraphs: heard.paragraphs,
+    written: heard.written,
   };
 }
 

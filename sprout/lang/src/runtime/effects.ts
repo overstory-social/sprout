@@ -54,6 +54,17 @@ export interface ExtensionEffect extends EffectParts {
   readonly payload: Plain;
 }
 
+/**
+ * Where the words of an effect were written: a named passage, by the kind
+ * that wrote it and its name, or a one-line passage, a string given to
+ * `say`, `tell`, `text` or `refuse`, by where it stands. `at` and `line`
+ * read `kiln.sprout:23:9`. For an author's tools, which ask what a
+ * playthrough read; a client is never sent it.
+ */
+export type WrittenAt =
+  | { readonly passage: string; readonly origin: string; readonly at: string }
+  | { readonly line: string };
+
 /** What every effect carries. */
 interface EffectParts {
   /** The object it came from: whose body said it, the party that refused, the thing described, or the world. */
@@ -65,6 +76,8 @@ interface EffectParts {
   readonly visit: VisitKey;
   /** The words, rendered for this reader, one string to a paragraph. */
   readonly paragraphs: readonly string[];
+  /** Every passage and one-line passage that gave them words, each once, a passage after any it holds. */
+  readonly written: readonly WrittenAt[];
 }
 
 /** One thing a turn says, unrendered: a line, or a description for the one looking. */

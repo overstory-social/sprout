@@ -2350,8 +2350,8 @@ sprout check [dir] [--json]
 sprout parse [dir]
 sprout parse dir "line" [--at place] [--as name]
 sprout view [dir] [--at place] [--as name]
-sprout play dir [script] [--at place] [--as name]
-sprout test [dir] [script ...]
+sprout play dir [script] [--at place] [--as name] [--report file.json]
+sprout test [dir] [script ...] [--report file.json]
 sprout skill
 ```
 
@@ -2439,3 +2439,25 @@ A test is a script whose steps expect what the world should say:
 
 When the world is right and a test is wrong, `sprout play` the test file
 and keep what the world says now.
+
+### What a playthrough reached
+
+`sprout play dir script.json --report reached.json` plays the script as
+usual and also writes a report, in JSON, of what it reached;
+`sprout test dir a.json b.json --report reached.json` writes one for all
+the scripts together. Nothing in it is judged by a person or a model: it
+is counted from the turns themselves.
+
+| part         | holds                                                                                                     |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| `turns`      | how many commands each visitor typed                                                                      |
+| `reading`    | the lines the world could not read (`unread`, with the engine line it answered) or refused (`refused`), each with what the visitor read, and the share of lines typed that each is |
+| `faults`     | every fault, in full, with the step it ended                                                              |
+| `reach`      | places stood in, objects a command named, verbs typed, handlers run and passages rendered, each as `reached` and `never` of how many the world `declared` |
+| `repetition` | the same line typed, or the same answer read, three or more times in a row by one visitor                 |
+
+`reach.passages.never` is the prose nobody saw: every passage, and every
+string your own files give `say`, `tell`, `text` or `refuse`, that no one
+read, a passage whose every branch printed nothing included. A turn that
+faulted reaches only the words it told of the fault, since what it did
+was undone.

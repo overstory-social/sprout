@@ -17,6 +17,8 @@ import type { Expr } from '../syntax/ast.js';
 import type { Prose, ProseFor, ProseIf, ProseOneOf, ProseSlot } from '../syntax/ast-prose.js';
 import { humanisedOption, libraryOf } from '../declare/enums.js';
 import { kindName } from '../declare/kinds.js';
+import type { ResolvedPassage } from '../declare/passages.js';
+import { locationOf } from '../source/source.js';
 import type { Budget } from '../runtime/budget.js';
 import type { Catalogue } from '../runtime/catalogue.js';
 import {
@@ -33,6 +35,7 @@ import { SproutList } from '../runtime/lists.js';
 import { ExtensionValue, extensionWords } from '../runtime/extension-values.js';
 import type { PassRule } from '../runtime/range.js';
 import type { Draw } from '../runtime/draws.js';
+import type { WrittenAt } from '../runtime/effects.js';
 import type { LineDraws } from './line-draws.js';
 import { objectWords, type Naming } from './names.js';
 import type { Rendered } from './reflow.js';
@@ -49,6 +52,31 @@ export interface RenderContext extends Naming {
    * anyone else's cuts them short (`output.ts`). Null where nobody acted.
    */
   readonly actor: InstanceId | null;
+  /** Where a write turn's rendering notes each passage and one-line passage that gave its reader words; absent in a poll. */
+  readonly written?: WrittenAt[];
+}
+
+/** Note in `context` that `written` was rendered, once. */
+export function noteWritten(context: RenderContext, written: WrittenAt): void {
+  const notes = context.written;
+  if (notes === undefined) return;
+  const key = writtenKey(written);
+  if (!notes.some((one) => writtenKey(one) === key)) notes.push(written);
+}
+
+/** A named passage, as where its words were written. */
+export function passageWritten(passage: ResolvedPassage): WrittenAt {
+  return { passage: passage.name, origin: passage.origin, at: locationOf(passage.at) };
+}
+
+/** A one-line passage, as where its words were written. */
+export function lineWritten(prose: Prose): WrittenAt {
+  return { line: locationOf(prose.at) };
+}
+
+/** `written` as one string: `sprout.World.fault` for a passage, its place for a one-line passage. */
+export function writtenKey(written: WrittenAt): string {
+  return 'passage' in written ? `${written.origin}.${written.passage}` : written.line;
 }
 
 /** Who speaks prose: its `self`, the library whose kind wrote it, and every other name it renders with. */
@@ -180,9 +208,14 @@ function passageOf(
     if (bound !== undefined) bindings.set(carried, bound);
   }
   const voice = { self: owner.id, library: libraryOf(passage.origin), bindings };
+  const from = out.length;
   context.budget.passage(() => {
     pieces(passage.body.prose, frameOf(voice, context, frame.draws ?? null), reader, context, out);
   });
+  // Noted only where it gave its reader words to read.
+  if (out.slice(from).some((one) => 'words' in one && one.words.trim() !== '')) {
+    noteWritten(context, passageWritten(passage));
+  }
 }
 
 /**

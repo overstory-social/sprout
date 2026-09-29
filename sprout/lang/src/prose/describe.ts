@@ -8,17 +8,16 @@
 // poll with none, and a describe draws nothing either way.
 
 import type { Description } from '../runtime/describe.js';
-import type { Heard } from './heard.js';
+import { noting, type Heard } from './heard.js';
 import type { RenderContext } from './render.js';
 import { renderFor } from './speech.js';
 
 /** `description` as its reader reads it. */
 export function renderDescription(description: Description, context: RenderContext): Heard {
   const reader = description.to;
-  const paragraphs = description.lines.flatMap((line) => renderFor(line, reader, context));
-  return {
-    reader,
-    paragraphs:
-      paragraphs.length > 0 ? paragraphs : renderFor(description.unremarkable, reader, context),
-  };
+  const { value: paragraphs, written } = noting(context, (mine) => {
+    const lines = description.lines.flatMap((line) => renderFor(line, reader, mine));
+    return lines.length > 0 ? lines : renderFor(description.unremarkable, reader, mine);
+  });
+  return { reader, paragraphs, written: paragraphs.length > 0 ? written : [] };
 }

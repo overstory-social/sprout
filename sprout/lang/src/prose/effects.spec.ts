@@ -79,7 +79,7 @@ describe('a turn’s lines, rendered as its effects', () => {
     ]);
   });
 
-  it('carry the object each came from, the actor, and the reader', () => {
+  it('carry the object each came from, the actor, the reader, and where their words were written', () => {
     const turn = proseTurn();
     const [effect] = renderEffects(
       [{ said: line('Hm.', [BRASS_KEY], turn.marta) }],
@@ -92,6 +92,7 @@ describe('a turn’s lines, rendered as its effects', () => {
       to: BRASS_KEY,
       visit: KEY,
       paragraphs: ['Hm.'],
+      written: [{ line: 'the engine:1:1' }],
     });
   });
 
@@ -150,6 +151,7 @@ describe('a turn’s lines, rendered as its effects', () => {
         to: turn.marta,
         visit: MARTA,
         paragraphs: ['An iron press.', 'It is cold.'],
+        written: [{ line: 'the engine:1:1' }],
       },
     ]);
   });

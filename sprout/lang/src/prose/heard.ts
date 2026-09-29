@@ -11,15 +11,26 @@
 import { engineSaid } from '../runtime/engine-lines.js';
 import { boundObject, boundValue } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
+import type { WrittenAt } from '../runtime/effects.js';
 import type { Said } from '../runtime/reading.js';
 import { charged } from './output.js';
 import type { RenderContext } from './render.js';
 import { renderedFor, renderFor, type Line } from './speech.js';
 
-/** What one reader reads of a line: its paragraphs, as they render for them. */
+/** What one reader reads of a line: its paragraphs, as they render for them, and where their words were written. */
 export interface Heard {
   readonly reader: InstanceId;
   readonly paragraphs: readonly string[];
+  readonly written: readonly WrittenAt[];
+}
+
+/** `render` for one reader under a context of its own that notes what it renders, and what it noted. */
+export function noting<T>(
+  context: RenderContext,
+  render: (context: RenderContext) => T,
+): { readonly value: T; readonly written: readonly WrittenAt[] } {
+  const written: WrittenAt[] = [];
+  return { value: render({ ...context, written }), written };
 }
 
 /**
@@ -31,12 +42,14 @@ export function renderHeard(said: Said, context: RenderContext): Heard[] {
   const frame = said.speaker === null ? null : npcSays(said.speaker, context);
   for (const reader of said.to) {
     if (frame === null) {
-      const paragraphs = renderFor(said, reader, context);
-      if (paragraphs.length > 0) heard.push({ reader, paragraphs });
+      const { value: paragraphs, written } = noting(context, (mine) =>
+        renderFor(said, reader, mine),
+      );
+      if (paragraphs.length > 0) heard.push({ reader, paragraphs, written });
       continue;
     }
-    const line = framed(said, frame, reader, context);
-    if (line !== null) heard.push({ reader, paragraphs: [line] });
+    const { value: line, written } = noting(context, (mine) => framed(said, frame, reader, mine));
+    if (line !== null) heard.push({ reader, paragraphs: [line], written });
   }
   return heard;
 }

@@ -8,6 +8,7 @@ import {
   heard,
   leave,
   playInteractive,
+  filledIn,
   playSteps,
   playScript,
 } from './play.js';
@@ -423,5 +424,54 @@ describe('a line read as an intent', () => {
       ['info', 'step: sprout.open'],
       ['prose', 'You open a chest. It is empty.'],
     ]);
+  });
+});
+
+describe('the turns a step ran', () => {
+  it('are traced in order, each with who typed what, what it did, and where everyone then stood', () => {
+    const played = playSteps(
+      bundle,
+      scriptOf(
+        '@arrive Marta\nMarta> fire kiln\nMarta> fire kiln\nMarta> xyzzy\n@advance 1 hours\n# done',
+      ),
+      'yard.json',
+    );
+    const [arrived, fired, refused, unread, woken, comment] = played.map((one) => one.turns);
+    // A maintenance turn catches up before every arrival.
+    expect(arrived!.map((turn) => turn.turn)).toEqual(['maintenance', 'arrival']);
+    expect(arrived![1]!.standing).toEqual(['kiln_yard.yard']);
+    expect(fired).toHaveLength(1);
+    expect(fired![0]).toMatchObject({ turn: 'command', as: 'Marta', typed: 'fire kiln' });
+    expect(fired![0]!.reading?.verb.name).toBe('fire');
+    expect(fired![0]!.effects.map((effect) => effect.written)).toEqual([
+      [{ line: 'kiln.sprout:5:54' }],
+    ]);
+    expect(refused![0]).toMatchObject({ refused: true, answered: null });
+    expect(refused![0]!.reading?.verb.name).toBe('fire');
+    expect(unread![0]).toMatchObject({ answered: 'unknown', reading: null, refused: false });
+    expect(woken!.map((turn) => [turn.turn, turn.ran.map((ran) => ran.on)])).toEqual([
+      ['wake', ['woke']],
+    ]);
+    expect(comment).toEqual([]);
+  });
+
+  it('trace a fault, and leave the reading of a turn that faulted untraced, since it was abandoned', () => {
+    const [, kicked] = playSteps(bundle, scriptOf('@arrive Marta\nMarta> kick kiln'), 'yard.json');
+    expect(
+      kicked!.turns.map((turn) => [
+        turn.turn,
+        turn.faults.map((fault) => fault.name),
+        turn.reading,
+      ]),
+    ).toEqual([['command', ['IntegerOverflow'], null]]);
+  });
+});
+
+describe('filledIn', () => {
+  it('is the script with each step that played expecting all it made, as playScript gives it', () => {
+    const script = scriptOf('@arrive Marta\n@seed 3\nMarta> fire kiln');
+    expect(filledIn(script, playSteps(bundle, script, 'yard.json'))).toEqual(
+      playScript(bundle, script, 'yard.json'),
+    );
   });
 });

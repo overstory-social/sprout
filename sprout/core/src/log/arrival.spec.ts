@@ -46,6 +46,7 @@ describe('a visitor’s entry in the log', () => {
       to: HALL,
       visit: INES,
       paragraphs: ['Not you.'],
+      written: [],
     };
     const refused = {
       committed: false,

@@ -27,6 +27,11 @@ describe('a description, rendered', () => {
     expect(heard).toEqual({
       reader: marta,
       paragraphs: ['The lamp is dark.', 'It hangs from a hook.'],
+      // `text dark`, a passage, then `text "It hangs…"`, a one-line passage.
+      written: [
+        { passage: 'dark', origin: 'study.Lamp', at: 'lamp.sprout:8:11' },
+        { line: 'lamp.sprout:6:11' },
+      ],
     });
   });
 
@@ -60,6 +65,10 @@ describe('a description, rendered', () => {
         renderingIn(state),
       );
       expect(heard.paragraphs, thing).toEqual([words]);
+      expect(
+        heard.written.filter((one) => 'passage' in one && one.passage === 'unremarkable'),
+        thing,
+      ).toHaveLength(1);
     }
     const shown = study(undefined, [[BLANK, 'shown', true]]);
     const card = describeFor(BLANK, actorOf(shown, MARTA), lookingAt(shown));
@@ -78,6 +87,8 @@ describe('a description, rendered', () => {
       renderingIn(state),
     );
     expect(heard.paragraphs).toEqual(['It hangs from a hook.']);
+    // The line that rendered nothing gave its reader no words, so it is not where they were written.
+    expect(heard.written).toEqual([{ line: 'lamp.sprout:6:11' }]);
   });
 
   it('renders the same with no draws, as a poll does, and with a write turn’s', () => {
@@ -107,7 +118,11 @@ describe('a description, rendered', () => {
       ...renderingIn(state),
       budget: new Budget({ ...DEFAULT_LIMITS.budgets, output: 10 }),
     };
-    expect(renderDescription(described, tight)).toEqual({ reader: marta, paragraphs: [] });
+    expect(renderDescription(described, tight)).toEqual({
+      reader: marta,
+      paragraphs: [],
+      written: [],
+    });
     expect(tight.budget.cutShort).toEqual([marta]);
     expect(tight.budget.spentOutput(marta)).toBe(0);
   });

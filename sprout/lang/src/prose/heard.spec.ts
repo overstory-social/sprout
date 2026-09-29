@@ -7,8 +7,13 @@ import { engineLine } from '../runtime/engine-lines.js';
 import type { InstanceId } from '../runtime/ids.js';
 import type { Said } from '../runtime/reading.js';
 import type { StateReader } from '../runtime/state.js';
-import { renderHeard } from './heard.js';
+import { renderHeard, type Heard } from './heard.js';
 import { LineDraws } from './line-draws.js';
+
+/** What each reader read, without where its words were written. */
+function words(heard: readonly Heard[]): { reader: InstanceId; paragraphs: readonly string[] }[] {
+  return heard.map(({ reader, paragraphs }) => ({ reader, paragraphs }));
+}
 
 /** A line `by` the press, read by `to`, in words the engine reads as a one-line passage. */
 function line(
@@ -31,7 +36,7 @@ describe('a line is rendered once for each of its readers', () => {
   it('in the order it names them, each reading "you" for themself and a name for another', () => {
     const turn = proseTurn();
     const told = line('{actor} leans on {self}.', [turn.marta, BRASS_KEY], null, turn.marta);
-    expect(renderHeard(told, turn.context)).toEqual([
+    expect(words(renderHeard(told, turn.context))).toEqual([
       { reader: turn.marta, paragraphs: ['You leans on a press.'] },
       { reader: BRASS_KEY, paragraphs: ['Marta leans on a press.'] },
     ]);
@@ -60,7 +65,7 @@ describe('a line too long for someone other than the actor', () => {
     // The line fits "you", 21 characters, and not Marta's name, 23.
     const turn = proseTurn({ ...DEFAULT_LIMITS.budgets, output: 21 });
     const told = line('{actor} lean on it, hard.', [turn.marta, BRASS_KEY], null, turn.marta);
-    expect(renderHeard(told, turn.context)).toEqual([
+    expect(words(renderHeard(told, turn.context))).toEqual([
       { reader: turn.marta, paragraphs: ['You lean on it, hard.'] },
     ]);
     expect(turn.context.budget.cutShort).toEqual([BRASS_KEY]);
@@ -84,7 +89,7 @@ describe('a line an NPC says', () => {
       OAK_DOOR,
       turn.marta,
     );
-    expect(renderHeard(said, turn.context)).toEqual([
+    expect(words(renderHeard(said, turn.context))).toEqual([
       { reader: turn.marta, paragraphs: ['An oak door says "You leans on a press. It creaks."'] },
       { reader: BRASS_KEY, paragraphs: ['An oak door says "Marta leans on a press. It creaks."'] },
     ]);
@@ -120,7 +125,7 @@ describe('a line an NPC says', () => {
       tombstoned: (id) => turn.draft.tombstoned(id),
     };
     const said = line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta);
-    expect(renderHeard(said, { ...turn.context, state })).toEqual([
+    expect(words(renderHeard(said, { ...turn.context, state }))).toEqual([
       { reader: BRASS_KEY, paragraphs: ['An oak door rasps, "Miaow."'] },
     ]);
   });
@@ -143,7 +148,7 @@ describe('a `tell` in quotes that draws', () => {
       );
       const call = CALLS[new Draws(seed).below(3)]!;
       reached.add(call);
-      expect(renderHeard(told, context), String(seed)).toEqual([
+      expect(words(renderHeard(told, context)), String(seed)).toEqual([
         { reader: turn.marta, paragraphs: [`${call}, you.`] },
         { reader: BRASS_KEY, paragraphs: [`${call}, Marta.`] },
         { reader: OAK_DOOR, paragraphs: [`${call}, Marta.`] },
@@ -151,5 +156,36 @@ describe('a `tell` in quotes that draws', () => {
       expect(draws.drawn, String(seed)).toBe(1);
     }
     expect(reached.size).toBe(CALLS.length);
+  });
+});
+
+describe('where a line’s words were written', () => {
+  it('is noted for each reader: the one-line passage, where its string stands', () => {
+    const turn = proseTurn();
+    const told = line('{actor} leans on {self}.', [turn.marta, BRASS_KEY], null, turn.marta);
+    const heard = renderHeard(told, turn.context);
+    expect(heard.map((one) => one.written)).toEqual([
+      [{ line: 'the engine:1:1' }],
+      [{ line: 'the engine:1:1' }],
+    ]);
+  });
+
+  it('is the line, then the NPC’s `npc_says` passage that frames it', () => {
+    const turn = proseTurn();
+    const [heard] = renderHeard(line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta), turn.context);
+    expect(heard!.written).toEqual([
+      { line: 'the engine:1:1' },
+      { passage: 'npc_says', origin: 'sprout.World', at: 'sprout/world.sprout:25:11' },
+    ]);
+  });
+
+  it('is nothing for a line that renders nothing, and is not noted in the context it was given', () => {
+    const turn = proseTurn();
+    const nothing: Said = {
+      ...line('x', [turn.marta], null, turn.marta),
+      said: { absent: 'gone' },
+    };
+    expect(renderHeard(nothing, turn.context)).toEqual([]);
+    expect(turn.context.written).toBeUndefined();
   });
 });

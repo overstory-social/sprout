@@ -5,7 +5,8 @@
 # world accepts, a line read where a visitor stands, and that visitor's
 # view. It checks the worked microworld and plays each of its golden
 # transcripts, which must print exactly what they hold; runs its own tests,
-# which must pass, and its transcripts as tests, which must pass too; and
+# which must pass, and its transcripts as tests, which must pass too, with a
+# report of what they reached between them; and
 # runs a test that must fail, printing what the world said. It plays the
 # new world interactively from a here-document, with and without `-` for
 # the script, recording the session, and plays the recording back, which
@@ -49,7 +50,14 @@ for transcript in "$shop"/transcripts/*.json; do
   echo "played $(basename "$transcript") as written"
 done
 npx sprout test "$shop"
-npx sprout test "$shop" "$shop"/transcripts/*.json | tail -1
+npx sprout test "$shop" "$shop"/transcripts/*.json --report reached.json | tail -2
+# What the transcripts reached between them: every place, and some prose never shown.
+node -e '
+const r = require("./reached.json");
+const { places, passages } = r.reach;
+if (places.never.length > 0 || passages.never.length === 0 || r.faults.length > 0) process.exit(1);
+console.log(`reached ${places.reached.length} of ${places.declared} places, ${passages.reached.length} of ${passages.declared} passages`);
+'
 printf 'look\n' | npx sprout play shed --debug --record session.json > interactive.txt
 grep -qx '  Inspector (described): There is nothing special about a hall.' interactive.txt
 npx sprout play shed session.json > replayed.json
@@ -132,4 +140,4 @@ LSP
 node lsp.cjs | tee lsp.txt
 grep -q 'Fixtur' lsp.txt
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, a world served by the installed server to the installed client, and the installed language server, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report) and skill from the installed CLI, a world served by the installed server to the installed client, and the installed language server, at $sha)"

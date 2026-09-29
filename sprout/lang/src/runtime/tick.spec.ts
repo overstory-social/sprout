@@ -186,7 +186,13 @@ describe('a tick turn', () => {
         to: marta,
         visit: MARTA,
         paragraphs: ['The wind picks up in the eaves.'],
+        written: [{ line: 'moor.sprout:11:13' }],
       },
+    ]);
+    // The moor's `:tick` handler ran, and then the flag's handler for the gust it sent, in delivery order.
+    expect(gusty.value.drained.ran).toEqual([
+      { origin: 'weather.Moor', on: 'tick', at: 'moor.sprout:5:3' },
+      { origin: 'weather.Flag', on: 'weather.gust', at: 'flag.sprout:3:3' },
     ]);
   });
 

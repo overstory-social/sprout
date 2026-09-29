@@ -45,7 +45,8 @@ describe('a maintenance turn', () => {
     expect(objects(turn.value.delivered)).toEqual([CANDLE]);
     expect(heldIn(turn.state, CANDLE, 'lit')).toBe(false);
     // The candle told the bed it guttered; what catch-up gives back holds none of it.
-    expect(Object.keys(turn.value).sort()).toEqual(['abandoned', 'delivered', 'faulted']);
+    expect(Object.keys(turn.value).sort()).toEqual(['abandoned', 'delivered', 'faulted', 'ran']);
+    expect(turn.value.ran.map((one) => one.on)).toEqual(['woke']);
     expect(turn.effects).toEqual([]);
   });
 
@@ -203,7 +204,7 @@ describe('a maintenance turn', () => {
       [ROSE, 0, 5000],
     ]);
     const turn = maintenanceTurn(state, HOST, at(1000));
-    expect(turn.value).toEqual({ delivered: [], faulted: [], abandoned: [] });
+    expect(turn.value).toEqual({ delivered: [], faulted: [], abandoned: [], ran: [] });
     expect(turn.changes).toEqual({
       serial: state.serial,
       upsert: [],

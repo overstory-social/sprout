@@ -13,7 +13,13 @@ import type { Evaluated } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
 import { charged } from './output.js';
 import { reflow } from './reflow.js';
-import { renderProse, type RenderContext } from './render.js';
+import {
+  lineWritten,
+  noteWritten,
+  passageWritten,
+  renderProse,
+  type RenderContext,
+} from './render.js';
 
 /** A line to render: who said it, which is `self` when it renders, and the names in scope where it was said. */
 export interface Line {
@@ -68,5 +74,13 @@ export function renderedFor(
           context,
           draws,
         );
-  return reflow(rendered);
+  const paragraphs = reflow(rendered);
+  // Noted only where it gave its reader words to read, after any passage it holds.
+  if (paragraphs.length > 0) {
+    noteWritten(
+      context,
+      'passage' in said ? passageWritten(said.passage) : lineWritten(said.prose),
+    );
+  }
+  return paragraphs;
 }

@@ -27,6 +27,7 @@ import {
   type TurnHost,
   type WriteInputs,
 } from './turn.js';
+import type { Ran } from './bus.js';
 import { consumeWake, deliverWake, pendingWake } from './wake.js';
 import { dueWakes, onePerObject, type DueWake } from './wakes.js';
 
@@ -38,6 +39,8 @@ export interface CaughtUp {
   readonly faulted: readonly { readonly wake: DueWake; readonly fault: Fault }[];
   /** The wakes left pending for live time once the budget was spent, before they could run. */
   readonly abandoned: readonly DueWake[];
+  /** Every handler and hook the delivered wakes ran, in the order run. */
+  readonly ran: readonly Ran[];
 }
 
 /**
@@ -59,17 +62,19 @@ export function maintenanceTurn(
   };
   const delivered: DueWake[] = [];
   const faulted: { wake: DueWake; fault: Fault }[] = [];
+  const ran: Ran[] = [];
   let at = state;
   for (const [i, listed] of due.entries()) {
     // An earlier wake may have destroyed this one's object, or moved it out of the tree.
     const wake = pendingWake(at, listed.object, listed.serial);
     if (wake === null) continue;
     const elapsed = elapsedSince(wake.askedAt, now);
-    const part = writeUnder(shared, at, 'maintenance', host, inputs, (turn) => {
-      deliverWake(turn, wake, elapsed);
-    });
+    const part = writeUnder(shared, at, 'maintenance', host, inputs, (turn) =>
+      deliverWake(turn, wake, elapsed),
+    );
     if (part.committed) {
       at = part.state;
+      ran.push(...part.value.ran);
       delivered.push(wake);
       continue;
     }
@@ -80,8 +85,8 @@ export function maintenanceTurn(
       const abandoned = due
         .slice(i + 1)
         .filter((rest) => pendingWake(after, rest.object, rest.serial) !== null);
-      return committedOver(state, at, { delivered, faulted, abandoned });
+      return committedOver(state, at, { delivered, faulted, abandoned, ran });
     }
   }
-  return committedOver(state, at, { delivered, faulted, abandoned: [] });
+  return committedOver(state, at, { delivered, faulted, abandoned: [], ran });
 }
