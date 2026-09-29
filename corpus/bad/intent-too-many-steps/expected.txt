@@ -1,0 +1,4 @@
+intent_too_many_steps.sprout:23:10  `fuss` has 9 steps, and 8 is as many as an intent may have.
+                                    Keep the steps the line most needs, and take the rest out.
+
+refused: 1 problem

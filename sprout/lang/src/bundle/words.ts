@@ -7,8 +7,9 @@
 // of every kind's name as a spawn is called by default, the directions
 // and their abbreviations, the articles and determiners, the connectors,
 // the words of the parser's relative phrases, every adjective written, and
-// the words of every phrase and every synonym. A link's name is not among them: a
-// visitor takes a link by its label, and the name is source's alone.
+// the words of every verb's and intent's phrase and every synonym. A link's
+// name is not among them: a visitor takes a link by its label, and the name
+// is source's alone.
 
 import {
   CONNECTORS,
@@ -21,6 +22,7 @@ import {
 import { ABBREVIATIONS, DIRECTIONS } from '../declare/directions.js';
 import type { KindRef } from '../declare/kinds.js';
 import type { ScopedSynonym } from '../declare/synonyms.js';
+import type { ResolvedIntent } from '../declare/intents.js';
 import type { ResolvedVerb } from '../declare/verbs.js';
 import type { WordSet } from './bundle.js';
 
@@ -35,6 +37,7 @@ export interface WordSources {
   readonly verbs: readonly ResolvedVerb[];
   /** The world's synonyms and its objects'; a verb's own are on the verb. */
   readonly synonyms: readonly ScopedSynonym[];
+  readonly intents: readonly ResolvedIntent[];
 }
 
 /** The word set: single words, sorted, each once. A comma separates and is no word. */
@@ -58,6 +61,11 @@ export function wordSetOf(sources: WordSources): WordSet {
     for (const synonym of verb.synonyms) add(synonym);
   }
   for (const synonym of sources.synonyms) add(synonym.words);
+  for (const intent of sources.intents) {
+    for (const phrase of intent.phrases) {
+      for (const part of phrase.parts) if (part.part === 'words') add(part.text);
+    }
+  }
   for (const word of [
     ...DIRECTIONS,
     ...ABBREVIATIONS.keys(),

@@ -26,7 +26,8 @@ import { withImports } from './imports.js';
 // gauge in a hall, both of one kind, one kind per file. Bumping one
 // counts, and smashing it counts and then overflows, so the turn faults
 // after it wrote; resting it asks for a wake a minute on, and a wake sets
-// it to the seconds it waited, which it holds only up to 99. `tally(click)`
+// it to the seconds it waited, which it holds only up to 99. Its intents
+// bump twice, and bump, smash and bump. `tally(click)`
 // compiles it with another word for a bump, so a spec can republish.
 
 const MANIFEST: Manifest = {
@@ -61,6 +62,8 @@ function files(click: string): Record<string, string> {
 verb bump  { role target  "bump [target]" }
 verb smash { role target  "smash [target]" }
 verb rest  { role target  "rest [target]" }
+intent twice { "twice [y]"  do bump (target: y) then bump (target: y) }
+intent wreck { "wreck [y]"  do bump (target: y) then smash (target: y) then bump (target: y) }
 `,
     'person.sprout': 'kind Person is sprout.Visitor { }\n',
     'counter.sprout': `kind Counter {
@@ -93,12 +96,16 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     { mode: 'publish', limits: DEFAULT_LIMITS },
   );
   if (bundle === null) throw new Error('the tally does not compile');
-  /** Reads `verb counter` and `verb gauge`; anything else is not reached by these cases. */
+  /** Reads `verb counter` and `intent gauge`, a verb's or an intent's; anything else is not reached by these cases. */
   const parse: Parser = (text, actor) => {
     const [word, noun] = text.split(' ');
+    const object = noun === 'gauge' ? GAUGE : COUNTER;
+    const intent = bundle.intents.find((one) => one.name === word);
+    if (intent !== undefined) {
+      return { intended: { intent, actor, bindings: new Map([['y', { object }]]) }, drawn: null };
+    }
     const verb = bundle.verbs.qualified('tally', word!);
     if (verb === null) throw new Error(`no verb in \`${text}\``);
-    const object = noun === 'gauge' ? GAUGE : COUNTER;
     return { reading: { verb, actor, bindings: new Map([['target', { object }]]) }, drawn: null };
   };
   const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);

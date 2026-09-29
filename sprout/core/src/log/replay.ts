@@ -98,7 +98,7 @@ function rerun(stored: StoredState, as: CommandHost, entry: TurnEntry): Step<unk
     const state = loaded(stored, as);
     switch (entry.kind) {
       case 'command':
-        return commandStep(state, as, commandOf(entry));
+        return commandStep(state, as, commandOf(entry, as.catalogue));
       case 'tick':
         return tickStep(state, as, tickOf(world, entry));
       case 'wake':

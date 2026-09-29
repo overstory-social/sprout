@@ -395,3 +395,33 @@ describe('a line read one of several ways that tied', () => {
     expect(made[2]!.text).toBe('drawn: the line read 2 ways that tied, and one was drawn');
   });
 });
+
+describe('a line read as an intent', () => {
+  const vault = bundleOf('vault', {
+    'vault.sprout': `world vault is sprout.World {
+  visitors are Walker
+  visitors arrive at hall
+  object hall is sprout.Place {
+    object chest is Chest { :open false }
+    object key is Key
+  }
+}
+`,
+    'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+    'chest.sprout': 'kind Chest is sprout.Container, sprout.Lockable { }\n',
+    'key.sprout': 'kind Key { }\n',
+  });
+
+  it('plays each step it planned as a turn, each told at info as it runs', () => {
+    const stage = freshStage(vault);
+    arrive(stage, 'Marta');
+    playInteractive(stage, 'Marta> take key', 'stdin:2');
+    const made = playInteractive(stage, 'Marta> open chest with key', 'stdin:3').made!;
+    expect(made.map((one) => [one.level, one.words ?? one.text])).toEqual([
+      ['info', 'step: sprout.unlock'],
+      ['prose', 'The lock turns over.'],
+      ['info', 'step: sprout.open'],
+      ['prose', 'You open a chest. It is empty.'],
+    ]);
+  });
+});

@@ -1,0 +1,45 @@
+{
+  "about": "The library's intent and the world's, each step a turn, a step whose `when` is false left out, and a refused step ending the line.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "take key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." }
+    ] },
+    { "as": "Marta", "type": "open strongbox with key", "expect": [
+      { "level": "info", "text": "step: sprout.unlock" },
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "level": "info", "text": "step: sprout.open" },
+      { "reader": "Marta", "kind": "said", "words": "You open a strongbox. It is empty." }
+    ] },
+    { "as": "Marta", "type": "use key to open strongbox", "expect": [
+      { "level": "info", "text": "step: sprout.open" },
+      { "reader": "Marta", "kind": "refused", "words": "It is already open." }
+    ] },
+    { "as": "Marta", "type": "stow coin in strongbox", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a coin." },
+      { "level": "info", "text": "step: sprout.put" },
+      { "reader": "Marta", "kind": "said", "words": "You put a coin in a strongbox." }
+    ] },
+    { "as": "Marta", "type": "close strongbox", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You shut a strongbox." }
+    ] },
+    { "as": "Marta", "type": "drop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a key down." }
+    ] },
+    { "as": "Marta", "type": "stow key in strongbox", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a key." },
+      { "level": "info", "text": "step: sprout.open" },
+      { "reader": "Marta", "kind": "said", "words": "You open a strongbox. Inside: a coin." },
+      { "level": "info", "text": "step: sprout.put" },
+      { "reader": "Marta", "kind": "said", "words": "You put a key in a strongbox." }
+    ] },
+    { "as": "Marta", "type": "stow anvil in strongbox", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "refused", "words": "An anvil is not something you can pick up." }
+    ] }
+  ]
+}

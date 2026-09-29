@@ -82,7 +82,14 @@ describe('the world’s word set', () => {
   });
 
   it('is drawn from what it is given and nothing else beside the fixed words', () => {
-    const fixed = wordSetOf({ kinds: [], named: [], identifiers: [], verbs: [], synonyms: [] });
+    const fixed = wordSetOf({
+      kinds: [],
+      named: [],
+      identifiers: [],
+      verbs: [],
+      synonyms: [],
+      intents: [],
+    });
     expect(fixed).toContain('north');
     // The words of the parser's relative phrases are its own, so no nickname takes one.
     for (const word of ['in', 'on', 'that', 'is', 'one']) expect(fixed, word).toContain(word);

@@ -15,6 +15,7 @@ import {
   visitKey,
   wakeTurn,
   commandTurn,
+  lineGoesOn,
   type Bundle,
   type CommandHost,
   type Effect,
@@ -22,6 +23,7 @@ import {
   type HostSeconds,
   type InstanceId,
   type Level,
+  type Reading,
   type VisitKey,
   type WorldState,
 } from '@overstory/sprout/lang';
@@ -248,18 +250,38 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
 /** `Marta> take brass key`: one command turn. */
 function command(stage: Stage, nickname: string, text: string, where: string): Made[] {
   const visit = present(stage, nickname, where);
-  const turn = commandTurn(stage.state, stage.host, { ...inputs(stage), visit, text });
-  if (!turn.committed) {
-    return [...effectLines(stage, turn.effects), faultLine(stage, 'the command', turn.fault)];
+  const out: Made[] = [];
+  let planned: Reading | undefined;
+  let next: readonly Reading[] = [];
+  // The line, then each step its intent planned, each a turn of its own;
+  // a step refused, and a fault, stop the rest.
+  for (let step = 0; ; step++) {
+    const turn = commandTurn(stage.state, stage.host, {
+      ...inputs(stage),
+      visit,
+      text,
+      ...(planned === undefined ? {} : { planned }),
+    });
+    if (!turn.committed) {
+      out.push(...effectLines(stage, turn.effects), faultLine(stage, 'the command', turn.fault));
+      return out;
+    }
+    stage.state = turn.state;
+    const { value } = turn;
+    // A step of an intent that runs is the host's to log at info.
+    if ('step' in value && value.step !== null) {
+      out.push(hostLineOf(`step: ${value.step.verb.library}.${value.step.verb.name}`));
+    }
+    out.push(...turnLines(stage, turn));
+    // A reading drawn from a tie is the host's to log as a warning.
+    if ('drawn' in value && value.drawn !== null) {
+      const text = `drawn: the line read ${value.drawn.among} ways that tied, and one was drawn`;
+      out.push({ level: 'warning', text, words: null, kind: null, shown: text, reader: null });
+    }
+    if (step === 0 && 'next' in value) next = value.next;
+    if (!lineGoesOn(turn) || step >= next.length) return out;
+    planned = next[step];
   }
-  stage.state = turn.state;
-  const out = turnLines(stage, turn);
-  // A reading drawn from a tie is the host's to log as a warning.
-  if ('drawn' in turn.value && turn.value.drawn !== null) {
-    const text = `drawn: the line read ${turn.value.drawn.among} ways that tied, and one was drawn`;
-    out.push({ level: 'warning', text, words: null, kind: null, shown: text, reader: null });
-  }
-  return out;
 }
 
 /** `@tick`: one tick turn for each place a visitor stands in, in the host's order. */

@@ -11,6 +11,7 @@ import {
   committedState,
   runArrival,
   runCommand,
+  runCommandLine,
   runDeparture,
   runTick,
   runWake,
@@ -48,7 +49,8 @@ const TALK = { rules: { characters: null, pace: null }, moderate: () => true };
 /**
  * A world played from its first publish: Marta arrives, types, says
  * something, is ticked and woken, faults twice, leaves, comes back to a
- * catch-up that faults, and plays on after a republish; one poll faults.
+ * catch-up that faults, and plays on after a republish, one line running
+ * an intent's two steps; one poll faults.
  */
 async function played(): Promise<SproutStore> {
   const store = memoryStore();
@@ -83,6 +85,8 @@ async function played(): Promise<SproutStore> {
   const blind = { ...second.host, budgets: { ...second.host.budgets, pollSteps: 1 } };
   await runView(store, 'w', blind, MARTA, 402);
   await runCommand(store, 'w', second.host, command('bump gauge', 403));
+  let seed = 20;
+  await runCommandLine(store, 'w', second.host, command('twice gauge', 404), () => (seed += 1));
   return store;
 }
 
@@ -118,7 +122,7 @@ describe('replaying the log', () => {
     const clacked = log.filter(
       ({ entry }) => entry.kind === 'command' && entry.effects[0]?.paragraphs[0] === 'Clack.',
     );
-    expect(clacked).toHaveLength(2);
+    expect(clacked).toHaveLength(4);
     expect(diverged.map((d) => d.seq)).toEqual(clacked.map((one) => one.seq));
     expect(diverged[0]!.replayed).toMatchObject({ effects: [{ paragraphs: ['Click.'] }] });
   });

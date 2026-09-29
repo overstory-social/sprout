@@ -14,6 +14,7 @@ const CAPS = {
   optionsPerEnum: 100,
   rolesPerVerb: 8,
   phrasesPerVerb: 8,
+  stepsPerIntent: 8,
   phraseCharacters: 80,
   nounsPerObject: 8,
   nounCharacters: 40,

@@ -1,0 +1,29 @@
+// A line that stands for several verbs (the spec's Parsing › Intents): the
+// library's `open_with`, unlocking what is locked and then opening it, and
+// the world's own `stow`, whose middle step runs only where the box is
+// shut. Each step is planned before the line runs and runs as a turn of
+// its own; one refused ends the line there.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take, open, put} from 'sprout'
+
+world intents is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object strongbox is Strongbox { :open false }
+    object key is Loose
+    object coin is Loose
+    object anvil is sprout.Fixture
+  }
+}
+
+kind Strongbox is sprout.Container, sprout.Lockable { }
+kind Loose { }
+
+intent stow {
+  "stow [x] in [y]"
+  do take (target: x) then open (target: y) when (!y.get(:open)) then put (item: x, container: y)
+}

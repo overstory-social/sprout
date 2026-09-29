@@ -36,11 +36,12 @@ import { addressOf, type AddressContext } from './parser/address.js';
 import { answer, type Answer } from './parser/answers.js';
 import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
-import { fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
+import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { writtenAs, type Candidate } from './parser/nouns.js';
-import type { TypedPhrase } from './parser/phrases.js';
-import { chooseReading, type Drawn, type Ranked } from './parser/rank.js';
+import type { TypedPart, TypedPhrase } from './parser/phrases.js';
+import type { IntentReading } from './intents.js';
+import { chooseReading, type Drawn, type Ranked, type Understood } from './parser/rank.js';
 
 /** What reading a line reads: the turn's state, the bundle, the pass rules, the meter and the draws. */
 export interface CommandContext {
@@ -58,7 +59,7 @@ export interface CommandContext {
 
 /** A line's one outcome: understood as a reading, drawn where it tied with others, or answered. */
 export type CommandOutcome =
-  { readonly understood: Reading; readonly drawn: Drawn | null } | Answer;
+  { readonly understood: Understood; readonly drawn: Drawn | null } | Answer;
 
 /** `line`, typed by `actor`, as a reading or the world's answer to it. */
 export function readCommand(
@@ -120,6 +121,51 @@ export function readCommand(
       }
     }
   }
+  for (const phrase of catalogue.intentPhrases) {
+    const { intent } = phrase;
+    const filled = new Map<string, Filled>();
+    const fillOf = (span: SlotSpan): Filled => {
+      const key = `${span.role}:${span.start}:${span.end}`;
+      let found = filled.get(key);
+      if (found === undefined) {
+        const roles = intent.slotRoles[span.role]!;
+        found = fillIntentSlot(roles, words.slice(span.start, span.end), fill);
+        filled.set(key, found);
+      }
+      return found;
+    };
+    for (const spans of slotSpans(phrase.parts, words)) {
+      budget.spend();
+      const fills = spans.map(fillOf);
+      if (fills.some((one) => one.fills === 'unfit')) continue;
+      if (fills.some((one) => one.fills === 'nothing')) {
+        notHere = true;
+        continue;
+      }
+      for (const choice of choicesOf(fills)) {
+        budget.spend();
+        const bindings = new Map<string, Bound>();
+        spans.forEach((span, at) => {
+          const chosen = choice[at]!;
+          if (chosen.words === undefined) bindings.set(intent.slots[span.role]!, chosen.bound);
+        });
+        const reading: IntentReading = { intent, actor, bindings };
+        // An intent asks no consent of its own: each step asks its own as it runs.
+        const ranked: Ranked = {
+          reading,
+          allowed: true,
+          literal: literalOf(phrase) + choice.reduce((sum, one) => sum + one.literal, 0),
+          near: intent.slots.map((_, slot) => {
+            const at = spans.findIndex((span) => span.role === slot);
+            return at < 0 ? 0 : choice[at]!.near;
+          }),
+        };
+        const key = readingKey(reading);
+        const known = readings.get(key);
+        if (known === undefined || ranked.literal > known.literal) readings.set(key, ranked);
+      }
+    }
+  }
   if (readings.size === 0) return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
   const written = (id: InstanceId): string => writtenAs(addressOf(state.instance(id)!, addressing));
   const chosen = chooseReading([...readings.values()], written, context.draws, budget);
@@ -163,14 +209,18 @@ function matchedIn(
 }
 
 /** How many words a phrase writes, each matched literally wherever it reads. */
-function literalOf(phrase: TypedPhrase): number {
+function literalOf(phrase: { readonly parts: readonly TypedPart[] }): number {
   return phrase.parts.reduce((sum, part) => sum + ('words' in part ? part.words.length : 0), 0);
 }
 
 /** A reading as a key two ways of making it share: its verb and what fills each role. */
-function readingKey(reading: Reading): string {
-  const { verb, bindings } = reading;
-  return JSON.stringify([verb.library, verb.name, [...bindings]]);
+function readingKey(reading: Understood): string {
+  const { bindings } = reading;
+  const what =
+    'verb' in reading
+      ? ['verb', reading.verb.library, reading.verb.name]
+      : ['intent', reading.intent.library, reading.intent.name];
+  return JSON.stringify([...what, [...bindings]]);
 }
 
 /**
@@ -294,9 +344,11 @@ export const parseCommand: Parser = (text, actor, context) => {
   const outcome = readCommand(text, actor, { ...context, exits });
   if ('understood' in outcome) {
     const { understood, drawn } = outcome;
-    if (drawn === null) return { reading: understood, drawn: null };
-    const meant = drawn.meant === null ? null : meantLine(context.state, actor, here, drawn.meant);
-    return { reading: understood, drawn: { among: drawn.among, meant } };
+    const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);
+    const was = drawn === null ? null : { among: drawn.among, meant };
+    return 'intent' in understood
+      ? { intended: understood, drawn: was }
+      : { reading: understood, drawn: was };
   }
   const { by, said, bindings } = outcome;
   return { answered: { effect: 'notice', to: [actor], by, speaker: null, said, bindings } };

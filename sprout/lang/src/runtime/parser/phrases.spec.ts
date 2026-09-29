@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { compiledWorld } from '../../fixtures/bundle.js';
 import { declaredId } from '../ids.js';
-import { typedPhrasesOf, type TypedPhrase } from './phrases.js';
+import { typedIntentPhrasesOf, typedPhrasesOf, type TypedPhrase } from './phrases.js';
 
 const SHOP = compiledWorld('shop', {
   'shop.sprout': [
@@ -75,5 +75,20 @@ describe('the phrases synonyms give', () => {
   it('are for an object alone where its synonym gave them, and for anyone otherwise', () => {
     const only = phrases.filter((one) => one.verb.name === 'pry').map((one) => one.only);
     expect(only).toEqual([null, null, null, null, declaredId('yard', ['hall', 'chest'])]);
+  });
+});
+
+describe('the phrases of intents', () => {
+  it('are each intent’s in the order written, a slot by its index and words as a typed line reads them', () => {
+    const shown = typedIntentPhrasesOf(SHOP.intents).map(
+      ({ intent, parts }) =>
+        `${intent.library}.${intent.name}: ${parts
+          .map((part) => ('slot' in part ? `[${intent.slots[part.slot]}]` : part.words.join(' ')))
+          .join(' ')}`,
+    );
+    expect(shown).toEqual([
+      'sprout.open_with: open [y] with [x]',
+      'sprout.open_with: use [x] to open [y]',
+    ]);
   });
 });

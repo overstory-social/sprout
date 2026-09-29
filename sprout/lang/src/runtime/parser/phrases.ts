@@ -14,6 +14,7 @@
 
 import { typedWords } from '../../declare/addressing.js';
 import { SPROUT } from '../../declare/enums.js';
+import type { ResolvedIntent } from '../../declare/intents.js';
 import { synonymPhrases, type ScopedSynonym } from '../../declare/synonyms.js';
 import type { ResolvedPhrase, ResolvedVerb } from '../../declare/verbs.js';
 import { declaredId, type InstanceId } from '../ids.js';
@@ -74,4 +75,24 @@ function typedPhrase(
     }),
     only,
   };
+}
+
+/** One of an intent's phrases, ready to try against a typed line: each slot by its index among the intent's slots. */
+export interface TypedIntentPhrase {
+  readonly intent: ResolvedIntent;
+  readonly parts: readonly TypedPart[];
+}
+
+/** Every phrase of `intents`, each intent's in the order written. */
+export function typedIntentPhrasesOf(intents: readonly ResolvedIntent[]): TypedIntentPhrase[] {
+  return intents.flatMap((intent) =>
+    intent.phrases.map((phrase) => ({
+      intent,
+      parts: phrase.parts.flatMap((part): TypedPart[] => {
+        if (part.part === 'slot') return [{ slot: part.role }];
+        const words = typedWords(part.text);
+        return words.length === 0 ? [] : [{ words }];
+      }),
+    })),
+  );
 }

@@ -12,7 +12,7 @@
 import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
 import type { HandlerDeclaration, HookDeclaration, PassDeclaration } from './ast-events.js';
-import type { SynonymsDeclaration, VerbDeclaration } from './ast-verbs.js';
+import type { IntentDeclaration, SynonymsDeclaration, VerbDeclaration } from './ast-verbs.js';
 import type { ExtensionStatement, ExtensionUse } from './ast-extensions.js';
 import type { ImportDeclaration } from './ast-imports.js';
 import type { Prose, ProseLiteral } from './ast-prose.js';
@@ -794,6 +794,7 @@ export type Declaration =
   | WorldDeclaration
   | KindDeclaration
   | VerbDeclaration
+  | IntentDeclaration
   | ExtensionUse
   | ImportDeclaration
   | ObjectDeclaration;

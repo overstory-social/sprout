@@ -208,12 +208,22 @@ export function nounIn(
   candidates: readonly Candidate[],
   context: NounContext,
 ): NounFound {
+  return thingsIn(words, (instance) => fits(role, instance), candidates, context);
+}
+
+/** What one noun names among `candidates`, nearest first, of what `fitting` says may fill its slot. */
+export function thingsIn(
+  words: readonly string[],
+  fitting: (instance: Instance) => boolean,
+  candidates: readonly Candidate[],
+  context: NounContext,
+): NounFound {
   const answered = named(words, candidates, context);
   if (answered.length === 0) return { found: 'nothing' };
-  const fitting = answered.filter(({ candidate }) => fits(role, candidate.instance));
-  if (fitting.length === 0) return { found: 'unfit' };
-  const byName = fitting.filter(({ by }) => by === 'name');
-  const pool = byName.length > 0 ? byName : fitting;
+  const fit = answered.filter(({ candidate }) => fitting(candidate.instance));
+  if (fit.length === 0) return { found: 'unfit' };
+  const byName = fit.filter(({ by }) => by === 'name');
+  const pool = byName.length > 0 ? byName : fit;
   return {
     found: 'some',
     things: pool.map(({ candidate, literal }) => ({

@@ -6,7 +6,8 @@ import { Budget } from '../budget.js';
 import { Draws } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import type { Reading } from '../reading.js';
-import { chooseReading, compareRanked, type Ranked } from './rank.js';
+import type { IntentReading } from '../intents.js';
+import { chooseReading, compareRanked, slotNamesOf, type Ranked } from './rank.js';
 
 const TAKE = STUDY.verbs.qualified('sprout', 'take')!;
 const ACTOR = 'study#1' as InstanceId;
@@ -80,5 +81,32 @@ describe('readings, ranked whole', () => {
   it('draw among things written alike without naming one, since no word could tell them apart', () => {
     const chosen = choose([taking(PEBBLE_A), taking(PEBBLE_B)]);
     expect(chosen.drawn).toEqual({ among: 2, meant: null });
+  });
+});
+
+describe('an intent’s reading, ranked among verbs’', () => {
+  const OPEN_WITH = STUDY.intents.find((one) => one.name === 'open_with')!;
+  /** Opening `y` with `x` by the library's intent, allowed as an intent's reading is. */
+  const opening = (y: InstanceId, x: InstanceId): Ranked => {
+    const reading: IntentReading = {
+      intent: OPEN_WITH,
+      actor: ACTOR,
+      bindings: new Map([
+        ['y', { object: y }],
+        ['x', { object: x }],
+      ]),
+    };
+    return { reading, allowed: true, literal: 2, near: [1, 1] };
+  };
+
+  it('fills its slots by name, where a verb’s reading fills its roles', () => {
+    expect(slotNamesOf(opening(GONG, BRASS_KEY).reading)).toEqual(['y', 'x']);
+    expect(slotNamesOf(taking(GONG).reading)).toEqual(['target']);
+  });
+
+  it('is drawn among its ties as a verb’s is, the thing named from its first slot that differs', () => {
+    const chosen = choose([opening(GONG, BRASS_KEY), opening(GONG, IRON_KEY)]);
+    const x = (chosen.reading as IntentReading).bindings.get('x') as { object: InstanceId };
+    expect(chosen.drawn).toEqual({ among: 2, meant: x.object });
   });
 });

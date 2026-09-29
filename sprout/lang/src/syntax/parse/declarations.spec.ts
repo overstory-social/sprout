@@ -246,7 +246,7 @@ describe('what the parser refuses, and where it says so', () => {
     const { refusals } = read('link take { }');
     expect(refusals[0]!.message).toBe('Sprout does not know what to do with "link" here.');
     expect(refusals[0]!.remedy).toBe(
-      'A file holds declarations, and this compiler reads `enum`, `import`, `kind`, `message`, `object`, `verb` and `world`.',
+      'A file holds declarations, and this compiler reads `enum`, `import`, `intent`, `kind`, `message`, `object`, `verb` and `world`.',
     );
     expect(locationOf(refusals[0]!.at)).toBe('ward.sprout:1:1');
   });

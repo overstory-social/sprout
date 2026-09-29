@@ -62,6 +62,7 @@ export { DEEPEST } from './parse/parser.js';
 export const DECLARATIONS = [
   'enum',
   'import',
+  'intent',
   'kind',
   'message',
   'object',

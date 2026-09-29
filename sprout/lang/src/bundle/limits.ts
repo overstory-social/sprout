@@ -55,8 +55,10 @@ export interface StaticCaps {
   readonly optionsPerEnum: number;
   /** Roles on one verb, counting a set role as one. */
   readonly rolesPerVerb: number;
-  /** Phrases on one verb. */
+  /** Phrases on one verb or intent. */
   readonly phrasesPerVerb: number;
+  /** Steps in one intent. */
+  readonly stepsPerIntent: number;
   /** Characters in one phrase. */
   readonly phraseCharacters: number;
   /** Nouns on one object. */
@@ -159,6 +161,7 @@ export const DEFAULT_LIMITS: Limits = {
     optionsPerEnum: 100,
     rolesPerVerb: 8,
     phrasesPerVerb: 8,
+    stepsPerIntent: 8,
     phraseCharacters: 80,
     nounsPerObject: 8,
     nounCharacters: 40,
@@ -200,6 +203,7 @@ export type WhenExceeded = 'refusal' | 'fault' | 'raised' | 'move-refused' | 'ni
 export type LimitScope =
   | 'enum'
   | 'verb'
+  | 'intent'
   | 'phrase'
   | 'object'
   | 'noun'
@@ -248,7 +252,14 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     kind: 'cap',
     scope: 'verb',
     exceeded: 'refusal',
-    bounds: 'phrases on one verb',
+    bounds: 'phrases on one verb or intent',
+  },
+  {
+    name: 'stepsPerIntent',
+    kind: 'cap',
+    scope: 'intent',
+    exceeded: 'refusal',
+    bounds: 'steps in one intent',
   },
   {
     name: 'phraseCharacters',

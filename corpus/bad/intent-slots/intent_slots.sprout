@@ -1,0 +1,25 @@
+// What an intent's phrases and steps must agree on: a step, a phrase, each
+// slot a phrase names given a role and each slot filled named by a phrase,
+// a phrase and a slot once each, and a role given once.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take, open, unlock, put} from 'sprout'
+
+world intent_slots is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is Chest
+    object key is Loose
+  }
+}
+
+kind Chest is sprout.Container, sprout.Lockable { }
+kind Loose { }
+
+intent stash { "stash [y]" }
+intent hoard { do take (target: key) }
+intent grab { "grab [y] with [x]"  do take (target: y) }
+intent seize { "seize [y]"  do unlock (target: y, tool: x) }
+intent clutch { "clutch [y]"  "clutch [y]"  "clutch [y] [y]"  do open (target: y, target: y) }

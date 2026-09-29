@@ -2,6 +2,7 @@ import {
   closedByBundle,
   NOT_ADMITTING,
   keptNickname,
+  lineGoesOn,
   moderated,
   nicknameRefusal,
   pollTurn,
@@ -69,6 +70,32 @@ export function runCommand(
   return store.transaction(microworldId, async (tx) =>
     landed(tx, commandStep(loaded(await tx.state(), host), host, command)),
   );
+}
+
+/**
+ * Run the line `command` typed: its turn, then each step its intent
+ * planned, each a command turn of its own under the lock, with its own
+ * seed from `seed` and its own log entry (the spec's Parsing › Intents).
+ * A step refused, in its consent pass or by its body, a line answered and
+ * a fault each stop the rest, and
+ * what ran before stays done. Every turn that ran, in order.
+ */
+export async function runCommandLine(
+  store: SproutStore,
+  microworldId: string,
+  host: CommandHost,
+  command: Command,
+  seed: () => number,
+): Promise<CommandTurn[]> {
+  const turns = [await runCommand(store, microworldId, host, command)];
+  let last = turns[0]!;
+  const next = last.committed && 'next' in last.value ? last.value.next : [];
+  for (const planned of next) {
+    if (!lineGoesOn(last)) break;
+    last = await runCommand(store, microworldId, host, { ...command, seed: seed(), planned });
+    turns.push(last);
+  }
+  return turns;
 }
 
 /**

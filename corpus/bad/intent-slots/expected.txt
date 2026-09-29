@@ -1,0 +1,22 @@
+intent_slots.sprout:21:8   `stash` has no steps.
+                           Write what it stands for after `do`, as in `do unlock (target: y, tool: x) then open (target: y)`.
+
+intent_slots.sprout:22:8   `hoard` has no phrase a visitor could type.
+                           Write its phrases in quotes, the canonical one first, as in `"open [y] with [x]"`.
+
+intent_slots.sprout:23:30  `"grab [y] with [x]"` names `x`, and no step of `grab` gives it a role.
+                           Give it to a role in a step, as in `do open (target: x)`, or take the slot out.
+
+intent_slots.sprout:24:57  `x` fills a role, and no phrase of `seize` names it, so nothing could fill it.
+                           Name it in a phrase in brackets, as in `"open [x]"`, or give the role a slot a phrase names.
+
+intent_slots.sprout:25:31  `clutch` has the phrase `"clutch [y]"` twice.
+                           A phrase is written once. Remove the second.
+
+intent_slots.sprout:25:57  `"clutch [y] [y]"` names `y` twice.
+                           A phrase names each slot once. Name another in one of them, or take one out.
+
+intent_slots.sprout:25:83  This step gives `target` twice.
+                           Give each role of the verb one slot.
+
+refused: 7 problems

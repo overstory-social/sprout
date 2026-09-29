@@ -49,6 +49,13 @@ export const DECLARATION_TABLE: readonly Entry[] = [
       'a name another file declares, by its path from the world without `.sprout`; `import * as sprout from` a library for all of it',
   },
   {
+    word: 'intent',
+    example:
+      'intent light_with { "light [y] with [x]"  do take (target: x) then light (target: y) }',
+    means:
+      'a phrase that stands for several verbs’ steps, each its own turn; a step runs only `when` its condition holds, read before the line runs',
+  },
+  {
     word: 'kind',
     example: 'kind Lamp is sprout.Fixture { … }',
     means: 'what things are made of; a kind composes others with `is`',

@@ -1,0 +1,28 @@
+// An intent written wrongly costs only itself: its name, its braces, its
+// steps' verbs, fillers, commas and `when`, and a second `do`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take, open, unlock, put} from 'sprout'
+
+world intent_syntax is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is Chest
+    object key is Loose
+  }
+}
+
+kind Chest is sprout.Container, sprout.Lockable { }
+kind Loose { }
+
+intent Stash { "stash [y]"  do take (target: y) }
+intent hoard "hoard [y]"  do take (target: y)
+intent grab { "grab [y]"  do (target: y) }
+intent seize { "seize [y]"  do take (y) }
+intent clutch { "clutch [y] with [x]"  do unlock (target: y tool: x) }
+intent pocket { "pocket [y]"  do take (target: y) when }
+intent heft { "heft [y]"  do take (target: y)  do open (target: y) }
+intent lift { "lift [y]"  role target  do take (target: y) }
+intent keep { "keep [y]"  do take (target: y)

@@ -1,0 +1,16 @@
+{
+  "name": "intent_when",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "976d0346d2a86812cf627a030928078c596895991692335efe91ce69755b4dd5"
+    }
+  ],
+  "files": ["intent_when.sprout", "person.sprout"]
+}

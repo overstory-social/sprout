@@ -3,7 +3,7 @@
 // verb). Every node keeps the rule `ast.ts` states: a `kind` and an `at`.
 
 import type { Node } from '../source/nodes.js';
-import type { Ident, KindExpr } from './ast.js';
+import type { Expr, Ident, KindExpr } from './ast.js';
 
 /**
  * `symbol`, `integer` or `exit` after a role's colon: a value the visitor
@@ -100,4 +100,38 @@ export interface VerbDeclaration extends Node {
   readonly phrases: readonly PhraseDeclaration[];
   /** Its own `synonyms`, which hold everywhere the verb does. */
   readonly synonyms: readonly SynonymWords[];
+}
+
+/** `target: y` in an intent's step: the role the step gives the slot's thing to. */
+export interface IntentFiller extends Node {
+  readonly kind: 'intent-filler';
+  readonly role: Ident;
+  readonly slot: Ident;
+}
+
+/**
+ * `unlock (target: y, tool: x) when (y.get(:locked))`: one step of an
+ * intent, the verb it performs, which slot fills each role, and the
+ * condition, read before the line runs, under which it runs.
+ */
+export interface IntentStep extends Node {
+  readonly kind: 'intent-step';
+  readonly verb: Ident;
+  readonly fillers: readonly IntentFiller[];
+  readonly when: Expr | null;
+}
+
+/**
+ * `intent open_with { "open [y] with [x]"  do unlock (target: y, tool: x)
+ * then open (target: y) }`: a canonical phrase, the first, other phrases
+ * that mean the same, and the steps it stands for (the spec's Parsing ›
+ * Intents). A phrase's slots name the intent's own slots.
+ */
+export interface IntentDeclaration extends Node {
+  readonly kind: 'intent';
+  readonly name: Ident;
+  readonly phrases: readonly PhraseDeclaration[];
+  readonly steps: readonly IntentStep[];
+  /** Whether every phrase and step written was read; where one was not, what they must agree on is not asked. */
+  readonly whole: boolean;
 }

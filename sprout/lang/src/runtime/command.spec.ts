@@ -747,3 +747,63 @@ describe('the standard library, played through command turns', () => {
     ]);
   });
 });
+
+describe('an intent, through command turns', () => {
+  /** What each line was read as, by whom, and the verb of each step it ran, played from the workshop. */
+  const linesIn = (...commands: (readonly [typeof MARTA_AT, string])[]) =>
+    playedAll(workshop(), commands).map(({ read, steps }) => ({ read, steps }));
+
+  it('runs each step it planned as a turn of its own, in order', () => {
+    expect(linesIn([MARTA_AT, 'take key'], [MARTA_AT, 'open chest with key'])[1]).toEqual({
+      read: {
+        Marta: ['The lock turns over.', 'You open a chest. It is empty.'],
+        Ines: ['Marta unlocks a chest.', 'Marta opens a chest.'],
+      },
+      steps: ['unlock', 'open'],
+    });
+  });
+
+  it('leaves out a step whose `when` is false before the line runs', () => {
+    expect(
+      linesIn(
+        [MARTA_AT, 'take key'],
+        [MARTA_AT, 'unlock chest with key'],
+        [MARTA_AT, 'use key to open chest'],
+      )[2],
+    ).toEqual({
+      read: { Marta: ['You open a chest. It is empty.'], Ines: ['Marta opens a chest.'] },
+      steps: ['open'],
+    });
+  });
+
+  it('runs no step after one that is refused', () => {
+    expect(linesIn([MARTA_AT, 'take pin'], [MARTA_AT, 'open chest with pin'])[1]).toEqual({
+      read: { Marta: ['That does not fit the lock.'] },
+      steps: ['unlock'],
+    });
+  });
+
+  it('runs no step after one whose body refuses its actor, as a guard refusing a move does', () => {
+    expect(linesIn([MARTA_AT, 'heft anvil'])[0]).toEqual({
+      read: { Marta: ['An anvil is not something you can pick up.'] },
+      steps: ['take'],
+    });
+    expect(linesIn([MARTA_AT, 'heft pin'])[0]).toEqual({
+      read: {
+        Marta: ['You take a pin.', 'You put a pin down.'],
+        Ines: ['Marta takes a pin.', 'Marta puts a pin down.'],
+      },
+      steps: ['take', 'drop'],
+    });
+  });
+
+  it('answers `nothing_happens` where every step is left out', () => {
+    expect(
+      linesIn(
+        [MARTA_AT, 'take key'],
+        [MARTA_AT, 'unlock chest with key'],
+        [MARTA_AT, 'pick chest with key'],
+      )[2],
+    ).toEqual({ read: { Marta: ['Nothing much comes of that.'] }, steps: [] });
+  });
+});

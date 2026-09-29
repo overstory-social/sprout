@@ -232,6 +232,7 @@ describe('what a compiled bundle carries', () => {
       'Container',
       'unlock',
       'Lockable',
+      'open_with',
       'ask',
     ]);
     // The word set holds what the grammar reads: here, the hall and the

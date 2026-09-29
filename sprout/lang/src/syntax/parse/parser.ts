@@ -59,6 +59,9 @@ const DECLARATION_SHAPES: ReadonlyMap<string, (name: Token, after: Token) => boo
     (name: Token, after: Token) =>
       punct(name, '{') || ((name.kind === 'name' || name.kind === 'kind') && punct(after, '{')),
   ],
+  // `intent open_with { … }` — a lower-case name, then the brace its
+  // phrases and steps go in.
+  ['intent', (name: Token, after: Token) => name.kind === 'name' && punct(after, '{')],
   // `world printers_shop is sprout.World { … }` — and the same with the
   // composition left out, or written with the colon, which parse so that
   // the refusal can name them.

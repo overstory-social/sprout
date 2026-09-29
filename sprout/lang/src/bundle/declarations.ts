@@ -17,7 +17,7 @@
 // out.
 
 import type { Declaration, KindDeclaration, WorldDeclaration } from '../syntax/ast.js';
-import type { VerbDeclaration } from '../syntax/ast-verbs.js';
+import type { IntentDeclaration, VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from '../declare/enums.js';
 import { MessageTable } from '../declare/messages.js';
@@ -31,6 +31,7 @@ import {
   type ResolvedObject,
 } from '../declare/objects.js';
 import type { OnUnknown } from '../declare/compose.js';
+import { IntentTable } from '../declare/intents.js';
 import { VerbNames, type OnUnknownVerb } from '../declare/roles.js';
 import type { OnUnknownMessage } from '../declare/handlers.js';
 import { placeObjects, type ObjectTree } from '../declare/tree.js';
@@ -51,6 +52,8 @@ export interface DeclarationTables {
   /** Which verbs are declared, by name, which is what composing a play reads. */
   readonly verbNames: VerbNames;
   readonly verbs: VerbTable;
+  /** Every intent, a world's replacing a library's of its name. */
+  readonly intents: IntentTable;
   /** What each kind's body gives every instance of it. */
   readonly contents: KindContents;
   /** The objects written in the world's body that could be composed and placed, in the order declared. */
@@ -146,6 +149,15 @@ export function resolveDeclarations(
     );
   }
 
+  const intents = new IntentTable();
+  for (const [library, declared] of byLibrary) {
+    intents.add(
+      library,
+      declared.filter((d): d is IntentDeclaration => d.kind === 'intent'),
+      { verbs, named: (from) => verbNames.named(from), diagnostics },
+    );
+  }
+
   const contents = resolveContents(
     new Map(
       [...byLibrary].map(([library, declared]) => [
@@ -173,6 +185,7 @@ export function resolveDeclarations(
     kinds,
     verbNames,
     verbs,
+    intents,
     contents,
     objects: placedObjects(world.namespace, composed, tree),
     tree,

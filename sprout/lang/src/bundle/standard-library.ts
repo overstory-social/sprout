@@ -201,7 +201,8 @@ const LOCKABLE = `// sprout.Lockable: a lock, which carries no pass rule of its 
 // a \`permit\` to the library's \`open\`, so a locked container stays shut
 // until it is unlocked (the spec's A worked microworld, The standard
 // library it needs). Which tool fits is the world's to say, in a
-// \`permit\` of its own.
+// \`permit\` of its own. \`open_with\` reads \`open y with x\` as unlocking
+// y with x where it is locked, then opening it (the spec's Intents).
 import {open} from ${Q}container${Q}
 
 verb unlock {
@@ -225,6 +226,12 @@ kind Lockable {
 
   passage unlocked default { The lock turns over. }
   passage unlocks default  { {actor} unlocks {self}. }
+}
+
+intent open_with {
+  "open [y] with [x]"
+  "use [x] to open [y]"
+  do unlock (target: y, tool: x) when (y.get(:locked)) then open (target: y)
 }
 `;
 

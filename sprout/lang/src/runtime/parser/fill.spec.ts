@@ -15,7 +15,7 @@ import {
 import type { InstanceId } from '../ids.js';
 import type { Reading } from '../reading.js';
 import { addressOf } from './address.js';
-import { fillSlot, valueOf } from './fill.js';
+import { fillIntentSlot, fillSlot, valueOf } from './fill.js';
 
 const one = study();
 const addressing = { world: one.draft.world, nicknames: one.nicknames };
@@ -119,5 +119,29 @@ describe('the value a value role’s words bind', () => {
     for (const line of ['13', '0', '-0', 'seven', '7 8', '99999999999999999999']) {
       expect(number(line), line).toBeNull();
     }
+  });
+});
+
+describe('what an intent’s slot is filled with', () => {
+  const roles = [role('unlock', 'tool'), role('turn', 'target')];
+  const fillIntent = (line: string) => fillIntentSlot(roles, typedWords(line), context);
+
+  it('is each thing its words name that fits any role the slot is given to', () => {
+    expect(fillIntent('metal')).toEqual({
+      fills: 'options',
+      options: [
+        { bound: { object: BRASS_KEY }, near: 2, literal: 1 },
+        { bound: { object: IRON_KEY }, near: 2, literal: 1 },
+      ],
+    });
+    expect(fillIntent('dial')).toEqual({
+      fills: 'options',
+      options: [{ bound: { object: DIAL }, near: 2, literal: 1 }],
+    });
+  });
+
+  it('is unfit where what the words name fits none of its roles, and nothing where they name nothing', () => {
+    expect(fillIntent('gong')).toEqual({ fills: 'unfit' });
+    expect(fillIntent('zebra')).toEqual({ fills: 'nothing', start: 0, end: 1 });
   });
 });

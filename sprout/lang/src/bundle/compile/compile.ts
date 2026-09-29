@@ -48,6 +48,8 @@ import { checkActors, isVisitorKind } from '../../declare/actors.js';
 import { WORLD } from '../../declare/sprout-world.js';
 import { everyContent } from '../../declare/contents.js';
 import { hereKindOf } from '../../declare/places.js';
+import { SPROUT } from '../../declare/enums.js';
+import { checkIntentSteps } from '../../check/intents.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
 import { arrivalPlace } from './arrival.js';
@@ -224,9 +226,19 @@ export function compileBundle(
     }),
     ...(world === null ? [] : [{ kind: world, vantage: { in: 'tree' as const, path: [] } }]),
   ];
+  const here = hereKindOf(everyKind, tables.kinds);
+  for (const intent of tables.intents.all()) {
+    checkIntentSteps(intent, {
+      kinds: tables.kinds,
+      actor: tables.kinds.qualified(SPROUT, 'Actor'),
+      here,
+      diagnostics: report.diagnostics,
+    });
+  }
+  const intents = tables.intents.typed(manifest.namespace);
   const { optionSlots, unheard } = checkBodies(written, {
     kinds: tables.kinds,
-    here: hereKindOf(everyKind, tables.kinds),
+    here,
     verbs: tables.verbs,
     diagnostics: report.diagnostics,
     messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
@@ -363,6 +375,7 @@ export function compileBundle(
     tree: tables.tree,
     arrival,
     synonyms,
+    intents,
     words: wordSetOf({
       kinds: everyKind,
       named: tables.kinds.all().filter((kind) => !kind.composes.has(WORLD) && !isVisitorKind(kind)),
@@ -373,6 +386,7 @@ export function compileBundle(
       ),
       verbs: tables.verbs.all(),
       synonyms,
+      intents,
     }),
     level,
     extensions: [...extensions.pinned.values()],
