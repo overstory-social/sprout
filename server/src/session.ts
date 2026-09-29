@@ -48,12 +48,38 @@ export function visitOfToken(token: string): VisitKey {
   return visitKey(`token:${createHash('sha256').update(token).digest('hex')}`);
 }
 
-/** Read one frame from `connection` and answer it. */
+/**
+ * Read one frame from `connection` and answer it. Where answering it
+ * fails, the failure is logged and the client is still answered, in words,
+ * and a line or a poll waiting on its `seq` is sent that `seq`.
+ */
 export async function frame(
   context: ServerContext,
   connection: Connection,
   text: string,
 ): Promise<void> {
+  try {
+    await answer(context, connection, text);
+  } catch (error) {
+    context.log.write(
+      'error',
+      `a frame could not be answered: ${String(error)}`,
+      connection.world?.served.id,
+    );
+    connection.send({
+      t: 'refused',
+      stage: 'frame',
+      reason: 'failed',
+      text: 'The server could not finish answering that. What it did before it failed stands.',
+    });
+    const read = clientMessageOf(text);
+    if ('message' in read && (read.message.t === 'command' || read.message.t === 'poll')) {
+      connection.send({ t: 'effects', seq: read.message.seq, effects: [] });
+    }
+  }
+}
+
+async function answer(context: ServerContext, connection: Connection, text: string): Promise<void> {
   const read = clientMessageOf(text);
   if ('malformed' in read) {
     connection.send({
@@ -195,6 +221,13 @@ async function admit(
     return;
   }
   if (!arrived.committed) {
+    if ('fault' in arrived) {
+      context.log.write(
+        'error',
+        `an arrival faulted, ${arrived.fault.name}: ${arrived.fault.detail}`,
+        served.id,
+      );
+    }
     const text = 'words' in arrived ? arrived.words : 'You cannot come in just now.';
     connection.send({ t: 'refused', stage: 'admit', reason: 'refused', text });
     return;
@@ -295,4 +328,10 @@ export async function depart(context: ServerContext, connection: Connection): Pr
   });
   world.views.stale(served.id, [visit]);
   if (turn.committed) await fanOut(context, world, turn.effects, turn.stale, null);
+  else
+    context.log.write(
+      'error',
+      `a departure faulted, ${turn.fault.name}: ${turn.fault.detail}`,
+      served.id,
+    );
 }

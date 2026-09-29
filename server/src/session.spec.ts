@@ -115,4 +115,36 @@ describe('a frame', () => {
     expect(connection.closed).toBe(true);
     expect(connection.world).toBeNull();
   });
+
+  it('answers a frame it fails on, in words, and sends a waiting line its `seq`, logging the failure', async () => {
+    const made = await context();
+    const connection = keptConnection();
+    await frame(made, connection, HELLO);
+    await frame(
+      made,
+      connection,
+      JSON.stringify({ t: 'admit', world: 'sequences', nickname: 'Marta' }),
+    );
+    const failing = {
+      ...made,
+      store: {
+        ...made.store,
+        transaction: () => Promise.reject(new Error('the disk is gone')),
+      },
+    };
+    connection.sent.length = 0;
+    await frame(failing, connection, JSON.stringify({ t: 'command', seq: 4, line: 'take key' }));
+    expect(connection.sent).toEqual([
+      {
+        t: 'refused',
+        stage: 'frame',
+        reason: 'failed',
+        text: 'The server could not finish answering that. What it did before it failed stands.',
+      },
+      { t: 'effects', seq: 4, effects: [] },
+    ]);
+    expect((made.log as unknown as { lines: string[] }).lines.at(-1)).toContain(
+      'a frame could not be answered: Error: the disk is gone',
+    );
+  });
 });

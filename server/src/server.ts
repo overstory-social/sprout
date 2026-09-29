@@ -92,11 +92,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     // Frames are read one at a time, in order, so a turn never races the next line.
     let reading: Promise<void> = Promise.resolve();
     socket.on('message', (data) => {
-      reading = reading
-        .then(() => frame(context, connection, data.toString()))
-        .catch((error: unknown) => {
-          log.write('error', `a frame could not be answered: ${String(error)}`);
-        });
+      // `frame` answers even a frame it fails on, so nothing waits in silence.
+      reading = reading.then(() => frame(context, connection, data.toString()));
     });
     socket.on('close', () => {
       reading = reading
