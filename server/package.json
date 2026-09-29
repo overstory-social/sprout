@@ -1,0 +1,45 @@
+{
+  "name": "@overstory/sprout-server",
+  "version": "0.1.0",
+  "description": "Sprout's reference host: a headless server that runs microworlds for clients connected over a WebSocket, with its config, its clock and its protocol.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@overstory/sprout": "0.1.0",
+    "@overstory/sprout-player": "0.1.0",
+    "smol-toml": "^1.9.0",
+    "ws": "^8.22.0",
+    "zod": "^4.4.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overstory-social/sprout.git",
+    "directory": "server"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}

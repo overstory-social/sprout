@@ -175,6 +175,13 @@ network, no clock and no config: time moves only when a script says so.
 
 ## Not in the first cut
 
+- A store kept on disk: the first cut serves `[store] kind = "memory"`, and
+  which store and dependency comes next is Eric's to decide (issue 393).
+- Installing extensions: `[extensions]` is refused until the server loads
+  them.
+- Conversation rules: chat has no length or pace limit, and no moderation,
+  until the moderation work sets them.
+
 - An admin interface (`status`, force a tick, withhold a file).
 - A telnet/GMCP gateway and an SSH front door. The protocol is plain JSON
   messages, so either can be added in front of it without changing it.

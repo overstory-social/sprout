@@ -53,15 +53,18 @@ describe('a screen reader', () => {
 
   it('speaks every delivery it is given, one announcement each, by its kind alone', () => {
     const kinds = Object.keys(URGENCY) as (keyof typeof URGENCY)[];
-    const deliveries: WordsDelivery[] = kinds.map((kind, i) => ({
-      kind,
-      as: 'words',
-      recorded: null,
-      from: LANTERN,
-      actor: null,
-      to: HALL,
-      paragraphs: [`first ${i}`, `second ${i}`],
-    }));
+    const deliveries: WordsDelivery[] = kinds.map((kind, i) => {
+      const parts = {
+        as: 'words',
+        from: LANTERN,
+        actor: null,
+        to: HALL,
+        paragraphs: [`first ${i}`, `second ${i}`],
+      } as const;
+      return kind === 'extension'
+        ? { ...parts, kind, recorded: { extension: 'slides', statement: 'show' } }
+        : { ...parts, kind, recorded: null };
+    });
     const said = announce(deliveries);
     expect(said.map((one) => one.kind)).toEqual(kinds);
     expect(said.map((one) => one.urgency)).toEqual(kinds.map((kind) => URGENCY[kind]));

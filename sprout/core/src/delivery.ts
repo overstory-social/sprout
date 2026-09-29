@@ -18,18 +18,24 @@ import { rendersPayload, type ClientCapabilities } from './capabilities.js';
 // transcript line where it was not, so every effect reaches every client
 // as something it can show. Nothing here reaches the world.
 
-/** An effect sent as words: a prose effect, or an extension's by its transcript line. */
-export interface WordsDelivery {
-  readonly kind: EffectKind;
+/** What every effect sent as words carries. */
+interface Words {
   readonly as: 'words';
-  /** The extension and statement that recorded it; null for a prose effect. */
-  readonly recorded: { readonly extension: string; readonly statement: string } | null;
   readonly from: InstanceId;
   readonly actor: InstanceId | null;
   readonly to: InstanceId;
   /** The words, rendered for this reader, one string to a paragraph. */
   readonly paragraphs: readonly string[];
 }
+
+/** An effect sent as words: a prose effect, recorded by no extension, or an extension's by its transcript line. */
+export type WordsDelivery =
+  | (Words & { readonly kind: Exclude<EffectKind, 'extension'>; readonly recorded: null })
+  | (Words & {
+      readonly kind: 'extension';
+      /** The extension and statement that recorded it. */
+      readonly recorded: { readonly extension: string; readonly statement: string };
+    });
 
 /** An extension's effect sent as its payload, to a client granted its statement. */
 export interface PayloadDelivery {
@@ -76,12 +82,12 @@ export function deliveryOf(effect: Effect, capabilities: ClientCapabilities): De
 }
 
 function wordsOf(effect: Effect): WordsDelivery {
-  const { kind, from, actor, to, paragraphs } = effect;
-  const recorded =
-    effect.kind === 'extension'
-      ? { extension: effect.extension, statement: effect.statement }
-      : null;
-  return { kind, as: 'words', recorded, from, actor, to, paragraphs };
+  const { from, actor, to, paragraphs } = effect;
+  if (effect.kind !== 'extension') {
+    return { kind: effect.kind, as: 'words', recorded: null, from, actor, to, paragraphs };
+  }
+  const recorded = { extension: effect.extension, statement: effect.statement };
+  return { kind: 'extension', as: 'words', recorded, from, actor, to, paragraphs };
 }
 
 /** What a view's description recorded, as one client is sent it: its payload, or its transcript line. */
