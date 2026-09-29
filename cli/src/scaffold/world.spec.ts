@@ -6,16 +6,16 @@ import { compileBundle, libraryHash, STANDARD_LIBRARY } from '@overstory/sprout/
 import { runTests, testFiles } from '@overstory/sprout-player';
 import { describe, expect, it } from 'vitest';
 
-import { initWorld } from './init.js';
+import { scaffoldWorld } from './world.js';
 import { readWorld } from '@overstory/sprout-player';
 
 /** A single quote, as an import's specifier is written between them. */
 const Q = "'";
 
-describe('initWorld', () => {
+describe('scaffoldWorld', () => {
   it('writes a manifest, a world, its visitors’ kind, a first test and a README, named for the folder', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Paper Store');
-    expect(initWorld(dir, 'marta')).toEqual([
+    expect(scaffoldWorld(dir, 'marta')).toEqual([
       'sprout.json',
       'paper_store.sprout',
       'person.sprout',
@@ -40,14 +40,14 @@ describe('initWorld', () => {
 
   it('writes a world that composes `sprout.World`, as every world does', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
-    initWorld(dir, 'marta');
+    scaffoldWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8');
     expect(written).toContain('world kiln_yard is sprout.World {');
   });
 
   it('writes the place visitors arrive at, written in the world’s body, holding actors', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
-    initWorld(dir, 'marta');
+    scaffoldWorld(dir, 'marta');
     const written = readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8');
     expect(written).toContain('  visitors arrive at hall\n');
     expect(written).toMatch(
@@ -62,7 +62,7 @@ describe('initWorld', () => {
 
   it('writes the kind visitors are made of: the world’s own, composing `sprout.Visitor`, in the file named for it', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'Kiln Yard');
-    initWorld(dir, 'marta');
+    scaffoldWorld(dir, 'marta');
     expect(readFileSync(join(dir, 'kiln_yard.sprout'), 'utf8')).toContain(
       '  visitors are Person\n',
     );
@@ -82,7 +82,7 @@ describe('initWorld', () => {
 
   it('makes the visitors of a world called `person` of `Guest`, since the world holds `person.sprout`', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'person');
-    expect(initWorld(dir, 'marta')).toEqual([
+    expect(scaffoldWorld(dir, 'marta')).toEqual([
       'sprout.json',
       'person.sprout',
       'guest.sprout',
@@ -98,7 +98,7 @@ describe('initWorld', () => {
 
   it('writes a first test the world it wrote passes', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'shed');
-    initWorld(dir, 'marta');
+    scaffoldWorld(dir, 'marta');
     const bundle = compileBundle(readWorld(dir).source!).bundle!;
     expect(runTests(bundle, testFiles(dir, []))).toEqual({
       ok: true,
@@ -109,6 +109,6 @@ describe('initWorld', () => {
   it('refuses a folder that already has something in it', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sprout-init-'));
     writeFileSync(join(dir, 'notes.txt'), 'x');
-    expect(() => initWorld(dir, 'marta')).toThrow('not empty');
+    expect(() => scaffoldWorld(dir, 'marta')).toThrow('not empty');
   });
 });

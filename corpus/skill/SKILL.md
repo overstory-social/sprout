@@ -117,7 +117,13 @@ kind Match {
 ```text
 sprout — a Sprout microworld on the command line
 
-  sprout init [dir] [--author name]   a folder with sprout.json, a world and a README line
+  sprout scaffold world [dir] [--author name]
+                                      a folder with sprout.json, a world, a first test and a README line
+  sprout scaffold kind Name [dir] [--is Kind,…] [--path file]
+                                      a kind, in its own file or appended to --path, with the imports it needs
+  sprout scaffold object name [dir] --in place --is Kind,… [--path file]
+                                      an object placed in what --in names, in its own file or appended to --path
+  sprout scaffold test name [dir]     tests/name.json, a test that arrives and expects what the visitor reads
   sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]

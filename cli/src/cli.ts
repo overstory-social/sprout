@@ -15,7 +15,7 @@ import {
 import { playInteractively, type Io } from '@overstory/sprout-repl';
 
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
-import { initWorld } from './init.js';
+import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { clientConnect, serverStart } from './peers.js';
 import { inspectView } from './view.js';
@@ -31,8 +31,7 @@ import { inspectView } from './view.js';
 
 export const USAGE = `sprout — a Sprout microworld on the command line
 
-  sprout init [dir] [--author name]   a folder with sprout.json, a world and a README line
-  sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
+${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
@@ -119,13 +118,10 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
       case '--help':
         say(USAGE);
         return command === null ? 1 : 0;
-      case 'init': {
-        const dir = positional[0] ?? '.';
-        const author = typeof flags['author'] === 'string' ? flags['author'] : undefined;
-        for (const name of initWorld(dir, author)) {
-          say(`wrote ${dir === '.' ? name : `${dir}/${name}`}\n`);
-        }
-        return 0;
+      case 'scaffold': {
+        const done = scaffold(positional, flags);
+        (done.ok ? io.stdout : io.stderr).write(done.page);
+        return done.ok ? 0 : 1;
       }
       case 'check': {
         const result = checkWorld(positional[0] ?? '.');

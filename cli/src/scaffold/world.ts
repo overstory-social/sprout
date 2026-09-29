@@ -15,16 +15,16 @@ import { writeScript } from '@overstory/sprout-player';
 /** A single quote, as an import's specifier is written between them. */
 const Q = "'";
 
-// `sprout init [dir]`: a folder with a manifest, the world in the file
+// `sprout scaffold world [dir]`: a folder with a manifest, the world in the file
 // named for its name, the kind its visitors are made of in the file named
 // for it, a first test in `tests/`, and a README line. The manifest pins
 // the standard library the CLI carries, since every world composes
 // `sprout.World`. What it writes passes `sprout check` and `sprout test`.
 
-export function initWorld(dir: string, author = userInfo().username): string[] {
+export function scaffoldWorld(dir: string, author = userInfo().username): string[] {
   const root = resolve(dir);
   if (existsSync(root) && readdirSync(root).length > 0) {
-    throw new Error(`${dir}: not empty — init wants an empty or new folder`);
+    throw new Error(`${dir}: not empty — scaffold world wants an empty or new folder`);
   }
   mkdirSync(root, { recursive: true });
   const name = basename(root)
