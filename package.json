@@ -6,6 +6,7 @@
     "sprout",
     "player",
     "repl",
+    "server",
     "cli",
     "editors/vscode"
   ],
@@ -13,12 +14,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "npm run build -w sprout && npm run build -w player && npm run build -w repl && npm run build -w cli",
-    "test": "npm run test -w sprout && npm run test -w player && npm run test -w repl && npm run test -w cli && npm run test -w editors/vscode",
-    "typecheck:spec": "npm run typecheck:spec -w sprout && npm run typecheck:spec -w player && npm run typecheck:spec -w repl && npm run typecheck:spec -w cli && npm run typecheck:spec -w editors/vscode",
+    "build": "npm run build -w sprout && npm run build -w player && npm run build -w repl && npm run build -w server && npm run build -w cli",
+    "test": "npm run test -w sprout && npm run test -w player && npm run test -w repl && npm run test -w server && npm run test -w cli && npm run test -w editors/vscode",
+    "typecheck:spec": "npm run typecheck:spec -w sprout && npm run typecheck:spec -w player && npm run typecheck:spec -w repl && npm run typecheck:spec -w server && npm run typecheck:spec -w cli && npm run typecheck:spec -w editors/vscode",
     "lint": "eslint .",
-    "format": "prettier --write \"sprout/*/src/**/*.ts\" \"player/src/**/*.ts\" \"repl/src/**/*.ts\" \"cli/src/**/*.ts\" \"editors/vscode/**/*.{ts,json,md}\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\" \"docs/design/*.md\" \"docs/manual/*.md\"",
-    "format:check": "prettier --check \"sprout/*/src/**/*.ts\" \"player/src/**/*.ts\" \"repl/src/**/*.ts\" \"cli/src/**/*.ts\" \"editors/vscode/**/*.{ts,json,md}\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\" \"docs/design/*.md\" \"docs/manual/*.md\"",
+    "format": "prettier --write \"sprout/*/src/**/*.ts\" \"player/src/**/*.ts\" \"repl/src/**/*.ts\" \"server/src/**/*.ts\" \"cli/src/**/*.ts\" \"editors/vscode/**/*.{ts,json,md}\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\" \"docs/design/*.md\" \"docs/manual/*.md\"",
+    "format:check": "prettier --check \"sprout/*/src/**/*.ts\" \"player/src/**/*.ts\" \"repl/src/**/*.ts\" \"server/src/**/*.ts\" \"cli/src/**/*.ts\" \"editors/vscode/**/*.{ts,json,md}\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\" \"docs/design/*.md\" \"docs/manual/*.md\"",
     "check": "node scripts/check-corpus.mjs && node scripts/check-transcripts.mjs && node scripts/check-tests.mjs",
     "conflicts": "node scripts/check-conflicts.mjs",
     "gate": "npm run conflicts && npm run lint && npm run format:check && npm run build && npm test && npm run typecheck:spec && npm run check",

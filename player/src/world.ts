@@ -15,8 +15,8 @@ import {
 // `.prose` files, and nothing else the compiler reads. Dotted entries are
 // skipped. A file's name is its path from the folder with `/` between.
 //
-// The CLI carries one copy of the standard library and sends it as the
-// vendored `sprout` whenever the manifest names that library; the manifest's
+// A host reading a folder carries one copy of the standard library and
+// sends it as the vendored `sprout` whenever the manifest names that library; the manifest's
 // pin is checked against it like any vendored source. Where a vendored copy
 // of a library lives in a world folder is unspecified (the working notes'
 // Holes), so nothing else is read as one.

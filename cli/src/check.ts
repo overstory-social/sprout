@@ -7,8 +7,7 @@ import {
   type Bundle,
   type Diagnostic,
 } from '@overstory/sprout/lang';
-
-import { readWorld } from './world.js';
+import { readWorld } from '@overstory/sprout-player';
 
 // `sprout check`: compile a folder strictly, as publishing would, and
 // report every diagnostic by file, line and column — as a page for a

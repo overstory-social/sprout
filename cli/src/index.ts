@@ -8,4 +8,3 @@ export * from './cli.js';
 export * from './init.js';
 export * from './parse.js';
 export * from './view.js';
-export * from './world.js';

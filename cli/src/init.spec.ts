@@ -7,7 +7,7 @@ import { runTests, testFiles } from '@overstory/sprout-player';
 import { describe, expect, it } from 'vitest';
 
 import { initWorld } from './init.js';
-import { readWorld } from './world.js';
+import { readWorld } from '@overstory/sprout-player';
 
 /** A single quote, as an import's specifier is written between them. */
 const Q = "'";
