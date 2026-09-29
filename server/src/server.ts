@@ -16,7 +16,8 @@ import {
 } from './context.js';
 import type { ServerLog } from './log.js';
 import { depart, frame, opened } from './session.js';
-import { compileWorld, publish } from './worlds.js';
+import { watchWorlds } from './watch.js';
+import { compileWorld, deploy } from './worlds.js';
 
 // `sprout-server start` (docs/design/sprout-server.md): every world the
 // config names compiled strictly and published, a world refused logged and
@@ -35,6 +36,8 @@ export interface ServerOptions {
   readonly seed?: () => number;
   /** How often a connection is pinged, in seconds; one that has not answered the last is dropped. */
   readonly pingSeconds?: number;
+  /** Whether a change to a world's folder redeploys it. */
+  readonly watch?: boolean;
 }
 
 /** A server running: the port it listens on, the worlds it serves, and how to stop it. */
@@ -57,9 +60,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       continue;
     }
     const { world } = compiled;
-    await publish(store, world, config, clock.now(), new Date(clock.now() * 1000));
+    const deployed = await deploy(store, world, config, clock.now(), new Date(clock.now() * 1000));
     worlds.set(world.id, worldRun(world));
-    log.write('info', `serving the world in ${dir}, bundle ${world.bundle.hash}`, world.id);
+    const how = deployed === 'kept' ? 'as it was stored' : 'from its initial state';
+    log.write('info', `serving the world in ${dir}, bundle ${world.bundle.hash}, ${how}`, world.id);
   }
   if (worlds.size === 0) throw new Error('No world the config names could be served; see the log.');
   const context: ServerContext = {
@@ -117,6 +121,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     (options.pingSeconds ?? 30) * 1000,
   );
   const stopClock = startClock(context);
+  const stopWatching = options.watch === true ? watchWorlds(context, config.worlds) : () => {};
   const { port } = sockets.address() as AddressInfo;
   log.write('info', `listening on ${config.host}:${port}`);
 
@@ -125,6 +130,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     context,
     async close() {
       stopClock();
+      stopWatching();
       clearInterval(stopPings);
       for (const socket of sockets.clients) {
         socket.send(

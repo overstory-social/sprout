@@ -65,6 +65,9 @@ function writer(live: World): { tx: StoreTx; commit: () => void } {
     putState: async (changes) => {
       snap.state = applyChanges(snap.state, clone(changes));
     },
+    resetState: async () => {
+      snap.state = emptyState();
+    },
     appendLog: async (entry) => {
       snap.log.push({ seq: (snap.log.at(-1)?.seq ?? 0) + 1, entry: clone(entry) });
     },

@@ -51,7 +51,7 @@ urgently decided by its kind alone (`screen-reader.ts`).
 Every write turn appends its entry to the world's event log in the same
 transaction (the spec's _The runtime › The log_): its inputs and seed,
 its budgets, what it said and any fault; so does every publish
-(`publishWorld`), withholding (`logWithholding`) and a poll's fault.
+(`publishWorld`), withholding (`withhold`) and a poll's fault.
 `readLog` and `wholeLog` read it back, oldest first and numbered from 1,
 and `replayLog` runs every turn in it again, each against the bundle of
 the publish before it, reporting any turn that does not reproduce

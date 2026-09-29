@@ -4,7 +4,7 @@ import { readConfig } from './config.js';
 import { serverLog, type LogFormat } from './log.js';
 import { startServer, type RunningServer } from './server.js';
 
-// `sprout-server start --config server.toml [--log-format text|json]`
+// `sprout-server start --config server.toml [--watch] [--log-format text|json]`
 // (docs/design/sprout-server.md, Commands): the config read and checked,
 // every world it names served, the server's log on stdout, until the
 // process is asked to stop, when every client is told so and the server
@@ -20,8 +20,9 @@ export interface MainIo {
 
 export const USAGE = `sprout-server — Sprout's reference host
 
-  sprout-server start --config server.toml [--log-format text|json]
-      serve every world the config names until stopped; the log on stdout
+  sprout-server start --config server.toml [--watch] [--log-format text|json]
+      serve every world the config names until stopped; the log on stdout;
+      --watch redeploys a world, from its initial state, when its folder changes
 `;
 
 /** Run the command line; resolves to its exit code once the server has stopped, or at once where it cannot start. */
@@ -75,7 +76,7 @@ export async function main(argv: readonly string[], io: MainIo): Promise<number>
   );
   let running: RunningServer;
   try {
-    running = await startServer({ config: read.config, log });
+    running = await startServer({ config: read.config, log, watch: rest.includes('--watch') });
   } catch (error) {
     io.stderr.write(`sprout-server: ${error instanceof Error ? error.message : String(error)}\n`);
     return 1;

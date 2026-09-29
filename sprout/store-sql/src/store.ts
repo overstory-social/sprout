@@ -233,6 +233,11 @@ function writer(c: Queryable, microworldId: string): StoreTx {
         [microworldId, JSON.stringify(record), loadedAt],
       );
     },
+    async resetState() {
+      for (const table of ['serial', 'memory', 'instance', 'visitor', 'tombstone']) {
+        await c.query(`DELETE FROM sprout.${table} WHERE microworld_id = $1`, [microworldId]);
+      }
+    },
     async putState({ serial, upsert, remove, tombstones, visitors }) {
       await c.query(
         `INSERT INTO sprout.serial (microworld_id, serial) VALUES ($1, $2)

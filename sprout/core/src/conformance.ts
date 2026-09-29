@@ -462,6 +462,37 @@ export const cases: ConformanceCase[] = [
     },
   },
   {
+    name: 'a redeploy: nothing the world stored is kept, its record and its log are',
+    proves:
+      'resetState clears the serial, every instance and its memory, every visitor and every tombstone of one world, keeps its record and its log, and leaves another world alone',
+    async run(make) {
+      const store = await make();
+      for (const w of ['w', 'other']) {
+        await store.transaction(w, async (tx) => {
+          await tx.putMicroworld(microworld(w));
+          await tx.putState(FIRST_TURN);
+          await tx.putState({
+            serial: 5,
+            upsert: [],
+            remove: [],
+            tombstones: ['shop.bench'],
+            visitors: [],
+          });
+          await tx.appendLog(LOG[0]!);
+        });
+      }
+      await store.transaction('w', async (tx) => tx.resetState());
+      await store.read('w', async (tx) => {
+        equal(await tx.state(), emptyState(), 'the state after a redeploy');
+        equal(await tx.microworld(), microworld('w'), 'the record after a redeploy');
+        equal((await tx.log({ limit: 10 })).length, 1, 'the log after a redeploy');
+      });
+      await store.read('other', async (tx) => {
+        equal((await tx.state()).visitors.length, FIRST_STATE.visitors.length, 'another world');
+      });
+    },
+  },
+  {
     name: 're-entrancy: fn invoked twice commits once',
     proves:
       'a transaction body run twice (Firestore, Mongo) reads the same serial both times, and leaves one instance per mint and one row per append',
