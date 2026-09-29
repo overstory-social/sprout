@@ -9,6 +9,7 @@ import {
   applyChanges,
   applyForgetting,
   codeUnitOrder,
+  emptyState,
   forgetting,
   visitorIn,
   type ReadTx,
@@ -216,6 +217,13 @@ function writes(w: string, tx: DocumentWriter): StoreTx {
       await tx.put(keys.state(w), stateDoc(applyChanges(await stateOf(w, tx), changes)));
       for (const v of changes.visitors) await tx.put(keys.visitor(w, v.visit), v);
       c.serial = changes.serial;
+      await tx.put(keys.counters(w), c);
+    },
+    resetState: async () => {
+      const c = await count();
+      await tx.put(keys.state(w), stateDoc(emptyState()));
+      for (const k of await tx.list(keys.visitors(w))) await tx.delete(k);
+      c.serial = 0;
       await tx.put(keys.counters(w), c);
     },
     appendLog: async (entry) => tx.put(keys.entry(w, await bump('log')), entry),

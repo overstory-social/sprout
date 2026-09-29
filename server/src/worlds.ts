@@ -8,7 +8,12 @@ import {
   type CommandHost,
   type HostSeconds,
 } from '@overstory/sprout/lang';
-import { publishWorld, type SproutStore } from '@overstory/sprout/core';
+import {
+  deployWorld,
+  publishWorld,
+  type MicroworldRecord,
+  type SproutStore,
+} from '@overstory/sprout/core';
 import { readWorld } from '@overstory/sprout-player';
 
 import type { ServerConfig } from './config.js';
@@ -69,7 +74,22 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
   };
 }
 
-/** Publish `world` into `store` at `now`: its record put and the publish logged, which redeploys it. */
+/** `world`'s record, as its published record keeps it: its files, and its bundle's hash as its stamp. */
+function recordOf(world: ServedWorld, config: ServerConfig, loadedAt: Date): MicroworldRecord {
+  const { bundle } = world;
+  return {
+    id: world.id,
+    archive: { files: [...world.files], manifest: null },
+    stamp: bundle.hash,
+    level: bundle.level,
+    extensions: bundle.extensions.map((one) => one.name),
+    caps: config.limits.caps,
+    excepted: false,
+    loadedAt,
+  };
+}
+
+/** Publish `world` into `store` at `now`, which redeploys it from its initial state (the spec's State › Redeploying). */
 export async function publish(
   store: SproutStore,
   world: ServedWorld,
@@ -77,23 +97,20 @@ export async function publish(
   now: HostSeconds,
   loadedAt: Date,
 ): Promise<void> {
-  const { bundle } = world;
-  await publishWorld(
-    store,
-    {
-      id: world.id,
-      archive: {
-        files: [...world.files],
-        manifest: null,
-      },
-      stamp: bundle.hash,
-      level: bundle.level,
-      extensions: bundle.extensions.map((one) => one.name),
-      caps: config.limits.caps,
-      excepted: false,
-      loadedAt,
-    },
-    bundle,
-    now,
-  );
+  await publishWorld(store, recordOf(world, config, loadedAt), world.bundle, now);
+}
+
+/**
+ * Start `world` as the server starts: what it stored is kept where it last
+ * ran these same files, and it is published, from its initial state,
+ * otherwise.
+ */
+export function deploy(
+  store: SproutStore,
+  world: ServedWorld,
+  config: ServerConfig,
+  now: HostSeconds,
+  loadedAt: Date,
+): Promise<'kept' | 'redeployed'> {
+  return deployWorld(store, recordOf(world, config, loadedAt), world.bundle, now);
 }

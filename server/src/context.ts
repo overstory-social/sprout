@@ -19,6 +19,7 @@ import {
   Ticker,
   ViewCache,
   type ClientCapabilities,
+  type ClientDeclaration,
   type ServerMessage,
   type SproutStore,
 } from '@overstory/sprout/core';
@@ -56,8 +57,12 @@ export interface Connection {
   close(): void;
   /** The person's visit, from a hash of their token; null before `hello`. */
   visit: VisitKey | null;
+  /** What it said it renders, which each world's capabilities are negotiated from. */
+  renders: ClientDeclaration['renders'];
   /** What it is sent payloads of in each world, by the world's name. */
   capabilities: Map<string, ClientCapabilities>;
+  /** The nickname it was admitted under, which the host keeps across a redeploy; null before `admit`. */
+  nickname: string | null;
   /** The levels it is sent host records at: prose and errors until it asks. */
   levels: ReadonlySet<Level>;
   /** The world it is admitted to; null before `admit` and after `leave`. */
@@ -84,7 +89,8 @@ export interface ServerContext {
   readonly log: ServerLog;
   readonly clock: Clock;
   readonly seed: () => number;
-  readonly worlds: ReadonlyMap<string, WorldRun>;
+  /** Each world served, by name; a redeploy replaces its run. */
+  readonly worlds: Map<string, WorldRun>;
 }
 
 /** A write turn's inputs now: a fresh seed, the host's time, and no bound on instances. */

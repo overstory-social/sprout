@@ -182,6 +182,9 @@ network, no clock and no config: time moves only when a script says so.
   which store and dependency comes next is Eric's to decide (issue 393).
 - Installing extensions: `[extensions]` is refused until the server loads
   them.
+- A world's stamp is its bundle's hash, so restarting on the same files
+  keeps what it stored and anything else redeploys it; `--watch` waits
+  200 milliseconds for changes to settle before it redeploys.
 - Conversation rules: chat has no length or pace limit, and no moderation,
   until the moderation work sets them.
 

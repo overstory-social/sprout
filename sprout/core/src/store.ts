@@ -45,6 +45,12 @@ export interface StoreTx extends ReadTx {
    * added, visitors upserted by visit.
    */
   putState(changes: StoredChanges): Promise<void>;
+  /**
+   * Store nothing of the world's state: no serial, instance, memory,
+   * visitor or tombstone, as a world that has never run. Its record and
+   * its log are kept. A redeploy is this (the spec's State › Redeploying).
+   */
+  resetState(): Promise<void>;
   /** Append `entry` to the world's log, numbered one past its last entry, or 1 for its first. */
   appendLog(entry: LogEntry): Promise<void>;
   appendMiss(m: MissRecord): Promise<void>;

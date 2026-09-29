@@ -49,7 +49,7 @@ const TALK = { rules: { characters: null, pace: null }, moderate: () => true };
 /**
  * A world played from its first publish: Marta arrives, types, says
  * something, is ticked and woken, faults twice, leaves, comes back to a
- * catch-up that faults, and plays on after a republish, one line running
+ * catch-up that faults, and plays on after a republish redeploys it, one line running
  * an intent's two steps; one poll faults.
  */
 async function played(): Promise<SproutStore> {
@@ -81,6 +81,15 @@ async function played(): Promise<SproutStore> {
     OPEN,
   );
   await publishWorld(store, record, second.bundle, 400);
+  // The republish redeployed the world, and the host admits everyone present again.
+  await runArrival(
+    store,
+    'w',
+    second.host,
+    at(400),
+    { visit: MARTA, nickname: 'Marta', ...at(400) },
+    OPEN,
+  );
   await runCommand(store, 'w', second.host, command('bump counter', 401));
   const blind = { ...second.host, budgets: { ...second.host.budgets, pollSteps: 1 } };
   await runView(store, 'w', blind, MARTA, 402);

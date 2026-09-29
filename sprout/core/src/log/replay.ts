@@ -24,8 +24,9 @@ import type { WithholdingEntry } from './withholding.js';
 
 // Replaying a world's log (the spec's The runtime › The log; The host
 // contract › What the host may not do): every turn entry run again, in
-// order, over what the turns before it wrote, against the bundle of the
-// publish or withholding before it, from its own seed, instant and bound
+// order, over what the turns before it wrote since the publish or
+// withholding before it, which redeployed the world, against that one's
+// bundle, from its own seed, instant and bound
 // and under the budgets it logged, with no clock, so the wall-clock
 // backstop cannot fire where it did not. A turn reproduces when running
 // it again gives exactly the entry logged, its effects and fault among
@@ -71,7 +72,9 @@ export function replayLog(
   const diverged: Divergence[] = [];
   for (const { seq, entry } of log) {
     if (entry.kind === 'publish' || entry.kind === 'withholding') {
+      // Each redeploys the world: what follows starts from the bundle's initial state.
       host = hosts(entry);
+      state = emptyState();
       continue;
     }
     if (entry.kind === 'said' || entry.kind === 'poll-fault') continue;

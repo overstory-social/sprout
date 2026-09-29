@@ -35,7 +35,9 @@ export function opened(send: Connection['send'], close: Connection['close']): Co
     send,
     close,
     visit: null,
+    renders: [],
     capabilities: new Map(),
+    nickname: null,
     levels: new Set<Level>(['prose', 'error']),
     world: null,
     lastStatus: null,
@@ -151,13 +153,9 @@ function hello(
     return;
   }
   connection.visit = visitOfToken(message.token);
+  connection.renders = message.renders;
   const worlds = [...context.worlds.values()].map((world) => {
-    const negotiated = negotiate(
-      { renders: message.renders },
-      world.served.host.catalogue.extensions,
-    );
-    const capabilities = negotiated.accepted ? negotiated.capabilities : TEXT_ONLY;
-    connection.capabilities.set(world.served.id, capabilities);
+    const negotiated = negotiateIn(connection, world);
     return {
       world: world.served.id,
       granted: negotiated.accepted ? negotiated.granted : [],
@@ -167,8 +165,21 @@ function hello(
   connection.send({ t: 'welcome', server: context.name, worlds });
 }
 
+/** Negotiate what `connection` is sent payloads of in `world`, from what it said it renders, and keep it. */
+export function negotiateIn(connection: Connection, world: WorldRun) {
+  const negotiated = negotiate(
+    { renders: connection.renders },
+    world.served.host.catalogue.extensions,
+  );
+  connection.capabilities.set(
+    world.served.id,
+    negotiated.accepted ? negotiated.capabilities : TEXT_ONLY,
+  );
+  return negotiated;
+}
+
 /** `admit`: come into a world under a nickname, after its catch-up. */
-async function admit(
+export async function admit(
   context: ServerContext,
   connection: Connection,
   message: Extract<ClientMessage, { t: 'admit' }>,
@@ -233,6 +244,7 @@ async function admit(
     return;
   }
   connection.world = world;
+  connection.nickname = message.nickname;
   world.connections.add(connection);
   connection.send({
     t: 'admitted',

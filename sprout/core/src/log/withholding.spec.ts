@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { tally } from '../fixtures/tally.js';
 import { memoryStore } from '../memory-store.js';
 import { readLog } from './entry.js';
-import { logWithholding, WithholdingEntry, withholdingEntry } from './withholding.js';
+import { withhold, WithholdingEntry, withholdingEntry } from './withholding.js';
 
 const { bundle } = tally();
 
@@ -24,9 +24,13 @@ describe('a withholding in the log', () => {
     expect(withholdingEntry([], bundle, 10).withheld).toEqual([]);
   });
 
-  it('appends the entry to the world’s log', async () => {
+  it('redeploys the world, clearing what it stored, and appends the entry to its log', async () => {
     const store = memoryStore();
-    const entry = await logWithholding(store, 'w', ['cellar.sprout'], bundle, 11);
+    await store.transaction('w', async (tx) =>
+      tx.putState({ serial: 2, upsert: [], remove: [], tombstones: [], visitors: [] }),
+    );
+    const entry = await withhold(store, 'w', ['cellar.sprout'], bundle, 11);
+    expect((await store.read('w', (tx) => tx.state())).serial).toBe(0);
     expect(await readLog(store, 'w', { limit: 10 })).toEqual([{ seq: 1, entry }]);
   });
 });

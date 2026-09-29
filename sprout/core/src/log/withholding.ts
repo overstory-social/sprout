@@ -39,8 +39,14 @@ export function withholdingEntry(
   };
 }
 
-/** Record, under `microworldId`'s lock, that it runs `bundle` with `withheld` held back from `now` on. */
-export function logWithholding(
+/**
+ * Withhold `withheld` from `microworldId` from `now` on, which redeploys
+ * it: it runs `bundle`, loaded with them held back, from its initial
+ * state, everything it stored cleared and the withholding logged, under its
+ * lock (the spec's State › Redeploying). Lifting one is this with it gone
+ * from `withheld`.
+ */
+export function withhold(
   store: SproutStore,
   microworldId: string,
   withheld: readonly string[],
@@ -49,6 +55,7 @@ export function logWithholding(
 ): Promise<WithholdingEntry> {
   const entry = withholdingEntry(withheld, bundle, now);
   return store.transaction(microworldId, async (tx) => {
+    await tx.resetState();
     await tx.appendLog(entry);
     return entry;
   });
