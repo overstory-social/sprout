@@ -1185,6 +1185,12 @@ open cabinet`, `take key. open cabinet`. Each runs as its own turn, in
 order. A refusal, `unknown`, `not_here` or `cannot` stops the rest, and what
 ran before stays done.
 
+`again`, or `g`, runs your last command's reading again: the same verb
+and the same things, even where its words would now mean something else.
+Its `permit`s are asked afresh, and a thing no longer in reach is answered
+with `not_here`. Before your first command there is nothing to do again,
+and it is answered with `unknown`.
+
 A pronoun, `it`, `them`, `him` or `her`, names what your own last command
 was done to, where it is still in reach: `take lamp`, then `drop it`.
 `him` and `her` name it only where it is a person or declares that

@@ -40,6 +40,7 @@ function intended(state: WorldState, line: string): IntentReading {
     draws: new Draws(7),
     nicknames: new Map(),
     referents: [],
+    lastReading: null,
   });
   if (!('intended' in parsed)) throw new Error(`\`${line}\` was not read as an intent`);
   return parsed.intended;

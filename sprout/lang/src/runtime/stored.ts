@@ -20,6 +20,7 @@
 import { z } from 'zod';
 
 import type { StaticCaps } from '../bundle/limits.js';
+import { DIRECTIONS, type Direction } from '../declare/directions.js';
 import type { ValueType } from '../declare/types.js';
 import { idForm } from './ids.js';
 import { SproutList } from './lists.js';
@@ -83,6 +84,26 @@ export interface StoredVisitor {
   readonly instance: string;
   readonly lastPlace: string | null;
   readonly referents: readonly string[];
+  readonly lastReading: StoredReading | null;
+}
+
+/** What one role of a stored reading is filled with: a thing, a set, a value, or a way out. */
+export type StoredBound =
+  | { readonly object: string }
+  | { readonly set: readonly string[] }
+  | { readonly value: string | number }
+  | {
+      readonly exit: {
+        readonly direction: Direction | null;
+        readonly label: string;
+        readonly to: string;
+      };
+    };
+
+/** A reading as a store keeps it: its verb by library and name, and what fills each role. */
+export interface StoredReading {
+  readonly verb: { readonly library: string; readonly name: string };
+  readonly bindings: readonly (readonly [string, StoredBound])[];
 }
 
 export interface StoredWorld {
@@ -142,6 +163,28 @@ export const StoredVisitorSchema: z.ZodType<StoredVisitor> = z.object({
   instance: z.string(),
   lastPlace: z.string().nullable(),
   referents: z.array(z.string()),
+  lastReading: z
+    .object({
+      verb: z.object({ library: z.string().min(1), name: z.string().min(1) }),
+      bindings: z.array(
+        z.tuple([
+          z.string().min(1),
+          z.union([
+            z.object({ object: z.string() }),
+            z.object({ set: z.array(z.string()) }),
+            z.object({ value: z.union([z.string(), z.number().int()]) }),
+            z.object({
+              exit: z.object({
+                direction: z.enum(DIRECTIONS).nullable(),
+                label: z.string(),
+                to: z.string(),
+              }),
+            }),
+          ]),
+        ]),
+      ),
+    })
+    .nullable(),
 });
 
 /** Which id form each way of being made takes. */
@@ -234,6 +277,12 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
       named.add(visitor.instance);
       if (visitor.lastPlace !== null) anId([...at, 'lastPlace'], visitor.lastPlace);
       visitor.referents.forEach((id, r) => anId([...at, 'referents', r], id));
+      visitor.lastReading?.bindings.forEach(([, bound], b) => {
+        const path = [...at, 'lastReading', 'bindings', b, 1];
+        if ('object' in bound) anId([...path, 'object'], bound.object);
+        if ('set' in bound) bound.set.forEach((id, i) => anId([...path, 'set', i], id));
+        if ('exit' in bound) anId([...path, 'exit', 'to'], bound.exit.to);
+      });
     });
     // A tombstone is a declared object destroyed, and what it held went
     // with it, so nothing is stored under its id or inside it. A link, a

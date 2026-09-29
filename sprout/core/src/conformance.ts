@@ -9,6 +9,7 @@ import {
   type StoredInstance,
   type StoredProperty,
   type StoredState,
+  type StoredReading,
   type StoredVisitor,
 } from './records.js';
 import type { SproutStore, StoreTx } from './store.js';
@@ -132,11 +133,25 @@ const visitor = (
   id: string,
   lastPlace: string | null,
   referents: readonly string[] = [],
-) => ({ visit, nickname, instance: id, lastPlace, referents });
-const V_MARTA: StoredVisitor = visitor('v-marta', 'Marta', 'shop#1', 'shop.hall', [
-  'shop.hall.lamp',
-  'shop#4',
-]);
+  lastReading: StoredReading | null = null,
+) => ({ visit, nickname, instance: id, lastPlace, referents, lastReading });
+const V_MARTA: StoredVisitor = visitor(
+  'v-marta',
+  'Marta',
+  'shop#1',
+  'shop.hall',
+  ['shop.hall.lamp', 'shop#4'],
+  {
+    verb: { library: 'shop', name: 'show' },
+    bindings: [
+      ['target', { object: 'shop.hall.lamp' }],
+      ['others', { set: ['shop#4', 'shop.hall.lamp'] }],
+      ['topic', { value: 'wick' }],
+      ['count', { value: 3 }],
+      ['way', { exit: { direction: 'north', label: 'to the yard', to: 'shop.yard' } }],
+    ],
+  },
+);
 const V_INES: StoredVisitor = visitor('v-ines', 'Ines', 'shop#4', 'shop.yard');
 
 /** The whole fixture world as one turn writes it, out of order, as a draft may list it. */
@@ -415,7 +430,7 @@ export const cases: ConformanceCase[] = [
         arrival: 6,
         properties: { lit: flag(false) },
       });
-      const moved = { ...V_MARTA, lastPlace: 'shop.yard', referents: [] };
+      const moved = { ...V_MARTA, lastPlace: 'shop.yard', referents: [], lastReading: null };
       await store.transaction('w', async (tx) => {
         await tx.putMicroworld(microworld('w'));
         await tx.putState(FIRST_TURN);

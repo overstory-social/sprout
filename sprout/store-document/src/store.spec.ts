@@ -64,6 +64,7 @@ const visitor = (visit: string): StoredVisitor => ({
   instance: 'shop#1',
   lastPlace: 'shop.hall',
   referents: [],
+  lastReading: null,
 });
 const turn = (over: Partial<StoredChanges> = {}): StoredChanges => ({
   serial: 1,

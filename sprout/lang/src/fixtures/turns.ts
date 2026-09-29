@@ -212,7 +212,14 @@ export function belfry(visits: readonly VisitKey[] = [MARTA], away = false): Wor
     draft.add(
       newInstance(id, { from: 'visitor' }, CATALOGUE.visitorKind!, where, arrival, CATALOGUE.caps),
     );
-    draft.putVisitor({ visit, nickname: visit, instance: id, lastPlace: where, referents: [] });
+    draft.putVisitor({
+      visit,
+      nickname: visit,
+      instance: id,
+      lastPlace: where,
+      referents: [],
+      lastReading: null,
+    });
   };
   for (const visit of visits) place(visit, HALL);
   if (away) place(INES, null);

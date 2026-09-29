@@ -123,6 +123,7 @@ export function garden(
       instance: id,
       lastPlace: BED,
       referents: [],
+      lastReading: null,
     });
     carried = draft.mint();
     draft.add(

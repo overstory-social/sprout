@@ -1,0 +1,27 @@
+{
+  "about": "`again` and `g` run the last reading again, its consent asked afresh, and a line may hold one.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "again", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "take key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." }
+    ] },
+    { "as": "Marta", "type": "again", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "drop key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a key down." }
+    ] },
+    { "as": "Marta", "type": "g", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are not holding a key." }
+    ] },
+    { "as": "Marta", "type": "take coin then again", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a coin." },
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] }
+  ]
+}

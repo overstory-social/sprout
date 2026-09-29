@@ -85,7 +85,14 @@ export function workshop(): WorldState {
         CATALOGUE.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname, instance: id, lastPlace: HALL, referents: [] });
+    draft.putVisitor({
+      visit,
+      nickname,
+      instance: id,
+      lastPlace: HALL,
+      referents: [],
+      lastReading: null,
+    });
   }
   return draft.commit().state;
 }

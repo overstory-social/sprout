@@ -24,6 +24,7 @@ export {
   type StoredChanges,
   type StoredInstance,
   type StoredProperty,
+  type StoredReading,
   type StoredVisitor,
 } from '@overstory/sprout/lang';
 

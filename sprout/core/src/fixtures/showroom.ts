@@ -156,7 +156,14 @@ export async function showroom(catalogue: Catalogue): Promise<SproutStore> {
         catalogue.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname, instance: id, lastPlace: HALL, referents: [] });
+    draft.putVisitor({
+      visit,
+      nickname,
+      instance: id,
+      lastPlace: HALL,
+      referents: [],
+      lastReading: null,
+    });
   }
   const { state, changes } = draft.commit();
   await store.transaction('w', (tx) => tx.putState(storedChanges(state, changes)));

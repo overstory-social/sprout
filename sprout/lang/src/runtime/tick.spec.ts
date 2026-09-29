@@ -85,7 +85,14 @@ function weather(standing: readonly (readonly [VisitKey, InstanceId | null])[]):
     draft.add(
       newInstance(id, { from: 'visitor' }, CATALOGUE.visitorKind!, where, arrival, CATALOGUE.caps),
     );
-    draft.putVisitor({ visit, nickname: visit, instance: id, lastPlace: where, referents: [] });
+    draft.putVisitor({
+      visit,
+      nickname: visit,
+      instance: id,
+      lastPlace: where,
+      referents: [],
+      lastReading: null,
+    });
   }
   return draft.commit().state;
 }

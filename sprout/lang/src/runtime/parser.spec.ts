@@ -40,7 +40,7 @@ import { commandTurn } from './command.js';
 import { Draws, SEED_MAX } from './draws.js';
 import { liveTree } from './live.js';
 import { rangeOf } from './range.js';
-import { parseCommand, type CommandOutcome } from './parser.js';
+import { parseCommand, readCommand, type CommandOutcome } from './parser.js';
 import {
   CATALOGUE as WAYS_CATALOGUE,
   MARTA as WAYS_MARTA,
@@ -65,7 +65,7 @@ import { typedWords } from '../declare/addressing.js';
 import { addressOf } from './parser/address.js';
 import { answersTo } from './parser/nouns.js';
 import { declaredId, type InstanceId } from './ids.js';
-import type { Bound } from './reading.js';
+import type { Bound, Reading } from './reading.js';
 
 /** A reading as a case compares it: the verb by library and name, and each role's filler. */
 function understood(outcome: CommandOutcome): { verb: string; bindings: Record<string, Bound> } {
@@ -451,6 +451,7 @@ describe('the parser a command turn reads through', () => {
       draws: new Draws(7),
       nicknames: new Map([...state.visitors.values()].map((v) => [v.instance, v.nickname])),
       referents: [],
+      lastReading: null,
     });
     const parsed = parseCommand(
       'sniff v-ines',
@@ -490,6 +491,7 @@ describe('the parser a command turn reads through', () => {
       draws: new Draws(7),
       nicknames: new Map<InstanceId, string>(),
       referents: [],
+      lastReading: null,
     };
     for (const line of ['north', 'go north', 'deeper into the dark']) {
       const parsed = parseCommand(line, actor, context);
@@ -836,6 +838,7 @@ describe('a pronoun a thing declares another for', () => {
       draws: new Draws(7),
       nicknames: new Map(),
       referents,
+      lastReading: null,
     });
   };
   const corrected = (line: string, referents: readonly InstanceId[]) => {
@@ -864,5 +867,77 @@ describe('a pronoun a thing declares another for', () => {
     expect(corrected('nudge it toward ball', [cat!])).toEqual([
       [boundObject(cat!), boundValue('she')],
     ]);
+  });
+});
+
+describe('`again`', () => {
+  const take = STUDY.verbs.qualified('sprout', 'take')!;
+  /** `line`, typed by the study's first visitor, whose last reading was taking `target`. */
+  const read = (line: string, target: InstanceId | null) => {
+    const one = study();
+    const last =
+      target === null
+        ? null
+        : {
+            verb: take,
+            actor: one.people[0]!,
+            bindings: new Map([['target', { object: target }]]),
+          };
+    return readCommand(line, one.people[0]!, { ...commandContext(one), lastReading: last });
+  };
+
+  it('runs the last reading again, `g` as `again`, whatever its words would mean now', () => {
+    for (const line of ['again', 'g', 'Again']) {
+      expect(understood(read(line, GONG)), line).toEqual({
+        verb: 'sprout.take',
+        bindings: { target: { object: GONG } },
+      });
+    }
+  });
+
+  it('is `not_here` where a thing it binds is out of reach, and `unknown` with no last reading', () => {
+    expect(answered(read('again', COIN)).answer).toBe('not_here');
+    expect(answered(read('again', null)).answer).toBe('unknown');
+  });
+});
+
+describe('`again`, where the verb has changed since', () => {
+  const unlock = STUDY.verbs.qualified('study', 'unlock')!;
+  const juggle = STUDY.verbs.qualified('study', 'juggle')!;
+  const read = (last: Reading) => {
+    const one = study();
+    return readCommand('again', one.people[0]!, {
+      ...commandContext(one),
+      lastReading: { ...last, actor: one.people[0]! },
+    });
+  };
+
+  it('is `unknown` where a binding no longer fits the verb, and a reading that fits still runs', () => {
+    const actor = study().people[0]!;
+    const fitting: Reading = {
+      verb: unlock,
+      actor,
+      bindings: new Map([
+        ['target', { object: DOOR }],
+        ['tool', { object: BRASS_KEY }],
+      ]),
+    };
+    expect(understood(read(fitting)).verb).toBe('study.unlock');
+    for (const bindings of [
+      // A role the verb no longer has.
+      new Map([['lid', { object: DOOR }]]),
+      // A thing no longer of the role's kind.
+      new Map([['target', { object: GONG }]]),
+      // A set where the role takes one thing.
+      new Map([['target', { set: [DOOR] }]]),
+      // A role that is not optional, unbound.
+      new Map<string, Bound>(),
+    ]) {
+      expect(answered(read({ verb: unlock, actor, bindings })).answer).toBe('unknown');
+    }
+    expect(
+      answered(read({ verb: juggle, actor, bindings: new Map([['things', { object: GONG }]]) }))
+        .answer,
+    ).toBe('unknown');
   });
 });

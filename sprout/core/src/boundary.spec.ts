@@ -36,7 +36,7 @@ describe('@overstory/sprout/core imports nothing but the language, zod and itsel
     });
   }
 
-  it('the records carry nothing of an identity: a visitor is a visit, a nickname, an instance, a place and what their pronouns name', () => {
+  it('the records carry nothing of an identity: a visitor is a visit, a nickname, an instance, a place, what their pronouns name and their last reading', () => {
     const shape = (schema: unknown) => Object.keys((schema as { shape: object }).shape);
     expect(shape(StoredVisitorSchema)).toEqual([
       'visit',
@@ -44,6 +44,7 @@ describe('@overstory/sprout/core imports nothing but the language, zod and itsel
       'instance',
       'lastPlace',
       'referents',
+      'lastReading',
     ]);
     expect(shape(VisitorExport)).toEqual(['visit', 'worlds']);
     expect(shape(VisitorInWorld)).toEqual(['microworldId', 'visitor', 'instance', 'memory']);

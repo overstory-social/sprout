@@ -64,8 +64,16 @@ function store(): StoredWorld {
         instance: minted(1),
         lastPlace: id('hall'),
         referents: [],
+        lastReading: null,
       },
-      { visit: 'v-2', nickname: 'Ann', instance: minted(2), lastPlace: id('hall'), referents: [] },
+      {
+        visit: 'v-2',
+        nickname: 'Ann',
+        instance: minted(2),
+        lastPlace: id('hall'),
+        referents: [],
+        lastReading: null,
+      },
     ],
   };
 }

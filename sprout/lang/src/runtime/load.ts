@@ -28,13 +28,16 @@ import type { ResolvedProperty } from '../declare/properties.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import type { Catalogue } from './catalogue.js';
 import { visitKey, type InstanceId } from './ids.js';
+import type { Bound, Reading } from './reading.js';
 import {
   decodeValue,
   encodeValue,
   readStoredWorld,
   StoredStateUnreadable,
   type StoredInstance,
+  type StoredBound,
   type StoredProperty,
+  type StoredReading,
   type StoredVisitor,
   type StoredWorld,
 } from './stored.js';
@@ -158,6 +161,7 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
       instance: visitor.instance as InstanceId,
       lastPlace: visitor.lastPlace as InstanceId | null,
       referents: visitor.referents.map((id) => id as InstanceId),
+      lastReading: readingOf(visitor.lastReading, visitor.instance as InstanceId, catalogue),
     });
   }
 
@@ -348,7 +352,50 @@ export function encodeVisitor(visitor: VisitorRecord): StoredVisitor {
     instance: visitor.instance,
     lastPlace: visitor.lastPlace,
     referents: visitor.referents,
+    lastReading: visitor.lastReading === null ? null : storedReading(visitor.lastReading),
   };
+}
+
+/** A reading as a store keeps it. */
+function storedReading(reading: Reading): StoredReading {
+  return {
+    verb: { library: reading.verb.library, name: reading.verb.name },
+    bindings: [...reading.bindings].map(([role, bound]): [string, StoredBound] => {
+      if ('object' in bound) return [role, { object: bound.object }];
+      if ('set' in bound) return [role, { set: bound.set }];
+      if ('exit' in bound) return [role, { exit: bound.exit }];
+      if (typeof bound.value !== 'string' && typeof bound.value !== 'number') {
+        throw new Error(`\`${role}\` binds a value no role's words can, and is kept by no store.`);
+      }
+      return [role, { value: bound.value }];
+    }),
+  };
+}
+
+/**
+ * The reading `stored` keeps, performed by `actor`; null where none is, or
+ * where its verb is one the bundle no longer declares.
+ */
+function readingOf(
+  stored: StoredReading | null,
+  actor: InstanceId,
+  catalogue: Catalogue,
+): Reading | null {
+  if (stored === null) return null;
+  const verb = catalogue.verbs.qualified(stored.verb.library, stored.verb.name);
+  if (verb === null) return null;
+  const bindings = new Map<string, Bound>(
+    stored.bindings.map(([role, bound]): [string, Bound] => {
+      if ('object' in bound) return [role, { object: bound.object as InstanceId }];
+      if ('set' in bound) return [role, { set: bound.set.map((id) => id as InstanceId) }];
+      if ('exit' in bound) {
+        const { direction, label, to } = bound.exit;
+        return [role, { exit: { direction, label, to: to as InstanceId } }];
+      }
+      return [role, { value: bound.value }];
+    }),
+  );
+  return { verb, actor, bindings };
 }
 
 function byId(a: { readonly id: string }, b: { readonly id: string }): number {

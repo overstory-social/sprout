@@ -111,6 +111,7 @@ function world(): StoredWorld {
         instance: 'printers_shop#1',
         lastPlace: 'printers_shop.composing_room',
         referents: [],
+        lastReading: null,
       },
     ],
     tombstones: ['printers_shop.composing_room.lamp'],
@@ -180,6 +181,28 @@ describe('the stored form of a world', () => {
         visitors: [{ ...stored.visitors[0]!, referents: ['printers_shop.press', 'bakery#2'] }],
       }),
     ).toEqual(['visitors.0.referents.1: `bakery#2` is not an id in printers_shop.']);
+    expect(
+      issues({
+        ...stored,
+        visitors: [
+          {
+            ...stored.visitors[0]!,
+            lastReading: {
+              verb: { library: 'sprout', name: 'give' },
+              bindings: [
+                ['item', { object: 'bakery.bun' }],
+                ['recipient', { set: ['printers_shop.press', 'bakery#2'] }],
+                ['way', { exit: { direction: 'north', label: 'out', to: 'bakery.yard' } }],
+              ],
+            },
+          },
+        ],
+      }),
+    ).toEqual([
+      'visitors.0.lastReading.bindings.0.1.object: `bakery.bun` is not an id in printers_shop.',
+      'visitors.0.lastReading.bindings.1.1.set.1: `bakery#2` is not an id in printers_shop.',
+      'visitors.0.lastReading.bindings.2.1.exit.to: `bakery.yard` is not an id in printers_shop.',
+    ]);
   });
 
   it('refuses one id stored twice, and one visit stored twice', () => {

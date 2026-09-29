@@ -7,6 +7,9 @@
 // readings rank, and the answers. `parseCommand` is what a command turn
 // reads through.
 //
+// `again` or `g` alone runs the actor's last reading again, where what it
+// binds is still in reach.
+//
 // Every line has exactly one outcome: a reading, or one of the world's
 // answers, `cannot`, `not_here` or `unknown`, never nothing. A reading
 // that a pronoun named a thing in, where the thing declares another, is
@@ -43,7 +46,7 @@ import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
-import { writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
+import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
@@ -63,6 +66,8 @@ export interface CommandContext {
   readonly exits: readonly CommandExit[];
   /** What the actor's pronouns name: what their own last command about a thing was done to. */
   readonly referents: readonly InstanceId[];
+  /** The reading the actor's own last command ran, which `again` runs again; null before one. */
+  readonly lastReading: Reading | null;
 }
 
 /** A line's one outcome: understood as a reading, drawn where it tied with others, or answered. */
@@ -90,6 +95,9 @@ export function readCommand(
   const tree = liveTree(state);
   const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
   const candidates = candidatesOf(state, tree, range.reached, addressing);
+  if (words.length === 1 && AGAIN.includes(words[0]!)) {
+    return again(context.lastReading, actor, here, candidates, context);
+  }
   const fill = { candidates, exits: context.exits, budget, referents: context.referents };
 
   const readings = new Map<string, Ranked>();
@@ -201,6 +209,78 @@ export function readCommand(
 /** What a pronoun named among what `choice` binds. */
 function pronounsIn(choice: readonly Choice[]): PronounNamed[] {
   return choice.flatMap((one) => (one.words === undefined ? (one.pronounNamed ?? []) : []));
+}
+
+/** The words that run the actor's last reading again (the spec's Parsing › Sequences, again and all). */
+const AGAIN: readonly string[] = ['again', 'g'];
+
+/**
+ * `last` run again by `actor`: the same verb and the same things, whatever
+ * its words would mean now, where every thing and way out it binds is
+ * still in reach; `not_here` where one is not, and `unknown` where there
+ * is no last reading.
+ */
+function again(
+  last: Reading | null,
+  actor: InstanceId,
+  here: InstanceId,
+  candidates: readonly Candidate[],
+  context: CommandContext,
+): CommandOutcome {
+  if (last === null || !stillFits(last, context.state)) {
+    return answer(context.state, 'unknown', actor, here);
+  }
+  const reached = new Set(candidates.map((one) => one.instance.id));
+  const inReach = [...last.bindings.values()].every((bound) => {
+    if ('object' in bound) return reached.has(bound.object);
+    if ('set' in bound) return bound.set.every((id) => reached.has(id));
+    if ('exit' in bound) {
+      const { direction, label, to } = bound.exit;
+      return context.exits.some(
+        (exit) => exit.to === to && exit.label === label && exit.direction === direction,
+      );
+    }
+    return true;
+  });
+  if (!inReach) return answer(context.state, 'not_here', actor, here);
+  return { understood: { ...last, actor }, drawn: null, pronounNamed: [] };
+}
+
+/**
+ * Whether `reading` is still one its verb takes: each binding names one of
+ * its roles and fills it with what that role takes, each thing still of
+ * the role's kind, and every role a thing or a way out fills that is not
+ * optional is bound. A reading
+ * kept from before may not be, where the verb's roles have changed since.
+ */
+function stillFits(reading: Reading, state: StateReader): boolean {
+  const { roles } = reading.verb;
+  for (const [name, bound] of reading.bindings) {
+    const role = roles.find((one) => one.name === name);
+    const fills = role?.filler?.fills;
+    if (role === undefined || fills === undefined) return false;
+    const thing = (id: InstanceId): boolean => {
+      const instance = state.instance(id);
+      return instance !== undefined && fits(role, instance);
+    };
+    const fitting =
+      'object' in bound
+        ? !role.many && thing(bound.object)
+        : 'set' in bound
+          ? role.many && bound.set.every(thing)
+          : 'exit' in bound
+            ? fills === 'exit'
+            : fills === 'symbol'
+              ? typeof bound.value === 'string'
+              : fills === 'integer' && typeof bound.value === 'number';
+    if (!fitting) return false;
+  }
+  // A value role is bound only where a participant hears its value, so it may be unbound.
+  return roles.every((role) => {
+    const fills = role.filler?.fills;
+    const value = fills === 'symbol' || fills === 'integer';
+    return role.optional || value || reading.bindings.has(role.name);
+  });
 }
 
 /** One slot's part in one reading: what it binds and how near and literally, or a value role's words. */

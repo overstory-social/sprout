@@ -53,7 +53,14 @@ describe('the world’s `acted`', () => {
           catalogue.caps,
         ),
       );
-      draft.putVisitor({ visit, nickname, instance: id, lastPlace: step, referents: [] });
+      draft.putVisitor({
+        visit,
+        nickname,
+        instance: id,
+        lastPlace: step,
+        referents: [],
+        lastReading: null,
+      });
     }
     const state = draft.commit().state;
     const host = { catalogue, budgets: DEFAULT_LIMITS.budgets, render: renderEffects };

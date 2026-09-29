@@ -138,6 +138,7 @@ export function harbour(
       instance: id,
       lastPlace: 'in' in one ? one.in : one.away,
       referents: [],
+      lastReading: null,
     });
   }
   for (const [id, name, value] of set) {
