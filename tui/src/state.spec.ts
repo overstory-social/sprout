@@ -14,6 +14,7 @@ describe('what the client shows', () => {
       {
         t: 'effects',
         seq: 1,
+        last: true,
         effects: [
           {
             as: 'words',

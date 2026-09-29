@@ -58,7 +58,9 @@ describe('what a host sends', () => {
     if (!turn.committed) throw new Error('the bump faulted');
     const effects = deliver(turn.effects, MARTA, TEXT_ONLY);
     expect(effects.length).toBeGreaterThan(0);
-    expect(ServerMessage.safeParse({ t: 'effects', seq: 1, effects }).success).toBe(true);
+    expect(ServerMessage.safeParse({ t: 'effects', seq: 1, last: true, effects }).success).toBe(
+      true,
+    );
     const { view } = await runView(store, 'w', host, MARTA, 0);
     const sent = JSON.parse(JSON.stringify({ t: 'view', seq: 2, view: sendView(view, TEXT_ONLY) }));
     const parsed = ServerMessage.safeParse(sent);
@@ -104,7 +106,7 @@ describe('what a host sends', () => {
       deliveryOf(extension, granted),
     ];
     expect(effects.map((one) => one.as)).toEqual(['words', 'words', 'payload']);
-    const parsed = ServerMessage.safeParse({ t: 'effects', seq: null, effects });
+    const parsed = ServerMessage.safeParse({ t: 'effects', seq: null, last: true, effects });
     expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
     // Words that name an extension while the effect is prose, or none for an extension's, are not what core makes.
     const [words] = effects;
@@ -112,6 +114,7 @@ describe('what a host sends', () => {
       ServerMessage.safeParse({
         t: 'effects',
         seq: null,
+        last: true,
         effects: [{ ...words, recorded: { extension: 'media', statement: 'show' } }],
       }).success,
     ).toBe(false);

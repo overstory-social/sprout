@@ -184,7 +184,8 @@ export class Session {
   }
 
   private receive(message: ServerMessage): void {
-    if (message.t === 'effects' && message.seq !== null) this.answering.delete(message.seq);
+    if (message.t === 'effects' && message.seq !== null && message.last)
+      this.answering.delete(message.seq);
     this.change(received(this.state, message));
     if (message.t === 'welcome') {
       if (this.nickname === null)

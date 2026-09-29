@@ -111,7 +111,8 @@ export function worldRun(served: ServedWorld): WorldRun {
 
 /**
  * Send what a turn in `world` gave each connection that reads some of it,
- * `seq` to the one whose line it was; name the stale visitors' views
+ * `seq` to the one whose line it was, with whether it is that line's last
+ * turn; name the stale visitors' views
  * stale; and send each of them their status and what they could type, where
  * either changed.
  */
@@ -120,16 +121,21 @@ export async function fanOut(
   world: WorldRun,
   effects: readonly Effect[],
   stale: readonly VisitKey[],
-  cause: { readonly connection: Connection; readonly seq: number } | null,
+  cause: { readonly connection: Connection; readonly seq: number; readonly last: boolean } | null,
 ): Promise<void> {
   world.views.stale(world.served.id, stale);
   for (const connection of world.connections) {
     if (connection.visit === null) continue;
     const capabilities = connection.capabilities.get(world.served.id)!;
     const delivered = deliver(effects, connection.visit, capabilities);
-    const seq = cause?.connection === connection ? cause.seq : null;
-    if (delivered.length > 0 || seq !== null) {
-      connection.send({ t: 'effects', seq, effects: delivered });
+    const asked = cause?.connection === connection ? cause : null;
+    if (delivered.length > 0 || asked !== null) {
+      connection.send({
+        t: 'effects',
+        seq: asked?.seq ?? null,
+        last: asked?.last ?? true,
+        effects: delivered,
+      });
     }
   }
   for (const connection of world.connections) {

@@ -150,7 +150,7 @@ message is validated with a zod schema in `core`'s `protocol.ts`, beside
 | `welcome` | `server`, `worlds` | the server's name, and each world it serves with which of the declared statements it will send payloads of there, `granted`, and which not, `declined`, since what a world pins differs world to world |
 | `admitted` | `world`, `nickname`, `returning` | in, and whether this is a visit found again |
 | `refused` | `stage`, `reason`, `text` | a hello, an admission or a frame refused: at which stage, a short machine-readable reason (`nickname`, `closed`, `malformed`, …), and text a person can read, always |
-| `effects` | `seq`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it |
+| `effects` | `seq`, `last`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it; a line of several commands, an intent's steps or `all` runs several turns, and `last` marks the effects of the last of them |
 | `view` | `seq`, `view` | the visitor's view, as `core`'s `sendView` makes it; `seq` is the `poll`'s, or none for a view sent unasked |
 | `status` | `place`, `exits` | the status line: where the visitor stands and the ways out, sent when either changes |
 | `offered` | `lines` | the lines the visitor could type now, for completion, from the view's readings |

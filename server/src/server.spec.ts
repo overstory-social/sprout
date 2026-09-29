@@ -113,8 +113,17 @@ describe('the server, over a real socket', () => {
     expect(await marta.take('status')).toMatchObject({ place: 'the cellar', exits: [] });
     expect((await marta.take('offered')).lines).toContain('take key');
     marta.send({ t: 'command', seq: 1, line: 'take key then take coin' });
-    expect(await marta.words(1)).toEqual(['You take a key.']);
-    expect(await marta.words(1)).toEqual(['You take a coin.']);
+    const [first, second] = [
+      await marta.take('effects', (one) => one.seq === 1),
+      await marta.take('effects', (one) => one.seq === 1),
+    ];
+    // Each turn the line ran, in order, the last of them marked.
+    expect([first.last, second.last]).toEqual([false, true]);
+    expect(
+      [first, second].map((one) =>
+        one.effects.flatMap((effect) => (effect.as === 'words' ? effect.paragraphs : [])),
+      ),
+    ).toEqual([['You take a key.'], ['You take a coin.']]);
     marta.send({ t: 'poll', seq: 2 });
     expect(
       (await marta.take('view', (one) => one.seq === 2)).view.carried.map((one) => one.name),

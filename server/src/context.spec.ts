@@ -50,8 +50,8 @@ describe('what a turn gave, fanned out', () => {
 
   it('sends nothing to a connection that reads none of it, and `seq` alone to the one who typed', async () => {
     const { context, world, marta, ines } = await withTwo();
-    await fanOut(context, world, [], [], { connection: marta, seq: 9 });
-    expect(marta.sent).toEqual([{ t: 'effects', seq: 9, effects: [] }]);
+    await fanOut(context, world, [], [], { connection: marta, seq: 9, last: true });
+    expect(marta.sent).toEqual([{ t: 'effects', seq: 9, last: true, effects: [] }]);
     expect(ines.sent).toEqual([]);
   });
 });

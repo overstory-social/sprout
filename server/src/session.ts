@@ -76,7 +76,7 @@ export async function frame(
     });
     const read = clientMessageOf(text);
     if ('message' in read && (read.message.t === 'command' || read.message.t === 'poll')) {
-      connection.send({ t: 'effects', seq: read.message.seq, effects: [] });
+      connection.send({ t: 'effects', seq: read.message.seq, last: true, effects: [] });
     }
   }
 }
@@ -272,10 +272,14 @@ async function command(
     { ...inputsNow(context), visit: connection.visit!, text: line },
     context.seed,
   );
-  for (const turn of turns) {
+  for (const [at, turn] of turns.entries()) {
     notes(context, connection, turn);
     const stale = turn.committed ? turn.stale : [];
-    await fanOut(context, world, turn.effects, stale, { connection, seq });
+    await fanOut(context, world, turn.effects, stale, {
+      connection,
+      seq,
+      last: at === turns.length - 1,
+    });
   }
 }
 
