@@ -99,4 +99,8 @@ describe('the member words are the spec’s, exactly', () => {
       expect(isReserved(word), word).toBe(true);
     }
   });
+
+  it('reserves `intent` and `then`, as it does `verb` and `do`, so every verb may be a step', () => {
+    for (const word of ['intent', 'then', 'verb', 'do']) expect(isReserved(word), word).toBe(true);
+  });
 });
