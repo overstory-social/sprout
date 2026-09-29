@@ -5,6 +5,6 @@
 
 export * from './check.js';
 export * from './cli.js';
-export * from './init.js';
+export * from './scaffold/world.js';
 export * from './parse.js';
 export * from './view.js';

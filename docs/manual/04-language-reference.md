@@ -82,7 +82,7 @@ printers_shop/
 | `libraries`  | every library it uses, by name, version and the SHA-256 hash of its source.                    |
 | `files`      | every `.sprout` and `.prose` file that makes up the world.                                     |
 
-`sprout init` writes a manifest for you, with the standard library
+`sprout scaffold world` writes a manifest for you, with the standard library
 already pinned. Every file you add must be added to `files`; a file that
 is listed but missing, or present but not listed, is reported.
 
@@ -2293,7 +2293,10 @@ refuses a world that pins one.
 ## 25. The command line
 
 ```text
-sprout init [dir] [--author name]
+sprout scaffold world [dir] [--author name]
+sprout scaffold kind Name [dir] [--is Kind,…] [--path file]
+sprout scaffold object name [dir] --in place --is Kind,… [--path file]
+sprout scaffold test name [dir]
 sprout check [dir] [--json]
 sprout parse [dir]
 sprout parse dir "line" [--at place] [--as name]
@@ -2308,7 +2311,7 @@ no clock and no extensions.
 
 | command        | does                                                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `init`         | makes a folder with a manifest, a world, a visitor kind and a first test. The folder must be empty or new.                |
+| `scaffold`     | `world`: a folder with a manifest, a world, a visitor kind and a first test; the folder must be empty or new. `kind`, `object`: the declaration in a file of its own named for it, or added to the file `--path` names, with the imports it needs, the file added to the manifest; the world is checked and nothing is written where it would no longer compile. `test`: a first test in `tests/`. |
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
 | `parse`        | with no line: every phrase the world accepts. With a line: how a visitor would read it, and whether it would be refused, without running it. |
 | `view`         | what a visitor is shown and could type.                                                                                   |

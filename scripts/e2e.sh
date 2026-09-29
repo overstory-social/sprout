@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # `npm run e2e`: the published tarballs install and run from an empty folder.
-# The installed CLI inits a world, checks it and runs its first test,
+# The installed CLI scaffolds a world, a kind and an object in it, checks it and runs its first test,
 # checks a corpus world the same way, and inspects the new world and a corpus world: the grammar a
 # world accepts, a line read where a visitor stands, and that visitor's
 # view. It checks the worked microworld and plays each of its golden
@@ -29,7 +29,9 @@ sandbox=$(mktemp -d)
 cd "$sandbox"
 npm init -y >/dev/null
 npm install --silent "$packs"/overstory-sprout-*.tgz
-npx sprout init shed --author e2e
+npx sprout scaffold world shed --author e2e
+npx sprout scaffold kind Lantern shed --is sprout.Fixture
+npx sprout scaffold object lamp shed --in hall --is Lantern
 npx sprout check shed
 npx sprout test shed
 npx sprout check "$corpus"
@@ -91,4 +93,4 @@ trap - EXIT
 grep -q 'info: stopped' server.log
 echo "the installed sprout-server served shed to the installed terminal client, and stopped when asked"
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (init, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, and a world served by the installed server to the installed client, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, and a world served by the installed server to the installed client, at $sha)"
