@@ -96,6 +96,7 @@ export * from './runtime/effects.js';
 export * from './runtime/levels.js';
 export * from './runtime/turn.js';
 export * from './runtime/command.js';
+export * from './runtime/line.js';
 export * from './runtime/intents.js';
 export * from './runtime/parser.js';
 export type { Address } from './runtime/parser/address.js';

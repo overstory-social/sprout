@@ -1,8 +1,8 @@
 import {
   closedByBundle,
   NOT_ADMITTING,
+  commandsOfLine,
   keptNickname,
-  lineGoesOn,
   moderated,
   nicknameRefusal,
   pollTurn,
@@ -73,12 +73,12 @@ export function runCommand(
 }
 
 /**
- * Run the line `command` typed: its turn, then each step its intent
- * planned, each a command turn of its own under the lock, with its own
- * seed from `seed` and its own log entry (the spec's Parsing › Intents).
- * A step refused, in its consent pass or by its body, a line answered and
- * a fault each stop the rest, and
- * what ran before stays done. Every turn that ran, in order.
+ * Run the line `command` typed: each command it holds, and each step an
+ * intent planned, as a command turn of its own under the lock, with its
+ * own seed from `seed` after the first and its own log entry (the spec's
+ * Parsing › Intents; Sequences, again and all). A refusal, `unknown`,
+ * `not_here` and a fault each stop the rest, and what ran before stays
+ * done. Every turn that ran, in order.
  */
 export async function runCommandLine(
   store: SproutStore,
@@ -87,13 +87,12 @@ export async function runCommandLine(
   command: Command,
   seed: () => number,
 ): Promise<CommandTurn[]> {
-  const turns = [await runCommand(store, microworldId, host, command)];
-  let last = turns[0]!;
-  const next = last.committed && 'next' in last.value ? last.value.next : [];
-  for (const planned of next) {
-    if (!lineGoesOn(last)) break;
-    last = await runCommand(store, microworldId, host, { ...command, seed: seed(), planned });
-    turns.push(last);
+  const turns: CommandTurn[] = [];
+  const line = commandsOfLine(command, seed);
+  for (let step = line.next(); !step.done;) {
+    const turn = await runCommand(store, microworldId, host, step.value);
+    turns.push(turn);
+    step = line.next(turn);
   }
   return turns;
 }

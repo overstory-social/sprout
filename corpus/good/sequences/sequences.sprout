@@ -1,0 +1,19 @@
+// A line of several commands (the spec's Parsing › Sequences, again and
+// all): each command, split at `.` or `then`, its own turn, in order; a
+// refusal, `unknown`, `not_here` or `cannot` stops the rest, and what ran
+// before stays done.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world sequences is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object key is Loose
+    object coin is Loose
+  }
+}
+
+kind Loose { }

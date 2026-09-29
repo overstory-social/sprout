@@ -162,6 +162,42 @@ describe('a line whose intent planned steps, against a store', () => {
     expect(await count(store)).toBe(1);
   });
 
+  it('runs each command a line holds as a turn of its own, logged with its own words and seed', async () => {
+    const store = await seeded();
+    const turns = await runCommandLine(
+      store,
+      'w',
+      host,
+      command('bump counter then bump gauge. bump counter'),
+      seeds(),
+    );
+    expect(turns.map((turn) => turn.committed)).toEqual([true, true, true]);
+    expect(await count(store)).toBe(2);
+    const logged = (await readLog(store, 'w', { limit: 10 })).map(({ entry }) => entry);
+    expect(
+      logged.map((entry) => [
+        entry.kind === 'command' && entry.text,
+        'seed' in entry && entry.seed,
+      ]),
+    ).toEqual([
+      ['bump counter', 1],
+      ['bump gauge', 11],
+      ['bump counter', 12],
+    ]);
+  });
+
+  it('runs no command after one that faults', async () => {
+    const store = await seeded();
+    const turns = await runCommandLine(
+      store,
+      'w',
+      host,
+      command('smash counter then bump counter'),
+      seeds(),
+    );
+    expect(turns.map((turn) => turn.committed)).toEqual([false]);
+  });
+
   it('is the one turn for a line read as a verb', async () => {
     const store = await seeded();
     const turns = await runCommandLine(store, 'w', host, command('bump counter'), seeds());

@@ -1,0 +1,27 @@
+{
+  "about": "Each command a line holds runs as a turn of its own, and a refusal or an answer stops the rest.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "take key then take coin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." },
+      { "reader": "Marta", "kind": "said", "words": "You take a coin." }
+    ] },
+    { "as": "Marta", "type": "drop key. drop coin.", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a key down." },
+      { "reader": "Marta", "kind": "said", "words": "You put a coin down." }
+    ] },
+    { "as": "Marta", "type": "take key then take key then take coin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." },
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "dance. take coin", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "drop key then drop zebra then take coin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a key down." },
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] }
+  ]
+}

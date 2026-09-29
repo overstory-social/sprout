@@ -231,3 +231,15 @@ it runs 2 steps, each a turn of its own:
     );
   });
 });
+
+describe('parseLine, for a line of several commands', () => {
+  it('reads each in turn against the world as it stands, since nothing runs', () => {
+    const { ok, page } = read('ask warden about toll then pry crate');
+    expect(ok).toBe(true);
+    expect(page.split('\n')[0]).toBe(
+      '"ask warden about toll then pry crate" holds 2 commands, each its own turn; each is read here against the world as it stands now, since nothing runs:',
+    );
+    expect(page).toContain('in yard, "ask warden about toll" reads as sprout.ask\n');
+    expect(page).toContain('in yard, "pry crate" reads as lane.pry\n');
+  });
+});

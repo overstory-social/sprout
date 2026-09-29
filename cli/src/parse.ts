@@ -5,6 +5,7 @@ import {
   nicknamesIn,
   objectWords,
   parseCommand,
+  partsOf,
   planIntent,
   pollTurn,
   qualifiedName,
@@ -204,10 +205,25 @@ export interface ParsedLine {
 
 /**
  * `line` as a visitor standing where `standing` has them would have it
- * read, charged to a command turn's steps: a line that costs more is said
- * to fault, as its turn would.
+ * read, each command it holds in turn, each charged to a command turn's
+ * steps: one that costs more is said to fault, as its turn would.
  */
 export function parseLine(line: string, standing: Standing): ParsedLine {
+  const parts = partsOf(line);
+  if (parts.length > 1) {
+    const read = parts.map((part) => parsedCommand(part, standing));
+    return {
+      ok: read.every((one) => one.ok),
+      page:
+        `"${line}" holds ${parts.length} commands, each its own turn; each is read here against the world as it stands now, since nothing runs:\n\n` +
+        read.map((one) => one.page).join('\n'),
+    };
+  }
+  return parsedCommand(line, standing);
+}
+
+/** One command, read against the world as it stands. */
+function parsedCommand(line: string, standing: Standing): ParsedLine {
   const { state, host, place } = standing;
   const where = `in ${pathOf(state.world, place)}, "${line}"`;
   const polled = pollTurn(state, host, (turn) => readLine(line, standing, turn), 'command');

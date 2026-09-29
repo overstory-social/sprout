@@ -117,7 +117,15 @@ export interface Command extends WriteInputs {
  * was typed about where they no longer are (the spec's What absent means).
  */
 export type Commanded =
-  | { readonly answered: Said }
+  | {
+      readonly answered: Said;
+      /**
+       * Whether it ends a line of several commands: the parser's answers
+       * do, and `nothing_happens` for an intent with no step to run does not
+       * (the spec's Parsing › Sequences, again and all).
+       */
+      readonly stops: boolean;
+    }
   | {
       readonly refused: PermitRefusal;
       readonly drawn: DrawnReading | null;
@@ -188,7 +196,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
             `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
           );
         }
-        return { answered: parsed.answered };
+        return { answered: parsed.answered, stops: true };
       }
       const { drawn, corrected } = parsed;
       let reading: Reading;
@@ -201,7 +209,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
           budget,
         });
         // Every step left out, the line does nothing, and is answered so.
-        if (first === undefined) return { answered: nothingHappens(draft, actor) };
+        if (first === undefined) return { answered: nothingHappens(draft, actor), stops: false };
         reading = first;
         next = rest;
       } else reading = parsed.reading;
@@ -253,12 +261,17 @@ function sameIds(a: readonly InstanceId[], b: readonly InstanceId[]): boolean {
 }
 
 /**
- * Whether a line goes on past `turn` to the next step its intent planned:
- * it committed and acted, and refused its actor nothing (the spec's
- * Parsing › Intents: a step refused stops the rest).
+ * Whether a line goes on past `turn`, to the next step its intent planned
+ * or the next command it holds: it committed, and acted refusing its actor
+ * nothing, or was answered with what does not stop a line (the spec's
+ * Parsing › Intents; Sequences, again and all: a refusal, `unknown`,
+ * `not_here` or a fault stops the rest).
  */
 export function lineGoesOn(turn: CommandTurn): boolean {
-  return turn.committed && 'acted' in turn.value && !turn.value.refusedActor;
+  if (!turn.committed) return false;
+  const done = turn.value;
+  if ('acted' in done) return !done.refusedActor;
+  return 'answered' in done && !done.stops;
 }
 
 /** The engine's `nothing_happens`, to `actor`: what a line whose intent planned no step to run is answered with. */
