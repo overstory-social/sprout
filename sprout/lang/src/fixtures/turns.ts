@@ -182,6 +182,7 @@ export const parseBelfry: Parser = (text, actor, context) => {
   }
   return {
     reading: { verb: resolved, actor, bindings: new Map([['target', { object: target }]]) },
+    rest: [],
     drawn: null,
     corrected: [],
   };
