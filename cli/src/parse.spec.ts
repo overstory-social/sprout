@@ -257,3 +257,14 @@ describe('parseLine, for a line of several commands', () => {
     expect(page).toContain('in yard, "pry crate" reads as lane.pry\n');
   });
 });
+
+describe('parseLine, for the standard library’s everyday phrasings', () => {
+  it('reads `enter` and `go through` as `go`, and `talk to … about` as `ask`, each one verb', () => {
+    for (const line of ['enter in', 'go through into the shed']) {
+      expect(read(line).page, line).toContain(`"${line}" reads as sprout.go\n`);
+    }
+    expect(read('talk to warden about toll').page).toContain(
+      '"talk to warden about toll" reads as sprout.ask\n',
+    );
+  });
+});
