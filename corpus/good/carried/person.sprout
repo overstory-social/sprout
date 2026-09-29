@@ -1,0 +1,6 @@
+// Every visitor arrives with a pouch of their own.
+import * as sprout from 'sprout'
+
+kind Person is sprout.Visitor {
+  object pouch is sprout.Container
+}

@@ -1,0 +1,47 @@
+{
+  "about": "A key unlocks only from what the visitor carries: not from the flagstones or the open crate, from the hand and from the open pouch, not through it shut; a key carried is meant over one lying further out; `open … with` holds its slot to the rule; and `put`'s container, not carried, is the crate on the floor.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "unlock strongbox with iron key", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying an iron key." }
+    ] },
+    { "as": "Marta", "type": "unlock strongbox with brass key", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying a brass key." }
+    ] },
+    { "as": "Marta", "type": "take iron key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take an iron key." }
+    ] },
+    { "as": "Marta", "type": "unlock strongbox with key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." }
+    ] },
+    { "as": "Marta", "type": "put iron key in pouch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put an iron key in a pouch." }
+    ] },
+    { "as": "Marta", "type": "unlock coffer with iron key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." }
+    ] },
+    { "as": "Marta", "type": "close pouch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You shut a pouch." }
+    ] },
+    { "as": "Marta", "type": "open casket with iron key", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "open pouch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open a pouch. Inside: an iron key." }
+    ] },
+    { "as": "Marta", "type": "open casket with iron key", "expect": [
+      { "level": "info", "text": "step: sprout.unlock" },
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "level": "info", "text": "step: sprout.open" },
+      { "reader": "Marta", "kind": "said", "words": "You open a casket. It is empty." }
+    ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." }
+    ] },
+    { "as": "Marta", "type": "put brass key in crate", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a brass key in a crate." }
+    ] }
+  ]
+}

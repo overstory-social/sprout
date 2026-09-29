@@ -1,0 +1,9 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world wildcard_do is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}

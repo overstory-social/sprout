@@ -27,6 +27,7 @@ describe('the standard library as the skill describes it', () => {
       'sprout.Fixture',
       'sprout.Container',
       'sprout.Lockable',
+      'sprout.RequiresHeld',
     ]);
     expect(libraryVerbs(library).map((verb) => verb.name)).toEqual([
       ...ENGINE_VERBS,

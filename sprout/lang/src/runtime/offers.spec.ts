@@ -25,6 +25,13 @@ import { Draft } from './draft.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { offersTo } from './offers.js';
+import {
+  BOOK as BENCH_BOOK,
+  BRASS_KEY as BENCH_KEY,
+  POUCH as BENCH_POUCH,
+  bench,
+} from '../fixtures/bench.js';
+import { commandContext } from '../fixtures/parser.js';
 
 const typedBy = (state: ReturnType<typeof study>) =>
   offersTo(actorOf(state, MARTA), lookingAt(state)).map((offer) => offer.typed);
@@ -146,5 +153,24 @@ describe('what an actor is offered', () => {
   it('is asked of one who stands somewhere', () => {
     const state = study();
     expect(() => offersTo(state.world, lookingAt(state))).toThrow(/is away/);
+  });
+});
+
+describe('what a carried role is offered with', () => {
+  it('is only what the actor carries, through an open pouch, and never what lies further out', () => {
+    const one = bench([
+      [BENCH_KEY, null],
+      [BENCH_POUCH, null],
+      [BENCH_BOOK, BENCH_POUCH],
+    ]);
+    const typed = offersTo(one.people[0]!, commandContext(one, [])).map((offer) => offer.typed);
+    const unlocking = typed.filter((line) => line.startsWith('unlock '));
+    expect(unlocking).toEqual([
+      'unlock chest with brass key',
+      'unlock chest with pouch',
+      'unlock chest with book',
+    ]);
+    // `put`'s container is not carried, so the crate on the floor is offered.
+    expect(typed).toContain('put brass key in crate');
   });
 });

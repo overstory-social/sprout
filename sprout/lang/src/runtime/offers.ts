@@ -1,20 +1,20 @@
 // What an actor can do where they stand (the spec's Verbs › Engine verbs:
 // `help`; The runtime › The view). Every verb a visitor may type is
 // offered once for each way its roles fill from what is in range: a role a
-// thing fills, by each thing in range it fits but the actor, a set role by
-// each such thing alone, and `go`'s way by each exit and link that
-// applies, a link typed by its label. A tool
-// is left out and a value role left unbound, which a body reads only
-// inside `if (bound …)` and a `from` may leave so anyway. Each offer is
-// typed by its verb's first phrase that fits, with the consent pass's
-// answer beside it, and costs a step, so a world too large to list faults
-// as any work does.
+// thing fills, by each thing in range it fits but the actor, and a carried
+// role only by what the actor carries; a set role by each such thing
+// alone; and `go`'s way by each exit and link that applies, a link typed
+// by its label. A tool is left out and a value role left unbound, which a
+// body reads only inside `if (bound …)` and a `from` may leave so anyway.
+// Each offer is typed by its verb's first phrase that fits, with the
+// consent pass's answer beside it, and costs a step, so a world too large
+// to list faults as any work does.
 
 import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
-import { rangeOf, type RangeWalk } from './range.js';
+import { carriedIn, rangeOf, type RangeWalk } from './range.js';
 import {
   consentPass,
   type Bound,
@@ -64,7 +64,9 @@ export function offersTo(
   const here = state.instance(actor)?.container ?? null;
   if (here === null) throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
-  const walked = range ?? rangeOf({ tree: liveTree(state), passes, budget }, actor, 'any');
+  const tree = liveTree(state);
+  const walked = range ?? rangeOf({ tree, passes, budget }, actor, 'any');
+  const carried = carriedIn(tree, actor, walked.reached);
   const things = walked.reached.flatMap(({ node }) => {
     const instance = node === state.world || node === actor ? undefined : state.instance(node);
     return instance === undefined ? [] : [instance];
@@ -85,7 +87,7 @@ export function offersTo(
         return [null];
       }
       return things
-        .filter((thing) => fits(role, thing))
+        .filter((thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)))
         .map((thing) => ({
           bound: role.many ? { set: [thing.id] } : { object: thing.id },
           words: wordsFor(thing, addressing),

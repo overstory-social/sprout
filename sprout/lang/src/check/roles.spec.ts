@@ -408,3 +408,40 @@ describe('a `do` performs verbs with `act`', () => {
     ]);
   });
 });
+
+describe('a wildcard’s `permit`, which knows no verb', () => {
+  it('reads `self`, `actor` and `here`', () => {
+    expect(
+      checked(`kind Grip {
+  :worn false
+  as tool for any {
+    permit {
+      if (self.get(:worn)) { refuse "Worn." }
+      else if (!actor.holds(self)) { refuse "Not in hand." }
+      else if (here == self) { refuse "Nowhere." }
+    }
+  }
+}`),
+    ).toEqual([]);
+  });
+
+  it('refuses a name some verb gives a role, saying why, and its own category as `self`', () => {
+    expect(
+      checked(`kind Grip { as tool for any { permit { if (target == self) { refuse "No." } } } }
+kind Slab { as target for any { permit { if (bound topic) { refuse "No." } } } }
+kind Plank { as target for any { permit { if (target == self) { refuse "No." } } } }`),
+    ).toEqual([
+      [
+        'shop.sprout:10:44',
+        "`target` names a verb's role, and `as tool for any` plays every verb at once, so it cannot know any verb's other roles.",
+        "Read only `self` and `actor` here, or write `as tool for <verb>`, where that verb's roles are bound by name.",
+      ],
+      [
+        'shop.sprout:11:52',
+        "`topic` names a verb's role, and `as target for any` plays every verb at once, so it cannot know any verb's other roles.",
+        "Read only `self` and `actor` here, or write `as target for <verb>`, where that verb's roles are bound by name.",
+      ],
+      ['shop.sprout:12:47', '`target` is `self` in `as target for any`.', 'Write `self`.'],
+    ]);
+  });
+});

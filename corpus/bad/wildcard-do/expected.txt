@@ -1,0 +1,4 @@
+kinds.sprout:5:8  `as tool for any` holds a `do`, and what a thing does belongs to a verb; a play for every verb only permits.
+                  Move the `do` into `as tool for <verb> { do { … } }` for the verb it belongs to, and keep the `permit` here.
+
+refused: 1 problem

@@ -1,14 +1,19 @@
 // What the words a slot took fill its role with (the spec's Verbs ›
-// Slots, Set roles, Value roles, A role-player narrows its own options,
-// Exits). A thing role takes one noun, a set role a run of them, an exit
-// role a direction or a label; a value role takes any words, and binds
-// only a value some participant's `from` hears, so nothing a visitor
-// typed reaches a body unless a role-player declared it an option.
+// Slots, Set roles, Carried roles, Value roles, A role-player narrows its
+// own options, Exits). A thing role takes one noun, a set role a run of
+// them, an exit role a direction or a label; a value role takes any
+// words, and binds only a value some participant's `from` hears, so
+// nothing a visitor typed reaches a body unless a role-player declared it
+// an option. A carried role takes only what the one typing carries: where
+// what they carry does not answer and something further out would fill
+// the role, the slot is `outward`, which the world answers with
+// `not_carrying`, and a carried thing the noun names always wins over an
+// outward one.
 
 import { optionFromWords } from '../../declare/enums.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
 import { heardBy, type Bound, type Reading } from '../reading.js';
-import type { StateReader } from '../state.js';
+import type { Instance, StateReader } from '../state.js';
 import type { Value } from '../values.js';
 import { exitNamed, type CommandExit } from './exits.js';
 import {
@@ -48,7 +53,12 @@ export type Filled =
    */
   | { readonly fills: 'unfit'; readonly things: readonly FillOption[] }
   /** `all`, for a role that takes one thing: each thing it takes in turn, in the order reached (`all.ts`). */
-  | { readonly fills: 'all'; readonly things: readonly FillOption[] };
+  | { readonly fills: 'all'; readonly things: readonly FillOption[] }
+  /**
+   * The phrase does not match: the role is carried, nothing carried
+   * answers, and each of these, further out, would fill it.
+   */
+  | { readonly fills: 'outward'; readonly things: readonly FillOption[] };
 
 /** What filling a slot reads: what the actor can reach, the exits that apply, the meter and the draws. */
 export interface FillContext extends NounContext {
@@ -70,13 +80,63 @@ export function fillSlot(
     if (exit === null) return { fills: 'unfit', things: [] };
     return { fills: 'options', options: [{ bound: { exit }, near: 0, literal: words.length }] };
   }
-  if (role.many) {
-    const found = runIn(words, role, context.candidates, context);
-    if (found.found !== 'sets') {
-      return found.found === 'nothing'
-        ? { fills: 'nothing', start: found.start, end: found.end }
-        : { fills: 'unfit', things: [] };
-    }
+  if (role.many) return setFilled(words, role, context);
+  return carriedFilled(
+    words,
+    role.carried,
+    (candidates) => nounIn(words, role, candidates, context),
+    context,
+  );
+}
+
+/**
+ * What `words`, taken by an intent's slot, fill it with: each thing that
+ * fits a role the slot is given to, and only what is carried where any
+ * of those roles is carried.
+ */
+export function fillIntentSlot(
+  roles: readonly ResolvedRole[],
+  words: readonly string[],
+  context: FillContext,
+): Filled {
+  const fitting = (instance: Instance) => roles.some((role) => fits(role, instance));
+  return carriedFilled(
+    words,
+    roles.some((role) => role.carried),
+    (candidates) => thingsIn(words, fitting, candidates, context),
+    context,
+  );
+}
+
+/**
+ * What one noun fills a slot with, `find` naming it among candidates: in
+ * a carried slot, among what is carried first, and `outward` where only
+ * something further out would fill it.
+ */
+function carriedFilled(
+  words: readonly string[],
+  carried: boolean,
+  find: (candidates: readonly Candidate[]) => NounFound,
+  context: FillContext,
+): Filled {
+  if (!carried) return thingFilled(find(context.candidates), words);
+  const held = find(context.candidates.filter((one) => one.carried));
+  if (held.found === 'some') return thingFilled(held, words);
+  const anywhere = find(context.candidates);
+  if (anywhere.found === 'some') {
+    const outward = thingFilled(anywhere, words);
+    return { fills: 'outward', things: outward.fills === 'options' ? outward.options : [] };
+  }
+  return thingFilled(held.found === 'unfit' ? held : anywhere, words);
+}
+
+/** What a set role's run fills it with, each set an option; in a carried role, as `carriedFilled` says. */
+function setFilled(words: readonly string[], role: ResolvedRole, context: FillContext): Filled {
+  const run = (candidates: readonly Candidate[]) => runIn(words, role, candidates, context);
+  const found = run(
+    role.carried ? context.candidates.filter((one) => one.carried) : context.candidates,
+  );
+  if (found.found === 'sets') {
     return {
       fills: 'options',
       options: found.sets.map(({ ids, near, literal, pronounNamed }) => ({
@@ -87,23 +147,22 @@ export function fillSlot(
       })),
     };
   }
-  const found = nounIn(words, role, context.candidates, context);
-  return thingFilled(found, words);
-}
-
-/** What `words`, taken by an intent's slot, fill it with: each thing that fits a role the slot is given to. */
-export function fillIntentSlot(
-  roles: readonly ResolvedRole[],
-  words: readonly string[],
-  context: FillContext,
-): Filled {
-  const found = thingsIn(
-    words,
-    (instance) => roles.some((role) => fits(role, instance)),
-    context.candidates,
-    context,
-  );
-  return thingFilled(found, words);
+  if (role.carried && found.found === 'nothing') {
+    const anywhere = run(context.candidates);
+    if (anywhere.found === 'sets') {
+      // The nearest set's first thing not carried is the one the world names.
+      const carried = new Set(
+        context.candidates.filter((one) => one.carried).map((one) => one.instance.id),
+      );
+      const [nearest] = [...anywhere.sets].sort((a, b) => a.near - b.near);
+      const thing = nearest!.ids.find((id) => !carried.has(id))!;
+      const { near, literal } = nearest!;
+      return { fills: 'outward', things: [{ bound: { object: thing }, near, literal }] };
+    }
+  }
+  return found.found === 'nothing'
+    ? { fills: 'nothing', start: found.start, end: found.end }
+    : { fills: 'unfit', things: [] };
 }
 
 /** What one noun found fills a slot with: a thing for each option, or for each thing that cannot fill it. */

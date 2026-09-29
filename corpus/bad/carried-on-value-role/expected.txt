@@ -1,0 +1,4 @@
+verbs.sprout:4:22  `topic` is a `symbol` role, a value the visitor names, and nobody carries a value.
+                   `carried` is for a role a thing fills, such as a tool held in the hand. Take it off.
+
+refused: 1 problem

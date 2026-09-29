@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { ACTOR_LINES, ENGINE_LINES, ownerOf, PLACE_LINES, WORLD_LINES } from './engine-passages.js';
 
 describe('the lines the engine says for itself', () => {
-  it('are the world’s eighteen, a place’s two and an actor’s one, each named once', () => {
+  it('are the world’s nineteen, a place’s two and an actor’s one, each named once', () => {
     const names = ENGINE_LINES.map((line) => line.name);
-    expect(WORLD_LINES).toHaveLength(18);
-    expect(names).toHaveLength(21);
+    expect(WORLD_LINES).toHaveLength(19);
+    expect(names).toHaveLength(22);
     expect(PLACE_LINES.map((line) => line.name)).toEqual(['arrives', 'leaves']);
     expect(new Set(names).size).toBe(names.length);
   });
@@ -17,6 +17,7 @@ describe('the lines the engine says for itself', () => {
     );
     expect(binds.unremarkable).toEqual({ thing: 'object' });
     expect(binds.meant).toEqual({ actor: 'actor', here: 'here', thing: 'object' });
+    expect(binds.not_carrying).toEqual({ actor: 'actor', here: 'here', thing: 'object' });
     expect(binds.inside_itself).toEqual({ item: 'object' });
     expect(binds.crowded).toEqual({ item: 'object', to: 'object' });
     expect(binds.arrives).toEqual({ item: 'object', from: 'object', way: 'text' });

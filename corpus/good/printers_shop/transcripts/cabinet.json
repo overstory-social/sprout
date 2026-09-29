@@ -22,18 +22,18 @@
       { "reader": "Marta", "kind": "refused", "words": "It is already shut." }
     ] },
     { "as": "Marta", "type": "unlock cabinet with apprentice", "expect": [
-      { "reader": "Marta", "kind": "refused", "words": "The apprentice is not a key." }
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying the apprentice." }
     ] },
     { "as": "Marta", "type": "unlock cabinet with brass key", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
-      { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying a brass key." }
     ] },
     { "as": "Marta", "type": "take brass key", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You take a brass key." },
       { "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }
     ] },
     { "as": "Marta", "type": "unlock cabinet with brass key", "expect": [
-      { "reader": "Marta", "kind": "refused", "words": "It is already unlocked." }
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." },
+      { "reader": "Ines", "kind": "told", "words": "Marta unlocks the type cabinet." }
     ] },
     { "as": "Marta", "type": "unlock cabinet with key", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "It is already unlocked." }

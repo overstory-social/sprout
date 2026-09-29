@@ -34,6 +34,8 @@ export interface Candidate {
   readonly address: Address;
   /** Its nearness in the range walk: smaller is nearer, and equal only among the equally near. */
   readonly near: number;
+  /** Whether the one typing carries it, through open containers they carry (the spec's Carried roles). */
+  readonly carried: boolean;
 }
 
 /** What resolving a noun reads besides the candidates: the turn's meter, and what the visitor's pronouns name. */

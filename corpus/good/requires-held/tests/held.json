@@ -1,0 +1,32 @@
+{
+  "about": "A key that must be held works from the hand and not from the open pouch; a book that need not be works from the pouch; and taking the key up, where it is the target, is untouched.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the vault." }
+    ] },
+    { "as": "Marta", "type": "take key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." }
+    ] },
+    { "as": "Marta", "type": "take book", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a book." }
+    ] },
+    { "as": "Marta", "type": "put key in pouch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a key in a pouch." }
+    ] },
+    { "as": "Marta", "type": "put book in pouch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a book in a pouch." }
+    ] },
+    { "as": "Marta", "type": "unlock door with key", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You'll need a key in your hand." }
+    ] },
+    { "as": "Marta", "type": "wedge door with book", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A door stays where it is." }
+    ] },
+    { "as": "Marta", "type": "take key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." }
+    ] },
+    { "as": "Marta", "type": "unlock door with key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The lock turns over." }
+    ] }
+  ]
+}

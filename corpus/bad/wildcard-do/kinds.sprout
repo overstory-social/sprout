@@ -1,0 +1,7 @@
+// A play for every verb only permits: what a thing does belongs to a verb.
+kind Chime {
+  as tool for any {
+    permit { }
+    do { say "It chimes." }
+  }
+}

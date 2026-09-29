@@ -178,3 +178,44 @@ export function reaches<Id>(
   for (let at = below.length - 1; at >= 1; at--) if (!passes(below[at]!, asking)) return false;
   return true;
 }
+
+/**
+ * Whether `asker` carries `target`: holds it, or holds what holds it, at
+ * any depth, every container strictly between passing (the spec's Verbs ›
+ * Carried roles). One step per container climbed.
+ */
+export function carries<Id>(
+  context: RangeContext<Id>,
+  asker: Id,
+  target: Id,
+  asking: Asking,
+): boolean {
+  const { tree, passes, budget } = context;
+  for (let node = tree.containerOf(target); node !== null; node = tree.containerOf(node)) {
+    budget.spend();
+    if (node === asker) return true;
+    if (!passes(node, asking)) return false;
+  }
+  return false;
+}
+
+/**
+ * What `asker` carries among what a walk from it reached: what it holds,
+ * and what that holds wherever the walk crossed into it (the spec's Verbs
+ * › Carried roles). The walk reaches what holds a thing before the thing.
+ */
+export function carriedIn<Id>(
+  tree: LiveTree<Id>,
+  asker: Id,
+  reached: readonly Reached<Id>[],
+): Set<Id> {
+  const carrying = new Set<Id>([asker]);
+  const carried = new Set<Id>();
+  for (const { node, via } of reached) {
+    const container = via === 'self' ? null : tree.containerOf(node);
+    if (container === null || !carrying.has(container)) continue;
+    carrying.add(node);
+    carried.add(node);
+  }
+  return carried;
+}

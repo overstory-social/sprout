@@ -7,7 +7,7 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
-import { playKey, playsOf, VerbNames, type ResolvedPlay } from './roles.js';
+import { anyKey, anyPlaysOf, playKey, playsOf, VerbNames, type ResolvedPlay } from './roles.js';
 
 /** The standard library's part: a verb of its own, and one the world may declare over. */
 const SPROUT_TEXT = `verb take { role target  "take [target]" }
@@ -285,6 +285,73 @@ kind Box is Lock { without as tool for unlock from Lock }`);
     expect(said.map(([, message]) => message)).toEqual([
       '`Brass` has no `as target for unlock` to leave out.',
       '`Lock` has no `as tool for unlock` to leave out.',
+    ]);
+  });
+});
+
+describe('a wildcard plays every verb at once, by the category of role it fills', () => {
+  const any = (kinds: KindTable, name: string, category: 'target' | 'tool') =>
+    anyPlaysOf(kinds.qualified('shop', name)!.plays, category).map((play) => play.origin);
+
+  it('holds `as target for any` and `as tool for any` under their category, apart from any verb’s', () => {
+    const { said, kinds, plays } = world(`${UNLOCK}kind Grip {
+  as tool for any    { permit { } }
+  as target for any  { permit { } }
+  as tool for unlock { permit { } }
+}`);
+    expect(said).toEqual([]);
+    expect(any(kinds, 'Grip', 'tool')).toEqual(['shop.Grip']);
+    expect(any(kinds, 'Grip', 'target')).toEqual(['shop.Grip']);
+    expect(plays('Grip', 'shop', 'unlock', 'tool')).toEqual(['shop.Grip']);
+    expect(kinds.qualified('shop', 'Grip')!.plays.get(anyKey('tool'))![0]).toMatchObject({
+      any: true,
+      verb: 'any',
+      role: 'tool',
+    });
+  });
+
+  it('composes as every play does, in closure order, and `without` leaves one out', () => {
+    const { said, kinds } = world(`kind Held { as tool for any { permit { } } }
+kind Sharp { as tool for any { permit { } } }
+kind Knife is Held, Sharp { as tool for any { permit { } } }
+kind Blunt is Held, Sharp { without as tool for any from Sharp }`);
+    expect(said).toEqual([]);
+    expect(any(kinds, 'Knife', 'tool')).toEqual(['shop.Held', 'shop.Sharp', 'shop.Knife']);
+    expect(any(kinds, 'Blunt', 'tool')).toEqual(['shop.Held']);
+  });
+
+  it('refuses a `do`, a `from`, a role that is no category, and a wildcard written twice', () => {
+    const { said } = world(`${UNLOCK}kind Busy { as tool for any { permit { } do { } } }
+kind Asking { as tool for any { topic from :knows  permit { } } }
+kind Named { as item for any { permit { } } }
+kind Twice { as tool for any { permit { } }  as tool for any { permit { } } }
+kind Idle is Busy { without as target for any from Busy }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:3:45',
+        '`as tool for any` holds a `do`, and what a thing does belongs to a verb; a play for every verb only permits.',
+        'Move the `do` into `as tool for <verb> { do { … } }` for the verb it belongs to, and keep the `permit` here.',
+      ],
+      [
+        'shop.sprout:4:33',
+        "`as tool for any` narrows `topic`, and a play for every verb knows no verb's roles.",
+        'Narrow it in `as tool for <verb>`, for the verb that declares `topic`.',
+      ],
+      [
+        'shop.sprout:5:17',
+        '`as item for any` names a role, and `for any` plays every verb at once, so it names what kind of role instead: `target` or `tool`.',
+        'Write `as target for any` for the thing a verb is done to, `as tool for any` for any other role, or name the verb: `as item for <verb>`.',
+      ],
+      [
+        'shop.sprout:6:46',
+        '`Twice` plays `tool` for `any` twice.',
+        'Keep one, and write what both decide in its `permit`.',
+      ],
+      [
+        'shop.sprout:7:29',
+        '`Busy` has no `as target for any` to leave out.',
+        '`without` names a member the kind after `from` declares itself. Take this line out, or name the kind that declares `as target for any`.',
+      ],
     ]);
   });
 });

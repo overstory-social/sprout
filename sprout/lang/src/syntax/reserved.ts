@@ -39,6 +39,7 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'at',
   'bound',
   'broadcast',
+  'carried',
   'changed',
   'connect',
   'contains',

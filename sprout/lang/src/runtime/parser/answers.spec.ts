@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HALL, study } from '../../fixtures/parser.js';
+import { BRASS_KEY, HALL, study } from '../../fixtures/parser.js';
 import type { StateReader } from '../state.js';
 import { answer } from './answers.js';
 
@@ -34,12 +34,28 @@ describe('the world’s answers to a line it could not run', () => {
   });
 
   it('says `cannot` in the world’s words, with the reading as far as it was understood', () => {
-    const cannot = answer(one.draft, 'cannot', actor, HALL, 'unlock the door with the gong');
+    const cannot = answer(one.draft, 'cannot', actor, HALL, {
+      reading: 'unlock the door with the gong',
+    });
     expect(text(cannot.said)).toEqual(['sprout.World', 'cannot', "You can't {reading}."]);
     expect([...cannot.bindings]).toEqual([
       ['actor', { binds: 'object', id: actor }],
       ['here', { binds: 'object', id: HALL }],
       ['reading', { binds: 'value', value: 'unlock the door with the gong' }],
+    ]);
+  });
+
+  it('says `not_carrying` in the world’s words, with the thing not carried', () => {
+    const uncarried = answer(one.draft, 'not_carrying', actor, HALL, { thing: BRASS_KEY });
+    expect(text(uncarried.said)).toEqual([
+      'sprout.World',
+      'not_carrying',
+      "You aren't carrying {thing}.",
+    ]);
+    expect([...uncarried.bindings]).toEqual([
+      ['actor', { binds: 'object', id: actor }],
+      ['here', { binds: 'object', id: HALL }],
+      ['thing', { binds: 'object', id: BRASS_KEY }],
     ]);
   });
 

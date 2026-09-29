@@ -15,6 +15,10 @@
     { "as": "Marta", "type": "go in", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "The paper store is shut." }
     ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a brass key." }
+    ] },
     { "as": "Marta", "type": "unlock paper store with brass key", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "It goes in, and turns nothing." }
     ] },
@@ -49,7 +53,7 @@
     { "as": "Ines", "type": "look", "expect": [
       { "reader": "Ines", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
       { "reader": "Ines", "kind": "described", "words": "You have not stood in here before, and the room somehow knows it." },
-      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat," }
+      { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, the apprentice, the shop cat," }
     ] },
     { "as": "Marta", "type": "go up", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
@@ -85,7 +89,7 @@
       { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the composing room." },
       { "reader": "Ines", "kind": "notice", "words": "Marta arrives from the paper store." },
       { "reader": "Marta", "kind": "described", "words": "Lead and lamp oil. The composing frames take the long wall, and the cabinet stands where the light is worst, which is either carelessness or the opposite." },
-      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, a brass key, the apprentice, the shop cat, Ines," }
+      { "reader": "Marta", "kind": "described", "words": "The paper store, the type cabinet, the apprentice, the shop cat, Ines," }
     ] },
     { "as": "Marta", "type": "open paper store", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You open the paper store. Inside: a ladder." },

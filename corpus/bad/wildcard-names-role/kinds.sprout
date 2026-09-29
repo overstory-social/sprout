@@ -1,0 +1,6 @@
+// A play for every verb knows no verb's roles, so it names none.
+kind Blade {
+  as tool for any {
+    permit { if (target == self) { refuse "It will not cut itself." } }
+  }
+}

@@ -159,6 +159,9 @@ function readLine(line: string, standing: Standing, turn: PollTurn): string {
   const head = `${readingWords(reading, context)}${tie}`;
   const refused = consentPass(reading, turn);
   if (refused === null) return `${head}every participant consents\n`;
+  if (refused.origin === null) {
+    return `${head}refused by the engine, since ${refused.role} is carried and the actor does not carry what fills it:\n${spoken(refused, context)}`;
+  }
   const by = `${objectWords(refused.by, actor, render)} (${pathOf(context.world, refused.by)})`;
   return `${head}refused by ${by} as ${refused.role}, in ${refused.origin}'s permit:\n${spoken(refused, context)}`;
 }

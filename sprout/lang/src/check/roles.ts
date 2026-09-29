@@ -1,7 +1,11 @@
 // A role's body, checked: the `permit` and the `do` of one `as <role> for
 // <verb>` (the spec's Verbs › Playing a role, The actor's own part, The
-// two passes, Optional tools, Value roles, A role-player narrows its own
-// options; Prose; The compiler › What it refuses).
+// two passes, Roles compose, Optional tools, Value roles, A role-player
+// narrows its own options; Prose; The compiler › What it refuses).
+//
+// A wildcard, `as tool for any`, plays every verb at once and so knows no
+// verb's roles: its `permit` has `self`, `actor` and `here`, and a name
+// any verb gives a role is refused there, saying why.
 //
 // Inside, `self` is the role-player, `actor` whoever is acting, typed as
 // `sprout.Actor` since a person or an NPC may be acting, `here` their
@@ -60,6 +64,7 @@ export interface PlaySetting {
  * participant in its verb has. Returns whether nothing in it was refused.
  */
 export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySetting): boolean {
+  if (play.any) return checkWildcard(play, self, setting);
   const { diagnostics } = setting;
   const before = diagnostics.refusals.length;
   const verb = setting.verbs.qualified(play.library, play.verb);
@@ -78,20 +83,66 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
     );
   }
 
-  const scope = Scope.root();
-  scope.introduce(selfBinding(self, head.at), diagnostics);
-  const actor = setting.kinds.qualified(SPROUT, 'Actor');
-  scope.introduce(actorBinding(actor, head.at), diagnostics);
-  scope.introduce(hereBinding(setting.here, head.at), diagnostics);
+  const scope = participantScope(self, head.at, setting);
   for (const role of verb.roles) bindRole(role, play, verb, self, scope, diagnostics);
+  checkBodies(play, contextOf(play, self, scope, setting, verb.name));
+  return diagnostics.refusals.length === before;
+}
 
-  const context: CheckContext = {
+/**
+ * Check a wildcard's `permit`, which knows no verb: every name some verb
+ * gives a role is withheld, its own category as `self`. Returns whether
+ * nothing in it was refused.
+ */
+function checkWildcard(play: ResolvedPlay, self: KindRef, setting: PlaySetting): boolean {
+  const { diagnostics } = setting;
+  const before = diagnostics.refusals.length;
+  const at = play.declaration.head.at;
+  const written = `as ${play.role} for any`;
+  const scope = participantScope(self, at, setting);
+  const names = new Set([play.role]);
+  for (const verb of setting.verbs.all()) for (const role of verb.roles) names.add(role.name);
+  for (const name of names) {
+    if (scope.lookup(name) !== null) continue;
+    const words: Words =
+      name === play.role
+        ? { message: `\`${name}\` is \`self\` in \`${written}\`.`, remedy: 'Write `self`.' }
+        : {
+            message: `\`${name}\` names a verb's role, and \`${written}\` plays every verb at once, so it cannot know any verb's other roles.`,
+            remedy: `Read only \`self\` and \`actor\` here, or write \`as ${play.role} for <verb>\`, where that verb's roles are bound by name.`,
+          };
+    scope.withhold({ name, at, unread: words, bound: { bindable: false, words } }, diagnostics);
+  }
+  checkBodies(play, contextOf(play, self, scope, setting, null));
+  return diagnostics.refusals.length === before;
+}
+
+/** The scope every participant's body starts from: `self`, `actor` and `here`. */
+function participantScope(self: KindRef, at: Span, setting: PlaySetting): Scope {
+  const { diagnostics } = setting;
+  const scope = Scope.root();
+  scope.introduce(selfBinding(self, at), diagnostics);
+  const actor = setting.kinds.qualified(SPROUT, 'Actor');
+  scope.introduce(actorBinding(actor, at), diagnostics);
+  scope.introduce(hereBinding(setting.here, at), diagnostics);
+  return scope;
+}
+
+/** What a play's bodies are checked in; `verb` is null for a wildcard. */
+function contextOf(
+  play: ResolvedPlay,
+  self: KindRef,
+  scope: Scope,
+  setting: PlaySetting,
+  verb: string | null,
+): CheckContext {
+  return {
     scope,
     kinds: setting.kinds,
     from: self.library,
     self,
-    diagnostics,
-    verb: verb.name,
+    diagnostics: setting.diagnostics,
+    ...(verb === null ? {} : { verb }),
     acting: { verbs: setting.verbs },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
@@ -100,10 +151,13 @@ export function checkPlay(play: ResolvedPlay, self: KindRef, setting: PlaySettin
       ? {}
       : { speech: { ...setting.speech, body: play.declaration } }),
   };
+}
+
+/** A play's `permit`, which decides, and its `do`, which acts. */
+function checkBodies(play: ResolvedPlay, context: CheckContext): void {
   const declaration = play.declaration;
   if (declaration.permit !== null) checkBlock(declaration.permit, context, { body: 'permit' });
   if (declaration.do !== null) checkBlock(declaration.do, context, { body: 'do' });
-  return diagnostics.refusals.length === before;
 }
 
 /**

@@ -163,7 +163,7 @@ An object reaches a target when nothing strictly between them on the containment
 
 An object always reaches **itself and its own contents**: a shut chest can still count what it holds and speak to it, because a lid stops others looking in, not the chest looking down. Without that, every container would go blind the moment it closed. It also always reaches **the surface of its own container** — the thing it is inside, even when nothing beyond it is — so a visitor shut in a wardrobe can still name the wardrobe and open it.
 
-A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
+A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
 
 Because the world's pass rule refuses, places are out of range of one another until the world says otherwise. One place hearing another is a deliberate act by the world, not a consequence of sharing a microworld.
 
@@ -466,7 +466,7 @@ The library carries the half that needs no world types: the verb, the role, and 
 ```sprout
 verb unlock {
   role target: Lockable
-  role tool
+  role tool carried
   "unlock [target] with [tool]"
   "unlock [target] using [tool]"
   "use [tool] on [target]"
@@ -671,7 +671,8 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `thing` in `meant` and `pronoun_correction` | object |
 | `pronoun` in `pronoun_correction` | string: the pronoun the thing declares |
 | `reading` in `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
-| `actor` and `here` in `unknown`, `not_here`, `cannot`, `meant`, `nothing_happens`, `help` and `fault` | as above |
+| `thing` in `not_carrying` | object: what a carried role names that the actor does not carry |
+| `actor` and `here` in `unknown`, `not_here`, `cannot`, `not_carrying`, `meant`, `nothing_happens`, `help` and `fault` | as above |
 | `actor` in `gone_away` and `npc_says` | as above |
 | `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
 | `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
@@ -802,7 +803,7 @@ A verb names its **roles** and the **phrases** that fill them. The first role is
 
 Verbs are declared by a world or exported by a library, never by an object. The standard library ships the common ones, so most worlds declare few of their own.
 
-A role declares what fills it: a kind — `role target: Lockable` — which narrows what the parser will bind and types the binding; a value type, under Value roles; or nothing, in which case the role is filled by anything that plays it and is bound as an object.
+A role declares what fills it: a kind — `role target: Lockable` — which narrows what the parser will bind and types the binding; a value type, under Value roles; or nothing, in which case the role is filled by anything that plays it and is bound as an object. After what fills it, a role may be marked `many`, under Set roles; `optional`, under Optional tools; or `carried`, under Carried roles.
 
 ### Playing a role
 
@@ -867,6 +868,8 @@ An understood command produces one **reading**: a verb, an actor, and its roles 
 
 The **consent pass** runs every `permit`. These are read-only — no writing, sending, moving or narrating — and the first refusal halts the whole reading, its text becoming the entire output. Same shape as `depart`, `release` and `accept`, for the same reason: a poll that can change the world is a poll you cannot trust.
 
+Within one participant, its plays of the role's category, `as tool for any` and `as target for any` under Roles compose, run before its plays for the verb, each in composition order; so `unlock chest with key` still reads the chest's refusal before the key's.
+
 The **effect pass** runs every `do`, in the same order. The first role's usually carries the sentence; the others act and mostly stay quiet, so a wheel can learn it is dirty without saying so. When the pass ends, the queue drains.
 
 A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
@@ -880,6 +883,19 @@ A verb is offered when its roles can be filled; `permit` decides what happens wh
 ### Roles compose
 
 `as <role> for <verb>` is a composable member. Every composed kind's `permit` runs and any refusal decides; every composed kind's `do` runs in composition order. `sprout.Lockable` carries the ordinary refusal and a world's own `Cursed` adds another, neither knowing about the other.
+
+A kind may also guard every verb at once, by which role it fills. `as target for any` runs whenever the object is a reading's target, its first role, whatever the verb calls it: `put`'s `item`, `unlock`'s `target`. `as tool for any` runs whenever it fills any other role: `unlock`'s `tool`, `put`'s `container`, `give`'s `recipient`. `any` is a reserved word already, and after `for any` the words `target` and `tool` name these two categories, not roles.
+
+```sprout
+kind RequiresHeld {
+  as tool for any { permit { if (!actor.holds(self)) { refuse needs_held } } }
+  passage needs_held default { You'll need {self} in your hand. }
+}
+```
+
+A wildcard only permits: a `do` in one is refused, since what an object does belongs to a verb, and so is a `from`, since there is no verb whose value role it could narrow. It cannot know any verb's other roles, so its body has `self`, `actor` and `here` and no role, and naming a role is refused in words that say why. For one participant its wildcard permits run before its permits for the verb, under The two passes, and it composes as every `permit` does: it can refuse, and never allow what another permit refuses.
+
+The split by role is what makes a wildcard usable. A key guarded on every role could never be picked up, because it is `take`'s target before it is ever held; guarded as a tool, `take key` is untouched. `sprout.RequiresHeld` is the standard library's: a key and a torch that compose it work only from the actor's hands, and a book that does not works from an open pouch as well. Where a verb says its tool must be carried at all, that is the verb's `carried`, under Carried roles; the two compose, and neither needs the other.
 
 ### Slots
 
@@ -937,6 +953,22 @@ kind Warded is sprout.Lockable {
 Inside `if (bound tool) { … }` the tool is bound and typed as its role declares; in the `else` branch, and anywhere outside the test, reading it is a compile error that names the phrase which leaves it out and says what to write. No value stands for an unbound tool, so nothing compares to one, stores one or renders one; the author is never asked to remember which slots a visitor might skip, because the compiler says so at the line.
 
 A verb with no phrases has nothing to infer from, so it says which tools may be missing: `role tool optional`. Only such a verb writes `optional`, and only on a tool, since the target is never optional; on a verb with phrases the phrases decide. `act` may leave an optional tool unnamed, and may never leave out one that is not.
+
+### Carried roles
+
+A tool worked with is one the actor has with them. `role tool carried` says so: the role is filled only by what the actor carries, in their hands or inside something they carry, at any depth their range reaches, so through an open pouch they carry and never through a shut one. Nothing in their place or further out is considered, so *unlock the chest with the key* never reaches for a key lying on the floor, or in an open chest standing on it.
+
+```sprout
+verb unlock {
+  role target: Lockable
+  role tool carried
+  "unlock [target] with [tool]"
+}
+```
+
+Which roles are carried is the verb's to say. Every role after the first is a tool in this document's sense, and some are outward by nature: `put`'s `container` and `give`'s `recipient` are never carried, and nobody carries a topic. Only a role a thing fills may be `carried`; on a value role it is refused.
+
+A noun in a carried role that names something in range the actor does not carry is a partial reading, and the world answers it with its `not_carrying` line, "You aren't carrying the brass key.", given the thing, ranked beside `cannot` under When nothing matches. Where the same noun also names something the actor carries, the carried one is meant and the other never competes, so there is no draw. `all` in a carried role takes only what is carried; an intent's slot given to a carried role in any of its steps is filled only from what is carried, under Intents; and a reading whose carried role holds something its actor does not carry — an `act`, a step of an intent, a reading run again — is refused with the same line, asked by the engine at the start of the consent pass, before any `permit`. So an NPC is held to the rule a visitor is.
 
 ### Value roles
 
@@ -1161,7 +1193,7 @@ intent open_with {
 }
 ```
 
-An intent is a canonical phrase, the first, with other phrases that mean the same, and the steps it stands for. It is declared beside verbs, at a file's top level, and a world's intent of a library intent's name replaces the library's. Its slots are its own names, and each takes what fills the role it is given to in at least one step.
+An intent is a canonical phrase, the first, with other phrases that mean the same, and the steps it stands for. It is declared beside verbs, at a file's top level, and a world's intent of a library intent's name replaces the library's. Its slots are its own names, and each takes what fills the role it is given to in at least one step; a slot given to a carried role in any step takes only what the visitor carries, under Carried roles, so `open chest with key` through `open_with` reaches `unlock`'s carried `tool`.
 
 - Each step's `when` is read before the line runs, against the world as the visitor typed into it. A step whose `when` is false, or whose roles what was bound cannot fill, is skipped silently.
 - The steps that run run in order, each its own turn with its own seed and log entry, as a sequence the visitor typed would, under Sequences; a step refused stops the rest, and the steps before it stay done.
@@ -1198,15 +1230,15 @@ Each visitor has their own pronouns, set by their own last command: `it` and `th
 
 ### Sequences, again and all
 
-`take key then open cabinet` and `take key. open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. The first answered by a refusal, `cannot`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
+`take key then open cabinet` and `take key. open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. The first answered by a refusal, `cannot`, `not_carrying`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
 
 `again`, or `g`, runs the visitor's last reading again: the same verb and the same things, not the same words, so a line whose nouns would now mean something else still means what it meant. Its consent pass is asked afresh, and a thing no longer in reach is answered with `not_here`.
 
-`all` fills a role with everything it may take, and `except` leaves things out, by kind or by name: `take all`, `take all except the bronze key`. What `all` takes is every thing in reach whose kind plays a part in the verb or composes the role's kind; for a role only the actor plays, as `take`'s target, it is every thing in reach that is not a person and not the visitor's own place. A set role takes them all at once. A role that takes one thing runs once for each, as a sequence would, in the order the range walk reaches them, and stops at the first refusal; a line of `all` runs at most as many turns as a set role may bind objects.
+`all` fills a role with everything it may take, and `except` leaves things out, by kind or by name: `take all`, `take all except the bronze key`. What `all` takes is every thing in reach whose kind plays a part in the verb or composes the role's kind; for a role only the actor plays, as `take`'s target, it is every thing in reach that is not a person and not the visitor's own place; and for a carried role, only what the visitor carries. A set role takes them all at once. A role that takes one thing runs once for each, as a sequence would, in the order the range walk reaches them, and stops at the first refusal; a line of `all` runs at most as many turns as a set role may bind objects.
 
 ### When nothing matches
 
-A line no phrase reads is answered with the world's `unknown`. A line that names nothing in reach is answered with `not_here`. A line some phrase read in part — its verb understood, a role filled with something it cannot take — is answered with the world's `cannot` line, given the reading as far as it was understood, so the visitor learns what the world made of it: "You can't open the cabinet with the apprentice." The partial reading chosen is the one that matched most of the line's words, then bound most roles, and never the one written first.
+A line no phrase reads is answered with the world's `unknown`. A line that names nothing in reach is answered with `not_here`. A line some phrase read in part — its verb understood, a role filled with something it cannot take — is answered with the world's `cannot` line, given the reading as far as it was understood, so the visitor learns what the world made of it: "You can't open the cabinet with the apprentice." A line some phrase read in part but for a carried role, whose noun names only something in range the visitor does not carry, is answered with the world's `not_carrying` line, given that thing, under Carried roles. Both are partial readings, ranked together: the partial reading chosen is the one that matched most of the line's words, then bound most roles, and never the one written first. It is answered with `cannot` where any role holds something it cannot take, and with `not_carrying` otherwise.
 
 ## Events, messages and the bus
 
@@ -1395,7 +1427,7 @@ A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and ca
 
 ### Engine lines
 
-Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `cannot`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
 
 When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
 
@@ -1760,7 +1792,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -2007,6 +2039,7 @@ kind World {
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
   passage cannot default          { You can't {reading}. }
+  passage not_carrying default    { You aren't carrying {thing}. }
   passage meant default           { ({thing}) }
   passage pronoun_correction default { {thing} is a {pronoun}. }
   passage nothing_happens default { Nothing much comes of that. }
@@ -2190,6 +2223,12 @@ intent open_with {
   do unlock (target: y, tool: x) when (y.get(:locked)) then open (target: y)
 }
 
+// sprout/requires_held.sprout
+kind RequiresHeld {
+  as tool for any { permit { if (!actor.holds(self)) { refuse needs_held } } }
+  passage needs_held default { You'll need {self} in your hand. }
+}
+
 // sprout/talk.sprout
 verb ask {
   role target
@@ -2200,7 +2239,7 @@ verb ask {
 }
 ```
 
-That is the whole of it for this world. Things are carryable unless they say otherwise, and `sprout.Fixture` is how most of them say it without writing a guard at all. `Lockable` carries no pass rule of its own — a lock on something that holds nothing has nothing to pass — and adds a `permit` to the library's own `open`, so a locked container stays shut until it is unlocked and `sprout.Container`'s lid rule is the only pass rule a lockable container needs.
+That is the whole of it for this world. Things are carryable unless they say otherwise, and `sprout.Fixture` is how most of them say it without writing a guard at all. `Lockable` carries no pass rule of its own — a lock on something that holds nothing has nothing to pass — and adds a `permit` to the library's own `open`, so a locked container stays shut until it is unlocked and `sprout.Container`'s lid rule is the only pass rule a lockable container needs. `unlock`'s tool is `carried`, so a key turns a lock only from the hand or a pouch; `put`'s container and `give`'s recipient are not. `RequiresHeld` is for a world that wants a tool in the hand itself, and this one does not compose it.
 
 ### `printers_shop.sprout`
 
