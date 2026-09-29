@@ -5,17 +5,17 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
-import { initWorld } from './init.js';
+import { scaffoldWorld } from './scaffold/world.js';
 
 function worldWith(files: Record<string, string>): string {
   const dir = join(mkdtempSync(join(tmpdir(), 'sprout-check-')), 'w');
-  initWorld(dir, 'marta');
+  scaffoldWorld(dir, 'marta');
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
   return dir;
 }
 
 describe('checkWorld', () => {
-  it('passes what init wrote, and says what it checked', () => {
+  it('passes what `scaffold world` wrote, and says what it checked', () => {
     const result = checkWorld(worldWith({}));
     expect(result.ok).toBe(true);
     expect(result.diagnostics).toEqual([]);

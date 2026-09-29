@@ -62,10 +62,10 @@ describe('main', () => {
     expect(io.err()).toBe('');
   });
 
-  it('init then check and test: what init writes passes both', () => {
+  it('scaffold world then check and test: what it writes passes both', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-cli-')), 'shed');
     const init = captured();
-    expect(main(['init', dir, '--author', 'marta'], init)).toBe(0);
+    expect(main(['scaffold', 'world', dir, '--author', 'marta'], init)).toBe(0);
     expect(init.out()).toBe(
       `wrote ${dir}/sprout.json\nwrote ${dir}/shed.sprout\nwrote ${dir}/person.sprout\nwrote ${dir}/tests/arrival.json\nwrote ${dir}/README.md\n`,
     );
@@ -84,7 +84,7 @@ describe('main', () => {
 
   it('check --json on a broken world fails and names the problem by file, line and column', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-cli-')), 'broken');
-    main(['init', dir, '--author', 'marta'], captured());
+    main(['scaffold', 'world', dir, '--author', 'marta'], captured());
     const io = captured();
     expect(main(['check', join(dir, 'nowhere')], io)).toBe(1);
     expect(io.err()).toContain('no such folder');

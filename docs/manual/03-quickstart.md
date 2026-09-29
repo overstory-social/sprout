@@ -12,7 +12,7 @@ repository at `corpus/good/teashop`, if you want to compare notes.
 ## 1. Make a new world
 
 ```sh
-sprout init teashop --author "Your Name"
+sprout scaffold world teashop --author "Your Name"
 ```
 
 This makes a folder called `teashop` with everything a world needs:
@@ -106,7 +106,7 @@ What changed:
 - `describe` is what a visitor reads when they arrive or type `look`.
   `text` gives it its words.
 
-Run `sprout check teashop` again. Then run the test that `init` wrote:
+Run `sprout check teashop` again. Then run the test that `scaffold world` wrote:
 
 ```sh
 sprout test teashop
