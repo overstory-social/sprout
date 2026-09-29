@@ -44,6 +44,8 @@ const written = (line: GrammarLine): string => {
       return `article ${line.article}`;
     case 'grammar-nouns':
       return `nouns ${line.nouns.map((noun) => noun.text).join('|')}`;
+    case 'grammar-adjectives':
+      return `adjectives ${line.adjectives.map((one) => one.text).join('|')}`;
     case 'grammar-exit':
       return `exit ${line.direction.text} ${line.label.text} ${writtenPath(line.destination)}${line.when === null ? '' : ' when'}`;
     case 'grammar-link':
@@ -133,6 +135,31 @@ describe('a grammar block', () => {
     ]);
   });
 
+  it('reads adjectives as nouns are read, and refuses the line with none in quotes', () => {
+    const { blocks, said } = readGrammar('grammar { adjectives "old", "worn"  name "lamp" }');
+    expect(said).toEqual([]);
+    expect(blocks[0]!.lines.map(written)).toEqual(['adjectives old|worn', 'name lamp']);
+    expect(readGrammar('grammar { adjectives name "lamp" }').said).toEqual([
+      [
+        'k.sprout:2:24',
+        '`adjectives` is followed by one or more adjectives in quotes.',
+        'Write `adjectives "old" "worn"`.',
+      ],
+    ]);
+  });
+
+  it('offers the quotes to a word written bare after `nouns` or `adjectives` on its line, and not to the next line', () => {
+    const bare = readGrammar('grammar { nouns brass  adjectives old  name "key" }');
+    expect(bare.said.map((one) => one[2])).toEqual([
+      'Write `nouns "brass"`, in quotes.',
+      'Write `adjectives "old"`, in quotes.',
+    ]);
+    expect(bare.blocks[0]!.lines.map(written)).toEqual(['name key']);
+    const next = readGrammar('grammar {\n    adjectives\n    name "key"\n  }');
+    expect(next.said.map((one) => one[2])).toEqual(['Write `adjectives "old" "worn"`.']);
+    expect(next.blocks[0]!.lines.map(written)).toEqual(['name key']);
+  });
+
   it('refuses an article it does not know, and nouns with none in quotes', () => {
     expect(readGrammar('grammar { article teh  nouns }').said).toEqual([
       [
@@ -156,7 +183,7 @@ describe('a grammar block', () => {
       [
         'k.sprout:3:5',
         'A grammar block is not made of `door`.',
-        'It holds `name`, `article`, `nouns`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
+        'It holds `name`, `article`, `nouns`, `adjectives`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
       ],
     ]);
     expect(blocks[0]!.lines.map(written)).toEqual(['name lamp']);

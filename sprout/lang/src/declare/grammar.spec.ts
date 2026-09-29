@@ -48,6 +48,7 @@ const values = (grammar: ComposedGrammar) => ({
   name: grammar.name === null ? null : [grammar.name.value, grammar.name.origin],
   article: grammar.article === null ? null : [grammar.article.value, grammar.article.origin],
   nouns: grammar.nouns,
+  adjectives: grammar.adjectives,
 });
 
 describe('one body’s grammar lines, in the first tier', () => {
@@ -96,6 +97,19 @@ describe('one body’s grammar lines, in the first tier', () => {
     ).toEqual(["`Key`'s name is empty.", 'This noun is empty.']);
   });
 
+  it('refuse an empty adjective, and hold the adjectives to the cap nouns are held to', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, nounsPerObject: 2 };
+    expect(checked('kind Key { grammar { adjectives "old" "" } }').map((said) => said[1])).toEqual([
+      'This adjective is empty.',
+    ]);
+    expect(checked('kind Key { grammar { adjectives "a" "b"  nouns "c" "d" } }', caps)).toEqual([]);
+    expect(
+      checked('kind Key { grammar { adjectives "a" "b" } grammar { adjectives "c" } }', caps).map(
+        (said) => said[1],
+      ),
+    ).toEqual(['`Key` writes more than 2 adjectives, and 2 is as many as a thing may have.']);
+  });
+
   it('hold the nouns to the host’s cap, said once at the first past it', () => {
     const caps = { ...DEFAULT_LIMITS.caps, nounsPerObject: 2 };
     expect(checked('kind Key { grammar { nouns "a" "b" } }', caps)).toEqual([]);
@@ -142,7 +156,19 @@ describe('a composed grammar', () => {
       name: ['brass key', 'shop.Key'],
       article: ['the', 'shop.Named'],
       nouns: ['metal', 'Brass', 'ring'],
+      adjectives: [],
     });
+  });
+
+  it('takes every adjective, a composer’s own last and each once', () => {
+    const { grammar, said } = composed(
+      [
+        'kind Worn { grammar { adjectives "worn" "Old" } }',
+        'kind Lamp is Worn { grammar { adjectives "old" "brass" } }',
+      ].join('\n'),
+    );
+    expect(said).toEqual([]);
+    expect(grammar('Lamp').adjectives).toEqual(['worn', 'Old', 'brass']);
   });
 
   it('takes one source’s name through every path to it', () => {

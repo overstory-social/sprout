@@ -1,0 +1,13 @@
+// `adjectives` is followed by adjectives in quotes, and none is empty.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world grammar_adjectives is sprout.World {
+  visitors are Person
+  visitors arrive at shed
+
+  object shed is sprout.Place {
+    object lamp is sprout.Fixture { grammar { adjectives old } }
+    object stool is sprout.Fixture { grammar { adjectives "three legged" "" } }
+  }
+}

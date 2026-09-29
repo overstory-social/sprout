@@ -4,6 +4,8 @@ import { typedWords } from '../../declare/addressing.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
 import {
   BRASS_KEY,
+  CHEST,
+  COIN,
   DOOR,
   GONG,
   IRON_KEY,
@@ -90,6 +92,41 @@ describe('what a noun names', () => {
     const before = one.budget.spentSteps;
     noun('gong');
     expect(one.budget.spentSteps - before).toBe(HERE.length);
+  });
+});
+
+describe('a name of adjectives, and a relative phrase', () => {
+  it('names a thing by adjectives alone weakly, matching no word literally', () => {
+    expect(answersTo(['brass'], candidate(BRASS_KEY).address)).toBe('adjective');
+    expect(answersTo(['brass', 'key'], candidate(BRASS_KEY).address)).toBe('name');
+    expect(answersTo(['brass', 'metal'], candidate(BRASS_KEY).address)).toBe('noun');
+    expect(answersTo(['metal', 'brass'], candidate(BRASS_KEY).address)).toBeNull();
+    expect(noun('brass')).toEqual({
+      found: 'some',
+      things: [
+        { id: BRASS_KEY, near: 0, literal: 0 },
+        { id: GONG, near: 3, literal: 0 },
+      ],
+    });
+  });
+
+  it('names what stands directly in what the words after `in` or `on` name, counting every word', () => {
+    const held = [...HERE, candidate(CHEST, 7), candidate(COIN, 8)];
+    const named = (line: string) => nounIn(typedWords(line), TAKE, held, within);
+    for (const line of ['coin in chest', 'the coin on the chest', 'coin that is in the chest']) {
+      expect(named(line), line).toMatchObject({ found: 'some', things: [{ id: COIN, near: 8 }] });
+    }
+    expect(named('coin that is in the chest')).toEqual({
+      found: 'some',
+      things: [{ id: COIN, near: 8, literal: 5 }],
+    });
+    expect(named('the one in the chest')).toEqual({
+      found: 'some',
+      things: [{ id: COIN, near: 8, literal: 3 }],
+    });
+    // The keys are not in the chest, and nothing is in the gong.
+    expect(named('key in chest')).toEqual({ found: 'nothing' });
+    expect(named('one in gong')).toEqual({ found: 'nothing' });
   });
 });
 

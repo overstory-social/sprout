@@ -3,12 +3,15 @@
 // Slots). Its composed grammar block says what it writes, and the rest is
 // the defaults: a thing's name is its identifier humanised, or its kind's
 // name humanised where it has no identifier, as a spawn has none; its
-// article is `a`, or `an` before a name beginning with a vowel; and it
-// answers to its full name, the last word of it,
-// its identifier and every noun its closure writes. A visitor is called
-// by their nickname, with no article, and answers to the whole of it.
+// article is `a`, or `an` before a name beginning with a vowel; it answers
+// to its full name, the last word of it, its identifier and every noun its
+// closure writes; and its adjectives are its name's words before the last
+// and every adjective its closure writes. A visitor is called by their
+// nickname, with no article, and answers to the whole of it, with the
+// adjectives their kind writes.
 
 import {
+  defaultAdjectives,
   defaultArticle,
   defaultNouns,
   humanisedIdentifier,
@@ -26,6 +29,8 @@ export interface Address {
   readonly article: Article;
   /** Every noun it answers to as words, the full name first, each once. */
   readonly nouns: readonly (readonly string[])[];
+  /** Every adjective it answers to, each one word, each once: a name of these alone names it weakly. */
+  readonly adjectives: readonly string[];
 }
 
 /** What addressing reads beyond the instance: the world's name, and each visitor's nickname. */
@@ -39,9 +44,15 @@ export interface AddressContext {
 export function addressOf(instance: Instance, context: AddressContext): Address {
   const { grammar } = instance.kind;
   const written = grammar.nouns.map(typedWords);
+  const adjectives = grammar.adjectives.flatMap(typedWords);
   const nickname = context.nicknames.get(instance.id);
   if (instance.made.from === 'visitor' && nickname !== undefined) {
-    return { name: nickname, article: 'none', nouns: once([typedWords(nickname), ...written]) };
+    return {
+      name: nickname,
+      article: 'none',
+      nouns: once([typedWords(nickname), ...written]),
+      adjectives: [...new Set(adjectives)],
+    };
   }
   const identifier = identifierOf(instance, context.world);
   const name =
@@ -53,6 +64,7 @@ export function addressOf(instance: Instance, context: AddressContext): Address 
     name,
     article: grammar.article?.value ?? defaultArticle(name),
     nouns: once([...nouns, ...written]),
+    adjectives: [...new Set([...defaultAdjectives(name), ...adjectives])],
   };
 }
 

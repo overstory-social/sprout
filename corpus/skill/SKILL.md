@@ -828,7 +828,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 
 None of these may name an enum’s option or a binding:
 
-`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `kind` `let` `link` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `prose` `refuse` `release` `remembers` `role` `say` `seconds` `send` `spawn` `tell` `text` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
+`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `kind` `let` `link` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `prose` `refuse` `release` `remembers` `role` `say` `seconds` `send` `spawn` `tell` `text` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
 
 And no message or verb may be called `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` or `prose`.
 

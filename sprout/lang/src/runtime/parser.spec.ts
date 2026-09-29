@@ -61,6 +61,8 @@ import { turn, words as spoken } from '../fixtures/reading.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import type { Answer } from './parser/answers.js';
 import { typedWords } from '../declare/addressing.js';
+import { addressOf } from './parser/address.js';
+import { answersTo } from './parser/nouns.js';
 import { declaredId, type InstanceId } from './ids.js';
 import type { Bound } from './reading.js';
 
@@ -534,6 +536,42 @@ describe('every line has exactly one outcome (generated)', () => {
     }
   });
 
+  it('names through a relative phrase only what stands directly in what the words after it name', () => {
+    const c = chooser(355);
+    const things = [
+      'key',
+      'brass key',
+      'coin',
+      'pebble',
+      'lamp',
+      'chest',
+      'one',
+      'the one',
+      'gong',
+    ];
+    const holders = ['chest', 'the chest', 'hall', 'lamp', 'marta b', 'pip'];
+    let relative = 0;
+    for (let run = 0; run < 300; run++) {
+      const one = study(['Marta B', 'Pip'], new Budget({ ...DEFAULT_LIMITS.budgets, steps: 1e9 }));
+      if (c.below(2) === 0) openChest(one);
+      const holder = c.one(holders);
+      const joining = c.one(['in', 'on', 'that is in']);
+      const line = `x ${c.one(things)} ${joining} ${holder}`;
+      const outcome = typed(one, line, EXITS, c.below(SEED_MAX));
+      if (!('understood' in outcome)) continue;
+      const target = outcome.understood.bindings.get('target');
+      if (target === undefined || !('object' in target)) continue;
+      const container = one.draft.instance(target.object)!.container!;
+      const address = addressOf(one.draft.instance(container)!, {
+        world: one.draft.world,
+        nicknames: one.nicknames,
+      });
+      expect(answersTo(typedWords(holder), address), line).not.toBeNull();
+      relative++;
+    }
+    expect(relative).toBeGreaterThan(20);
+  });
+
   it("never names an object outside the visitor's range, the chest shut or open, whatever the seed", () => {
     const c = chooser(102);
     // A verb's phrase, then words that are mostly nouns, near and far, and alike.
@@ -640,5 +678,71 @@ describe('a line typed with a synonym', () => {
     expect(at('force crate')).toMatchObject({ answer: 'unknown' });
     // A phrase that does not write the name gives nothing.
     expect(at('use a lever on crate')).toMatchObject({ answer: 'unknown' });
+  });
+});
+
+describe('a line whose nouns hold words a phrase or a relative phrase also reads', () => {
+  const SHED = compiledWorld('shed', {
+    'shed.sprout': [
+      'world shed is sprout.World { visitors are Person visitors arrive at hall',
+      '  object hall is sprout.Place {',
+      '    object rope is sprout.Fixture { grammar { name "rope with a knot" } }',
+      '    object string is sprout.Fixture',
+      '    object box is sprout.Container { object brass_key is sprout.Fixture }',
+      '    object tin is sprout.Container { object iron_key is sprout.Fixture }',
+      '    object bell is sprout.Fixture { grammar { name "brass bell"  nouns "brass" } }',
+      '    object lamp is sprout.Fixture { grammar { adjectives "old" "tin" } }',
+      '  }',
+      '}',
+      'verb tie { role target  role tool  "tie [target] with [tool]" }',
+      'verb ring { role target  "ring [target]" }',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const at = (...path: string[]) => declaredId('shed', path);
+  const read = (line: string) => {
+    const one: Study = { ...turn(SHED, [at('hall')]), nicknames: new Map() };
+    return typed(one, line, []);
+  };
+
+  it('tries every place a phrase’s words could fall, so a name holding one still reads', () => {
+    expect(understood(read('tie rope with a knot with string'))).toEqual({
+      verb: 'shed.tie',
+      bindings: { target: { object: at('hall', 'rope') }, tool: { object: at('hall', 'string') } },
+    });
+  });
+
+  it('narrows a name by what holds it, however the relative phrase is written', () => {
+    for (const line of [
+      'ring key in box',
+      'ring the key in the box',
+      'ring the key that is in the box',
+      'ring the one in the box',
+      'ring key on box',
+    ]) {
+      const reading = read(line);
+      expect(understood(reading).bindings['target'], line).toEqual({
+        object: at('hall', 'box', 'brass_key'),
+      });
+      expect('understood' in reading && reading.drawn, line).toBeNull();
+    }
+    // Nothing the tin holds is a bell, so nothing is named.
+    expect(read('ring bell in tin')).toMatchObject({ answer: 'not_here' });
+  });
+
+  it('names a thing by adjectives alone only where nothing is named better', () => {
+    // `brass` is the bell's noun and only the key's adjective.
+    expect(understood(read('ring brass')).bindings['target']).toEqual({
+      object: at('hall', 'bell'),
+    });
+    // `iron` names nothing else, so the key it is an adjective of is named.
+    expect(understood(read('ring iron')).bindings['target']).toEqual({
+      object: at('hall', 'tin', 'iron_key'),
+    });
+    // Written adjectives name the lamp before its noun, and alone.
+    expect(understood(read('ring old tin lamp')).bindings['target']).toEqual({
+      object: at('hall', 'lamp'),
+    });
+    expect(understood(read('ring old')).bindings['target']).toEqual({ object: at('hall', 'lamp') });
   });
 });

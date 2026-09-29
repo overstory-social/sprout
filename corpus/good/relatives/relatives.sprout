@@ -1,0 +1,35 @@
+// What a visitor may type for a thing (the spec's Parsing › Matching a
+// line): a phrase's words wherever they fall, so the rope's name may hold
+// `with`; a relative phrase narrowing a name by what holds it, `the key
+// in the box`, `the key that is in the box`, `the one in the box`; and
+// adjectives, the name's words before its last and any written, which
+// name a thing alone only where nothing is named better.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world relatives is sprout.World {
+  visitors are Person
+  visitors arrive at shed
+
+  object shed is sprout.Place {
+    grammar { article the }
+    object rope is Thing { grammar { name "rope with a knot" } }
+    object string is Thing
+    object box is sprout.Container {
+      object brass_key is Thing
+    }
+    object tin is sprout.Container {
+      object iron_key is Thing
+    }
+    object bell is Thing { grammar { name "brass bell"  nouns "brass" } }
+    object lamp is Thing { grammar { adjectives "old" "dented" } }
+  }
+}
+
+kind Thing is sprout.Fixture {
+  as target for ring { do { say "{self} rings." } }
+  as target for tie { do { say "{self} is tied." } }
+}
+
+verb tie  { role target  role tool  "tie [target] with [tool]" }
+verb ring { role target  "ring [target]" }

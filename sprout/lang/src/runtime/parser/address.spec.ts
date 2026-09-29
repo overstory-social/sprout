@@ -40,7 +40,14 @@ describe('what a thing is called and answers to', () => {
       name: 'brass key',
       article: 'a',
       nouns: [['brass', 'key'], ['key'], ['metal'], ['shiny', 'thing']],
+      adjectives: ['brass'],
     });
+  });
+
+  it('takes its name’s words before the last as adjectives', () => {
+    expect(of(LAMP_OIL).adjectives).toEqual(['lamp']);
+    expect(of(GONG).adjectives).toEqual(['brass']);
+    expect(of(LAMP).adjectives).toEqual([]);
   });
 
   it('writes `a` as `an` before a vowel where no article is written, and a written article as written', () => {
@@ -71,6 +78,7 @@ describe('what a thing is called and answers to', () => {
       name: 'gong',
       article: 'a',
       nouns: [['gong']],
+      adjectives: [],
     });
     expect(nouns(addressOf(made('study.Pebble', 'spawned'), context))).toEqual(['pebble']);
     expect(addressOf(made('study.Coin', 'given'), context).name).toBe('spare wick');
@@ -81,6 +89,7 @@ describe('what a thing is called and answers to', () => {
       name: 'Marta B',
       article: 'none',
       nouns: [['marta', 'b']],
+      adjectives: [],
     });
   });
 });

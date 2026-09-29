@@ -354,14 +354,18 @@ object brass_key is Key {
 | --------- | ----------------------------------------------------------------------------------------------- |
 | `name`    | the identifier, with `_` turned to spaces: `oak_door` is "oak door".                            |
 | `nouns`   | the full name and its last word: "brass key" answers to `brass key` and `key`.                  |
+| `adjectives` | the name's words before its last: "brass key" has `brass`.                                   |
 | `article` | `a`, or `an` before a vowel. Write `the` for something unique, or `none` for a proper name.     |
 
 - A `name` may not begin with `a`, `an` or `the`; that is what `article` is
   for.
 - `nouns` are _added_ to the defaults. Several may go on one line, with or
   without commas: `nouns "cabinet", "type"`.
-- Nouns compose: a kind's nouns and those of whatever is made of it all
-  apply. `name` and `article` do not; two sources for either is an error
+- `adjectives` are added to the defaults the same way. An adjective goes
+  before a noun, `old brass key`, or names the thing on its own, `brass`,
+  though only where nothing else is named better by a noun.
+- Nouns and adjectives compose: a kind's and those of whatever is made of
+  it all apply. `name` and `article` do not; two sources for either is an error
   unless the object writes its own.
 - Names are fixed. Nothing can rename itself while the world runs.
 
@@ -1126,12 +1130,17 @@ its own still means `help`.
 
 ### What the parser says
 
-Every phrase is tried against the whole line, and every way it reads is
-a **reading**: a verb and what fills each role. The readings are ranked
+Every phrase is tried against the whole line, its words wherever they
+could fall, so a name that holds one, "the rope with a knot", still reads.
+A name may be narrowed by what holds it: `the key in the cabinet`, `the
+key on the shelf`, `the key that is in the cabinet` and `the one in the
+cabinet` each name what stands directly in the cabinet or on the shelf.
+Every way the line reads is a **reading**: a verb and what fills each role. The readings are ranked
 whole:
 
 1. one whose `permit`s all allow beats one that is refused;
-2. then the one that matched more of the line's words;
+2. then the one that matched more of the line's words, where a name of
+   adjectives alone matches none;
 3. then the one whose things are nearer.
 
 Readings still tied are drawn with the dice, and the host logs the draw
@@ -1751,7 +1760,7 @@ inheritance chain and no `super`.
 | `on :m` handler, `changed :p` hook   | all run                                              |
 | `depart`, `release`, `accept`        | all run; any refusal decides                         |
 | `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs |
-| `nouns`                              | all apply                                            |
+| `nouns`, `adjectives`                | all apply                                            |
 | `name`, `article`                    | error                                                |
 | `contains`, `contains actors`        | the same either way                                  |
 | `pass :m`, `pass any`                | error                                                |

@@ -1,0 +1,7 @@
+grammar_adjectives.sprout:10:58  `adjectives` is followed by one or more adjectives in quotes.
+                                 Write `adjectives "old"`, in quotes.
+
+grammar_adjectives.sprout:11:74  This adjective is empty.
+                                 Write the word a visitor types for it, or take it out.
+
+refused: 2 problems

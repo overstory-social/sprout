@@ -5,12 +5,12 @@
 //
 // Reading its file checks one body's lines against themselves: one `name`
 // and one `article` however many blocks hold them, a name that is not
-// empty and does not begin with an article, and the host's caps on nouns;
-// its exits and links are `exits.ts`'s.
+// empty and does not begin with an article, and the host's caps on nouns,
+// which hold for its adjectives too; its exits and links are `exits.ts`'s.
 // Across the bundle, composing: a composer's own `name` or `article` replaces
 // what it composes, one source's applies, and two sources are refused;
-// nouns from every source apply, in closure order, the composer's own
-// last. What applies where nothing is written is the runtime's to say,
+// nouns and adjectives from every source apply, in closure order, the
+// composer's own last. What applies where nothing is written is the runtime's to say,
 // since it depends on what the thing is.
 
 import type { KindDeclaration, KindExpr, KindMember, ObjectDeclaration } from '../syntax/ast.js';
@@ -40,10 +40,12 @@ export interface ComposedGrammar {
   readonly article: GrammarSource<Article> | null;
   /** Every noun written in the closure, as written, in closure order and each once, however cased. */
   readonly nouns: readonly string[];
+  /** Every adjective written in the closure, the same way. */
+  readonly adjectives: readonly string[];
 }
 
 /** A kind whose closure writes no grammar at all. */
-export const NO_GRAMMAR: ComposedGrammar = { name: null, article: null, nouns: [] };
+export const NO_GRAMMAR: ComposedGrammar = { name: null, article: null, nouns: [], adjectives: [] };
 
 /** The articles a name may not begin with (the spec's Addressing and display). */
 const LEADING_ARTICLES: readonly string[] = ['a', 'an', 'the'];
@@ -63,6 +65,7 @@ export function checkGrammar(
   let named = false;
   let articled = false;
   let nouns = 0;
+  let adjectives = 0;
   const words = (text: string, at: Span): void => {
     for (const word of text.split(/\s+/)) {
       const length = [...word].length;
@@ -140,6 +143,27 @@ export function checkGrammar(
           words(noun.text.trim(), noun.at);
         }
         break;
+      case 'grammar-adjectives':
+        for (const adjective of line.adjectives) {
+          if (adjective.text.trim() === '') {
+            diagnostics.refuse(
+              adjective.at,
+              'This adjective is empty.',
+              'Write the word a visitor types for it, or take it out.',
+            );
+            continue;
+          }
+          adjectives += 1;
+          if (adjectives === caps.nounsPerObject + 1) {
+            diagnostics.refuse(
+              adjective.at,
+              `\`${owner}\` writes more than ${caps.nounsPerObject} adjectives, and ${caps.nounsPerObject} is as many as a thing may have.`,
+              'Keep the ones a visitor is most likely to type: the words of its name before the last are adjectives already.',
+            );
+          }
+          words(adjective.text.trim(), adjective.at);
+        }
+        break;
       case 'grammar-exit':
       case 'grammar-link':
         break;
@@ -153,6 +177,7 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
   let name: GrammarSource<string> | null = null;
   let article: GrammarSource<Article> | null = null;
   const nouns: string[] = [];
+  const adjectives: string[] = [];
   for (const line of linesOf(members)) {
     if (line.kind === 'grammar-name') {
       name ??= { value: line.text.trim(), origin, at: line.at };
@@ -160,9 +185,12 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
       article ??= { value: line.article, origin, at: line.at };
     } else if (line.kind === 'grammar-nouns') {
       for (const noun of line.nouns) if (noun.text.trim() !== '') nouns.push(noun.text.trim());
+    } else if (line.kind === 'grammar-adjectives') {
+      for (const one of line.adjectives)
+        if (one.text.trim() !== '') adjectives.push(one.text.trim());
     }
   }
-  return { name, article, nouns: once(nouns) };
+  return { name, article, nouns: once(nouns), adjectives: once(adjectives) };
 }
 
 /** A composed kind's grammar, with the kind as written that brought it. */
@@ -174,7 +202,7 @@ export interface ComposedFrom {
 /**
  * The grammar a composer answers with: its own `name` and `article`, else
  * the one source's, two sources refused at the kind, as written, that
- * brought the second; and every source's nouns, its own last. `shown`
+ * brought the second; and every source's nouns and adjectives, its own last. `shown`
  * names an origin as a message does.
  */
 export function composeGrammar(
@@ -214,6 +242,7 @@ export function composeGrammar(
     name: pick('name', own.name, (grammar) => grammar.name),
     article: pick('article', own.article, (grammar) => grammar.article),
     nouns: once([...composed.flatMap(({ grammar }) => grammar.nouns), ...own.nouns]),
+    adjectives: once([...composed.flatMap(({ grammar }) => grammar.adjectives), ...own.adjectives]),
   };
 }
 

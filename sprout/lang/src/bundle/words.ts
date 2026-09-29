@@ -6,13 +6,15 @@
 // exit or link label a kind or an object writes, of every identifier and
 // of every kind's name as a spawn is called by default, the directions
 // and their abbreviations, the articles and determiners, the connectors,
-// and the words of every phrase and every synonym. A link's name is not among them: a
+// the words of the parser's relative phrases, every adjective written, and
+// the words of every phrase and every synonym. A link's name is not among them: a
 // visitor takes a link by its label, and the name is source's alone.
 
 import {
   CONNECTORS,
   DETERMINERS,
   humanisedIdentifier,
+  RELATIVE_WORDS,
   humanisedKind,
   typedWords,
 } from '../declare/addressing.js';
@@ -44,6 +46,7 @@ export function wordSetOf(sources: WordSources): WordSet {
   for (const kind of sources.kinds) {
     if (kind.grammar.name !== null) add(kind.grammar.name.value);
     for (const noun of kind.grammar.nouns) add(noun);
+    for (const adjective of kind.grammar.adjectives) add(adjective);
     for (const exit of kind.exits) add(exit.line.label.text);
   }
   for (const kind of sources.named) if (kind.grammar.name === null) add(humanisedKind(kind.name));
@@ -55,7 +58,13 @@ export function wordSetOf(sources: WordSources): WordSet {
     for (const synonym of verb.synonyms) add(synonym);
   }
   for (const synonym of sources.synonyms) add(synonym.words);
-  for (const word of [...DIRECTIONS, ...ABBREVIATIONS.keys(), ...DETERMINERS, ...CONNECTORS]) {
+  for (const word of [
+    ...DIRECTIONS,
+    ...ABBREVIATIONS.keys(),
+    ...DETERMINERS,
+    ...CONNECTORS,
+    ...RELATIVE_WORDS,
+  ]) {
     add(word);
   }
   return [...words].sort();
