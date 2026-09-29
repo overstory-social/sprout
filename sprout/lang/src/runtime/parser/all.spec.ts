@@ -123,3 +123,17 @@ describe('`all` in a slot', () => {
     expect(ids(all('all', 'take', 'target', 'sprout', 3))).toEqual([BRASS_KEY, IRON_KEY, LAMP]);
   });
 });
+
+describe('what `all` costs', () => {
+  it('is a step for each kind asked whether it plays the role, and each thing `except` is weighed against', () => {
+    const plain = context();
+    const of = verb('take', 'sprout');
+    allIn(typedWords('all'), of.roles[0]!, of, plain);
+    const excepting = context();
+    allIn(typedWords('all except gong'), of.roles[0]!, of, excepting);
+    expect(plain.budget.spentSteps).toBeGreaterThan(candidates.length);
+    expect(excepting.budget.spentSteps).toBeGreaterThan(
+      plain.budget.spentSteps + candidates.length,
+    );
+  });
+});

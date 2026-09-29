@@ -14,6 +14,7 @@ import { DETERMINERS, humanisedKind } from '../../declare/addressing.js';
 import { playsOf } from '../../declare/roles.js';
 import type { KindRef } from '../../declare/kinds.js';
 import type { ResolvedRole, ResolvedVerb } from '../../declare/verbs.js';
+import type { Budget } from '../budget.js';
 import type { InstanceId } from '../ids.js';
 import type { Instance } from '../state.js';
 import type { Filled } from './fill.js';
@@ -56,7 +57,7 @@ export function allIn(
       literal += noun.length;
     }
   }
-  const actorOnly = !playedAnywhere(verb, role, context.kinds);
+  const actorOnly = !playedAnywhere(verb, role, context.kinds, context.budget);
   const taken = context.candidates
     .filter(({ instance }) => {
       context.budget.spend();
@@ -99,21 +100,28 @@ function takes(
   );
 }
 
-/** Whether any kind there is plays `role` of `verb`; where none does, only the actor plays a part in it. */
-function playedAnywhere(verb: ResolvedVerb, role: ResolvedRole, kinds: Iterable<KindRef>): boolean {
+/** Whether any kind there is plays `role` of `verb`, each kind a step; where none does, only the actor plays a part in it. */
+function playedAnywhere(
+  verb: ResolvedVerb,
+  role: ResolvedRole,
+  kinds: Iterable<KindRef>,
+  budget: Budget,
+): boolean {
   for (const kind of kinds) {
+    budget.spend();
     if (playsOf(kind.plays, verb.library, verb.name, role.name).length > 0) return true;
   }
   return false;
 }
 
-/** What a noun after `except` leaves out: every thing it names, and every thing of a kind it names. */
+/** What a noun after `except` leaves out: every thing it names, and every thing of a kind it names, each thing a step. */
 function leftOut(noun: readonly string[], context: AllContext): InstanceId[] {
   const named = thingsIn(noun, () => true, context.candidates, context);
   const out = new Set(named.found === 'nothing' ? [] : named.things.map((one) => one.id));
   const bare = noun.length > 1 && DETERMINERS.includes(noun[0]!) ? noun.slice(1) : noun;
   const written = bare.join(' ');
   for (const { instance } of context.candidates) {
+    context.budget.spend();
     for (const kind of instance.kind.composes) {
       if (humanisedKind(kind.slice(kind.lastIndexOf('.') + 1)) === written) out.add(instance.id);
     }
