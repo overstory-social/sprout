@@ -38,6 +38,22 @@ export interface GrammarNouns extends Node {
   readonly nouns: readonly GrammarNoun[];
 }
 
+/** One adjective in quotes after `adjectives`, its own node so a refusal of it points at it. */
+export interface GrammarAdjective extends Node {
+  readonly kind: 'grammar-adjective';
+  readonly text: string;
+}
+
+/**
+ * `adjectives "old" "brass"`: words that name the thing only more weakly
+ * than a noun (the spec's Names › Addressing and display; Parsing ›
+ * Matching a line), added to its defaults.
+ */
+export interface GrammarAdjectives extends Node {
+  readonly kind: 'grammar-adjectives';
+  readonly adjectives: readonly GrammarAdjective[];
+}
+
 /** An exit's or a link's label in quotes: what a visitor reads on a chip, and may type back. */
 export interface GrammarLabel extends Node {
   readonly kind: 'grammar-label';
@@ -72,7 +88,8 @@ export interface GrammarLink extends Node {
   readonly label: GrammarLabel;
 }
 
-export type GrammarLine = GrammarName | GrammarArticle | GrammarNouns | GrammarExit | GrammarLink;
+export type GrammarLine =
+  GrammarName | GrammarArticle | GrammarNouns | GrammarAdjectives | GrammarExit | GrammarLink;
 
 /**
  * `grammar { name "brass key"  article a  nouns "brass" }` — a kind's or

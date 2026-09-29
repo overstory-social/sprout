@@ -1,15 +1,20 @@
 // A noun a visitor typed, resolved against what they can reach (the
 // spec's Names › Articles; Verbs › Slots, Set roles; Properties › Where
-// types come from). An article or a determiner is optional before it, so
-// the words are tried as typed and then without their first word where
-// that is one. A role's kind narrows what may fill it and is never a
-// source of refusal text: a thing that answers and is not of the kind
-// makes the phrase not match. Among several that fit, the ones whose
-// whole name was typed are preferred to those answering to a noun; every
-// one that remains is a way to read the noun, with how near it is and how
-// many words it matched, and the parser ranks the readings they make
-// whole (the spec's Parsing › Choosing a reading). Every candidate a noun
-// is tried against is one step.
+// types come from; Parsing › Matching a line). An article or a
+// determiner is optional before it, so the words are tried as typed and
+// then without their first word where that is one. A thing is named by
+// one of its nouns, with any of its adjectives before it, or by
+// adjectives alone, which names it weakly: those words count as none
+// matched literally. A relative phrase narrows a name by what holds it,
+// `the key in the cabinet`, `the key that is on the shelf`, `the one in
+// the cabinet`: `in` and `on` both mean held directly by. A role's kind
+// narrows what may fill it and is never a source of refusal text: a thing
+// that answers and is not of the kind makes the phrase not match. Among
+// several that fit, the ones whose whole name was typed are preferred to
+// the rest; every one that remains is a way to read the noun, with how
+// near it is and how many words it matched, and the parser ranks the
+// readings they make whole (the spec's Parsing › Choosing a reading).
+// Every candidate a noun is tried against is one step.
 
 import { DETERMINERS, CONNECTORS } from '../../declare/addressing.js';
 import { kindName } from '../../declare/kinds.js';
@@ -83,22 +88,117 @@ export function forms(words: readonly string[]): (readonly string[])[] {
   return [words];
 }
 
-/** How `address` answers to `words`: by its whole name, by a noun, or not at all. */
-export function answersTo(words: readonly string[], address: Address): 'name' | 'noun' | null {
+/** How a thing answers to a name: its whole name, a noun, or adjectives alone. */
+type By = 'name' | 'noun' | 'adjective';
+
+/** How `address` answers to `words`: by its whole name, by a noun, by adjectives alone, or not at all. */
+export function answersTo(words: readonly string[], address: Address): By | null {
   return answering(words, address)?.by ?? null;
 }
 
-/** How `address` answers to `words`, and how many of them its name or noun matched. */
+/**
+ * How `address` answers to `words`, and how many of them it matched
+ * literally: a name or a noun, with any adjectives before it, all of
+ * them; adjectives alone, none.
+ */
 function answering(
   words: readonly string[],
   address: Address,
-): { readonly by: 'name' | 'noun'; readonly literal: number } | null {
-  const typed = forms(words).map((form) => ({ text: form.join(' '), literal: form.length }));
-  const [name, ...rest] = address.nouns.map((noun) => noun.join(' '));
-  const byName = typed.find((form) => form.text === name);
-  if (byName !== undefined) return { by: 'name', literal: byName.literal };
-  const byNoun = typed.find((form) => rest.includes(form.text));
-  return byNoun === undefined ? null : { by: 'noun', literal: byNoun.literal };
+): { readonly by: By; readonly literal: number } | null {
+  const name = address.nouns[0]?.join(' ');
+  let byNoun: { readonly by: By; readonly literal: number } | null = null;
+  let byAdjectives: { readonly by: By; readonly literal: number } | null = null;
+  for (const form of forms(words)) {
+    if (form.join(' ') === name) return { by: 'name', literal: form.length };
+    const adjectives = (run: readonly string[]) =>
+      run.every((word) => address.adjectives.includes(word));
+    for (const noun of address.nouns) {
+      const head = form.length - noun.length;
+      if (head < 0 || form.slice(head).join(' ') !== noun.join(' ')) continue;
+      if (adjectives(form.slice(0, head))) byNoun ??= { by: 'noun', literal: form.length };
+    }
+    if (adjectives(form)) byAdjectives ??= { by: 'adjective', literal: 0 };
+  }
+  return byNoun ?? byAdjectives;
+}
+
+/** A candidate a name reaches, and how. */
+interface Answered {
+  readonly candidate: Candidate;
+  readonly by: By;
+  readonly literal: number;
+}
+
+/** How strongly each way of answering names a thing, the strongest first. */
+const STRENGTH: readonly By[] = ['name', 'noun', 'adjective'];
+
+/**
+ * Every candidate `words` name, directly or through a relative phrase,
+ * each once by its strongest reading, in the order the candidates stand.
+ */
+function named(
+  words: readonly string[],
+  candidates: readonly Candidate[],
+  context: NounContext,
+): Answered[] {
+  const found = new Map<InstanceId, Answered>();
+  const keep = (one: Answered): void => {
+    const known = found.get(one.candidate.instance.id);
+    const stronger =
+      known === undefined ||
+      STRENGTH.indexOf(one.by) < STRENGTH.indexOf(known.by) ||
+      (one.by === known.by && one.literal > known.literal);
+    if (stronger) found.set(one.candidate.instance.id, one);
+  };
+  for (const candidate of candidates) {
+    context.budget.spend();
+    const answer = answering(words, candidate.address);
+    if (answer !== null) keep({ candidate, ...answer });
+  }
+  for (const one of relatives(words, candidates, context)) keep(one);
+  return candidates.flatMap((candidate) => found.get(candidate.instance.id) ?? []);
+}
+
+/**
+ * What `words` name through a relative phrase: at each `in` or `on`, the
+ * words before it, less a `that is`, name what stands directly in what
+ * the words after it name, `one` anything that does.
+ */
+function relatives(
+  words: readonly string[],
+  candidates: readonly Candidate[],
+  context: NounContext,
+): Answered[] {
+  const found: Answered[] = [];
+  for (let at = 1; at < words.length - 1; at++) {
+    if (words[at] !== 'in' && words[at] !== 'on') continue;
+    const thatIs = at >= 3 && words[at - 2] === 'that' && words[at - 1] === 'is';
+    const inner = words.slice(0, thatIs ? at - 2 : at);
+    const joining = thatIs ? 3 : 1;
+    const holders = new Map(
+      named(words.slice(at + 1), candidates, context).map((one) => [
+        one.candidate.instance.id,
+        one,
+      ]),
+    );
+    if (holders.size === 0) continue;
+    const held = (candidate: Candidate): Answered | undefined =>
+      candidate.instance.container === null ? undefined : holders.get(candidate.instance.container);
+    const any = forms(inner).some((form) => form.length === 1 && form[0] === 'one');
+    const things: Answered[] = any
+      ? candidates.map((candidate) => ({ candidate, by: 'noun', literal: 1 }))
+      : named(inner, candidates, context);
+    for (const thing of things) {
+      const holder = held(thing.candidate);
+      if (holder === undefined) continue;
+      found.push({
+        candidate: thing.candidate,
+        by: thing.by === 'name' ? 'noun' : thing.by,
+        literal: thing.literal + joining + holder.literal,
+      });
+    }
+  }
+  return found;
 }
 
 /** What one noun names among `candidates`, nearest first, for `role`. */
@@ -108,13 +208,7 @@ export function nounIn(
   candidates: readonly Candidate[],
   context: NounContext,
 ): NounFound {
-  const { budget } = context;
-  const answered: { candidate: Candidate; by: 'name' | 'noun'; literal: number }[] = [];
-  for (const candidate of candidates) {
-    budget.spend();
-    const found = answering(words, candidate.address);
-    if (found !== null) answered.push({ candidate, ...found });
-  }
+  const answered = named(words, candidates, context);
   if (answered.length === 0) return { found: 'nothing' };
   const fitting = answered.filter(({ candidate }) => fits(role, candidate.instance));
   if (fitting.length === 0) return { found: 'unfit' };

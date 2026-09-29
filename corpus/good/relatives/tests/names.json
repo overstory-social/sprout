@@ -1,0 +1,32 @@
+{
+  "about": "A name holding a phrase's word, a relative phrase in each of its forms, and adjectives, weak alone.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the shed." }
+    ] },
+    { "as": "Marta", "type": "tie rope with a knot with string", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A rope with a knot is tied." }
+    ] },
+    { "as": "Marta", "type": "ring key in box", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A brass key rings." }
+    ] },
+    { "as": "Marta", "type": "ring the key that is in the tin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "An iron key rings." }
+    ] },
+    { "as": "Marta", "type": "ring the one in the box", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A brass key rings." }
+    ] },
+    { "as": "Marta", "type": "ring brass", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A brass bell rings." }
+    ] },
+    { "as": "Marta", "type": "ring iron", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "An iron key rings." }
+    ] },
+    { "as": "Marta", "type": "ring dented old lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A lamp rings." }
+    ] },
+    { "as": "Marta", "type": "ring dented", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A lamp rings." }
+    ] }
+  ]
+}

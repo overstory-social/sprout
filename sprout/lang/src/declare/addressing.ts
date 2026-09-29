@@ -1,6 +1,6 @@
 // How a visitor's words are read as words, and what a thing answers to
 // when its grammar block says nothing (the spec's Names › Addressing and
-// display, Articles; Verbs › Set roles). One tokeniser serves a typed
+// display, Articles; Verbs › Set roles; Parsing › Matching a line). One tokeniser serves a typed
 // command, a name, a noun and a phrase's words, so what an author wrote
 // and what a visitor types are compared on the same footing: lower case,
 // split on white space, a comma a word of its own.
@@ -10,6 +10,13 @@ export const DETERMINERS: readonly string[] = ['a', 'an', 'the', 'my', 'this', '
 
 /** What separates the things a set role's run names (the spec's Set roles). */
 export const CONNECTORS: readonly string[] = ['and', ','];
+
+/**
+ * The words of the parser's relative phrases, which narrow a name by what
+ * holds it: `the key in the cabinet`, `the key that is on the shelf`, `the
+ * one in the cabinet` (the spec's Parsing › Matching a line).
+ */
+export const RELATIVE_WORDS: readonly string[] = ['in', 'on', 'that', 'is', 'one'];
 
 /** A line as words: lower case, split on white space, each comma a word of its own. */
 export function typedWords(text: string): string[] {
@@ -44,4 +51,9 @@ export function defaultNouns(name: string): string[] {
   const last = words.at(-1);
   const full = words.join(' ');
   return last === undefined || last === full ? [full] : [full, last];
+}
+
+/** The adjectives a name gives by default: its words before the last (the spec's Addressing and display). */
+export function defaultAdjectives(name: string): string[] {
+  return typedWords(name).slice(0, -1);
 }

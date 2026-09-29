@@ -84,14 +84,18 @@ describe('the world’s word set', () => {
   it('is drawn from what it is given and nothing else beside the fixed words', () => {
     const fixed = wordSetOf({ kinds: [], named: [], identifiers: [], verbs: [], synonyms: [] });
     expect(fixed).toContain('north');
+    // The words of the parser's relative phrases are its own, so no nickname takes one.
+    for (const word of ['in', 'on', 'that', 'is', 'one']) expect(fixed, word).toContain(word);
     expect(fixed).not.toContain('take');
     const shop = compiledWorld('shop', {
       'shop.sprout':
         'world shop is sprout.World { visitors are Person visitors arrive at hall\n  object hall is sprout.Place { object old_bench is Bench }\n}\n',
       'person.sprout': 'kind Person is sprout.Visitor { }\n',
-      'bench.sprout': 'kind Bench { grammar { nouns "seat" } }\n',
+      'bench.sprout': 'kind Bench { grammar { nouns "seat"  adjectives "worn" } }\n',
     });
-    for (const word of ['old', 'bench', 'seat', 'hall']) expect(shop.words, word).toContain(word);
+    for (const word of ['old', 'bench', 'seat', 'hall', 'worn']) {
+      expect(shop.words, word).toContain(word);
+    }
   });
 
   it('holds every word of every synonym, a verb’s own, the world’s and an object’s', () => {

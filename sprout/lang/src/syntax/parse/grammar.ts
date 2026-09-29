@@ -2,7 +2,8 @@
 // an object writes one (the spec's Names › Addressing and display,
 // Articles; Verbs › Exits, Links). The block holds lines, each led by its
 // word: `name` and one name in quotes, `article` and one of `a`, `an`,
-// `the` or `none`, `nouns` and one or more nouns in quotes, and a place's
+// `the` or `none`, `nouns` and one or more nouns in quotes, `adjectives`
+// and one or more adjectives in quotes, and a place's
 // `exit` and `link` lines, which `exits.ts` reads. What the lines mean
 // together, and what they may not say, is `declare/grammar.ts`'s and
 // `declare/exits.ts`'s.
@@ -13,6 +14,7 @@
 import {
   isArticle,
   type GrammarDeclaration,
+  type GrammarAdjective,
   type GrammarLine,
   type GrammarNoun,
 } from '../ast-grammar.js';
@@ -26,7 +28,7 @@ import { type Parser } from './parser.js';
 const EXAMPLE = 'grammar { name "brass key"  article a  nouns "brass" }';
 
 /** The words a line of the block begins with. */
-const LINE_WORDS = ['name', 'article', 'nouns', 'exit', 'link'] as const;
+const LINE_WORDS = ['name', 'article', 'nouns', 'adjectives', 'exit', 'link'] as const;
 
 function isLineWord(word: string): boolean {
   return (LINE_WORDS as readonly string[]).includes(word);
@@ -142,22 +144,50 @@ function grammarLine(p: Parser, ends: LineEnds): GrammarLine | null {
       if ((next.kind === 'name' || next.kind === 'kind') && !lineWord) p.next();
       return null;
     }
+    case 'adjectives': {
+      const adjectives: GrammarAdjective[] = [];
+      for (let quoted = p.take('string'); quoted !== null; quoted = nextNoun(p)) {
+        adjectives.push({ kind: 'grammar-adjective', at: quoted.at, text: quoted.text });
+      }
+      if (adjectives.length === 0) {
+        unquoted(p, word, 'adjectives', '`adjectives "old" "worn"`');
+        return null;
+      }
+      return {
+        kind: 'grammar-adjectives',
+        at: spanning(word.at, adjectives.at(-1)!.at),
+        adjectives,
+      };
+    }
     default: {
       const nouns: GrammarNoun[] = [];
       for (let quoted = p.take('string'); quoted !== null; quoted = nextNoun(p)) {
         nouns.push({ kind: 'grammar-noun', at: quoted.at, text: quoted.text });
       }
       if (nouns.length === 0) {
-        p.diagnostics.refuse(
-          p.at('end') ? p.source.span(word.at.end) : p.peek().at,
-          '`nouns` is followed by one or more nouns in quotes.',
-          'Write `nouns "brass" "key ring"`.',
-        );
+        unquoted(p, word, 'nouns', '`nouns "brass" "key ring"`');
         return null;
       }
       return { kind: 'grammar-nouns', at: spanning(word.at, nouns.at(-1)!.at), nouns };
     }
   }
+}
+
+/**
+ * Refuse a `nouns` or `adjectives` line with nothing in quotes after it. A
+ * bare word on the same line is one written without its quotes, and is
+ * this line's; one on the next line starts the block's next line.
+ */
+function unquoted(p: Parser, word: Token, line: 'nouns' | 'adjectives', example: string): void {
+  const next = p.peek();
+  const sameLine = !p.source.text.slice(word.at.end, next.at.start).includes('\n');
+  const bare = sameLine && next.kind === 'name' && !isLineWord(next.text) ? next : null;
+  p.diagnostics.refuse(
+    p.at('end') ? p.source.span(word.at.end) : next.at,
+    `\`${line}\` is followed by one or more ${line} in quotes.`,
+    bare === null ? `Write ${example}.` : `Write \`${line} "${bare.text}"\`, in quotes.`,
+  );
+  if (bare !== null) p.next();
 }
 
 /** The noun after one already read: the next in quotes, a comma between them or not, as the spec's worked microworld writes `nouns "cabinet", "type"`. */
