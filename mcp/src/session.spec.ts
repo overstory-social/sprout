@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -125,5 +125,39 @@ describe('what the host sets', () => {
     expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
     // The recording holds the fault in full, as a visitor never reads it.
     expect(readFileSync(record, 'utf8')).toContain('2147483648');
+  });
+});
+
+describe('the recording, where it cannot be written', () => {
+  it('refuses to open a session at all, before anyone plays', () => {
+    expect(() => openSession(kilnYard, { record: '/nowhere/at/all/run.json' })).toThrow(/ENOENT/);
+  });
+
+  it('tells the host, and never the visitor, when it falls behind mid-session', () => {
+    const folder = join(mkdtempSync(join(tmpdir(), 'sprout-mcp-')), 'secret');
+    mkdirSync(folder);
+    const warned: string[] = [];
+    const session = openSession(kilnYard, { record: join(folder, 'run.json') }, (words) =>
+      warned.push(words),
+    );
+    arrive(session, 'Marta');
+    rmSync(folder, { recursive: true });
+    const looked = say(session, 'Marta', 'look');
+    expect(looked).toEqual({ text: 'A kiln yard.', refused: false });
+    expect(looked.text).not.toContain('secret');
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toMatch(/^could not record to .*secret\/run\.json: ENOENT/);
+  });
+});
+
+describe('an inbox', () => {
+  it('keeps nothing for a visitor who is not here, so one who returns reads only what is new', () => {
+    const session = openSession(kilnYard);
+    arrive(session, 'Marta');
+    arrive(session, 'Ines');
+    leave(session, 'Ines');
+    say(session, 'Marta', 'fire kiln');
+    expect(session.inboxes.has('Ines')).toBe(false);
+    expect(arrive(session, 'Ines').text).toBe('A kiln yard.');
   });
 });

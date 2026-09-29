@@ -38,7 +38,16 @@ The host's side is set on the command line and never shown to the agent:
 Over stdio there is one connection and one visitor. Over HTTP every client
 that connects is a connection of its own onto the same world, bound to the
 name it arrives as: it acts as nobody else, and reads what other visitors'
-turns write to it on its next call.
+turns write to it on its next call. A connection may do nothing but arrive
+until it has, and when it closes its visitor leaves, as a last `leave`
+would, so the name is free to come back. Bound to loopback (the default,
+`127.0.0.1`), the host answers only requests addressed to a loopback name,
+so a web page cannot reach the world by rebinding a name of its own; bound
+anywhere else, guarding it is the operator's.
+
+Nothing that goes wrong on the host's side reaches an agent in any words
+but one sentence of the host's; the host hears it in full on stderr. A file
+`--record` cannot write refuses the session before anyone plays.
 
 MIT. Imports `@overstory/sprout/lang`, `@overstory/sprout-player`, the MCP
 SDK, `zod` and `node:*`.

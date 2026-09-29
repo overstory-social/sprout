@@ -36,10 +36,15 @@ export interface SessionOptions {
   readonly advancePerTurn?: number;
 }
 
-/** A world being played: its stage, what the host set, each visitor's unread lines and commands typed, and the script so far. */
+/**
+ * A world being played: its stage, what the host set, where the host is
+ * told what goes wrong on its side, each visitor's unread lines and
+ * commands typed, and the script so far.
+ */
 export interface Session {
   readonly stage: Stage;
   readonly options: SessionOptions;
+  readonly warn: (words: string) => void;
   readonly inboxes: Map<string, string[]>;
   readonly typed: Map<string, number>;
   readonly recorded: Step[];
@@ -51,11 +56,22 @@ export interface Answer {
   readonly refused: boolean;
 }
 
-/** A session over `bundle`'s world as it loads, at time 0 and the seed the host set. */
-export function openSession(bundle: Bundle, options: SessionOptions = {}): Session {
+/**
+ * A session over `bundle`'s world as it loads, at time 0 and the seed the
+ * host set; `warn` hears what goes wrong on the host's side, which no
+ * visitor is told. Thrown where the file to record to cannot be written,
+ * before anyone plays.
+ */
+export function openSession(
+  bundle: Bundle,
+  options: SessionOptions = {},
+  warn: (words: string) => void = () => {},
+): Session {
+  if (options.record !== undefined) writeFileSync(options.record, writeScript({ steps: [] }));
   const session: Session = {
     stage: freshStage(bundle),
     options,
+    warn,
     inboxes: new Map(),
     typed: new Map(),
     recorded: [],
@@ -83,8 +99,16 @@ function run(session: Session, step: Step, caller: string | null): void {
   session.recorded.push(
     made === null || !plays(step) ? step : { ...step, expect: expectationsOf(made) },
   );
-  if (session.options.record !== undefined) {
-    writeFileSync(session.options.record, writeScript({ steps: session.recorded }));
+  const { record } = session.options;
+  if (record !== undefined) {
+    try {
+      writeFileSync(record, writeScript({ steps: session.recorded }));
+    } catch (error) {
+      // The turn has happened; the host is told the recording fell behind, and the visitor is not.
+      session.warn(
+        `could not record to ${record}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
   for (const line of made ?? []) deliver(session, line, caller);
 }
@@ -93,7 +117,8 @@ function run(session: Session, step: Step, caller: string | null): void {
 function deliver(session: Session, line: Made, caller: string | null): void {
   if (!keeps('error', line.level)) return;
   const to = line.reader ?? caller;
-  if (to === null) return;
+  // Nobody reads for a visitor who is not here: a returning one starts with an empty inbox.
+  if (to === null || (to !== caller && !isPresent(session, to))) return;
   const inbox = session.inboxes.get(to) ?? [];
   inbox.push(line.shown);
   session.inboxes.set(to, inbox);

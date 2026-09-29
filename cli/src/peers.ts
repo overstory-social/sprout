@@ -91,24 +91,21 @@ export async function mcpServe(
     io,
   );
   if (mcp === null) return 1;
-  let options: ReturnType<typeof mcp.sessionOptions>;
-  let listen: ReturnType<typeof mcp.listenAt>;
-  try {
-    options = mcp.sessionOptions(flags);
-    listen = mcp.listenAt(flags);
-  } catch (error) {
-    // Refused as `main` refuses anything, since the promise this returns is past its catch.
-    io.stderr.write(`sprout: ${error instanceof Error ? error.message : String(error)}\n`);
-    return 1;
-  }
   const stopped = new Promise((resolve) => {
     process.once('SIGINT', resolve);
     process.once('SIGTERM', resolve);
   });
-  return mcp.serve(bundle, options, listen, {
-    stdin: (io.stdin ?? process.stdin) as Readable,
-    stdout: io.stdout as Writable,
-    stderr: io.stderr as Writable,
-    stopped,
-  });
+  try {
+    return await mcp.serve(bundle, mcp.sessionOptions(flags), mcp.listenAt(flags), {
+      stdin: (io.stdin ?? process.stdin) as Readable,
+      stdout: io.stdout as Writable,
+      stderr: io.stderr as Writable,
+      stopped,
+    });
+  } catch (error) {
+    // Refused as `main` refuses anything, since the promise this returns is past its catch:
+    // a flag it cannot use, a file it cannot record to, a port already taken.
+    io.stderr.write(`sprout: ${error instanceof Error ? error.message : String(error)}\n`);
+    return 1;
+  }
 }

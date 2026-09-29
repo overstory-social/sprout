@@ -36,7 +36,9 @@ export async function serve(
   listen: Listen,
   io: ServeIo,
 ): Promise<number> {
-  const session = openSession(bundle, options);
+  const session = openSession(bundle, options, (words) =>
+    io.stderr.write(`sprout mcp: ${words}\n`),
+  );
   if ('stdio' in listen) return serveStdio(session, io);
   return serveHttp(session, listen, io);
 }
@@ -51,12 +53,26 @@ async function serveStdio(session: Session, io: ServeIo): Promise<number> {
   return 0;
 }
 
-/** The body of `req`, as JSON; undefined where there is none. */
+/** The most a request's body may hold: far more than any call to a tool needs. */
+const MOST_BODY = 1024 * 1024;
+
+/** The body of `req`, as JSON; undefined where there is none, and thrown past `MOST_BODY`. */
 async function bodyOf(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MOST_BODY) throw new Error('A request may hold at most a megabyte.');
+    chunks.push(chunk as Buffer);
+  }
   const text = Buffer.concat(chunks).toString('utf8');
   return text === '' ? undefined : JSON.parse(text);
+}
+
+/** The names a browser may reach a loopback host by; null for any other host, which is its operator's to guard. */
+function loopbackHosts(host: string, port: number): string[] | null {
+  if (!['127.0.0.1', 'localhost', '::1'].includes(host)) return null;
+  return [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`];
 }
 
 /** A JSON-RPC error with no request to answer, as the protocol writes one. */
@@ -71,9 +87,12 @@ async function serveHttp(
   io: ServeIo,
 ): Promise<number> {
   const connections = new Map<string, StreamableHTTPServerTransport>();
+  let port = listen.port;
   const http = createServer((req, res) => {
     void (async () => {
-      if (req.url !== '/mcp') return rejected(res, 404, 'The world is served at /mcp.');
+      if (new URL(req.url ?? '/', 'http://host').pathname !== '/mcp') {
+        return rejected(res, 404, 'The world is served at /mcp.');
+      }
       const id = req.headers['mcp-session-id'];
       const known = typeof id === 'string' ? connections.get(id) : undefined;
       const body = req.method === 'POST' ? await bodyOf(req) : undefined;
@@ -81,9 +100,12 @@ async function serveHttp(
       if (req.method !== 'POST' || !isInitializeRequest(body)) {
         return rejected(res, 400, 'Initialize a connection first.');
       }
+      const hosts = loopbackHosts(listen.host, port);
+      // On loopback, a page some browser loaded may not reach the world by another name (DNS rebinding).
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (opened) => void connections.set(opened, transport),
+        ...(hosts === null ? {} : { allowedHosts: hosts, enableDnsRebindingProtection: true }),
       });
       transport.onclose = () => {
         if (transport.sessionId !== undefined) connections.delete(transport.sessionId);
@@ -100,7 +122,7 @@ async function serveHttp(
     http.listen(listen.port, listen.host, resolve);
   });
   const address = http.address();
-  const port = typeof address === 'object' && address !== null ? address.port : listen.port;
+  if (typeof address === 'object' && address !== null) port = address.port;
   io.stderr.write(`sprout mcp: serving the world at http://${listen.host}:${port}/mcp\n`);
   await io.stopped;
   for (const transport of connections.values()) await transport.close();

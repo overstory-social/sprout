@@ -40,7 +40,10 @@ describe('@overstory/sprout-mcp imports the language, the player, the MCP SDK, z
   for (const file of files) {
     it(relative(SRC, file), () => {
       const text = readFileSync(file, 'utf8');
-      const specifiers = [...text.matchAll(/(?:from|import)\s+'([^']+)'/g)].map((m) => m[1]!);
+      // Every specifier: after from, after a bare import for its side effects, and inside import().
+      const specifiers = [...text.matchAll(/(?:from\s+|import\s*\(?\s*)'([^']+)'/g)].map(
+        (m) => m[1]!,
+      );
       const allowed = file.endsWith('.spec.ts') ? [...ALLOWED, ...ALLOWED_IN_SPECS] : ALLOWED;
       const foreign = specifiers.filter(
         (s) =>

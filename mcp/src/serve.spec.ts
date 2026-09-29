@@ -1,3 +1,4 @@
+import { request } from 'node:http';
 import { PassThrough } from 'node:stream';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -121,5 +122,78 @@ describe('serving over stdio', () => {
     io.stdin.end();
     expect(await served).toBe(0);
     expect(io.err()).toBe('');
+  });
+});
+
+/** The address `serve` said it listens at, once it says so. */
+async function listening(err: () => string): Promise<string> {
+  for (let i = 0; i < 100; i++) {
+    const base = /(http:\/\/\S+)\/mcp/.exec(err())?.[1];
+    if (base !== undefined) return base;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error('serve never said where it listens');
+}
+
+const INITIALIZE = {
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-06-18',
+    capabilities: {},
+    clientInfo: { name: 'spec', version: '0' },
+  },
+};
+
+describe('serving over HTTP, at its edges', () => {
+  it('rejects where the port is already taken, for its caller to say so', async () => {
+    const first = streams();
+    const served = serve(kilnYard, {}, { host: '127.0.0.1', port: 0 }, first.io);
+    const port = Number(new URL(await listening(first.err)).port);
+    const second = streams();
+    await expect(serve(kilnYard, {}, { host: '127.0.0.1', port }, second.io)).rejects.toThrow(
+      /EADDRINUSE/,
+    );
+    first.stop();
+    expect(await served).toBe(0);
+  });
+
+  it('serves /mcp with a query, and refuses a loopback request under another host’s name', async () => {
+    const io = streams();
+    const served = serve(kilnYard, {}, { host: '127.0.0.1', port: 0 }, io.io);
+    const base = await listening(io.err);
+    const headers = {
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+    };
+    const opened = await fetch(`${base}/mcp?from=spec`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(INITIALIZE),
+    });
+    expect(opened.status).toBe(200);
+    // `fetch` will not send another Host, as a page loaded under a rebound name would.
+    const rebound = await new Promise<{ status: number }>((resolve, reject) => {
+      const url = new URL(`${base}/mcp`);
+      const req = request(
+        {
+          host: url.hostname,
+          port: url.port,
+          path: '/mcp',
+          method: 'POST',
+          headers: { ...headers, host: 'evil.example:80' },
+        },
+        (res) => {
+          res.resume();
+          resolve({ status: res.statusCode ?? 0 });
+        },
+      );
+      req.on('error', reject);
+      req.end(JSON.stringify(INITIALIZE));
+    });
+    expect(rebound.status).toBe(403);
+    io.stop();
+    expect(await served).toBe(0);
   });
 });

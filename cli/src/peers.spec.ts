@@ -1,4 +1,5 @@
 import { mkdtempSync } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -85,6 +86,20 @@ describe('`sprout mcp`', () => {
     t.stdin.end();
     expect(await served).toBe(0);
     expect(t.err()).toBe('');
+  });
+
+  it('says a port already taken as a refusal, never a stack', async () => {
+    const taken = createServer();
+    await new Promise<void>((resolve) => taken.listen(0, '127.0.0.1', resolve));
+    const { port } = taken.address() as AddressInfo;
+    const t = io();
+    expect(await mcpServe(bundleOf('kiln_yard', KILN_YARD), { http: `127.0.0.1:${port}` }, t)).toBe(
+      1,
+    );
+    expect(t.err()).toMatch(
+      /^sprout: listen EADDRINUSE: address already in use 127\.0\.0\.1:\d+\n$/,
+    );
+    await new Promise((resolve) => taken.close(resolve));
   });
 
   it('refuses what the host is told that it cannot use, in words that say what to write', async () => {
