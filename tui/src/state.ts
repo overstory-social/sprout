@@ -5,9 +5,16 @@ import type { ServerMessage } from '@overstory/sprout/core';
 // every message the server sends folded into one state,
 // with no terminal in it. The transcript is the world's prose by its kind,
 // what visitors said to each other styled apart, and the host's records at
-// the levels this client shows; the status line is the place and its
-// exits; what can be typed now is completed from the lines the server
-// offers. Normal play shows prose and errors, and `/log` shows more.
+// the levels this client shows; the status is the place, what else it
+// holds and its exits; what can be typed now is completed from the lines
+// the server offers. Normal play shows prose and errors, and `/log` shows
+// more. The connection's health is open, lost, or troubled for a minute
+// after an error reaches the client: an error record, or a frame refused
+// before a world was asked for or as a frame. A world's own refusals are
+// prose, and a nickname refused is the visitor's to fix, so neither counts.
+
+/** How long an error keeps the connection's health troubled, in milliseconds. */
+export const TROUBLED_FOR = 60_000;
 
 /** One line of the transcript, by what it is, which is how it is styled. */
 export interface Line {
@@ -28,9 +35,10 @@ export interface Line {
   readonly level: Level;
 }
 
-/** The status line: where the visitor stands, and the ways out. */
+/** Where the visitor stands, what else is there, and the ways out. */
 export interface Status {
   readonly place: string;
+  readonly here: readonly string[];
   readonly exits: readonly string[];
 }
 
@@ -47,7 +55,12 @@ export interface ClientState {
   readonly worlds: readonly string[];
   /** Why the connection closed; null while it is open. */
   readonly closed: string | null;
+  /** When the last error reached the client, in the client's milliseconds; null for none. */
+  readonly troubledAt: number | null;
 }
+
+/** What the header shows of the connection. */
+export type Health = 'connecting' | 'open' | 'troubled' | 'lost';
 
 export const EMPTY: ClientState = {
   lines: [],
@@ -57,10 +70,11 @@ export const EMPTY: ClientState = {
   nickname: null,
   worlds: [],
   closed: null,
+  troubledAt: null,
 };
 
-/** `state` with `message`, from the server, folded in. */
-export function received(state: ClientState, message: ServerMessage): ClientState {
+/** `state` with `message`, from the server, folded in, `now` the client's time in milliseconds. */
+export function received(state: ClientState, message: ServerMessage, now: number): ClientState {
   switch (message.t) {
     case 'welcome':
       return { ...state, worlds: message.worlds.map((one) => one.world) };
@@ -70,8 +84,10 @@ export function received(state: ClientState, message: ServerMessage): ClientStat
         world: message.world,
         nickname: message.nickname,
       };
-    case 'refused':
-      return add(state, 'refused', message.text);
+    case 'refused': {
+      const refused = add(state, 'refused', message.text);
+      return message.stage === 'admit' ? refused : troubled(refused, now);
+    }
     case 'effects':
       return message.effects.reduce(
         (now, effect) =>
@@ -87,16 +103,19 @@ export function received(state: ClientState, message: ServerMessage): ClientStat
         ...state,
         status: {
           place: message.place,
+          here: message.here.map((one) => one.name),
           exits: message.exits.map((exit) => exit.direction ?? exit.label),
         },
       };
     case 'offered':
       return { ...state, offered: message.lines };
-    case 'record':
-      return {
+    case 'record': {
+      const recorded: ClientState = {
         ...state,
         lines: [...state.lines, { kind: 'record', text: message.text, level: message.level }],
       };
+      return message.level === 'error' ? troubled(recorded, now) : recorded;
+    }
     case 'chat':
       return add(state, 'chat', `${message.from}: ${message.line}`);
     case 'bye':
@@ -107,6 +126,18 @@ export function received(state: ClientState, message: ServerMessage): ClientStat
 /** `state` with a line of `kind` said, at prose. */
 export function add(state: ClientState, kind: Line['kind'], text: string): ClientState {
   return { ...state, lines: [...state.lines, { kind, text, level: 'prose' }] };
+}
+
+/** `state` with an error reaching the client at `now`. */
+export function troubled(state: ClientState, now: number): ClientState {
+  return { ...state, troubledAt: now };
+}
+
+/** The connection's health at `now`: lost once closed, troubled within a minute of an error, open once in a world. */
+export function healthOf(state: ClientState, now: number): Health {
+  if (state.closed !== null) return 'lost';
+  if (state.troubledAt !== null && now - state.troubledAt < TROUBLED_FOR) return 'troubled';
+  return state.world === null ? 'connecting' : 'open';
 }
 
 /** The lines shown at `shown`, the levels this client shows: prose always, a record at its level. */

@@ -195,7 +195,9 @@ export const ServerMessage = z.discriminatedUnion('t', [
     })
     .strict(),
   z.object({ t: z.literal('view'), seq: seq.nullable(), view: SentView }).strict(),
-  z.object({ t: z.literal('status'), place: text, exits: z.array(Exit) }).strict(),
+  z
+    .object({ t: z.literal('status'), place: text, here: z.array(Thing), exits: z.array(Exit) })
+    .strict(),
   z.object({ t: z.literal('offered'), lines: z.array(text) }).strict(),
   z
     .object({

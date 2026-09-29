@@ -110,7 +110,9 @@ describe('the server, over a real socket', () => {
       returning: false,
     });
     expect(await marta.words(null)).toEqual(['There is nothing special about the cellar.']);
-    expect(await marta.take('status')).toMatchObject({ place: 'the cellar', exits: [] });
+    const status = await marta.take('status');
+    expect(status).toMatchObject({ place: 'the cellar', exits: [] });
+    expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin']);
     expect((await marta.take('offered')).lines).toContain('take key');
     marta.send({ t: 'command', seq: 1, line: 'take key then take coin' });
     const [first, second] = [

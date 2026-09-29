@@ -2,9 +2,20 @@ import { describe, expect, it } from 'vitest';
 
 import type { ServerMessage } from '@overstory/sprout/core';
 
-import { EMPTY, received, statusWords, visible, type ClientState } from './state.js';
+import {
+  EMPTY,
+  healthOf,
+  received,
+  statusWords,
+  TROUBLED_FOR,
+  visible,
+  type ClientState,
+} from './state.js';
 
-const fold = (...messages: ServerMessage[]): ClientState => messages.reduce(received, EMPTY);
+/** `messages` folded in, each at the client's millisecond `at`. */
+const foldAt = (at: number, from: ClientState, ...messages: ServerMessage[]): ClientState =>
+  messages.reduce((state, message) => received(state, message, at), from);
+const fold = (...messages: ServerMessage[]): ClientState => foldAt(0, EMPTY, ...messages);
 
 describe('what the client shows', () => {
   it('is the world’s prose by its kind, a payload by what recorded it, and chat styled apart', () => {
@@ -55,6 +66,10 @@ describe('what the client shows', () => {
       {
         t: 'status',
         place: 'the cellar',
+        here: [
+          { id: 'k', name: 'a key' },
+          { id: 'i', name: 'Ines' },
+        ],
         exits: [
           { direction: 'up', label: 'the stair', to: 'x' },
           { direction: null, label: 'the back door', to: 'y' },
@@ -65,6 +80,7 @@ describe('what the client shows', () => {
     );
     expect(statusWords(state.status)).toBe('the cellar — exits: up, the back door');
     expect(statusWords(null)).toBe('');
+    expect(state.status?.here).toEqual(['a key', 'Ines']);
     expect(state.offered).toEqual(['take key']);
     expect(state.closed).toBe('stopping');
   });
@@ -80,5 +96,63 @@ describe('what the client shows', () => {
       'Ines: hi',
     ]);
     expect(visible(state.lines, new Set(['prose', 'error', 'info']))).toHaveLength(3);
+  });
+
+  it('is the connection’s health: connecting, open once in a world, troubled a minute after an error, lost once closed', () => {
+    const welcomed = fold({
+      t: 'welcome',
+      server: 's',
+      worlds: [{ world: 'shop', granted: [], declined: [] }],
+    });
+    expect(healthOf(welcomed, 0)).toBe('connecting');
+    const open = fold(
+      { t: 'welcome', server: 's', worlds: [{ world: 'shop', granted: [], declined: [] }] },
+      { t: 'admitted', world: 'shop', nickname: 'Marta', returning: false },
+    );
+    expect(healthOf(open, 0)).toBe('open');
+    const faulted = foldAt(1000, open, {
+      t: 'record',
+      level: 'error',
+      text: 'budget: steps',
+      at: 1,
+    });
+    expect(healthOf(faulted, 1000 + TROUBLED_FOR - 1)).toBe('troubled');
+    expect(healthOf(faulted, 1000 + TROUBLED_FOR)).toBe('open');
+    const refusedFrame = foldAt(5, open, {
+      t: 'refused',
+      stage: 'frame',
+      reason: 'malformed',
+      text: 'This frame is not JSON.',
+    });
+    expect(healthOf(refusedFrame, 5)).toBe('troubled');
+    expect(
+      healthOf(fold({ t: 'bye', reason: 'stopping', text: 'The server is stopping.' }), 0),
+    ).toBe('lost');
+  });
+
+  it('counts neither a world’s refusal nor a nickname refused, nor a record below error, as trouble', () => {
+    const state = foldAt(
+      5,
+      EMPTY,
+      { t: 'refused', stage: 'admit', reason: 'nickname', text: 'Someone here is Marta.' },
+      { t: 'record', level: 'warning', text: 'slow', at: 1 },
+      {
+        t: 'effects',
+        seq: 1,
+        last: true,
+        effects: [
+          {
+            as: 'words',
+            kind: 'refused',
+            recorded: null,
+            from: 'a',
+            actor: 'b',
+            to: 'b',
+            paragraphs: ['It is locked.'],
+          },
+        ],
+      },
+    );
+    expect(state.troubledAt).toBeNull();
   });
 });

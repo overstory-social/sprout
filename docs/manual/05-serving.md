@@ -69,13 +69,22 @@ time you connect to a server, the client makes you a token and keeps it in
 `~/.config/sprout/tokens.json`. The same token brings you back as the same
 visitor, under your nickname while it is still free.
 
-The screen has three parts:
+The client fills the terminal window, top to bottom:
 
-- **The transcript** scrolls as the terminal does: what the world says, in
-  a style for each kind of line. What other visitors say to you is set
-  apart in its own colour.
-- **The status line** shows where you are and the ways out.
-- **The input line** is where you type.
+- **The header** shows the connection, then the world and your nickname.
+  The dot is green while connected, orange for a minute after an error
+  reaches the client, and red once the connection is lost.
+- **The transcript** is what the world says, the newest line at the
+  bottom, in a style for each kind of line. What other visitors say to you
+  is set apart in its own colour. PgUp and PgDn scroll it, and Home and End
+  go to its start and to the newest line. While you are scrolled back, new
+  lines do not move what you are reading, and the rule under the
+  transcript says how much is below.
+- **The input line**, between two rules, is where you type.
+- **The place** is at the foot: where you are on the left, and beside it
+  what else is here and the ways out.
+
+When you quit, the terminal is as it was before you connected.
 
 Type as you would in `sprout play`. Up and down bring back lines you typed
 before, and Tab completes from what you could type here now.

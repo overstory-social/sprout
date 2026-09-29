@@ -152,7 +152,7 @@ message is validated with a zod schema in `core`'s `protocol.ts`, beside
 | `refused` | `stage`, `reason`, `text` | a hello, an admission or a frame refused: at which stage, a short machine-readable reason (`nickname`, `closed`, `malformed`, …), and text a person can read, always |
 | `effects` | `seq`, `last`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it; a line of several commands, an intent's steps or `all` runs several turns, and `last` marks the effects of the last of them |
 | `view` | `seq`, `view` | the visitor's view, as `core`'s `sendView` makes it; `seq` is the `poll`'s, or none for a view sent unasked |
-| `status` | `place`, `exits` | the status line: where the visitor stands and the ways out, sent when either changes |
+| `status` | `place`, `here`, `exits` | where the visitor stands, the things the place directly holds other than the visitor, people among them, in contents order and named for the visitor, and the ways out; sent when any of them changes |
 | `offered` | `lines` | the lines the visitor could type now, for completion, from the view's readings |
 | `record` | `level`, `text`, `at` | a log record at a level the client asked for; `at` is the host's time and never reaches a turn |
 | `chat` | `from`, `line` | someone said something |

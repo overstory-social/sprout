@@ -5,8 +5,9 @@ import { playPlain } from './plain.js';
 import { Session, type SessionOptions } from './session.js';
 
 // `sprout client connect <address> [--world w] [--as name] [--plain]`: one
-// visitor, connected to a server, on the terminal's screen or, plain, as
-// lines in and out. Resolves to the exit code once the visitor quits.
+// visitor, connected to a server, filling the terminal's alternate screen
+// or, plain, as lines in and out. Resolves to the exit code once the
+// visitor quits, the terminal as it was before.
 
 /** What connecting takes: the session's options, whether to run plain, and the terminal's streams. */
 export interface ConnectOptions extends SessionOptions {
@@ -36,6 +37,7 @@ export async function connect(options: ConnectOptions): Promise<number> {
     stdin: options.stdin,
     stdout: options.stdout,
     exitOnCtrlC: false,
+    alternateScreen: true,
   });
   await app.waitUntilExit();
   return 0;
