@@ -217,6 +217,17 @@ describe('main', () => {
     );
   });
 
+  it('mcp on a refused world says what check says on stderr, since stdout is the protocol’s, and fails', async () => {
+    const dir = worldFolder('lane', {
+      ...LANE,
+      'lane.sprout': `${LANE['lane.sprout']}\nkind Broken is Nowhere { }\n`,
+    });
+    const io = captured();
+    expect(await main(['mcp', dir], io)).toBe(1);
+    expect(io.out()).toBe('');
+    expect(io.err()).toMatch(/lane\.sprout:\d+:\d+[^]*\nrefused: 1 problem\n$/);
+  });
+
   it('play with no script and --record writes the session as a script that plays back as written', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const file = join(mkdtempSync(join(tmpdir(), 'sprout-record-')), 'session.json');

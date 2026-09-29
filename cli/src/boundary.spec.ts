@@ -5,14 +5,19 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // The CLI imports the Sprout packages and node:*, and nothing of any host
-// at its start: the terminal client and the server it loads only when the
-// command that needs one runs, and only where it is installed, as optional
-// peers, so a CLI install need not carry Ink or `ws`.
+// at its start: the terminal client, the server and the MCP host it loads
+// only when the command that needs one runs, and only where it is
+// installed, as optional peers, so a CLI install need not carry Ink, `ws`
+// or the MCP SDK.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['@overstory/sprout/lang', '@overstory/sprout-player', '@overstory/sprout-repl'];
 /** The packages the CLI may load only by `import()`, where they are installed. */
-const OPTIONAL_PEERS = ['@overstory/sprout-tui', '@overstory/sprout-server'];
+const OPTIONAL_PEERS = [
+  '@overstory/sprout-tui',
+  '@overstory/sprout-server',
+  '@overstory/sprout-mcp',
+];
 const ALLOWED_IN_SPECS = [
   'vitest',
   '@overstory/sprout-server',

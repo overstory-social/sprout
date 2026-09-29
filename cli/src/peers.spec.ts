@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_BLESSED, DEFAULT_LIMITS } from '@overstory/sprout/lang';
 import { serverLog, startServer } from '@overstory/sprout-server';
 
-import { clientConnect, serverStart } from './peers.js';
+import { bundleOf, KILN_YARD } from '@overstory/sprout-player/fixtures';
+
+import { clientConnect, mcpServe, serverStart } from './peers.js';
 
 /** A terminal a spec types into and reads back. */
 function io() {
@@ -73,5 +75,21 @@ describe('`sprout server`', () => {
     const t = io();
     expect(await serverStart(['start'], t)).toBe(1);
     expect(t.err()).toContain('--config server.toml');
+  });
+});
+
+describe('`sprout mcp`', () => {
+  it('serves the world over stdio until stdin ends, saying nothing on stderr', async () => {
+    const t = io();
+    const served = mcpServe(bundleOf('kiln_yard', KILN_YARD), {}, t);
+    t.stdin.end();
+    expect(await served).toBe(0);
+    expect(t.err()).toBe('');
+  });
+
+  it('refuses what the host is told that it cannot use, in words that say what to write', async () => {
+    const t = io();
+    expect(await mcpServe(bundleOf('kiln_yard', KILN_YARD), { 'turn-cap': 'lots' }, t)).toBe(1);
+    expect(t.err()).toBe('sprout: --turn-cap wants a whole number from 1: --turn-cap 200\n');
   });
 });

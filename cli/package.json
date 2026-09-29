@@ -34,6 +34,7 @@
     "zod": "^4.4.2"
   },
   "devDependencies": {
+    "@overstory/sprout-mcp": "0.1.0",
     "@overstory/sprout-server": "0.1.0",
     "@overstory/sprout-tui": "0.1.0"
   },
@@ -46,10 +47,14 @@
     "node": ">=22"
   },
   "peerDependencies": {
+    "@overstory/sprout-mcp": "0.1.0",
     "@overstory/sprout-server": "0.1.0",
     "@overstory/sprout-tui": "0.1.0"
   },
   "peerDependenciesMeta": {
+    "@overstory/sprout-mcp": {
+      "optional": true
+    },
     "@overstory/sprout-server": {
       "optional": true
     },

@@ -21,17 +21,19 @@ import { playInteractively, type Io } from '@overstory/sprout-repl';
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
-import { clientConnect, serverStart } from './peers.js';
+import { clientConnect, mcpServe, serverStart } from './peers.js';
 import { inspectView } from './view.js';
 
 // The `sprout` command: six verbs on a microworld folder; `skill`, the
 // builder's reference this compiler generates from its own tables; and
-// `client` and `server`, handed to the terminal client and the server
-// where they are installed.
+// `client`, `server` and `mcp`, handed to the terminal client, the server
+// and the MCP host where they are installed. `mcp` says a refused world's
+// page on stderr, since its stdout may be the protocol's.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
-// `--json`, `--debug` and `--write` are always alone. The first bare word is the command, the next the path. Every command
-// but `play` with no script, `client` and `server` is synchronous; those
-// hand back a promise of their exit code rather than the code itself.
+// `--json`, `--debug` and `--write` are always alone. The first bare word
+// is the command, the next the path. Every command but `play` with no
+// script, `client`, `server` and `mcp` is synchronous; those hand back a
+// promise of their exit code rather than the code itself.
 
 export const USAGE = `sprout — a Sprout microworld on the command line
 
@@ -60,6 +62,11 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
   sprout client connect host:port [--world w] [--as name] [--plain]
                                       play on a server as one visitor, in the terminal client; --plain for
                                       lines in and out; needs @overstory/sprout-tui installed
+  sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
+                                      serve the world to an agent as a visitor and only as a visitor, over MCP:
+                                      tools to arrive, say a line and leave, answered with the prose that visitor
+                                      reads; stdio for one visitor, --http for several in one world; --record
+                                      writes the session as a script; needs @overstory/sprout-mcp installed
   sprout server start --config server.toml [--watch] [--log-format text|json]
                                       serve the worlds the config names until stopped; --watch redeploys a
                                       world when its folder changes; needs @overstory/sprout-server installed
@@ -221,6 +228,11 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         return clientConnect(positional, flags, io);
       case 'server':
         return serverStart(argv.slice(1), io);
+      case 'mcp': {
+        const checked = compiled(positional[0] ?? '.', (text) => io.stderr.write(text));
+        if (checked === null) return 1;
+        return mcpServe(checked, flags, io);
+      }
       default:
         io.stderr.write(`sprout: no such command "${command}"\n\n${USAGE}`);
         return 1;
