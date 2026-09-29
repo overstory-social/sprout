@@ -44,9 +44,11 @@ export function applyScaffold(dir: string, files: readonly Written[]): Scaffolde
   const manifest = readManifest(dir);
   const named = new Set(manifest.files);
   const added = files.filter((one) => one.file.endsWith('.sprout') && !named.has(one.file));
+  const made: string[] = [];
   for (const { file, text } of files) {
     keep(file);
-    mkdirSync(dirname(join(dir, file)), { recursive: true });
+    const first = mkdirSync(dirname(join(dir, file)), { recursive: true });
+    if (first !== undefined) made.push(first);
     writeFileSync(join(dir, file), text);
     said.push(`${before.get(file) === null ? 'wrote' : 'changed'} ${file}`);
   }
@@ -66,6 +68,8 @@ export function applyScaffold(dir: string, files: readonly Written[]): Scaffolde
     if (text === null) rmSync(path, { force: true });
     else writeFileSync(path, text);
   }
+  // A folder the scaffold made goes with what it wrote there.
+  for (const folder of made.reverse()) rmSync(folder, { recursive: true, force: true });
   return {
     ok: false,
     page: `${formatCheck(checked)}\nThe world would not compile with this, so nothing was written.\n`,
@@ -84,18 +88,48 @@ function readManifest(dir: string): { raw: Record<string, unknown>; files: strin
   return { raw, files };
 }
 
-/** `text` with each of `imports` after the file's own imports, where it does not already hold it. */
+/**
+ * `text` with each of `imports` after the file's own imports, where it
+ * does not already import what it names: an import read whole however many
+ * lines it spans, in either quotes, and a name counted as imported where
+ * any import from its file names it.
+ */
 export function withImports(text: string, imports: readonly string[]): string {
   const lines = text === '' ? [] : text.replace(/\n$/, '').split('\n');
-  const missing = imports.filter((one) => !lines.includes(one));
-  if (missing.length === 0) return text;
+  const held: string[] = [];
   let at = 0;
-  for (let i = 0; i < lines.length; i++) {
-    if (/^import\s/.test(lines[i]!)) at = i + 1;
-    else if (lines[i]!.trim() !== '' && !lines[i]!.startsWith('//')) break;
+  for (let i = 0; i < lines.length;) {
+    const line = lines[i]!.trim();
+    if (line === '' || line.startsWith('//')) {
+      i += 1;
+      continue;
+    }
+    if (!/^import\b/.test(line)) break;
+    // An import runs to the line naming where it is from.
+    let end = i;
+    while (end < lines.length - 1 && !FROM.test(lines[end]!)) end += 1;
+    held.push(lines.slice(i, end + 1).join(' '));
+    i = end + 1;
+    at = i;
   }
+  const missing = imports.filter((one) => !held.some((some) => covers(some, one)));
+  if (missing.length === 0) return text;
   lines.splice(at, 0, ...missing);
   return `${lines.join('\n')}\n`;
+}
+
+/** Where an import is from, in either quotes. */
+const FROM = /\bfrom\s+['"]([^'"]+)['"]/;
+
+/** Whether the import `held` already imports what `wanted` would. */
+function covers(held: string, wanted: string): boolean {
+  const from = FROM.exec(held)?.[1];
+  if (from === undefined || from !== FROM.exec(wanted)?.[1]) return false;
+  const star = /\*\s+as\s+(\w+)/;
+  if (star.test(wanted)) return star.exec(held)?.[1] === star.exec(wanted)?.[1];
+  const names = (one: string) =>
+    (/\{([^}]*)\}/.exec(one)?.[1] ?? '').split(',').map((name) => name.trim().split(/\s+as\s+/)[0]);
+  return names(wanted).every((name) => names(held).includes(name));
 }
 
 /**

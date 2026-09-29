@@ -1,4 +1,4 @@
-// @overstory/sprout-cli — the Sprout command line: init, check, the
+// @overstory/sprout-cli — the Sprout command line: scaffold, check, the
 // inspectors parse and view, on a microworld folder, and the generated
 // skill; `play` and `test` launch the player and the REPL. Exported so a
 // spec, or another tool, can drive the commands without a process.

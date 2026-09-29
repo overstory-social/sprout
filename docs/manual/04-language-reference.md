@@ -91,7 +91,7 @@ is listed but missing, or present but not listed, is reported.
 Files and folders are yours to arrange.
 
 - **The world** is declared once, in whichever file you like; `sprout
-  init` calls it after the world, as `printers_shop.sprout`. An object is
+  scaffold world` calls it after the world, as `printers_shop.sprout`. An object is
   declared inside the body of what holds it, or in a file of its own
   that says where it sits (see [Objects](#objects)).
 - **Kinds, enums, verbs and messages** may go in any `.sprout` file,

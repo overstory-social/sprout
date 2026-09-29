@@ -83,6 +83,11 @@ describe('`scaffold object`', () => {
     expect(done.page).toContain('`in nowhere` names nothing in the world');
     expect(done.page).toContain('The world would not compile with this, so nothing was written.');
     expect(existsSync(join(dir, 'bell.sprout'))).toBe(false);
+    // A folder it made for the file goes too.
+    expect(scaffoldObject('gong', dir, 'nowhere', 'sprout.Fixture', 'rooms/gong.sprout').ok).toBe(
+      false,
+    );
+    expect(existsSync(join(dir, 'rooms'))).toBe(false);
     expect(read(dir, 'sprout.json')).toBe(before);
   });
 
