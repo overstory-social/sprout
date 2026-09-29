@@ -137,6 +137,7 @@ export function harbour(
       nickname: nicknameOf(one.visit),
       instance: id,
       lastPlace: 'in' in one ? one.in : one.away,
+      referents: [],
     });
   }
   for (const [id, name, value] of set) {

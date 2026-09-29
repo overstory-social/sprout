@@ -39,6 +39,7 @@ export const WORLD_LINES = [
   { name: 'not_here', binds: ACTING },
   { name: 'cannot', binds: { ...ACTING, reading: 'text' } },
   { name: 'meant', binds: { ...ACTING, thing: 'object' } },
+  { name: 'pronoun_correction', binds: { ...ACTING, thing: 'object', pronoun: 'text' } },
   { name: 'nothing_happens', binds: ACTING },
   { name: 'unremarkable', binds: { thing: 'object' }, polled: true },
   { name: 'unseen', binds: {}, polled: true },

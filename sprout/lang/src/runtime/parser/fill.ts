@@ -20,6 +20,7 @@ import {
   type Candidate,
   type NounContext,
   type NounFound,
+  type PronounNamed,
 } from './nouns.js';
 
 /** One way a slot's words fill its role: what it binds, how near, and how many words it matched literally. */
@@ -28,6 +29,8 @@ export interface FillOption {
   /** The nearness of what it binds, a set's summed; 0 for an exit. */
   readonly near: number;
   readonly literal: number;
+  /** What it binds that a pronoun named, where any is. */
+  readonly pronounNamed?: readonly PronounNamed[];
 }
 
 /** What a slot's words come to for its role. */
@@ -74,7 +77,12 @@ export function fillSlot(
     }
     return {
       fills: 'options',
-      options: found.sets.map(({ ids, near, literal }) => ({ bound: { set: ids }, near, literal })),
+      options: found.sets.map(({ ids, near, literal, pronounNamed }) => ({
+        bound: { set: ids },
+        near,
+        literal,
+        ...(pronounNamed.length === 0 ? {} : { pronounNamed }),
+      })),
     };
   }
   const found = nounIn(words, role, context.candidates, context);
@@ -99,10 +107,11 @@ export function fillIntentSlot(
 /** What one noun found fills a slot with: a thing for each option, or for each thing that cannot fill it. */
 function thingFilled(found: NounFound, words: readonly string[]): Filled {
   if (found.found === 'nothing') return { fills: 'nothing', start: 0, end: words.length };
-  const options = found.things.map(({ id, near, literal }) => ({
+  const options = found.things.map(({ id, near, literal, pronoun }) => ({
     bound: { object: id },
     near,
     literal,
+    ...(pronoun === undefined ? {} : { pronounNamed: [{ id, pronoun }] }),
   }));
   return found.found === 'unfit'
     ? { fills: 'unfit', things: options }

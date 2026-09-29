@@ -82,6 +82,7 @@ export interface StoredVisitor {
   readonly nickname: string;
   readonly instance: string;
   readonly lastPlace: string | null;
+  readonly referents: readonly string[];
 }
 
 export interface StoredWorld {
@@ -140,6 +141,7 @@ export const StoredVisitorSchema: z.ZodType<StoredVisitor> = z.object({
   nickname: z.string().min(1),
   instance: z.string(),
   lastPlace: z.string().nullable(),
+  referents: z.array(z.string()),
 });
 
 /** Which id form each way of being made takes. */
@@ -231,10 +233,12 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
       }
       named.add(visitor.instance);
       if (visitor.lastPlace !== null) anId([...at, 'lastPlace'], visitor.lastPlace);
+      visitor.referents.forEach((id, r) => anId([...at, 'referents', r], id));
     });
     // A tombstone is a declared object destroyed, and what it held went
-    // with it, so nothing is stored under its id or inside it. A link or
-    // a visitor's last place may still name it: the absent rules read those.
+    // with it, so nothing is stored under its id or inside it. A link, a
+    // visitor's last place or what their pronouns name may still name it:
+    // the absent rules read those.
     const tombstones = new Set<string>();
     stored.tombstones.forEach((id, t) => {
       const at = ['tombstones', t];

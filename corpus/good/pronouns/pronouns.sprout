@@ -1,0 +1,26 @@
+// A visitor's pronouns (the spec's Parsing › Pronouns): `it` and `them`
+// name what their own last command was done to, `him` and `her` the same
+// where it is a person or declares that pronoun; a thing that declares
+// its pronoun, as the cat does, corrects another before the action goes
+// ahead, and one that declares none, as the lamp and Ines do, never is.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world pronouns is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object lamp is Loose
+    object cat is Cat { grammar { article the  pronouns she } }
+  }
+}
+
+kind Loose { }
+
+kind Cat is sprout.Fixture {
+  as target for pet { do { say "{self} purrs." } }
+}
+
+verb pet { role target  "pet [target]" }

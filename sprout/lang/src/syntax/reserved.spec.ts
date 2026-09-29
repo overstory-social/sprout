@@ -94,8 +94,8 @@ describe('the member words are the spec’s, exactly', () => {
     expect(isMemberWord('move')).toBe(false);
   });
 
-  it('reserves `adjectives`, as it does every word a grammar block begins a line with', () => {
-    for (const word of ['name', 'article', 'nouns', 'adjectives', 'exit', 'link']) {
+  it('reserves `adjectives` and `pronouns`, as it does every word a grammar block begins a line with', () => {
+    for (const word of ['name', 'article', 'pronouns', 'nouns', 'adjectives', 'exit', 'link']) {
       expect(isReserved(word), word).toBe(true);
     }
   });

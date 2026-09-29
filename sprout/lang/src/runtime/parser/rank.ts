@@ -13,6 +13,7 @@ import type { Draw } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import type { IntentReading } from '../intents.js';
 import type { Reading } from '../reading.js';
+import type { PronounNamed } from './nouns.js';
 
 /** What a line may be understood as: a verb's reading, or an intent's. */
 export type Understood = Reading | IntentReading;
@@ -33,6 +34,8 @@ export interface Ranked {
   readonly literal: number;
   /** The nearness of what fills each role or slot, in `slotNamesOf`'s order; 0 for none. */
   readonly near: readonly number[];
+  /** What it binds that a pronoun named, and the pronoun. */
+  readonly pronounNamed: readonly PronounNamed[];
 }
 
 /** A reading drawn from a tie: among how many, and the thing `meant` names, if any. */
@@ -44,6 +47,7 @@ export interface Drawn {
 /** The reading chosen, and the draw it was, where it was drawn. */
 export interface Chosen {
   readonly reading: Understood;
+  readonly pronounNamed: readonly PronounNamed[];
   readonly drawn: Drawn | null;
 }
 
@@ -71,11 +75,18 @@ export function chooseReading(
 ): Chosen {
   const ordered = [...readings].sort(compareRanked);
   const tied = ordered.filter((one) => compareRanked(one, ordered[0]!) === 0);
-  if (tied.length === 1) return { reading: tied[0]!.reading, drawn: null };
+  if (tied.length === 1) {
+    return { reading: tied[0]!.reading, pronounNamed: tied[0]!.pronounNamed, drawn: null };
+  }
   budget.spend();
-  const drawn = tied[draws.below(tied.length)]!.reading;
+  const chosen = tied[draws.below(tied.length)]!;
+  const drawn = chosen.reading;
   const rivals = tied.map((one) => one.reading).filter((one) => one !== drawn);
-  return { reading: drawn, drawn: { among: tied.length, meant: meantIn(drawn, rivals, written) } };
+  return {
+    reading: drawn,
+    pronounNamed: chosen.pronounNamed,
+    drawn: { among: tied.length, meant: meantIn(drawn, rivals, written) },
+  };
 }
 
 /**

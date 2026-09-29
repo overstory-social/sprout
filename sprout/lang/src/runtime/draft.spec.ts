@@ -279,7 +279,13 @@ describe('writing, placing, adding and removing', () => {
     const base = initialState(catalogue);
     const draft = new Draft(base);
     const visit = visitKey('v-1');
-    draft.putVisitor({ visit, nickname: 'Marta', instance: minted(1), lastPlace: null });
+    draft.putVisitor({
+      visit,
+      nickname: 'Marta',
+      instance: minted(1),
+      lastPlace: null,
+      referents: [],
+    });
     expect(draft.visitor(visit)!.nickname).toBe('Marta');
     expect(base.visitors.has(visit)).toBe(false);
   });
@@ -287,11 +293,29 @@ describe('writing, placing, adding and removing', () => {
   it('gives every visitor as the turn stands, a record it wrote over the committed one, by visit', () => {
     const first = new Draft(initialState(catalogue));
     const [ines, marta] = [visitKey('v-ines'), visitKey('v-marta')];
-    first.putVisitor({ visit: marta, nickname: 'Marta', instance: minted(1), lastPlace: null });
+    first.putVisitor({
+      visit: marta,
+      nickname: 'Marta',
+      instance: minted(1),
+      lastPlace: null,
+      referents: [],
+    });
     const base = first.commit().state;
     const draft = new Draft(base);
-    draft.putVisitor({ visit: marta, nickname: 'Mar', instance: minted(1), lastPlace: null });
-    draft.putVisitor({ visit: ines, nickname: 'Ines', instance: minted(2), lastPlace: null });
+    draft.putVisitor({
+      visit: marta,
+      nickname: 'Mar',
+      instance: minted(1),
+      lastPlace: null,
+      referents: [],
+    });
+    draft.putVisitor({
+      visit: ines,
+      nickname: 'Ines',
+      instance: minted(2),
+      lastPlace: null,
+      referents: [],
+    });
     expect(draft.everyVisitor().map((one) => [one.visit, one.nickname])).toEqual([
       [ines, 'Ines'],
       [marta, 'Mar'],
@@ -315,6 +339,7 @@ describe('committing', () => {
       nickname: 'Marta',
       instance: kept.id,
       lastPlace: HALL,
+      referents: [],
     });
     return { draft, kept };
   }
@@ -387,6 +412,7 @@ describe('what changed between two states', () => {
       nickname: 'Marta',
       instance: kept.id,
       lastPlace: HALL,
+      referents: [],
     });
     const { state, changes } = draft.commit();
     expect(changesBetween(base, state)).toEqual(changes);

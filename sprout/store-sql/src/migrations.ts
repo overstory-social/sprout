@@ -21,7 +21,7 @@ export interface SqlMigration {
 }
 
 /** The schema version the current export produces; `sprout.meta` records it. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const migrations: readonly SqlMigration[] = [
   {
@@ -205,6 +205,15 @@ CREATE TABLE sprout.log (
   entry jsonb NOT NULL,
   PRIMARY KEY (microworld_id, seq)
 );
+`,
+  },
+  {
+    name: 'sprout/004_referents.sql',
+    sql: `-- @overstory/sprout-store-sql 004 (schema version 4): what each visitor's
+-- pronouns name, the ids their last command about a thing was done to, in
+-- order, as a JSON array; none for every visitor already stored.
+ALTER TABLE sprout.visitor ADD COLUMN referents jsonb NOT NULL DEFAULT '[]';
+UPDATE sprout.meta SET value = '4' WHERE key = 'schema_version';
 `,
   },
 ];

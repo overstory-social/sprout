@@ -68,6 +68,7 @@ describe('a new visitor', () => {
       nickname: 'Marta',
       instance: done.instance,
       lastPlace: QUAY,
+      referents: [],
     });
     expect(done.state.instances.get(done.instance)!.kind).toBe(CATALOGUE.visitorKind);
   });

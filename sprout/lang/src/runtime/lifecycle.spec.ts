@@ -620,6 +620,7 @@ describe('a destroy', () => {
       nickname: 'Marta',
       instance: marta,
       lastPlace: KILN,
+      referents: [],
     });
     // Without a visitor kind, the visitor's record is kept dormant, still in the kiln.
     const base = loadWorld(saveWorld(opened.commit().state), {

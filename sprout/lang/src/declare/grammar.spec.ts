@@ -91,6 +91,16 @@ describe('one body’s grammar lines, in the first tier', () => {
     ]);
   });
 
+  it('refuse `pronouns` written twice, at the second', () => {
+    expect(checked('kind Cat { grammar { pronouns she } grammar { pronouns it } }')).toEqual([
+      [
+        'k.sprout:1:47',
+        '`Cat` writes its `pronouns` twice.',
+        'A thing is called by one pronoun. Keep one `pronouns` line.',
+      ],
+    ]);
+  });
+
   it('refuse an empty name and an empty noun', () => {
     expect(
       checked('kind Key { grammar { name " "  nouns "brass" "" } }').map((said) => said[1]),
@@ -222,6 +232,27 @@ describe('a composed grammar', () => {
         'Write one of those, and say the rest in the label, as in `exit in "coats" -> narnia`.',
       ],
     ]);
+  });
+
+  it('takes one source’s pronoun, the composer’s own first, and refuses two', () => {
+    const { said, grammar } = composed(
+      [
+        'kind Pet { grammar { pronouns she } }',
+        'kind Bird { grammar { pronouns it } }',
+        'kind Cat is Pet { }',
+        'kind Owl is Bird, Pet { }',
+        'kind Hen is Bird, Pet { grammar { pronouns she } }',
+      ].join('\n'),
+    );
+    expect(said).toEqual([
+      [
+        'k.sprout:4:19',
+        '`Owl` gets its `pronouns` from both `Bird` and `Pet`, and a thing has one.',
+        'Write `grammar { pronouns … }` in `Owl` to say which it is called by.',
+      ],
+    ]);
+    expect(grammar('Cat').pronoun).toMatchObject({ value: 'she', origin: 'shop.Pet' });
+    expect(grammar('Hen').pronoun).toMatchObject({ value: 'she', origin: 'shop.Hen' });
   });
 
   it('is nothing at all where no source writes a line', () => {

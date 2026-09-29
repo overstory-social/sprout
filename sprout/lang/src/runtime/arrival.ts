@@ -202,14 +202,21 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
         given = giveContents(turn, id);
       } else id = record.instance;
       const lastPlace = record?.lastPlace ?? null;
-      draft.putVisitor({ visit: arrival.visit, nickname, instance: id, lastPlace });
+      const referents = record?.referents ?? [];
+      draft.putVisitor({ visit: arrival.visit, nickname, instance: id, lastPlace, referents });
 
       const gone = lastPlace !== null && !isPlace(draft, lastPlace);
       let entry: Entry | null = lastPlace === null || gone ? null : enter(turn, id, lastPlace);
       // A last place that refuses is passed over for the arrival place, as one gone is.
       if (entry === null || 'refused' in entry) entry = enter(turn, id, catalogue.arrival!);
       if ('refused' in entry) return entry;
-      draft.putVisitor({ visit: arrival.visit, nickname, instance: id, lastPlace: entry.place });
+      draft.putVisitor({
+        visit: arrival.visit,
+        nickname,
+        instance: id,
+        lastPlace: entry.place,
+        referents,
+      });
       const drained = drain({ sends: entry.sends, destroyed: [], marked: [] }, turn);
       return {
         visit: arrival.visit,

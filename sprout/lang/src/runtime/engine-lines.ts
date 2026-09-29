@@ -24,6 +24,7 @@ export const STOCK_LINES: Readonly<Record<EngineLineName, string>> = {
   not_here: 'You see nothing like that here.',
   cannot: "You can't {reading}.",
   meant: '({thing})',
+  pronoun_correction: '{thing} is a {pronoun}.',
   nothing_happens: 'Nothing much comes of that.',
   unremarkable: 'There is nothing special about {thing}.',
   unseen: 'Something here is too much to take in.',

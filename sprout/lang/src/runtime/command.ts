@@ -19,6 +19,7 @@
 import { displace, type Displaced } from './arrival.js';
 import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
+import type { Draft } from './draft.js';
 import type { Draw } from './draws.js';
 import { engineAnswers } from './engine-verbs.js';
 import { engineSaid } from './engine-lines.js';
@@ -59,12 +60,23 @@ export interface ParseContext {
   readonly draws: Draw;
   /** Each visitor's nickname, by the instance that is them, which is how a person is named (Names › Nicknames). */
   readonly nicknames: ReadonlyMap<InstanceId, string>;
+  /** What the actor's pronouns name: what their own last command about a thing was done to (Parsing › Pronouns). */
+  readonly referents: readonly InstanceId[];
 }
 
 /** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
 export type Parsed =
-  | { readonly reading: Reading; readonly drawn: DrawnReading | null }
-  | { readonly intended: IntentReading; readonly drawn: DrawnReading | null }
+  | {
+      readonly reading: Reading;
+      readonly drawn: DrawnReading | null;
+      /** The world's `pronoun_correction` for each thing a pronoun named that declares another. */
+      readonly corrected: readonly Said[];
+    }
+  | {
+      readonly intended: IntentReading;
+      readonly drawn: DrawnReading | null;
+      readonly corrected: readonly Said[];
+    }
   | { readonly answered: Said };
 
 /**
@@ -109,11 +121,14 @@ export type Commanded =
   | {
       readonly refused: PermitRefusal;
       readonly drawn: DrawnReading | null;
+      /** The world's `pronoun_correction`s, said before anything else. */
+      readonly corrected: readonly Said[];
       /** The step of an intent this turn ran, which the host logs at info; null for a line read as a verb. */
       readonly step: Reading | null;
     }
   | {
       readonly drawn: DrawnReading | null;
+      readonly corrected: readonly Said[];
       /** The step of an intent this turn ran, which the host logs at info; null for a line read as a verb. */
       readonly step: Reading | null;
       /** The steps of the line's intent still to run, in order, each as a turn of its own the host runs. */
@@ -157,7 +172,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       const nicknames = nicknamesIn(state);
       const parsed: Parsed =
         command.planned !== undefined
-          ? { reading: command.planned, drawn: null }
+          ? { reading: command.planned, drawn: null, corrected: [] }
           : host.parse(command.text, actor, {
               state: draft,
               catalogue,
@@ -165,6 +180,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
               budget,
               draws,
               nicknames,
+              referents: committed.visitor(command.visit)!.referents,
             });
       if ('answered' in parsed) {
         if (!parsed.answered.to.includes(actor)) {
@@ -174,7 +190,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
         }
         return { answered: parsed.answered };
       }
-      const { drawn } = parsed;
+      const { drawn, corrected } = parsed;
       let reading: Reading;
       let next: readonly Reading[] = [];
       if ('intended' in parsed) {
@@ -195,8 +211,9 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
         );
       }
       const outcome = runReading(reading, turn);
+      remember(draft, command.visit, reading);
       const step = command.planned !== undefined || 'intended' in parsed ? reading : null;
-      if ('refused' in outcome) return { ...outcome, drawn, step };
+      if ('refused' in outcome) return { ...outcome, drawn, corrected, step };
       const drained = drain(outcome, turn);
       const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
         state: turnState(draft),
@@ -208,12 +225,31 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       const refusedActor = outcome.said.some(
         (said) => said.effect === 'refused' && said.to.includes(actor),
       );
-      return { drawn, step, next, refusedActor, acted: outcome, drained, answers };
+      return { drawn, corrected, step, next, refusedActor, acted: outcome, drained, answers };
     },
     (done) => ({ actor, lines: linesSaidBy(done, actor) }),
   );
   if (written.committed) return written;
   return { ...written, ...faultEffects(state, host, command, actor) };
+}
+
+/**
+ * Keep what `reading` was done to as what `visit`'s pronouns name: the
+ * thing or set its first role binds (the spec's Parsing › Pronouns),
+ * refused or not. A reading done to nothing leaves them as they were.
+ */
+function remember(draft: Draft, visit: VisitKey, reading: Reading): void {
+  const first = reading.verb.roles[0];
+  const bound = first === undefined ? undefined : reading.bindings.get(first.name);
+  if (bound === undefined) return;
+  const referents = 'object' in bound ? [bound.object] : 'set' in bound ? bound.set : [];
+  const record = draft.visitor(visit)!;
+  if (referents.length === 0 || sameIds(referents, record.referents)) return;
+  draft.putVisitor({ ...record, referents });
+}
+
+function sameIds(a: readonly InstanceId[], b: readonly InstanceId[]): boolean {
+  return a.length === b.length && a.every((id, at) => id === b[at]);
 }
 
 /**
@@ -244,8 +280,12 @@ function nothingHappens(state: StateReader, actor: InstanceId): Said {
 function linesSaidBy(done: Commanded, actor: InstanceId): Unrendered[] {
   if ('answered' in done) return [{ said: done.answered }];
   if ('displaced' in done) return displacedLines(done.displaced);
-  // A reading drawn from a tie is told the thing it meant before what it says.
-  const meant: Unrendered[] = done.drawn?.meant == null ? [] : [{ said: done.drawn.meant }];
+  // A pronoun corrected, and a reading drawn from a tie told the thing it
+  // meant, come before what the reading says.
+  const meant: Unrendered[] = [
+    ...done.corrected.map((said) => ({ said })),
+    ...(done.drawn?.meant == null ? [] : [{ said: done.drawn.meant }]),
+  ];
   if ('refused' in done) {
     const { by, said, bindings } = done.refused;
     return [

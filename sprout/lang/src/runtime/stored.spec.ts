@@ -110,6 +110,7 @@ function world(): StoredWorld {
         nickname: 'Marta',
         instance: 'printers_shop#1',
         lastPlace: 'printers_shop.composing_room',
+        referents: [],
       },
     ],
     tombstones: ['printers_shop.composing_room.lamp'],
@@ -172,6 +173,13 @@ describe('the stored form of a world', () => {
     ]);
     expect(issues(withInstance(1, { links: { cellar: 'bakery#3' } }))).toHaveLength(1);
     expect(issues(withInstance(2, { memory: { 'bakery#1': {} } }))).toHaveLength(1);
+    const stored = world();
+    expect(
+      issues({
+        ...stored,
+        visitors: [{ ...stored.visitors[0]!, referents: ['printers_shop.press', 'bakery#2'] }],
+      }),
+    ).toEqual(['visitors.0.referents.1: `bakery#2` is not an id in printers_shop.']);
   });
 
   it('refuses one id stored twice, and one visit stored twice', () => {
@@ -239,14 +247,20 @@ describe('the stored form of a world', () => {
     ]);
   });
 
-  it('lets a link and a visitor’s last place name a tombstone, which the absent rules read', () => {
+  it('lets a link, a visitor’s last place and what their pronouns name name a tombstone, which the absent rules read', () => {
     const stored = world();
     const withLink = withInstance(4, { links: { up: 'printers_shop.attic' } }) as StoredWorld;
     expect(issues({ ...withLink, tombstones: ['printers_shop.attic'] })).toEqual([]);
     expect(
       issues({
         ...stored,
-        visitors: [{ ...stored.visitors[0]!, lastPlace: 'printers_shop.attic' }],
+        visitors: [
+          {
+            ...stored.visitors[0]!,
+            lastPlace: 'printers_shop.attic',
+            referents: ['printers_shop.attic'],
+          },
+        ],
         tombstones: ['printers_shop.attic'],
       }),
     ).toEqual([]);

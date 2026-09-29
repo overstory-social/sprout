@@ -24,6 +24,7 @@ import {
   WORLD,
 } from '../fixtures/turns.js';
 import { NOTHING, words } from '../fixtures/reading.js';
+import { encodeVisitor } from './load.js';
 import {
   DEAD_END,
   INES as INES_WAYS,
@@ -40,7 +41,14 @@ import {
   WORLD as WAYS_WORLD,
   YARD,
 } from '../fixtures/exits.js';
-import { INES as INES_AT, MARTA as MARTA_AT, playedAll, workshop } from '../fixtures/workshop.js';
+import {
+  ANVIL as WORKSHOP_ANVIL,
+  INES as INES_AT,
+  MARTA as MARTA_AT,
+  PIN as WORKSHOP_PIN,
+  playedAll,
+  workshop,
+} from '../fixtures/workshop.js';
 import { commandTurn, type CommandTurn, type Parser } from './command.js';
 import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
@@ -91,7 +99,7 @@ describe('a command turn runs in a fixed order', () => {
     expect(turn.state.visitors.has(INES)).toBe(true);
   });
 
-  it('is the refusal alone where the consent pass refuses, and writes nothing', () => {
+  it('is the refusal alone where the consent pass refuses, and writes nothing of the world but what the actor’s pronouns name', () => {
     const state = belfry();
     const turn = committed(run(state, 'ring muffled'));
     expect(toldBy(turn, actorOf(state, MARTA))).toEqual([
@@ -102,7 +110,7 @@ describe('a command turn runs in a fixed order', () => {
       upsert: [],
       remove: [],
       tombstones: [],
-      visitors: [],
+      visitors: [{ ...encodeVisitor(state.visitors.get(MARTA)!), referents: [MUFFLED] }],
     });
   });
 
@@ -805,5 +813,40 @@ describe('an intent, through command turns', () => {
         [MARTA_AT, 'pick chest with key'],
       )[2],
     ).toEqual({ read: { Marta: ['Nothing much comes of that.'] }, steps: [] });
+  });
+});
+
+describe('what a visitor’s pronouns name, through command turns', () => {
+  const referentsAfter = (...lines: string[]) => {
+    const turns = playedAll(
+      workshop(),
+      lines.map((line) => [MARTA_AT, line] as const),
+    );
+    const last = turns.at(-1)!;
+    return {
+      read: turns.map((one) => one.read['Marta']),
+      referents: last.state.visitors.get(MARTA_AT)!.referents,
+    };
+  };
+
+  it('is what their own last command was done to, which `it` then names', () => {
+    expect(referentsAfter('take pin', 'drop it')).toEqual({
+      read: [['You take a pin.'], ['You put a pin down.']],
+      referents: [WORKSHOP_PIN],
+    });
+  });
+
+  it('is kept by a command about nothing, and set by one refused', () => {
+    expect(referentsAfter('take pin', 'look', 'drop it').read.at(-1)).toEqual([
+      'You put a pin down.',
+    ]);
+    expect(referentsAfter('take pin', 'take anvil').referents).toEqual([WORKSHOP_ANVIL]);
+  });
+
+  it('is nothing before their first command about a thing, so `it` names nothing', () => {
+    expect(referentsAfter('take it')).toEqual({
+      read: [['You see nothing like that here.']],
+      referents: [],
+    });
   });
 });

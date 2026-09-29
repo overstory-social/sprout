@@ -41,8 +41,20 @@ function world(): StoredState {
       record('shop.hall.lamp', { memory: { 'shop#1': { seen }, 'shop#4': { seen } } }),
     ],
     visitors: [
-      { visit: 'v-ines', nickname: 'Ines', instance: 'shop#4', lastPlace: 'shop.hall' },
-      { visit: 'v-marta', nickname: 'Marta', instance: 'shop#1', lastPlace: 'shop.hall' },
+      {
+        visit: 'v-ines',
+        nickname: 'Ines',
+        instance: 'shop#4',
+        lastPlace: 'shop.hall',
+        referents: [],
+      },
+      {
+        visit: 'v-marta',
+        nickname: 'Marta',
+        instance: 'shop#1',
+        lastPlace: 'shop.hall',
+        referents: [],
+      },
     ],
     tombstones: ['shop.hall.vase'],
   };

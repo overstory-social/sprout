@@ -29,6 +29,7 @@ kind World {
   passage not_here default        { You see nothing like that here. }
   passage cannot default          { You can't {reading}. }
   passage meant default           { ({thing}) }
+  passage pronoun_correction default { {thing} is a {pronoun}. }
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }
   passage unseen default          { Something here is too much to take in. }

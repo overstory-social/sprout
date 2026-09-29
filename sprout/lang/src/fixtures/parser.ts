@@ -253,7 +253,12 @@ export function study(nicknames: readonly string[] = ['Marta B'], budget?: Budge
  * What reading a line reads, in `one`, with the hall's exits, the pass
  * rules its kinds write, and a stream of draws from `seed`.
  */
-export function commandContext(one: Study, exits = EXITS, seed = 7): CommandContext {
+export function commandContext(
+  one: Study,
+  exits = EXITS,
+  seed = 7,
+  referents: readonly InstanceId[] = [],
+): CommandContext {
   const { draft, catalogue, budget } = one;
   const passes = passRules({
     state: draft,
@@ -263,7 +268,16 @@ export function commandContext(one: Study, exits = EXITS, seed = 7): CommandCont
     names: catalogue.names,
   });
   const draws = new Draws(seed);
-  return { state: draft, catalogue, budget, draws, passes, nicknames: one.nicknames, exits };
+  return {
+    state: draft,
+    catalogue,
+    budget,
+    draws,
+    passes,
+    nicknames: one.nicknames,
+    exits,
+    referents,
+  };
 }
 
 /** `line`, as the first visitor in `one` typed it, in a turn of `seed`. */

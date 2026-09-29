@@ -58,8 +58,14 @@ function store(): StoredWorld {
     serial: 3,
     instances,
     visitors: [
-      { visit: 'v-1', nickname: 'Marta', instance: minted(1), lastPlace: id('hall') },
-      { visit: 'v-2', nickname: 'Ann', instance: minted(2), lastPlace: id('hall') },
+      {
+        visit: 'v-1',
+        nickname: 'Marta',
+        instance: minted(1),
+        lastPlace: id('hall'),
+        referents: [],
+      },
+      { visit: 'v-2', nickname: 'Ann', instance: minted(2), lastPlace: id('hall'), referents: [] },
     ],
   };
 }

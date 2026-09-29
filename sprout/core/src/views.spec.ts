@@ -102,7 +102,13 @@ async function seeded(store: SproutStore = memoryStore()): Promise<SproutStore> 
       catalogue.caps,
     ),
   );
-  draft.putVisitor({ visit: MARTA, nickname: 'Marta', instance: marta, lastPlace: HALL });
+  draft.putVisitor({
+    visit: MARTA,
+    nickname: 'Marta',
+    instance: marta,
+    lastPlace: HALL,
+    referents: [],
+  });
   const { state, changes } = draft.commit();
   await store.transaction('w', (tx) => tx.putState(storedChanges(state, changes)));
   return store;

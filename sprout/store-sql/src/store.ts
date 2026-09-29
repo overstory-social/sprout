@@ -138,7 +138,7 @@ async function stateOf(c: Queryable, microworldId: string): Promise<StoredState>
   );
   const visitors = rowsOf(
     await c.query(
-      `SELECT visit, nickname, instance, last_place FROM sprout.visitor WHERE microworld_id = $1`,
+      `SELECT visit, nickname, instance, last_place, referents FROM sprout.visitor WHERE microworld_id = $1`,
       [microworldId],
     ),
   );
@@ -163,6 +163,7 @@ async function stateOf(c: Queryable, microworldId: string): Promise<StoredState>
           nickname: r.nickname,
           instance: r.instance,
           lastPlace: r.last_place ?? null,
+          referents: r.referents,
         }),
       )
       .sort((a, b) => codeUnitOrder(a.visit, b.visit)),
@@ -283,12 +284,12 @@ function writer(c: Queryable, microworldId: string): StoreTx {
       }
       if (visitors.length > 0) {
         await c.query(
-          `INSERT INTO sprout.visitor (microworld_id, visit, nickname, instance, last_place)
-           SELECT $1, e->>'visit', e->>'nickname', e->>'instance', e->>'lastPlace'
+          `INSERT INTO sprout.visitor (microworld_id, visit, nickname, instance, last_place, referents)
+           SELECT $1, e->>'visit', e->>'nickname', e->>'instance', e->>'lastPlace', e->'referents'
            FROM jsonb_array_elements($2::jsonb) AS e
            ON CONFLICT (microworld_id, visit) DO UPDATE
              SET nickname = EXCLUDED.nickname, instance = EXCLUDED.instance,
-                 last_place = EXCLUDED.last_place`,
+                 last_place = EXCLUDED.last_place, referents = EXCLUDED.referents`,
           [microworldId, JSON.stringify(visitors)],
         );
       }

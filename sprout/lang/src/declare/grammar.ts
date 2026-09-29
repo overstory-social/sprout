@@ -3,18 +3,18 @@
 // the grammar block: all apply" and "`name`, `article`: refuse"; Limits ›
 // Static caps).
 //
-// Reading its file checks one body's lines against themselves: one `name`
-// and one `article` however many blocks hold them, a name that is not
+// Reading its file checks one body's lines against themselves: one `name`,
+// one `article` and one `pronouns` however many blocks hold them, a name that is not
 // empty and does not begin with an article, and the host's caps on nouns,
 // which hold for its adjectives too; its exits and links are `exits.ts`'s.
-// Across the bundle, composing: a composer's own `name` or `article` replaces
+// Across the bundle, composing: a composer's own `name`, `article` or `pronouns` replaces
 // what it composes, one source's applies, and two sources are refused;
 // nouns and adjectives from every source apply, in closure order, the
 // composer's own last. What applies where nothing is written is the runtime's to say,
 // since it depends on what the thing is.
 
 import type { KindDeclaration, KindExpr, KindMember, ObjectDeclaration } from '../syntax/ast.js';
-import type { Article, GrammarLine } from '../syntax/ast-grammar.js';
+import type { Article, GrammarLine, Pronoun } from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import { typedWords } from './addressing.js';
@@ -38,6 +38,7 @@ export interface GrammarSource<T> {
 export interface ComposedGrammar {
   readonly name: GrammarSource<string> | null;
   readonly article: GrammarSource<Article> | null;
+  readonly pronoun: GrammarSource<Pronoun> | null;
   /** Every noun written in the closure, as written, in closure order and each once, however cased. */
   readonly nouns: readonly string[];
   /** Every adjective written in the closure, the same way. */
@@ -45,7 +46,13 @@ export interface ComposedGrammar {
 }
 
 /** A kind whose closure writes no grammar at all. */
-export const NO_GRAMMAR: ComposedGrammar = { name: null, article: null, nouns: [], adjectives: [] };
+export const NO_GRAMMAR: ComposedGrammar = {
+  name: null,
+  article: null,
+  pronoun: null,
+  nouns: [],
+  adjectives: [],
+};
 
 /** The articles a name may not begin with (the spec's Addressing and display). */
 const LEADING_ARTICLES: readonly string[] = ['a', 'an', 'the'];
@@ -64,6 +71,7 @@ export function checkGrammar(
   const owner = declared.name.text;
   let named = false;
   let articled = false;
+  let pronounced = false;
   let nouns = 0;
   let adjectives = 0;
   const words = (text: string, at: Span): void => {
@@ -122,6 +130,16 @@ export function checkGrammar(
         }
         articled = true;
         break;
+      case 'grammar-pronouns':
+        if (pronounced) {
+          diagnostics.refuse(
+            line.at,
+            `\`${owner}\` writes its \`pronouns\` twice.`,
+            'A thing is called by one pronoun. Keep one `pronouns` line.',
+          );
+        }
+        pronounced = true;
+        break;
       case 'grammar-nouns':
         for (const noun of line.nouns) {
           if (noun.text.trim() === '') {
@@ -176,6 +194,7 @@ export function checkGrammar(
 export function ownGrammar(members: readonly KindMember[], origin: string): ComposedGrammar {
   let name: GrammarSource<string> | null = null;
   let article: GrammarSource<Article> | null = null;
+  let pronoun: GrammarSource<Pronoun> | null = null;
   const nouns: string[] = [];
   const adjectives: string[] = [];
   for (const line of linesOf(members)) {
@@ -183,6 +202,8 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
       name ??= { value: line.text.trim(), origin, at: line.at };
     } else if (line.kind === 'grammar-article') {
       article ??= { value: line.article, origin, at: line.at };
+    } else if (line.kind === 'grammar-pronouns') {
+      pronoun ??= { value: line.pronoun, origin, at: line.at };
     } else if (line.kind === 'grammar-nouns') {
       for (const noun of line.nouns) if (noun.text.trim() !== '') nouns.push(noun.text.trim());
     } else if (line.kind === 'grammar-adjectives') {
@@ -190,7 +211,7 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
         if (one.text.trim() !== '') adjectives.push(one.text.trim());
     }
   }
-  return { name, article, nouns: once(nouns), adjectives: once(adjectives) };
+  return { name, article, pronoun, nouns: once(nouns), adjectives: once(adjectives) };
 }
 
 /** A composed kind's grammar, with the kind as written that brought it. */
@@ -213,7 +234,7 @@ export function composeGrammar(
   diagnostics: Diagnostics,
 ): ComposedGrammar {
   const pick = <T>(
-    line: 'name' | 'article',
+    line: 'name' | 'article' | 'pronouns',
     mine: GrammarSource<T> | null,
     of: (grammar: ComposedGrammar) => GrammarSource<T> | null,
   ): GrammarSource<T> | null => {
@@ -233,7 +254,9 @@ export function composeGrammar(
         `\`${composer}\` gets its \`${line}\` from both \`${shown(first.source.origin)}\` and \`${shown(second.source.origin)}\`, and a thing has one.`,
         line === 'name'
           ? `Write \`grammar { name "…" }\` in \`${composer}\` to say what it is called.`
-          : `Write \`grammar { article … }\` in \`${composer}\` to say which it is written with.`,
+          : line === 'article'
+            ? `Write \`grammar { article … }\` in \`${composer}\` to say which it is written with.`
+            : `Write \`grammar { pronouns … }\` in \`${composer}\` to say which it is called by.`,
       );
     }
     return first.source;
@@ -241,6 +264,7 @@ export function composeGrammar(
   return {
     name: pick('name', own.name, (grammar) => grammar.name),
     article: pick('article', own.article, (grammar) => grammar.article),
+    pronoun: pick('pronouns', own.pronoun, (grammar) => grammar.pronoun),
     nouns: once([...composed.flatMap(({ grammar }) => grammar.nouns), ...own.nouns]),
     adjectives: once([...composed.flatMap(({ grammar }) => grammar.adjectives), ...own.adjectives]),
   };

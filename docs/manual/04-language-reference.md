@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "d99e972f76e3c7991d198cf8f879c4f97020bee95f5e97f42125ca30fe774d22"
+      "sha": "35c43958326d038a89ab01513ae2177fbfb263bac32b870ff899d05dc16f5cff"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -356,6 +356,7 @@ object brass_key is Key {
 | `nouns`   | the full name and its last word: "brass key" answers to `brass key` and `key`.                  |
 | `adjectives` | the name's words before its last: "brass key" has `brass`.                                   |
 | `article` | `a`, or `an` before a vowel. Write `the` for something unique, or `none` for a proper name.     |
+| `pronouns` | none. Write `she`, `he`, `it` or `they` for the pronoun it is called by, under Pronouns below. |
 
 - A `name` may not begin with `a`, `an` or `the`; that is what `article` is
   for.
@@ -365,8 +366,8 @@ object brass_key is Key {
   before a noun, `old brass key`, or names the thing on its own, `brass`,
   though only where nothing else is named better by a noun.
 - Nouns and adjectives compose: a kind's and those of whatever is made of
-  it all apply. `name` and `article` do not; two sources for either is an error
-  unless the object writes its own.
+  it all apply. `name`, `article` and `pronouns` do not; two sources for
+  any of them is an error unless the object writes its own.
 - Names are fixed. Nothing can rename itself while the world runs.
 
 On input, articles are optional (`take the key` and `take key` are the
@@ -1179,6 +1180,16 @@ could fall, so a name that holds one, "the rope with a knot", still reads.
 A name may be narrowed by what holds it: `the key in the cabinet`, `the
 key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
+A pronoun, `it`, `them`, `him` or `her`, names what your own last command
+was done to, where it is still in reach: `take lamp`, then `drop it`.
+`him` and `her` name it only where it is a person or declares that
+pronoun. A command that is about nothing, such as `look`, leaves them as
+they were. A thing that declares its pronoun, `grammar { pronouns she }`,
+is corrected when you call it by another, and the action goes ahead: `pet
+it` reads "The cat is a she." first, through the world's
+`pronoun_correction` passage. A thing that declares none is never
+corrected. Each visitor's pronouns are their own, and are kept with them.
+
 Every way the line reads is a **reading**: a verb and what fills each
 role, or an intent and what fills each slot. An intent's reading asks no
 `permit` of its own, so it counts as allowed; its steps ask theirs as
@@ -1816,7 +1827,7 @@ inheritance chain and no `super`.
 | `depart`, `release`, `accept`        | all run; any refusal decides                         |
 | `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs |
 | `nouns`, `adjectives`                | all apply                                            |
-| `name`, `article`                    | error                                                |
+| `name`, `article`, `pronouns`       | error                                                |
 | `contains`, `contains actors`        | the same either way                                  |
 | `pass :m`, `pass any`                | error                                                |
 | a passage                            | error, unless all but one are `default`              |
@@ -1972,6 +1983,7 @@ So a character can have its own `arrives`, and a place its own
 | `not_here`        | You see nothing like that here.                                     |
 | `cannot`          | You can't {reading}.                                                |
 | `meant`           | ({thing})                                                           |
+| `pronoun_correction` | {thing} is a {pronoun}.                                          |
 | `nothing_happens` | Nothing much comes of that.                                         |
 | `unremarkable`    | There is nothing special about {thing}.                             |
 | `unseen`          | Something here is too much to take in.                              |

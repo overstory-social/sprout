@@ -102,11 +102,19 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     const object = noun === 'gauge' ? GAUGE : COUNTER;
     const intent = bundle.intents.find((one) => one.name === word);
     if (intent !== undefined) {
-      return { intended: { intent, actor, bindings: new Map([['y', { object }]]) }, drawn: null };
+      return {
+        intended: { intent, actor, bindings: new Map([['y', { object }]]) },
+        drawn: null,
+        corrected: [],
+      };
     }
     const verb = bundle.verbs.qualified('tally', word!);
     if (verb === null) throw new Error(`no verb in \`${text}\``);
-    return { reading: { verb, actor, bindings: new Map([['target', { object }]]) }, drawn: null };
+    return {
+      reading: { verb, actor, bindings: new Map([['target', { object }]]) },
+      drawn: null,
+      corrected: [],
+    };
   };
   const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
   return {
@@ -142,7 +150,13 @@ export async function seeded(
       catalogue.caps,
     ),
   );
-  draft.putVisitor({ visit: MARTA, nickname: 'Marta', instance: marta, lastPlace: HALL });
+  draft.putVisitor({
+    visit: MARTA,
+    nickname: 'Marta',
+    instance: marta,
+    lastPlace: HALL,
+    referents: [],
+  });
   const { state, changes } = draft.commit();
   await store.transaction('w', (tx) => tx.putState(storedChanges(state, changes)));
   return store;

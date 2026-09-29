@@ -77,6 +77,7 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'pass',
   'passage',
   'permit',
+  'pronouns',
   'prose',
   'refuse',
   'release',
