@@ -35,7 +35,13 @@ export type Compiled = { readonly world: ServedWorld } | { readonly refused: str
 
 /** The world in `dir`, compiled strictly under `config`'s limits and blessings. */
 export function compileWorld(dir: string, config: ServerConfig): Compiled {
-  const read = readWorld(dir);
+  let read: ReturnType<typeof readWorld>;
+  try {
+    read = readWorld(dir);
+  } catch (error) {
+    // A folder that is not there, or cannot be read, is refused as a world that does not compile is.
+    return { refused: error instanceof Error ? error.message : String(error) };
+  }
   if (read.source === null) return { refused: renderDiagnostics(read.diagnostics) };
   const { bundle, diagnostics } = compileBundle(read.source, {
     mode: 'publish',

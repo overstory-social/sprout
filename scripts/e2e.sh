@@ -12,7 +12,9 @@
 # must print exactly what it holds; without --debug it checks the page
 # shows only the prose the visitor reads. It prints the generated skill
 # exactly as corpus/skill/SKILL.md
-# holds it. Runs locally only — there is no CI on this repository.
+# holds it. It serves the new world from the installed `sprout-server`, and
+# a client over a socket admits itself, looks and leaves before the server
+# is stopped. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 sha=$(git rev-parse --short HEAD)
@@ -68,5 +70,35 @@ grep -qx '    Marta (refused): It is locked.' tested.txt
 tail -1 tested.txt
 npx sprout skill > SKILL.md
 cmp SKILL.md "$skill"
+printf 'listen = "127.0.0.1:47931"\n[[worlds]]\npath = "./shed"\n' > server.toml
+./node_modules/.bin/sprout-server start --config server.toml > server.log 2>&1 &
+server=$!
+for _ in $(seq 1 50); do grep -q 'listening' server.log && break; sleep 0.2; done
+cat > client.mjs <<'CLIENT'
+import WebSocket from 'ws';
+const socket = new WebSocket('ws://127.0.0.1:47931', 'sprout.1');
+const said = [];
+socket.on('open', () => {
+  socket.send(JSON.stringify({ t: 'hello', protocol: 'sprout.1', client: 'e2e', token: 'e2e-token-0123456789', renders: [] }));
+  socket.send(JSON.stringify({ t: 'admit', world: 'shed', nickname: 'Marta' }));
+  socket.send(JSON.stringify({ t: 'command', seq: 1, line: 'look' }));
+});
+socket.on('message', (data) => {
+  const message = JSON.parse(data.toString());
+  if (message.t === 'refused') { console.error(JSON.stringify(message)); process.exit(1); }
+  if (message.t === 'effects') said.push(...message.effects.flatMap((one) => one.paragraphs ?? []));
+  if (message.t === 'effects' && message.seq === 1) {
+    console.log(said.join('\n'));
+    socket.send(JSON.stringify({ t: 'leave' }));
+  }
+  if (message.t === 'bye') process.exit(0);
+});
+CLIENT
+node client.mjs > client.txt
+grep -qx 'There is nothing special about a hall.' client.txt
+kill -INT "$server"
+wait "$server"
+grep -q 'info: stopped' server.log
+echo "the installed sprout-server served shed to a client over a socket, and stopped when asked"
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (init, check, parse, view, play (scripted and interactive), test and skill from the installed CLI at $sha)"
+echo "e2e: green (init, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, and a world served by the installed server, at $sha)"

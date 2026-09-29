@@ -12,11 +12,14 @@ client (`sprout client connect`) is its first client.
 ## Commands
 
 ```sh
-sprout server start --config server.toml [--watch] [--log-format text|json]
+sprout-server start --config server.toml [--watch] [--log-format text|json]
 sprout client connect localhost:4700 [--world printers_shop] [--as Marta]
 ```
 
-- `server start` runs until it is stopped. It loads every world the config
+- The server is its own command, `sprout-server`, from the package that is
+  the host, since the `sprout` command imports nothing of any host.
+- `start` runs until it is stopped: an interrupt or a terminate tells every
+  client `bye` and closes. It loads every world the config
   names, publishing each strictly; a world that is refused is logged and
   not served, and the rest start.
 - `client connect` opens one connection, which is one visitor. Several
