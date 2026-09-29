@@ -74,7 +74,8 @@ repl/src          play interactively, one typed line at a time under one visitor
 server/src        the reference host: its config, the worlds it serves and redeploys, the protocol's connections, and its clock
 tui/src           the terminal client: a session with a server, its screen (Ink) and its plain mode
 cli/src           the `sprout` command: scaffold and check, the inspectors parse (what a world accepts) and view (what a visitor is offered), skill, and play and test through the player and the REPL
-editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words
+editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
+editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews

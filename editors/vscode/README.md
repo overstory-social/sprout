@@ -3,13 +3,27 @@
 Colours Sprout worlds: `.sprout` sources and the `.prose` files their
 passages live in, with slots coloured inside inline passages and inside
 the quoted text of `say`, `tell`, `text` and `refuse`. Brackets pair and
-`//` toggles a comment in both. It is TextMate grammars only, so anything
-else that reads TextMate grammars can use `syntaxes/` as well.
+`//` toggles a comment in both. The grammars are TextMate grammars, so
+anything else that reads them can use `syntaxes/` as well.
+
+It also runs the Sprout language server
+([`editors/language-server`](../language-server)), bundled into it: the
+whole world is checked a moment after each edit, each problem shown on the
+file it names, and a name can be hovered, gone to and completed. If the
+server does not start, the extension says so and files are still
+coloured.
 
 ## Installing it locally
 
-From a checkout, either link the folder into VS Code's extensions and
-reload the window:
+Build it first, which bundles the client and the language server into
+`dist/`:
+
+```sh
+npm run build                      # every package, the extension last
+```
+
+Then either link the folder into VS Code's extensions and reload the
+window:
 
 ```sh
 ln -s "$PWD/editors/vscode" ~/.vscode/extensions/overstory.sprout-vscode

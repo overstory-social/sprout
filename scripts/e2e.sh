@@ -14,7 +14,9 @@
 # exactly as corpus/skill/SKILL.md
 # holds it. It serves the new world from the installed `sprout-server`, and
 # the installed terminal client, plain from a pipe, comes in, looks and
-# leaves before the server is stopped. Runs locally only — there is no CI on this repository.
+# leaves before the server is stopped. The installed `sprout-language-server`
+# is sent an edit that breaks the new kind and answers with the refusal on
+# its file. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 sha=$(git rev-parse --short HEAD)
@@ -24,7 +26,7 @@ shop=$(pwd)/corpus/good/printers_shop
 skill=$(pwd)/corpus/skill/SKILL.md
 packs=$(mktemp -d)
 npm run build >/dev/null
-npm pack -w sprout -w player -w repl -w server -w tui -w cli --pack-destination "$packs" >/dev/null
+npm pack -w sprout -w player -w repl -w server -w tui -w cli -w editors/language-server --pack-destination "$packs" >/dev/null
 sandbox=$(mktemp -d)
 cd "$sandbox"
 npm init -y >/dev/null
@@ -92,5 +94,42 @@ wait "$server"
 trap - EXIT
 grep -q 'info: stopped' server.log
 echo "the installed sprout-server served shed to the installed terminal client, and stopped when asked"
+# The installed language server, over stdio: an unsaved edit to the kind is checked with the whole world.
+cat > lsp.cjs <<'LSP'
+const { spawn } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const { resolve } = require('node:path');
+const { pathToFileURL } = require('node:url');
+const server = spawn('./node_modules/.bin/sprout-language-server', ['--stdio']);
+const send = (message) => {
+  const body = JSON.stringify({ jsonrpc: '2.0', ...message });
+  server.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+};
+const file = resolve('shed/lantern.sprout');
+const uri = pathToFileURL(file).href;
+let buffer = Buffer.alloc(0);
+const give = (code, words) => { console.log(words); server.kill(); process.exit(code); };
+setTimeout(() => give(1, `no diagnostics came for ${uri}`), 15000);
+server.stdout.on('data', (data) => {
+  buffer = Buffer.concat([buffer, data]);
+  for (;;) {
+    const head = buffer.indexOf('\r\n\r\n');
+    if (head < 0) return;
+    const length = Number(/Content-Length: (\d+)/.exec(buffer.subarray(0, head).toString())[1]);
+    if (buffer.length < head + 4 + length) return;
+    const message = JSON.parse(buffer.subarray(head + 4, head + 4 + length).toString());
+    buffer = buffer.subarray(head + 4 + length);
+    const { method, params } = message;
+    if (method === 'textDocument/publishDiagnostics' && params.uri === uri && params.diagnostics.length > 0)
+      give(0, `language server: ${params.diagnostics[0].message.split('\n')[0]}`);
+  }
+});
+send({ id: 1, method: 'initialize', params: { processId: null, rootUri: null, capabilities: {} } });
+send({ method: 'initialized', params: {} });
+const text = readFileSync(file, 'utf8').replace('sprout.Fixture', 'sprout.Fixtur');
+send({ method: 'textDocument/didOpen', params: { textDocument: { uri, languageId: 'sprout', version: 1, text } } });
+LSP
+node lsp.cjs | tee lsp.txt
+grep -q 'Fixtur' lsp.txt
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, and a world served by the installed server to the installed client, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test and skill from the installed CLI, a world served by the installed server to the installed client, and the installed language server, at $sha)"

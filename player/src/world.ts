@@ -13,7 +13,9 @@ import {
 
 // A microworld on disk: a folder holding `sprout.json`, its `.sprout` and
 // `.prose` files, and nothing else the compiler reads. Dotted entries are
-// skipped. A file's name is its path from the folder with `/` between.
+// skipped. A file's name is its path from the folder with `/` between. An
+// editor reads a folder with the text of its unsaved files in place of
+// what is on disk.
 //
 // A host reading a folder carries one copy of the standard library and
 // sends it as the vendored `sprout` whenever the manifest names that library; the manifest's
@@ -46,8 +48,15 @@ function filesUnder(root: string, dir = root): string[] {
   return out;
 }
 
-/** Read a folder as a microworld. Throws only when the folder itself is not there. */
-export function readWorld(dir: string): ReadWorld {
+/**
+ * Read a folder as a microworld, taking a file's text from `unsaved`, by
+ * its resolved path, where it is there. Throws only when the folder itself
+ * is not there.
+ */
+export function readWorld(
+  dir: string,
+  unsaved: ReadonlyMap<string, string> = new Map(),
+): ReadWorld {
   const root = resolve(dir);
   let stat;
   try {
@@ -58,9 +67,10 @@ export function readWorld(dir: string): ReadWorld {
   if (!stat.isDirectory()) throw new Error(`${dir}: not a folder`);
 
   const diagnostics = new Diagnostics();
+  const textOf = (path: string): string => unsaved.get(path) ?? readFileSync(path, 'utf8');
   let manifestText: string;
   try {
-    manifestText = readFileSync(join(root, MANIFEST_FILE), 'utf8');
+    manifestText = textOf(join(root, MANIFEST_FILE));
   } catch {
     throw new Error(`${dir}: no ${MANIFEST_FILE} here`);
   }
@@ -69,8 +79,7 @@ export function readWorld(dir: string): ReadWorld {
   if (manifest === null) return { path: root, source: null, diagnostics: diagnostics.all };
 
   const files = filesUnder(root).map(
-    (path) =>
-      new SourceFile(relative(root, path).split('\\').join('/'), readFileSync(path, 'utf8')),
+    (path) => new SourceFile(relative(root, path).split('\\').join('/'), textOf(path)),
   );
   const usesStandard = manifest.libraries.some((pin) => pin.name === STANDARD_LIBRARY.name);
   return {

@@ -3,7 +3,7 @@
   "displayName": "Sprout",
   "version": "0.1.0",
   "private": true,
-  "description": "Colours Sprout worlds in VS Code: `.sprout` sources and the `.prose` files their passages live in.",
+  "description": "Sprout in VS Code: `.sprout` sources and the `.prose` files their passages live in, coloured, and the whole world checked as you type, with hover, go-to-definition and completion.",
   "license": "MIT",
   "publisher": "overstory",
   "type": "module",
@@ -13,12 +13,19 @@
     "directory": "editors/vscode"
   },
   "engines": {
-    "vscode": "^1.80.0",
+    "vscode": "^1.82.0",
     "node": ">=22"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters"
   ],
+  "activationEvents": [
+    "workspaceContains:**/sprout.json",
+    "onLanguage:sprout",
+    "onLanguage:sprout-prose"
+  ],
+  "main": "./dist/extension.cjs",
   "contributes": {
     "languages": [
       {
@@ -58,12 +65,17 @@
     ]
   },
   "scripts": {
+    "build": "node scripts/bundle.mjs",
     "generate": "node scripts/generate.mjs",
     "test": "vitest run",
     "typecheck:spec": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@overstory/sprout": "0.1.0",
+    "@overstory/sprout-language-server": "0.1.0",
+    "@types/vscode": "~1.82.0",
+    "esbuild": "^0.25.12",
+    "vscode-languageclient": "^9.0.1",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"
   }

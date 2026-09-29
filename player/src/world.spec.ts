@@ -80,6 +80,23 @@ describe('readWorld', () => {
     expect(world.diagnostics[0]!.message).toContain('is not JSON');
   });
 
+  it('reads an unsaved file’s text in place of what is on disk, and only for files on disk', () => {
+    const dir = folder({
+      'sprout.json': MANIFEST,
+      'shop.sprout': 'world shop is sprout.World {}',
+    });
+    const unsaved = new Map([
+      [join(dir, 'shop.sprout'), 'world shop is sprout.World { }'],
+      [join(dir, 'sprout.json'), MANIFEST.replace('"shop"', '"store"')],
+      [join(dir, 'never-saved.sprout'), 'kind Ghost {}'],
+    ]);
+    const world = readWorld(dir, unsaved);
+    expect(world.source!.manifest.name).toBe('store');
+    expect(world.source!.files.map((f) => [f.name, f.text])).toEqual([
+      ['shop.sprout', 'world shop is sprout.World { }'],
+    ]);
+  });
+
   it('throws for a missing folder, a file, and a folder with no manifest', () => {
     expect(() => readWorld('/nowhere/at/all')).toThrow('no such folder');
     const dir = folder({ 'shop.sprout': 'world shop is sprout.World {}' });

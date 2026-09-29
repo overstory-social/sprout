@@ -1,0 +1,45 @@
+{
+  "name": "@overstory/sprout-language-server",
+  "version": "0.1.0",
+  "description": "A language server for Sprout: the whole world checked as you type, and hover, go-to-definition and completion from its declarations.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "sprout-language-server": "bin/sprout-language-server.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@overstory/sprout": "0.1.0",
+    "@overstory/sprout-player": "0.1.0",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.15"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overstory-social/sprout.git",
+    "directory": "editors/language-server"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

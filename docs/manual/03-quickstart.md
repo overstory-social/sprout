@@ -527,6 +527,10 @@ Some tips:
 - **Warnings are not errors.** `sprout check` also warns about things that
   are allowed but probably a mistake — a message nothing listens for, a
   wake nothing answers. Read them; they are usually right.
+- **Let your editor check as you type.** The Sprout extension for VS Code
+  (`editors/vscode`), or any editor running `sprout-language-server`,
+  shows the same problems under the words they are about while you write,
+  and hovering a name shows where it is declared.
 - **Import what a file uses.** A name another file declares, or the
   standard library's, needs an `import` at the top of the file that uses
   it; the compiler says which one is missing and the line to write. And
