@@ -63,7 +63,7 @@ printers_shop/
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "35c43958326d038a89ab01513ae2177fbfb263bac32b870ff899d05dc16f5cff"
+      "sha": "19327e892718343c217baa47e849f0faa02cbe474212acae2d1942840d270b9c"
     }
   ],
   "files": ["printers_shop.sprout", "creature.sprout", "key.sprout", "composing_room.prose"]
@@ -1155,9 +1155,9 @@ you can add words or translate them.
 
 | verb        | phrases                                         | answer                                                                |
 | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- |
-| `go`        | `go [way]`, `[way]`, `walk [way]`               | moves the actor through an exit or link, then describes the new place |
+| `go`        | `go [way]`, `[way]`, `walk [way]`, `go through [way]`, `enter [way]` | moves the actor through an exit or link, then describes the new place |
 | `look`      | `look`, `l`, `look around`                      | the actor's place's `describe`                                        |
-| `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]` | the thing's `describe`, or the world's `unremarkable`, then its `contents` |
+| `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]`, `describe [x]`, `check [x]` | the thing's `describe`, or the world's `unremarkable`, then its `contents` |
 | `inventory` | `inventory`, `i`, `inv`                         | the actor's `inventory` passage                                       |
 | `wait`      | `wait`, `z`                                     | the world's `waited` passage ("Time passes.")                         |
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
@@ -1960,15 +1960,15 @@ any of its lines. `sprout skill` prints its full source.
 
 | verb     | roles                              | phrases                                                     |
 | -------- | ---------------------------------- | ----------------------------------------------------------- |
-| `take`   | `target`                           | `take [target]`, `get [target]`, `pick up [target]`, `grab [target]` |
-| `drop`   | `target`                           | `drop [target]`, `put down [target]`                        |
-| `put`    | `item`, `container: Container`     | `put [item] in [container]`, `put [item] into [container]`  |
-| `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`  |
+| `take`   | `target`                           | `take [target]`, `get [target]`, `pick up [target]`, `pick [target] up`, `grab [target]` |
+| `drop`   | `target`                           | `drop [target]`, `put down [target]`, `put [target] down`   |
+| `put`    | `item`, `container: Container`     | `put [item] in [container]`, `put [item] into [container]`, `place [item] in [container]`, `insert [item] into [container]` |
+| `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`, `offer [item] to [recipient]` |
 | `open`   | `target: Container`                | `open [target]`                                             |
 | `close`  | `target: Container`                | `close [target]`, `shut [target]`                           |
-| `look_in` | `target: Container`               | `look in [target]`, `look inside [target]`, `what is in [target]` |
-| `unlock` | `target: Lockable`, `tool`         | `unlock [target] with [tool]`, `use [tool] on [target]`     |
-| `ask`    | `target`, `topic: symbol`          | `ask [target] about [topic]`, `ask [target] [topic]`        |
+| `look_in` | `target: Container`               | `look in [target]`, `look inside [target]`, `look into [target]`, `search [target]`, `what is in [target]` |
+| `unlock` | `target: Lockable`, `tool`         | `unlock [target] with [tool]`, `unlock [target] using [tool]`, `use [tool] on [target]`, `use [tool] to unlock [target]` |
+| `ask`    | `target`, `topic: symbol`          | `ask [target] about [topic]`, `ask [target] [topic]`, `talk to [target] about [topic]` |
 
 Plus the six engine verbs, above. The standard library plays no part in
 `ask`: a world's own kinds answer it. It declares one intent, `open_with`,

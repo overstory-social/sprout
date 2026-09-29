@@ -25,6 +25,8 @@ sprout.go (way: exit)
   go [way]
   [way]
   walk [way]
+  go through [way]
+  enter [way]
 
 sprout.look
   look
@@ -36,6 +38,8 @@ sprout.examine (target)
   x [target]
   look at [target]
   inspect [target]
+  describe [target]
+  check [target]
 
 sprout.inventory
   inventory
@@ -54,19 +58,24 @@ sprout.take (target)
   take [target]
   get [target]
   pick up [target]
+  pick [target] up
   grab [target]
 
 sprout.drop (target)
   drop [target]
   put down [target]
+  put [target] down
 
 sprout.put (item, container: sprout.Container)
   put [item] in [container]
   put [item] into [container]
+  place [item] in [container]
+  insert [item] into [container]
 
 sprout.give (item, recipient: sprout.Actor)
   give [item] to [recipient]
   hand [item] to [recipient]
+  offer [item] to [recipient]
 
 sprout.open (target: sprout.Container)
   open [target]
@@ -78,15 +87,20 @@ sprout.close (target: sprout.Container)
 sprout.look_in (target: sprout.Container)
   look in [target]
   look inside [target]
+  look into [target]
+  search [target]
   what is in [target]
 
 sprout.unlock (target: sprout.Lockable, tool)
   unlock [target] with [tool]
+  unlock [target] using [tool]
   use [tool] on [target]
+  use [tool] to unlock [target]
 
 sprout.ask (target, topic: symbol optional)
   ask [target] about [topic]
   ask [target] [topic]
+  talk to [target] about [topic]
 
 intent sprout.open_with, which does sprout.unlock, then sprout.open
   open [y] with [x]

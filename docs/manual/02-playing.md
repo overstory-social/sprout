@@ -121,16 +121,20 @@ Every world understands these, whatever else it adds:
 | type                               | to                                             |
 | ---------------------------------- | ---------------------------------------------- |
 | `look` or `l`                      | read the description of where you are again    |
-| `examine the key`, `x key`, `look at key` | look closely at one thing               |
-| `take key`, `get key`, `pick up key` | pick something up                            |
-| `drop key`, `put down key`         | put it down where you stand                    |
-| `put key in chest`                 | put something inside something else            |
-| `give key to Ines`                 | hand something to someone                      |
+| `examine the key`, `x key`, `look at key`, `check key` | look closely at one thing  |
+| `take key`, `get key`, `pick up key`, `pick key up` | pick something up             |
+| `drop key`, `put down key`, `put key down` | put it down where you stand            |
+| `put key in chest`, `place key in chest` | put something inside something else      |
+| `look in chest`, `search chest`    | see what a container holds                     |
+| `give key to Ines`, `offer key to Ines` | hand something to someone                 |
 | `open chest`, `close chest`        | open or shut a container                       |
-| `unlock chest with key`            | unlock something (if the world has locks)      |
+| `unlock chest with key`, `use key to unlock chest` | unlock something (if the world has locks) |
+| `open chest with key`              | unlock it where it is locked, then open it     |
+| `ask Oskar about the toll`, `talk to Oskar about the toll` | ask someone about something |
 | `inventory` or `i`                 | list what you are carrying                     |
-| `go north`, `north`, `n`           | walk through a way out                         |
+| `go north`, `north`, `n`, `enter shed` | walk through a way out                     |
 | `wait` or `z`                      | let a moment pass                              |
+| `again` or `g`                     | do your last command again                     |
 | `help` or `?`                      | list everything you can do right now           |
 
 Ways out are named by direction — north, south, east, west, the four
@@ -142,11 +146,23 @@ A few more things worth knowing:
 
 - **Articles are optional.** `take the brass key` and `take brass key` are
   the same. So are `my`, `this` and `that`.
-- **You can use a short name.** "brass key" also answers to `key`. If two
-  things answer, the world asks which you meant, and shows the choices.
+- **You can use a short name.** "brass key" also answers to `key`, and to
+  `brass` where nothing else is called brass. `the key in the box` names
+  the one in the box.
+- **`it`, `them`, `him` and `her`** mean what your own last command was
+  about: `take lamp`, then `drop it`.
+- **Several commands on one line.** `take key then open chest`, or `take
+  key. open chest`. They run one after the other, and the first that
+  does not work stops the rest.
+- **`all` and `except`.** `take all`, `drop all except the lamp`.
+- **Where a line could mean two things,** the world picks the likelier.
+  If it is still a toss-up, it picks one and tells you which, "(A brass
+  key)", before it acts.
 - **You can only name what you can reach.** A key inside a shut cabinet
   cannot be named until the cabinet is open. If you ask for something
-  that is not there, you read "You see nothing like that here."
+  that is not there, you read "You see nothing like that here." If you
+  ask for something that cannot be used that way, the world tells you
+  what it understood: "You can't put the key in the anvil."
 - **`help` is a real list.** It shows every command that makes sense right
   now, built from what is in front of you.
 - Each world adds its own verbs. In the printer's shop you can `ink the

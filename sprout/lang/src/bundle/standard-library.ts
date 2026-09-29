@@ -49,9 +49,9 @@ kind World {
 const ENGINE = `// The phrases for the verbs whose behaviour is the engine's (the spec's
 // Engine verbs). They have no \`do\`: the engine answers them, and only
 // \`go\` may have a role an exit fills.
-verb go        { role way: exit  "go [way]"  "[way]"  "walk [way]" }
+verb go        { role way: exit  "go [way]"  "[way]"  "walk [way]"  "go through [way]"  "enter [way]" }
 verb look      { "look"  "l"  "look around" }
-verb examine   { role target  "examine [target]"  "x [target]"  "look at [target]"  "inspect [target]" }
+verb examine   { role target  "examine [target]"  "x [target]"  "look at [target]"  "inspect [target]"  "describe [target]"  "check [target]" }
 verb inventory { "inventory"  "i"  "inv" }
 verb wait      { "wait"  "z" }
 verb help      { "help"  "?" }
@@ -74,10 +74,10 @@ const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that m
 // verbs). Its pass rule makes a pocket private (Containers route).
 import {Container} from ${Q}container${Q}
 
-verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "grab [target]" }
-verb drop { role target  "drop [target]"  "put down [target]" }
-verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]" }
-verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]" }
+verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]" }
+verb drop { role target  "drop [target]"  "put down [target]"  "put [target] down" }
+verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]"  "place [item] in [container]"  "insert [item] into [container]" }
+verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]"  "offer [item] to [recipient]" }
 
 kind Actor {
   contains
@@ -157,7 +157,7 @@ const CONTAINER = `// sprout.Container: a lid and a capacity, the pass rule that
 // \`contents\`, which \`examine\` says after its description.
 verb open    { role target: Container  "open [target]" }
 verb close   { role target: Container  "close [target]"  "shut [target]" }
-verb look_in { role target: Container  "look in [target]"  "look inside [target]"  "what is in [target]" }
+verb look_in { role target: Container  "look in [target]"  "look inside [target]"  "look into [target]"  "search [target]"  "what is in [target]" }
 
 kind Container {
   contains
@@ -211,7 +211,9 @@ verb unlock {
   role target: Lockable
   role tool
   "unlock [target] with [tool]"
+  "unlock [target] using [tool]"
   "use [tool] on [target]"
+  "use [tool] to unlock [target]"
 }
 
 kind Lockable {
@@ -245,6 +247,7 @@ verb ask {
   role topic: symbol
   "ask [target] about [topic]"
   "ask [target] [topic]"
+  "talk to [target] about [topic]"
 }
 `;
 
