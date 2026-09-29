@@ -57,16 +57,29 @@ const Plain: z.ZodType<PlainValue> = z.lazy(() =>
 
 const Recorded = z.object({ extension: named, statement: named }).strict();
 
-/** One effect as a client is sent it: its words, or an extension's payload (`core`'s `deliver`). */
-const SentEffect = z.discriminatedUnion('as', [
+const Delivered = {
+  from: text,
+  actor: text.nullable(),
+  to: text,
+};
+
+/** One effect as a client is sent it (`core`'s `deliver`): a prose effect's words, an extension's by its transcript line, or an extension's payload. */
+const SentEffect = z.union([
   z
     .object({
       as: z.literal('words'),
-      kind: z.enum(['said', 'told', 'refused', 'described', 'notice', 'extension']),
-      recorded: Recorded.nullable(),
-      from: text,
-      actor: text.nullable(),
-      to: text,
+      kind: z.enum(['said', 'told', 'refused', 'described', 'notice']),
+      recorded: z.null(),
+      ...Delivered,
+      paragraphs: z.array(text),
+    })
+    .strict(),
+  z
+    .object({
+      as: z.literal('words'),
+      kind: z.literal('extension'),
+      recorded: Recorded,
+      ...Delivered,
       paragraphs: z.array(text),
     })
     .strict(),
@@ -75,9 +88,7 @@ const SentEffect = z.discriminatedUnion('as', [
       as: z.literal('payload'),
       kind: z.literal('extension'),
       recorded: Recorded,
-      from: text,
-      actor: text.nullable(),
-      to: text,
+      ...Delivered,
       payload: Plain,
     })
     .strict(),
@@ -190,7 +201,15 @@ export const ServerMessage = z.discriminatedUnion('t', [
   z.object({ t: z.literal('chat'), from: named, line: text }).strict(),
   z.object({ t: z.literal('bye'), reason: z.enum(BYE_REASONS), text: named }).strict(),
 ]);
-export type ServerMessage = z.infer<typeof ServerMessage>;
+/** What a host sends, read-only all the way down, so what `deliver` and `sendView` make is sent as it is. */
+export type ServerMessage = Frozen<z.infer<typeof ServerMessage>>;
+
+/** `T` with every array and object in it read-only. */
+type Frozen<T> = T extends readonly (infer U)[]
+  ? readonly Frozen<U>[]
+  : T extends object
+    ? { readonly [K in keyof T]: Frozen<T[K]> }
+    : T;
 
 /** One frame, as text off the wire, as a client message; the words of what is wrong with it where it is none. */
 export function clientMessageOf(

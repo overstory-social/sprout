@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { deliver, sendView } from './delivery.js';
+import { deliver, deliveryOf, sendView } from './delivery.js';
 import { TEXT_ONLY } from './capabilities.js';
 import { command, MARTA, seeded, tally } from './fixtures/tally.js';
 import { clientMessageOf, ClientMessage, PROTOCOL, ServerMessage } from './protocol.js';
 import { runCommand } from './turns.js';
 import { runView } from './views.js';
+import type { Effect, InstanceId, SeenView } from '@overstory/sprout/lang';
 
 const TOKEN = 'a-token-of-sixteen-or-more';
 
@@ -72,5 +73,86 @@ describe('what a host sends', () => {
     expect(ServerMessage.safeParse({ t: 'bye', reason: 'bored', text: 'Goodbye.' }).success).toBe(
       false,
     );
+  });
+
+  it('holds every shape core makes of an effect: prose words, an extension’s words and its payload', () => {
+    const from = 'shop.hall.press' as InstanceId;
+    const to = 'shop#1' as InstanceId;
+    const extension: Effect = {
+      kind: 'extension',
+      extension: 'media',
+      statement: 'show',
+      payload: { url: 'a.png', size: [2, 3], alt: null, big: false },
+      from,
+      actor: null,
+      to,
+      visit: MARTA,
+      paragraphs: ['A picture.'],
+    };
+    const prose: Effect = {
+      kind: 'told',
+      from,
+      actor: to,
+      to,
+      visit: MARTA,
+      paragraphs: ['Clack.'],
+    };
+    const granted = { payloads: new Map([['media', new Set(['show'])]]) };
+    const effects = [
+      deliveryOf(prose, TEXT_ONLY),
+      deliveryOf(extension, TEXT_ONLY),
+      deliveryOf(extension, granted),
+    ];
+    expect(effects.map((one) => one.as)).toEqual(['words', 'words', 'payload']);
+    const parsed = ServerMessage.safeParse({ t: 'effects', seq: null, effects });
+    expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
+    // Words that name an extension while the effect is prose, or none for an extension's, are not what core makes.
+    const [words] = effects;
+    expect(
+      ServerMessage.safeParse({
+        t: 'effects',
+        seq: null,
+        effects: [{ ...words, recorded: { extension: 'media', statement: 'show' } }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('holds every shape core makes of a view: exits, things, readings of each option, and recorded effects', () => {
+    const view: SeenView = {
+      description: ['A hall.'],
+      effects: [
+        { extension: 'media', statement: 'show', payload: ['a.png'], transcript: 'A picture.' },
+      ],
+      exits: [
+        { direction: 'north', label: 'to the yard', to: 'shop.yard' as InstanceId },
+        { direction: null, label: 'the back stair', to: 'shop.loft' as InstanceId },
+      ],
+      occupants: [{ id: 'shop#2' as InstanceId, name: 'Ines' }],
+      carried: [{ id: 'shop.hall.key' as InstanceId, name: 'a key' }],
+      readings: [
+        {
+          verb: 'shop.turn',
+          typed: 'turn dial to …',
+          refused: null,
+          options: [{ role: 'notch', takes: 'integer', ranges: [{ min: 0, max: 9 }] }],
+        },
+        {
+          verb: 'sprout.ask',
+          typed: 'ask Oskar about …',
+          refused: ['Oskar shrugs.'],
+          options: [
+            { role: 'topic', takes: 'symbol', options: [{ value: 'toll', words: 'toll' }] },
+          ],
+        },
+      ],
+    };
+    for (const capabilities of [TEXT_ONLY, { payloads: new Map([['media', new Set(['show'])]]) }]) {
+      const parsed = ServerMessage.safeParse({
+        t: 'view',
+        seq: 1,
+        view: sendView(view, capabilities),
+      });
+      expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
+    }
   });
 });
