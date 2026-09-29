@@ -21,7 +21,7 @@ export interface SqlMigration {
 }
 
 /** The schema version the current export produces; `sprout.meta` records it. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const migrations: readonly SqlMigration[] = [
   {
@@ -214,6 +214,15 @@ CREATE TABLE sprout.log (
 -- order, as a JSON array; none for every visitor already stored.
 ALTER TABLE sprout.visitor ADD COLUMN referents jsonb NOT NULL DEFAULT '[]';
 UPDATE sprout.meta SET value = '4' WHERE key = 'schema_version';
+`,
+  },
+  {
+    name: 'sprout/005_last_reading.sql',
+    sql: `-- @overstory/sprout-store-sql 005 (schema version 5): the reading each
+-- visitor's own last command ran, which \`again\` runs again, as JSON; none for
+-- every visitor already stored.
+ALTER TABLE sprout.visitor ADD COLUMN last_reading jsonb;
+UPDATE sprout.meta SET value = '5' WHERE key = 'schema_version';
 `,
   },
 ];

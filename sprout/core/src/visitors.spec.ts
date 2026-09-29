@@ -47,6 +47,7 @@ function world(): StoredState {
         instance: 'shop#4',
         lastPlace: 'shop.hall',
         referents: [],
+        lastReading: null,
       },
       {
         visit: 'v-marta',
@@ -54,6 +55,7 @@ function world(): StoredState {
         instance: 'shop#1',
         lastPlace: 'shop.hall',
         referents: [],
+        lastReading: null,
       },
     ],
     tombstones: ['shop.hall.vase'],

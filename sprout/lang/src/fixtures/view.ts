@@ -165,7 +165,14 @@ export function gatehouse(
         GATE_CATALOGUE.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname, instance: id, lastPlace: where ?? YARD, referents: [] });
+    draft.putVisitor({
+      visit,
+      nickname,
+      instance: id,
+      lastPlace: where ?? YARD,
+      referents: [],
+      lastReading: null,
+    });
     if (where === null) draft.place(id, null);
   }
   const marta = draft.visitor(MARTA)?.instance;

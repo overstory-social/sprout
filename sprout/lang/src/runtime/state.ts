@@ -20,6 +20,7 @@
 import type { StaticCaps } from '../bundle/limits.js';
 import type { KindRef } from '../declare/kinds.js';
 import type { InstanceId, VisitKey } from './ids.js';
+import type { Reading } from './reading.js';
 import type { StoredInstance, StoredMade } from './stored.js';
 import { defaultOf, type Value } from './values.js';
 
@@ -66,6 +67,8 @@ export interface VisitorRecord {
    * was done to, in order; none before one (the spec's Parsing › Pronouns).
    */
   readonly referents: readonly InstanceId[];
+  /** The reading their own last command ran, which `again` runs again; null before one (the spec's Parsing › Sequences, again and all). */
+  readonly lastReading: Reading | null;
 }
 
 export interface WorldState {

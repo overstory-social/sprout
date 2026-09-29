@@ -69,6 +69,7 @@ describe('a new visitor', () => {
       instance: done.instance,
       lastPlace: QUAY,
       referents: [],
+      lastReading: null,
     });
     expect(done.state.instances.get(done.instance)!.kind).toBe(CATALOGUE.visitorKind);
   });

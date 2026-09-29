@@ -99,7 +99,7 @@ describe('a command turn runs in a fixed order', () => {
     expect(turn.state.visitors.has(INES)).toBe(true);
   });
 
-  it('is the refusal alone where the consent pass refuses, and writes nothing of the world but what the actor’s pronouns name', () => {
+  it('is the refusal alone where the consent pass refuses, and writes nothing of the world but what the actor’s pronouns name and their last reading', () => {
     const state = belfry();
     const turn = committed(run(state, 'ring muffled'));
     expect(toldBy(turn, actorOf(state, MARTA))).toEqual([
@@ -110,7 +110,16 @@ describe('a command turn runs in a fixed order', () => {
       upsert: [],
       remove: [],
       tombstones: [],
-      visitors: [{ ...encodeVisitor(state.visitors.get(MARTA)!), referents: [MUFFLED] }],
+      visitors: [
+        {
+          ...encodeVisitor(state.visitors.get(MARTA)!),
+          referents: [MUFFLED],
+          lastReading: {
+            verb: { library: 'belfry', name: 'ring' },
+            bindings: [['target', { object: MUFFLED }]],
+          },
+        },
+      ],
     });
   });
 
@@ -848,5 +857,33 @@ describe('what a visitor’s pronouns name, through command turns', () => {
       read: [['You see nothing like that here.']],
       referents: [],
     });
+  });
+});
+
+describe('`again`, through command turns', () => {
+  const readIn = (...lines: string[]) =>
+    playedAll(
+      workshop(),
+      lines.map((line) => [MARTA_AT, line] as const),
+    ).map((turn) => turn.read['Marta']);
+
+  it('runs the last reading again, asking its consent afresh', () => {
+    expect(readIn('take pin', 'again', 'drop pin', 'g')).toEqual([
+      ['You take a pin.'],
+      ['You already have it.'],
+      ['You put a pin down.'],
+      ['You are not holding a pin.'],
+    ]);
+  });
+
+  it('runs a reading a pronoun or a draw made with the same things, not the same words', () => {
+    const [taken, again] = readIn('take spike', 'again');
+    const spike = /^You take a (nail|tack)\.$/.exec(taken!.at(-1)!)?.[1];
+    expect(spike).toBeDefined();
+    expect(again).toEqual(['You already have it.']);
+  });
+
+  it('is `unknown` before any reading', () => {
+    expect(readIn('again')).toEqual([['That is not something you can do here.']]);
   });
 });

@@ -132,12 +132,13 @@ function readLine(line: string, standing: Standing, turn: PollTurn): string {
   const render: RenderContext = { ...turn, nicknames, draws: null, actor };
   const context: Reading = { world: turn.state.world, actor, render };
   // A tie among readings is drawn as a turn seeded 0 draws it.
-  const referents = state.visitors.get(standing.visit)!.referents;
+  const { referents, lastReading } = state.visitors.get(standing.visit)!;
   const parsed = parseCommand(line, actor, {
     ...turn,
     draws: new Draws(0),
     nicknames,
     referents,
+    lastReading,
   });
   if ('answered' in parsed) {
     const { said } = parsed.answered;

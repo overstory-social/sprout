@@ -131,6 +131,7 @@ describe('the records', () => {
             instance: 'shop#1',
             lastPlace: null,
             referents: [],
+            lastReading: null,
           },
           instance: null,
           memory: { 'shop.lamp': { seen: { type: 'boolean', value: true } } },

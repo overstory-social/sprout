@@ -101,7 +101,14 @@ async function seeded(
         catalogue.caps,
       ),
     );
-    draft.putVisitor({ visit, nickname: visit, instance: id, lastPlace: where, referents: [] });
+    draft.putVisitor({
+      visit,
+      nickname: visit,
+      instance: id,
+      lastPlace: where,
+      referents: [],
+      lastReading: null,
+    });
   }
   const { state, changes } = draft.commit();
   await store.transaction(microworldId, (tx) => tx.putState(storedChanges(state, changes)));

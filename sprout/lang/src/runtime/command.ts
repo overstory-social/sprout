@@ -62,6 +62,8 @@ export interface ParseContext {
   readonly nicknames: ReadonlyMap<InstanceId, string>;
   /** What the actor's pronouns name: what their own last command about a thing was done to (Parsing › Pronouns). */
   readonly referents: readonly InstanceId[];
+  /** The reading the actor's own last command ran, which `again` runs again; null before one. */
+  readonly lastReading: Reading | null;
 }
 
 /** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
@@ -189,6 +191,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
               draws,
               nicknames,
               referents: committed.visitor(command.visit)!.referents,
+              lastReading: committed.visitor(command.visit)!.lastReading,
             });
       if ('answered' in parsed) {
         if (!parsed.answered.to.includes(actor)) {
@@ -242,18 +245,20 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
 }
 
 /**
- * Keep what `reading` was done to as what `visit`'s pronouns name: the
- * thing or set its first role binds (the spec's Parsing › Pronouns),
- * refused or not. A reading done to nothing leaves them as they were.
+ * Keep `reading` as `visit`'s last, which `again` runs again, and what it
+ * was done to as what their pronouns name: the thing or set its first role
+ * binds (the spec's Parsing › Pronouns; Sequences, again and all), refused
+ * or not. A reading done to nothing leaves their pronouns as they were.
  */
 function remember(draft: Draft, visit: VisitKey, reading: Reading): void {
+  const record = draft.visitor(visit)!;
   const first = reading.verb.roles[0];
   const bound = first === undefined ? undefined : reading.bindings.get(first.name);
-  if (bound === undefined) return;
-  const referents = 'object' in bound ? [bound.object] : 'set' in bound ? bound.set : [];
-  const record = draft.visitor(visit)!;
-  if (referents.length === 0 || sameIds(referents, record.referents)) return;
-  draft.putVisitor({ ...record, referents });
+  const done =
+    bound === undefined ? [] : 'object' in bound ? [bound.object] : 'set' in bound ? bound.set : [];
+  const referents = done.length === 0 ? record.referents : done;
+  if (record.lastReading === reading && sameIds(referents, record.referents)) return;
+  draft.putVisitor({ ...record, referents, lastReading: reading });
 }
 
 function sameIds(a: readonly InstanceId[], b: readonly InstanceId[]): boolean {

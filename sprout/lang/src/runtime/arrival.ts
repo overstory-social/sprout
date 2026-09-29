@@ -203,7 +203,15 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
       } else id = record.instance;
       const lastPlace = record?.lastPlace ?? null;
       const referents = record?.referents ?? [];
-      draft.putVisitor({ visit: arrival.visit, nickname, instance: id, lastPlace, referents });
+      const lastReading = record?.lastReading ?? null;
+      draft.putVisitor({
+        visit: arrival.visit,
+        nickname,
+        instance: id,
+        lastPlace,
+        referents,
+        lastReading,
+      });
 
       const gone = lastPlace !== null && !isPlace(draft, lastPlace);
       let entry: Entry | null = lastPlace === null || gone ? null : enter(turn, id, lastPlace);
@@ -216,6 +224,7 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
         instance: id,
         lastPlace: entry.place,
         referents,
+        lastReading,
       });
       const drained = drain({ sends: entry.sends, destroyed: [], marked: [] }, turn);
       return {

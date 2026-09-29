@@ -122,6 +122,7 @@ export function gallery(catalogue: Catalogue, visits: readonly VisitKey[] = [MAR
       instance: id,
       lastPlace: HALL,
       referents: [],
+      lastReading: null,
     });
   }
   return draft.commit().state;

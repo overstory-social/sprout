@@ -37,8 +37,22 @@ describe('applying a turn’s changes', () => {
         upsert: [record('shop.hall'), record('shop#2'), record('shop')],
         tombstones: ['shop.vase', 'shop.bench'],
         visitors: [
-          { visit: 'v-z', nickname: 'Zed', instance: 'shop#2', lastPlace: null, referents: [] },
-          { visit: 'v-a', nickname: 'Ada', instance: 'shop#3', lastPlace: null, referents: [] },
+          {
+            visit: 'v-z',
+            nickname: 'Zed',
+            instance: 'shop#2',
+            lastPlace: null,
+            referents: [],
+            lastReading: null,
+          },
+          {
+            visit: 'v-a',
+            nickname: 'Ada',
+            instance: 'shop#3',
+            lastPlace: null,
+            referents: [],
+            lastReading: null,
+          },
         ],
       }),
     );
@@ -53,7 +67,14 @@ describe('applying a turn’s changes', () => {
       serial: 2,
       instances: [record('shop.lamp', { properties: { lit: { type: 'boolean', value: true } } })],
       visitors: [
-        { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: null, referents: [] },
+        {
+          visit: 'v',
+          nickname: 'Vi',
+          instance: 'shop#1',
+          lastPlace: null,
+          referents: [],
+          lastReading: null,
+        },
       ],
       tombstones: ['shop.vase'],
     };
@@ -66,14 +87,28 @@ describe('applying a turn’s changes', () => {
         remove: ['shop.lamp', 'shop.gone'],
         tombstones: ['shop.vase'],
         visitors: [
-          { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: 'shop.hall', referents: [] },
+          {
+            visit: 'v',
+            nickname: 'Vi',
+            instance: 'shop#1',
+            lastPlace: 'shop.hall',
+            referents: [],
+            lastReading: null,
+          },
         ],
       }),
     );
     expect(after.instances).toEqual([lamp]);
     expect(after.tombstones).toEqual(['shop.vase']);
     expect(after.visitors).toEqual([
-      { visit: 'v', nickname: 'Vi', instance: 'shop#1', lastPlace: 'shop.hall', referents: [] },
+      {
+        visit: 'v',
+        nickname: 'Vi',
+        instance: 'shop#1',
+        lastPlace: 'shop.hall',
+        referents: [],
+        lastReading: null,
+      },
     ]);
     expect(before.instances[0]!.properties).toHaveProperty('lit');
   });

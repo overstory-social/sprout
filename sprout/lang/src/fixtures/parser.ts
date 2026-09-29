@@ -277,6 +277,7 @@ export function commandContext(
     nicknames: one.nicknames,
     exits,
     referents,
+    lastReading: null,
   };
 }
 

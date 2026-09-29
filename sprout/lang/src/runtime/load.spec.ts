@@ -536,6 +536,7 @@ describe('visitors and the world', () => {
       instance: 'printers_shop#1',
       lastPlace: 'printers_shop.hall',
       referents: [],
+      lastReading: null,
     },
   ];
   const store: StoredWorld = { ...storing(fresh(), [marta], 1), visitors };
@@ -549,6 +550,7 @@ describe('visitors and the world', () => {
       instance: minted(1),
       lastPlace: id('hall'),
       referents: [],
+      lastReading: null,
     });
   });
 
@@ -565,11 +567,40 @@ describe('visitors and the world', () => {
   it('keeps a visitor whose place and last place are gone', () => {
     const gone = {
       ...store,
-      visitors: [{ ...visitors[0]!, lastPlace: 'printers_shop.yard.kiln', referents: [] }],
+      visitors: [
+        { ...visitors[0]!, lastPlace: 'printers_shop.yard.kiln', referents: [], lastReading: null },
+      ],
     };
     const away = storing(gone, [{ ...marta, container: 'printers_shop.yard.kiln' }]);
     const loaded = loadWorld(away, withheld);
     expect(loaded.state.visitors.get(visitKey('v-1'))!.lastPlace).toBe(id('yard', 'kiln'));
+  });
+
+  it('keeps a visitor’s last reading, its verb found again, and none where the verb is no longer declared', () => {
+    const lastReading = {
+      verb: { library: 'sprout', name: 'take' },
+      bindings: [['target', { object: 'printers_shop.hall.shelf' }]] as const,
+    };
+    const kept = { ...store, visitors: [{ ...visitors[0]!, lastReading }] };
+    const loaded = loadWorld(kept, published).state.visitors.get(visitKey('v-1'))!;
+    expect(loaded.lastReading).toEqual({
+      verb: published.verbs.qualified('sprout', 'take'),
+      actor: minted(1),
+      bindings: new Map([['target', { object: id('hall', 'shelf') }]]),
+    });
+    expect(saveWorld(loadWorld(kept, published).state).visitors[0]!.lastReading).toEqual(
+      lastReading,
+    );
+    const gone = {
+      ...store,
+      visitors: [
+        {
+          ...visitors[0]!,
+          lastReading: { ...lastReading, verb: { library: 'sprout', name: 'juggle' } },
+        },
+      ],
+    };
+    expect(loadWorld(gone, published).state.visitors.get(visitKey('v-1'))!.lastReading).toBeNull();
   });
 
   it('names an actor stored inside something that holds no actors, for the host to report', () => {
@@ -663,6 +694,7 @@ describe('what a store holds, and in what order, never changes what loads', () =
           instance: 'printers_shop#3',
           lastPlace: null,
           referents: [],
+          lastReading: null,
         },
         {
           visit: 'v-1',
@@ -670,6 +702,7 @@ describe('what a store holds, and in what order, never changes what loads', () =
           instance: 'printers_shop#1',
           lastPlace: null,
           referents: [],
+          lastReading: null,
         },
       ],
     }) satisfies StoredWorld;

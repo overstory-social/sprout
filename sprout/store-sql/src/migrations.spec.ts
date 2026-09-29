@@ -12,6 +12,7 @@ describe('the exported migrations', () => {
       'sprout/002_stored_state.sql',
       'sprout/003_log.sql',
       'sprout/004_referents.sql',
+      'sprout/005_last_reading.sql',
     ]);
     expect(migrations.at(-1)!.sql).toContain(
       `SET value = '${SCHEMA_VERSION}' WHERE key = 'schema_version'`,
@@ -42,9 +43,15 @@ describe('the exported migrations', () => {
   });
 
   it('keeps what each visitor’s pronouns name, none for a visitor stored before', () => {
-    const last = migrations.at(-1)!.sql;
+    const last = migrations[3]!.sql;
     expect(last).toContain(
       "ALTER TABLE sprout.visitor ADD COLUMN referents jsonb NOT NULL DEFAULT '[]';",
+    );
+  });
+
+  it('keeps the reading each visitor’s last command ran, none for a visitor stored before', () => {
+    expect(migrations.at(-1)!.sql).toContain(
+      'ALTER TABLE sprout.visitor ADD COLUMN last_reading jsonb;',
     );
   });
 
@@ -66,6 +73,7 @@ describe('the exported migrations', () => {
         'sprout/002_stored_state.sql',
         'sprout/003_log.sql',
         'sprout/004_referents.sql',
+        'sprout/005_last_reading.sql',
       ],
       skipped: [],
     });

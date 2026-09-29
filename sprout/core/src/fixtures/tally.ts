@@ -156,6 +156,7 @@ export async function seeded(
     instance: marta,
     lastPlace: HALL,
     referents: [],
+    lastReading: null,
   });
   const { state, changes } = draft.commit();
   await store.transaction('w', (tx) => tx.putState(storedChanges(state, changes)));

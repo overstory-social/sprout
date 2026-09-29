@@ -285,6 +285,7 @@ describe('writing, placing, adding and removing', () => {
       instance: minted(1),
       lastPlace: null,
       referents: [],
+      lastReading: null,
     });
     expect(draft.visitor(visit)!.nickname).toBe('Marta');
     expect(base.visitors.has(visit)).toBe(false);
@@ -299,6 +300,7 @@ describe('writing, placing, adding and removing', () => {
       instance: minted(1),
       lastPlace: null,
       referents: [],
+      lastReading: null,
     });
     const base = first.commit().state;
     const draft = new Draft(base);
@@ -308,6 +310,7 @@ describe('writing, placing, adding and removing', () => {
       instance: minted(1),
       lastPlace: null,
       referents: [],
+      lastReading: null,
     });
     draft.putVisitor({
       visit: ines,
@@ -315,6 +318,7 @@ describe('writing, placing, adding and removing', () => {
       instance: minted(2),
       lastPlace: null,
       referents: [],
+      lastReading: null,
     });
     expect(draft.everyVisitor().map((one) => [one.visit, one.nickname])).toEqual([
       [ines, 'Ines'],
@@ -340,6 +344,7 @@ describe('committing', () => {
       instance: kept.id,
       lastPlace: HALL,
       referents: [],
+      lastReading: null,
     });
     return { draft, kept };
   }
@@ -413,6 +418,7 @@ describe('what changed between two states', () => {
       instance: kept.id,
       lastPlace: HALL,
       referents: [],
+      lastReading: null,
     });
     const { state, changes } = draft.commit();
     expect(changesBetween(base, state)).toEqual(changes);
