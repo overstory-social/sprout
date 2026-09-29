@@ -100,7 +100,8 @@ describe('scaffoldWorld', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-init-')), 'shed');
     scaffoldWorld(dir, 'marta');
     const bundle = compileBundle(readWorld(dir).source!).bundle!;
-    expect(runTests(bundle, testFiles(dir, []))).toEqual({
+    const { ok, page } = runTests(bundle, testFiles(dir, []));
+    expect({ ok, page }).toEqual({
       ok: true,
       page: 'arrival.json: passed, 1 expected line said\n\n1 test: passed\n',
     });

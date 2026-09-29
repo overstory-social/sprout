@@ -116,5 +116,6 @@ export function stockFaultEffect(state: StateReader, actor: InstanceId, visit: V
     to: actor,
     visit,
     paragraphs: [STOCK_LINES.fault],
+    written: [],
   };
 }

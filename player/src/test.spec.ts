@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { playScript } from './play.js';
 import { writeScript, type Script, type Step } from './script.js';
-import { runTests, testFiles } from './test.js';
+import { runTests, testFiles, type Tested } from './test.js';
 import { scriptOf } from './fixtures/scripts.js';
 import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
@@ -20,6 +20,8 @@ const run = (...scripts: (Script | string)[]) =>
     })),
   );
 const steps = (...all: Step[]): Script => ({ steps: all });
+/** Whether the tests passed, and the page, without the runs it was made from. */
+const pageOf = ({ ok, page }: Tested) => ({ ok, page });
 const ARRIVE: Step = { arrive: 'Marta' };
 const OVERFLOW =
   'the command faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647.';
@@ -42,7 +44,7 @@ describe('runTests', () => {
         { as: 'Marta', type: 'fire kiln', expect: [{ words: 'The chamber takes the flame.' }] },
       ),
     );
-    expect(tested).toEqual({
+    expect(pageOf(tested)).toEqual({
       ok: true,
       page: 't1.json: passed, 3 expected lines said\n\n1 test: passed\n',
     });
@@ -65,7 +67,7 @@ describe('runTests', () => {
         { as: 'Marta', type: 'go in' },
       ),
     );
-    expect(tested).toEqual({
+    expect(pageOf(tested)).toEqual({
       ok: false,
       page:
         't1.json: failed\n' +
@@ -170,7 +172,7 @@ describe('runTests', () => {
       type: 'fire kiln',
       expect: [{ words: 'The chamber takes the flame.' }],
     });
-    expect(run(fired, fired)).toEqual({
+    expect(pageOf(run(fired, fired))).toEqual({
       ok: true,
       page: 't1.json: passed, 1 expected line said\nt2.json: passed, 1 expected line said\n\n2 tests: all passed\n',
     });
@@ -203,5 +205,22 @@ describe('testFiles', () => {
     expect(() => testFiles(dir, [])).toThrow(
       `no tests in ${join(dir, 'tests')}: write a script there, as in \`${join(dir, 'tests', 'first.json')}\``,
     );
+  });
+});
+
+describe('the runs a test page is made from', () => {
+  it('are every test that could be played, passed or failed, as played, under its name', () => {
+    const passing = playScript(bundle, scriptOf('@arrive Marta\nMarta> fire kiln'), 'a.json');
+    const failing = steps(ARRIVE, { as: 'Marta', type: 'look', expect: [{ words: 'Nothing.' }] });
+    const tested = runTests(bundle, [
+      { name: 'a.json', text: writeScript(passing) },
+      { name: 'b.json', text: writeScript(failing) },
+      { name: 'c.json', text: 'not a script' },
+    ]);
+    expect(tested.ok).toBe(false);
+    expect(tested.runs.map((one) => [one.name, one.played.length])).toEqual([
+      ['a.json', 2],
+      ['b.json', 2],
+    ]);
   });
 });

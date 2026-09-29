@@ -90,6 +90,7 @@ describe('what a host sends', () => {
       to,
       visit: MARTA,
       paragraphs: ['A picture.'],
+      written: [],
     };
     const prose: Effect = {
       kind: 'told',
@@ -98,6 +99,7 @@ describe('what a host sends', () => {
       to,
       visit: MARTA,
       paragraphs: ['Clack.'],
+      written: [{ line: 'press.sprout:4:9' }],
     };
     const granted = { payloads: new Map([['media', new Set(['show'])]]) };
     const effects = [
@@ -106,6 +108,8 @@ describe('what a host sends', () => {
       deliveryOf(extension, granted),
     ];
     expect(effects.map((one) => one.as)).toEqual(['words', 'words', 'payload']);
+    // Where an effect's words were written is an author's tools', and never reaches a client.
+    for (const one of effects) expect(one).not.toHaveProperty('written');
     const parsed = ServerMessage.safeParse({ t: 'effects', seq: null, last: true, effects });
     expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
     // Words that name an extension while the effect is prose, or none for an extension's, are not what core makes.

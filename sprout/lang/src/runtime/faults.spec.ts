@@ -134,6 +134,7 @@ describe('the words for a fault', () => {
       to: marta,
       visit: MARTA,
       paragraphs: ['Something in this world has gone wrong, and nothing has changed.'],
+      written: [],
     });
   });
 });

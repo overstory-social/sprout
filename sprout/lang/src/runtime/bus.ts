@@ -18,6 +18,7 @@
 import { libraryOf } from '../declare/enums.js';
 import type { KindRef } from '../declare/kinds.js';
 import { messageKey } from '../declare/messages.js';
+import { locationOf } from '../source/source.js';
 import type { Block } from '../syntax/ast.js';
 import type { Parameters } from '../syntax/ast-events.js';
 import { runBody } from './body.js';
@@ -53,6 +54,19 @@ export interface Drained {
   readonly destroyed: readonly InstanceId[];
   /** How many deliveries ran a handler or a hook. */
   readonly events: number;
+  /** Every handler and hook that ran, in the order run, for an author's tools that ask what a playthrough reached. */
+  readonly ran: readonly Ran[];
+}
+
+/**
+ * A handler or hook that ran: the kind that wrote it, what it answers
+ * (a message as `messageKey` names it, or `changed :p` for a hook), and
+ * where it was written, `kiln.sprout:23:9`, which tells two apart.
+ */
+export interface Ran {
+  readonly origin: string;
+  readonly on: string;
+  readonly at: string;
 }
 
 /** One delivery waiting in the queue, and how deep it runs. */
@@ -73,6 +87,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
   const notices: Notice[] = [];
   const destroyed: InstanceId[] = [];
   const marked: InstanceId[] = [...queued.marked];
+  const ran: Ran[] = [];
   // Read from `head`; what is before it has been delivered.
   let queue: Envelope[] = [];
   let head = 0;
@@ -105,6 +120,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
       // `destroy self` takes effect as the body that ran it ends, so a
       // composed handler after it has no `self` to run for.
       if (draft.instance(sent.recipient) === undefined) break;
+      ran.push({ origin: body.origin, on: body.on, at: body.at });
       const { sink, acted } = actingSink(context, depth, {
         heardBy: () => [],
         speaker: null,
@@ -125,14 +141,16 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
     if (gone.has(id) || draft.instance(id) === undefined) continue;
     drop(destroyInstance(draft, id).removed);
   }
-  return { said, notices, destroyed, events };
+  return { said, notices, destroyed, events, ran };
 }
 
-/** One body a delivery runs: its block, what it names what it is passed, and the kind that wrote it. */
+/** One body a delivery runs: its block, what it names what it is passed, the kind that wrote it, what it answers and where. */
 interface Delivered {
   readonly block: Block;
   readonly parameters: Parameters;
   readonly origin: string;
+  readonly on: string;
+  readonly at: string;
 }
 
 /** What `sent` runs on a recipient of `kind`: its handlers for the message, or its hooks for the property. */
@@ -142,6 +160,8 @@ function bodiesFor(sent: Sent, kind: KindRef): Delivered[] {
       block: declaration.body,
       parameters: declaration.parameters,
       origin,
+      on: `changed :${sent.property}`,
+      at: locationOf(declaration.at),
     }));
   }
   const key = sent.message === 'authored' ? messageKey({ declared: sent.declared }) : sent.message;
@@ -149,6 +169,8 @@ function bodiesFor(sent: Sent, kind: KindRef): Delivered[] {
     block: declaration.body,
     parameters: declaration.parameters,
     origin,
+    on: key,
+    at: locationOf(declaration.at),
   }));
 }
 

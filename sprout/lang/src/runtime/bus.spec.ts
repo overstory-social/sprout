@@ -59,6 +59,14 @@ describe('the queue drains', () => {
     expect(drained.events).toBe(3);
   });
 
+  it('lists every handler and hook it ran, in the order run: the kind that wrote it, what it answers, and where', () => {
+    const one = eventTurn();
+    const drained = drain(queued(sent('lit', LAMP, BELL, true)), context(one));
+    expect(drained.ran).toHaveLength(drained.events);
+    expect(drained.ran.map((ran) => ran.on)).toEqual(['bus.lit', 'changed :lit', 'bus.answered']);
+    for (const ran of drained.ran) expect(ran.at).toMatch(/^[\w./]+\.sprout:\d+:\d+$/);
+  });
+
   it('passes a tick or a wake the seconds it carries, as its `elapsed`', () => {
     const one = eventTurn();
     const time = (message: 'tick' | 'woke', elapsed: number): TimeSend => ({

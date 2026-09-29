@@ -44,15 +44,29 @@ describe('a turn’s inputs as the log keeps them', () => {
 });
 
 describe('effects and faults as the log keeps them', () => {
-  it('keeps every field of each effect, in order, and copies the words', () => {
+  it('keeps every field of each effect but where its words were written, in order, and copies the words', () => {
     const paragraphs = ['Click.'];
+    const written = [{ line: 'counter.sprout:3:9' }];
     const effects: Effect[] = [
-      { kind: 'said', from: COUNTER, actor: null, to: COUNTER, visit: MARTA, paragraphs },
-      { kind: 'notice', from: COUNTER, actor: COUNTER, to: COUNTER, visit: MARTA, paragraphs: [] },
+      { kind: 'said', from: COUNTER, actor: null, to: COUNTER, visit: MARTA, paragraphs, written },
+      {
+        kind: 'notice',
+        from: COUNTER,
+        actor: COUNTER,
+        to: COUNTER,
+        visit: MARTA,
+        paragraphs: [],
+        written: [],
+      },
     ];
     const kept = loggedEffects(effects);
+    // Where the words were written is an author's tools' to ask; replaying the log re-renders it.
     expect(kept).toEqual(
-      effects.map((e) => ({ level: 'prose', ...e, paragraphs: [...e.paragraphs] })),
+      effects.map(({ written: _, ...e }) => ({
+        level: 'prose',
+        ...e,
+        paragraphs: [...e.paragraphs],
+      })),
     );
     expect(kept[0]!.paragraphs).not.toBe(paragraphs);
   });
@@ -65,12 +79,14 @@ describe('effects and faults as the log keeps them', () => {
       to: COUNTER,
       visit: MARTA,
       paragraphs: ['[A picture: a cat]'],
+      written: [],
       extension: 'media',
       statement: 'show',
       payload: { src: 'cat.png', size: [3, 4], shown: true, caption: null },
     };
     const [kept] = loggedEffects([recorded]);
-    expect(kept).toEqual({ level: 'prose', ...recorded });
+    const { written: _, ...whole } = recorded;
+    expect(kept).toEqual({ level: 'prose', ...whole });
     expect(LoggedEffect.parse(JSON.parse(JSON.stringify(kept)))).toEqual(kept);
     expect(LoggedEffect.safeParse({ ...kept, payload: undefined }).success).toBe(false);
     expect(LoggedEffect.safeParse({ ...kept, extension: '' }).success).toBe(false);

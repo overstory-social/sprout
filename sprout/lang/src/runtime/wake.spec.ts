@@ -53,6 +53,7 @@ describe('a wake turn', () => {
         to: marta,
         visit: MARTA,
         paragraphs: ['A candle gutters out.'],
+        written: [{ line: 'candle.sprout:5:11' }],
       },
     ]);
     expect(turn.stale).toEqual([MARTA]);

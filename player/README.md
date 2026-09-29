@@ -3,6 +3,10 @@
 A Sprout microworld played from a script, through real turns over a
 freshly loaded world: `sprout play dir script.json` prints it back with every step expecting what it made, and
 `sprout test` checks an author's own tests against what the world says.
+`reportOf` counts what one or more scripts reached between them — the
+lines misread, every fault, the places, objects, verbs, handlers and
+passages reached of those the world declares, and the prose never
+rendered — for `--report`.
 The [`sprout` command](../cli/README.md) is how most people run it; the
 script format is described there.
 

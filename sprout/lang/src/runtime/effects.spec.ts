@@ -91,6 +91,7 @@ describe('what a turn says', () => {
       to,
       visit,
       paragraphs: [words],
+      written: [],
     });
     const effects = [effect(marta, m, 'one'), effect(ines, i, 'two'), effect(marta, m, 'three')];
     expect(effectsTo(effects, m).map((one) => one.paragraphs[0])).toEqual(['one', 'three']);

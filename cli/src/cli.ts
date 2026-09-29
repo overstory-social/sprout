@@ -4,12 +4,16 @@ import { basename } from 'node:path';
 import { generateSkill, type Bundle } from '@overstory/sprout/lang';
 import {
   catalogueFor,
-  playScript,
+  filledIn,
+  playSteps,
+  reportOf,
   readScript,
   runTests,
   standIn,
   testFiles,
+  writeReport,
   writeScript,
+  type PlayedRun,
   type StandOptions,
 } from '@overstory/sprout-player';
 import { playInteractively, type Io } from '@overstory/sprout-repl';
@@ -37,17 +41,20 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir script.json [--write]
+  sprout play dir script.json [--write] [--report file.json]
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
-                                      --write saves that over the script
+                                      --write saves that over the script; --report writes what it reached, what
+                                      was misread or faulted, and the prose it never showed, as JSON
   sprout play dir [--at place] [--as name] [--debug] [--record file.json]
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
                                       the host's; --record writes the session as a script
-  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.json or the scripts named: each a script
+  sprout test [dir] [script ...] [--report file.json]
+                                      run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
-                                      words alone, in order; what failed and what the world said; exit 1 on a failure
+                                      words alone, in order; what failed and what the world said; exit 1 on a failure;
+                                      --report writes what they reached between them, as play --report does
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]
@@ -90,6 +97,18 @@ function compiled(dir: string, say: (text: string) => void): Bundle | null {
   if (result.bundle !== null) return result.bundle;
   say(formatCheck(result));
   return null;
+}
+
+/** The file `--report` writes to, or null where it is not given. */
+function reportFile(flags: Parsed['flags']): string | null {
+  const report = flags['report'];
+  if (report === true) throw new Error('--report wants a file after it: --report reached.json');
+  return report ?? null;
+}
+
+/** Write what `runs` reached over `bundle` to `file`. */
+function writeReached(bundle: Bundle, runs: readonly PlayedRun[], file: string): void {
+  writeFileSync(file, writeReport(reportOf(bundle, runs)));
 }
 
 /** Where `--at` stands the visitor, and the nickname `--as` gives them. */
@@ -151,7 +170,14 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const [dir = '.', script] = positional;
         const checked = compiled(dir, say);
         if (checked === null) return 1;
+        const report = reportFile(flags);
         if (script === undefined || script === '-') {
+          if (report !== null) {
+            throw new Error(
+              '--report reads a script played: record the session with --record walk.json, then ' +
+                '`sprout play dir walk.json --report reached.json`.',
+            );
+          }
           const debug = flags['debug'] !== undefined;
           const record = flags['record'];
           if (record === true)
@@ -163,12 +189,15 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           );
         }
         const name = basename(script);
-        const played = writeScript(
-          playScript(checked, readScript(readFileSync(script, 'utf8'), name), name),
-        );
+        const read = readScript(readFileSync(script, 'utf8'), name);
+        const steps = playSteps(checked, read, name);
+        const played = writeScript(filledIn(read, steps));
+        // Printed, the page is the transcript alone, so it can be kept as a golden.
+        if (report !== null) writeReached(checked, [{ name, played: steps }], report);
         if (flags['write'] !== undefined) {
           writeFileSync(script, played);
           say(`wrote ${script}\n`);
+          if (report !== null) say(`wrote ${report}\n`);
         } else say(played);
         return 0;
       }
@@ -176,8 +205,13 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const [dir = '.', ...named] = positional;
         const checked = compiled(dir, say);
         if (checked === null) return 1;
+        const report = reportFile(flags);
         const tested = runTests(checked, testFiles(dir, named));
         say(tested.page);
+        if (report !== null) {
+          writeReached(checked, tested.runs, report);
+          say(`wrote ${report}\n`);
+        }
         return tested.ok ? 0 : 1;
       }
       case 'skill':

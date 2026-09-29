@@ -60,7 +60,8 @@ describe('main', () => {
     expect(io.out()).toBe(generateSkill({ usage: USAGE }));
     expect(io.out()).toContain(`## Checking what you wrote\n\n\`\`\`text\n${USAGE}\`\`\``);
     expect(io.err()).toBe('');
-  });
+    // Generating the skill compiles every example it shows, twice here, which a loaded machine takes seconds over.
+  }, 30_000);
 
   it('scaffold world then check and test: what it writes passes both', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'sprout-cli-')), 'shed');
@@ -182,6 +183,40 @@ describe('main', () => {
     expect(missing.err()).toContain('no such file or directory');
   });
 
+  it('play --report writes what the script reached beside the transcript, which it prints unchanged', () => {
+    const dir = worldFolder('lane', LANE);
+    const folder = mkdtempSync(join(tmpdir(), 'sprout-play-'));
+    const script = join(folder, 'walk.json');
+    const report = join(folder, 'reached.json');
+    writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
+    const io = captured();
+    expect(main(['play', dir, script, '--report', report], io)).toBe(0);
+    const plain = captured();
+    main(['play', dir, script], plain);
+    expect(io.out()).toBe(plain.out());
+    const reached = JSON.parse(readFileSync(report, 'utf8'));
+    expect(reached.scripts).toEqual(['walk.json']);
+    expect(reached.reach.places.reached).toEqual(['yard', 'shed']);
+    expect(reached.reach.places.never).toEqual(['attic']);
+    expect(reached.reading.unread.map((one: { typed: string }) => one.typed)).toEqual(['xyzzy']);
+
+    const saved = captured();
+    expect(main(['play', dir, script, '--write', '--report', report], saved)).toBe(0);
+    expect(saved.out()).toBe(`wrote ${script}\nwrote ${report}\n`);
+  });
+
+  it('play --report wants a file, and a script to have been played', async () => {
+    const dir = worldFolder('lane', LANE);
+    const alone = captured();
+    expect(main(['play', dir, 'walk.json', '--report'], alone)).toBe(1);
+    expect(alone.err()).toBe('sprout: --report wants a file after it: --report reached.json\n');
+    const live = captured('look\n');
+    expect(await main(['play', dir, '--report', 'reached.json'], live)).toBe(1);
+    expect(live.err()).toContain(
+      '--report reads a script played: record the session with --record',
+    );
+  });
+
   it('play with no script and --record writes the session as a script that plays back as written', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const file = join(mkdtempSync(join(tmpdir(), 'sprout-record-')), 'session.json');
@@ -271,6 +306,14 @@ describe('main', () => {
     expect(failing.out()).toMatch(
       /^shed\.json: failed\n {2}step 2, `Marta> go in`, the world did not say:\n {4}A muddy yard\.\n {2}it said:\n {4}Marta \(described\): Tools hang in rows\.\n[^]*\n1 test: 0 passed, 1 failed\n$/,
     );
+    const report = join(mkdtempSync(join(tmpdir(), 'sprout-test-')), 'reached.json');
+    const reported = captured();
+    expect(
+      main(['test', dir, join(dir, 'tests', 'walk.json'), other, '--report', report], reported),
+    ).toBe(1);
+    expect(reported.out()).toMatch(/\n2 tests: 1 passed, 1 failed\nwrote .*reached\.json\n$/);
+    // Both played, the failing one too: what they reached between them.
+    expect(JSON.parse(readFileSync(report, 'utf8')).scripts).toEqual(['walk.json', 'shed.json']);
     const none = captured();
     expect(main(['test', worldFolder('lane', LANE)], none)).toBe(1);
     expect(none.err()).toMatch(/^sprout: no tests in .*tests: write a script there/);

@@ -130,17 +130,20 @@ sprout — a Sprout microworld on the command line
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir script.json [--write]
+  sprout play dir script.json [--write] [--report file.json]
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
-                                      --write saves that over the script
+                                      --write saves that over the script; --report writes what it reached, what
+                                      was misread or faulted, and the prose it never showed, as JSON
   sprout play dir [--at place] [--as name] [--debug] [--record file.json]
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
                                       the host's; --record writes the session as a script
-  sprout test [dir] [script ...]      run the world's tests, dir/tests/*.json or the scripts named: each a script
+  sprout test [dir] [script ...] [--report file.json]
+                                      run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
-                                      words alone, in order; what failed and what the world said; exit 1 on a failure
+                                      words alone, in order; what failed and what the world said; exit 1 on a failure;
+                                      --report writes what they reached between them, as play --report does
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]

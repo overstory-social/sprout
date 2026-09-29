@@ -13,7 +13,13 @@ import type { Evaluated } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
 import { charged } from './output.js';
 import { reflow } from './reflow.js';
-import { renderProse, type RenderContext } from './render.js';
+import {
+  lineWritten,
+  noteWritten,
+  passageWritten,
+  renderProse,
+  type RenderContext,
+} from './render.js';
 
 /** A line to render: who said it, which is `self` when it renders, and the names in scope where it was said. */
 export interface Line {
@@ -49,6 +55,7 @@ export function renderedFor(
   if ('absent' in said) return [];
   // An extension's effect reads, on a text client, as its transcript line.
   if ('recorded' in said) return [said.recorded.transcript];
+  noteWritten(context, 'passage' in said ? passageWritten(said.passage) : lineWritten(said.prose));
   const draws = context.draws?.of(drawn) ?? null;
   const rendered =
     'passage' in said

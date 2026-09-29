@@ -132,6 +132,7 @@ describe('a new visitor', () => {
         to: reader,
         visit: MARTA,
         paragraphs: ['The quay is closed for the tide.'],
+        written: [{ line: 'quay.sprout:6:58' }],
       },
     ]);
   });

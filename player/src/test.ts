@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import type { Bundle } from '@overstory/sprout/lang';
 
 import { playSteps, type Made, type PlayedStep } from './play.js';
+import type { PlayedRun } from './report.js';
 import { lineOf, readScript, shownExpectation, type Expectation } from './script.js';
 
 // `sprout test`: an author's own tests of their world. A test is a script
@@ -22,10 +23,11 @@ export interface TestFile {
   readonly text: string;
 }
 
-/** What running the tests gave: whether every one passed, and the page saying so. */
+/** What running the tests gave: whether every one passed, the page saying so, and each test that could be played, as played. */
 export interface Tested {
   readonly ok: boolean;
   readonly page: string;
+  readonly runs: readonly PlayedRun[];
 }
 
 /**
@@ -109,17 +111,28 @@ function problems(played: PlayedStep, at: number): string[] {
 }
 
 /** One test, run: the lines the page says of it, and whether it passed. */
-function runOne(bundle: Bundle, test: TestFile): { passed: boolean; lines: string[] } {
+function runOne(
+  bundle: Bundle,
+  test: TestFile,
+): { passed: boolean; lines: string[]; played: PlayedStep[] | null } {
   let played: PlayedStep[];
   try {
     played = playSteps(bundle, readScript(test.text, test.name), test.name);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
-    return { passed: false, lines: [`${test.name}: could not be played`, `  ${why}`] };
+    return {
+      passed: false,
+      lines: [`${test.name}: could not be played`, `  ${why}`],
+      played: null,
+    };
   }
   const found = played.flatMap((one, i) => problems(one, i + 1));
   if (found.length > 0) {
-    return { passed: false, lines: [`${test.name}: failed`, ...found.map((line) => `  ${line}`)] };
+    return {
+      passed: false,
+      lines: [`${test.name}: failed`, ...found.map((line) => `  ${line}`)],
+      played,
+    };
   }
   const expected = played.reduce(
     (sum, { step }) =>
@@ -133,10 +146,15 @@ function runOne(bundle: Bundle, test: TestFile): { passed: boolean; lines: strin
         `${test.name}: failed, since it expects nothing and would pass whatever the world said`,
         '  give a step what the world should say, as in `"expect": [{ "words": "You take the brass key." }]`',
       ],
+      played,
     };
   }
   const plural = expected === 1 ? 'line' : 'lines';
-  return { passed: true, lines: [`${test.name}: passed, ${expected} expected ${plural} said`] };
+  return {
+    passed: true,
+    lines: [`${test.name}: passed, ${expected} expected ${plural} said`],
+    played,
+  };
 }
 /** Run each test on a freshly loaded `bundle`: a line for each, what each failure said instead, and a count. */
 export function runTests(bundle: Bundle, tests: readonly TestFile[]): Tested {
@@ -151,5 +169,8 @@ export function runTests(bundle: Bundle, tests: readonly TestFile[]): Tested {
       `${count}: ${tests.length - failed} passed, ${failed} failed`,
     );
   }
-  return { ok: failed === 0, page: page.map((line) => `${line}\n`).join('') };
+  const runs = results.flatMap((result, i) =>
+    result.played === null ? [] : [{ name: tests[i]!.name, played: result.played }],
+  );
+  return { ok: failed === 0, page: page.map((line) => `${line}\n`).join(''), runs };
 }
