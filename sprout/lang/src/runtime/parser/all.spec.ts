@@ -43,7 +43,7 @@ const REACHED = [
 ];
 const candidates = REACHED.map((id: InstanceId, near) => {
   const instance = one.draft.instance(id)!;
-  return { instance, address: addressOf(instance, addressing), near };
+  return { instance, address: addressOf(instance, addressing), near, carried: false };
 });
 const context = (setRoleObjects = DEFAULT_LIMITS.budgets.setRoleObjects) => ({
   candidates,
@@ -117,6 +117,20 @@ describe('`all` in a slot', () => {
     });
     expect(all('all except', 'unlock', 'tool')).toEqual({ fills: 'unfit', things: [] });
     expect(all('all the keys', 'unlock', 'tool')).toEqual({ fills: 'unfit', things: [] });
+  });
+
+  it('takes, for a carried role, only what the actor carries', () => {
+    const of = verb('unlock');
+    const tool = { ...of.roles.find((one) => one.name === 'tool')!, carried: true };
+    const carrying = candidates.map((one) => ({
+      ...one,
+      carried: one.instance.id === IRON_KEY || one.instance.id === GONG,
+    }));
+    expect(ids(allIn(typedWords('all'), tool, of, { ...context(), candidates: carrying }))).toEqual(
+      [IRON_KEY],
+    );
+    const nothing = allIn(typedWords('all'), tool, of, context());
+    expect(nothing).toEqual({ fills: 'nothing', start: 0, end: 1 });
   });
 
   it('takes no more than a set role may bind', () => {

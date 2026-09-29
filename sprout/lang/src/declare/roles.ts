@@ -12,6 +12,12 @@
 // kind is composed; what fills a role is the `VerbTable`'s, and the
 // checker's to read. Every play of one role in one verb runs, in closure
 // order, the composer's own last.
+//
+// `as target for any` and `as tool for any` play every verb at once, by
+// the category of the role the object fills: the target, the first role,
+// or a tool, any other (the spec's Roles compose). A wildcard only
+// permits, so it holds a `permit` and nothing else; for a participant, its
+// wildcard plays run before the ones for the verb.
 
 import type { FromDeclaration, KindMember, PlayDeclaration } from '../syntax/ast.js';
 import type { RoleDeclaration, VerbDeclaration } from '../syntax/ast-verbs.js';
@@ -26,6 +32,17 @@ import { ENGINE_VERBS } from './verbs.js';
 
 /** The role every verb has besides the ones it declares: whoever is acting (The actor's own part). */
 export const ACTOR_ROLE = 'actor';
+
+/** The word after `for` that plays every verb at once (the spec's Roles compose). */
+export const ANY_VERB = 'any';
+
+/** What a wildcard plays: the target, a reading's first role, or a tool, any other. */
+export type Category = 'target' | 'tool';
+
+/** The category of `role` in a verb whose roles are `roles`, in order. */
+export function categoryOf(roles: readonly { readonly name: string }[], role: string): Category {
+  return roles[0]?.name === role ? 'target' : 'tool';
+}
 
 /**
  * What a role-player's `from` narrows a value role by: a property it
@@ -92,12 +109,14 @@ export class VerbNames {
 export interface ResolvedPlay {
   /** The kind that wrote it, by qualified name; an object's or a world's own body is named for it. */
   readonly origin: string;
-  /** The library of the verb it plays for. */
+  /** The library of the verb it plays for; for a wildcard, the composer's. */
   readonly library: string;
-  /** The verb's name, bare. */
+  /** The verb's name, bare; `any` for a wildcard. */
   readonly verb: string;
-  /** A role the verb declares, or `actor`. */
+  /** A role the verb declares, or `actor`; for a wildcard, its category. */
   readonly role: string;
+  /** Whether it plays every verb at once, `as target for any` or `as tool for any`. */
+  readonly any: boolean;
   /** What each value role this body narrows is narrowed by, by the role's name. */
   readonly narrows: ReadonlyMap<string, RoleNarrowing>;
   readonly declaration: PlayDeclaration;
@@ -112,6 +131,16 @@ export const NO_PLAYS: Plays = new Map();
 /** The key a kind's plays are held under: the role, and the verb by its full identity. */
 export function playKey(library: string, verb: string, role: string): string {
   return `as ${role} for ${qualifiedName(library, verb)}`;
+}
+
+/** The key a kind's wildcard plays of one category are held under. */
+export function anyKey(category: Category): string {
+  return `as ${category} for ${ANY_VERB}`;
+}
+
+/** The wildcard plays a kind runs for a role of `category`, in run order. */
+export function anyPlaysOf(plays: Plays, category: Category): readonly ResolvedPlay[] {
+  return plays.get(anyKey(category)) ?? [];
 }
 
 /** The plays a kind runs for one role of one verb, in run order. */
@@ -162,6 +191,29 @@ export function ownPlays(
   for (const member of members) {
     if (member.kind !== 'play') continue;
     const { role, verb } = member.head;
+    if (verb.text === ANY_VERB) {
+      const category = wildcardOf(member, diagnostics);
+      if (category === null) continue;
+      const key = anyKey(category);
+      if (own.has(key)) {
+        diagnostics.refuse(
+          member.head.at,
+          `\`${composer.name}\` plays \`${category}\` for \`any\` twice.`,
+          'Keep one, and write what both decide in its `permit`.',
+        );
+        continue;
+      }
+      own.set(key, {
+        origin,
+        library: composer.library,
+        verb: ANY_VERB,
+        role: category,
+        any: true,
+        narrows: new Map(),
+        declaration: member,
+      });
+      continue;
+    }
     const named = verbs.unqualified(verb.text, composer.library);
     if (named === null) {
       unknownVerb(composer, member, context);
@@ -186,11 +238,48 @@ export function ownPlays(
       library: named.library,
       verb: verb.text,
       role: role.text,
+      any: false,
       narrows,
       declaration: member,
     });
   }
   return own;
+}
+
+/**
+ * The category a wildcard plays, or null having said why it cannot be
+ * played: its head names a category, and its body only permits, since
+ * what a thing does belongs to a verb, and narrows nothing, since it
+ * knows no verb's value roles.
+ */
+function wildcardOf(play: PlayDeclaration, diagnostics: Diagnostics): Category | null {
+  const { role } = play.head;
+  if (role.text !== 'target' && role.text !== 'tool') {
+    diagnostics.refuse(
+      role.at,
+      `\`as ${role.text} for any\` names a role, and \`for any\` plays every verb at once, so it names what kind of role instead: \`target\` or \`tool\`.`,
+      `Write \`as target for any\` for the thing a verb is done to, \`as tool for any\` for any other role, or name the verb: \`as ${role.text} for <verb>\`.`,
+    );
+    return null;
+  }
+  let whole = true;
+  if (play.do !== null) {
+    diagnostics.refuse(
+      play.do.at,
+      `\`as ${role.text} for any\` holds a \`do\`, and what a thing does belongs to a verb; a play for every verb only permits.`,
+      `Move the \`do\` into \`as ${role.text} for <verb> { do { … } }\` for the verb it belongs to, and keep the \`permit\` here.`,
+    );
+    whole = false;
+  }
+  for (const line of play.narrows) {
+    diagnostics.refuse(
+      line.at,
+      `\`as ${role.text} for any\` narrows \`${line.role.text}\`, and a play for every verb knows no verb's roles.`,
+      `Narrow it in \`as ${role.text} for <verb>\`, for the verb that declares \`${line.role.text}\`.`,
+    );
+    whole = false;
+  }
+  return whole ? role.text : null;
 }
 
 /**
@@ -242,12 +331,11 @@ function leavesOut(
   reach: (verb: string) => VerbIdentity | null,
 ): boolean {
   const { member, source } = suppression;
-  return (
-    member.kind === 'role-ref' &&
-    source === play.origin &&
-    member.role.text === play.role &&
-    sameVerb(reach(member.verb.text), play)
-  );
+  if (member.kind !== 'role-ref' || source !== play.origin || member.role.text !== play.role) {
+    return false;
+  }
+  if (play.any) return member.verb.text === ANY_VERB;
+  return member.verb.text !== ANY_VERB && sameVerb(reach(member.verb.text), play);
 }
 
 /** Whether a verb reached is the one a play is for. */

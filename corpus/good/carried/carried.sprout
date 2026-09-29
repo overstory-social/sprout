@@ -1,0 +1,28 @@
+// A tool worked with is one the actor has with them (the spec's Verbs ›
+// Carried roles). The library's `unlock` fills its tool only from what the
+// visitor carries, in hand or in the open pouch every visitor is given,
+// never through it shut, and a key on the flagstones or in the open crate
+// is answered with `not_carrying`. A key carried is meant over one lying
+// further out, with no draw, and `open_with` holds its slot to the same
+// rule. `put`'s container is not carried, so the crate takes a key.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world carried is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object strongbox is Strongbox { :open false }
+    object coffer is Strongbox { :open false }
+    object casket is Strongbox { :open false }
+    object iron_key is Loose { grammar { name "iron key"  nouns "key" } }
+    object crate is sprout.Container {
+      object brass_key is Loose { grammar { name "brass key"  nouns "key" } }
+    }
+  }
+}
+
+kind Strongbox is sprout.Container, sprout.Lockable { }
+kind Loose { }

@@ -28,6 +28,7 @@ kind World {
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
   passage cannot default          { You can't {reading}. }
+  passage not_carrying default    { You aren't carrying {thing}. }
   passage meant default           { ({thing}) }
   passage pronoun_correction default { {thing} is a {pronoun}. }
   passage nothing_happens default { Nothing much comes of that. }
@@ -209,7 +210,7 @@ import {open} from ${Q}container${Q}
 
 verb unlock {
   role target: Lockable
-  role tool
+  role tool carried
   "unlock [target] with [tool]"
   "unlock [target] using [tool]"
   "use [tool] on [target]"
@@ -239,6 +240,16 @@ intent open_with {
 }
 `;
 
+const REQUIRES_HELD = `// sprout.RequiresHeld: a thing that works as a tool only from its
+// holder's hand (the spec's Roles compose; The standard library is written
+// in Sprout). It guards every verb at once, where it is any role but the
+// target, so taking it up is untouched.
+kind RequiresHeld {
+  as tool for any { permit { if (!actor.holds(self)) { refuse needs_held } } }
+  passage needs_held default { You'll need {self} in your hand. }
+}
+`;
+
 const TALK = `// \`ask\`, whose topic is a value the visitor names (the spec's Value
 // roles). The library plays no part in it: a world's own object is asked,
 // and says with \`from\` which topics it hears.
@@ -265,6 +276,7 @@ export const STANDARD_LIBRARY: LibrarySource = {
     new SourceFile('sprout/fixture.sprout', FIXTURE),
     new SourceFile('sprout/container.sprout', CONTAINER),
     new SourceFile('sprout/lockable.sprout', LOCKABLE),
+    new SourceFile('sprout/requires_held.sprout', REQUIRES_HELD),
     new SourceFile('sprout/talk.sprout', TALK),
   ],
 };

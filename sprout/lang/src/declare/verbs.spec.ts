@@ -139,6 +139,23 @@ describe('what a verb must agree with itself about, refused at the thing', () =>
     ]);
   });
 
+  it('`carried` on a value role or an exit, at `carried`, and not on a role a thing fills', () => {
+    expect(
+      checked('verb ask { role target  role topic: symbol carried  "ask [target] about [topic]" }'),
+    ).toEqual([
+      'v.sprout:1:44 `topic` is a `symbol` role, a value the visitor names, and nobody carries a value.',
+    ]);
+    expect(checked('verb dial { role target  role n: integer carried }')).toEqual([
+      'v.sprout:1:42 `n` is an `integer` role, a value the visitor names, and nobody carries a value.',
+    ]);
+    expect(checked('verb go { role way: exit carried  "go [way]" }')).toEqual([
+      'v.sprout:1:26 `way` is filled by an exit, and only a role a thing fills may be `carried`.',
+    ]);
+    expect(
+      checked('verb unlock { role target  role tool: Key carried  "unlock [target] with [tool]" }'),
+    ).toEqual([]);
+  });
+
   it('`optional` on a verb with phrases, which decide, and on the target of one without', () => {
     expect(
       checked('verb unlock { role target  role tool optional  "unlock [target] with [tool]" }'),
@@ -394,6 +411,24 @@ describe('whether a role is optional is decided here, from the verb’s phrases'
       'tool? (every phrase fills it)',
       'gift',
       'topic? (every phrase fills it)',
+    ]);
+  });
+
+  it('marks a role carried where it is written so, and never a value role', () => {
+    const { verbs } = resolved({
+      sprout:
+        'verb unlock { role target  role tool carried  "unlock [target] with [tool]" }\n' +
+        'verb ask { role target  role topic: symbol carried  "ask [target] about [topic]" }',
+    });
+    const carried = (verb: string) =>
+      verbs.qualified('sprout', verb)!.roles.map((one) => [one.name, one.carried]);
+    expect(carried('unlock')).toEqual([
+      ['target', false],
+      ['tool', true],
+    ]);
+    expect(carried('ask')).toEqual([
+      ['target', false],
+      ['topic', false],
     ]);
   });
 

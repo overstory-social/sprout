@@ -1,0 +1,4 @@
+kinds.sprout:4:18  `target` names a verb's role, and `as tool for any` plays every verb at once, so it cannot know any verb's other roles.
+                   Read only `self` and `actor` here, or write `as tool for <verb>`, where that verb's roles are bound by name.
+
+refused: 1 problem

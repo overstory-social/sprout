@@ -165,7 +165,7 @@ other binding:
 ```text
 boolean integer string object symbol true false
 accept act actors allow any are arrive article as at bound broadcast
-changed connect contains default depart describe destroy do each else
+carried changed connect contains default depart describe destroy do each else
 enum exit finally for from grammar hours if in kind let link many max
 message min minutes move name nouns of on optional pass passage permit
 prose refuse release remembers role say seconds send spawn tell text to
@@ -865,6 +865,9 @@ A verb names its **roles**, then its **phrases**.
   both narrows what the parser accepts and types the binding; a value type
   (see [Value roles](#value-roles)); or nothing, in which case anything
   that plays the role can fill it, and it has the object type.
+- After that, a role may be marked `many` (see [Set roles](#set-roles)),
+  `optional` (see [Optional tools](#optional-tools)) or `carried` (see
+  [Carried roles](#carried-roles)).
 - Each phrase is text in quotes with `[role]` slots. Every phrase must name
   the target. Every phrase is tried, and the readings they make are ranked,
   under [What the parser says](#what-the-parser-says).
@@ -977,6 +980,25 @@ Inside, `self` is the one playing the role, `actor` is whoever is acting,
 `here` is their place, and the verb's other roles are bound by name
 (`target`, `tool`, …).
 
+A kind can also guard every verb at once, by the kind of role it fills:
+`as target for any` runs whenever it is a command's target (its first
+role, whatever the verb calls it), and `as tool for any` whenever it fills
+any other role. The standard library's `sprout.RequiresHeld` is one:
+
+```sprout
+kind RequiresHeld {
+  as tool for any { permit { if (!actor.holds(self)) { refuse needs_held } } }
+  passage needs_held default { You'll need {self} in your hand. }
+}
+```
+
+A key that composes it works only from your hand, and `take key` is
+untouched, because there the key is the target. A `for any` play only
+permits: a `do` in it is refused, and so is a `from`. It knows no verb,
+so its `permit` reads `self`, `actor` and `here`, and naming a role such
+as `target` in it is refused. For one participant, its `for any` permits
+run before its permits for the verb.
+
 - **`permit`** decides whether it may happen. It is read-only. It may
   `refuse`, and the first refusal from anyone ends the whole command with
   those words as its only answer. A participant without a `permit`
@@ -1069,6 +1091,30 @@ as target for unlock {
 Reading an optional tool anywhere else is an error that names the phrase
 that leaves it out. A verb with no phrases marks its optional tools
 itself: `role tool optional`.
+
+### Carried roles
+
+A role marked `carried` is filled only by what the actor carries: in
+their hands, or inside something they carry, through open containers and
+never shut ones. The standard library's `unlock` marks its tool so:
+
+```sprout
+verb unlock {
+  role target: Lockable
+  role tool carried
+  "unlock [target] with [tool]"
+}
+```
+
+`unlock chest with key` then never reaches for a key on the floor or in
+an open chest; it is answered with the world's `not_carrying` passage,
+"You aren't carrying the key.". Where one key is carried and another lies
+further out, the carried one is meant, with no draw. `all` in a carried
+role takes only what is carried, `open chest with key` holds its key to
+the same rule, and a character's `act` naming something it does not carry
+is refused in the same words. `put`'s container and `give`'s recipient are
+not carried. Only a role a thing fills may be `carried`; on a value role
+it is refused.
 
 ### Value roles
 
@@ -1182,7 +1228,7 @@ key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
 A line may hold several commands, split at `.` or `then`: `take key then
 open cabinet`, `take key. open cabinet`. Each runs as its own turn, in
-order. A refusal, `unknown`, `not_here` or `cannot` stops the rest, and what
+order. A refusal, `unknown`, `not_here`, `cannot` or `not_carrying` stops the rest, and what
 ran before stays done.
 
 `again`, or `g`, runs your last command's reading again: the same verb
@@ -1195,7 +1241,7 @@ and it is answered with `unknown`.
 all in the crate`. A role of a kind takes what is of that kind; a role
 only the actor plays, as `take`'s target, takes every thing that is not a
 person and not the place you stand in; another takes what plays a part in
-the verb. `except` leaves things out, by name or by kind: `take all except
+the verb; and a [carried role](#carried-roles) only what you carry. `except` leaves things out, by name or by kind: `take all except
 the brass key and the lamp`. A set role takes them all at once; any other
 role runs once for each, as a line of several commands would, in the order
 they are reached, and stops at the first refusal. No more are taken than a
@@ -1234,6 +1280,7 @@ the first of these that fits:
 | passage    | when                                                               |
 | ---------- | ------------------------------------------------------------------ |
 | `cannot`   | a phrase matches, and something in reach answers to a noun but cannot fill its role: "You can't put the key in the anvil." |
+| `not_carrying` | a phrase matches, and only something you do not carry answers to the noun in a [carried role](#carried-roles): "You aren't carrying the key." |
 | `not_here` | a phrase matches but nothing in reach answers to the noun: "You see nothing like that here." |
 | `unknown`  | no phrase matches: "That is not something you can do here."        |
 
@@ -1965,6 +2012,7 @@ any of its lines. `sprout skill` prints its full source.
 | `sprout.Fixture`  | cannot be picked up; says `immovable`                                            |
 | `sprout.Container`| `:open true`, `:capacity 8`; passes things while open; plays `open` and `close`  |
 | `sprout.Lockable` | `:locked true`; plays `unlock`, and refuses `open` while locked                  |
+| `sprout.RequiresHeld` | works as a tool only from the actor's hand (`as tool for any`); says `needs_held` |
 
 ### Verbs
 
@@ -1977,7 +2025,7 @@ any of its lines. `sprout skill` prints its full source.
 | `open`   | `target: Container`                | `open [target]`                                             |
 | `close`  | `target: Container`                | `close [target]`, `shut [target]`                           |
 | `look_in` | `target: Container`               | `look in [target]`, `look inside [target]`, `look into [target]`, `search [target]`, `what is in [target]` |
-| `unlock` | `target: Lockable`, `tool`         | `unlock [target] with [tool]`, `unlock [target] using [tool]`, `use [tool] on [target]`, `use [tool] to unlock [target]` |
+| `unlock` | `target: Lockable`, `tool carried` | `unlock [target] with [tool]`, `unlock [target] using [tool]`, `use [tool] on [target]`, `use [tool] to unlock [target]` |
 | `ask`    | `target`, `topic: symbol`          | `ask [target] about [topic]`, `ask [target] [topic]`, `talk to [target] about [topic]` |
 
 Plus the six engine verbs, above. The standard library plays no part in
@@ -2003,6 +2051,7 @@ So a character can have its own `arrives`, and a place its own
 | `unknown`         | That is not something you can do here.                              |
 | `not_here`        | You see nothing like that here.                                     |
 | `cannot`          | You can't {reading}.                                                |
+| `not_carrying`    | You aren't carrying {thing}.                                        |
 | `meant`           | ({thing})                                                           |
 | `pronoun_correction` | {thing} is a {pronoun}.                                          |
 | `nothing_happens` | Nothing much comes of that.                                         |
@@ -2029,7 +2078,7 @@ what a character says: `words` is their line, its paragraphs as one.
 `not_yours`, `hands_full`, `inventory`. `sprout.Container`: `contents`,
 `shut`, `full`, `opened` (which includes `contents`), `opens`, `closed`,
 `closes`. `sprout.Lockable`:
-`unlocked`, `unlocks`. `sprout.Fixture`: `immovable`. `sprout.Place`:
+`unlocked`, `unlocks`. `sprout.RequiresHeld`: `needs_held`. `sprout.Fixture`: `immovable`. `sprout.Place`:
 `arrives`, `leaves`.
 
 To make taking things say "Got it." in your world, write on your visitor

@@ -15,10 +15,10 @@ export interface ValueFiller extends Node {
   readonly value: 'symbol' | 'integer' | 'exit';
 }
 
-/** `many` or `optional` after a role, its own node so a refusal of it points at the word. */
+/** `many`, `optional` or `carried` after a role, its own node so a refusal of it points at the word. */
 export interface RoleModifier extends Node {
   readonly kind: 'role-modifier';
-  readonly word: 'many' | 'optional';
+  readonly word: 'many' | 'optional' | 'carried';
 }
 
 /**
@@ -36,6 +36,8 @@ export interface RoleDeclaration extends Node {
   readonly many: RoleModifier | null;
   /** Written only on a verb with no phrases, which has nothing to infer it from (Optional tools). */
   readonly optional: RoleModifier | null;
+  /** Filled only from what the actor carries (Carried roles); only a role a thing fills may be. */
+  readonly carried: RoleModifier | null;
 }
 
 /** A run of words in a phrase, as the phrase means it: trimmed, its spaces single. */

@@ -128,7 +128,7 @@ Every world understands these, whatever else it adds:
 | `look in chest`, `search chest`    | see what a container holds                     |
 | `give key to Ines`, `offer key to Ines` | hand something to someone                 |
 | `open chest`, `close chest`        | open or shut a container                       |
-| `unlock chest with key`, `use key to unlock chest` | unlock something (if the world has locks) |
+| `unlock chest with key`, `use key to unlock chest` | unlock something with a key you carry (if the world has locks) |
 | `open chest with key`              | unlock it where it is locked, then open it     |
 | `ask Oskar about the toll`, `talk to Oskar about the toll` | ask someone about something |
 | `inventory` or `i`                 | list what you are carrying                     |

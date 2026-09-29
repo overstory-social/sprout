@@ -1,5 +1,5 @@
 // Verbs (the spec's Verbs › Declaring a verb, Set roles, Optional tools,
-// Value roles, Exits, Engine verbs, Reserved names; Kinds › Libraries and
+// Carried roles, Value roles, Exits, Engine verbs, Reserved names; Kinds › Libraries and
 // namespaces; Limits › Static caps), in both tiers.
 //
 // Reading its file checks a verb against itself: every slot names a role
@@ -167,6 +167,15 @@ function checkRole(
       'Several values are several roles; take `many` off.',
     );
   }
+  if (role.carried !== null && value !== null) {
+    diagnostics.refuse(
+      role.carried.at,
+      value === 'exit'
+        ? `\`${name}\` is filled by an exit, and only a role a thing fills may be \`carried\`.`
+        : `\`${name}\` is ${value === 'symbol' ? 'a' : 'an'} \`${value}\` role, a value the visitor names, and nobody carries a value.`,
+      '`carried` is for a role a thing fills, such as a tool held in the hand. Take it off.',
+    );
+  }
   if (role.optional === null) return;
   if (declared.phrases.length > 0) {
     diagnostics.refuse(
@@ -278,6 +287,8 @@ export interface ResolvedRole {
   readonly many: boolean;
   /** Whether a body may find it unbound, and so reads it only under `if (bound …)` (Optional tools). */
   readonly optional: boolean;
+  /** Filled only by what the actor carries, through open containers they carry (Carried roles). */
+  readonly carried: boolean;
   /** The first phrase that leaves out an optional role, for a refusal to name; null where none does. */
   readonly omittedBy: ResolvedPhrase | null;
   readonly declaration: RoleDeclaration;
@@ -400,6 +411,7 @@ function resolveVerb(
       filler: roleFiller(library, declared, role, context),
       many: role.many !== null,
       optional,
+      carried: role.carried !== null && role.filler?.kind !== 'value-filler',
       omittedBy: optional ? leftOutBy : null,
       declaration: role,
     };

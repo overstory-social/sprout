@@ -10,6 +10,8 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
 import { declaredTree, liveTreeOf, passRuleOf } from '../fixtures/live-tree.js';
 import {
+  carriedIn,
+  carries,
   rangeOf,
   reaches,
   type Asking,
@@ -474,6 +476,50 @@ describe('`reaches` answers from the path alone, as the walk would', () => {
   });
 });
 
+describe('what an asker carries is what it holds, through containers that pass', () => {
+  const carried = (
+    asker: string,
+    target: string,
+    change: { open?: readonly string[]; shut?: readonly string[] } = {},
+  ) => carries(contextOf(HOUSE, houseRule(change)), asker, target, 'any');
+
+  it('carries its own contents, and what they hold only where they pass, at any depth', () => {
+    expect(carried('ann', 'key')).toBe(true);
+    expect(carried('ann', 'coin')).toBe(true);
+    expect(carried('ann', 'gem')).toBe(false);
+    expect(carried('ann', 'gem', { open: ['pouch'] })).toBe(true);
+    expect(carried('table', 'ring')).toBe(true);
+    expect(carried('table', 'ring', { shut: ['box'] })).toBe(false);
+  });
+
+  it('never carries itself, what holds it, or what is in range further out', () => {
+    expect(carried('ann', 'ann')).toBe(false);
+    expect(carried('ann', 'wardrobe')).toBe(false);
+    expect(carried('ann', 'coat')).toBe(false);
+    expect(carried('ann', 'marta', { open: ['wardrobe'] })).toBe(false);
+    expect(carried('ann', 'box', { open: ['wardrobe'] })).toBe(false);
+    expect(carried('marta', 'pocket_key')).toBe(true);
+    expect(carried('ann', 'pocket_key', { open: ['wardrobe', 'marta'] })).toBe(false);
+  });
+
+  it('finds the same among what a walk reached', () => {
+    const walked = (change: { open?: readonly string[] } = {}) =>
+      [...carriedIn(HOUSE, 'ann', walkHouse('ann', change).reached)].sort();
+    expect(walked()).toEqual(['bag', 'coin', 'key', 'pouch']);
+    expect(walked({ open: ['pouch'] })).toEqual(['bag', 'coin', 'gem', 'key', 'pouch']);
+    expect(walked({ open: ['wardrobe', 'marta'] })).toEqual(['bag', 'coin', 'key', 'pouch']);
+  });
+
+  it('is charged a step for every container climbed', () => {
+    const budget = budgetOf();
+    carries(contextOf(HOUSE, houseRule()), 'ann', 'coin', 'any');
+    expect(budget.spentSteps).toBe(0);
+    const context = contextOf(HOUSE, houseRule(), budget);
+    carries(context, 'ann', 'coin', 'any');
+    expect(budget.spentSteps).toBe(2);
+  });
+});
+
 describe('over generated trees, the walk, the membership test and the path agree', () => {
   /** mulberry32: a fixed stream of choices, so every failure reproduces from the seed it prints. */
   function chooser(seed: number) {
@@ -576,6 +622,24 @@ describe('over generated trees, the walk, the membership test and the path agree
         );
         expect(byWalk, `${where}: the walk, by target`).toEqual(expected);
         expect(byPath, `${where}: reaches, by target`).toEqual(expected);
+        // What the asker carries is what it reaches below itself, and the
+        // walk and the path agree on it.
+        const below = (target: number): boolean => {
+          for (let at = parent[target]; at !== null && at !== undefined; at = parent[at]) {
+            if (at === asker) return true;
+          }
+          return false;
+        };
+        const carried = carriedIn(tree, asker, walk.reached);
+        const byCarries = targets.map((target) =>
+          carries({ tree, passes, budget: new Budget(budgets) }, asker, target, asking),
+        );
+        const oracleCarried = targets.map((target) => below(target) && expected[target]!);
+        expect(byCarries, `${where}: carries, by target`).toEqual(oracleCarried);
+        expect(
+          targets.map((target) => carried.has(target)),
+          `${where}: carried in the walk, by target`,
+        ).toEqual(oracleCarried);
       }
     }
   });

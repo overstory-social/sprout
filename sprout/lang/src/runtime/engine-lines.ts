@@ -23,6 +23,7 @@ export const STOCK_LINES: Readonly<Record<EngineLineName, string>> = {
   unknown: 'That is not something you can do here.',
   not_here: 'You see nothing like that here.',
   cannot: "You can't {reading}.",
+  not_carrying: "You aren't carrying {thing}.",
   meant: '({thing})',
   pronoun_correction: '{thing} is a {pronoun}.',
   nothing_happens: 'Nothing much comes of that.',

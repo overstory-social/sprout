@@ -69,6 +69,8 @@ import { composeGrammar, ownGrammar } from './grammar.js';
 import { composeExits, ownExits } from './exits.js';
 import { composeDescribe, ownDescribe } from './describe.js';
 import {
+  ANY_VERB,
+  anyPlaysOf,
   composePlays,
   ownPlays,
   VerbNames,
@@ -572,6 +574,11 @@ function declaresMember(
   }
   if (member.kind === 'hook-ref')
     return writesHook(found.kind.hooks, member.property.text, identity);
+  if (member.verb.text === ANY_VERB) {
+    const category = member.role.text;
+    if (category !== 'target' && category !== 'tool') return false;
+    return anyPlaysOf(found.kind.plays, category).some((play) => play.origin === identity);
+  }
   const verb = reach(member.verb.text);
   if (verb === null) return false;
   return writesPlay(found.kind.plays, verb.library, verb.name, member.role.text, identity);

@@ -59,11 +59,12 @@ export function allIn(
   }
   const actorOnly = !playedAnywhere(verb, role, context.kinds, context.budget);
   const taken = context.candidates
-    .filter(({ instance }) => {
+    .filter(({ instance, carried }) => {
       context.budget.spend();
       if (left.has(instance.id) || instance.id === context.actor || instance.id === context.here) {
         return false;
       }
+      if (role.carried && !carried) return false;
       return takes(role, verb, instance, actorOnly);
     })
     .slice(0, context.budget.limits.setRoleObjects);

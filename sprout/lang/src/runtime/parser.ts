@@ -11,7 +11,7 @@
 // binds is still in reach.
 //
 // Every line has exactly one outcome: a reading, or one of the world's
-// answers, `cannot`, `not_here` or `unknown`, never nothing. A reading
+// answers, `cannot`, `not_carrying`, `not_here` or `unknown`, never nothing. A reading
 // that a pronoun named a thing in, where the thing declares another, is
 // said after the world's `pronoun_correction` (the spec's Parsing ›
 // Pronouns). Every phrase is tried
@@ -21,8 +21,10 @@
 // range (the spec's Range), so no answer names anything out of it: where
 // no phrase reads but one would with a thing in range its role cannot
 // take, the line is `cannot`, saying what was understood
-// (`parser/partial.ts`); where one would with a noun nothing in range
-// answers to, `not_here`, which names nothing; and otherwise `unknown`.
+// (`parser/partial.ts`), or `not_carrying` where a carried role's noun
+// names only what the actor does not carry (the spec's Verbs › Carried
+// roles); where one would with a noun nothing in range answers to,
+// `not_here`, which names nothing; and otherwise `unknown`.
 // Every noun tried, every way of placing the slots, every reading built,
 // every object the range walk visits and every tie drawn is a step, so a
 // line that costs too much to read faults the turn as any other work would.
@@ -34,7 +36,7 @@ import type { Catalogue } from './catalogue.js';
 import type { Draw } from './draws.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
-import { rangeOf, type LiveTree, type PassRule, type Reached } from './range.js';
+import { carriedIn, rangeOf, type LiveTree, type PassRule, type Reached } from './range.js';
 import { consentPass, type Bound, type Reading, type Said } from './reading.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject, boundValue } from './evaluate.js';
@@ -97,7 +99,7 @@ export function readCommand(
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
   const tree = liveTree(state);
   const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
-  const candidates = candidatesOf(state, tree, range.reached, addressing);
+  const candidates = candidatesOf(state, tree, actor, range.reached, addressing);
   if (words.length === 1 && AGAIN.includes(words[0]!)) {
     return again(context.lastReading, actor, here, candidates, context);
   }
@@ -128,7 +130,7 @@ export function readCommand(
       // noun nothing answers to, or that the role cannot take, is not about it.
       if (phrase.only === null)
         partials.push(...partialsOf(phrase.parts, spans, fills, address, budget));
-      if (fills.some((one) => one.fills === 'unfit')) continue;
+      if (fills.some((one) => one.fills === 'unfit' || one.fills === 'outward')) continue;
       if (fills.some((one) => one.fills === 'nothing')) {
         if (phrase.only === null) notHere = true;
         continue;
@@ -174,7 +176,7 @@ export function readCommand(
       budget.spend();
       const fills = spans.map(fillOf);
       partials.push(...partialsOf(phrase.parts, spans, fills, address, budget));
-      if (fills.some((one) => one.fills === 'unfit')) continue;
+      if (fills.some((one) => one.fills === 'unfit' || one.fills === 'outward')) continue;
       if (fills.some((one) => one.fills === 'nothing')) {
         notHere = true;
         continue;
@@ -207,7 +209,10 @@ export function readCommand(
   }
   if (readings.size === 0) {
     if (partials.length > 0) {
-      return answer(state, 'cannot', actor, here, choosePartial(partials, context.draws, budget));
+      const partial = choosePartial(partials, context.draws, budget);
+      return partial.uncarried === null
+        ? answer(state, 'cannot', actor, here, { reading: partial.words })
+        : answer(state, 'not_carrying', actor, here, { thing: partial.uncarried });
     }
     return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
   }
@@ -357,19 +362,23 @@ function readingKey(reading: Understood): string {
 
 /**
  * What may be named among what the walk reached, nearest first: every
- * live thing but the world, each with its nearness (`nearnessOf`).
+ * live thing but the world, each with its nearness (`nearnessOf`) and
+ * whether `actor` carries it.
  */
 function candidatesOf(
   state: StateReader,
   tree: LiveTree<InstanceId>,
+  actor: InstanceId,
   reached: readonly Reached<InstanceId>[],
   addressing: AddressContext,
 ): Candidate[] {
   const near = nearnessOf(tree, reached);
+  const carried = carriedIn(tree, actor, reached);
   return reached.flatMap(({ node }) => {
     const instance = node === state.world ? undefined : state.instance(node);
     if (instance === undefined) return [];
-    return [{ instance, address: addressOf(instance, addressing), near: near.get(node)! }];
+    const address = addressOf(instance, addressing);
+    return [{ instance, address, near: near.get(node)!, carried: carried.has(node) }];
   });
 }
 

@@ -220,26 +220,37 @@ describe('parseLine, for an intent', () => {
           'object crate is Crate\n    object chest is Chest { :open false }\n    object gate is sprout.Lockable { :locked false }',
         ),
         'chest.sprout': 'kind Chest is sprout.Container, sprout.Lockable { }\n',
+        // `unlock`'s tool is carried, so every walker carries a key of their own.
+        'walker.sprout':
+          'kind Walker is sprout.Visitor {\n  object ring_key is Key { grammar { name "ring key" } }\n}\n',
       }),
     ).bundle!;
 
   it('names the intent, what fills each slot, and the steps it plans now, each as a reading', () => {
-    expect(parseLine('open chest with brass key', standIn(vault(), {})).page).toBe(
-      `in yard, "open chest with brass key" reads as the intent sprout.open_with
+    expect(parseLine('open chest with ring key', standIn(vault(), {})).page).toBe(
+      `in yard, "open chest with ring key" reads as the intent sprout.open_with
   y: a chest (yard.chest)
-  x: a brass key (yard.brass_key)
+  x: a ring key (lane#2)
 it runs 2 steps, each a turn of its own:
   reads as sprout.unlock
     target: a chest (yard.chest)
-    tool: a brass key (yard.brass_key)
+    tool: a ring key (lane#2)
   reads as sprout.open
     target: a chest (yard.chest)
 `,
     );
   });
+
+  it('says a key lying in the yard is not carried, since `unlock`’s tool is', () => {
+    expect(parseLine('open chest with brass key', standIn(vault(), {})).page).toBe(
+      `in yard, "open chest with brass key" not understood; the world answers with \`not_carrying\`:
+  You aren't carrying a brass key.
+`,
+    );
+  });
   it('says where it plans no step, and that the line is answered with `nothing_happens`', () => {
     // The gate is unlocked, so no unlocking, and is no container, so no opening.
-    const page = parseLine('open gate with brass key', standIn(vault(), {})).page;
+    const page = parseLine('open gate with ring key', standIn(vault(), {})).page;
     expect(page).toContain(
       'it plans no step that can run, and is answered with `nothing_happens`\n',
     );

@@ -6,7 +6,9 @@
 // A reading is a verb, an actor, and its roles filled. Its participants
 // are the actor first and then each role's players in the order the verb
 // declares its roles, and each runs every play its kind composes for that
-// role, in composition order. The consent pass runs every `permit`, only
+// role, in composition order, its wildcard plays (`as tool for any`)
+// first. The consent pass first refuses a carried role holding what the
+// actor does not carry, then runs every `permit`, only
 // reading, and the first refusal is the reading's whole outcome; the
 // effect pass then runs every `do` in the same order; in a reading of the
 // engine's `go` it first moves the actor through the exit named, and a
@@ -29,7 +31,14 @@
 // runs the consent pass alone.
 
 import { libraryOf, SPROUT } from '../declare/enums.js';
-import { ACTOR_ROLE, playsOf, type ResolvedPlay, type RoleNarrowing } from '../declare/roles.js';
+import {
+  ACTOR_ROLE,
+  anyPlaysOf,
+  categoryOf,
+  playsOf,
+  type ResolvedPlay,
+  type RoleNarrowing,
+} from '../declare/roles.js';
 import { ENGINE_ANSWERS, type ResolvedRole, type ResolvedVerb } from '../declare/verbs.js';
 import { readingOfAct } from './act.js';
 import {
@@ -52,7 +61,8 @@ import { SproutList } from './lists.js';
 import { moveInstance, type Notice, type Reach } from './move.js';
 import type { Sent } from './sends.js';
 import type { Instance, StateReader } from './state.js';
-import type { PassRule } from './range.js';
+import { carries, type PassRule } from './range.js';
+import { liveTree } from './live.js';
 import type { Value } from './values.js';
 import type { CommandExit } from './parser/exits.js';
 
@@ -87,11 +97,17 @@ export interface Participant {
 
 /** The consent pass's refusal: the whole of what the actor reads. */
 export interface PermitRefusal {
-  /** The participant whose `permit` refused, and the role it played. */
+  /**
+   * The participant whose `permit` refused, and the role it played; where
+   * the engine refused, whoever says its line, and the carried role.
+   */
   readonly by: InstanceId;
   readonly role: string;
-  /** The kind that wrote the `permit`, by qualified name. */
-  readonly origin: string;
+  /**
+   * The kind that wrote the `permit`, by qualified name; null where the
+   * engine refused, a carried role holding what the actor does not carry.
+   */
+  readonly origin: string | null;
   /** The passage named, as it applies on the refusing participant's kind, or the words quoted. */
   readonly said: Speech;
   /**
@@ -197,10 +213,13 @@ export function participantsOf(reading: Reading): Participant[] {
 /**
  * Every `permit` of every participant, in order, until one refuses. A
  * `permit` that allows, or reaches its end, consents, and so does a
- * participant that wrote none. Null when every one consents.
+ * participant that wrote none. Before any, the engine refuses a carried
+ * role holding what the actor does not carry. Null when every one consents.
  */
 export function consentPass(reading: Reading, context: ConsentContext): PermitRefusal | null {
   const { state } = context;
+  const uncarried = uncarriedIn(reading, context);
+  if (uncarried !== null) return uncarried;
   for (const participant of participantsOf(reading)) {
     for (const play of playsFor(reading, participant, instanceIn(state, participant.id))) {
       const permit = play.declaration.permit;
@@ -216,6 +235,40 @@ export function consentPass(reading: Reading, context: ConsentContext): PermitRe
         bindings: frame.bindings,
       };
     }
+  }
+  return null;
+}
+
+/**
+ * The world's `not_carrying` for the first thing a carried role holds
+ * that the actor does not carry, in the order the verb declares its roles
+ * (the spec's Verbs › Carried roles); null where the actor carries them all.
+ */
+function uncarriedIn(reading: Reading, context: ConsentContext): PermitRefusal | null {
+  const { state, passes, budget } = context;
+  const { actor } = reading;
+  const range = { tree: liveTree(state), passes, budget };
+  for (const role of reading.verb.roles) {
+    if (!role.carried) continue;
+    const bound = reading.bindings.get(role.name);
+    const things =
+      bound === undefined
+        ? []
+        : 'object' in bound
+          ? [bound.object]
+          : 'set' in bound
+            ? bound.set
+            : [];
+    const thing = things.find((id) => !carries(range, actor, id, 'any'));
+    if (thing === undefined) continue;
+    const here = placeOf(state, actor);
+    const { by, said } = engineSaid(state, 'not_carrying', actor, here);
+    const bindings = new Map([
+      ['actor', boundObject(actor)],
+      ['here', boundObject(here)],
+      ['thing', boundObject(thing)],
+    ]);
+    return { by, role: role.name, origin: null, said, bindings };
   }
   return null;
 }
@@ -504,14 +557,21 @@ function hearersOf(
       };
 }
 
-/** What a participant's kind runs for the role it plays in this verb, in composition order. */
+/**
+ * What a participant's kind runs for the role it plays in this verb: its
+ * wildcard plays for the role's category first, then its plays for the
+ * verb, each in composition order (the spec's The two passes).
+ */
 function playsFor(
   reading: Reading,
   participant: Participant,
   self: Instance,
 ): readonly ResolvedPlay[] {
   const { verb } = reading;
-  return playsOf(self.kind.plays, verb.library, verb.name, participant.role);
+  const plays = playsOf(self.kind.plays, verb.library, verb.name, participant.role);
+  if (participant.role === ACTOR_ROLE) return plays;
+  const category = categoryOf(verb.roles, participant.role);
+  return [...anyPlaysOf(self.kind.plays, category), ...plays];
 }
 
 /**

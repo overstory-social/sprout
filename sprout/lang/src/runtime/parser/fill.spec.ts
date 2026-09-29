@@ -19,10 +19,14 @@ import { fillIntentSlot, fillSlot, valueOf } from './fill.js';
 
 const one = study();
 const addressing = { world: one.draft.world, nicknames: one.nicknames };
-const candidates = [BRASS_KEY, IRON_KEY, GONG, GUARD, DIAL].map((id: InstanceId) => {
-  const instance = one.draft.instance(id)!;
-  return { instance, address: addressOf(instance, addressing), near: 2 };
-});
+/** What the one typing can reach, everything equally near, and carrying what `carried` names. */
+const reaching = (carried: readonly InstanceId[] = []) =>
+  [BRASS_KEY, IRON_KEY, GONG, GUARD, DIAL].map((id: InstanceId) => {
+    const instance = one.draft.instance(id)!;
+    const address = addressOf(instance, addressing);
+    return { instance, address, near: 2, carried: carried.includes(id) };
+  });
+const candidates = reaching();
 const context = { candidates, exits: EXITS, budget: one.budget, referents: [] };
 const verb = (name: string, library = 'study') => STUDY.verbs.qualified(library, name)!;
 const role = (verbName: string, name: string, library = 'study'): ResolvedRole =>
@@ -119,6 +123,75 @@ describe('the value a value role’s words bind', () => {
     for (const line of ['13', '0', '-0', 'seven', '7 8', '99999999999999999999']) {
       expect(number(line), line).toBeNull();
     }
+  });
+});
+
+describe('what a carried role’s words fill it with', () => {
+  const carriedRole = (verbName: string, name: string, library = 'study'): ResolvedRole => ({
+    ...role(verbName, name, library),
+    carried: true,
+  });
+  const holding = (carried: readonly InstanceId[], r: ResolvedRole, line: string) =>
+    fillSlot(r, typedWords(line), { ...context, candidates: reaching(carried) });
+
+  it('is only what is carried, where something carried answers, and an outward thing never competes', () => {
+    expect(holding([IRON_KEY], carriedRole('unlock', 'tool'), 'key')).toEqual({
+      fills: 'options',
+      options: [{ bound: { object: IRON_KEY }, near: 2, literal: 1 }],
+    });
+  });
+
+  it('is outward, each thing further out that fills it, where nothing carried answers', () => {
+    expect(holding([], carriedRole('unlock', 'tool'), 'key')).toEqual({
+      fills: 'outward',
+      things: [
+        { bound: { object: BRASS_KEY }, near: 2, literal: 1 },
+        { bound: { object: IRON_KEY }, near: 2, literal: 1 },
+      ],
+    });
+    expect(holding([GONG], carriedRole('unlock', 'tool'), 'brass key')).toEqual({
+      fills: 'outward',
+      things: [{ bound: { object: BRASS_KEY }, near: 2, literal: 2 }],
+    });
+  });
+
+  it('is unfit where what answers cannot fill it, carried or not, and nothing where nothing answers', () => {
+    expect(holding([GONG], carriedRole('unlock', 'tool'), 'gong')).toEqual({
+      fills: 'unfit',
+      things: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+    });
+    expect(holding([], carriedRole('unlock', 'tool'), 'gong')).toEqual({
+      fills: 'unfit',
+      things: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+    });
+    expect(holding([BRASS_KEY], carriedRole('unlock', 'tool'), 'anvil')).toEqual({
+      fills: 'nothing',
+      start: 0,
+      end: 1,
+    });
+  });
+
+  it('is a set of what is carried for a set role, and outward naming the first thing not carried', () => {
+    const things = carriedRole('juggle', 'things');
+    expect(holding([GONG, BRASS_KEY], things, 'gong and brass key')).toEqual({
+      fills: 'options',
+      options: [{ bound: { set: [GONG, BRASS_KEY] }, near: 4, literal: 3 }],
+    });
+    expect(holding([GONG], things, 'gong and brass key')).toEqual({
+      fills: 'outward',
+      things: [{ bound: { object: BRASS_KEY }, near: 4, literal: 3 }],
+    });
+  });
+
+  it('is filled the same for an intent’s slot given to a carried role in any step', () => {
+    const roles = [carriedRole('unlock', 'tool'), role('turn', 'target')];
+    const fillIntent = (carried: readonly InstanceId[], line: string) =>
+      fillIntentSlot(roles, typedWords(line), { ...context, candidates: reaching(carried) });
+    expect(fillIntent([BRASS_KEY], 'metal')).toEqual({
+      fills: 'options',
+      options: [{ bound: { object: BRASS_KEY }, near: 2, literal: 1 }],
+    });
+    expect(fillIntent([], 'metal')).toMatchObject({ fills: 'outward' });
   });
 });
 

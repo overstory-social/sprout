@@ -237,7 +237,7 @@ function pastStray(p: Parser): boolean {
 }
 
 /**
- * `role <name> [: <filler>] [many] [optional]`, the word `role` next.
+ * `role <name> [: <filler>] [many] [optional] [carried]`, the word `role` next.
  * Null only where no name was written; a name or a filler refused still
  * gives the role, as the header says.
  */
@@ -281,14 +281,17 @@ function roleDeclaration(p: Parser): RoleDeclaration | null {
   const filler = roleFiller(p, name);
   if (filler !== null) at = filler.at;
 
-  let many: RoleModifier | null = null;
-  let optional: RoleModifier | null = null;
+  const modifiers: Record<RoleModifier['word'], RoleModifier | null> = {
+    many: null,
+    optional: null,
+    carried: null,
+  };
   for (;;) {
     const word = p.peek();
-    if (word.kind !== 'name' || (word.text !== 'many' && word.text !== 'optional')) break;
+    if (word.kind !== 'name' || !isModifier(word.text)) break;
     p.next();
     at = word.at;
-    if ((word.text === 'many' ? many : optional) !== null) {
+    if (modifiers[word.text] !== null) {
       p.diagnostics.refuse(
         word.at,
         `\`${name.text}\` is marked \`${word.text}\` twice.`,
@@ -296,10 +299,10 @@ function roleDeclaration(p: Parser): RoleDeclaration | null {
       );
       continue;
     }
-    const modifier: RoleModifier = { kind: 'role-modifier', at: word.at, word: word.text };
-    if (word.text === 'many') many = modifier;
-    else optional = modifier;
+    modifiers[word.text] = { kind: 'role-modifier', at: word.at, word: word.text };
   }
+  const { many, carried } = modifiers;
+  let { optional } = modifiers;
   // A set is never optional, so `optional` is refused and left off, in
   // whichever order the two were written.
   if (many !== null && optional !== null) {
@@ -311,7 +314,12 @@ function roleDeclaration(p: Parser): RoleDeclaration | null {
     optional = null;
   }
 
-  return { kind: 'role', at: spanning(keyword.at, at), name, filler, many, optional };
+  return { kind: 'role', at: spanning(keyword.at, at), name, filler, many, optional, carried };
+}
+
+/** Whether a word is one of a role's modifiers. */
+function isModifier(word: string): word is RoleModifier['word'] {
+  return word === 'many' || word === 'optional' || word === 'carried';
 }
 
 /** Whether what comes next ends a role with nothing more in it. */
@@ -363,10 +371,7 @@ function roleFiller(p: Parser, name: Ident): KindExpr | ValueFiller | null {
       value: token.text as ValueFiller['value'],
     };
   }
-  if (
-    endsRole(p) ||
-    (token.kind === 'name' && (token.text === 'many' || token.text === 'optional'))
-  ) {
+  if (endsRole(p) || (token.kind === 'name' && isModifier(token.text))) {
     p.diagnostics.refuse(
       p.source.span(colon.at.end),
       `\`${name.text}\` has a colon and nothing after it to fill the role.`,

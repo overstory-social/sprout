@@ -1,0 +1,6 @@
+// Only a role a thing fills may be carried: nobody carries a value.
+verb ask {
+  role target
+  role topic: symbol carried
+  "ask [target] about [topic]"
+}

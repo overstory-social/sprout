@@ -1,0 +1,28 @@
+// A tool that works only from the hand (the spec's Verbs › Roles compose):
+// the key composes `sprout.RequiresHeld`, whose `as tool for any` refuses
+// it from the open pouch every visitor carries, and the book does not, so
+// it works from the pouch as well. Taking the key up is untouched, since
+// there it is the target, not a tool.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world requires_held is sprout.World {
+  visitors are Person
+  visitors arrive at vault
+
+  object vault is sprout.Place {
+    grammar { article the }
+    object door is Door { :open false }
+    object key is Key
+    object book is Book
+  }
+}
+
+verb wedge { role target  role tool carried  "wedge [target] with [tool]" }
+
+kind Door is sprout.Container, sprout.Lockable {
+  as target for wedge { do { say wedged } }
+  passage wedged { {self} stays where it is. }
+}
+kind Key is sprout.RequiresHeld { }
+kind Book { }

@@ -185,6 +185,7 @@ describe('every file in the bundle is read', () => {
       'unlock',
       'Lockable',
       'open_with',
+      'RequiresHeld',
       'ask',
     ]);
   });

@@ -104,6 +104,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
       'sprout.Fixture',
       'sprout.Lockable',
       'sprout.Place',
+      'sprout.RequiresHeld',
     ]);
     for (const [name, kind] of catalogue.kinds) {
       expect(kindName(kind)).toBe(name);

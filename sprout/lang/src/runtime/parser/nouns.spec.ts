@@ -34,7 +34,7 @@ const context = { world: one.draft.world, nicknames: one.nicknames };
 /** `id` as a noun may name it, everything in the hall equally near unless a case says otherwise. */
 const candidate = (id: InstanceId, near = 2): Candidate => {
   const instance = one.draft.instance(id)!;
-  return { instance, address: addressOf(instance, context), near };
+  return { instance, address: addressOf(instance, context), near, carried: false };
 };
 // Each nearer than the next, as the list is ordered.
 const HERE = [BRASS_KEY, IRON_KEY, LAMP, GONG, PEBBLE_A, PEBBLE_B, DOOR].map(candidate);

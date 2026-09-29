@@ -40,7 +40,10 @@ function roleShape(role: RoleDeclaration): string {
       : role.filler.kind === 'value-filler'
         ? `: ${role.filler.value}`
         : `: ${role.filler.library === null ? '' : `${role.filler.library.text}.`}${role.filler.name.text}`;
-  return `${role.name.text}${filler}${role.many === null ? '' : ' many'}${role.optional === null ? '' : ' optional'}`;
+  const modifiers = [role.many, role.optional, role.carried].map((one) =>
+    one === null ? '' : ` ${one.word}`,
+  );
+  return `${role.name.text}${filler}${modifiers.join('')}`;
 }
 
 /** What was said, as `line:column message`. */
@@ -85,6 +88,17 @@ describe('a verb, as the spec and its standard library write them', () => {
     expect(
       verb('verb nuzzle { role target: Creature  role gift optional }').roles.map(roleShape),
     ).toEqual(['target: Creature', 'gift optional']);
+  });
+
+  it('reads `carried` after the filler, beside the other modifiers', () => {
+    expect(
+      verb(
+        'verb unlock { role target  role tool carried  "unlock [target] with [tool]" }',
+      ).roles.map(roleShape),
+    ).toEqual(['target', 'tool carried']);
+    expect(
+      verb('verb wield { role target  role tools: Rib carried many }').roles.map(roleShape),
+    ).toEqual(['target', 'tools: Rib many carried']);
   });
 
   it('reads the standard library’s verbs, on one line or many', () => {
@@ -214,6 +228,9 @@ describe('what the verb reader refuses, at the token', () => {
     expect(kept.roles.map(roleShape)).toEqual(['tools many']);
     expect(said('verb v { role tools many many }')).toEqual([
       'v.sprout:1:26 `tools` is marked `many` twice.',
+    ]);
+    expect(said('verb v { role tool carried carried }')).toEqual([
+      'v.sprout:1:28 `tool` is marked `carried` twice.',
     ]);
   });
 
