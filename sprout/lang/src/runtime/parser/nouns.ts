@@ -50,8 +50,8 @@ export type NounFound =
   | { readonly found: 'some'; readonly things: readonly Named[] }
   /** Nothing among the candidates answers to the words. */
   | { readonly found: 'nothing' }
-  /** Something answers, and none of what answers may fill the role. */
-  | { readonly found: 'unfit' };
+  /** Something answers, and none of what answers may fill the role: what answers, nearest first. */
+  | { readonly found: 'unfit'; readonly things: readonly Named[] };
 
 /** One set a run may name: its things in the order typed, duplicates collapsed, and how they matched. */
 export interface NamedSet {
@@ -221,17 +221,15 @@ export function thingsIn(
   const answered = named(words, candidates, context);
   if (answered.length === 0) return { found: 'nothing' };
   const fit = answered.filter(({ candidate }) => fitting(candidate.instance));
-  if (fit.length === 0) return { found: 'unfit' };
-  const byName = fit.filter(({ by }) => by === 'name');
-  const pool = byName.length > 0 ? byName : fit;
-  return {
-    found: 'some',
-    things: pool.map(({ candidate, literal }) => ({
-      id: candidate.instance.id,
-      near: candidate.near,
-      literal,
-    })),
-  };
+  const found = fit.length === 0 ? answered : fit;
+  const byName = found.filter(({ by }) => by === 'name');
+  const pool = byName.length > 0 ? byName : found;
+  const things = pool.map(({ candidate, literal }) => ({
+    id: candidate.instance.id,
+    near: candidate.near,
+    literal,
+  }));
+  return fit.length === 0 ? { found: 'unfit', things } : { found: 'some', things };
 }
 
 /**

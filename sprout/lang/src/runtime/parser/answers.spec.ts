@@ -33,6 +33,16 @@ describe('the world’s answers to a line it could not run', () => {
     expect([...none.bindings.keys()]).toEqual(['actor', 'here']);
   });
 
+  it('says `cannot` in the world’s words, with the reading as far as it was understood', () => {
+    const cannot = answer(one.draft, 'cannot', actor, HALL, 'unlock the door with the gong');
+    expect(text(cannot.said)).toEqual(['sprout.World', 'cannot', "You can't {reading}."]);
+    expect([...cannot.bindings]).toEqual([
+      ['actor', { binds: 'object', id: actor }],
+      ['here', { binds: 'object', id: HALL }],
+      ['reading', { binds: 'value', value: 'unlock the door with the gong' }],
+    ]);
+  });
+
   it('is the standard library’s words, said by the engine, where nothing writes the line', () => {
     const world = one.draft.instance(one.draft.world)!;
     const bare = { ...world, kind: { ...world.kind, passages: new Map() } };

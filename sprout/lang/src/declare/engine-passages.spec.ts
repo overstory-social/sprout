@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { ACTOR_LINES, ENGINE_LINES, ownerOf, PLACE_LINES, WORLD_LINES } from './engine-passages.js';
 
 describe('the lines the engine says for itself', () => {
-  it('are the world’s sixteen, a place’s two and an actor’s one, each named once', () => {
+  it('are the world’s seventeen, a place’s two and an actor’s one, each named once', () => {
     const names = ENGINE_LINES.map((line) => line.name);
-    expect(WORLD_LINES).toHaveLength(16);
-    expect(names).toHaveLength(19);
+    expect(WORLD_LINES).toHaveLength(17);
+    expect(names).toHaveLength(20);
     expect(PLACE_LINES.map((line) => line.name)).toEqual(['arrives', 'leaves']);
     expect(new Set(names).size).toBe(names.length);
   });

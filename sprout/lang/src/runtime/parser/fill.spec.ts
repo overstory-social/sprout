@@ -60,7 +60,7 @@ describe('what a slot’s words fill its role with', () => {
       fills: 'options',
       options: [{ bound: { exit: EXITS[0] }, near: 0, literal: 1 }],
     });
-    expect(fill(role('go', 'way', 'sprout'), 'gong')).toEqual({ fills: 'unfit' });
+    expect(fill(role('go', 'way', 'sprout'), 'gong')).toEqual({ fills: 'unfit', things: [] });
   });
 
   it('says where the noun that names nothing runs, in a run as in one slot', () => {
@@ -141,7 +141,10 @@ describe('what an intent’s slot is filled with', () => {
   });
 
   it('is unfit where what the words name fits none of its roles, and nothing where they name nothing', () => {
-    expect(fillIntent('gong')).toEqual({ fills: 'unfit' });
+    expect(fillIntent('gong')).toEqual({
+      fills: 'unfit',
+      things: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+    });
     expect(fillIntent('zebra')).toEqual({ fills: 'nothing', start: 0, end: 1 });
   });
 });

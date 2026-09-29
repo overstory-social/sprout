@@ -1,0 +1,26 @@
+{
+  "about": "A role given what it cannot take is told what was understood; nothing in reach, and nothing read, as before.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "take key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." }
+    ] },
+    { "as": "Marta", "type": "put key in anvil", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't put the key in the anvil." }
+    ] },
+    { "as": "Marta", "type": "open anvil with key", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't open the anvil with the key." }
+    ] },
+    { "as": "Marta", "type": "unlock crate with key", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't unlock the crate with the key." }
+    ] },
+    { "as": "Marta", "type": "put key in zebra", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "dance wildly", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}

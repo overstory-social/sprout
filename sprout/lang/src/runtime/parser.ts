@@ -8,13 +8,15 @@
 // reads through.
 //
 // Every line has exactly one outcome: a reading, or one of the world's
-// answers, `not_here` or `unknown`, never nothing. Every phrase is tried
+// answers, `cannot`, `not_here` or `unknown`, never nothing. Every phrase is tried
 // against the line, and every way it reads is a reading; they are ranked
 // whole (`parser/rank.ts`) and the best is the one understood, a tie
 // drawn from the turn's stream. A noun resolves only against the actor's
 // range (the spec's Range), so no answer names anything out of it: where
-// no phrase reads but one would with a noun nothing in range answers to,
-// the line is `not_here`, which names nothing, and otherwise `unknown`.
+// no phrase reads but one would with a thing in range its role cannot
+// take, the line is `cannot`, saying what was understood
+// (`parser/partial.ts`); where one would with a noun nothing in range
+// answers to, `not_here`, which names nothing; and otherwise `unknown`.
 // Every noun tried, every way of placing the slots, every reading built,
 // every object the range walk visits and every tie drawn is a step, so a
 // line that costs too much to read faults the turn as any other work would.
@@ -39,6 +41,7 @@ import { exitsFrom } from './exits.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { writtenAs, type Candidate } from './parser/nouns.js';
+import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
 import { chooseReading, type Drawn, type Ranked, type Understood } from './parser/rank.js';
@@ -79,6 +82,8 @@ export function readCommand(
   const fill = { candidates, exits: context.exits, budget };
 
   const readings = new Map<string, Ranked>();
+  const partials: Partial[] = [];
+  const address = (id: InstanceId) => addressOf(state.instance(id)!, addressing);
   let notHere = false;
   for (const phrase of catalogue.phrases) {
     const filled = new Map<string, Filled>();
@@ -94,10 +99,12 @@ export function readCommand(
     for (const spans of slotSpans(phrase.parts, words)) {
       budget.spend();
       const fills = spans.map(fillOf);
+      // An object's synonym reads only where the object takes part, so a
+      // noun nothing answers to, or that the role cannot take, is not about it.
+      if (phrase.only === null)
+        partials.push(...partialsOf(phrase.parts, spans, fills, address, budget));
       if (fills.some((one) => one.fills === 'unfit')) continue;
       if (fills.some((one) => one.fills === 'nothing')) {
-        // An object's synonym reads only where the object takes part, so
-        // a noun nothing answers to is not about it.
         if (phrase.only === null) notHere = true;
         continue;
       }
@@ -137,6 +144,7 @@ export function readCommand(
     for (const spans of slotSpans(phrase.parts, words)) {
       budget.spend();
       const fills = spans.map(fillOf);
+      partials.push(...partialsOf(phrase.parts, spans, fills, address, budget));
       if (fills.some((one) => one.fills === 'unfit')) continue;
       if (fills.some((one) => one.fills === 'nothing')) {
         notHere = true;
@@ -166,8 +174,13 @@ export function readCommand(
       }
     }
   }
-  if (readings.size === 0) return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
-  const written = (id: InstanceId): string => writtenAs(addressOf(state.instance(id)!, addressing));
+  if (readings.size === 0) {
+    if (partials.length > 0) {
+      return answer(state, 'cannot', actor, here, choosePartial(partials, context.draws, budget));
+    }
+    return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
+  }
+  const written = (id: InstanceId): string => writtenAs(address(id));
   const chosen = chooseReading([...readings.values()], written, context.draws, budget);
   return { understood: chosen.reading, drawn: chosen.drawn };
 }

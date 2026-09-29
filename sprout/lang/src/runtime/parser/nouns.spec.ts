@@ -90,7 +90,10 @@ describe('what a noun names', () => {
   });
 
   it('is unfit where what answers cannot fill the role, and nothing where nothing answers', () => {
-    expect(noun('gong', TOOL)).toEqual({ found: 'unfit' });
+    expect(noun('gong', TOOL)).toEqual({
+      found: 'unfit',
+      things: [{ id: GONG, near: 3, literal: 1 }],
+    });
     expect(noun('unicorn')).toEqual({ found: 'nothing' });
     expect(fits(TOOL, candidate(IRON_KEY).instance)).toBe(true);
     expect(fits(TOOL, candidate(DOOR).instance)).toBe(false);
@@ -113,7 +116,13 @@ describe('what a noun names, of what may fill a slot', () => {
       found: 'some',
       things: [{ id: IRON_KEY, near: 1, literal: 1 }],
     });
-    expect(things('key', () => false)).toEqual({ found: 'unfit' });
+    expect(things('key', () => false)).toEqual({
+      found: 'unfit',
+      things: [
+        { id: BRASS_KEY, near: 0, literal: 1 },
+        { id: IRON_KEY, near: 1, literal: 1 },
+      ],
+    });
     expect(things('zebra', () => true)).toEqual({ found: 'nothing' });
   });
 });
