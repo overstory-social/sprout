@@ -91,4 +91,42 @@ describe('a session with a server', () => {
     await session.type('look');
     expect(shows(session, 'Not connected: /reconnect to connect again, or /quit.')).toBe(true);
   });
+
+  it('tells the visitor a connection lost, and answers a `/reconnect` that cannot connect in words', async () => {
+    server = await serving();
+    const session = await connected(server, 'Marta');
+    await until(session, () => session.state.world !== null);
+    // The server's socket closed under the client, with no `bye`.
+    (
+      server.context as unknown as { worlds: Map<string, { connections: Set<{ close(): void }> }> }
+    ).worlds
+      .get('sequences')!
+      .connections.forEach((connection) => connection.close());
+    await until(session, () =>
+      shows(
+        session,
+        'The connection to the server was lost: /reconnect to connect again, or /quit.',
+      ),
+    );
+    await server.close();
+    server = null;
+    expect(await session.type('/reconnect')).toBe(true);
+    expect(session.state.lines.at(-1)!.text).toMatch(
+      /^Cannot connect to 127\.0\.0\.1:\d+: .*: \/reconnect to try again, or \/quit\.$/,
+    );
+  });
+
+  it('says so where lines typed while coming in are not sent, its nickname refused', async () => {
+    server = await serving();
+    const marta = await connected(server, 'Marta');
+    await until(marta, () => marta.state.world !== null);
+    const other = await connected(server, 'Marta');
+    await other.type('look');
+    await until(other, () =>
+      other.state.lines.some((line) => line.text.startsWith('Type another nickname.')),
+    );
+    expect(shows(other, 'Type another nickname. The line typed meanwhile was not sent.')).toBe(
+      true,
+    );
+  });
 });

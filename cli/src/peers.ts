@@ -15,8 +15,9 @@ async function peer<T>(
   try {
     return await load();
   } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code !== 'ERR_MODULE_NOT_FOUND') throw error;
+    // Only the peer itself missing is its not being installed; a package it needs missing is its defect.
+    const { code, message } = error as { code?: string; message?: string };
+    if (code !== 'ERR_MODULE_NOT_FOUND' || !message?.includes(`'${name}'`)) throw error;
     io.stderr.write(
       `sprout: \`${command}\` needs ${name}, which is not installed: npm install ${name}\n`,
     );

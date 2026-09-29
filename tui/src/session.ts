@@ -68,7 +68,14 @@ export class Session {
       closed: () => {
         if (opened === null || this.connection !== opened) return;
         this.connection = null;
-        if (this.state.closed === null) this.change({ ...this.state, world: null, closed: 'lost' });
+        if (this.state.closed === null) {
+          const lost = add(
+            this.state,
+            'client',
+            'The connection to the server was lost: /reconnect to connect again, or /quit.',
+          );
+          this.change({ ...lost, world: null, closed: 'lost' });
+        }
       },
     });
     this.connection = opened;
@@ -101,7 +108,15 @@ export class Session {
           return true;
         case 'reconnect':
           this.connection?.close();
-          await this.open();
+          try {
+            await this.open();
+          } catch (error) {
+            const words = error instanceof Error ? error.message : String(error);
+            this.change({
+              ...add(this.state, 'client', `${words}: /reconnect to try again, or /quit.`),
+              closed: 'lost',
+            });
+          }
           return true;
         case 'quit':
           if (this.state.world !== null) this.connection?.send({ t: 'leave' });
@@ -178,8 +193,13 @@ export class Session {
     }
     if (message.t === 'refused' && message.stage === 'admit') {
       this.admitting = false;
+      const dropped = this.waiting.length;
       this.waiting = [];
-      this.change(add(this.state, 'client', 'Type another nickname.'));
+      const unsent =
+        dropped === 0
+          ? ''
+          : ` ${dropped === 1 ? 'The line' : `The ${dropped} lines`} typed meanwhile ${dropped === 1 ? 'was' : 'were'} not sent.`;
+      this.change(add(this.state, 'client', `Type another nickname.${unsent}`));
     }
     if (message.t === 'admitted') {
       this.admitting = false;

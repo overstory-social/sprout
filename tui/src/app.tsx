@@ -10,7 +10,8 @@ import { statusWords, visible, type Line } from './state.js';
 // the status line at the bottom, the place then its ways out; and the
 // input line under it, with the lines typed before on up and down, tab
 // completing from what the world offers, and a popup of the client's own
-// commands while a `/` is being typed.
+// commands while a `/` is being typed. A host record is shown as it arrives
+// where its level is shown then.
 
 /** How each kind of line is shown. */
 const STYLE: Readonly<
@@ -66,7 +67,18 @@ export function App({ session }: { readonly session: Session }) {
     if (input !== '' && !key.ctrl && !key.meta) setDraft(now + input);
   });
 
-  const lines = visible(session.state.lines, session.shown).map((line, at) => ({ ...line, at }));
+  // The transcript only grows: each line is shown or not as it arrives, so `/log` changes what comes after it.
+  const printed = useRef<{ seen: number; lines: (Line & { at: number })[] }>({
+    seen: 0,
+    lines: [],
+  }).current;
+  const all = session.state.lines;
+  for (; printed.seen < all.length; printed.seen++) {
+    const line = all[printed.seen]!;
+    if (visible([line], session.shown).length > 0)
+      printed.lines.push({ ...line, at: printed.seen });
+  }
+  const lines = [...printed.lines];
   const popup = draft.startsWith('/')
     ? CLIENT_COMMANDS.filter((one) => `/${one.name}`.startsWith(draft.split(' ')[0]!))
     : [];
