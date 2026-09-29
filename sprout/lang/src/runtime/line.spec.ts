@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { host, MARTA, played, workshop } from '../fixtures/workshop.js';
+import { CHEST, host, MARTA, played, workshop, WORKSHOP } from '../fixtures/workshop.js';
 import { commandTurn, type Command } from './command.js';
 import { partsOf, runLine } from './line.js';
 
@@ -39,6 +39,27 @@ describe('the turns a line runs', () => {
       ['take pin', 7],
       ['drop pin', 21],
     ]);
+  });
+
+  it('are read from their words, none carrying a step the caller planned', () => {
+    const planned = {
+      verb: WORKSHOP.verbs.qualified('sprout', 'look')!,
+      actor: CHEST,
+      bindings: new Map(),
+    };
+    const seen: Command[] = [];
+    let state = workshop();
+    runLine(
+      { visit: MARTA, text: 'look. look', seed: 7, mayHold: null, now: 0, planned },
+      (command) => {
+        seen.push(command);
+        const turn = commandTurn(state, host(), command);
+        if (turn.committed) state = turn.state;
+        return turn;
+      },
+      () => 8,
+    );
+    expect(seen.map((one) => 'planned' in one)).toEqual([false, false]);
   });
 
   it('stop at a refusal, keeping what ran before it', () => {

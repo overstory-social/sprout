@@ -16,6 +16,7 @@ import {
   wakeTurn,
   commandTurn,
   runLine,
+  SEED_MAX,
   type Bundle,
   type CommandHost,
   type Effect,
@@ -246,10 +247,14 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
   return [faultLine(stage, 'the departure', left.fault)];
 }
 
-/** `Marta> take brass key`: every command turn the line runs, each seeded as the stage seeds a turn. */
+/**
+ * `Marta> take brass key`: every command turn the line runs, the first
+ * seeded as the stage seeds a turn and each after it with the next seed.
+ */
 function command(stage: Stage, nickname: string, text: string, where: string): Made[] {
   const visit = present(stage, nickname, where);
   const out: Made[] = [];
+  let seed = stage.seed;
   runLine(
     { ...inputs(stage), visit, text },
     (typed) => {
@@ -272,7 +277,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
       }
       return turn;
     },
-    () => inputs(stage).seed,
+    () => (seed = (seed + 1) % (SEED_MAX + 1)),
   );
   return out;
 }

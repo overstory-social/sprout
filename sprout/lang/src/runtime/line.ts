@@ -28,14 +28,16 @@ export function* commandsOfLine(
   command: Command,
   seed: () => number,
 ): Generator<Command, void, CommandTurn> {
+  // Each command is made afresh, so none carries a step the caller planned.
+  const { visit, mayHold, now } = command;
   let first = true;
   for (const text of partsOf(command.text)) {
-    let turn = yield { ...command, text, seed: first ? command.seed : seed() };
+    let turn = yield { visit, text, mayHold, now, seed: first ? command.seed : seed() };
     first = false;
     const next = turn.committed && 'next' in turn.value ? turn.value.next : [];
     for (const planned of next) {
       if (!lineGoesOn(turn)) return;
-      turn = yield { ...command, text, seed: seed(), planned };
+      turn = yield { visit, text, mayHold, now, seed: seed(), planned };
     }
     if (!lineGoesOn(turn)) return;
   }
