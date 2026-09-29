@@ -185,7 +185,15 @@ export const ServerMessage = z.discriminatedUnion('t', [
       text: named,
     })
     .strict(),
-  z.object({ t: z.literal('effects'), seq: seq.nullable(), effects: z.array(SentEffect) }).strict(),
+  z
+    .object({
+      t: z.literal('effects'),
+      seq: seq.nullable(),
+      /** Whether this is the last of the turns the line with `seq` ran; true for effects nobody asked for. */
+      last: z.boolean(),
+      effects: z.array(SentEffect),
+    })
+    .strict(),
   z.object({ t: z.literal('view'), seq: seq.nullable(), view: SentView }).strict(),
   z.object({ t: z.literal('status'), place: text, exits: z.array(Exit) }).strict(),
   z.object({ t: z.literal('offered'), lines: z.array(text) }).strict(),

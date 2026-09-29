@@ -141,7 +141,7 @@ describe('a frame', () => {
         reason: 'failed',
         text: 'The server could not finish answering that. What it did before it failed stands.',
       },
-      { t: 'effects', seq: 4, effects: [] },
+      { t: 'effects', seq: 4, last: true, effects: [] },
     ]);
     expect((made.log as unknown as { lines: string[] }).lines.at(-1)).toContain(
       'a frame could not be answered: Error: the disk is gone',

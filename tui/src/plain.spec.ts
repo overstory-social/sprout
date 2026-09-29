@@ -44,8 +44,9 @@ describe('the client as plain lines', () => {
     const input = new PassThrough();
     let written = '';
     const played = playPlain(session, input, { write: (text: string) => (written += text) });
-    input.end('take key\ntake coin\n');
+    input.end('take key then take coin\n');
     await played;
+    // Every turn of a line of several commands is answered before the visitor leaves.
     expect(written).toContain('You take a key.');
     expect(written).toContain('You take a coin.');
   });
