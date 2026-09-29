@@ -65,7 +65,7 @@ import { typedWords } from '../declare/addressing.js';
 import { addressOf } from './parser/address.js';
 import { answersTo } from './parser/nouns.js';
 import { declaredId, type InstanceId } from './ids.js';
-import type { Bound } from './reading.js';
+import type { Bound, Reading } from './reading.js';
 
 /** A reading as a case compares it: the verb by library and name, and each role's filler. */
 function understood(outcome: CommandOutcome): { verb: string; bindings: Record<string, Bound> } {
@@ -898,5 +898,46 @@ describe('`again`', () => {
   it('is `not_here` where a thing it binds is out of reach, and `unknown` with no last reading', () => {
     expect(answered(read('again', COIN)).answer).toBe('not_here');
     expect(answered(read('again', null)).answer).toBe('unknown');
+  });
+});
+
+describe('`again`, where the verb has changed since', () => {
+  const unlock = STUDY.verbs.qualified('study', 'unlock')!;
+  const juggle = STUDY.verbs.qualified('study', 'juggle')!;
+  const read = (last: Reading) => {
+    const one = study();
+    return readCommand('again', one.people[0]!, {
+      ...commandContext(one),
+      lastReading: { ...last, actor: one.people[0]! },
+    });
+  };
+
+  it('is `unknown` where a binding no longer fits the verb, and a reading that fits still runs', () => {
+    const actor = study().people[0]!;
+    const fitting: Reading = {
+      verb: unlock,
+      actor,
+      bindings: new Map([
+        ['target', { object: DOOR }],
+        ['tool', { object: BRASS_KEY }],
+      ]),
+    };
+    expect(understood(read(fitting)).verb).toBe('study.unlock');
+    for (const bindings of [
+      // A role the verb no longer has.
+      new Map([['lid', { object: DOOR }]]),
+      // A thing no longer of the role's kind.
+      new Map([['target', { object: GONG }]]),
+      // A set where the role takes one thing.
+      new Map([['target', { set: [DOOR] }]]),
+      // A role that is not optional, unbound.
+      new Map<string, Bound>(),
+    ]) {
+      expect(answered(read({ verb: unlock, actor, bindings })).answer).toBe('unknown');
+    }
+    expect(
+      answered(read({ verb: juggle, actor, bindings: new Map([['things', { object: GONG }]]) }))
+        .answer,
+    ).toBe('unknown');
   });
 });

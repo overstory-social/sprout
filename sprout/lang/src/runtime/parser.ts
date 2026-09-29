@@ -46,7 +46,7 @@ import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
-import { writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
+import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
@@ -227,7 +227,9 @@ function again(
   candidates: readonly Candidate[],
   context: CommandContext,
 ): CommandOutcome {
-  if (last === null) return answer(context.state, 'unknown', actor, here);
+  if (last === null || !stillFits(last, context.state)) {
+    return answer(context.state, 'unknown', actor, here);
+  }
   const reached = new Set(candidates.map((one) => one.instance.id));
   const inReach = [...last.bindings.values()].every((bound) => {
     if ('object' in bound) return reached.has(bound.object);
@@ -242,6 +244,43 @@ function again(
   });
   if (!inReach) return answer(context.state, 'not_here', actor, here);
   return { understood: { ...last, actor }, drawn: null, pronounNamed: [] };
+}
+
+/**
+ * Whether `reading` is still one its verb takes: each binding names one of
+ * its roles and fills it with what that role takes, each thing still of
+ * the role's kind, and every role a thing or a way out fills that is not
+ * optional is bound. A reading
+ * kept from before may not be, where the verb's roles have changed since.
+ */
+function stillFits(reading: Reading, state: StateReader): boolean {
+  const { roles } = reading.verb;
+  for (const [name, bound] of reading.bindings) {
+    const role = roles.find((one) => one.name === name);
+    const fills = role?.filler?.fills;
+    if (role === undefined || fills === undefined) return false;
+    const thing = (id: InstanceId): boolean => {
+      const instance = state.instance(id);
+      return instance !== undefined && fits(role, instance);
+    };
+    const fitting =
+      'object' in bound
+        ? !role.many && thing(bound.object)
+        : 'set' in bound
+          ? role.many && bound.set.every(thing)
+          : 'exit' in bound
+            ? fills === 'exit'
+            : fills === 'symbol'
+              ? typeof bound.value === 'string'
+              : fills === 'integer' && typeof bound.value === 'number';
+    if (!fitting) return false;
+  }
+  // A value role is bound only where a participant hears its value, so it may be unbound.
+  return roles.every((role) => {
+    const fills = role.filler?.fills;
+    const value = fills === 'symbol' || fills === 'integer';
+    return role.optional || value || reading.bindings.has(role.name);
+  });
 }
 
 /** One slot's part in one reading: what it binds and how near and literally, or a value role's words. */
