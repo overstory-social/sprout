@@ -76,7 +76,7 @@ interface EffectParts {
   readonly visit: VisitKey;
   /** The words, rendered for this reader, one string to a paragraph. */
   readonly paragraphs: readonly string[];
-  /** Every passage and one-line passage rendered into them, in the order first rendered, each once. */
+  /** Every passage and one-line passage that gave them words, each once, a passage after any it holds. */
   readonly written: readonly WrittenAt[];
 }
 

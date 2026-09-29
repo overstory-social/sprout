@@ -52,7 +52,7 @@ export interface RenderContext extends Naming {
    * anyone else's cuts them short (`output.ts`). Null where nobody acted.
    */
   readonly actor: InstanceId | null;
-  /** Where a write turn's rendering notes each passage and one-line passage it renders; absent in a poll. */
+  /** Where a write turn's rendering notes each passage and one-line passage that gave its reader words; absent in a poll. */
   readonly written?: WrittenAt[];
 }
 
@@ -208,10 +208,14 @@ function passageOf(
     if (bound !== undefined) bindings.set(carried, bound);
   }
   const voice = { self: owner.id, library: libraryOf(passage.origin), bindings };
-  noteWritten(context, passageWritten(passage));
+  const from = out.length;
   context.budget.passage(() => {
     pieces(passage.body.prose, frameOf(voice, context, frame.draws ?? null), reader, context, out);
   });
+  // Noted only where it gave its reader words to read.
+  if (out.slice(from).some((one) => 'words' in one && one.words.trim() !== '')) {
+    noteWritten(context, passageWritten(passage));
+  }
 }
 
 /**

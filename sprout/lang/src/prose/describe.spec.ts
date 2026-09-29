@@ -87,6 +87,8 @@ describe('a description, rendered', () => {
       renderingIn(state),
     );
     expect(heard.paragraphs).toEqual(['It hangs from a hook.']);
+    // The line that rendered nothing gave its reader no words, so it is not where they were written.
+    expect(heard.written).toEqual([{ line: 'lamp.sprout:6:11' }]);
   });
 
   it('renders the same with no draws, as a poll does, and with a write turn’s', () => {

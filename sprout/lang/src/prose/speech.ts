@@ -55,7 +55,6 @@ export function renderedFor(
   if ('absent' in said) return [];
   // An extension's effect reads, on a text client, as its transcript line.
   if ('recorded' in said) return [said.recorded.transcript];
-  noteWritten(context, 'passage' in said ? passageWritten(said.passage) : lineWritten(said.prose));
   const draws = context.draws?.of(drawn) ?? null;
   const rendered =
     'passage' in said
@@ -75,5 +74,13 @@ export function renderedFor(
           context,
           draws,
         );
-  return reflow(rendered);
+  const paragraphs = reflow(rendered);
+  // Noted only where it gave its reader words to read, after any passage it holds.
+  if (paragraphs.length > 0) {
+    noteWritten(
+      context,
+      'passage' in said ? passageWritten(said.passage) : lineWritten(said.prose),
+    );
+  }
+  return paragraphs;
 }

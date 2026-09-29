@@ -50,8 +50,9 @@ describe('what a playthrough reached', () => {
         line: null,
       },
     ]);
-    // One unread line of seven typed.
-    expect(report.reading.rate).toBe(0.14);
+    // One unread line, and one refused, of seven typed.
+    expect(report.reading.unreadRate).toBe(0.14);
+    expect(report.reading.refusedRate).toBe(0.14);
   });
 
   it('gives every fault in full, with the step whose turn it ended', () => {
@@ -111,6 +112,37 @@ describe('what a playthrough reached', () => {
   });
 });
 
+describe('what a turn that faulted reached', () => {
+  it('is only the words it told of the fault: no thing, verb, handler or passage of what it did', () => {
+    const report = reportOf(kilnYard, [run('@arrive Marta\nMarta> kick kiln')]);
+    expect(report.faults.map((fault) => fault.name)).toEqual(['IntegerOverflow']);
+    expect(report.reach.objects.reached).toEqual([]);
+    expect(report.reach.verbs.reached).toEqual([]);
+    expect(report.reach.handlers.reached).toEqual([]);
+    // What the arrival read, and not the `say "Clang."` the kick never finished.
+    expect(report.reach.passages.reached).toEqual(['yard.sprout:2:20 "A kiln yard."']);
+  });
+});
+
+describe('a passage that printed nothing', () => {
+  it('was not seen, and counts as never reached', () => {
+    const quiet = bundleOf('kiln_yard', {
+      ...KILN_YARD,
+      'yard.sprout': `kind Yard is sprout.Place {
+  :lit false
+  describe { text lamp  text "A kiln yard." }
+  passage lamp { {if self.get(:lit)}A lamp burns.{/if} }
+  on :tick { tell "{one of}Smoke drifts.{or}The air is still.{/one of}" }
+}
+`,
+    });
+    const played = playSteps(quiet, scriptOf('@arrive Marta\nMarta> look'), 'yard.json');
+    const report = reportOf(quiet, [{ name: 'yard.json', played }]);
+    expect(report.reach.passages.never).toContain('kiln_yard.Yard.lamp (yard.sprout:4:11)');
+    expect(report.reach.passages.reached).toContain('yard.sprout:3:31 "A kiln yard."');
+  });
+});
+
 describe('what several playthroughs reached', () => {
   it('is their union, each step named by its own script', () => {
     const inside = run('@arrive Ines\nInes> look\n@seed 7\nInes> go in\n@tick', 'shed.json');
@@ -131,7 +163,13 @@ describe('what several playthroughs reached', () => {
 
   it('reaches nothing and misreads nothing over no scripts at all', () => {
     const report = reportOf(kilnYard, []);
-    expect(report.reading).toEqual({ typed: 0, unread: [], refused: [], rate: 0 });
+    expect(report.reading).toEqual({
+      typed: 0,
+      unread: [],
+      refused: [],
+      unreadRate: 0,
+      refusedRate: 0,
+    });
     expect(report.reach.places.reached).toEqual([]);
     expect(report.reach.passages.never).toHaveLength(report.reach.passages.declared);
   });

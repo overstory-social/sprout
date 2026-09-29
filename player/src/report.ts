@@ -22,11 +22,12 @@ import { catalogueFor, pathOf } from './stand.js';
 // manifest lists them; verbs count every verb a visitor may type, the
 // engine's and the standard library's among them.
 //
-// A passage is reached when a turn rendered it for someone, whether or
-// not a branch of it printed anything; a one-line passage, a string given
-// to `say`, `tell`, `text` or `refuse`, is known by where it stands. A turn
-// that faulted is reported in full and reaches nothing, since what it did
-// was abandoned.
+// A passage is reached when someone read what it rendered: one whose
+// every branch printed nothing for its reader was not seen, and counts as
+// never. A one-line passage, a string given to `say`, `tell`, `text` or
+// `refuse`, is known by where it stands. A turn that faulted is reported
+// in full and reaches only the words it told of the fault, since what it
+// did was undone.
 
 /** One script played, by the name its steps are reported under. */
 export interface PlayedRun {
@@ -82,8 +83,10 @@ export interface Report {
     readonly unread: readonly Misread[];
     /** Lines read, and refused in the consent pass. */
     readonly refused: readonly Misread[];
-    /** Unread lines as a share of those typed, to two places; 0 where none were. */
-    readonly rate: number;
+    /** Unread lines as a share of those typed, to two places; 0 where none were typed. */
+    readonly unreadRate: number;
+    /** Refused lines as a share of those typed, likewise. */
+    readonly refusedRate: number;
   };
   readonly faults: readonly ReportedFault[];
   readonly reach: {
@@ -280,7 +283,8 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
       typed,
       unread,
       refused,
-      rate: typed === 0 ? 0 : Math.round((unread.length / typed) * 100) / 100,
+      unreadRate: share(unread.length, typed),
+      refusedRate: share(refused.length, typed),
     },
     faults,
     reach: {
@@ -292,6 +296,11 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
     },
     repetition: [...repeats(lines, 'line'), ...repeats(answers, 'answer')],
   };
+}
+
+/** `part` of `whole`, to two places; 0 of nothing. */
+function share(part: number, whole: number): number {
+  return whole === 0 ? 0 : Math.round((part / whole) * 100) / 100;
 }
 
 /** What a command turn said to the one who typed it. */
