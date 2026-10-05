@@ -1220,7 +1220,7 @@ Readings are ranked whole, never one noun at a time, so a hint in one role can d
 
 1. A reading whose consent pass allows beats one whose consent pass refuses.
 2. Of those, the one that matched more of the line's words literally — phrase words and nouns rather than adjectives alone — wins.
-3. Of those, nearer things beat further ones, as Spawning measures nearness.
+3. Of those, nearer things beat further ones, as Spawning measures nearness, except that the visitor's own place is further than everything it holds, as `all` leaves it out: it is named only where nothing in it answers as well.
 
 Readings still tied are drawn from the turn's seed, and the draw is logged as a warning. Where the drawn reading names a thing its rivals did not, the visitor is told which, through the world's `meant` line, "(the wooden rib)", before what the reading says; things written alike, which no word could tell apart, are drawn without it. The parser never asks which was meant.
 

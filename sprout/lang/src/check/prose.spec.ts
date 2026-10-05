@@ -170,6 +170,18 @@ describe('a condition compares, narrows, and tests identity', () => {
     expect(said).toEqual([]);
   });
 
+  it('narrows a thing with `is()` on the left of `&&`, for its right and the branch it guards', () => {
+    expect(
+      checked(
+        '{if target.is(Vessel) && target.get(:capacity) > 1}{target.get(:capacity)}{/if}',
+        vessel(),
+      ).said,
+    ).toEqual([]);
+    expect(
+      checked('{if target.get(:capacity) > 1 && target.is(Vessel)}x{/if}', vessel()).said[0],
+    ).toMatch(/^Sprout does not know what this is/);
+  });
+
   it('refuses a condition that is not true or false', () => {
     expect(checked('{if self.count}x{/if}', vessel()).said).toEqual([
       'A condition is true or false, and this is integer. Compare it, as in `self.get(:wear) >= 99`, or narrow it with `is()`.',
