@@ -28,8 +28,10 @@ const CAPS = DEFAULT_LIMITS.caps;
  * a crate holding an apple and two ribs, whose description reads `seen`
  * through a passage it renders, a brass key, an oak door, and an
  * echo whose `ring` renders itself, whose `call`, `calls` and `toss`
- * draw, whose `nearby` narrows the `press` nearest it, and whose `heard`
- * and `faded` render its padded `short` and its two-paragraph `long`.
+ * draw, whose `nearby` narrows the `press` nearest it, whose `pathed`
+ * names the crate and a rib in it by their paths from the world, and
+ * whose `heard` and `faded` render its padded `short` and its
+ * two-paragraph `long`.
  */
 export const MILL: Bundle = compiledWorld('mill', {
   'mill.sprout': [
@@ -80,6 +82,7 @@ export const MILL: Bundle = compiledWorld('mill', {
     '  passage toss { {if chance(2)}Heads{else}Tails{/if}, and {self.call} }',
     '  passage hum { {one of}Hmm{/one of}, {actor}. }',
     '  passage nearby { {if press.is(Press)}{press.get(:label)}{else}no press{/if} }',
+    '  passage pathed { {mill.yard.crate} holds {mill.yard.crate.count}, {mill.yard.crate.rib.short} first }',
     '  passage short {  an echo  }',
     '  passage long {',
     '',

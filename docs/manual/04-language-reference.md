@@ -393,7 +393,12 @@ no spaces round the dots. The first step is a name you can see; each
 next step is declared inside the one before: `bedroom.wardrobe`,
 `composing_room.paper_store`. The world's own name may start a path from
 anywhere: `printers_shop.lamp` is the lamp directly in the world, even
-where something nearer is also called `lamp`.
+where something nearer is also called `lamp`. A path goes wherever a name
+does, in an expression and in a passage alike:
+`kiln.shelf.count`, `each pot in kiln.shelf { … }`, `{for t in kiln.shelf}`.
+After a name, a word is a step of a path when it names something declared
+inside the step before; otherwise it is a reading, such as `count`, or in a
+slot one of the thing's passages.
 
 If an object has the same identifier as one further out, it hides the
 outer one inside itself, and the compiler warns you and tells you the path
@@ -405,7 +410,8 @@ wherever the instance running it is standing. Two lamps of one kind may
 therefore reach different objects by the same name. The compiler still
 refuses a name that no object in the world declares, and treats what such
 a name reaches as the object type (see [Types](#the-types)), so you must
-narrow it with `is()` before reading its properties.
+narrow it with `is()` before reading its properties. A dotted path there
+narrows the same way: `if (cellar.shelf.is(Shelf)) { … cellar.shelf.count … }`.
 
 ### Nicknames
 

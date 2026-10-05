@@ -6,30 +6,39 @@
 // since `&&` reads its right only where its left held; any other operator
 // says nothing about its operands.
 
-import type { BinaryExpr, Expr } from '../../syntax/ast.js';
+import { writtenMembers, type BinaryExpr, type Expr } from '../../syntax/ast.js';
 import { isObjectBinding, type Binding, type ObjectBinding, type Scope } from '../bindings.js';
 import type { KindRef } from '../../declare/kinds.js';
-import { placedBinding } from '../names.js';
+import { isMemberPath, placedBinding } from '../names.js';
 import { resolveKind } from './arguments.js';
 import type { CheckContext } from './checker.js';
 
 /**
  * `x.is(K)` written as one operand — what it narrows: an object binding,
- * or a name in a kind's body that the run resolves, which the branch then
- * binds. Null for anything else.
+ * or a name or a dotted path in a kind's body that the run resolves,
+ * which the branch then binds by its text. Null for anything else.
  */
 export function narrowingOf(
   expr: Expr,
   context: CheckContext,
 ): { readonly binding: ObjectBinding; readonly kind: KindRef } | null {
   if (expr.kind !== 'call' || expr.method.text !== 'is') return null;
-  if (expr.receiver.kind !== 'binding' || expr.arguments.length !== 1) return null;
+  if (expr.arguments.length !== 1) return null;
+  const receiver = expr.receiver;
+  const written =
+    receiver.kind === 'binding'
+      ? receiver.name
+      : receiver.kind === 'member' && isMemberPath(receiver, context)
+        ? receiver
+        : null;
+  if (written === null) return null;
+  const name = written.kind === 'ident' ? written.text : writtenMembers(written);
   const binding =
-    context.scope.lookup(expr.receiver.name.text) ?? placedBinding(expr.receiver.name, context);
+    (name === null ? null : context.scope.lookup(name)) ?? placedBinding(written, context);
   if (binding === null || !isObjectBinding(binding)) return null;
-  const written = expr.arguments[0]!;
-  if (written.kind !== 'kind-expr') return null;
-  const kind = resolveKind(written, context);
+  const kindWritten = expr.arguments[0]!;
+  if (kindWritten.kind !== 'kind-expr') return null;
+  const kind = resolveKind(kindWritten, context);
   return kind === null ? null : { binding, kind };
 }
 

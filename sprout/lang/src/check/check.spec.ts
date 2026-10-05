@@ -180,6 +180,18 @@ describe('it never guesses, and never dies', () => {
     expect(shapeOf(long, context)).toBeNull();
   });
 
+  it('takes a dotted path off the bottom of a spine as one object, and types upward from it', () => {
+    const source = nameSource();
+    const context: CheckContext = {
+      ...bodyOf(VESSEL),
+      names: { source, vantage: { in: 'tree', path: [] }, world: null, table: new Map() },
+    };
+    expect(shapeOf('hall.bench.cushion.is(Vessel)', context)).toBe('boolean');
+    expect(shapeOf('hall.bench.count + 1', context)).toBe('integer');
+    // `count` on the bench is a reading, so the path ends before it.
+    expect(shapeOf('hall.bench.count.count', context)).toBeNull();
+  });
+
   it('says one thing about a chain, not one per term', () => {
     const context = bodyOf(VESSEL, letBinding('n', valueOf(integer()), at('n')));
     read('n + n + self.get(:inked) + n', context);

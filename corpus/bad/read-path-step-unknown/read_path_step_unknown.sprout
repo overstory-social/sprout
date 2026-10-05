@@ -1,0 +1,17 @@
+// A dotted path read in an expression names each step in the body of the
+// one before, as a `send`'s does. A step nothing there answers to, before
+// the reading written on it, is a misspelt step rather than a reading.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world read_path_step_unknown is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object shelf is Shelf { object lamp is Lamp }
+  }
+}
+
+kind Shelf { contains }
