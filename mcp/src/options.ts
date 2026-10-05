@@ -1,3 +1,5 @@
+import { SEED_MAX } from '@overstory/sprout/lang';
+
 import type { Listen } from './serve.js';
 import type { SessionOptions } from './session.js';
 
@@ -5,6 +7,8 @@ import type { SessionOptions } from './session.js';
 // host-side settings (`--seed`, `--record`, `--turn-cap`,
 // `--advance-per-turn`) and where to serve (`--http host:port`, stdio
 // otherwise). Each is refused in words that say what to write instead.
+// With no `--seed`, a session is seeded from the clock, so live play
+// draws differently each time; the seed is recorded, so it replays.
 
 /** Flags as the command line reads them: `--name value`, or `--name` alone. */
 export type Flags = Readonly<Record<string, string | true>>;
@@ -40,9 +44,13 @@ function whole(flags: Flags, name: string, least: number, example: string): numb
   return Number(value);
 }
 
-/** What the host sets for the session, read from `flags`. */
-export function sessionOptions(flags: Flags): SessionOptions {
-  const seed = whole(flags, 'seed', 0, '7');
+/** What the host sets for the session, read from `flags`; the seed, where none is given, from `now` in milliseconds. */
+export function sessionOptions(flags: Flags, now: () => number = Date.now): SessionOptions {
+  const given = whole(flags, 'seed', 0, '7');
+  if (given !== undefined && given > SEED_MAX) {
+    throw new Error(`--seed wants a whole number from 0 to ${SEED_MAX}: --seed 7`);
+  }
+  const seed = given ?? now() % (SEED_MAX + 1);
   const turnCap = whole(flags, 'turn-cap', 1, '200');
   const record = flags['record'];
   if (record === true) throw new Error('--record wants a file after it: --record run.json');
@@ -56,7 +64,7 @@ export function sessionOptions(flags: Flags): SessionOptions {
     advancePerTurn = seconds;
   }
   return {
-    ...(seed === undefined ? {} : { seed }),
+    seed,
     ...(record === undefined ? {} : { record }),
     ...(turnCap === undefined ? {} : { turnCap }),
     ...(advancePerTurn === undefined ? {} : { advancePerTurn }),

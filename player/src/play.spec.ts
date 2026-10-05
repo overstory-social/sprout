@@ -141,6 +141,67 @@ describe('playScript', () => {
     );
   });
 
+  it('gives each place a tick reaches a turn of its own, seeded after the one before it', () => {
+    // The shed ticks as the yard does, so a shared seed would make both say the same.
+    const twoYards = bundleOf('kiln_yard', {
+      ...KILN_YARD,
+      'kiln_yard.sprout': KILN_YARD['kiln_yard.sprout']!.replace(
+        'object shed is sprout.Place {',
+        'object shed is Yard {',
+      ),
+    });
+    const told = (seed: number) =>
+      transcriptOf(
+        playScript(
+          twoYards,
+          scriptOf(`@arrive Marta\n@arrive Ines\nInes> go in\n@seed ${seed}\n@tick\n`),
+          'yards.json',
+        ),
+      )
+        .split('@tick\n')[1]!
+        .trim()
+        .split('\n')
+        .map((line) => line.replace(/^\s*\w+ \(told\): /, ''));
+    const differ = [0, 1, 2, 3, 4, 5, 6, 7].filter((seed) => {
+      const [first, second] = told(seed);
+      return first !== second;
+    });
+    expect(differ.length).toBeGreaterThan(0);
+  });
+
+  it('gives each wake an advance delivers a turn of its own, seeded after the one before it', () => {
+    // Two kilns fired together wake together, and each draws one of two lines as it cools.
+    const twoKilns = bundleOf('kiln_yard', {
+      ...KILN_YARD,
+      'kiln_yard.sprout': KILN_YARD['kiln_yard.sprout']!.replace(
+        'object kiln is Kiln',
+        'object kiln is Kiln\n    object oven is Kiln',
+      ),
+      'kiln.sprout': KILN_YARD['kiln.sprout']!.replace(
+        'tell "The kiln ticks as it cools."',
+        'tell "{one of}It ticks as it cools.{or}It sighs as it cools.{/one of}"',
+      ),
+    });
+    const told = (seed: number) =>
+      transcriptOf(
+        playScript(
+          twoKilns,
+          scriptOf(
+            `@arrive Marta\nMarta> fire kiln\nMarta> fire oven\n@seed ${seed}\n@advance 2 hours\n`,
+          ),
+          'kilns.json',
+        ),
+      )
+        .split('\n')
+        .filter((line) => line.includes('as it cools.'));
+    const differ = [0, 1, 2, 3, 4, 5, 6, 7].filter((seed) => {
+      const [first, second] = told(seed);
+      expect(second, `seed ${seed}: both kilns wake`).toBeDefined();
+      return first !== second;
+    });
+    expect(differ.length).toBeGreaterThan(0);
+  });
+
   it('refuses a nickname the world’s words collide with, admitting nobody', () => {
     const page = play('@arrive kiln\n');
     expect(page).toMatch(/^@arrive kiln\n {2}nickname refused: /);

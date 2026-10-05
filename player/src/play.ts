@@ -378,11 +378,17 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
   return out;
 }
 
-/** `@tick`: one tick turn for each place a visitor stands in, in the host's order. */
+/**
+ * `@tick`: one tick turn for each place a visitor stands in, in the host's
+ * order, the first seeded as the stage seeds a turn and each after it with
+ * the next seed.
+ */
 function tick(stage: Stage): Made[] {
   const out: Made[] = [];
+  let seed = stage.seed;
   for (const place of occupiedPlaces(stage.state)) {
-    const turn = tickTurn(stage.state, stage.host, { ...inputs(stage), place });
+    const turn = tickTurn(stage.state, stage.host, { ...inputs(stage), seed, place });
+    seed = (seed + 1) % (SEED_MAX + 1);
     if ('unoccupied' in turn) continue;
     if (!turn.committed) {
       trace(stage, 'tick', { faults: [turn.fault] });
@@ -398,12 +404,14 @@ function tick(stage: Stage): Made[] {
 
 /**
  * `@advance 40 minutes`: time moves on, each wake delivered live at the
- * instant it falls due while anyone stands in the world; while nobody
- * does, wakes wait for the next arrival's catch-up.
+ * instant it falls due while anyone stands in the world, seeded as a
+ * tick's turns are; while nobody does, wakes wait for the next arrival's
+ * catch-up.
  */
 function advance(stage: Stage, seconds: number): Made[] {
   const until = stage.now + seconds;
   const out: Made[] = [];
+  let seed = stage.seed;
   while (occupiedPlaces(stage.state).length > 0) {
     const [next] = dueWakes(stage.state, until);
     if (next === undefined) break;
@@ -411,9 +419,11 @@ function advance(stage: Stage, seconds: number): Made[] {
     const woken = pathOf(stage.state.world, next.object);
     const turn = wakeTurn(stage.state, stage.host, {
       ...inputs(stage),
+      seed,
       object: next.object,
       serial: next.serial,
     });
+    seed = (seed + 1) % (SEED_MAX + 1);
     if ('unwoken' in turn) continue;
     if (!turn.committed) {
       stage.state = turn.consumed.state;
