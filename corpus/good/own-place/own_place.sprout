@@ -1,0 +1,15 @@
+// A place whose name shares a noun with something in it (the spec's
+// Parsing › Choosing a reading): the visitor's own place ranks below
+// everything it holds, so `x house` is the white house, and the place is
+// named only where nothing in it answers as well.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world own_place is sprout.World {
+  visitors are Person
+  visitors arrive at west_of_house
+
+  object west_of_house is sprout.Place {
+    object white_house is sprout.Fixture
+  }
+}
