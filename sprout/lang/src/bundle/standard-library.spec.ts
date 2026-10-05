@@ -141,7 +141,7 @@ describe('the standard library', () => {
     ]);
     expect(declared).toEqual([
       ['sprout/world.sprout', ['kind World']],
-      ['sprout/engine.sprout', [...ENGINE_VERBS.map((name) => `verb ${name}`), 'enum Seen']],
+      ['sprout/engine.sprout', ENGINE_VERBS.map((name) => `verb ${name}`)],
       ['sprout/place.sprout', ['kind Place']],
       [
         'sprout/actor.sprout',
@@ -156,16 +156,6 @@ describe('the standard library', () => {
       ],
       ['sprout/requires_held.sprout', ['kind RequiresHeld']],
       ['sprout/talk.sprout', ['verb ask']],
-    ]);
-  });
-
-  it('declares `Seen`, what a description is read for, as the spec’s Prose names its options', () => {
-    const engine = STANDARD_LIBRARY.files.find((file) => file.name === 'sprout/engine.sprout')!;
-    const seen = readFile(engine).declarations.find((d) => d.kind === 'enum');
-    expect(seen?.kind === 'enum' && seen.options.map((option) => option.name.text)).toEqual([
-      'look',
-      'arrival',
-      'poll',
     ]);
   });
 
@@ -545,7 +535,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '87c5e95a6a0c25031ab15dbd89dfc4932e984c9f4a78e677a6caae9c76714d93',
+      '994585fe4be10b2ae06eba58e7ffd8694cbd6c8895faa124fb626c6738a05b61',
     );
   });
 });

@@ -168,7 +168,7 @@ accept act actors allow any are arrive article as at bound broadcast
 carried changed connect contains default depart describe destroy do each else
 enum exit finally for from grammar hours if in kind let link many max
 message min minutes move name nouns of on optional pass passage permit
-prose refuse release remembers role say seconds seen send spawn tell text to
+prose refuse release remembers role say seconds send spawn tell text to
 verb visitors wake when with without world
 ```
 
@@ -1683,8 +1683,7 @@ describe {
 }
 ```
 
-`seen` is a reserved word, and a passage that reads it may only be said
-from a `describe`.
+A passage that reads `seen` may only be said from a `describe`.
 
 ### When lines are rendered
 

@@ -1,4 +1,0 @@
-verbs.sprout:1:17  `seen` is a word of the language, so it cannot name a role.
-                   Choose another word.
-
-refused: 1 problem

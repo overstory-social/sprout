@@ -211,7 +211,7 @@ export function hereBinding(here: HereKind, at: Span): Binding {
   return bind('here', { binds: 'object', kind: null, remedy }, 'here', at);
 }
 
-/** `seen`, in a describe — `sprout.Seen`: what it is being read for, a look, an arrival or a poll. */
+/** `seen`, in a describe — the engine's `Seen`: what it is being read for, a look, an arrival or a poll. */
 export function seenBinding(seen: DeclaredEnum, at: Span): Binding {
   return bind('seen', valueOf({ type: 'symbol', of: seen }), 'seen', at);
 }

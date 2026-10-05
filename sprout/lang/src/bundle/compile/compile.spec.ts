@@ -219,7 +219,6 @@ describe('what a compiled bundle carries', () => {
       'inventory',
       'wait',
       'help',
-      'Seen',
       'Place',
       'take',
       'drop',

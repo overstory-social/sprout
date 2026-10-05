@@ -652,7 +652,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `self` | the composed kind |
 | `actor` | `sprout.Actor`, a visitor or an NPC; anything more is read through `is()` |
 | `here` | the actor's place: `sprout.Place` where every kind in the world that holds actors composes it, else object |
-| `seen`, in a `describe` and the passages it invokes | `sprout.Seen`: `look`, `arrival` or `poll` |
+| `seen`, in a `describe` and the passages it invokes | symbol: one of `look`, `arrival` and `poll`, an option written bare, `seen == :look` |
 | `mover`, in a guard | object; whatever proposed the move |
 | a role | the kind or value type the verb declares; object if it declares none |
 | a set role | as above, as a set |
@@ -1159,7 +1159,7 @@ Everything else a visitor can do by default — `take`, `drop`, `put`, `give`, `
 
 ### Reserved names
 
-An authored message may not take the name of an engine message: `:spawned`, `:woke`, `:tick`, `:moved`, `:left`, `:entered`, `:arrived` or `:departed`. A world's verb may not take the name of an engine verb. `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` name members and are not available as message or verb names either. `seen` is what a `describe` binds, and is a reserved word so that it means that wherever it is read. A reserved word, listed under The compiler › Lexical rules, may not name an enum's option, a role, a `let` or any other binding.
+An authored message may not take the name of an engine message: `:spawned`, `:woke`, `:tick`, `:moved`, `:left`, `:entered`, `:arrived` or `:departed`. A world's verb may not take the name of an engine verb. `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` and `prose` name members and are not available as message or verb names either. A reserved word, listed under The compiler › Lexical rules, may not name an enum's option, a role, a `let` or any other binding.
 ## Parsing
 
 A visitor types English, and the world understands as much of it as its grammar can say, the same way every time. The grammar is closed and known when the world compiles: every phrase of every verb in the bundle and its libraries, every synonym, and every intent. Nothing here guesses, and what a host may do with a line the grammar cannot read is the host's, never the world's.
@@ -1392,7 +1392,7 @@ A **passage** is a named block of words belonging to a kind, for prose too long 
 
 `actor` and `here` are bound where a person is acting: in a role's `permit` and `do`, in `describe` — where the actor is whoever is looking — and in any passage those invoke. A handler, hook, tick or wake has no actor: it may `tell` the place, and it may `tell` a particular actor it has bound, but it has nobody to `say` to. The compiler enforces this exactly: a passage that renders `{actor}` may only be invoked from a body where `actor` is bound.
 
-A `describe` also binds `seen`, what it is being read for: `:look` where the reader typed `look` or `examine`, `:arrival` where a move carried them to the place, and `:poll` where their view is derived. It is read-only, it is given to any passage the `describe` invokes, and it is checked as `actor` is: a passage that reads `seen` may only be invoked where it is bound. A place that shows its name alone on a return visit and the whole of itself on `look` reads `seen` beside a counter it remembers per actor, as under Chance.
+A `describe` also binds `seen`, what it is being read for: `:look` where the reader typed `look` or `examine`, of anything, the place included; `:arrival` where they read it on arriving; and `:poll` where their view is derived. It is read-only, it is given to any passage the `describe` invokes, and it is checked as `actor` is: a passage that reads `seen` may only be invoked where it is bound. A place that shows its name alone on a return visit and the whole of itself on `look` reads `seen` beside a counter it remembers per actor, as under Chance.
 
 ### Passages
 
@@ -1795,7 +1795,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `seen`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -2067,9 +2067,6 @@ verb examine   { role target  "examine [target]"  "x [target]"  "look at [target
 verb inventory { "inventory"  "i"  "inv" }
 verb wait      { "wait"  "z" }
 verb help      { "help"  "?" }
-
-// what a describe is being read for, which it binds as `seen`
-enum Seen { look, arrival, poll }
 
 // sprout/place.sprout
 kind Place {

@@ -86,7 +86,6 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'role',
   'say',
   'seconds',
-  'seen',
   'send',
   'spawn',
   'tell',

@@ -4,13 +4,13 @@
 //
 // Inside, `self` is the thing described, `actor` whoever is looking,
 // typed as `sprout.Actor`, `here` their place, typed as a role's is, and
-// `seen` what it is being read for, typed as `sprout.Seen`.
-// A describe only reads,
-// as `blocks.ts` checks it: it gives its words with `text`, draws nothing,
-// and writes, sends, moves, spawns, says and tells nothing. One with no
-// `text` anywhere in it would be empty on a text client, and is refused;
-// one whose every `text` names a passage of a `.prose` file that is absent
-// is told to `emptied`, which refuses it at publish.
+// `seen` what it is being read for, typed as the engine's `Seen`. A
+// describe only reads, as `blocks.ts` checks it: it gives its words with
+// `text`, draws nothing, and writes, sends, moves, spawns, says and tells
+// nothing. One with no `text` anywhere in it would be empty on a text
+// client, and is refused; one whose every `text` names a passage of a
+// `.prose` file that is absent is told to `emptied`, which refuses it at
+// publish.
 
 import { statementsWithin, type Block, type Statement } from '../syntax/ast.js';
 import {
@@ -20,7 +20,8 @@ import {
 } from '../syntax/ast-speech.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
-import { SPROUT, type DeclaredEnum } from '../declare/enums.js';
+import { SPROUT } from '../declare/enums.js';
+import { SEEN } from '../declare/seen.js';
 import type { HereKind } from '../declare/places.js';
 import type { ResolvedDescribe } from '../declare/describe.js';
 import { actorBinding, hereBinding, Scope, seenBinding, selfBinding } from './bindings.js';
@@ -35,8 +36,6 @@ export interface DescribeSetting {
   readonly kinds: KindLookup;
   /** What `here` is typed as in this world. */
   readonly here: HereKind;
-  /** `sprout.Seen`, which `seen` is typed as; left out where the standard library is absent, which has been said, and `seen` is then not bound. */
-  readonly seen?: DeclaredEnum;
   readonly diagnostics: Diagnostics;
   /** Where the body's identifiers resolve from; with none, only bindings are names. */
   readonly names?: NameScope;
@@ -69,7 +68,7 @@ export function checkDescribe(
   scope.introduce(selfBinding(self, at), diagnostics);
   scope.introduce(actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), at), diagnostics);
   scope.introduce(hereBinding(setting.here, at), diagnostics);
-  if (setting.seen !== undefined) scope.introduce(seenBinding(setting.seen, at), diagnostics);
+  scope.introduce(seenBinding(SEEN, at), diagnostics);
   const context: CheckContext = {
     scope,
     kinds: setting.kinds,

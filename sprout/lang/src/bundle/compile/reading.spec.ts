@@ -170,7 +170,6 @@ describe('every file in the bundle is read', () => {
       'inventory',
       'wait',
       'help',
-      'Seen',
       'Place',
       'take',
       'drop',

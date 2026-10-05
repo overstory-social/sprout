@@ -14,6 +14,7 @@
 
 import type { Block, IfStatement, Statement } from '../syntax/ast.js';
 import { libraryOf } from '../declare/enums.js';
+import type { SEEN_OPTIONS } from '../declare/seen.js';
 import type { ExtensionStatement } from '../syntax/ast-extensions.js';
 import { speechOf, type Speech } from './body.js';
 import { eachWalked } from './each.js';
@@ -42,8 +43,8 @@ export interface DescribeContext {
   readonly passes: PassRule<InstanceId>;
 }
 
-/** What a description is read for, as `seen` holds it: an option of `sprout.Seen`. */
-export type Seen = 'look' | 'arrival' | 'poll';
+/** What a description is read for, as `seen` holds it: an option of the engine's `Seen`. */
+export type Seen = (typeof SEEN_OPTIONS)[number];
 
 /** What one reader reads of a thing when they look at it. */
 export interface Description {
