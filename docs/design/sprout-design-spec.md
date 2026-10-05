@@ -182,11 +182,11 @@ object cellar is sprout.Place {
 }
 ```
 
-The condition is over the place, read-only and pure, and polled for whoever looks, as an exit's `when` is: `actor` and `here` are not bound, nothing draws, and a read through a name out of the place's range, or of a declared object destroyed, does not hold, so the place is dark rather than the poll faulting. A place that writes no `lit` is lit. `lit` is written only on a place, and composes as `name` does: a composer's own replaces its kinds', and two of its kinds writing one are refused.
+The condition is over the place, read-only and pure, and polled for whoever looks, as an exit's `when` is: `actor` and `here` are not bound, and nothing draws. A place that writes no `lit` is lit. `lit` is written only on a place, and composes as `name` does: a composer's own replaces its kinds', and two of its kinds writing one are refused.
 
 `x.sees(K, :p)` is read only in a `lit`. It is true when something `x` sees composes `K` and holds the boolean `:p` true, and what `x` sees is what its range reaches, save that a person's hands are open to sight: a lamp someone carries lights the place they stand in, though `sprout.Actor` passes nothing, and a lamp in a shut chest lights nothing. Nothing else may read through a person this way.
 
-While a visitor's place is not lit, they see only themselves and what they carry. Their nouns resolve against nothing else, so anything further is answered with `not_here`; the place's description, to them, is the world's `dark` line, "It is too dark to see."; and their view lists nobody else and offers readings only of what they carry. Messages, an NPC's range, `tell`, `each`, `get` and `send` are unchanged: they reach as range says.
+While a visitor's place is not lit, their nouns resolve only against what they carry, so anything further is answered with `not_here`, and the place's description, to them, is the world's `dark` line, "It is too dark to see.". Messages, an NPC's range, `tell`, `each`, `get` and `send` are unchanged: they reach as range says.
 
 ### Actors and visitors
 
