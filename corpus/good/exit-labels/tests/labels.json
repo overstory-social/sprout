@@ -1,0 +1,26 @@
+{
+  "about": "A label is typed with or without the article at its start, through `go` and through `climb`, the world's synonym of it.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a forest." }
+    ] },
+    { "as": "Marta", "type": "go the tree", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a treetop." }
+    ] },
+    { "as": "Marta", "type": "go forest floor", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a forest." }
+    ] },
+    { "as": "Marta", "type": "climb the tree", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a treetop." }
+    ] },
+    { "as": "Marta", "type": "climb down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a forest." }
+    ] },
+    { "as": "Marta", "type": "go trap door", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a cellar." }
+    ] },
+    { "as": "Marta", "type": "go the trap door", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a forest." }
+    ] }
+  ]
+}

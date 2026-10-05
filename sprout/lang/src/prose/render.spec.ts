@@ -120,6 +120,27 @@ describe('a block renders what it guards, and a loop what it walks', () => {
     ]);
   });
 
+  it('walks and counts only what is in range of `self`, so a shut crate lists nothing from outside', () => {
+    const open = proseTurn();
+    const turn = { ...open, context: { ...open.context, passes: (c: string) => c !== CRATE } };
+    const { prose } = readProseText(
+      '{crate.count}: {for t in crate}{t}{if !$last}, {/if}{/for}; {for r: Rib in crate}{r}{if !$last}, {/if}{/for}.',
+    );
+    const voice = {
+      self: PRESS,
+      library: 'mill',
+      bindings: new Map([['crate', boundObject(CRATE)]]),
+    };
+    expect(reflow(renderProse(prose, voice, turn.marta, turn.context, null))).toEqual(['0: ; .']);
+    expect(reflow(renderProse(prose, voice, open.marta, open.context, null))).toEqual([
+      '3: an apple, a rib, a spare rib; a rib, a spare rib.',
+    ]);
+    // The crate, shut, still lists all it holds: an object reaches its own contents.
+    expect(rendered(turn, CRATE, 'listing', turn.marta)).toEqual(
+      rendered(open, CRATE, 'listing', open.marta),
+    );
+  });
+
   it('walks nothing where there is nothing, and says nothing for it', () => {
     const turn = proseTurn();
     const bindings = { actor: boundObject(turn.marta), tools: { binds: 'set' as const, ids: [] } };

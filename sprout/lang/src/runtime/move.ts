@@ -431,11 +431,10 @@ function told(
 
 /**
  * Whether `to` is in range of a move `mover` proposes: in `mover`'s range,
- * or, where `mover` is an actor, the destination of an exit or a link of
- * its place that applies now (the spec's Verbs › Acting). Only the mover's
- * own place's ways out count, so any other place is out of range. This is
- * the move's own range rule, read both by `moveInstance` and by resolving
- * an identifier or path written as its destination.
+ * as every place is where the world passes, or, where `mover` is an actor,
+ * the destination of an exit or a link of its own place that applies now
+ * (the spec's Verbs › Acting). Read both by `moveInstance` and by
+ * resolving an identifier or path written as the move's destination.
  */
 export function reachedForMove(
   context: MoveContext,

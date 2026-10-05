@@ -1,0 +1,28 @@
+// An exit's label typed with an article, `my`, `this` or `that` at its
+// start, or without the one it is written with (the spec's Names ›
+// Articles; Verbs › Exits), through `go` and through a world's synonym
+// of it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {go} from 'sprout'
+
+world exit_labels is sprout.World {
+  visitors are Person
+  visitors arrive at forest
+  synonyms go: "climb"
+
+  object forest is sprout.Place {
+    grammar {
+      exit up   "tree"          -> treetop
+      exit down "the trap door" -> cellar
+    }
+  }
+
+  object treetop is sprout.Place {
+    grammar { exit down "the forest floor" -> forest }
+  }
+
+  object cellar is sprout.Place {
+    grammar { exit up "the trap door" -> forest }
+  }
+}

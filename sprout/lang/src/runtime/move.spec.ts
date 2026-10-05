@@ -54,10 +54,13 @@ import {
   moveInstance,
   owedAfter,
   owedBy,
+  reachedForMove,
   type Moved,
   type Notice,
   type Refused,
 } from './move.js';
+import { connectLink } from './links.js';
+import type { PassRule } from './range.js';
 import { NameOutOfRange } from './named.js';
 import { reaches } from './range.js';
 import { liveTree } from './live.js';
@@ -147,6 +150,79 @@ describe('an actor’s move reaches another place through its own exits and link
       `\`${YARD}\` is out of range of \`${MARTA}\`, so nothing could be moved into it.`,
     );
     expect(draft.instance(MARTA)!.container).toBe(HALL);
+  });
+});
+
+describe('the move’s own range rule: a place in the mover’s range, or where an applying exit or link of its place leads', () => {
+  /** Whether `to` is in range of `mover`'s move, under `passes`. */
+  const reached = (draft: Draft, mover: InstanceId, to: InstanceId, passes = passing()) => {
+    const at = context(draft, { passes });
+    const range = { tree: liveTree(draft), passes, budget: at.budget };
+    return reachedForMove(at, range, mover, to);
+  };
+  const worldPasses: PassRule<InstanceId> = () => true;
+
+  it('reaches a place in the mover’s range, as the world passing puts every place in range', () => {
+    const { draft } = turn();
+    const range = { tree: liveTree(draft), passes: worldPasses, budget: context(draft).budget };
+    expect(reaches(range, MARTA, YARD, 'any')).toBe(true);
+    expect(reached(draft, MARTA, YARD, worldPasses)).toBe(true);
+    // And the move is made, with no exit of the hall leading there.
+    moved(moveInstance(context(draft, { passes: worldPasses }), MARTA, MARTA, YARD));
+    expect(draft.instance(MARTA)!.container).toBe(YARD);
+  });
+
+  it('reaches a place out of the mover’s range only where an exit of its own place leads', () => {
+    const { draft } = turn();
+    const range = { tree: liveTree(draft), passes: passing(), budget: context(draft).budget };
+    expect(reaches(range, MARTA, PORCH, 'any')).toBe(false);
+    expect(reached(draft, MARTA, PORCH)).toBe(true);
+  });
+
+  it('reaches where a link of the mover’s own place leads, once it is connected', () => {
+    const own = catalogueOf(
+      compiledWorld('caves', {
+        'caves.sprout': [
+          'world caves is sprout.World { contains visitors are Pup visitors arrive at mouth',
+          '  object mouth is Cave { object bat is Bat }',
+          '  object pit is sprout.Place',
+          '}',
+          'kind Pup is sprout.Visitor { }',
+          'kind Bat is sprout.Actor { }',
+          'kind Cave is sprout.Place { grammar { link deeper "down into the dark" } }',
+          '',
+        ].join('\n'),
+      }),
+      CAPS,
+    );
+    const [MOUTH, BAT, PIT] = [['mouth'], ['mouth', 'bat'], ['pit']].map((path) =>
+      declaredId('caves', path),
+    ) as [InstanceId, InstanceId, InstanceId];
+    const draft = new Draft(initialState(own));
+    const ask = () => {
+      // The caves' world refuses, as its unwritten rule does; nothing else is shut.
+      const passes: PassRule<InstanceId> = (container) => container !== draft.world;
+      const at = context(draft, { catalogue: own, passes });
+      const range = { tree: liveTree(draft), passes: at.passes, budget: at.budget };
+      return reachedForMove(at, range, BAT, PIT);
+    };
+    expect(ask()).toBe(false);
+    connectLink(draft, MOUTH, 'deeper', PIT);
+    expect(ask()).toBe(true);
+  });
+
+  it('reaches neither way a place no exit or link leads to while the world refuses, and the move faults', () => {
+    const { draft } = turn();
+    expect(reached(draft, MARTA, YARD)).toBe(false);
+    expect(() => moveInstance(context(draft), MARTA, MARTA, YARD)).toThrow(
+      expect.objectContaining({ reason: 'out-of-range' }),
+    );
+  });
+
+  it('gives a thing that is not an actor no exit to reach by: only its range', () => {
+    const { draft } = turn();
+    expect(reached(draft, STONE, PORCH)).toBe(false);
+    expect(reached(draft, STONE, YARD, worldPasses)).toBe(true);
   });
 });
 
