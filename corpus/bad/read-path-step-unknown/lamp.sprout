@@ -1,0 +1,12 @@
+verb light { role target  "light [target]" }
+
+kind Lamp {
+  :lit false
+
+  as target for light {
+    do {
+      if (read_path_step_unknown.hall.shelf.lmp.get(:lit)) { say "It is lit." }
+      else { self.set(:lit, true)  say "It catches." }
+    }
+  }
+}

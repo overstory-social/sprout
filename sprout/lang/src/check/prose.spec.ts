@@ -141,6 +141,26 @@ describe('a slot that renders a passage names it through a thing of a kind that 
     ]);
   });
 
+  it('renders and walks a dotted path whole, and a passage of the thing it names', () => {
+    const source = nameSource();
+    const context = {
+      ...bodyOf(withPassage),
+      names: {
+        source,
+        vantage: { in: 'tree' as const, path: ['cellar'] },
+        world: null,
+        table: new Map(),
+      },
+    };
+    expect(
+      checked('{hall.bench} holds {hall.bench.count}: {for t in hall.bench}{t}{/for}', context)
+        .said,
+    ).toEqual([]);
+    expect(
+      checked('{hall.bench.greeting}', { ...context, diagnostics: new Diagnostics() }).said[0],
+    ).toMatch(/has no passage `greeting`/);
+  });
+
   it('narrows a kind’s name the run decides with `is()`, for the branch it guards', () => {
     const source = nameSource();
     const context = {

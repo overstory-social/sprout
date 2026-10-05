@@ -1,0 +1,29 @@
+// Something deeper than a body can see is named by its dotted path,
+// wherever a name may stand in an expression: read through, counted,
+// walked by `each` and by `{for}`, rendered in a slot. The owl's own body
+// names the box from the forest it sits in; the kind it is made of has
+// no place in the tree, and names it from the world's name, which fixes
+// a path from anywhere, typed at the box's kind.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Crate, Box, Coin} from 'box'
+import {Owl, peer} from 'owl'
+
+world dotted_paths is sprout.World {
+  visitors are Creature
+  visitors arrive at forest_1
+
+  object forest_1 is sprout.Place {
+    object crate is Crate {
+      object box is Box { object coin is Coin }
+    }
+    object owl is Owl {
+      as target for peer {
+        do {
+          each t in forest_1.crate.box { say "{t} glints in {forest_1.crate.box}." }
+          if (forest_1.crate.box.count == 0) { say "Nothing glints." }
+        }
+      }
+    }
+  }
+}

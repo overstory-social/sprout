@@ -495,6 +495,18 @@ export interface ObjectPath extends Node {
   readonly parts: readonly Ident[];
 }
 
+/**
+ * Member readings written on a name, as the author wrote them:
+ * `kiln.shelf` for `kiln.shelf`, which the checker may resolve as a
+ * dotted path. Null where the chain is not written on a name.
+ */
+export function writtenMembers(expr: MemberExpr): string | null {
+  const steps: string[] = [];
+  let node: Expr = expr;
+  for (; node.kind === 'member'; node = node.receiver) steps.unshift(node.member.text);
+  return node.kind === 'binding' ? [node.name.text, ...steps].join('.') : null;
+}
+
 /** A path as the author wrote it: `kiln.shelf`. */
 export function writtenPath(path: ObjectPath): string {
   return path.parts.map((part) => part.text).join('.');
