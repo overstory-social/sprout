@@ -63,7 +63,11 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
       'actors, `tell inside "…"` to only its own occupants and `tell outside "…"` to only the place around it',
   },
   { word: 'text', example: 'text "Hello."', does: 'gives a description its words' },
-  { word: 'let', example: 'let shining = self.get(:lit)', does: 'names a value, once, for the block' },
+  {
+    word: 'let',
+    example: 'let shining = self.get(:lit)',
+    does: 'names a value, once, for the block',
+  },
   {
     word: 'spawn',
     example: 'spawn Crumb in self',
