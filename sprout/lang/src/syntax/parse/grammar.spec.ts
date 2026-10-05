@@ -49,7 +49,7 @@ const written = (line: GrammarLine): string => {
     case 'grammar-adjectives':
       return `adjectives ${line.adjectives.map((one) => one.text).join('|')}`;
     case 'grammar-exit':
-      return `exit ${line.direction.text} ${line.label.text} ${writtenPath(line.destination)}${line.when === null ? '' : ' when'}`;
+      return `exit ${line.direction.text} ${line.label.text} ${line.leads.kind === 'path' ? writtenPath(line.leads) : 'refuse'}${line.when === null ? '' : ' when'}`;
     case 'grammar-link':
       return `link ${line.name.text} ${line.label.text}`;
   }
@@ -245,6 +245,11 @@ const WELL_FORMED_LINES = [
     text: 'exit up "the loft" -> kiln.loft when (ladder.get(:down))',
   },
   { name: 'link onward deeper', text: 'link onward "deeper"' },
+  { name: 'exit west west refuse', text: 'exit west "west" refuse "You would need a machete."' },
+  {
+    name: 'exit east east refuse when',
+    text: 'exit east "east" refuse boarded when (self.get(:open))',
+  },
 ] as const;
 
 /**
@@ -278,6 +283,9 @@ const LINE_DEFECTS: readonly string[] = [
   'exit north "x" -> hall when ()',
   'exit north "x" -> hall when (self.get(:lit)',
   'exit north "x" -> hall when (self.get(:lit) +)',
+  'exit west "x" refuse',
+  'exit west "x" refuse when (true)',
+  'exit west "x" refuse "no" when',
   'link',
   'link Onward "x"',
   'link "x"',

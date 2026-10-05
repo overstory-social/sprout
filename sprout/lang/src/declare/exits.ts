@@ -105,6 +105,8 @@ export function checkExitLines(
         `Write where it goes, as in \`${written} "out to the yard"\`.`,
       );
     }
+    // A way that does not go is never offered, so it is not one a visitor reads among the ways out.
+    if (line.kind === 'grammar-exit' && line.leads.kind === 'grammar-refusal') continue;
     counted += 1;
     if (counted === caps.exitsPerPlace + 1) {
       diagnostics.refuse(
@@ -120,7 +122,7 @@ export function checkExitLines(
 function checkDirection(line: GrammarExit, diagnostics: Diagnostics): void {
   const direction = line.direction.text;
   if (isDirection(direction)) return;
-  const leads = ` -> ${writtenPath(line.destination)}`;
+  const leads = line.leads.kind === 'path' ? ` -> ${writtenPath(line.leads)}` : ' refuse "…"';
   const meant = ABBREVIATIONS.get(direction);
   diagnostics.refuse(
     line.direction.at,

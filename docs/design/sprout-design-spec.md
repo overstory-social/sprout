@@ -163,7 +163,7 @@ An object reaches a target when nothing strictly between them on the containment
 
 An object always reaches **itself and its own contents**: a shut chest can still count what it holds and speak to it, because a lid stops others looking in, not the chest looking down. Without that, every container would go blind the moment it closed. It also always reaches **the surface of its own container** — the thing it is inside, even when nothing beyond it is — so a visitor shut in a wardrobe can still name the wardrobe and open it.
 
-A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
+A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then a way out that does not go, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
 
 Because the world's pass rule refuses, places are out of range of one another until the world says otherwise. One place hearing another is a deliberate act by the world, not a consequence of sharing a microworld.
 
@@ -672,7 +672,9 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `pronoun` in `pronoun_correction` | string: the pronoun the thing declares |
 | `reading` in `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
 | `thing` in `not_carrying` | object: what a carried role names that the actor does not carry |
-| `actor` and `here` in `unknown`, `not_here`, `cannot`, `not_carrying`, `meant`, `nothing_happens`, `help` and `fault` | as above |
+| `actor` and `here` in `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `nothing_happens`, `help` and `fault` | as above |
+| `way` in `no_way` | string: the direction typed, written out, as `north` for `n` |
+| `actor` and `here` in an exit's refusal | as above: the one going, and the place the exit is on |
 | `actor` in `gone_away` and `npc_says` | as above |
 | `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
 | `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
@@ -1060,6 +1062,19 @@ grammar {
 
 The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
 
+An exit may lead nowhere and say why, which is how a world says a way is closed in its own words:
+
+```sprout
+grammar {
+  exit west "west" refuse "You would need a machete to go further west."
+  exit east "east" refuse boarded when (!self.get(:open))
+}
+```
+
+`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere, rendered with the place as `self` and the one going as `actor`, `here` bound beside it. An exit that refuses applies as any exit does, under An exit may be conditional, and naming it, by its direction or its label, is answered with its words before any consent pass is asked, as the parser answers a line it cannot run: nothing moves, and the actor's part of `go` is not asked. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
+
+A direction no exit that applies answers, typed bare or in one of `go`'s phrases, is answered with the world's `no_way`, "You can't go that way.", given the direction written out as `way`. Words in `go`'s phrases that are neither a direction nor the label of a way out that applies are not read as `go` at all, and are answered as any line nothing reads, with `unknown`: they may be anything a visitor typed, and the world does not repeat words it did not understand as though they were a way.
+
 Exits do not compose. An exit belongs to the body that writes it: an object's own exits are its own, and a kind's apply to that kind's own instances — an object whose `is` names the kind, and a `spawn` of it — and to no kind that composes it. So `kind DeepCell is MazeCell { }` takes none of `MazeCell`'s exits or links, and writes its own. A place's exits are its own body's and those of the kinds its `is` names, or its `spawn` named; where its own body writes an exit in a direction, those replace its kinds' in that direction, and two of its kinds writing one direction are refused. A place's exits are tried in the order their body writes them, so order never chooses between two sources.
 
 ### An exit may be conditional
@@ -1073,7 +1088,7 @@ grammar {
 }
 ```
 
-Several exits may share a direction. The first whose guard holds is the one that applies, and one without a guard always holds — so a run of them reads as the `if`/`else` chain it is. An exit that does not apply is not offered, not traversable and not mentioned. A guard that reads through something out of the place's range does not fault the poll: the exit does not apply, as an unset link does not.
+Several exits may share a direction. The first whose guard holds is the one that applies, and one without a guard always holds — so a run of them reads as the `if`/`else` chain it is. An exit that refuses takes its place in the chain as any exit does, so the last of a run may say why the way is closed: `exit north "into the glade" -> glade when (self.get(:cleared))` and then `exit north "north" refuse "The brambles are too thick."`. An exit that does not apply is not offered, not traversable and not mentioned. A guard that reads through something out of the place's range does not fault the poll: the exit does not apply, as an unset link does not.
 
 Guards are read-only and pure, as a description is, and for the same reason: they are evaluated on every poll to build what a visitor can see and say. A maze whose halls all lead back to themselves until a lamp is lit needs no more than this, and nothing about the map is stored.
 
@@ -1146,7 +1161,7 @@ Three things come with it. Procedural space counts against live instances like e
 
 Six verbs are the engine's, because they read the world rather than change it: `go`, `look`, `examine`, `inventory`, `wait` and `help`. Their phrases are declared in the standard library like any verb's — `look` answers to `l`, `examine` to `x` and `look at` — so their words can be added to and translated, but they have no `do`:
 
-- `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
+- `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. Where the exit that applies refuses, its words are the answer, and where none applies in that direction, the `no_way` line is, under Exits. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
 - `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none, and then the thing's own `contents` passage where its kinds write one, so a container says what it holds once you can see in. `sprout.Container`'s `contents` lists what is inside while it is open and says nothing while it is shut; an actor writes none, so what a person carries is never listed.
 - `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
 - `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise.
@@ -1230,7 +1245,7 @@ Each visitor has their own pronouns, set by their own last command: `it` and `th
 
 ### Sequences, again and all
 
-`take key then open cabinet` and `take key. open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. The first answered by a refusal, `cannot`, `not_carrying`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
+`take key then open cabinet` and `take key. open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. The first answered by a refusal, an exit's refusal, `cannot`, `not_carrying`, `no_way`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
 
 `again`, or `g`, runs the visitor's last reading again: the same verb and the same things, not the same words, so a line whose nouns would now mean something else still means what it meant. Its consent pass is asked afresh, and a thing no longer in reach is answered with `not_here`.
 
@@ -1238,7 +1253,7 @@ Each visitor has their own pronouns, set by their own last command: `it` and `th
 
 ### When nothing matches
 
-A line no phrase reads is answered with the world's `unknown`. A line that names nothing in reach is answered with `not_here`. A line some phrase read in part — its verb understood, a role filled with something it cannot take — is answered with the world's `cannot` line, given the reading as far as it was understood, so the visitor learns what the world made of it: "You can't open the cabinet with the apprentice." A line some phrase read in part but for a carried role, whose noun names only something in range the visitor does not carry, is answered with the world's `not_carrying` line, given that thing, under Carried roles. Both are partial readings, ranked together: the partial reading chosen is the one that matched most of the line's words, then bound most roles, and never the one written first. It is answered with `cannot` where any role holds something it cannot take, and with `not_carrying` otherwise.
+A line no phrase reads is answered with the world's `unknown`. A line that names nothing in reach is answered with `not_here`. A line some phrase read in part — its verb understood, a role filled with something it cannot take — is answered with the world's `cannot` line, given the reading as far as it was understood, so the visitor learns what the world made of it: "You can't open the cabinet with the apprentice." A line some phrase read in part but for a carried role, whose noun names only something in range the visitor does not carry, is answered with the world's `not_carrying` line, given that thing, under Carried roles. Both are partial readings, ranked together: the partial reading chosen is the one that matched most of the line's words, then bound most roles, and never the one written first. It is answered with `cannot` where any role holds something it cannot take, and with `not_carrying` otherwise. A line no phrase reads whole or in part, but whose words for `go`'s way name an exit that refuses, is answered with that exit's words, and one whose words for it are a direction no exit that applies answers, with the world's `no_way`, under Exits.
 
 ## Events, messages and the bus
 
@@ -1427,7 +1442,7 @@ A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and ca
 
 ### Engine lines
 
-Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
 
 When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
 
@@ -1731,7 +1746,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 | phrases per verb or intent | 8, each at most 80 characters; synonyms and the phrases they generate do not count |
 | steps per intent | 8 |
 | nouns per object | 8, each word at most 40 characters |
-| exits per place | 8 |
+| exits per place | 8; an exit that refuses is not counted, since it is never offered |
 | elements in a list | 16 |
 | a `say`, `tell`, `text` or `refuse` written as a literal | 600 characters |
 | places, objects, kinds, files, total source bytes | as the host says |
