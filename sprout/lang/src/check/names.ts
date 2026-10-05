@@ -10,9 +10,9 @@
 // runtime to find what it reaches, which is only ever a target when it is
 // in range.
 
-import type { Expr, Ident, ObjectPath } from '../syntax/ast.js';
+import type { Expr, Ident, MemberExpr, ObjectPath } from '../syntax/ast.js';
+import { everyContent } from '../declare/contents.js';
 import { pathKey } from '../declare/tree.js';
-import { writtenPath } from '../syntax/ast.js';
 import type { Node } from '../source/nodes.js';
 import { readable } from '../source/words.js';
 import { nearestOption } from '../declare/enums.js';
@@ -66,20 +66,99 @@ export function identifiersInReach(context: CheckContext): string[] {
  * world's name written anywhere but first.
  */
 export function dottedType(path: ObjectPath, context: CheckContext): BindingType | null {
+  return stepsType(path.parts, path, context);
+}
+
+/**
+ * How many of `members`, the member readings written on the name `first`
+ * in an expression, are the steps of a dotted path: each names an object
+ * declared in the body of the one before (the spec's Identifiers and
+ * scope). None where `first` is bound, names nothing, or the path stops
+ * at its first dot, so `lamp.count` stays a reading. Says nothing.
+ */
+export function pathSteps(
+  first: Ident,
+  members: readonly MemberExpr[],
+  context: CheckContext,
+): number {
   const scope = context.names;
-  const parts = path.parts.map((part) => part.text);
+  if (scope === undefined || members.length === 0) return 0;
+  if (!declaredNames(scope.source).has(members[0]!.member.text)) return 0;
+  if (context.scope.lookup(first.text) !== null || context.scope.withheld(first.text) !== null) {
+    return 0;
+  }
+  const parts = [first.text, ...members.map((one) => one.member.text)];
+  const naming = nameFrom(scope.source, scope.vantage, parts);
+  if (naming.names === 'missing' || naming.names === 'world-inside') {
+    return Math.max(0, naming.step - 1);
+  }
+  return members.length;
+}
+
+/** Every name some object in the bundle is declared by, which each step after a path's first must be. */
+const DECLARED = new WeakMap<NameSource, ReadonlySet<string>>();
+
+/** `DECLARED` for `source`, gathered once, so a reading such as `x.count` is told from a step without resolving it. */
+function declaredNames(source: NameSource): ReadonlySet<string> {
+  let names = DECLARED.get(source);
+  if (names === undefined) {
+    names = new Set([
+      ...[...source.tree.placed.values()].map((one) => one.path.at(-1)!),
+      ...everyContent(source.contents).map((one) => one.declaration.name.text),
+    ]);
+    DECLARED.set(source, names);
+  }
+  return names;
+}
+
+/**
+ * The dotted path an expression's member readings write on a name, whose
+ * `steps` `pathSteps` counted, typed at what it names and recorded at its
+ * last step for the runtime. Where the reading after it is a word no
+ * reading is, it was meant as a step too, and is refused as a path's
+ * step nothing answers to.
+ */
+export function memberPathType(
+  first: Ident,
+  steps: readonly MemberExpr[],
+  after: MemberExpr | undefined,
+  context: CheckContext,
+): BindingType | null {
+  const written = [first, ...steps.map((one) => one.member)];
+  if (after !== undefined && after.member.text !== 'count') {
+    return stepsType([...written, after.member], after, context);
+  }
+  return stepsType(written, steps.at(-1)!, context);
+}
+
+/** Whether `expr` is a dotted path whole, `w2.forest_1.box`, rather than a reading of one. */
+export function isMemberPath(expr: Expr, context: CheckContext): boolean {
+  const members: MemberExpr[] = [];
+  let node = expr;
+  for (; node.kind === 'member'; node = node.receiver) members.unshift(node);
+  return (
+    node.kind === 'binding' &&
+    members.length > 0 &&
+    pathSteps(node.name, members, context) === members.length
+  );
+}
+
+/** What `parts`, written with dots, names, recorded at `key`, or null having said why. */
+function stepsType(parts: readonly Ident[], key: Node, context: CheckContext): BindingType | null {
+  const scope = context.names;
+  const texts = parts.map((part) => part.text);
   if (scope === undefined) {
     context.diagnostics.refuse(
-      path.at,
-      `Nothing here is called \`${writtenPath(path)}\`.`,
+      key.at,
+      `Nothing here is called \`${texts.join('.')}\`.`,
       'Name something in scope, as in `self` or `actor`.',
     );
     return null;
   }
-  const naming = nameFrom(scope.source, scope.vantage, parts);
+  const naming = nameFrom(scope.source, scope.vantage, texts);
   if (naming.names === 'world-inside') {
-    const step = path.parts[naming.step]!;
-    const rest = parts.filter((part, i) => i === 0 || part !== step.text);
+    const step = parts[naming.step]!;
+    const rest = texts.filter((part, i) => i === 0 || part !== step.text);
     context.diagnostics.refuse(
       step.at,
       `\`${step.text}\` is the world, whose name may be a path's first step and no other.`,
@@ -88,7 +167,7 @@ export function dottedType(path: ObjectPath, context: CheckContext): BindingType
     return null;
   }
   if (naming.names === 'missing') {
-    const step = path.parts[naming.step]!;
+    const step = parts[naming.step]!;
     const within = naming.within;
     // Inside a named thing, a guess is any name written anywhere, since
     // what the path's steps before it reach is what was mistyped.
@@ -107,8 +186,8 @@ export function dottedType(path: ObjectPath, context: CheckContext): BindingType
     );
     return null;
   }
-  checkNameable(path.parts[0]!, parts, context);
-  scope.table.set(path, naming);
+  checkNameable(parts[0]!, texts, context);
+  scope.table.set(key, naming);
   return typed(naming, scope);
 }
 

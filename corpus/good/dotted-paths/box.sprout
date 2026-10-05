@@ -1,0 +1,13 @@
+verb open { role target  "open [target]" }
+
+kind Crate { contains }
+kind Coin { }
+
+kind Box {
+  contains
+  :open false
+
+  as target for open {
+    do { self.set(:open, true)  say "The lid swings up." }
+  }
+}

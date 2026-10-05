@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ObjectPath } from '../syntax/ast.js';
+import type { Expr, Ident, MemberExpr, ObjectPath } from '../syntax/ast.js';
 import type { Vantage } from '../declare/names.js';
-import { bodyOf, read, saidBy, VESSEL } from '../fixtures/check.js';
+import { bodyOf, expression, read, saidBy, VESSEL } from '../fixtures/check.js';
 import { inKind, nameSource } from '../fixtures/names.js';
 import { showBindingType, type BindingType } from './bindings.js';
 import type { CheckContext } from './check.js';
@@ -10,6 +10,9 @@ import {
   dottedType,
   identifierType,
   identifiersInReach,
+  isMemberPath,
+  memberPathType,
+  pathSteps,
   placedBinding,
   type NameScope,
 } from './names.js';
@@ -140,6 +143,80 @@ describe('a dotted path in a body', () => {
         "Leave the world's name out of the middle: write `hall`.",
       ],
     ]);
+  });
+});
+
+describe('a dotted path in an expression', () => {
+  /** The member readings written on a name, innermost first, and the name. */
+  function written(text: string): { first: Ident; members: MemberExpr[]; expr: Expr } {
+    const expr = expression(text);
+    const members: MemberExpr[] = [];
+    let node = expr;
+    for (; node.kind === 'member' || node.kind === 'call'; node = node.receiver) {
+      if (node.kind === 'member') members.unshift(node);
+      else members.length = 0;
+    }
+    if (node.kind !== 'binding') throw new Error(`\`${text}\` is not written on a name`);
+    return { first: node.name, members, expr };
+  }
+
+  it('takes each member that names an object declared in the body of the one before', () => {
+    const { context } = writtenAt({ in: 'tree', path: ['cellar'] });
+    const steps = (text: string) => {
+      const { first, members } = written(text);
+      return pathSteps(first, members, context);
+    };
+    expect(steps('hall.bench.cushion')).toBe(2);
+    expect(steps('hall.bench.count')).toBe(1);
+    expect(steps('hall.bench.cushion.count')).toBe(2);
+    // A name with one reading on it, a name nothing answers to, and a binding are not paths.
+    expect(steps('hall.count')).toBe(0);
+    expect(steps('hal.bench')).toBe(0);
+    expect(steps('self.bench')).toBe(0);
+    expect(steps('hall')).toBe(0);
+  });
+
+  it('reads as the object it names, typed at its kind and recorded at its last step', () => {
+    const { context, scope } = writtenAt({ in: 'tree', path: ['cellar'] });
+    const { expr, shown: type, said } = read('hall.bench.cushion', context);
+    expect(said).toEqual([]);
+    expect(type).toBe('shop.cushion');
+    expect(scope.table.get(expr)).toMatchObject({
+      names: 'declared',
+      path: ['hall', 'bench', 'cushion'],
+    });
+    expect(read('hall.bench.count', context).shown).toBe('integer');
+    expect(read('shop.hall.bench.count', context).said).toEqual([]);
+  });
+
+  it('in a kind’s body, is typed from the world’s name and the instance’s own, and an object otherwise', () => {
+    const { context } = writtenAt(inKind(source, 'shop.Lantern'));
+    expect(read('shop.hall.bench', context).shown).toBe('shop.bench');
+    expect(read('shop.hall.bench.count', context).said).toEqual([]);
+    expect(read('wick.flame', context).shown).toBe('shop.flame');
+    expect(read('hall.bench', context).shown).toBe('an object');
+  });
+
+  it('refuses a step nothing answers to where a reading cannot stand, as a path written anywhere does', () => {
+    const { context } = writtenAt({ in: 'tree', path: [] });
+    const { shown: type, said } = read('hall.bench.cushon.count', context);
+    expect(type).toBeNull();
+    expect(said).toEqual([
+      'Nothing in `hall.bench` is called `cushon`. Did you mean `cushion`? Name something written in the body of `hall.bench`.',
+    ]);
+    const { context: other } = writtenAt({ in: 'tree', path: [] });
+    const { first, members } = written('hall.bench.cushon');
+    expect(memberPathType(first, members.slice(0, 1), members[1], other)).toBeNull();
+    expect(saidBy(other)).toHaveLength(1);
+  });
+
+  it('is a path whole only where every member is a step of it', () => {
+    const { context } = writtenAt({ in: 'tree', path: [] });
+    expect(isMemberPath(expression('hall.bench'), context)).toBe(true);
+    expect(isMemberPath(expression('hall.bench.cushion'), context)).toBe(true);
+    for (const text of ['hall.bench.count', 'hall.bench.greeting', 'hall', 'self.bench']) {
+      expect(isMemberPath(expression(text), context), text).toBe(false);
+    }
   });
 });
 

@@ -157,7 +157,8 @@ function slot(
   out: Rendered[],
 ): void {
   const { expr } = piece;
-  if (expr.kind === 'member' && expr.member.text !== 'count') {
+  // A member the checker resolved as a dotted path's last step is the object it names.
+  if (expr.kind === 'member' && expr.member.text !== 'count' && !frame.names.has(expr)) {
     passageOf(expr.receiver, expr.member.text, frame, reader, context, out);
     return;
   }

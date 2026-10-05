@@ -526,6 +526,38 @@ describe('an identifier in an expression', () => {
   });
 });
 
+describe('a dotted path in an expression', () => {
+  /** `text`, a path or one reading on it, the path resolved to the declared `path`, evaluated in the lamp's body. */
+  function throughPath(text: string, path: readonly string[]): Evaluated {
+    const one = eventTurn();
+    const expr = expression(text);
+    const step = expr.kind === 'call' ? expr.receiver : expr;
+    return evaluate(expr, {
+      state: one.draft,
+      kinds: one.catalogue.lookup,
+      library: 'bus',
+      self: LAMP,
+      bindings: new Map(),
+      budget: one.budget,
+      caps: one.catalogue.caps,
+      names: new Map([[step, { names: 'declared', path, kind: null }]]),
+      passes: one.passes,
+    });
+  }
+
+  it('is the object the checker resolved its last step to, and is read through like a name', () => {
+    expect(throughPath('hall.lantern', ['hall', 'lantern'])).toEqual(boundObject(LANTERN));
+    expect(throughPath('hall.lantern.is(Lantern)', ['hall', 'lantern'])).toEqual({
+      binds: 'value',
+      value: true,
+    });
+  });
+
+  it('faults where what it names is out of range, as a name does', () => {
+    expect(() => throughPath('yard.stray', ['yard', 'stray'])).toThrow(NameOutOfRange);
+  });
+});
+
 describe('a condition that narrows a name in a kind’s body', () => {
   /**
    * A frame over the lantern's body, where `lamp` is whatever is nearest

@@ -1,0 +1,4 @@
+lamp.sprout:8:45  Nothing in `hall.shelf` is called `lmp`. Did you mean `lamp`?
+                  Name something written in the body of `hall.shelf`.
+
+refused: 1 problem

@@ -1,0 +1,20 @@
+// An owl watches the box in the crate. A kind's body has no place in the
+// tree, so it names the box by a path from the world's name, which the
+// compile fixes, typed at `Box`: `get`, `count` and a `{for}` read it
+// without `is()`.
+import {Box} from 'box'
+
+verb hoot { role target  "hoot at [target]" }
+verb peer { role target  "peer at [target]" }
+
+kind Owl {
+  as target for hoot {
+    do {
+      if (dotted_paths.forest_1.crate.box.get(:open)) { say watching } else { say "The owl blinks at a shut box." }
+    }
+  }
+
+  passage watching {
+    The owl watches {dotted_paths.forest_1.crate.box}, open, holding {dotted_paths.forest_1.crate.box.count}: {for t in dotted_paths.forest_1.crate.box}{t}{/for}.
+  }
+}

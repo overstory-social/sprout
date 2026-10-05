@@ -12,9 +12,10 @@
 //
 // It only reads. `bound tool` asks whether the frame binds the name, which
 // is how a role's body tells a tool it was given from one it was not; an
-// identifier is what the checker resolved it to, and faults where that is
-// not in range (`named.ts`). `chance` and `random` draw from the frame's
-// stream (`draws.ts`), which only a body that acts in a write turn has.
+// identifier or a dotted path is what the checker resolved it to, and
+// faults where that is not in range (`named.ts`). `chance` and `random`
+// draw from the frame's stream (`draws.ts`), which only a body that acts
+// in a write turn has.
 
 import type {
   BinaryExpr,
@@ -140,7 +141,8 @@ function walked(expr: Expr, frame: Frame): { value: Evaluated; held: Frame } {
     spine.push(node);
     if (node.kind === 'binary') node = node.left;
     else if (node.kind === 'unary') node = node.operand;
-    else if (node.kind === 'member' || node.kind === 'call') node = node.receiver;
+    else if (node.kind === 'member' && !frame.names.has(node)) node = node.receiver;
+    else if (node.kind === 'call') node = node.receiver;
     else break;
   }
   let below = leaf(spine.pop()!, frame);
@@ -210,9 +212,24 @@ function leaf(expr: Expr, frame: Frame): Evaluated {
       throw unchecked('a kind standing as a value');
     case 'free-call':
       return drawn(expr, frame);
+    case 'member': {
+      // A dotted path, `w2.forest_1.box`: what the checker resolved it to.
+      const named = frame.names.get(expr);
+      if (named === undefined)
+        throw unchecked(`the reading \`${expr.member.text}\` at the bottom of a spine`);
+      return boundObject(reachedByName(named, writtenSteps(expr), frame));
+    }
     default:
       throw unchecked(`a ${expr.kind} at the bottom of a spine`);
   }
+}
+
+/** A dotted path written in an expression, as the author wrote it: `w2.forest_1.box`. */
+function writtenSteps(expr: MemberExpr): string {
+  const steps: string[] = [];
+  let node: Expr = expr;
+  for (; node.kind === 'member'; node = node.receiver) steps.unshift(node.member.text);
+  return node.kind === 'binding' ? [node.name.text, ...steps].join('.') : steps.join('.');
 }
 
 /** `chance(n)`, true one time in n, or `random(n)`, from 0 to n − 1, drawn from the frame's stream. */

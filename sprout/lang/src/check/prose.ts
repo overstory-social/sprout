@@ -40,7 +40,7 @@ import {
 } from './bindings.js';
 import { branchScope, checkCondition, resolveKind, typeOf, type CheckContext } from './check.js';
 import { kindName } from '../declare/kinds.js';
-import { placedWords } from './names.js';
+import { isMemberPath, placedWords } from './names.js';
 import { EFFECTS } from './check/writes.js';
 import type { ProseRecord } from './speech.js';
 import { refuseDraw } from './chance.js';
@@ -97,7 +97,7 @@ function pieces(prose: Prose, context: CheckContext, rendered: ProseRecord): voi
 function checkSlot(slot: ProseSlot, context: CheckContext, rendered: ProseRecord): void {
   const { expr } = slot;
   if (!noArithmetic(expr, context)) return;
-  if (expr.kind === 'member' && expr.member.text !== 'count') {
+  if (expr.kind === 'member' && expr.member.text !== 'count' && !isMemberPath(expr, context)) {
     renderedPassage(expr.receiver, expr.member, context, rendered);
     return;
   }
