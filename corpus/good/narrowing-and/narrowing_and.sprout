@@ -1,0 +1,20 @@
+// `is()` on the left of `&&` narrows the right, and the branch the whole
+// `&&` guards: the perch reads what a nest holds once it has asked
+// whether a thing is one, in one condition rather than two nested `if`s.
+import * as sprout from 'sprout'
+import {Creature} from 'creature'
+import {Nest, Egg} from 'nest'
+import {Perch} from 'perch'
+
+world narrowing_and is sprout.World {
+  visitors are Creature
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object nest is Nest { object egg is Egg }
+    object basket is Nest
+    object perch is Perch
+  }
+}
+
+verb survey { role target  "survey [target]" }

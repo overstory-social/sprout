@@ -391,7 +391,7 @@ function candidatesOf(
   reached: readonly Reached<InstanceId>[],
   addressing: AddressContext,
 ): Candidate[] {
-  const near = nearnessOf(tree, reached);
+  const near = nearnessOf(tree, reached, placeOf(state, actor));
   const carried = carriedIn(tree, actor, reached);
   return reached.flatMap(({ node }) => {
     const instance = node === state.world ? undefined : state.instance(node);
@@ -405,19 +405,19 @@ function candidatesOf(
  * How near each thing reached is, as the spec's Range counts it: first by
  * the ring it is in, how far out the container is that it is reached
  * through, then by how deep inside that container it lies. Two things
- * are equally near only where both agree; the walk is nearest first, so
- * the rank rises with it and each node's container is ranked before it.
+ * are equally near only where both agree. The actor's own place is further
+ * than everything it holds and nearer than the ring beyond it (Parsing ›
+ * Choosing a reading), so a place answers to its name only where nothing
+ * in it answers as well.
  */
 function nearnessOf(
   tree: LiveTree<InstanceId>,
   reached: readonly Reached<InstanceId>[],
+  place: InstanceId,
 ): Map<InstanceId, number> {
   const where = new Map<InstanceId, { ring: number; depth: number }>();
-  const rank = new Map<InstanceId, number>();
   // The last of the asker and its containers outward that the walk reached.
   let outer: InstanceId | null = null;
-  let last: { ring: number; depth: number } | null = null;
-  let at = -1;
   for (const { node, via } of reached) {
     let here: { ring: number; depth: number };
     if (via === 'self') {
@@ -432,6 +432,14 @@ function nearnessOf(
       here = { ring: inside.ring, depth: inside.depth + 1 };
     }
     where.set(node, here);
+  }
+  const own = where.get(place);
+  if (own !== undefined) where.set(place, { ring: own.ring, depth: Infinity });
+  const ordered = [...where].sort(([, a], [, b]) => a.ring - b.ring || a.depth - b.depth);
+  const rank = new Map<InstanceId, number>();
+  let at = -1;
+  let last: { ring: number; depth: number } | null = null;
+  for (const [node, here] of ordered) {
     if (last === null || here.ring !== last.ring || here.depth !== last.depth) at++;
     last = here;
     rank.set(node, at);

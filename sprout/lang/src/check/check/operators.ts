@@ -19,6 +19,7 @@ import {
 } from '../../declare/types.js';
 import type { Span } from '../../source/source.js';
 import type { CheckContext, Checker } from './checker.js';
+import { branchScope, heldScope } from './narrowing.js';
 import { callType, memberType } from './readings.js';
 import {
   bareOption,
@@ -77,11 +78,12 @@ export function binaryType(
   context: Checker,
 ): BindingType | null {
   if (operator === '==' || operator === '!=') return identityType(expr, left, context);
+  if (operator === '&&') return andType(expr, left, context);
 
   const right = context.typeOf(expr.right);
   if (right === null) return null;
 
-  if (operator === '&&' || operator === '||') {
+  if (operator === '||') {
     return bothAre(BOOLEAN, operator, expr, left, right, context) ? valueOf(BOOLEAN) : null;
   }
   if (!bothAre(integer(), operator, expr, left, right, context)) return null;
@@ -93,6 +95,23 @@ export function binaryType(
   }
   const comparison = operator === '+' || operator === '-' ? integer() : BOOLEAN;
   return valueOf(comparison);
+}
+
+/**
+ * `a && b`: its right is typed where its left holds, so `x.is(K) && …`
+ * reads `x` as a `K` on the right (`narrowing.ts`).
+ */
+function andType(
+  expr: Expr & { readonly kind: 'binary' },
+  left: BindingType,
+  context: Checker,
+): BindingType | null {
+  const scope = context.held.get(expr.left) ?? branchScope(expr.left, context);
+  const right = context.within(scope).typeOf(expr.right);
+  if (right === null) return null;
+  if (!bothAre(BOOLEAN, '&&', expr, left, right, context)) return null;
+  context.held.set(expr, heldScope(expr.right, { ...context, scope }));
+  return valueOf(BOOLEAN);
 }
 
 /** Whether both sides are values of `wanted`, refusing at the first that is not. */

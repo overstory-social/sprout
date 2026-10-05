@@ -1,0 +1,14 @@
+{
+  "about": "`house` names the white house before the place called west of house, which its whole name still names.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a west of house." }
+    ] },
+    { "as": "Marta", "type": "x house", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a white house." }
+    ] },
+    { "as": "Marta", "type": "x west of house", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a west of house." }
+    ] }
+  ]
+}

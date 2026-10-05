@@ -24,9 +24,8 @@ import type { Catalogue } from '../runtime/catalogue.js';
 import {
   boundObject,
   boundValue,
+  branchFrame,
   evaluate,
-  evaluateCondition,
-  narrowedFrame,
   type Evaluated,
   type Frame,
 } from '../runtime/evaluate.js';
@@ -221,7 +220,7 @@ function passageOf(
 /**
  * An `{if}` chain: the first branch whose condition holds, each condition
  * tested a step. A condition that narrows a name binds it, for the
- * condition and the branch it guards, to what it reaches now.
+ * branch it guards, to what it reaches now (`branchFrame`).
  */
 function branch(
   block: ProseIf,
@@ -232,8 +231,8 @@ function branch(
 ): void {
   for (let link: ProseIf = block; ;) {
     frame.budget.spend();
-    const inner = narrowedFrame(link.condition, frame);
-    if (evaluateCondition(link.condition, inner)) {
+    const inner = branchFrame(link.condition, frame);
+    if (inner !== null) {
       pieces(link.then, inner, reader, context, out);
       return;
     }
