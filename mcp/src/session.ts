@@ -103,7 +103,7 @@ export function resumeSession(
       return;
     }
     const expect = expectationsOf(made);
-    if (!isDeepStrictEqual(expect, step.expect)) {
+    if (step.expect !== undefined && !isDeepStrictEqual(expect, step.expect)) {
       warn(`${record}, step ${i + 1}: played again, it does not make what was recorded`);
     }
     session.recorded.push({ ...step, expect });

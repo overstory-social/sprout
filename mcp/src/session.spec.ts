@@ -225,6 +225,16 @@ describe('a session resumed from its recording', () => {
     expect(readFileSync(record, 'utf8')).toBe(steps);
   });
 
+  it('warns of nothing for a step recorded without what it makes, and records what it makes now', () => {
+    const record = recordIn();
+    writeFileSync(record, JSON.stringify({ steps: [{ arrive: 'Marta' }] }));
+    const warned: string[] = [];
+    resumeSession(kilnYard, { record }, (words) => warned.push(words));
+    expect(warned).toEqual([]);
+    const script = readScript(readFileSync(record, 'utf8'), 'run.json');
+    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+  });
+
   it('opens as a new session where nothing is recorded yet', () => {
     const record = recordIn();
     const session = resumeSession(kilnYard, { seed: 2, record });
