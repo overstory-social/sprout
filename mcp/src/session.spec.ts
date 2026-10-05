@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { playScript, readScript } from '@overstory/sprout-player';
 import { bundleOf, KILN_YARD } from '@overstory/sprout-player/fixtures';
 
-import { arrive, isPresent, leave, openSession, say } from './session.js';
+import { arrive, isPresent, leave, openSession, resumeSession, say } from './session.js';
 
 const kilnYard = bundleOf('kiln_yard', KILN_YARD);
 
@@ -159,5 +159,61 @@ describe('an inbox', () => {
     say(session, 'Marta', 'fire kiln');
     expect(session.inboxes.has('Ines')).toBe(false);
     expect(arrive(session, 'Ines').text).toBe('A kiln yard.');
+  });
+});
+
+describe('a session resumed from its recording', () => {
+  const recordIn = () => join(mkdtempSync(join(tmpdir(), 'sprout-mcp-')), 'run.json');
+
+  it('carries on where the session was, keeping what was recorded and each visitor’s count', () => {
+    const record = recordIn();
+    const first = openSession(kilnYard, { seed: 4, record, turnCap: 2, advancePerTurn: 60 });
+    arrive(first, 'Marta');
+    say(first, 'Marta', 'fire kiln');
+    const was = readFileSync(record, 'utf8');
+    const warned: string[] = [];
+    const again = resumeSession(
+      kilnYard,
+      { seed: 4, record, turnCap: 2, advancePerTurn: 60 },
+      (words) => warned.push(words),
+    );
+    expect(readFileSync(record, 'utf8')).toBe(was);
+    expect(isPresent(again, 'Marta')).toBe(true);
+    expect(arrive(again, 'Marta').refused).toBe(true);
+    // The kiln is still firing, and Marta has one command of her two left.
+    expect(say(again, 'Marta', 'fire kiln').text).toMatch(/^It is firing already\./);
+    expect(say(again, 'Marta', 'look').refused).toBe(true);
+    expect(warned).toEqual([]);
+    const script = readScript(readFileSync(record, 'utf8'), 'run.json');
+    expect(script.steps[0]).toEqual({ seed: 4 });
+    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+  });
+
+  it('gives a returning visitor nothing that was written to them before the restart', () => {
+    const record = recordIn();
+    const first = openSession(kilnYard, { record });
+    arrive(first, 'Marta');
+    arrive(first, 'Ines');
+    const again = resumeSession(kilnYard, { record });
+    expect(say(again, 'Marta', 'look').text).toBe('A kiln yard.');
+  });
+
+  it('tells the host, and plays on, where a step no longer makes what was recorded', () => {
+    const record = recordIn();
+    writeFileSync(
+      record,
+      JSON.stringify({ steps: [{ arrive: 'Marta', expect: [{ words: 'A different yard.' }] }] }),
+    );
+    const warned: string[] = [];
+    const again = resumeSession(kilnYard, { record }, (words) => warned.push(words));
+    expect(warned).toEqual([`${record}, step 1: played again, it does not make what was recorded`]);
+    expect(isPresent(again, 'Marta')).toBe(true);
+  });
+
+  it('opens as a new session where nothing is recorded yet', () => {
+    const record = recordIn();
+    const session = resumeSession(kilnYard, { seed: 2, record });
+    expect(readScript(readFileSync(record, 'utf8'), 'run.json').steps).toEqual([{ seed: 2 }]);
+    expect(arrive(session, 'Marta').text).toBe('A kiln yard.');
   });
 });

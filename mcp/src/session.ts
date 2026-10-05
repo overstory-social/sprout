@@ -1,4 +1,5 @@
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { isDeepStrictEqual } from 'node:util';
 
 import { keeps, type Bundle } from '@overstory/sprout/lang';
 import {
@@ -6,6 +7,7 @@ import {
   freshStage,
   playStep,
   plays,
+  readScript,
   writeScript,
   type Made,
   type Stage,
@@ -68,7 +70,48 @@ export function openSession(
   warn: (words: string) => void = () => {},
 ): Session {
   if (options.record !== undefined) writeFileSync(options.record, writeScript({ steps: [] }));
-  const session: Session = {
+  const session = freshSession(bundle, options, warn);
+  if (options.seed !== undefined) run(session, { seed: options.seed }, null);
+  return session;
+}
+
+/**
+ * The session recorded to `options.record`, played again onto a fresh
+ * stage, so a host whose process restarted carries on where it was: a
+ * session is its seed and its steps, and the same steps make the same
+ * world. Nothing replayed reaches an inbox, and `warn` hears of a step
+ * that no longer makes what was recorded. Opened as `openSession` opens
+ * one where nothing is recorded there yet.
+ */
+export function resumeSession(
+  bundle: Bundle,
+  options: SessionOptions = {},
+  warn: (words: string) => void = () => {},
+): Session {
+  const { record } = options;
+  if (record === undefined || !existsSync(record)) return openSession(bundle, options, warn);
+  const script = readScript(readFileSync(record, 'utf8'), record);
+  const session = freshSession(bundle, options, warn);
+  script.steps.forEach((step, i) => {
+    const made = playStep(session.stage, step, `${record}, step ${i + 1}`);
+    if ('as' in step) session.typed.set(step.as, (session.typed.get(step.as) ?? 0) + 1);
+    if (made !== null && plays(step) && step.expect !== undefined) {
+      if (!isDeepStrictEqual(expectationsOf(made), step.expect)) {
+        warn(`${record}, step ${i + 1}: played again, it does not make what was recorded`);
+      }
+    }
+    session.recorded.push(step);
+  });
+  return session;
+}
+
+/** A session over a fresh stage of `bundle`'s world, with nothing played or recorded. */
+function freshSession(
+  bundle: Bundle,
+  options: SessionOptions,
+  warn: (words: string) => void,
+): Session {
+  return {
     stage: freshStage(bundle),
     options,
     warn,
@@ -76,8 +119,6 @@ export function openSession(
     typed: new Map(),
     recorded: [],
   };
-  if (options.seed !== undefined) run(session, { seed: options.seed }, null);
-  return session;
 }
 
 /** Whether `name` stands in the world. */
