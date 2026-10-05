@@ -376,6 +376,10 @@ Found while building `tell inside` and `tell outside` (#285, #286):
 
 - **426. Whether `inside` and `outside` are reserved words.** The statement table adds `tell inside` and `tell outside`, and The compiler's Lexical rules enumerates the reserved words by name and lists neither, so a binding named `inside` or `outside` is legal and would collide with the new syntax. Built: `inside` and `outside` direct a `tell` only where a second word or words in quotes follow them on `tell`'s own line, the same shape that already picks out who a plain `tell x` names, so `tell inside` alone, nothing following, is unaffected: a passage may still be named `inside`. Neither word joins the reserved set, since `reserved.spec.ts` checks it against the spec's own sentence exactly and a drift there is refused. The alternative: add both to the reserved words, refusing them as any binding's name. *Accepted as built 2026-09-26*, triaged by Claude on Eric's behalf as a call made where the spec was silent. Code: #285.
 
+Found by the studio's Zork I port (#423):
+
+- **428. How a visitor may type an exit's label.** The notes had the words name "the exit whose whole label they are, however cased", and Articles did not say whether a label in `go`'s `way` slot is somewhere a noun is expected, so with `exit up "tree"`, `go the tree` and `climb the tree` (a world's synonym of `go`) were not understood, and with the label "the trap door" neither was `go trap door`. The port also wanted more than one name for one way: `enter house`, `enter window`, `climb tree`. *Decided 2026-10-05 (Eric):* an article, `my`, `this` or `that` at a label's start is dropped, as typed and as written; an exit still has one label, and more names for a way are not decided. The spec's Articles and Exits now say so. Built: one such word is dropped, and a label of that word alone is kept whole; the words a label matched literally, for ranking, are those left.
+
 **Decided 2026-09-24, morning**, now in the spec except where an entry says otherwise:
 
 - 125: a passage nothing says, and the engine does not, is checked with its own `self` alone, as built. No spec change.
