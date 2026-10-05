@@ -61,7 +61,7 @@ export const READING_TABLE: readonly Entry[] = [
     word: 'count',
     example: 'self.count',
     means:
-      'how many things a container holds, or a list or set role; `count(K)` only those of a kind',
+      'how many things a container holds in range, or a list or set role; `count(K)` only those of a kind',
   },
   {
     word: 'holds',
