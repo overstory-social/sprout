@@ -273,7 +273,7 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `say "Hello."` | speaks to the one acting, in text or a passage | — | — | yes | — | — |
 | `tell "Hello."` | speaks to everyone else there, `tell p "…"` to one person, or, where the body’s kind holds actors, `tell inside "…"` to only its own occupants and `tell outside "…"` to only the place around it | — | — | yes | — | yes |
 | `text "Hello."` | gives a description its words | — | — | — | yes | — |
-| `let lit = self.get(:lit)` | names a value, once, for the block | — | — | — | — | — |
+| `let shining = self.get(:lit)` | names a value, once, for the block | yes | yes | yes | yes | yes |
 | `spawn Crumb in self` | makes a new object of a kind inside something; `let c = spawn …` names it | — | — | yes | — | yes |
 | `destroy self` | removes the object, and what it holds, when the body ends | — | — | yes | — | yes |
 | `finally destroy self` | removes the object once everything the turn sent has been handled | — | — | yes | — | yes |
@@ -771,13 +771,13 @@ lamp.sprout:3:8  `lamp` is written in a file of its own, and nothing places it i
 
 ```sprout
 kind Lamp {
-  describe { let lit = true }
+  describe { let shining = true }
 }
 ```
 
 ```text
-lamp.sprout:2:18  `lit` is a word of the language, so it cannot name a value.
-                  Choose another name for it, as in `let ribs = <what it names>`.
+lamp.sprout:2:3  This `describe` has no `text`, so whoever looks at `Lamp` would read nothing.
+                 Give it its words with `text`, as in `describe { text "Slat-sided, heavier than it looks." }`.
 ```
 
 ### An unknown kind

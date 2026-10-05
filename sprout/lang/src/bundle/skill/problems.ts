@@ -224,7 +224,7 @@ export const REFUSAL_TABLE: readonly ProblemEntry[] = [
   },
   {
     about: 'A `describe` with no `text`',
-    snippet: one('lamp.sprout', 'kind Lamp {\n  describe { let lit = true }\n}\n'),
+    snippet: one('lamp.sprout', 'kind Lamp {\n  describe { let shining = true }\n}\n'),
   },
   {
     about: 'An unknown kind',
