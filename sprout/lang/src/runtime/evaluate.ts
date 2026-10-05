@@ -10,11 +10,9 @@
 // step budget, which charges one step for every expression node
 // evaluated, and `+` or `-` whose result leaves the integer range.
 //
-// It only reads. `bound tool` asks whether the frame binds the name, which
-// is how a role's body tells a tool it was given from one it was not; an
-// identifier is what the checker resolved it to, and faults where that is
-// not in range (`named.ts`). `chance` and `random` draw from the frame's
-// stream (`draws.ts`), which only a body that acts in a write turn has.
+// It only reads. An identifier faults out of range (`named.ts`); `count`
+// and `holds` see only what is in range (`contents.ts`); `chance` and
+// `random` draw from the frame's stream (`draws.ts`).
 
 import type {
   BinaryExpr,
@@ -30,6 +28,7 @@ import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { INTEGER_MAX, INTEGER_MIN } from '../declare/types.js';
 import type { Budget } from './budget.js';
 import type { InstanceId } from './ids.js';
+import { contentsSeen, seenBy } from './contents.js';
 import { SproutList } from './lists.js';
 import type { Instance, StateReader } from './state.js';
 import type { NameTable } from '../check/names.js';
@@ -298,12 +297,12 @@ function same(a: Evaluated, b: Evaluated): boolean {
   throw unchecked(`${a.binds} compared with ${b.binds}`);
 }
 
-/** `x.count`: what a container holds, a set's members, or a list's elements. */
+/** `x.count`: what a container holds in range of `self`, a set's members, or a list's elements. */
 function member(expr: MemberExpr, receiver: Evaluated, frame: Frame): Evaluated {
   if (expr.member.text !== 'count') throw unchecked(`the reading \`${expr.member.text}\``);
   switch (receiver.binds) {
     case 'object':
-      return boundValue(frame.state.children(receiver.id).length);
+      return boundValue(contentsSeen(frame, receiver.id).length);
     case 'set':
       return boundValue(receiver.ids.length);
     case 'value':
@@ -350,14 +349,13 @@ function reading(expr: CallExpr, receiver: Evaluated, frame: Frame): Evaluated {
       return boundValue(recalled(asObject(receiver), propertyNamed(argument, frame), frame));
     case 'count': {
       const kind = kindNamed(argument, frame);
-      const ids =
-        receiver.binds === 'set' ? receiver.ids : frame.state.children(asObject(receiver));
+      const ids = receiver.binds === 'set' ? receiver.ids : contentsSeen(frame, asObject(receiver));
       return boundValue(ids.filter((id) => composes(instanceOf(id, frame), kind)).length);
     }
     case 'holds': {
       const container = asObject(receiver);
       const item = asObject(evaluate(argument, frame));
-      return boundValue(instanceOf(item, frame).container === container);
+      return boundValue(instanceOf(item, frame).container === container && seenBy(frame, item));
     }
     case 'is': {
       const kind = kindNamed(argument, frame);

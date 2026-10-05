@@ -1,0 +1,29 @@
+{
+  "about": "The one who moved reads the place they arrived in before what the queue then says: the cave before the sword's glow, and the cellar, reached by a handler's move, before the cellar's own line. Ines, already in the cave, reads Marta's arrival.",
+  "steps": [
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A bare hall. A cave opens to the north, and a chute drops away below." }
+    ] },
+    { "as": "Ines", "type": "north", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A dank cave. The way out is south." },
+      { "reader": "Ines", "kind": "told", "words": "Your sword is glowing with a faint blue glow." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. A cave opens to the north, and a chute drops away below." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from a hall." },
+      { "reader": "Marta", "kind": "described", "words": "A dank cave. The way out is south." },
+      { "reader": "Marta", "kind": "told", "words": "Your sword is glowing with a faint blue glow." }
+    ] },
+    { "as": "Marta", "type": "south", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for a hall." },
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. A cave opens to the north, and a chute drops away below." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "told", "words": "You lose your footing and slide!" },
+      { "reader": "Marta", "kind": "described", "words": "A low cellar, smelling of earth." },
+      { "reader": "Marta", "kind": "told", "words": "Something skitters away into the dark." }
+    ] }
+  ]
+}

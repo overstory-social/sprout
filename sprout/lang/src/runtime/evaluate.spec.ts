@@ -40,6 +40,7 @@ import { declaredId, type InstanceId } from './ids.js';
 import * as D from '../fixtures/darkness.js';
 import { SproutList } from './lists.js';
 import { initialState } from './load.js';
+import type { PassRule } from './range.js';
 import { newInstance } from './state.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
@@ -123,6 +124,8 @@ interface Body {
   readonly budget?: Budget;
   readonly draft?: Draft;
   readonly draws?: Draws;
+  /** What the turn's containers let through; every one passes where none is given. */
+  readonly passes?: PassRule<InstanceId>;
 }
 
 /**
@@ -161,7 +164,7 @@ function run(text: string, body: Body): Evaluated {
     budget: body.budget ?? new Budget(DEFAULT_LIMITS.budgets),
     caps: CAPS,
     names: new Map(),
-    passes: () => true,
+    passes: body.passes ?? (() => true),
     ...(body.draws === undefined ? {} : { draws: body.draws }),
   };
   return evaluate(expr, frame);
@@ -329,6 +332,34 @@ describe('the readings', () => {
     const names = { pot: thing(JAR) };
     expect(valueOf('self.holds(pot)', { self: SHELF, names })).toBe(true);
     expect(valueOf('self.holds(pot)', { self: HALL, names })).toBe(false);
+  });
+
+  it('`count`, `count(K)` and `holds` see only what is in range of `self`', () => {
+    const shut: PassRule<InstanceId> = (container) => container !== SHELF;
+    const names = { shelf: thing(SHELF, kindNamed('Shelf')), pot: thing(JAR) };
+    // From the nook, a shelf that lets nothing through holds nothing.
+    expect(valueOf('shelf.count', { self: NOOK, names, passes: shut })).toBe(0);
+    expect(valueOf('shelf.count(Jar)', { self: NOOK, names, passes: shut })).toBe(0);
+    expect(valueOf('shelf.holds(pot)', { self: NOOK, names, passes: shut })).toBe(false);
+    // The same shelf open is seen as it is.
+    expect(valueOf('shelf.count', { self: NOOK, names })).toBe(2);
+    expect(valueOf('shelf.holds(pot)', { self: NOOK, names })).toBe(true);
+    // The shelf, shut, still sees all it holds: an object reaches its own contents.
+    expect(valueOf('self.count', { self: SHELF, passes: shut })).toBe(2);
+    expect(valueOf('self.count(Lidded)', { self: SHELF, passes: shut })).toBe(1);
+    expect(valueOf('self.holds(pot)', { self: SHELF, names, passes: shut })).toBe(true);
+  });
+
+  it('another actor’s hands, which pass nothing, count nothing; its own count all', () => {
+    const { draft, visitor } = turn();
+    draft.place(CUP, visitor);
+    const hands: PassRule<InstanceId> = (container) => container !== visitor;
+    const actor = thing(visitor, catalogue.visitorKind!);
+    const names = { actor, cup: thing(CUP) };
+    expect(valueOf('actor.count', { self: HALL, names, draft, passes: hands })).toBe(0);
+    expect(valueOf('actor.holds(cup)', { self: HALL, names, draft, passes: hands })).toBe(false);
+    expect(valueOf('self.count', { self: visitor, draft, passes: hands })).toBe(1);
+    expect(valueOf('self.holds(cup)', { self: visitor, names, draft, passes: hands })).toBe(true);
   });
 
   it('`is` asks whether the instance composes the kind, nominally', () => {
