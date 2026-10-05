@@ -3,7 +3,8 @@
 // and a paragraph has none at its ends. A blank line is a paragraph break,
 // and a paragraph left with nothing in it is no paragraph, so a block that
 // renders nothing leaves none behind. `\n` is a line break reflow keeps.
-// The first letter of every rendered line is capitalised. A passage put
+// The first letter of every rendered line is capitalised, past an opening
+// quotation mark but not past a bracket. A passage put
 // into a slot is trimmed at its ends first, so the padding inside its
 // braces is not left before the words that follow the slot.
 
@@ -72,9 +73,13 @@ export function trimmed(rendered: readonly Rendered[]): Rendered[] {
   return out;
 }
 
-/** A line with its first letter capitalised, past any quote or bracket it opens with. */
+/**
+ * A line with its first letter capitalised, past any quotation marks it
+ * opens with but not past a bracket, so `meant`'s "(the wooden rib)" keeps
+ * its lower case (the spec's Prose › Slots).
+ */
 export function capitalise(line: string): string {
-  const lead = /^[^\p{L}\p{N}]*/u.exec(line)?.[0].length ?? 0;
+  const lead = /^["'\u201C\u2018]*/u.exec(line)?.[0].length ?? 0;
   const first = line.charAt(lead);
   return `${line.slice(0, lead)}${first.toUpperCase()}${line.slice(lead + 1)}`;
 }

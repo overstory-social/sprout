@@ -40,7 +40,7 @@
     { "comment": "Both ribs answer to `rib`, and either reading ranks as well as the other," },
     { "comment": "so one is drawn and Marta is told which." },
     { "as": "Marta", "type": "take rib", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "(A wooden rib)" },
+      { "reader": "Marta", "kind": "notice", "words": "(a wooden rib)" },
       { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." },
       { "reader": "Ines", "kind": "told", "words": "Marta takes a wooden rib." },
       { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }

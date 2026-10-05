@@ -56,12 +56,23 @@ describe('rendered words trimmed at their ends', () => {
 });
 
 describe('a line capitalised', () => {
-  it('has its first letter made a capital, past a quote or a bracket it opens with', () => {
+  it('has its first letter made a capital, past a quotation mark it opens with', () => {
     expect(capitalise('you')).toBe('You');
     expect(capitalise('"you," she says')).toBe('"You," she says');
-    expect(capitalise('(and then)')).toBe('(And then)');
+    expect(capitalise("'you,' she says")).toBe("'You,' she says");
+    expect(capitalise('\u201Cyou,\u201D she says')).toBe('\u201CYou,\u201D she says');
     expect(capitalise('3 sheets')).toBe('3 sheets');
     expect(capitalise('Already')).toBe('Already');
     expect(capitalise('')).toBe('');
+  });
+
+  it('keeps the lower case of a line that opens with a bracket, as `meant` does', () => {
+    expect(capitalise('(the wooden rib)')).toBe('(the wooden rib)');
+    expect(capitalise('[aside]')).toBe('[aside]');
+    expect(capitalise('"(quietly) yes"')).toBe('"(quietly) yes"');
+    expect(reflow([words('(the wooden rib)'), PARAGRAPH, words('you take it.')])).toEqual([
+      '(the wooden rib)',
+      'You take it.',
+    ]);
   });
 });
