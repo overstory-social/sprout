@@ -31,7 +31,7 @@ import {
 
 /** What the host sets when a session opens. */
 export interface SessionOptions {
-  /** The seed the session's stream of turn seeds begins from; 0 where not given. */
+  /** The seed the session's stream of turn seeds begins from, recorded as its first step; 0 where not given. */
   readonly seed?: number;
   /** Where the session is written as a script after every step, each step expecting all it made. */
   readonly record?: string;
@@ -75,8 +75,9 @@ export function openSession(
   warn: (words: string) => void = () => {},
 ): Session {
   if (options.record !== undefined) writeFileSync(options.record, writeScript({ steps: [] }));
-  const session = freshSession(bundle, options, warn);
-  if (options.seed !== undefined) run(session, { seed: options.seed }, null);
+  const seed = options.seed ?? 0;
+  const session = freshSession(bundle, options, warn, seed);
+  run(session, { seed }, null);
   return session;
 }
 
@@ -99,7 +100,10 @@ export function resumeSession(
   const { record } = options;
   if (record === undefined || !existsSync(record)) return openSession(bundle, options, warn);
   const script = readScript(readFileSync(record, 'utf8'), record);
-  const session = freshSession(bundle, options, warn);
+  // The stream begins again from the seed the recording began from, whatever the host passes now.
+  const [first] = script.steps;
+  const begun = first !== undefined && 'seed' in first ? first.seed : (options.seed ?? 0);
+  const session = freshSession(bundle, options, warn, begun);
   script.steps.forEach((step, i) => {
     const made = playStep(session.stage, step, `${record}, step ${i + 1}`);
     // The stream moves on once for each turn, as it did when the turn was first played.
@@ -119,11 +123,12 @@ export function resumeSession(
   return session;
 }
 
-/** A session over a fresh stage of `bundle`'s world, with nothing played or recorded. */
+/** A session over a fresh stage of `bundle`'s world, with nothing played or recorded, its turn seeds a stream begun from `seed`. */
 function freshSession(
   bundle: Bundle,
   options: SessionOptions,
   warn: (words: string) => void,
+  seed: number,
 ): Session {
   return {
     stage: freshStage(bundle),
@@ -132,7 +137,7 @@ function freshSession(
     inboxes: new Map(),
     typed: new Map(),
     recorded: [],
-    seeds: new Draws(options.seed ?? 0),
+    seeds: new Draws(seed),
   };
 }
 

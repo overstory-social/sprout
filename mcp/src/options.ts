@@ -46,7 +46,11 @@ function whole(flags: Flags, name: string, least: number, example: string): numb
 
 /** What the host sets for the session, read from `flags`; the seed, where none is given, from `now` in milliseconds. */
 export function sessionOptions(flags: Flags, now: () => number = Date.now): SessionOptions {
-  const seed = whole(flags, 'seed', 0, '7') ?? now() % (SEED_MAX + 1);
+  const given = whole(flags, 'seed', 0, '7');
+  if (given !== undefined && given > SEED_MAX) {
+    throw new Error(`--seed wants a whole number from 0 to ${SEED_MAX}: --seed 7`);
+  }
+  const seed = given ?? now() % (SEED_MAX + 1);
   const turnCap = whole(flags, 'turn-cap', 1, '200');
   const record = flags['record'];
   if (record === true) throw new Error('--record wants a file after it: --record run.json');

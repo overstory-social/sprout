@@ -155,6 +155,17 @@ describe('the seed of each turn', () => {
     expect(read).toContain('The air is still.');
   });
 
+  it('begins a resumed session’s stream from the recording’s seed, whatever seed the host passes now', () => {
+    const record = join(mkdtempSync(join(tmpdir(), 'sprout-mcp-')), 'run.json');
+    const whole = openSession(kilnYard, { seed: 8, advancePerTurn: 60 });
+    const first = openSession(kilnYard, { seed: 8, record, advancePerTurn: 60 });
+    for (const one of [whole, first]) arrive(one, 'Marta');
+    const again = resumeSession(kilnYard, { seed: 99, record, advancePerTurn: 60 });
+    say(whole, 'Marta', 'look');
+    say(again, 'Marta', 'look');
+    expect(again.recorded).toEqual(whole.recorded);
+  });
+
   it('carries on from where the stream was, in a resumed session', () => {
     const record = join(mkdtempSync(join(tmpdir(), 'sprout-mcp-')), 'run.json');
     const whole = openSession(kilnYard, { seed: 8, advancePerTurn: 60 });

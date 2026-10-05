@@ -22,6 +22,9 @@ describe('sessionOptions', () => {
 
   it('refuses each in words that say what to write instead', () => {
     expect(() => sessionOptions({ seed: 'x' })).toThrow('--seed wants a whole number: --seed 7');
+    expect(() => sessionOptions({ seed: '4294967296' })).toThrow(
+      '--seed wants a whole number from 0 to 4294967295: --seed 7',
+    );
     expect(() => sessionOptions({ 'turn-cap': '0' })).toThrow(
       '--turn-cap wants a whole number from 1: --turn-cap 200',
     );

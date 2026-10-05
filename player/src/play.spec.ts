@@ -141,6 +141,34 @@ describe('playScript', () => {
     );
   });
 
+  it('gives each place a tick reaches a turn of its own, seeded after the one before it', () => {
+    // The shed ticks as the yard does, so a shared seed would make both say the same.
+    const twoYards = bundleOf('kiln_yard', {
+      ...KILN_YARD,
+      'kiln_yard.sprout': KILN_YARD['kiln_yard.sprout']!.replace(
+        'object shed is sprout.Place {',
+        'object shed is Yard {',
+      ),
+    });
+    const told = (seed: number) =>
+      transcriptOf(
+        playScript(
+          twoYards,
+          scriptOf(`@arrive Marta\n@arrive Ines\nInes> go in\n@seed ${seed}\n@tick\n`),
+          'yards.json',
+        ),
+      )
+        .split('@tick\n')[1]!
+        .trim()
+        .split('\n')
+        .map((line) => line.replace(/^\s*\w+ \(told\): /, ''));
+    const differ = [0, 1, 2, 3, 4, 5, 6, 7].filter((seed) => {
+      const [first, second] = told(seed);
+      return first !== second;
+    });
+    expect(differ.length).toBeGreaterThan(0);
+  });
+
   it('refuses a nickname the world’s words collide with, admitting nobody', () => {
     const page = play('@arrive kiln\n');
     expect(page).toMatch(/^@arrive kiln\n {2}nickname refused: /);
