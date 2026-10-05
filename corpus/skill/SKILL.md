@@ -233,8 +233,8 @@ A property is a name, a type and a default, always written: there is no null. An
 | --- | --- |
 | `self.get(:lit)` | a property’s value |
 | `actor.recall(:visits)` | what `self` remembers about an actor |
-| `self.count` | how many things a container holds, or a list or set role; `count(K)` only those of a kind |
-| `self.holds(tool)` | whether a thing is directly inside it |
+| `self.count` | how many things a container holds in range, or a list or set role; `count(K)` only those of a kind |
+| `self.holds(tool)` | whether a thing is directly inside it and in range; a shut lid hides it |
 | `tool.is(Probe)` | whether a thing is of a kind; `if (x.is(K))` lets its branch read `x` as a `K` |
 | `self.get(:opens).includes(:silver)` | whether a list or a set role holds a value |
 

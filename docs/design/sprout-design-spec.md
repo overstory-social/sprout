@@ -157,7 +157,7 @@ An object's identifier belongs to the body it is written in, so two chests may e
 
 ### Range
 
-Range is what an object can reach: what it may read with `get`, `send` to, and walk with `each`. One definition serves all three, and it is the same walk a broadcast makes.
+Range is what an object can reach: what it may read with `get`, `send` to, and walk with `each`. One definition serves all three, and it is the same walk a broadcast makes. What a container holds, asked with `count`, `holds` or `{for … in}`, is likewise only what is in range of the asker, so a shut chest counted from outside holds nothing and a description cannot list what a lid hides.
 
 An object reaches a target when nothing strictly between them on the containment tree refuses. Counted from the asker, that is itself and its own contents; its own container, as a surface; each container further out, when every container between the asker and it passes; and a container's other contents when it passes too. So a container that refuses is reached as a surface from inside and is a wall beyond that, in both directions. A bench in a bedroom that relays reaches the house around the bedroom, so it can `get` the house's `:season`; the house refuses, so the bench reaches none of the house's other places.
 
@@ -705,8 +705,8 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.get(:p)` | `p` is declared on `x`'s type; `x` is not of object type |
 | `x.recall(:p)`, `x.remember(:p, e)`, `x.adjust(:p, e)` on memory | `x` composes `sprout.Actor`; `p` is in `self`'s `remembers` |
 | `x.includes(e)` | `x` a list or a set role; `e` its element type |
-| `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope |
-| `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` |
+| `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope; a container counts only contents in range of `self` |
+| `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` and in range of `self` |
 | `x.is(K)` | `K` is a kind in scope; `x` an object binding, or a name read through the object type |
 | `bound x` | `x` an optional tool; inside the branch it guards, `x` is bound |
 
@@ -760,7 +760,7 @@ each thing in cabinet    { … }        // thing is of object type
 each tool of tools       { … }        // a set role
 ```
 
-A kind filter binds only the contents that compose it and types the variable; without one the variable is an object. `each … of` walks a set role. There is no `each` over a list — a list holds values, and `{for … of}` renders them. Each iteration is charged as a step, and an `each` inside an `each` is what the step budget exists for.
+A kind filter binds only the contents that compose it and types the variable; without one the variable is an object. `count`, `count(K)`, `holds` and `{for … in}` see a container's contents exactly as `each` walks them. `each … of` walks a set role. There is no `each` over a list — a list holds values, and `{for … of}` renders them. Each iteration is charged as a step, and an `each` inside an `each` is what the step budget exists for.
 
 ### Per-actor memory
 
@@ -1469,7 +1469,7 @@ Not merely dry. Burning.
 {/for}
 ```
 
-`{for x in <container>}` walks contents, and `{for x: Kind in <container>}` walks only those composing the kind, typing `x` so its passages and properties are in reach; `{for x of <list>}` walks a list, and `{for x of <set role>}` a set role. All bind `$first`, `$last`, `$index`, counting from 1, and `$count`.
+`{for x in <container>}` walks contents in range of `self`, as `each` does, and `{for x: Kind in <container>}` walks only those composing the kind, typing `x` so its passages and properties are in reach; `{for x of <list>}` walks a list, and `{for x of <set role>}` a set role. All bind `$first`, `$last`, `$index`, counting from 1, and `$count`.
 
 Conditions take no parentheses — the braces already delimit, and a paragraph should not carry the noise. This is the one place the language spells a condition differently from a body. A condition may compare, narrow with `is()`, test identity, and test `bound` on a name an engine line may leave unbound, as `{if bound way}`; it may not add.
 
