@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { describe, expect, it } from 'vitest';
 
+import { plays } from '@overstory/sprout-player';
 import { bundleOf, KILN_YARD } from '@overstory/sprout-player/fixtures';
 
 import { HOST_FAILED, worldServer } from './server.js';
@@ -135,7 +136,10 @@ describe('a connection that closes', () => {
     await call(client, 'arrive', { name: 'Marta' });
     await clientSide.close();
     expect(isPresent(session, 'Marta')).toBe(false);
-    expect(session.recorded.map((step) => Object.keys(step)[0])).toEqual(['arrive', 'leave']);
+    expect(session.recorded.filter(plays).map((step) => Object.keys(step)[0])).toEqual([
+      'arrive',
+      'leave',
+    ]);
     const again = await connected(session);
     expect((await call(again, 'arrive', { name: 'Marta' })).refused).toBe(false);
   });

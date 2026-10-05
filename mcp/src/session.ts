@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 
-import { keeps, type Bundle } from '@overstory/sprout/lang';
+import { Draws, keeps, SEED_MAX, type Bundle, type Draw } from '@overstory/sprout/lang';
 import {
   expectationsOf,
   freshStage,
@@ -24,11 +24,14 @@ import {
 // never a visitor's to see: the seed, the file the session is recorded
 // to as a script, each visitor's turn cap, and how far each command moves
 // time, as a round of the reference host's clock does: a tick of every
-// occupied place, then time advanced and every wake due delivered.
+// occupied place, then time advanced and every wake due delivered. Every
+// turn draws from a seed of its own, the next of a stream begun from the
+// session's seed, and is recorded beside it (the spec's Chance › The
+// seed), so a recording replays every draw.
 
 /** What the host sets when a session opens. */
 export interface SessionOptions {
-  /** The seed every turn starts from until the script sets another; 0 where not given. */
+  /** The seed the session's stream of turn seeds begins from; 0 where not given. */
   readonly seed?: number;
   /** Where the session is written as a script after every step, each step expecting all it made. */
   readonly record?: string;
@@ -50,6 +53,8 @@ export interface Session {
   readonly inboxes: Map<string, string[]>;
   readonly typed: Map<string, number>;
   readonly recorded: Step[];
+  /** Where each turn's seed comes from. */
+  readonly seeds: Draw;
 }
 
 /** What a call gives the visitor who made it: what they read, and whether the call was refused. */
@@ -97,6 +102,8 @@ export function resumeSession(
   const session = freshSession(bundle, options, warn);
   script.steps.forEach((step, i) => {
     const made = playStep(session.stage, step, `${record}, step ${i + 1}`);
+    // The stream moves on once for each turn, as it did when the turn was first played.
+    if (plays(step)) session.seeds.below(SEED_MAX + 1);
     if ('as' in step) session.typed.set(step.as, (session.typed.get(step.as) ?? 0) + 1);
     if (made === null || !plays(step)) {
       session.recorded.push(step);
@@ -125,6 +132,7 @@ function freshSession(
     inboxes: new Map(),
     typed: new Map(),
     recorded: [],
+    seeds: new Draws(options.seed ?? 0),
   };
 }
 
@@ -142,6 +150,7 @@ export function isPresent(session: Session, name: string): boolean {
  * at the door or a fault's name, goes to `caller`.
  */
 function run(session: Session, step: Step, caller: string | null): void {
+  if (plays(step)) run(session, { seed: session.seeds.below(SEED_MAX + 1) }, null);
   const at = `session, step ${session.recorded.length + 1}`;
   const made = playStep(session.stage, step, at);
   session.recorded.push(

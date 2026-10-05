@@ -29,7 +29,7 @@ The host's side is set on the command line and never shown to the agent:
 
 | flag                     | sets                                                                                                                                          |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--seed n`               | the seed every turn starts from (0 otherwise)                                                                                                 |
+| `--seed n`               | the seed the session's stream of turn seeds begins from (the clock otherwise); each turn's seed is recorded                                   |
 | `--record file.json`     | writes the session as a script after every step, each step expecting all it made, faults in full; it plays back as written with `sprout play` |
 | `--turn-cap n`           | how many lines each visitor may type                                                                                                          |
 | `--advance-per-turn 30s` | after each line, a tick of every occupied place and then time moved on, so ticks and wakes happen without a clock                             |

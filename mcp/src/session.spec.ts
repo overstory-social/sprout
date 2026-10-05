@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { playScript, readScript } from '@overstory/sprout-player';
+import { plays, playScript, readScript } from '@overstory/sprout-player';
 import { bundleOf, KILN_YARD } from '@overstory/sprout-player/fixtures';
 
 import { arrive, isPresent, leave, openSession, resumeSession, say } from './session.js';
@@ -57,7 +57,7 @@ describe('a visitor in a session', () => {
       text: 'Say one line at a time.',
       refused: true,
     });
-    expect(session.recorded).toHaveLength(1);
+    expect(session.recorded.filter(plays)).toHaveLength(1);
   });
 
   it('is turned away at the door in the host’s words, where its name will not do', () => {
@@ -102,7 +102,7 @@ describe('what the host sets', () => {
     say(session, 'Marta', 'fire kiln');
     // The kiln asked to be woken in an hour; the second half-hour delivers it.
     expect(say(session, 'Marta', 'look').text).toContain('The kiln ticks as it cools.');
-    expect(session.recorded.map((step) => Object.keys(step)[0])).toEqual([
+    expect(session.recorded.filter(plays).map((step) => Object.keys(step)[0])).toEqual([
       'arrive',
       'as',
       'tick',
@@ -128,6 +128,48 @@ describe('what the host sets', () => {
   });
 });
 
+describe('the seed of each turn', () => {
+  it('is a turn’s own, the next of a stream begun from the session’s seed, and recorded before it', () => {
+    const session = openSession(kilnYard, { seed: 5, advancePerTurn: 60 });
+    arrive(session, 'Marta');
+    for (let i = 0; i < 4; i++) say(session, 'Marta', 'look');
+    const { recorded } = session;
+    expect(recorded[0]).toEqual({ seed: 5 });
+    recorded.forEach((step, i) => {
+      if (plays(step)) expect(Object.keys(recorded[i - 1]!)).toEqual(['seed']);
+    });
+    const seeds = recorded.slice(1).flatMap((step) => ('seed' in step ? [step.seed] : []));
+    expect(new Set(seeds).size).toBe(seeds.length);
+    // The same session seed begins the same stream.
+    const again = openSession(kilnYard, { seed: 5, advancePerTurn: 60 });
+    arrive(again, 'Marta');
+    for (let i = 0; i < 4; i++) say(again, 'Marta', 'look');
+    expect(again.recorded).toEqual(recorded);
+  });
+
+  it('lets a draw come out differently from one turn to the next', () => {
+    const session = openSession(kilnYard, { advancePerTurn: 60 });
+    arrive(session, 'Marta');
+    const read = Array.from({ length: 12 }, () => say(session, 'Marta', 'look').text).join('\n');
+    expect(read).toContain('Smoke drifts.');
+    expect(read).toContain('The air is still.');
+  });
+
+  it('carries on from where the stream was, in a resumed session', () => {
+    const record = join(mkdtempSync(join(tmpdir(), 'sprout-mcp-')), 'run.json');
+    const whole = openSession(kilnYard, { seed: 8, advancePerTurn: 60 });
+    const first = openSession(kilnYard, { seed: 8, record, advancePerTurn: 60 });
+    for (const one of [whole, first]) {
+      arrive(one, 'Marta');
+      say(one, 'Marta', 'look');
+    }
+    const again = resumeSession(kilnYard, { seed: 8, record, advancePerTurn: 60 });
+    say(whole, 'Marta', 'look');
+    say(again, 'Marta', 'look');
+    expect(again.recorded).toEqual(whole.recorded);
+  });
+});
+
 describe('the recording, where it cannot be written', () => {
   it('refuses to open a session at all, before anyone plays', () => {
     expect(() => openSession(kilnYard, { record: '/nowhere/at/all/run.json' })).toThrow(/ENOENT/);
@@ -145,8 +187,9 @@ describe('the recording, where it cannot be written', () => {
     const looked = say(session, 'Marta', 'look');
     expect(looked).toEqual({ text: 'A kiln yard.', refused: false });
     expect(looked.text).not.toContain('secret');
-    expect(warned).toHaveLength(1);
-    expect(warned[0]).toMatch(/^could not record to .*secret\/run\.json: ENOENT/);
+    expect(warned.length).toBeGreaterThan(0);
+    for (const words of warned)
+      expect(words).toMatch(/^could not record to .*secret\/run\.json: ENOENT/);
   });
 });
 

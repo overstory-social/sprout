@@ -12,7 +12,12 @@ describe('sessionOptions', () => {
         'advance-per-turn': '30s',
       }),
     ).toEqual({ seed: 7, record: 'run.json', turnCap: 200, advancePerTurn: 30 });
-    expect(sessionOptions({})).toEqual({});
+    expect(sessionOptions({}, () => 7)).toEqual({ seed: 7 });
+  });
+
+  it('seeds a session from the clock where no seed is given, as a whole number a seed may be', () => {
+    expect(sessionOptions({}, () => 2 ** 32 + 41)).toEqual({ seed: 41 });
+    expect(sessionOptions({ seed: '0' }, () => 99)).toEqual({ seed: 0 });
   });
 
   it('refuses each in words that say what to write instead', () => {
