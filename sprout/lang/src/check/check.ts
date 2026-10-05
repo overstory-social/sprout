@@ -29,28 +29,18 @@
 // Statements are `statements.ts`'s, not this module's.
 
 import type { CallExpr, Expr } from '../syntax/ast.js';
-import {
-  isObjectBinding,
-  showBindingType,
-  valueOf,
-  type Binding,
-  type BindingType,
-  type ObjectBinding,
-  type Scope,
-} from './bindings.js';
-import type { KindRef } from '../declare/kinds.js';
-import { resolveKind } from './check/arguments.js';
+import { showBindingType, valueOf, type BindingType } from './bindings.js';
 import { checkerOf, type CheckContext, type Checker } from './check/checker.js';
 import { leafType } from './check/leaves.js';
 import { aboveType } from './check/operators.js';
 import { EFFECTS, effectCall } from './check/writes.js';
 import { matches } from './check/values.js';
-import { placedBinding } from './names.js';
 import type { ValueType } from '../declare/types.js';
 
 export type { ActSetting, CheckContext, MessageSetting } from './check/checker.js';
 export { bindingType } from './check/leaves.js';
 export { resolveKind } from './check/arguments.js';
+export { branchScope, narrowingOf } from './check/narrowing.js';
 
 /** What an expression evaluates to, or null having said why it does not. */
 export function typeOf(expr: Expr, context: CheckContext): BindingType | null {
@@ -116,42 +106,6 @@ export function checkCondition(expr: Expr, context: CheckContext): boolean {
     'Compare it, as in `self.get(:wear) >= 99`, or narrow it with `is()`.',
   );
   return false;
-}
-
-/**
- * `x.is(K)` written as a whole condition — what it narrows, for the
- * branch it guards: an object binding, or a name in a kind's body that
- * the run resolves, which the branch then binds. The narrowing itself is
- * `Scope.narrowing`, and applying it belongs to whoever writes `if`.
- */
-export function narrowingOf(
-  expr: Expr,
-  context: CheckContext,
-): { readonly binding: ObjectBinding; readonly kind: KindRef } | null {
-  if (expr.kind !== 'call' || expr.method.text !== 'is') return null;
-  if (expr.receiver.kind !== 'binding' || expr.arguments.length !== 1) return null;
-  const binding =
-    context.scope.lookup(expr.receiver.name.text) ?? placedBinding(expr.receiver.name, context);
-  if (binding === null || !isObjectBinding(binding)) return null;
-  const written = expr.arguments[0]!;
-  if (written.kind !== 'kind-expr') return null;
-  const kind = resolveKind(written, context);
-  return kind === null ? null : { binding, kind };
-}
-
-/** The scope a condition, checked already, opens for the branch it guards: `x.is(K)` narrows, `bound tool` binds. */
-export function branchScope(condition: Expr, context: CheckContext): Scope {
-  const narrowing = narrowingOf(condition, context);
-  if (narrowing !== null) return context.scope.narrowing(narrowing.binding, narrowing.kind);
-  const bound = boundOf(condition, context);
-  return bound === null ? context.scope : context.scope.bounding(bound);
-}
-
-/** `bound tool` written as a whole condition: the binding `tool` has in the branch it guards. */
-function boundOf(condition: Expr, context: CheckContext): Binding | null {
-  if (condition.kind !== 'bound') return null;
-  const withheld = context.scope.withheld(condition.name.text);
-  return withheld !== null && withheld.bound.bindable ? withheld.bound.binding : null;
 }
 
 /** Whether an expression is a call to one of the four that write or the one that remembers. */
