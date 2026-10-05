@@ -1,0 +1,24 @@
+{
+  "about": "The tree has no way down and the world refuses, so the forest path is out of Marta's range; jumping, she asks the world to open, and its answer carries her down in the same turn, the world shutting behind her. Ines, left in the tree, hears her leave, and hears her arrive as well, since the world is still open when the path's arrival is told; once it has shut, the tree is out of range again.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Up a tree. A forest path runs far below, and no branch reaches it." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "Up a tree. A forest path runs far below, and no branch reaches it." }
+    ] },
+    { "as": "Marta", "type": "jump", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You let go of the branch." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for a forest path." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from a tree." },
+      { "reader": "Marta", "kind": "described", "words": "A forest path, deep in leaves." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A forest path, deep in leaves." }
+    ] },
+    { "as": "Ines", "type": "look", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "Up a tree. A forest path runs far below, and no branch reaches it." }
+    ] }
+  ]
+}

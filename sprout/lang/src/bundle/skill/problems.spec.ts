@@ -10,35 +10,43 @@ import {
 } from './problems.js';
 import { renderDiagnostics } from '../../source/diagnostics.js';
 
-describe('what the skill says the compiler warns about', () => {
-  it('is, for each entry, a world that compiles and is warned about', () => {
-    for (const entry of WARNING_TABLE) {
-      const { bundle, diagnostics } = compileSnippet(entry.snippet);
-      expect(bundle, entry.about).not.toBeNull();
-      expect(diagnostics.length, entry.about).toBeGreaterThan(0);
-      expect(
-        diagnostics.every((d) => d.severity === 'warning'),
-        entry.about,
-      ).toBe(true);
-    }
-  });
+// Each test here compiles every example the skill shows, which is slow work and
+// not a timing guard, so it is not held to vitest's five-second default.
+const COMPILES_EVERY_EXAMPLE = 60_000;
 
-  it('prints the compiler’s own words for each', () => {
-    const section = warningsSection();
-    for (const entry of WARNING_TABLE) {
-      expect(section).toContain(`### ${entry.about}`);
-      expect(section).toContain(renderDiagnostics(saidBy(entry, 'warning')));
-    }
-  });
+describe(
+  'what the skill says the compiler warns about',
+  { timeout: COMPILES_EVERY_EXAMPLE },
+  () => {
+    it('is, for each entry, a world that compiles and is warned about', () => {
+      for (const entry of WARNING_TABLE) {
+        const { bundle, diagnostics } = compileSnippet(entry.snippet);
+        expect(bundle, entry.about).not.toBeNull();
+        expect(diagnostics.length, entry.about).toBeGreaterThan(0);
+        expect(
+          diagnostics.every((d) => d.severity === 'warning'),
+          entry.about,
+        ).toBe(true);
+      }
+    });
 
-  it('throws for an example that is not warned about, so the list cannot claim a warning', () => {
-    expect(() => saidBy({ about: 'Nothing', snippet: {} }, 'warning')).toThrow(
-      'does not give a warning',
-    );
-  });
-});
+    it('prints the compiler’s own words for each', () => {
+      const section = warningsSection();
+      for (const entry of WARNING_TABLE) {
+        expect(section).toContain(`### ${entry.about}`);
+        expect(section).toContain(renderDiagnostics(saidBy(entry, 'warning')));
+      }
+    });
 
-describe('the refusals the skill shows', () => {
+    it('throws for an example that is not warned about, so the list cannot claim a warning', () => {
+      expect(() => saidBy({ about: 'Nothing', snippet: {} }, 'warning')).toThrow(
+        'does not give a warning',
+      );
+    });
+  },
+);
+
+describe('the refusals the skill shows', { timeout: COMPILES_EVERY_EXAMPLE }, () => {
   it('are, for each entry, a world the compiler refuses', () => {
     for (const entry of REFUSAL_TABLE) {
       expect(compileSnippet(entry.snippet).bundle, entry.about).toBeNull();
