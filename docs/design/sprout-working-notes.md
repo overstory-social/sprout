@@ -381,6 +381,10 @@ Found by the studio's Zork I port (#424):
 
 - **427. A place's name outranking what is in it.** A place's default nouns include its name's last word, and the visitor's own place was nearer under Choosing a reading than anything on its floor, so with a place "west of house" and a white house in it, `x house` examined the place. The alternatives: a grammar block that makes a thing answer only to the nouns it writes; a place addressable only by nouns it writes. *Decided 2026-10-05 (Eric):* the visitor's own place ranks below everything it holds, as `all` already leaves it out, and is named where nothing in it answers as well; the spec's Choosing a reading now says so. Built: in nearness it comes after the deepest thing it holds and before the ring beyond it. The view still offers `take` with the place as its target, as a reading the parser could build whose consent pass allows; the move then refuses it with `inside_itself`, which no offer reports (#432).
 
+Found by the studio's Zork I port (#423):
+
+- **428. How a visitor may type an exit's label.** The notes had the words name "the exit whose whole label they are, however cased", and Articles did not say whether a label in `go`'s `way` slot is somewhere a noun is expected, so with `exit up "tree"`, `go the tree` and `climb the tree` (a world's synonym of `go`) were not understood, and with the label "the trap door" neither was `go trap door`. The port also wanted more than one name for one way: `enter house`, `enter window`, `climb tree`. *Decided 2026-10-05 (Eric):* an article, `my`, `this` or `that` at a label's start is dropped, as typed and as written; an exit still has one label, and more names for a way are not decided. The spec's Articles and Exits now say so. Built: one such word is dropped, and a label of that word alone is kept whole; the words a label matched literally, for ranking, are those left.
+
 **Decided 2026-09-24, morning**, now in the spec except where an entry says otherwise:
 
 - 125: a passage nothing says, and the engine does not, is checked with its own `self` alone, as built. No spec change.
