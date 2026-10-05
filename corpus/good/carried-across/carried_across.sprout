@@ -1,0 +1,51 @@
+// An actor's own `move` reaches a place in its range as well as where an
+// exit or a link of its place leads (the spec's Verbs › Acting). The tree
+// has no way down, and the world refuses, so the path is out of range
+// until the world opens: a climber who jumps asks the world to open, the
+// world answers, and the climber's answer moves itself down and asks the
+// world to shut again, all in the one turn. `transcripts/jump.json`
+// plays it.
+import * as sprout from 'sprout'
+
+message :open_gate
+message :gate_open
+message :close_gate
+
+world carried_across is sprout.World {
+  visitors are Climber
+  visitors arrive at tree
+
+  :gate false
+  pass any (self.get(:gate))
+
+  on :open_gate (from) {
+    self.set(:gate, true)
+    send from :gate_open
+  }
+  on :close_gate (from) { self.set(:gate, false) }
+
+  object tree is sprout.Place {
+    describe { text "Up a tree. A forest path runs far below, and no branch reaches it." }
+  }
+  object forest_path is sprout.Place {
+    describe { text "A forest path, deep in leaves." }
+  }
+}
+
+verb jump { "jump" }
+
+kind Climber is Jumper, sprout.Visitor { }
+
+kind Jumper is sprout.Actor {
+  as actor for jump {
+    do {
+      say leapt
+      send carried_across :open_gate
+    }
+  }
+  on :gate_open (from) {
+    move self to forest_path
+    send carried_across :close_gate
+  }
+  passage leapt { You let go of the branch. }
+}

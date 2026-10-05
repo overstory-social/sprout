@@ -13,8 +13,7 @@
 // wake is due is the host's defect, thrown before the turn opens.
 
 import { drain, type Drained } from './bus.js';
-import { saidLines, type Unrendered } from './effects.js';
-import { arrivalsRead } from './engine-verbs.js';
+import { arrivalsRead, withArrivals, type Arrived } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
 import { isLive } from './live.js';
 import { turnState } from './reading.js';
@@ -45,8 +44,8 @@ export interface Woke {
   readonly elapsed: number;
   /** What the queue did from the wake on. */
   readonly drained: Drained;
-  /** The place each person a handler moved between places arrived in, as they read it. */
-  readonly answers: readonly Unrendered[];
+  /** The place each person a handler moved between places arrived in, as they read it, among the queue's lines. */
+  readonly arrived: readonly Arrived[];
 }
 
 /** A wake that faulted: its turn abandoned, and the wake consumed in a turn of its own. */
@@ -86,9 +85,9 @@ export function wakeTurn(state: WorldState, host: TurnHost, wake: Wake): WakeTur
       const drained = deliverWake(turn, pending, elapsed);
       const { draft, catalogue, budget, passes } = turn;
       const read = { state: turnState(draft), catalogue, budget, passes };
-      return { elapsed, drained, answers: arrivalsRead(drained.notices, read) };
+      return { elapsed, drained, arrived: arrivalsRead(drained.described, read) };
     },
-    (done) => ({ actor: null, lines: [...saidLines(done.drained.said), ...done.answers] }),
+    (done) => ({ actor: null, lines: withArrivals(done.drained.said, done.arrived) }),
   );
   if (woken.committed) return woken;
   return { ...woken, consumed: consumeWake(state, 'wake', host, wake, pending) };

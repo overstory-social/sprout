@@ -216,11 +216,11 @@ export function typedIn(state: WorldState, visit: VisitKey, text: string) {
   return turn;
 }
 
-/** What the engine answered a committed turn, if it acted. */
+/** What the engine answered a committed turn, if it acted: each arrival read, then the command's own answer. */
 export function answersOf(turn: ReturnType<typeof typedIn>): readonly Unrendered[] {
   const done = turn.value;
   if (!('acted' in done)) throw new Error('the turn did not act');
-  return done.answers;
+  return [...done.arrived.map((arrived) => arrived.line), ...done.answers];
 }
 
 /** Each answer as its reader reads it, rendered over the turn's committed state: who, and the paragraphs. */

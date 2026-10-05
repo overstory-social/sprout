@@ -1,0 +1,11 @@
+// A slider sent `:slide` goes on down by their own move, since only they
+// may move themselves.
+import * as sprout from 'sprout'
+
+message :slide
+
+kind Slider is sprout.Actor {
+  on :slide { move self to cellar }
+}
+
+kind Person is Slider, sprout.Visitor { }

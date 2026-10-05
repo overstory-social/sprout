@@ -16,8 +16,7 @@
 // run, is the host's.
 
 import { drain, type Drained } from './bus.js';
-import { saidLines, type Unrendered } from './effects.js';
-import { arrivalsRead } from './engine-verbs.js';
+import { arrivalsRead, withArrivals, type Arrived } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
 import { standsInPlace } from './live.js';
 import { turnState } from './reading.js';
@@ -43,8 +42,8 @@ export interface Ticked {
   readonly elapsed: number;
   /** What the queue did from the tick on. */
   readonly drained: Drained;
-  /** The place each person a handler moved between places arrived in, as they read it. */
-  readonly answers: readonly Unrendered[];
+  /** The place each person a handler moved between places arrived in, as they read it, among the queue's lines. */
+  readonly arrived: readonly Arrived[];
 }
 
 /** A tick not run, because the place holds no visitor by the time its turn opens. */
@@ -93,9 +92,9 @@ export function tickTurn(state: WorldState, host: TurnHost, tick: Tick): TickTur
       const sent: TimeSend = { message: 'tick', recipient: tick.place, elapsed };
       const drained = drain({ sends: [sent], destroyed: [], marked: [] }, turn);
       const read = { state: turnState(draft), catalogue, budget, passes };
-      return { elapsed, drained, answers: arrivalsRead(drained.notices, read) };
+      return { elapsed, drained, arrived: arrivalsRead(drained.described, read) };
     },
-    (done) => ({ actor: null, lines: [...saidLines(done.drained.said), ...done.answers] }),
+    (done) => ({ actor: null, lines: withArrivals(done.drained.said, done.arrived) }),
   );
 }
 

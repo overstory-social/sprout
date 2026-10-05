@@ -93,7 +93,7 @@ object composing_room is sprout.Place {
 
 `contains actors` is a declared capability beside `contains`, not a kind the engine knows by name. An actor's **place** is the nearest ancestor declaring it: that is what `tell` reaches, what a visitor leaves when they go, and what a description describes. A wardrobe that declares it can be entered, and everything that follows from being somewhere follows from that one line.
 
-A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
+A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count, read after the description. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
 
 Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads.
 
@@ -157,7 +157,7 @@ An object's identifier belongs to the body it is written in, so two chests may e
 
 ### Range
 
-Range is what an object can reach: what it may read with `get`, `send` to, and walk with `each`. One definition serves all three, and it is the same walk a broadcast makes.
+Range is what an object can reach: what it may read with `get`, `send` to, and walk with `each`. One definition serves all three, and it is the same walk a broadcast makes. What a container holds, asked with `count`, `holds` or `{for … in}`, is likewise only what is in range of the asker, so a shut chest counted from outside holds nothing and a description cannot list what a lid hides.
 
 An object reaches a target when nothing strictly between them on the containment tree refuses. Counted from the asker, that is itself and its own contents; its own container, as a surface; each container further out, when every container between the asker and it passes; and a container's other contents when it passes too. So a container that refuses is reached as a surface from inside and is a wall beyond that, in both directions. A bench in a bedroom that relays reaches the house around the bedroom, so it can `get` the house's `:season`; the house refuses, so the bench reaches none of the house's other places.
 
@@ -555,7 +555,7 @@ A name never contains an article, and the compiler refuses one that begins with 
 
 ### Articles
 
-On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`.
+On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`. The same words are dropped at the start of an exit's or a link's label, as typed and as written, so with `exit up "tree"`, `go the tree` takes it, and a label written `"the trap door"` is taken by `go trap door`.
 
 On output the engine uses the declared article for everything it writes itself — chips, the parser's `meant`, arrival notices. There is no first-mention tracking and no indefinite-to-definite progression; a thing is addressed the way its author declared, consistently.
 
@@ -705,8 +705,8 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.get(:p)` | `p` is declared on `x`'s type; `x` is not of object type |
 | `x.recall(:p)`, `x.remember(:p, e)`, `x.adjust(:p, e)` on memory | `x` composes `sprout.Actor`; `p` is in `self`'s `remembers` |
 | `x.includes(e)` | `x` a list or a set role; `e` its element type |
-| `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope |
-| `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` |
+| `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope; a container counts only contents in range of `self` |
+| `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` and in range of `self` |
 | `x.is(K)` | `K` is a kind in scope; `x` an object binding, or a name read through the object type |
 | `bound x` | `x` an optional tool; inside the branch it guards, `x` is bound |
 
@@ -760,7 +760,7 @@ each thing in cabinet    { … }        // thing is of object type
 each tool of tools       { … }        // a set role
 ```
 
-A kind filter binds only the contents that compose it and types the variable; without one the variable is an object. `each … of` walks a set role. There is no `each` over a list — a list holds values, and `{for … of}` renders them. Each iteration is charged as a step, and an `each` inside an `each` is what the step budget exists for.
+A kind filter binds only the contents that compose it and types the variable; without one the variable is an object. `count`, `count(K)`, `holds` and `{for … in}` see a container's contents exactly as `each` walks them. `each … of` walks a set role. There is no `each` over a list — a list holds values, and `{for … of}` renders them. Each iteration is charged as a step, and an `each` inside an `each` is what the step budget exists for.
 
 ### Per-actor memory
 
@@ -872,7 +872,7 @@ Within one participant, its plays of the role's category, `as tool for any` and 
 
 The **effect pass** runs every `do`, in the same order. The first role's usually carries the sentence; the others act and mostly stay quiet, so a wheel can learn it is dirty without saying so. When the pass ends, the queue drains.
 
-A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
+A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." The answer is decided when the effect pass ends: a line from a handler the queue runs afterward is not the reading's answer, so a `do` that only sends a message is answered with `nothing_happens`, and what the handler then tells the actor follows it. An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
 
 ### Word order stops mattering
 
@@ -1036,7 +1036,7 @@ object cat is Creature {
 
 Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
-An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` only as the destination of an exit or a link of the mover's place that applies, so an NPC walks the map as a visitor does and can go nowhere a visitor could not; a place reached no such way is out of range, and the move faults.
+An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` as the destination of an exit or a link of the mover's place that applies, or where it is in the mover's own range, which across places means the world passes, so an NPC walks the map as a visitor does unless the world deliberately opens it, as one place hearing another is the world's deliberate act; a place reached neither way is out of range, and the move faults.
 
 ### Moving something
 
@@ -1058,7 +1058,7 @@ grammar {
 }
 ```
 
-The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
+The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, its leading article optional under Articles, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
 
 Exits do not compose. An exit belongs to the body that writes it: an object's own exits are its own, and a kind's apply to that kind's own instances — an object whose `is` names the kind, and a `spawn` of it — and to no kind that composes it. So `kind DeepCell is MazeCell { }` takes none of `MazeCell`'s exits or links, and writes its own. A place's exits are its own body's and those of the kinds its `is` names, or its `spawn` named; where its own body writes an exit in a direction, those replace its kinds' in that direction, and two of its kinds writing one direction are refused. A place's exits are tried in the order their body writes them, so order never chooses between two sources.
 
@@ -1220,7 +1220,7 @@ Readings are ranked whole, never one noun at a time, so a hint in one role can d
 
 1. A reading whose consent pass allows beats one whose consent pass refuses.
 2. Of those, the one that matched more of the line's words literally — phrase words and nouns rather than adjectives alone — wins.
-3. Of those, nearer things beat further ones, as Spawning measures nearness.
+3. Of those, nearer things beat further ones, as Spawning measures nearness, except that the visitor's own place is further than everything it holds, as `all` leaves it out: it is named only where nothing in it answers as well.
 
 Readings still tied are drawn from the turn's seed, and the draw is logged as a warning. Where the drawn reading names a thing its rivals did not, the visitor is told which, through the world's `meant` line, "(the wooden rib)", before what the reading says; things written alike, which no word could tell apart, are drawn without it. The parser never asks which was meant.
 
@@ -1367,7 +1367,7 @@ This is the mirror of routing. Routing is policy, so containers own it and may a
 
 ### After the move
 
-Once every guard allows, the engine performs the single write and then tells the world: `:left (item, to)` to the old container, `:entered (item, from)` to the new one, and `:moved (from, to)` to the thing itself. When the thing is an actor, the engine also speaks, since both containers are places: every visitor in range of the old place reads its `leaves` passage and every other object in range of it is sent `:departed (actor, to)`; every visitor in range of the new place reads its `arrives` and every other object in range of it is sent `:arrived (actor, from)`; and the one who moved reads the new place's description. The one who moved hears neither notice. A move that would make a container hold itself is refused before any guard, in the world's `inside_itself` passage.
+Once every guard allows, the engine performs the single write and then tells the world: `:left (item, to)` to the old container, `:entered (item, from)` to the new one, and `:moved (from, to)` to the thing itself. When the thing is an actor, the engine also speaks, since both containers are places: every visitor in range of the old place reads its `leaves` passage and every other object in range of it is sent `:departed (actor, to)`; every visitor in range of the new place reads its `arrives` and every other object in range of it is sent `:arrived (actor, from)`; and the one who moved reads the new place's description. The description is read where the body that made the move ends, the effect pass for a reading's move, and before every line the queue then produces, so a place's `:entered` that tells the arrival "Your sword is glowing." is read after the place; it is derived from the turn's state once the queue is empty. The one who moved hears neither notice. A move that would make a container hold itself is refused before any guard, in the world's `inside_itself` passage.
 
 These are ordinary queued messages. They run after the move is committed, so they may write, send and narrate freely. A move must not make a container hold itself; a `move` that would is refused by the engine before any guard is asked.
 
@@ -1469,7 +1469,7 @@ Not merely dry. Burning.
 {/for}
 ```
 
-`{for x in <container>}` walks contents, and `{for x: Kind in <container>}` walks only those composing the kind, typing `x` so its passages and properties are in reach; `{for x of <list>}` walks a list, and `{for x of <set role>}` a set role. All bind `$first`, `$last`, `$index`, counting from 1, and `$count`.
+`{for x in <container>}` walks contents in range of `self`, as `each` does, and `{for x: Kind in <container>}` walks only those composing the kind, typing `x` so its passages and properties are in reach; `{for x of <list>}` walks a list, and `{for x of <set role>}` a set role. All bind `$first`, `$last`, `$index`, counting from 1, and `$count`.
 
 Conditions take no parentheses — the braces already delimit, and a paragraph should not carry the noise. This is the one place the language spells a condition differently from a body. A condition may compare, narrow with `is()`, test identity, and test `bound` on a name an engine line may leave unbound, as `{if bound way}`; it may not add.
 

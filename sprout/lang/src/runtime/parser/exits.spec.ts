@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { typedWords } from '../../declare/addressing.js';
 import { declaredId } from '../ids.js';
-import { exitNamed, type CommandExit } from './exits.js';
+import { exitNamed, labelWords, type CommandExit } from './exits.js';
 
 const TO = declaredId('maze', ['hall']);
 
@@ -24,6 +24,30 @@ describe('the exit a visitor names', () => {
   it('is the one whose label was typed, as an alias for its direction, however cased', () => {
     expect(named('toward a grey light')).toBe(EXITS[1]);
     expect(named('down the coal stair')).toBe(EXITS[2]);
+  });
+
+  it('drops an article, `my`, `this` or `that` at a label’s start, as typed and as written', () => {
+    const exits: readonly CommandExit[] = [
+      { direction: 'up', label: 'tree', to: TO },
+      { direction: 'down', label: 'The Trap Door', to: TO },
+    ];
+    const at = (line: string) => exitNamed(typedWords(line), exits);
+    for (const line of ['tree', 'the tree', 'a tree', 'my tree', 'this tree', 'that tree']) {
+      expect(at(line), line).toBe(exits[0]);
+    }
+    for (const line of ['trap door', 'the trap door', 'that trap door']) {
+      expect(at(line), line).toBe(exits[1]);
+    }
+    // Only one, and only at the start: a word the label holds inside it is kept.
+    expect(at('the the tree')).toBeNull();
+    expect(at('trap the door')).toBeNull();
+    expect(at('the')).toBeNull();
+  });
+
+  it('keeps a label of one word whole, though it is an article', () => {
+    expect(labelWords(['the'])).toEqual(['the']);
+    expect(labelWords(['the', 'tree'])).toEqual(['tree']);
+    expect(labelWords(['tree', 'house'])).toEqual(['tree', 'house']);
   });
 
   it('is a link by its label alone, since a link has no direction', () => {

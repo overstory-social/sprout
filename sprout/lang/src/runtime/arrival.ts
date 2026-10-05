@@ -11,12 +11,12 @@
 // crowd is asked (`crowd.ts`), refusing through the engine's `crowded`,
 // then the place's `accept`, with the world as `from`; then the place is
 // sent `:entered`, the visitor `:moved`, the place's range `arrives` and
-// `:arrived`, and the visitor reads the place's description once the
-// queue is empty.
+// `:arrived`, and the visitor reads the place's description, derived
+// once the queue is empty.
 // What it says is one sequence of effects: the world's `missing`, where
 // the world pins an extension this host does not supply (Extensions ›
 // Activation and absence), `displaced`, where it is told, the place's
-// `arrives`, what the queue said, then the description.
+// `arrives`, the description, then what the queue said.
 //
 // Two invariants. An arrival is a write turn, so a fault abandons all of
 // it; a visitor the place refuses, or a world that admits no one, writes
@@ -27,14 +27,14 @@ import { runGuard } from './guards.js';
 import { drain, type Drained } from './bus.js';
 import type { Catalogue } from './catalogue.js';
 import { turnedAway } from './crowd.js';
-import { noticeLines, saidLines, type Effect, type Speaking, type Unrendered } from './effects.js';
-import { arrivalsRead } from './engine-verbs.js';
+import { noticeLines, type Effect, type Speaking } from './effects.js';
+import { arrivalsRead, withArrivals, type Arrived } from './engine-verbs.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject } from './evaluate.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import { giveContents, type EngineSend } from './lifecycle.js';
 import { isPlace, liveTree } from './live.js';
-import { placeEntered, type Notice, type PlaceSend } from './move.js';
+import { owedAfter, owedBy, placeEntered, type Notice, type PlaceSend } from './move.js';
 import { keptNickname, nicknameRefusal } from './nickname.js';
 import { turnState, type Said } from './reading.js';
 import { newInstance, readerOf, type StateReader, type WorldState } from './state.js';
@@ -107,8 +107,8 @@ export interface Admitted {
   readonly entered: Entered;
   /** What the queue did from the entry on. */
   readonly drained: Drained;
-  /** The place the visitor came in to, as they read it, and any other a move of the queue's carried them to. */
-  readonly answers: readonly Unrendered[];
+  /** The place the visitor came in to, as they read it, and any other a move of the queue's carried a person to, among the entry's and the queue's lines. */
+  readonly arrived: readonly Arrived[];
 }
 
 /**
@@ -236,7 +236,7 @@ export function arrivalTurn(state: WorldState, host: TurnHost, arrival: Arrival)
         displaced: gone ? displacedLine(draft, id) : null,
         entered: entry,
         drained,
-        answers: answersAfter(turn, [...entry.notices, ...drained.notices]),
+        arrived: arrivedAfter(turn, entry, drained),
       };
     },
     arrivalSpeaking,
@@ -259,17 +259,19 @@ function arrivalSpeaking(done: Admitted | { readonly refused: Said }): Speaking 
     lines: [
       ...(done.missing === null ? [] : [{ said: done.missing }]),
       ...(done.displaced === null ? [] : [{ said: done.displaced }]),
-      ...saidLines(done.entered.said),
-      ...saidLines(done.drained.said),
-      ...done.answers,
+      ...withArrivals([...done.entered.said, ...done.drained.said], done.arrived),
     ],
   };
 }
 
-/** What the engine answers once an entry's queue is empty: the place each person moved arrived in. */
-function answersAfter(turn: WriteTurn, notices: readonly Notice[]): Unrendered[] {
+/** The place each person an entry or its queue moved arrived in, once the queue is empty, read where the move's body ended. */
+function arrivedAfter(turn: WriteTurn, entry: Entered, drained: Drained): Arrived[] {
   const { draft, catalogue, budget, passes } = turn;
-  return arrivalsRead(notices, { state: turnState(draft), catalogue, budget, passes });
+  const owed = [
+    ...owedBy(entry.notices, entry.said.length),
+    ...owedAfter(drained.described, entry.said.length),
+  ];
+  return arrivalsRead(owed, { state: turnState(draft), catalogue, budget, passes });
 }
 
 /**
@@ -347,8 +349,8 @@ export interface Displaced {
   readonly entry: Entry | { readonly closed: Closed };
   /** What the queue did from the entry on, where they came in. */
   readonly drained: Drained | null;
-  /** The place they came in to, as they read it, where they came in. */
-  readonly answers: readonly Unrendered[];
+  /** The place they came in to, as they read it, where they came in, among the entry's and the queue's lines. */
+  readonly arrived: readonly Arrived[];
 }
 
 /** Move `visit`'s visitor, whose place is gone, to the world's arrival place, as their turn's whole outcome. */
@@ -364,18 +366,18 @@ export function displace(turn: WriteTurn, visit: VisitKey): Displaced {
       told,
       entry: { closed: { reason, words: NOT_ADMITTING } },
       drained: null,
-      answers: [],
+      arrived: [],
     };
   }
   const entry = enter(turn, visitor, catalogue.arrival!);
-  if ('refused' in entry) return { told, entry, drained: null, answers: [] };
+  if ('refused' in entry) return { told, entry, drained: null, arrived: [] };
   draft.putVisitor({ ...record, lastPlace: entry.place });
   const drained = drain({ sends: entry.sends, destroyed: [], marked: [] }, turn);
   return {
     told,
     entry,
     drained,
-    answers: answersAfter(turn, [...entry.notices, ...drained.notices]),
+    arrived: arrivedAfter(turn, entry, drained),
   };
 }
 

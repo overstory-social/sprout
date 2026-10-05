@@ -474,7 +474,10 @@ grammar {
   Visitors may abbreviate the usual way (`n`, `sw`, `u`) and may leave out
   `go`.
 - The label is what a client shows on a button, and a visitor may type it
-  too: `back to the yard` works as well as `go out`.
+  too: `back to the yard` works as well as `go out`. An article, `my`,
+  `this` or `that` at the label's start may be typed or left out, so with
+  the label `"the trap door"`, `go trap door` works, and with `"tree"`,
+  `go the tree`.
 - The destination is a place, by identifier or dotted path. An exit may
   only be written on a place, and may only lead to one.
 - A place has at most 8 exits by default.
@@ -1274,7 +1277,9 @@ they run. The readings are ranked whole:
 1. one whose `permit`s all allow beats one that is refused;
 2. then the one that matched more of the line's words, where a name of
    adjectives alone matches none;
-3. then the one whose things are nearer.
+3. then the one whose things are nearer, where the place you stand in
+   counts as further than everything in it, so a room called "west of
+   house" is what `house` names only when nothing in it is a house.
 
 Readings still tied are drawn with the dice, and the host logs the draw
 as a warning. Where the drawn reading names a thing its rivals did not,
@@ -1366,7 +1371,9 @@ When the thing moved is an actor, both containers are places, and the
 engine also has everyone else in reach of the old place read its `leaves`
 passage and sends the other objects there `:departed (actor, to)`; does the
 same with `arrives` and `:arrived (actor, from)` for the new place; and
-shows the one who moved the new place's description.
+shows the one who moved the new place's description. They read it before
+anything the handlers of those messages say, so a place's `:entered` that
+tells the newcomer "Your sword is glowing." is read after the place.
 
 ### Characters moving
 
