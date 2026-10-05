@@ -2053,6 +2053,7 @@ kind World {
 
   passage unknown default         { That is not something you can do here. }
   passage not_here default        { You see nothing like that here. }
+  passage no_way default          { You can't go that way. }
   passage cannot default          { You can't {reading}. }
   passage not_carrying default    { You aren't carrying {thing}. }
   passage meant default           { ({thing}) }
