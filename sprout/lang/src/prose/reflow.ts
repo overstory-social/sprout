@@ -3,7 +3,10 @@
 // and a paragraph has none at its ends. A blank line is a paragraph break,
 // and a paragraph left with nothing in it is no paragraph, so a block that
 // renders nothing leaves none behind. `\n` is a line break reflow keeps.
-// The first letter of every rendered line is capitalised.
+// The first letter of every rendered line is capitalised, past an opening
+// quotation mark but not past a bracket. A passage put into a slot is
+// trimmed at its ends first, so the padding inside its braces is not left
+// before the words that follow the slot.
 
 /** What rendering prose gives, in order: words, or a break. */
 export type Rendered =
@@ -32,9 +35,53 @@ export function reflow(rendered: readonly Rendered[]): string[] {
   return paragraphs;
 }
 
-/** A line with its first letter capitalised, past any quote or bracket it opens with. */
+/**
+ * `rendered` with the space at its ends taken off: leading and trailing
+ * whitespace, and the blank lines a body opens or closes with. A `\n` is
+ * written, not space, and is kept.
+ */
+export function trimmed(rendered: readonly Rendered[]): Rendered[] {
+  const out = [...rendered];
+  while (out.length > 0) {
+    const first = out[0]!;
+    if ('break' in first) {
+      if (first.break === 'line') break;
+      out.shift();
+      continue;
+    }
+    const words = first.words.trimStart();
+    if (words !== '') {
+      out[0] = { words };
+      break;
+    }
+    out.shift();
+  }
+  while (out.length > 0) {
+    const last = out[out.length - 1]!;
+    if ('break' in last) {
+      if (last.break === 'line') break;
+      out.pop();
+      continue;
+    }
+    const words = last.words.trimEnd();
+    if (words !== '') {
+      out[out.length - 1] = { words };
+      break;
+    }
+    out.pop();
+  }
+  return out;
+}
+
+/**
+ * A line with its first letter capitalised, past any quotation mark, dash
+ * or other mark it opens with, unless a bracket comes first among them, so
+ * `meant`'s "(the wooden rib)" keeps its lower case (the spec's Prose › Slots).
+ */
 export function capitalise(line: string): string {
-  const lead = /^[^\p{L}\p{N}]*/u.exec(line)?.[0].length ?? 0;
+  const opening = /^[^\p{L}\p{N}]*/u.exec(line)?.[0] ?? '';
+  if (/[([{]/.test(opening)) return line;
+  const lead = opening.length;
   const first = line.charAt(lead);
   return `${line.slice(0, lead)}${first.toUpperCase()}${line.slice(lead + 1)}`;
 }

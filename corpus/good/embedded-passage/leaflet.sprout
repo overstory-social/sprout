@@ -1,0 +1,25 @@
+// `short` is padded, as the standard library writes its passages, and
+// `back` opens and closes with a blank line around two paragraphs. Each
+// put into a slot loses what is at its ends; `back` said on its own is
+// laid out as any passage is.
+import {study} from 'embedded_passage'
+
+kind Leaflet {
+  passage short { leaflet }
+
+  passage back {
+
+    It is printed on both sides.
+
+    The back is blank.
+
+  }
+
+  as target for study {
+    do {
+      say "You see a {self.short}."
+      say "Turning it over: {self.back} Nothing more."
+      say back
+    }
+  }
+}
