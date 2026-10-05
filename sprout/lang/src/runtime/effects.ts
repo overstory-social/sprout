@@ -118,8 +118,8 @@ export function saidLines(said: readonly Said[]): Unrendered[] {
 /**
  * What is said of an actor leaving or entering a place, as the engine's
  * `leaves` and `arrives` to the visitors in its range, in order; the description the
- * one who moved reads is the engine's answer, derived once the queue is
- * empty, and is not among them. A notice nobody is in range to read is
+ * one who moved reads is the engine's, derived once the queue is empty
+ * and placed among the turn's lines (`engine-verbs.ts`), and is not among them. A notice nobody is in range to read is
  * not a line.
  */
 export function noticeLines(notices: readonly Notice[]): Said[] {

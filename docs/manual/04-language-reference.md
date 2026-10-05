@@ -1396,7 +1396,9 @@ When the thing moved is an actor, both containers are places, and the
 engine also has everyone else in reach of the old place read its `leaves`
 passage and sends the other objects there `:departed (actor, to)`; does the
 same with `arrives` and `:arrived (actor, from)` for the new place; and
-shows the one who moved the new place's description.
+shows the one who moved the new place's description. They read it before
+anything the handlers of those messages say, so a place's `:entered` that
+tells the newcomer "Your sword is glowing." is read after the place.
 
 ### Characters moving
 

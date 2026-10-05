@@ -26,7 +26,7 @@ import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.
 import type { InstanceId } from './ids.js';
 import { destroyInstance } from './lifecycle.js';
 import { isLive } from './live.js';
-import type { Notice } from './move.js';
+import { owedBy, type Owed } from './move.js';
 import { actingSink, turnState, type ReadingContext, type Said } from './reading.js';
 import type { Sent } from './sends.js';
 
@@ -48,8 +48,8 @@ export interface Drained {
    * handler moved between two.
    */
   readonly said: readonly Said[];
-  /** What the places spoke of each actor a handler moved between two, the description the mover reads among it. */
-  readonly notices: readonly Notice[];
+  /** The description each actor a handler moved between two places is owed, placed among `said` as the handler ends. */
+  readonly described: readonly Owed[];
   /** Everything destroyed while the queue drained, and once it was empty. */
   readonly destroyed: readonly InstanceId[];
   /** How many deliveries ran a handler or a hook. */
@@ -84,7 +84,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
   const { draft, budget } = context;
   const gone = new Set<InstanceId>();
   const said: Said[] = [];
-  const notices: Notice[] = [];
+  const described: Owed[] = [];
   const destroyed: InstanceId[] = [];
   const marked: InstanceId[] = [...queued.marked];
   const ran: Ran[] = [];
@@ -129,7 +129,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
       });
       runBody(body.block, frameFor(sent, body, context), 'act', sink);
       said.push(...acted.said);
-      notices.push(...acted.notices);
+      described.push(...owedBy(acted.notices, said.length));
       marked.push(...acted.marked);
       drop(acted.destroyed);
       enqueue(acted.sends, depth + 1);
@@ -141,7 +141,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
     if (gone.has(id) || draft.instance(id) === undefined) continue;
     drop(destroyInstance(draft, id).removed);
   }
-  return { said, notices, destroyed, events, ran };
+  return { said, described, destroyed, events, ran };
 }
 
 /** One body a delivery runs: its block, what it names what it is passed, the kind that wrote it, what it answers and where. */

@@ -16,10 +16,10 @@ import {
   typedIn,
 } from '../fixtures/describe.js';
 import { words } from '../fixtures/reading.js';
-import { arrivalsRead, engineAnswers } from './engine-verbs.js';
+import { arrivalsRead, engineAnswers, withArrivals, type Arrived } from './engine-verbs.js';
 import type { InstanceId } from './ids.js';
-import type { Notice } from './move.js';
-import type { Reading } from './reading.js';
+import type { Owed } from './move.js';
+import type { Reading, Said } from './reading.js';
 
 const LOOK = STUDY.verbs.qualified('sprout', 'look')!;
 
@@ -131,64 +131,78 @@ describe('what the engine answers a command, once the queue is empty', () => {
     expect(saidIn(turn)).toEqual([]);
   });
 
-  it('describes a place arrived in only to a person who still stands there, once', () => {
-    const state = study([
-      [MARTA, HALL, 'Marta'],
-      [INES, LOFT, 'Ines'],
-    ]);
+  it('answers the command alone, and reads no arrival', () => {
+    const state = study();
     const marta = actorOf(state, MARTA);
-    const ines = actorOf(state, INES);
     const reading: Reading = { verb: LOOK, actor: marta, bindings: new Map() };
-    const described = (place: InstanceId, who: InstanceId): Notice => ({
-      notice: 'described',
-      place,
-      audience: [who],
-    });
-    // Ines was carried to the loft twice, and the hall is not where she
-    // stands; the cat is nobody; and Marta's own `look` is answered last.
-    const answers = engineAnswers(
-      reading,
-      [described(LOFT, ines), described(LOFT, ines), described(HALL, ines), described(HALL, CAT)],
-      lookingAt(state),
-    );
     expect(
-      answers.map((answer) =>
+      engineAnswers(reading, lookingAt(state)).map((answer) =>
         'description' in answer ? [answer.description.of, answer.description.to] : 'said',
       ),
-    ).toEqual([
-      [LOFT, ines],
-      [HALL, marta],
-    ]);
+    ).toEqual([[HALL, marta]]);
   });
 });
 
 describe('the places people arrived in, as they read them', () => {
-  const described = (place: InstanceId, who: InstanceId): Notice => ({
-    notice: 'described',
+  const owed = (place: InstanceId, mover: InstanceId, after: number): Owed => ({
+    mover,
     place,
-    audience: [who],
+    after,
   });
+  const read = (arrived: readonly Arrived[]) =>
+    arrived.map(({ after, line }) =>
+      'description' in line ? [line.description.of, line.description.to, after] : 'said',
+    );
 
-  it('are in the order the moves were made, and leave out every other notice', () => {
+  it('are in the order the moves were made, each where its move was', () => {
     const state = study([
       [MARTA, HALL, 'Marta'],
       [INES, LOFT, 'Ines'],
     ]);
     const [marta, ines] = [actorOf(state, MARTA), actorOf(state, INES)];
-    const read = arrivalsRead([described(LOFT, ines), described(HALL, marta)], lookingAt(state));
     expect(
-      read.map((one) => ('description' in one ? [one.description.of, one.description.to] : 'said')),
+      read(arrivalsRead([owed(LOFT, ines, 0), owed(HALL, marta, 2)], lookingAt(state))),
     ).toEqual([
-      [LOFT, ines],
-      [HALL, marta],
+      [LOFT, ines, 0],
+      [HALL, marta, 2],
     ]);
+  });
+
+  it('are once for each place, where the last move that owed it was', () => {
+    const state = study([[INES, LOFT, 'Ines']]);
+    const ines = actorOf(state, INES);
+    expect(
+      read(arrivalsRead([owed(LOFT, ines, 0), owed(LOFT, ines, 3)], lookingAt(state))),
+    ).toEqual([[LOFT, ines, 3]]);
   });
 
   it('are nothing for an NPC, or for someone a later move carried on', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    expect(arrivalsRead([described(HALL, CAT), described(LOFT, marta)], lookingAt(state))).toEqual(
-      [],
-    );
+    expect(arrivalsRead([owed(HALL, CAT, 0), owed(LOFT, marta, 0)], lookingAt(state))).toEqual([]);
+  });
+
+  it('fall among the turn’s lines where their `after` says, before what follows', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    const line = (name: string): Said => ({
+      effect: 'told',
+      to: [marta],
+      by: HALL,
+      speaker: null,
+      said: { absent: name },
+      bindings: new Map(),
+    });
+    const said = [line('one'), line('two')];
+    const [here] = arrivalsRead([owed(HALL, marta, 1)], lookingAt(state));
+    const at = (after: number): Arrived[] => [{ ...here!, after }];
+    const order = (arrived: readonly Arrived[]) =>
+      withArrivals(said, arrived).map((one) =>
+        'said' in one ? words(one.said.said) : 'described',
+      );
+    expect(order(at(0))).toEqual(['described', 'absent one', 'absent two']);
+    expect(order(at(1))).toEqual(['absent one', 'described', 'absent two']);
+    expect(order(at(2))).toEqual(['absent one', 'absent two', 'described']);
+    expect(order([])).toEqual(['absent one', 'absent two']);
   });
 });
