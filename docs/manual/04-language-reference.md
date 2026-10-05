@@ -410,7 +410,8 @@ wherever the instance running it is standing. Two lamps of one kind may
 therefore reach different objects by the same name. The compiler still
 refuses a name that no object in the world declares, and treats what such
 a name reaches as the object type (see [Types](#the-types)), so you must
-narrow it with `is()` before reading its properties.
+narrow it with `is()` before reading its properties. A dotted path there
+narrows the same way: `if (cellar.shelf.is(Shelf)) { … cellar.shelf.count … }`.
 
 ### Nicknames
 

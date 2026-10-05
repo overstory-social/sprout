@@ -1,0 +1,14 @@
+// A dotted path in a kind's body reaches whatever is so called nearest
+// each instance, so Sprout knows it only as an object, as it knows a
+// name: reading a property through it is refused until `is()` narrows
+// the path for a branch.
+import {rub} from 'kinds'
+
+kind Lantern {
+  as target for rub {
+    do {
+      if (shelf.lamp.get(:lit)) { say "The lantern is warm." }
+      say "You rub the lantern."
+    }
+  }
+}

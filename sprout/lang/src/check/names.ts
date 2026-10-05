@@ -10,7 +10,13 @@
 // runtime to find what it reaches, which is only ever a target when it is
 // in range.
 
-import type { Expr, Ident, MemberExpr, ObjectPath } from '../syntax/ast.js';
+import {
+  writtenMembers,
+  type Expr,
+  type Ident,
+  type MemberExpr,
+  type ObjectPath,
+} from '../syntax/ast.js';
 import { everyContent } from '../declare/contents.js';
 import { pathKey } from '../declare/tree.js';
 import type { Node } from '../source/nodes.js';
@@ -113,10 +119,10 @@ function declaredNames(source: NameSource): ReadonlySet<string> {
 
 /**
  * The dotted path an expression's member readings write on a name, whose
- * `steps` `pathSteps` counted, typed at what it names and recorded at its
- * last step for the runtime. Where the reading after it is a word no
- * reading is, it was meant as a step too, and is refused as a path's
- * step nothing answers to.
+ * `steps` `pathSteps` counted, typed at what it names, or as `is()`
+ * narrowed it where a branch holds it, and recorded at its last step for
+ * the runtime. Where the reading after it is a word no reading is, it was
+ * meant as a step too, and is refused as a path's step nothing answers to.
  */
 export function memberPathType(
   first: Ident,
@@ -128,7 +134,9 @@ export function memberPathType(
   if (after !== undefined && after.member.text !== 'count') {
     return stepsType([...written, after.member], after, context);
   }
-  return stepsType(written, steps.at(-1)!, context);
+  const type = stepsType(written, steps.at(-1)!, context);
+  const narrowed = context.scope.lookup(written.map((one) => one.text).join('.'));
+  return type === null || narrowed === null ? type : narrowed.type;
 }
 
 /** Whether `expr` is a dotted path whole, `w2.forest_1.box`, rather than a reading of one. */
@@ -223,20 +231,25 @@ function typed(named: Named, scope: NameScope): BindingType {
 }
 
 /**
- * Where `receiver` is a name in a kind's body that reaches whatever is
- * nearest each instance, the words for reading through it: say so, and
- * narrow it with `is()`, in a body or in a passage. Null for any other
- * receiver.
+ * Where `receiver` is a name or a dotted path in a kind's body that
+ * reaches whatever is nearest each instance, the words for reading
+ * through it: say so, and narrow it with `is()`, in a body or in a
+ * passage. Null for any other receiver.
  */
 export function placedWords(
   receiver: Expr,
   doing: string,
   context: CheckContext,
 ): { message: string; remedy: string } | null {
-  if (receiver.kind !== 'binding' || context.scope.lookup(receiver.name.text) !== null) return null;
-  const named = context.names?.table.get(receiver.name);
+  const [name, key] =
+    receiver.kind === 'binding'
+      ? [receiver.name.text, receiver.name]
+      : receiver.kind === 'member'
+        ? [writtenMembers(receiver), receiver]
+        : [null, null];
+  if (name === null || key === null || context.scope.lookup(name) !== null) return null;
+  const named = context.names?.table.get(key);
   if (named?.names !== 'placed') return null;
-  const name = receiver.name.text;
   const made = named.candidates.flatMap((one) => one.declaration.composes.slice(0, 1));
   const kind = made.length === 0 ? 'Key' : writtenKind(made[0]!);
   return {
@@ -246,19 +259,23 @@ export function placedWords(
 }
 
 /**
- * A name in a kind's body that the run resolves, as the binding `is()`
- * narrows for the branch it guards: of the object type, at the name as
- * written. Null for a name in scope, or one the compile fixed, since those
- * are typed already.
+ * A name or a dotted path in a kind's body that the run resolves, as the
+ * binding `is()` narrows for the branch it guards: of the object type,
+ * named by the text as written. Null for one in scope, or one the compile
+ * fixed, since those are typed already.
  */
-export function placedBinding(ident: Ident, context: CheckContext): ObjectBinding | null {
-  if (context.scope.lookup(ident.text) !== null) return null;
-  if (context.names?.table.get(ident)?.names !== 'placed') return null;
+export function placedBinding(
+  written: Ident | MemberExpr,
+  context: CheckContext,
+): ObjectBinding | null {
+  const name = written.kind === 'ident' ? written.text : writtenMembers(written);
+  if (name === null || context.scope.lookup(name) !== null) return null;
+  if (context.names?.table.get(written)?.names !== 'placed') return null;
   return {
-    name: ident.text,
+    name,
     type: { binds: 'object', kind: null },
     origin: 'name',
-    at: ident.at,
+    at: written.at,
     writable: false,
   };
 }

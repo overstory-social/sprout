@@ -114,6 +114,27 @@ describe('an `if` over a name in a kind’s body', () => {
     ]);
   });
 
+  it('narrows a dotted path as it narrows a name, for the right of `&&` and the branch', () => {
+    expect(
+      checkInLantern('if (hall.bench.is(Vessel) && hall.bench.get(:inked)) { allow }'),
+    ).toEqual([]);
+    expect(
+      checkInLantern('if (hall.bench.is(Vessel)) { if (hall.bench.get(:capacity) > 1) { allow } }'),
+    ).toEqual([]);
+    const unknown =
+      '`hall.bench` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot read a property from it.';
+    expect(checkInLantern('if (hall.bench.get(:inked)) { allow }')).toEqual([unknown]);
+    expect(
+      checkInLantern(
+        'if (hall.bench.is(Vessel)) { allow }\n    if (hall.bench.get(:inked)) { allow }',
+      ),
+    ).toEqual([unknown]);
+    // Narrowing one path says nothing of another, nor of a longer path through it.
+    expect(checkInLantern('if (hall.bench.is(Vessel) && hall.lamp.get(:inked)) { allow }')).toEqual(
+      [unknown.replace('hall.bench', 'hall.lamp')],
+    );
+  });
+
   it('holds the name for the branch, so a `let` of it there is shadowing', () => {
     expect(checkInLantern('if (lamp.is(Vessel)) { let lamp = self }')).toEqual([
       '`lamp` already names the thing `is()` narrowed here.',

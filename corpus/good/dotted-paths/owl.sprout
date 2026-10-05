@@ -1,7 +1,9 @@
 // An owl watches the box in the crate. A kind's body has no place in the
 // tree, so it names the box by a path from the world's name, which the
 // compile fixes, typed at `Box`: `get`, `count` and a `{for}` read it
-// without `is()`.
+// without `is()`. Written from where each owl sits, `forest_1.crate.box`
+// is whatever is so called nearest it, and `is()` narrows the path as it
+// narrows a name, for the right of `&&` and the branch.
 import {Box} from 'box'
 
 verb hoot { role target  "hoot at [target]" }
@@ -11,6 +13,9 @@ kind Owl {
   as target for hoot {
     do {
       if (dotted_paths.forest_1.crate.box.get(:open)) { say watching } else { say "The owl blinks at a shut box." }
+      if (forest_1.crate.box.is(Box) && forest_1.crate.box.get(:open)) {
+        say "The owl peers into {forest_1.crate.box}."
+      }
     }
   }
 

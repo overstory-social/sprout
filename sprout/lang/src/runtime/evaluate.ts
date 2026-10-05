@@ -24,6 +24,7 @@ import type {
   KindExpr,
   MemberExpr,
 } from '../syntax/ast.js';
+import { writtenMembers } from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { INTEGER_MAX, INTEGER_MIN } from '../declare/types.js';
@@ -169,20 +170,27 @@ function isAnd(expr: Expr): expr is BinaryExpr & { readonly operator: '&&' } {
 }
 
 /**
- * `frame` with the name `name.is(K)` tests bound to what it reaches now,
- * where the name is one in a kind's body that the run resolves; `frame`
- * itself for any other operand.
+ * `frame` with the name or dotted path `name.is(K)` tests bound to what it
+ * reaches now, where it is one in a kind's body that the run resolves;
+ * `frame` itself for any other operand.
  */
 function narrowedFrame(operand: Expr, frame: Frame): Frame {
   if (operand.kind !== 'call' || operand.method.text !== 'is') return frame;
+  if (operand.arguments.length !== 1) return frame;
   const receiver = operand.receiver;
-  if (receiver.kind !== 'binding' || operand.arguments.length !== 1) return frame;
-  const name = receiver.name;
-  if (name.text === 'self' || frame.bindings.has(name.text)) return frame;
-  const named = frame.names.get(name);
+  // A name, or a dotted path, which is bound by its text as written.
+  const [written, key] =
+    receiver.kind === 'binding'
+      ? [receiver.name.text, receiver.name]
+      : receiver.kind === 'member'
+        ? [writtenMembers(receiver), receiver]
+        : [null, null];
+  if (written === null || key === null) return frame;
+  if (written === 'self' || frame.bindings.has(written)) return frame;
+  const named = frame.names.get(key);
   if (named?.names !== 'placed') return frame;
   const bindings = new Map(frame.bindings);
-  bindings.set(name.text, boundObject(reachedByName(named, name.text, frame)));
+  bindings.set(written, boundObject(reachedByName(named, written, frame)));
   return { ...frame, bindings };
 }
 
@@ -212,23 +220,19 @@ function leaf(expr: Expr, frame: Frame): Evaluated {
     case 'free-call':
       return drawn(expr, frame);
     case 'member': {
-      // A dotted path, `w2.forest_1.box`: what the checker resolved it to.
+      // A dotted path, `w2.forest_1.box`: what a narrowing bound it to, else what the checker resolved it to.
+      const written = writtenMembers(expr);
       const named = frame.names.get(expr);
-      if (named === undefined)
+      if (written === null || named === undefined) {
         throw unchecked(`the reading \`${expr.member.text}\` at the bottom of a spine`);
-      return boundObject(reachedByName(named, writtenSteps(expr), frame));
+      }
+      const bound = frame.bindings.get(written);
+      if (bound !== undefined) return bound;
+      return boundObject(reachedByName(named, written, frame));
     }
     default:
       throw unchecked(`a ${expr.kind} at the bottom of a spine`);
   }
-}
-
-/** A dotted path written in an expression, as the author wrote it: `w2.forest_1.box`. */
-function writtenSteps(expr: MemberExpr): string {
-  const steps: string[] = [];
-  let node: Expr = expr;
-  for (; node.kind === 'member'; node = node.receiver) steps.unshift(node.member.text);
-  return node.kind === 'binding' ? [node.name.text, ...steps].join('.') : steps.join('.');
 }
 
 /** `chance(n)`, true one time in n, or `random(n)`, from 0 to n − 1, drawn from the frame's stream. */

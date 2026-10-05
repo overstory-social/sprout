@@ -14,6 +14,7 @@ import {
   memberPathType,
   pathSteps,
   placedBinding,
+  placedWords,
   type NameScope,
 } from './names.js';
 
@@ -208,6 +209,36 @@ describe('a dotted path in an expression', () => {
     const { first, members } = written('hall.bench.cushon');
     expect(memberPathType(first, members.slice(0, 1), members[1], other)).toBeNull();
     expect(saidBy(other)).toHaveLength(1);
+  });
+
+  it('in a kind’s body, is the binding `is()` narrows where the run resolves it, named as written', () => {
+    const { context } = writtenAt(inKind(source, 'shop.Lantern'));
+    const { expr } = read('hall.bench', context);
+    if (expr.kind !== 'member') throw new Error('`hall.bench` is not a member reading');
+    expect(placedBinding(expr, context)).toMatchObject({
+      name: 'hall.bench',
+      type: { binds: 'object', kind: null },
+      origin: 'name',
+    });
+    expect(placedWords(expr, 'count', context)).toEqual({
+      message:
+        '`hall.bench` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot count it.',
+      remedy:
+        'Narrow it with `is()` and read it inside the branch, as in `if (hall.bench.is(Holder)) { … }` in a body or `{if hall.bench.is(Holder)}…{/if}` in a passage.',
+    });
+    const fixed = read('wick.flame', context).expr;
+    if (fixed.kind !== 'member') throw new Error('`wick.flame` is not a member reading');
+    expect(placedBinding(fixed, context)).toBeNull();
+  });
+
+  it('reads as what `is()` narrowed it to, where a branch holds it', () => {
+    const { context } = writtenAt(inKind(source, 'shop.Lantern'));
+    const path = read('hall.bench', context).expr;
+    if (path.kind !== 'member') throw new Error('`hall.bench` is not a member reading');
+    const binding = placedBinding(path, context)!;
+    const narrowed = { ...context, scope: context.scope.narrowing(binding, VESSEL) };
+    expect(read('hall.bench.get(:inked)', narrowed).said).toEqual([]);
+    expect(read('hall.bench', narrowed).shown).toBe('shop.Vessel');
   });
 
   it('is a path whole only where every member is a step of it', () => {

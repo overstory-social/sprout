@@ -1,5 +1,5 @@
 {
-  "about": "The owl's own body walks and counts `forest_1.crate.box`; the kind it is made of reads `dotted_paths.forest_1.crate.box` with `get`, `count`, a slot and a `{for}`, shut and then open.",
+  "about": "The owl's own body walks and counts `forest_1.crate.box`; the kind it is made of reads `dotted_paths.forest_1.crate.box` with `get`, `count`, a slot and a `{for}`, shut and then open, and narrows `forest_1.crate.box` with `is()` on the left of `&&`.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about a forest 1." }
@@ -14,7 +14,8 @@
       { "reader": "Marta", "kind": "said", "words": "The lid swings up." }
     ] },
     { "as": "Marta", "type": "hoot at owl", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "The owl watches a box, open, holding 1: a coin." }
+      { "reader": "Marta", "kind": "said", "words": "The owl watches a box, open, holding 1: a coin." },
+      { "reader": "Marta", "kind": "said", "words": "The owl peers into a box." }
     ] }
   ]
 }

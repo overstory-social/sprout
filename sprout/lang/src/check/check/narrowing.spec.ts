@@ -5,7 +5,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { objectOf } from '../bindings.js';
-import { expression, VESSEL, vessel } from '../../fixtures/check.js';
+import { bodyOf, expression, read, VESSEL, vessel } from '../../fixtures/check.js';
+import { inKind, nameSource } from '../../fixtures/names.js';
+import type { CheckContext } from './checker.js';
 import { branchScope, heldScope, isAnd, narrowingOf } from './narrowing.js';
 
 describe('one operand', () => {
@@ -23,6 +25,37 @@ describe('one operand', () => {
     for (const text of ['self.count > 1', '!target.is(Vessel)', 'target.is(Nowhere)', 'true']) {
       expect(narrowingOf(expression(text), context), text).toBeNull();
       expect(heldScope(expression(text), context), text).toBe(context.scope);
+    }
+  });
+});
+
+describe('a dotted path in a kind’s body', () => {
+  /** A vessel's body written in a lantern's, where `hall.bench` is whatever is so called nearest each instance. */
+  function inLantern(): CheckContext {
+    const source = nameSource();
+    return {
+      ...bodyOf(VESSEL),
+      names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
+    };
+  }
+
+  it('narrows as a name does, bound by the path as written', () => {
+    const context = inLantern();
+    const condition = read('hall.bench.is(Vessel)', context).expr;
+    expect(narrowingOf(condition, context)).toMatchObject({
+      kind: VESSEL,
+      binding: { name: 'hall.bench', origin: 'name' },
+    });
+    const branch = branchScope(condition, context);
+    expect(branch.lookup('hall.bench')!.type).toEqual(objectOf(VESSEL));
+    expect(context.scope.lookup('hall.bench')).toBeNull();
+  });
+
+  it('narrows nothing for a path the compile fixed, which is typed already', () => {
+    const context = inLantern();
+    for (const text of ['shop.hall.bench.is(Vessel)', 'wick.flame.is(Vessel)']) {
+      const condition = read(text, context).expr;
+      expect(narrowingOf(condition, context), text).toBeNull();
     }
   });
 });
