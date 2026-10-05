@@ -1,0 +1,18 @@
+{
+  "about": "A perch counts what each nest around it holds behind one `t.is(Nest) && …`, and what the nest nearest it holds behind `nest.is(Nest) && …`, in its body and in its passage. With the egg taken, the nest is bare.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "survey perch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "A nest holds an egg." },
+      { "reader": "Marta", "kind": "said", "words": "One egg sits in the nest." }
+    ] },
+    { "as": "Marta", "type": "take egg", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take an egg." }
+    ] },
+    { "as": "Marta", "type": "survey perch", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The nest is bare." }
+    ] }
+  ]
+}

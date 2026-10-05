@@ -197,7 +197,7 @@ function unnamedExtension(expr: Expr, context: CheckContext): boolean {
 /**
  * `if`, and each `else if` after it, walked as the chain it is. A
  * condition `x.is(K)` narrows `x` to `K`, and `bound tool` binds `tool`,
- * in the branch it guards.
+ * alone or as an operand of `&&`, in the branch it guards.
  */
 function checkIf(statement: IfStatement, context: CheckContext, kind: BodyKind): void {
   for (let link: IfStatement = statement; ;) {

@@ -555,7 +555,7 @@ A name never contains an article, and the compiler refuses one that begins with 
 
 ### Articles
 
-On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`.
+On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`. The same words are dropped at the start of an exit's or a link's label, as typed and as written, so with `exit up "tree"`, `go the tree` takes it, and a label written `"the trap door"` is taken by `go trap door`.
 
 On output the engine uses the declared article for everything it writes itself — chips, the parser's `meant`, arrival notices. There is no first-mention tracking and no indefinite-to-definite progression; a thing is addressed the way its author declared, consistently.
 
@@ -1059,7 +1059,7 @@ grammar {
 }
 ```
 
-The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
+The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, its leading article optional under Articles, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
 
 Exits do not compose. An exit belongs to the body that writes it: an object's own exits are its own, and a kind's apply to that kind's own instances — an object whose `is` names the kind, and a `spawn` of it — and to no kind that composes it. So `kind DeepCell is MazeCell { }` takes none of `MazeCell`'s exits or links, and writes its own. A place's exits are its own body's and those of the kinds its `is` names, or its `spawn` named; where its own body writes an exit in a direction, those replace its kinds' in that direction, and two of its kinds writing one direction are refused. A place's exits are tried in the order their body writes them, so order never chooses between two sources.
 
@@ -1221,7 +1221,7 @@ Readings are ranked whole, never one noun at a time, so a hint in one role can d
 
 1. A reading whose consent pass allows beats one whose consent pass refuses.
 2. Of those, the one that matched more of the line's words literally — phrase words and nouns rather than adjectives alone — wins.
-3. Of those, nearer things beat further ones, as Spawning measures nearness.
+3. Of those, nearer things beat further ones, as Spawning measures nearness, except that the visitor's own place is further than everything it holds, as `all` leaves it out: it is named only where nothing in it answers as well.
 
 Readings still tied are drawn from the turn's seed, and the draw is logged as a warning. Where the drawn reading names a thing its rivals did not, the visitor is told which, through the world's `meant` line, "(the wooden rib)", before what the reading says; things written alike, which no word could tell apart, are drawn without it. The parser never asks which was meant.
 
