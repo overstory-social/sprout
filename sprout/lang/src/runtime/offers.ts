@@ -4,7 +4,8 @@
 // thing fills, by each thing in range it fits but the actor, and a carried
 // role only by what the actor carries; a set role by each such thing
 // alone; and `go`'s way by each exit and link that applies, a link typed
-// by its label. A tool is left out and a value role left unbound, which a
+// by its label. In the dark a thing role is offered only what the actor
+// carries, and the ways out still. A tool is left out and a value role left unbound, which a
 // body reads only inside `if (bound …)` and a `from` may leave so anyway.
 // Each offer is typed by its verb's first phrase that fits, with the
 // consent pass's answer beside it, and costs a step, so a world too large
@@ -22,6 +23,7 @@ import {
   type PermitRefusal,
   type Reading,
 } from './reading.js';
+import { inTheDark } from './darkness.js';
 import { exitsFrom } from './exits.js';
 import { addressOf, type AddressContext } from './parser/address.js';
 import type { CommandExit } from './parser/exits.js';
@@ -67,9 +69,11 @@ export function offersTo(
   const tree = liveTree(state);
   const walked = range ?? rangeOf({ tree, passes, budget }, actor, 'any');
   const carried = carriedIn(tree, actor, walked.reached);
+  // In the dark only what the actor carries is offered (the spec's Range › Sight).
+  const dark = inTheDark(actor, context);
   const things = walked.reached.flatMap(({ node }) => {
     const instance = node === state.world || node === actor ? undefined : state.instance(node);
-    return instance === undefined ? [] : [instance];
+    return instance === undefined || (dark && !carried.has(node)) ? [] : [instance];
   });
   const ways = exits ?? exitsFrom(here, context);
 

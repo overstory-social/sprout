@@ -155,6 +155,7 @@ describe('the standard library', () => {
         ['import from container', 'verb unlock', 'kind Lockable', 'intent open_with'],
       ],
       ['sprout/requires_held.sprout', ['kind RequiresHeld']],
+      ['sprout/light_source.sprout', ['message illuminating', 'kind LightSource']],
       ['sprout/talk.sprout', ['verb ask']],
     ]);
   });
@@ -480,6 +481,7 @@ describe('the standard library', () => {
     const engine = [
       'fault',
       'unseen',
+      'dark',
       'unknown',
       'not_here',
       'no_way',
@@ -517,7 +519,7 @@ describe('the standard library', () => {
 
   it('lets a world that writes none of them take every stock line, still yielding', () => {
     const world = compiled().bundle!.world!;
-    expect(world.passages.size).toBe(20);
+    expect(world.passages.size).toBe(21);
     for (const passage of world.passages.values()) {
       expect(passage, passage.name).toMatchObject({ origin: 'sprout.World', yields: true });
     }
@@ -536,7 +538,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      '7ba20793308138f555fa905dc377e9c70a5760072dba647c8ad7c92579bdc4bb',
+      'bed2ae4419ec17dc16e6e9eeb72c013c90f090470ad92f9b10512d92c4ccf508',
     );
   });
 });

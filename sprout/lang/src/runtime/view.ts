@@ -5,13 +5,16 @@
 // under the pass rules, so someone inside an open wardrobe is listed and
 // someone inside a shut one is not; what they carry; and every reading
 // the parser could build from what is in range, with its consent pass's
-// answer and the options of each value role. Each part is derived in the
-// order the spec lists it and charged to the poll's steps; `viewOf` fills
-// `parts` as it goes, so a caller whose poll then runs out of budget
-// still holds every part derived before the fault, per the spec's Faults
-// row for a poll. Nothing here is rendered, which is `prose/view.ts`'s.
+// answer and the options of each value role. In the dark the description
+// is the world's `dark`, nobody else is listed, and only what they carry
+// is offered, beside the ways out (the spec's Range › Sight). Each part
+// is derived in the order the spec lists it and charged to the poll's
+// steps; `viewOf` fills `parts` as it goes, so a caller whose poll then
+// runs out of budget still holds every part derived before the fault,
+// per the spec's Faults row for a poll. Nothing here is rendered, which is `prose/view.ts`'s.
 
 import { isActor } from '../declare/actors.js';
+import { inTheDark } from './darkness.js';
 import { describeFor, type Description } from './describe.js';
 import { exitsFrom } from './exits.js';
 import type { InstanceId } from './ids.js';
@@ -81,9 +84,12 @@ export function viewOf(
   const description = describeFor(place, actor, 'poll', context);
   parts.exits = exitsFrom(place, context);
   const range = rangeOf({ tree: liveTree(state), passes, budget }, actor, 'any');
-  parts.occupants = range.reached
-    .filter(({ via, node }) => via !== 'self' && actorIn(state, node))
-    .map(({ node }) => node);
+  // In the dark nobody else is seen (the spec's Range › Sight).
+  parts.occupants = inTheDark(actor, context)
+    ? []
+    : range.reached
+        .filter(({ via, node }) => via !== 'self' && actorIn(state, node))
+        .map(({ node }) => node);
   parts.carried = state.children(actor);
   parts.readings = offersTo(actor, context, parts.exits, range).map((offer): ViewReading => ({
     ...offer,

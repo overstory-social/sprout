@@ -10,7 +10,8 @@
 // Extensions › What an extension may add). What a line says is carried
 // unrendered, for `prose/` to render; where the lines render nothing, or the thing has no describe,
 // the engine's `unremarkable` is read in their place, so looking at
-// anything always reads something.
+// anything always reads something. The place someone stands in, while it
+// is not lit, is described by the world's `dark` in place of its own.
 
 import type { Block, IfStatement, Statement } from '../syntax/ast.js';
 import { libraryOf } from '../declare/enums.js';
@@ -21,6 +22,7 @@ import { eachWalked } from './each.js';
 import { recordOf } from './extension-statements.js';
 import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
+import { isLit } from './darkness.js';
 import { engineSaid } from './engine-lines.js';
 import {
   boundObject,
@@ -86,6 +88,17 @@ export function describeFor(
     said,
     bindings: new Map([['thing', boundObject(thing)]]),
   };
+
+  // The place someone stands in, unlit, is described by the world's `dark` (the spec's Range › Sight).
+  if (thing === here && !isLit(here, context)) {
+    const dark = engineSaid(state, 'dark', actor, here);
+    const bindings = new Map([
+      ['actor', boundObject(actor)],
+      ['here', boundObject(here)],
+    ]);
+    const line: Said = { effect: 'described', to: [actor], ...dark, speaker: null, bindings };
+    return { of: thing, to: actor, lines: [line], recorded: [], unremarkable };
+  }
 
   const describe = instance.kind.describe;
   if (describe === null) return { of: thing, to: actor, lines: [], recorded: [], unremarkable };

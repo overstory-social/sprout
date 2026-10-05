@@ -80,7 +80,10 @@ export function unknownMessage(
     .all()
     .filter((one) => one.library === from || one.library === SPROUT)
     .map((one) => one.name);
-  const meant = nearestOption(name, [...reachable, ...ENGINE_MESSAGES.map((one) => one.name)]);
+  // One name in two libraries is one name to suggest, not a tie between two.
+  const meant = nearestOption(name, [
+    ...new Set([...reachable, ...ENGINE_MESSAGES.map((one) => one.name)]),
+  ]);
   return {
     message: `Nothing declares a message \`:${name}\`.${meant === null ? '' : ` Did you mean \`:${meant}\`?`}`,
     remedy:

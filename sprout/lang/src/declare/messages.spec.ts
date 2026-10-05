@@ -283,4 +283,16 @@ describe('what a message name reaches, and the key it is known by', () => {
       remedy: "Declare it with `message :zzz`, beside the world's kinds and verbs.",
     });
   });
+
+  it('names one meant once where the world and the standard library both declare it', () => {
+    const { table } = declare('message :illuminating with boolean');
+    const standard = parseDeclarations(
+      new SourceFile('light_source.sprout', 'message :illuminating with boolean'),
+      new Diagnostics(),
+    ).filter((d): d is MessageDeclaration => d.kind === 'message');
+    table.add('sprout', standard, ENUMS, new Diagnostics());
+    expect(unknownMessage('illumnating', 'printers_shop', table).message).toBe(
+      'Nothing declares a message `:illumnating`. Did you mean `:illuminating`?',
+    );
+  });
 });

@@ -1,0 +1,19 @@
+lit_checked.sprout:17:20  A place's `lit` says whether it can be seen, so it is true or false, and this is integer.
+                          Write a condition, as in `lit (self.sees(sprout.LightSource, :lit))`.
+
+lit_checked.sprout:20:20  `actor` is not bound in a place's `lit`: it is asked of the place, whoever looks.
+                          Read the place through `self`, as in `lit (self.sees(sprout.LightSource, :lit))`, or a thing by its name.
+
+lit_checked.sprout:23:20  A place's `lit` may not use `chance`: it is asked whenever anyone there looks or acts, so a roll would show a room that flickers while nobody acts.
+                          Roll in a `do`, a handler or a tick, keep what it gave on a property, and read that here.
+
+lit_checked.sprout:26:48  `sees` asks whether something it sees has `:capacity` true, and `:capacity` is not a boolean it holds.
+                          Name a boolean property the kind declares, as in `self.sees(sprout.LightSource, :lit)`.
+
+lit_checked.sprout:31:39  `sees` asks what a place can see by its own light, and is read only in its `lit`.
+                          Read what is in range with `get`, `count` or `holds`, or ask `sees` in a place’s `grammar { lit (…) }`.
+
+lit_checked.sprout:36:13  `Lantern` is not a place, so nobody stands in it to see by its light.
+                          Write `lit` on a place: something that composes `sprout.Place` or writes `contains actors`.
+
+refused: 6 problems

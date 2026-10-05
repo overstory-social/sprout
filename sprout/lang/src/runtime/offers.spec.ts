@@ -25,6 +25,7 @@ import { Draft } from './draft.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { offersTo } from './offers.js';
+import * as D from '../fixtures/darkness.js';
 import {
   BOOK as BENCH_BOOK,
   BRASS_KEY as BENCH_KEY,
@@ -172,5 +173,20 @@ describe('what a carried role is offered with', () => {
     ]);
     // `put`'s container is not carried, so the crate on the floor is offered.
     expect(typed).toContain('put brass key in crate');
+  });
+});
+
+describe('what an actor is offered in the dark', () => {
+  it('is only what they carry, beside the ways out', () => {
+    const state = D.dark(undefined, [], [[D.MARTA, D.LAMP]]);
+    const typed = offersTo(D.personOf(state, D.MARTA), D.darkContext(state)).map(
+      (offer) => offer.typed,
+    );
+    expect(typed.some((line) => line.includes('coal') || line.includes('cellar'))).toBe(false);
+    expect(typed).toContain('examine lamp');
+    expect(typed).toContain('go up');
+    const lit = D.dark(undefined, [[D.LAMP, 'lit', true]], [[D.MARTA, D.LAMP]]);
+    const seen = offersTo(D.personOf(lit, D.MARTA), D.darkContext(lit)).map((offer) => offer.typed);
+    expect(seen.some((line) => line.includes('coal'))).toBe(true);
   });
 });

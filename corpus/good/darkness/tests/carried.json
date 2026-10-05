@@ -1,0 +1,30 @@
+{
+  "about": "A lamp in someone else's hands lights the cellar for everyone there, though a person passes nothing, and it goes dark again when they carry it out. Who comes and goes is heard in the dark as anywhere.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "arrive": "Ines" },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It is too dark to see." }
+    ] },
+    { "as": "Ines", "type": "take lamp", "expect": [
+      { "words": "You take a brass lamp." }
+    ] },
+    { "as": "Ines", "type": "light lamp", "expect": [
+      { "words": "The lamp flares, and steadies." }
+    ] },
+    { "as": "Ines", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives from the kitchen." },
+      { "reader": "Ines", "kind": "described", "words": "Damp stone, and a heap of coal against the far wall." }
+    ] },
+    { "as": "Marta", "type": "examine coal", "expect": [
+      { "words": "There is nothing special about the coal." }
+    ] },
+    { "as": "Ines", "type": "up", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves for the kitchen." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It is too dark to see." }
+    ] }
+  ]
+}

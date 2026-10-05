@@ -61,6 +61,7 @@ import {
 import { turn, words as spoken } from '../fixtures/reading.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import type { Answer } from './parser/answers.js';
+import * as D from '../fixtures/darkness.js';
 import type { RefusingExit } from './parser/exits.js';
 import { typedWords } from '../declare/addressing.js';
 import { addressOf } from './parser/address.js';
@@ -1038,5 +1039,33 @@ describe('`all`', () => {
       set: [GONG, PEBBLE_A, PEBBLE_B, CHEST, GUARD, DIAL, DOOR],
     });
     expect('rest' in outcome && outcome.rest).toEqual([]);
+  });
+});
+
+describe('a line read in the dark', () => {
+  const read = (line: string, state: ReturnType<typeof D.dark>) =>
+    readCommand(line, D.personOf(state, D.MARTA), {
+      ...D.darkContext(state),
+      draws: new Draws(7),
+      exits: [{ direction: 'up', label: 'up to the kitchen', to: D.KITCHEN }],
+      referents: [],
+      lastReading: null,
+    });
+
+  it('names only the actor and what they carry: anything else is `not_here`', () => {
+    const state = D.dark(undefined, [], [[D.MARTA, D.LAMP]]);
+    const coal = read('examine coal', state);
+    expect('answer' in coal && coal.answer).toBe('not_here');
+    const lamp = read('examine lamp', state);
+    expect('understood' in lamp && lamp.understood.bindings.get('target')).toEqual({
+      object: D.LAMP,
+    });
+    const up = read('up', state);
+    expect('understood' in up).toBe(true);
+    const lit = D.dark(undefined, [[D.LAMP, 'lit', true]], [[D.MARTA, D.LAMP]]);
+    const seen = read('examine coal', lit);
+    expect('understood' in seen && seen.understood.bindings.get('target')).toEqual({
+      object: D.COAL,
+    });
   });
 });

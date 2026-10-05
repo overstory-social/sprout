@@ -1,0 +1,51 @@
+// Darkness, apart from range (the spec's Range › Sight; Places). The
+// cellar is lit while it sees a lit light source: one set down in it, or
+// one in the hands of anyone standing there. While it is dark its
+// description is the world's `dark` line, a visitor names only what they
+// carry, and the view offers nothing of the cellar but its ways out,
+// which still lead out. The kitchen writes no `lit`, so it is lit.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world darkness is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    grammar {
+      article the
+      exit down "down the cellar steps" -> cellar
+    }
+
+    object lamp is Lamp
+  }
+
+  object cellar is sprout.Place {
+    grammar {
+      article the
+      lit (self.sees(sprout.LightSource, :lit))
+      exit up "up to the kitchen" -> kitchen
+    }
+
+    describe { text "Damp stone, and a heap of coal against the far wall." }
+
+    object coal is sprout.Fixture { grammar { name "coal"  article the } }
+  }
+}
+
+verb light { role target: Lamp  "light [target]" }
+verb snuff { role target: Lamp  "snuff [target]"  "put out [target]" }
+
+kind Lamp is sprout.LightSource {
+  grammar { name "brass lamp"  article a  nouns "lamp" }
+
+  as target for light {
+    permit { if (self.get(:lit)) { refuse "It is already lit." } }
+    do     { self.set(:lit, true)  say "The lamp flares, and steadies." }
+  }
+
+  as target for snuff {
+    permit { if (!self.get(:lit)) { refuse "It is not lit." } }
+    do     { self.set(:lit, false)  say "The lamp gutters out." }
+  }
+}

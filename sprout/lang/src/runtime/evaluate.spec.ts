@@ -37,6 +37,7 @@ import {
   type Frame,
 } from './evaluate.js';
 import { declaredId, type InstanceId } from './ids.js';
+import * as D from '../fixtures/darkness.js';
 import { SproutList } from './lists.js';
 import { initialState } from './load.js';
 import type { PassRule } from './range.js';
@@ -747,5 +748,36 @@ describe('a condition that narrows a name in a kind’s body', () => {
     };
     expect(spent('1 < 2 && 2 < 3')).toBe(spent('1 < 2 || 2 < 3') + 3);
     expect(spent('1 > 2 && 2 < 3')).toBe(spent('1 > 2 || 2 < 3') - 3);
+  });
+});
+
+describe('`sees`, in a place’s `lit`', () => {
+  /** What `self.sees(sprout.LightSource, :lit)` is, asked of the cellar in `state`. */
+  const sees = (state: ReturnType<typeof D.dark>): Evaluated => {
+    const context = D.darkContext(state);
+    return evaluate(expression('self.sees(sprout.LightSource, :lit)'), {
+      state: context.state,
+      kinds: D.DARK_CATALOGUE.lookup,
+      library: 'dark',
+      self: D.CELLAR,
+      bindings: new Map(),
+      budget: context.budget,
+      caps: D.DARK_CATALOGUE.caps,
+      names: D.DARK_CATALOGUE.names,
+      passes: context.passes,
+    });
+  };
+
+  it('is whether something the place sees composes the kind and holds the property true', () => {
+    expect(sees(D.dark())).toEqual({ binds: 'value', value: false });
+    expect(sees(D.dark(undefined, [[D.LAMP, 'lit', true]], [[D.MARTA, D.LAMP]]))).toEqual({
+      binds: 'value',
+      value: true,
+    });
+    // A lit lamp in the kitchen is not seen from the cellar.
+    expect(sees(D.dark(undefined, [[D.LAMP, 'lit', true]]))).toEqual({
+      binds: 'value',
+      value: false,
+    });
   });
 });

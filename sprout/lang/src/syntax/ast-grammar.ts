@@ -1,8 +1,8 @@
 // What the compiler builds from a grammar block: how a visitor addresses
-// a thing and how the engine names it, and a place's ways out (the spec's
-// Names › Addressing and display, Articles; Verbs › Exits, An exit may be
-// conditional, Links). Every node keeps the rule `ast.ts` states: a
-// `kind` and an `at`. The block's lines are kept in the order written, so
+// a thing and how the engine names it, and a place's ways out and whether
+// it is lit (the spec's Names › Addressing and display, Articles; Verbs ›
+// Exits, An exit may be conditional, Links; Range › Sight). Every node
+// keeps the rule `ast.ts` states: a `kind` and an `at`. The block's lines are kept in the order written, so
 // a line written twice is refused where the second stands, and exits of
 // one direction are tried in the order written.
 
@@ -119,6 +119,16 @@ export interface GrammarLink extends Node {
   readonly label: GrammarLabel;
 }
 
+/**
+ * `lit (self.sees(sprout.LightSource, :lit))`: whether a place is lit, a
+ * condition over the place polled as an exit's `when` is (the spec's
+ * Range › Sight). A place that writes none is lit.
+ */
+export interface GrammarLit extends Node {
+  readonly kind: 'grammar-lit';
+  readonly condition: Expr;
+}
+
 export type GrammarLine =
   | GrammarName
   | GrammarArticle
@@ -126,7 +136,8 @@ export type GrammarLine =
   | GrammarNouns
   | GrammarAdjectives
   | GrammarExit
-  | GrammarLink;
+  | GrammarLink
+  | GrammarLit;
 
 /**
  * `grammar { name "brass key"  article a  nouns "brass" }` — a kind's or

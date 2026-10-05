@@ -52,6 +52,8 @@ const written = (line: GrammarLine): string => {
       return `exit ${line.direction.text} ${line.label.text} ${line.leads.kind === 'path' ? writtenPath(line.leads) : 'refuse'}${line.when === null ? '' : ' when'}`;
     case 'grammar-link':
       return `link ${line.name.text} ${line.label.text}`;
+    case 'grammar-lit':
+      return `lit ${line.condition.kind}`;
   }
 };
 
@@ -201,7 +203,7 @@ describe('a grammar block', () => {
       [
         'k.sprout:3:5',
         'A grammar block is not made of `door`.',
-        'It holds `name`, `article`, `pronouns`, `nouns`, `adjectives`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
+        'It holds `name`, `article`, `pronouns`, `nouns`, `adjectives`, `exit`, `link` and `lit`, as in `grammar { name "brass key"  article a  nouns "brass" }`.',
       ],
     ]);
     expect(blocks[0]!.lines.map(written)).toEqual(['name lamp']);
@@ -217,6 +219,31 @@ describe('a grammar block', () => {
       'link back back',
       'exit up up kiln.loft',
     ]);
+  });
+
+  it('reads a `lit` and its condition, and refuses one with none, an empty one or one never closed', () => {
+    const { blocks, said } = readGrammar(
+      'grammar {\n    lit (self.sees(sprout.LightSource, :lit))\n    exit up "up" -> loft\n  }',
+    );
+    expect(said).toEqual([]);
+    expect(blocks[0]!.lines.map(written)).toEqual(['lit call', 'exit up up loft']);
+    for (const [line, message] of [
+      ['lit', '`lit` is followed by its condition in brackets: whether the place can be seen.'],
+      ['lit ()', 'This `lit` says nothing inside its brackets.'],
+      ['lit (true', 'The condition of this `lit` ends here, and its bracket is never closed.'],
+    ]) {
+      const read = readGrammar(`grammar {\n    ${line}\n    name "cellar"\n  }`);
+      expect(
+        read.said.map(([, said]) => said),
+        line,
+      ).toEqual([message]);
+    }
+  });
+
+  it('never takes the body’s next property for the words of a `refuse` that says none', () => {
+    const { members, messages } = readKind('grammar { exit west "x" refuse\n  :after false');
+    expect(messages).toEqual(['`refuse` says why.', 'This grammar block is never closed.']);
+    expect(members.some((m) => m.kind === 'property' && m.name.text === 'after')).toBe(true);
   });
 
   it('ends a block never closed where the body’s next member starts', () => {
@@ -245,6 +272,7 @@ const WELL_FORMED_LINES = [
     text: 'exit up "the loft" -> kiln.loft when (ladder.get(:down))',
   },
   { name: 'link onward deeper', text: 'link onward "deeper"' },
+  { name: 'lit call', text: 'lit (self.sees(sprout.LightSource, :lit))' },
   { name: 'exit west west refuse', text: 'exit west "west" refuse "You would need a machete."' },
   {
     name: 'exit east east refuse when',
@@ -292,6 +320,11 @@ const LINE_DEFECTS: readonly string[] = [
   'link onward',
   'link onward deeper',
   'link onward "x" -> hall',
+  'lit',
+  'lit ()',
+  'lit (',
+  'lit (true',
+  'lit (self.get(:lit) +)',
   'faulty',
   '4',
   'Faulty',

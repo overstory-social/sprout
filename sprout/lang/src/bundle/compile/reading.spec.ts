@@ -186,6 +186,8 @@ describe('every file in the bundle is read', () => {
       'Lockable',
       'open_with',
       'RequiresHeld',
+      'illuminating',
+      'LightSource',
       'ask',
     ]);
   });

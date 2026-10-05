@@ -95,7 +95,7 @@ object composing_room is sprout.Place {
 
 A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count, read after the description. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
 
-Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads.
+Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads. So does whether a place can be seen, its `lit`, under Range › Sight.
 
 ### Objects
 
@@ -163,11 +163,30 @@ An object reaches a target when nothing strictly between them on the containment
 
 An object always reaches **itself and its own contents**: a shut chest can still count what it holds and speak to it, because a lid stops others looking in, not the chest looking down. Without that, every container would go blind the moment it closed. It also always reaches **the surface of its own container** — the thing it is inside, even when nothing beyond it is — so a visitor shut in a wardrobe can still name the wardrobe and open it.
 
-A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
+A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against, while their place is lit, under Sight. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
 
 Because the world's pass rule refuses, places are out of range of one another until the world says otherwise. One place hearing another is a deliberate act by the world, not a consequence of sharing a microworld.
 
 Range is a walk. It goes nearest first: the asker and its own contents, then its container and that container's other contents, and so on outward a ring at a time, breadth-first within each ring and each container's contents in the order it holds them. A broadcast delivers in that order. The walk is bounded by the pass rules that stop it and charged to the step budget like any other work.
+
+### Sight
+
+Sight is apart from range. A place may say whether it can be seen, with `lit` and a condition in its grammar block:
+
+```sprout
+object cellar is sprout.Place {
+  grammar {
+    lit (self.sees(sprout.LightSource, :lit))
+    exit up "up to the kitchen" -> kitchen
+  }
+}
+```
+
+The condition is over the place, read-only and pure, and polled for whoever looks, as an exit's `when` is: `actor` and `here` are not bound, and nothing draws. A place that writes no `lit` is lit. `lit` is written only on a place, and composes as `name` does: a composer's own replaces its kinds', and two of its kinds writing one are refused.
+
+`x.sees(K, :p)` is read only in a `lit`. It is true when something `x` sees composes `K` and holds the boolean `:p` true, and what `x` sees is what its range reaches, save that a person's hands are open to sight: a lamp someone carries lights the place they stand in, though `sprout.Actor` passes nothing, and a lamp in a shut chest lights nothing. Nothing else may read through a person this way.
+
+While a visitor's place is not lit, their nouns resolve only against what they carry, so anything further is answered with `not_here`, and the place's description, to them, is the world's `dark` line, "It is too dark to see.". Messages, an NPC's range, `tell`, `each`, `get` and `send` are unchanged: they reach as range says.
 
 ### Actors and visitors
 
@@ -455,7 +474,7 @@ A bundle's language level is the highest level of any of its parts, library sour
 
 Every standard library kind, verb and passage is ordinary Sprout composed from the primitives in this document. If a standard library kind cannot be written in Sprout, the language is missing something and the language is what changes.
 
-So `sprout.Container` is the code above; `sprout.Fixture` is a `depart` guard and a passage; `sprout.LightSource` is a property and a `changed` hook that broadcasts; `take` is a verb whose `do` is one `move` and two lines of prose. There are no magic property names. `:open` and `:capacity` belong to `sprout.Container` the way any property belongs to the kind that declared it, and a kind that does not compose it has those names free.
+So `sprout.Container` is the code above; `sprout.Fixture` is a `depart` guard and a passage; `sprout.LightSource` is a property, `:lit`, and a `changed` hook that broadcasts `:illuminating` with it, which a place's `lit` asks after with `sees`; `take` is a verb whose `do` is one `move` and two lines of prose. There are no magic property names. `:open` and `:capacity` belong to `sprout.Container` the way any property belongs to the kind that declared it, and a kind that does not compose it has those names free.
 
 ### Splitting a kind along the type seam
 
@@ -673,7 +692,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `pronoun` in `pronoun_correction` | string: the pronoun the thing declares |
 | `reading` in `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
 | `thing` in `not_carrying` | object: what a carried role names that the actor does not carry |
-| `actor` and `here` in `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `nothing_happens`, `help` and `fault` | as above |
+| `actor` and `here` in `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `nothing_happens`, `dark`, `help` and `fault` | as above |
 | `way` in `no_way` | string: the direction typed, written out, as `north` for `n` |
 | `actor` in `gone_away` and `npc_says` | as above |
 | `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
@@ -684,7 +703,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `from` in `arrives`, `to` in `leaves` | object: the place left or entered, inside `{if bound …}` only, since a visitor coming in from outside the world, or leaving it, has none |
 | `way` in `arrives` and `leaves` | string: the label of the exit or link the move went through, inside `{if bound way}` only |
 
-An engine line is given exactly what this table names for it: `unremarkable` only `thing`, and `unseen`, `missing`, `displaced` and `waited` nothing.
+An engine line is given exactly what this table names for it, `dark` its `actor` and `here` as `unknown` is: `unremarkable` only `thing`, and `unseen`, `missing`, `displaced` and `waited` nothing.
 
 A kind named in a role or an `each` matches **nominally**, and by composition rather than by exact kind: `role into: sprout.Container` admits anything that composes `sprout.Container`, whatever else it composes, and nothing that merely resembles one.
 
@@ -709,6 +728,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.includes(e)` | `x` a list or a set role; `e` its element type |
 | `x.count`, `x.count(K)` | `x` a container, a set role or a list; `count(K)` only on a container or a set role; `K` a kind in scope; a container counts only contents in range of `self` |
 | `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` and in range of `self` |
+| `x.sees(K, :p)` | only in a place's `lit`; `x` a container; `K` a kind in scope; `p` a boolean `K` declares |
 | `x.is(K)` | `K` is a kind in scope; `x` an object binding, or a name read through the object type |
 | `bound x` | `x` an optional tool; inside the branch it guards, `x` is bound |
 
@@ -1444,7 +1464,7 @@ A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and ca
 
 ### Engine lines
 
-Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `dark`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
 
 When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
 
@@ -1663,7 +1683,7 @@ The same goes for the other two. A lever that grinds differently after its first
 
 ### Where chance is forbidden
 
-Not in `describe`, not in an exit's `when` guard, not in a consent guard, not in a `permit`, and not in a pass rule, `pass :m` or `pass any`. Nor in the lines the engine says where a poll does, the world's `unseen`, `unremarkable` and `acted`, wherever any is said, nor in a thing's `contents`, which `examine` renders as part of its description.
+Not in `describe`, not in an exit's `when` guard, not in a place's `lit`, not in a consent guard, not in a `permit`, and not in a pass rule, `pass :m` or `pass any`. Nor in the lines the engine says where a poll does, the world's `unseen`, `unremarkable` and `acted`, wherever any is said, nor in a thing's `contents`, which `examine` renders as part of its description.
 
 All of them are polled or decisive rather than performed. A description re-runs on every poll, so a random one shimmers — the place rewrites itself while the visitor stands still and does nothing — and the engine's poll lines are held to a description's rule wherever they are said. An exit's guard is evaluated to build what a visitor can see and go, so a random one offers a way out that vanishes when taken. A pass rule is asked whenever range is walked, by a poll and by the parser among them, so a rolling one would let a sound or a hand through and then not while nobody acts. And a guard or a `permit` is asked as part of a decision it must not change.
 
@@ -1809,7 +1829,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -1928,7 +1948,7 @@ Within a command turn, the order is fixed: parse; the consent pass; the effect p
 
 ### The view
 
-A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
+A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault; the view of one whose place is not lit is as Range › Sight says. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
 
 A poll that exhausts its budget yields a view whose description is the world's `unseen` passage and which keeps every other part the poll derived without faulting. The fault is logged against the object it names, or against the actor's place where the budget ran out with none named, with the time of the poll and not who was looking.
 
@@ -2063,6 +2083,7 @@ kind World {
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }
   passage unseen default          { Something here is too much to take in. }
+  passage dark default            { It is too dark to see. }
   passage fault default           { Something in this world has gone wrong, and nothing has changed. }
   passage missing default         { This world uses something this host does not provide, and will be missing some of itself. }
   passage displaced default       { The place you were standing is gone. }
@@ -2245,6 +2266,14 @@ intent open_with {
 kind RequiresHeld {
   as tool for any { permit { if (!actor.holds(self)) { refuse needs_held } } }
   passage needs_held default { You'll need {self} in your hand. }
+}
+
+// sprout/light_source.sprout
+message :illuminating with boolean
+
+kind LightSource {
+  :lit false
+  changed :lit (was) { broadcast :illuminating with self.get(:lit) }
 }
 
 // sprout/talk.sprout

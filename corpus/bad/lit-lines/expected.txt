@@ -1,0 +1,13 @@
+lit_lines.sprout:13:10  `lit` is followed by its condition in brackets: whether the place can be seen.
+                        Write `lit (self.sees(sprout.LightSource, :lit))`.
+
+lit_lines.sprout:19:11  This `lit` says nothing inside its brackets.
+                        Write the condition the place is lit under, as in `lit (self.sees(sprout.LightSource, :lit))`, or leave `lit` out and the place is always lit.
+
+lit_lines.sprout:26:7   `attic` writes its `lit` twice.
+                        A place is lit under one condition. Keep one `lit` line, and write what both say as one condition.
+
+lit_lines.sprout:32:7   The condition of this `lit` ends here, and its bracket is never closed.
+                        Add a ) after the condition.
+
+refused: 4 problems

@@ -91,6 +91,16 @@ describe('one body’s grammar lines, in the first tier', () => {
     ]);
   });
 
+  it('refuse `lit` written twice, at the second', () => {
+    expect(checked('kind Cellar { grammar { lit (true) } grammar { lit (false) } }')).toEqual([
+      [
+        'k.sprout:1:48',
+        '`Cellar` writes its `lit` twice.',
+        'A place is lit under one condition. Keep one `lit` line, and write what both say as one condition.',
+      ],
+    ]);
+  });
+
   it('refuse `pronouns` written twice, at the second', () => {
     expect(checked('kind Cat { grammar { pronouns she } grammar { pronouns it } }')).toEqual([
       [
@@ -253,6 +263,28 @@ describe('a composed grammar', () => {
     ]);
     expect(grammar('Cat').pronoun).toMatchObject({ value: 'she', origin: 'shop.Pet' });
     expect(grammar('Hen').pronoun).toMatchObject({ value: 'she', origin: 'shop.Hen' });
+  });
+
+  it('takes one source’s `lit`, the composer’s own first, and refuses two', () => {
+    const { said, grammar } = composed(
+      [
+        'kind Cave { grammar { lit (false) } }',
+        'kind Cellar { grammar { lit (true) } }',
+        'kind Grotto is Cave { }',
+        'kind Vault is Cave, Cellar { }',
+        'kind Crypt is Cave, Cellar { grammar { lit (true) } }',
+      ].join('\n'),
+    );
+    expect(said).toEqual([
+      [
+        'k.sprout:4:21',
+        '`Vault` gets its `lit` from both `Cave` and `Cellar`, and a thing has one.',
+        'Write `grammar { lit (…) }` in `Vault` to say when it is lit.',
+      ],
+    ]);
+    expect(grammar('Grotto').lit).toMatchObject({ origin: 'shop.Cave' });
+    expect(grammar('Crypt').lit).toMatchObject({ origin: 'shop.Crypt' });
+    expect(grammar('Cave').lit?.value.kind).toBe('grammar-lit');
   });
 
   it('is nothing at all where no source writes a line', () => {

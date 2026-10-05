@@ -4,17 +4,17 @@
 // Static caps).
 //
 // Reading its file checks one body's lines against themselves: one `name`,
-// one `article` and one `pronouns` however many blocks hold them, a name that is not
+// one `article`, one `pronouns` and one `lit` however many blocks hold them, a name that is not
 // empty and does not begin with an article, and the host's caps on nouns,
 // which hold for its adjectives too; its exits and links are `exits.ts`'s.
-// Across the bundle, composing: a composer's own `name`, `article` or `pronouns` replaces
+// Across the bundle, composing: a composer's own `name`, `article`, `pronouns` or `lit` replaces
 // what it composes, one source's applies, and two sources are refused;
 // nouns and adjectives from every source apply, in closure order, the
 // composer's own last. What applies where nothing is written is the runtime's to say,
 // since it depends on what the thing is.
 
 import type { KindDeclaration, KindExpr, KindMember, ObjectDeclaration } from '../syntax/ast.js';
-import type { Article, GrammarLine, Pronoun } from '../syntax/ast-grammar.js';
+import type { Article, GrammarLine, GrammarLit, Pronoun } from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
 import { typedWords } from './addressing.js';
@@ -39,6 +39,8 @@ export interface ComposedGrammar {
   readonly name: GrammarSource<string> | null;
   readonly article: GrammarSource<Article> | null;
   readonly pronoun: GrammarSource<Pronoun> | null;
+  /** Whether a place is lit, where its closure says (the spec's Range › Sight); null where it is always lit. */
+  readonly lit: GrammarSource<GrammarLit> | null;
   /** Every noun written in the closure, as written, in closure order and each once, however cased. */
   readonly nouns: readonly string[];
   /** Every adjective written in the closure, the same way. */
@@ -50,6 +52,7 @@ export const NO_GRAMMAR: ComposedGrammar = {
   name: null,
   article: null,
   pronoun: null,
+  lit: null,
   nouns: [],
   adjectives: [],
 };
@@ -72,6 +75,7 @@ export function checkGrammar(
   let named = false;
   let articled = false;
   let pronounced = false;
+  let lit = false;
   let nouns = 0;
   let adjectives = 0;
   const words = (text: string, at: Span): void => {
@@ -182,6 +186,16 @@ export function checkGrammar(
           words(adjective.text.trim(), adjective.at);
         }
         break;
+      case 'grammar-lit':
+        if (lit) {
+          diagnostics.refuse(
+            line.at,
+            `\`${owner}\` writes its \`lit\` twice.`,
+            'A place is lit under one condition. Keep one `lit` line, and write what both say as one condition.',
+          );
+        }
+        lit = true;
+        break;
       case 'grammar-exit':
       case 'grammar-link':
         break;
@@ -195,6 +209,7 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
   let name: GrammarSource<string> | null = null;
   let article: GrammarSource<Article> | null = null;
   let pronoun: GrammarSource<Pronoun> | null = null;
+  let lit: GrammarSource<GrammarLit> | null = null;
   const nouns: string[] = [];
   const adjectives: string[] = [];
   for (const line of linesOf(members)) {
@@ -204,6 +219,8 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
       article ??= { value: line.article, origin, at: line.at };
     } else if (line.kind === 'grammar-pronouns') {
       pronoun ??= { value: line.pronoun, origin, at: line.at };
+    } else if (line.kind === 'grammar-lit') {
+      lit ??= { value: line, origin, at: line.at };
     } else if (line.kind === 'grammar-nouns') {
       for (const noun of line.nouns) if (noun.text.trim() !== '') nouns.push(noun.text.trim());
     } else if (line.kind === 'grammar-adjectives') {
@@ -211,7 +228,7 @@ export function ownGrammar(members: readonly KindMember[], origin: string): Comp
         if (one.text.trim() !== '') adjectives.push(one.text.trim());
     }
   }
-  return { name, article, pronoun, nouns: once(nouns), adjectives: once(adjectives) };
+  return { name, article, pronoun, lit, nouns: once(nouns), adjectives: once(adjectives) };
 }
 
 /** A composed kind's grammar, with the kind as written that brought it. */
@@ -234,7 +251,7 @@ export function composeGrammar(
   diagnostics: Diagnostics,
 ): ComposedGrammar {
   const pick = <T>(
-    line: 'name' | 'article' | 'pronouns',
+    line: 'name' | 'article' | 'pronouns' | 'lit',
     mine: GrammarSource<T> | null,
     of: (grammar: ComposedGrammar) => GrammarSource<T> | null,
   ): GrammarSource<T> | null => {
@@ -256,7 +273,9 @@ export function composeGrammar(
           ? `Write \`grammar { name "…" }\` in \`${composer}\` to say what it is called.`
           : line === 'article'
             ? `Write \`grammar { article … }\` in \`${composer}\` to say which it is written with.`
-            : `Write \`grammar { pronouns … }\` in \`${composer}\` to say which it is called by.`,
+            : line === 'pronouns'
+              ? `Write \`grammar { pronouns … }\` in \`${composer}\` to say which it is called by.`
+              : `Write \`grammar { lit (…) }\` in \`${composer}\` to say when it is lit.`,
       );
     }
     return first.source;
@@ -265,6 +284,7 @@ export function composeGrammar(
     name: pick('name', own.name, (grammar) => grammar.name),
     article: pick('article', own.article, (grammar) => grammar.article),
     pronoun: pick('pronouns', own.pronoun, (grammar) => grammar.pronoun),
+    lit: pick('lit', own.lit, (grammar) => grammar.lit),
     nouns: once([...composed.flatMap(({ grammar }) => grammar.nouns), ...own.nouns]),
     adjectives: once([...composed.flatMap(({ grammar }) => grammar.adjectives), ...own.adjectives]),
   };
