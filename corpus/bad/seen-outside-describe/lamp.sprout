@@ -1,0 +1,11 @@
+import * as sprout from 'sprout'
+
+verb rub { role target  "rub [target]" }
+
+kind Lamp {
+  describe { text glow }
+
+  as target for rub { do { say glow } }
+
+  passage glow { {if seen == :look}The lamp glows at you.{else}A lamp.{/if} }
+}

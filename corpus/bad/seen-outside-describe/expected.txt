@@ -1,0 +1,4 @@
+lamp.sprout:8:32  The passage `glow` renders `{seen}`, and nothing here is called `seen`.
+                  Say it where `seen` is bound, or give the words here in quotes. In reach here: `actor` and `here`.
+
+refused: 1 problem
