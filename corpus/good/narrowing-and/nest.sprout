@@ -1,0 +1,2 @@
+kind Nest { contains }
+kind Egg { }
