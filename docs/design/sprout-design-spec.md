@@ -1480,9 +1480,9 @@ A slot is `{…}`; `\{` is a literal brace, and a backslash escapes in a passage
 | `{self.get(:mood)}` | the option word, humanised — `bone_dry` becomes "bone dry" |
 | `{self.count}` | digits |
 | `{actor.recall(:note)}` | the string as written |
-| `{pot.greeting}` | another object's passage, run with that object as its own `self`; `pot` must be typed by a kind that declares `greeting`; it is given `actor`, `here` and `seen` where the slot has them, and no other binding |
+| `{pot.greeting}` | another object's passage, run with that object as its own `self`; `pot` must be typed by a kind that declares `greeting`; it is given `actor`, `here` and `seen` where the slot has them, and no other binding; what it renders is trimmed at both ends before it is put in the slot |
 
-An object in a slot renders as its name, with the article its grammar block declared, except to itself. A line told to Marta that names Marta says "you", so one `tell "{actor} tags {self}."` reads correctly to the bystanders, and the target is told in the second person by a `tell self` the author writes for them. That is all `{actor}` ever was: a visitor is an object, and a visitor's name is their nickname, so nothing about it is special. The first letter of a rendered line is capitalised, which is where an object slot most often sits.
+An object in a slot renders as its name, with the article its grammar block declared, except to itself. A line told to Marta that names Marta says "you", so one `tell "{actor} tags {self}."` reads correctly to the bystanders, and the target is told in the second person by a `tell self` the author writes for them. That is all `{actor}` ever was: a visitor is an object, and a visitor's name is their nickname, so nothing about it is special. The first letter of a rendered line is capitalised, which is where an object slot most often sits; it is capitalised past an opening quotation mark but not past a bracket, so `meant`'s "(the wooden rib)" keeps its lower case.
 
 Listing what a place holds is a loop over its contents:
 

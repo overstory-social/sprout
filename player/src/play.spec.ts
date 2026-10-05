@@ -453,7 +453,7 @@ describe('a line read one of several ways that tied', () => {
       ['prose', 'said'],
       ['warning', null],
     ]);
-    expect(made[0]!.words).toBe(`(A ${taken} key)`);
+    expect(made[0]!.words).toBe(`(a ${taken} key)`);
     expect(made[2]!.text).toBe('drawn: the line read 2 ways that tied, and one was drawn');
   });
 });

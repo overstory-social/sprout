@@ -172,7 +172,7 @@ refused by a crate (yard.crate) as target, in lane.Crate's permit:
     expect(read('take key').page).toBe(`in yard, "take key" reads as sprout.take
   target: a brass key (yard.brass_key)
 drawn from 2 readings that tied, as a turn seeded 0 draws it; the visitor is told first:
-  (A brass key)
+  (a brass key)
 every participant consents
 `);
   });

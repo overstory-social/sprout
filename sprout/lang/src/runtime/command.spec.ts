@@ -792,7 +792,7 @@ describe('the standard library, played through command turns', () => {
       const marta = turn!.read['Marta']!;
       const taken = /^You take a (nail|tack)\.$/.exec(marta[1] ?? '')?.[1];
       expect(taken, marta.join(' / ')).toBeDefined();
-      expect(marta[0]).toBe(`(A ${taken})`);
+      expect(marta[0]).toBe(`(a ${taken})`);
       seen.add(taken!);
     }
     expect([...seen].sort()).toEqual(['nail', 'tack']);

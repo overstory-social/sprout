@@ -1,0 +1,15 @@
+{
+  "about": "A passage in a slot is trimmed at its ends: the leaflet's padded `short` reads \"a leaflet.\" with no space before the full stop, and its two-paragraph `back`, blank lines at both ends, breaks the line it is put in once, between its paragraphs, and nowhere else. `back` said on its own reads as it always has.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "study leaflet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You see a leaflet." },
+      { "reader": "Marta", "kind": "said", "words": "Turning it over: It is printed on both sides." },
+      { "reader": "Marta", "kind": "said", "words": "The back is blank. Nothing more." },
+      { "reader": "Marta", "kind": "said", "words": "It is printed on both sides." },
+      { "reader": "Marta", "kind": "said", "words": "The back is blank." }
+    ] }
+  ]
+}
