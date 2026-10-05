@@ -22,6 +22,7 @@ import type { StateReader } from './state.js';
 export const STOCK_LINES: Readonly<Record<EngineLineName, string>> = {
   unknown: 'That is not something you can do here.',
   not_here: 'You see nothing like that here.',
+  no_way: "You can't go that way.",
   cannot: "You can't {reading}.",
   not_carrying: "You aren't carrying {thing}.",
   meant: '({thing})',

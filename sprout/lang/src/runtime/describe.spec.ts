@@ -29,7 +29,7 @@ describe('a description', () => {
   it('is each `text` the describe ran, in order, from the thing, to the one looking', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    const described = describeFor(LAMP, marta, lookingAt(state));
+    const described = describeFor(LAMP, marta, 'look', lookingAt(state));
     expect(described.of).toBe(LAMP);
     expect(described.to).toBe(marta);
     expect(
@@ -42,26 +42,31 @@ describe('a description', () => {
 
   it('runs the branch its state picks, and reads as the state is now', () => {
     const state = study(undefined, [[LAMP, 'lit', true]]);
-    const lines = describeFor(LAMP, actorOf(state, MARTA), lookingAt(state)).lines;
+    const lines = describeFor(LAMP, actorOf(state, MARTA), 'look', lookingAt(state)).lines;
     expect(lines.map((line) => words(line.said))).toEqual([
       'The lamp burns.',
       'It hangs from a hook.',
     ]);
   });
 
-  it('binds `actor` to whoever looks and `here` to their place, and a `let` to the lines after it', () => {
+  it('binds `actor` to whoever looks, `here` to their place, `seen` to what it is read for, and a `let` to the lines after it', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    const [greeting] = describeFor(MIRROR, marta, lookingAt(state)).lines;
+    const [greeting] = describeFor(MIRROR, marta, 'look', lookingAt(state)).lines;
     expect(Object.fromEntries(greeting!.bindings)).toEqual({
       actor: { binds: 'object', id: marta },
       here: { binds: 'object', id: HALL },
+      seen: { binds: 'value', value: 'look' },
     });
+    for (const seen of ['arrival', 'poll'] as const) {
+      const [line] = describeFor(MIRROR, marta, seen, lookingAt(state)).lines;
+      expect(line!.bindings.get('seen'), seen).toEqual({ binds: 'value', value: seen });
+    }
     const crowded = study([
       [MARTA, HALL, 'Marta'],
       [INES, HALL, 'Ines'],
     ]);
-    const hall = describeFor(HALL, actorOf(crowded, MARTA), lookingAt(crowded)).lines;
+    const hall = describeFor(HALL, actorOf(crowded, MARTA), 'look', lookingAt(crowded)).lines;
     expect(hall.map((line) => words(line.said))).toEqual([
       'A long hall.',
       'A box stands by the wall.',
@@ -72,7 +77,7 @@ describe('a description', () => {
 
   it('runs an `each` body once for each thing walked, binding it for the lines inside', () => {
     const state = study();
-    const lines = describeFor(BOX, actorOf(state, MARTA), lookingAt(state)).lines;
+    const lines = describeFor(BOX, actorOf(state, MARTA), 'look', lookingAt(state)).lines;
     expect(lines.map((line) => words(line.said))).toEqual(['Something is in it.']);
     expect(lines[0]!.bindings.get('thing')).toEqual({ binds: 'object', id: PIN });
   });
@@ -81,7 +86,7 @@ describe('a description', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
     for (const thing of [STOOL, CELLAR, BLANK]) {
-      const { lines, unremarkable } = describeFor(thing, marta, lookingAt(state));
+      const { lines, unremarkable } = describeFor(thing, marta, 'look', lookingAt(state));
       expect(lines, thing).toEqual([]);
       expect(unremarkable.effect).toBe('described');
       expect(unremarkable.by).toBe(state.world);
@@ -101,8 +106,10 @@ describe('a description', () => {
       ...lookingAt(state),
       budget: new Budget({ ...DEFAULT_LIMITS.budgets, pollSteps: steps }, 'poll'),
     });
-    expect(() => describeFor(HALL, actorOf(state, MARTA), context(2))).toThrow(BudgetExhausted);
-    expect(() => describeFor(HALL, actorOf(state, MARTA), context(1_000))).not.toThrow();
+    expect(() => describeFor(HALL, actorOf(state, MARTA), 'look', context(2))).toThrow(
+      BudgetExhausted,
+    );
+    expect(() => describeFor(HALL, actorOf(state, MARTA), 'look', context(1_000))).not.toThrow();
   });
 
   it('is asked of an instance by one who stands somewhere, and anything else is the engine’s defect', () => {
@@ -113,10 +120,10 @@ describe('a description', () => {
       budget: new Budget(DEFAULT_LIMITS.budgets, 'poll'),
       passes: () => WORLD_PASSES_ANYTHING,
     };
-    expect(() => describeFor('study#99' as InstanceId, actorOf(state, MARTA), context)).toThrow(
-      /is not an instance/,
-    );
-    expect(() => describeFor(LAMP, state.world, context)).toThrow(/is away/);
+    expect(() =>
+      describeFor('study#99' as InstanceId, actorOf(state, MARTA), 'look', context),
+    ).toThrow(/is not an instance/);
+    expect(() => describeFor(LAMP, state.world, 'look', context)).toThrow(/is away/);
   });
 });
 
@@ -124,21 +131,23 @@ describe('a description in the dark', () => {
   it('is the world’s `dark` for the place the one looking stands in, while it is not lit', () => {
     const state = D.dark();
     const marta = D.personOf(state, D.MARTA);
-    const described = describeFor(D.CELLAR, marta, D.darkContext(state));
+    const described = describeFor(D.CELLAR, marta, 'look', D.darkContext(state));
     expect(described.lines.map((line) => [line.by, words(line.said)])).toEqual([
       [D.DARK.tree.world, 'sprout.World dark: It is too dark to see.'],
     ]);
     expect([...described.lines[0]!.bindings.keys()]).toEqual(['actor', 'here']);
     const lit = D.dark(undefined, [[D.LAMP, 'lit', true]], [[D.MARTA, D.LAMP]]);
     expect(
-      describeFor(D.CELLAR, D.personOf(lit, D.MARTA), D.darkContext(lit)).lines.map((line) =>
-        words(line.said),
+      describeFor(D.CELLAR, D.personOf(lit, D.MARTA), 'look', D.darkContext(lit)).lines.map(
+        (line) => words(line.said),
       ),
     ).toEqual(['Damp stone.']);
   });
 
   it('is a thing’s own in the dark, since only the place goes unseen', () => {
     const state = D.dark(undefined, [], [[D.MARTA, D.LAMP]]);
-    expect(describeFor(D.COAL, D.personOf(state, D.MARTA), D.darkContext(state)).lines).toEqual([]);
+    expect(
+      describeFor(D.COAL, D.personOf(state, D.MARTA), 'look', D.darkContext(state)).lines,
+    ).toEqual([]);
   });
 });

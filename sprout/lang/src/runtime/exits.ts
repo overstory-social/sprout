@@ -3,7 +3,9 @@
 // Several exits may share a direction, and the first whose guard holds is
 // the one that applies, so a direction gives at most one, and a link is
 // one of its name; an exit that does not apply is not offered, not
-// traversable and not mentioned.
+// traversable and not mentioned. An exit that refuses applies as any exit
+// does, deciding its direction, and is never offered: going that way is
+// answered with its words, and nothing moves.
 //
 // What does not apply, rather than faulting: an unset link; a guard that
 // reads through a name out of the place's range, or to a declared object
@@ -12,6 +14,7 @@
 // as any reading is, so a guard too dear to ask faults as any work does.
 
 import type { ObjectPath } from '../syntax/ast.js';
+import type { GrammarRefusal } from '../syntax/ast-grammar.js';
 import type { Direction } from '../declare/directions.js';
 import { libraryOf } from '../declare/enums.js';
 import type { ResolvedExit } from '../declare/exits.js';
@@ -21,7 +24,8 @@ import { evaluateCondition } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import { isLive } from './live.js';
 import { DestroyedReference, NameOutOfRange, objectNamed } from './named.js';
-import type { CommandExit } from './parser/exits.js';
+import type { Speech } from './body.js';
+import type { AppliedWay, CommandExit } from './parser/exits.js';
 import type { PassRule } from './range.js';
 import type { Instance, StateReader } from './state.js';
 
@@ -34,18 +38,36 @@ export interface ExitContext {
 }
 
 /**
- * The exits and links that apply on `place`, one for each direction that
- * has one and each link set, in the order its kind answers them; one step
- * for each asked.
+ * The exits and links that lead somewhere from `place`: those of
+ * `waysFrom` that do not refuse, which are what a visitor is offered.
  */
 export function exitsFrom(place: InstanceId, context: ExitContext): CommandExit[] {
+  return waysFrom(place, context).filter((way): way is CommandExit => 'to' in way);
+}
+
+/**
+ * The exits and links that apply on `place`, one for each direction that
+ * has one and each link set, in the order its kind answers them, an exit
+ * that refuses among them; one step for each asked.
+ */
+export function waysFrom(place: InstanceId, context: ExitContext): AppliedWay[] {
   const instance = context.state.instance(place);
   if (instance === undefined) return [];
   const decided = new Set<Direction>();
-  const applying: CommandExit[] = [];
+  const applying: AppliedWay[] = [];
   for (const exit of instance.kind.exits) {
     if (exit.kind === 'exit' && decided.has(exit.direction)) continue;
     context.budget.spend();
+    if (exit.kind === 'exit' && exit.line.leads.kind === 'grammar-refusal') {
+      if (!holds(exit, instance, context)) continue;
+      decided.add(exit.direction);
+      applying.push({
+        direction: exit.direction,
+        label: exit.line.label.text,
+        refuses: { by: place, said: refusalOf(exit.line.leads, exit.origin, instance) },
+      });
+      continue;
+    }
     const to = destinationOf(exit, instance, context);
     if (to === null) continue;
     const direction = exit.kind === 'exit' ? exit.direction : null;
@@ -53,6 +75,20 @@ export function exitsFrom(place: InstanceId, context: ExitContext): CommandExit[
     applying.push({ direction, label: exit.line.label.text, to });
   }
   return applying;
+}
+
+/**
+ * What an exit that refuses says, as `origin` wrote it: its words in
+ * quotes, or the passage of that name as `place`'s kind has it, so a
+ * composer's own line replaces its kind's.
+ */
+function refusalOf(refusal: GrammarRefusal, origin: string, place: Instance): Speech {
+  const { said } = refusal;
+  if (said.kind === 'prose-literal') {
+    return { text: said.value, prose: said.prose, library: libraryOf(origin) };
+  }
+  const passage = place.kind.passages.get(said.text);
+  return passage === undefined ? { absent: said.text } : { passage };
 }
 
 /** Where `exit` leads from `place` now, or null where it does not apply. */
@@ -65,7 +101,9 @@ function destinationOf(
   const to =
     exit.kind === 'link'
       ? (place.links.get(exit.name) ?? null)
-      : pathEnd(exit.line.destination, place, context);
+      : exit.line.leads.kind === 'path'
+        ? pathEnd(exit.line.leads, place, context)
+        : null;
   if (to === null || !isLive(state, to)) return null;
   if (state.instance(to)?.kind.containsActors !== true) return null;
   if (exit.kind === 'exit' && !holds(exit, place, context)) return null;

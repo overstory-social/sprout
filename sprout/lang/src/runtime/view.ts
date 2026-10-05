@@ -81,7 +81,7 @@ export function viewOf(
   const { state, budget, passes } = context;
   const place = state.instance(actor)?.container ?? null;
   if (place === null) throw new Error(`\`${actor}\` is away, and an away visitor has no view.`);
-  const description = describeFor(place, actor, context);
+  const description = describeFor(place, actor, 'poll', context);
   parts.exits = exitsFrom(place, context);
   const range = rangeOf({ tree: liveTree(state), passes, budget }, actor, 'any');
   // In the dark nobody else is seen (the spec's Range › Sight).

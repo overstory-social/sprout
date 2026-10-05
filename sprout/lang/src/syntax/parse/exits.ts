@@ -1,23 +1,25 @@
 // A grammar block's ways out: `exit north "deeper into the dark" ->
-// maze_hall when (!self.get(:lit))` and `link onward "the way on"` (the
-// spec's Verbs › Exits, An exit may be conditional, Links). An exit is
-// its word, a direction, a label in quotes, `->` and where it leads, and
-// optionally `when` and a condition in brackets; a link is its word, its
-// name and a label. Which words are directions, which may name a link,
-// what the condition may read and where the path leads are for the tiers
-// after this one.
+// maze_hall when (!self.get(:lit))`, `exit west "west" refuse "You would
+// need a machete."` and `link onward "the way on"` (the spec's Verbs ›
+// Exits, An exit may be conditional, Links). An exit is its word, a
+// direction, a label in quotes, then `->` and where it leads or `refuse`
+// and what it says, and optionally `when` and a condition in brackets; a
+// link is its word, its name and a label. Which words are directions,
+// which may name a link, what the condition and the refusal may read and
+// where the path leads are for the tiers after this one.
 //
 // A line that could not be read is refused once and stepped over to the
 // block's next line, so one bad exit costs that exit and nothing beside it.
 
 import type { Ident, ObjectPath } from '../ast.js';
-import type { GrammarExit, GrammarLabel, GrammarLink } from '../ast-grammar.js';
+import type { GrammarExit, GrammarLabel, GrammarLink, GrammarRefusal } from '../ast-grammar.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { expression } from './expressions.js';
 import { punct, type Parser } from './parser.js';
 import { objectPath } from './paths.js';
 import { skipBracketed, stepPast } from './recovery.js';
+import { refusal } from './speech.js';
 
 /** How each line is written, for a remedy. */
 const EXIT_EXAMPLE = '`exit north "out to the yard" -> yard`';
@@ -29,6 +31,8 @@ const LINK_EXAMPLE = '`link onward "deeper into the dark"`';
  */
 export interface LineEnds {
   readonly atLineEnd: (p: Parser) => boolean;
+  /** Whether a token starts the block's next line, or the body's next member. */
+  readonly startsLine: (token: Token) => boolean;
 }
 
 /** An `exit` line, its word next; null having said why and stepped over the rest of it. */
@@ -38,6 +42,33 @@ export function exitLine(p: Parser, ends: LineEnds): GrammarExit | null {
   if (direction === null) return abandon(p, ends);
   const label = labelAfter(p, direction.at, 'exit', `exit ${direction.text}`, ends);
   if (label === null) return abandon(p, ends);
+  const refusing = p.peek();
+  if (refusing.kind === 'name' && refusing.text === 'refuse' && !ends.atLineEnd(p)) {
+    p.next();
+    const said = refusal(p, refusing, {
+      owner: null,
+      within: 'exit',
+      enclosed: true,
+      startsMember: ends.startsLine,
+      unclosed: false,
+    });
+    if (said === null) return abandon(p, ends);
+    const refused: GrammarRefusal = {
+      kind: 'grammar-refusal',
+      at: spanning(refusing.at, said.at),
+      said,
+    };
+    const shown = said.kind === 'prose-literal' ? '"…"' : said.text;
+    return guarded(
+      p,
+      keyword,
+      direction,
+      label,
+      refused,
+      `exit ${direction.text} "${label.text}" refuse ${shown}`,
+      ends,
+    );
+  }
   const arrow = p.take('punct', '->');
   if (arrow === null) {
     // A name where the arrow belongs is most likely the place, written without it.
@@ -47,23 +78,39 @@ export function exitLine(p: Parser, ends: LineEnds): GrammarExit | null {
       label.at,
       ends,
       `An exit says where it leads after its label, with \`->\`.`,
-      `Write \`exit ${direction.text} "${label.text}" -> ${place}\`, naming the place it leads to.`,
+      `Write \`exit ${direction.text} "${label.text}" -> ${place}\`, naming the place it leads to; or \`exit ${direction.text} "${label.text}" refuse "…"\` for a way that does not go.`,
     );
     return abandon(p, ends);
   }
   const destination = destinationAfter(p, arrow, direction, label, ends);
   if (destination === null) return abandon(p, ends);
   const written = `exit ${direction.text} "${label.text}" -> ${destination.parts.map((part) => part.text).join('.')}`;
+  return guarded(p, keyword, direction, label, destination, written, ends);
+}
+
+/**
+ * The exit `keyword` starts, leading by `leads`, with the `when` after it
+ * where one is written; null having said why and stepped over the rest.
+ */
+function guarded(
+  p: Parser,
+  keyword: Token,
+  direction: Ident,
+  label: GrammarLabel,
+  leads: GrammarExit['leads'],
+  written: string,
+  ends: LineEnds,
+): GrammarExit | null {
   const line = (end: Span, when: GrammarExit['when']): GrammarExit => ({
     kind: 'grammar-exit',
     at: spanning(keyword.at, end),
     direction,
     label,
-    destination,
+    leads,
     when,
   });
   const word = p.peek();
-  if (!(word.kind === 'name' && word.text === 'when')) return line(destination.at, null);
+  if (!(word.kind === 'name' && word.text === 'when')) return line(leads.at, null);
   p.next();
   const condition = conditionAfter(p, word, written);
   if (condition === null) return abandon(p, ends);

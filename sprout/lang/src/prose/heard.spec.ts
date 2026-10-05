@@ -175,7 +175,7 @@ describe('where a line’s words were written', () => {
     const [heard] = renderHeard(line('Miaow.', [BRASS_KEY], OAK_DOOR, turn.marta), turn.context);
     expect(heard!.written).toEqual([
       { line: 'the engine:1:1' },
-      { passage: 'npc_says', origin: 'sprout.World', at: 'sprout/world.sprout:26:11' },
+      { passage: 'npc_says', origin: 'sprout.World', at: 'sprout/world.sprout:27:11' },
     ]);
   });
 

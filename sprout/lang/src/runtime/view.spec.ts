@@ -35,6 +35,11 @@ describe('a visitor’s view', () => {
     expect(view.description.of).toBe(YARD);
     expect(view.description.to).toBe(marta);
     expect(view.description.lines).toHaveLength(1);
+    // A view is a poll, and its description is read as one.
+    expect(view.description.lines[0]!.bindings.get('seen')).toEqual({
+      binds: 'value',
+      value: 'poll',
+    });
     const open = gatehouse(undefined, [], OPEN);
     expect(viewOf(actorOf(open, MARTA), pollingIn(open)).description.lines).toHaveLength(2);
   });
@@ -125,7 +130,7 @@ describe('a visitor’s view', () => {
     const viewed = pollingIn(state);
     viewOf(marta, viewed);
     const apart = pollingIn(state);
-    describeFor(YARD, marta, apart);
+    describeFor(YARD, marta, 'poll', apart);
     for (const offer of offersTo(marta, apart)) valueOptions(offer.reading, apart);
     expect(viewed.budget.spentSteps).toBe(apart.budget.spentSteps);
   });

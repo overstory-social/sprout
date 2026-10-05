@@ -49,7 +49,7 @@ const written = (line: GrammarLine): string => {
     case 'grammar-adjectives':
       return `adjectives ${line.adjectives.map((one) => one.text).join('|')}`;
     case 'grammar-exit':
-      return `exit ${line.direction.text} ${line.label.text} ${writtenPath(line.destination)}${line.when === null ? '' : ' when'}`;
+      return `exit ${line.direction.text} ${line.label.text} ${line.leads.kind === 'path' ? writtenPath(line.leads) : 'refuse'}${line.when === null ? '' : ' when'}`;
     case 'grammar-link':
       return `link ${line.name.text} ${line.label.text}`;
     case 'grammar-lit':
@@ -240,6 +240,12 @@ describe('a grammar block', () => {
     }
   });
 
+  it('never takes the body’s next property for the words of a `refuse` that says none', () => {
+    const { members, messages } = readKind('grammar { exit west "x" refuse\n  :after false');
+    expect(messages).toEqual(['`refuse` says why.', 'This grammar block is never closed.']);
+    expect(members.some((m) => m.kind === 'property' && m.name.text === 'after')).toBe(true);
+  });
+
   it('ends a block never closed where the body’s next member starts', () => {
     const { said, blocks, rest } = readGrammar('grammar { name "lamp"\n  :lit false');
     expect(said[0]).toEqual([
@@ -267,6 +273,11 @@ const WELL_FORMED_LINES = [
   },
   { name: 'link onward deeper', text: 'link onward "deeper"' },
   { name: 'lit call', text: 'lit (self.sees(sprout.LightSource, :lit))' },
+  { name: 'exit west west refuse', text: 'exit west "west" refuse "You would need a machete."' },
+  {
+    name: 'exit east east refuse when',
+    text: 'exit east "east" refuse boarded when (self.get(:open))',
+  },
 ] as const;
 
 /**
@@ -300,6 +311,9 @@ const LINE_DEFECTS: readonly string[] = [
   'exit north "x" -> hall when ()',
   'exit north "x" -> hall when (self.get(:lit)',
   'exit north "x" -> hall when (self.get(:lit) +)',
+  'exit west "x" refuse',
+  'exit west "x" refuse when (true)',
+  'exit west "x" refuse "no" when',
   'link',
   'link Onward "x"',
   'link "x"',

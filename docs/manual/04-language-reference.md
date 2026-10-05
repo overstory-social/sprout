@@ -477,6 +477,27 @@ grammar {
   only be written on a place, and may only lead to one.
 - A place has at most 8 exits by default.
 
+An exit may lead nowhere and say why. Write `refuse` and its words in
+place of `->` and a destination:
+
+```sprout
+grammar {
+  exit west "west" refuse "You would need a machete to go further west."
+  exit east "east" refuse boarded when (!self.get(:open))
+}
+```
+
+The words are in quotes, or the name of a passage of the place, as
+`refuse` takes them anywhere else; `actor` and `here` may be used in them.
+Going that way, by its direction or its label, reads those words, and
+nothing moves. Such an exit is never offered: it has no chip, `help` does
+not list it, and it does not count toward a place's 8.
+
+A direction with no exit that applies, `down` or `go down`, is answered
+with the world's `no_way` passage, "You can't go that way.", which is given
+the direction as `way`. Words after `go` that are neither a direction nor
+an exit's label are not understood, and get `unknown`.
+
 Exits are **not** composed. A kind's exits belong to objects directly made
 of that kind, and not to kinds that compose it. Where an object writes an
 exit in a direction its kind also has, the object's own replaces it. Exits
@@ -497,7 +518,15 @@ grammar {
 
 An exit that does not apply is not offered, not usable, and not
 mentioned. A `when` guard only reads: it cannot change anything or roll
-dice.
+dice. An exit that refuses takes its place in the chain like any other, so
+the last of a run can say why the way is closed:
+
+```sprout
+grammar {
+  exit north "into the glade" -> glade when (self.get(:cleared))
+  exit north "north" refuse "The brambles are too thick."
+}
+```
 
 ### Places inside places
 
@@ -1266,7 +1295,7 @@ key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
 A line may hold several commands, split at `.` or `then`: `take key then
 open cabinet`, `take key. open cabinet`. Each runs as its own turn, in
-order. A refusal, `unknown`, `not_here`, `cannot` or `not_carrying` stops the rest, and what
+order. A refusal, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying` stops the rest, and what
 ran before stays done.
 
 `again`, or `g`, runs your last command's reading again: the same verb
@@ -1321,6 +1350,7 @@ the first of these that fits:
 | ---------- | ------------------------------------------------------------------ |
 | `cannot`   | a phrase matches, and something in reach answers to a noun but cannot fill its role: "You can't put the key in the anvil." |
 | `not_carrying` | a phrase matches, and only something you do not carry answers to the noun in a [carried role](#carried-roles): "You aren't carrying the key." |
+| `no_way`   | the line is a direction, or `go` and one, and no exit that applies goes that way: "You can't go that way." |
 | `not_here` | a phrase matches but nothing in reach answers to the noun: "You see nothing like that here." |
 | `unknown`  | no phrase matches: "That is not something you can do here."        |
 
@@ -1702,6 +1732,21 @@ whose `text` all renders to nothing reads the world's `unremarkable`
 passage instead ("There is nothing special about the type cabinet.").
 A thing has one voice, so two composed kinds that both `describe` is an
 error; write the combined description yourself.
+
+Inside a `describe`, and in any passage it says, `seen` says what the
+description is being read for: `:look` when someone typed `look` or
+`examine`, `:arrival` when they have just arrived, and `:poll` when their
+view is being drawn. A place can show its name alone on a return visit
+and everything on `look`:
+
+```sprout
+describe {
+  if (seen == :arrival && actor.recall(:visits) > 1) { text "{self}." }
+  else { text full }
+}
+```
+
+A passage that reads `seen` may only be said from a `describe`.
 
 ### When lines are rendered
 
@@ -2092,6 +2137,7 @@ So a character can have its own `arrives`, and a place its own
 | ----------------- | ------------------------------------------------------------------- |
 | `unknown`         | That is not something you can do here.                              |
 | `not_here`        | You see nothing like that here.                                     |
+| `no_way`          | You can't go that way.                                              |
 | `cannot`          | You can't {reading}.                                                |
 | `not_carrying`    | You aren't carrying {thing}.                                        |
 | `meant`           | ({thing})                                                           |

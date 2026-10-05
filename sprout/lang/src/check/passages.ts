@@ -8,16 +8,16 @@
 // `say` or `refuse` naming it, in a body a kind runs, reaches the passage
 // that kind has of that name, so a composer's own line is checked against
 // every body of its closure that says it; a slot `{pot.greeting}` reaches
-// the passage of that name on every kind composing `pot`'s, run with only
-// `actor` and `here` beside its own `self`; and a passage named for one
-// of the engine's lines is the engine's to say, on whatever kind it
-// reaches, with what the engine binds for that line. A passage said from
-// nowhere is checked with `self` alone. A name a passage renders that is
-// bound nowhere it is said from is refused where it is said, and nothing
-// more is said of that passage from there. A passage said or rendered
-// from a body that draws nothing, or a line the engine says in a poll,
-// may not draw either (`chance.ts`), and a draw in it is refused where it
-// is said, as a name it lacks is.
+// the passage of that name on every kind composing `pot`'s, run with
+// only `actor`, `here` and `seen` beside its own `self`; and a passage
+// named for one of the engine's lines is the engine's to say, on whatever
+// kind it reaches, with what the engine binds for that line. A passage
+// said from nowhere is checked with `self` alone. A name a passage
+// renders that is bound nowhere it is said from is refused where it is
+// said, and nothing more is said of that passage from there. A passage
+// said or rendered from a body that draws nothing, or a line the engine
+// says in a poll, may not draw either (`chance.ts`), and a draw in it is
+// refused where it is said, as a name it lacks is.
 
 import type { Expr } from '../syntax/ast.js';
 import type { Prose, ProseIf, ProsePiece } from '../syntax/ast-prose.js';
@@ -151,6 +151,10 @@ function bodiesOf(kind: KindRef): Node[] {
     ...[...kind.handlers.values()].flatMap((handlers) => handlers.map((one) => one.declaration)),
     ...[...kind.hooks.values()].flatMap((hooks) => hooks.map((hook) => hook.declaration)),
     ...(kind.describe === null ? [] : [kind.describe.declaration]),
+    // An exit that refuses says its words as a `refuse` does.
+    ...kind.exits.flatMap((way) =>
+      way.kind === 'exit' && way.line.leads.kind === 'grammar-refusal' ? [way.line.leads] : [],
+    ),
   ];
 }
 

@@ -1,6 +1,8 @@
 // A description, derived (the spec's Prose; Verbs › Engine verbs; The
 // runtime › Turns, The view). A thing's `describe` runs with `self` the
-// thing, `actor` whoever is looking and `here` their place, and gives its
+// thing, `actor` whoever is looking, `here` their place and `seen` what it
+// is read for: `look` for `look` and `examine`, `arrival` for the place a
+// move carried someone to, `poll` for a view. It gives its
 // words with `text`, each one line in the order run; it only reads, so it
 // runs the same in a write turn, after the queue, and in a poll, and it
 // draws nothing. An extension's statement a describe may hold records its
@@ -13,6 +15,7 @@
 
 import type { Block, IfStatement, Statement } from '../syntax/ast.js';
 import { libraryOf } from '../declare/enums.js';
+import type { SEEN_OPTIONS } from '../declare/seen.js';
 import type { ExtensionStatement } from '../syntax/ast-extensions.js';
 import { speechOf, type Speech } from './body.js';
 import { eachWalked } from './each.js';
@@ -23,6 +26,7 @@ import { isLit } from './darkness.js';
 import { engineSaid } from './engine-lines.js';
 import {
   boundObject,
+  boundValue,
   evaluate,
   evaluateCondition,
   type Evaluated,
@@ -41,6 +45,9 @@ export interface DescribeContext {
   readonly passes: PassRule<InstanceId>;
 }
 
+/** What a description is read for, as `seen` holds it: an option of the engine's `Seen`. */
+export type Seen = (typeof SEEN_OPTIONS)[number];
+
 /** What one reader reads of a thing when they look at it. */
 export interface Description {
   /** The thing described. */
@@ -56,13 +63,14 @@ export interface Description {
 }
 
 /**
- * What `actor` reads looking at `thing`: its describe run, each statement
- * a step and each expression as a body's is charged. An actor who is
- * away looks at nothing, which is the engine's defect.
+ * What `actor` reads looking at `thing`, for `seen`: its describe run, each
+ * statement a step and each expression as a body's is charged. An actor
+ * who is away looks at nothing, which is the engine's defect.
  */
 export function describeFor(
   thing: InstanceId,
   actor: InstanceId,
+  seen: Seen,
   context: DescribeContext,
 ): Description {
   const { state } = context;
@@ -102,6 +110,7 @@ export function describeFor(
     bindings: new Map<string, Evaluated>([
       ['actor', boundObject(actor)],
       ['here', boundObject(here)],
+      ['seen', boundValue(seen)],
     ]),
     budget: context.budget,
     caps: context.catalogue.caps,

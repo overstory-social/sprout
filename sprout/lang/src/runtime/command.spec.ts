@@ -30,6 +30,7 @@ import {
   INES as INES_WAYS,
   LADDER,
   LAMP,
+  LANTERN,
   LOFT,
   MARTA as MARTA_WAYS,
   MEADOW,
@@ -231,7 +232,7 @@ describe('a command turn that faults', () => {
         to: actorOf(state, MARTA),
         visit: MARTA,
         paragraphs: ['Something in this world has gone wrong, and nothing has changed.'],
-        written: [{ passage: 'fault', origin: 'sprout.World', at: 'sprout/world.sprout:17:11' }],
+        written: [{ passage: 'fault', origin: 'sprout.World', at: 'sprout/world.sprout:18:11' }],
       },
     ]);
   });
@@ -482,18 +483,27 @@ describe('`go`, through a command turn', () => {
     expect(standing(walk(state, 'up').state, marta(state))).toBe(LOFT);
   });
 
-  it('answers a way that does not apply as it answers any word it does not know', () => {
-    for (const [text, state] of [
-      ['south', ways()],
-      ['go west', ways()],
-      ['up', ways([[MARTA_WAYS, SHOP]])],
+  it('answers a direction no exit that applies goes in with `no_way`, and moves nobody', () => {
+    for (const [text, state, way] of [
+      ['south', ways(), 'south'],
+      ['go west', ways(), 'west'],
+      ['s', ways(), 'south'],
+      ['up', ways([[MARTA_WAYS, SHOP]]), 'up'],
     ] as const) {
       const turn = walk(state, text);
       expect(told(turn, marta(state)), text).toEqual([
-        'sprout.World unknown: That is not something you can do here.',
+        "sprout.World no_way: You can't go that way.",
       ]);
       expect(standing(turn.state, marta(state)), text).toBe(standing(state, marta(state)));
+      const done = turn.value;
+      if (!('answered' in done)) throw new Error('the turn was not answered');
+      // The direction typed, written out, is the line's `way`.
+      expect(done.answered.bindings.get('way'), text).toEqual({ binds: 'value', value: way });
     }
+    // Words that are neither a direction nor a label are no way at all.
+    expect(told(walk(ways(), 'go yonder'), marta(ways()))).toEqual([
+      'sprout.World unknown: That is not something you can do here.',
+    ]);
     const down = ways([[MARTA_WAYS, SHOP]], [[LADDER, 'down', true]]);
     expect(standing(walk(down, 'up').state, marta(down))).toBe(LOFT);
   });
@@ -579,7 +589,10 @@ describe('`go`, through a command turn', () => {
     expect(told(dug, marta(state))).toEqual(['The stones give, and a gap opens into more dark.']);
     state = dug.state;
     // A link is taken by its label, never by its name or a direction.
-    for (const text of ['north', 'onward', 'go onward']) {
+    expect(told(walk(state, 'north'), marta(state))).toEqual([
+      "sprout.World no_way: You can't go that way.",
+    ]);
+    for (const text of ['onward', 'go onward']) {
       expect(told(walk(state, text), marta(state)), text).toEqual([
         'sprout.World unknown: That is not something you can do here.',
       ]);
@@ -601,8 +614,35 @@ describe('`go`, through a command turn', () => {
     expect(turn.fault).toMatchObject({ name: 'ConnectFault', object: DEAD_END, engine: false });
     expect(toldBy(turn, marta(state))).toEqual([{ to: [marta(state)], words: FAULT }]);
     expect(told(walk(state, 'up'), marta(state))).toEqual([
-      'sprout.World unknown: That is not something you can do here.',
+      "sprout.World no_way: You can't go that way.",
     ]);
+  });
+
+  it('answers an exit that refuses with its words, said by its place, and moves nobody', () => {
+    const state = ways([[MARTA_WAYS, SHED]]);
+    const boarded = 'ways.shed boarded: The door is boarded, and {actor} cannot shift the boards.';
+    for (const [text, said] of [
+      ['west', 'The brambles are too thick.'],
+      ['go w', 'The brambles are too thick.'],
+      ['north', boarded],
+    ] as const) {
+      const turn = walk(state, text);
+      expect(told(turn, marta(state)), text).toEqual([said]);
+      expect(standing(turn.state, marta(state)), text).toBe(SHED);
+      const done = turn.value;
+      if (!('answered' in done)) throw new Error('the turn was not answered');
+      expect(done.answered.by, text).toBe(SHED);
+      expect([...done.answered.bindings.keys()], text).toEqual(['actor', 'here']);
+      // A way that does not go asks nothing of the one going: their part of `go` is not run.
+      expect(turn.state.instances.get(marta(state))!.properties.get('walked'), text).toBe(0);
+    }
+    // Rendered, the place's passage names the one going.
+    expect(walk(state, 'north').effects.map((one) => one.paragraphs)).toEqual([
+      ['The door is boarded, and you cannot shift the boards.'],
+    ]);
+    // Once the way before it in the chain applies, the refusal no longer does.
+    const lit = ways([[MARTA_WAYS, SHED]], [[LANTERN, 'lit', true]]);
+    expect(standing(walk(lit, 'west').state, marta(lit))).toBe(MEADOW);
   });
 
   it('tells its actor something for every line typed, directions and labels among them', () => {

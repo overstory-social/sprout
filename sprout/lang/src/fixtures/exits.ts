@@ -1,10 +1,13 @@
 // The ways the exit specs are written about, one kind per file, and what
 // they run a turn with. The yard leads in to the shop, north into the
 // maze while the lamp is out and to the meadow once it is lit, up to the
-// shop's loft by its path, east to a shed, whose `:entered` tells whoever comes in of its
-// cobwebs, and south to the meadow only
-// while a beacon it cannot see is lit. The shop's ladder must be down for
-// its way up. The meadow's gate refuses whoever comes while it is shut. A
+// shop's loft by its path, east to a shed, whose `:entered` tells
+// whoever comes in of its cobwebs, and south to the meadow only while a
+// beacon it cannot see is lit. From the shed, west leads into the
+// thicket while its lantern is lit and otherwise refuses, and north
+// always refuses, in a passage of the shed's. The shop's ladder must be
+// down for its way up. The meadow's gate refuses whoever comes while it
+// is shut. A
 // turning of the maze has its way on dug and its way back connected by the
 // turning dug, and every turning leads up to the yard. A dead end is a
 // kind composing a turning, so none of a turning's ways out reach it,
@@ -62,6 +65,13 @@ export const WAYS: Bundle = compiledWorld('ways', {
   }
 
   object shed is sprout.Place {
+    grammar {
+      exit west  "into the thicket" -> meadow when (lantern.get(:lit))
+      exit west  "west"             refuse "The brambles are too thick."
+      exit north "north"            refuse boarded
+    }
+    passage boarded { The door is boarded, and {actor} cannot shift the boards. }
+    object lantern is Lamp
     on :entered (item, from) { tell item "Cobwebs brush your face." }
   }
 
@@ -124,6 +134,7 @@ export const LADDER = at('shop', 'ladder');
 export const LOFT = at('shop', 'loft');
 export const MEADOW = at('meadow');
 export const SHED = at('shed');
+export const LANTERN = at('shed', 'lantern');
 export const MOUTH = at('maze_mouth');
 export const DEAD_END = at('dead_end');
 

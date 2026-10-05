@@ -1,0 +1,53 @@
+// Ways that do not go (the spec's Verbs › Exits, An exit may be
+// conditional). An exit that refuses says why in its own words, in
+// quotes or in a passage of its place, and is never offered; it takes
+// its place in a direction's chain, so the way north refuses until the
+// brambles are cut and the exit before it applies. A direction no exit
+// answers is the world's `no_way`, or a place's own, given the direction
+// as `way`; words that are no way at all are `unknown`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world no_way is sprout.World {
+  visitors are Person
+  visitors arrive at clearing
+
+  object clearing is sprout.Place {
+    grammar {
+      article the
+      exit north "into the glade" -> glade when (brambles.get(:cut))
+      exit north "north"          refuse "The brambles are too thick."
+      exit west  "west"           refuse "You would need a machete to go further west."
+      exit east  "east"           refuse boarded
+    }
+
+    passage boarded { The door is boarded, and {actor} cannot shift the boards. }
+
+    object brambles is Brambles
+  }
+
+  object glade is sprout.Place {
+    grammar {
+      article the
+      exit south "back to the clearing" -> clearing
+    }
+
+    passage no_way { There is no path {way} out of the glade. }
+  }
+}
+
+verb cut { role target  "cut [target]"  "hack [target]" }
+
+kind Brambles is sprout.Fixture {
+  :cut false
+
+  grammar { name "brambles"  article the  nouns "bramble" }
+
+  as target for cut {
+    permit { if (self.get(:cut)) { refuse "The brambles are already cut back." } }
+    do {
+      self.set(:cut, true)
+      say "You hack the brambles back, and a way opens to the north."
+    }
+  }
+}

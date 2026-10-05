@@ -15,7 +15,7 @@ function refusedIn(
   mode: 'publish' | 'load' = 'publish',
 ): (string | undefined)[][] {
   const files = worldFiles(
-    `${worldLine('object lamp is Lamp')}\nmessage :lit\nenum Topic { oil, wick }`,
+    `${worldLine('object lamp is Lamp')}\nmessage :lit\nenum Topic { oil, wick }\nverb poke { role target  "poke [target]" }`,
     `kind Lamp {\n  :lit false\n  :wicks 1 min 0 max 3\n  ${members}\n}`,
   );
   const { diagnostics } = compileBundle(world({ files }), { mode });
@@ -39,6 +39,44 @@ describe('a describe', () => {
         ].join('\n'),
       ),
     ).toEqual([]);
+  });
+
+  it('reads `seen`, a `sprout.Seen`, and gives it to the passages it says and renders', () => {
+    expect(
+      refusedIn(
+        [
+          'describe {',
+          '    if (seen == :arrival) { text "A lamp." } else { text full }',
+          '  }',
+          '  passage full { The lamp{if seen == :look}, looked at{/if}. {self.more} }',
+          '  passage more { {if seen != :poll}It hums.{/if} }',
+        ].join('\n'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('checks an option compared with `seen` against `look`, `arrival` and `poll`', () => {
+    expect(
+      refusedIn('describe { if (seen == :looked) { text "Seen." } else { text "A lamp." } }'),
+    ).toEqual([
+      [
+        'lamp.sprout:4:26',
+        '`Seen` has no option `looked`. Did you mean `look`?',
+        'Options: look, arrival, poll.',
+      ],
+    ]);
+  });
+
+  it('gives `seen` only to a describe: a passage that reads it, said from a `do`, is refused', () => {
+    expect(
+      messages(
+        [
+          'describe { text glow }',
+          '  as target for poke { do { say glow } }',
+          '  passage glow { {if seen == :look}It glows.{else}A lamp.{/if} }',
+        ].join('\n'),
+      ),
+    ).toEqual(['The passage `glow` renders `{seen}`, and nothing here is called `seen`.']);
   });
 
   it('with no `text` anywhere in it is refused, since a text client would read nothing', () => {

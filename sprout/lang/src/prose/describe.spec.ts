@@ -23,7 +23,10 @@ describe('a description, rendered', () => {
   it('is each line’s paragraphs in order, for the one looking', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    const heard = renderDescription(describeFor(LAMP, marta, lookingAt(state)), renderingIn(state));
+    const heard = renderDescription(
+      describeFor(LAMP, marta, 'look', lookingAt(state)),
+      renderingIn(state),
+    );
     expect(heard).toEqual({
       reader: marta,
       paragraphs: ['The lamp is dark.', 'It hangs from a hook.'],
@@ -41,11 +44,11 @@ describe('a description, rendered', () => {
       [INES, HALL, 'Ines'],
     ]);
     const marta = actorOf(state, MARTA);
-    const seen = describeFor(MIRROR, marta, lookingAt(state));
+    const seen = describeFor(MIRROR, marta, 'look', lookingAt(state));
     expect(renderDescription(seen, renderingIn(state)).paragraphs).toEqual([
       'The glass shows you, in a hall.',
     ]);
-    const hall = describeFor(HALL, marta, lookingAt(state));
+    const hall = describeFor(HALL, marta, 'look', lookingAt(state));
     expect(renderDescription(hall, renderingIn(state)).paragraphs).toEqual([
       'A long hall.',
       'A box stands by the wall.',
@@ -61,7 +64,7 @@ describe('a description, rendered', () => {
       [BLANK, 'There is nothing special about a blank.'],
     ] as const) {
       const heard = renderDescription(
-        describeFor(thing, marta, lookingAt(state)),
+        describeFor(thing, marta, 'look', lookingAt(state)),
         renderingIn(state),
       );
       expect(heard.paragraphs, thing).toEqual([words]);
@@ -71,7 +74,7 @@ describe('a description, rendered', () => {
       ).toHaveLength(1);
     }
     const shown = study(undefined, [[BLANK, 'shown', true]]);
-    const card = describeFor(BLANK, actorOf(shown, MARTA), lookingAt(shown));
+    const card = describeFor(BLANK, actorOf(shown, MARTA), 'look', lookingAt(shown));
     expect(renderDescription(card, renderingIn(shown)).paragraphs).toEqual([
       'A card, now written on.',
     ]);
@@ -80,7 +83,7 @@ describe('a description, rendered', () => {
   it('keeps no paragraph for a line that renders nothing, and reads the rest', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    const described = describeFor(LAMP, marta, lookingAt(state));
+    const described = describeFor(LAMP, marta, 'look', lookingAt(state));
     const empty = { ...described.lines[0]!, said: engineLine('{if false}Never.{/if}') };
     const heard = renderDescription(
       { ...described, lines: [empty, described.lines[1]!] },
@@ -93,7 +96,7 @@ describe('a description, rendered', () => {
 
   it('renders the same with no draws, as a poll does, and with a write turn’s', () => {
     const state = study();
-    const described = describeFor(HALL, actorOf(state, MARTA), lookingAt(state));
+    const described = describeFor(HALL, actorOf(state, MARTA), 'look', lookingAt(state));
     expect(renderDescription(described, renderingIn(state, 7))).toEqual(
       renderDescription(described, renderingIn(state)),
     );
@@ -102,7 +105,7 @@ describe('a description, rendered', () => {
   it('is charged to the reader’s output, so a description too long for the actor faults as any line does', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    const described = describeFor(LAMP, marta, lookingAt(state));
+    const described = describeFor(LAMP, marta, 'look', lookingAt(state));
     const tight = {
       ...renderingIn(state, null, marta),
       budget: new Budget({ ...DEFAULT_LIMITS.budgets, output: 10 }, 'poll'),
@@ -113,7 +116,7 @@ describe('a description, rendered', () => {
   it('reads as nothing, not even `unremarkable`, to someone else it would take past their output', () => {
     const state = study();
     const marta = actorOf(state, MARTA);
-    const described = describeFor(LAMP, marta, lookingAt(state));
+    const described = describeFor(LAMP, marta, 'look', lookingAt(state));
     const tight = {
       ...renderingIn(state),
       budget: new Budget({ ...DEFAULT_LIMITS.budgets, output: 10 }),

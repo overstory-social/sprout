@@ -12,7 +12,8 @@
 // binds is still in reach.
 //
 // Every line has exactly one outcome: a reading, or one of the world's
-// answers, `cannot`, `not_carrying`, `not_here` or `unknown`, never nothing. A reading
+// answers, `cannot`, `not_carrying`, `no_way`, `not_here` or `unknown`, or
+// an exit's refusal, never nothing. A reading
 // that a pronoun named a thing in, where the thing declares another, is
 // said after the world's `pronoun_correction` (the spec's Parsing ›
 // Pronouns). Every phrase is tried
@@ -24,8 +25,10 @@
 // take, the line is `cannot`, saying what was understood
 // (`parser/partial.ts`), or `not_carrying` where a carried role's noun
 // names only what the actor does not carry (the spec's Verbs › Carried
-// roles); where one would with a noun nothing in range answers to,
-// `not_here`, which names nothing; and otherwise `unknown`.
+// roles); where an exit role's words name an exit that refuses, its words,
+// or are a direction no exit that applies answers, `no_way` (the spec's
+// Verbs › Exits); where one would with a noun nothing in range answers
+// to, `not_here`, which names nothing; and otherwise `unknown`.
 // Every noun tried, every way of placing the slots, every reading built,
 // every object the range walk visits and every tie drawn is a step, so a
 // line that costs too much to read faults the turn as any other work would.
@@ -44,9 +47,10 @@ import { boundObject, boundValue } from './evaluate.js';
 import type { ParseContext, Parser } from './command.js';
 import type { StateReader } from './state.js';
 import { addressOf, type AddressContext } from './parser/address.js';
-import { answer, type Answer } from './parser/answers.js';
-import type { CommandExit } from './parser/exits.js';
-import { exitsFrom } from './exits.js';
+import { answer, refused, type Answer } from './parser/answers.js';
+import type { AppliedWay, RefusingExit } from './parser/exits.js';
+import type { Direction } from '../declare/directions.js';
+import { waysFrom } from './exits.js';
 import { inTheDark } from './darkness.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
@@ -67,8 +71,8 @@ export interface CommandContext {
   readonly passes: PassRule<InstanceId>;
   /** Each visitor's nickname, by the instance that is them. */
   readonly nicknames: ReadonlyMap<InstanceId, string>;
-  /** The exits that apply where the actor stands, in the order the place declares them. */
-  readonly exits: readonly CommandExit[];
+  /** The exits that apply where the actor stands, in the order the place declares them, those that refuse among them. */
+  readonly exits: readonly AppliedWay[];
   /** What the actor's pronouns name: what their own last command about a thing was done to. */
   readonly referents: readonly InstanceId[];
   /** The reading the actor's own last command ran, which `again` runs again; null before one. */
@@ -116,6 +120,8 @@ export function readCommand(
   const partials: Partial[] = [];
   const address = (id: InstanceId) => addressOf(state.instance(id)!, addressing);
   let notHere = false;
+  // A way out the words name that does not go: an exit that refuses, or a direction none answers.
+  let noGoing: RefusingExit | Direction | null = null;
   for (const phrase of catalogue.phrases) {
     const filled = new Map<string, Filled>();
     const fillOf = (span: SlotSpan): Filled => {
@@ -137,6 +143,13 @@ export function readCommand(
       if (phrase.only === null)
         partials.push(...partialsOf(phrase.parts, spans, fills, address, budget));
       if (fills.some((one) => one.fills === 'unfit' || one.fills === 'outward')) continue;
+      const going = fills.find((one) => one.fills === 'refused' || one.fills === 'no_way');
+      if (going !== undefined) {
+        if (phrase.only === null && noGoing === null) {
+          noGoing = going.fills === 'refused' ? going.way : going.direction;
+        }
+        continue;
+      }
       if (fills.some((one) => one.fills === 'nothing')) {
         if (phrase.only === null) notHere = true;
         continue;
@@ -220,6 +233,11 @@ export function readCommand(
         ? answer(state, 'cannot', actor, here, { reading: partial.words })
         : answer(state, 'not_carrying', actor, here, { thing: partial.uncarried });
     }
+    if (noGoing !== null) {
+      return typeof noGoing === 'string'
+        ? answer(state, 'no_way', actor, here, { way: noGoing })
+        : refused(noGoing, actor, here);
+    }
     return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
   }
   const written = (id: InstanceId): string => writtenAs(address(id));
@@ -263,7 +281,8 @@ function again(
     if ('exit' in bound) {
       const { direction, label, to } = bound.exit;
       return context.exits.some(
-        (exit) => exit.to === to && exit.label === label && exit.direction === direction,
+        (exit) =>
+          'to' in exit && exit.to === to && exit.label === label && exit.direction === direction,
       );
     }
     return true;
@@ -532,7 +551,7 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
  */
 export const parseCommand: Parser = (text, actor, context) => {
   const here = placeOf(context.state, actor);
-  const exits = exitsFrom(here, context);
+  const exits = waysFrom(here, context);
   const outcome = readCommand(text, actor, { ...context, exits });
   if ('understood' in outcome) {
     const { understood, drawn } = outcome;

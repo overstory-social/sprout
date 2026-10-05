@@ -1,0 +1,6 @@
+kind Lamp {
+  describe {
+    if (seen == :looked) { text "The lamp, looked at." }
+    else { text "A lamp." }
+  }
+}

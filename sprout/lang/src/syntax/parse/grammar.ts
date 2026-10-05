@@ -103,7 +103,12 @@ export function grammar(
       while (!atLineEnd(p, startsMember));
       continue;
     }
-    const line = grammarLine(p, { atLineEnd: (at) => atLineEnd(at, startsMember) });
+    const line = grammarLine(p, {
+      atLineEnd: (at) => atLineEnd(at, startsMember),
+      // A property's symbol starts the body's next member, as the block's own end says.
+      startsLine: (at) =>
+        at.kind === 'symbol' || (at.kind === 'name' && (isLineWord(at.text) || startsMember(at))),
+    });
     if (line !== null) {
       lines.push(line);
       last = line.at;
