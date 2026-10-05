@@ -8,6 +8,7 @@
 
 import type { Node } from '../source/nodes.js';
 import type { Expr, Ident, ObjectPath } from './ast.js';
+import type { ProseLiteral } from './ast-prose.js';
 
 /** The articles a grammar block may declare: `none` is a proper name's. */
 export const ARTICLES = ['a', 'an', 'the', 'none'] as const;
@@ -80,17 +81,29 @@ export interface GrammarLabel extends Node {
 }
 
 /**
+ * `refuse "You would need a machete."` or `refuse machete` in place of an
+ * exit's destination: the words a way that does not go answers with, in
+ * quotes as a one-line passage or a passage of the place, named.
+ */
+export interface GrammarRefusal extends Node {
+  readonly kind: 'grammar-refusal';
+  readonly said: ProseLiteral | Ident;
+}
+
+/**
  * `exit north "deeper into the dark" -> maze_hall when (!self.get(:lit))`:
  * a way out of a place, its direction, its label, where it leads, and
- * the guard that decides whether it applies. Which directions there are
- * is `declare/directions.ts`'s; the word is kept as written.
+ * the guard that decides whether it applies; or, written with `refuse`
+ * in place of `->`, a way that does not go and says why. Which
+ * directions there are is `declare/directions.ts`'s; the word is kept
+ * as written.
  */
 export interface GrammarExit extends Node {
   readonly kind: 'grammar-exit';
   readonly direction: Ident;
   readonly label: GrammarLabel;
-  /** An identifier, or a dotted path to a place. */
-  readonly destination: ObjectPath;
+  /** An identifier or a dotted path to a place; or the refusal of a way that does not go. */
+  readonly leads: ObjectPath | GrammarRefusal;
   /** The condition in brackets after `when`; null where the exit always applies. */
   readonly when: Expr | null;
 }

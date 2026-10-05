@@ -10,17 +10,24 @@
 // must be a place, and the run leads nowhere through one that is not. Its
 // `when` is a condition over `self`, the place, read-only and pure as a
 // pass rule's is: nobody is acting while it is polled, so `actor` and
-// `here` are not bound. `connect` assigns one of the writing kind's
+// `here` are not bound. An exit that refuses says its words to whoever
+// goes that way, so they are checked as a `refuse`'s are, with `actor`
+// and `here` bound beside `self`. `connect` assigns one of the writing kind's
 // links, by its name, to a binding: a link leads only where the world
 // made a place, and a place written in source has an exit.
 
 import type { ConnectStatement, Expr, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
+import type { GrammarRefusal } from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { isLinkName, type ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
+import { SPROUT } from '../declare/enums.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
-import { Scope, selfBinding, showBindingType } from './bindings.js';
+import type { HereKind } from '../declare/places.js';
+import { actorBinding, hereBinding, Scope, selfBinding, showBindingType } from './bindings.js';
+import { checkPassage } from './audiences.js';
+import type { SpeechBook } from './speech.js';
 import { typeOf, type CheckContext } from './check.js';
 import { dottedType, type NameScope } from './names.js';
 import { pathType } from './statements.js';
@@ -30,6 +37,10 @@ export interface ExitSetting {
   readonly kinds: KindLookup;
   readonly diagnostics: Diagnostics;
   readonly names: NameScope;
+  /** What `here` is typed as, for the words of an exit that refuses. */
+  readonly here: HereKind;
+  /** Where a passage an exit that refuses names is recorded, to be checked against what it binds. */
+  readonly speech?: SpeechBook;
 }
 
 /** What a place is, as a remedy says it. */
@@ -52,7 +63,10 @@ export function checkExit(exit: ResolvedExit, self: KindRef, setting: ExitSettin
   }
   if (exit.kind === 'link') return true;
   const { line } = exit;
-  const leads = checkDestination(line.destination, self, setting);
+  const leads =
+    line.leads.kind === 'path'
+      ? checkDestination(line.leads, self, setting)
+      : checkRefusal(line.leads, self, setting);
   const holds = line.when === null || checkWhen(line.when, self, setting);
   return leads && holds;
 }
@@ -98,6 +112,31 @@ function checkDestination(path: ObjectPath, self: KindRef, setting: ExitSetting)
     `Lead it to a place: ${A_PLACE}.`,
   );
   return false;
+}
+
+/**
+ * What an exit that refuses says, to whoever goes that way: words in
+ * quotes, or a passage of the place, checked as a `refuse`'s are, with
+ * `self`, `actor` and `here` bound.
+ */
+function checkRefusal(refusal: GrammarRefusal, self: KindRef, setting: ExitSetting): boolean {
+  const { diagnostics } = setting;
+  const before = diagnostics.refusals.length;
+  const scope = Scope.root();
+  scope.introduce(selfBinding(self, refusal.at), diagnostics);
+  scope.introduce(actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), refusal.at), diagnostics);
+  scope.introduce(hereBinding(setting.here, refusal.at), diagnostics);
+  const context: CheckContext = {
+    scope,
+    kinds: setting.kinds,
+    from: self.library,
+    self,
+    diagnostics,
+    names: setting.names,
+    ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: refusal } }),
+  };
+  checkPassage({ kind: 'refuse', at: refusal.at, said: refusal.said }, context);
+  return diagnostics.refusals.length === before;
 }
 
 /**

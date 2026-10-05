@@ -1,0 +1,13 @@
+exit_refusal.sprout:14:33  `yard` has no passage `machete`.
+                           Write `passage machete { … }` in `yard`, or give the words in quotes, as in `refuse "No room here."`.
+
+exit_refusal.sprout:15:35  Nothing here is called `item`.
+                           In reach: `self`, `actor`, `here`, `yard` and `exit_refusal`.
+
+exit_refusal.sprout:16:45  An exit's `when` says whether it applies, so it is true or false, and this is integer.
+                           Write a condition, as in `when (self.get(:lit))`.
+
+exit_refusal.sprout:17:33  The passage `blocked` renders `{mover}`, and nothing here is called `mover`.
+                           Say it where `mover` is bound, or give the words here in quotes. In reach here: `actor` and `here`.
+
+refused: 4 problems

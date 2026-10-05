@@ -164,6 +164,27 @@ describe('one body’s exits and links, in the first tier', () => {
     expect(checked('kind Hall { grammar { exit in "a" -> a  link way "b" } }', caps)).toEqual([]);
   });
 
+  it('count no exit that refuses against the cap, since none is offered', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, exitsPerPlace: 1 };
+    const refusing = ['north', 'south', 'east', 'west', 'up', 'down']
+      .map((way) => `exit ${way} "${way}" refuse "No."`)
+      .join('  ');
+    expect(checked(`kind Hall { grammar { exit in "a" -> a  ${refusing} } }`, caps)).toEqual([]);
+    expect(
+      checked(`kind Hall { grammar { ${refusing}  exit in "a" -> a  exit out "b" -> b } }`, caps),
+    ).toHaveLength(1);
+  });
+
+  it('hold an exit that refuses to the closed set of directions as any exit', () => {
+    expect(checked('kind Hall { grammar { exit n "north" refuse "No." } }')).toEqual([
+      [
+        'k.sprout:1:28',
+        '`n` is how a visitor types `north`, and source writes the direction out.',
+        'Write `exit north "north" refuse "…"`.',
+      ],
+    ]);
+  });
+
   it('know the closed set, and nothing else, as a direction', () => {
     expect(['north', 'southwest', 'in', 'out', 'up'].every(isDirection)).toBe(true);
     expect(['n', 'through', 'onward', 'North'].some(isDirection)).toBe(false);

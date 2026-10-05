@@ -1,10 +1,11 @@
 // What the words a slot took fill its role with (the spec's Verbs ›
 // Slots, Set roles, Carried roles, Value roles, A role-player narrows its
 // own options, Exits). A thing role takes one noun, a set role a run of
-// them, an exit role a direction or a label; a value role takes any
-// words, and binds only a value some participant's `from` hears, so
-// nothing a visitor typed reaches a body unless a role-player declared it
-// an option. A carried role takes only what the one typing carries: where
+// them, an exit role a direction or a label, an exit that refuses and a
+// direction no exit answers being answered rather than read; a value
+// role takes any words, and binds only a value some participant's `from`
+// hears, so nothing a visitor typed reaches a body unless a role-player
+// declared it an option. A carried role takes only what the one typing carries: where
 // what they carry does not answer and something further out would fill
 // the role, the slot is `outward`, which the world answers with
 // `not_carrying`, and a carried thing the noun names always wins over an
@@ -15,7 +16,8 @@ import type { ResolvedRole } from '../../declare/verbs.js';
 import { heardBy, type Bound, type Reading } from '../reading.js';
 import type { Instance, StateReader } from '../state.js';
 import type { Value } from '../values.js';
-import { exitNamed, labelWords, type CommandExit } from './exits.js';
+import { directionOf, type Direction } from '../../declare/directions.js';
+import { exitNamed, labelWords, type AppliedWay, type RefusingExit } from './exits.js';
 import {
   fits,
   forms,
@@ -58,12 +60,16 @@ export type Filled =
    * The phrase does not match: the role is carried, nothing carried
    * answers, and each of these, further out, would fill it.
    */
-  | { readonly fills: 'outward'; readonly things: readonly FillOption[] };
+  | { readonly fills: 'outward'; readonly things: readonly FillOption[] }
+  /** The words name an exit that refuses, which answers with its words. */
+  | { readonly fills: 'refused'; readonly way: RefusingExit }
+  /** The words are a direction no exit that applies answers, which the world's `no_way` answers. */
+  | { readonly fills: 'no_way'; readonly direction: Direction };
 
 /** What filling a slot reads: what the actor can reach, the exits that apply, the meter and the draws. */
 export interface FillContext extends NounContext {
   readonly candidates: readonly Candidate[];
-  readonly exits: readonly CommandExit[];
+  readonly exits: readonly AppliedWay[];
 }
 
 /** What `words`, taken by a slot, fill `role` with. */
@@ -77,7 +83,11 @@ export function fillSlot(
   if (filler?.fills === 'exit') {
     context.budget.spend();
     const exit = exitNamed(words, context.exits);
-    if (exit === null) return { fills: 'unfit', things: [] };
+    if (exit === null) {
+      const direction = words.length === 1 ? directionOf(words[0]!) : null;
+      return direction === null ? { fills: 'unfit', things: [] } : { fills: 'no_way', direction };
+    }
+    if ('refuses' in exit) return { fills: 'refused', way: exit };
     return {
       fills: 'options',
       options: [{ bound: { exit }, near: 0, literal: labelWords(words).length }],
