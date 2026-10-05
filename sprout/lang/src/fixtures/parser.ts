@@ -12,7 +12,7 @@ import { passRules } from '../runtime/passes.js';
 import { Budget } from '../runtime/budget.js';
 import { Draws } from '../runtime/draws.js';
 import { readCommand, type CommandContext, type CommandOutcome } from '../runtime/parser.js';
-import type { CommandExit } from '../runtime/parser/exits.js';
+import type { AppliedWay, CommandExit } from '../runtime/parser/exits.js';
 import { declaredId, type InstanceId } from '../runtime/ids.js';
 
 /** A single quote, as an import's specifier is written between them. */
@@ -255,7 +255,7 @@ export function study(nicknames: readonly string[] = ['Marta B'], budget?: Budge
  */
 export function commandContext(
   one: Study,
-  exits = EXITS,
+  exits: readonly AppliedWay[] = EXITS,
   seed = 7,
   referents: readonly InstanceId[] = [],
 ): CommandContext {
@@ -282,7 +282,12 @@ export function commandContext(
 }
 
 /** `line`, as the first visitor in `one` typed it, in a turn of `seed`. */
-export function typed(one: Study, line: string, exits = EXITS, seed = 7): CommandOutcome {
+export function typed(
+  one: Study,
+  line: string,
+  exits: readonly AppliedWay[] = EXITS,
+  seed = 7,
+): CommandOutcome {
   return readCommand(line, one.people[0]!, commandContext(one, exits, seed));
 }
 

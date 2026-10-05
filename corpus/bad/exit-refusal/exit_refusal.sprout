@@ -1,0 +1,23 @@
+// An exit that refuses says why: its words in quotes, or a passage of
+// its place by name, with `actor` and `here` bound beside `self` and
+// nothing else; and its `when` is a condition, as any exit's is. Each
+// line written wrong is refused once.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_refusal is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit west  "west"  refuse machete
+      exit east  "east"  refuse "{item} is in the way."
+      exit south "south" refuse "No." when (3)
+      exit up    "up"    refuse blocked
+      exit in    "in"    refuse "{actor} cannot get into {here}."
+    }
+
+    passage blocked { {mover} blocks the way. }
+  }
+}

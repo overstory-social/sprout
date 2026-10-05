@@ -56,7 +56,7 @@
       { "reader": "Ines", "kind": "described", "words": "The paper store, the type cabinet, the apprentice, the shop cat," }
     ] },
     { "as": "Marta", "type": "go up", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+      { "reader": "Marta", "kind": "notice", "words": "You can't go that way." }
     ] },
     { "as": "Marta", "type": "take ladder", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "The ladder is chained to the shelving." }

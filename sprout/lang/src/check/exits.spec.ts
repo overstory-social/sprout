@@ -8,6 +8,7 @@ import type { Named } from '../declare/names.js';
 import { BOOLEAN } from '../declare/types.js';
 import type { Node } from '../source/nodes.js';
 import { compileWorld } from '../fixtures/bundle.js';
+import { HERE_PLACE } from '../fixtures/bindings.js';
 import { readStatement } from '../fixtures/parse.js';
 import { letBinding, objectOf, Scope, selfBinding, valueOf } from './bindings.js';
 import type { CheckContext } from './check.js';
@@ -148,6 +149,7 @@ describe('an exit, against the whole bundle', () => {
     const setting = {
       kinds: bundle!.kindLookup,
       diagnostics,
+      here: HERE_PLACE,
       names: {
         source: { tree: bundle!.tree, contents: bundle!.contents },
         vantage: { in: 'kind' as const, giver: kindName(cell), path: [], self: cell },
@@ -159,7 +161,7 @@ describe('an exit, against the whole bundle', () => {
     expect(diagnostics.all).toEqual([]);
     const exit = cell.exits[0]!.line;
     // A kind has no place, so which `yard` its exit leads to is each instance's.
-    expect(exit.kind === 'grammar-exit' && table.get(exit.destination)).toEqual({
+    expect(exit.kind === 'grammar-exit' && table.get(exit.leads)).toEqual({
       names: 'placed',
       steps: [{ name: 'yard', madeOf: [['sprout.Place', 'ways.Cell']] }],
       candidates: [

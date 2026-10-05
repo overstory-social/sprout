@@ -61,6 +61,7 @@ import {
 import { turn, words as spoken } from '../fixtures/reading.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import type { Answer } from './parser/answers.js';
+import type { RefusingExit } from './parser/exits.js';
 import { typedWords } from '../declare/addressing.js';
 import { addressOf } from './parser/address.js';
 import { answersTo } from './parser/nouns.js';
@@ -173,8 +174,40 @@ describe('a line read as a reading', () => {
     expect(understood(typed(one, 'go down the cellar stair')).bindings).toEqual({
       way: { exit: EXITS[1]! },
     });
-    expect(answered(typed(one, 'go south')).answer).toBe('unknown');
-    expect(answered(typed(one, 'north', [])).answer).toBe('unknown');
+    expect(answered(typed(one, 'go south')).answer).toBe('no_way');
+    expect(answered(typed(one, 'north', [])).answer).toBe('no_way');
+    expect(answered(typed(one, 'go yonder')).answer).toBe('unknown');
+  });
+
+  it('answers a direction no exit goes in with `no_way`, given the direction written out', () => {
+    const one = study();
+    for (const [line, way] of [
+      ['south', 'south'],
+      ['go sw', 'southwest'],
+      ['walk up', 'up'],
+    ] as const) {
+      const outcome = answered(typed(one, line));
+      expect(outcome.answer, line).toBe('no_way');
+      expect(outcome.bindings.get('way'), line).toEqual({ binds: 'value', value: way });
+      expect('passage' in outcome.said && outcome.said.passage.name, line).toBe('no_way');
+    }
+  });
+
+  it('answers an exit that refuses, named by its direction or its label, with its words', () => {
+    const one = study();
+    const refusing: RefusingExit = {
+      direction: 'west',
+      label: 'through the brambles',
+      refuses: { by: one.people[0]!, said: { absent: 'brambles' } },
+    };
+    for (const line of ['west', 'w', 'go west', 'through the brambles']) {
+      const outcome = answered(typed(one, line, [...EXITS, refusing]));
+      expect(outcome.answer, line).toBe('refused');
+      expect(outcome.said, line).toEqual({ absent: 'brambles' });
+      expect([...outcome.bindings.keys()], line).toEqual(['actor', 'here']);
+    }
+    // A way that does not go loses to a reading of the line.
+    expect(understood(typed(one, 'north', [...EXITS, refusing])).verb).toBe('sprout.go');
   });
 
   it('fills a role of a kind only with a thing of it, and reads the tool a phrase leaves out as unbound', () => {
@@ -532,7 +565,7 @@ describe('every line has exactly one outcome (generated)', () => {
       expect(() => (outcome = typed(one, line, EXITS, seed)), line).not.toThrow();
       const kinds = ['understood' in outcome! ? 'understood' : outcome!.answer];
       expect(kinds, line).toHaveLength(1);
-      expect(['understood', 'not_here', 'unknown'], line).toContain(kinds[0]);
+      expect(['understood', 'not_here', 'no_way', 'unknown'], line).toContain(kinds[0]);
       if (!('understood' in outcome!)) {
         expect('passage' in outcome!.said, line).toBe(true);
         continue;

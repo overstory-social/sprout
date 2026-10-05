@@ -18,6 +18,7 @@ const ENDS: LineEnds = {
     p.done ||
     p.at('punct', '}') ||
     (p.peek().kind === 'name' && LINE_WORDS.includes(p.peek().text)),
+  startsLine: (token) => token.kind === 'name' && LINE_WORDS.includes(token.text),
 };
 
 /**
@@ -58,7 +59,13 @@ function readBlock(lines: string) {
 const written = (line: GrammarExit | GrammarLink): string =>
   line.kind === 'grammar-link'
     ? `link ${line.name.text} "${line.label.text}"`
-    : `exit ${line.direction.text} "${line.label.text}" -> ${writtenPath(line.destination)}${line.when === null ? '' : ` when (${shape(line.when)})`}`;
+    : `exit ${line.direction.text} "${line.label.text}" ${leadsWritten(line.leads)}${line.when === null ? '' : ` when (${shape(line.when)})`}`;
+
+/** Where an exit leads, or what it refuses with, written back. */
+const leadsWritten = (leads: GrammarExit['leads']): string =>
+  leads.kind === 'path'
+    ? `-> ${writtenPath(leads)}`
+    : `refuse ${leads.said.kind === 'ident' ? leads.said.text : `"${leads.said.value}"`}`;
 
 const ways = (lines: readonly unknown[]) =>
   (lines as (GrammarExit | GrammarLink)[]).filter(
@@ -88,9 +95,12 @@ describe('an exit line and a link line', () => {
     const { p, diagnostics } = parserOver('exit in "in" -> hall link out "out"', {
       readers: new Map(),
     });
-    const atLineEnd = (at: Parser) => at.done || at.at('name', 'link');
-    const exit = exitLine(p, { atLineEnd });
-    const link = linkLine(p, { atLineEnd });
+    const ends: LineEnds = {
+      atLineEnd: (at: Parser) => at.done || at.at('name', 'link'),
+      startsLine: (token) => token.kind === 'name' && token.text === 'link',
+    };
+    const exit = exitLine(p, ends);
+    const link = linkLine(p, ends);
     expect(diagnostics.refusals).toEqual([]);
     expect([exit?.kind, link?.kind]).toEqual(['grammar-exit', 'grammar-link']);
   });
@@ -118,7 +128,7 @@ describe('an exit line and a link line', () => {
       [
         'c.sprout:3:20',
         'An exit says where it leads after its label, with `->`.',
-        'Write `exit north "x" -> yard`, naming the place it leads to.',
+        'Write `exit north "x" -> yard`, naming the place it leads to; or `exit north "x" refuse "…"` for a way that does not go.',
       ],
     ]);
     const beforeName = readWays('exit north "x" ->\n    name "cell"');
@@ -130,6 +140,34 @@ describe('an exit line and a link line', () => {
       ],
     ]);
     expect(beforeName.rest.startsWith('name "cell"')).toBe(true);
+  });
+
+  it('read a way that does not go, its words in quotes or a passage named, a guard after them', () => {
+    const text = [
+      'exit west "west" refuse "You would need a machete to go further west."',
+      'exit north "north" refuse boarded when (!self.get(:open))',
+    ];
+    const { lines, said, rest } = readWays(text.join('\n    '));
+    expect(said).toEqual([]);
+    expect(rest).toBe('}\n}\n');
+    expect(unspanned(lines)).toEqual([]);
+    expect(ways(lines).map((line) => textOf(line.at))).toEqual(text);
+    expect(ways(lines).map(written)).toEqual([
+      'exit west "west" refuse "You would need a machete to go further west."',
+      'exit north "north" refuse boarded when ((!self.get(:open)))',
+    ]);
+  });
+
+  it('refuse a `refuse` that says nothing, without taking the line after it', () => {
+    const bare = readWays('exit west "west" refuse\n    name "cell"');
+    expect(bare.said).toEqual([
+      [
+        'c.sprout:3:28',
+        '`refuse` says why.',
+        'Write the words in quotes, as in `refuse "No room here."`, or name a passage, as in `refuse full`.',
+      ],
+    ]);
+    expect(bare.rest.startsWith('name "cell"')).toBe(true);
   });
 
   it('refuse a `when` with no condition, an empty one, or one never closed', () => {
@@ -203,6 +241,8 @@ const WELL_FORMED = [
   'exit north "deeper" -> maze when (!self.get(:lit))',
   'exit up "the loft" -> shop.loft when (ladder.get(:down) && true)',
   'link back "the way you came"',
+  'exit west "west" refuse "You would need a machete."',
+  'exit east "east" refuse boarded when (!self.get(:open))',
 ];
 
 describe('an exit or a link never vanishes silently, and never takes the line after it', () => {

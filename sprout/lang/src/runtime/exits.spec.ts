@@ -7,6 +7,7 @@ import {
   DEAD_END,
   LADDER,
   LAMP,
+  LANTERN,
   LOFT,
   MEADOW,
   MOUTH,
@@ -17,18 +18,14 @@ import {
 } from '../fixtures/exits.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { Draft } from './draft.js';
-import { exitsFrom } from './exits.js';
+import { exitsFrom, waysFrom } from './exits.js';
 import type { InstanceId } from './ids.js';
 import { passRules } from './passes.js';
 import type { StateReader, WorldState } from './state.js';
 import type { Value } from './values.js';
 
-/** The exits and links that apply on `place` in `state`, as direction (null for a link), label and where each leads. */
-function applying(
-  state: WorldState | Draft,
-  place: InstanceId,
-  budget = new Budget(DEFAULT_LIMITS.budgets),
-) {
+/** What asking `place`'s ways out in `state` reads. */
+function contextOf(state: WorldState | Draft, budget: Budget) {
   const reader: StateReader = state instanceof Draft ? state : new Draft(state);
   const passes = passRules({
     state: reader,
@@ -37,10 +34,37 @@ function applying(
     budget,
     names: CATALOGUE.names,
   });
-  return exitsFrom(place, { state: reader, catalogue: CATALOGUE, budget, passes }).map((exit) => [
+  return { state: reader, catalogue: CATALOGUE, budget, passes };
+}
+
+/** The exits and links that apply on `place` in `state`, as direction (null for a link), label and where each leads. */
+function applying(
+  state: WorldState | Draft,
+  place: InstanceId,
+  budget = new Budget(DEFAULT_LIMITS.budgets),
+) {
+  return exitsFrom(place, contextOf(state, budget)).map((exit) => [
     exit.direction,
     exit.label,
     exit.to,
+  ]);
+}
+
+/** Every way out that applies on `place`, as direction, label and where it leads or what it says and who says it. */
+function waysOut(state: WorldState, place: InstanceId) {
+  return waysFrom(place, contextOf(state, new Budget(DEFAULT_LIMITS.budgets))).map((way) => [
+    way.direction,
+    way.label,
+    'to' in way
+      ? way.to
+      : [
+          way.refuses.by,
+          'text' in way.refuses.said
+            ? way.refuses.said.text
+            : 'passage' in way.refuses.said
+              ? way.refuses.said.passage.name
+              : null,
+        ],
   ]);
 }
 
@@ -111,6 +135,21 @@ describe('the exits that apply on a place', () => {
     const draft = new Draft(ways());
     draft.write({ ...draft.instance(DEAD_END)!, links: new Map([['onward', MEADOW]]) });
     expect(applying(draft, DEAD_END)).toEqual([]);
+  });
+
+  it('take an exit that refuses into a direction’s chain, deciding it, and never as a way that leads', () => {
+    expect(waysOut(ways(), SHED)).toEqual([
+      ['west', 'west', [SHED, 'The brambles are too thick.']],
+      ['north', 'north', [SHED, 'boarded']],
+    ]);
+    expect(applying(ways(), SHED)).toEqual([]);
+    // Lit, the way west before the refusal applies, and the refusal no longer does.
+    const lit = ways(undefined, [set(LANTERN, 'lit', true)]);
+    expect(waysOut(lit, SHED)).toEqual([
+      ['west', 'into the thicket', MEADOW],
+      ['north', 'north', [SHED, 'boarded']],
+    ]);
+    expect(applying(lit, SHED)).toEqual([['west', 'into the thicket', MEADOW]]);
   });
 
   it('are none where the place is not decoded', () => {

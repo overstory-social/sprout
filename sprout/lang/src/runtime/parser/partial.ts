@@ -55,7 +55,9 @@ export function partialsOf(
   if (!unfit && !fills.some((one) => one.fills === 'outward')) return [];
   const each: Written[][] = [];
   for (const filled of fills) {
-    if (filled.fills === 'nothing') return [];
+    if (filled.fills === 'nothing' || filled.fills === 'refused' || filled.fills === 'no_way') {
+      return [];
+    }
     if (filled.fills === 'words') {
       each.push([{ words: filled.words.join(' '), literal: filled.words.length, uncarried: null }]);
       continue;

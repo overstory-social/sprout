@@ -89,7 +89,10 @@ export function grammar(
       while (!atLineEnd(p, startsMember));
       continue;
     }
-    const line = grammarLine(p, { atLineEnd: (at) => atLineEnd(at, startsMember) });
+    const line = grammarLine(p, {
+      atLineEnd: (at) => atLineEnd(at, startsMember),
+      startsLine: (at) => at.kind === 'name' && (isLineWord(at.text) || startsMember(at)),
+    });
     if (line !== null) {
       lines.push(line);
       last = line.at;
