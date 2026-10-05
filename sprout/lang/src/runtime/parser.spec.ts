@@ -654,6 +654,53 @@ describe('a line ending in `?`', () => {
   });
 });
 
+describe('a place whose name shares a noun with something in it', () => {
+  const YARD = compiledWorld('yard', {
+    'yard.sprout': [
+      'world yard is sprout.World { visitors are Person visitors arrive at west_of_house',
+      '  object west_of_house is sprout.Place {',
+      '    object white_house is sprout.Fixture',
+      '    object box is sprout.Container { object toy_house is sprout.Fixture }',
+      '  }',
+      '  object kitchen is sprout.Place { }',
+      '}',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const at = (...path: string[]) => declaredId('yard', path);
+  const place = at('west_of_house');
+  const read = (line: string, seed: number, ready?: (one: Study) => void) => {
+    const one: Study = { ...turn(YARD, [place]), nicknames: new Map() };
+    ready?.(one);
+    return typed(one, line, [], seed);
+  };
+
+  it('ranks the visitor’s own place below everything it holds, whatever the seed', () => {
+    for (let seed = 0; seed < 16; seed++) {
+      const house = read('x house', seed);
+      expect(understood(house).bindings['target'], `seed ${seed}`).toEqual({
+        object: at('west_of_house', 'white_house'),
+      });
+      expect('understood' in house && house.drawn).toBeNull();
+    }
+  });
+
+  it('ranks it below what lies deep inside it too', () => {
+    // The toy house, inside a box on the floor, is the deepest thing there.
+    const reading = read('x house', 3, (one) =>
+      one.draft.remove(at('west_of_house', 'white_house')),
+    );
+    expect(understood(reading).bindings['target']).toEqual({
+      object: at('west_of_house', 'box', 'toy_house'),
+    });
+  });
+
+  it('still names the place where nothing in it answers as well', () => {
+    expect(understood(read('x west of house', 3)).bindings['target']).toEqual({ object: place });
+    expect(understood(read('x west', 3)).bindings['target']).toEqual({ object: place });
+  });
+});
+
 describe('a line typed with a synonym', () => {
   const YARD = compiledWorld('yard', {
     'yard.sprout': [

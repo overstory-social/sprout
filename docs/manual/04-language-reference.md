@@ -1300,7 +1300,9 @@ they run. The readings are ranked whole:
 1. one whose `permit`s all allow beats one that is refused;
 2. then the one that matched more of the line's words, where a name of
    adjectives alone matches none;
-3. then the one whose things are nearer.
+3. then the one whose things are nearer, where the place you stand in
+   counts as further than everything in it, so a room called "west of
+   house" is what `house` names only when nothing in it is a house.
 
 Readings still tied are drawn with the dice, and the host logs the draw
 as a warning. Where the drawn reading names a thing its rivals did not,
