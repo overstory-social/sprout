@@ -1678,6 +1678,21 @@ passage instead ("There is nothing special about the type cabinet.").
 A thing has one voice, so two composed kinds that both `describe` is an
 error; write the combined description yourself.
 
+Inside a `describe`, and in any passage it says, `seen` says what the
+description is being read for: `:look` when someone typed `look` or
+`examine`, `:arrival` when they have just arrived, and `:poll` when their
+view is being drawn. A place can show its name alone on a return visit
+and everything on `look`:
+
+```sprout
+describe {
+  if (seen == :arrival && actor.recall(:visits) > 1) { text "{self}." }
+  else { text full }
+}
+```
+
+A passage that reads `seen` may only be said from a `describe`.
+
 ### When lines are rendered
 
 A turn's lines are rendered after all its work is done, against the state

@@ -25,7 +25,8 @@ const CAPS = DEFAULT_LIMITS.caps;
 
 /**
  * A mill with a yard holding a press whose passages live in `press.prose`,
- * a crate holding an apple and two ribs, a brass key, an oak door, and an
+ * a crate holding an apple and two ribs, whose description reads `seen`
+ * through a passage it renders, a brass key, an oak door, and an
  * echo whose `ring` renders itself, whose `call`, `calls` and `toss`
  * draw, whose `nearby` narrows the `press` nearest it, and whose `pathed`
  * names the crate and a rib in it by their paths from the world.
@@ -60,6 +61,9 @@ export const MILL: Bundle = compiledWorld('mill', {
     '',
     '    {for rib: Rib in self}{rib.short}{if $first} first{/if}{if !$last}, {/if}{/for}',
     '  }',
+    '  describe { text peek }',
+    '  passage peek { The crate{if seen == :look}, looked into,{/if} is full. {self.lid} }',
+    '  passage lid { {if seen == :poll}Its lid is shut.{else}Its lid is open.{/if} }',
     '}',
     'kind Press {',
     '  prose "press.prose"',

@@ -1,0 +1,4 @@
+lamp.sprout:3:17  `Seen` has no option `looked`. Did you mean `look`?
+                  Options: look, arrival, poll.
+
+refused: 1 problem

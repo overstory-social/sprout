@@ -652,6 +652,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `self` | the composed kind |
 | `actor` | `sprout.Actor`, a visitor or an NPC; anything more is read through `is()` |
 | `here` | the actor's place: `sprout.Place` where every kind in the world that holds actors composes it, else object |
+| `seen`, in a `describe` and the passages it invokes | symbol: one of `look`, `arrival` and `poll`, an option written bare, `seen == :look` |
 | `mover`, in a guard | object; whatever proposed the move |
 | a role | the kind or value type the verb declares; object if it declares none |
 | a set role | as above, as a set |
@@ -1391,6 +1392,8 @@ A **passage** is a named block of words belonging to a kind, for prose too long 
 
 `actor` and `here` are bound where a person is acting: in a role's `permit` and `do`, in `describe` — where the actor is whoever is looking — and in any passage those invoke. A handler, hook, tick or wake has no actor: it may `tell` the place, and it may `tell` a particular actor it has bound, but it has nobody to `say` to. The compiler enforces this exactly: a passage that renders `{actor}` may only be invoked from a body where `actor` is bound.
 
+A `describe` also binds `seen`, what it is being read for: `:look` where the reader typed `look` or `examine`, of anything, the place included; `:arrival` where they read it on arriving; and `:poll` where their view is derived. It is read-only, it is given to any passage the `describe` invokes, and it is checked as `actor` is: a passage that reads `seen` may only be invoked where it is bound. A place that shows its name alone on a return visit and the whole of itself on `look` reads `seen` beside a counter it remembers per actor, as under Chance.
+
 ### Passages
 
 A passage is an ordinary member that happens to be mostly words. Inside it `self` is the owning object and `actor`, where bound, is the visitor, the same frame as any other member — it is not a function and nothing is passed to it.
@@ -1443,7 +1446,7 @@ A slot is `{…}`; `\{` is a literal brace, and a backslash escapes in a passage
 | `{self.get(:mood)}` | the option word, humanised — `bone_dry` becomes "bone dry" |
 | `{self.count}` | digits |
 | `{actor.recall(:note)}` | the string as written |
-| `{pot.greeting}` | another object's passage, run with that object as its own `self`; `pot` must be typed by a kind that declares `greeting`; it is given `actor` and `here` where the slot has them, and no other binding |
+| `{pot.greeting}` | another object's passage, run with that object as its own `self`; `pot` must be typed by a kind that declares `greeting`; it is given `actor`, `here` and `seen` where the slot has them, and no other binding |
 
 An object in a slot renders as its name, with the article its grammar block declared, except to itself. A line told to Marta that names Marta says "you", so one `tell "{actor} tags {self}."` reads correctly to the bystanders, and the target is told in the second person by a `tell self` the author writes for them. That is all `{actor}` ever was: a visitor is an object, and a visitor's name is their nickname, so nothing about it is special. The first letter of a rendered line is capitalised, which is where an object slot most often sits.
 

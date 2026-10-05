@@ -19,7 +19,7 @@ import { renderProse } from './render.js';
 import { NameOutOfRange } from '../runtime/named.js';
 import { Draws } from '../runtime/draws.js';
 import { chooser, readProseText } from '../fixtures/parse.js';
-import { boundReadings } from '../runtime/evaluate.js';
+import { boundReadings, boundValue, type Evaluated } from '../runtime/evaluate.js';
 
 /** `name` of `by`, rendered for `reader` and laid out, charging nothing to output. */
 function rendered(
@@ -27,7 +27,7 @@ function rendered(
   by: typeof PRESS,
   name: string,
   reader: typeof PRESS,
-  bindings: Record<string, ReturnType<typeof boundObject>> = {},
+  bindings: Record<string, Evaluated> = {},
 ): string[] {
   const passage = turn.draft.instance(by)!.kind.passages.get(name)!;
   const voice = { self: by, library: 'mill', bindings: new Map(Object.entries(bindings)) };
@@ -62,6 +62,16 @@ describe('a slot renders what it reads', () => {
       'In the crate: an apple, a rib, a spare rib.',
       'A rib first, a rib',
     ]);
+  });
+});
+
+describe('a passage a slot renders from a description', () => {
+  it('is given `seen` beside `actor` and `here`, as the description has it', () => {
+    const turn = proseTurn();
+    const read = (seen: string) =>
+      rendered(turn, CRATE, 'peek', turn.marta, { seen: boundValue(seen) });
+    expect(read('look')).toEqual(['The crate, looked into, is full. Its lid is open.']);
+    expect(read('poll')).toEqual(['The crate is full. Its lid is shut.']);
   });
 });
 

@@ -186,9 +186,9 @@ function renderedPassage(
   });
 }
 
-/** What a passage rendered from here is run with: `actor` and `here`, where they are bound. */
+/** What a passage rendered from here is run with: `actor`, `here` and `seen`, where they are bound. */
 function personOf(scope: Scope): Scope {
-  const kept = new Set(['actor', 'here']);
+  const kept = new Set(['actor', 'here', 'seen']);
   const others = [...scope.names(), ...scope.withheldNames()].filter((name) => !kept.has(name));
   return scope.carried(new Set(others));
 }
