@@ -15,7 +15,7 @@ import { typeOf } from '../check/check.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
 import type { Named as PlacedName } from '../declare/names.js';
 import type { Node } from '../source/nodes.js';
-import type { Expr } from '../syntax/ast.js';
+import { writtenMembers, type Expr } from '../syntax/ast.js';
 import { compiledWorld } from '../fixtures/bundle.js';
 import { expression } from '../fixtures/check.js';
 import { chooser } from '../fixtures/parse.js';
@@ -555,6 +555,96 @@ describe('an identifier in an expression', () => {
 
   it('faults where what it names is out of range', () => {
     expect(() => throughName('stray', ['yard', 'stray'])).toThrow(NameOutOfRange);
+  });
+});
+
+describe('a dotted path in an expression', () => {
+  /** `text`, a path or one reading on it, the path resolved to the declared `path`, evaluated in the lamp's body. */
+  function throughPath(text: string, path: readonly string[]): Evaluated {
+    const one = eventTurn();
+    const expr = expression(text);
+    const step = expr.kind === 'call' ? expr.receiver : expr;
+    return evaluate(expr, {
+      state: one.draft,
+      kinds: one.catalogue.lookup,
+      library: 'bus',
+      self: LAMP,
+      bindings: new Map(),
+      budget: one.budget,
+      caps: one.catalogue.caps,
+      names: new Map([[step, { names: 'declared', path, kind: null }]]),
+      passes: one.passes,
+    });
+  }
+
+  it('is the object the checker resolved its last step to, and is read through like a name', () => {
+    expect(throughPath('hall.lantern', ['hall', 'lantern'])).toEqual(boundObject(LANTERN));
+    expect(throughPath('hall.lantern.is(Lantern)', ['hall', 'lantern'])).toEqual({
+      binds: 'value',
+      value: true,
+    });
+  });
+
+  it('faults where what it names is out of range, as a name does', () => {
+    expect(() => throughPath('yard.stray', ['yard', 'stray'])).toThrow(NameOutOfRange);
+  });
+});
+
+describe('a condition that narrows a dotted path in a kind’s body', () => {
+  /** A frame over the lantern's body, where every `hall.lamp` written is whatever is so called nearest it. */
+  function pathFrame(text: string, bound: Record<string, Evaluated> = {}) {
+    const one = eventTurn();
+    const condition = expression(text);
+    const names = new Map<Node, PlacedName>();
+    const placed: PlacedName = {
+      names: 'placed',
+      steps: [
+        { name: 'hall', madeOf: [] },
+        { name: 'lamp', madeOf: [] },
+      ],
+      candidates: [],
+    };
+    const paths = (expr: Expr): void => {
+      if (expr.kind === 'binary') [expr.left, expr.right].forEach(paths);
+      if (expr.kind === 'unary') paths(expr.operand);
+      if (expr.kind === 'call') paths(expr.receiver);
+      if (expr.kind === 'member' && writtenMembers(expr) === 'hall.lamp') names.set(expr, placed);
+      else if (expr.kind === 'member') paths(expr.receiver);
+    };
+    paths(condition);
+    const frame: Frame = {
+      state: one.draft,
+      kinds: one.catalogue.lookup,
+      library: 'bus',
+      self: LANTERN,
+      bindings: new Map([['mine', boundObject(LAMP)], ...Object.entries(bound)]),
+      budget: one.budget,
+      caps: one.catalogue.caps,
+      names,
+      passes: one.passes,
+    };
+    return { condition, frame, draft: one.draft };
+  }
+
+  it('binds the path, by its text, to what it reaches now, for the right of `&&` and the branch', () => {
+    const { condition, frame } = pathFrame('hall.lamp.is(Lamp) && hall.lamp == mine');
+    const inner = branchFrame(condition, frame)!;
+    expect(inner.bindings.get('hall.lamp')).toEqual(boundObject(LAMP));
+    expect(frame.bindings.has('hall.lamp')).toBe(false);
+  });
+
+  it('reads the path as the branch holds it, without resolving it again', () => {
+    // Bound to the lantern, the path reads as the lantern, whatever is nearest now.
+    const { condition, frame } = pathFrame('hall.lamp == mine', {
+      'hall.lamp': boundObject(LANTERN),
+    });
+    expect(evaluateCondition(condition, frame)).toBe(false);
+  });
+
+  it('faults where the path reaches nothing, as any read through it does', () => {
+    const { condition, frame, draft } = pathFrame('hall.lamp.is(Lamp)');
+    draft.place(LAMP, draft.world);
+    expect(() => branchFrame(condition, frame)).toThrow(NameOutOfRange);
   });
 });
 

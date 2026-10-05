@@ -10,9 +10,10 @@
 // step budget, which charges one step for every expression node
 // evaluated, and `+` or `-` whose result leaves the integer range.
 //
-// It only reads. An identifier faults out of range (`named.ts`); `count`
-// and `holds` see only what is in range (`contents.ts`); `chance` and
-// `random` draw from the frame's stream (`draws.ts`).
+// It only reads. An identifier or a dotted path faults out of range
+// (`named.ts`); `count` and `holds` see only what is in range
+// (`contents.ts`); `chance` and `random` draw from the frame's stream
+// (`draws.ts`).
 
 import type {
   BinaryExpr,
@@ -23,6 +24,7 @@ import type {
   KindExpr,
   MemberExpr,
 } from '../syntax/ast.js';
+import { writtenMembers } from '../syntax/ast.js';
 import type { StaticCaps } from '../bundle/limits.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { INTEGER_MAX, INTEGER_MIN } from '../declare/types.js';
@@ -140,7 +142,8 @@ function walked(expr: Expr, frame: Frame): { value: Evaluated; held: Frame } {
     spine.push(node);
     if (node.kind === 'binary') node = node.left;
     else if (node.kind === 'unary') node = node.operand;
-    else if (node.kind === 'member' || node.kind === 'call') node = node.receiver;
+    else if (node.kind === 'member' && !frame.names.has(node)) node = node.receiver;
+    else if (node.kind === 'call') node = node.receiver;
     else break;
   }
   let below = leaf(spine.pop()!, frame);
@@ -168,20 +171,27 @@ function isAnd(expr: Expr): expr is BinaryExpr & { readonly operator: '&&' } {
 }
 
 /**
- * `frame` with the name `name.is(K)` tests bound to what it reaches now,
- * where the name is one in a kind's body that the run resolves; `frame`
- * itself for any other operand.
+ * `frame` with the name or dotted path `name.is(K)` tests bound to what it
+ * reaches now, where it is one in a kind's body that the run resolves;
+ * `frame` itself for any other operand.
  */
 function narrowedFrame(operand: Expr, frame: Frame): Frame {
   if (operand.kind !== 'call' || operand.method.text !== 'is') return frame;
+  if (operand.arguments.length !== 1) return frame;
   const receiver = operand.receiver;
-  if (receiver.kind !== 'binding' || operand.arguments.length !== 1) return frame;
-  const name = receiver.name;
-  if (name.text === 'self' || frame.bindings.has(name.text)) return frame;
-  const named = frame.names.get(name);
+  // A name, or a dotted path, which is bound by its text as written.
+  const [written, key] =
+    receiver.kind === 'binding'
+      ? [receiver.name.text, receiver.name]
+      : receiver.kind === 'member'
+        ? [writtenMembers(receiver), receiver]
+        : [null, null];
+  if (written === null || key === null) return frame;
+  if (written === 'self' || frame.bindings.has(written)) return frame;
+  const named = frame.names.get(key);
   if (named?.names !== 'placed') return frame;
   const bindings = new Map(frame.bindings);
-  bindings.set(name.text, boundObject(reachedByName(named, name.text, frame)));
+  bindings.set(written, boundObject(reachedByName(named, written, frame)));
   return { ...frame, bindings };
 }
 
@@ -210,6 +220,17 @@ function leaf(expr: Expr, frame: Frame): Evaluated {
       throw unchecked('a kind standing as a value');
     case 'free-call':
       return drawn(expr, frame);
+    case 'member': {
+      // A dotted path, `w2.forest_1.box`: what a narrowing bound it to, else what the checker resolved it to.
+      const written = writtenMembers(expr);
+      const named = frame.names.get(expr);
+      if (written === null || named === undefined) {
+        throw unchecked(`the reading \`${expr.member.text}\` at the bottom of a spine`);
+      }
+      const bound = frame.bindings.get(written);
+      if (bound !== undefined) return bound;
+      return boundObject(reachedByName(named, written, frame));
+    }
     default:
       throw unchecked(`a ${expr.kind} at the bottom of a spine`);
   }

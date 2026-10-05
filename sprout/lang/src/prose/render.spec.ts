@@ -89,6 +89,19 @@ describe('a name in a kind’s body narrowed by `{if}`', () => {
   });
 });
 
+describe('a dotted path in a slot', () => {
+  it('renders the object it names, what it holds, and a passage of it', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'pathed', turn.marta)).toEqual(['The crate holds 3, a rib first']);
+  });
+
+  it('faults where what it names is out of range, as a name does', () => {
+    const turn = proseTurn();
+    turn.draft.place(CRATE, turn.draft.world);
+    expect(() => rendered(turn, ECHO, 'pathed', turn.marta)).toThrow(NameOutOfRange);
+  });
+});
+
 describe('a block renders what it guards, and a loop what it walks', () => {
   it('renders the first branch whose condition holds, and a block that renders nothing leaves no paragraph', () => {
     const turn = proseTurn();

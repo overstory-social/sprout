@@ -1,0 +1,16 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+import {Lantern} from 'lantern'
+
+world kind_path_unnarrowed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object shelf is Shelf { object lamp is Lamp }
+    object lantern is Lantern
+  }
+}
+
+kind Shelf { contains }

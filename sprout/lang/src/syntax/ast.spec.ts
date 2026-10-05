@@ -4,18 +4,20 @@ import {
   GUARD_NAMES,
   statementsWithin,
   writtenMember,
+  writtenMembers,
   type Declaration,
   type EnumDeclaration,
   type EnumOption,
   type GuardDeclaration,
   type Ident,
   type KindDeclaration,
+  type MemberExpr,
   type PassageDeclaration,
 } from './ast.js';
 import type { VerbDeclaration } from './ast-verbs.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { isNode, nodesOf, unspanned } from '../source/nodes.js';
-import { parseDeclarations, parseStatement } from './parse.js';
+import { parseDeclarations, parseExpression, parseStatement } from './parse.js';
 import { SourceFile, textOf } from '../source/source.js';
 
 const source = new SourceFile('ward.sprout', 'enum Ward { oak, silver }\n');
@@ -198,6 +200,21 @@ describe('a verb is its name, its roles and its phrases, each part a node', () =
       'role tools many',
     ]);
     expect(textOf(work.phrases[0]!.at)).toBe('"work [target] with [tools]"');
+  });
+});
+
+describe('member readings written on a name are shown as written', () => {
+  /** The member reading an expression is, parsed alone. */
+  function member(text: string): MemberExpr {
+    const expr = parseExpression(new SourceFile('m.sprout', text), new Diagnostics());
+    if (expr?.kind !== 'member') throw new Error(`\`${text}\` is not a member reading`);
+    return expr;
+  }
+
+  it('joins the name and each member with dots, and is null where no name begins the chain', () => {
+    expect(writtenMembers(member('w2.forest_1.box'))).toBe('w2.forest_1.box');
+    expect(writtenMembers(member('kiln.count'))).toBe('kiln.count');
+    expect(writtenMembers(member('self.get(:wear).count'))).toBeNull();
   });
 });
 

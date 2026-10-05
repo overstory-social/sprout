@@ -1,0 +1,22 @@
+{
+  "name": "kind_path_unnarrowed",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "bed2ae4419ec17dc16e6e9eeb72c013c90f090470ad92f9b10512d92c4ccf508"
+    }
+  ],
+  "files": [
+    "kind_path_unnarrowed.sprout",
+    "kinds.sprout",
+    "person.sprout",
+    "lamp.sprout",
+    "lantern.sprout"
+  ]
+}

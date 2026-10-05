@@ -28,13 +28,14 @@
 //
 // Statements are `statements.ts`'s, not this module's.
 
-import type { CallExpr, Expr } from '../syntax/ast.js';
+import type { CallExpr, Expr, MemberExpr } from '../syntax/ast.js';
 import { showBindingType, valueOf, type BindingType } from './bindings.js';
 import { checkerOf, type CheckContext, type Checker } from './check/checker.js';
 import { leafType } from './check/leaves.js';
 import { aboveType } from './check/operators.js';
 import { EFFECTS, effectCall } from './check/writes.js';
 import { matches } from './check/values.js';
+import { memberPathType, pathSteps } from './names.js';
 import type { ValueType } from '../declare/types.js';
 
 export type { ActSetting, CheckContext, MessageSetting } from './check/checker.js';
@@ -74,12 +75,32 @@ function walk(expr: Expr, checker: Checker): BindingType | null {
     else break;
   }
 
-  let type = leafType(spine.pop()!, checker);
+  let type = bottomType(spine, checker);
   while (spine.length > 0) {
     if (type === null) return null;
     type = aboveType(spine.pop()!, type, checker);
   }
   return type;
+}
+
+/**
+ * The bottom of a spine, taken off it: a leaf, or a name and the member
+ * readings above it that are the steps of a dotted path (`names.ts`),
+ * typed as the one object they name.
+ */
+function bottomType(spine: Expr[], checker: Checker): BindingType | null {
+  const bottom = spine.pop()!;
+  if (bottom.kind !== 'binding') return leafType(bottom, checker);
+  const members: MemberExpr[] = [];
+  for (let i = spine.length - 1; i >= 0; i--) {
+    const node = spine[i]!;
+    if (node.kind !== 'member') break;
+    members.push(node);
+  }
+  const steps = pathSteps(bottom.name, members, checker);
+  if (steps === 0) return leafType(bottom, checker);
+  spine.length -= steps;
+  return memberPathType(bottom.name, members.slice(0, steps), members[steps], checker);
 }
 
 /**
