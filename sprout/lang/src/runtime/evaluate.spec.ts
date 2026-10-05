@@ -29,16 +29,17 @@ import { Draft } from './draft.js';
 import { Draws } from './draws.js';
 import {
   boundObject,
+  branchFrame,
   evaluate,
   evaluateCondition,
   IntegerOverflow,
-  narrowedFrame,
   type Evaluated,
   type Frame,
 } from './evaluate.js';
 import { declaredId, type InstanceId } from './ids.js';
 import { SproutList } from './lists.js';
 import { initialState } from './load.js';
+import type { PassRule } from './range.js';
 import { newInstance } from './state.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
@@ -122,6 +123,8 @@ interface Body {
   readonly budget?: Budget;
   readonly draft?: Draft;
   readonly draws?: Draws;
+  /** What the turn's containers let through; every one passes where none is given. */
+  readonly passes?: PassRule<InstanceId>;
 }
 
 /**
@@ -160,7 +163,7 @@ function run(text: string, body: Body): Evaluated {
     budget: body.budget ?? new Budget(DEFAULT_LIMITS.budgets),
     caps: CAPS,
     names: new Map(),
-    passes: () => true,
+    passes: body.passes ?? (() => true),
     ...(body.draws === undefined ? {} : { draws: body.draws }),
   };
   return evaluate(expr, frame);
@@ -328,6 +331,34 @@ describe('the readings', () => {
     const names = { pot: thing(JAR) };
     expect(valueOf('self.holds(pot)', { self: SHELF, names })).toBe(true);
     expect(valueOf('self.holds(pot)', { self: HALL, names })).toBe(false);
+  });
+
+  it('`count`, `count(K)` and `holds` see only what is in range of `self`', () => {
+    const shut: PassRule<InstanceId> = (container) => container !== SHELF;
+    const names = { shelf: thing(SHELF, kindNamed('Shelf')), pot: thing(JAR) };
+    // From the nook, a shelf that lets nothing through holds nothing.
+    expect(valueOf('shelf.count', { self: NOOK, names, passes: shut })).toBe(0);
+    expect(valueOf('shelf.count(Jar)', { self: NOOK, names, passes: shut })).toBe(0);
+    expect(valueOf('shelf.holds(pot)', { self: NOOK, names, passes: shut })).toBe(false);
+    // The same shelf open is seen as it is.
+    expect(valueOf('shelf.count', { self: NOOK, names })).toBe(2);
+    expect(valueOf('shelf.holds(pot)', { self: NOOK, names })).toBe(true);
+    // The shelf, shut, still sees all it holds: an object reaches its own contents.
+    expect(valueOf('self.count', { self: SHELF, passes: shut })).toBe(2);
+    expect(valueOf('self.count(Lidded)', { self: SHELF, passes: shut })).toBe(1);
+    expect(valueOf('self.holds(pot)', { self: SHELF, names, passes: shut })).toBe(true);
+  });
+
+  it('another actor’s hands, which pass nothing, count nothing; its own count all', () => {
+    const { draft, visitor } = turn();
+    draft.place(CUP, visitor);
+    const hands: PassRule<InstanceId> = (container) => container !== visitor;
+    const actor = thing(visitor, catalogue.visitorKind!);
+    const names = { actor, cup: thing(CUP) };
+    expect(valueOf('actor.count', { self: HALL, names, draft, passes: hands })).toBe(0);
+    expect(valueOf('actor.holds(cup)', { self: HALL, names, draft, passes: hands })).toBe(false);
+    expect(valueOf('self.count', { self: visitor, draft, passes: hands })).toBe(1);
+    expect(valueOf('self.holds(cup)', { self: visitor, names, draft, passes: hands })).toBe(true);
   });
 
   it('`is` asks whether the instance composes the kind, nominally', () => {
@@ -527,7 +558,11 @@ describe('an identifier in an expression', () => {
 });
 
 describe('a condition that narrows a name in a kind’s body', () => {
-  /** A frame over the lantern's body, where `lamp` is whatever is nearest it, and `mine` is bound. */
+  /**
+   * A frame over the lantern's body, where `lamp` is whatever is nearest
+   * it, and `mine` is bound. As the checker records it, only a `lamp` that
+   * `is()` tests is a name; one read where that narrowing holds is a binding.
+   */
   function lanternFrame(text: string): { condition: Expr; frame: Frame; draft: Draft } {
     const one = eventTurn();
     const condition = expression(text);
@@ -537,11 +572,15 @@ describe('a condition that narrows a name in a kind’s body', () => {
       steps: [{ name: 'lamp', madeOf: [] }],
       candidates: [],
     };
-    const bound = (expr: Expr): void => {
-      if (expr.kind === 'binding' && expr.name.text === 'lamp') names.set(expr.name, placed);
-      if (expr.kind === 'call') bound(expr.receiver);
+    const tested = (expr: Expr): void => {
+      if (expr.kind === 'binary') [expr.left, expr.right].forEach(tested);
+      if (expr.kind === 'unary') tested(expr.operand);
+      const receiver = expr.kind === 'call' && expr.method.text === 'is' ? expr.receiver : null;
+      if (receiver?.kind === 'binding' && receiver.name.text === 'lamp') {
+        names.set(receiver.name, placed);
+      }
     };
-    bound(condition);
+    tested(condition);
     return {
       condition,
       draft: one.draft,
@@ -559,26 +598,64 @@ describe('a condition that narrows a name in a kind’s body', () => {
     };
   }
 
-  it('binds the name to what it reaches now, for the condition and its branch', () => {
+  it('binds the name to what it reaches now, for the branch it guards', () => {
     const { condition, frame } = lanternFrame('lamp.is(Lamp)');
-    const inner = narrowedFrame(condition, frame);
+    const inner = branchFrame(condition, frame)!;
     expect(inner).not.toBe(frame);
     expect(inner.bindings.get('lamp')).toEqual(boundObject(LAMP));
     expect(inner.bindings.get('mine')).toEqual(boundObject(LAMP));
     expect(frame.bindings.has('lamp')).toBe(false);
-    expect(evaluateCondition(condition, inner)).toBe(true);
   });
 
   it('faults where the name reaches nothing, as any read through it does', () => {
     const { condition, frame, draft } = lanternFrame('lamp.is(Lamp)');
     draft.place(LAMP, draft.world);
-    expect(() => narrowedFrame(condition, frame)).toThrow(NameOutOfRange);
+    expect(() => branchFrame(condition, frame)).toThrow(NameOutOfRange);
+  });
+
+  it('opens no branch where the condition does not hold', () => {
+    for (const text of ['!lamp.is(Lamp)', 'mine.is(Lamp) && 1 > 2', '1 > 2 && lamp.is(Lamp)']) {
+      const { condition, frame } = lanternFrame(text);
+      expect(branchFrame(condition, frame), text).toBeNull();
+    }
   });
 
   it('leaves the frame as it is for a binding, for `self`, and for any other condition', () => {
-    for (const text of ['mine.is(Lamp)', 'self.is(Lamp)', 'lamp.count > 0', '!lamp.is(Lamp)']) {
+    for (const text of ['mine.is(Lamp)', 'self.is(Lantern)', 'mine.count >= 0', '!self.is(Lamp)']) {
       const { condition, frame } = lanternFrame(text);
-      expect(narrowedFrame(condition, frame), text).toBe(frame);
+      expect(branchFrame(condition, frame), text).toBe(frame);
     }
+  });
+
+  it('reads the right of `&&` with the name its left narrowed bound, and binds it for the branch', () => {
+    // The right's `lamp` is a binding where the left holds, so it reads only through the frame.
+    const { condition, frame } = lanternFrame('lamp.is(Lamp) && lamp == mine');
+    const inner = branchFrame(condition, frame)!;
+    expect(inner.bindings.get('lamp')).toEqual(boundObject(LAMP));
+    expect(evaluateCondition(condition, frame)).toBe(true);
+    expect(frame.bindings.has('lamp')).toBe(false);
+  });
+
+  it('binds a name tested by any operand of a chain of `&&`', () => {
+    const { condition, frame } = lanternFrame('1 < 2 && mine.is(Lamp) && lamp.is(Lamp)');
+    expect(branchFrame(condition, frame)!.bindings.get('lamp')).toEqual(boundObject(LAMP));
+  });
+
+  it('never reads an operand to the right of one that failed, so a name there cannot fault', () => {
+    const { condition, frame, draft } = lanternFrame('1 > 2 && lamp.is(Lamp)');
+    draft.place(LAMP, draft.world);
+    expect(branchFrame(condition, frame)).toBeNull();
+    expect(evaluateCondition(condition, frame)).toBe(false);
+  });
+
+  it('spends a step for every `&&`, as for any other node', () => {
+    const spent = (text: string): number => {
+      const { condition, frame } = lanternFrame(text);
+      const before = frame.budget.spentSteps;
+      evaluate(condition, frame);
+      return frame.budget.spentSteps - before;
+    };
+    expect(spent('1 < 2 && 2 < 3')).toBe(spent('1 < 2 || 2 < 3') + 3);
+    expect(spent('1 > 2 && 2 < 3')).toBe(spent('1 > 2 || 2 < 3') - 3);
   });
 });

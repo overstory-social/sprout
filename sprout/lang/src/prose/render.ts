@@ -16,17 +16,16 @@
 import type { Expr } from '../syntax/ast.js';
 import type { Prose, ProseFor, ProseIf, ProseOneOf, ProseSlot } from '../syntax/ast-prose.js';
 import { humanisedOption, libraryOf } from '../declare/enums.js';
-import { kindName } from '../declare/kinds.js';
 import type { ResolvedPassage } from '../declare/passages.js';
 import { locationOf } from '../source/source.js';
 import type { Budget } from '../runtime/budget.js';
 import type { Catalogue } from '../runtime/catalogue.js';
+import { contentsSeenOfKind } from '../runtime/contents.js';
 import {
   boundObject,
   boundValue,
+  branchFrame,
   evaluate,
-  evaluateCondition,
-  narrowedFrame,
   type Evaluated,
   type Frame,
 } from '../runtime/evaluate.js';
@@ -229,7 +228,7 @@ function passageOf(
 /**
  * An `{if}` chain: the first branch whose condition holds, each condition
  * tested a step. A condition that narrows a name binds it, for the
- * condition and the branch it guards, to what it reaches now.
+ * branch it guards, to what it reaches now (`branchFrame`).
  */
 function branch(
   block: ProseIf,
@@ -240,8 +239,8 @@ function branch(
 ): void {
   for (let link: ProseIf = block; ;) {
     frame.budget.spend();
-    const inner = narrowedFrame(link.condition, frame);
-    if (evaluateCondition(link.condition, inner)) {
+    const inner = branchFrame(link.condition, frame);
+    if (inner !== null) {
       pieces(link.then, inner, reader, context, out);
       return;
     }
@@ -292,9 +291,9 @@ function loop(
 }
 
 /**
- * What a `{for}` walks: a container's contents, those composing its
- * kind, a set, a list's elements, or the readings `help` offers, each
- * already the line a visitor would type for it.
+ * What a `{for}` walks: a container's contents as `each` walks them
+ * (`contents.ts`), a set, a list's elements, or the readings `help`
+ * offers, each already the line a visitor would type for it.
  */
 function walk(block: ProseFor, frame: Frame): Evaluated[] {
   const over = evaluate(block.over, frame);
@@ -309,17 +308,5 @@ function walk(block: ProseFor, frame: Frame): Evaluated[] {
   if (over.binds !== 'object') {
     throw new Error('`{for … in}` walked what is not a container, which the checker refuses.');
   }
-  const contents = frame.state.children(over.id);
-  const { filter } = block;
-  if (filter === null) return contents.map(boundObject);
-  const kind =
-    filter.library === null
-      ? frame.kinds.unqualified(filter.name.text, frame.library)
-      : frame.kinds.qualified(filter.library.text, filter.name.text);
-  if (kind === null)
-    throw new Error(`\`${filter.name.text}\` is not a kind, which the checker refuses.`);
-  const identity = kindName(kind);
-  return contents
-    .filter((id) => frame.state.instance(id)?.kind.composes.has(identity) === true)
-    .map(boundObject);
+  return contentsSeenOfKind(frame, over.id, block.filter).map(boundObject);
 }

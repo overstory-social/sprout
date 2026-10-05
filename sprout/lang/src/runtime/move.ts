@@ -118,7 +118,7 @@ export type PlaceSend =
  * `arrives` to the visitors in its, each with the passage as it applies
  * on the place's kind and the binding it renders with; and the new
  * place's description to the one who moved, which the engine derives
- * once the queue is empty.
+ * once the queue is empty and gives as `Owed` says.
  */
 export type Notice =
   | {
@@ -146,6 +146,32 @@ export type Notice =
       readonly place: InstanceId;
       readonly audience: readonly [InstanceId];
     };
+
+/**
+ * A description a move owes the one it carried between places: read once
+ * the turn's first `after` lines are said, which is as the body that
+ * moved them ends and before anything the queue then runs (the spec's
+ * After the move).
+ */
+export interface Owed {
+  readonly mover: InstanceId;
+  readonly place: InstanceId;
+  readonly after: number;
+}
+
+/** The descriptions `notices` owe, each read once the turn's first `after` lines are said. */
+export function owedBy(notices: readonly Notice[], after: number): Owed[] {
+  return notices.flatMap((notice) =>
+    notice.notice === 'described'
+      ? [{ mover: notice.audience[0], place: notice.place, after }]
+      : [],
+  );
+}
+
+/** `owed`, read `lines` later: where the lines it counts follow that many others. */
+export function owedAfter(owed: readonly Owed[], lines: number): Owed[] {
+  return owed.map((one) => ({ ...one, after: one.after + lines }));
+}
 
 /** A move made. */
 export interface Moved {
@@ -405,11 +431,10 @@ function told(
 
 /**
  * Whether `to` is in range of a move `mover` proposes: in `mover`'s range,
- * or, where `mover` is an actor, the destination of an exit or a link of
- * its place that applies now (the spec's Verbs › Acting). Only the mover's
- * own place's ways out count, so any other place is out of range. This is
- * the move's own range rule, read both by `moveInstance` and by resolving
- * an identifier or path written as its destination.
+ * as every place is where the world passes, or, where `mover` is an actor,
+ * the destination of an exit or a link of its own place that applies now
+ * (the spec's Verbs › Acting). Read both by `moveInstance` and by
+ * resolving an identifier or path written as the move's destination.
  */
 export function reachedForMove(
   context: MoveContext,

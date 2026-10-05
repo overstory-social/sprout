@@ -1,0 +1,13 @@
+import * as sprout from 'sprout'
+import {Person, :slide} from 'person'
+
+kind Chute is sprout.Place {
+  describe { text "A steep chute, slick with damp." }
+
+  on :entered (item, from) {
+    if (item.is(Person)) {
+      tell item "You lose your footing and slide!"
+      send item :slide
+    }
+  }
+}

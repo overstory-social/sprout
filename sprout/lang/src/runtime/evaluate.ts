@@ -10,13 +10,12 @@
 // step budget, which charges one step for every expression node
 // evaluated, and `+` or `-` whose result leaves the integer range.
 //
-// It only reads. `bound tool` asks whether the frame binds the name, which
-// is how a role's body tells a tool it was given from one it was not; an
-// identifier is what the checker resolved it to, and faults where that is
-// not in range (`named.ts`). `chance` and `random` draw from the frame's
-// stream (`draws.ts`), which only a body that acts in a write turn has.
+// It only reads. An identifier faults out of range (`named.ts`); `count`
+// and `holds` see only what is in range (`contents.ts`); `chance` and
+// `random` draw from the frame's stream (`draws.ts`).
 
 import type {
+  BinaryExpr,
   BinaryOperator,
   CallExpr,
   Expr,
@@ -29,6 +28,7 @@ import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { INTEGER_MAX, INTEGER_MIN } from '../declare/types.js';
 import type { Budget } from './budget.js';
 import type { InstanceId } from './ids.js';
+import { contentsSeen, seenBy } from './contents.js';
 import { SproutList } from './lists.js';
 import type { Instance, StateReader } from './state.js';
 import type { NameTable } from '../check/names.js';
@@ -105,6 +105,35 @@ export function boundObject(id: InstanceId): Evaluated {
  * has no bracket to count against the parser's depth bound.
  */
 export function evaluate(expr: Expr, frame: Frame): Evaluated {
+  return walked(expr, frame).value;
+}
+
+/** A condition: an expression the checker typed as a boolean. */
+export function evaluateCondition(expr: Expr, frame: Frame): boolean {
+  return asBoolean(evaluate(expr, frame));
+}
+
+/**
+ * The frame the branch a condition guards runs in, where the condition
+ * holds, or null where it does not. Each `name.is(K)` it holds by, alone
+ * or as an operand of `&&`, over a name in a kind's body that the run
+ * resolves, binds the name to what it reaches now, so that a move inside
+ * the branch cannot change what it reaches (the spec's What the compiler
+ * checks). A name tested alone is bound before it is tested.
+ */
+export function branchFrame(condition: Expr, frame: Frame): Frame | null {
+  const inner = narrowedFrame(condition, frame);
+  const { value, held } = walked(condition, inner);
+  if (!asBoolean(value)) return null;
+  return isAnd(condition) ? narrowedFrame(condition.right, held) : inner;
+}
+
+/**
+ * What `expr` evaluates to, and the frame the right of its topmost `&&`
+ * was read in. The right of `a && b` is read where `a` held, with each
+ * name `a` narrowed bound, as the checker typed it there.
+ */
+function walked(expr: Expr, frame: Frame): { value: Evaluated; held: Frame } {
   const spine: Expr[] = [];
   for (let node: Expr = expr; ;) {
     spine.push(node);
@@ -114,26 +143,38 @@ export function evaluate(expr: Expr, frame: Frame): Evaluated {
     else break;
   }
   let below = leaf(spine.pop()!, frame);
-  while (spine.length > 0) below = above(spine.pop()!, below, frame);
-  return below;
+  let held = frame;
+  while (spine.length > 0) {
+    const node = spine.pop()!;
+    if (!isAnd(node)) {
+      below = above(node, below, frame);
+      continue;
+    }
+    frame.budget.spend();
+    if (!asBoolean(below)) continue;
+    // An `&&` on the left is the node just walked, and `held` is where its right was read.
+    held = isAnd(node.left)
+      ? narrowedFrame(node.left.right, held)
+      : narrowedFrame(node.left, frame);
+    below = boundValue(evaluateCondition(node.right, held));
+  }
+  return { value: below, held };
 }
 
-/** A condition: an expression the checker typed as a boolean. */
-export function evaluateCondition(expr: Expr, frame: Frame): boolean {
-  return asBoolean(evaluate(expr, frame));
+/** Whether `expr` is `a && b`. */
+function isAnd(expr: Expr): expr is BinaryExpr & { readonly operator: '&&' } {
+  return expr.kind === 'binary' && expr.operator === '&&';
 }
 
 /**
- * The frame a condition and the branch it guards run in: for `name.is(K)`
- * over a name in a kind's body that the run resolves, `frame` with the
- * name bound to what it reaches now, so that a move inside the branch
- * cannot change what it reaches (the spec's What the compiler checks);
- * for any other condition, `frame` itself.
+ * `frame` with the name `name.is(K)` tests bound to what it reaches now,
+ * where the name is one in a kind's body that the run resolves; `frame`
+ * itself for any other operand.
  */
-export function narrowedFrame(condition: Expr, frame: Frame): Frame {
-  if (condition.kind !== 'call' || condition.method.text !== 'is') return frame;
-  const receiver = condition.receiver;
-  if (receiver.kind !== 'binding' || condition.arguments.length !== 1) return frame;
+function narrowedFrame(operand: Expr, frame: Frame): Frame {
+  if (operand.kind !== 'call' || operand.method.text !== 'is') return frame;
+  const receiver = operand.receiver;
+  if (receiver.kind !== 'binding' || operand.arguments.length !== 1) return frame;
   const name = receiver.name;
   if (name.text === 'self' || frame.bindings.has(name.text)) return frame;
   const named = frame.names.get(name);
@@ -210,11 +251,11 @@ function above(expr: Expr, below: Evaluated, frame: Frame): Evaluated {
   }
 }
 
-/** `&&` and `||` decide from their left where they can, and leave the right unevaluated. */
+/** `||` decides from its left where it can, and leaves the right unevaluated; `&&` is `walked`'s. */
 function binary(operator: BinaryOperator, left: Evaluated, right: Expr, frame: Frame): Evaluated {
   switch (operator) {
     case '&&':
-      return boundValue(asBoolean(left) && evaluateCondition(right, frame));
+      throw unchecked('`&&` above another expression');
     case '||':
       return boundValue(asBoolean(left) || evaluateCondition(right, frame));
     case '==':
@@ -255,12 +296,12 @@ function same(a: Evaluated, b: Evaluated): boolean {
   throw unchecked(`${a.binds} compared with ${b.binds}`);
 }
 
-/** `x.count`: what a container holds, a set's members, or a list's elements. */
+/** `x.count`: what a container holds in range of `self`, a set's members, or a list's elements. */
 function member(expr: MemberExpr, receiver: Evaluated, frame: Frame): Evaluated {
   if (expr.member.text !== 'count') throw unchecked(`the reading \`${expr.member.text}\``);
   switch (receiver.binds) {
     case 'object':
-      return boundValue(frame.state.children(receiver.id).length);
+      return boundValue(contentsSeen(frame, receiver.id).length);
     case 'set':
       return boundValue(receiver.ids.length);
     case 'value':
@@ -287,14 +328,13 @@ function reading(expr: CallExpr, receiver: Evaluated, frame: Frame): Evaluated {
       return boundValue(recalled(asObject(receiver), propertyNamed(argument, frame), frame));
     case 'count': {
       const kind = kindNamed(argument, frame);
-      const ids =
-        receiver.binds === 'set' ? receiver.ids : frame.state.children(asObject(receiver));
+      const ids = receiver.binds === 'set' ? receiver.ids : contentsSeen(frame, asObject(receiver));
       return boundValue(ids.filter((id) => composes(instanceOf(id, frame), kind)).length);
     }
     case 'holds': {
       const container = asObject(receiver);
       const item = asObject(evaluate(argument, frame));
-      return boundValue(instanceOf(item, frame).container === container);
+      return boundValue(instanceOf(item, frame).container === container && seenBy(frame, item));
     }
     case 'is': {
       const kind = kindNamed(argument, frame);

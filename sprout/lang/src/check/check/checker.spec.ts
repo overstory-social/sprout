@@ -33,6 +33,19 @@ describe('a checker', () => {
     expect(seen[0]![1]).toBe(checker);
   });
 
+  it('makes a checker like itself over another scope, walking by the same walk', () => {
+    const context = vessel();
+    const walk = (_: Expr, by: Checker) => (by.scope === context.scope ? null : valueOf(BOOLEAN));
+    const checker = checkerOf(context, walk);
+    const inner = context.scope.inner();
+    const within = checker.within(inner);
+    expect(within.scope).toBe(inner);
+    expect(within.diagnostics).toBe(checker.diagnostics);
+    expect(within.kinds).toBe(checker.kinds);
+    expect(checker.typeOf(expression('true'))).toBeNull();
+    expect(within.typeOf(expression('true'))).toEqual(valueOf(BOOLEAN));
+  });
+
   it('walks by the walk it was made with, not one it was made from', () => {
     const first = checkerOf(vessel(), () => null);
     const second = checkerOf(first, () => valueOf(BOOLEAN));
