@@ -79,9 +79,12 @@ export function openSession(
  * The session recorded to `options.record`, played again onto a fresh
  * stage, so a host whose process restarted carries on where it was: a
  * session is its seed and its steps, and the same steps make the same
- * world. Nothing replayed reaches an inbox, and `warn` hears of a step
- * that no longer makes what was recorded. Opened as `openSession` opens
- * one where nothing is recorded there yet.
+ * world. Nothing replayed reaches an inbox. A step that no longer makes
+ * what was recorded is recorded again with what it makes now, and `warn`
+ * hears of it. Thrown, before anyone plays, where the recording does not
+ * read or a step cannot be played again, so the recording is never lost
+ * to a fresh session. Opened as `openSession` opens one where nothing is
+ * recorded there yet.
  */
 export function resumeSession(
   bundle: Bundle,
@@ -95,13 +98,17 @@ export function resumeSession(
   script.steps.forEach((step, i) => {
     const made = playStep(session.stage, step, `${record}, step ${i + 1}`);
     if ('as' in step) session.typed.set(step.as, (session.typed.get(step.as) ?? 0) + 1);
-    if (made !== null && plays(step) && step.expect !== undefined) {
-      if (!isDeepStrictEqual(expectationsOf(made), step.expect)) {
-        warn(`${record}, step ${i + 1}: played again, it does not make what was recorded`);
-      }
+    if (made === null || !plays(step)) {
+      session.recorded.push(step);
+      return;
     }
-    session.recorded.push(step);
+    const expect = expectationsOf(made);
+    if (!isDeepStrictEqual(expect, step.expect)) {
+      warn(`${record}, step ${i + 1}: played again, it does not make what was recorded`);
+    }
+    session.recorded.push({ ...step, expect });
   });
+  writeFileSync(record, writeScript({ steps: session.recorded }));
   return session;
 }
 

@@ -208,6 +208,21 @@ describe('a session resumed from its recording', () => {
     const again = resumeSession(kilnYard, { record }, (words) => warned.push(words));
     expect(warned).toEqual([`${record}, step 1: played again, it does not make what was recorded`]);
     expect(isPresent(again, 'Marta')).toBe(true);
+    // Recorded again with what it makes now, the recording plays back as written.
+    const script = readScript(readFileSync(record, 'utf8'), 'run.json');
+    expect(script.steps[0]).toEqual({
+      arrive: 'Marta',
+      expect: [{ reader: 'Marta', kind: expect.any(String), words: 'A kiln yard.' }],
+    });
+    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+  });
+
+  it('refuses to resume, keeping the recording, where a step cannot be played again', () => {
+    const record = recordIn();
+    const steps = JSON.stringify({ steps: [{ leave: 'Marta' }] });
+    writeFileSync(record, steps);
+    expect(() => resumeSession(kilnYard, { record })).toThrow(/step 1/);
+    expect(readFileSync(record, 'utf8')).toBe(steps);
   });
 
   it('opens as a new session where nothing is recorded yet', () => {
