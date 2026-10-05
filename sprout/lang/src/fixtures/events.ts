@@ -5,7 +5,8 @@
 // is handed and tolls at random, and a dog, an NPC that acts; a bubble
 // that bursts, a match that goes once the queue is empty, and a tidier
 // whose move is refused; a yard beside it that the world keeps apart,
-// where a gem hums to nobody. A fresh turn over it reads its containers'
+// where a gem hums to nobody; and a porch whose roamer, an NPC, goes
+// down to a cellar when asked. A fresh turn over it reads its containers'
 // own pass rules and draws from seed 7. `runtime/sends.spec.ts`,
 // `runtime/passes.spec.ts`, `runtime/named.spec.ts` and `runtime/bus.spec.ts`
 // share it. Spec support: the package build leaves it out.
@@ -49,6 +50,11 @@ export const BUS: Bundle = compiledWorld('bus', {
   object yard is sprout.Place {
     object stray is Gem
   }
+  object porch is sprout.Place {
+    grammar { exit down "down to the cellar" -> cellar }
+    object roamer is Roamer
+  }
+  object cellar is sprout.Place { }
 }
 
 kind Person is sprout.Visitor { }
@@ -59,6 +65,7 @@ message :answered with integer
 message :chain with integer
 message :stir
 message :roll
+message :roam
 
 verb light { role target  "light [target]" }
 verb ring  { role target  "ring [target]" }
@@ -168,6 +175,14 @@ kind Tidier {
   }
 }
 
+// The roamer, asked to, yawns and goes down to the cellar by its own move.
+kind Roamer is sprout.Actor {
+  on :roam {
+    tell "The roamer yawns."
+    move self to cellar
+  }
+}
+
 // The dog answers a stir by sniffing the lamp, a reading of its own.
 kind Dog is sprout.Actor {
   :sniffed 0 min 0 max 99
@@ -195,6 +210,9 @@ export const FUSSY = at('hall', 'fussy');
 export const TIDIER = at('hall', 'tidier');
 export const YARD = at('yard');
 export const STRAY = at('yard', 'stray');
+export const PORCH = at('porch');
+export const ROAMER = at('porch', 'roamer');
+export const CELLAR = at('cellar');
 
 export interface EventTurn {
   readonly draft: Draft;

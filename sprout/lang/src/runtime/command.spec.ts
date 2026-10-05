@@ -455,10 +455,21 @@ describe('`go`, through a command turn', () => {
     const done = walk(state, 'north').value;
     if (!('acted' in done)) throw new Error('the turn did not act');
     expect(
-      done.answers.map((answer) =>
-        'description' in answer ? [answer.description.of, answer.description.to] : 'said',
+      done.arrived.map(({ line }) =>
+        'description' in line ? [line.description.of, line.description.to] : 'said',
       ),
     ).toEqual([[MOUTH, marta(state)]]);
+    expect(done.answers).toEqual([]);
+  });
+
+  it('reads the place arrived in before what the queue then says of it', () => {
+    const state = ways();
+    const turn = walk(state, 'east');
+    expect(turn.effects.map((one) => [one.kind, one.from])).toEqual([
+      ['described', SHED],
+      ['told', SHED],
+    ]);
+    expect(turn.effects.at(-1)!.paragraphs).toEqual(['Cobwebs brush your face.']);
   });
 
   it('takes the exit that applies: the next in its direction once the first no longer holds', () => {

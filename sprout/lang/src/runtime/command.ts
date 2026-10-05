@@ -8,7 +8,9 @@
 // the engine answered or its `nothing_happens`, or, when the turn
 // faults and is abandoned, the engine's `fault`. What it says is one
 // sequence of effects in that order: the effect pass's lines, then the
-// queue's, then the engine's answers (`effects.ts`).
+// queue's, then the engine's answers (`effects.ts`); the place a move
+// carried someone to is read among them where the body that moved them
+// ended (`engine-verbs.ts`).
 //
 // Reading typed words is the parser's, reached through `Parser`, which
 // `parser.ts` fills: the turn hands it the words, who typed them, each
@@ -21,12 +23,13 @@ import type { Budget } from './budget.js';
 import { drain, type Drained } from './bus.js';
 import type { Draft } from './draft.js';
 import type { Draw } from './draws.js';
-import { engineAnswers } from './engine-verbs.js';
+import { arrivalsRead, engineAnswers, withArrivals, type Arrived } from './engine-verbs.js';
+import { owedAfter, owedBy } from './move.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject } from './evaluate.js';
 import { planIntent, type IntentReading } from './intents.js';
 import type { Catalogue } from './catalogue.js';
-import { saidLines, type Effect, type Unrendered } from './effects.js';
+import type { Effect, Unrendered } from './effects.js';
 import { faultTold, stockFaultEffect } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 import { standsInPlace } from './live.js';
@@ -149,7 +152,9 @@ export type Commanded =
       readonly refusedActor: boolean;
       readonly acted: Acted;
       readonly drained: Drained;
-      /** What the engine answered once the queue was empty: each arrival read, then the command's own. */
+      /** Each place a move carried a person to, as they read it, among the effect pass's and the queue's lines. */
+      readonly arrived: readonly Arrived[];
+      /** What the engine answered the command once the queue was empty. */
       readonly answers: readonly Unrendered[];
     }
   | { readonly displaced: Displaced };
@@ -233,17 +238,29 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       const step = command.planned !== undefined || several ? reading : null;
       if ('refused' in outcome) return { ...outcome, drawn, corrected, step };
       const drained = drain(outcome, turn);
-      const answers = engineAnswers(reading, [...outcome.notices, ...drained.notices], {
-        state: turnState(draft),
-        catalogue,
-        passes,
-        budget,
-        nicknames,
-      });
+      const after = { state: turnState(draft), catalogue, passes, budget, nicknames };
+      const arrived = arrivalsRead(
+        [
+          ...owedBy(outcome.notices, outcome.said.length),
+          ...owedAfter(drained.described, outcome.said.length),
+        ],
+        after,
+      );
+      const answers = engineAnswers(reading, after);
       const refusedActor = outcome.said.some(
         (said) => said.effect === 'refused' && said.to.includes(actor),
       );
-      return { drawn, corrected, step, next, refusedActor, acted: outcome, drained, answers };
+      return {
+        drawn,
+        corrected,
+        step,
+        next,
+        refusedActor,
+        acted: outcome,
+        drained,
+        arrived,
+        answers,
+      };
     },
     (done) => ({ actor, lines: linesSaidBy(done, actor) }),
   );
@@ -320,18 +337,17 @@ function linesSaidBy(done: Commanded, actor: InstanceId): Unrendered[] {
   }
   return [
     ...meant,
-    ...saidLines(done.acted.said),
-    ...saidLines(done.drained.said),
+    ...withArrivals([...done.acted.said, ...done.drained.said], done.arrived),
     ...done.answers,
   ];
 }
 
 /** What a displaced visitor is told and what the entry says, in order, then the place they came in to. */
 function displacedLines(displaced: Displaced): Unrendered[] {
-  const { told, entry, drained, answers } = displaced;
+  const { told, entry, drained, arrived } = displaced;
   if ('closed' in entry) return [{ said: told }];
   if ('refused' in entry) return [{ said: told }, { said: entry.refused }];
-  return [{ said: told }, ...saidLines(entry.said), ...saidLines(drained?.said ?? []), ...answers];
+  return [{ said: told }, ...withArrivals([...entry.said, ...(drained?.said ?? [])], arrived)];
 }
 
 /**
