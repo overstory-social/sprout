@@ -1,0 +1,32 @@
+{
+  "about": "The cellar counts and lists the box's contents through range: shut, the box holds nothing the cellar can see and the coin cannot be named, though the box, asked to shake, still counts its coin; open, the cellar lists it. Once Marta carries the coin, the box is empty, and her own inventory lists it.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A low cellar. The box holds nothing you can see." }
+    ] },
+    { "as": "Marta", "type": "take coin", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "shake box", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Something small rattles inside a box." }
+    ] },
+    { "as": "Marta", "type": "open box", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open a box. Inside: a coin." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A low cellar. The box holds a coin." }
+    ] },
+    { "as": "Marta", "type": "take coin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a coin." }
+    ] },
+    { "as": "Marta", "type": "shake box", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Nothing moves inside a box." }
+    ] },
+    { "as": "Marta", "type": "inventory", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You are carrying a coin." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A low cellar. The box holds nothing you can see." }
+    ] }
+  ]
+}

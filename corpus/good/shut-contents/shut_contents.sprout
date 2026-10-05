@@ -1,0 +1,36 @@
+// What a container holds is seen through range, however it is asked: the
+// cellar's description counts and lists the box's contents with `count`
+// and `{for … in}`, which see what `each` walks, so while the lid is down
+// the box holds nothing the cellar can see, and the coin cannot be named
+// either. Opened, the same description lists it. The box itself, shut,
+// still counts what it holds, since an object reaches its own contents.
+// `transcripts/lid.json` plays it.
+import * as sprout from 'sprout'
+
+world shut_contents is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    describe {
+      text "A low cellar. The box holds {if box.count == 0}nothing you can see.{else}{for thing in box}{thing}{if $last}.{else}, {/if}{/for}{/if}"
+    }
+    object box is Box {
+      :open false
+      object coin is Coin
+    }
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+kind Coin { }
+
+verb shake { role target: Box  "shake [target]" }
+
+kind Box is sprout.Container {
+  as target for shake {
+    do { say heft }
+  }
+  passage heft { {if self.count == 0}Nothing moves inside {self}.{else}Something small rattles inside {self}.{/if} }
+}
