@@ -262,6 +262,30 @@ describe('what the compiler checks — the table, row by row', () => {
       expect(wrong.said.join(' '), text).toMatch(/truthiness|number/);
     }
   });
+
+  it('`a && b` — `b` is typed where `a` holds, so an `is()` on the left narrows the right', () => {
+    expect(read('target.is(Vessel) && target.get(:inked)', vessel()).said).toEqual([]);
+    expect(
+      read('self.count > 0 && target.is(Vessel) && target.count(Rib) > 0', vessel()).said,
+    ).toEqual([]);
+    for (const text of [
+      'target.get(:inked) && target.is(Vessel)',
+      'target.is(Vessel) || target.get(:inked)',
+      '!target.is(Vessel) && target.get(:inked)',
+    ]) {
+      const unread = read(text, vessel());
+      expect(unread.type, text).toBeNull();
+      expect(unread.said.join(' '), text).toContain('Narrow it first');
+    }
+  });
+
+  it('`a && b && …` — a chain however long is typed once per link, not once per link below it', () => {
+    const links = 20_000;
+    const long = Array<string>(links).fill('target.is(Vessel) && target.get(:inked)').join(' && ');
+    const started = performance.now();
+    expect(shapeOf(long, vessel())).toBe('boolean');
+    expect(performance.now() - started).toBeLessThan(10_000);
+  });
 });
 
 describe('one step up a spine, asked directly', () => {

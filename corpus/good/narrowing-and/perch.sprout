@@ -1,0 +1,22 @@
+// A perch surveys what is around it. Each thing it walks is of the
+// object type, and `t.is(Nest)` on the left of `&&` lets the right count
+// what that nest holds. `nest` is whatever is called that nearest the
+// perch, narrowed the same way in a body and in a passage, and the branch
+// holds the nest the condition found.
+import {survey} from 'narrowing_and'
+import {Nest, Egg} from 'nest'
+
+kind Perch {
+  as target for survey {
+    do {
+      each t in here {
+        if (t.is(Nest) && t.count(Egg) > 0) { say "{t} holds an egg." }
+      }
+      if (nest.is(Nest) && nest.count(Egg) > 0) { say counted } else { say "The nest is bare." }
+    }
+  }
+
+  passage counted {
+    {if nest.is(Nest) && nest.count(Egg) == 1}One egg sits in the nest.{else}The nest is full.{/if}
+  }
+}
