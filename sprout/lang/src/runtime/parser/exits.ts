@@ -1,12 +1,14 @@
 // The words that fill an exit role (the spec's Verbs › Exits, Links): a
 // direction, written out or abbreviated, or the label of an exit or a
 // link typed, so what a screen reader speaks can be spoken back. A link
-// has no direction, and is taken by its label alone. Only the ways out
-// that apply where the actor stands are asked, which `runtime/exits.ts`
-// says; an exit that refuses is among them, named as any exit is, and is
-// answered with its words rather than read.
+// has no direction, and is taken by its label alone. An article, `my`,
+// `this` or `that` at a label's start is dropped, as typed and as written
+// (the spec's Names › Articles). Only the ways out that apply where the
+// actor stands are asked, which `runtime/exits.ts` says; an exit that
+// refuses is among them, named as any exit is, and is answered with its
+// words rather than read.
 
-import { typedWords } from '../../declare/addressing.js';
+import { DETERMINERS, typedWords } from '../../declare/addressing.js';
 import { directionOf, type Direction } from '../../declare/directions.js';
 import type { Speech } from '../body.js';
 import type { InstanceId } from '../ids.js';
@@ -43,6 +45,11 @@ export function exitNamed<Way extends AppliedWay>(
     const going = ways.find((way) => way.direction === direction);
     if (going !== undefined) return going;
   }
-  const typed = words.join(' ');
-  return ways.find((way) => typedWords(way.label).join(' ') === typed) ?? null;
+  const typed = labelWords(words).join(' ');
+  return ways.find((way) => labelWords(typedWords(way.label)).join(' ') === typed) ?? null;
+}
+
+/** A label's words without the article, `my`, `this` or `that` it starts with; a lone word is kept. */
+export function labelWords(words: readonly string[]): readonly string[] {
+  return words.length > 1 && DETERMINERS.includes(words[0]!) ? words.slice(1) : words;
 }

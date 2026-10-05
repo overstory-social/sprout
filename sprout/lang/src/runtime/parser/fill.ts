@@ -17,7 +17,7 @@ import { heardBy, type Bound, type Reading } from '../reading.js';
 import type { Instance, StateReader } from '../state.js';
 import type { Value } from '../values.js';
 import { directionOf, type Direction } from '../../declare/directions.js';
-import { exitNamed, type AppliedWay, type RefusingExit } from './exits.js';
+import { exitNamed, labelWords, type AppliedWay, type RefusingExit } from './exits.js';
 import {
   fits,
   forms,
@@ -88,7 +88,10 @@ export function fillSlot(
       return direction === null ? { fills: 'unfit', things: [] } : { fills: 'no_way', direction };
     }
     if ('refuses' in exit) return { fills: 'refused', way: exit };
-    return { fills: 'options', options: [{ bound: { exit }, near: 0, literal: words.length }] };
+    return {
+      fills: 'options',
+      options: [{ bound: { exit }, near: 0, literal: labelWords(words).length }],
+    };
   }
   if (role.many) return setFilled(words, role, context);
   return carriedFilled(

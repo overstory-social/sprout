@@ -555,7 +555,7 @@ A name never contains an article, and the compiler refuses one that begins with 
 
 ### Articles
 
-On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`.
+On input an article is optional wherever a noun is expected: `unlock oak door with brass key` and `unlock the oak door with the brass key` parse identically. So are `my`, `this` and `that`. The same words are dropped at the start of an exit's or a link's label, as typed and as written, so with `exit up "tree"`, `go the tree` takes it, and a label written `"the trap door"` is taken by `go trap door`.
 
 On output the engine uses the declared article for everything it writes itself — chips, the parser's `meant`, arrival notices. There is no first-mention tracking and no indefinite-to-definite progression; a thing is addressed the way its author declared, consistently.
 
@@ -1060,7 +1060,7 @@ grammar {
 }
 ```
 
-The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
+The direction is what makes `go down` work, and comes from a closed set — `north`, `south`, `east`, `west`, their diagonals, `up`, `down`, `in` and `out` — each with its usual abbreviation, and a bare direction is `go`. The engine's `go` declares its one role as `exit`, a role type only it may use, filled by the direction or label of an exit that applies. The label is what the visitor reads on a chip, and the engine accepts the label typed as an alias for the direction, its leading article optional under Articles, so what a screen reader speaks can be spoken back. An exit is only reachable on a place, because only a place holds visitors; declaring one elsewhere is a compile error, and so is one whose destination does not hold actors.
 
 An exit may lead nowhere and say why, which is how a world says a way is closed in its own words:
 
