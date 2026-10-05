@@ -766,6 +766,10 @@ if (tool.is(Key)) {
 }
 ```
 
+An `is()` on the left of `&&` narrows the same way, for the right of the
+`&&` and for the branch the whole condition guards:
+`if (t.is(Nest) && t.count(Egg) > 0) { … }`. `||` and `!` narrow nothing.
+
 This is the only way to read the properties of something of object type.
 Matching is by composition, not by shape: `x.is(sprout.Container)` is true
 for anything that composes `sprout.Container`, and false for something

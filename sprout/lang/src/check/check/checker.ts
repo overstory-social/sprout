@@ -67,6 +67,13 @@ export interface ActSetting {
 /** A context that can type an expression it meets on the way, by the walk it was made with. */
 export interface Checker extends CheckContext {
   readonly typeOf: (expr: Expr) => BindingType | null;
+  /** A checker like this one over `scope`, walking by the same walk. */
+  readonly within: (scope: Scope) => Checker;
+  /**
+   * The scope each `&&` typed here opens where it holds, so the link above
+   * it starts from there rather than walking the whole chain again.
+   */
+  readonly held: WeakMap<Expr, Scope>;
 }
 
 /** A checker over `context`, whose `typeOf` hands `walk` this same checker. */
@@ -85,6 +92,8 @@ export function checkerOf(
     ...(context.undrawn === undefined ? {} : { undrawn: context.undrawn }),
     ...(context.sight === undefined ? {} : { sight: context.sight }),
     typeOf: (expr) => walk(expr, checker),
+    within: (scope) => checkerOf({ ...context, scope }, walk),
+    held: new WeakMap(),
   };
   return checker;
 }

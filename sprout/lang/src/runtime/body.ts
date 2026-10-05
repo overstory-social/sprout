@@ -39,14 +39,7 @@ import type { ResolvedPassage } from '../declare/passages.js';
 import type { Prose } from '../syntax/ast-prose.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import { showType } from '../declare/types.js';
-import {
-  boundObject,
-  evaluate,
-  evaluateCondition,
-  narrowedFrame,
-  type Evaluated,
-  type Frame,
-} from './evaluate.js';
+import { boundObject, branchFrame, evaluate, type Evaluated, type Frame } from './evaluate.js';
 import { eachWalked } from './each.js';
 import type { InstanceId } from './ids.js';
 import {
@@ -337,12 +330,12 @@ function runEach(statement: EachStatement, frame: Frame, run: Run): Ended {
 /**
  * An `if` and each `else if` after it, as the chain it is; each link
  * tested is a step. A condition that narrows a name binds it, for the
- * condition and the branch it guards, to what it reaches now.
+ * branch it guards, to what it reaches now (`branchFrame`).
  */
 function runIf(statement: IfStatement, frame: Frame, run: Run): Ended {
   for (let link: IfStatement = statement; ;) {
-    const inner = narrowedFrame(link.condition, frame);
-    if (evaluateCondition(link.condition, inner)) return runBlock(link.then, inner, run);
+    const inner = branchFrame(link.condition, frame);
+    if (inner !== null) return runBlock(link.then, inner, run);
     const otherwise = link.otherwise;
     if (otherwise === null) return 'end';
     if (otherwise.kind === 'block') return runBlock(otherwise, frame, run);

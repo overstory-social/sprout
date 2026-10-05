@@ -98,6 +98,22 @@ describe('an `if` over a name in a kind’s body', () => {
     ]);
   });
 
+  it('narrows the name on the right of `&&` and in the branch the whole `&&` guards', () => {
+    expect(checkInLantern('if (lamp.is(Vessel) && lamp.get(:inked)) { allow }')).toEqual([]);
+    expect(
+      checkInLantern(
+        'if (self.count > 0 && lamp.is(Vessel) && lamp.count > 0) { if (lamp.get(:inked)) { allow } }',
+      ),
+    ).toEqual([]);
+    const unknown =
+      '`lamp` is whatever is called that nearest each instance, so Sprout does not know what it is, and cannot read a property from it.';
+    expect(checkInLantern('if (lamp.get(:inked) && lamp.is(Vessel)) { allow }')).toEqual([unknown]);
+    expect(checkInLantern('if (lamp.is(Vessel) || lamp.get(:inked)) { allow }')).toEqual([unknown]);
+    expect(checkInLantern('if (!lamp.is(Vessel) && lamp.get(:inked)) { allow }')).toEqual([
+      unknown,
+    ]);
+  });
+
   it('holds the name for the branch, so a `let` of it there is shadowing', () => {
     expect(checkInLantern('if (lamp.is(Vessel)) { let lamp = self }')).toEqual([
       '`lamp` already names the thing `is()` narrowed here.',
@@ -318,8 +334,25 @@ describe('a condition opens the branch it guards', () => {
     expect(
       check('if (bound tool) { allow } else { if (tool.is(Vessel)) { allow } }', PERMIT),
     ).toEqual([['b.sprout:3:42', '`tool` may be missing here.']]);
-    expect(check('if (bound tool && tool.is(Vessel)) { allow }', PERMIT)).toEqual([
+    expect(check('if (bound tool && tool.is(Vessel)) { allow }', PERMIT)).toEqual([]);
+    expect(check('if (tool.is(Vessel) && bound tool) { allow }', PERMIT)).toEqual([
+      ['b.sprout:3:9', '`tool` may be missing here.'],
+    ]);
+  });
+
+  it('carries what the left of `&&` says to its right and to the branch the whole `&&` guards', () => {
+    expect(check('if (bound tool && tool.get(:wear) > 3) { allow }', PERMIT)).toEqual([]);
+    expect(
+      check(
+        'if (bound tool && tool.get(:wear) > 3) { if (tool.get(:wear) > 4) { allow } }',
+        PERMIT,
+      ),
+    ).toEqual([]);
+    expect(check('if (bound tool || tool.get(:wear) > 3) { allow }', PERMIT)).toEqual([
       ['b.sprout:3:23', '`tool` may be missing here.'],
+    ]);
+    expect(check('if (!bound tool && tool.get(:wear) > 3) { allow }', PERMIT)).toEqual([
+      ['b.sprout:3:24', '`tool` may be missing here.'],
     ]);
   });
 
