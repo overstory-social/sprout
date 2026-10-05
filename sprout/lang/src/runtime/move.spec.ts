@@ -49,7 +49,15 @@ import { Draft } from './draft.js';
 import { declaredId, type InstanceId } from './ids.js';
 import { boundObject, IntegerOverflow } from './evaluate.js';
 import { initialState } from './load.js';
-import { MoveFault, moveInstance, type Moved, type Refused } from './move.js';
+import {
+  MoveFault,
+  moveInstance,
+  owedAfter,
+  owedBy,
+  type Moved,
+  type Notice,
+  type Refused,
+} from './move.js';
 import { NameOutOfRange } from './named.js';
 import { reaches } from './range.js';
 import { liveTree } from './live.js';
@@ -360,6 +368,25 @@ describe('a move made', () => {
   it('speaks nothing for a thing that is not an actor, even between places', () => {
     const { draft, visitor } = turn();
     expect(moved(moveInstance(context(draft), visitor, STONE, ALCOVE)).notices).toEqual([]);
+  });
+});
+
+describe('the descriptions a move owes', () => {
+  it('are its `described` notices alone, each read after the lines given, and later by as many again', () => {
+    const notices: Notice[] = [
+      {
+        notice: 'arrives',
+        place: HALL,
+        by: HALL,
+        said: { absent: 'arrives' },
+        bindings: { item: MARTA },
+        audience: [],
+      },
+      { notice: 'described', place: HALL, audience: [MARTA] },
+    ];
+    const owed = owedBy(notices, 2);
+    expect(owed).toEqual([{ mover: MARTA, place: HALL, after: 2 }]);
+    expect(owedAfter(owed, 3)).toEqual([{ mover: MARTA, place: HALL, after: 5 }]);
   });
 });
 

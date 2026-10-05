@@ -1,0 +1,10 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+kind Cave is sprout.Place {
+  describe { text "A dank cave. The way out is south." }
+
+  on :entered (item, from) {
+    if (item.is(Person)) { tell item "Your sword is glowing with a faint blue glow." }
+  }
+}
