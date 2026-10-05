@@ -1,0 +1,23 @@
+{
+  "about": "Zork's BRIEF: each room in full on the first arrival and on `look`, and by its name alone on a later arrival, from `seen` and a visit count each room remembers per actor.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "West of House." },
+      { "reader": "Marta", "kind": "described", "words": "You are standing in an open field west of a white house, with a boarded front door." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "North of House." },
+      { "reader": "Marta", "kind": "described", "words": "You are facing the north side of a white house. There is no door here, and all the windows are boarded up." }
+    ] },
+    { "as": "Marta", "type": "south", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "West of House." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "West of House." },
+      { "reader": "Marta", "kind": "described", "words": "You are standing in an open field west of a white house, with a boarded front door." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "North of House." }
+    ] }
+  ]
+}

@@ -61,6 +61,11 @@ describe('a line capitalised', () => {
     expect(capitalise('"you," she says')).toBe('"You," she says');
     expect(capitalise("'you,' she says")).toBe("'You,' she says");
     expect(capitalise('\u201Cyou,\u201D she says')).toBe('\u201CYou,\u201D she says');
+    for (const quote of ['\u201C', '\u2018', '\u201E', '\u201A', '\u00AB', '\u2039']) {
+      expect(capitalise(`${quote}you`)).toBe(`${quote}You`);
+    }
+    expect(capitalise('\u2014and then')).toBe('\u2014And then');
+    expect(capitalise('...and then')).toBe('...And then');
     expect(capitalise('3 sheets')).toBe('3 sheets');
     expect(capitalise('Already')).toBe('Already');
     expect(capitalise('')).toBe('');
@@ -69,6 +74,8 @@ describe('a line capitalised', () => {
   it('keeps the lower case of a line that opens with a bracket, as `meant` does', () => {
     expect(capitalise('(the wooden rib)')).toBe('(the wooden rib)');
     expect(capitalise('[aside]')).toBe('[aside]');
+    expect(capitalise('{aside}')).toBe('{aside}');
+    expect(capitalise('\u2014(aside)')).toBe('\u2014(aside)');
     expect(capitalise('"(quietly) yes"')).toBe('"(quietly) yes"');
     expect(reflow([words('(the wooden rib)'), PARAGRAPH, words('you take it.')])).toEqual([
       '(the wooden rib)',

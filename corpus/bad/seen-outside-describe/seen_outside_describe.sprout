@@ -1,0 +1,14 @@
+// `seen` is what a `describe` is read for, so a passage that reads it
+// may be said only from a describe: said from a `do`, it has no `seen`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world seen_outside_describe is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}

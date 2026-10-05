@@ -1,0 +1,37 @@
+// Zork's BRIEF: a room reads in full the first time someone arrives in
+// it and whenever they `look` or poll their view, and by its name alone
+// when they come back to it. `seen` says what a description is read for,
+// and a counter the room remembers per actor says whether this is the
+// first visit (the spec's Prose; Chance › The forms).
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Room} from 'room'
+
+world brief is sprout.World {
+  visitors are Person
+  visitors arrive at west_of_house
+
+  object west_of_house is Room {
+    grammar {
+      name "West of House"
+      article none
+      exit north "around to the north" -> north_of_house
+    }
+    passage full {
+      You are standing in an open field west of a white house, with a
+      boarded front door.
+    }
+  }
+
+  object north_of_house is Room {
+    grammar {
+      name "North of House"
+      article none
+      exit south "back around to the west" -> west_of_house
+    }
+    passage full {
+      You are facing the north side of a white house. There is no door
+      here, and all the windows are boarded up.
+    }
+  }
+}
