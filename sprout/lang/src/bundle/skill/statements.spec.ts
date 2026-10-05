@@ -14,7 +14,11 @@ const entry = (word: string): StatementEntry => STATEMENT_TABLE.find((one) => on
 const where = (one: StatementEntry): string[] =>
   BODIES.filter((body) => standsIn(one, body)).map((body) => body.name);
 
-describe('the statements the skill lists', () => {
+// Each test here compiles every example the skill shows, which is slow work and
+// not a timing guard, so it is not held to vitest's five-second default.
+const COMPILES_EVERY_EXAMPLE = 60_000;
+
+describe('the statements the skill lists', { timeout: COMPILES_EVERY_EXAMPLE }, () => {
   it('are exactly the parser’s, in its order, then a call that writes', () => {
     const entries = statementEntries();
     expect(entries.map((one) => one.word)).toEqual([...STATEMENT_WORDS, null]);
