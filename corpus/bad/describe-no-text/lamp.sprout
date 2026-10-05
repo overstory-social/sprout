@@ -1,4 +1,4 @@
 kind Lamp {
   :lit false
-  describe { let lit = self.get(:lit) }
+  describe { let shining = self.get(:lit) }
 }

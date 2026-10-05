@@ -21,6 +21,7 @@ import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { describeFor } from './describe.js';
+import * as D from '../fixtures/darkness.js';
 import type { InstanceId } from './ids.js';
 import { readerOf } from './state.js';
 
@@ -116,5 +117,28 @@ describe('a description', () => {
       /is not an instance/,
     );
     expect(() => describeFor(LAMP, state.world, context)).toThrow(/is away/);
+  });
+});
+
+describe('a description in the dark', () => {
+  it('is the world’s `dark` for the place the one looking stands in, while it is not lit', () => {
+    const state = D.dark();
+    const marta = D.personOf(state, D.MARTA);
+    const described = describeFor(D.CELLAR, marta, D.darkContext(state));
+    expect(described.lines.map((line) => [line.by, words(line.said)])).toEqual([
+      [D.DARK.tree.world, 'sprout.World dark: It is too dark to see.'],
+    ]);
+    expect([...described.lines[0]!.bindings.keys()]).toEqual(['actor', 'here']);
+    const lit = D.dark(undefined, [[D.LAMP, 'lit', true]], [[D.MARTA, D.LAMP]]);
+    expect(
+      describeFor(D.CELLAR, D.personOf(lit, D.MARTA), D.darkContext(lit)).lines.map((line) =>
+        words(line.said),
+      ),
+    ).toEqual(['Damp stone.']);
+  });
+
+  it('is a thing’s own in the dark, since only the place goes unseen', () => {
+    const state = D.dark(undefined, [], [[D.MARTA, D.LAMP]]);
+    expect(describeFor(D.COAL, D.personOf(state, D.MARTA), D.darkContext(state)).lines).toEqual([]);
   });
 });

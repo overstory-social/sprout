@@ -6,7 +6,7 @@
 // kind, the world — and nothing is checked twice for being composed: a
 // kind's guard or play is checked once, against the kind that wrote it: a
 // consent guard, a role's `permit` and `do`, a handler, a hook, a pass
-// rule, an exit's destination and guard, and a `describe`. Each body's names resolve
+// rule, an exit's destination and guard, a place's `lit`, and a `describe`. Each body's names resolve
 // from where it is written, and what each reaches is recorded.
 
 import { GUARD_NAMES } from '../../syntax/ast.js';
@@ -18,6 +18,7 @@ import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
 import { checkHandler, checkHook, checkPass } from '../../check/handlers.js';
 import { checkExit } from '../../check/exits.js';
+import { checkLit } from '../../check/lit.js';
 import { checkDescribe } from '../../check/describe.js';
 import type { DescribeDeclaration } from '../../syntax/ast-speech.js';
 import type { MessageSetting } from '../../check/check.js';
@@ -117,6 +118,8 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Bo
       if (pass.origin === own) checkPass(pass, kind, setting);
     }
     for (const exit of kind.exits) if (exit.origin === own) checkExit(exit, kind, setting);
+    const lit = kind.grammar.lit;
+    if (lit !== null && lit.origin === own) checkLit(lit.value, kind, setting);
     if (kind.describe !== null && kind.describe.origin === own) {
       checkDescribe(kind.describe, kind, {
         ...setting,

@@ -231,7 +231,7 @@ describe('a command turn that faults', () => {
         to: actorOf(state, MARTA),
         visit: MARTA,
         paragraphs: ['Something in this world has gone wrong, and nothing has changed.'],
-        written: [{ passage: 'fault', origin: 'sprout.World', at: 'sprout/world.sprout:16:11' }],
+        written: [{ passage: 'fault', origin: 'sprout.World', at: 'sprout/world.sprout:17:11' }],
       },
     ]);
   });

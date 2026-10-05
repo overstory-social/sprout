@@ -48,7 +48,7 @@ ${extra}
   it('records how many of each the world has, a library’s kinds among its own', () => {
     const { bundle, diagnostics } = compileBundle(kinded());
     expect(refusals(diagnostics)).toEqual([]);
-    expect(bundle!.size).toMatchObject({ kinds: 12, objects: 2, places: 1 });
+    expect(bundle!.size).toMatchObject({ kinds: 13, objects: 2, places: 1 });
   });
 
   it('leaves a blessed library’s kinds out, as it leaves out its bytes and files', () => {
@@ -57,13 +57,13 @@ ${extra}
   });
 
   it('refuses a kind past the cap at the kind, a library’s included', () => {
-    const limits = limitsFrom({ caps: { kinds: 11 } });
+    const limits = limitsFrom({ caps: { kinds: 12 } });
     const { bundle, diagnostics } = compileBundle(kinded(), { limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
       [
         'sprout/shelf.sprout:1:6',
-        'This world declares 12 kinds, and 11 is as many as it may have.',
+        'This world declares 13 kinds, and 12 is as many as it may have.',
         'Take some out, or use a library the host has blessed, whose kinds cost nothing.',
       ],
     ]);
@@ -97,7 +97,7 @@ ${extra}
     const { bundle, diagnostics } = compileBundle(kinded(), { mode: 'load', limits });
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toBe(
-      'This world declares 12 kinds, and 1 is as many as it may have.',
+      'This world declares 13 kinds, and 1 is as many as it may have.',
     );
   });
 

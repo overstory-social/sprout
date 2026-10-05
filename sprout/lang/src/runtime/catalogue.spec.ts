@@ -102,6 +102,7 @@ describe('a catalogue says what one bundle holds as instances', () => {
       'sprout.Actor',
       'sprout.Container',
       'sprout.Fixture',
+      'sprout.LightSource',
       'sprout.Lockable',
       'sprout.Place',
       'sprout.RequiresHeld',

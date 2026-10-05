@@ -5,7 +5,8 @@
 // The modules in `parser/` are its areas: the phrases a visitor may type,
 // what a thing is called, where slots fall, what a noun names, how the
 // readings rank, and the answers. `parseCommand` is what a command turn
-// reads through.
+// reads through. In the dark a noun resolves only against the actor and
+// what they carry (the spec's Range › Sight).
 //
 // `again` or `g` alone runs the actor's last reading again, where what it
 // binds is still in reach.
@@ -46,6 +47,7 @@ import { addressOf, type AddressContext } from './parser/address.js';
 import { answer, type Answer } from './parser/answers.js';
 import type { CommandExit } from './parser/exits.js';
 import { exitsFrom } from './exits.js';
+import { inTheDark } from './darkness.js';
 import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
@@ -99,7 +101,11 @@ export function readCommand(
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
   const tree = liveTree(state);
   const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
-  const candidates = candidatesOf(state, tree, actor, range.reached, addressing);
+  const reached = candidatesOf(state, tree, actor, range.reached, addressing);
+  // In the dark a visitor names only themselves and what they carry (the spec's Range › Sight).
+  const candidates = inTheDark(actor, context)
+    ? reached.filter((one) => one.carried || one.instance.id === actor)
+    : reached;
   if (words.length === 1 && AGAIN.includes(words[0]!)) {
     return again(context.lastReading, actor, here, candidates, context);
   }

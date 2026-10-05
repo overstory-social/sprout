@@ -49,6 +49,8 @@ export interface CheckContext {
   readonly undrawn?: Undrawn;
   /** The extensions the bundle pins, whose statements the body may write. */
   readonly extensions?: PinnedExtensions;
+  /** Set where the body is a place's `lit`, the one place `sees` may be read (the spec's Range › Sight). */
+  readonly sight?: true;
 }
 
 /** The messages a body's sends reach, and what is told of one nothing declares. */
@@ -81,6 +83,7 @@ export function checkerOf(
     ...(context.verb === undefined ? {} : { verb: context.verb }),
     ...(context.names === undefined ? {} : { names: context.names }),
     ...(context.undrawn === undefined ? {} : { undrawn: context.undrawn }),
+    ...(context.sight === undefined ? {} : { sight: context.sight }),
     typeOf: (expr) => walk(expr, checker),
   };
   return checker;

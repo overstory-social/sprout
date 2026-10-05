@@ -22,6 +22,7 @@ import { describeFor } from './describe.js';
 import { offersTo } from './offers.js';
 import { valueOptions } from './options.js';
 import { emptyViewParts, viewOf } from './view.js';
+import * as D from '../fixtures/darkness.js';
 
 const OPEN = [[YARD, 'gate_open', true]] as const;
 
@@ -151,5 +152,39 @@ describe('a visitor’s view', () => {
     expect(parts.occupants).toEqual([]);
     expect(parts.carried).toEqual([]);
     expect(parts.readings).toEqual([]);
+  });
+});
+
+describe('a view in the dark', () => {
+  it('is the world’s `dark`, nobody else, what they carry, and the ways out', () => {
+    const state = D.dark(
+      [
+        [D.MARTA, D.CELLAR],
+        [D.INES, D.CELLAR],
+      ],
+      [],
+      [[D.MARTA, D.LAMP]],
+    );
+    const view = viewOf(D.personOf(state, D.MARTA), D.darkContext(state));
+    expect(view.description.lines).toHaveLength(1);
+    expect(view.occupants).toEqual([]);
+    expect(view.carried).toEqual([D.LAMP]);
+    expect(view.exits.map((exit) => exit.direction)).toEqual(['up']);
+    const typed = view.readings.map((reading) => reading.typed);
+    expect(typed).toContain('go up');
+    expect(typed.some((line) => line.includes('coal'))).toBe(false);
+    expect(typed.some((line) => line.includes('lamp'))).toBe(true);
+    // Lit, Ines is there to be seen.
+    const lit = D.dark(
+      [
+        [D.MARTA, D.CELLAR],
+        [D.INES, D.CELLAR],
+      ],
+      [[D.LAMP, 'lit', true]],
+      [[D.MARTA, D.LAMP]],
+    );
+    expect(viewOf(D.personOf(lit, D.MARTA), D.darkContext(lit)).occupants).toEqual([
+      D.personOf(lit, D.INES),
+    ]);
   });
 });

@@ -44,6 +44,7 @@ export const WORLD_LINES = [
   { name: 'nothing_happens', binds: ACTING },
   { name: 'unremarkable', binds: { thing: 'object' }, polled: true },
   { name: 'unseen', binds: {}, polled: true },
+  { name: 'dark', binds: ACTING, polled: true },
   { name: 'fault', binds: ACTING },
   { name: 'missing', binds: {} },
   { name: 'displaced', binds: {} },

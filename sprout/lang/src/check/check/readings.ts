@@ -1,6 +1,7 @@
 // The readings a receiver answers — `get`, `recall`, `count`, `holds`,
-// `is`, `includes` — typed one step up a spine from the receiver below
-// them (the spec's Properties › What the compiler checks). `is()` is the
+// `is`, `includes`, and in a place's `lit` alone `sees` — typed one step
+// up a spine from the receiver below them (the spec's Properties › What
+// the compiler checks; Range › Sight). `is()` is the
 // only one that reads through the object type; every other refuses an
 // object whose kind is unknown. A call that writes is refused here, where
 // a value is wanted, once it has been checked as the write it is.
@@ -74,6 +75,8 @@ export function callType(
       return holdsCall(receiver, type, method, args, context) ? valueOf(BOOLEAN) : null;
     case 'includes':
       return includesCall(type, method, args, context) ? valueOf(BOOLEAN) : null;
+    case 'sees':
+      return seesCall(receiver, type, method, args, context) ? valueOf(BOOLEAN) : null;
     case 'count':
       if (!arity(method, args, 1, context)) return null;
       if (!countable(type, method.at, context, receiver)) return null;
@@ -97,6 +100,44 @@ export function callType(
       );
       return null;
   }
+}
+
+/**
+ * `x.sees(K, :p)` — read only in a place's `lit`: `x` holds things, `K`
+ * is a kind, and `:p` a boolean `K` declares (the spec's Range › Sight).
+ */
+function seesCall(
+  receiver: Expr,
+  type: BindingType,
+  method: Ident,
+  args: readonly Expr[],
+  context: CheckContext,
+): boolean {
+  if (context.sight !== true) {
+    context.diagnostics.refuse(
+      method.at,
+      '`sees` asks what a place can see by its own light, and is read only in its `lit`.',
+      'Read what is in range with `get`, `count` or `holds`, or ask `sees` in a place’s `grammar { lit (…) }`.',
+    );
+    return false;
+  }
+  if (!arity(method, args, 2, context)) return false;
+  if (!container(type, method.at, context, receiver)) return false;
+  const kind = resolveKind(args[0]!, context);
+  if (kind === null) return false;
+  const named = propertyName(args[1]!, context);
+  if (named === null) return false;
+  const property = declaredOn(kind, named, context);
+  if (property === null) return false;
+  if (property.remembered || property.type.type !== 'boolean') {
+    context.diagnostics.refuse(
+      named.at,
+      `\`sees\` asks whether something it sees has \`:${named.text}\` true, and \`:${named.text}\` is not a boolean it holds.`,
+      'Name a boolean property the kind declares, as in `self.sees(sprout.LightSource, :lit)`.',
+    );
+    return false;
+  }
+  return true;
 }
 
 /** `x.get(:p)` — `p` declared on `x`'s type, and `x` not of object type. */

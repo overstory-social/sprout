@@ -3,14 +3,16 @@
 // Articles; Verbs › Exits, Links). The block holds lines, each led by its
 // word: `name` and one name in quotes, `article` and one of `a`, `an`,
 // `the` or `none`, `pronouns` and one of `she`, `he`, `it` or `they`, `nouns` and one or more nouns in quotes, `adjectives`
-// and one or more adjectives in quotes, and a place's
-// `exit` and `link` lines, which `exits.ts` reads. What the lines mean
+// and one or more adjectives in quotes, a place's
+// `exit` and `link` lines, which `exits.ts` reads, and its `lit` and a
+// condition in brackets. What the lines mean
 // together, and what they may not say, is `declare/grammar.ts`'s and
 // `declare/exits.ts`'s.
 //
 // A line that could not be read costs that line, and the block keeps the
 // rest; a block never closed ends where the body's next member starts.
 
+import type { Expr } from '../ast.js';
 import {
   isArticle,
   isPronoun,
@@ -18,19 +20,31 @@ import {
   type GrammarDeclaration,
   type GrammarAdjective,
   type GrammarLine,
+  type GrammarLit,
   type GrammarNoun,
 } from '../ast-grammar.js';
 import type { Token } from '../lexer.js';
 import { spanning, type Span } from '../../source/source.js';
 import { readable } from '../../source/words.js';
+import { expression } from './expressions.js';
 import { exitLine, linkLine, stepOverToken, type LineEnds } from './exits.js';
 import { type Parser } from './parser.js';
+import { skipBracketed } from './recovery.js';
 
 /** How a block is written, for a remedy. */
 const EXAMPLE = 'grammar { name "brass key"  article a  nouns "brass" }';
 
 /** The words a line of the block begins with. */
-const LINE_WORDS = ['name', 'article', 'pronouns', 'nouns', 'adjectives', 'exit', 'link'] as const;
+const LINE_WORDS = [
+  'name',
+  'article',
+  'pronouns',
+  'nouns',
+  'adjectives',
+  'exit',
+  'link',
+  'lit',
+] as const;
 
 function isLineWord(word: string): boolean {
   return (LINE_WORDS as readonly string[]).includes(word);
@@ -109,6 +123,7 @@ function atLineEnd(p: Parser, startsMember: (token: Token) => boolean): boolean 
 function grammarLine(p: Parser, ends: LineEnds): GrammarLine | null {
   if (p.at('name', 'exit')) return exitLine(p, ends);
   if (p.at('name', 'link')) return linkLine(p, ends);
+  if (p.at('name', 'lit')) return litLine(p, ends);
   const word = p.next();
   switch (word.text) {
     case 'name': {
@@ -217,4 +232,63 @@ function nextNoun(p: Parser): Token | null {
   const after = p.peek(1);
   if (p.at('punct', ',') && after.kind === 'string') p.next();
   return p.take('string');
+}
+
+/** How a `lit` line is written, for a remedy. */
+const LIT_EXAMPLE = '`lit (self.sees(sprout.LightSource, :lit))`';
+
+/**
+ * `lit (…)`, its word next: the condition in brackets; null having said
+ * why. A bracket never closed costs the line, and never the block's next.
+ */
+function litLine(p: Parser, ends: LineEnds): GrammarLit | null {
+  const word = p.next();
+  const open = p.take('punct', '(');
+  if (open === null) {
+    p.diagnostics.refuse(
+      p.source.span(word.at.end),
+      '`lit` is followed by its condition in brackets: whether the place can be seen.',
+      `Write ${LIT_EXAMPLE}.`,
+    );
+    return null;
+  }
+  if (p.at('punct', ')')) {
+    const close = p.next();
+    p.diagnostics.refuse(
+      spanning(open.at, close.at),
+      'This `lit` says nothing inside its brackets.',
+      `Write the condition the place is lit under, as in ${LIT_EXAMPLE}, or leave \`lit\` out and the place is always lit.`,
+    );
+    return null;
+  }
+  const unclosed = (): null => {
+    p.diagnostics.refuse(
+      p.done ? p.source.endSpan : p.peek().at,
+      'The condition of this `lit` ends here, and its bracket is never closed.',
+      'Add a ) after the condition.',
+    );
+    return null;
+  };
+  if (ends.atLineEnd(p)) return unclosed();
+  if (!p.deeper(open.at)) {
+    skipBracketed(p, ')');
+    return null;
+  }
+  let condition: Expr | null;
+  try {
+    condition = expression(p);
+  } finally {
+    p.depth -= 1;
+  }
+  if (condition === null) {
+    skipBracketed(p, ')');
+    return null;
+  }
+  const close = p.take('punct', ')');
+  if (close === null) {
+    unclosed();
+    if (!ends.atLineEnd(p)) skipBracketed(p, ')');
+    return null;
+  }
+  return { kind: 'grammar-lit', at: spanning(word.at, close.at), condition };
 }

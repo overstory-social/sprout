@@ -292,6 +292,8 @@ function undrawnKey(undrawn: Undrawn | null): string {
       return 'describe';
     case 'when':
       return 'when';
+    case 'lit':
+      return 'lit';
     case 'pass':
       return `pass ${undrawn.written}`;
     case 'poll':

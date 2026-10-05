@@ -1,0 +1,42 @@
+{
+  "about": "The cellar is dark until a lit lamp is in it, carried or set down: in the dark its description is the world's `dark`, nothing in it can be named but what the visitor carries, and its way up still leads out.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It is too dark to see." }
+    ] },
+    { "as": "Marta", "type": "examine coal", "expect": [
+      { "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "up", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "words": "You take a brass lamp." }
+    ] },
+    { "as": "Marta", "type": "light lamp", "expect": [
+      { "words": "The lamp flares, and steadies." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Damp stone, and a heap of coal against the far wall." }
+    ] },
+    { "as": "Marta", "type": "drop lamp", "expect": [
+      { "words": "You put a brass lamp down." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Damp stone, and a heap of coal against the far wall." }
+    ] },
+    { "as": "Marta", "type": "snuff lamp", "expect": [
+      { "words": "The lamp gutters out." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It is too dark to see." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "up", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] }
+  ]
+}

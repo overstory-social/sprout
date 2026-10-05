@@ -1,0 +1,37 @@
+// A place's `lit` is written on a place, and says true or false of the
+// place alone, drawing nothing; `sees` is read only there, asking after
+// a boolean the kind it names declares.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world lit_checked is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      lit (self.sees(sprout.LightSource, :lit))
+    }
+  }
+  object cellar is sprout.Place {
+    grammar { lit (3) }
+  }
+  object loft is sprout.Place {
+    grammar { lit (actor.holds(self)) }
+  }
+  object attic is sprout.Place {
+    grammar { lit (chance(2)) }
+  }
+  object barn is sprout.Place {
+    grammar { lit (self.sees(sprout.Container, :capacity)) }
+    object crate is sprout.Container
+  }
+  object shed is sprout.Place {
+    :bright false
+    on :tick { self.set(:bright, self.sees(sprout.LightSource, :lit)) }
+  }
+}
+
+kind Lantern {
+  grammar { lit (true) }
+}

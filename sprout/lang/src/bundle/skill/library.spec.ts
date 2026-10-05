@@ -28,6 +28,7 @@ describe('the standard library as the skill describes it', () => {
       'sprout.Container',
       'sprout.Lockable',
       'sprout.RequiresHeld',
+      'sprout.LightSource',
     ]);
     expect(libraryVerbs(library).map((verb) => verb.name)).toEqual([
       ...ENGINE_VERBS,
@@ -74,7 +75,7 @@ describe('the standard library as the skill describes it', () => {
     expect(section).toContain(
       '| `on :entered (item, from) { … }` | `item` object, `from` object |',
     );
-    expect(section).toContain('The standard library declares no messages of its own.');
+    expect(section).toContain('The standard library declares `:sprout.illuminating`.');
   });
 
   it('gives the library’s source, every file as it travels', () => {

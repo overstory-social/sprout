@@ -33,6 +33,7 @@ import { SproutList } from './lists.js';
 import type { Instance, StateReader } from './state.js';
 import type { NameTable } from '../check/names.js';
 import { reachedByName } from './named.js';
+import { seenFrom } from './sight.js';
 import type { PassRule } from './range.js';
 import { defaultOf, type Value } from './values.js';
 import { ExtensionValue, sameExtension } from './extension-values.js';
@@ -270,8 +271,28 @@ function member(expr: MemberExpr, receiver: Evaluated, frame: Frame): Evaluated 
   }
 }
 
+/**
+ * `x.sees(K, :p)`, in a place's `lit`: whether something `x` sees, by
+ * the sight walk (`sight.ts`), composes `K` and holds `:p` true.
+ */
+function sees(expr: CallExpr, receiver: Evaluated, frame: Frame): Evaluated {
+  const [kindWritten, propertyWritten] = expr.arguments;
+  if (expr.arguments.length !== 2 || kindWritten === undefined || propertyWritten === undefined) {
+    throw unchecked(`\`sees\` given ${expr.arguments.length} things`);
+  }
+  const kind = kindNamed(kindWritten, frame);
+  const name = propertyNamed(propertyWritten, frame);
+  return boundValue(
+    seenFrom(asObject(receiver), frame).some((id) => {
+      const instance = instanceOf(id, frame);
+      return composes(instance, kind) && instance.properties.get(name) === true;
+    }),
+  );
+}
+
 /** `get`, `recall`, `count(K)`, `holds`, `is` and `includes`, on a receiver already evaluated. */
 function reading(expr: CallExpr, receiver: Evaluated, frame: Frame): Evaluated {
+  if (expr.method.text === 'sees') return sees(expr, receiver, frame);
   const argument = expr.arguments[0];
   if (expr.arguments.length !== 1 || argument === undefined) {
     throw unchecked(`\`${expr.method.text}\` given ${expr.arguments.length} things`);

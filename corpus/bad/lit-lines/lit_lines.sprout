@@ -1,0 +1,35 @@
+// A place's `lit` is the word and its condition in brackets, written
+// once; each line written wrong is refused once, and the good line after
+// it is kept.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world lit_lines is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      lit
+      exit down "down" -> cellar
+    }
+  }
+  object cellar is sprout.Place {
+    grammar {
+      lit ()
+      exit up "up" -> yard
+    }
+  }
+  object attic is sprout.Place {
+    grammar {
+      lit (true)
+      lit (false)
+    }
+  }
+  object loft is sprout.Place {
+    grammar {
+      lit (self.count > 0
+      exit down "down" -> yard
+    }
+  }
+}

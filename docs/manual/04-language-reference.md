@@ -520,6 +520,37 @@ nothing. `tell` inside the wardrobe reaches only those in it. And someone
 shut inside can always open it, because a thing can always reach the
 container it is in.
 
+### Dark places
+
+A place may say when it can be seen, with `lit` and a condition in its
+grammar block. A place that writes none is always lit.
+
+```sprout
+object cellar is sprout.Place {
+  grammar {
+    lit (self.sees(sprout.LightSource, :lit))
+    exit up "up to the kitchen" -> kitchen
+  }
+}
+```
+
+`self.sees(sprout.LightSource, :lit)` is true when the place sees a
+`sprout.LightSource` whose `:lit` is true: one set down there, or one in
+the hands of anyone standing there (but not one in a shut box). `sees`
+may only be used in a `lit`. Like an exit's `when`, the condition only
+reads, cannot roll dice, and cannot use `actor` or `here`.
+
+While a visitor's place is dark, they can name only themselves and what
+they carry, so anything else is answered with `not_here`; looking reads
+the world's `dark` passage, "It is too dark to see."; and their view shows
+nobody else and offers only what they carry. The ways out still work, so
+nobody is trapped. Messages, `tell`, and what objects can reach are not
+affected by the dark.
+
+`sprout.LightSource` is a `:lit` property, false to start, and a
+`changed :lit` hook that broadcasts `:illuminating` with the new value.
+A lamp is a kind that composes it and a verb that sets `:lit`.
+
 ### Links
 
 An exit's destination is fixed in source. A **link** is a way out whose
@@ -2057,6 +2088,7 @@ So a character can have its own `arrives`, and a place its own
 | `nothing_happens` | Nothing much comes of that.                                         |
 | `unremarkable`    | There is nothing special about {thing}.                             |
 | `unseen`          | Something here is too much to take in.                              |
+| `dark`            | It is too dark to see.                                              |
 | `fault`           | Something in this world has gone wrong, and nothing has changed.    |
 | `missing`         | This world uses something this host does not provide, and will be missing some of itself. |
 | `displaced`       | The place you were standing is gone.                                |

@@ -19,6 +19,7 @@ export type Undrawn =
   | { readonly by: 'permit' }
   | { readonly by: 'describe' }
   | { readonly by: 'when' }
+  | { readonly by: 'lit' }
   | { readonly by: 'pass'; readonly written: string }
   | { readonly by: 'poll'; readonly line: string }
   | { readonly by: 'contents' }
@@ -55,6 +56,11 @@ function words(undrawn: Undrawn): { readonly what: string; readonly why: string 
       return {
         what: "an exit's `when`",
         why: 'it is asked to show a visitor the ways out, so a roll would offer a way that vanishes when taken',
+      };
+    case 'lit':
+      return {
+        what: "a place's `lit`",
+        why: 'it is asked whenever anyone there looks or acts, so a roll would show a room that flickers while nobody acts',
       };
     case 'pass':
       return {

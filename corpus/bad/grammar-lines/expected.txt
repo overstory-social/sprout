@@ -8,6 +8,6 @@ grammar_lines.sprout:17:9   `nouns` is followed by one or more nouns in quotes.
                             Write `nouns "brass" "key ring"`.
 
 grammar_lines.sprout:17:9   A grammar block is not made of `door`.
-                            It holds `name`, `article`, `pronouns`, `nouns`, `adjectives`, `exit` and `link`, as in `grammar { name "brass key"  article a  nouns "brass" }`.
+                            It holds `name`, `article`, `pronouns`, `nouns`, `adjectives`, `exit`, `link` and `lit`, as in `grammar { name "brass key"  article a  nouns "brass" }`.
 
 refused: 4 problems

@@ -64,6 +64,7 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'kind',
   'let',
   'link',
+  'lit',
   'many',
   'max',
   'message',

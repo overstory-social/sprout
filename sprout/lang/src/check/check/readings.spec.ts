@@ -53,6 +53,18 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(refused.said.join(' ')).toContain('Narrow it first');
   });
 
+  it('`x.sees(K, :p)` — only in a place’s `lit`, of a boolean `K` declares, two things given', () => {
+    const lit = { ...vessel(), sight: true as const };
+    expect(read('self.sees(Vessel, :inked)', lit).shown).toBe('boolean');
+    expect(read('self.sees(Vessel, :capacity)', { ...vessel(), sight: true }).said).toEqual([
+      '`sees` asks whether something it sees has `:capacity` true, and `:capacity` is not a boolean it holds. Name a boolean property the kind declares, as in `self.sees(sprout.LightSource, :lit)`.',
+    ]);
+    expect(read('self.sees(Vessel)', { ...vessel(), sight: true }).type).toBeNull();
+    expect(read('self.sees(Vessel, :inked)', vessel()).said).toEqual([
+      '`sees` asks what a place can see by its own light, and is read only in its `lit`. Read what is in range with `get`, `count` or `holds`, or ask `sees` in a place’s `grammar { lit (…) }`.',
+    ]);
+  });
+
   it('reads `here` as `sprout.Place`, which holds things and declares no property of its own', () => {
     expect(shapeOf('here.count', vessel())).toBe('integer');
     const refused = read('here.get(:capacity)', vessel());

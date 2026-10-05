@@ -29,6 +29,7 @@ export const STOCK_LINES: Readonly<Record<EngineLineName, string>> = {
   nothing_happens: 'Nothing much comes of that.',
   unremarkable: 'There is nothing special about {thing}.',
   unseen: 'Something here is too much to take in.',
+  dark: 'It is too dark to see.',
   fault: 'Something in this world has gone wrong, and nothing has changed.',
   missing:
     'This world uses something this host does not provide, and will be missing some of itself.',

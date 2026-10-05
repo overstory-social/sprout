@@ -34,6 +34,7 @@ kind World {
   passage nothing_happens default { Nothing much comes of that. }
   passage unremarkable default    { There is nothing special about {thing}. }
   passage unseen default          { Something here is too much to take in. }
+  passage dark default            { It is too dark to see. }
   passage fault default           { Something in this world has gone wrong, and nothing has changed. }
   passage missing default         { This world uses something this host does not provide, and will be missing some of itself. }
   passage displaced default       { The place you were standing is gone. }
@@ -250,6 +251,17 @@ kind RequiresHeld {
 }
 `;
 
+const LIGHT_SOURCE = `// sprout.LightSource: a property and a \`changed\` hook that broadcasts
+// (the spec's The standard library is written in Sprout). A place's
+// \`lit\` asks whether it sees one lit with \`sees\` (Range, Sight).
+message :illuminating with boolean
+
+kind LightSource {
+  :lit false
+  changed :lit (was) { broadcast :illuminating with self.get(:lit) }
+}
+`;
+
 const TALK = `// \`ask\`, whose topic is a value the visitor names (the spec's Value
 // roles). The library plays no part in it: a world's own object is asked,
 // and says with \`from\` which topics it hears.
@@ -277,6 +289,7 @@ export const STANDARD_LIBRARY: LibrarySource = {
     new SourceFile('sprout/container.sprout', CONTAINER),
     new SourceFile('sprout/lockable.sprout', LOCKABLE),
     new SourceFile('sprout/requires_held.sprout', REQUIRES_HELD),
+    new SourceFile('sprout/light_source.sprout', LIGHT_SOURCE),
     new SourceFile('sprout/talk.sprout', TALK),
   ],
 };

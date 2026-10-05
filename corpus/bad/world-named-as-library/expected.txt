@@ -1,4 +1,7 @@
-sprout.json:3:3  This world's namespace, `sprout`, is also the name of a library it uses.
-                 Give the manifest a `namespace` that names no library.
+sprout.json:3:3                 This world's namespace, `sprout`, is also the name of a library it uses.
+                                Give the manifest a `namespace` that names no library.
+
+sprout/light_source.sprout:4:9  Nothing handles `:illuminating`, so sending it does nothing.
+                                Write `on :illuminating { … }` in the kind that should hear it, or take the message out.
 
 refused: 1 problem
