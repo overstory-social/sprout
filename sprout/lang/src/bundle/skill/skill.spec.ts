@@ -9,7 +9,11 @@ const skill = generateSkill();
 const headings = (page: string): string[] =>
   page.split('\n').filter((line) => line.startsWith('## '));
 
-describe('the generated skill', () => {
+// Each test here compiles every example the skill shows, which is slow work and
+// not a timing guard, so it is not held to vitest's five-second default.
+const COMPILES_EVERY_EXAMPLE = 60_000;
+
+describe('the generated skill', { timeout: COMPILES_EVERY_EXAMPLE }, () => {
   it('is a skill: front matter naming it and saying when to use it, then its title', () => {
     expect(skill.startsWith('---\nname: sprout\ndescription: ')).toBe(true);
     expect(skill).toContain('\n---\n\n# Writing a Sprout world\n');
