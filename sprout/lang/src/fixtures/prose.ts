@@ -27,7 +27,8 @@ const CAPS = DEFAULT_LIMITS.caps;
  * A mill with a yard holding a press whose passages live in `press.prose`,
  * a crate holding an apple and two ribs, a brass key, an oak door, and an
  * echo whose `ring` renders itself, whose `call`, `calls` and `toss`
- * draw, and whose `nearby` narrows the `press` nearest it.
+ * draw, whose `nearby` narrows the `press` nearest it, and whose `heard`
+ * and `faded` render its padded `short` and its two-paragraph `long`.
  */
 export const MILL: Bundle = compiledWorld('mill', {
   'mill.sprout': [
@@ -75,6 +76,16 @@ export const MILL: Bundle = compiledWorld('mill', {
     '  passage toss { {if chance(2)}Heads{else}Tails{/if}, and {self.call} }',
     '  passage hum { {one of}Hmm{/one of}, {actor}. }',
     '  passage nearby { {if press.is(Press)}{press.get(:label)}{else}no press{/if} }',
+    '  passage short {  an echo  }',
+    '  passage long {',
+    '',
+    '    it rings,',
+    '',
+    '    it fades,',
+    '',
+    '  }',
+    '  passage heard { You hear {self.short}. }',
+    '  passage faded { First {self.long} then quiet. }',
     '  as target for ink { do { say call  say calls  say toss  say hum } }',
     '}',
     '',

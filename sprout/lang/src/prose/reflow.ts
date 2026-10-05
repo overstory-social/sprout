@@ -3,7 +3,9 @@
 // and a paragraph has none at its ends. A blank line is a paragraph break,
 // and a paragraph left with nothing in it is no paragraph, so a block that
 // renders nothing leaves none behind. `\n` is a line break reflow keeps.
-// The first letter of every rendered line is capitalised.
+// The first letter of every rendered line is capitalised. A passage put
+// into a slot is trimmed at its ends first, so the padding inside its
+// braces is not left before the words that follow the slot.
 
 /** What rendering prose gives, in order: words, or a break. */
 export type Rendered =
@@ -30,6 +32,44 @@ export function reflow(rendered: readonly Rendered[]): string[] {
   }
   close();
   return paragraphs;
+}
+
+/**
+ * `rendered` with the space at its ends taken off: leading and trailing
+ * whitespace, and the blank lines a body opens or closes with. A `\n` is
+ * written, not space, and is kept.
+ */
+export function trimmed(rendered: readonly Rendered[]): Rendered[] {
+  const out = [...rendered];
+  while (out.length > 0) {
+    const first = out[0]!;
+    if ('break' in first) {
+      if (first.break === 'line') break;
+      out.shift();
+      continue;
+    }
+    const words = first.words.trimStart();
+    if (words !== '') {
+      out[0] = { words };
+      break;
+    }
+    out.shift();
+  }
+  while (out.length > 0) {
+    const last = out[out.length - 1]!;
+    if ('break' in last) {
+      if (last.break === 'line') break;
+      out.pop();
+      continue;
+    }
+    const words = last.words.trimEnd();
+    if (words !== '') {
+      out[out.length - 1] = { words };
+      break;
+    }
+    out.pop();
+  }
+  return out;
 }
 
 /** A line with its first letter capitalised, past any quote or bracket it opens with. */

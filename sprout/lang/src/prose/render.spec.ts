@@ -65,6 +65,27 @@ describe('a slot renders what it reads', () => {
   });
 });
 
+describe('a passage a slot renders', () => {
+  it('is trimmed at its ends, so the padding inside its braces is not left before a full stop', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'heard', turn.marta)).toEqual(['You hear an echo.']);
+  });
+
+  it('drops the blank lines it opens and closes with, and keeps the paragraph break inside it', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'faded', turn.marta)).toEqual([
+      'First it rings,',
+      'It fades, then quiet.',
+    ]);
+  });
+
+  it('leaves a passage rendered on its own as reflow lays it out', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'short', turn.marta)).toEqual(['An echo']);
+    expect(rendered(turn, ECHO, 'long', turn.marta)).toEqual(['It rings,', 'It fades,']);
+  });
+});
+
 describe('a name in a kind’s body narrowed by `{if}`', () => {
   it('is bound for the branch to the object the condition found, and read through its kind there', () => {
     const turn = proseTurn();

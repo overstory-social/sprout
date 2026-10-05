@@ -1,0 +1,18 @@
+// A passage put into a slot is trimmed at its ends first, so the padding
+// inside its braces, which the standard library writes around every
+// passage, is not left before the words after the slot.
+// `transcripts/study.json` plays it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Leaflet} from 'leaflet'
+
+verb study { role target  "study [target]" }
+
+world embedded_passage is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object leaflet is Leaflet
+  }
+}

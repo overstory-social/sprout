@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { capitalise, reflow, type Rendered } from './reflow.js';
+import { capitalise, reflow, trimmed, type Rendered } from './reflow.js';
 
 const words = (text: string): Rendered => ({ words: text });
 const PARAGRAPH: Rendered = { break: 'paragraph' };
@@ -29,6 +29,29 @@ describe('rendered words are reflowed into paragraphs', () => {
       'You take a key.',
       'Marta waves.',
     ]);
+  });
+});
+
+describe('rendered words trimmed at their ends', () => {
+  it('loses the space at either end, and keeps the space between', () => {
+    expect(trimmed([words('  a '), words(' leaflet  ')])).toEqual([words('a '), words(' leaflet')]);
+  });
+
+  it('drops pieces that were only space, and the blank lines at either end', () => {
+    expect(
+      trimmed([PARAGRAPH, words(' \n '), words('  one'), PARAGRAPH, words('two \n'), PARAGRAPH]),
+    ).toEqual([words('one'), PARAGRAPH, words('two')]);
+    expect(trimmed([PARAGRAPH, words('   '), PARAGRAPH])).toEqual([]);
+  });
+
+  it('keeps a line break written `\\n` at either end, as written words', () => {
+    expect(trimmed([LINE, words(' one '), LINE])).toEqual([LINE, words(' one '), LINE]);
+  });
+
+  it('leaves what it trims unchanged', () => {
+    const given = [words(' one ')];
+    trimmed(given);
+    expect(given).toEqual([words(' one ')]);
   });
 });
 
