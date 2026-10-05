@@ -168,7 +168,7 @@ accept act actors allow any are arrive article as at bound broadcast
 carried changed connect contains default depart describe destroy do each else
 enum exit finally for from grammar hours if in kind let link many max
 message min minutes move name nouns of on optional pass passage permit
-prose refuse release remembers role say seconds send spawn tell text to
+prose refuse release remembers role say seconds seen send spawn tell text to
 verb visitors wake when with without world
 ```
 
@@ -1660,6 +1660,22 @@ whose `text` all renders to nothing reads the world's `unremarkable`
 passage instead ("There is nothing special about the type cabinet.").
 A thing has one voice, so two composed kinds that both `describe` is an
 error; write the combined description yourself.
+
+Inside a `describe`, and in any passage it says, `seen` says what the
+description is being read for: `:look` when someone typed `look` or
+`examine`, `:arrival` when they have just arrived, and `:poll` when their
+view is being drawn. A place can show its name alone on a return visit
+and everything on `look`:
+
+```sprout
+describe {
+  if (seen == :arrival && actor.recall(:visits) > 1) { text "{self}." }
+  else { text full }
+}
+```
+
+`seen` is a reserved word, and a passage that reads it may only be said
+from a `describe`.
 
 ### When lines are rendered
 

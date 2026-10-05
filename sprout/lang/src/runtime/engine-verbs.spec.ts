@@ -162,6 +162,29 @@ describe('what the engine answers a command, once the queue is empty', () => {
   });
 });
 
+describe('what a description the engine answers is read for', () => {
+  const seenIn = (answer: {
+    description: { lines: readonly { bindings: ReadonlyMap<string, unknown> }[] };
+  }) => answer.description.lines.map((line) => line.bindings.get('seen'));
+
+  it('is `look` for `look` and `examine`, and `arrival` for the place a move carried someone to', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    const look = { binds: 'value', value: 'look' };
+    for (const text of ['look', 'examine lamp']) {
+      const [answer] = answersOf(typedIn(state, MARTA, text));
+      if (answer === undefined || !('description' in answer)) throw new Error(text);
+      expect(seenIn(answer).length, text).toBeGreaterThan(0);
+      for (const seen of seenIn(answer)) expect(seen, text).toEqual(look);
+    }
+    const [arrived] = answersOf(typedIn(state, MARTA, 'north'));
+    if (arrived === undefined || !('description' in arrived)) throw new Error('north');
+    expect(arrived.description.to).toBe(marta);
+    expect(seenIn(arrived).length).toBeGreaterThan(0);
+    for (const seen of seenIn(arrived)) expect(seen).toEqual({ binds: 'value', value: 'arrival' });
+  });
+});
+
 describe('the places people arrived in, as they read them', () => {
   const described = (place: InstanceId, who: InstanceId): Notice => ({
     notice: 'described',

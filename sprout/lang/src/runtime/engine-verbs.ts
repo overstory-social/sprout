@@ -40,14 +40,14 @@ export function engineAnswers(
   if (!answeredByEngine(verb) || !isPerson(state, actor) || here === null) return answers;
   switch (verb.name) {
     case 'look':
-      answers.push({ description: describeFor(here, actor, context) });
+      answers.push({ description: describeFor(here, actor, 'look', context) });
       break;
     case 'examine': {
       const target = [...reading.bindings.values()].find((bound) => 'object' in bound);
       if (target === undefined || !('object' in target)) {
         throw new Error('a reading of `examine` names nothing to examine.');
       }
-      answers.push({ description: describeFor(target.object, actor, context) });
+      answers.push({ description: describeFor(target.object, actor, 'look', context) });
       const contents = contentsOf(target.object, actor, here, context);
       if (contents !== null) answers.push({ said: contents });
       break;
@@ -82,7 +82,7 @@ export function arrivalsRead(notices: readonly Notice[], context: DescribeContex
     const key = `${mover} ${notice.place}`;
     if (described.has(key)) continue;
     described.add(key);
-    answers.push({ description: describeFor(notice.place, mover, context) });
+    answers.push({ description: describeFor(notice.place, mover, 'arrival', context) });
   }
   return answers;
 }

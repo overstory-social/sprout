@@ -56,6 +56,10 @@ verb examine   { role target  "examine [target]"  "x [target]"  "look at [target
 verb inventory { "inventory"  "i"  "inv" }
 verb wait      { "wait"  "z" }
 verb help      { "help"  "?" }
+
+// What a \`describe\` is being read for, which it binds as \`seen\` (the
+// spec's Prose): someone looking, someone arriving, or a view polled.
+enum Seen { look, arrival, poll }
 `;
 
 const PLACE = `// sprout.Place: a place is whatever holds actors (the spec's Places),

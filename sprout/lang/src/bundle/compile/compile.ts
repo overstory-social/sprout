@@ -227,6 +227,7 @@ export function compileBundle(
     ...(world === null ? [] : [{ kind: world, vantage: { in: 'tree' as const, path: [] } }]),
   ];
   const here = hereKindOf(everyKind, tables.kinds);
+  const seen = tables.enums.qualified(SPROUT, 'Seen');
   for (const intent of tables.intents.all()) {
     checkIntentSteps(intent, {
       kinds: tables.kinds,
@@ -239,6 +240,7 @@ export function compileBundle(
   const { optionSlots, unheard } = checkBodies(written, {
     kinds: tables.kinds,
     here,
+    ...(seen === null ? {} : { seen }),
     verbs: tables.verbs,
     diagnostics: report.diagnostics,
     messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },

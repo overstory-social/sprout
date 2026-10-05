@@ -32,6 +32,7 @@
 import type { Ident } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindRef } from '../declare/kinds.js';
+import type { DeclaredEnum } from '../declare/enums.js';
 import { PLACE, type HereKind } from '../declare/places.js';
 import { kindName } from '../declare/kinds.js';
 import type { DeclaredMessage } from '../declare/messages.js';
@@ -108,6 +109,7 @@ export type BindingOrigin =
   | 'self'
   | 'actor'
   | 'here'
+  | 'seen'
   | 'mover'
   | 'role'
   | 'each'
@@ -127,6 +129,8 @@ export function describeOrigin(origin: BindingOrigin): string {
       return 'whoever is acting';
     case 'here':
       return "the actor's place";
+    case 'seen':
+      return 'what the description is being read for';
     case 'mover':
       return 'whatever proposed the move';
     case 'role':
@@ -205,6 +209,11 @@ export function hereBinding(here: HereKind, at: Span): Binding {
   if (here.unlike === null) return bind('here', OPEN_OBJECT, 'here', at);
   const remedy = `\`${here.unlike.name}\` holds actors without composing \`${PLACE}\`, so \`here\` may be a place that is not one: compose \`${PLACE}\` into \`${here.unlike.name}\`, or narrow \`here\` first with \`is()\`.`;
   return bind('here', { binds: 'object', kind: null, remedy }, 'here', at);
+}
+
+/** `seen`, in a describe — `sprout.Seen`: what it is being read for, a look, an arrival or a poll. */
+export function seenBinding(seen: DeclaredEnum, at: Span): Binding {
+  return bind('seen', valueOf({ type: 'symbol', of: seen }), 'seen', at);
 }
 
 /** `mover`, in a guard — object; whatever proposed the move. */

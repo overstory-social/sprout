@@ -1,0 +1,16 @@
+{
+  "name": "seen_outside_describe",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "87c5e95a6a0c25031ab15dbd89dfc4932e984c9f4a78e677a6caae9c76714d93"
+    }
+  ],
+  "files": ["seen_outside_describe.sprout", "lamp.sprout", "person.sprout"]
+}

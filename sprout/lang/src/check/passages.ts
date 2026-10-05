@@ -9,7 +9,7 @@
 // that kind has of that name, so a composer's own line is checked against
 // every body of its closure that says it; a slot `{pot.greeting}` reaches
 // the passage of that name on every kind composing `pot`'s, run with only
-// `actor` and `here` beside its own `self`; and a passage named for one
+// `actor`, `here` and `seen` beside its own `self`; and a passage named for one
 // of the engine's lines is the engine's to say, on whatever kind it
 // reaches, with what the engine binds for that line. A passage said from
 // nowhere is checked with `self` alone. A name a passage renders that is

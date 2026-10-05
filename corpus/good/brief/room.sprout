@@ -1,0 +1,26 @@
+// A room counts each person's visits as they enter, so by the time its
+// description is read on arrival the count already holds this one. It
+// shows its name alone where the count is past one and the reader only
+// arrived, and its name and `full` passage otherwise. Each room writes
+// its own `full`, which `brief`, said from the describe, renders with
+// `seen` bound, as any passage a describe invokes is.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+kind Room is sprout.Place {
+  remembers { :visits 0 min 0 max 99 }
+
+  passage full default { There is nothing more to {self}. }
+
+  on :entered (item, from) {
+    if (item.is(Person)) { item.adjust(:visits, 1) }
+  }
+
+  describe { text brief }
+
+  passage brief {
+    {self}.
+
+    {if seen != :arrival || actor.recall(:visits) <= 1}{self.full}{/if}
+  }
+}

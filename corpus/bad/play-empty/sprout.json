@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "994585fe4be10b2ae06eba58e7ffd8694cbd6c8895faa124fb626c6738a05b61"
+      "sha": "87c5e95a6a0c25031ab15dbd89dfc4932e984c9f4a78e677a6caae9c76714d93"
     }
   ],
   "files": ["play_empty.sprout", "person.sprout", "lever.sprout"]

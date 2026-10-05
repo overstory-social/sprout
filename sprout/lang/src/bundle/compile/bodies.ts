@@ -13,6 +13,7 @@ import { GUARD_NAMES } from '../../syntax/ast.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import { kindName, type KindLookup, type KindRef } from '../../declare/kinds.js';
 import type { HereKind } from '../../declare/places.js';
+import type { DeclaredEnum } from '../../declare/enums.js';
 import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
@@ -34,6 +35,8 @@ export interface BodySetting {
   readonly kinds: KindLookup;
   /** What `here` is typed as, over every composed kind in the world. */
   readonly here: HereKind;
+  /** `sprout.Seen`, which a describe's `seen` is typed as; left out where the standard library is absent. */
+  readonly seen?: DeclaredEnum;
   readonly verbs: VerbTable;
   readonly diagnostics: Diagnostics;
   readonly messages: MessageSetting;
@@ -120,6 +123,7 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Bo
     if (kind.describe !== null && kind.describe.origin === own) {
       checkDescribe(kind.describe, kind, {
         ...setting,
+        ...(base.seen === undefined ? {} : { seen: base.seen }),
         ...(base.emptiedDescribe === undefined ? {} : { emptied: base.emptiedDescribe }),
       });
     }

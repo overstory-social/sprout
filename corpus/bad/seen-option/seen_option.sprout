@@ -1,0 +1,14 @@
+// `seen` is a `sprout.Seen`, so the option it is compared with must be
+// one of `look`, `arrival` and `poll`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world seen_option is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object lamp is Lamp
+  }
+}

@@ -4,8 +4,8 @@
 // A slot renders an object as the reader reads it, an option humanised, a
 // number in digits, a string as written and an extension's value in the
 // words the extension renders it as; another object's passage runs
-// with that object as its own `self` and only `actor` and `here` beside
-// it, one passage deeper against the turn's bound. `{if}` renders the
+// with that object as its own `self` and only `actor`, `here` and, from
+// a description, `seen` beside it, one passage deeper against the turn's bound. `{if}` renders the
 // first branch whose condition holds, and `{for}` its body once for each
 // thing or element it walks, in order, with `$first`, `$last`, `$index`
 // (counting from 1) and `$count` bound. `{one of}` renders one of its
@@ -186,7 +186,7 @@ function slot(
 
 /**
  * `{pot.greeting}`: the passage of that name as `pot`'s kind has it, with
- * `pot` its own `self` and `actor` and `here` beside it where they are
+ * `pot` its own `self` and `actor`, `here` and `seen` beside it where they are
  * bound, one passage deeper. A passage its kind lacks, being in a
  * `.prose` file the world was loaded without, renders nothing.
  */
@@ -203,7 +203,7 @@ function passageOf(
   const passage = frame.state.instance(owner.id)?.kind.passages.get(name);
   if (passage === undefined) return;
   const bindings = new Map<string, Evaluated>();
-  for (const carried of ['actor', 'here']) {
+  for (const carried of ['actor', 'here', 'seen']) {
     const bound = frame.bindings.get(carried);
     if (bound !== undefined) bindings.set(carried, bound);
   }

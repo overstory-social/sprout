@@ -15,6 +15,7 @@ import {
   objectOf,
   OPEN_OBJECT,
   READINGS,
+  seenBinding,
   selfBinding,
   setOf,
   setRoleBinding,
@@ -24,7 +25,7 @@ import {
   type BindingType,
 } from './bindings.js';
 import { BOOLEAN, integer, STRING } from '../declare/types.js';
-import { at, HERE_UNKNOWN, KNOWS, LOCKABLE, VESSEL } from '../fixtures/bindings.js';
+import { at, ENUMS, HERE_UNKNOWN, KNOWS, LOCKABLE, VESSEL } from '../fixtures/bindings.js';
 
 describe('a binding type is not a property type', () => {
   it('says what it is, for every arm there is', () => {
@@ -49,11 +50,20 @@ describe('a binding type is not a property type', () => {
     expect(isObjectBinding(setRoleBinding('tools', null, at('tools')))).toBe(false);
   });
 
+  it('types `seen` as the enum it is given, a value read and never written through', () => {
+    const topic = ENUMS.qualified('printers_shop', 'Topic')!;
+    const seen = seenBinding(topic, at('here'));
+    expect(seen).toMatchObject({ name: 'seen', origin: 'seen', writable: false });
+    expect(seen.type).toEqual({ binds: 'value', type: { type: 'symbol', of: topic } });
+    expect(isObjectBinding(seen)).toBe(false);
+  });
+
   it('describes every origin there is, so a refusal can name the first one', () => {
     const every: BindingOrigin[] = [
       'self',
       'actor',
       'here',
+      'seen',
       'mover',
       'role',
       'each',
