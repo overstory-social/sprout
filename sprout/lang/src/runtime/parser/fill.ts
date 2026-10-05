@@ -15,7 +15,7 @@ import type { ResolvedRole } from '../../declare/verbs.js';
 import { heardBy, type Bound, type Reading } from '../reading.js';
 import type { Instance, StateReader } from '../state.js';
 import type { Value } from '../values.js';
-import { exitNamed, type CommandExit } from './exits.js';
+import { exitNamed, labelWords, type CommandExit } from './exits.js';
 import {
   fits,
   forms,
@@ -78,7 +78,10 @@ export function fillSlot(
     context.budget.spend();
     const exit = exitNamed(words, context.exits);
     if (exit === null) return { fills: 'unfit', things: [] };
-    return { fills: 'options', options: [{ bound: { exit }, near: 0, literal: words.length }] };
+    return {
+      fills: 'options',
+      options: [{ bound: { exit }, near: 0, literal: labelWords(words).length }],
+    };
   }
   if (role.many) return setFilled(words, role, context);
   return carriedFilled(

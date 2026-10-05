@@ -469,7 +469,10 @@ grammar {
   Visitors may abbreviate the usual way (`n`, `sw`, `u`) and may leave out
   `go`.
 - The label is what a client shows on a button, and a visitor may type it
-  too: `back to the yard` works as well as `go out`.
+  too: `back to the yard` works as well as `go out`. An article, `my`,
+  `this` or `that` at the label's start may be typed or left out, so with
+  the label `"the trap door"`, `go trap door` works, and with `"tree"`,
+  `go the tree`.
 - The destination is a place, by identifier or dotted path. An exit may
   only be written on a place, and may only lead to one.
 - A place has at most 8 exits by default.
