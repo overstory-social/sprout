@@ -5,6 +5,7 @@ import {
   BELL,
   BUBBLE,
   BUS,
+  CELLAR,
   CHEST,
   DOG,
   eventTurn,
@@ -13,6 +14,7 @@ import {
   LAMP,
   MATCH,
   MOTH,
+  ROAMER,
   setOn,
   STRAY,
   TIDIER,
@@ -164,6 +166,17 @@ describe('the queue drains', () => {
     expect(drained.said).toHaveLength(1);
     expect(drained.said[0]).toMatchObject({ effect: 'refused', to: [], speaker: null });
     expect(held(one, TIDIER, 'tried')).toBe(false);
+  });
+
+  it('owes the one a handler moved between places their description, after that handler’s lines', () => {
+    const one = eventTurn();
+    const drained = drain(
+      queued(sent('roam', ROAMER, BELL), sent('rang', GEM, BELL)),
+      context(one),
+    );
+    // The roamer's yawn, then the gem's hum, which the queue delivers after.
+    expect(drained.said.map((said) => said.by)).toEqual([ROAMER, GEM]);
+    expect(drained.described).toEqual([{ mover: ROAMER, place: CELLAR, after: 1 }]);
   });
 
   it('tells a handler’s words to the people its place reaches, nobody left out, since no reading runs', () => {

@@ -1,7 +1,8 @@
 // The ways the exit specs are written about, one kind per file, and what
 // they run a turn with. The yard leads in to the shop, north into the
 // maze while the lamp is out and to the meadow once it is lit, up to the
-// shop's loft by its path, east to a shed, and south to the meadow only
+// shop's loft by its path, east to a shed, whose `:entered` tells whoever comes in of its
+// cobwebs, and south to the meadow only
 // while a beacon it cannot see is lit. The shop's ladder must be down for
 // its way up. The meadow's gate refuses whoever comes while it is shut. A
 // turning of the maze has its way on dug and its way back connected by the
@@ -60,7 +61,9 @@ export const WAYS: Bundle = compiledWorld('ways', {
     grammar { exit south "back to the yard" -> yard }
   }
 
-  object shed is sprout.Place { }
+  object shed is sprout.Place {
+    on :entered (item, from) { tell item "Cobwebs brush your face." }
+  }
 
   object maze_mouth is MazeCell {
     grammar { exit up "up into the daylight" -> yard }

@@ -1,0 +1,35 @@
+// Where the one who moved reads the place they arrived in: as the body
+// that moved them ends, before anything the queue then runs (the spec's
+// Movement and consent › After the move). The cave's `:entered` tells
+// whoever comes in of the sword's glow after the cave is described; the
+// chute's sends the one sliding on, whose own handler moves them to the
+// cellar, described before the cellar's own line. The chute is not
+// described at all, since nobody is left standing in it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cave} from 'cave'
+import {Chute} from 'chute'
+import {Cellar} from 'cellar'
+
+world arrival_order is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar {
+      exit north "north into the cave" -> cave
+      exit down  "down the chute"      -> chute
+    }
+    describe { text "A bare hall. A cave opens to the north, and a chute drops away below." }
+  }
+
+  object cave is Cave {
+    grammar { exit south "back to the hall" -> hall }
+  }
+
+  object chute is Chute {
+    grammar { exit down "down into the dark" -> cellar }
+  }
+
+  object cellar is Cellar
+}

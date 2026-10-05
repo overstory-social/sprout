@@ -118,7 +118,7 @@ export type PlaceSend =
  * `arrives` to the visitors in its, each with the passage as it applies
  * on the place's kind and the binding it renders with; and the new
  * place's description to the one who moved, which the engine derives
- * once the queue is empty.
+ * once the queue is empty and gives as `Owed` says.
  */
 export type Notice =
   | {
@@ -146,6 +146,32 @@ export type Notice =
       readonly place: InstanceId;
       readonly audience: readonly [InstanceId];
     };
+
+/**
+ * A description a move owes the one it carried between places: read once
+ * the turn's first `after` lines are said, which is as the body that
+ * moved them ends and before anything the queue then runs (the spec's
+ * After the move).
+ */
+export interface Owed {
+  readonly mover: InstanceId;
+  readonly place: InstanceId;
+  readonly after: number;
+}
+
+/** The descriptions `notices` owe, each read once the turn's first `after` lines are said. */
+export function owedBy(notices: readonly Notice[], after: number): Owed[] {
+  return notices.flatMap((notice) =>
+    notice.notice === 'described'
+      ? [{ mover: notice.audience[0], place: notice.place, after }]
+      : [],
+  );
+}
+
+/** `owed`, read `lines` later: where the lines it counts follow that many others. */
+export function owedAfter(owed: readonly Owed[], lines: number): Owed[] {
+  return owed.map((one) => ({ ...one, after: one.after + lines }));
+}
 
 /** A move made. */
 export interface Moved {

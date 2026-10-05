@@ -1,0 +1,7 @@
+import * as sprout from 'sprout'
+
+kind Cellar is sprout.Place {
+  describe { text "A low cellar, smelling of earth." }
+
+  on :entered (item, from) { tell "Something skitters away into the dark." }
+}
