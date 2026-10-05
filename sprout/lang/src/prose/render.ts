@@ -284,9 +284,9 @@ function loop(
 }
 
 /**
- * What a `{for}` walks: a container's contents in range of `self`, as
- * `each` walks them, or those composing its kind, a set, a list's elements, or the readings `help` offers, each
- * already the line a visitor would type for it.
+ * What a `{for}` walks: a container's contents as `each` walks them
+ * (`contents.ts`), a set, a list's elements, or the readings `help`
+ * offers, each already the line a visitor would type for it.
  */
 function walk(block: ProseFor, frame: Frame): Evaluated[] {
   const over = evaluate(block.over, frame);

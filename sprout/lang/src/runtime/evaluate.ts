@@ -10,12 +10,9 @@
 // step budget, which charges one step for every expression node
 // evaluated, and `+` or `-` whose result leaves the integer range.
 //
-// It only reads. `bound tool` asks whether the frame binds the name, which
-// is how a role's body tells a tool it was given from one it was not; an
-// identifier is what the checker resolved it to, and faults where that is
-// not in range (`named.ts`). `count` and `holds` on a container see only
-// what is in range of `self`, as `each` does (`contents.ts`). `chance` and `random` draw from the frame's
-// stream (`draws.ts`), which only a body that acts in a write turn has.
+// It only reads. An identifier faults out of range (`named.ts`); `count`
+// and `holds` see only what is in range (`contents.ts`); `chance` and
+// `random` draw from the frame's stream (`draws.ts`).
 
 import type {
   BinaryOperator,
