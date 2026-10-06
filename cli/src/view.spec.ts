@@ -33,6 +33,7 @@ what they could type
     notch: nothing it hears
   go out  (sprout.go)
   look  (sprout.look)
+  examine shed  (sprout.examine)
   inventory  (sprout.inventory)
   wait  (sprout.wait)
   help  (sprout.help)

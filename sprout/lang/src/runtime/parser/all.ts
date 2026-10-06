@@ -103,8 +103,8 @@ function takes(
 
 /**
  * Whether only the actor plays a part in `role` of `verb`: no kind there
- * is plays it, each kind a step. Such a role is never filled with the
- * actor's own place, by `all` or by an offer (the spec's The view).
+ * is plays it, each kind a step. `all` never fills such a role with the
+ * actor's own place, nor does an offer where the actor's part moves it.
  */
 export function onlyTheActorPlays(
   verb: ResolvedVerb,

@@ -18,7 +18,7 @@
       { "words": "That is not something you can do here." }
     ] },
     { "as": "Marta", "type": "help", "expect": [
-      { "words": "You can type: cut brambles, look, examine brambles, inventory, wait, help, take brambles." }
+      { "words": "You can type: cut brambles, look, examine clearing, examine brambles, inventory, wait, help, take brambles." }
     ] },
     { "as": "Marta", "type": "cut brambles", "expect": [
       { "words": "You hack the brambles back, and a way opens to the north." }

@@ -100,7 +100,7 @@ export interface PermitRefusal {
   /**
    * The participant whose `permit` refused, and the role it played; where
    * the engine refused, whoever says its line, and the carried role, or,
-   * for an offer greyed by its move (`inside-itself.ts`), the role of the
+   * for an offer greyed by its move (`sure-move.ts`), the role of the
    * participant whose `do` proposes it.
    */
   readonly by: InstanceId;

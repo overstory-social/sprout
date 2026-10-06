@@ -1,14 +1,16 @@
-// What an offer foresees of its move: the engine's `inside_itself` where
-// the reading's first sure move would put a thing inside itself, read from
-// the `do`s it would run without running them. The nest below is this
-// file's own world.
+// What an offer foresees of its move, read from the `do`s it would run
+// without running them: the engine's `inside_itself` where the reading's
+// first sure move would put a thing inside itself, and which roles the
+// actor's own part moves. The nest below is this file's own world.
 
 import { describe, expect, it } from 'vitest';
 
 import { compiledWorld } from '../fixtures/bundle.js';
 import { reading, turn, words, type Turn } from '../fixtures/reading.js';
 import { declaredId, type InstanceId } from './ids.js';
-import { insideItselfOf } from './inside-itself.js';
+import { insideItselfOf, movesItsFiller } from './sure-move.js';
+import { Budget } from './budget.js';
+import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import type { Bound } from './reading.js';
 
 /**
@@ -87,5 +89,42 @@ describe('what an offer foresees of its move', () => {
     expect(foreseen(one, 'crumple', { target: { object: FOLDER } }, 'nest')?.by).toBe(
       one.draft.world,
     );
+  });
+});
+
+describe('what an offer’s foresight costs', () => {
+  it('is a step for each play read and each container climbed', () => {
+    const one = turn(NEST, [BOOTH]);
+    const before = one.budget.spentSteps;
+    foreseen(one, 'take', { target: { object: JAR } });
+    // The actor's play and the jar's, if any, and the climb from the actor up to the world.
+    expect(one.budget.spentSteps - before).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('a role the actor’s own part moves', () => {
+  const verb = (name: string, library = 'sprout') => NEST.verbs.qualified(library, name)!;
+  const moves = (name: string, role: string, library = 'sprout') => {
+    const one = turn(NEST, [BOOTH]);
+    const of = verb(name, library);
+    const actor = one.draft.instance(one.people[0]!)!;
+    return movesItsFiller(
+      of,
+      of.roles.find((r) => r.name === role)!,
+      actor,
+      new Budget(DEFAULT_LIMITS.budgets),
+    );
+  };
+
+  it('is one whose filler the first sure move of the actor’s play moves: `take`’s target, `put`’s item', () => {
+    expect(moves('take', 'target')).toBe(true);
+    expect(moves('drop', 'target')).toBe(true);
+    expect(moves('put', 'item')).toBe(true);
+  });
+
+  it('is not one the move only goes into, nor one the actor’s play does not move at all', () => {
+    expect(moves('put', 'container')).toBe(false);
+    expect(moves('examine', 'target')).toBe(false);
+    expect(moves('fold', 'target', 'nest')).toBe(false);
   });
 });

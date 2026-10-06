@@ -6,7 +6,7 @@
       { "words": "The candle burns a little lower." }
     ] },
     { "as": "Marta", "type": "help", "expect": [
-      { "words": "You could: look, examine bell, inventory, wait, help, take bell." }
+      { "words": "You could: look, examine yard, examine bell, inventory, wait, help, take bell." }
     ] }
   ]
 }

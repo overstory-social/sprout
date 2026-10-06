@@ -1,9 +1,10 @@
 // A place whose name shares a noun with something in it (the spec's
 // Parsing › Choosing a reading): the visitor's own place ranks below
 // everything it holds, so `x house` is the white house, and the place is
-// named only where nothing in it answers as well. As `take all` leaves the
-// place out, so does what the visitor is offered, wherever only they play
-// the role (the spec's The runtime › The view).
+// named only where nothing in it answers as well. What the visitor is
+// offered leaves the place out of a role only they play and their own part
+// moves, so `take` is not offered it and `examine` is (the spec's The
+// runtime › The view).
 import * as sprout from 'sprout'
 import {Person} from 'person'
 

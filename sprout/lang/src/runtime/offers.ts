@@ -3,8 +3,8 @@
 // offered once for each way its roles fill from what is in range: a role a
 // thing fills, by each thing in range it fits but the actor, and a carried
 // role only by what the actor carries; a set role by each such thing
-// alone; a role only the actor plays never by the actor's own place, as
-// `all` leaves it out; and `go`'s way by each exit and link that applies,
+// alone; a role only the actor plays, and their own part moves, never by
+// the actor's own place; and `go`'s way by each exit and link that applies,
 // a link typed by its label. In the dark a thing role is offered only
 // what the actor carries, and the ways out still. A tool is left out and
 // a value role left unbound, which a body reads only inside `if (bound
@@ -27,7 +27,7 @@ import {
 } from './reading.js';
 import { inTheDark } from './darkness.js';
 import { exitsFrom } from './exits.js';
-import { insideItselfOf } from './inside-itself.js';
+import { insideItselfOf, movesItsFiller } from './sure-move.js';
 import { addressOf, type AddressContext } from './parser/address.js';
 import type { CommandExit } from './parser/exits.js';
 import { onlyTheActorPlays } from './parser/all.js';
@@ -70,8 +70,11 @@ export function offersTo(
   range?: RangeWalk<InstanceId>,
 ): Offer[] {
   const { state, budget, passes } = context;
-  const here = state.instance(actor)?.container ?? null;
-  if (here === null) throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
+  const self = state.instance(actor);
+  const here = self?.container ?? null;
+  if (self === undefined || here === null) {
+    throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
+  }
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
   const tree = liveTree(state);
   const walked = range ?? rangeOf({ tree, passes, budget }, actor, 'any');
@@ -100,9 +103,11 @@ export function offersTo(
       const fitting = things.filter(
         (thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)),
       );
-      // The actor's own place fills no role only the actor plays, as under `all`.
+      // The actor's own place fills no role only the actor plays that their
+      // own part moves, which would carry it into their hands or somewhere else.
       const ownPlace =
         fitting.some((thing) => thing.id === here) &&
+        movesItsFiller(verb, role, self, budget) &&
         onlyTheActorPlays(verb, role, context.catalogue.kinds.values(), budget);
       return fitting
         .filter((thing) => !ownPlace || thing.id !== here)

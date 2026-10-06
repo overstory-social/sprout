@@ -57,6 +57,7 @@ describe('what an actor is offered', () => {
     const typed = typedBy(state);
     const examined = typed.filter((one) => one.startsWith('examine '));
     expect(examined).toEqual([
+      'examine hall',
       'examine lamp',
       'examine mirror',
       'examine stool',
@@ -75,12 +76,14 @@ describe('what an actor is offered', () => {
     expect(typed).not.toContain('give cat to cat');
   });
 
-  it('never fills a role only the actor plays with the actor’s own place, as `all` leaves it out', () => {
+  it('never fills a role only the actor plays and their part moves with the actor’s own place', () => {
     const typed = typedBy(study());
-    // Nothing plays `take`'s or `examine`'s target; the lamp plays `pull`'s.
+    // `take` and `drop` move their target, and nothing else plays it.
     expect(typed).not.toContain('take hall');
-    expect(typed).not.toContain('examine hall');
+    expect(typed).not.toContain('drop hall');
     expect(typed).toContain('take lamp');
+    // `examine` moves nothing, and the lamp plays `pull`'s target.
+    expect(typed).toContain('examine hall');
     expect(typed).toContain('pull hall');
   });
 
