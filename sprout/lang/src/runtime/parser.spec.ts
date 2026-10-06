@@ -734,6 +734,90 @@ describe('a place whose name shares a noun with something in it', () => {
   });
 });
 
+describe('a reading its consent pass allows, beside one it refuses', () => {
+  const MAZE = compiledWorld('labyrinth', {
+    'labyrinth.sprout': [
+      'kind Room is sprout.Place { as target for any { permit { refuse "No such thing." } } }',
+      'kind Bag { }',
+      'world labyrinth is sprout.World { visitors are Person visitors arrive at maze',
+      '  object maze is Room {',
+      '    grammar { name "Maze" }',
+      '    object passages is sprout.Fixture { grammar { name "passages"  nouns "maze" } }',
+      '    object sack is Bag { grammar { name "brown sack"  nouns "sack" "bag" } }',
+      '    object leather_bag is Bag { grammar { name "leather bag of coins"  nouns "bag" } }',
+      '  }',
+      '  object garden is sprout.Place {',
+      '    grammar { name "garden" }',
+      '    object beds is sprout.Fixture { grammar { name "flower beds"  nouns "garden" } }',
+      '  }',
+      '  object yard is sprout.Place {',
+      '    object press is sprout.Fixture {',
+      '      grammar { name "press" }',
+      '      as target for take { permit { refuse "Bolted down." } }',
+      '    }',
+      '    object press_bar is Bag { grammar { name "press bar" } }',
+      '  }',
+      '}',
+    ].join('\n'),
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const at = (...path: string[]) => declaredId('labyrinth', path);
+  const read = (line: string, place: string, seed: number, ready?: (one: Study) => void) => {
+    const one: Study = { ...turn(MAZE, [at(place)]), nicknames: new Map() };
+    ready?.(one);
+    return typed(one, line, [], seed);
+  };
+  const target = (outcome: CommandOutcome) => understood(outcome).bindings['target'];
+
+  it('is chosen over the own place that refuses, though the place’s whole name was typed', () => {
+    for (let seed = 0; seed < 16; seed++) {
+      expect(target(read('x maze', 'maze', seed)), `seed ${seed}`).toEqual({
+        object: at('maze', 'passages'),
+      });
+    }
+  });
+
+  it('is chosen over a nearer thing that refuses, as taking what is held does', () => {
+    const holding = (one: Study) => one.draft.place(at('maze', 'sack'), one.people[0]!);
+    for (let seed = 0; seed < 16; seed++) {
+      expect(target(read('take bag', 'maze', seed, holding)), `seed ${seed}`).toEqual({
+        object: at('maze', 'leather_bag'),
+      });
+    }
+  });
+
+  it('leaves the own place further than what it holds where nothing refuses, its whole name typed', () => {
+    for (let seed = 0; seed < 16; seed++) {
+      expect(target(read('x garden', 'garden', seed)), `seed ${seed}`).toEqual({
+        object: at('garden', 'beds'),
+      });
+    }
+    expect(target(read('x flower beds', 'garden', 3))).toEqual({ object: at('garden', 'beds') });
+  });
+
+  it('names nothing by adjectives alone where a thing is named by a noun, however its reading is answered', () => {
+    // `press` is the press bar's adjective; taking the bar is allowed, taking the press refused.
+    for (let seed = 0; seed < 16; seed++) {
+      expect(target(read('take press', 'yard', seed)), `seed ${seed}`).toEqual({
+        object: at('yard', 'press'),
+      });
+    }
+    expect(target(read('take press bar', 'yard', 0))).toEqual({ object: at('yard', 'press_bar') });
+  });
+
+  it('weighs a whole name only among things equally near: a nearer thing named by a noun wins', () => {
+    // The lamp oil, in the visitor's hands, answers to `lamp`; the lamp on the floor is called it.
+    const one = study();
+    expect(target(typed(one, 'take lamp'))).toEqual({ object: LAMP });
+    one.draft.place(LAMP_OIL, one.people[0]!);
+    for (let seed = 0; seed < 16; seed++) {
+      expect(target(typed(one, 'x lamp', EXITS, seed)), `seed ${seed}`).toEqual({
+        object: LAMP_OIL,
+      });
+    }
+  });
+});
+
 describe('a line typed with a synonym', () => {
   const YARD = compiledWorld('yard', {
     'yard.sprout': [

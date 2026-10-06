@@ -1,0 +1,12 @@
+{
+  "about": "`maze` names the maze, whose every reading refuses, and the passages, which answer to it as a noun: the passages' reading is allowed, so it is chosen, though the place's whole name was typed (the spec's Parsing › Choosing a reading, rule 1).",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "x maze", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "They are all alike." }
+    ] },
+    { "as": "Marta", "type": "x passages", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "They are all alike." }
+    ] }
+  ]
+}

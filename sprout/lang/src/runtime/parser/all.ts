@@ -77,13 +77,19 @@ export function allIn(
           bound: { set: taken.map(({ instance }) => instance.id) },
           near: taken.reduce((sum, one) => sum + one.near, 0),
           literal,
+          byName: 0,
         },
       ],
     };
   }
   return {
     fills: 'all',
-    things: taken.map(({ instance, near }) => ({ bound: { object: instance.id }, near, literal })),
+    things: taken.map(({ instance, near }) => ({
+      bound: { object: instance.id },
+      near,
+      literal,
+      byName: 0,
+    })),
   };
 }
 
@@ -119,10 +125,16 @@ export function onlyTheActorPlays(
   return true;
 }
 
-/** What a noun after `except` leaves out: every thing it names, and every thing of a kind it names, each thing a step. */
+/**
+ * What a noun after `except` leaves out: every thing of a kind it names,
+ * and every thing it names, only those whose whole name it is where any
+ * is ("except lamp" keeps the lamp oil); each thing a step.
+ */
 function leftOut(noun: readonly string[], context: AllContext): InstanceId[] {
   const named = thingsIn(noun, () => true, context.candidates, context);
-  const out = new Set(named.found === 'nothing' ? [] : named.things.map((one) => one.id));
+  const things = named.found === 'nothing' ? [] : named.things;
+  const byName = things.filter((one) => one.byName);
+  const out = new Set((byName.length > 0 ? byName : things).map((one) => one.id));
   const bare = noun.length > 1 && DETERMINERS.includes(noun[0]!) ? noun.slice(1) : noun;
   const written = bare.join(' ');
   for (const { instance } of context.candidates) {

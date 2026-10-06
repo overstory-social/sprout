@@ -74,6 +74,7 @@ export function readItem(
         allowed: consentPass(reading, context) === null,
         literal: option.literal,
         near: [option.near],
+        byName: option.byName,
         pronounNamed: option.pronounNamed ?? [],
         whole: true,
         rest: () => [],

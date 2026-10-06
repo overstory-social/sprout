@@ -246,6 +246,7 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
             const at = spans.findIndex((span) => span.role === role);
             return at < 0 ? 0 : choice[at]!.near;
           }),
+          byName: byNameIn(choice),
           pronounNamed: pronounsIn(choice),
           whole: readsWhole(choice, spans, reading),
         };
@@ -295,6 +296,7 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
             const at = spans.findIndex((span) => span.role === slot);
             return at < 0 ? 0 : choice[at]!.near;
           }),
+          byName: byNameIn(choice),
           pronounNamed: pronounsIn(choice),
           whole: true,
           rest: () => [],
@@ -388,6 +390,7 @@ function laterOf(
         allowed: consentPass(reading, context) === null,
         literal: option.literal,
         near: [option.near],
+        byName: option.byName,
         pronounNamed: [],
         whole: true,
         rest: () => [],
@@ -399,6 +402,11 @@ function laterOf(
     }
     return { planned: best.reading as Reading };
   });
+}
+
+/** How many of the things `choice` binds were named by their whole name. */
+function byNameIn(choice: readonly Choice[]): number {
+  return choice.reduce((sum, one) => sum + one.byName, 0);
 }
 
 /** What a pronoun named among what `choice` binds. */
@@ -477,7 +485,12 @@ type Choice =
       /** For a run in a role that takes one thing, each item after this one. */
       readonly later?: readonly LaterItem[];
     })
-  | { readonly words: readonly string[]; readonly near: 0; readonly literal: number };
+  | {
+      readonly words: readonly string[];
+      readonly near: 0;
+      readonly literal: number;
+      readonly byName: 0;
+    };
 
 /** Every way to take one option from each slot's, in order: a value role's words once. */
 function choicesOf(fills: readonly Filled[]): Choice[][] {
@@ -491,7 +504,7 @@ function choicesOf(fills: readonly Filled[]): Choice[][] {
           : filled.fills === 'run'
             ? filled.options.map((one) => ({ ...one, later: filled.later }))
             : filled.fills === 'words'
-              ? [{ words: filled.words, near: 0, literal: filled.words.length }]
+              ? [{ words: filled.words, near: 0, literal: filled.words.length, byName: 0 }]
               : [];
     combined = combined.flatMap((partial) => options.map((one) => [...partial, one]));
   }
