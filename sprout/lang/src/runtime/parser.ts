@@ -32,7 +32,9 @@
 // roles); where an exit role's words name an exit that refuses, its words,
 // or are a direction no exit that applies answers, `no_way` (the spec's
 // Verbs › Exits); where one would with a noun nothing in range answers
-// to, `not_here`, which names nothing; and otherwise `unknown`.
+// to, `not_here`, which names nothing, and so where an object's synonym
+// would with its object in reach (`parser/offered.ts`); and otherwise
+// `unknown`.
 // Every noun tried, every way of placing the slots, every reading built,
 // every object the range walk visits and every tie drawn is a step, so a
 // line that costs too much to read faults the turn as any other work would.
@@ -72,6 +74,7 @@ import { inReach } from './parser/planned.js';
 import { chainPoints, commandAfter, commandBefore, stretchAfter } from './parser/chain.js';
 import { namesOutright } from './parser/runs.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
+import { offeredOutOfReach, type OfferedContext } from './parser/offered.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
 import {
@@ -193,6 +196,7 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
   let notHere = false;
   // A way out the words name that does not go: an exit that refuses, or a direction none answers.
   let noGoing: RefusingExit | Direction | null = null;
+  const offered: OfferedContext = { state, address, fill };
   for (const phrase of catalogue.phrases) {
     const filled = new Map<string, Filled>();
     const fillOf = (span: SlotSpan): Filled => {
@@ -222,7 +226,10 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
         continue;
       }
       if (fills.some((one) => one.fills === 'nothing')) {
-        if (phrase.only === null) notHere = true;
+        // An object's synonym typed where the object is out of reach.
+        if (phrase.only === null || offeredOutOfReach(phrase, spans, fills, words, offered)) {
+          notHere = true;
+        }
         continue;
       }
       // One role runs once for each of several things, never two.
