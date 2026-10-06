@@ -99,13 +99,15 @@ export interface Participant {
 export interface PermitRefusal {
   /**
    * The participant whose `permit` refused, and the role it played; where
-   * the engine refused, whoever says its line, and the carried role.
+   * the engine refused, whoever says its line, and the carried role, or,
+   * for an offer greyed by its move (`sure-move.ts`), the role of the
+   * participant whose `do` proposes it.
    */
   readonly by: InstanceId;
   readonly role: string;
   /**
    * The kind that wrote the `permit`, by qualified name; null where the
-   * engine refused, a carried role holding what the actor does not carry.
+   * engine refused.
    */
   readonly origin: string | null;
   /** The passage named, as it applies on the refusing participant's kind, or the words quoted. */
@@ -564,7 +566,7 @@ function hearersOf(
  * wildcard plays for the role's category first, then its plays for the
  * verb, each in composition order (the spec's The two passes).
  */
-function playsFor(
+export function playsFor(
   reading: Reading,
   participant: Participant,
   self: Instance,
@@ -581,7 +583,7 @@ function playsFor(
  * and each other role as this play sees it (the spec's Playing a role).
  * It draws nothing: a `do` is given the turn's draws where it runs.
  */
-function frameFor(
+export function frameFor(
   reading: Reading,
   participant: Participant,
   play: ResolvedPlay,

@@ -1,0 +1,12 @@
+{
+  "about": "What Marta is offered leaves out the place she stands in wherever only she plays the role and her own part moves it (the spec's The runtime › The view): `help` lists `examine west of house` but no `take west of house`; typed, `take west of house` is still refused by the move, in the world's `inside_itself`.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "help", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can type: look, examine west of house, examine white house, inventory, wait, help, take white house." }
+    ] },
+    { "as": "Marta", "type": "take west of house", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "A west of house cannot go inside itself." }
+    ] }
+  ]
+}
