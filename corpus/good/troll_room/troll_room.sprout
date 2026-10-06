@@ -1,0 +1,50 @@
+// An NPC's own voice, and a way an NPC guards. The troll's blow is
+// narrated by the troll: his own part of `attack` tells the one it is
+// aimed at with `tell target`, since that role is bound to a person
+// (the spec's Verbs › The actor's own part). `attack` is aimed only at
+// actors, so the troll's handler reads `who` as one before acting on
+// it. The troll does not block the west passage himself: the room does,
+// with a refusing exit whose `when` reads whether he is awake (Movement
+// and consent › A way an NPC guards).
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Troll} from 'troll'
+import {Weapon} from 'weapon'
+
+world troll_room is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is sprout.Place {
+    grammar { exit north "up to the troll room" -> lair }
+    describe { text "A dark and damp cellar. A passage leads north." }
+    object sword is Weapon
+  }
+
+  object lair is sprout.Place {
+    grammar {
+      name "troll room"
+      exit south "down to the cellar" -> cellar
+      exit west  "west" refuse "The troll fends you off with a menacing gesture." when (troll.get(:awake))
+      exit west  "into the maze" -> maze
+    }
+    describe {
+      text "A small room with passages to the west and south. Deep scratches mar the walls."
+      if (troll.get(:awake)) { text "A nasty-looking troll, brandishing a bloody axe, blocks the way west." }
+      else { text "An unconscious troll is sprawled on the floor." }
+    }
+    object troll is Troll {
+      object axe is Weapon { grammar { name "bloody axe" } }
+      on :arrived (who, from) {
+        if (self.get(:awake) && who.is(sprout.Actor)) { act attack (target: who, weapon: axe) }
+      }
+    }
+  }
+
+  object maze is sprout.Place {
+    grammar { exit east "back to the troll room" -> lair }
+    describe { text "A maze of twisty little passages, all alike." }
+  }
+}
+
+verb attack { role target: sprout.Actor  role weapon  "attack [target] with [weapon]"  "hit [target] with [weapon]" }

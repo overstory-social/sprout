@@ -1098,6 +1098,26 @@ kind Actor {
 }
 ```
 
+The actor's own part tells the one its act is aimed at with `tell` and
+the role's name. A plain `tell` leaves out everyone taking part, so this
+is the line the target reads, in the second person:
+
+```sprout
+kind Troll is sprout.Actor {
+  as actor for attack {
+    do {
+      tell target "The troll swings {weapon} at you. It whistles past your ear."
+      tell "The troll swings {weapon} at {target}."
+    }
+  }
+}
+```
+
+This works the same whether a visitor typed the verb or a character
+performed it with `act`. `tell target` needs no `is()` first, whatever the
+role is filled by; if the target is not a person (a character, or a
+thing), nobody reads it.
+
 ### How a command runs
 
 A command the parser understands becomes a **reading**: a verb, an actor,
@@ -1266,6 +1286,23 @@ is in. `act go` is not allowed: characters move with `move` (see below).
 A character has nobody behind it, so its `say` lines are heard by the
 people around as the character speaking, and if it says nothing, nothing
 is shown. Otherwise every rule that governs a visitor governs a character.
+Its own part speaks to whoever its act is aimed at with `tell target`, as
+under The actor's own part.
+
+Where a verb's role is filled by a kind, the binding given to `act` must
+be that kind first, so a character acting on whoever arrives reads them
+with `is()`:
+
+```sprout
+verb attack { role target: sprout.Actor  role weapon }
+
+object troll is Troll {
+  object axe is Weapon
+  on :arrived (who, from) {
+    if (who.is(sprout.Actor)) { act attack (target: who, weapon: axe) }
+  }
+}
+```
 
 ### Engine verbs
 
@@ -1446,6 +1483,27 @@ shows the one who moved the new place's description. They read it before
 anything the handlers of those messages say, so a place's `:entered` that
 tells the newcomer "Your sword is glowing." is read after the place.
 
+### A way a character guards
+
+Only the thing moving and the two containers are asked about a move. A
+character standing in the room has no say, even one that is an actor.
+Blocking a way is the place's to do: the place's exit reads the
+character's state with a `when` guard, and a refusing exit says why.
+
+```sprout
+object troll_room is sprout.Place {
+  grammar {
+    exit west "west" refuse "The troll fends you off with a menacing gesture." when (troll.get(:awake))
+    exit west "into the maze" -> maze
+  }
+  object troll is Troll
+}
+```
+
+While the troll is awake, `west` reads his gesture and nothing moves; once
+he is knocked out, `west` leads into the maze. See Exits and Conditional
+exits.
+
 ### Characters moving
 
 A character changes place with `move self to <place>`. It can only reach a
@@ -1624,6 +1682,10 @@ as target for tag {
   }
 }
 ```
+
+In the actor's own part it is the other way round: the target is told
+with `tell target` (see The actor's own part), which is how a character's
+act reaches the person it is aimed at.
 
 A thing inside a shut chest is heard by nothing outside it. `tell x` to
 someone out of range, or to a character, goes nowhere.
