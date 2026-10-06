@@ -30,7 +30,7 @@ import {
   type NounFound,
   type PronounNamed,
 } from './nouns.js';
-import { itemsOfRun, type RunItem } from './runs.js';
+import { holdsAll, itemsOfRun, type RunItem } from './runs.js';
 
 /** One way a slot's words fill its role: what it binds, how near, and how many words it matched literally. */
 export interface FillOption {
@@ -117,6 +117,8 @@ export function fillSlot(
       (candidates) => nounIn(typed, role, candidates, context),
       context,
     );
+  // `all` is no thing of a run, before it or after it.
+  if (holdsAll(words)) return { fills: 'unfit', things: [] };
   const items = itemsOfRun(words, role, context.candidates, context);
   if (items === null) return one(words);
   const [first, ...rest] = items as [RunItem, ...RunItem[]];

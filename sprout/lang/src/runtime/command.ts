@@ -28,6 +28,7 @@ import { owedAfter, owedBy } from './move.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject } from './evaluate.js';
 import { planIntent, type IntentReading } from './intents.js';
+import { plannedOf } from './parser/planned.js';
 import type { Catalogue } from './catalogue.js';
 import type { Effect, Unrendered } from './effects.js';
 import { faultTold, stockFaultEffect } from './faults.js';
@@ -72,7 +73,11 @@ export interface ParseContext {
    * reading the line planned, every role but the item's filled as the
    * line began, and the role the words fill.
    */
-  readonly item?: { readonly within: Reading; readonly role: string };
+  readonly item?: {
+    readonly within: Reading;
+    readonly role: string;
+    readonly values: Reread['values'];
+  };
 }
 
 /**
@@ -88,12 +93,18 @@ export type Following =
 /**
  * An item of a run that is read on its own turn (the spec's Parsing ›
  * Sequences, again and all): the role it fills and its words. The
- * reading it is planned with holds every other role as the line bound
- * it, so only these words are read afresh.
+ * reading it is planned with holds every other thing the line bound, so
+ * only these words are read afresh, as the line was: with the words of
+ * each value role, which bind against the thing this item names, and
+ * what the actor's pronouns named when the line began.
  */
 export interface Reread {
   readonly role: string;
   readonly words: string;
+  /** Each value role's words, as the line typed them. */
+  readonly values: readonly { readonly role: string; readonly words: string }[];
+  /** What the actor's pronouns named when the line began. */
+  readonly referents: readonly InstanceId[];
 }
 
 /** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
@@ -224,7 +235,16 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       const item = planned !== undefined && reread !== undefined;
       const parsed: Parsed =
         planned !== undefined && !item
-          ? { reading: planned, rest: [], drawn: null, corrected: [] }
+          ? plannedOf(planned, actor, {
+              state: draft,
+              catalogue,
+              passes,
+              budget,
+              draws,
+              nicknames,
+              referents: [],
+              lastReading: null,
+            })
           : host.parse(item ? reread.words : command.text, actor, {
               state: draft,
               catalogue,
@@ -232,9 +252,11 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
               budget,
               draws,
               nicknames,
-              referents: committed.visitor(command.visit)!.referents,
+              referents: item ? reread.referents : committed.visitor(command.visit)!.referents,
               lastReading: committed.visitor(command.visit)!.lastReading,
-              ...(item ? { item: { within: planned, role: reread.role } } : {}),
+              ...(item
+                ? { item: { within: planned, role: reread.role, values: reread.values } }
+                : {}),
             });
       if ('answered' in parsed) {
         if (!parsed.answered.to.includes(actor)) {

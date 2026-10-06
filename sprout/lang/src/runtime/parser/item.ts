@@ -4,7 +4,10 @@
 // as the line began, and only the item's words are read afresh, against
 // the world as this turn finds it. So a pronoun in another role still
 // names what it named when the line was typed, and the item's own answer,
-// draw and `meant` belong to its own turn. It is answered as any line's
+// draw and `meant` belong to its own turn. A value role's words bind
+// against what the item names, and its pronouns name what they named when
+// the line began. What the line bound must still be in reach, or the turn
+// is `not_here`, as a planned turn's is. It is answered as any line's
 // noun is: `not_here` where it names nothing, `not_carrying` where a
 // carried role names only what the actor does not carry, and `cannot`
 // where what it names cannot fill the role, written through a phrase of
@@ -17,18 +20,26 @@ import { consentPass, type Bound, type Reading } from '../reading.js';
 import type { CommandContext, CommandOutcome } from '../parser.js';
 import { addressOf, type Address } from './address.js';
 import { answer } from './answers.js';
-import { fillSlot } from './fill.js';
+import { fillSlot, valueOf } from './fill.js';
+import type { ParseContext } from '../command.js';
+
+/** The item a turn reads: the reading the line planned, the role its words fill, and each value role's words. */
+type ItemOf = NonNullable<ParseContext['item']>;
 import { writtenAs } from './nouns.js';
 import { boundWords } from './partial.js';
 import { chooseReading, type Ranked } from './rank.js';
+import { inReach } from './planned.js';
 import { reachOf } from './reach.js';
 
-/** `words`, typed by `actor`, as the item filling `role` of `within`, or the world's answer to them. */
+/**
+ * `words`, typed by `actor`, as the item filling `role` of `within`, each
+ * value role bound from its words against what the item names; or the
+ * world's answer to them.
+ */
 export function readItem(
   words: string,
   actor: InstanceId,
-  within: Reading,
-  role: string,
+  { within, role, values }: ItemOf,
   context: CommandContext,
 ): CommandOutcome {
   const { state, budget } = context;
@@ -39,13 +50,21 @@ export function readItem(
   const addressing = { world: state.world, nicknames: context.nicknames };
   const address = (id: InstanceId): Address => addressOf(state.instance(id)!, addressing);
   const candidates = reachOf(actor, context);
+  // What the line bound must still be in reach, as a planned turn's must.
+  if (!inReach(within, candidates, context.exits)) return answer(state, 'not_here', actor, here);
   const fill = { candidates, exits: context.exits, budget, referents: context.referents };
   const filled = fillSlot(filling, typed, fill);
-  const filledWith = (bound: Bound): Reading => ({
-    verb: within.verb,
-    actor,
-    bindings: new Map([...within.bindings, [role, bound]]),
-  });
+  const filledWith = (bound: Bound): Reading => {
+    const bindings = new Map([...within.bindings, [role, bound]]);
+    const things: Reading = { verb: within.verb, actor, bindings: new Map(bindings) };
+    for (const value of values) {
+      const valued = within.verb.roles.find((one) => one.name === value.role);
+      if (valued === undefined) continue;
+      const bound = valueOf(valued, typedWords(value.words), things, state);
+      if (bound !== null) bindings.set(value.role, { value: bound });
+    }
+    return { verb: within.verb, actor, bindings };
+  };
   if (filled.fills === 'options') {
     const ranked = filled.options.map((option): Ranked => {
       budget.spend();

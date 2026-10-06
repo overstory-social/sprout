@@ -102,6 +102,20 @@
       { "reader": "Marta", "kind": "notice", "words": "(a brass key)" },
       { "reader": "Marta", "kind": "said", "words": "You put a brass key in the box." },
       { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
+    ] },
+    { "as": "Marta", "type": "ask owl and guard about toll", "expect": [
+      { "level": "info", "text": "step: sprout.ask" },
+      { "reader": "Marta", "kind": "said", "words": "The owl blinks." },
+      { "level": "info", "text": "step: sprout.ask" },
+      { "reader": "Marta", "kind": "notice", "words": "(a short guard)" },
+      { "reader": "Marta", "kind": "said", "words": "A short guard tells you about the toll." },
+      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
+    ] },
+    { "as": "Marta", "type": "take lamp and all", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "take all and lamp", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
     ] }
   ]
 }

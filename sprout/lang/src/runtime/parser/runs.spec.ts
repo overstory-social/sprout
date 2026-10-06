@@ -10,7 +10,7 @@ import { Budget } from '../budget.js';
 import { declaredId, type InstanceId } from '../ids.js';
 import { readCommand, type CommandOutcome } from '../parser.js';
 import { addressOf } from './address.js';
-import { itemsOfRun } from './runs.js';
+import { holdsAll, itemsOfRun } from './runs.js';
 
 const PANTRY = compiledWorld('pantry', {
   'pantry.sprout': [
@@ -120,6 +120,22 @@ describe('the items of a run', () => {
     expect(items('salt, pepper, lamp and box')).toHaveLength(4);
   });
 
+  it('hold `all` as no thing, before or after the others', () => {
+    expect(holdsAll(typedWords('lamp and all'))).toBe(true);
+    expect(holdsAll(typedWords('all, lamp'))).toBe(true);
+    expect(holdsAll(typedWords('all'))).toBe(false);
+    expect(holdsAll(typedWords('lamp and ball'))).toBe(false);
+  });
+
+  it('try no stretch wider than a name in reach holds connectors', () => {
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const plain = candidates.filter(({ instance }) => instance.id !== SHAKER);
+    const words = typedWords(Array.from({ length: 40 }, () => 'salt').join(' and '));
+    expect(itemsOfRun(words, take, plain, { ...context, budget })).toHaveLength(8);
+    const withoutShaker = budget.spentSteps;
+    expect(withoutShaker).toBeLessThan(40 * plain.length * 2);
+  });
+
   it('are none for one noun, an empty noun, a set role or a value role', () => {
     expect(items('lamp')).toBeUndefined();
     expect(items('lamp and')).toBeUndefined();
@@ -158,14 +174,24 @@ describe('a run in a role that takes one thing', () => {
     // The item's turn reads its words alone: every other role is planned as the line bound it.
     const outcome = read('put salt and key in it', 7, [BOX]);
     const later = 'understood' in outcome ? outcome.rest[0] : undefined;
+    // With what `it` named when the line began, for the item's turn to read its words by.
     expect(later !== undefined && 'planned' in later && later.reread).toEqual({
       role: 'item',
       words: 'key',
+      values: [],
+      referents: [BOX],
     });
     expect(later !== undefined && 'planned' in later && [...later.planned.bindings]).toEqual([
       ['container', { object: BOX }],
     ]);
     expect(turns(read('take lamp and brass key'), 'target')).toEqual([LAMP, BRASS_KEY]);
+  });
+
+  it('is not understood where `all` is one of its things, before the others or after', () => {
+    for (const line of ['take lamp and all', 'take all and lamp']) {
+      const outcome = read(line);
+      expect('answer' in outcome && outcome.answer, line).toBe('unknown');
+    }
   });
 
   it('is `not_here` where its first item names nothing', () => {

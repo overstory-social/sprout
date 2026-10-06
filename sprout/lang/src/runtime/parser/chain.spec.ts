@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { typedWords } from '../../declare/addressing.js';
 import { study } from '../../fixtures/parser.js';
-import { beginsCommand, chainPoints, commandAfter, commandBefore } from './chain.js';
+import { beginsCommand, chainPoints, commandAfter, commandBefore, stretchAfter } from './chain.js';
 
 const { catalogue } = study();
 const points = (line: string) => chainPoints(typedWords(line), catalogue);
@@ -43,5 +43,11 @@ describe('where `and` may join two commands', () => {
     expect(commandBefore(words, 3)).toEqual(['take', 'lamp']);
     expect(commandAfter(words, 3)).toBe('take gong');
     expect(commandBefore(typedWords('take lamp and look'), 2)).toEqual(['take', 'lamp']);
+  });
+
+  it('reads a name that would begin after it up to the next `and` or comma', () => {
+    const words = typedWords('take lamp and light bulb, and take gong');
+    expect(stretchAfter(words, 2)).toEqual(['light', 'bulb']);
+    expect(stretchAfter(typedWords('take lamp and look'), 2)).toEqual(['look']);
   });
 });

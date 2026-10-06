@@ -1265,7 +1265,7 @@ Each visitor has their own pronouns, set by their own last command: `it` and `th
 
 ### Sequences, again and all
 
-`take key then open cabinet`, `take key. open cabinet` and `take key and open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. `and` joins two commands only where a verb follows it and no reading takes the line whole, every thing it names named and every value it types heard; the first command is then the longest a reading takes whole, and what follows is read on its own turn. The first answered by a refusal, an exit's refusal, `cannot`, `not_carrying`, `no_way`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
+`take key then open cabinet`, `take key. open cabinet` and `take key and open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. `and` joins two commands only where a verb follows it and no reading takes the line whole, every thing it names named and every value it types heard; the line then splits at the first such `and` whose words after it name nothing in reach, and what follows is read on its own turn. The first answered by a refusal, an exit's refusal, `cannot`, `not_carrying`, `no_way`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
 
 `again`, or `g`, runs the visitor's last reading again: the same verb and the same things, not the same words, so a line whose nouns would now mean something else still means what it meant. Its consent pass is asked afresh, and a thing no longer in reach is answered with `not_here`.
 

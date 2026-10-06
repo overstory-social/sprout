@@ -90,7 +90,12 @@ describe('a command in the log', () => {
     const actor = before.visitors.get(MARTA)!.instance;
     const bump = host.catalogue.verbs.qualified('tally', 'bump')!;
     const planned = { verb: bump, actor, bindings: new Map([['times', { value: 3 }]]) };
-    const reread = { role: 'target', words: 'gauge' };
+    const reread = {
+      role: 'target',
+      words: 'gauge',
+      values: [{ role: 'times', words: 'three' }],
+      referents: [GAUGE],
+    };
     const typed = { ...command('bump counter and gauge', 9), seed: 3, planned, reread };
     // What the turn did is not what is asked here, only what the log keeps of the command.
     const ran = commandTurn(before, host, command('bump counter'));

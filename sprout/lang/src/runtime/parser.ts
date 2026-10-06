@@ -68,7 +68,9 @@ import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nou
 import { allIn, type AllContext } from './parser/all.js';
 import { reachOf } from './parser/reach.js';
 import { readItem } from './parser/item.js';
-import { chainPoints, commandAfter, commandBefore } from './parser/chain.js';
+import { inReach } from './parser/planned.js';
+import { chainPoints, commandAfter, commandBefore, stretchAfter } from './parser/chain.js';
+import { namesOutright } from './parser/runs.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
@@ -145,30 +147,24 @@ export function readCommand(
       pronounNamed: chosen.pronounNamed,
     };
   };
-  // Where `and` may join two commands, the line is one command only where
-  // a reading reads all of it; otherwise its longest first command that a
-  // reading reads all of is, and what follows is read on a turn of its own.
+  // Where `and` may join two commands, the line is one command where a
+  // reading reads all of it; otherwise it splits at the first such `and`
+  // whose words after it, up to the next `and` or comma, name nothing
+  // outright, so a name that begins with a verb stays whole, and what
+  // follows is read on a turn of its own. A turn reads its line at most
+  // twice, so a long chain costs each turn no more than its own line.
   const points = chainPoints(words, catalogue);
-  const reads = new Map<number, Read>();
-  const readTo = (at: number): Read => {
-    let read = reads.get(at);
-    if (read === undefined) {
-      read = readingsOf(at === words.length ? words : commandBefore(words, at), reader);
-      reads.set(at, read);
-    }
-    return read;
-  };
-  const after = (at: number): Following[] =>
-    at === words.length ? [] : [{ text: commandAfter(words, at) }];
-  if (points.length > 0) {
-    for (const at of [words.length, ...[...points].reverse()]) {
-      const whole = readTo(at).readings.filter((one) => one.whole);
-      if (whole.length > 0) return understood(whole, after(at));
-    }
-  }
-  const at = points[0] ?? words.length;
-  const { readings, answered } = readTo(at);
-  return readings.length === 0 ? answered() : understood(readings, after(at));
+  const whole = readingsOf(words, reader);
+  const answering = (read: Read, after: readonly Following[]) =>
+    read.readings.length === 0 ? read.answered() : understood(read.readings, after);
+  if (points.length === 0) return answering(whole, []);
+  const reads = whole.readings.filter((one) => one.whole);
+  if (reads.length > 0) return understood(reads, []);
+  const at = points.find((point) => !namesOutright(stretchAfter(words, point), candidates, fill));
+  if (at === undefined) return answering(whole, []);
+  return answering(readingsOf(commandBefore(words, at), reader), [
+    { text: commandAfter(words, at) },
+  ]);
 }
 
 /** What reading a line's words needs besides them: who typed it, where, what they can name, and the turn. */
@@ -365,13 +361,23 @@ function laterOf(
   const span = spans[at]!;
   const role = phrase.verb.roles[span.role]!.name;
   const slot = words.slice(span.start, span.end);
+  // Every thing but the item's, and each value role's words, which bind against the item's thing.
+  const values = spans.flatMap((one, other) => {
+    const typed = choice[other]!.words;
+    return typed === undefined
+      ? []
+      : [{ role: phrase.verb.roles[one.role]!.name, words: typed.join(' ') }];
+  });
   const first = readingOf(phrase, actor, spans, choice, context);
+  const kept = new Set([role, ...values.map((one) => one.role)]);
   const within: Reading = {
     ...first,
-    bindings: new Map([...first.bindings].filter(([name]) => name !== role)),
+    bindings: new Map([...first.bindings].filter(([name]) => !kept.has(name))),
   };
+  const { referents } = context;
   return run.later.map((item): Following => {
-    const reread = { role, words: slot.slice(item.start, item.end).join(' ') };
+    const words = slot.slice(item.start, item.end).join(' ');
+    const reread = { role, words, values, referents };
     if (item.filled.fills !== 'options') return { planned: within, reread };
     const ranked = item.filled.options.map((option): Ranked => {
       context.budget.spend();
@@ -419,20 +425,9 @@ function again(
   if (last === null || !stillFits(last, context.state)) {
     return answer(context.state, 'unknown', actor, here);
   }
-  const reached = new Set(candidates.map((one) => one.instance.id));
-  const inReach = [...last.bindings.values()].every((bound) => {
-    if ('object' in bound) return reached.has(bound.object);
-    if ('set' in bound) return bound.set.every((id) => reached.has(id));
-    if ('exit' in bound) {
-      const { direction, label, to } = bound.exit;
-      return context.exits.some(
-        (exit) =>
-          'to' in exit && exit.to === to && exit.label === label && exit.direction === direction,
-      );
-    }
-    return true;
-  });
-  if (!inReach) return answer(context.state, 'not_here', actor, here);
+  if (!inReach(last, candidates, context.exits)) {
+    return answer(context.state, 'not_here', actor, here);
+  }
   return { understood: { ...last, actor }, rest: [], drawn: null, pronounNamed: [] };
 }
 
@@ -647,7 +642,7 @@ export const parseCommand: Parser = (text, actor, context) => {
   const outcome =
     item === undefined
       ? readCommand(text, actor, { ...context, exits })
-      : readItem(text, actor, item.within, item.role, { ...context, exits });
+      : readItem(text, actor, item, { ...context, exits });
   if ('understood' in outcome) {
     const { understood, drawn } = outcome;
     const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);

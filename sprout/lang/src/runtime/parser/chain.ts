@@ -6,6 +6,7 @@
 // is only a place the line may split; whether it does is the parser's,
 // which prefers the reading that names things (`parser.ts`).
 
+import { CONNECTORS } from '../../declare/addressing.js';
 import { directionOf } from '../../declare/directions.js';
 import type { TypedIntentPhrase, TypedPhrase } from './phrases.js';
 
@@ -63,4 +64,11 @@ export function commandBefore(words: readonly string[], at: number): readonly st
 /** The command after the `and` at `at`, as a line the parser reads on its own turn. */
 export function commandAfter(words: readonly string[], at: number): string {
   return words.slice(at + 1).join(' ');
+}
+
+/** The words after the `and` at `at`, up to the next `and` or comma: what a name beginning there would be. */
+export function stretchAfter(words: readonly string[], at: number): readonly string[] {
+  const rest = words.slice(at + 1);
+  const end = rest.findIndex((word) => CONNECTORS.includes(word));
+  return end < 0 ? rest : rest.slice(0, end);
 }

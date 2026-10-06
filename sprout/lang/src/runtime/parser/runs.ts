@@ -5,11 +5,14 @@
 // the order written. A name that holds a connector is still read whole:
 // a stretch of the run is one item where it names something by a noun or
 // its whole name, the longest such stretch first, so `the salt and pepper
-// shaker and the lamp` is two items where the shaker is in reach. As
-// `all` does, a run takes at most as many items as a set role may bind,
-// the host's figure, and the items past it are not read. Every stretch
-// tried is a noun tried, and each is charged as one.
+// shaker and the lamp` is two items where the shaker is in reach. A
+// stretch holds no more connectors than some name in reach does, so a
+// run costs no more than its length times that. As `all` does, a run
+// takes at most as many items as a set role may bind, the host's figure,
+// and the items past it are not read. Every stretch tried is a noun
+// tried, and each is charged as one.
 
+import { CONNECTORS } from '../../declare/addressing.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
 import { nounsOfRun, thingsIn, type Candidate, type NounContext } from './nouns.js';
 
@@ -35,10 +38,11 @@ export function itemsOfRun(
   if (fills !== 'open' && fills !== 'kind') return null;
   const nouns = nounsOfRun(words);
   if (nouns.length < 2 || nouns.some(({ start, end }) => start === end)) return null;
+  const widest = connectorsIn(candidates, context);
   const items: RunItem[] = [];
   for (let at = 0; at < nouns.length;) {
     let to = at;
-    for (let last = nouns.length - 1; last > at; last--) {
+    for (let last = Math.min(nouns.length - 1, at + widest); last > at; last--) {
       if (namesOutright(words.slice(nouns[at]!.start, nouns[last]!.end), candidates, context)) {
         to = last;
         break;
@@ -51,8 +55,30 @@ export function itemsOfRun(
   return items.length < 2 ? null : items.slice(0, context.budget.limits.setRoleObjects);
 }
 
+/**
+ * The most connectors a name in reach may hold: those in its longest
+ * noun, and one more where its adjectives hold one. Each thing is a step.
+ */
+function connectorsIn(candidates: readonly Candidate[], context: NounContext): number {
+  let most = 0;
+  for (const { address } of candidates) {
+    context.budget.spend();
+    const count = (words: readonly string[]) =>
+      words.filter((word) => CONNECTORS.includes(word)).length;
+    const nouns = Math.max(0, ...address.nouns.map(count));
+    most = Math.max(most, nouns + (count(address.adjectives) > 0 ? 1 : 0));
+  }
+  return most;
+}
+
+/** Whether a noun of the run `words` is `all`, which a run of things does not hold. */
+export function holdsAll(words: readonly string[]): boolean {
+  const nouns = nounsOfRun(words);
+  return nouns.length > 1 && nouns.some(({ start }) => words[start] === 'all');
+}
+
 /** Whether `words` name something in reach by a noun or its whole name, not adjectives alone. */
-function namesOutright(
+export function namesOutright(
   words: readonly string[],
   candidates: readonly Candidate[],
   context: NounContext,

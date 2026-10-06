@@ -16,9 +16,21 @@ const SHELF = compiledWorld('shelf', {
     '    object brass_key is sprout.Fixture',
     '    object iron_key is sprout.Fixture',
     '    object box is sprout.Container',
+    '    object guard is Guard',
+    '    object owl is Owl',
     '  }',
     '}',
     'verb wave { role thing carried  "wave [thing]" }',
+    'enum Topic { bridge, toll }',
+    'enum Lore { stars, moons }',
+    'kind Guard {',
+    '  :knows [Topic] default [bridge, toll]',
+    '  as target for ask { topic from :knows  do { say "The guard nods." } }',
+    '}',
+    'kind Owl {',
+    '  :knows [Lore] default [stars]',
+    '  as target for ask { topic from :knows  do { say "The owl blinks." } }',
+    '}',
   ].join('\n'),
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
 });
@@ -42,6 +54,7 @@ function item(
   bound: [string, InstanceId][],
   seed = 7,
   referents: readonly InstanceId[] = [],
+  values: readonly { role: string; words: string }[] = [],
 ): CommandOutcome {
   const one = shelf();
   const actor = one.people[0]!;
@@ -50,7 +63,7 @@ function item(
     actor,
     bindings: new Map(bound.map(([name, id]) => [name, { object: id }])),
   };
-  return readItem(words, actor, within, role, commandContext(one, [], seed, referents));
+  return readItem(words, actor, { within, role, values }, commandContext(one, [], seed, referents));
 }
 
 const answerOf = (outcome: CommandOutcome) => ('answer' in outcome ? outcome.answer : null);
@@ -66,6 +79,32 @@ describe('an item of a run read on its own turn', () => {
     ]);
     expect(outcome.rest).toEqual([]);
     expect(outcome.drawn).toBeNull();
+  });
+
+  it('binds a value role from its words against the thing the item names', () => {
+    const toll = [{ role: 'topic', words: 'toll' }];
+    const guard = item('guard', ['sprout', 'ask'], 'target', [], 7, [], toll);
+    expect('understood' in guard && guard.understood.bindings.get('topic')).toEqual({
+      value: 'toll',
+    });
+    // The owl hears no `toll`, so the topic is unbound for it.
+    const owl = item('owl', ['sprout', 'ask'], 'target', [], 7, [], toll);
+    expect('understood' in owl && owl.understood.bindings.has('topic')).toBe(false);
+  });
+
+  it('reads a pronoun in its words as the line began, and answers `not_here` for what the line bound gone from reach', () => {
+    const it_ = item('it', ['sprout', 'take'], 'target', [], 7, [COIN]);
+    expect('understood' in it_ && it_.understood.bindings.get('target')).toEqual({ object: COIN });
+    const one = shelf();
+    one.draft.remove(BOX);
+    const actor = one.people[0]!;
+    const within: Reading = {
+      verb: SHELF.verbs.qualified('sprout', 'put')!,
+      actor,
+      bindings: new Map([['container', { object: BOX }]]),
+    };
+    const gone = readItem('coin', actor, { within, role: 'item', values: [] }, commandContext(one));
+    expect(answerOf(gone)).toBe('not_here');
   });
 
   it('draws among things that tie, as a line does, and says which was meant', () => {

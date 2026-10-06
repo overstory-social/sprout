@@ -64,9 +64,18 @@ export const CommandEntry = TurnInputs.extend({
   text: z.string(),
   /** The step an earlier turn of the line planned, run in place of reading `text`; null for a line read. */
   planned: LoggedReading.nullable(),
-  /** The item of a run whose words the turn read afresh, the role it fills and the words; null for every other. */
+  /**
+   * The item of a run whose words the turn read afresh: the role it fills,
+   * its words, each value role's words, and what the actor's pronouns
+   * named when the line began; null for every other.
+   */
   reread: z
-    .object({ role: z.string().min(1), words: z.string() })
+    .object({
+      role: z.string().min(1),
+      words: z.string(),
+      values: z.array(z.object({ role: z.string().min(1), words: z.string() })),
+      referents: z.array(z.string().min(1)),
+    })
     .nullable()
     .default(null),
   /** Null where the turn committed. */
@@ -88,7 +97,14 @@ export function commandEntry(command: Command, host: TurnHost, turn: CommandTurn
     visit: command.visit,
     text: command.text,
     planned: command.planned === undefined ? null : loggedReading(command.planned),
-    reread: command.reread ?? null,
+    reread:
+      command.reread === undefined
+        ? null
+        : {
+            ...command.reread,
+            values: command.reread.values.map((one) => ({ ...one })),
+            referents: [...command.reread.referents],
+          },
     fault: turn.committed ? null : loggedFault(turn.fault),
     effects: loggedEffects(turn.effects),
     drawn: drawnOf(turn),
@@ -129,7 +145,15 @@ function loggedReading(reading: Reading): LoggedReading {
 export function commandOf(entry: CommandEntry, catalogue: Catalogue): Command {
   const command = { ...writeInputsOf(entry), visit: visitKey(entry.visit), text: entry.text };
   if (entry.planned === null) return command;
-  const reread = entry.reread === null ? {} : { reread: entry.reread };
+  const reread =
+    entry.reread === null
+      ? {}
+      : {
+          reread: {
+            ...entry.reread,
+            referents: entry.reread.referents.map((id) => storedId(catalogue.world, id)),
+          },
+        };
   const { verb: named, actor, bindings } = entry.planned;
   const verb = catalogue.verbs.qualified(named.library, named.name);
   if (verb === null) throw new Error(`\`${named.library}.${named.name}\` is not declared here.`);
