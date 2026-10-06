@@ -1,15 +1,28 @@
 {
-  "about": "A passage in a slot is trimmed at its ends: the leaflet's padded `short` reads \"a leaflet.\" with no space before the full stop, and its two-paragraph `back`, blank lines at both ends, breaks the line it is put in once, between its paragraphs, and nowhere else. `back` said on its own reads as it always has.",
+  "about": "A passage in a slot loses the padding inside its braces: the leaflet's padded `short` reads \"a leaflet.\" with no space before the full stop. Where it renders words, a blank line or `\\n\\n` it opens or closes with is a paragraph break: its two-paragraph `back`, blank lines at both ends, breaks the line it is put in before, between and after its paragraphs, and the hall's `tail` is a paragraph of its own. Where it renders nothing it leaves nothing: once the egg is taken, the nest's `inside_lines` leaves no blank paragraph. `back` said on its own reads as it always has.",
   "steps": [
     { "arrive": "Marta", "expect": [
-      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+      { "reader": "Marta", "kind": "described", "words": "A first paragraph." },
+      { "reader": "Marta", "kind": "described", "words": "A second paragraph." },
+      { "reader": "Marta", "kind": "described", "words": "The hall is quiet." },
+      { "reader": "Marta", "kind": "described", "words": "In the bird's nest is an egg." }
     ] },
     { "as": "Marta", "type": "study leaflet", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You see a leaflet." },
-      { "reader": "Marta", "kind": "said", "words": "Turning it over: It is printed on both sides." },
-      { "reader": "Marta", "kind": "said", "words": "The back is blank. Nothing more." },
+      { "reader": "Marta", "kind": "said", "words": "Turning it over:" },
+      { "reader": "Marta", "kind": "said", "words": "It is printed on both sides." },
+      { "reader": "Marta", "kind": "said", "words": "The back is blank." },
+      { "reader": "Marta", "kind": "said", "words": "Nothing more." },
       { "reader": "Marta", "kind": "said", "words": "It is printed on both sides." },
       { "reader": "Marta", "kind": "said", "words": "The back is blank." }
+    ] },
+    { "as": "Marta", "type": "take egg", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take an egg." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A first paragraph." },
+      { "reader": "Marta", "kind": "described", "words": "A second paragraph." },
+      { "reader": "Marta", "kind": "described", "words": "The hall is quiet." }
     ] }
   ]
 }

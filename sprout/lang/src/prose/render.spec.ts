@@ -66,17 +66,32 @@ describe('a slot renders what it reads', () => {
 });
 
 describe('a passage a slot renders', () => {
-  it('is trimmed at its ends, so the padding inside its braces is not left before a full stop', () => {
+  it('loses the padding inside its braces, so none is left before a full stop', () => {
     const turn = proseTurn();
     expect(rendered(turn, ECHO, 'heard', turn.marta)).toEqual(['You hear an echo.']);
   });
 
-  it('drops the blank lines it opens and closes with, and keeps the paragraph break inside it', () => {
+  it('keeps the blank lines it opens and closes with as paragraph breaks, and the one inside it', () => {
     const turn = proseTurn();
     expect(rendered(turn, ECHO, 'faded', turn.marta)).toEqual([
-      'First it rings,',
-      'It fades, then quiet.',
+      'First',
+      'It rings,',
+      'It fades,',
+      'Then quiet.',
     ]);
+  });
+
+  it('breaks a paragraph at two `\\n` it opens with, and a line at one', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'carried', turn.marta)).toEqual(['It rings.', 'It carries.']);
+    expect(rendered(turn, ECHO, 'lined', turn.marta)).toEqual(['It rings.\nIt carries.']);
+  });
+
+  it('leaves nothing behind where it renders nothing, so a conditional paragraph leaves no blank one', () => {
+    const turn = proseTurn();
+    expect(rendered(turn, ECHO, 'room', turn.marta)).toEqual(['Quiet here.']);
+    setOn(turn, ECHO, { loud: true });
+    expect(rendered(turn, ECHO, 'room', turn.marta)).toEqual(['Quiet here.', 'It is loud.']);
   });
 
   it('leaves a passage rendered on its own as reflow lays it out', () => {
