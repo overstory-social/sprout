@@ -38,7 +38,7 @@ import type { Draw } from '../runtime/draws.js';
 import type { WrittenAt } from '../runtime/effects.js';
 import type { LineDraws } from './line-draws.js';
 import { objectWords, type Naming } from './names.js';
-import { trimmed, type Rendered } from './reflow.js';
+import { slotted, type Rendered } from './reflow.js';
 
 /** What rendering reads: the turn's state and names, the bundle, the turn's budget and its draws. */
 export interface RenderContext extends Naming {
@@ -188,9 +188,9 @@ function slot(
 /**
  * `{pot.greeting}`: the passage of that name as `pot`'s kind has it, with
  * `pot` its own `self` and `actor`, `here` and `seen` beside it where
- * they are bound, one passage deeper, trimmed at its ends. A passage its
- * kind lacks, being in a `.prose` file the world was loaded without,
- * renders nothing.
+ * they are bound, one passage deeper, laid in the line as `slotted` says.
+ * A passage its kind lacks, being in a `.prose` file the world was loaded
+ * without, renders nothing.
  */
 function passageOf(
   receiver: Expr,
@@ -220,12 +220,10 @@ function passageOf(
       rendered,
     );
   });
-  const words = trimmed(rendered);
+  const words = slotted(rendered);
   out.push(...words);
-  // Noted only where it gave its reader words to read.
-  if (words.some((one) => 'words' in one && one.words.trim() !== '')) {
-    noteWritten(context, passageWritten(passage));
-  }
+  // Noted only where it gave its reader words to read, which is wherever it left anything.
+  if (words.length > 0) noteWritten(context, passageWritten(passage));
 }
 
 /**
