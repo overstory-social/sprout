@@ -119,6 +119,13 @@ describe('`all` in a slot', () => {
     expect(all('all the keys', 'unlock', 'tool')).toEqual({ fills: 'unfit', things: [] });
   });
 
+  it('leaves out, of what `except` names, only what it is the whole name of where it is one', () => {
+    // The lamp oil answers to `lamp` as well, and is still taken.
+    const taken = ids(all('all except lamp', 'take', 'target', 'sprout', 20));
+    expect(taken).toContain(LAMP_OIL);
+    expect(taken).not.toContain(LAMP);
+  });
+
   it('takes, for a carried role, only what the actor carries', () => {
     const of = verb('unlock');
     const tool = { ...of.roles.find((one) => one.name === 'tool')!, carried: true };

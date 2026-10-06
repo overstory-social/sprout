@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { typedWords } from '../../declare/addressing.js';
+import { chooser } from '../../fixtures/parse.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
 import {
   BRASS_KEY,
@@ -10,6 +11,7 @@ import {
   GONG,
   IRON_KEY,
   LAMP,
+  LAMP_OIL,
   PEBBLE_A,
   PEBBLE_B,
   study,
@@ -62,38 +64,46 @@ describe('what a noun names', () => {
   it('is every thing that answers and fits, with how near it is and how many words it matched', () => {
     expect(noun('this gong')).toEqual({
       found: 'some',
-      things: [{ id: GONG, near: 3, literal: 1 }],
+      things: [{ id: GONG, near: 3, literal: 1, byName: false }],
     });
     expect(noun('brass key', TOOL)).toEqual({
       found: 'some',
-      things: [{ id: BRASS_KEY, near: 0, literal: 2 }],
+      things: [{ id: BRASS_KEY, near: 0, literal: 2, byName: true }],
     });
     // The parser ranks the readings they make; nothing is asked, and nothing is drawn here.
     expect(noun('key')).toEqual({
       found: 'some',
       things: [
-        { id: BRASS_KEY, near: 0, literal: 1 },
-        { id: IRON_KEY, near: 1, literal: 1 },
+        { id: BRASS_KEY, near: 0, literal: 1, byName: false },
+        { id: IRON_KEY, near: 1, literal: 1, byName: false },
       ],
     });
     const alike = [candidate(PEBBLE_A), candidate(PEBBLE_B, 1)];
     expect(nounIn(['pebble'], TAKE, alike, within)).toEqual({
       found: 'some',
       things: [
-        { id: PEBBLE_A, near: 2, literal: 1 },
-        { id: PEBBLE_B, near: 1, literal: 1 },
+        { id: PEBBLE_A, near: 2, literal: 1, byName: true },
+        { id: PEBBLE_B, near: 1, literal: 1, byName: true },
       ],
     });
   });
 
-  it('prefers what was named in full', () => {
-    expect(noun('lamp')).toEqual({ found: 'some', things: [{ id: LAMP, near: 2, literal: 1 }] });
+  it('drops nothing that answers, and marks what was named in full for the ranking', () => {
+    // Oil answers to `lamp` too; the lamp's whole name is `lamp`, which only the ranking weighs.
+    const both = [candidate(LAMP_OIL, 1), candidate(LAMP)];
+    expect(nounIn(['lamp'], TAKE, both, within)).toEqual({
+      found: 'some',
+      things: [
+        { id: LAMP_OIL, near: 1, literal: 1, byName: false },
+        { id: LAMP, near: 2, literal: 1, byName: true },
+      ],
+    });
   });
 
   it('is unfit where what answers cannot fill the role, and nothing where nothing answers', () => {
     expect(noun('gong', TOOL)).toEqual({
       found: 'unfit',
-      things: [{ id: GONG, near: 3, literal: 1 }],
+      things: [{ id: GONG, near: 3, literal: 1, byName: false }],
     });
     expect(noun('unicorn')).toEqual({ found: 'nothing' });
     expect(fits(TOOL, candidate(IRON_KEY).instance)).toBe(true);
@@ -105,6 +115,36 @@ describe('what a noun names', () => {
     const before = one.budget.spentSteps;
     noun('gong');
     expect(one.budget.spentSteps - before).toBe(HERE.length);
+  });
+});
+
+describe('what a noun names (generated)', () => {
+  it('drops nothing named by a noun or a whole name, and adjectives alone only beside one', () => {
+    const c = chooser(463);
+    const among = [...HERE, candidate(LAMP_OIL, 1)];
+    const vocabulary = [
+      'the',
+      'brass',
+      'key',
+      'metal',
+      'lamp',
+      'oil',
+      'gong',
+      'disc',
+      'pebble',
+      'iron',
+      'shiny',
+      'thing',
+    ];
+    for (let run = 0; run < 300; run++) {
+      const words = Array.from({ length: 1 + c.below(3) }, () => c.one(vocabulary));
+      const found = thingsIn(words, () => true, among, within);
+      const answering = among.filter((one) => answersTo(words, one.address) !== null);
+      const outright = answering.filter((one) => answersTo(words, one.address) !== 'adjective');
+      const expected = outright.length > 0 ? outright : answering;
+      const ids = found.found === 'nothing' ? [] : found.things.map((one) => one.id);
+      expect(ids, words.join(' ')).toEqual(expected.map((one) => one.instance.id));
+    }
   });
 });
 
@@ -127,13 +167,13 @@ describe('a pronoun', () => {
   it('names what the last command was done to, `it` and `them` always, where it is in reach', () => {
     expect(named('it', [LAMP])).toEqual({
       found: 'some',
-      things: [{ id: LAMP, near: 2, literal: 1, pronoun: 'it' }],
+      things: [{ id: LAMP, near: 2, literal: 1, byName: false, pronoun: 'it' }],
     });
     expect(named('them', [PEBBLE_A, PEBBLE_B])).toEqual({
       found: 'some',
       things: [
-        { id: PEBBLE_A, near: 4, literal: 1, pronoun: 'they' },
-        { id: PEBBLE_B, near: 5, literal: 1, pronoun: 'they' },
+        { id: PEBBLE_A, near: 4, literal: 1, byName: false, pronoun: 'they' },
+        { id: PEBBLE_B, near: 5, literal: 1, byName: false, pronoun: 'they' },
       ],
     });
     expect(named('it', [])).toEqual({ found: 'nothing' });
@@ -154,13 +194,13 @@ describe('what a noun names, of what may fill a slot', () => {
   it('is what answers and what the slot says fits, as a role’s noun is', () => {
     expect(things('key', (id) => id === IRON_KEY)).toEqual({
       found: 'some',
-      things: [{ id: IRON_KEY, near: 1, literal: 1 }],
+      things: [{ id: IRON_KEY, near: 1, literal: 1, byName: false }],
     });
     expect(things('key', () => false)).toEqual({
       found: 'unfit',
       things: [
-        { id: BRASS_KEY, near: 0, literal: 1 },
-        { id: IRON_KEY, near: 1, literal: 1 },
+        { id: BRASS_KEY, near: 0, literal: 1, byName: false },
+        { id: IRON_KEY, near: 1, literal: 1, byName: false },
       ],
     });
     expect(things('zebra', () => true)).toEqual({ found: 'nothing' });
@@ -176,8 +216,8 @@ describe('a name of adjectives, and a relative phrase', () => {
     expect(noun('brass')).toEqual({
       found: 'some',
       things: [
-        { id: BRASS_KEY, near: 0, literal: 0 },
-        { id: GONG, near: 3, literal: 0 },
+        { id: BRASS_KEY, near: 0, literal: 0, byName: false },
+        { id: GONG, near: 3, literal: 0, byName: false },
       ],
     });
   });
@@ -190,11 +230,11 @@ describe('a name of adjectives, and a relative phrase', () => {
     }
     expect(named('coin that is in the chest')).toEqual({
       found: 'some',
-      things: [{ id: COIN, near: 8, literal: 5 }],
+      things: [{ id: COIN, near: 8, literal: 5, byName: false }],
     });
     expect(named('the one in the chest')).toEqual({
       found: 'some',
-      things: [{ id: COIN, near: 8, literal: 3 }],
+      things: [{ id: COIN, near: 8, literal: 3, byName: false }],
     });
     // The keys are not in the chest, and nothing is in the gong.
     expect(named('key in chest')).toEqual({ found: 'nothing' });
@@ -220,14 +260,14 @@ describe('what a set role’s run names', () => {
   it('is every set its nouns make, each thing once, in the order typed', () => {
     expect(run('lamp and gong and lamp')).toEqual({
       found: 'sets',
-      sets: [{ ids: [LAMP, GONG], near: 7, literal: 3, pronounNamed: [] }],
+      sets: [{ ids: [LAMP, GONG], near: 7, literal: 3, byName: 2, pronounNamed: [] }],
     });
     // A noun that names two things makes a set with each.
     expect(run('gong and key')).toEqual({
       found: 'sets',
       sets: [
-        { ids: [GONG, BRASS_KEY], near: 3, literal: 2, pronounNamed: [] },
-        { ids: [GONG, IRON_KEY], near: 4, literal: 2, pronounNamed: [] },
+        { ids: [GONG, BRASS_KEY], near: 3, literal: 2, byName: 0, pronounNamed: [] },
+        { ids: [GONG, IRON_KEY], near: 4, literal: 2, byName: 0, pronounNamed: [] },
       ],
     });
   });

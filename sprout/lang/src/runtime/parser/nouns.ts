@@ -11,11 +11,14 @@
 // `it`, `them`, `him` or `her`, names what the visitor's own last command
 // was done to, where it is in reach (the spec's Parsing › Pronouns). A role's kind
 // narrows what may fill it and is never a source of refusal text: a thing
-// that answers and is not of the kind makes the phrase not match. Among
-// several that fit, the ones whose whole name was typed are preferred to
-// the rest; every one that remains is a way to read the noun, with how
-// near it is and how many words it matched, and the parser ranks the
-// readings they make whole (the spec's Parsing › Choosing a reading).
+// that answers and is not of the kind makes the phrase not match.
+// Adjectives alone name a thing only where nothing that fits is named by
+// a noun or its whole name (Matching a line: `red` names the red box
+// "only where nothing else is named better"). Every thing left is a way
+// to read the noun, with how near it is, how many words it matched and
+// whether its whole name was typed, and the parser ranks the readings
+// they make whole (Choosing a reading), so no thing named outright is
+// dropped here that a reading's consent pass or nearness would choose.
 // Every candidate a noun is tried against is one step.
 
 import { isActor } from '../../declare/actors.js';
@@ -50,6 +53,8 @@ export interface Named {
   readonly id: InstanceId;
   readonly near: number;
   readonly literal: number;
+  /** Whether its whole name was typed. */
+  readonly byName: boolean;
   /** The pronoun typed for it, where a pronoun named it. */
   readonly pronoun?: Pronoun;
 }
@@ -75,6 +80,8 @@ export interface NamedSet {
   /** The sum of its things' nearness. */
   readonly near: number;
   readonly literal: number;
+  /** How many of its things were named by their whole name. */
+  readonly byName: number;
   /** Those of its things a pronoun named. */
   readonly pronounNamed: readonly PronounNamed[];
 }
@@ -265,13 +272,14 @@ export function thingsIn(
   const answered = named(words, candidates, context);
   if (answered.length === 0) return { found: 'nothing' };
   const fit = answered.filter(({ candidate }) => fitting(candidate.instance));
-  const found = fit.length === 0 ? answered : fit;
-  const byName = found.filter(({ by }) => by === 'name');
-  const pool = byName.length > 0 ? byName : found;
-  const things = pool.map(({ candidate, literal, pronoun }) => ({
+  const pool = fit.length === 0 ? answered : fit;
+  const outright = pool.filter(({ by }) => by !== 'adjective');
+  const found = outright.length > 0 ? outright : pool;
+  const things = found.map(({ candidate, by, literal, pronoun }) => ({
     id: candidate.instance.id,
     near: candidate.near,
     literal,
+    byName: by === 'name' && pronoun === undefined,
     ...(pronoun === undefined ? {} : { pronoun }),
   }));
   return fit.length === 0 ? { found: 'unfit', things } : { found: 'some', things };
@@ -289,7 +297,7 @@ export function runIn(
   candidates: readonly Candidate[],
   context: NounContext,
 ): RunFound {
-  let sets: NamedSet[] = [{ ids: [], near: 0, literal: 0, pronounNamed: [] }];
+  let sets: NamedSet[] = [{ ids: [], near: 0, literal: 0, byName: 0, pronounNamed: [] }];
   for (const { start, end } of nounsOfRun(words)) {
     if (start === end) return { found: 'unfit', start, end };
     const found = nounIn(words.slice(start, end), role, candidates, context);
@@ -301,6 +309,7 @@ export function runIn(
           ids: set.ids.includes(thing.id) ? set.ids : [...set.ids, thing.id],
           near: set.near + thing.near,
           literal: set.literal + thing.literal,
+          byName: set.byName + (thing.byName ? 1 : 0),
           pronounNamed:
             thing.pronoun === undefined
               ? set.pronounNamed

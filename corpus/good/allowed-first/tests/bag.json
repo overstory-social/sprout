@@ -1,0 +1,12 @@
+{
+  "about": "Holding the brown sack, which answers to `bag`, `take bag` takes the leather bag on the floor: taking what is held is refused, and an allowed reading beats a refused one before nearness is asked (the spec's Parsing › Choosing a reading, rule 1).",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "take sack", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "take bag", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a leather bag of coins." }
+    ] }
+  ]
+}

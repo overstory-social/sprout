@@ -1,0 +1,9 @@
+import * as sprout from 'sprout'
+
+kind Bag { }
+
+kind Person is sprout.Visitor {
+  object sack is Bag {
+    grammar { name "brown sack"  nouns "sack" "bag" }
+  }
+}

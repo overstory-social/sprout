@@ -38,6 +38,8 @@ export interface FillOption {
   /** The nearness of what it binds, a set's summed; 0 for an exit. */
   readonly near: number;
   readonly literal: number;
+  /** How many of the things it binds were named by their whole name. */
+  readonly byName: number;
   /** What it binds that a pronoun named, where any is. */
   readonly pronounNamed?: readonly PronounNamed[];
 }
@@ -106,7 +108,7 @@ export function fillSlot(
     if ('refuses' in exit) return { fills: 'refused', way: exit };
     return {
       fills: 'options',
-      options: [{ bound: { exit }, near: 0, literal: labelWords(words).length }],
+      options: [{ bound: { exit }, near: 0, literal: labelWords(words).length, byName: 0 }],
     };
   }
   if (role.many) return setFilled(words, role, context);
@@ -181,10 +183,11 @@ function setFilled(words: readonly string[], role: ResolvedRole, context: FillCo
   if (found.found === 'sets') {
     return {
       fills: 'options',
-      options: found.sets.map(({ ids, near, literal, pronounNamed }) => ({
+      options: found.sets.map(({ ids, near, literal, byName, pronounNamed }) => ({
         bound: { set: ids },
         near,
         literal,
+        byName,
         ...(pronounNamed.length === 0 ? {} : { pronounNamed }),
       })),
     };
@@ -198,8 +201,8 @@ function setFilled(words: readonly string[], role: ResolvedRole, context: FillCo
       );
       const [nearest] = [...anywhere.sets].sort((a, b) => a.near - b.near);
       const thing = nearest!.ids.find((id) => !carried.has(id))!;
-      const { near, literal } = nearest!;
-      return { fills: 'outward', things: [{ bound: { object: thing }, near, literal }] };
+      const { near, literal, byName } = nearest!;
+      return { fills: 'outward', things: [{ bound: { object: thing }, near, literal, byName }] };
     }
   }
   return found.found === 'nothing'
@@ -210,10 +213,11 @@ function setFilled(words: readonly string[], role: ResolvedRole, context: FillCo
 /** What one noun found fills a slot with: a thing for each option, or for each thing that cannot fill it. */
 function thingFilled(found: NounFound, words: readonly string[]): Filled {
   if (found.found === 'nothing') return { fills: 'nothing', start: 0, end: words.length };
-  const options = found.things.map(({ id, near, literal, pronoun }) => ({
+  const options = found.things.map(({ id, near, literal, byName, pronoun }) => ({
     bound: { object: id },
     near,
     literal,
+    byName: byName ? 1 : 0,
     ...(pronoun === undefined ? {} : { pronounNamed: [{ id, pronoun }] }),
   }));
   return found.found === 'unfit'

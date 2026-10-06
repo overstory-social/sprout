@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
+import { chooser } from '../../fixtures/parse.js';
 import { BRASS_KEY, GONG, IRON_KEY, PEBBLE_A, PEBBLE_B, STUDY } from '../../fixtures/parser.js';
 import { Budget } from '../budget.js';
 import { Draws } from '../draws.js';
@@ -27,6 +28,7 @@ function taking(
     allowed: true,
     literal: 2,
     near: [1],
+    byName: 0,
     pronounNamed: [],
     rest: () => [],
     whole: true,
@@ -65,6 +67,16 @@ describe('readings, ranked whole', () => {
     expect(compareRanked(taking(GONG), taking(BRASS_KEY))).toBe(0);
   });
 
+  it('put a thing named by its whole name first only where the spec’s three rules tie', () => {
+    expect(compareRanked(taking(GONG, { byName: 1 }), taking(GONG))).toBeLessThan(0);
+    // A whole name never outranks consent, words matched or nearness.
+    expect(
+      compareRanked(taking(GONG, { byName: 1, allowed: false }), taking(GONG)),
+    ).toBeGreaterThan(0);
+    expect(compareRanked(taking(GONG, { byName: 1, literal: 1 }), taking(GONG))).toBeGreaterThan(0);
+    expect(compareRanked(taking(GONG, { byName: 1, near: [2] }), taking(GONG))).toBeGreaterThan(0);
+  });
+
   it('give the best alone, drawing nothing and spending nothing', () => {
     const budget = new Budget(DEFAULT_LIMITS.budgets);
     const chosen = choose([taking(BRASS_KEY, { near: [3] }), taking(IRON_KEY)], 7, budget);
@@ -96,6 +108,36 @@ describe('readings, ranked whole', () => {
   });
 });
 
+describe('the reading chosen (generated)', () => {
+  it('is allowed where any is, then matched most words, then is nearest, a whole name last', () => {
+    const c = chooser(461);
+    const things = [BRASS_KEY, IRON_KEY, GONG, PEBBLE_A, PEBBLE_B];
+    for (let run = 0; run < 500; run++) {
+      const readings = Array.from({ length: 1 + c.below(6) }, () =>
+        taking(c.one(things), {
+          allowed: c.below(2) === 0,
+          literal: c.below(3),
+          near: [c.below(4)],
+          byName: c.below(2),
+        }),
+      );
+      const chosen = choose(readings, c.below(1000));
+      const ranked = readings.find((one) => one.reading === chosen.reading)!;
+      const rivals = readings.filter((one) => one !== ranked);
+      const at = `run ${run}`;
+      if (readings.some((one) => one.allowed)) expect(ranked.allowed, at).toBe(true);
+      const peers = (beside: (one: Ranked) => boolean) => rivals.filter(beside);
+      const allowedAlike = peers((one) => one.allowed === ranked.allowed);
+      for (const one of allowedAlike) expect(one.literal, at).toBeLessThanOrEqual(ranked.literal);
+      const matchedAlike = allowedAlike.filter((one) => one.literal === ranked.literal);
+      for (const one of matchedAlike)
+        expect(one.near[0], at).toBeGreaterThanOrEqual(ranked.near[0]!);
+      const nearAlike = matchedAlike.filter((one) => one.near[0] === ranked.near[0]);
+      for (const one of nearAlike) expect(one.byName, at).toBeLessThanOrEqual(ranked.byName);
+    }
+  });
+});
+
 describe('an intent’s reading, ranked among verbs’', () => {
   const OPEN_WITH = STUDY.intents.find((one) => one.name === 'open_with')!;
   /** Opening `y` with `x` by the library's intent, allowed as an intent's reading is. */
@@ -113,6 +155,7 @@ describe('an intent’s reading, ranked among verbs’', () => {
       allowed: true,
       literal: 2,
       near: [1, 1],
+      byName: 0,
       pronounNamed: [],
       rest: () => [],
       whole: true,

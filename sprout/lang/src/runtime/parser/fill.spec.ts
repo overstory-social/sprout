@@ -37,27 +37,30 @@ describe('what a slot’s words fill its role with', () => {
   it('is each thing for a thing role, and a set, even of one, for a set role', () => {
     expect(fill(role('take', 'target', 'sprout'), 'gong')).toEqual({
       fills: 'options',
-      options: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+      options: [{ bound: { object: GONG }, near: 2, literal: 1, byName: 0 }],
     });
     expect(fill(role('juggle', 'things'), 'gong')).toEqual({
       fills: 'options',
-      options: [{ bound: { set: [GONG] }, near: 2, literal: 1 }],
+      options: [{ bound: { set: [GONG] }, near: 2, literal: 1, byName: 0 }],
     });
     expect(fill(role('juggle', 'things'), 'gong and brass key')).toEqual({
       fills: 'options',
-      options: [{ bound: { set: [GONG, BRASS_KEY] }, near: 4, literal: 3 }],
+      options: [{ bound: { set: [GONG, BRASS_KEY] }, near: 4, literal: 3, byName: 1 }],
     });
   });
 
   it('is a run for a thing role given several nouns: the first item’s things, and each item after it', () => {
     expect(fill(role('take', 'target', 'sprout'), 'gong, dial and the unicorn')).toEqual({
       fills: 'run',
-      options: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+      options: [{ bound: { object: GONG }, near: 2, literal: 1, byName: 0 }],
       later: [
         {
           start: 2,
           end: 3,
-          filled: { fills: 'options', options: [{ bound: { object: DIAL }, near: 2, literal: 1 }] },
+          filled: {
+            fills: 'options',
+            options: [{ bound: { object: DIAL }, near: 2, literal: 1, byName: 1 }],
+          },
         },
         { start: 4, end: 6, filled: { fills: 'nothing', start: 0, end: 2 } },
       ],
@@ -79,8 +82,8 @@ describe('what a slot’s words fill its role with', () => {
     expect(fill(role('take', 'target', 'sprout'), 'the key')).toEqual({
       fills: 'options',
       options: [
-        { bound: { object: BRASS_KEY }, near: 2, literal: 1 },
-        { bound: { object: IRON_KEY }, near: 2, literal: 1 },
+        { bound: { object: BRASS_KEY }, near: 2, literal: 1, byName: 0 },
+        { bound: { object: IRON_KEY }, near: 2, literal: 1, byName: 0 },
       ],
     });
   });
@@ -88,7 +91,7 @@ describe('what a slot’s words fill its role with', () => {
   it('is the exit named for an exit role, and does not match where none is', () => {
     expect(fill(role('go', 'way', 'sprout'), 'n')).toEqual({
       fills: 'options',
-      options: [{ bound: { exit: EXITS[0] }, near: 0, literal: 1 }],
+      options: [{ bound: { exit: EXITS[0] }, near: 0, literal: 1, byName: 0 }],
     });
     expect(fill(role('go', 'way', 'sprout'), 'gong')).toEqual({ fills: 'unfit', things: [] });
   });
@@ -163,7 +166,7 @@ describe('what a carried role’s words fill it with', () => {
   it('is only what is carried, where something carried answers, and an outward thing never competes', () => {
     expect(holding([IRON_KEY], carriedRole('unlock', 'tool'), 'key')).toEqual({
       fills: 'options',
-      options: [{ bound: { object: IRON_KEY }, near: 2, literal: 1 }],
+      options: [{ bound: { object: IRON_KEY }, near: 2, literal: 1, byName: 0 }],
     });
   });
 
@@ -171,24 +174,24 @@ describe('what a carried role’s words fill it with', () => {
     expect(holding([], carriedRole('unlock', 'tool'), 'key')).toEqual({
       fills: 'outward',
       things: [
-        { bound: { object: BRASS_KEY }, near: 2, literal: 1 },
-        { bound: { object: IRON_KEY }, near: 2, literal: 1 },
+        { bound: { object: BRASS_KEY }, near: 2, literal: 1, byName: 0 },
+        { bound: { object: IRON_KEY }, near: 2, literal: 1, byName: 0 },
       ],
     });
     expect(holding([GONG], carriedRole('unlock', 'tool'), 'brass key')).toEqual({
       fills: 'outward',
-      things: [{ bound: { object: BRASS_KEY }, near: 2, literal: 2 }],
+      things: [{ bound: { object: BRASS_KEY }, near: 2, literal: 2, byName: 1 }],
     });
   });
 
   it('is unfit where what answers cannot fill it, carried or not, and nothing where nothing answers', () => {
     expect(holding([GONG], carriedRole('unlock', 'tool'), 'gong')).toEqual({
       fills: 'unfit',
-      things: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+      things: [{ bound: { object: GONG }, near: 2, literal: 1, byName: 0 }],
     });
     expect(holding([], carriedRole('unlock', 'tool'), 'gong')).toEqual({
       fills: 'unfit',
-      things: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+      things: [{ bound: { object: GONG }, near: 2, literal: 1, byName: 0 }],
     });
     expect(holding([BRASS_KEY], carriedRole('unlock', 'tool'), 'anvil')).toEqual({
       fills: 'nothing',
@@ -201,11 +204,11 @@ describe('what a carried role’s words fill it with', () => {
     const things = carriedRole('juggle', 'things');
     expect(holding([GONG, BRASS_KEY], things, 'gong and brass key')).toEqual({
       fills: 'options',
-      options: [{ bound: { set: [GONG, BRASS_KEY] }, near: 4, literal: 3 }],
+      options: [{ bound: { set: [GONG, BRASS_KEY] }, near: 4, literal: 3, byName: 1 }],
     });
     expect(holding([GONG], things, 'gong and brass key')).toEqual({
       fills: 'outward',
-      things: [{ bound: { object: BRASS_KEY }, near: 4, literal: 3 }],
+      things: [{ bound: { object: BRASS_KEY }, near: 4, literal: 3, byName: 1 }],
     });
   });
 
@@ -215,7 +218,7 @@ describe('what a carried role’s words fill it with', () => {
       fillIntentSlot(roles, typedWords(line), { ...context, candidates: reaching(carried) });
     expect(fillIntent([BRASS_KEY], 'metal')).toEqual({
       fills: 'options',
-      options: [{ bound: { object: BRASS_KEY }, near: 2, literal: 1 }],
+      options: [{ bound: { object: BRASS_KEY }, near: 2, literal: 1, byName: 0 }],
     });
     expect(fillIntent([], 'metal')).toMatchObject({ fills: 'outward' });
   });
@@ -229,20 +232,20 @@ describe('what an intent’s slot is filled with', () => {
     expect(fillIntent('metal')).toEqual({
       fills: 'options',
       options: [
-        { bound: { object: BRASS_KEY }, near: 2, literal: 1 },
-        { bound: { object: IRON_KEY }, near: 2, literal: 1 },
+        { bound: { object: BRASS_KEY }, near: 2, literal: 1, byName: 0 },
+        { bound: { object: IRON_KEY }, near: 2, literal: 1, byName: 0 },
       ],
     });
     expect(fillIntent('dial')).toEqual({
       fills: 'options',
-      options: [{ bound: { object: DIAL }, near: 2, literal: 1 }],
+      options: [{ bound: { object: DIAL }, near: 2, literal: 1, byName: 1 }],
     });
   });
 
   it('is unfit where what the words name fits none of its roles, and nothing where they name nothing', () => {
     expect(fillIntent('gong')).toEqual({
       fills: 'unfit',
-      things: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+      things: [{ bound: { object: GONG }, near: 2, literal: 1, byName: 0 }],
     });
     expect(fillIntent('zebra')).toEqual({ fills: 'nothing', start: 0, end: 1 });
   });
