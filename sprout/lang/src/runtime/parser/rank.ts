@@ -1,12 +1,16 @@
 // Choosing a reading (the spec's Parsing › Choosing a reading). Every
-// reading a line makes, a verb's or an intent's, is ranked whole, so a hint in one role can decide
-// another: one whose consent pass allows before one it refuses, then the
-// one that matched more of the line's words literally, then the one whose
-// things are nearer, role by role in the order the verb declares them.
-// Readings still tied are drawn from the turn's stream, which is a step,
-// and the host logs the draw as a warning. Where the drawn reading names
-// a thing a rival did not and words could tell the two apart, `meant`
-// tells the visitor which; things written alike are drawn without it.
+// reading a line makes, a verb's or an intent's, is ranked whole, so a
+// hint in one role can decide another: one whose consent pass allows
+// before one it refuses, then the one that matched more of the line's
+// words literally, then the one whose things are nearer, role by role in
+// the order the verb declares them. Where those three leave readings
+// tied, the one that names more things by their whole name wins, so
+// `lamp` is the lamp and not the lamp oil beside it (the working notes'
+// Holes 461); it never outranks the spec's three. Readings still tied are
+// drawn from the turn's stream, which is a step, and the host logs the
+// draw as a warning. Where the drawn reading names a thing a rival did
+// not and words could tell the two apart, `meant` tells the visitor
+// which; things written alike are drawn without it.
 
 import type { Budget } from '../budget.js';
 import type { Following } from '../command.js';
@@ -35,6 +39,8 @@ export interface Ranked {
   readonly literal: number;
   /** The nearness of what fills each role or slot, in `slotNamesOf`'s order; 0 for none. */
   readonly near: readonly number[];
+  /** How many of the things it binds were named by their whole name. */
+  readonly byName: number;
   /** What it binds that a pronoun named, and the pronoun. */
   readonly pronounNamed: readonly PronounNamed[];
   /**
@@ -69,7 +75,7 @@ export function compareRanked(a: Ranked, b: Ranked): number {
     const difference = (a.near[at] ?? 0) - (b.near[at] ?? 0);
     if (difference !== 0) return difference;
   }
-  return 0;
+  return b.byName - a.byName;
 }
 
 /**

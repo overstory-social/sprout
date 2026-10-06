@@ -1,0 +1,39 @@
+// Choosing a reading (the spec's Parsing › Choosing a reading): a reading
+// whose consent pass allows beats one it refuses, before words matched or
+// nearness are asked, so `x maze` in the maze is the passages, which allow,
+// and `take bag` holding the sack is the leather bag on the floor. The
+// visitor's own place is further than everything it holds, so in the
+// garden, whose place refuses nothing, `x garden` is the beds, though the
+// place's whole name is `garden`.
+import * as sprout from 'sprout'
+import {Bag, Person} from 'person'
+
+kind Room is sprout.Place {
+  as target for any { permit { refuse "No such thing." } }
+}
+
+world allowed_first is sprout.World {
+  visitors are Person
+  visitors arrive at maze
+
+  object maze is Room {
+    grammar { name "Maze"  exit north "north" -> garden }
+    describe { text "Twisty." }
+    object passages is sprout.Fixture {
+      grammar { name "passages"  nouns "maze" }
+      describe { text "They are all alike." }
+    }
+    object leather_bag is Bag {
+      grammar { name "leather bag of coins"  nouns "bag" "coins" }
+    }
+  }
+
+  object garden is sprout.Place {
+    grammar { name "garden" }
+    describe { text "Beds and paths." }
+    object beds is sprout.Fixture {
+      grammar { name "flower beds"  nouns "garden" }
+      describe { text "Roses, mostly." }
+    }
+  }
+}

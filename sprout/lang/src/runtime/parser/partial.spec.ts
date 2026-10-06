@@ -29,7 +29,12 @@ const SPANS = [
   { role: 0, start: 1, end: 2 },
   { role: 1, start: 3, end: 4 },
 ];
-const thing = (id: InstanceId, literal = 1) => ({ bound: { object: id }, near: 2, literal });
+const thing = (id: InstanceId, literal = 1) => ({
+  bound: { object: id },
+  near: 2,
+  literal,
+  byName: 0,
+});
 const partials = (fills: Filled[], budget = new Budget(DEFAULT_LIMITS.budgets)) =>
   partialsOf(PARTS, SPANS, fills, address, budget);
 

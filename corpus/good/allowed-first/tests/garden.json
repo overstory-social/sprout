@@ -1,0 +1,12 @@
+{
+  "about": "In the garden, which refuses nothing, `garden` is the place's whole name and a noun of the flower beds in it: the visitor's own place is further than everything it holds, so the beds are meant (the spec's Parsing › Choosing a reading, rule 3).",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "n", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Beds and paths." }
+    ] },
+    { "as": "Marta", "type": "x garden", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "Roses, mostly." }
+    ] }
+  ]
+}
