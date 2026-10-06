@@ -11,14 +11,15 @@
 // `when` is a condition over `self`, the place, read-only and pure as a
 // pass rule's is: nobody is acting while it is polled, so `actor` and
 // `here` are not bound. An exit that refuses says its words to whoever
-// goes that way, so they are checked as a `refuse`'s are, with `actor`
-// and `here` bound beside `self`. `connect` assigns one of the writing kind's
+// goes that way, and one that leads may say words to whoever takes it,
+// so they are checked as a `refuse`'s and a `say`'s are, with `actor` and
+// `here` bound beside `self`. `connect` assigns one of the writing kind's
 // links, by its name, to a binding: a link leads only where the world
 // made a place, and a place written in source has an exit.
 
 import type { ConnectStatement, Expr, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
-import type { GrammarRefusal } from '../syntax/ast-grammar.js';
+import type { GrammarRefusal, GrammarSaying } from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { isLinkName, type ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
@@ -37,9 +38,9 @@ export interface ExitSetting {
   readonly kinds: KindLookup;
   readonly diagnostics: Diagnostics;
   readonly names: NameScope;
-  /** What `here` is typed as, for the words of an exit that refuses. */
+  /** What `here` is typed as, for an exit's words. */
   readonly here: HereKind;
-  /** Where a passage an exit that refuses names is recorded, to be checked against what it binds. */
+  /** Where a passage an exit's words name is recorded, to be checked against what it binds. */
   readonly speech?: SpeechBook;
 }
 
@@ -48,8 +49,8 @@ const A_PLACE = 'something that composes `sprout.Place` or writes `contains acto
 
 /**
  * Check one exit or link `self` wrote: `self` is a place, an exit leads
- * to one, and its `when` is a condition. Returns whether nothing in it
- * was refused.
+ * to one, its words may be said, and its `when` is a condition. Returns
+ * whether nothing in it was refused.
  */
 export function checkExit(exit: ResolvedExit, self: KindRef, setting: ExitSetting): boolean {
   const { diagnostics } = setting;
@@ -66,9 +67,10 @@ export function checkExit(exit: ResolvedExit, self: KindRef, setting: ExitSettin
   const leads =
     line.leads.kind === 'path'
       ? checkDestination(line.leads, self, setting)
-      : checkRefusal(line.leads, self, setting);
+      : checkWords(line.leads, self, setting);
+  const says = line.says === null || checkWords(line.says, self, setting);
   const holds = line.when === null || checkWhen(line.when, self, setting);
-  return leads && holds;
+  return leads && says && holds;
 }
 
 /** Where an exit leads: a place written in the world, named from where the exit is. */
@@ -115,17 +117,21 @@ function checkDestination(path: ObjectPath, self: KindRef, setting: ExitSetting)
 }
 
 /**
- * What an exit that refuses says, to whoever goes that way: words in
- * quotes, or a passage of the place, checked as a `refuse`'s are, with
- * `self`, `actor` and `here` bound.
+ * What an exit says to whoever goes that way, as it is taken or as it
+ * refuses: words in quotes, or a passage of the place, checked as a
+ * `say`'s or a `refuse`'s are, with `self`, `actor` and `here` bound.
  */
-function checkRefusal(refusal: GrammarRefusal, self: KindRef, setting: ExitSetting): boolean {
+function checkWords(
+  words: GrammarRefusal | GrammarSaying,
+  self: KindRef,
+  setting: ExitSetting,
+): boolean {
   const { diagnostics } = setting;
   const before = diagnostics.refusals.length;
   const scope = Scope.root();
-  scope.introduce(selfBinding(self, refusal.at), diagnostics);
-  scope.introduce(actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), refusal.at), diagnostics);
-  scope.introduce(hereBinding(setting.here, refusal.at), diagnostics);
+  scope.introduce(selfBinding(self, words.at), diagnostics);
+  scope.introduce(actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), words.at), diagnostics);
+  scope.introduce(hereBinding(setting.here, words.at), diagnostics);
   const context: CheckContext = {
     scope,
     kinds: setting.kinds,
@@ -133,9 +139,10 @@ function checkRefusal(refusal: GrammarRefusal, self: KindRef, setting: ExitSetti
     self,
     diagnostics,
     names: setting.names,
-    ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: refusal } }),
+    ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: words } }),
   };
-  checkPassage({ kind: 'refuse', at: refusal.at, said: refusal.said }, context);
+  const kind = words.kind === 'grammar-refusal' ? 'refuse' : 'say';
+  checkPassage({ kind, at: words.at, said: words.said }, context);
   return diagnostics.refusals.length === before;
 }
 

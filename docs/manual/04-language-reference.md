@@ -499,6 +499,23 @@ Going that way, by its direction or its label, reads those words, and
 nothing moves. Such an exit is never offered: it has no chip, `help` does
 not list it, and it does not count toward a place's 8.
 
+An exit that leads somewhere may also say something as a visitor goes
+through it. Write `say` and its words after the destination, before any
+`when`:
+
+```sprout
+grammar {
+  exit down "down the chimney" -> hearth say "You won't be able to get back up."
+  exit east "into the garden"  -> garden say pushing
+}
+```
+
+The words are in quotes, or the name of a passage of the place, and
+`actor` and `here` may be used in them. Only the visitor who goes reads
+them, after leaving and before the new place's description. If the move
+is refused, say by the destination's `accept`, they are not read. An exit
+says at most one thing, and an exit that refuses cannot also `say`.
+
 A direction with no exit that applies, `down` or `go down`, is answered
 with the world's `no_way` passage, "You can't go that way.", which is given
 the direction as `way`. Words after `go` that are neither a direction nor

@@ -1,0 +1,40 @@
+{
+  "about": "`all` in a role some kind plays takes only what plays a part in the verb, each in the range walk's order, stopping at the first refusal wherever it falls; a run runs in the order written; a role only the actor plays takes every thing.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
+    ] },
+    { "as": "Marta", "type": "examine all", "expect": [
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A brass bell." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "refused", "words": "Too bright to look at." }
+    ] },
+    { "as": "Marta", "type": "examine all except lamp", "expect": [
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A brass bell." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A silvered mirror." }
+    ] },
+    { "as": "Marta", "type": "examine apple and pear and lamp and bell", "expect": [
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A red apple." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A green pear." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "refused", "words": "Too bright to look at." }
+    ] },
+    { "as": "Marta", "type": "take all", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an apple." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a bell." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a mirror." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a pear." }
+    ] }
+  ]
+}

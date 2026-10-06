@@ -151,9 +151,14 @@ function bodiesOf(kind: KindRef): Node[] {
     ...[...kind.handlers.values()].flatMap((handlers) => handlers.map((one) => one.declaration)),
     ...[...kind.hooks.values()].flatMap((hooks) => hooks.map((hook) => hook.declaration)),
     ...(kind.describe === null ? [] : [kind.describe.declaration]),
-    // An exit that refuses says its words as a `refuse` does.
+    // An exit says its words as a `refuse` or a `say` does.
     ...kind.exits.flatMap((way) =>
-      way.kind === 'exit' && way.line.leads.kind === 'grammar-refusal' ? [way.line.leads] : [],
+      way.kind !== 'exit'
+        ? []
+        : [
+            ...(way.line.leads.kind === 'grammar-refusal' ? [way.line.leads] : []),
+            ...(way.line.says === null ? [] : [way.line.says]),
+          ],
     ),
   ];
 }
