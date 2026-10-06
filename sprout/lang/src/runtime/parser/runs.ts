@@ -5,8 +5,10 @@
 // the order written. A name that holds a connector is still read whole:
 // a stretch of the run is one item where it names something by a noun or
 // its whole name, the longest such stretch first, so `the salt and pepper
-// shaker and the lamp` is two items where the shaker is in reach. Every
-// stretch tried is a noun tried, and each is charged as one.
+// shaker and the lamp` is two items where the shaker is in reach. As
+// `all` does, a run takes at most as many items as a set role may bind,
+// the host's figure, and the items past it are not read. Every stretch
+// tried is a noun tried, and each is charged as one.
 
 import type { ResolvedRole } from '../../declare/verbs.js';
 import { nounsOfRun, thingsIn, type Candidate, type NounContext } from './nouns.js';
@@ -45,7 +47,8 @@ export function itemsOfRun(
     items.push({ start: nouns[at]!.start, end: nouns[to]!.end });
     at = to + 1;
   }
-  return items.length < 2 ? null : items;
+  // As `all`, a run takes no more than a set role may bind.
+  return items.length < 2 ? null : items.slice(0, context.budget.limits.setRoleObjects);
 }
 
 /** Whether `words` name something in reach by a noun or its whole name, not adjectives alone. */

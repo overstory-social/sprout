@@ -106,6 +106,20 @@ describe('the items of a run', () => {
     expect(items('salt and pepper')).toEqual(['salt', 'pepper']);
   });
 
+  it('are no more than a set role may bind, as `all` takes, the host’s figure', () => {
+    const words = typedWords('salt, pepper, lamp and box');
+    const capped = {
+      ...context,
+      budget: new Budget({ ...DEFAULT_LIMITS.budgets, setRoleObjects: 2 }),
+    };
+    const kept = itemsOfRun(words, take, candidates, capped)!;
+    expect(kept.map(({ start, end }) => words.slice(start, end).join(' '))).toEqual([
+      'salt',
+      'pepper',
+    ]);
+    expect(items('salt, pepper, lamp and box')).toHaveLength(4);
+  });
+
   it('are none for one noun, an empty noun, a set role or a value role', () => {
     expect(items('lamp')).toBeUndefined();
     expect(items('lamp and')).toBeUndefined();
