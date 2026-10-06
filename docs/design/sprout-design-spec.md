@@ -1091,7 +1091,7 @@ grammar {
 }
 ```
 
-`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words: nothing moves. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
+`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words, as a refusal: nothing moves. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
 
 A direction no exit that applies answers, typed bare or in one of `go`'s phrases, is answered with the world's `no_way`, "You can't go that way.", given the direction written out as `way`. Words in `go`'s phrases that are neither a direction nor the label of a way out that applies are answered with `unknown`.
 
@@ -1950,7 +1950,7 @@ Within a command turn, the order is fixed: parse; the consent pass; the effect p
 
 ### The view
 
-A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault; the view of one whose place is not lit is as Range › Sight says. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
+A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. A role only the actor plays and the actor's own part moves, as `take`'s target, is not offered filled with the visitor's own place, so `take` is not offered it and `examine` is; and a reading its consent pass allows whose `do` would move a thing into something it holds, itself or a container it is inside, is greyed with the world's `inside_itself`, as the move would be refused. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault; the view of one whose place is not lit is as Range › Sight says. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
 
 A poll that exhausts its budget yields a view whose description is the world's `unseen` passage and which keeps every other part the poll derived without faulting. The fault is logged against the object it names, or against the actor's place where the budget ran out with none named, with the time of the poll and not who was looking.
 
@@ -1962,7 +1962,7 @@ A turn's output is a sequence of effects, each carrying its kind, the object it 
 | --- | --- |
 | `said` | a line from `say` |
 | `told` | a line from `tell`, to one recipient |
-| `refused` | the consent pass's refusal text, to the actor |
+| `refused` | the consent pass's refusal text, or an exit's refusal, to the actor |
 | `described` | a description, to the one who moved or looked |
 | `notice` | an engine-spoken passage — arrivals, faults, unknown words |
 | `extension` | an extension statement's effect: the extension, the statement, its payload, and its transcript line as its words |

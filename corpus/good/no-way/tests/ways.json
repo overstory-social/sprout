@@ -1,15 +1,15 @@
 {
-  "about": "An exit that refuses answers its direction and its label with its own words, in quotes or a passage of its place that names the one going, and moves nobody; it is never offered, so `help` lists no way out; once the brambles are cut the exit before it in the chain applies. A direction no exit answers is the world's `no_way`, or the glade's own, which names the direction; other words after `go` are `unknown`.",
+  "about": "An exit that refuses answers its direction and its label with its own words, as a refusal that stops the rest of a line, in quotes or a passage of its place that names the one going, and moves nobody; it is never offered, so `help` lists no way out; once the brambles are cut the exit before it in the chain applies. A direction no exit answers is the world's `no_way`, or the glade's own, which names the direction; other words after `go` are `unknown`.",
   "steps": [
     { "arrive": "Marta" },
     { "as": "Marta", "type": "north", "expect": [
-      { "words": "The brambles are too thick." }
+      { "reader": "Marta", "kind": "refused", "words": "The brambles are too thick." }
     ] },
     { "as": "Marta", "type": "go w", "expect": [
-      { "words": "You would need a machete to go further west." }
+      { "reader": "Marta", "kind": "refused", "words": "You would need a machete to go further west." }
     ] },
     { "as": "Marta", "type": "east", "expect": [
-      { "words": "The door is boarded, and you cannot shift the boards." }
+      { "reader": "Marta", "kind": "refused", "words": "The door is boarded, and you cannot shift the boards." }
     ] },
     { "as": "Marta", "type": "down", "expect": [
       { "words": "You can't go that way." }
@@ -17,8 +17,11 @@
     { "as": "Marta", "type": "go yonder", "expect": [
       { "words": "That is not something you can do here." }
     ] },
+    { "as": "Marta", "type": "west then cut brambles", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You would need a machete to go further west." }
+    ] },
     { "as": "Marta", "type": "help", "expect": [
-      { "words": "You can type: cut brambles, look, examine clearing, examine brambles, inventory, wait, help, take clearing, take brambles." }
+      { "words": "You can type: cut brambles, look, examine clearing, examine brambles, inventory, wait, help, take brambles." }
     ] },
     { "as": "Marta", "type": "cut brambles", "expect": [
       { "words": "You hack the brambles back, and a way opens to the north." }

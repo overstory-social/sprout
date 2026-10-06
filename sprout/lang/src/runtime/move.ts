@@ -37,6 +37,7 @@ import { engineLine, engineSaid } from './engine-lines.js';
 import type { EngineSend } from './lifecycle.js';
 import { isLive, liveTree } from './live.js';
 import { rangeOf, reaches, type PassRule, type RangeContext } from './range.js';
+import type { StateReader } from './state.js';
 
 /** Why a move could not even be asked about. */
 export type MoveFaultReason = 'out-of-range' | 'holds-nothing' | 'world' | 'away';
@@ -451,13 +452,23 @@ export function reachedForMove(
   return exitsFrom(place, { state: draft, catalogue, budget, passes }).some((way) => way.to === to);
 }
 
-/** Whether `node` is `outer` or anywhere inside it, climbing the draft's containers. */
-function within(draft: Draft, node: InstanceId, outer: InstanceId): boolean {
+/**
+ * Whether `node` is `outer` or anywhere inside it, climbing `state`'s
+ * containers, each a step of `budget` where one is given; a move passes
+ * none, since it is charged nothing for itself.
+ */
+export function within(
+  state: StateReader,
+  node: InstanceId,
+  outer: InstanceId,
+  budget?: Budget,
+): boolean {
   const climbed = new Set<InstanceId>();
   for (let at: InstanceId | null = node; at !== null && !climbed.has(at);) {
+    budget?.spend();
     if (at === outer) return true;
     climbed.add(at);
-    at = draft.instance(at)?.container ?? null;
+    at = state.instance(at)?.container ?? null;
   }
   return false;
 }

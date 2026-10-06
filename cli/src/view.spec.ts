@@ -37,9 +37,6 @@ what they could type
   inventory  (sprout.inventory)
   wait  (sprout.wait)
   help  (sprout.help)
-  take shed  (sprout.take)
-  drop shed  (sprout.drop)
-    refused: You are not holding a shed.
   ask shed about …  (sprout.ask)
     topic: nothing it hears
 `,
@@ -53,6 +50,24 @@ what they could type
     expect(page).toContain('\n  turn dial to …  (lane.turn)\n    notch: 0 to 9\n');
     expect(page).toContain('\n  ask warden about …  (sprout.ask)\n    topic: toll, old road\n');
     expect(page).toContain('\n  give iron key to warden  (sprout.give)\n');
+  });
+
+  it('greys a reading whose move would put a thing inside itself with the world’s `inside_itself`', () => {
+    const boat = worldFolder('boat', {
+      'boat.sprout': `world boat is sprout.World {
+  visitors are Walker
+  visitors arrive at rowboat
+  object rowboat is Rowboat { object pouch is sprout.Container }
+}
+kind Rowboat is sprout.Place { as target for take { do { } } }
+`,
+      'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+    });
+    const { page } = inspectView(standIn(checkWorld(boat).bundle!, {}));
+    expect(page).toContain(
+      '\n  take rowboat  (sprout.take)\n    refused: A rowboat cannot go inside itself.\n',
+    );
+    expect(page).toContain('\n  take pouch  (sprout.take)\n  drop pouch');
   });
 
   it('lists what the visitor carries', () => {

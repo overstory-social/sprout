@@ -99,13 +99,15 @@ export interface Participant {
 export interface PermitRefusal {
   /**
    * The participant whose `permit` refused, and the role it played; where
-   * the engine refused, whoever says its line, and the carried role.
+   * the engine refused, whoever says its line, and the carried role, or,
+   * for an offer greyed by its move (`sure-move.ts`), the role of the
+   * participant whose `do` proposes it.
    */
   readonly by: InstanceId;
   readonly role: string;
   /**
    * The kind that wrote the `permit`, by qualified name; null where the
-   * engine refused, a carried role holding what the actor does not carry.
+   * engine refused.
    */
   readonly origin: string | null;
   /** The passage named, as it applies on the refusing participant's kind, or the words quoted. */
@@ -122,7 +124,8 @@ export interface Said {
   /**
    * What the line is: said by a body; told by one; a `move` or an
    * `act`'s reading refused, whose words are said to its actor as a
-   * refusal (the spec's Verbs › Moving something, Acting); a line of a
+   * refusal (the spec's Verbs › Moving something, Acting), as an exit's
+   * refusal is (Verbs › Exits); a line of a
    * description, to the one looking; or spoken by the engine, as a fault
    * is, or by a place of someone arriving or leaving (The runtime › Effects);
    * or what an extension's statement recorded, whose words are its
@@ -140,7 +143,8 @@ export interface Said {
   /**
    * Whose body said it, which is `self` when it renders: for a refused
    * move, the party whose guard refused; the world, for `nothing_happens`
-   * and for the engine's own refusal of a move; the place, for its notice.
+   * and for the engine's own refusal of a move; the place, for its notice
+   * and for an exit's refusal.
    */
   readonly by: InstanceId;
   /**
@@ -562,7 +566,7 @@ function hearersOf(
  * wildcard plays for the role's category first, then its plays for the
  * verb, each in composition order (the spec's The two passes).
  */
-function playsFor(
+export function playsFor(
   reading: Reading,
   participant: Participant,
   self: Instance,
@@ -579,7 +583,7 @@ function playsFor(
  * and each other role as this play sees it (the spec's Playing a role).
  * It draws nothing: a `do` is given the turn's draws where it runs.
  */
-function frameFor(
+export function frameFor(
   reading: Reading,
   participant: Participant,
   play: ResolvedPlay,

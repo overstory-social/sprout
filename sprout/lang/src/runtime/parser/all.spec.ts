@@ -21,7 +21,7 @@ import { Budget } from '../budget.js';
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import type { InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
-import { allIn } from './all.js';
+import { allIn, onlyTheActorPlays } from './all.js';
 import type { Filled } from './fill.js';
 
 const one = study();
@@ -149,5 +149,25 @@ describe('what `all` costs', () => {
     expect(excepting.budget.spentSteps).toBeGreaterThan(
       plain.budget.spentSteps + candidates.length,
     );
+  });
+});
+
+describe('a role only the actor plays', () => {
+  it('is one no kind there is plays, each kind asked a step', () => {
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const take = verb('take', 'sprout');
+    expect(onlyTheActorPlays(take, take.roles[0]!, one.catalogue.kinds.values(), budget)).toBe(
+      true,
+    );
+    expect(budget.spentSteps).toBe(one.catalogue.kinds.size);
+    const turn = verb('turn');
+    expect(
+      onlyTheActorPlays(
+        turn,
+        turn.roles[0]!,
+        one.catalogue.kinds.values(),
+        new Budget(DEFAULT_LIMITS.budgets),
+      ),
+    ).toBe(false);
   });
 });
