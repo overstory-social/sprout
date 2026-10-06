@@ -73,8 +73,8 @@ export const CommandEntry = TurnInputs.extend({
     .object({
       role: z.string().min(1),
       words: z.string(),
-      values: z.array(z.object({ role: z.string().min(1), words: z.string() })),
-      referents: z.array(z.string().min(1)),
+      values: z.array(z.object({ role: z.string().min(1), words: z.string() })).default([]),
+      referents: z.array(z.string().min(1)).default([]),
     })
     .nullable()
     .default(null),

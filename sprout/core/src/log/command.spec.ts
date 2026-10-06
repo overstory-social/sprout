@@ -112,4 +112,16 @@ describe('a command in the log', () => {
     const { reread: _reread, ...older } = entry;
     expect(CommandEntry.parse(older).reread).toBeNull();
   });
+
+  it('reads an item that names no value words or pronouns as naming none', async () => {
+    const typed = command('bump counter');
+    const entry = commandEntry(typed, host, commandTurn(await state(), host, typed));
+    const item = { ...entry, reread: { role: 'target', words: 'gauge' } };
+    expect(CommandEntry.parse(item).reread).toEqual({
+      role: 'target',
+      words: 'gauge',
+      values: [],
+      referents: [],
+    });
+  });
 });

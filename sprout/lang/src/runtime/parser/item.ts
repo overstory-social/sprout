@@ -22,14 +22,14 @@ import { addressOf, type Address } from './address.js';
 import { answer } from './answers.js';
 import { fillSlot, valueOf } from './fill.js';
 import type { ParseContext } from '../command.js';
-
-/** The item a turn reads: the reading the line planned, the role its words fill, and each value role's words. */
-type ItemOf = NonNullable<ParseContext['item']>;
 import { writtenAs } from './nouns.js';
 import { boundWords } from './partial.js';
 import { chooseReading, type Ranked } from './rank.js';
 import { inReach } from './planned.js';
 import { reachOf } from './reach.js';
+
+/** The item a turn reads: the reading the line planned, the role its words fill, and each value role's words. */
+type ItemOf = NonNullable<ParseContext['item']>;
 
 /**
  * `words`, typed by `actor`, as the item filling `role` of `within`, each
