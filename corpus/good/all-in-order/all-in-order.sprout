@@ -1,0 +1,39 @@
+// `all` in a role that takes one thing (the spec's Parsing › Sequences,
+// again and all): it takes every thing in reach whose kind plays a part
+// in the verb, or, for a role only the actor plays, every thing that is
+// not a person and not the visitor's own place; the reading runs once
+// for each, in the order the range
+// walk reaches them, and stops at the first refusal, wherever in that
+// order it falls. A run of things runs in the order written.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {examine} from 'sprout'
+
+world all_in_order is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { article the }
+    object apple is Plain { grammar { name "apple" } describe { text "A red apple." } }
+    object bell is Shiny { grammar { name "bell" } describe { text "A brass bell." } }
+    object lamp is Glare { grammar { name "lamp" } describe { text "A lamp." } }
+    object mirror is Shiny { grammar { name "mirror" } describe { text "A silvered mirror." } }
+    object pear is Plain { grammar { name "pear" } describe { text "A green pear." } }
+  }
+}
+
+// Plays no part in `examine`, so `examine all` leaves it out once some kind does.
+kind Plain { }
+
+kind Shiny {
+  as target for examine {
+    permit { allow }
+  }
+}
+
+kind Glare {
+  as target for examine {
+    permit { refuse "Too bright to look at." }
+  }
+}
