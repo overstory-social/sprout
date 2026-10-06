@@ -1,0 +1,23 @@
+// The troll's own part of `attack` narrates his blow to whoever it is
+// aimed at; a blow aimed at him knocks him out cold.
+import * as sprout from 'sprout'
+import {attack} from 'troll_room'
+
+kind Troll is sprout.Actor {
+  :awake true
+
+  as actor for attack {
+    do {
+      tell target "The troll swings {weapon} at you. It whistles past your ear."
+      tell "The troll swings {weapon} at {target}."
+    }
+  }
+
+  as target for attack {
+    do {
+      self.set(:awake, false)
+      say "You catch the troll on the temple. He slumps to the floor, out cold."
+      tell "{actor} knocks the troll out cold."
+    }
+  }
+}

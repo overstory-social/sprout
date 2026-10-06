@@ -1,0 +1,17 @@
+// A person's own part of `attack`, written on the kind a person is made
+// of: the one swinging reads one line, the one swung at is told in the
+// second person, and the rest of the room reads it about both.
+import * as sprout from 'sprout'
+import {attack} from 'troll_room'
+
+kind Fighter is sprout.Actor {
+  as actor for attack {
+    do {
+      say "You swing {weapon} at {target}."
+      tell target "{actor} swings {weapon} at you."
+      tell "{actor} swings {weapon} at {target}."
+    }
+  }
+}
+
+kind Person is Fighter, sprout.Visitor { }
