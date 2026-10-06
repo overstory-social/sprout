@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { capitalise, reflow, trimmed, type Rendered } from './reflow.js';
+import { chooser } from '../fixtures/parse.js';
+import { capitalise, reflow, slotted, type Rendered } from './reflow.js';
 
 const words = (text: string): Rendered => ({ words: text });
 const PARAGRAPH: Rendered = { break: 'paragraph' };
@@ -32,25 +33,68 @@ describe('rendered words are reflowed into paragraphs', () => {
   });
 });
 
-describe('rendered words trimmed at their ends', () => {
+describe('rendered words as a slot puts them in its line', () => {
   it('loses the space at either end, and keeps the space between', () => {
-    expect(trimmed([words('  a '), words(' leaflet  ')])).toEqual([words('a '), words(' leaflet')]);
+    expect(slotted([words('  a '), words(' leaflet  ')])).toEqual([words('a '), words(' leaflet')]);
+    expect(slotted([words('  a leaflet  ')])).toEqual([words('a leaflet')]);
   });
 
-  it('drops pieces that were only space, and the blank lines at either end', () => {
+  it('keeps a blank line at either end as one paragraph break, and the breaks between', () => {
     expect(
-      trimmed([PARAGRAPH, words(' \n '), words('  one'), PARAGRAPH, words('two \n'), PARAGRAPH]),
-    ).toEqual([words('one'), PARAGRAPH, words('two')]);
-    expect(trimmed([PARAGRAPH, words('   '), PARAGRAPH])).toEqual([]);
+      slotted([PARAGRAPH, words(' \n '), words('  one'), PARAGRAPH, words('two \n'), PARAGRAPH]),
+    ).toEqual([PARAGRAPH, words('one'), PARAGRAPH, words('two'), PARAGRAPH]);
+    expect(slotted([PARAGRAPH, PARAGRAPH, words('one'), LINE])).toEqual([
+      PARAGRAPH,
+      words('one'),
+      LINE,
+    ]);
   });
 
-  it('keeps a line break written `\\n` at either end, as written words', () => {
-    expect(trimmed([LINE, words(' one '), LINE])).toEqual([LINE, words(' one '), LINE]);
+  it('makes two `\\n` at an end a paragraph break, and keeps one as a line break', () => {
+    expect(slotted([LINE, words(' '), LINE, words(' one ')])).toEqual([PARAGRAPH, words('one')]);
+    expect(slotted([LINE, words(' one '), LINE])).toEqual([LINE, words('one'), LINE]);
+    expect(slotted([words('one'), LINE, PARAGRAPH])).toEqual([words('one'), PARAGRAPH]);
   });
 
-  it('leaves what it trims unchanged', () => {
+  it('leaves nothing where it holds no words, whatever breaks it holds', () => {
+    expect(slotted([PARAGRAPH, words('   '), PARAGRAPH])).toEqual([]);
+    expect(slotted([LINE, LINE, words(' '), PARAGRAPH])).toEqual([]);
+    expect(slotted([])).toEqual([]);
+  });
+
+  it('as reflow lays it out in a line, breaks it into paragraphs only where it renders words', () => {
+    const line = (inner: Rendered[]) =>
+      reflow([words('One.'), ...slotted(inner), words(' After.')]);
+    expect(line([PARAGRAPH, words('Two.'), PARAGRAPH])).toEqual(['One.', 'Two.', 'After.']);
+    expect(line([PARAGRAPH, words('  '), PARAGRAPH])).toEqual(['One. After.']);
+  });
+
+  it('over generated pieces, reads alone as the passage does, and is nothing exactly where it has no words', () => {
+    const PIECES: Rendered[] = [
+      PARAGRAPH,
+      LINE,
+      words(' '),
+      words('\n  '),
+      words(' a '),
+      words('b'),
+    ];
+    for (let seed = 1; seed <= 500; seed++) {
+      const c = chooser(seed);
+      const given = Array.from({ length: c.below(8) }, () => c.one(PIECES));
+      const shown = JSON.stringify(given);
+      const laid = slotted(given);
+      // Slotting moves only where its ends meet the line, never what it says.
+      expect(reflow(laid), shown).toEqual(reflow(given));
+      expect(laid.length === 0, shown).toBe(reflow(given).length === 0);
+      const [first, last] = [laid[0], laid.at(-1)];
+      if (first !== undefined && 'words' in first) expect(first.words, shown).not.toMatch(/^\s/);
+      if (last !== undefined && 'words' in last) expect(last.words, shown).not.toMatch(/\s$/);
+    }
+  });
+
+  it('leaves what it lays out unchanged', () => {
     const given = [words(' one ')];
-    trimmed(given);
+    slotted(given);
     expect(given).toEqual([words(' one ')]);
   });
 });
