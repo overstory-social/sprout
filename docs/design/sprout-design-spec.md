@@ -1668,6 +1668,8 @@ kind Kiln {
 
 `wake in <n> seconds | minutes | hours`, with `n` a whole number written out and the unit always plural (`wake in 1 hours`), schedules one wake, no sooner than the shortest interval the host allows: a shorter wait is raised to it, and nothing is said. An object has at most as many pending as the host allows, and a `wake` past that faults, as a `spawn` does when the host will hold no more; so pending wakes are bounded by live instances. Nothing is charged while a wake waits. A wake is a turn of its own; a wake that faults is consumed and logged, not retried.
 
+`cancel wakes` takes back every wake the object whose body runs it has pending at that point in the turn, and with none pending does nothing. A wake taken back never arrives and no longer counts toward the host's cap, so `cancel wakes` then `wake in 3 minutes` puts off what was coming: a troll knocked senseless swings again only when it comes round. Like `wake`, it reaches only its own object's wakes, and it stands wherever `wake` may. Only a place is ticked, so an object that acts on a clock of its own, as an NPC does, does it with wakes.
+
 `elapsed` is how long has actually passed since the wake was asked for, in seconds, and may exceed what was requested. That is what makes a missed wake recoverable: a kiln reads "long since cooled" and a plant computes its growth stage from elapsed rather than being stepped through five times. It is the only way time enters an expression, and it arrives as a parameter rather than as a clock, so nothing else in the language can read the hour.
 
 ### Absence

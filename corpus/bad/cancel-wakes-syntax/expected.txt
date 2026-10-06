@@ -1,0 +1,16 @@
+cancel_wakes_syntax.sprout:10:20  Nothing here is a `Kiln`.
+                                  Declare it with `kind Kiln { … }`, or check the spelling of a kind this world or a library it uses declares.
+
+cancel_wakes_syntax.sprout:14:9   Nothing handles `:stir`, so sending it does nothing.
+                                  Write `on :stir { … }` in the kind that should hear it, or take the message out.
+
+kiln.sprout:7:12                  `cancel` takes back `wakes`, always written that way.
+                                  Write `cancel wakes`, which takes back every wake this object has asked for.
+
+kiln.sprout:8:11                  `cancel` does not say what it cancels.
+                                  Write `cancel wakes`, which takes back every wake this object has asked for.
+
+kiln.sprout:9:12                  `cancel` takes back wakes, and `ticks` is not something it cancels.
+                                  Write `cancel wakes`, which takes back every wake this object has asked for.
+
+refused: 4 problems

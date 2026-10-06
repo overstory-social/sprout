@@ -531,6 +531,7 @@ describe('a statement', () => {
       'allow',
       'self.set(:wear, 1)',
       'wake in 3 hours',
+      'cancel wakes',
       'each thing in self { }',
     ].map((text) => readWith(statement, text).read?.kind);
     expect(kinds).toEqual([
@@ -543,6 +544,7 @@ describe('a statement', () => {
       'allow',
       'expression-statement',
       'wake',
+      'cancel-wakes',
       'each',
     ]);
   });
@@ -556,7 +558,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast`, `wake` and `each`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast`, `wake`, `cancel` and `each`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -580,6 +582,7 @@ describe('a statement', () => {
       'send',
       'broadcast',
       'wake',
+      'cancel',
       'each',
     ]);
     for (const word of STATEMENT_WORDS) {
@@ -588,6 +591,19 @@ describe('a statement', () => {
         expect(refusal.message, word).not.toContain('does not start a statement');
       }
     }
+  });
+
+  it('reads `cancel`, which is not reserved, as a name wherever `cancel wakes` is not written', () => {
+    expect(readStatement('let cancel = self').refusals).toEqual([]);
+    const call = readStatement('cancel.set(:open, true)');
+    expect(call.refusals).toEqual([]);
+    expect(call.statement!.kind).toBe('expression-statement');
+    const sent = readStatement('send cancel :stir');
+    expect(sent.refusals).toEqual([]);
+    expect(sent.statement).toMatchObject({ kind: 'send', target: { parts: [{ text: 'cancel' }] } });
+    const moved = readStatement('move cancel to self');
+    expect(moved.refusals).toEqual([]);
+    expect(moved.statement!.kind).toBe('move');
   });
 
   it('refuses what is written after one, as the next statement would be', () => {
@@ -630,7 +646,9 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
   const conditions = ['a', 'self.count >= 8', 'open == false', 'mover != self', 'n + 1 > 3'];
   const inner = (): string => c.one(['allow', 'refuse "No room."', 'refuse full', 'let n = 1', '']);
   const branch = (): string => `(${c.one(conditions)})${gap()}{${gap()}${inner()}${gap()}}`;
-  switch (c.below(10)) {
+  switch (c.below(11)) {
+    case 10:
+      return { text: `cancel${c.one([' ', '  '])}wakes`, kind: 'cancel-wakes' };
     case 9:
       return {
         text: ['each', c.one(NAMES), ...(c.below(2) === 0 ? [':', c.one(KINDS)] : []), 'in']
@@ -716,11 +734,12 @@ describe('a statement never vanishes silently', () => {
         const said = read!.refusals.map((d) => d.message);
         const shown = `${JSON.stringify(text)}, from ${JSON.stringify(made.text)}`;
         // A statement's first word taken out, where a bare name is left
-        // (`self` from `destroy self`, `full` from `refuse full`), leaves
-        // an expression standing as a statement; `allow` taken out leaves
-        // a block without it. Both are readings, not losses.
+        // (`self` from `destroy self`, `full` from `refuse full`, `wakes`
+        // from `cancel wakes`), leaves an expression standing as a
+        // statement; `allow` taken out leaves a block without it. Both
+        // are readings, not losses.
         const word = made.text.slice(dropped.start, dropped.end);
-        if (said.length === 0 && ['destroy', 'refuse', 'allow'].includes(word)) {
+        if (said.length === 0 && ['destroy', 'refuse', 'allow', 'cancel'].includes(word)) {
           reached.add('a reading');
           continue;
         }
@@ -739,6 +758,7 @@ describe('a statement never vanishes silently', () => {
       'a reading',
       'allow',
       'an else left inside',
+      'cancel-wakes',
       'destroy',
       'each',
       'if',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { locationOf, textOf } from '../../source/source.js';
 import { atMember, readWith, rest } from '../../fixtures/readers.js';
-import { wakeStatement } from './wake.js';
+import { atCancel, cancelStatement, wakeStatement } from './wake.js';
 
 const EXAMPLE =
   'Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.';
@@ -109,5 +109,59 @@ describe('`wake in <n> seconds | minutes | hours`', () => {
     const unit = wakeAt('wake in\n');
     expect(unit.said).toEqual([['kiln.sprout:6:12', '`wake in` does not say how long to wait.']]);
     expect(unit.rest.startsWith('send self :stir\n')).toBe(true);
+  });
+});
+
+describe('`cancel wakes`', () => {
+  /** One `cancel wakes`, read by `cancelStatement` from the start of `text`. */
+  const readCancel = (text: string) => readWith(cancelStatement, text, { name: 'body.sprout' });
+  const said = (text: string) =>
+    readCancel(text).refusals.map((d) => [locationOf(d.at), d.message, d.remedy]);
+  const REMEDY = 'Write `cancel wakes`, which takes back every wake this object has asked for.';
+
+  it('reads the two words, spanning both, and leaves what follows', () => {
+    const { read, p, refusals } = readCancel('cancel wakes\nwake in 3 minutes');
+    expect(refusals).toEqual([]);
+    expect(read).toMatchObject({ kind: 'cancel-wakes' });
+    expect(textOf(read!.at)).toBe('cancel wakes');
+    expect(rest(p)).toBe('wake in 3 minutes');
+  });
+
+  it('says what is missing, at the end of `cancel`, and never takes the next line or statement for it', () => {
+    expect(said('cancel')).toEqual([
+      ['body.sprout:1:7', '`cancel` does not say what it cancels.', REMEDY],
+    ]);
+    const { p, refusals } = readCancel('cancel\nwakes');
+    expect(refusals.map((d) => locationOf(d.at))).toEqual(['body.sprout:1:7']);
+    expect(rest(p)).toBe('wakes');
+    expect(rest(readCancel('cancel wake in 3 hours').p)).toBe('wake in 3 hours');
+  });
+
+  it('asks for the plural where `wake` is written alone, and names anything else it does not cancel', () => {
+    expect(said('cancel wake')).toEqual([
+      ['body.sprout:1:8', '`cancel` takes back `wakes`, always written that way.', REMEDY],
+    ]);
+    expect(said('cancel ticks')).toEqual([
+      [
+        'body.sprout:1:8',
+        '`cancel` takes back wakes, and `ticks` is not something it cancels.',
+        REMEDY,
+      ],
+    ]);
+    expect(said('cancel :woke')[0]![1]).toBe(
+      '`cancel` takes back wakes, and `:woke`, which is a property or a message, is not something it cancels.',
+    );
+  });
+
+  it('starts a statement only where `cancel` is not a name followed by `.`, `(` or an operator', () => {
+    const at = (text: string) => atCancel(readWith(() => null, text).p);
+    expect(at('cancel wakes')).toBe(true);
+    expect(at('cancel')).toBe(true);
+    expect(at('cancel\n.count')).toBe(true);
+    expect(at('cancel }')).toBe(true);
+    expect(at('cancel.count')).toBe(false);
+    expect(at('cancel(1)')).toBe(false);
+    expect(at('cancel == self')).toBe(false);
+    expect(at('wake wakes')).toBe(false);
   });
 });

@@ -1,0 +1,20 @@
+// Taking back a wake: a troll, once provoked, swings its axe every
+// minute by asking to be woken again each time; a knockout takes back
+// the swing it has pending and asks for one three minutes on instead,
+// so the swing it had asked for never comes.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Troll} from 'troll'
+
+world cancel_wakes is sprout.World {
+  visitors are Person
+  visitors arrive at bridge
+
+  object bridge is sprout.Place {
+    describe { text "A rope bridge over nothing much." }
+    object troll is Troll
+  }
+}
+
+verb provoke { role target  "provoke [target]" }
+verb stun    { role target  "stun [target]" }

@@ -145,7 +145,7 @@ describe('an `if` over a name in a kind’s body', () => {
 
 describe('a deciding body only reads and decides', () => {
   const doing =
-    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    wake in 3 hours';
+    'self.set(:inked, true)\n    say "Hi."\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    wake in 3 hours\n    cancel wakes';
 
   it('names a guard in what it refuses, and the guard in a `say`', () => {
     expect(check(doing, GUARD).map(([, message]) => message)).toEqual([
@@ -156,6 +156,7 @@ describe('a deciding body only reads and decides', () => {
       '`move` moves something, and a guard only reads and decides.',
       '`act` performs a verb, and a guard only reads and decides.',
       '`wake` asks for a wake, and a guard only reads and decides.',
+      '`cancel wakes` takes back the wakes asked for, and a guard only reads and decides.',
     ]);
   });
 
@@ -168,6 +169,10 @@ describe('a deciding body only reads and decides', () => {
       ['b.sprout:7:5', '`move` moves something, and a `permit` only reads and decides.'],
       ['b.sprout:8:5', '`act` performs a verb, and a `permit` only reads and decides.'],
       ['b.sprout:9:5', '`wake` asks for a wake, and a `permit` only reads and decides.'],
+      [
+        'b.sprout:10:5',
+        '`cancel wakes` takes back the wakes asked for, and a `permit` only reads and decides.',
+      ],
     ]);
   });
 
@@ -301,10 +306,10 @@ describe('a deciding body draws nothing', () => {
 });
 
 describe('a `do` acts', () => {
-  it('takes the writes, `say`, `spawn`, `destroy`, `move`, `wake` and a `let` naming a spawn', () => {
+  it('takes the writes, `say`, `spawn`, `destroy`, `move`, `wake`, `cancel wakes` and a `let` naming a spawn', () => {
     expect(
       check(
-        'self.set(:inked, true)\n    say "Hi."\n    let v = spawn Vessel in self\n    move v to actor\n    wake in 3 hours\n    if (v != self) { destroy self }',
+        'self.set(:inked, true)\n    say "Hi."\n    let v = spawn Vessel in self\n    move v to actor\n    cancel wakes\n    wake in 3 hours\n    if (v != self) { destroy self }',
         DO,
       ),
     ).toEqual([]);
@@ -395,9 +400,12 @@ describe('a condition opens the branch it guards', () => {
 describe('a handler or a hook acts, with nobody to answer or speak to', () => {
   const HANDLER: BodyKind = { body: 'handler', written: 'on :gust' };
 
-  it('writes, spawns and destroys, as a `do` does', () => {
+  it('writes, spawns, takes back its wakes and destroys, as a `do` does', () => {
     expect(
-      check('self.set(:inked, true)\n    spawn Vessel in self\n    destroy self', HANDLER),
+      check(
+        'self.set(:inked, true)\n    spawn Vessel in self\n    cancel wakes\n    destroy self',
+        HANDLER,
+      ),
     ).toEqual([]);
   });
 
@@ -423,7 +431,7 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
 describe('a `describe` only reads, and gives its words with `text`', () => {
   const DESCRIBE: BodyKind = { body: 'describe' };
   const doing =
-    'self.set(:inked, true)\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    connect onward to self\n    wake in 3 hours';
+    'self.set(:inked, true)\n    spawn Vessel in self\n    destroy self\n    move actor to self\n    act purr ()\n    connect onward to self\n    wake in 3 hours\n    cancel wakes';
 
   it('refuses everything that changes the world, naming the `describe`', () => {
     expect(check(doing, DESCRIBE).map(([, message]) => message)).toEqual([
@@ -434,6 +442,7 @@ describe('a `describe` only reads, and gives its words with `text`', () => {
       '`act` performs a verb, and a `describe` only reads.',
       '`connect` writes where a link leads, and a `describe` only reads.',
       '`wake` asks for a wake, and a `describe` only reads.',
+      '`cancel wakes` takes back the wakes asked for, and a `describe` only reads.',
     ]);
   });
 

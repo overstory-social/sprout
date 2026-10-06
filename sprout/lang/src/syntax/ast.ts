@@ -382,6 +382,15 @@ export interface WakeStatement extends Node {
 }
 
 /**
+ * `cancel wakes` — `self` takes back every wake it has pending, so none
+ * of them arrives (the spec's Time › Wakes). Neither word is reserved:
+ * `cancel` starts this statement unless punctuation follows it on its line.
+ */
+export interface CancelWakesStatement extends Node {
+  readonly kind: 'cancel-wakes';
+}
+
+/**
  * `each pot: Vessel in self { … }`, `each tool of tools { … }` — the
  * body once for each thing a container directly holds, or those of them
  * composing a kind, or each member of a set role, bound to the variable
@@ -454,6 +463,7 @@ export type Statement =
   | SendStatement
   | BroadcastStatement
   | WakeStatement
+  | CancelWakesStatement
   | EachStatement
   | IfStatement
   | RefuseStatement

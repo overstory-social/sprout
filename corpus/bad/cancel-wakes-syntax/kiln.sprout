@@ -1,0 +1,14 @@
+// `cancel wakes` is the two words, `wakes` always plural; it takes back
+// every wake the object has asked for, and nothing else.
+import {:stir} from 'cancel_wakes_syntax'
+
+kind Kiln {
+  on :stir {
+    cancel wake
+    cancel
+    cancel ticks
+    wake in 1 hours
+  }
+
+  on :woke { }
+}
