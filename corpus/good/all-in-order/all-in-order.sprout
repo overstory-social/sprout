@@ -1,7 +1,8 @@
 // `all` in a role that takes one thing (the spec's Parsing › Sequences,
 // again and all): it takes every thing in reach whose kind plays a part
 // in the verb, or, for a role only the actor plays, every thing that is
-// not a person; the reading runs once for each, in the order the range
+// not a person and not the visitor's own place; the reading runs once
+// for each, in the order the range
 // walk reaches them, and stops at the first refusal, wherever in that
 // order it falls. A run of things runs in the order written.
 import * as sprout from 'sprout'
