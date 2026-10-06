@@ -884,6 +884,21 @@ kind Actor {
 
 `take` is nothing the engine knows. It is a verb, a `move`, and two passages a world may replace by writing its own — which is also how a world writes them in another language.
 
+The actor's own part narrates the act to the one it is aimed at with `tell <role>`: a role is a binding, and where a person fills it, that person reads the line, in the second person, in their own sentence. A plain `tell` leaves them out, as it leaves out every participant, so this is the line they read about the act. A troll's blow is the troll's to tell, whether a visitor typed it or the troll performed it with `act`:
+
+```sprout
+kind Troll is sprout.Actor {
+  as actor for attack {
+    do {
+      tell target "The troll swings {weapon} at you. It whistles past your ear."
+      tell "The troll swings {weapon} at {target}."
+    }
+  }
+}
+```
+
+There is no other statement for it. `tell target` needs no narrowing, since it names a binding whatever the role is filled by; and a role-player who is not a person, or not in the actor's range, is told nothing, under Other people › Who hears it.
+
 ### The two passes
 
 An understood command produces one **reading**: a verb, an actor, and its roles filled with objects or values. Running it is two passes over the participants, the actor first and then the roles in the order the verb declares them.
@@ -1056,7 +1071,7 @@ object cat is Creature {
 
 `act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done; a refused `act` ends the body it stands in, as a refused `move` does. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes `sprout.Actor`, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
 
-Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
+Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person, and the one its act is aimed at reads what its own part tells that role, under The actor's own part. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
 An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` as the destination of an exit or a link of the mover's place that applies, or where it is in the mover's own range, which across places means the world passes, so an NPC walks the map as a visitor does unless the world deliberately opens it, as one place hearing another is the world's deliberate act; a place reached neither way is out of range, and the move faults.
 
@@ -1390,6 +1405,22 @@ accept (item, from) {
 
 `sprout.Actor` writes the guards that make a person's things their own: it departs only when the mover is itself, so nobody is carried off; it releases only to its own hand, so nobody is picked; and it accepts what fits, so a gift arrives if there is room for it. A world's visitor kind composes those, and a world that wants more of a person's guards writes them on a kind its visitor kind composes.
 
+### A way an NPC guards
+
+The three roles are the whole poll. Nobody else present in the place being left is asked, an actor included: blocking a way is the place's to do. An NPC that guards a way does it through the place, whose exit's `when` guard reads the NPC's state, with a refusing exit, under Verbs › Exits, to say so:
+
+```sprout
+object troll_room is sprout.Place {
+  grammar {
+    exit west "west" refuse "The troll fends you off with a menacing gesture." when (troll.get(:awake))
+    exit west "into the maze" -> maze
+  }
+  object troll is Troll
+}
+```
+
+While the troll is awake, going west is answered with his gesture and nothing moves; once he is not, the way leads on. The place's exits are what a visitor can see and say, so a guarded way is offered or not by the same poll that offers every exit, and the troll needs no say in a move to have one in the room.
+
 ### Guards are read-only
 
 A guard may read and decide. It may not write, send, move, spawn or destroy. This is what makes the poll safe to run inline, and it is the reason handlers are queued while guards are not: a guard cannot change the world underneath the decision it is part of.
@@ -1421,7 +1452,7 @@ Three statements put words in front of a visitor, and each has an audience.
 | `text` | whoever is looking | `describe` only |
 | `say` | the actor | a role's `do` |
 | `tell` | everyone in the place except the actor and the participants | a role's `do`, a handler, a hook, a tick, a wake |
-| `tell <x>` | one actor, `x` | the same |
+| `tell <x>` | one actor, `x`: `self` in a role a person plays, or, in the actor's own part, the person a role names | the same |
 | `tell inside`, `tell outside` | the teller's own occupants, or the place around it | the same, in a kind that holds actors |
 
 A **passage** is a named block of words belonging to a kind, for prose too long to sit in the middle of behaviour, and any of the four takes one in place of a string, as does `refuse`.
@@ -1548,7 +1579,7 @@ A plain `tell` reaches every actor in the telling object's **place** — its nea
 
 A teller that itself holds actors, the wardrobe, has two audiences: the people inside it and the people in the place around it. Its plain `tell` reaches both. `tell inside "…"` reaches only its occupants and `tell outside "…"` only the place around it, so a wardrobe may say "Get inside me." to the room and then "I am a people eater." to whoever did; either form is refused in a body whose kind does not declare `contains actors`.
 
-`tell <x>` reaches one actor, whoever `x` is bound to — `self` in a role a person is playing, `item` in an `:entered` handler, a loop variable — and only if `x` is in the teller's range when the `tell` runs. Told to someone out of range, or to an NPC, it goes nowhere, with no fault, as a `send` out of range does nothing. `x` is a binding: an object of the world is never a person, so `tell hall` is refused.
+`tell <x>` reaches one actor, whoever `x` is bound to — `self` in a role a person is playing, a role in the actor's own part, which is how an act narrates to the one it is aimed at, `item` in an `:entered` handler, a loop variable — and only if `x` is in the teller's range when the `tell` runs. Told to someone out of range, or to an NPC, it goes nowhere, with no fault, as a `send` out of range does nothing. `x` is a binding: an object of the world is never a person, so `tell hall` is refused.
 
 Pass rules govern speech as they govern range, since who hears a voice is a question of what stands between: a thing inside a shut chest is heard by nothing outside the chest, while the chest itself, shut, is still heard in the room, since nothing stands between them. An author who wants a voice to carry through a lid writes a pass rule on the container.
 

@@ -1,0 +1,47 @@
+{
+  "about": "The troll narrates his own blow: his part of `attack`, performed with `act` as Marta walks in, tells her with `tell target`, and Ines, already there, reads it about her. Ines's own blow, typed, tells the one it is aimed at the same way. While the troll is awake the room refuses the way west; once he is out cold it leads into the maze.",
+  "steps": [
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A dark and damp cellar. A passage leads north." }
+    ] },
+    { "as": "Ines", "type": "take sword", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You take a sword." }
+    ] },
+    { "as": "Ines", "type": "north", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A small room with passages to the west and south. Deep scratches mar the walls." },
+      { "reader": "Ines", "kind": "described", "words": "A nasty-looking troll, brandishing a bloody axe, blocks the way west." },
+      { "reader": "Ines", "kind": "told", "words": "The troll swings a bloody axe at you. It whistles past your ear." }
+    ] },
+    { "as": "Ines", "type": "west", "expect": [
+      { "reader": "Ines", "kind": "refused", "words": "The troll fends you off with a menacing gesture." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A dark and damp cellar. A passage leads north." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from a cellar." },
+      { "reader": "Marta", "kind": "described", "words": "A small room with passages to the west and south. Deep scratches mar the walls." },
+      { "reader": "Marta", "kind": "described", "words": "A nasty-looking troll, brandishing a bloody axe, blocks the way west." },
+      { "reader": "Marta", "kind": "told", "words": "The troll swings a bloody axe at you. It whistles past your ear." },
+      { "reader": "Ines", "kind": "told", "words": "The troll swings a bloody axe at Marta." }
+    ] },
+    { "as": "Ines", "type": "hit Marta with sword", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You swing a sword at Marta." },
+      { "reader": "Marta", "kind": "told", "words": "Ines swings a sword at you." }
+    ] },
+    { "as": "Ines", "type": "attack troll with sword", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You swing a sword at a troll." },
+      { "reader": "Marta", "kind": "told", "words": "Ines swings a sword at a troll." },
+      { "reader": "Ines", "kind": "said", "words": "You catch the troll on the temple. He slumps to the floor, out cold." },
+      { "reader": "Marta", "kind": "told", "words": "Ines knocks the troll out cold." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A small room with passages to the west and south. Deep scratches mar the walls." },
+      { "reader": "Marta", "kind": "described", "words": "An unconscious troll is sprawled on the floor." }
+    ] },
+    { "as": "Ines", "type": "west", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves for a maze." },
+      { "reader": "Ines", "kind": "described", "words": "A maze of twisty little passages, all alike." }
+    ] }
+  ]
+}
