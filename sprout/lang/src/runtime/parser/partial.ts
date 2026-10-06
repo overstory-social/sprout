@@ -109,7 +109,7 @@ export function comparePartial(a: Partial, b: Partial): number {
 }
 
 /** What fills a slot, as a visitor types it: a thing, a set's things joined by `and`, or an exit. */
-function boundWords(bound: Bound, addressOf: (id: InstanceId) => Address): string {
+export function boundWords(bound: Bound, addressOf: (id: InstanceId) => Address): string {
   if ('object' in bound) return definite(addressOf(bound.object));
   if ('set' in bound) return bound.set.map((id) => definite(addressOf(id))).join(' and ');
   if ('exit' in bound) return bound.exit.direction ?? bound.exit.label;

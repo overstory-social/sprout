@@ -43,8 +43,7 @@ import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import type { Draw } from './draws.js';
 import type { InstanceId } from './ids.js';
-import { liveTree } from './live.js';
-import { carriedIn, rangeOf, type LiveTree, type PassRule, type Reached } from './range.js';
+import type { PassRule } from './range.js';
 import { consentPass, type Bound, type Reading, type Said } from './reading.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject, boundValue } from './evaluate.js';
@@ -55,7 +54,6 @@ import { answer, refused, type Answer } from './parser/answers.js';
 import type { AppliedWay, RefusingExit } from './parser/exits.js';
 import type { Direction } from '../declare/directions.js';
 import { waysFrom } from './exits.js';
-import { inTheDark } from './darkness.js';
 import {
   fillIntentSlot,
   fillSlot,
@@ -68,6 +66,8 @@ import {
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
 import { allIn, type AllContext } from './parser/all.js';
+import { reachOf } from './parser/reach.js';
+import { readItem } from './parser/item.js';
 import { chainPoints, commandAfter, commandBefore } from './parser/chain.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
@@ -122,13 +122,7 @@ export function readCommand(
   if (words.length === 0) return answer(state, 'unknown', actor, here);
 
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
-  const tree = liveTree(state);
-  const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
-  const reached = candidatesOf(state, tree, actor, range.reached, addressing);
-  // In the dark a visitor names only themselves and what they carry (the spec's Range › Sight).
-  const candidates = inTheDark(actor, context)
-    ? reached.filter((one) => one.carried || one.instance.id === actor)
-    : reached;
+  const candidates = reachOf(actor, context);
   if (words.length === 1 && AGAIN.includes(words[0]!)) {
     return again(context.lastReading, actor, here, candidates, context);
   }
@@ -350,11 +344,12 @@ function readsWhole(
 }
 
 /**
- * The turns a run's items after its first make, in the order written:
- * each a reading planned now, the role filled by the thing the item
- * names best; or, where it names nothing it may fill or ties between
- * things, the line with the run replaced by the item, read on its own
- * turn, which answers it or draws as any line does. Each thing tried is a step.
+ * The turns a run's items after its first make, in the order written,
+ * each a reading planned now with every other role as this one binds
+ * them: the item's role filled by the thing it names best; or, where it
+ * names nothing it may fill or ties between things, left for its own
+ * turn to read the item's words afresh (`parser/item.ts`), which
+ * answers it or draws as any line does. Each thing tried is a step.
  */
 function laterOf(
   phrase: TypedPhrase,
@@ -368,11 +363,16 @@ function laterOf(
   const run = choice[at];
   if (run === undefined || run.words !== undefined || run.later === undefined) return [];
   const span = spans[at]!;
+  const role = phrase.verb.roles[span.role]!.name;
   const slot = words.slice(span.start, span.end);
+  const first = readingOf(phrase, actor, spans, choice, context);
+  const within: Reading = {
+    ...first,
+    bindings: new Map([...first.bindings].filter(([name]) => name !== role)),
+  };
   return run.later.map((item): Following => {
-    const typed = [...words.slice(0, span.start), ...slot.slice(item.start, item.end)];
-    const text = [...typed, ...words.slice(span.end)].join(' ');
-    if (item.filled.fills !== 'options') return { text };
+    const reread = { role, words: slot.slice(item.start, item.end).join(' ') };
+    if (item.filled.fills !== 'options') return { planned: within, reread };
     const ranked = item.filled.options.map((option): Ranked => {
       context.budget.spend();
       const one = choice.map((chosen, other) => (other === at ? option : chosen));
@@ -389,7 +389,7 @@ function laterOf(
     });
     const [best, next] = [...ranked].sort(compareRanked);
     if (best === undefined || (next !== undefined && compareRanked(best, next) === 0)) {
-      return { text };
+      return { planned: within, reread };
     }
     return { planned: best.reading as Reading };
   });
@@ -544,74 +544,6 @@ function readingKey(reading: Understood): string {
 }
 
 /**
- * What may be named among what the walk reached, nearest first: every
- * live thing but the world, each with its nearness (`nearnessOf`) and
- * whether `actor` carries it.
- */
-function candidatesOf(
-  state: StateReader,
-  tree: LiveTree<InstanceId>,
-  actor: InstanceId,
-  reached: readonly Reached<InstanceId>[],
-  addressing: AddressContext,
-): Candidate[] {
-  const near = nearnessOf(tree, reached, placeOf(state, actor));
-  const carried = carriedIn(tree, actor, reached);
-  return reached.flatMap(({ node }) => {
-    const instance = node === state.world ? undefined : state.instance(node);
-    if (instance === undefined) return [];
-    const address = addressOf(instance, addressing);
-    return [{ instance, address, near: near.get(node)!, carried: carried.has(node) }];
-  });
-}
-
-/**
- * How near each thing reached is, as the spec's Range counts it: first by
- * the ring it is in, how far out the container is that it is reached
- * through, then by how deep inside that container it lies. Two things
- * are equally near only where both agree. The actor's own place is further
- * than everything it holds and nearer than the ring beyond it (Parsing ›
- * Choosing a reading), so a place answers to its name only where nothing
- * in it answers as well.
- */
-function nearnessOf(
-  tree: LiveTree<InstanceId>,
-  reached: readonly Reached<InstanceId>[],
-  place: InstanceId,
-): Map<InstanceId, number> {
-  const where = new Map<InstanceId, { ring: number; depth: number }>();
-  // The last of the asker and its containers outward that the walk reached.
-  let outer: InstanceId | null = null;
-  for (const { node, via } of reached) {
-    let here: { ring: number; depth: number };
-    if (via === 'self') {
-      here = { ring: 0, depth: 0 };
-      outer = node;
-    } else if (outer !== null && node === tree.containerOf(outer)) {
-      here = { ring: where.get(outer)!.ring + 1, depth: 0 };
-      outer = node;
-    } else {
-      const inside = where.get(tree.containerOf(node)!);
-      if (inside === undefined) throw new Error(`\`${node}\` was reached before what holds it.`);
-      here = { ring: inside.ring, depth: inside.depth + 1 };
-    }
-    where.set(node, here);
-  }
-  const own = where.get(place);
-  if (own !== undefined) where.set(place, { ring: own.ring, depth: Infinity });
-  const ordered = [...where].sort(([, a], [, b]) => a.ring - b.ring || a.depth - b.depth);
-  const rank = new Map<InstanceId, number>();
-  let at = -1;
-  let last: { ring: number; depth: number } | null = null;
-  for (const [node, here] of ordered) {
-    if (last === null || here.ring !== last.ring || here.depth !== last.depth) at++;
-    last = here;
-    rank.set(node, at);
-  }
-  return rank;
-}
-
-/**
  * The readings one placement of a phrase's slots makes: the one `choice`
  * fills every slot with, or, where a slot is `all`, one for each thing it
  * takes that no other slot names, in order, each a step; none where `all`
@@ -710,7 +642,11 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 export const parseCommand: Parser = (text, actor, context) => {
   const here = placeOf(context.state, actor);
   const exits = waysFrom(here, context);
-  const outcome = readCommand(text, actor, { ...context, exits });
+  const { item } = context;
+  const outcome =
+    item === undefined
+      ? readCommand(text, actor, { ...context, exits })
+      : readItem(text, actor, item.within, item.role, { ...context, exits });
   if ('understood' in outcome) {
     const { understood, drawn } = outcome;
     const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);

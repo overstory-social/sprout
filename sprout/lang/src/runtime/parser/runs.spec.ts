@@ -47,7 +47,11 @@ const pantry = (): Study => ({
   nicknames: new Map(),
 });
 
-/** What a line's first reading binds `role` to, then each turn after it: a planned reading's, or the words read on its own turn. */
+/**
+ * What a line's first reading binds `role` to, then each turn after it: a
+ * planned reading's; `afresh:` and an item's words its own turn reads; or
+ * a command read from its own words.
+ */
 function turns(outcome: CommandOutcome, role: string): (InstanceId | string | null)[] {
   if (!('understood' in outcome)) throw new Error(`answered \`${outcome.answer}\``);
   const of = (bindings: ReadonlyMap<string, unknown>) => {
@@ -56,7 +60,10 @@ function turns(outcome: CommandOutcome, role: string): (InstanceId | string | nu
   };
   return [
     of(outcome.understood.bindings),
-    ...outcome.rest.map((one) => ('planned' in one ? of(one.planned.bindings) : one.text)),
+    ...outcome.rest.map((one) => {
+      if (!('planned' in one)) return one.text;
+      return one.reread === undefined ? of(one.planned.bindings) : `afresh: ${one.reread.words}`;
+    }),
   ];
 }
 
@@ -127,13 +134,23 @@ describe('a run in a role that takes one thing', () => {
     expect(turns(read('put salt and lamp in it', 7, [BOX]), 'container')).toEqual([BOX, BOX]);
   });
 
-  it('leaves an item that names nothing, or ties, to be read on its own turn', () => {
+  it('leaves an item that names nothing, or ties, for its own turn to read afresh', () => {
     expect(turns(read('take lamp and unicorn and salt'), 'target')).toEqual([
       LAMP,
-      'take unicorn',
+      'afresh: unicorn',
       SALT,
     ]);
-    expect(turns(read('take lamp and key'), 'target')).toEqual([LAMP, 'take key']);
+    expect(turns(read('take lamp and key'), 'target')).toEqual([LAMP, 'afresh: key']);
+    // The item's turn reads its words alone: every other role is planned as the line bound it.
+    const outcome = read('put salt and key in it', 7, [BOX]);
+    const later = 'understood' in outcome ? outcome.rest[0] : undefined;
+    expect(later !== undefined && 'planned' in later && later.reread).toEqual({
+      role: 'item',
+      words: 'key',
+    });
+    expect(later !== undefined && 'planned' in later && [...later.planned.bindings]).toEqual([
+      ['container', { object: BOX }],
+    ]);
     expect(turns(read('take lamp and brass key'), 'target')).toEqual([LAMP, BRASS_KEY]);
   });
 

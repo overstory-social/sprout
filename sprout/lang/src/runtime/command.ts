@@ -67,16 +67,34 @@ export interface ParseContext {
   readonly referents: readonly InstanceId[];
   /** The reading the actor's own last command ran, which `again` runs again; null before one. */
   readonly lastReading: Reading | null;
+  /**
+   * Where the words are an item of a run read on its own turn: the
+   * reading the line planned, every role but the item's filled as the
+   * line began, and the role the words fill.
+   */
+  readonly item?: { readonly within: Reading; readonly role: string };
 }
 
 /**
  * A turn a line runs after the one that read it (the spec's Parsing ›
  * Sequences, again and all): a reading planned before it ran, an
- * intent's step or a thing of `all` or of a run; or a command read from
- * its own words on its own turn, an item of a run that named nothing
- * outright or a command `and` joined.
+ * intent's step or a thing of `all` or of a run, or one whose run's item
+ * is read afresh on its turn; or a command `and` joined, read from its
+ * own words on its own turn.
  */
-export type Following = { readonly planned: Reading } | { readonly text: string };
+export type Following =
+  { readonly planned: Reading; readonly reread?: Reread } | { readonly text: string };
+
+/**
+ * An item of a run that is read on its own turn (the spec's Parsing ›
+ * Sequences, again and all): the role it fills and its words. The
+ * reading it is planned with holds every other role as the line bound
+ * it, so only these words are read afresh.
+ */
+export interface Reread {
+  readonly role: string;
+  readonly words: string;
+}
 
 /** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
 export type Parsed =
@@ -127,6 +145,8 @@ export interface Command extends WriteInputs {
    * read before the line ran, against the world the visitor typed into.
    */
   readonly planned?: Reading;
+  /** The item of a run whose words this turn reads afresh, `planned` holding the other roles. */
+  readonly reread?: Reread;
 }
 
 /**
@@ -200,10 +220,12 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       if (gone) return { displaced: displace(turn, command.visit) };
       const { draft, catalogue, passes, budget, draws } = turn;
       const nicknames = nicknamesIn(state);
+      const { planned, reread } = command;
+      const item = planned !== undefined && reread !== undefined;
       const parsed: Parsed =
-        command.planned !== undefined
-          ? { reading: command.planned, rest: [], drawn: null, corrected: [] }
-          : host.parse(command.text, actor, {
+        planned !== undefined && !item
+          ? { reading: planned, rest: [], drawn: null, corrected: [] }
+          : host.parse(item ? reread.words : command.text, actor, {
               state: draft,
               catalogue,
               passes,
@@ -212,6 +234,7 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
               nicknames,
               referents: committed.visitor(command.visit)!.referents,
               lastReading: committed.visitor(command.visit)!.lastReading,
+              ...(item ? { item: { within: planned, role: reread.role } } : {}),
             });
       if ('answered' in parsed) {
         if (!parsed.answered.to.includes(actor)) {

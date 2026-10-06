@@ -111,6 +111,20 @@ describe('the turns a command plans after its own', () => {
     ]);
   });
 
+  it('read an item that ties afresh on its own turn, every other role as the line bound it', () => {
+    let state = workshop();
+    for (const text of ['take pin and nail and tack', 'examine crate']) {
+      state = played(state, MARTA, text).state;
+    }
+    // `it` named the crate when the line began; the pin's turn makes it the pin.
+    const { read } = played(state, MARTA, 'put pin and spike in it');
+    expect(read['Marta']).toEqual([
+      'You put a pin in a crate.',
+      expect.stringMatching(/^\((a nail|a tack)\)$/),
+      'There is no room in a crate.',
+    ]);
+  });
+
   it('each run as a turn of its own, after the first with its own seed', () => {
     const seen: Command[] = [];
     let state = workshop();
