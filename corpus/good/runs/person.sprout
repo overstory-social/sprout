@@ -1,0 +1,12 @@
+import * as sprout from 'sprout'
+
+// A set role binds a run at once: one turn, every thing bound together.
+verb juggle { role things many  "juggle [things]" }
+
+kind Juggler is sprout.Actor {
+  as actor for juggle {
+    do { say "You juggle {things.count} things at once." }
+  }
+}
+
+kind Person is Juggler, sprout.Visitor { }

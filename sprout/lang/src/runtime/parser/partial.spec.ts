@@ -70,6 +70,19 @@ describe('a partial reading', () => {
     ]);
   });
 
+  it('writes a run in a role that takes one thing as its first item, the one its turn reads', () => {
+    expect(
+      partials([
+        {
+          fills: 'run',
+          options: [thing(DOOR)],
+          later: [{ start: 2, end: 3, filled: { fills: 'options', options: [thing(GONG)] } }],
+        },
+        { fills: 'unfit', things: [thing(GUARD)] },
+      ]),
+    ).toEqual([{ words: 'unlock the door with Oskar', literal: 4, bound: 2, uncarried: null }]);
+  });
+
   it('is none where no slot names a thing it cannot take, or one names nothing or no thing', () => {
     expect(
       partials([

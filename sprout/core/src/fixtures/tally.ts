@@ -104,6 +104,7 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     if (intent !== undefined) {
       return {
         intended: { intent, actor, bindings: new Map([['y', { object }]]) },
+        rest: [],
         drawn: null,
         corrected: [],
       };

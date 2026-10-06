@@ -1027,9 +1027,8 @@ describe('`all`', () => {
   it('reads a role that takes one thing as the first thing, and each after it as a reading to run', () => {
     const outcome = typed(study(), 'unlock door with all');
     if (!('understood' in outcome)) throw new Error('`unlock door with all` was answered');
-    const tools = [outcome.understood, ...outcome.rest].map((reading) =>
-      reading.bindings.get('tool'),
-    );
+    const rest = outcome.rest.map((one) => ('planned' in one ? one.planned : null));
+    const tools = [outcome.understood, ...rest].map((reading) => reading?.bindings.get('tool'));
     expect(tools).toEqual([{ object: BRASS_KEY }, { object: IRON_KEY }]);
   });
 

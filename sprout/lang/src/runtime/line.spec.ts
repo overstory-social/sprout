@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { CHEST, host, MARTA, played, workshop, WORKSHOP } from '../fixtures/workshop.js';
+import {
+  actorOf,
+  ANVIL,
+  CHEST,
+  host,
+  MARTA,
+  played,
+  workshop,
+  WORKSHOP,
+} from '../fixtures/workshop.js';
 import { commandTurn, type Command } from './command.js';
 import { partsOf, runLine } from './line.js';
 
@@ -76,5 +85,114 @@ describe('the turns a line runs', () => {
       "You can't put the anvil in the pin.",
     ]);
     expect(lines('take pin. drop pin')).toEqual(['You take a pin.', 'You put a pin down.']);
+  });
+});
+
+describe('the turns a command plans after its own', () => {
+  const lines = (text: string) => played(workshop(), MARTA, text).read['Marta'];
+
+  it('run each thing of a run, in the order written, before the line’s next command', () => {
+    expect(lines('take pin and key then drop key')).toEqual([
+      'You take a pin.',
+      'You take a key.',
+      'You put a key down.',
+    ]);
+  });
+
+  it('run a command `and` joined, read on its own turn, and what it plans in turn', () => {
+    expect(lines('take pin and take key and drop pin, key')).toEqual([
+      'You take a pin.',
+      'You take a key.',
+      'You put a pin down.',
+      'You put a key down.',
+    ]);
+  });
+
+  it('stop at the first refusal or answer among them, keeping what ran before', () => {
+    expect(lines('take pin and pin and key')).toEqual(['You take a pin.', 'You already have it.']);
+    expect(lines('take pin and zebra and key')).toEqual([
+      'You take a pin.',
+      'You see nothing like that here.',
+    ]);
+    expect(lines('take pin and dance and take key')).toEqual([
+      'You take a pin.',
+      'You see nothing like that here.',
+    ]);
+  });
+
+  it('read an item that ties afresh on its own turn, every other role as the line bound it', () => {
+    let state = workshop();
+    for (const text of ['take pin and nail and tack', 'examine crate']) {
+      state = played(state, MARTA, text).state;
+    }
+    // `it` named the crate when the line began; the pin's turn makes it the pin.
+    const { read } = played(state, MARTA, 'put pin and spike in it');
+    expect(read['Marta']).toEqual([
+      'You put a pin in a crate.',
+      expect.stringMatching(/^\((a nail|a tack)\)$/),
+      'There is no room in a crate.',
+    ]);
+  });
+
+  it('cost each turn no more than its own line, a long chain of `and` as a chain of `then`', () => {
+    const chain = (joiner: string) =>
+      played(workshop(), MARTA, Array.from({ length: 30 }, () => 'examine pin').join(joiner));
+    expect(chain(' and ').read['Marta']).toEqual(chain(' then ').read['Marta']);
+    expect(chain(' and ').read['Marta']).toHaveLength(30);
+  });
+
+  it('answer `not_here` for an item out of reach on its own turn, and stop', () => {
+    // The pin goes into the crate and the crate is shut, so the run's pin is out of reach.
+    let state = workshop();
+    state = played(state, MARTA, 'take pin and key').state;
+    const lines = played(state, MARTA, 'put pin in crate then close crate').read['Marta'];
+    expect(lines).toEqual(['You put a pin in a crate.', 'You shut a crate.']);
+    expect(
+      played(state, MARTA, 'put pin in crate then close crate then drop key and pin').read['Marta'],
+    ).toEqual([
+      'You put a pin in a crate.',
+      'You shut a crate.',
+      'You put a key down.',
+      'You see nothing like that here.',
+    ]);
+  });
+
+  it('read an item’s pronoun as it stood when the line began', () => {
+    let state = workshop();
+    state = played(state, MARTA, 'examine anvil').state;
+    const actor = actorOf(state, MARTA);
+    const examine = WORKSHOP.verbs.qualified('sprout', 'examine')!;
+    const turn = commandTurn(state, host(), {
+      visit: MARTA,
+      text: 'examine pin and it',
+      seed: 3,
+      mayHold: null,
+      now: 0,
+      planned: { verb: examine, actor, bindings: new Map() },
+      reread: { role: 'target', words: 'it', values: [], referents: [ANVIL] },
+    });
+    if (!turn.committed) throw new Error(turn.fault.detail);
+    expect(turn.effects.flatMap((effect) => effect.paragraphs)[0]).toMatch(/anvil/i);
+  });
+
+  it('each run as a turn of its own, after the first with its own seed', () => {
+    const seen: Command[] = [];
+    let state = workshop();
+    let seed = 20;
+    runLine(
+      { visit: MARTA, text: 'take pin and key and take crate', seed: 7, mayHold: null, now: 0 },
+      (command) => {
+        seen.push(command);
+        const turn = commandTurn(state, host(), command);
+        if (turn.committed) state = turn.state;
+        return turn;
+      },
+      () => (seed += 1),
+    );
+    expect(seen.map((one) => [one.text, one.seed, 'planned' in one])).toEqual([
+      ['take pin and key and take crate', 7, false],
+      ['take pin and key and take crate', 21, true],
+      ['take crate', 22, false],
+    ]);
   });
 });

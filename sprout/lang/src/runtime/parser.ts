@@ -9,7 +9,11 @@
 // what they carry (the spec's Range › Sight).
 //
 // `again` or `g` alone runs the actor's last reading again, where what it
-// binds is still in reach.
+// binds is still in reach. A run of things in a role that takes one thing
+// is read as its first item, each item after it a turn of its own
+// (`parser/runs.ts`); `and` before a verb joins two commands where no
+// reading takes the line whole (`parser/chain.ts`), the second read on its
+// own turn (the spec's Parsing › Sequences, again and all).
 //
 // Every line has exactly one outcome: a reading, or one of the world's
 // answers, `cannot`, `not_carrying`, `no_way`, `not_here` or `unknown`, or
@@ -39,27 +43,44 @@ import type { Budget } from './budget.js';
 import type { Catalogue } from './catalogue.js';
 import type { Draw } from './draws.js';
 import type { InstanceId } from './ids.js';
-import { liveTree } from './live.js';
-import { carriedIn, rangeOf, type LiveTree, type PassRule, type Reached } from './range.js';
+import type { PassRule } from './range.js';
 import { consentPass, type Bound, type Reading, type Said } from './reading.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject, boundValue } from './evaluate.js';
-import type { ParseContext, Parser } from './command.js';
+import type { Following, ParseContext, Parser } from './command.js';
 import type { StateReader } from './state.js';
-import { addressOf, type AddressContext } from './parser/address.js';
+import { addressOf, type Address, type AddressContext } from './parser/address.js';
 import { answer, refused, type Answer } from './parser/answers.js';
 import type { AppliedWay, RefusingExit } from './parser/exits.js';
 import type { Direction } from '../declare/directions.js';
 import { waysFrom } from './exits.js';
-import { inTheDark } from './darkness.js';
-import { fillIntentSlot, fillSlot, valueOf, type Filled, type FillOption } from './parser/fill.js';
+import {
+  fillIntentSlot,
+  fillSlot,
+  valueOf,
+  type FillContext,
+  type Filled,
+  type FillOption,
+  type LaterItem,
+} from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
-import { allIn } from './parser/all.js';
+import { allIn, type AllContext } from './parser/all.js';
+import { reachOf } from './parser/reach.js';
+import { readItem } from './parser/item.js';
+import { inReach } from './parser/planned.js';
+import { chainPoints, commandAfter, commandBefore, stretchAfter } from './parser/chain.js';
+import { namesOutright } from './parser/runs.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
-import { chooseReading, type Drawn, type Ranked, type Understood } from './parser/rank.js';
+import {
+  chooseReading,
+  compareRanked,
+  type Drawn,
+  type Ranked,
+  type Understood,
+} from './parser/rank.js';
 
 /** What reading a line reads: the turn's state, the bundle, the pass rules, the meter and the draws. */
 export interface CommandContext {
@@ -83,8 +104,8 @@ export interface CommandContext {
 export type CommandOutcome =
   | {
       readonly understood: Understood;
-      /** The readings after it a line of `all` runs, each as a turn of its own, in order. */
-      readonly rest: readonly Reading[];
+      /** The turns the line runs after it, in order: `all`'s or a run's, and a command `and` joined. */
+      readonly rest: readonly Following[];
       readonly drawn: Drawn | null;
       /** What it binds that a pronoun named, and the pronoun typed. */
       readonly pronounNamed: readonly PronounNamed[];
@@ -103,22 +124,72 @@ export function readCommand(
   if (words.length === 0) return answer(state, 'unknown', actor, here);
 
   const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
-  const tree = liveTree(state);
-  const range = rangeOf({ tree, passes: context.passes, budget }, actor, 'any');
-  const reached = candidatesOf(state, tree, actor, range.reached, addressing);
-  // In the dark a visitor names only themselves and what they carry (the spec's Range › Sight).
-  const candidates = inTheDark(actor, context)
-    ? reached.filter((one) => one.carried || one.instance.id === actor)
-    : reached;
+  const candidates = reachOf(actor, context);
   if (words.length === 1 && AGAIN.includes(words[0]!)) {
     return again(context.lastReading, actor, here, candidates, context);
   }
   const fill = { candidates, exits: context.exits, budget, referents: context.referents };
-  const everything = { ...fill, actor, here, kinds: catalogue.kinds.values() };
+  const reader: LineReader = {
+    actor,
+    here,
+    fill,
+    everything: { ...fill, actor, here, kinds: catalogue.kinds.values() },
+    address: (id) => addressOf(state.instance(id)!, addressing),
+    context,
+  };
+  const written = (id: InstanceId): string => writtenAs(reader.address(id));
+  const understood = (readings: readonly Ranked[], after: readonly Following[]) => {
+    const chosen = chooseReading(readings, written, context.draws, budget);
+    return {
+      understood: chosen.reading,
+      rest: [...chosen.rest(), ...after],
+      drawn: chosen.drawn,
+      pronounNamed: chosen.pronounNamed,
+    };
+  };
+  // Where `and` may join two commands, the line is one command where a
+  // reading reads all of it; otherwise it splits at the first such `and`
+  // whose words after it, up to the next `and` or comma, name nothing
+  // outright, so a name that begins with a verb stays whole, and what
+  // follows is read on a turn of its own. A turn reads its line at most
+  // twice, so a long chain costs each turn no more than its own line.
+  const points = chainPoints(words, catalogue);
+  const whole = readingsOf(words, reader);
+  const answering = (read: Read, after: readonly Following[]) =>
+    read.readings.length === 0 ? read.answered() : understood(read.readings, after);
+  if (points.length === 0) return answering(whole, []);
+  const reads = whole.readings.filter((one) => one.whole);
+  if (reads.length > 0) return understood(reads, []);
+  const at = points.find((point) => !namesOutright(stretchAfter(words, point), candidates, fill));
+  if (at === undefined) return answering(whole, []);
+  return answering(readingsOf(commandBefore(words, at), reader), [
+    { text: commandAfter(words, at) },
+  ]);
+}
 
+/** What reading a line's words needs besides them: who typed it, where, what they can name, and the turn. */
+interface LineReader {
+  readonly actor: InstanceId;
+  readonly here: InstanceId;
+  readonly fill: FillContext;
+  readonly everything: AllContext;
+  readonly address: (id: InstanceId) => Address;
+  readonly context: CommandContext;
+}
+
+/** What one command's words make: every reading, and the answer where they make none. */
+interface Read {
+  readonly readings: readonly Ranked[];
+  /** The world's answer to words no reading reads, which may draw among partial readings. */
+  readonly answered: () => Answer;
+}
+
+/** Every reading `words` make as one command, each phrase tried against them. */
+function readingsOf(words: readonly string[], reader: LineReader): Read {
+  const { actor, here, fill, everything, address, context } = reader;
+  const { state, catalogue, budget } = context;
   const readings = new Map<string, Ranked>();
   const partials: Partial[] = [];
-  const address = (id: InstanceId) => addressOf(state.instance(id)!, addressing);
   let notHere = false;
   // A way out the words name that does not go: an exit that refuses, or a direction none answers.
   let noGoing: RefusingExit | Direction | null = null;
@@ -154,6 +225,9 @@ export function readCommand(
         if (phrase.only === null) notHere = true;
         continue;
       }
+      // One role runs once for each of several things, never two.
+      const several = fills.filter((one) => one.fills === 'all' || one.fills === 'run').length;
+      if (several > 1) continue;
       for (const choice of choicesOf(fills)) {
         budget.spend();
         const each = eachOf(phrase, actor, spans, choice, context);
@@ -162,7 +236,10 @@ export function readCommand(
         if (phrase.only !== null && !takesPart(phrase.only, reading)) continue;
         const ranked: Ranked = {
           reading,
-          rest,
+          rest: () => [
+            ...rest.map((planned) => ({ planned })),
+            ...laterOf(phrase, actor, spans, choice, words, context),
+          ],
           allowed: consentPass(reading, context) === null,
           literal: literalOf(phrase) + matchedIn(choice, spans, reading),
           near: reading.verb.roles.map((_, role) => {
@@ -170,6 +247,7 @@ export function readCommand(
             return at < 0 ? 0 : choice[at]!.near;
           }),
           pronounNamed: pronounsIn(choice),
+          whole: readsWhole(choice, spans, reading),
         };
         // One reading made two ways is one reading: the way that matched more words.
         const key = readingKey(reading);
@@ -218,7 +296,8 @@ export function readCommand(
             return at < 0 ? 0 : choice[at]!.near;
           }),
           pronounNamed: pronounsIn(choice),
-          rest: [],
+          whole: true,
+          rest: () => [],
         };
         const key = readingKey(reading);
         const known = readings.get(key);
@@ -226,7 +305,7 @@ export function readCommand(
       }
     }
   }
-  if (readings.size === 0) {
+  const answered = (): Answer => {
     if (partials.length > 0) {
       const partial = choosePartial(partials, context.draws, budget);
       return partial.uncarried === null
@@ -239,15 +318,87 @@ export function readCommand(
         : refused(noGoing, actor, here);
     }
     return answer(state, notHere ? 'not_here' : 'unknown', actor, here);
-  }
-  const written = (id: InstanceId): string => writtenAs(address(id));
-  const chosen = chooseReading([...readings.values()], written, context.draws, budget);
-  return {
-    understood: chosen.reading,
-    rest: chosen.rest,
-    drawn: chosen.drawn,
-    pronounNamed: chosen.pronounNamed,
   };
+  return { readings: [...readings.values()], answered };
+}
+
+/**
+ * Whether `reading`, which `choice` made, reads every word it was given:
+ * each item of its run names something, and every value typed is bound.
+ */
+function readsWhole(
+  choice: readonly Choice[],
+  spans: readonly SlotSpan[],
+  reading: Reading,
+): boolean {
+  return choice.every((one, at) => {
+    if (one.words !== undefined) {
+      return reading.bindings.has(reading.verb.roles[spans[at]!.role]!.name);
+    }
+    return (one.later ?? []).every((item) => item.filled.fills === 'options');
+  });
+}
+
+/**
+ * The turns a run's items after its first make, in the order written,
+ * each a reading planned now with every other role as this one binds
+ * them: the item's role filled by the thing it names best; or, where it
+ * names nothing it may fill or ties between things, left for its own
+ * turn to read the item's words afresh (`parser/item.ts`), which
+ * answers it or draws as any line does. Each thing tried is a step.
+ */
+function laterOf(
+  phrase: TypedPhrase,
+  actor: InstanceId,
+  spans: readonly SlotSpan[],
+  choice: readonly Choice[],
+  words: readonly string[],
+  context: CommandContext,
+): Following[] {
+  const at = choice.findIndex((one) => one.words === undefined && one.later !== undefined);
+  const run = choice[at];
+  if (run === undefined || run.words !== undefined || run.later === undefined) return [];
+  const span = spans[at]!;
+  const role = phrase.verb.roles[span.role]!.name;
+  const slot = words.slice(span.start, span.end);
+  // Every thing but the item's, and each value role's words, which bind against the item's thing.
+  const values = spans.flatMap((one, other) => {
+    const typed = choice[other]!.words;
+    return typed === undefined
+      ? []
+      : [{ role: phrase.verb.roles[one.role]!.name, words: typed.join(' ') }];
+  });
+  const first = readingOf(phrase, actor, spans, choice, context);
+  const kept = new Set([role, ...values.map((one) => one.role)]);
+  const within: Reading = {
+    ...first,
+    bindings: new Map([...first.bindings].filter(([name]) => !kept.has(name))),
+  };
+  const { referents } = context;
+  return run.later.map((item): Following => {
+    const words = slot.slice(item.start, item.end).join(' ');
+    const reread = { role, words, values, referents };
+    if (item.filled.fills !== 'options') return { planned: within, reread };
+    const ranked = item.filled.options.map((option): Ranked => {
+      context.budget.spend();
+      const one = choice.map((chosen, other) => (other === at ? option : chosen));
+      const reading = readingOf(phrase, actor, spans, one, context);
+      return {
+        reading,
+        allowed: consentPass(reading, context) === null,
+        literal: option.literal,
+        near: [option.near],
+        pronounNamed: [],
+        whole: true,
+        rest: () => [],
+      };
+    });
+    const [best, next] = [...ranked].sort(compareRanked);
+    if (best === undefined || (next !== undefined && compareRanked(best, next) === 0)) {
+      return { planned: within, reread };
+    }
+    return { planned: best.reading as Reading };
+  });
 }
 
 /** What a pronoun named among what `choice` binds. */
@@ -274,20 +425,9 @@ function again(
   if (last === null || !stillFits(last, context.state)) {
     return answer(context.state, 'unknown', actor, here);
   }
-  const reached = new Set(candidates.map((one) => one.instance.id));
-  const inReach = [...last.bindings.values()].every((bound) => {
-    if ('object' in bound) return reached.has(bound.object);
-    if ('set' in bound) return bound.set.every((id) => reached.has(id));
-    if ('exit' in bound) {
-      const { direction, label, to } = bound.exit;
-      return context.exits.some(
-        (exit) =>
-          'to' in exit && exit.to === to && exit.label === label && exit.direction === direction,
-      );
-    }
-    return true;
-  });
-  if (!inReach) return answer(context.state, 'not_here', actor, here);
+  if (!inReach(last, candidates, context.exits)) {
+    return answer(context.state, 'not_here', actor, here);
+  }
   return { understood: { ...last, actor }, rest: [], drawn: null, pronounNamed: [] };
 }
 
@@ -334,6 +474,8 @@ type Choice =
       readonly words?: undefined;
       /** For `all` in a role that takes one thing, each thing it takes, this one first. */
       readonly each?: readonly FillOption[];
+      /** For a run in a role that takes one thing, each item after this one. */
+      readonly later?: readonly LaterItem[];
     })
   | { readonly words: readonly string[]; readonly near: 0; readonly literal: number };
 
@@ -346,9 +488,11 @@ function choicesOf(fills: readonly Filled[]): Choice[][] {
         ? [...filled.options]
         : filled.fills === 'all'
           ? [{ ...filled.things[0]!, each: filled.things }]
-          : filled.fills === 'words'
-            ? [{ words: filled.words, near: 0, literal: filled.words.length }]
-            : [];
+          : filled.fills === 'run'
+            ? filled.options.map((one) => ({ ...one, later: filled.later }))
+            : filled.fills === 'words'
+              ? [{ words: filled.words, near: 0, literal: filled.words.length }]
+              : [];
     combined = combined.flatMap((partial) => options.map((one) => [...partial, one]));
   }
   return combined;
@@ -356,7 +500,8 @@ function choicesOf(fills: readonly Filled[]): Choice[][] {
 
 /**
  * How many of the line's words `choice` matched literally in `reading`:
- * each thing's and exit's, and a value role's only where they bound a value.
+ * each thing's and exit's, each later item's of a run as its best match,
+ * and a value role's only where they bound a value.
  */
 function matchedIn(
   choice: readonly Choice[],
@@ -364,9 +509,17 @@ function matchedIn(
   reading: Reading,
 ): number {
   return choice.reduce((sum, one, at) => {
-    if (one.words === undefined) return sum + one.literal;
+    if (one.words === undefined) return sum + one.literal + laterLiteral(one.later ?? []);
     const role = reading.verb.roles[spans[at]!.role]!;
     return reading.bindings.has(role.name) ? sum + one.literal : sum;
+  }, 0);
+}
+
+/** How many words a run's later items matched literally, each by the best thing it names. */
+function laterLiteral(later: readonly LaterItem[]): number {
+  return later.reduce((sum, { filled }) => {
+    if (filled.fills !== 'options') return sum;
+    return sum + Math.max(0, ...filled.options.map((one) => one.literal));
   }, 0);
 }
 
@@ -383,74 +536,6 @@ function readingKey(reading: Understood): string {
       ? ['verb', reading.verb.library, reading.verb.name]
       : ['intent', reading.intent.library, reading.intent.name];
   return JSON.stringify([...what, [...bindings]]);
-}
-
-/**
- * What may be named among what the walk reached, nearest first: every
- * live thing but the world, each with its nearness (`nearnessOf`) and
- * whether `actor` carries it.
- */
-function candidatesOf(
-  state: StateReader,
-  tree: LiveTree<InstanceId>,
-  actor: InstanceId,
-  reached: readonly Reached<InstanceId>[],
-  addressing: AddressContext,
-): Candidate[] {
-  const near = nearnessOf(tree, reached, placeOf(state, actor));
-  const carried = carriedIn(tree, actor, reached);
-  return reached.flatMap(({ node }) => {
-    const instance = node === state.world ? undefined : state.instance(node);
-    if (instance === undefined) return [];
-    const address = addressOf(instance, addressing);
-    return [{ instance, address, near: near.get(node)!, carried: carried.has(node) }];
-  });
-}
-
-/**
- * How near each thing reached is, as the spec's Range counts it: first by
- * the ring it is in, how far out the container is that it is reached
- * through, then by how deep inside that container it lies. Two things
- * are equally near only where both agree. The actor's own place is further
- * than everything it holds and nearer than the ring beyond it (Parsing ›
- * Choosing a reading), so a place answers to its name only where nothing
- * in it answers as well.
- */
-function nearnessOf(
-  tree: LiveTree<InstanceId>,
-  reached: readonly Reached<InstanceId>[],
-  place: InstanceId,
-): Map<InstanceId, number> {
-  const where = new Map<InstanceId, { ring: number; depth: number }>();
-  // The last of the asker and its containers outward that the walk reached.
-  let outer: InstanceId | null = null;
-  for (const { node, via } of reached) {
-    let here: { ring: number; depth: number };
-    if (via === 'self') {
-      here = { ring: 0, depth: 0 };
-      outer = node;
-    } else if (outer !== null && node === tree.containerOf(outer)) {
-      here = { ring: where.get(outer)!.ring + 1, depth: 0 };
-      outer = node;
-    } else {
-      const inside = where.get(tree.containerOf(node)!);
-      if (inside === undefined) throw new Error(`\`${node}\` was reached before what holds it.`);
-      here = { ring: inside.ring, depth: inside.depth + 1 };
-    }
-    where.set(node, here);
-  }
-  const own = where.get(place);
-  if (own !== undefined) where.set(place, { ring: own.ring, depth: Infinity });
-  const ordered = [...where].sort(([, a], [, b]) => a.ring - b.ring || a.depth - b.depth);
-  const rank = new Map<InstanceId, number>();
-  let at = -1;
-  let last: { ring: number; depth: number } | null = null;
-  for (const [node, here] of ordered) {
-    if (last === null || here.ring !== last.ring || here.depth !== last.depth) at++;
-    last = here;
-    rank.set(node, at);
-  }
-  return rank;
 }
 
 /**
@@ -553,15 +638,20 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 export const parseCommand: Parser = (text, actor, context) => {
   const here = placeOf(context.state, actor);
   const exits = waysFrom(here, context);
-  const outcome = readCommand(text, actor, { ...context, exits });
+  const { item } = context;
+  const outcome =
+    item === undefined
+      ? readCommand(text, actor, { ...context, exits })
+      : readItem(text, actor, item, { ...context, exits });
   if ('understood' in outcome) {
     const { understood, drawn } = outcome;
     const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);
     const was = drawn === null ? null : { among: drawn.among, meant };
     const corrected = correctionsOf(outcome.pronounNamed, actor, here, context);
+    const { rest } = outcome;
     return 'intent' in understood
-      ? { intended: understood, drawn: was, corrected }
-      : { reading: understood, rest: outcome.rest, drawn: was, corrected };
+      ? { intended: understood, rest, drawn: was, corrected }
+      : { reading: understood, rest, drawn: was, corrected };
   }
   const { by, said, bindings } = outcome;
   const effect = outcome.answer === 'refused' ? 'refused' : 'notice';

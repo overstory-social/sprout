@@ -1,11 +1,14 @@
 // A line a visitor typed, as the command turns it runs (the spec's
 // Parsing › Sequences, again and all; Intents). `take key then open
 // cabinet` and `take key. open cabinet` are two commands, each its own
-// turn; a command read as an intent runs each step it planned as a turn of
-// its own. Every turn after the first has its own seed. A turn that does
-// not let the line go on (`lineGoesOn`) ends it, and what ran before stays
-// done. The host drives the turns, its store's way, through
-// `commandsOfLine`.
+// turn. A command's turn may plan the turns after it, which run next, in
+// order, before the line's next command: each step of an intent, each
+// thing of `all` or of a run, an item of a run whose words its own turn
+// reads, and each command `and` joined, which is read from its own words
+// on its own turn and may plan turns of its own.
+// Every turn after the first has its own seed. A turn that does not let
+// the line go on (`lineGoesOn`) ends it, and what ran before stays done.
+// The host drives the turns, its store's way, through `commandsOfLine`.
 
 import { lineGoesOn, type Command, type CommandTurn } from './command.js';
 
@@ -31,16 +34,38 @@ export function* commandsOfLine(
   // Each command is made afresh, so none carries a step the caller planned.
   const { visit, mayHold, now } = command;
   let first = true;
-  for (const text of partsOf(command.text)) {
-    let turn = yield { visit, text, mayHold, now, seed: first ? command.seed : seed() };
+  const seedOf = (): number => {
+    if (!first) return seed();
     first = false;
-    const next = turn.committed && 'next' in turn.value ? turn.value.next : [];
-    for (const planned of next) {
-      if (!lineGoesOn(turn)) return;
-      turn = yield { visit, text, mayHold, now, seed: seed(), planned };
-    }
-    if (!lineGoesOn(turn)) return;
+    return command.seed;
+  };
+  for (const text of partsOf(command.text)) {
+    if (!(yield* turnsOf({ visit, mayHold, now }, text, seedOf))) return;
   }
+}
+
+/**
+ * The turns one command runs: its own, then each it planned, in order,
+ * a command it joined run with the turns it plans in turn; whether the
+ * line goes on after them.
+ */
+function* turnsOf(
+  base: Pick<Command, 'visit' | 'mayHold' | 'now'>,
+  text: string,
+  seed: () => number,
+): Generator<Command, boolean, CommandTurn> {
+  let turn = yield { ...base, text, seed: seed() };
+  const next = turn.committed && 'next' in turn.value ? turn.value.next : [];
+  for (const step of next) {
+    if (!lineGoesOn(turn)) return false;
+    if ('text' in step) {
+      if (!(yield* turnsOf(base, step.text, seed))) return false;
+    } else {
+      const { planned, reread } = step;
+      turn = yield { ...base, text, seed: seed(), planned, ...(reread ? { reread } : {}) };
+    }
+  }
+  return lineGoesOn(turn);
 }
 
 /** Every turn `command`'s line runs, each run by `run`, in order. */

@@ -248,6 +248,7 @@ const LOG: readonly LogEntry[] = [
     ...turnInputs(3_000_000_002),
     visit: 'v-marta',
     text: 'light lamp',
+    reread: null,
     planned: {
       verb: { library: 'sprout', name: 'take' },
       actor: 'shop#1',
@@ -286,6 +287,7 @@ const LOG: readonly LogEntry[] = [
     ...turnInputs(3_000_000_003),
     visit: 'v-marta',
     text: 'juggle lamp',
+    reread: null,
     planned: null,
     fault: { ...tangled, object: null, engine: true },
     effects: [{ ...toMarta('notice', ['Something has gone wrong.']), from: 'shop' }],

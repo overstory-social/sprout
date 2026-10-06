@@ -84,4 +84,44 @@ describe('a command in the log', () => {
     expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
     expect(commandOf(entry, host.catalogue)).toEqual(typed);
   });
+
+  it('keeps an item of a run read afresh, its role and words beside the step, and a value it binds', async () => {
+    const before = await state();
+    const actor = before.visitors.get(MARTA)!.instance;
+    const bump = host.catalogue.verbs.qualified('tally', 'bump')!;
+    const planned = { verb: bump, actor, bindings: new Map([['times', { value: 3 }]]) };
+    const reread = {
+      role: 'target',
+      words: 'gauge',
+      values: [{ role: 'times', words: 'three' }],
+      referents: [GAUGE],
+    };
+    const typed = { ...command('bump counter and gauge', 9), seed: 3, planned, reread };
+    // What the turn did is not what is asked here, only what the log keeps of the command.
+    const ran = commandTurn(before, host, command('bump counter'));
+    const entry = commandEntry(typed, host, ran);
+    expect(entry.reread).toEqual(reread);
+    expect(entry.planned?.bindings).toEqual([['times', { value: 3 }]]);
+    expect(CommandEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
+    expect(commandOf(entry, host.catalogue)).toEqual(typed);
+  });
+
+  it('reads an entry that names no item as reading none', async () => {
+    const typed = command('bump counter');
+    const entry = commandEntry(typed, host, commandTurn(await state(), host, typed));
+    const { reread: _reread, ...older } = entry;
+    expect(CommandEntry.parse(older).reread).toBeNull();
+  });
+
+  it('reads an item that names no value words or pronouns as naming none', async () => {
+    const typed = command('bump counter');
+    const entry = commandEntry(typed, host, commandTurn(await state(), host, typed));
+    const item = { ...entry, reread: { role: 'target', words: 'gauge' } };
+    expect(CommandEntry.parse(item).reread).toEqual({
+      role: 'target',
+      words: 'gauge',
+      values: [],
+      referents: [],
+    });
+  });
 });

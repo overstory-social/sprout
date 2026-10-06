@@ -1,0 +1,121 @@
+{
+  "about": "A run of things in a role that takes one thing runs the reading once for each, in the order written, each its own turn, stopping at the first refusal; `and` before a verb joins two commands as `then` does; a name holding `and` is read whole; a set role binds the run at once.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "take sack and bottle", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a sack." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a bottle." }
+    ] },
+    { "as": "Marta", "type": "drop sack, bottle and lamp", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a sack down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a bottle down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "refused", "words": "You are not holding the lamp." }
+    ] },
+    { "as": "Marta", "type": "take sack, bottle, and lamp", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a sack." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a bottle." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take the lamp." }
+    ] },
+    { "as": "Marta", "type": "drop sack and drop bottle", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a sack down." },
+      { "reader": "Marta", "kind": "said", "words": "You put a bottle down." }
+    ] },
+    { "as": "Marta", "type": "take sack and take bottle", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a sack." },
+      { "reader": "Marta", "kind": "said", "words": "You take a bottle." }
+    ] },
+    { "as": "Marta", "type": "take salt and pepper shaker", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take the salt and pepper shaker." }
+    ] },
+    { "as": "Marta", "type": "take salt and pepper", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take the salt." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take the pepper." }
+    ] },
+    { "as": "Marta", "type": "drop the salt and pepper shaker and the lamp", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put the salt and pepper shaker down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put the lamp down." }
+    ] },
+    { "as": "Marta", "type": "drop bottle and unicorn and sack", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a bottle down." },
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take bottle and sack and lamp", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a bottle." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "again", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "examine box", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the box." },
+      { "reader": "Marta", "kind": "described", "words": "It is empty." }
+    ] },
+    { "as": "Marta", "type": "put salt and pepper in it", "expect": [
+      { "level": "info", "text": "step: sprout.put" },
+      { "reader": "Marta", "kind": "said", "words": "You put the salt in the box." },
+      { "level": "info", "text": "step: sprout.put" },
+      { "reader": "Marta", "kind": "said", "words": "You put the pepper in the box." }
+    ] },
+    { "as": "Marta", "type": "take lamp and key", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take the lamp." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "notice", "words": "(an iron key)" },
+      { "reader": "Marta", "kind": "said", "words": "You take an iron key." },
+      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
+    ] },
+    { "as": "Marta", "type": "take shaker and look", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take the salt and pepper shaker." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "juggle sack and bottle", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You juggle 2 things at once." }
+    ] },
+    { "as": "Marta", "type": "take brass key", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." }
+    ] },
+    { "as": "Marta", "type": "examine box", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the box." },
+      { "reader": "Marta", "kind": "described", "words": "Inside: the salt, the pepper." }
+    ] },
+    { "as": "Marta", "type": "put lamp and key in it", "expect": [
+      { "level": "info", "text": "step: sprout.put" },
+      { "reader": "Marta", "kind": "said", "words": "You put the lamp in the box." },
+      { "level": "info", "text": "step: sprout.put" },
+      { "reader": "Marta", "kind": "notice", "words": "(a brass key)" },
+      { "reader": "Marta", "kind": "said", "words": "You put a brass key in the box." },
+      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
+    ] },
+    { "as": "Marta", "type": "ask owl and guard about toll", "expect": [
+      { "level": "info", "text": "step: sprout.ask" },
+      { "reader": "Marta", "kind": "said", "words": "The owl blinks." },
+      { "level": "info", "text": "step: sprout.ask" },
+      { "reader": "Marta", "kind": "notice", "words": "(a short guard)" },
+      { "reader": "Marta", "kind": "said", "words": "A short guard tells you about the toll." },
+      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
+    ] },
+    { "as": "Marta", "type": "take lamp and all", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "take all and lamp", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}
