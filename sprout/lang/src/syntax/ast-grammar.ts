@@ -91,12 +91,22 @@ export interface GrammarRefusal extends Node {
 }
 
 /**
+ * `say "You won't be able to get back up."` or `say chimney` after an
+ * exit's destination: the words said to whoever takes it, in quotes as a
+ * one-line passage or a passage of the place, named.
+ */
+export interface GrammarSaying extends Node {
+  readonly kind: 'grammar-saying';
+  readonly said: ProseLiteral | Ident;
+}
+
+/**
  * `exit north "deeper into the dark" -> maze_hall when (!self.get(:lit))`:
- * a way out of a place, its direction, its label, where it leads, and
- * the guard that decides whether it applies; or, written with `refuse`
- * in place of `->`, a way that does not go and says why. Which
- * directions there are is `declare/directions.ts`'s; the word is kept
- * as written.
+ * a way out of a place, its direction, its label, where it leads, what
+ * it says to whoever takes it, and the guard that decides whether it
+ * applies; or, written with `refuse` in place of `->`, a way that does
+ * not go and says why. Which directions there are is
+ * `declare/directions.ts`'s; the word is kept as written.
  */
 export interface GrammarExit extends Node {
   readonly kind: 'grammar-exit';
@@ -104,6 +114,8 @@ export interface GrammarExit extends Node {
   readonly label: GrammarLabel;
   /** An identifier or a dotted path to a place; or the refusal of a way that does not go. */
   readonly leads: ObjectPath | GrammarRefusal;
+  /** The words said to whoever takes it, after `say`; null where it says nothing, and for one that refuses. */
+  readonly says: GrammarSaying | null;
   /** The condition in brackets after `when`; null where the exit always applies. */
   readonly when: Expr | null;
 }

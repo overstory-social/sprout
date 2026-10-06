@@ -9,7 +9,7 @@ import { locationOf, SourceFile, textOf } from '../../source/source.js';
 import { chooser, readStatement } from '../../fixtures/parse.js';
 import { parserOver } from '../../fixtures/readers.js';
 import { Lexer } from '../lexer.js';
-import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
+import { refusal, sayStatement, saying, tellStatement, textStatement } from './speech.js';
 import { block, onItsOwn } from './statements.js';
 
 const READERS = { say: sayStatement, tell: tellStatement, text: textStatement } as const;
@@ -244,6 +244,25 @@ describe('words in quotes are held to the host’s cap on a literal line', () =>
         'body.sprout:1:8',
         'This line is 13 characters long, and 3 is as long as a `refuse` in quotes may be.',
         'Put the words in a passage, which has no length cap of its own, and say it by name, as in `refuse greeting`.',
+      ],
+    ]);
+  });
+
+  it('holds the words of a `say` read on its own, as an exit reads its words, to it', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, literalCharacters: 3 };
+    const { p, diagnostics } = parserOver('say "Mind the step." say steps', {
+      name: 'body.sprout',
+      caps,
+    });
+    expect(saying(p, p.next(), onItsOwn())).toMatchObject({
+      kind: 'prose-literal',
+      value: 'Mind the step.',
+    });
+    expect(saying(p, p.next(), onItsOwn())).toMatchObject({ kind: 'ident', text: 'steps' });
+    expect(diagnostics.refusals.map((d) => [locationOf(d.at), d.message])).toEqual([
+      [
+        'body.sprout:1:5',
+        'This line is 14 characters long, and 3 is as long as a `say` in quotes may be.',
       ],
     ]);
   });

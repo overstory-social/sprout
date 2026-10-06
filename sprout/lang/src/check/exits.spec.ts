@@ -16,13 +16,16 @@ import { checkConnect, checkExit } from './exits.js';
 
 const PERSON = { 'person.sprout': 'kind Person is sprout.Visitor { }\n' };
 
-/** A world whose yard's grammar block holds `lines`, beside `more` files; what compiling it said. */
-function said(lines: string, more: Readonly<Record<string, string>> = {}) {
+/**
+ * A world whose yard's grammar block holds `lines`, and its body `yard`
+ * after them, beside `more` files; what compiling it said.
+ */
+function said(lines: string, more: Readonly<Record<string, string>> = {}, yard = '') {
   const world = [
     'world ways is sprout.World {',
     '  visitors are Person',
     '  visitors arrive at yard',
-    `  object yard is sprout.Place { grammar { ${lines} } object lamp is Lamp object shelf is Shelf }`,
+    `  object yard is sprout.Place { grammar { ${lines} } object lamp is Lamp object shelf is Shelf ${yard}}`,
     '  object shop is sprout.Place { object loft is sprout.Place }',
     '}',
     '',
@@ -104,6 +107,33 @@ describe('an exit, against the whole bundle', () => {
         'Write the link on a place: something that composes `sprout.Place` or writes `contains actors`.',
       ],
     ]);
+  });
+
+  it('checks what it says as it is taken as a `say`’s words are, with `actor` and `here` bound', () => {
+    const gone = 'passage gone { {actor} leaves {here} behind. }';
+    expect(said('exit in "in" -> shop say "{actor} ducks out of {here}."')).toEqual([]);
+    expect(said('exit in "in" -> shop say gone when (lamp.get(:lit))', {}, gone)).toEqual([]);
+    expect(said('exit in "in" -> shop say gnoe', {}, 'passage gone { Gone. }')).toEqual([
+      [
+        'refusal',
+        'ways.sprout:4:68',
+        '`yard` has no passage `gnoe`. Did you mean `gone`?',
+        'Write `say gone`, or write `passage gnoe { … }` in `yard`.',
+      ],
+    ]);
+    expect(said('exit in "in" -> shop say "{mover} goes."')).toEqual([
+      [
+        'refusal',
+        'ways.sprout:4:70',
+        'Nothing here is called `mover`.',
+        'In reach: `self`, `actor`, `here`, `lamp`, `shelf`, `yard`, `shop` and `ways`.',
+      ],
+    ]);
+    expect(
+      said('exit in "in" -> shop say gone', {}, 'passage gone { {mover} goes. }').map((one) =>
+        one.slice(0, 2),
+      ),
+    ).toEqual([['refusal', 'ways.sprout:4:68']]);
   });
 
   it('refuses a `when` that is not a condition, or reads who is acting', () => {

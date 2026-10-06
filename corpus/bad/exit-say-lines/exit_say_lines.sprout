@@ -1,0 +1,21 @@
+// What an exit says as it is taken is written once, after where it leads
+// and before its `when`, on a way that goes, and says something. Each
+// line written wrong is refused once.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_say_lines is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit west  "west"  refuse "No." say "Ow."
+      exit east  "east"  -> shed say "Mind the step." say "Ow."
+      exit north "north" -> shed when (true) say "Ow."
+      exit south "south" -> shed say
+    }
+  }
+
+  object shed is sprout.Place { }
+}

@@ -1,0 +1,71 @@
+// Ways that say something as they are taken (the spec's Verbs › Exits).
+// An exit that leads may carry words after `say`, in quotes or a passage
+// of its place, said to the one who goes alone, before the place they
+// arrive in. They belong to the exit that applies, so the way down says
+// one thing until the rope is tied and another after; a way whose move is
+// refused says nothing of itself, and a way with no `say` says nothing.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_say is sprout.World {
+  visitors are Person
+  visitors arrive at roof
+
+  object roof is sprout.Place {
+    grammar {
+      article the
+      exit down "down the chimney" -> hearth say "You won't be able to get back up." when (!rope.get(:tied))
+      exit down "down the chimney" -> hearth say climbing
+      exit east "into the garden"  -> garden say "You push through the gate."
+    }
+
+    passage climbing { Hand over hand, the rope lowers {actor} out of {here}. }
+
+    object rope is Rope
+  }
+
+  object hearth is sprout.Place {
+    grammar {
+      article the
+      exit out "out to the garden" -> garden
+    }
+  }
+
+  object garden is Gated {
+    grammar {
+      article the
+      exit up "up the ladder" -> roof
+    }
+  }
+}
+
+verb tie { role target  "tie [target]" }
+verb lock { role target  "lock [target]" }
+
+kind Rope is sprout.Fixture {
+  :tied false
+
+  grammar { name "rope"  article the }
+
+  as target for tie {
+    do {
+      self.set(:tied, true)
+      say "You knot the rope around the chimney stack."
+    }
+  }
+}
+
+kind Gated is sprout.Place {
+  :locked false
+
+  grammar { name "garden" }
+
+  accept (item, from) { if (self.get(:locked)) { refuse "The gate is locked." } }
+
+  as target for lock {
+    do {
+      self.set(:locked, true)
+      say "You lock the gate behind you."
+    }
+  }
+}

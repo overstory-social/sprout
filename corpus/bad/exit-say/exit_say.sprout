@@ -1,0 +1,25 @@
+// What an exit says as it is taken is words in quotes or a passage of its
+// place by name, with `actor` and `here` bound beside `self` and nothing
+// else. Each line written wrong is refused once.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_say is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit up    "up"    -> shed say climbing
+      exit down  "down"  -> shed say "{item} goes down."
+      exit in    "in"    -> shed say ducking
+      exit out   "out"   -> shed say "{actor} leaves {here}." when (self.get(:open))
+    }
+
+    :open true
+
+    passage ducking { {mover} ducks inside. }
+  }
+
+  object shed is sprout.Place { }
+}

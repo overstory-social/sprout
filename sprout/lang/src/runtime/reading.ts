@@ -12,7 +12,8 @@
 // reading, and the first refusal is the reading's whole outcome; the
 // effect pass then runs every `do` in the same order; in a reading of the
 // engine's `go` it first moves the actor through the exit named, and a
-// refusal of that move ends the pass (Engine verbs). What a `do` says,
+// refusal of that move ends the pass, while a person who went reads what
+// the exit says as it is taken (Engine verbs; Exits). What a `do` says,
 // and the refusal of a `move` it proposes, reach the actor, or, where the
 // actor is an NPC, whoever would hear its `tell`, from it, and a refused
 // `move` or `act` ends the `do` that ran it, not the pass; a person's
@@ -58,6 +59,7 @@ import { boundObject, boundValue, type Evaluated, type Frame } from './evaluate.
 import type { InstanceId } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
 import { SproutList } from './lists.js';
+import { sayingThrough } from './exits.js';
 import { moveInstance, type Notice, type Reach } from './move.js';
 import type { Sent } from './sends.js';
 import type { Instance, StateReader } from './state.js';
@@ -303,10 +305,14 @@ export function effectPass(reading: Reading, context: ReadingContext, depth = 0)
   });
   const { said } = acted;
   // `go` is the engine's: its move is the reading's first effect, and a
-  // refusal of it, said as a refused `move` is, ends the pass.
+  // refusal of it, said as a refused `move` is, ends the pass. What the
+  // exit says is asked of its place before the move, and said to the one
+  // who went as the move is made (the spec's Verbs › Exits).
   const way = exitOf(reading);
+  const saying = way === null || !person ? null : exitSaying(reading.actor, way, context);
   const went =
     way === null ? null : propose(reading.actor, reading.actor, way.to, 'exit', way.label);
+  if (went === 'done' && saying !== null) said.push(saying);
   for (const participant of went === 'refused' ? [] : participants) {
     const self = draft.instance(participant.id);
     if (self === undefined) continue;
@@ -529,6 +535,28 @@ function answersActor(line: Said, actor: InstanceId): boolean {
 /** Whether the engine answers a reading of `verb` with what the actor reads (`engine-verbs.ts`). */
 export function answeredByEngine(verb: ResolvedVerb): boolean {
   return verb.library === SPROUT && ENGINE_ANSWERS.includes(verb.name);
+}
+
+/**
+ * What `way` says to `actor`, a person, as they take it from the place
+ * they stand in, which says it with `actor` and `here` bound; null where
+ * it says nothing.
+ */
+function exitSaying(actor: InstanceId, way: CommandExit, context: ReadingContext): Said | null {
+  const { draft, catalogue, budget, passes } = context;
+  const here = placeOf(turnState(draft), actor);
+  const saying = sayingThrough(here, way, { state: draft, catalogue, budget, passes });
+  if (saying === null) return null;
+  return {
+    effect: 'said',
+    to: [actor],
+    ...saying,
+    speaker: null,
+    bindings: new Map([
+      ['actor', boundObject(actor)],
+      ['here', boundObject(here)],
+    ]),
+  };
 }
 
 /** The exit a reading of the engine's `go` takes, or null for any other reading. */

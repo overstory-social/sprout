@@ -59,13 +59,15 @@ function readBlock(lines: string) {
 const written = (line: GrammarExit | GrammarLink): string =>
   line.kind === 'grammar-link'
     ? `link ${line.name.text} "${line.label.text}"`
-    : `exit ${line.direction.text} "${line.label.text}" ${leadsWritten(line.leads)}${line.when === null ? '' : ` when (${shape(line.when)})`}`;
+    : `exit ${line.direction.text} "${line.label.text}" ${leadsWritten(line.leads)}${line.says === null ? '' : ` say ${wordsWritten(line.says.said)}`}${line.when === null ? '' : ` when (${shape(line.when)})`}`;
 
 /** Where an exit leads, or what it refuses with, written back. */
 const leadsWritten = (leads: GrammarExit['leads']): string =>
-  leads.kind === 'path'
-    ? `-> ${writtenPath(leads)}`
-    : `refuse ${leads.said.kind === 'ident' ? leads.said.text : `"${leads.said.value}"`}`;
+  leads.kind === 'path' ? `-> ${writtenPath(leads)}` : `refuse ${wordsWritten(leads.said)}`;
+
+/** An exit's words written back: a passage by its name, or the words in quotes. */
+const wordsWritten = (said: NonNullable<GrammarExit['says']>['said']): string =>
+  said.kind === 'ident' ? said.text : `"${said.value}"`;
 
 const ways = (lines: readonly unknown[]) =>
   (lines as (GrammarExit | GrammarLink)[]).filter(
@@ -158,6 +160,75 @@ describe('an exit line and a link line', () => {
     ]);
   });
 
+  it('read what a way that goes says as it is taken, in quotes or a passage named, a guard after it', () => {
+    const text = [
+      'exit down "down" -> maze_9 say "You won\'t be able to get back up."',
+      'exit down "down the chimney" -> studio say chimney when (!self.get(:lit))',
+    ];
+    const { lines, said, rest } = readWays(text.join('\n    '));
+    expect(said).toEqual([]);
+    expect(rest).toBe('}\n}\n');
+    expect(unspanned(lines)).toEqual([]);
+    expect(ways(lines).map((line) => textOf(line.at))).toEqual(text);
+    expect(ways(lines).map(written)).toEqual([
+      'exit down "down" -> maze_9 say "You won\'t be able to get back up."',
+      'exit down "down the chimney" -> studio say chimney when ((!self.get(:lit)))',
+    ]);
+    const says = ways(lines).map((line) => (line.kind === 'grammar-exit' ? line.says : null));
+    expect(says.map((one) => (one === null ? '' : textOf(one.at)))).toEqual([
+      'say "You won\'t be able to get back up."',
+      'say chimney',
+    ]);
+  });
+
+  it('read a way that goes and says nothing as saying nothing', () => {
+    const { lines } = readWays('exit out "out" -> yard when (true)');
+    expect(ways(lines).map((line) => (line.kind === 'grammar-exit' ? line.says : 'link'))).toEqual([
+      null,
+    ]);
+  });
+
+  it('refuse a `say` with no words, without taking the line after it', () => {
+    const nothing = [
+      'c.sprout:3:35',
+      '`say` says something.',
+      'Write the words in quotes, as in `say "The bolt slides back."`, or name a passage, as in `say taken`.',
+    ];
+    const bare = readWays('exit down "down" -> cellar say\n    name "cell"');
+    expect(bare.said).toEqual([nothing]);
+    expect(bare.rest.startsWith('name "cell"')).toBe(true);
+    const beforeWhen = readWays('exit down "down" -> cellar say when (true)');
+    expect(beforeWhen.said).toEqual([nothing]);
+    expect(beforeWhen.lines).toEqual([]);
+  });
+
+  it('refuse a `say` on a way that refuses, a second `say`, or one after the `when`, each once', () => {
+    expect(readWays('exit west "west" refuse "No." say "Ow."').said).toEqual([
+      [
+        'c.sprout:3:35',
+        'An exit that refuses says only its refusal, since nobody goes that way.',
+        'Put the words in the refusal, or lead the exit somewhere and say them as it is taken, as in `exit west "west" -> yard say "…"`.',
+      ],
+    ]);
+    expect(readWays('exit down "down" -> cellar say "Ow." say "Oof."').said).toEqual([
+      [
+        'c.sprout:3:42',
+        'This exit already says something as it is taken, and an exit says one thing.',
+        'Put all the words in one `say`, or in a passage it names, as in `exit down "down" -> cellar say taken`.',
+      ],
+    ]);
+    const late = readWays('exit down "down" -> cellar when (true) say "Ow."\n    name "cell"');
+    expect(late.said).toEqual([
+      [
+        'c.sprout:3:44',
+        "An exit's `say` comes before its `when`.",
+        'Write the words after where it leads, as in `exit down "down" -> cellar say "…" when (…)`.',
+      ],
+    ]);
+    expect(late.lines).toEqual([]);
+    expect(late.rest.startsWith('name "cell"')).toBe(true);
+  });
+
   it('refuse a `refuse` that says nothing, without taking the line after it', () => {
     const bare = readWays('exit west "west" refuse\n    name "cell"');
     expect(bare.said).toEqual([
@@ -243,6 +314,8 @@ const WELL_FORMED = [
   'link back "the way you came"',
   'exit west "west" refuse "You would need a machete."',
   'exit east "east" refuse boarded when (!self.get(:open))',
+  'exit down "down" -> maze_9 say "You won\'t get back up."',
+  'exit in "in" -> shop.loft say climbing when (!self.get(:lit))',
 ];
 
 describe('an exit or a link never vanishes silently, and never takes the line after it', () => {
