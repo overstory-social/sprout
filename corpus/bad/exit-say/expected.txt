@@ -1,0 +1,10 @@
+exit_say.sprout:13:38  `yard` has no passage `climbing`.
+                       Write `passage climbing { … }` in `yard`, or give the words in quotes, as in `say "The bolt slides back."`.
+
+exit_say.sprout:14:40  Nothing here is called `item`.
+                       In reach: `self`, `actor`, `here`, `yard`, `shed` and `exit_say`.
+
+exit_say.sprout:15:38  The passage `ducking` renders `{mover}`, and nothing here is called `mover`.
+                       Say it where `mover` is bound, or give the words here in quotes. In reach here: `actor` and `here`.
+
+refused: 3 problems

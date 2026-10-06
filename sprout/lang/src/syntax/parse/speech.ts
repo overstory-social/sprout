@@ -1,10 +1,10 @@
 // The statements that put words in front of a reader, and the words they
 // take (the spec's Prose; Other people › Who hears it): `say`, `tell`,
 // `tell <x>`, `tell inside`, `tell outside` and `text`, each followed by
-// words in quotes, a one-line passage, or a passage's name; `refuse`
-// takes its words the same way. Words in quotes after `say`, `tell`,
-// `text` or `refuse` are held to the host's cap on a literal line (Limits
-// › Static caps), which a passage is not.
+// words in quotes, a one-line passage, or a passage's name; `refuse`, and
+// an exit's `say` and `refuse`, take their words the same way. Words in
+// quotes after `say`, `tell`, `text` or `refuse` are held to the host's
+// cap on a literal line (Limits › Static caps), which a passage is not.
 //
 // `tell` names who is told, or directs itself with `inside` or `outside`,
 // only where a second word or words in quotes follow the first on its
@@ -40,8 +40,13 @@ type Word = keyof typeof EXAMPLES;
 /** `say "The bolt slides back."` or `say taken`. */
 export function sayStatement(p: Parser, within: Enclosing): SayStatement | null {
   const keyword = p.next();
-  const said = capped(p, spoken(p, keyword.at, within, 'say', 'say'), 'say', 'say');
+  const said = saying(p, keyword, within);
   return said === null ? null : { kind: 'say', at: spanning(keyword.at, said.at), said };
+}
+
+/** What `say` says, its word taken: the words in quotes, or the name of a passage. */
+export function saying(p: Parser, keyword: Token, within: Enclosing): Said | null {
+  return capped(p, spoken(p, keyword.at, within, 'say', 'say'), 'say', 'say');
 }
 
 /** `text greeting` or `text "A lever, waist high."`. */

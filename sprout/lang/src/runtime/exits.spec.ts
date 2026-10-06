@@ -4,6 +4,7 @@ import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import {
   BEACON,
   CATALOGUE,
+  CHIMNEY,
   DEAD_END,
   LADDER,
   LAMP,
@@ -13,12 +14,13 @@ import {
   MOUTH,
   SHED,
   SHOP,
+  SOOT,
   ways,
   YARD,
 } from '../fixtures/exits.js';
 import { Budget, BudgetExhausted } from './budget.js';
 import { Draft } from './draft.js';
-import { exitsFrom, waysFrom } from './exits.js';
+import { exitsFrom, sayingThrough, waysFrom } from './exits.js';
 import type { InstanceId } from './ids.js';
 import { passRules } from './passes.js';
 import type { StateReader, WorldState } from './state.js';
@@ -160,5 +162,67 @@ describe('the exits that apply on a place', () => {
     expect(() =>
       applying(ways(), YARD, new Budget({ ...DEFAULT_LIMITS.budgets, steps: 3 })),
     ).toThrow(BudgetExhausted);
+  });
+});
+
+describe('what an exit says as it is taken', () => {
+  /** What taking the way `label` names on `place` says, as who says it and its words or passage; null where nothing. */
+  function saying(state: WorldState, place: InstanceId, label: string, budget?: Budget) {
+    const context = contextOf(state, budget ?? new Budget(DEFAULT_LIMITS.budgets));
+    const way = exitsFrom(place, context).find((one) => one.label === label)!;
+    const said = sayingThrough(place, way, context);
+    if (said === null) return null;
+    return [
+      said.by,
+      'text' in said.said ? said.said.text : 'passage' in said.said ? said.said.passage.name : null,
+    ];
+  }
+
+  it('is the words of the exit that applies in its direction, said by its place', () => {
+    expect(saying(ways(), CHIMNEY, 'down the flue')).toEqual([
+      CHIMNEY,
+      "You won't be able to get back up.",
+    ]);
+    expect(saying(ways(), CHIMNEY, 'into the meadow')).toEqual([
+      CHIMNEY,
+      'You push through the gate.',
+    ]);
+    // Once the first in the chain no longer holds, the next one's passage is said.
+    expect(saying(ways(undefined, [set(SOOT, 'lit', true)]), CHIMNEY, 'down the flue')).toEqual([
+      CHIMNEY,
+      'sooty',
+    ]);
+  });
+
+  it('is nothing for an exit that says nothing, or a place none of whose exits say anything', () => {
+    expect(saying(ways(), CHIMNEY, 'out onto the roof')).toBeNull();
+    expect(saying(ways(), YARD, 'into the shop')).toBeNull();
+    expect(
+      sayingThrough(
+        CHIMNEY,
+        { direction: 'down', label: 'down the flue', to: SHOP },
+        contextOf(ways(), new Budget(DEFAULT_LIMITS.budgets)),
+      ),
+    ).toBeNull();
+    expect(
+      sayingThrough(
+        'ways/nowhere' as InstanceId,
+        { direction: 'down', label: 'down the flue', to: SHED },
+        contextOf(ways(), new Budget(DEFAULT_LIMITS.budgets)),
+      ),
+    ).toBeNull();
+  });
+
+  it('asks its direction’s exits again only where one of them says something, a step for each', () => {
+    const spoken = new Budget(DEFAULT_LIMITS.budgets);
+    saying(ways(), CHIMNEY, 'out onto the roof', spoken);
+    const before = new Budget(DEFAULT_LIMITS.budgets);
+    exitsFrom(CHIMNEY, contextOf(ways(), before));
+    // Out says nothing, and no other exit out writes words: nothing is asked again.
+    expect(spoken.spentSteps).toBe(before.spentSteps);
+    const down = new Budget(DEFAULT_LIMITS.budgets);
+    saying(ways(), CHIMNEY, 'down the flue', down);
+    // The way down is asked again: its first exit, and the guard it reads.
+    expect(down.spentSteps).toBeGreaterThan(before.spentSteps);
   });
 });

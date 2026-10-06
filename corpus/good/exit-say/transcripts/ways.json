@@ -1,0 +1,38 @@
+{
+  "about": "An exit says its words to the one who takes it, before the place they arrive in, and to nobody else; the exit that applies is the one that speaks, so the way down says one thing until the rope is tied and a passage of the roof after; a way refused at its destination says nothing of itself, and a way with no `say` says nothing.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the roof." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the roof." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the hearth." },
+      { "reader": "Marta", "kind": "said", "words": "You won't be able to get back up." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hearth." }
+    ] },
+    { "as": "Marta", "type": "out", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the garden." }
+    ] },
+    { "as": "Marta", "type": "lock garden", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You lock the gate behind you." }
+    ] },
+    { "as": "Marta", "type": "up", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from the garden." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the roof." }
+    ] },
+    { "as": "Marta", "type": "east", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The gate is locked." }
+    ] },
+    { "as": "Marta", "type": "tie rope", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You knot the rope around the chimney stack." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for the hearth." },
+      { "reader": "Marta", "kind": "said", "words": "Hand over hand, the rope lowers you out of the roof." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hearth." }
+    ] }
+  ]
+}

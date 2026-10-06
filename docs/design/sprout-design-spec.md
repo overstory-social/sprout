@@ -1093,6 +1093,17 @@ grammar {
 
 `refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words, as a refusal: nothing moves. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
 
+An exit that leads may say something to whoever takes it, which is how a way narrates itself:
+
+```sprout
+grammar {
+  exit down "down the chimney" -> hearth say "You won't be able to get back up." when (!rope.get(:tied))
+  exit down "down the chimney" -> hearth say climbing
+}
+```
+
+`say` and its words follow the destination and come before any `when`: words in quotes, a one-line passage, or the name of a passage of the place, as `say` takes them elsewhere, with `self`, `actor` and `here` bound as for a refusing exit's words. They belong to the exit that applies, so each exit of a run may say its own. Once the move through it is made, the one who moved reads them, said by the place left, and nobody else does; they are said as the move is made, so before anything the rest of the effect pass says, the new place's description and every line the queue then produces, under After the move. A move that is refused says nothing of the exit, and an exit that refuses has only its refusal to say, so `say` on one is refused, as a second `say` or one after the `when` is.
+
 A direction no exit that applies answers, typed bare or in one of `go`'s phrases, is answered with the world's `no_way`, "You can't go that way.", given the direction written out as `way`. Words in `go`'s phrases that are neither a direction nor the label of a way out that applies are answered with `unknown`.
 
 Exits do not compose. An exit belongs to the body that writes it: an object's own exits are its own, and a kind's apply to that kind's own instances — an object whose `is` names the kind, and a `spawn` of it — and to no kind that composes it. So `kind DeepCell is MazeCell { }` takes none of `MazeCell`'s exits or links, and writes its own. A place's exits are its own body's and those of the kinds its `is` names, or its `spawn` named; where its own body writes an exit in a direction, those replace its kinds' in that direction, and two of its kinds writing one direction are refused. A place's exits are tried in the order their body writes them, so order never chooses between two sources.
@@ -1181,7 +1192,7 @@ Three things come with it. Procedural space counts against live instances like e
 
 Six verbs are the engine's, because they read the world rather than change it: `go`, `look`, `examine`, `inventory`, `wait` and `help`. Their phrases are declared in the standard library like any verb's — `look` answers to `l`, `examine` to `x` and `look at` — so their words can be added to and translated, but they have no `do`:
 
-- `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads the new place's description. Where the exit that applies refuses, its words are the answer, and where none applies in that direction, the `no_way` line is, under Exits. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
+- `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads what the exit says as it is taken, where it says anything, and then the new place's description. Where the exit that applies refuses, its words are the answer, and where none applies in that direction, the `no_way` line is, under Exits. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
 - `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none, and then the thing's own `contents` passage where its kinds write one, so a container says what it holds once you can see in. `sprout.Container`'s `contents` lists what is inside while it is open and says nothing while it is shut; an actor writes none, so what a person carries is never listed.
 - `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
 - `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise.

@@ -26,6 +26,7 @@ import {
 import { NOTHING, words } from '../fixtures/reading.js';
 import { encodeVisitor } from './load.js';
 import {
+  CHIMNEY,
   DEAD_END,
   INES as INES_WAYS,
   LADDER,
@@ -37,6 +38,7 @@ import {
   MOUTH,
   SHED,
   SHOP,
+  SOOT,
   ways,
   waysHost,
   WORLD as WAYS_WORLD,
@@ -646,6 +648,46 @@ describe('`go`, through a command turn', () => {
     // Once the way before it in the chain applies, the refusal no longer does.
     const lit = ways([[MARTA_WAYS, SHED]], [[LANTERN, 'lit', true]]);
     expect(standing(walk(lit, 'west').state, marta(lit))).toBe(MEADOW);
+  });
+
+  it('says what the exit taken says to the one who went, before the place they arrive in', () => {
+    const state = ways([
+      [MARTA_WAYS, CHIMNEY],
+      [INES_WAYS, CHIMNEY],
+    ]);
+    const turn = walk(state, 'down');
+    expect(standing(turn.state, marta(state))).toBe(SHED);
+    // Said by the place left, to the one who went alone, then the place arrived in and its queue.
+    expect(turn.effects.map((one) => [one.kind, one.from, one.visit, one.paragraphs])).toEqual([
+      ['notice', CHIMNEY, INES_WAYS, ['V-marta leaves for a shed.']],
+      ['said', CHIMNEY, MARTA_WAYS, ["You won't be able to get back up."]],
+      ['described', SHED, MARTA_WAYS, ['There is nothing special about a shed.']],
+      ['told', SHED, MARTA_WAYS, ['Cobwebs brush your face.']],
+    ]);
+    // The exit that applies is the one that speaks: a passage of the place, naming the one going.
+    const lit = ways([[MARTA_WAYS, CHIMNEY]], [[SOOT, 'lit', true]]);
+    const sooty = walk(lit, 'down the flue');
+    expect(told(sooty, marta(lit))[0]).toBe(
+      'ways.chimney sooty: Soot follows {actor} the whole way down.',
+    );
+    expect(sooty.effects[0]!.paragraphs).toEqual(['Soot follows you the whole way down.']);
+    const done = sooty.value;
+    if (!('acted' in done)) throw new Error('the turn did not act');
+    expect([...done.acted.said[0]!.bindings.keys()]).toEqual(['actor', 'here']);
+    // An exit that says nothing says nothing.
+    expect(told(walk(state, 'out'), marta(state))).toEqual([`described ${YARD}`]);
+  });
+
+  it('says nothing of the exit where the move through it is refused', () => {
+    const shut = ways([[MARTA_WAYS, CHIMNEY]], [[MEADOW, 'shut', true]]);
+    const turn = walk(shut, 'south');
+    expect(told(turn, marta(shut))).toEqual(['The gate is shut.']);
+    expect(standing(turn.state, marta(shut))).toBe(CHIMNEY);
+    const open = ways([[MARTA_WAYS, CHIMNEY]]);
+    expect(told(walk(open, 'south'), marta(open))).toEqual([
+      'You push through the gate.',
+      `described ${MEADOW}`,
+    ]);
   });
 
   it('tells its actor something for every line typed, directions and labels among them', () => {

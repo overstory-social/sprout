@@ -1,0 +1,13 @@
+exit_say_lines.sprout:13:39  An exit that refuses says only its refusal, since nobody goes that way.
+                             Put the words in the refusal, or lead the exit somewhere and say them as it is taken, as in `exit west "west" -> yard say "…"`.
+
+exit_say_lines.sprout:14:55  This exit already says something as it is taken, and an exit says one thing.
+                             Put all the words in one `say`, or in a passage it names, as in `exit east "east" -> shed say taken`.
+
+exit_say_lines.sprout:15:46  An exit's `say` comes before its `when`.
+                             Write the words after where it leads, as in `exit north "north" -> shed say "…" when (…)`.
+
+exit_say_lines.sprout:16:37  `say` says something.
+                             Write the words in quotes, as in `say "The bolt slides back."`, or name a passage, as in `say taken`.
+
+refused: 4 problems
