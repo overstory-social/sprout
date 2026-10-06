@@ -35,6 +35,7 @@ import { WakeFault } from './wakes.js';
 const CAPS = DEFAULT_LIMITS.caps;
 
 const VERBS = [
+  'delay',
   'fill',
   'bump',
   'grow',
@@ -106,6 +107,7 @@ const bundle = compiledWorld('shop', {
     '  as target for lug    { do { self.set(:n, 4)  if (self.get(:n) > 0) { move actor to self  say "Inside." }  say "After." } }',
     '  as target for sink   { do { destroy self  move actor to self  say "Sunk." } }',
     '  as target for rest   { do { wake in 2 minutes  say "Resting." } }',
+    '  as target for delay  { do { cancel wakes  wake in 3 minutes  say "Later." } }',
     '  as target for sort   { do { each c: Cup in self { say "One." }  each h: Heeds in self { say "None." }  say "Sorted." } }',
     '  as target for empty  { do { each thing in self { move thing to here  say "Moved." }  say "Emptied." } }',
     '  as target for announce { do { tell "{actor} rings {self}."  let a = 1  tell actor done  tell self "Rung." } }',
@@ -437,6 +439,25 @@ describe('what a `do` asks for', () => {
     }).toThrow(WakeFault);
     expect(heard).toBeUndefined();
     expect(one.draft.instance(COUNTER)!.wakes).toHaveLength(1);
+  });
+
+  it('takes back what `self` has pending with `cancel wakes`, so a `wake` after it is under the cap', () => {
+    const one = turn();
+    act(one, COUNTER, 'rest');
+    const budget = new Budget(DEFAULT_LIMITS.budgets);
+    const heard = act(one, COUNTER, 'delay', budget);
+    expect(one.draft.instance(COUNTER)!.wakes).toEqual([
+      { serial: one.draft.commit().state.serial, askedAt: 0, dueAt: 180 },
+    ]);
+    expect(heard.spoken.map(words)).toEqual(['Later.']);
+    // `cancel wakes`, the `wake` and the `say`, one step each.
+    expect(budget.spentSteps).toBe(3);
+  });
+
+  it('runs `cancel wakes` with nothing pending as nothing, and the `wake` after it asks as ever', () => {
+    const one = turn();
+    act(one, COUNTER, 'delay');
+    expect(one.draft.instance(COUNTER)!.wakes.map((w) => w.dueAt)).toEqual([180]);
   });
 });
 

@@ -118,6 +118,21 @@ describe('the .sprout grammar', () => {
     expect(tokens!.find((t) => t.text === 'Count')?.scopes).toContain('entity.name.type.sprout');
   });
 
+  it('colours `cancel wakes` as keywords, and `cancel` or `wakes` alone as the names they are', async () => {
+    const [statement] = await tokenise('source.sprout', 'cancel wakes');
+    for (const word of ['cancel', 'wakes']) {
+      expect(statement!.find((t) => t.text === word)?.scopes, word).toContain(
+        'keyword.other.sprout',
+      );
+    }
+    const [named] = await tokenise('source.sprout', 'let cancel = wakes');
+    for (const word of ['cancel', 'wakes']) {
+      expect(named!.find((t) => t.text.trim() === word)?.scopes, word).not.toContain(
+        'keyword.other.sprout',
+      );
+    }
+  });
+
   it('ends quoted text that is never closed at the end of its line', async () => {
     const lines = await tokenise('source.sprout', 'say "never closed\nkind Key');
     expect(lines[1]!.find((t) => t.text === 'Key')?.scopes).toContain(

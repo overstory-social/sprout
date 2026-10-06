@@ -884,6 +884,7 @@ kind of body it is:
 | `finally destroy self`     | removes it once the turn's messages are all handled                  |   —   |    —     | yes  |     —      |      yes      |
 | `connect l to x`           | sets one of its links                                                |   —   |    —     | yes  |     —      |      yes      |
 | `wake in n minutes`        | asks to be woken later                                               |   —   |    —     | yes  |     —      |      yes      |
+| `cancel wakes`             | takes back every wake this object has asked for                      |   —   |    —     | yes  |     —      |      yes      |
 
 `say` also needs someone acting, so it is not allowed in a handler or
 hook. (See [Prose](#14-prose).)
@@ -1884,6 +1885,29 @@ on :woke (elapsed) {
   another is a fault.
 - A wake is a turn of its own. It happens whether or not anyone is
   watching.
+
+An object can also take back what it asked for. `cancel wakes` takes back
+every wake it has pending, so none of them comes; with none pending it
+does nothing. Followed by a new `wake`, it puts off what was coming:
+
+```sprout
+as target for stun {
+  do {
+    cancel wakes
+    wake in 3 minutes
+    say "You knock the troll senseless."
+  }
+}
+```
+
+- `cancel wakes` reaches only this object's own wakes, and stands wherever
+  `wake` may.
+- A wake taken back no longer counts toward the one-at-a-time limit, so
+  the `wake` after it is not a fault.
+- `cancel` and `wakes` are not reserved words: a verb called `cancel`
+  still works.
+- Only places are ticked, so a character that acts on its own clock, such
+  as a troll swinging once a minute, asks for a wake each time.
 
 ### While nobody is there
 

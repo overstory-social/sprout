@@ -1,0 +1,14 @@
+{
+  "about": "A knockout puts off the troll's next swing: the swing it had asked for never comes.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "provoke troll" },
+    { "advance": "1 minute", "expect": [{ "words": "The troll swings its axe." }] },
+    { "as": "Marta", "type": "stun troll", "expect": [{ "words": "You knock the troll senseless." }] },
+    { "comment": "The swing due a minute from now was taken back." },
+    { "advance": "1 minute", "expect": [] },
+    { "advance": "1 minute", "expect": [] },
+    { "advance": "1 minute", "expect": [{ "words": "The troll shakes its head and gets up." }] },
+    { "advance": "1 minute", "expect": [{ "words": "The troll swings its axe." }] }
+  ]
+}

@@ -5,8 +5,8 @@
 // something). `say`, `tell` and `text`, and the words `refuse` takes, are
 // read in `speech.ts`, `act` in `act.ts`, `connect` in `connect.ts`,
 // `send` and `broadcast` in `sends.ts`, `destroy self` and `finally
-// destroy self` in `destroy.ts`, `wake` in `wake.ts`, `each` in
-// `each.ts`, and an extension's
+// destroy self` in `destroy.ts`, `wake` and `cancel wakes` in
+// `wake.ts`, `each` in `each.ts`, and an extension's
 // statement, `media.show(…)`, in `extensions.ts`, and each is
 // registered here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
@@ -43,7 +43,7 @@ import { actStatement } from './act.js';
 import { connectStatement } from './connect.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
-import { wakeStatement } from './wake.js';
+import { atCancel, cancelStatement, wakeStatement } from './wake.js';
 import { eachStatement } from './each.js';
 import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
 import { skipBracketed } from './recovery.js';
@@ -102,8 +102,16 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['send', sendStatement],
   ['broadcast', broadcastStatement],
   ['wake', wakeStatement],
+  ['cancel', cancelStatement],
   ['each', eachStatement],
 ]);
+
+/**
+ * The statement words that are not reserved, and so may also name a
+ * binding: each starts a statement only where its reader's own test says
+ * so, and is otherwise read as the name it is.
+ */
+const CONTEXTUAL: ReadonlyMap<string, (p: Parser) => boolean> = new Map([['cancel', atCancel]]);
 
 /** The words a statement may start with, in the order this compiler reads them. */
 export const STATEMENT_WORDS: readonly string[] = [...STATEMENTS.keys()];
@@ -113,7 +121,10 @@ export function statement(p: Parser, within: Enclosing = onItsOwn()): Statement 
   const token = p.peek();
   if (token.kind === 'name') {
     const reader = STATEMENTS.get(token.text);
-    if (reader !== undefined) return reader(p, within);
+    const contextual = CONTEXTUAL.get(token.text);
+    if (reader !== undefined && (contextual === undefined || contextual(p))) {
+      return reader(p, within);
+    }
     if (token.text === 'else') return danglingElse(p, within);
     if (atExtensionStatement(p)) return extensionStatement(p);
     if (!isReserved(token.text)) return expressionStatement(p);
@@ -192,8 +203,16 @@ function neverClosed(p: Parser, within: Enclosing): void {
   );
 }
 
-/** The words a statement starts with, where recovery stops to read the next one. */
-const STARTS: ReadonlySet<string> = new Set(STATEMENTS.keys());
+/**
+ * Whether `token` starts a statement, where recovery stops to read the
+ * next one and no statement's part is taken: a statement's word, or a
+ * contextual one only where it starts its line, or `afterBlock` says a
+ * block has just closed before it.
+ */
+function startsStatement(p: Parser, token: Token, afterBlock = false): boolean {
+  if (token.kind !== 'name' || !STATEMENTS.has(token.text)) return false;
+  return !CONTEXTUAL.has(token.text) || afterBlock || firstOnItsLine(p, token);
+}
 
 /**
  * Step over the rest of a statement that could not be read, to the next
@@ -227,7 +246,7 @@ function recoverToStatement(p: Parser, within: Enclosing): void {
     } else if (punct(token, '(') || punct(token, '[')) brackets += 1;
     else if ((punct(token, ')') || punct(token, ']')) && brackets > 0) brackets -= 1;
     else if (braces === 0 && brackets === 0 && token.kind === 'name') {
-      if (STARTS.has(token.text)) return;
+      if (startsStatement(p, token, boundary)) return;
       // `self.set(…)` on a line of its own is a statement of its own.
       if (boundary && !isReserved(token.text) && punct(p.peek(1), '.')) return;
     }
@@ -242,7 +261,7 @@ function recoverToStatement(p: Parser, within: Enclosing): void {
  */
 export function startsNext(p: Parser, within: Enclosing, token: Token): boolean {
   if (token.kind === 'name') {
-    return STARTS.has(token.text) || token.text === 'else' || within.startsMember(token);
+    return startsStatement(p, token) || token.text === 'else' || within.startsMember(token);
   }
   return token.kind === 'symbol' && firstOnItsLine(p, token) && within.startsMember(token);
 }
@@ -566,7 +585,7 @@ function movePart(
   const head = p.peek();
   const ahead =
     head.kind === 'name' &&
-    (STARTS.has(head.text) ||
+    (startsStatement(p, head) ||
       head.text === 'else' ||
       head.text === 'to' ||
       within.startsMember(head));

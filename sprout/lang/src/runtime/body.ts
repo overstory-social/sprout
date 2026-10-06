@@ -7,15 +7,16 @@
 // One runner, in two modes. A guard and a `permit` decide: they read, and
 // end in `allow`, in `refuse`, or by reaching their end. A `do` acts: it
 // writes `self` through the turn's draft, its links included, spawns,
-// destroys, moves, acts, asks to be woken, says and tells, and a refused
-// `move` or `act` ends it there. Each mode holds exactly what
-// `check/blocks.ts` lets its bodies hold, so anything else reaching it is
-// the engine's defect, thrown as a plain `Error`. Every statement executed
-// is one step and every expression node one more. A `set` or `remember`
-// of a value its property cannot hold faults, an `adjust` clamps, and
-// adding a new element to a full list faults. A `send` or a `broadcast`
-// queues what it sends, and a write that changes a property its kind
-// watches queues the hook, which the bus delivers once the body has ended.
+// destroys, moves, acts, asks to be woken or takes that back, says and
+// tells, and a refused `move` or `act` ends it there. Each mode holds
+// exactly what `check/blocks.ts` lets its bodies hold, so anything else
+// reaching it is the engine's defect, thrown as a plain `Error`. Every
+// statement executed is one step and every expression node one more. A
+// `set` or `remember` of a value its property cannot hold faults, an
+// `adjust` clamps, and adding a new element to a full list faults. A
+// `send` or a `broadcast` queues what it sends, and a write that changes
+// a property its kind watches queues the hook, which the bus delivers
+// once the body has ended.
 // What is said and told is carried unrendered, with the names in scope,
 // for `prose/` to render for each reader, and what an extension's
 // statement records joins it in body order (`extension-statements.ts`);
@@ -59,7 +60,7 @@ import { reachMessage, type DeclaredMessage } from '../declare/messages.js';
 import { writtenPath } from '../syntax/ast.js';
 import type { Instance } from './state.js';
 import { defaultOf, fits, type Value } from './values.js';
-import { askToWake } from './wakes.js';
+import { askToWake, cancelWakes } from './wakes.js';
 import { recordOf, type Recorded } from './extension-statements.js';
 
 /**
@@ -282,6 +283,9 @@ function runStatement(
     }
     case 'wake':
       askToWake(acting(run, '`wake`').lifecycle, frame.self, statement);
+      return 'end';
+    case 'cancel-wakes':
+      cancelWakes(acting(run, '`cancel wakes`').lifecycle, frame.self);
       return 'end';
     case 'say':
       acting(run, '`say`').say({

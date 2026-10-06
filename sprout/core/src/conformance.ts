@@ -464,6 +464,51 @@ export const cases: ConformanceCase[] = [
     },
   },
   {
+    name: 'a pending wake taken back stays taken back',
+    proves:
+      'an instance upserted with fewer pending wakes, or none, is read back with exactly those, by a later read and a later transaction, so a cancelled wake is never delivered',
+    async run(make) {
+      const store = await make();
+      const two = [
+        { serial: 5, askedAt: 3_000_000_000, dueAt: 3_000_000_060 },
+        { serial: 6, askedAt: 3_000_000_000, dueAt: 3_000_000_090 },
+      ];
+      const put = (wakes: StoredInstance['wakes'], serial: number) =>
+        store.transaction('w', async (tx) => {
+          await tx.putState({
+            serial,
+            upsert: [{ ...CELLAR, wakes }],
+            remove: [],
+            tombstones: [],
+            visitors: [],
+          });
+        });
+      const held = async (message: string): Promise<StoredInstance['wakes']> => {
+        let wakes: StoredInstance['wakes'] = [];
+        await store.read('w', async (tx) => {
+          const state = await tx.state();
+          loadable(state, message);
+          wakes = state.instances.find((i) => i.id === CELLAR.id)!.wakes;
+        });
+        return wakes;
+      };
+      await store.transaction('w', async (tx) => {
+        await tx.putMicroworld(microworld('w'));
+        await tx.putState(FIRST_TURN);
+      });
+      await put(two, 6);
+      equal(await held('two pending'), two, 'both wakes pending');
+      await put([two[1]!], 7);
+      equal(await held('one taken back'), [two[1]], 'the wake left after one is taken back');
+      await put([], 8);
+      equal(await held('all taken back'), [], 'no wake left after all are taken back');
+      await store.transaction('w', async (tx) => {
+        const cellar = (await tx.state()).instances.find((i) => i.id === CELLAR.id)!;
+        equal(cellar.wakes, [], 'no wake, read by a later transaction');
+      });
+    },
+  },
+  {
     name: 'a redeploy: nothing the world stored is kept, its record and its log are',
     proves:
       'resetState clears the serial, every instance and its memory, every visitor and every tombstone of one world, keeps its record and its log, and leaves another world alone',

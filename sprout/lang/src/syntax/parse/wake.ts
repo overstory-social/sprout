@@ -1,14 +1,17 @@
-// `wake in 3 hours`, read (the spec's Time › Wakes). The object whose
-// body runs it asks to be woken, so there is no target to write: `in`, a
-// whole number written out, and `seconds`, `minutes` or `hours`. Whether
-// the wait fits what `elapsed` can carry, and where the statement may
-// stand, are the checker's.
+// `wake in 3 hours` and `cancel wakes`, read (the spec's Time › Wakes).
+// The object whose body runs either asks or takes back for itself, so
+// there is no target to write: `wake` takes `in`, a whole number written
+// out, and `seconds`, `minutes` or `hours`; `cancel` takes `wakes` alone.
+// Neither `cancel` nor `wakes` is reserved, so `cancel` starts a
+// statement unless punctuation follows it on its line. Whether the wait
+// fits what `elapsed` can carry, and where each may stand, are the
+// checker's.
 //
 // A refused one costs only itself: a word the next statement or the
 // body's next member starts with, or anything starting a line of its
 // own, is never taken for any part of it.
 
-import type { WakeStatement, WakeUnit } from '../ast.js';
+import type { CancelWakesStatement, WakeStatement, WakeUnit } from '../ast.js';
 import type { Token } from '../lexer.js';
 import { spanning } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
@@ -84,6 +87,67 @@ export function wakeStatement(p: Parser, within: Enclosing = onItsOwn()): WakeSt
       : `Write \`wake in ${count.text} ${singular}\`.`,
   );
   return null;
+}
+
+/**
+ * Whether `cancel` here starts `cancel wakes`: anything but punctuation
+ * follows it on its line, or nothing does. Where `.`, `(` or an operator
+ * follows, `cancel` is a name an author gave, read as one.
+ */
+export function atCancel(p: Parser): boolean {
+  if (!p.at('name', 'cancel')) return false;
+  const next = p.peek(1);
+  return next.kind !== 'punct' || punct(next, '}') || firstOnItsLine(p, next);
+}
+
+const CANCEL = 'Write `cancel wakes`, which takes back every wake this object has asked for.';
+
+/**
+ * `cancel wakes`. Null having said why. A word the next statement or the
+ * body's next member starts with is never taken for what it cancels,
+ * but for `wake` written alone where `wakes` was meant.
+ */
+export function cancelStatement(
+  p: Parser,
+  within: Enclosing = onItsOwn(),
+): CancelWakesStatement | null {
+  const keyword = p.take('name', 'cancel');
+  if (keyword === null) {
+    notAStatement(p, p.peek());
+    return null;
+  }
+  const word = p.peek();
+  if (word.kind === 'name' && word.text === 'wakes' && !firstOnItsLine(p, word)) {
+    p.next();
+    return { kind: 'cancel-wakes', at: spanning(keyword.at, word.at) };
+  }
+  if (singularWake(p, word)) {
+    p.next();
+    p.diagnostics.refuse(word.at, '`cancel` takes back `wakes`, always written that way.', CANCEL);
+    return null;
+  }
+  if (!partOf(p, within, word)) {
+    p.diagnostics.refuse(
+      p.source.span(keyword.at.end),
+      '`cancel` does not say what it cancels.',
+      CANCEL,
+    );
+    return null;
+  }
+  if (word.kind !== 'punct') p.next();
+  p.diagnostics.refuse(
+    word.at,
+    `\`cancel\` takes back wakes, and ${p.subject(word, false)} is not something it cancels.`,
+    CANCEL,
+  );
+  return null;
+}
+
+/** Whether `word`, after `cancel` on its line, is `wake` meant as `wakes` rather than a `wake` statement. */
+function singularWake(p: Parser, word: Token): boolean {
+  if (word.kind !== 'name' || word.text !== 'wake' || firstOnItsLine(p, word)) return false;
+  const after = p.peek(1);
+  return !(after.kind === 'name' && after.text === 'in');
 }
 
 /**

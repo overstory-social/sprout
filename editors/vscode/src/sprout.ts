@@ -167,6 +167,8 @@ const WORDS: readonly Rule[] = [
   { name: `constant.language.boolean.${S}`, match: wordsPattern(LITERALS) },
   { name: `storage.type.${S}`, match: wordsPattern(TYPE_NAMES) },
   { name: KEYWORD, match: wordsPattern(syntaxWords()) },
+  // Neither word is reserved, so they are keywords only as the statement.
+  { match: '\\b(cancel)\\s+(wakes)\\b', captures: named(KEYWORD, KEYWORD) },
   { name: KEYWORD, match: '\\bis\\b(?!\\s*\\()' },
   { name: `variable.language.${S}`, match: '\\b(?:self|actor|here)\\b' },
   {

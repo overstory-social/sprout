@@ -6,16 +6,17 @@
 //
 // A guard and a `permit` decide: they read, and end in `allow` or
 // `refuse`, and a write, a `spawn`, a `destroy`, a `move`, a `connect`,
-// an `act`, a `wake` or words for a reader in one is refused, since the
-// engine asks it before anything happens and it must not change the world
-// underneath the decision it is part of. A `describe` only reads too, and
-// gives its words with `text`; it decides nothing, so `refuse` and
-// `allow` are refused there. A `do` acts: it writes, spawns, destroys,
-// moves, connects, acts, asks to be woken and speaks, and `refuse` and
-// `allow` are refused there, since the deciding was done. A handler or a
-// hook acts as a `do` does, but nobody is acting, so it tells rather than
-// says, and never refuses. Who each of `say`, `tell` and `text` speaks to
-// is `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
+// an `act`, a `wake`, a `cancel wakes` or words for a reader in one is
+// refused, since the engine asks it before anything happens and it must
+// not change the world underneath the decision it is part of. A
+// `describe` only reads too, and gives its words with `text`; it decides
+// nothing, so `refuse` and `allow` are refused there. A `do` acts: it
+// writes, spawns, destroys, moves, connects, acts, asks to be woken or
+// takes that back, and speaks, and `refuse` and `allow` are refused
+// there, since the deciding was done. A handler or a hook acts as a `do`
+// does, but nobody is acting, so it tells rather than says, and never
+// refuses. Who each of `say`, `tell` and `text` speaks to is
+// `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
 // binds `tool`, for the branch each guards, and an `each` binds its
 // variable for its body (`each.ts`). A statement after an `allow` or a
 // `refuse` in the same block is accepted, checked, and never runs, and
@@ -164,6 +165,9 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
       if (reads !== null) readOnly('wake', statement.at, context, reads);
       else checkWake(statement, context);
       return;
+    case 'cancel-wakes':
+      if (reads !== null) readOnly('cancel', statement.at, context, reads);
+      return;
     case 'expression-statement':
       if (unnamedExtension(statement.expression, context)) return;
       if (reads !== null && isEffect(statement.expression)) {
@@ -242,9 +246,10 @@ const CHANGES = {
   send: '`send` sends a message',
   broadcast: '`broadcast` sends a message',
   wake: '`wake` asks for a wake',
+  cancel: '`cancel wakes` takes back the wakes asked for',
 } as const;
 
-/** `spawn`, `destroy self`, `move`, `connect`, `act`, `send`, `broadcast` or `wake` where a body only reads. */
+/** `spawn`, `destroy self`, `move`, `connect`, `act`, `send`, `broadcast`, `wake` or `cancel wakes` where a body only reads. */
 function readOnly(what: keyof typeof CHANGES, at: Span, context: CheckContext, kind: Reads): void {
   context.diagnostics.refuse(
     at,

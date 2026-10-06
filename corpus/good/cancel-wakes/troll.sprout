@@ -1,0 +1,39 @@
+// A troll swings once a minute while it is angry. Stunning it takes
+// back the swing it has pending, with `cancel wakes`, before asking to be
+// woken when it comes round, which the host's one pending wake per
+// object would otherwise refuse.
+import {provoke, stun} from 'cancel_wakes'
+
+kind Troll {
+  :angry false
+  :dazed false
+
+  as target for provoke {
+    permit { if (self.get(:angry)) { refuse "It is angry enough already." } }
+    do {
+      self.set(:angry, true)
+      wake in 1 minutes
+      say "The troll hefts its axe and glares at you."
+    }
+  }
+
+  as target for stun {
+    permit { if (!self.get(:angry)) { refuse "It is not looking for a fight." } }
+    do {
+      self.set(:dazed, true)
+      cancel wakes
+      wake in 3 minutes
+      say "You knock the troll senseless."
+    }
+  }
+
+  on :woke (elapsed) {
+    if (self.get(:dazed)) {
+      self.set(:dazed, false)
+      tell "The troll shakes its head and gets up."
+    } else {
+      tell "The troll swings its axe."
+    }
+    wake in 1 minutes
+  }
+}

@@ -53,6 +53,7 @@ describe('the statements the skill lists', { timeout: COMPILES_EVERY_EXAMPLE }, 
       'send',
       'broadcast',
       'wake',
+      'cancel',
     ]) {
       expect(where(entry(word)), word).toEqual(acts);
     }

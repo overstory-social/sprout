@@ -1,0 +1,25 @@
+// Taking back a wake is a write, so a guard, a `permit` and a `describe`,
+// which only read, may not: the engine asks them before anything happens,
+// or whenever someone looks.
+import {pack} from 'cancel_wakes_reads'
+
+kind Crate {
+  contains
+
+  describe {
+    text "A crate."
+    cancel wakes
+  }
+
+  release (item, to) {
+    cancel wakes
+  }
+
+  as target for pack {
+    permit {
+      cancel wakes
+      allow
+    }
+    do { say "Packed." }
+  }
+}

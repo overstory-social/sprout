@@ -1,0 +1,14 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Crate} from 'crate'
+
+world cancel_wakes_reads is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object crate is Crate
+  }
+}
+
+verb pack { role target  "pack [target]" }

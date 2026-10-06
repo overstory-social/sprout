@@ -1,10 +1,11 @@
 // The wakes an object holds (the spec's Time › Wakes, Absence; Limits ›
 // Runtime budgets). A `wake` asks for one under the world's next serial,
 // due no sooner than the host's floor, and one asked past the host's cap
-// on pending wakes faults; nothing is charged while it waits. A wake is
-// due once its instant has come and its object is in the tree, and due
-// wakes are delivered oldest first: by when they fell due, then by the
-// serial they were asked under.
+// on pending wakes faults; nothing is charged while it waits. `cancel
+// wakes` empties the list, so what it held never arrives and no longer
+// counts toward the cap. A wake is due once its instant has come and its
+// object is in the tree, and due wakes are delivered oldest first: by
+// when they fell due, then by the serial they were asked under.
 //
 // Two invariants. An object's list is kept oldest first, so its first
 // entry is the one catch-up delivers. And nothing here reads a clock:
@@ -73,6 +74,17 @@ export function askToWake(
   const wake: PendingWake = { serial: draft.nextSerial(), askedAt: now, dueAt: now + wait };
   draft.write({ ...instance, wakes: [...instance.wakes, wake].sort(oldestFirst) });
   return wake;
+}
+
+/**
+ * `cancel wakes`, run by `self`: every wake it has pending at this point
+ * in the turn is taken back, one asked earlier in the same turn too.
+ * With none pending nothing is written.
+ */
+export function cancelWakes(context: LifecycleContext, self: InstanceId): void {
+  const instance = context.draft.instance(self);
+  if (instance === undefined) throw new Error(`\`${self}\` is not here to cancel its wakes.`);
+  if (instance.wakes.length > 0) context.draft.write({ ...instance, wakes: [] });
 }
 
 /**

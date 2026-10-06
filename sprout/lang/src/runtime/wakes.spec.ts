@@ -10,7 +10,15 @@ import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import type { LifecycleContext } from './lifecycle.js';
 import type { WorldState } from './state.js';
-import { askToWake, dueWakes, oldestFirst, onePerObject, WakeFault, withoutWake } from './wakes.js';
+import {
+  askToWake,
+  cancelWakes,
+  dueWakes,
+  oldestFirst,
+  onePerObject,
+  WakeFault,
+  withoutWake,
+} from './wakes.js';
 
 /** `text`, read as a `wake`. */
 function wake(text: string): WakeStatement {
@@ -87,6 +95,43 @@ describe('asking to be woken', () => {
     const { asked, state: after } = ask(state, ROSE, 'wake in 1 minutes', 100, two);
     expect(wakesOf(after, ROSE).map((w) => w.dueAt)).toEqual([asked.dueAt, 10_000]);
     expect(() => ask(after, ROSE, 'wake in 1 minutes', 100, two)).toThrow(WakeFault);
+  });
+});
+
+describe('taking back what was asked for', () => {
+  it('empties `self`’s list, so nothing it held is due, and leaves every other object’s', () => {
+    const { state } = garden([
+      [ROSE, 0, 100],
+      [CANDLE, 0, 100],
+    ]);
+    const two = { ...DEFAULT_LIMITS.budgets, pendingWakesPerObject: 2 };
+    const { state: held } = ask(state, ROSE, 'wake in 1 minutes', 50, two);
+    expect(wakesOf(held, ROSE)).toHaveLength(2);
+    const { draft, lifecycle } = context(held, 60);
+    cancelWakes(lifecycle, ROSE);
+    const after = draft.commit().state;
+    expect(wakesOf(after, ROSE)).toEqual([]);
+    expect(wakesOf(after, CANDLE)).toEqual(wakesOf(held, CANDLE));
+    expect(dueWakes(after, 1000).map((w) => w.object)).toEqual([CANDLE]);
+    // No serial is spent on taking back.
+    expect(after.serial).toBe(held.serial);
+  });
+
+  it('takes back a wake asked earlier in the same turn, and frees the cap for one asked after', () => {
+    const { state } = garden([]);
+    const { draft, lifecycle } = context(state, 100);
+    askToWake(lifecycle, ROSE, wake('wake in 1 hours'));
+    cancelWakes(lifecycle, ROSE);
+    const asked = askToWake(lifecycle, ROSE, wake('wake in 3 minutes'));
+    expect(draft.commit().state.instances.get(ROSE)!.wakes).toEqual([asked]);
+    expect(asked.dueAt).toBe(280);
+  });
+
+  it('writes nothing where nothing is pending', () => {
+    const { state } = garden([]);
+    const { draft, lifecycle } = context(state, 100);
+    cancelWakes(lifecycle, ROSE);
+    expect(draft.commit().changes.written).toEqual([]);
   });
 });
 

@@ -1,0 +1,10 @@
+crate.sprout:11:5  `cancel wakes` takes back the wakes asked for, and a `describe` only reads.
+                   Move it to a `do` or a handler; a `describe` reads what is there and gives its words with `text`.
+
+crate.sprout:15:5  `cancel wakes` takes back the wakes asked for, and a guard only reads and decides.
+                   Move it to a handler or a `do`; a guard ends in `allow` or `refuse`.
+
+crate.sprout:20:7  `cancel wakes` takes back the wakes asked for, and a `permit` only reads and decides.
+                   Move it to `do`; a `permit` ends in `allow` or `refuse`.
+
+refused: 3 problems
