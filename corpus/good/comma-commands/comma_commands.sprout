@@ -1,0 +1,65 @@
+// Commands joined by commas (the spec's Parsing › Sequences, again and
+// all): a comma followed by a verb, or by a direction where a phrase
+// begins with a way out, ends a run of things and begins a new command
+// where no reading takes the line whole, as `and` before a verb does. So
+// `take lantern, open trap door, turn on lantern, go down` is four
+// commands, while `take sword, coin and lantern` stays a run. A line has
+// no addressee form: `troll, hello` is not said to the troll, and a
+// visitor greets him with `hello troll`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world comma_commands is sprout.World {
+  visitors are Person
+  visitors arrive at living_room
+
+  object living_room is sprout.Place {
+    grammar {
+      name    "living room"
+      article the
+      exit down "down the trap door" -> cellar when (trap_door.get(:open))
+    }
+
+    object trap_door is sprout.Container {
+      :open false
+      grammar { name "trap door"  article the }
+    }
+    object lantern is Lantern
+  }
+
+  object cellar is sprout.Place {
+    grammar {
+      article the
+      lit (self.sees(sprout.LightSource, :lit))
+      exit up "up to the living room" -> living_room
+    }
+
+    describe { text "A damp cellar, its walls scored with deep scratches." }
+
+    object sword is Loose
+    object coin is Loose
+    object troll is Troll
+  }
+}
+
+verb turn_on { role target: Lantern  "turn on [target]"  "light [target]" }
+verb hello   { role target: sprout.Actor  "hello [target]"  "hi [target]" }
+
+kind Loose { }
+
+kind Lantern is sprout.LightSource {
+  grammar { name "brass lantern"  article a  nouns "lantern" }
+
+  as target for turn_on {
+    permit { if (self.get(:lit)) { refuse "It is already on." } }
+    do     { self.set(:lit, true)  say "The lantern is now on." }
+  }
+}
+
+kind Troll is sprout.Actor {
+  grammar { article the }
+
+  as target for hello {
+    do { say "The troll grunts, and does not look up." }
+  }
+}

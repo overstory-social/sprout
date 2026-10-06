@@ -1354,9 +1354,13 @@ A name may be narrowed by what holds it: `the key in the cabinet`, `the
 key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
 A line may hold several commands, split at `.` or `then`: `take key then
-open cabinet`, `take key. open cabinet`. `and` before a verb splits it too,
-`take key and open cabinet`, where the line does not read whole as one
-command. Each runs as its own turn, in order. A refusal, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying` stops the rest, and what
+open cabinet`, `take key. open cabinet`. `and` or a comma before a verb
+splits it too, `take key and open cabinet`, `open trap door, turn on
+lantern, go down`, where the line does not read whole as one command; a
+comma before a name keeps a run of things, `take sword, coin and lamp`.
+A line is never said to someone: `troll, hello` is not understood, and a
+visitor speaks to a person through the verbs that take them, `ask troll
+about the axe`. Each runs as its own turn, in order. A refusal, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying` stops the rest, and what
 ran before stays done.
 
 `again`, or `g`, runs your last command's reading again: the same verb

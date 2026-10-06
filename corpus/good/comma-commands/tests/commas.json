@@ -1,0 +1,32 @@
+{
+  "about": "A comma before a verb or a direction begins a new command where no reading takes the line whole, as `and` before a verb does, and a comma before a name keeps a run of things.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the living room." }
+    ] },
+    { "as": "Marta", "type": "take lantern, open trap door, turn on lantern, go down", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass lantern." },
+      { "reader": "Marta", "kind": "said", "words": "You open the trap door. It is empty." },
+      { "reader": "Marta", "kind": "said", "words": "The lantern is now on." },
+      { "reader": "Marta", "kind": "described", "words": "A damp cellar, its walls scored with deep scratches." }
+    ] },
+    { "as": "Marta", "type": "take sword, coin and lantern", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a sword." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a coin." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+    ] },
+    { "as": "Marta", "type": "drop sword, coin, up", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a sword down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a coin down." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the living room." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A damp cellar, its walls scored with deep scratches." }
+    ] }
+  ]
+}

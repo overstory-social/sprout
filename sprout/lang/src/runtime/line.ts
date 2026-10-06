@@ -4,8 +4,8 @@
 // turn. A command's turn may plan the turns after it, which run next, in
 // order, before the line's next command: each step of an intent, each
 // thing of `all` or of a run, an item of a run whose words its own turn
-// reads, and each command `and` joined, which is read from its own words
-// on its own turn and may plan turns of its own.
+// reads, and each command `and` or a comma joined, which is read from
+// its own words on its own turn and may plan turns of its own.
 // Every turn after the first has its own seed. A turn that does not let
 // the line go on (`lineGoesOn`) ends it, and what ran before stays done.
 // The host drives the turns, its store's way, through `commandsOfLine`.
