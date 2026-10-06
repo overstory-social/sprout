@@ -31,7 +31,9 @@ const CAPS = DEFAULT_LIMITS.caps;
  * draw, whose `nearby` narrows the `press` nearest it, whose `pathed`
  * names the crate and a rib in it by their paths from the world, and
  * whose `heard` and `faded` render its padded `short` and its
- * two-paragraph `long`.
+ * two-paragraph `long`, `carried` its `tail` that opens with `\n\n`,
+ * `lined` its `turn` that opens with one `\n`, and `room` its `aside`,
+ * a paragraph of its own only while the echo is `:loud`.
  */
 export const MILL: Bundle = compiledWorld('mill', {
   'mill.sprout': [
@@ -93,6 +95,17 @@ export const MILL: Bundle = compiledWorld('mill', {
     '  }',
     '  passage heard { You hear {self.short}. }',
     '  passage faded { First {self.long} then quiet. }',
+    '  passage tail { \\n\\nit carries. }',
+    '  passage carried { It rings.{self.tail} }',
+    '  passage turn { \\nit carries. }',
+    '  passage lined { It rings.{self.turn} }',
+    '  :loud false',
+    '  passage aside {',
+    '',
+    '    {if self.get(:loud)}it is loud.{/if}',
+    '',
+    '  }',
+    '  passage room { Quiet here.{self.aside} }',
     '  as target for ink { do { say call  say calls  say toss  say hum } }',
     '}',
     '',
