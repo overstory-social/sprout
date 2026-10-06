@@ -12,6 +12,7 @@ import {
   checkVerbDeclaration,
   ENGINE_ANSWERS,
   ENGINE_VERBS,
+  isEngineVerb,
   VerbTable,
   type ResolvedRole,
   type ResolvedVerb,
@@ -542,5 +543,13 @@ describe('what the table refuses, at the thing', () => {
     // Only the composition's own refusal, where the kind was declared.
     expect(diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:15']);
     expect(verbs.qualified('shop', 'pack')!.roles[0]!.filler).toBeNull();
+  });
+});
+
+describe('an engine verb', () => {
+  it('is only the standard library’s verb of an engine verb’s name', () => {
+    expect(isEngineVerb({ library: 'sprout', name: 'examine' })).toBe(true);
+    expect(isEngineVerb({ library: 'sprout', name: 'take' })).toBe(false);
+    expect(isEngineVerb({ library: 'shop', name: 'examine' })).toBe(false);
   });
 });

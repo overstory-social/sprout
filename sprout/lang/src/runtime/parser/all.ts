@@ -1,19 +1,20 @@
 // `all` and `except` in a slot (the spec's Parsing › Sequences, again and
 // all): `take all`, `take all except the bronze key and the lamp`. `all`
 // fills a role with everything in reach it may take: a role of a kind
-// takes what composes it; an open role that some kind plays takes what
-// plays a part in the verb; and an open role only the actor plays, as
-// `take`'s target, takes every thing that is not a person and not the
-// actor's own place. `except` leaves out each thing a noun after it names,
-// and every thing of a kind it names. A set role takes them all at once,
-// and a role that takes one thing takes each in turn, in the order the
-// range walk reached them; either way no more than a set role may bind.
+// takes what composes it; an engine verb's open role, as `examine`'s
+// target, and an open role only the actor plays, as `take`'s, take every
+// thing that is not a person and not the actor's own place; and any other
+// open role takes what plays a part in the verb. `except` leaves out each
+// thing a noun after it names, and every thing of a kind it names. A set
+// role takes them all at once, and a role that takes one thing takes each
+// in turn, in the order the range walk reached them; either way no more
+// than a set role may bind.
 
 import { isActor } from '../../declare/actors.js';
 import { DETERMINERS, humanisedKind } from '../../declare/addressing.js';
 import { playsOf } from '../../declare/roles.js';
 import type { KindRef } from '../../declare/kinds.js';
-import type { ResolvedRole, ResolvedVerb } from '../../declare/verbs.js';
+import { isEngineVerb, type ResolvedRole, type ResolvedVerb } from '../../declare/verbs.js';
 import type { Budget } from '../budget.js';
 import type { InstanceId } from '../ids.js';
 import type { Instance } from '../state.js';
@@ -57,7 +58,8 @@ export function allIn(
       literal += noun.length;
     }
   }
-  const actorOnly = onlyTheActorPlays(verb, role, context.kinds, context.budget);
+  const everyThing =
+    isEngineVerb(verb) || onlyTheActorPlays(verb, role, context.kinds, context.budget);
   const taken = context.candidates
     .filter(({ instance, carried }) => {
       context.budget.spend();
@@ -65,7 +67,7 @@ export function allIn(
         return false;
       }
       if (role.carried && !carried) return false;
-      return takes(role, verb, instance, actorOnly);
+      return takes(role, verb, instance, everyThing);
     })
     .slice(0, context.budget.limits.setRoleObjects);
   if (taken.length === 0) return { fills: 'nothing', start: 0, end: words.length };
@@ -93,15 +95,18 @@ export function allIn(
   };
 }
 
-/** Whether `all` takes `thing` for `role`: as the role's kind says, or as the verb's plays do. */
+/**
+ * Whether `all` takes `thing` for `role`: as the role's kind says; where
+ * it takes `everyThing`, as any thing not a person; or as the verb's plays do.
+ */
 function takes(
   role: ResolvedRole,
   verb: ResolvedVerb,
   thing: Instance,
-  actorOnly: boolean,
+  everyThing: boolean,
 ): boolean {
   if (role.filler?.fills === 'kind') return fits(role, thing);
-  if (actorOnly) return !isActor(thing.kind);
+  if (everyThing) return !isActor(thing.kind);
   return verb.roles.some(
     (one) => playsOf(thing.kind.plays, verb.library, verb.name, one.name).length > 0,
   );

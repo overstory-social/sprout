@@ -1,10 +1,13 @@
 // `all` in a role that takes one thing (the spec's Parsing › Sequences,
-// again and all): it takes every thing in reach whose kind plays a part
-// in the verb, or, for a role only the actor plays, every thing that is
-// not a person and not the visitor's own place; the reading runs once
-// for each, in the order the range
-// walk reaches them, and stops at the first refusal, wherever in that
-// order it falls. A run of things runs in the order written.
+// again and all): for an engine verb's open role, as `examine`'s target,
+// it takes every thing in reach that is not a person and not the
+// visitor's own place, whatever else plays it; for a world verb's open
+// role some kind plays, as `polish`'s, only what plays a part in it; and
+// for a role only the actor plays, as `take`'s, every thing that is not a
+// person and not the visitor's own place. The reading runs once for each,
+// in the order the range walk reaches them, and stops at the first
+// refusal, wherever in that order it falls. A run of things runs in the
+// order written.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 import {examine} from 'sprout'
@@ -23,12 +26,17 @@ world all_in_order is sprout.World {
   }
 }
 
-// Plays no part in `examine`, so `examine all` leaves it out once some kind does.
+// Plays no part in any verb, and `examine all` still takes it.
 kind Plain { }
+
+verb polish { role target  "polish [target]" }
 
 kind Shiny {
   as target for examine {
     permit { allow }
+  }
+  as target for polish {
+    do { say "It gleams." }
   }
 }
 
