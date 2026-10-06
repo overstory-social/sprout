@@ -84,8 +84,8 @@ export interface ParseContext {
  * A turn a line runs after the one that read it (the spec's Parsing ›
  * Sequences, again and all): a reading planned before it ran, an
  * intent's step or a thing of `all` or of a run, or one whose run's item
- * is read afresh on its turn; or a command `and` joined, read from its
- * own words on its own turn.
+ * is read afresh on its turn; or a command `and` or a comma joined, read
+ * from its own words on its own turn.
  */
 export type Following =
   { readonly planned: Reading; readonly reread?: Reread } | { readonly text: string };

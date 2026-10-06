@@ -11,9 +11,9 @@
 // `again` or `g` alone runs the actor's last reading again, where what it
 // binds is still in reach. A run of things in a role that takes one thing
 // is read as its first item, each item after it a turn of its own
-// (`parser/runs.ts`); `and` before a verb joins two commands where no
-// reading takes the line whole (`parser/chain.ts`), the second read on its
-// own turn (the spec's Parsing › Sequences, again and all).
+// (`parser/runs.ts`); `and` or a comma before a verb joins two commands
+// where no reading takes the line whole (`parser/chain.ts`), the second
+// read on its own turn (the spec's Parsing › Sequences, again and all).
 //
 // Every line has exactly one outcome: a reading, or one of the world's
 // answers, `cannot`, `not_carrying`, `no_way`, `not_here` or `unknown`, or
@@ -104,7 +104,7 @@ export interface CommandContext {
 export type CommandOutcome =
   | {
       readonly understood: Understood;
-      /** The turns the line runs after it, in order: `all`'s or a run's, and a command `and` joined. */
+      /** The turns the line runs after it, in order: `all`'s or a run's, and a command `and` or a comma joined. */
       readonly rest: readonly Following[];
       readonly drawn: Drawn | null;
       /** What it binds that a pronoun named, and the pronoun typed. */
@@ -147,9 +147,9 @@ export function readCommand(
       pronounNamed: chosen.pronounNamed,
     };
   };
-  // Where `and` may join two commands, the line is one command where a
-  // reading reads all of it; otherwise it splits at the first such `and`
-  // whose words after it, up to the next `and` or comma, name nothing
+  // Where `and` or a comma may join two commands, the line is one command
+  // where a reading reads all of it; otherwise it splits at the first such
+  // `and` or comma whose words after it, up to the next `and` or comma, name nothing
   // outright, so a name that begins with a verb stays whole, and what
   // follows is read on a turn of its own. A turn reads its line at most
   // twice, so a long chain costs each turn no more than its own line.

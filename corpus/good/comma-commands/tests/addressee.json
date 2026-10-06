@@ -1,0 +1,27 @@
+{
+  "about": "A line has no addressee form: `troll, hello` is not said to the troll, and is `unknown`; `hello troll` greets him, alone or chained by a comma.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the living room." }
+    ] },
+    { "as": "Marta", "type": "take lantern, open trap door, turn on lantern, go down", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a brass lantern." },
+      { "reader": "Marta", "kind": "said", "words": "You open the trap door. It is empty." },
+      { "reader": "Marta", "kind": "said", "words": "The lantern is now on." },
+      { "reader": "Marta", "kind": "described", "words": "A damp cellar, its walls scored with deep scratches." }
+    ] },
+    { "as": "Marta", "type": "troll, hello", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "troll, give me the sword", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "hello troll", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The troll grunts, and does not look up." }
+    ] },
+    { "as": "Marta", "type": "take coin, hi troll", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a coin." },
+      { "reader": "Marta", "kind": "said", "words": "The troll grunts, and does not look up." }
+    ] }
+  ]
+}
