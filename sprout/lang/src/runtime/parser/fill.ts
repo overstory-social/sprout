@@ -1,15 +1,16 @@
 // What the words a slot took fill its role with (the spec's Verbs ›
 // Slots, Set roles, Carried roles, Value roles, A role-player narrows its
-// own options, Exits). A thing role takes one noun, a set role a run of
-// them, an exit role a direction or a label, an exit that refuses and a
-// direction no exit answers being answered rather than read; a value
-// role takes any words, and binds only a value some participant's `from`
-// hears, so nothing a visitor typed reaches a body unless a role-player
-// declared it an option. A carried role takes only what the one typing carries: where
-// what they carry does not answer and something further out would fill
-// the role, the slot is `outward`, which the world answers with
-// `not_carrying`, and a carried thing the noun names always wins over an
-// outward one.
+// own options, Exits; Parsing › Sequences, again and all). A thing role
+// takes one noun, or a run of them it runs once for each, a set role a
+// run of them at once, an exit role a direction or a label, an exit that
+// refuses and a direction no exit answers being answered rather than
+// read; a value role takes any words, and binds only a value some
+// participant's `from` hears, so nothing a visitor typed reaches a body
+// unless a role-player declared it an option. A carried role takes only
+// what the one typing carries: where what they carry does not answer and
+// something further out would fill the role, the slot is `outward`, which
+// the world answers with `not_carrying`, and a carried thing the noun
+// names always wins over an outward one.
 
 import { optionFromWords } from '../../declare/enums.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
@@ -29,6 +30,7 @@ import {
   type NounFound,
   type PronounNamed,
 } from './nouns.js';
+import { itemsOfRun, type RunItem } from './runs.js';
 
 /** One way a slot's words fill its role: what it binds, how near, and how many words it matched literally. */
 export interface FillOption {
@@ -57,6 +59,15 @@ export type Filled =
   /** `all`, for a role that takes one thing: each thing it takes in turn, in the order reached (`all.ts`). */
   | { readonly fills: 'all'; readonly things: readonly FillOption[] }
   /**
+   * A run in a role that takes one thing (`runs.ts`): every way its first
+   * item fills the role, and each item after it, in the order written.
+   */
+  | {
+      readonly fills: 'run';
+      readonly options: readonly FillOption[];
+      readonly later: readonly LaterItem[];
+    }
+  /**
    * The phrase does not match: the role is carried, nothing carried
    * answers, and each of these, further out, would fill it.
    */
@@ -65,6 +76,11 @@ export type Filled =
   | { readonly fills: 'refused'; readonly way: RefusingExit }
   /** The words are a direction no exit that applies answers, which the world's `no_way` answers. */
   | { readonly fills: 'no_way'; readonly direction: Direction };
+
+/** An item of a run after its first: where it stands among the slot's words, and what it fills the role with. */
+export interface LaterItem extends RunItem {
+  readonly filled: Filled;
+}
 
 /** What filling a slot reads: what the actor can reach, the exits that apply, the meter and the draws. */
 export interface FillContext extends NounContext {
@@ -94,12 +110,23 @@ export function fillSlot(
     };
   }
   if (role.many) return setFilled(words, role, context);
-  return carriedFilled(
-    words,
-    role.carried,
-    (candidates) => nounIn(words, role, candidates, context),
-    context,
-  );
+  const one = (typed: readonly string[]): Filled =>
+    carriedFilled(
+      typed,
+      role.carried,
+      (candidates) => nounIn(typed, role, candidates, context),
+      context,
+    );
+  const items = itemsOfRun(words, role, context.candidates, context);
+  if (items === null) return one(words);
+  const [first, ...rest] = items as [RunItem, ...RunItem[]];
+  const filled = one(words.slice(first.start, first.end));
+  if (filled.fills === 'nothing') {
+    return { fills: 'nothing', start: first.start + filled.start, end: first.start + filled.end };
+  }
+  if (filled.fills !== 'options') return filled;
+  const later = rest.map((item) => ({ ...item, filled: one(words.slice(item.start, item.end)) }));
+  return { fills: 'run', options: filled.options, later };
 }
 
 /**

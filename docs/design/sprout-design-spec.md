@@ -943,7 +943,7 @@ verb throw {
 
 Operations on a set: `count`, `count(Kind)`, `includes(x)`, and `each … of`, which binds each member at the role's kind.
 
-A run is either several single slots or one set slot, never a mix. Parsing splits on `and` and commas literally and resolves each noun independently, so cost stays linear in the length of the command.
+A run is either several single slots or one set slot, never a mix; a run in a role that takes one thing runs once for each thing, under Sequences, again and all. Parsing splits a set role's run on `and` and commas literally and resolves each noun independently, so cost stays linear in the length of the command.
 
 ### Optional tools
 
@@ -1265,11 +1265,13 @@ Each visitor has their own pronouns, set by their own last command: `it` and `th
 
 ### Sequences, again and all
 
-`take key then open cabinet` and `take key. open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. The first answered by a refusal, an exit's refusal, `cannot`, `not_carrying`, `no_way`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
+`take key then open cabinet`, `take key. open cabinet` and `take key and open cabinet` are two commands, run one after the other, each its own turn with its own seed and log entry. `and` joins two commands only where a verb follows it and no reading takes the line whole, every thing it names named and every value it types heard; the first command is then the longest a reading takes whole, and what follows is read on its own turn. The first answered by a refusal, an exit's refusal, `cannot`, `not_carrying`, `no_way`, `unknown`, `not_here` or a fault stops the rest of the line; what ran before it stays done.
 
 `again`, or `g`, runs the visitor's last reading again: the same verb and the same things, not the same words, so a line whose nouns would now mean something else still means what it meant. Its consent pass is asked afresh, and a thing no longer in reach is answered with `not_here`.
 
 `all` fills a role with everything it may take, and `except` leaves things out, by kind or by name: `take all`, `take all except the bronze key`. What `all` takes is every thing in reach whose kind plays a part in the verb or composes the role's kind; for a role only the actor plays, as `take`'s target, it is every thing in reach that is not a person and not the visitor's own place; and for a carried role, only what the visitor carries. A set role takes them all at once. A role that takes one thing runs once for each, as a sequence would, in the order the range walk reaches them, and stops at the first refusal; a line of `all` runs at most as many turns as a set role may bind objects.
+
+A run of things, `take sack and bottle` or `take sack, bottle and lamp`, with a comma before the `and` or without, fills a set role at once, under Set roles; in a role that takes one thing it runs once for each, as `all` does, in the order written, and stops at the first refusal. An item that names nothing in reach, or names things that tie, is read on its own turn as the line with that item alone, and answered there as any line is, `not_here` among the answers. A name that holds `and` is still read whole where it names a thing by a noun or its whole name, the longest first, so `the salt and pepper shaker and the lamp` is two things.
 
 ### When nothing matches
 

@@ -69,18 +69,29 @@ export interface ParseContext {
   readonly lastReading: Reading | null;
 }
 
+/**
+ * A turn a line runs after the one that read it (the spec's Parsing ›
+ * Sequences, again and all): a reading planned before it ran, an
+ * intent's step or a thing of `all` or of a run; or a command read from
+ * its own words on its own turn, an item of a run that named nothing
+ * outright or a command `and` joined.
+ */
+export type Following = { readonly planned: Reading } | { readonly text: string };
+
 /** What the words typed make: a reading `actor` performs, or a line said to them in place of one. */
 export type Parsed =
   | {
       readonly reading: Reading;
-      /** The readings after it a line of `all` runs, each as a turn of its own, in order. */
-      readonly rest: readonly Reading[];
+      /** The turns the line runs after it, in order. */
+      readonly rest: readonly Following[];
       readonly drawn: DrawnReading | null;
       /** The world's `pronoun_correction` for each thing a pronoun named that declares another. */
       readonly corrected: readonly Said[];
     }
   | {
       readonly intended: IntentReading;
+      /** The turns the line runs after the intent's steps, in order. */
+      readonly rest: readonly Following[];
       readonly drawn: DrawnReading | null;
       readonly corrected: readonly Said[];
     }
@@ -132,22 +143,24 @@ export type Commanded =
        * (the spec's Parsing › Sequences, again and all).
        */
       readonly stops: boolean;
+      /** The turns the line runs after it, where it does not stop it. */
+      readonly next: readonly Following[];
     }
   | {
       readonly refused: PermitRefusal;
       readonly drawn: DrawnReading | null;
       /** The world's `pronoun_correction`s, said before anything else. */
       readonly corrected: readonly Said[];
-      /** The reading this turn ran as a step of a line of several, an intent's or `all`'s, which the host logs at info; null otherwise. */
+      /** The reading this turn ran as a step of a line of several, an intent's, `all`'s or a run's, which the host logs at info; null otherwise. */
       readonly step: Reading | null;
     }
   | {
       readonly drawn: DrawnReading | null;
       readonly corrected: readonly Said[];
-      /** The reading this turn ran as a step of a line of several, an intent's or `all`'s, which the host logs at info; null otherwise. */
+      /** The reading this turn ran as a step of a line of several, an intent's, `all`'s or a run's, which the host logs at info; null otherwise. */
       readonly step: Reading | null;
-      /** The steps of the line's intent, or the readings of its `all`, still to run, in order, each as a turn of its own the host runs. */
-      readonly next: readonly Reading[];
+      /** The turns the line runs after it, in order, each a turn of its own the host runs. */
+      readonly next: readonly Following[];
       /** Whether its body refused its actor something, which stops a line's steps as a refusal in the consent pass does. */
       readonly refusedActor: boolean;
       readonly acted: Acted;
@@ -206,11 +219,11 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
             `the parser answered \`${command.text}\` to someone other than \`${actor}\`.`,
           );
         }
-        return { answered: parsed.answered, stops: true };
+        return { answered: parsed.answered, stops: true, next: [] };
       }
       const { drawn, corrected } = parsed;
       let reading: Reading;
-      let next: readonly Reading[] = [];
+      let next: readonly Following[] = [];
       if ('intended' in parsed) {
         const [first, ...rest] = planIntent(parsed.intended, {
           state: draft,
@@ -219,9 +232,11 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
           budget,
         });
         // Every step left out, the line does nothing, and is answered so.
-        if (first === undefined) return { answered: nothingHappens(draft, actor), stops: false };
+        if (first === undefined) {
+          return { answered: nothingHappens(draft, actor), stops: false, next: parsed.rest };
+        }
         reading = first;
-        next = rest;
+        next = [...rest.map((planned) => ({ planned })), ...parsed.rest];
       } else {
         reading = parsed.reading;
         next = parsed.rest;
@@ -233,8 +248,9 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       }
       const outcome = runReading(reading, turn);
       remember(draft, command.visit, reading);
-      // A turn of a line of several readings, an intent's or `all`'s, is a step the host logs.
-      const several = 'intended' in parsed || ('rest' in parsed && parsed.rest.length > 0);
+      // A turn of a line of several readings planned at once, an intent's,
+      // `all`'s or a run's, is a step the host logs.
+      const several = 'intended' in parsed || next.some((one) => 'planned' in one);
       const step = command.planned !== undefined || several ? reading : null;
       if ('refused' in outcome) return { ...outcome, drawn, corrected, step };
       const drained = drain(outcome, turn);

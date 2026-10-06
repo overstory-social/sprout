@@ -151,9 +151,13 @@ A few more things worth knowing:
   the one in the box.
 - **`it`, `them`, `him` and `her`** mean what your own last command was
   about: `take lamp`, then `drop it`.
-- **Several commands on one line.** `take key then open chest`, or `take
-  key. open chest`. They run one after the other, and the first that
-  does not work stops the rest.
+- **Several commands on one line.** `take key then open chest`, `take
+  key. open chest`, or `take key and open chest`. They run one after the
+  other, and the first that does not work stops the rest.
+- **Several things at once.** `take sack and bottle`, `drop sack, bottle
+  and lamp`. Each is taken in turn, in the order you name them, and the
+  first that does not work stops the rest. A name with `and` in it, "the
+  salt and pepper shaker", still names the one thing.
 - **`all` and `except`.** `take all`, `drop all except the lamp`.
 - **Where a line could mean two things,** the world picks the likelier.
   If it is still a toss-up, it picks one and tells you which, "(A brass

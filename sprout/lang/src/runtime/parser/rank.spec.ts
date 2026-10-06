@@ -22,7 +22,16 @@ function taking(
     actor: ACTOR,
     bindings: new Map([['target', { object: target }]]),
   };
-  return { reading, allowed: true, literal: 2, near: [1], pronounNamed: [], rest: [], ...rank };
+  return {
+    reading,
+    allowed: true,
+    literal: 2,
+    near: [1],
+    pronounNamed: [],
+    rest: () => [],
+    whole: true,
+    ...rank,
+  };
 }
 
 /** How the engine writes each thing: the pebbles alike, everything else apart. */
@@ -99,7 +108,15 @@ describe('an intent’s reading, ranked among verbs’', () => {
         ['x', { object: x }],
       ]),
     };
-    return { reading, allowed: true, literal: 2, near: [1, 1], pronounNamed: [], rest: [] };
+    return {
+      reading,
+      allowed: true,
+      literal: 2,
+      near: [1, 1],
+      pronounNamed: [],
+      rest: () => [],
+      whole: true,
+    };
   };
 
   it('fills its slots by name, where a verb’s reading fills its roles', () => {

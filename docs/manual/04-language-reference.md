@@ -1300,8 +1300,9 @@ A name may be narrowed by what holds it: `the key in the cabinet`, `the
 key on the shelf`, `the key that is in the cabinet` and `the one in the
 cabinet` each name what stands directly in the cabinet or on the shelf.
 A line may hold several commands, split at `.` or `then`: `take key then
-open cabinet`, `take key. open cabinet`. Each runs as its own turn, in
-order. A refusal, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying` stops the rest, and what
+open cabinet`, `take key. open cabinet`. `and` before a verb splits it too,
+`take key and open cabinet`, where the line does not read whole as one
+command. Each runs as its own turn, in order. A refusal, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying` stops the rest, and what
 ran before stays done.
 
 `again`, or `g`, runs your last command's reading again: the same verb
@@ -1319,6 +1320,13 @@ the brass key and the lamp`. A set role takes them all at once; any other
 role runs once for each, as a line of several commands would, in the order
 they are reached, and stops at the first refusal. No more are taken than a
 set role may hold, 8 by default.
+
+A run of things, `take sack and bottle` or `take sack, bottle and lamp`,
+with or without a comma before the `and`, fills a set role at once; any
+other role runs once for each, in the order written, as `all` does, and
+stops at the first refusal. A thing named that is not in reach is answered
+with `not_here` on its own turn. A name that holds `and`, "the salt and
+pepper shaker", is still read whole where it names something.
 
 A pronoun, `it`, `them`, `him` or `her`, names what your own last command
 was done to, where it is still in reach: `take lamp`, then `drop it`.

@@ -62,7 +62,8 @@ export function partialsOf(
       each.push([{ words: filled.words.join(' '), literal: filled.words.length, uncarried: null }]);
       continue;
     }
-    const options = filled.fills === 'options' ? filled.options : filled.things;
+    const options =
+      filled.fills === 'options' || filled.fills === 'run' ? filled.options : filled.things;
     if (options.length === 0) return [];
     const outward = filled.fills === 'outward' && !unfit;
     each.push(

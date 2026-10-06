@@ -9,6 +9,7 @@
 // tells the visitor which; things written alike are drawn without it.
 
 import type { Budget } from '../budget.js';
+import type { Following } from '../command.js';
 import type { Draw } from '../draws.js';
 import type { InstanceId } from '../ids.js';
 import type { IntentReading } from '../intents.js';
@@ -36,8 +37,14 @@ export interface Ranked {
   readonly near: readonly number[];
   /** What it binds that a pronoun named, and the pronoun. */
   readonly pronounNamed: readonly PronounNamed[];
-  /** The readings after it a line of `all` runs, each as a turn of its own. */
-  readonly rest: readonly Reading[];
+  /**
+   * Whether it reads every word it was given: each item of a run names
+   * something, and every value typed is one a participant hears. A line
+   * `and` may split is read whole only by such a reading.
+   */
+  readonly whole: boolean;
+  /** The turns the line runs after it, `all`'s or a run's, each a turn of its own; asked only of the reading chosen. */
+  readonly rest: () => readonly Following[];
 }
 
 /** A reading drawn from a tie: among how many, and the thing `meant` names, if any. */
@@ -49,7 +56,7 @@ export interface Drawn {
 /** The reading chosen, and the draw it was, where it was drawn. */
 export interface Chosen {
   readonly reading: Understood;
-  readonly rest: readonly Reading[];
+  readonly rest: () => readonly Following[];
   readonly pronounNamed: readonly PronounNamed[];
   readonly drawn: Drawn | null;
 }

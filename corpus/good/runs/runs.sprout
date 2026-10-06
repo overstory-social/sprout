@@ -1,0 +1,34 @@
+// A run of things in a role that takes one thing (the spec's Parsing ›
+// Sequences, again and all): `take sack and bottle` and `take sack,
+// bottle and lamp`, with or without a comma before `and`, run the reading
+// once for each, in the order written, each its own turn, stopping at the
+// first refusal; `and` before a verb joins two commands as `then` does;
+// a name that holds `and` is still read whole where it names something;
+// and a set role still binds the run at once.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world runs is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    grammar { article the }
+    object sack is Loose
+    object bottle is Loose
+    object lamp is Loose { grammar { article the } }
+    object salt is Loose { grammar { article the } }
+    object pepper is Loose { grammar { article the } }
+    object shaker is Loose {
+      grammar {
+        name    "salt and pepper shaker"
+        article the
+      }
+    }
+    object brass_key is Loose
+    object iron_key is Loose
+    object box is sprout.Container { grammar { article the } }
+  }
+}
+
+kind Loose { }

@@ -49,6 +49,32 @@ describe('what a slot’s words fill its role with', () => {
     });
   });
 
+  it('is a run for a thing role given several nouns: the first item’s things, and each item after it', () => {
+    expect(fill(role('take', 'target', 'sprout'), 'gong, dial and the unicorn')).toEqual({
+      fills: 'run',
+      options: [{ bound: { object: GONG }, near: 2, literal: 1 }],
+      later: [
+        {
+          start: 2,
+          end: 3,
+          filled: { fills: 'options', options: [{ bound: { object: DIAL }, near: 2, literal: 1 }] },
+        },
+        { start: 4, end: 6, filled: { fills: 'nothing', start: 0, end: 2 } },
+      ],
+    });
+  });
+
+  it('says where a run’s first item runs where it names nothing', () => {
+    expect(fill(role('take', 'target', 'sprout'), 'gong and unicorn')).toMatchObject({
+      fills: 'run',
+    });
+    expect(fill(role('take', 'target', 'sprout'), 'the unicorn and gong')).toEqual({
+      fills: 'nothing',
+      start: 0,
+      end: 2,
+    });
+  });
+
   it('is every thing a noun may name, for the readings they make to be ranked', () => {
     expect(fill(role('take', 'target', 'sprout'), 'the key')).toEqual({
       fills: 'options',
