@@ -2227,7 +2227,7 @@ any of its lines. `sprout skill` prints its full source.
 | verb     | roles                              | phrases                                                     |
 | -------- | ---------------------------------- | ----------------------------------------------------------- |
 | `take`   | `target`                           | `take [target]`, `get [target]`, `pick up [target]`, `pick [target] up`, `grab [target]` |
-| `drop`   | `target`                           | `drop [target]`, `put down [target]`, `put [target] down`   |
+| `drop`   | `target`                           | `drop [target]`, `put down [target]`, `put [target] down`, `drop [target] here`, `put down [target] here`, `put [target] down here` |
 | `put`    | `item`, `container: Container`     | `put [item] in [container]`, `put [item] into [container]`, `place [item] in [container]`, `insert [item] into [container]` |
 | `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`, `offer [item] to [recipient]` |
 | `open`   | `target: Container`                | `open [target]`                                             |

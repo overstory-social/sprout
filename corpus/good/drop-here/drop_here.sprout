@@ -1,0 +1,20 @@
+// The standard library's `drop` writes a trailing `here` into its own
+// phrases (the spec's The standard library it needs): `drop the leaflet
+// here`, `put down the leaflet here` and `put the leaflet down here` put
+// it down where the visitor stands, as `drop the leaflet` does. `here` is
+// not among the words the parser drops (Matching a line), so a bare
+// `drop here` names nothing.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world drop_here is sprout.World {
+  visitors are Person
+  visitors arrive at porch
+
+  object porch is sprout.Place {
+    grammar { article the }
+    object leaflet is Loose
+  }
+}
+
+kind Loose { }

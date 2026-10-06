@@ -1,0 +1,16 @@
+{
+  "name": "drop_here",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "db34d8622aab862f3b9b2859004472da7888d8ed395105f883616ed4c47f4109"
+    }
+  ],
+  "files": ["drop_here.sprout", "person.sprout"]
+}

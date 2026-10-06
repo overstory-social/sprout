@@ -78,7 +78,7 @@ const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that m
 import {Container} from ${Q}container${Q}
 
 verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]" }
-verb drop { role target  "drop [target]"  "put down [target]"  "put [target] down" }
+verb drop { role target  "drop [target]"  "put down [target]"  "put [target] down"  "drop [target] here"  "put down [target] here"  "put [target] down here" }
 verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]"  "place [item] in [container]"  "insert [item] into [container]" }
 verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]"  "offer [item] to [recipient]" }
 
