@@ -29,6 +29,7 @@ import * as D from '../fixtures/darkness.js';
 import {
   BOOK as BENCH_BOOK,
   BRASS_KEY as BENCH_KEY,
+  CRATE as BENCH_CRATE,
   POUCH as BENCH_POUCH,
   bench,
 } from '../fixtures/bench.js';
@@ -56,7 +57,6 @@ describe('what an actor is offered', () => {
     const typed = typedBy(state);
     const examined = typed.filter((one) => one.startsWith('examine '));
     expect(examined).toEqual([
-      'examine hall',
       'examine lamp',
       'examine mirror',
       'examine stool',
@@ -73,6 +73,15 @@ describe('what an actor is offered', () => {
       'give lamp to Ines',
     ]);
     expect(typed).not.toContain('give cat to cat');
+  });
+
+  it('never fills a role only the actor plays with the actor’s own place, as `all` leaves it out', () => {
+    const typed = typedBy(study());
+    // Nothing plays `take`'s or `examine`'s target; the lamp plays `pull`'s.
+    expect(typed).not.toContain('take hall');
+    expect(typed).not.toContain('examine hall');
+    expect(typed).toContain('take lamp');
+    expect(typed).toContain('pull hall');
   });
 
   it('fills `go`’s way with each exit that applies, by its direction', () => {
@@ -173,6 +182,23 @@ describe('what a carried role is offered with', () => {
     ]);
     // `put`'s container is not carried, so the crate on the floor is offered.
     expect(typed).toContain('put brass key in crate');
+  });
+});
+
+describe('an offer whose move would put a thing inside itself', () => {
+  it('is greyed with the engine’s `inside_itself`, as the move would refuse it', () => {
+    const one = bench([
+      [BENCH_POUCH, null],
+      [BENCH_CRATE, BENCH_POUCH],
+      [BENCH_KEY, null],
+    ]);
+    const offered = offersTo(one.people[0]!, commandContext(one, []));
+    const into = offered.find((offer) => offer.typed === 'put pouch in crate')!;
+    expect(words(into.refused!.said)).toBe(
+      'sprout.World inside_itself: {item} cannot go inside itself.',
+    );
+    expect(into.refused!.bindings.get('item')).toEqual({ binds: 'object', id: BENCH_POUCH });
+    expect(offered.find((offer) => offer.typed === 'put brass key in crate')!.refused).toBeNull();
   });
 });
 

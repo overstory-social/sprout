@@ -1,0 +1,24 @@
+// An offer whose move would put a thing inside itself is greyed with the
+// world's `inside_itself`, as the move would refuse it (the spec's The
+// runtime › The view). The rowboat plays `take`'s target, so a visitor
+// aboard is offered `take rowboat`, greyed, since it would put the boat
+// in hands it holds; and once the crate is in the pouch, `put pouch in
+// crate` is greyed the same way. `help` lists only what is not greyed.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {take} from 'sprout'
+
+world nested_offers is sprout.World {
+  visitors are Person
+  visitors arrive at rowboat
+
+  object rowboat is Rowboat {
+    object pouch is sprout.Container
+    object crate is sprout.Container
+  }
+}
+
+// Ashore, someone could carry it off; aboard, nobody can.
+kind Rowboat is sprout.Place {
+  as target for take { do { } }
+}

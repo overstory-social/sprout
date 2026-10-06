@@ -3,13 +3,15 @@
 // offered once for each way its roles fill from what is in range: a role a
 // thing fills, by each thing in range it fits but the actor, and a carried
 // role only by what the actor carries; a set role by each such thing
-// alone; and `go`'s way by each exit and link that applies, a link typed
-// by its label. In the dark a thing role is offered only what the actor
-// carries, and the ways out still. A tool is left out and a value role left unbound, which a
-// body reads only inside `if (bound …)` and a `from` may leave so anyway.
-// Each offer is typed by its verb's first phrase that fits, with the
-// consent pass's answer beside it, and costs a step, so a world too large
-// to list faults as any work does.
+// alone; a role only the actor plays never by the actor's own place, as
+// `all` leaves it out; and `go`'s way by each exit and link that applies,
+// a link typed by its label. In the dark a thing role is offered only
+// what the actor carries, and the ways out still. A tool is left out and
+// a value role left unbound, which a body reads only inside `if (bound
+// …)` and a `from` may leave so anyway. Each offer is typed by its verb's
+// first phrase that fits, with the consent pass's answer beside it, or
+// the `inside_itself` its move would meet, and costs a step, so a world
+// too large to list faults as any work does.
 
 import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
@@ -25,8 +27,10 @@ import {
 } from './reading.js';
 import { inTheDark } from './darkness.js';
 import { exitsFrom } from './exits.js';
+import { insideItselfOf } from './inside-itself.js';
 import { addressOf, type AddressContext } from './parser/address.js';
 import type { CommandExit } from './parser/exits.js';
+import { onlyTheActorPlays } from './parser/all.js';
 import { fits } from './parser/nouns.js';
 import type { TypedPhrase } from './parser/phrases.js';
 import type { Instance } from './state.js';
@@ -41,7 +45,10 @@ export interface Offer {
   readonly reading: Reading;
   /** The line that types it, each filled slot as a visitor types it and a value role's as `…`. */
   readonly typed: string;
-  /** Its consent pass's refusal; null where every participant consents. */
+  /**
+   * Its consent pass's refusal, or else the engine's `inside_itself` where
+   * its first sure move would put a thing inside itself; null where neither.
+   */
   readonly refused: PermitRefusal | null;
 }
 
@@ -90,8 +97,15 @@ export function offersTo(
       if (role.optional || role.filler?.fills === 'symbol' || role.filler?.fills === 'integer') {
         return [null];
       }
-      return things
-        .filter((thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)))
+      const fitting = things.filter(
+        (thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)),
+      );
+      // The actor's own place fills no role only the actor plays, as under `all`.
+      const ownPlace =
+        fitting.some((thing) => thing.id === here) &&
+        onlyTheActorPlays(verb, role, context.catalogue.kinds.values(), budget);
+      return fitting
+        .filter((thing) => !ownPlace || thing.id !== here)
         .map((thing) => ({
           bound: role.many ? { set: [thing.id] } : { object: thing.id },
           words: wordsFor(thing, addressing),
@@ -111,7 +125,7 @@ export function offersTo(
       offers.push({
         reading,
         typed: typed(phrase, filled),
-        refused: consentPass(reading, context),
+        refused: consentPass(reading, context) ?? insideItselfOf(reading, context),
       });
     }
   }

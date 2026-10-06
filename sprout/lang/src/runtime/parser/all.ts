@@ -57,7 +57,7 @@ export function allIn(
       literal += noun.length;
     }
   }
-  const actorOnly = !playedAnywhere(verb, role, context.kinds, context.budget);
+  const actorOnly = onlyTheActorPlays(verb, role, context.kinds, context.budget);
   const taken = context.candidates
     .filter(({ instance, carried }) => {
       context.budget.spend();
@@ -101,8 +101,12 @@ function takes(
   );
 }
 
-/** Whether any kind there is plays `role` of `verb`, each kind a step; where none does, only the actor plays a part in it. */
-function playedAnywhere(
+/**
+ * Whether only the actor plays a part in `role` of `verb`: no kind there
+ * is plays it, each kind a step. Such a role is never filled with the
+ * actor's own place, by `all` or by an offer (the spec's The view).
+ */
+export function onlyTheActorPlays(
   verb: ResolvedVerb,
   role: ResolvedRole,
   kinds: Iterable<KindRef>,
@@ -110,9 +114,9 @@ function playedAnywhere(
 ): boolean {
   for (const kind of kinds) {
     budget.spend();
-    if (playsOf(kind.plays, verb.library, verb.name, role.name).length > 0) return true;
+    if (playsOf(kind.plays, verb.library, verb.name, role.name).length > 0) return false;
   }
-  return false;
+  return true;
 }
 
 /** What a noun after `except` leaves out: every thing it names, and every thing of a kind it names, each thing a step. */
