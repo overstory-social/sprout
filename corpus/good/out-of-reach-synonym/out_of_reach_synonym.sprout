@@ -1,0 +1,39 @@
+// An object's synonym typed where the object is out of reach (the spec's
+// Parsing › Synonyms, When nothing matches). `enter` is a word for
+// `go_through` only in readings the window takes part in, so in the
+// clearing, where no window is in reach, `enter window` is answered with
+// `not_here`, as `go through window` is, and not as a sentence the world
+// does not read. A noun that is not the window's is still `unknown`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world out_of_reach_synonym is sprout.World {
+  visitors are Person
+  visitors arrive at clearing
+
+  object clearing is sprout.Place {
+    grammar {
+      article the
+      exit north "north" -> yard
+    }
+  }
+
+  object yard is sprout.Place {
+    grammar {
+      article the
+      exit south "south" -> clearing
+    }
+
+    object window is Opening {
+      grammar { article the }
+      synonyms go_through: "enter"
+    }
+    object door is Opening { grammar { article the } }
+  }
+}
+
+verb go_through { role target: Opening  "go through [target]" }
+
+kind Opening {
+  as target for go_through { do { say "You climb through {self}, and back out again." } }
+}

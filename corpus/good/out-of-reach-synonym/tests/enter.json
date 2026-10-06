@@ -1,0 +1,26 @@
+{
+  "about": "`enter` is the window's word for `go_through`: where the window is out of reach `enter window` is `not_here`, as `go through window` is; beside it, it climbs through; and `enter door`, which is not the window's, is `unknown` anywhere.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the clearing." }
+    ] },
+    { "as": "Marta", "type": "enter window", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "go through window", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "enter door", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "as": "Marta", "type": "enter window", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You climb through the window, and back out again." }
+    ] },
+    { "as": "Marta", "type": "enter door", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}
