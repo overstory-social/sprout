@@ -1,7 +1,10 @@
-// A passage put into a slot is trimmed at its ends first, so the padding
-// inside its braces, which the standard library writes around every
-// passage, is not left before the words after the slot.
-// `transcripts/study.json` plays it.
+// A passage put into a slot loses the padding inside its braces, which
+// the standard library writes around every passage, so none is left
+// before the words after the slot; a paragraph break it opens or closes
+// with is kept where it renders words, and where it renders nothing it
+// leaves nothing behind. The hall's `tail` opens a paragraph of its own
+// with `\n\n`, and the nest's `inside_lines` is a paragraph only while
+// something is in the nest. `transcripts/study.json` plays it.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 import {Leaflet} from 'leaflet'
@@ -13,6 +16,30 @@ world embedded_passage is sprout.World {
   visitors arrive at hall
 
   object hall is sprout.Place {
+    passage tail { \n\nA second paragraph. }
+
+    describe {
+      text "A first paragraph.{self.tail}"
+      text "The hall is quiet.{nest.inside_lines}"
+    }
+
     object leaflet is Leaflet
+    object nest is Nest {
+      object egg is Egg
+    }
   }
+}
+
+kind Nest is sprout.Container, sprout.Fixture {
+  grammar { name "nest"  article the }
+
+  passage inside_lines {
+
+    {if self.count > 0}In the bird's nest is {for thing in self}{thing}{if $last}.{else}, {/if}{/for}{/if}
+
+  }
+}
+
+kind Egg {
+  grammar { name "egg"  article an }
 }

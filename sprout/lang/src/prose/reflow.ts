@@ -4,9 +4,10 @@
 // and a paragraph left with nothing in it is no paragraph, so a block that
 // renders nothing leaves none behind. `\n` is a line break reflow keeps.
 // The first letter of every rendered line is capitalised, past an opening
-// quotation mark but not past a bracket. A passage put into a slot is
-// trimmed at its ends first, so the padding inside its braces is not left
-// before the words that follow the slot.
+// quotation mark but not past a bracket. A passage put into a slot loses
+// the padding inside its braces, so none is left before the words that
+// follow the slot, and keeps a paragraph break it opens or closes with
+// only where it renders words, so an empty one leaves nothing behind.
 
 /** What rendering prose gives, in order: words, or a break. */
 export type Rendered =
@@ -36,41 +37,32 @@ export function reflow(rendered: readonly Rendered[]): string[] {
 }
 
 /**
- * `rendered` with the space at its ends taken off: leading and trailing
- * whitespace, and the blank lines a body opens or closes with. A `\n` is
- * written, not space, and is kept.
+ * `rendered` as a slot puts it in its line: nothing, where it holds no
+ * words; otherwise its words with the space at their ends taken off, a
+ * blank line or two `\n` at either end a paragraph break, and one `\n` a
+ * line break (the spec's Prose › Slots).
  */
-export function trimmed(rendered: readonly Rendered[]): Rendered[] {
-  const out = [...rendered];
-  while (out.length > 0) {
-    const first = out[0]!;
-    if ('break' in first) {
-      if (first.break === 'line') break;
-      out.shift();
-      continue;
-    }
-    const words = first.words.trimStart();
-    if (words !== '') {
-      out[0] = { words };
-      break;
-    }
-    out.shift();
-  }
-  while (out.length > 0) {
-    const last = out[out.length - 1]!;
-    if ('break' in last) {
-      if (last.break === 'line') break;
-      out.pop();
-      continue;
-    }
-    const words = last.words.trimEnd();
-    if (words !== '') {
-      out[out.length - 1] = { words };
-      break;
-    }
-    out.pop();
-  }
-  return out;
+export function slotted(rendered: readonly Rendered[]): Rendered[] {
+  const said = (piece: Rendered): boolean => 'words' in piece && piece.words.trim() !== '';
+  const first = rendered.findIndex(said);
+  if (first < 0) return [];
+  let last = rendered.length - 1;
+  while (!said(rendered[last]!)) last--;
+  const inner = rendered.slice(first, last + 1).map((piece, at, all) => {
+    if (!('words' in piece)) return piece;
+    let words = piece.words;
+    if (at === 0) words = words.trimStart();
+    if (at === all.length - 1) words = words.trimEnd();
+    return { words };
+  });
+  return [...edge(rendered.slice(0, first)), ...inner, ...edge(rendered.slice(last + 1))];
+}
+
+/** The break the space at a slotted passage's end leaves: a paragraph, a line, or none. */
+function edge(space: readonly Rendered[]): Rendered[] {
+  const breaks = space.flatMap((piece) => ('break' in piece ? [piece.break] : []));
+  if (breaks.includes('paragraph') || breaks.length > 1) return [{ break: 'paragraph' }];
+  return breaks.length === 1 ? [{ break: 'line' }] : [];
 }
 
 /**
