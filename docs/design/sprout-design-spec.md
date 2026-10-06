@@ -1657,7 +1657,7 @@ kind Kiln {
 
 `wake in <n> seconds | minutes | hours`, with `n` a whole number written out and the unit always plural (`wake in 1 hours`), schedules one wake, no sooner than the shortest interval the host allows: a shorter wait is raised to it, and nothing is said. An object has at most as many pending as the host allows, and a `wake` past that faults, as a `spawn` does when the host will hold no more; so pending wakes are bounded by live instances. Nothing is charged while a wake waits. A wake is a turn of its own; a wake that faults is consumed and logged, not retried.
 
-`cancel wakes` takes back every wake the object whose body runs it has pending at that point in the turn, one it asked for earlier in the same turn included, and with none pending does nothing. A wake taken back never arrives and no longer counts toward the host's cap, so `cancel wakes` then `wake in 3 minutes` puts off what was coming: a troll knocked senseless swings again only when it comes round. Like `wake`, it reaches only its own object's wakes, and it stands wherever `wake` may. Only a place is ticked, so an object that acts on a clock of its own, as an NPC does, does it with wakes.
+`cancel wakes` takes back every wake the object whose body runs it has pending at that point in the turn, and with none pending does nothing. A wake taken back never arrives and no longer counts toward the host's cap, so `cancel wakes` then `wake in 3 minutes` puts off what was coming: a troll knocked senseless swings again only when it comes round. Like `wake`, it reaches only its own object's wakes, and it stands wherever `wake` may. Only a place is ticked, so an object that acts on a clock of its own, as an NPC does, does it with wakes.
 
 `elapsed` is how long has actually passed since the wake was asked for, in seconds, and may exceed what was requested. That is what makes a missed wake recoverable: a kiln reads "long since cooled" and a plant computes its growth stage from elapsed rather than being stepped through five times. It is the only way time enters an expression, and it arrives as a parameter rather than as a clock, so nothing else in the language can read the hour.
 
@@ -1865,7 +1865,6 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
 - The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
-- `cancel` and `wakes` are not reserved, so a verb, an option or a binding an author names with either keeps its name. Where a statement starts, `cancel` reads as `cancel wakes` (Time › Wakes) unless punctuation follows it on its line, as in `cancel.get(:count)`, where it is that name.
 
 ### One tier
 
@@ -1898,7 +1897,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 ### What it refuses
 
 - A write to anything but `self`.
-- `say`, `tell`, `text`, or any write, send, move, act, spawn, destroy, `wake` or `cancel wakes` in a guard or a `permit`; any of those but `text` in `describe`.
+- `say`, `tell`, `text`, or any write, send, move, act, spawn or destroy in a guard or a `permit`; any of those but `text` in `describe`.
 - `say`, `actor` or `here` in a handler, a hook, a tick or a wake, or in a passage reachable from one.
 - `chance`, `random` or `{one of}` in `describe`, in a `when` guard, in a consent guard, in a `permit`, in a pass rule, or in the world's `unseen`, `unremarkable` or `acted`, or a thing's `contents` — including in any passage reachable from one.
 - A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
