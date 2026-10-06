@@ -5,7 +5,8 @@
 // one of its name; an exit that does not apply is not offered, not
 // traversable and not mentioned. An exit that refuses applies as any exit
 // does, deciding its direction, and is never offered: going that way is
-// answered with its words, and nothing moves.
+// answered with its words, and nothing moves. An exit that leads may say
+// words to whoever takes it, which the one taking it asks for as it goes.
 //
 // What does not apply, rather than faulting: an unset link; a guard that
 // reads through a name out of the place's range, or to a declared object
@@ -13,8 +14,8 @@
 // longer a place. A guard only reads, and is charged to the turn's steps
 // as any reading is, so a guard too dear to ask faults as any work does.
 
-import type { ObjectPath } from '../syntax/ast.js';
-import type { GrammarRefusal } from '../syntax/ast-grammar.js';
+import type { Ident, ObjectPath } from '../syntax/ast.js';
+import type { ProseLiteral } from '../syntax/ast-prose.js';
 import type { Direction } from '../declare/directions.js';
 import { libraryOf } from '../declare/enums.js';
 import type { ResolvedExit } from '../declare/exits.js';
@@ -53,37 +54,85 @@ export function exitsFrom(place: InstanceId, context: ExitContext): CommandExit[
 export function waysFrom(place: InstanceId, context: ExitContext): AppliedWay[] {
   const instance = context.state.instance(place);
   if (instance === undefined) return [];
-  const decided = new Set<Direction>();
-  const applying: AppliedWay[] = [];
-  for (const exit of instance.kind.exits) {
-    if (exit.kind === 'exit' && decided.has(exit.direction)) continue;
-    context.budget.spend();
-    if (exit.kind === 'exit' && exit.line.leads.kind === 'grammar-refusal') {
-      if (!holds(exit, instance, context)) continue;
-      decided.add(exit.direction);
-      applying.push({
-        direction: exit.direction,
-        label: exit.line.label.text,
-        refuses: { by: place, said: refusalOf(exit.line.leads, exit.origin, instance) },
-      });
-      continue;
-    }
-    const to = destinationOf(exit, instance, context);
-    if (to === null) continue;
-    const direction = exit.kind === 'exit' ? exit.direction : null;
-    if (direction !== null) decided.add(direction);
-    applying.push({ direction, label: exit.line.label.text, to });
-  }
-  return applying;
+  return applying(instance, instance.kind.exits, context).map(({ way }) => way);
+}
+
+/** What an exit says as it is taken, and the place that says it, which is `self` as it renders. */
+export interface Saying {
+  readonly by: InstanceId;
+  readonly said: Speech;
 }
 
 /**
- * What an exit that refuses says, as `origin` wrote it: its words in
- * quotes, or the passage of that name as `place`'s kind has it, so a
- * composer's own line replaces its kind's.
+ * What `way`, taken from `place`, says to whoever takes it; null where it
+ * says nothing. The exits of its direction are asked again, a step for
+ * each, only where one of them says something.
  */
-function refusalOf(refusal: GrammarRefusal, origin: string, place: Instance): Speech {
-  const { said } = refusal;
+export function sayingThrough(
+  place: InstanceId,
+  way: CommandExit,
+  context: ExitContext,
+): Saying | null {
+  const instance = context.state.instance(place);
+  const { direction } = way;
+  if (instance === undefined || direction === null) return null;
+  const run = instance.kind.exits.filter(
+    (exit) => exit.kind === 'exit' && exit.direction === direction,
+  );
+  if (!run.some((exit) => exit.kind === 'exit' && exit.line.says !== null)) return null;
+  const [taken] = applying(instance, run, context);
+  if (taken === undefined || !('to' in taken.way)) return null;
+  if (taken.way.to !== way.to || taken.way.label !== way.label) return null;
+  const says = taken.exit.kind === 'exit' ? taken.exit.line.says : null;
+  return says === null
+    ? null
+    : { by: place, said: spokenBy(says.said, taken.exit.origin, instance) };
+}
+
+/**
+ * Which of `exits`, written on `place`, apply, each beside the way it
+ * gives: the first in each direction whose guard holds and each link set;
+ * one step for each asked.
+ */
+function applying(
+  place: Instance,
+  exits: readonly ResolvedExit[],
+  context: ExitContext,
+): { readonly way: AppliedWay; readonly exit: ResolvedExit }[] {
+  const decided = new Set<Direction>();
+  const applied: { readonly way: AppliedWay; readonly exit: ResolvedExit }[] = [];
+  for (const exit of exits) {
+    if (exit.kind === 'exit' && decided.has(exit.direction)) continue;
+    context.budget.spend();
+    if (exit.kind === 'exit' && exit.line.leads.kind === 'grammar-refusal') {
+      if (!holds(exit, place, context)) continue;
+      decided.add(exit.direction);
+      const said = spokenBy(exit.line.leads.said, exit.origin, place);
+      applied.push({
+        way: {
+          direction: exit.direction,
+          label: exit.line.label.text,
+          refuses: { by: place.id, said },
+        },
+        exit,
+      });
+      continue;
+    }
+    const to = destinationOf(exit, place, context);
+    if (to === null) continue;
+    const direction = exit.kind === 'exit' ? exit.direction : null;
+    if (direction !== null) decided.add(direction);
+    applied.push({ way: { direction, label: exit.line.label.text, to }, exit });
+  }
+  return applied;
+}
+
+/**
+ * What an exit says, as `origin` wrote it: its words in quotes, or the
+ * passage of that name as `place`'s kind has it, so a composer's own
+ * line replaces its kind's.
+ */
+function spokenBy(said: ProseLiteral | Ident, origin: string, place: Instance): Speech {
   if (said.kind === 'prose-literal') {
     return { text: said.value, prose: said.prose, library: libraryOf(origin) };
   }

@@ -5,14 +5,17 @@
 // whoever comes in of its cobwebs, and south to the meadow only while a
 // beacon it cannot see is lit. From the shed, west leads into the
 // thicket while its lantern is lit and otherwise refuses, and north
-// always refuses, in a passage of the shed's. The shop's ladder must be
-// down for its way up. The meadow's gate refuses whoever comes while it
-// is shut. A
-// turning of the maze has its way on dug and its way back connected by the
-// turning dug, and every turning leads up to the yard. A dead end is a
-// kind composing a turning, so none of a turning's ways out reach it,
-// and digging it faults, since it has no way on to connect. A person too
-// tired refuses to go anywhere, and counts every way they go.
+// always refuses, in a passage of the shed's. Down the chimney's flue to
+// the shed says you won't get back up while its soot is unlit, and
+// otherwise a passage of the chimney's; south into the meadow says the
+// gate is pushed, and out onto the roof says nothing. The shop's ladder
+// must be down for its way up. The meadow's gate refuses whoever comes
+// while it is shut. A turning of the maze has its way on dug and its way
+// back connected by the turning dug, and every turning leads up to the
+// yard. A dead end is a kind composing a turning, so none of a turning's
+// ways out reach it, and digging it faults, since it has no way on to
+// connect. A person too tired refuses to go anywhere, and counts every
+// way they go.
 // `runtime/exits.spec.ts`, `runtime/links.spec.ts` and the go cases of
 // `runtime/command.spec.ts` share it. Spec support: the package build
 // leaves it out.
@@ -75,6 +78,17 @@ export const WAYS: Bundle = compiledWorld('ways', {
     on :entered (item, from) { tell item "Cobwebs brush your face." }
   }
 
+  object chimney is sprout.Place {
+    grammar {
+      exit down  "down the flue"     -> shed say "You won't be able to get back up." when (!soot.get(:lit))
+      exit down  "down the flue"     -> shed say sooty
+      exit south "into the meadow"   -> meadow say "You push through the gate."
+      exit out   "out onto the roof" -> yard
+    }
+    passage sooty { Soot follows {actor} the whole way down. }
+    object soot is Lamp
+  }
+
   object maze_mouth is MazeCell {
     grammar { exit up "up into the daylight" -> yard }
   }
@@ -135,6 +149,8 @@ export const LOFT = at('shop', 'loft');
 export const MEADOW = at('meadow');
 export const SHED = at('shed');
 export const LANTERN = at('shed', 'lantern');
+export const CHIMNEY = at('chimney');
+export const SOOT = at('chimney', 'soot');
 export const MOUTH = at('maze_mouth');
 export const DEAD_END = at('dead_end');
 
