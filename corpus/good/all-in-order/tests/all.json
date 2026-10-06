@@ -1,10 +1,12 @@
 {
-  "about": "`all` in a role some kind plays takes only what plays a part in the verb, each in the range walk's order, stopping at the first refusal wherever it falls; a run runs in the order written; a role only the actor plays takes every thing.",
+  "about": "`all` in an engine verb's open role takes every thing that is not a person, whatever else plays it, and in a world verb's open role some kind plays only what plays a part in it, each in the range walk's order, stopping at the first refusal wherever it falls; a run runs in the order written; a role only the actor plays takes every thing.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
     ] },
     { "as": "Marta", "type": "examine all", "expect": [
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A red apple." },
       { "level": "info", "text": "step: sprout.examine" },
       { "reader": "Marta", "kind": "described", "words": "A brass bell." },
       { "level": "info", "text": "step: sprout.examine" },
@@ -12,9 +14,13 @@
     ] },
     { "as": "Marta", "type": "examine all except lamp", "expect": [
       { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A red apple." },
+      { "level": "info", "text": "step: sprout.examine" },
       { "reader": "Marta", "kind": "described", "words": "A brass bell." },
       { "level": "info", "text": "step: sprout.examine" },
-      { "reader": "Marta", "kind": "described", "words": "A silvered mirror." }
+      { "reader": "Marta", "kind": "described", "words": "A silvered mirror." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "A green pear." }
     ] },
     { "as": "Marta", "type": "examine apple and pear and lamp and bell", "expect": [
       { "level": "info", "text": "step: sprout.examine" },
@@ -23,6 +29,12 @@
       { "reader": "Marta", "kind": "described", "words": "A green pear." },
       { "level": "info", "text": "step: sprout.examine" },
       { "reader": "Marta", "kind": "refused", "words": "Too bright to look at." }
+    ] },
+    { "as": "Marta", "type": "polish all", "expect": [
+      { "level": "info", "text": "step: all_in_order.polish" },
+      { "reader": "Marta", "kind": "said", "words": "It gleams." },
+      { "level": "info", "text": "step: all_in_order.polish" },
+      { "reader": "Marta", "kind": "said", "words": "It gleams." }
     ] },
     { "as": "Marta", "type": "take all", "expect": [
       { "level": "info", "text": "step: sprout.take" },

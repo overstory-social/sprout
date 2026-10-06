@@ -13,9 +13,8 @@
 // nothing. Every answer is carried unrendered, among what the turn says
 // (`effects.ts`).
 
-import { SPROUT } from '../declare/enums.js';
 import { playsOf } from '../declare/roles.js';
-import { ENGINE_VERBS } from '../declare/verbs.js';
+import { isEngineVerb } from '../declare/verbs.js';
 import { isPerson } from './audience.js';
 import { describeFor, type DescribeContext } from './describe.js';
 import { engineSaid } from './engine-lines.js';
@@ -180,7 +179,7 @@ function helpFor(actor: InstanceId, here: InstanceId, context: OfferContext): Sa
  */
 function someParticipantPlays(reading: Reading, context: OfferContext): boolean {
   const { verb } = reading;
-  if (verb.library === SPROUT && ENGINE_VERBS.includes(verb.name)) return true;
+  if (isEngineVerb(verb)) return true;
   return participantsOf(reading).some((participant) => {
     const self = context.state.instance(participant.id);
     return (

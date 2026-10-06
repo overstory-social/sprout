@@ -252,6 +252,11 @@ export const ENGINE_VERBS: readonly string[] = [
  */
 export const ENGINE_ANSWERS: readonly string[] = ['look', 'examine', 'inventory', 'wait', 'help'];
 
+/** Whether `verb` is an engine verb: the standard library's verb of one of their names. */
+export function isEngineVerb(verb: { readonly library: string; readonly name: string }): boolean {
+  return verb.library === SPROUT && ENGINE_VERBS.includes(verb.name);
+}
+
 /** The one verb whose role an exit may fill (the spec's Exits). */
 const GO = 'go';
 

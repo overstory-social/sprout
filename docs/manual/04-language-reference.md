@@ -1371,11 +1371,14 @@ with `not_here`. Before your first command there is nothing to do again,
 and it is answered with `unknown`.
 
 `all` fills a role with everything in reach it may take: `take all`, `put
-all in the crate`. A role of a kind takes what is of that kind; a role
-only the actor plays, as `take`'s target, takes every thing that is not a
-person and not the place you stand in; another takes what plays a part in
-the verb; and a [carried role](#carried-roles) only what you carry. `except` leaves things out, by name or by kind: `take all except
-the brass key and the lamp`. A set role takes them all at once; any other
+all in the crate`. A role of a kind takes what is of that kind. An
+[engine verb](#engine-verbs)'s role, as `examine`'s target, and a role only
+the actor plays, as `take`'s, take every thing that is not a person and not
+the place you stand in, whatever else plays them: `examine all` reaches a
+thing whose kind refuses to be examined, and stops there. Another role
+takes what plays a part in the verb; and a [carried role](#carried-roles)
+only what you carry. `except` leaves things out, by name or by kind: `take
+all except the brass key and the lamp`. A set role takes them all at once; any other
 role runs once for each, as a line of several commands would, in the order
 they are reached, and stops at the first refusal. No more are taken than a
 set role may hold, 8 by default.

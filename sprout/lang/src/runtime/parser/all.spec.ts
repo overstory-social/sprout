@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { typedWords } from '../../declare/addressing.js';
+import { compiledWorld } from '../../fixtures/bundle.js';
 import {
   BRASS_KEY,
   CHEST,
@@ -17,9 +18,10 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
+import { turn } from '../../fixtures/reading.js';
 import { Budget } from '../budget.js';
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
-import type { InstanceId } from '../ids.js';
+import { declaredId, type InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
 import { allIn, onlyTheActorPlays } from './all.js';
 import type { Filled } from './fill.js';
@@ -142,6 +144,78 @@ describe('`all` in a slot', () => {
 
   it('takes no more than a set role may bind', () => {
     expect(ids(all('all', 'take', 'target', 'sprout', 3))).toEqual([BRASS_KEY, IRON_KEY, LAMP]);
+  });
+});
+
+/** A single quote, as an import's specifier is written between them. */
+const Q = "'";
+
+// A hall where one kind plays `examine`'s target and a world verb's, one
+// refuses `examine`, and one plays nothing.
+const GALLERY = compiledWorld('gallery', {
+  'gallery.sprout': [
+    `import {examine} from ${Q}sprout${Q}`,
+    'world gallery is sprout.World { visitors are Person visitors arrive at hall',
+    '  object hall is sprout.Place {',
+    '    object apple is Plain',
+    '    object bell is Shiny',
+    '    object lamp is Glare',
+    '    object pear is Plain',
+    '  }',
+    '}',
+    'verb polish { role target  "polish [target]" }',
+    'kind Plain { }',
+    'kind Shiny {',
+    '  as target for examine { permit { allow } }',
+    '  as target for polish { do { say "It gleams." } }',
+    '}',
+    'kind Glare { as target for examine { permit { refuse "Too bright." } } }',
+  ].join('\n'),
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+});
+const GALLERY_HALL = declaredId('gallery', ['hall']);
+const [APPLE, BELL, GLARE_LAMP, PEAR] = ['apple', 'bell', 'lamp', 'pear'].map((name) =>
+  declaredId('gallery', ['hall', name]),
+) as [InstanceId, InstanceId, InstanceId, InstanceId];
+
+/** What `all` fills `role` of `verb` with in the gallery, each thing carried where `carried` says. */
+function inGallery(
+  library: string,
+  verbName: string,
+  carried: (id: InstanceId) => boolean = () => false,
+  carriedRole = false,
+) {
+  const gallery = turn(GALLERY, [GALLERY_HALL]);
+  const visitor = gallery.people[0]!;
+  const reached = [visitor, APPLE, BELL, GLARE_LAMP, PEAR].map((id, near) => {
+    const instance = gallery.draft.instance(id)!;
+    const address = addressOf(instance, { world: gallery.draft.world, nicknames: new Map() });
+    return { instance, address, near, carried: carried(id) };
+  });
+  const of = GALLERY.verbs.qualified(library, verbName)!;
+  const role = { ...of.roles.find((one) => one.name === 'target')!, carried: carriedRole };
+  return allIn(typedWords('all'), role, of, {
+    candidates: reached,
+    budget: new Budget(DEFAULT_LIMITS.budgets),
+    referents: [],
+    actor: visitor,
+    here: GALLERY_HALL,
+    kinds: gallery.catalogue.kinds.values(),
+  });
+}
+
+describe('`all` in an engine verb’s open role', () => {
+  it('takes every thing but people and the actor’s place, though some kind plays the role', () => {
+    expect(ids(inGallery('sprout', 'examine'))).toEqual([APPLE, BELL, GLARE_LAMP, PEAR]);
+  });
+
+  it('is unlike a world verb’s open role some kind plays, which takes only what plays it', () => {
+    expect(ids(inGallery('gallery', 'polish'))).toEqual([BELL]);
+  });
+
+  it('takes, where the role is carried, only what the actor carries', () => {
+    const carried = (id: InstanceId) => id === PEAR || id === BELL;
+    expect(ids(inGallery('sprout', 'examine', carried, true))).toEqual([BELL, PEAR]);
   });
 });
 
