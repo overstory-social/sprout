@@ -123,7 +123,7 @@ Every world understands these, whatever else it adds:
 | `look` or `l`                      | read the description of where you are again    |
 | `examine the key`, `x key`, `look at key`, `check key` | look closely at one thing  |
 | `take key`, `get key`, `pick up key`, `pick key up` | pick something up             |
-| `drop key`, `put down key`, `put key down` | put it down where you stand            |
+| `drop key`, `put down key`, `put key down`, `drop key here` | put it down where you stand |
 | `put key in chest`, `place key in chest` | put something inside something else      |
 | `look in chest`, `search chest`    | see what a container holds                     |
 | `give key to Ines`, `offer key to Ines` | hand something to someone                 |

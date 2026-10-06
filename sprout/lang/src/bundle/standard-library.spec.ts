@@ -189,6 +189,21 @@ describe('the standard library', () => {
     });
   });
 
+  it('writes every `drop` phrase again with a trailing `here`, a phrase word and not a noun', () => {
+    // `here` is not among the words the parser drops (the spec's Matching a
+    // line), so the library says it: `drop the leaflet here` is `drop`.
+    const actor = verbsByFile().get('sprout/actor.sprout')!;
+    const drop = actor.find((verb) => verb.name === 'drop')!.phrases.map((phrase) => phrase.text);
+    const bare = drop.filter((text) => !text.endsWith(' here'));
+    expect(bare).toEqual(['drop [target]', 'put down [target]', 'put [target] down']);
+    expect(drop.filter((text) => text.endsWith(' here'))).toEqual(
+      bare.map((text) => `${text} here`),
+    );
+    for (const verb of actor.filter((one) => one.name !== 'drop')) {
+      expect(verb.phrases.filter((phrase) => /\bhere\b/.test(phrase.text))).toEqual([]);
+    }
+  });
+
   it('gives a container `open`, `close` and `look_in`, and a lock `unlock` with a tool no phrase leaves out', () => {
     const verbs = [
       ...verbsByFile().get('sprout/container.sprout')!,
@@ -538,7 +553,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'bed2ae4419ec17dc16e6e9eeb72c013c90f090470ad92f9b10512d92c4ccf508',
+      'db34d8622aab862f3b9b2859004472da7888d8ed395105f883616ed4c47f4109',
     );
   });
 });

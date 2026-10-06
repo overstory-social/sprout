@@ -65,6 +65,9 @@ sprout.drop (target)
   drop [target]
   put down [target]
   put [target] down
+  drop [target] here
+  put down [target] here
+  put [target] down here
 
 sprout.put (item, container: sprout.Container)
   put [item] in [container]

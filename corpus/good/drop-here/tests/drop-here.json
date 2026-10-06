@@ -1,0 +1,50 @@
+{
+  "about": "A trailing `here` after `drop` and the `put … down` forms is the library's phrase words, not part of the noun: each puts the leaflet down where the visitor stands, as `drop the leaflet` does, and is refused as it is when the leaflet is not held. A bare `drop here` names nothing, since `here` is not a word the parser drops.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the porch." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines arrives." },
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the porch." }
+    ] },
+    { "as": "Marta", "type": "take the leaflet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a leaflet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a leaflet." }
+    ] },
+    { "as": "Marta", "type": "drop the leaflet here", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a leaflet down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a leaflet down." }
+    ] },
+    { "as": "Marta", "type": "drop leaflet here", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are not holding a leaflet." }
+    ] },
+    { "as": "Marta", "type": "take leaflet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a leaflet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a leaflet." }
+    ] },
+    { "as": "Marta", "type": "put down the leaflet here", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a leaflet down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a leaflet down." }
+    ] },
+    { "as": "Marta", "type": "take leaflet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a leaflet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a leaflet." }
+    ] },
+    { "as": "Marta", "type": "put the leaflet down here", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a leaflet down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a leaflet down." }
+    ] },
+    { "as": "Marta", "type": "take leaflet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a leaflet." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a leaflet." }
+    ] },
+    { "as": "Marta", "type": "drop the leaflet", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a leaflet down." },
+      { "reader": "Ines", "kind": "told", "words": "Marta puts a leaflet down." }
+    ] },
+    { "as": "Marta", "type": "drop here", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] }
+  ]
+}

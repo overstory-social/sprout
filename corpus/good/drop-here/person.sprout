@@ -1,0 +1,4 @@
+// A visitor, as the library makes one.
+import * as sprout from 'sprout'
+
+kind Person is sprout.Visitor { }
