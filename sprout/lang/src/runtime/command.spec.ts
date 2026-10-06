@@ -50,7 +50,7 @@ import {
   playedAll,
   workshop,
 } from '../fixtures/workshop.js';
-import { commandTurn, type CommandTurn, type Parser } from './command.js';
+import { commandTurn, lineGoesOn, type CommandTurn, type Parser } from './command.js';
 import { Draws } from './draws.js';
 import type { InstanceId } from './ids.js';
 import { loadWorld, saveWorld } from './load.js';
@@ -618,7 +618,7 @@ describe('`go`, through a command turn', () => {
     ]);
   });
 
-  it('answers an exit that refuses with its words, said by its place, and moves nobody', () => {
+  it('answers an exit that refuses with its words, said by its place as a refusal, and moves nobody', () => {
     const state = ways([[MARTA_WAYS, SHED]]);
     const boarded = 'ways.shed boarded: The door is boarded, and {actor} cannot shift the boards.';
     for (const [text, said] of [
@@ -632,6 +632,9 @@ describe('`go`, through a command turn', () => {
       const done = turn.value;
       if (!('answered' in done)) throw new Error('the turn was not answered');
       expect(done.answered.by, text).toBe(SHED);
+      // A way that does not go is refused, as a destination's `accept` refusing is, and stops a line.
+      expect(done.answered.effect, text).toBe('refused');
+      expect(lineGoesOn(turn), text).toBe(false);
       expect([...done.answered.bindings.keys()], text).toEqual(['actor', 'here']);
       // A way that does not go asks nothing of the one going: their part of `go` is not run.
       expect(turn.state.instances.get(marta(state))!.properties.get('walked'), text).toBe(0);

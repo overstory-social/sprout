@@ -122,7 +122,8 @@ export interface Said {
   /**
    * What the line is: said by a body; told by one; a `move` or an
    * `act`'s reading refused, whose words are said to its actor as a
-   * refusal (the spec's Verbs › Moving something, Acting); a line of a
+   * refusal (the spec's Verbs › Moving something, Acting), as an exit's
+   * refusal is (Verbs › Exits); a line of a
    * description, to the one looking; or spoken by the engine, as a fault
    * is, or by a place of someone arriving or leaving (The runtime › Effects);
    * or what an extension's statement recorded, whose words are its
@@ -140,7 +141,8 @@ export interface Said {
   /**
    * Whose body said it, which is `self` when it renders: for a refused
    * move, the party whose guard refused; the world, for `nothing_happens`
-   * and for the engine's own refusal of a move; the place, for its notice.
+   * and for the engine's own refusal of a move; the place, for its notice
+   * and for an exit's refusal.
    */
   readonly by: InstanceId;
   /**

@@ -1091,7 +1091,7 @@ grammar {
 }
 ```
 
-`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words: nothing moves. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
+`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words, as a refusal: nothing moves. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
 
 A direction no exit that applies answers, typed bare or in one of `go`'s phrases, is answered with the world's `no_way`, "You can't go that way.", given the direction written out as `way`. Words in `go`'s phrases that are neither a direction nor the label of a way out that applies are answered with `unknown`.
 
@@ -1960,7 +1960,7 @@ A turn's output is a sequence of effects, each carrying its kind, the object it 
 | --- | --- |
 | `said` | a line from `say` |
 | `told` | a line from `tell`, to one recipient |
-| `refused` | the consent pass's refusal text, to the actor |
+| `refused` | the consent pass's refusal text, or an exit's refusal, to the actor |
 | `described` | a description, to the one who moved or looked |
 | `notice` | an engine-spoken passage — arrivals, faults, unknown words |
 | `extension` | an extension statement's effect: the extension, the statement, its payload, and its transcript line as its words |

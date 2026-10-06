@@ -546,8 +546,9 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 
 /**
  * The parser a command turn reads through: `readCommand`, over the exits
- * that apply where the actor stands, with an answer, or the engine's
- * `meant` for a reading drawn, said to the actor as a notice.
+ * that apply where the actor stands. An answer is said to the actor as a
+ * notice, and an exit's refusal as `refused`, as a consent pass's is (the
+ * spec's Runtime › Effects); the engine's `meant` for a reading drawn, as a notice.
  */
 export const parseCommand: Parser = (text, actor, context) => {
   const here = placeOf(context.state, actor);
@@ -563,7 +564,8 @@ export const parseCommand: Parser = (text, actor, context) => {
       : { reading: understood, rest: outcome.rest, drawn: was, corrected };
   }
   const { by, said, bindings } = outcome;
-  return { answered: { effect: 'notice', to: [actor], by, speaker: null, said, bindings } };
+  const effect = outcome.answer === 'refused' ? 'refused' : 'notice';
+  return { answered: { effect, to: [actor], by, speaker: null, said, bindings } };
 };
 
 /**
