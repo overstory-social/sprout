@@ -78,6 +78,7 @@ tui/src           the terminal client: a session with a server, its screen (Ink)
 cli/src           the `sprout` command: scaffold and check, the inspectors parse (what a world accepts) and view (what a visitor is offered), skill, and play and test through the player and the REPL
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
+runtime-c/        the C11 runtime: arenas, the host interface, values and lists, a JSON reader, the seeded draws and the budget meter, each with its `.test.c`, built and run by CMake and ctest (`node scripts/check-runtime-c.mjs`)
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
@@ -87,7 +88,7 @@ docs/design/      the spec, the working notes, the backlog, the reviews
 
 ```sh
 npm ci
-npm run gate      # before every commit: no conflict markers, lint, prettier, builds, every suite, spec typechecks, the corpus
+npm run gate      # before every commit: no conflict markers, lint, prettier, builds, every suite, spec typechecks, the corpus, the C runtime
 npm run e2e       # before opening a PR: install every tarball into an empty folder, scaffold and check
 npm run check     # the corpus, its golden transcripts, its worlds' own tests and the skill; `node scripts/check-corpus.mjs --write`
                   # and `node scripts/check-transcripts.mjs --write` regenerate them

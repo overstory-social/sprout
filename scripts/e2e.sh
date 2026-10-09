@@ -28,6 +28,7 @@ shop=$(pwd)/corpus/good/printers_shop
 skill=$(pwd)/corpus/skill/SKILL.md
 packs=$(mktemp -d)
 npm run build >/dev/null
+node scripts/check-runtime-c.mjs --required
 npm pack -w sprout -w player -w repl -w mcp -w server -w tui -w cli -w editors/language-server --pack-destination "$packs" >/dev/null
 sandbox=$(mktemp -d)
 cd "$sandbox"
