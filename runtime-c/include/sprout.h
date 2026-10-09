@@ -6,7 +6,9 @@
  * time, the turn's seed, stored bytes and output all come through
  * sprout_host, and every limit is a field of sprout_budgets that the host
  * fills: a limit the host leaves unset is unbounded, and the runtime
- * invents no figure.
+ * invents no figure. The spec's table figures are the defaults a host starts
+ * from (Limits > Runtime budgets); the host adapter supplies them, so a host
+ * that fills nothing runs with no step budget at all.
  */
 #ifndef SPROUT_H
 #define SPROUT_H

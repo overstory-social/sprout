@@ -59,14 +59,10 @@ static void scalars_read_as_themselves(void) {
   CHECK(root->kind == SPROUT_JSON_NUMBER && root->number == -12);
   root = read_ok(&arena, "2147483647");
   CHECK(root->number == 2147483647.0);
-  root = read_ok(&arena, "9007199254740993");
+  root = read_ok(&arena, "9007199254740992");
   CHECK(root->number == 9007199254740992.0);
-  root = read_ok(&arena, "0.5");
-  CHECK(root->number == 0.5);
-  root = read_ok(&arena, "1.25e2");
-  CHECK(root->number == 125.0);
-  root = read_ok(&arena, "5E-1");
-  CHECK(root->number == 0.5);
+  root = read_ok(&arena, "-9007199254740992");
+  CHECK(root->number == -9007199254740992.0);
   root = read_ok(&arena, "0");
   CHECK(root->number == 0);
   sprout_arena_reset(&arena);
@@ -164,9 +160,16 @@ static void a_refusal_names_the_line_and_column_and_says_what_to_write(void) {
   refused(&arena, "\"\xC3\"", 1, 2, "a string is not valid UTF-8");
   refused(&arena, "01", 1, 1, "a number does not start with a zero before more digits");
   refused(&arena, "-", 1, 1, "a number needs a digit here");
-  refused(&arena, "1.", 1, 3, "a number needs a digit after its point");
-  refused(&arena, "1e", 1, 3, "a number needs a digit after its exponent mark");
-  refused(&arena, "1e999", 1, 1, "a number is too large to hold");
+  refused(&arena, "1.5", 1, 1, "a number must be whole; write 3, not 3.5 or 3e0");
+  refused(&arena, "[1,\n 2.0]", 2, 2, "a number must be whole; write 3, not 3.5 or 3e0");
+  refused(&arena, "1e-3", 1, 1, "a number must be whole; write 3, not 3.5 or 3e0");
+  refused(&arena, "1E3", 1, 1, "a number must be whole; write 3, not 3.5 or 3e0");
+  refused(&arena, "1e300", 1, 1, "a number must be whole; write 3, not 3.5 or 3e0");
+  refused(&arena, "-0.5", 1, 1, "a number must be whole; write 3, not 3.5 or 3e0");
+  refused(&arena, "9007199254740993", 1, 1,
+          "a number is too large to hold exactly; write one no larger than 9007199254740992");
+  refused(&arena, "123456789012345678901234567890", 1, 1,
+          "a number is too large to hold exactly; write one no larger than 9007199254740992");
   refused(&arena, "tru", 1, 1, "this is not a value");
   refused(&arena, "nul", 1, 1, "this is not a value");
   sprout_arena_reset(&arena);
@@ -178,8 +181,12 @@ static void the_writer_refuses_a_number_that_is_not_whole(void) {
   sprout_arena arena;
   const char *out;
   size_t length;
+  sprout_json node;
   sprout_arena_init(&arena, &host);
-  CHECK_INT(sprout_json_write(&arena, read_ok(&arena, "[1,0.5]"), &out, &length), SPROUT_BAD_INPUT);
+  memset(&node, 0, sizeof node);
+  node.kind = SPROUT_JSON_NUMBER;
+  node.number = 0.5;
+  CHECK_INT(sprout_json_write(&arena, &node, &out, &length), SPROUT_BAD_INPUT);
   sprout_arena_reset(&arena);
 }
 

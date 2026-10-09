@@ -2,15 +2,17 @@
  * JSON reader and writer (the spec's The host contract: a cartridge and a
  * stored world arrive as JSON). The reader keeps its own stack in the arena
  * rather than the C stack, so nesting is bounded by memory alone. Numbers are
- * read as IEEE doubles: whole numbers up to 2^53 exactly, others by scaling a
- * 19-digit mantissa, which is as near as the reader promises for a fraction.
+ * whole and no larger than 2^53 in magnitude, since the language has no fractions
+ * and a double holds those exactly; any other number is a refusal.
  */
 #include "json.h"
 
-#include <math.h>
 #include <string.h>
 
 #include "values.h"
+
+/* The largest whole number a double holds exactly: 2^53. */
+#define EXACT_MAX ((uint64_t)1 << 53)
 
 typedef struct frame {
   sprout_json *node;
@@ -173,10 +175,7 @@ static sprout_status read_string(reader *r, const char **bytes, size_t *length) 
 static sprout_status read_number(reader *r, double *number) {
   size_t i = r->at;
   bool negative = false;
-  uint64_t mantissa = 0;
-  int taken = 0, scale = 0, exponent = 0;
-  bool exponent_negative = false;
-  double value;
+  uint64_t magnitude = 0;
   if (r->b[i] == '-') {
     negative = true;
     i++;
@@ -185,54 +184,13 @@ static sprout_status read_number(reader *r, double *number) {
   if (r->b[i] == '0' && i + 1 < r->n && r->b[i + 1] >= '0' && r->b[i + 1] <= '9')
     return fail(r, "a number does not start with a zero before more digits");
   while (i < r->n && r->b[i] >= '0' && r->b[i] <= '9') {
-    if (taken < 19) {
-      mantissa = mantissa * 10 + (uint64_t)(r->b[i] - '0');
-      if (mantissa != 0) taken++;
-    } else {
-      scale++;
-    }
+    magnitude = magnitude * 10 + (uint64_t)(r->b[i] - '0');
+    if (magnitude > EXACT_MAX) return fail(r, "a number is too large to hold exactly; write one no larger than 9007199254740992");
     i++;
   }
-  if (i < r->n && r->b[i] == '.') {
-    i++;
-    if (i >= r->n || r->b[i] < '0' || r->b[i] > '9') {
-      r->at = i;
-      return fail(r, "a number needs a digit after its point");
-    }
-    while (i < r->n && r->b[i] >= '0' && r->b[i] <= '9') {
-      if (taken < 19) {
-        mantissa = mantissa * 10 + (uint64_t)(r->b[i] - '0');
-        if (mantissa != 0) taken++;
-        scale--;
-      }
-      i++;
-    }
-  }
-  if (i < r->n && (r->b[i] == 'e' || r->b[i] == 'E')) {
-    i++;
-    if (i < r->n && (r->b[i] == '+' || r->b[i] == '-')) exponent_negative = r->b[i++] == '-';
-    if (i >= r->n || r->b[i] < '0' || r->b[i] > '9') {
-      r->at = i;
-      return fail(r, "a number needs a digit after its exponent mark");
-    }
-    while (i < r->n && r->b[i] >= '0' && r->b[i] <= '9') {
-      if (exponent < 100000) exponent = exponent * 10 + (r->b[i] - '0');
-      i++;
-    }
-  }
-  scale += exponent_negative ? -exponent : exponent;
-  value = (double)mantissa;
-  if (mantissa != 0 && scale != 0) {
-    if (scale > 0) {
-      value *= pow(10.0, (double)scale);
-    } else if (scale >= -300) {
-      value /= pow(10.0, (double)-scale);
-    } else {
-      value = (value / pow(10.0, 300.0)) / pow(10.0, (double)(-scale - 300));
-    }
-  }
-  if (!isfinite(value)) return fail(r, "a number is too large to hold");
-  *number = negative ? -value : value;
+  if (i < r->n && (r->b[i] == '.' || r->b[i] == 'e' || r->b[i] == 'E'))
+    return fail(r, "a number must be whole; write 3, not 3.5 or 3e0");
+  *number = negative ? -(double)magnitude : (double)magnitude;
   r->at = i;
   return SPROUT_OK;
 }

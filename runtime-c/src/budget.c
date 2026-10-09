@@ -13,6 +13,19 @@ typedef struct text {
   char *end;
 } text;
 
+/* The pieces of a fault's words; the longest unit and the widest numbers size sprout_fault.text. */
+#define WORDS_BEFORE "This turn used more "
+#define WORDS_AFTER_UNIT " than the host allows ("
+#define WORDS_AFTER_LIMIT ") while running message "
+#define WORDS_END ", so it was stopped and nothing it did was kept."
+#define LONGEST_UNIT "levels of passage inside passage"
+#define MAX_DIGITS 20 /* digits in UINT64_MAX */
+
+_Static_assert(sizeof(((sprout_fault *)0)->text) >=
+                   sizeof(WORDS_BEFORE) + sizeof(LONGEST_UNIT) + sizeof(WORDS_AFTER_UNIT) +
+                       sizeof(WORDS_AFTER_LIMIT) + sizeof(WORDS_END) + 2 * MAX_DIGITS,
+               "a fault's text must hold the longest message the budgets can produce");
+
 static void put(text *out, const char *words) {
   while (*words != '\0' && out->at + 1 < out->end) *out->at++ = *words++;
   *out->at = '\0';
@@ -47,13 +60,13 @@ static bool exhaust(sprout_meter *meter, const char *budget, const char *unit, u
   meter->fault.limit = limit;
   meter->fault.message = meter->message;
   *out.at = '\0';
-  put(&out, "This turn used more ");
+  put(&out, WORDS_BEFORE);
   put(&out, unit);
-  put(&out, " than the host allows (");
+  put(&out, WORDS_AFTER_UNIT);
   put_number(&out, limit);
-  put(&out, ") while running message ");
+  put(&out, WORDS_AFTER_LIMIT);
   put_number(&out, meter->message);
-  put(&out, ", so it was stopped and nothing it did was kept.");
+  put(&out, WORDS_END);
   return false;
 }
 
