@@ -1,0 +1,12 @@
+import * as sprout from 'sprout'
+import {ask} from 'sprout'
+
+enum Topic { bridge, toll, weather }
+
+kind Guard is sprout.Actor {
+  :knows [Topic] default [bridge, toll, weather]
+  as target for ask {
+    topic from :knows
+    do { say "The guard nods." }
+  }
+}

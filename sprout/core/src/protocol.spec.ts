@@ -141,15 +141,52 @@ describe('what a host sends', () => {
           verb: 'shop.turn',
           typed: 'turn dial to …',
           refused: null,
+          fillers: [
+            { role: 'knob', binds: 'object', id: 'shop.hall.dial' as InstanceId, name: 'a dial' },
+            { role: 'notch', binds: 'unbound' },
+          ],
           options: [{ role: 'notch', takes: 'integer', ranges: [{ min: 0, max: 9 }] }],
         },
         {
           verb: 'sprout.ask',
           typed: 'ask Oskar about …',
           refused: ['Oskar shrugs.'],
+          fillers: [
+            { role: 'target', binds: 'object', id: 'shop#3' as InstanceId, name: 'Oskar' },
+            { role: 'topic', binds: 'unbound' },
+          ],
           options: [
             { role: 'topic', takes: 'symbol', options: [{ value: 'toll', words: 'toll' }] },
           ],
+        },
+        {
+          verb: 'shop.juggle',
+          typed: 'juggle key',
+          refused: null,
+          fillers: [
+            {
+              role: 'things',
+              binds: 'set',
+              ids: ['shop.hall.key' as InstanceId],
+              names: ['a key'],
+            },
+          ],
+          options: [],
+        },
+        {
+          verb: 'sprout.go',
+          typed: 'go north',
+          refused: null,
+          fillers: [
+            {
+              role: 'way',
+              binds: 'exit',
+              direction: 'north',
+              label: 'to the yard',
+              to: 'shop.yard' as InstanceId,
+            },
+          ],
+          options: [],
         },
       ],
     };
@@ -161,5 +198,21 @@ describe('what a host sends', () => {
       });
       expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
     }
+  });
+
+  it('refuses a reading sent without its fillers, or with a filler that is not one of the four', () => {
+    const reading = { verb: 'shop.look', typed: 'look', refused: null, options: [] };
+    const sent = (readings: unknown[]) =>
+      ServerMessage.safeParse({
+        t: 'view',
+        seq: 1,
+        view: { description: [], effects: [], exits: [], occupants: [], carried: [], readings },
+      }).success;
+    expect(sent([{ ...reading, fillers: [] }])).toBe(true);
+    expect(sent([reading])).toBe(false);
+    expect(sent([{ ...reading, fillers: [{ role: 'target', binds: 'object', id: 'a' }] }])).toBe(
+      false,
+    );
+    expect(sent([{ ...reading, fillers: [{ role: 'target', binds: 'value' }] }])).toBe(false);
   });
 });

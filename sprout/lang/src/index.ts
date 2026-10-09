@@ -120,5 +120,6 @@ export * from './prose/line-draws.js';
 export * from './prose/heard.js';
 export * from './prose/describe.js';
 export * from './prose/effects.js';
+export * from './prose/chips.js';
 export * from './prose/view.js';
 export * from './prose/acted.js';

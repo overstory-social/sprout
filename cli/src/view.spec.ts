@@ -29,15 +29,20 @@ carrying
 
 what they could type
   pry shed  (lane.pry)
+    target: a shed (shed)
   turn shed to …  (lane.turn)
+    target: a shed (shed)
     notch: nothing it hears
   go out  (sprout.go)
+    way: exit out "back to the yard" -> yard
   look  (sprout.look)
   examine shed  (sprout.examine)
+    target: a shed (shed)
   inventory  (sprout.inventory)
   wait  (sprout.wait)
   help  (sprout.help)
   ask shed about …  (sprout.ask)
+    target: a shed (shed)
     topic: nothing it hears
 `,
     });
@@ -46,9 +51,15 @@ what they could type
   it('names who else is there, greys a refused reading with its words, and gives value roles’ options', () => {
     const { page } = inspectView(at());
     expect(page).toContain('\nwho else is here\n  a warden (yard.warden)\n');
-    expect(page).toContain('\n  pry crate  (lane.pry)\n    refused: The lid is nailed down.\n');
-    expect(page).toContain('\n  turn dial to …  (lane.turn)\n    notch: 0 to 9\n');
-    expect(page).toContain('\n  ask warden about …  (sprout.ask)\n    topic: toll, old road\n');
+    expect(page).toContain(
+      '\n  pry crate  (lane.pry)\n    refused: The lid is nailed down.\n    target: a crate (yard.crate)\n',
+    );
+    expect(page).toContain(
+      '\n  turn dial to …  (lane.turn)\n    target: a dial (yard.dial)\n    notch: 0 to 9\n',
+    );
+    expect(page).toContain(
+      '\n  ask warden about …  (sprout.ask)\n    target: a warden (yard.warden)\n    topic: toll, old road\n',
+    );
     expect(page).toContain('\n  give iron key to warden  (sprout.give)\n');
   });
 
@@ -67,7 +78,23 @@ kind Rowboat is sprout.Place { as target for take { do { } } }
     expect(page).toContain(
       '\n  take rowboat  (sprout.take)\n    refused: A rowboat cannot go inside itself.\n',
     );
-    expect(page).toContain('\n  take pouch  (sprout.take)\n  drop pouch');
+    expect(page).toContain(
+      '\n  take pouch  (sprout.take)\n    target: a pouch (rowboat.pouch)\n  drop pouch',
+    );
+  });
+
+  it('writes what fills each role beneath its reading: a thing, a set, a way out, and a value role only by its options', () => {
+    const { page } = inspectView(standIn(checkWorld('../corpus/good/chip-tree').bundle!, {}));
+    expect(page).toContain(
+      '\n  juggle pebble  (chip_tree.juggle)\n    things: a pebble (hall.pebble)\n',
+    );
+    expect(page).toContain(
+      '\n  go north  (sprout.go)\n    way: exit north "to the yard" -> yard\n',
+    );
+    expect(page).toContain(
+      '\n  ask guard about …  (sprout.ask)\n    target: a guard (hall.guard)\n    topic: bridge, toll, weather\n',
+    );
+    expect(page).not.toContain('unbound');
   });
 
   it('lists what the visitor carries', () => {

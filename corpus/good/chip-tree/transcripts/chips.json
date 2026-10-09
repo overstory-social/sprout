@@ -1,0 +1,20 @@
+{
+  "about": "Each reading the view offers plays: a symbol role the guard hears, an integer role within the dial's range, a set role and a way out.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "ask guard about weather", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The guard nods." }
+    ] },
+    { "as": "Marta", "type": "turn dial to 3", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Click." }
+    ] },
+    { "as": "Marta", "type": "juggle pebble", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Nothing much comes of that." }
+    ] },
+    { "as": "Marta", "type": "go north", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] }
+  ]
+}

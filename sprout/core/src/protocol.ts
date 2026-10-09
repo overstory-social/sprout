@@ -97,6 +97,24 @@ const SentEffect = z.union([
 const Exit = z.object({ direction: z.enum(DIRECTIONS).nullable(), label: text, to: text }).strict();
 const Thing = z.object({ id: text, name: text }).strict();
 
+/** What fills one role of a reading (`lang`'s `SeenFiller`). */
+const SentFiller = z.discriminatedUnion('binds', [
+  z.object({ role: named, binds: z.literal('object'), id: text, name: text }).strict(),
+  z
+    .object({ role: named, binds: z.literal('set'), ids: z.array(text), names: z.array(text) })
+    .strict(),
+  z
+    .object({
+      role: named,
+      binds: z.literal('exit'),
+      direction: z.enum(DIRECTIONS).nullable(),
+      label: text,
+      to: text,
+    })
+    .strict(),
+  z.object({ role: named, binds: z.literal('unbound') }).strict(),
+]);
+
 /** A view as a client is sent it (`core`'s `sendView`). */
 const SentView = z
   .object({
@@ -120,6 +138,7 @@ const SentView = z
           verb: named,
           typed: text,
           refused: z.array(text).nullable(),
+          fillers: z.array(SentFiller),
           options: z.array(
             z.discriminatedUnion('takes', [
               z

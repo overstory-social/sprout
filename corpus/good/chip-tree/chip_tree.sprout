@@ -1,0 +1,26 @@
+// What a client offers a visitor is a tree: a verb, what fills each of its
+// roles in the order it declares them, then the options of its value
+// roles. This hall has a symbol role heard from what the guard knows, an
+// integer role from a range, a set role and a way out, and `sprout view`
+// prints every reading with its fillers.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Guard} from 'guard'
+import {Dial} from 'dial'
+import {Pebble} from 'pebble'
+
+world chip_tree is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { exit north "to the yard" -> yard }
+    object guard is Guard
+    object dial is Dial
+    object pebble is Pebble
+    object shell is Pebble
+  }
+  object yard is sprout.Place { }
+}
+
+verb juggle { role things many  "juggle [things]" }

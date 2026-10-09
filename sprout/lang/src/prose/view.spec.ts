@@ -7,6 +7,7 @@ import {
   GUARD,
   HARE,
   INES,
+  KEYPAD,
   MARTA,
   PEBBLE,
   pollingIn,
@@ -71,6 +72,10 @@ describe('polling a visitor’s view', () => {
       verb: 'sprout.ask',
       typed: 'ask sentry about …',
       refused: null,
+      fillers: [
+        { role: 'target', binds: 'object', id: SENTRY, name: 'a sentry' },
+        { role: 'topic', binds: 'unbound' },
+      ],
       options: [
         {
           role: 'topic',
@@ -85,6 +90,46 @@ describe('polling a visitor’s view', () => {
     });
     expect(view.readings.find((one) => one.typed === 'turn dial to …')?.options).toEqual([
       { role: 'notch', takes: 'integer', ranges: [{ min: 0, max: 9 }] },
+    ]);
+  });
+
+  it('gives what fills each role in the order the verb declares them', () => {
+    const { view } = pollView(gatehouse(), gateHost(), MARTA);
+    const filled = (typed: string) => view.readings.find((one) => one.typed === typed)?.fillers;
+    // Two objects and a value role: the value role is unbound, its options beside.
+    expect(filled('vouch to guard before sentry for …')).toEqual([
+      { role: 'target', binds: 'object', id: GUARD, name: 'a guard' },
+      { role: 'witness', binds: 'object', id: SENTRY, name: 'a sentry' },
+      { role: 'topic', binds: 'unbound' },
+    ]);
+    // A set role offered one member at a time.
+    expect(filled('juggle pebble')).toEqual([
+      { role: 'things', binds: 'set', ids: [PEBBLE], names: ['a pebble'] },
+    ]);
+    // A tool the phrase leaves out is unbound.
+    expect(filled('daub pebble')).toEqual([
+      { role: 'target', binds: 'object', id: PEBBLE, name: 'a pebble' },
+      { role: 'paint', binds: 'unbound' },
+    ]);
+    // An exit, with its direction; a link has none and is told by its label.
+    expect(filled('go up')).toEqual([
+      { role: 'way', binds: 'exit', direction: 'up', label: 'up the ladder', to: TOWER },
+    ]);
+    // Declared order, not the order the phrase types them in: `punch [code] on [pad]` declares the pad first.
+    expect(filled('punch … on keypad')).toEqual([
+      { role: 'pad', binds: 'object', id: KEYPAD, name: 'a keypad' },
+      { role: 'code', binds: 'unbound' },
+    ]);
+  });
+
+  it('names a filler as its reader reads it, a visitor by nickname', () => {
+    const state = gatehouse([
+      [MARTA, 'Marta', YARD],
+      [INES, 'Ines', YARD],
+    ]);
+    const { view } = pollView(state, gateHost(), MARTA);
+    expect(view.readings.find((one) => one.typed === 'examine Ines')?.fillers).toEqual([
+      { role: 'target', binds: 'object', id: actorOf(state, INES), name: 'Ines' },
     ]);
   });
 
