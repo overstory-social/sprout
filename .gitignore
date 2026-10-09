@@ -9,3 +9,4 @@ npm-debug.log
 .vscode/*
 !.vscode/settings.json
 .DS_Store
+runtime-c/build/
