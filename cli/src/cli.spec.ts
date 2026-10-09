@@ -4,7 +4,12 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { generateSkill } from '@overstory/sprout/lang';
+import {
+  DEFAULT_LIMITS,
+  generateSkill,
+  loadCartridge,
+  readCartridgeHeader,
+} from '@overstory/sprout/lang';
 
 import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
@@ -328,5 +333,72 @@ describe('main', () => {
     const none = captured();
     expect(main(['test', worldFolder('lane', LANE)], none)).toBe(1);
     expect(none.err()).toMatch(/^sprout: no tests in .*tests: write a script there/);
+  });
+
+  it('pack writes the world as a cartridge a runtime loads, and play and test accept it in the folder’s place', () => {
+    const dir = worldFolder('lane', LANE);
+    mkdirSync(join(dir, 'tests'));
+    writeFileSync(
+      join(dir, 'tests', 'walk.json'),
+      writeScript({
+        steps: [
+          { arrive: 'Marta' },
+          { as: 'Marta', type: 'go in', expect: [{ words: 'Tools hang in rows.' }] },
+        ],
+      }),
+    );
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-pack-')), 'lane.sproutworld');
+    const packed = captured();
+    expect(main(['pack', dir, '-o', file], packed)).toBe(0);
+    expect(packed.out()).toMatch(new RegExp(`^packed lane into ${file}: \\d+ bytes\\n$`));
+    const bytes = readFileSync(file);
+    expect(readCartridgeHeader(bytes)).toMatchObject({ format: 1 });
+    expect(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }).declared.size).toBeGreaterThan(0);
+
+    const script = join(dir, 'tests', 'walk.json');
+    const fromFolder = captured();
+    const fromCartridge = captured();
+    expect(main(['play', dir, script], fromFolder)).toBe(0);
+    expect(main(['play', file, script], fromCartridge)).toBe(0);
+    expect(fromCartridge.out()).toBe(fromFolder.out());
+    const tested = captured();
+    expect(main(['test', file, script], tested)).toBe(0);
+    expect(tested.out()).toBe('walk.json: passed, 1 expected line said\n\n1 test: passed\n');
+    const bare = captured();
+    expect(main(['test', file], bare)).toBe(1);
+    expect(bare.err()).toContain('a cartridge carries no tests: name the scripts');
+  });
+
+  it('pack names the file after the world without -o, wants a folder, and refuses a world that does not check', () => {
+    const dir = worldFolder('lane', LANE);
+    const cwd = process.cwd();
+    const into = mkdtempSync(join(tmpdir(), 'sprout-pack-'));
+    process.chdir(into);
+    try {
+      const io = captured();
+      expect(main(['pack', dir], io)).toBe(0);
+      expect(io.out()).toMatch(/^packed lane into lane\.sproutworld: \d+ bytes\n$/);
+      expect(readFileSync(join(into, 'lane.sproutworld')).subarray(0, 4).toString()).toBe('SPRT');
+    } finally {
+      process.chdir(cwd);
+    }
+    const bare = captured();
+    expect(main(['pack'], bare)).toBe(1);
+    expect(bare.err()).toContain('pack wants a world folder');
+    const dangling = captured();
+    expect(main(['pack', dir, '-o'], dangling)).toBe(1);
+    expect(dangling.err()).toContain('-o wants a file');
+    const broken = worldFolder('lane', { ...LANE, 'lane.sprout': 'world lane is' });
+    const refused = captured();
+    expect(main(['pack', broken, '-o', join(into, 'broken.sproutworld')], refused)).toBe(1);
+    expect(refused.out() + refused.err()).toContain('lane.sprout');
+  });
+
+  it('play refuses a file that is not a cartridge, in words, without a stack', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-pack-')), 'not.sproutworld');
+    writeFileSync(file, 'hello');
+    const io = captured();
+    expect(main(['play', file, 'x.json'], io)).toBe(1);
+    expect(io.out() + io.err()).toContain('not.sproutworld: This is not a Sprout cartridge');
   });
 });

@@ -21,6 +21,8 @@ import type { KindContents } from '../declare/contents.js';
 import { kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
 import { WORLD } from '../declare/sprout-world.js';
 import type { Placement, TreePath } from '../declare/tree.js';
+import type { ScopedSynonym } from '../declare/synonyms.js';
+import type { ResolvedIntent } from '../declare/intents.js';
 import type { VerbLookup } from '../declare/verbs.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
@@ -98,12 +100,61 @@ export interface Catalogue {
   readonly caps: StaticCaps;
 }
 
+/**
+ * What a catalogue is made of: the parts of a bundle the runtime reads,
+ * whether they come from compiling source or from a cartridge.
+ */
+export interface CatalogueParts {
+  /** The world's name, which is its id and the root of the tree. */
+  readonly name: string;
+  readonly holds: ReadonlyMap<string, Placement>;
+  readonly world: KindRef | null;
+  readonly visitor: KindRef | null;
+  readonly kinds: readonly KindRef[];
+  readonly contents: KindContents;
+  readonly kindLookup: KindLookup;
+  readonly verbs: VerbLookup;
+  readonly synonyms: readonly ScopedSynonym[];
+  readonly intents: readonly ResolvedIntent[];
+  readonly messages: MessageLookup;
+  readonly names: NameTable;
+  readonly optionSlots: ReadonlySet<Node>;
+  readonly arrival: TreePath | null;
+  readonly words: readonly string[];
+  readonly extensions: readonly PinnedExtension[];
+}
+
 /** What `bundle` says about instances, read under the host's current `caps`. */
 export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
-  const name = bundle.manifest.name;
+  return catalogueFrom(
+    {
+      name: bundle.manifest.name,
+      holds: bundle.tree.holds,
+      world: bundle.world,
+      visitor: bundle.visitor,
+      kinds: bundle.kinds,
+      contents: bundle.contents,
+      kindLookup: bundle.kindLookup,
+      verbs: bundle.verbs,
+      synonyms: bundle.synonyms,
+      intents: bundle.intents,
+      messages: bundle.messages,
+      names: bundle.names,
+      optionSlots: bundle.optionSlots,
+      arrival: bundle.arrival,
+      words: bundle.words,
+      extensions: bundle.extensions,
+    },
+    caps,
+  );
+}
+
+/** What `parts` say about instances, read under the host's current `caps`. */
+export function catalogueFrom(parts: CatalogueParts, caps: StaticCaps): Catalogue {
+  const name = parts.name;
   const world = declaredId(name, []);
   const declared = new Map<InstanceId, DeclaredEntry>();
-  const queue: Placement[] = [...bundle.tree.holds.values()];
+  const queue: Placement[] = [...parts.holds.values()];
   for (let head = 0; head < queue.length; head++) {
     const placement = queue[head]!;
     const id = declaredId(name, placement.path);
@@ -118,25 +169,25 @@ export function catalogueOf(bundle: Bundle, caps: StaticCaps): Catalogue {
   }
   return {
     world,
-    worldKind: bundle.world,
-    visitorKind: bundle.visitor,
+    worldKind: parts.world,
+    visitorKind: parts.visitor,
     declared,
     kinds: new Map(
-      bundle.kinds
+      parts.kinds
         .filter((kind) => !kind.composes.has(WORLD) && !isVisitorKind(kind))
         .map((kind) => [kindName(kind), kind]),
     ),
-    contents: bundle.contents,
-    lookup: bundle.kindLookup,
-    verbs: bundle.verbs,
-    phrases: typedPhrasesOf(bundle.verbs.all(), name, bundle.synonyms),
-    intentPhrases: typedIntentPhrasesOf(bundle.intents),
-    messages: bundle.messages,
-    names: bundle.names,
-    optionSlots: bundle.optionSlots,
-    arrival: bundle.arrival === null ? null : declaredId(name, bundle.arrival),
-    words: new Set(bundle.words),
-    extensions: new Map(bundle.extensions.map((pinned) => [pinned.name, pinned])),
+    contents: parts.contents,
+    lookup: parts.kindLookup,
+    verbs: parts.verbs,
+    phrases: typedPhrasesOf(parts.verbs.all(), name, parts.synonyms),
+    intentPhrases: typedIntentPhrasesOf(parts.intents),
+    messages: parts.messages,
+    names: parts.names,
+    optionSlots: parts.optionSlots,
+    arrival: parts.arrival === null ? null : declaredId(name, parts.arrival),
+    words: new Set(parts.words),
+    extensions: new Map(parts.extensions.map((pinned) => [pinned.name, pinned])),
     caps,
   };
 }

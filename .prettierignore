@@ -4,3 +4,4 @@ docs/
 corpus/bad/*/expect.json
 corpus/good/*/tests/*.json
 corpus/good/*/transcripts/*.json
+corpus/goldens/stored-canon.json

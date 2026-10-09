@@ -22,6 +22,15 @@ import { ExtensionValue, extensionLiteral } from './extension-values.js';
 export type Value = boolean | number | string | SproutList | ExtensionValue;
 
 /**
+ * An integer as digits, which is how a slot and a typed line write one (the
+ * spec's Prose › Slots): a minus sign for a negative number, no leading
+ * zeros, no exponent and no sign on zero.
+ */
+export function numberText(value: number): string {
+  return value === 0 ? '0' : String(value);
+}
+
+/**
  * A type's identity as stored state records it: `boolean`, `integer`,
  * `string`, an enum's qualified name, a list's element key in brackets,
  * or an extension's type as written, `media.Image`. An integer's range is not part of it, as it is not part of

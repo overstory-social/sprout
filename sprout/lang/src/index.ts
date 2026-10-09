@@ -59,6 +59,8 @@ export * from './bundle/blessed.js';
 export * from './bundle/manifest.js';
 export * from './bundle/declarations.js';
 export * from './bundle/compile/compile.js';
+export * from './bundle/cartridge.js';
+export type { Cartridge } from './bundle/cartridge-schema.js';
 export type { RecordedCaps } from './bundle/compile/recorded.js';
 export { generateSkill, type SkillOptions } from './bundle/skill/skill.js';
 
@@ -69,6 +71,7 @@ export * from './runtime/ids.js';
 export * from './runtime/values.js';
 export * from './runtime/stored.js';
 export * from './runtime/catalogue.js';
+export * from './runtime/cartridge.js';
 export * from './runtime/state.js';
 export * from './runtime/load.js';
 export * from './runtime/memory.js';

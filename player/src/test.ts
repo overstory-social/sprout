@@ -1,10 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-import type { Bundle } from '@overstory/sprout/lang';
-
 import { playSteps, type Made, type PlayedStep } from './play.js';
 import type { PlayedRun } from './report.js';
+import type { PlayableWorld } from './stand.js';
 import { lineOf, readScript, shownExpectation, type Expectation } from './script.js';
 
 // `sprout test`: an author's own tests of their world. A test is a script
@@ -112,12 +111,12 @@ function problems(played: PlayedStep, at: number): string[] {
 
 /** One test, run: the lines the page says of it, and whether it passed. */
 function runOne(
-  bundle: Bundle,
+  world: PlayableWorld,
   test: TestFile,
 ): { passed: boolean; lines: string[]; played: PlayedStep[] | null } {
   let played: PlayedStep[];
   try {
-    played = playSteps(bundle, readScript(test.text, test.name), test.name);
+    played = playSteps(world, readScript(test.text, test.name), test.name);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     return {
@@ -156,9 +155,9 @@ function runOne(
     played,
   };
 }
-/** Run each test on a freshly loaded `bundle`: a line for each, what each failure said instead, and a count. */
-export function runTests(bundle: Bundle, tests: readonly TestFile[]): Tested {
-  const results = tests.map((test) => runOne(bundle, test));
+/** Run each test on a freshly loaded `world`: a line for each, what each failure said instead, and a count. */
+export function runTests(world: PlayableWorld, tests: readonly TestFile[]): Tested {
+  const results = tests.map((test) => runOne(world, test));
   const failed = results.filter((result) => !result.passed).length;
   const count = `${tests.length} test${tests.length === 1 ? '' : 's'}`;
   const page = [...results.flatMap((result) => result.lines), ''];

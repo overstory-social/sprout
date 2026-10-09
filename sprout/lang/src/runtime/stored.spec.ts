@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -497,5 +501,28 @@ describe('a stored value that still fits keeps its value', () => {
       element: after,
     });
     expect(decoded.fits && decoded.value.toString()).toBe('[brass, oak]');
+  });
+});
+
+describe('the canonical JSON of a stored world', () => {
+  const file = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../../../corpus/goldens/stored-canon.json',
+  );
+
+  it('is the bytes the C runtime reproduces: keys in the schema’s order, integers as digits', () => {
+    const canon = readFileSync(file, 'utf8');
+    expect(JSON.stringify(readStoredWorld(world())) + '\n').toBe(canon);
+    expect(JSON.stringify(readStoredWorld(JSON.parse(canon))) + '\n').toBe(canon);
+  });
+
+  it('writes an integer property at either end of the default range as plain digits', () => {
+    const range = integer(-2147483648, 2147483647);
+    expect(JSON.stringify(encodeValue(range, -2147483648))).toBe(
+      `{"type":"${typeKey(range)}","value":-2147483648}`,
+    );
+    expect(JSON.stringify(encodeValue(range, 2147483647))).toBe(
+      `{"type":"${typeKey(range)}","value":2147483647}`,
+    );
   });
 });

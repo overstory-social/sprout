@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
-import { keeps, type Bundle } from '@overstory/sprout/lang';
+import { keeps } from '@overstory/sprout/lang';
 
 import {
   actedBy,
@@ -16,6 +16,7 @@ import {
   plays,
   writeScript,
   type Made,
+  type PlayableWorld,
   type StandOptions,
   type Step,
 } from '@overstory/sprout-player';
@@ -72,7 +73,7 @@ function refuse(io: Io, err: unknown): 1 {
  * code, as `main` returns it for any other command.
  */
 export async function playInteractively(
-  bundle: Bundle,
+  world: PlayableWorld,
   options: SessionOptions,
   io: Io,
 ): Promise<number> {
@@ -85,7 +86,7 @@ export async function playInteractively(
       ),
     );
   }
-  const stage = freshStage(bundle);
+  const stage = freshStage(world);
   const debug = options.debug === true;
   const recorded: Step[] = [];
   const keep = (step: Step | null, made: readonly Made[] | null) => {

@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { chooser } from '../fixtures/parse.js';
@@ -75,5 +79,22 @@ describe('generated draws stay within their bounds', () => {
       expect(count).toBeGreaterThan(850);
       expect(count).toBeLessThan(1150);
     }
+  });
+});
+
+describe('the generator the C runtime reproduces', () => {
+  const golden = JSON.parse(
+    readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../../../corpus/goldens/draws.json'),
+      'utf8',
+    ),
+  ) as { generator: string; seed: number; draws: number[] };
+
+  it('gives the first 16 values of mulberry32 from seed 1', () => {
+    expect(golden.generator).toBe('mulberry32');
+    expect(golden.draws).toHaveLength(16);
+    // A draw below 2³² rejects nothing, so it is the stream's own value.
+    const draws = new Draws(golden.seed);
+    expect(golden.draws.map(() => draws.below(0x1_0000_0000))).toEqual(golden.draws);
   });
 });

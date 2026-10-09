@@ -125,12 +125,15 @@ sprout — a Sprout microworld on the command line
                                       an object placed in what --in names, in its own file or appended to --path
   sprout scaffold test name [dir]     tests/name.json, a test that arrives and expects what the visitor reads
   sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
+  sprout pack dir [-o world.sproutworld]
+                                      compile strictly, then write the world as a cartridge: one file a
+                                      runtime loads in place of the source; without -o, <name>.sproutworld
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir script.json [--write] [--report file.json]
+  sprout play dir script.json [--write] [--report file.json]    (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
                                       --write saves that over the script; --report writes what it reached, what
@@ -139,7 +142,7 @@ sprout — a Sprout microworld on the command line
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
                                       the host's; --record writes the session as a script
-  sprout test [dir] [script ...] [--report file.json]
+  sprout test [dir] [script ...] [--report file.json]    (dir may be a .sproutworld; name its scripts)
                                       run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;

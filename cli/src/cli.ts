@@ -1,7 +1,15 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
-import { generateSkill, type Bundle } from '@overstory/sprout/lang';
+import {
+  CARTRIDGE_EXTENSION,
+  CartridgeUnreadable,
+  DEFAULT_LIMITS,
+  emitCartridge,
+  generateSkill,
+  loadCartridge,
+  type Bundle,
+} from '@overstory/sprout/lang';
 import {
   catalogueFor,
   filledIn,
@@ -13,6 +21,7 @@ import {
   testFiles,
   writeReport,
   writeScript,
+  type PlayableWorld,
   type PlayedRun,
   type StandOptions,
 } from '@overstory/sprout-player';
@@ -38,12 +47,15 @@ import { inspectView } from './view.js';
 export const USAGE = `sprout — a Sprout microworld on the command line
 
 ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
+  sprout pack dir [-o world.sproutworld]
+                                      compile strictly, then write the world as a cartridge: one file a
+                                      runtime loads in place of the source; without -o, <name>.sproutworld
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name]
                                       what a visitor standing there is shown and could type
-  sprout play dir script.json [--write] [--report file.json]
+  sprout play dir script.json [--write] [--report file.json]    (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
                                       --write saves that over the script; --report writes what it reached, what
@@ -52,7 +64,7 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
                                       the host's; --record writes the session as a script
-  sprout test [dir] [script ...] [--report file.json]
+  sprout test [dir] [script ...] [--report file.json]    (dir may be a .sproutworld; name its scripts)
                                       run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
@@ -81,12 +93,20 @@ export interface Parsed {
 /** Flags that stand alone and never take the word after them as their value. */
 const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug', 'write', 'plain', 'watch']);
 
+/** The short flags there are, and the long flag each stands for. */
+const SHORT: Readonly<Record<string, string>> = { o: 'out' };
+
 export function parseArgs(argv: readonly string[]): Parsed {
   const positional: string[] = [];
   const flags: Record<string, string | true> = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
-    if (a.startsWith('--')) {
+    const short = /^-([a-z])$/.exec(a)?.[1];
+    if (short !== undefined && SHORT[short] !== undefined) {
+      const value = argv[i + 1];
+      if (value !== undefined && !value.startsWith('-')) flags[SHORT[short]!] = argv[++i]!;
+      else flags[SHORT[short]!] = true;
+    } else if (a.startsWith('--')) {
       const eq = a.indexOf('=');
       if (eq > 0) flags[a.slice(2, eq)] = a.slice(eq + 1);
       else if (SWITCHES.has(a.slice(2))) flags[a.slice(2)] = true;
@@ -106,6 +126,22 @@ function compiled(dir: string, say: (text: string) => void): Bundle | null {
   return null;
 }
 
+/**
+ * The world `path` names, to play: a cartridge it is when it ends in
+ * `.sproutworld`, loaded; a folder otherwise, compiled as `check` compiles
+ * it. Null, with the page or the reason said, where it cannot be.
+ */
+function playable(path: string, say: (text: string) => void): PlayableWorld | null {
+  if (!path.endsWith(CARTRIDGE_EXTENSION)) return compiled(path, say);
+  try {
+    return loadCartridge(readFileSync(path), { caps: DEFAULT_LIMITS.caps });
+  } catch (err) {
+    if (!(err instanceof CartridgeUnreadable)) throw err;
+    say(`${path}: ${err.message}\n`);
+    return null;
+  }
+}
+
 /** The file `--report` writes to, or null where it is not given. */
 function reportFile(flags: Parsed['flags']): string | null {
   const report = flags['report'];
@@ -113,9 +149,14 @@ function reportFile(flags: Parsed['flags']): string | null {
   return report ?? null;
 }
 
-/** Write what `runs` reached over `bundle` to `file`. */
-function writeReached(bundle: Bundle, runs: readonly PlayedRun[], file: string): void {
-  writeFileSync(file, writeReport(reportOf(bundle, runs)));
+/** Write what `runs` reached over `world` to `file`; only a folder's source says what there was to reach. */
+function writeReached(world: PlayableWorld, runs: readonly PlayedRun[], file: string): void {
+  if (!('manifest' in world)) {
+    throw new Error(
+      '--report counts what the world declares, which a cartridge does not keep: report over the world folder.',
+    );
+  }
+  writeFileSync(file, writeReport(reportOf(world, runs)));
 }
 
 /** Where `--at` stands the visitor, and the nickname `--as` gives them. */
@@ -154,6 +195,23 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         say(flags['json'] ? formatCheckJson(result) : formatCheck(result));
         return result.ok ? 0 : 1;
       }
+      case 'pack': {
+        const dir = positional[0];
+        if (dir === undefined) {
+          throw new Error(
+            'pack wants a world folder, as in `sprout pack myworld -o myworld.sproutworld`.',
+          );
+        }
+        const checked = compiled(dir, say);
+        if (checked === null) return 1;
+        const out = flags['out'];
+        if (out === true) throw new Error('-o wants a file after it: -o myworld.sproutworld');
+        const file = out ?? `${checked.manifest.name}${CARTRIDGE_EXTENSION}`;
+        const bytes = emitCartridge(checked);
+        writeFileSync(file, bytes);
+        say(`packed ${checked.manifest.name} into ${file}: ${bytes.length} bytes\n`);
+        return 0;
+      }
       case 'parse': {
         const [dir = '.', line] = positional;
         const checked = compiled(dir, say);
@@ -175,7 +233,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
       }
       case 'play': {
         const [dir = '.', script] = positional;
-        const checked = compiled(dir, say);
+        const checked = playable(dir, say);
         if (checked === null) return 1;
         const report = reportFile(flags);
         if (script === undefined || script === '-') {
@@ -210,8 +268,13 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
       }
       case 'test': {
         const [dir = '.', ...named] = positional;
-        const checked = compiled(dir, say);
+        const checked = playable(dir, say);
         if (checked === null) return 1;
+        if (dir.endsWith(CARTRIDGE_EXTENSION) && named.length === 0) {
+          throw new Error(
+            'a cartridge carries no tests: name the scripts to run, as in `sprout test world.sproutworld tests/first.json`.',
+          );
+        }
         const report = reportFile(flags);
         const tested = runTests(checked, testFiles(dir, named));
         say(tested.page);

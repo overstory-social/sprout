@@ -1,6 +1,5 @@
 import {
   arrivalTurn,
-  catalogueOf,
   DEFAULT_LIMITS,
   departureTurn,
   dueWakes,
@@ -17,7 +16,6 @@ import {
   commandTurn,
   runLine,
   SEED_MAX,
-  type Bundle,
   type CommandHost,
   type Effect,
   type Fault,
@@ -41,7 +39,13 @@ import {
   type Script,
   type Step,
 } from './script.js';
-import { pathOf, seatReturning, seatingMismatch } from './stand.js';
+import {
+  catalogueFor,
+  pathOf,
+  seatReturning,
+  seatingMismatch,
+  type PlayableWorld,
+} from './stand.js';
 
 // `sprout play`: a script of what visitors type and what the host does
 // (`script.ts`), played through real turns over a freshly loaded world
@@ -499,9 +503,9 @@ export function playStep(stage: Stage, step: Step, where: string): Made[] | null
   return advance(stage, seconds);
 }
 
-/** A fresh stage over `bundle`'s world: as it loads, time at 0, seed 0, nobody yet arrived. */
-export function freshStage(bundle: Bundle): Stage {
-  const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
+/** A fresh stage over `world`: as it loads, time at 0, seed 0, nobody yet arrived. */
+export function freshStage(world: PlayableWorld): Stage {
+  const catalogue = catalogueFor(world);
   return {
     host: {
       catalogue,
@@ -570,9 +574,9 @@ export function expectationsOf(made: readonly Made[]): Expectation[] {
   );
 }
 
-/** Play `script` over a freshly loaded `bundle`, step by step; thrown, naming the step, where one cannot be played. */
-export function playSteps(bundle: Bundle, script: Script, name: string): PlayedStep[] {
-  const stage = freshStage(bundle);
+/** Play `script` over a freshly loaded `world`, step by step; thrown, naming the step, where one cannot be played. */
+export function playSteps(world: PlayableWorld, script: Script, name: string): PlayedStep[] {
+  const stage = freshStage(world);
   return script.steps.map((step, i) => {
     const from = stage.turns.length;
     const made = playStep(stage, step, `${name}, step ${i + 1}`);
@@ -580,9 +584,9 @@ export function playSteps(bundle: Bundle, script: Script, name: string): PlayedS
   });
 }
 
-/** `script` played over a freshly loaded `bundle`, every step that plays expecting all it made. */
-export function playScript(bundle: Bundle, script: Script, name: string): Script {
-  return filledIn(script, playSteps(bundle, script, name));
+/** `script` played over a freshly loaded `world`, every step that plays expecting all it made. */
+export function playScript(world: PlayableWorld, script: Script, name: string): Script {
+  return filledIn(script, playSteps(world, script, name));
 }
 
 /** `script` with every step that played expecting all it made, as `played` gives it. */
