@@ -1,0 +1,8 @@
+verb turn { role knob  role notch: integer  "turn [knob] to [notch]" }
+
+kind Dial {
+  as knob for turn {
+    notch from 0 to 9
+    do { say "Click." }
+  }
+}

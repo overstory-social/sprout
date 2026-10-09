@@ -1,0 +1,103 @@
+standing in hall
+
+description
+  There is nothing special about a hall.
+
+ways out
+  exit north "to the yard" -> yard
+
+who else is here
+  a guard (hall.guard)
+
+carrying
+  nothing
+
+what they could type
+  juggle hall  (chip_tree.juggle)
+    things: a hall (hall)
+  juggle guard  (chip_tree.juggle)
+    things: a guard (hall.guard)
+  juggle dial  (chip_tree.juggle)
+    things: a dial (hall.dial)
+  juggle pebble  (chip_tree.juggle)
+    things: a pebble (hall.pebble)
+  juggle shell  (chip_tree.juggle)
+    things: a shell (hall.shell)
+  turn hall to …  (chip_tree.turn)
+    knob: a hall (hall)
+    notch: nothing it hears
+  turn guard to …  (chip_tree.turn)
+    knob: a guard (hall.guard)
+    notch: nothing it hears
+  turn dial to …  (chip_tree.turn)
+    knob: a dial (hall.dial)
+    notch: 0 to 9
+  turn pebble to …  (chip_tree.turn)
+    knob: a pebble (hall.pebble)
+    notch: nothing it hears
+  turn shell to …  (chip_tree.turn)
+    knob: a shell (hall.shell)
+    notch: nothing it hears
+  go north  (sprout.go)
+    way: exit north "to the yard" -> yard
+  look  (sprout.look)
+  examine hall  (sprout.examine)
+    target: a hall (hall)
+  examine guard  (sprout.examine)
+    target: a guard (hall.guard)
+  examine dial  (sprout.examine)
+    target: a dial (hall.dial)
+  examine pebble  (sprout.examine)
+    target: a pebble (hall.pebble)
+  examine shell  (sprout.examine)
+    target: a shell (hall.shell)
+  inventory  (sprout.inventory)
+  wait  (sprout.wait)
+  help  (sprout.help)
+  take guard  (sprout.take)
+    target: a guard (hall.guard)
+  take dial  (sprout.take)
+    target: a dial (hall.dial)
+  take pebble  (sprout.take)
+    target: a pebble (hall.pebble)
+  take shell  (sprout.take)
+    target: a shell (hall.shell)
+  drop guard  (sprout.drop)
+    refused: You are not holding a guard.
+    target: a guard (hall.guard)
+  drop dial  (sprout.drop)
+    refused: You are not holding a dial.
+    target: a dial (hall.dial)
+  drop pebble  (sprout.drop)
+    refused: You are not holding a pebble.
+    target: a pebble (hall.pebble)
+  drop shell  (sprout.drop)
+    refused: You are not holding a shell.
+    target: a shell (hall.shell)
+  give dial to guard  (sprout.give)
+    refused: You are not holding a dial.
+    item: a dial (hall.dial)
+    recipient: a guard (hall.guard)
+  give pebble to guard  (sprout.give)
+    refused: You are not holding a pebble.
+    item: a pebble (hall.pebble)
+    recipient: a guard (hall.guard)
+  give shell to guard  (sprout.give)
+    refused: You are not holding a shell.
+    item: a shell (hall.shell)
+    recipient: a guard (hall.guard)
+  ask hall about …  (sprout.ask)
+    target: a hall (hall)
+    topic: nothing it hears
+  ask guard about …  (sprout.ask)
+    target: a guard (hall.guard)
+    topic: bridge, toll, weather
+  ask dial about …  (sprout.ask)
+    target: a dial (hall.dial)
+    topic: nothing it hears
+  ask pebble about …  (sprout.ask)
+    target: a pebble (hall.pebble)
+    topic: nothing it hears
+  ask shell about …  (sprout.ask)
+    target: a shell (hall.shell)
+    topic: nothing it hears

@@ -2,6 +2,7 @@ import {
   pollView,
   type CommandExit,
   type InstanceId,
+  type SeenFiller,
   type SeenOptions,
   type SeenReading,
   type SeenThing,
@@ -13,7 +14,8 @@ import { pathOf, type Standing } from '@overstory/sprout-player';
 // as a poll gives it (the spec's The runtime › The view): the place's
 // description rendered for them, the ways out that apply, who else is
 // there, what they carry, and every reading they could make with its
-// consent pass's answer and the options of each value role. A poll that
+// consent pass's answer, what fills each of its roles and the options of
+// each value role. A poll that
 // faults is shown as the visitor would see it, then the fault the host
 // would log.
 
@@ -48,12 +50,33 @@ function optionsWritten(options: SeenOptions): string {
   return `${options.role}: ${ranges.length === 0 ? 'nothing it hears' : ranges.join(', ')}`;
 }
 
-function readingWritten(reading: SeenReading): string[] {
+function fillerWritten(filler: SeenFiller, world: InstanceId): string {
+  switch (filler.binds) {
+    case 'object':
+      return `${filler.role}: ${thingWritten(filler, world)}`;
+    case 'set':
+      return `${filler.role}: ${filler.ids.map((id, at) => `${filler.names[at]} (${pathOf(world, id)})`).join(', ')}`;
+    case 'exit':
+      return `${filler.role}: ${exitWritten(filler, world)}`;
+    case 'unbound':
+      return `${filler.role}: unbound`;
+  }
+}
+
+/** Whether `filler` is a value role, whose options are written beside the reading instead. */
+function valueRole(filler: SeenFiller, options: readonly SeenOptions[]): boolean {
+  return filler.binds === 'unbound' && options.some((one) => one.role === filler.role);
+}
+
+function readingWritten(reading: SeenReading, world: InstanceId): string[] {
   const refused =
     reading.refused === null ? [] : reading.refused.map((line) => `  refused: ${line}`);
   return [
     `${reading.typed}  (${reading.verb})`,
     ...refused,
+    ...reading.fillers
+      .filter((filler) => !valueRole(filler, reading.options))
+      .map((filler) => `  ${fillerWritten(filler, world)}`),
     ...reading.options.map((options) => `  ${optionsWritten(options)}`),
   ];
 }
@@ -81,7 +104,11 @@ export function inspectView(standing: Standing): InspectedView {
       view.carried.map((thing) => thingWritten(thing, world)),
       'nothing',
     ),
-    section('what they could type', view.readings.flatMap(readingWritten), 'nothing'),
+    section(
+      'what they could type',
+      view.readings.flatMap((reading) => readingWritten(reading, world)),
+      'nothing',
+    ),
   ];
   if (fault !== null) {
     const against = fault.object === null ? '' : `, against ${pathOf(world, fault.object)}`;

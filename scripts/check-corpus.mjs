@@ -3,7 +3,9 @@
 // page its expected.txt holds, so the compiler's words to an author cannot
 // drift without a test noticing. `sprout skill` prints exactly
 // corpus/skill/SKILL.md, so a change to any table the skill is generated
-// from shows as a diff of it. `--write` regenerates the expected pages and
+// from shows as a diff of it. A good world with a `view.txt` also prints
+// exactly that page from `sprout view`, so what a visitor is offered and
+// what fills each role cannot drift. `--write` regenerates the expected pages and
 // the skill; review the diff like any other change.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -45,6 +47,29 @@ for (const dir of dirs('corpus/good')) {
   }
   console.log(`✓ ${dir} passes`);
 }
+for (const dir of dirs('corpus/good')) {
+  const viewFile = join(dir, 'view.txt');
+  if (!existsSync(viewFile)) continue;
+  let out;
+  try {
+    out = execFileSync('node', [cli, 'view', dir], { encoding: 'utf8' });
+  } catch (err) {
+    failed++;
+    console.error(
+      `✗ ${dir}: \`sprout view\` did not run\n${String(err.stdout)}${String(err.stderr)}`,
+    );
+    continue;
+  }
+  if (write) {
+    writeFileSync(viewFile, out);
+    console.log(`wrote ${viewFile}`);
+  } else if (readFileSync(viewFile, 'utf8') !== out) {
+    failed++;
+    console.error(
+      `✗ ${viewFile}: \`sprout view\` prints something else; run with --write and read the diff`,
+    );
+  } else console.log(`✓ ${viewFile} is what \`sprout view\` prints`);
+}
 for (const dir of dirs('corpus/bad')) {
   const { code, out } = check(dir);
   const expectedFile = join(dir, 'expected.txt');
@@ -71,10 +96,14 @@ if (write) {
   console.log(`wrote ${skillFile}`);
 } else if (!existsSync(skillFile) || readFileSync(skillFile, 'utf8') !== skill) {
   failed++;
-  console.error(`✗ ${skillFile}: \`sprout skill\` prints something else; run with --write and read the diff`);
+  console.error(
+    `✗ ${skillFile}: \`sprout skill\` prints something else; run with --write and read the diff`,
+  );
 } else console.log(`✓ ${skillFile} is what \`sprout skill\` prints`);
 if (failed > 0) {
   console.error(`✗ ${failed} world(s) did not do what the corpus says`);
   process.exit(1);
 }
-console.log('✓ corpus: every good world passes, every bad one fails as expected, and the skill is current');
+console.log(
+  '✓ corpus: every good world passes, every bad one fails as expected, and the skill is current',
+);

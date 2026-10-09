@@ -13,9 +13,10 @@
 // the one thing of a poll the log holds. A view is valid until a
 // committed write turn names its visitor stale.
 
+import type { Direction } from '../declare/directions.js';
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
 import type { Plain } from '../declare/extensions.js';
-import type { Said } from '../runtime/reading.js';
+import type { Bound, Said } from '../runtime/reading.js';
 import { displacedLine } from '../runtime/arrival.js';
 import { engineSaid, STOCK_LINES } from '../runtime/engine-lines.js';
 import type { Fault } from '../runtime/faults.js';
@@ -55,6 +56,34 @@ export type SeenOptions =
   | { readonly role: string; readonly takes: 'symbol'; readonly options: readonly SeenOption[] }
   | { readonly role: string; readonly takes: 'integer'; readonly ranges: readonly OptionRange[] };
 
+/**
+ * What fills one role of a reading, as a client offers it: a thing, the
+ * things a set role names, the way out `go` takes, or nothing, which is a
+ * value role (its options are in the reading's `options`) or a tool left
+ * out.
+ */
+export type SeenFiller =
+  | {
+      readonly role: string;
+      readonly binds: 'object';
+      readonly id: InstanceId;
+      readonly name: string;
+    }
+  | {
+      readonly role: string;
+      readonly binds: 'set';
+      readonly ids: readonly InstanceId[];
+      readonly names: readonly string[];
+    }
+  | {
+      readonly role: string;
+      readonly binds: 'exit';
+      readonly direction: Direction | null;
+      readonly label: string;
+      readonly to: InstanceId;
+    }
+  | { readonly role: string; readonly binds: 'unbound' };
+
 /** One reading a visitor could make, as a client offers it. */
 export interface SeenReading {
   /** The verb, by its qualified name: `sprout.take`. */
@@ -63,6 +92,8 @@ export interface SeenReading {
   readonly typed: string;
   /** The consent pass's refusal, rendered for the visitor; null where every participant consents. */
   readonly refused: readonly string[] | null;
+  /** What fills each role, one per role in the order the verb declares them. */
+  readonly fillers: readonly SeenFiller[];
   readonly options: readonly SeenOptions[];
 }
 
@@ -193,13 +224,40 @@ function emptyKept(): Kept {
 }
 
 function seenReading(reading: ViewReading, actor: InstanceId, context: RenderContext): SeenReading {
-  const { verb } = reading.reading;
+  const { verb, bindings } = reading.reading;
   return {
     verb: qualifiedName(verb.library, verb.name),
     typed: reading.typed,
     refused: reading.refused === null ? null : renderFor(reading.refused, actor, context),
+    fillers: verb.roles.map(({ name }) => seenFiller(name, bindings.get(name), actor, context)),
     options: reading.options.map(seenOptions),
   };
+}
+
+/** What fills the role `role`, `bound` being its binding in the reading, if any. */
+function seenFiller(
+  role: string,
+  bound: Bound | undefined,
+  actor: InstanceId,
+  context: RenderContext,
+): SeenFiller {
+  if (bound === undefined) return { role, binds: 'unbound' };
+  if ('object' in bound) {
+    return { role, binds: 'object', ...seenThing(bound.object, actor, context) };
+  }
+  if ('set' in bound) {
+    return {
+      role,
+      binds: 'set',
+      ids: bound.set,
+      names: bound.set.map((id) => objectWords(id, actor, context)),
+    };
+  }
+  if ('exit' in bound) {
+    const { direction, label, to } = bound.exit;
+    return { role, binds: 'exit', direction, label, to };
+  }
+  return { role, binds: 'unbound' };
 }
 
 /** One recorded effect as the visitor is shown it, its transcript charged to what they may read; none where it does not fit. */

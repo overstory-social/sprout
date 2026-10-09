@@ -58,6 +58,8 @@ export const GATEHOUSE: Bundle = compiledWorld('gatehouse', {
 verb vouch { role target  role witness  role topic: symbol  "vouch to [target] before [witness] for [topic]" }
 verb punch { role pad  role code: integer  "punch [code] on [pad]" }
 verb turn  { role knob  role notch: integer  "turn [knob] to [notch]" }
+verb juggle { role things many  "juggle [things]" }
+verb daub { role target  role paint  "daub [target] with [paint]"  "daub [target]" }
 enum Topic { bridge, toll, weather, old_road }
 `,
   'yard.sprout': `kind Yard is sprout.Place {
