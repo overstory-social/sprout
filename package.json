@@ -25,7 +25,7 @@
     "format:check": "prettier --check \"sprout/*/src/**/*.ts\" \"player/src/**/*.ts\" \"repl/src/**/*.ts\" \"mcp/src/**/*.ts\" \"server/src/**/*.ts\" \"tui/src/**/*.{ts,tsx}\" \"cli/src/**/*.ts\" \"editors/language-server/**/*.{ts,json,md}\" \"editors/vscode/**/*.{ts,json,md}\" \"*.{js,ts,json,md}\" \"corpus/**/*.json\" \"docs/design/*.md\" \"docs/manual/*.md\"",
     "check": "node scripts/check-corpus.mjs && node scripts/check-transcripts.mjs && node scripts/check-tests.mjs",
     "conflicts": "node scripts/check-conflicts.mjs",
-    "gate": "npm run conflicts && npm run lint && npm run format:check && npm run build && npm test && npm run typecheck:spec && npm run check",
+    "gate": "npm run conflicts && npm run lint && npm run format:check && npm run build && npm test && npm run typecheck:spec && npm run check && node scripts/check-runtime-c.mjs",
     "e2e": "bash scripts/e2e.sh",
     "changeset": "changeset",
     "version": "changeset version",
