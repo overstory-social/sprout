@@ -54,18 +54,21 @@ export function pathOf(world: InstanceId, id: InstanceId): string {
   return path === null || path.length === 0 ? id : path.join('.');
 }
 
-/** What `bundle` says about instances, read under the host's default caps. */
-export function catalogueFor(bundle: Bundle): Catalogue {
-  return catalogueOf(bundle, DEFAULT_LIMITS.caps);
+/** A world to play: compiled from source, or loaded from a cartridge. */
+export type PlayableWorld = Bundle | Catalogue;
+
+/** What `world` says about instances: a bundle's, read under the host's default caps; a cartridge's, as it was loaded. */
+export function catalogueFor(world: PlayableWorld): Catalogue {
+  return 'declared' in world ? world : catalogueOf(world, DEFAULT_LIMITS.caps);
 }
 
 /**
- * A visitor admitted to `bundle`'s world, standing where `options.at`
+ * A visitor admitted to `playable`, standing where `options.at`
  * names or where visitors arrive. Anything that keeps them from standing
  * there is thrown, in words that say what to write instead.
  */
-export function standIn(bundle: Bundle, options: StandOptions = {}): Standing {
-  const catalogue = catalogueFor(bundle);
+export function standIn(playable: PlayableWorld, options: StandOptions = {}): Standing {
+  const catalogue = catalogueFor(playable);
   const host: TurnHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, render: renderEffects };
   const loaded = initialState(catalogue);
   const world = catalogue.world;

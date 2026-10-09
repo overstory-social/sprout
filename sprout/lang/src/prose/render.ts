@@ -32,6 +32,7 @@ import {
 } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
 import { SproutList } from '../runtime/lists.js';
+import { numberText } from '../runtime/values.js';
 import { ExtensionValue, extensionWords } from '../runtime/extension-values.js';
 import type { PassRule } from '../runtime/range.js';
 import type { Draw } from '../runtime/draws.js';
@@ -176,7 +177,7 @@ function slot(
   }
   const text =
     typeof value.value === 'number'
-      ? String(value.value)
+      ? numberText(value.value)
       : value.value instanceof ExtensionValue
         ? extensionWords(value.value)
         : context.catalogue.optionSlots.has(piece)

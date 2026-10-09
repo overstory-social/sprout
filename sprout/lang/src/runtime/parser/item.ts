@@ -20,6 +20,7 @@ import { consentPass, type Bound, type Reading } from '../reading.js';
 import type { CommandContext, CommandOutcome } from '../parser.js';
 import { addressOf, type Address } from './address.js';
 import { answer } from './answers.js';
+import { numberText } from '../values.js';
 import { fillSlot, valueOf } from './fill.js';
 import type { ParseContext } from '../command.js';
 import { writtenAs } from './nouns.js';
@@ -129,7 +130,9 @@ function written(
         if ('value' in bound)
           return typeof bound.value === 'string'
             ? humanisedOption(bound.value)
-            : String(bound.value);
+            : typeof bound.value === 'number'
+              ? numberText(bound.value)
+              : String(bound.value);
         return boundWords(bound, address);
       })
       .filter((one) => one !== '')

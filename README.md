@@ -27,15 +27,15 @@ message :stir
 
 Seven packages, one version:
 
-| package                    | what                                                                                                                                                                         |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@overstory/sprout`        | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records, memory store and turns; `./conformance`) · `./store-sql` · `./store-document`        |
-| `@overstory/sprout-player` | a world played from a script, its transcript, and an author's tests (`sprout play dir script`, `sprout test`)                                                                |
-| `@overstory/sprout-repl`   | a world played interactively, one typed line at a time (`sprout play dir`)                                                                                                   |
-| `@overstory/sprout-server` | the reference host: worlds served to clients over a WebSocket (`sprout-server start`, or `sprout server start`)                                                              |
-| `@overstory/sprout-tui`    | the terminal client: one visitor on a server, with scrollback, history, completion and a status line (`sprout client connect`)                                               |
-| `@overstory/sprout-mcp`    | a world as tools for an agent, a visitor and only a visitor, over MCP (`sprout mcp`)                                                                                         |
-| `@overstory/sprout-cli`    | the `sprout` command: `scaffold · check · parse · view · skill` on a microworld folder, `play · test` through the player and the REPL, and `client · server` where installed |
+| package                    | what                                                                                                                                                                                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@overstory/sprout`        | `./lang` (the language and its compiler) · `./core` (the runtime's store port, records, memory store and turns; `./conformance`) · `./store-sql` · `./store-document`                                                                                          |
+| `@overstory/sprout-player` | a world played from a script, its transcript, and an author's tests (`sprout play dir script`, `sprout test`)                                                                                                                                                  |
+| `@overstory/sprout-repl`   | a world played interactively, one typed line at a time (`sprout play dir`)                                                                                                                                                                                     |
+| `@overstory/sprout-server` | the reference host: worlds served to clients over a WebSocket (`sprout-server start`, or `sprout server start`)                                                                                                                                                |
+| `@overstory/sprout-tui`    | the terminal client: one visitor on a server, with scrollback, history, completion and a status line (`sprout client connect`)                                                                                                                                 |
+| `@overstory/sprout-mcp`    | a world as tools for an agent, a visitor and only a visitor, over MCP (`sprout mcp`)                                                                                                                                                                           |
+| `@overstory/sprout-cli`    | the `sprout` command: `scaffold · check · pack · parse · view · skill` on a microworld folder (`pack` writes its `.sproutworld` cartridge), `play · test` through the player and the REPL, from a folder or a cartridge, and `client · server` where installed |
 
 The compiler reads the declarations the backlog has reached (enums,
 messages, properties, the world root and the kind its visitors are made

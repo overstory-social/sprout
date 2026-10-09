@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import type { ValueType } from '../declare/types.js';
@@ -9,7 +13,9 @@ import { parseDeclarations, parseProperty } from '../syntax/parse.js';
 import { resolveProperty, type ResolvedProperty } from '../declare/properties.js';
 import { SourceFile } from '../source/source.js';
 import { SproutList } from './lists.js';
-import { defaultOf, fits, typeKey, valueOfLiteral } from './values.js';
+import { defaultOf, fits, numberText, typeKey, valueOfLiteral } from './values.js';
+
+const GOLDENS = join(dirname(fileURLToPath(import.meta.url)), '../../../../corpus/goldens');
 
 const CAPS = DEFAULT_LIMITS.caps;
 const ALLOWED = CAPS.listElements;
@@ -173,5 +179,28 @@ describe('a type’s key', () => {
     expect(typeKey(WARDS)).toBe('[printers_shop.Ward]');
     expect(typeKey({ type: 'list', element: WARDS })).toBe('[[printers_shop.Ward]]');
     expect(typeKey({ type: 'list', element: integer(0, 9) })).toBe('[integer]');
+  });
+});
+
+describe('an integer as text', () => {
+  const golden = JSON.parse(readFileSync(join(GOLDENS, 'numbers.json'), 'utf8')) as {
+    value: number;
+    text: string;
+  }[];
+
+  it('has the cases the C runtime reproduces, including both ends of the default range', () => {
+    const values = golden.map((one) => one.value);
+    expect(values).toContain(2147483647);
+    expect(values).toContain(-2147483648);
+    expect(values).toContain(0);
+  });
+
+  for (const { value, text } of golden) {
+    it(`writes ${value} as ${text}`, () => expect(numberText(value)).toBe(text));
+  }
+
+  it('writes no sign, point or exponent that digits do not carry', () => {
+    expect(numberText(-0)).toBe('0');
+    for (const { text } of golden) expect(text).toMatch(/^(0|-?[1-9][0-9]*)$/);
   });
 });
