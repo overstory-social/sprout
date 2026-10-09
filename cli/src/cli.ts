@@ -4,6 +4,7 @@ import { basename } from 'node:path';
 import {
   CARTRIDGE_EXTENSION,
   CartridgeUnreadable,
+  DEFAULT_LIMITS,
   emitCartridge,
   generateSkill,
   loadCartridge,
@@ -133,7 +134,7 @@ function compiled(dir: string, say: (text: string) => void): Bundle | null {
 function playable(path: string, say: (text: string) => void): PlayableWorld | null {
   if (!path.endsWith(CARTRIDGE_EXTENSION)) return compiled(path, say);
   try {
-    return loadCartridge(readFileSync(path));
+    return loadCartridge(readFileSync(path), { caps: DEFAULT_LIMITS.caps });
   } catch (err) {
     if (!(err instanceof CartridgeUnreadable)) throw err;
     say(`${path}: ${err.message}\n`);

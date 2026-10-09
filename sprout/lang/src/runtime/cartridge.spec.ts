@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_BLESSED } from '../bundle/blessed.js';
-import { emitCartridge } from '../bundle/cartridge.js';
+import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
 import { compileBundle } from '../bundle/compile/compile.js';
 import { type Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
@@ -53,6 +53,16 @@ function compiled(name: string): Bundle {
 
 const WORLDS = readdirSync(CORPUS).sort();
 
+describe('a cartridge runs under the host’s caps, not the ones it recorded', () => {
+  it('reads the caps the host gives, while the cartridge keeps what it was checked against', () => {
+    const bundle = compiled('act');
+    const bytes = emitCartridge(bundle);
+    const host = { ...DEFAULT_LIMITS.caps, listElements: DEFAULT_LIMITS.caps.listElements - 1 };
+    expect(loadCartridge(bytes, { caps: host }).caps).toEqual(host);
+    expect(readCartridge(bytes).caps).toEqual(bundle.caps);
+  });
+});
+
 describe('a cartridge loads to the catalogue compiling the source makes', () => {
   it('has worlds to load', () => expect(WORLDS.length).toBeGreaterThan(40));
 
@@ -60,7 +70,7 @@ describe('a cartridge loads to the catalogue compiling the source makes', () => 
     it(name, () => {
       const bundle = compiled(name);
       const made = catalogueOf(bundle, DEFAULT_LIMITS.caps);
-      const loaded = loadCartridge(emitCartridge(bundle));
+      const loaded = loadCartridge(emitCartridge(bundle), { caps: DEFAULT_LIMITS.caps });
       expect(loaded.world).toBe(made.world);
       expect([...loaded.declared.keys()]).toEqual([...made.declared.keys()]);
       expect([...loaded.declared.values()].map((one) => [one.container, one.rank])).toEqual(

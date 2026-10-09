@@ -4,7 +4,12 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { generateSkill, loadCartridge, readCartridgeHeader } from '@overstory/sprout/lang';
+import {
+  DEFAULT_LIMITS,
+  generateSkill,
+  loadCartridge,
+  readCartridgeHeader,
+} from '@overstory/sprout/lang';
 
 import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
@@ -348,7 +353,7 @@ describe('main', () => {
     expect(packed.out()).toMatch(new RegExp(`^packed lane into ${file}: \\d+ bytes\\n$`));
     const bytes = readFileSync(file);
     expect(readCartridgeHeader(bytes)).toMatchObject({ format: 1 });
-    expect(loadCartridge(bytes).declared.size).toBeGreaterThan(0);
+    expect(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }).declared.size).toBeGreaterThan(0);
 
     const script = join(dir, 'tests', 'walk.json');
     const fromFolder = captured();

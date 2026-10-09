@@ -21,12 +21,16 @@ import type { NameTable } from '../check/names.js';
 import type { Node } from '../source/nodes.js';
 import { catalogueFrom, type Catalogue } from './catalogue.js';
 
-/** What a host brings to a cartridge: the extensions it has installed, and the caps it runs the world under. */
+/**
+ * What a host brings to a cartridge: the caps it runs the world under, which
+ * are the host's and read at every load (the spec's Limits), and the
+ * extensions it has installed. The caps the cartridge records are what the
+ * world was checked against at publish, and are not what it runs under.
+ */
 export interface CartridgeHost {
+  readonly caps: StaticCaps;
   /** The extensions installed; a pinned one the host lacks is absent, as at a compile. */
   readonly installed?: readonly Extension[];
-  /** The caps the world runs under; the ones it was checked against where none are given. */
-  readonly caps?: StaticCaps;
 }
 
 /** The three ways a bundle finds a declared thing: by full identity, from where a body is written, and all. */
@@ -50,7 +54,7 @@ function lookupOf<T extends { readonly library: string; readonly name: string }>
  * The catalogue a cartridge describes. Refuses, in words, a file that is
  * not a cartridge, is damaged, or was made for a newer format or level.
  */
-export function loadCartridge(bytes: Uint8Array, host: CartridgeHost = {}): Catalogue {
+export function loadCartridge(bytes: Uint8Array, host: CartridgeHost): Catalogue {
   const cartridge = readCartridge(bytes);
   const pinned = pinExtensions(cartridge.extensions, host.installed ?? []);
   const graph = readGraph(
@@ -101,6 +105,6 @@ export function loadCartridge(bytes: Uint8Array, host: CartridgeHost = {}): Cata
       words: cartridge.grammar.words,
       extensions: [...pinned.values()],
     },
-    host.caps ?? cartridge.caps,
+    host.caps,
   );
 }
