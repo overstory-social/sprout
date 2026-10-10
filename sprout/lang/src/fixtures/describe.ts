@@ -63,6 +63,7 @@ export const STUDY: Bundle = compiledWorld('study', {
 
 verb pull { role target  "pull [target]" }
 verb ask  { role target  role topic: symbol  "ask [target] about [topic]" }
+verb poke { role target  role tool  "poke [target]"  "poke [target] with [tool]" }
 `,
   'lamp.sprout': `kind Lamp {
   :lit false
