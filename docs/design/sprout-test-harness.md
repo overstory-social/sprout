@@ -172,6 +172,20 @@ step budget is held to the host's figure and the host's words, which differ from
 the TypeScript budget's detail, so a budget fault is compared by the budget, its
 figure and the steps spent, the step that went over included.
 
+Prose is held to the TypeScript renderer the same way. `prose-goldens.spec.ts`
+compiles a bench world (`fixtures/prose-bench.ts`) whose passages hold a slot of
+each kind, `{if}`, `{for}`, `{one of}`, paragraphs and the edge cases of
+reflow, packs it as `corpus/goldens/prose.sproutworld`, and writes `prose.json`:
+two stored worlds and, for each case (`fixtures/prose-cases.ts`), the lines a
+turn said unrendered, the seed, how many draws its bodies made first, the host's
+output, step and passage-depth figures and whose turn it was, with what
+`renderEffects` gave each reader of each line (or whom it cut short, or the fault
+it ended in) and the steps spent. A last list holds the edge of every run of
+letters and numbers and every letter whose upper case differs, each capitalised
+as JavaScript does, which pins the Unicode tables the C layer carries
+(`scripts/generate-prose-unicode.mjs`). `runtime-c/test/prose.test.c` replays
+every case, and each `prose_*.test.c` replays its own area beside its direct tests.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same
