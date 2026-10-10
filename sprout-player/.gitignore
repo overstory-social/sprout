@@ -1,0 +1,6 @@
+# What the build puts beside the sources: the native library the Simulator loads, the device
+# binary, the packed worlds the build stages, and the pdx.
+/Source/pdex.*
+/Source/worlds/
+*.pdx/
+build/
