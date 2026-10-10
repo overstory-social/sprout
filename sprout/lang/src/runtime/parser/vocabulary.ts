@@ -8,6 +8,7 @@
 import type { KindContent } from '../../declare/contents.js';
 import type { KindRef } from '../../declare/kinds.js';
 import {
+  ALL_WORDS,
   CONNECTORS,
   DETERMINERS,
   humanisedIdentifier,
@@ -22,13 +23,13 @@ import type { InstanceId } from '../ids.js';
 import type { Instance, StateReader } from '../state.js';
 import type { Address } from './address.js';
 
-/** The parser's words a noun may hold: articles and the like, `and`, the relative phrases' words, pronouns, `all` and `except`. */
+/** The parser's words a noun may hold: articles and the like, `and`, the relative phrases' words, pronouns, `all`, `everything` and `except`. */
 const NOUN_WORDS: readonly string[] = [
   ...DETERMINERS,
   ...CONNECTORS,
   ...RELATIVE_WORDS,
   ...Object.keys(TYPED_PRONOUNS),
-  'all',
+  ...ALL_WORDS,
   'except',
 ];
 

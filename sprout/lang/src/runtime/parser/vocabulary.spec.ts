@@ -58,6 +58,7 @@ describe('the words a noun may hold in the world', () => {
       'it',
       'them',
       'all',
+      'everything',
       'except',
     ]) {
       expect(words.has(word), word).toBe(true);

@@ -1,5 +1,5 @@
 {
-  "about": "A noun holding a word nothing in the world is named by is `unknown`; one whose every word names something somewhere, and that names nothing in reach, is `not_here`.",
+  "about": "A noun holding a word nothing in the world is named by is `unknown`; one whose every word names something somewhere, and that names nothing in reach, is `not_here`, as is `drop everything` with nothing to drop.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
@@ -23,6 +23,9 @@
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] },
     { "as": "Marta", "type": "take the ball in the box", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "drop everything", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] },
     { "as": "Marta", "type": "take ball", "expect": [
