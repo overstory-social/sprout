@@ -24,6 +24,8 @@ function Reader.new(options)
     measure = options.measure,
     width = options.width,
     rows = options.rows,
+    baseRows = options.rows,
+    picture = nil,
     paragraphs = {},
     lines = {},
     offset = 0,
@@ -53,6 +55,15 @@ function Reader:push(kind, text)
     local dropped = table.remove(self.paragraphs, 1)
     for _ = 1, dropped.count do table.remove(self.lines, 1) end
   end
+  self:clamp()
+end
+
+-- Shows `picture` ({ height, draw = function(gfx, y) }) above the transcript, or none for nil;
+-- the transcript gives up the rows the picture takes, `lineHeight` high each.
+function Reader:setPicture(picture, lineHeight)
+  self.picture = picture
+  local taken = picture == nil and 0 or math.ceil(picture.height / lineHeight)
+  self.rows = math.max(1, self.baseRows - taken)
   self:clamp()
 end
 
@@ -107,6 +118,10 @@ function Reader:draw(gfx, lineHeight)
   gfx.drawText(Reader.statusWords(self.status), 2, 0)
   local y = lineHeight + 2
   gfx.drawLine(0, y - 1, 400, y - 1)
+  if self.picture ~= nil then
+    self.picture.draw(gfx, y + 1)
+    y = y + math.ceil(self.picture.height / lineHeight) * lineHeight
+  end
   for _, line in ipairs(self:visible()) do
     gfx.drawText(line.text, 2, y)
     y = y + lineHeight

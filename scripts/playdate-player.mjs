@@ -36,7 +36,7 @@ const player = join(root, 'sprout-player');
 const pdxSource = join(player, 'Source');
 
 /** The corpus worlds the pdx carries until the shelf has real cartridges. */
-export const PLACEHOLDER_WORLDS = ['chip-tree', 'teashop'];
+export const PLACEHOLDER_WORLDS = ['chip-tree', 'media-room', 'teashop'];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -116,7 +116,9 @@ export async function buildPlayer({ out = join(player, 'build'), device = true }
   await stageWorlds();
   clearBinaries();
   mkdirSync(out, { recursive: true });
-  const built = { simulator: join(build(join(out, 'simulator'), { device: false }), 'sprout-player.pdx') };
+  const built = {
+    simulator: join(build(join(out, 'simulator'), { device: false }), 'sprout-player.pdx'),
+  };
   if (device && has('arm-none-eabi-gcc')) {
     built.device = join(build(join(out, 'device'), { device: true }), 'sprout-player_DEVICE.pdx');
   }
@@ -136,7 +138,8 @@ export async function checkPlayer({ sanitize = false } = {}) {
     await stageWorlds();
     clearBinaries();
     const cartridges = join(sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild, 'cartridges');
-    if (!existsSync(cartridges)) throw new Error('runtime-c has not packed the corpus cartridges yet');
+    if (!existsSync(cartridges))
+      throw new Error('runtime-c has not packed the corpus cartridges yet');
     const dir = build(join(scratch, 'simulator'), { device: false, cartridges, sanitize });
     const pdx = join(dir, 'sprout-player.pdx');
     for (const file of ['pdxinfo', 'main.pdz', 'pdex.so']) {
@@ -156,8 +159,18 @@ export async function checkPlayer({ sanitize = false } = {}) {
         : {}),
     });
     const wanted = [
-      'text', 'files', 'reading_json', 'pd_host', 'budgets', 'reply', 'savelog', 'session',
-      'turns', 'seen', 'bridge', 'glue',
+      'text',
+      'files',
+      'reading_json',
+      'pd_host',
+      'budgets',
+      'reply',
+      'savelog',
+      'session',
+      'turns',
+      'seen',
+      'bridge',
+      'glue',
     ];
     const missing = wanted.filter((name) => !new RegExp(`player-${name} .*Passed`).test(tests));
     if (missing.length > 0) {

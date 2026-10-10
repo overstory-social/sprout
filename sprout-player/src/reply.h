@@ -47,6 +47,9 @@ typedef struct told {
   const char *kind;
   const char *text;
   size_t text_length;
+  const char *extension, *statement; /* an extension's effect: the statement that recorded it; NULL for any other */
+  const char *payload;               /* an extension's effect: its payload as JSON text, or NULL */
+  size_t payload_length;
 } told;
 
 typedef struct told_list {
@@ -60,7 +63,7 @@ bool told_collect(sprout_arena *arena, told_list *list, const sprout_outcome *ou
 /* Adds one line of `kind` for `reader`. */
 bool told_add(sprout_arena *arena, told_list *list, const char *reader, const char *kind, const char *text);
 
-/* The list as an array of { reader, kind, text }. */
+/* The list as an array of { reader, kind, text }, with { extension, statement, payload } on an extension's effect. */
 sprout_json *jb_told(jb *builder, const told_list *list);
 
 /* The word for a kind of line: the one the TypeScript player writes. */

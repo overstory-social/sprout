@@ -111,11 +111,54 @@ static void the_lines_of_several_turns_are_kept_after_their_outcomes_are_gone(vo
   end();
 }
 
+static void an_extensions_effect_carries_what_recorded_it_and_its_payload(void) {
+  player_host host;
+  sprout_arena arena;
+  jb builder;
+  told_list list;
+  sprout_line lines[2];
+  sprout_told_effect effects[2];
+  sprout_outcome outcome;
+  char *text = NULL;
+  begin("told-extension");
+  player_host_init(&host, &fake->api);
+  sprout_arena_init(&arena, &host.record);
+  jb_begin(&builder, &arena);
+  memset(&list, 0, sizeof list);
+  memset(&outcome, 0, sizeof outcome);
+  memset(effects, 0, sizeof effects);
+  lines[0] = (sprout_line){"visit:player", 12, "A damp cellar.", 14, SPROUT_LINE_DESCRIBED, 0};
+  lines[1] = (sprout_line){"visit:player", 12, "[cellar.png]", 12, SPROUT_LINE_EXTENSION, 1};
+  effects[1].extension = "media";
+  effects[1].statement = "show";
+  effects[1].payload = (sprout_str){"{\"image\":\"cellar.png\"}", 22};
+  outcome.line_count = 2;
+  outcome.lines = lines;
+  outcome.effect_count = 2;
+  outcome.effects = effects;
+  CHECK(told_collect(&arena, &list, &outcome, "visit:player"), "collecting");
+  memset(lines, 0, sizeof lines);
+  memset(effects, 0, sizeof effects);
+  {
+    sprout_json *array = jb_told(&builder, &list);
+    CHECK(jb_finish(&builder, &fake->api, array, &text), "finishing");
+    CHECK(HAS(text, "{\"reader\":\"visit:player\",\"kind\":\"described\",\"text\":\"A damp cellar.\"}"),
+          "a line of words has no extension: %.300s", text);
+    CHECK(HAS(text, "{\"reader\":\"visit:player\",\"kind\":\"extension\",\"text\":\"[cellar.png]\",\"extension\":\"media\","
+                    "\"statement\":\"show\",\"payload\":{\"image\":\"cellar.png\"}}"),
+          "the effect: %.300s", text);
+  }
+  player_free(&fake->api, text);
+  sprout_arena_reset(&arena);
+  end();
+}
+
 int main(void) {
   test_program("reply");
   a_reply_is_built_and_written_in_canonical_form();
   a_page_the_host_refuses_fails_the_reply_and_not_the_player();
   the_names_of_kinds_are_the_ones_the_typescript_player_writes();
   the_lines_of_several_turns_are_kept_after_their_outcomes_are_gone();
+  an_extensions_effect_carries_what_recorded_it_and_its_payload();
   return finish();
 }

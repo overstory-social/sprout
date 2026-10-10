@@ -233,6 +233,14 @@ C runtime), and the contract a host that draws reads is this. `media.show("cella
   `"effects":[{"extension":"media","statement":"show","payload":{"image":"cellar.png"},"transcript":"[cellar.png]"}]`
   in the view, and the page both runtimes print has an `effects` section after the description when there are any.
 
+- **The Playdate player draws it.** `sprout-player/Source/images.lua` loads the asset from
+  `<cartridge path>.assets/<image>` (the pdx carries `worlds/<name>.sproutworld.assets/`, which
+  `scripts/playdate-player.mjs` packs for the placeholder worlds, `media-room` among them), and the
+  reader draws the newest picture above the transcript, scaled to fit 392 by 80 pixels, with its
+  caption under it. A turn's lines carry `extension`, `statement` and `payload`, and the view reply
+  carries `effects`; a picture a turn shows wins over the one the place's description records.
+  `test/images_test.lua` and `main_test.lua` pin it over a saved view (`fixtures/media-room.view.json`).
+
 `corpus/good/media-room` pins it all: its transcript holds the transcript lines, its `view.txt` the page, and
 `corpus/bad/media-missing-file`, `media-not-one-bit` and `media-bad-names` the words of each refusal.
 
