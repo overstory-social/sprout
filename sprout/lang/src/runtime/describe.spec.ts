@@ -137,9 +137,20 @@ describe('a description that narrows a name', () => {
     'rooms.sprout': `world rooms is sprout.World {
   visitors are Person
   visitors arrive at hall
-  object hall is Hall { object plaque is Plaque }
+  object hall is Hall { object plaque is Plaque  object sign is Sign  object lantern is Lantern }
 }
 kind Hall is sprout.Place { :lamps 2 }
+kind Sign {
+  describe {
+    if (self.is(Lantern)) { text "A lantern." }
+    else if (hall.is(Hall)) { text "Under {hall.get(:lamps)} lamps." }
+  }
+}
+kind Lantern {
+  describe {
+    if (hall.is(Hall) && hall.get(:lamps) > 1) { text "One of {hall.get(:lamps)} lamps." }
+  }
+}
 kind Plaque {
   describe {
     if (hall.is(Hall)) { text "The hall has {hall.get(:lamps)} lamps." } else { text "No hall." }
@@ -164,6 +175,27 @@ kind Plaque {
       'The hall has {hall.get(:lamps)} lamps.',
     ]);
     expect(lines[0]!.bindings.get('hall')).toEqual({ binds: 'object', id: hall });
+  });
+
+  it('binds it for an `else if` link, and for the right of an `&&` and the branch it guards', () => {
+    const state = initialState(catalogue);
+    for (const [thing, said] of [
+      ['sign', 'Under {hall.get(:lamps)} lamps.'],
+      ['lantern', 'One of {hall.get(:lamps)} lamps.'],
+    ] as const) {
+      const id = declaredId('rooms', ['hall', thing]);
+      const { lines } = describeFor(id, id, 'look', {
+        state: readerOf(state),
+        catalogue,
+        budget: new Budget(DEFAULT_LIMITS.budgets, 'poll'),
+        passes: (container) => (container === state.world ? WORLD_PASSES_ANYTHING : true),
+      });
+      expect(
+        lines.map((line) => words(line.said)),
+        thing,
+      ).toEqual([said]);
+      expect(lines[0]!.bindings.get('hall'), thing).toEqual({ binds: 'object', id: hall });
+    }
   });
 });
 
