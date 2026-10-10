@@ -7,7 +7,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra -Werror -pedantic)
 
-set(SPROUT_MODULES arena budget draws inflate json lists status values)
+set(SPROUT_MODULES arena budget cartridge catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws graph inflate json lists state status values)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
