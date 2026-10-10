@@ -32,6 +32,8 @@ typedef struct sprout_description {
   sprout_str of, to;
   size_t line_count;
   const sprout_spoken *lines;
+  size_t recorded_count;
+  const sprout_spoken *recorded; /* what its extension statements recorded, for the one looking, in order */
   sprout_spoken unremarkable; /* read where the lines render nothing, with `thing` the thing */
 } sprout_description;
 

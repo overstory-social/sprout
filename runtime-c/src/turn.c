@@ -173,6 +173,12 @@ sprout_eval_status turn_handed(sprout_arena *keep, const sprout_draft *draft, co
     if (!keep_str(keep, told->from, &effect->from) || !keep_str(keep, told->to, &effect->to) ||
         !keep_str(keep, told->visit, &effect->visit) || (rendered.has_actor && !keep_str(keep, rendered.actor, &effect->actor)))
       return SPROUT_EVAL_NO_MEMORY;
+    if (told->extension != NULL) {
+      effect->extension = sprout_arena_copy(keep, told->extension, strlen(told->extension));
+      effect->statement = sprout_arena_copy(keep, told->statement, strlen(told->statement));
+      if (effect->extension == NULL || effect->statement == NULL || !keep_str(keep, told->payload, &effect->payload))
+        return SPROUT_EVAL_NO_MEMORY;
+    }
     effect->line_first = at;
     effect->line_count = told->paragraph_count;
     for (j = 0; j < told->paragraph_count; j++, at++) {

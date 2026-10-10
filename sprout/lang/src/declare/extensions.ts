@@ -31,6 +31,12 @@ export interface ExtensionProblem {
  * legal for it.
  */
 export interface ExtensionValueType {
+  /**
+   * Set where a value names a file in the world's folder: which file, and
+   * what is wrong with it as one. The compiler checks the file is there,
+   * and `sprout pack` carries it beside the cartridge.
+   */
+  readonly asset?: ExtensionAsset;
   /** Its name, capitalised as an enum's is: `Image`, written `media.Image`. */
   readonly name: string;
   /** The value text in quotes writes, or why it is not one. */
@@ -47,12 +53,31 @@ export interface ExtensionValueType {
   readonly renders: ((value: Plain) => string) | false;
 }
 
+/** A file in a world's folder, as the compiler knows it: its size, its hash and its first bytes. */
+export interface AssetFile {
+  readonly bytes: number;
+  /** The SHA-256 of its content, in hex. */
+  readonly sha: string;
+  /** Its first bytes, enough for an extension to tell what kind of file it is. */
+  readonly head: Uint8Array;
+}
+
+/** How a value type's values name files (the spec's Extensions › What an extension may add). */
+export interface ExtensionAsset {
+  /** The path, relative to the world's folder, the value names. */
+  file(value: Plain): string;
+  /** What is wrong with `file` as this kind of file, in an author's words; null where nothing is. */
+  check(file: AssetFile): ExtensionProblem | null;
+}
+
 /** What one argument of a statement is: a value of the language's, or one of the extension's own types by name. */
 export type ExtensionParameterType = 'boolean' | 'integer' | 'string' | { readonly type: string };
 
 export interface ExtensionParameter {
   readonly name: string;
   readonly type: ExtensionParameterType;
+  /** Set where a call may leave this argument out; only the last ones may be. */
+  readonly optional?: boolean;
 }
 
 /** A schema a host validates a recorded payload against: a zod schema is one. */

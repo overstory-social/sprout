@@ -1,0 +1,16 @@
+{
+  "name": "media_bad_names",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [{ "name": "media", "major": 1 }],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "e07a01d353c34e10d14044970e85c1fc1a1b0ebba0078fa69a2bec86936b95da"
+    }
+  ],
+  "files": ["media_bad_names.sprout", "person.sprout", "cellar.sprout"]
+}

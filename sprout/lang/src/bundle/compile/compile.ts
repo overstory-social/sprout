@@ -77,6 +77,7 @@ import { weighBundle } from './weight.js';
 import { wordSetOf } from '../words.js';
 import { objectsIn } from '../../declare/objects.js';
 import { resolveScopedSynonyms } from '../../declare/synonyms.js';
+import { nameAssets } from './assets.js';
 import { oneWorld, worldKinds } from './world.js';
 
 /** What a host brings to a compile. */
@@ -168,6 +169,13 @@ export function compileBundle(
   // The bundle over what parsed, with the extensions the world pins
   // against the ones the host installed.
   const extensions = pinnedExtensions(source, options.extensions ?? [], byLibrary, report);
+  const named = nameAssets(
+    source,
+    byLibrary.get(manifest.namespace) ?? [],
+    extensions,
+    caps,
+    report,
+  );
   const tables = resolveDeclarations(
     byLibrary,
     { namespace: manifest.namespace, name: manifest.name },
@@ -390,9 +398,10 @@ export function compileBundle(
     }),
     level,
     extensions: [...extensions.pinned.values()],
+    assets: named.assets,
     libraries: usable,
     caps,
-    size: { files, sourceBytes, exemptBytes, ...counts },
+    size: { files, sourceBytes, assetBytes: named.assetBytes, exemptBytes, ...counts },
     absent: report.absent,
     hash: bundleHashOf(manifest, arrived, usable),
   };

@@ -3,8 +3,8 @@
  * The view). The form is the one the view specs write: the description as paragraphs, the extension
  * effects it recorded, the ways out as `{direction, label, to}`, the occupants and what is carried as
  * `{id, name}`, and each reading as its verb, typed line, refusal, the filler of each role and the
- * options of each value role. An extension's effects render in the extension's own runtime, which the C
- * runtime does not hold, so `effects` is always empty.
+ * options of each value role. What an extension's statements recorded in the description are `effects`, each with
+ * its payload as JSON and its transcript line.
  */
 #ifndef SPROUT_VIEW_JSON_H
 #define SPROUT_VIEW_JSON_H

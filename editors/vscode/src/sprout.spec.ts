@@ -88,11 +88,11 @@ describe('the .sprout grammar', () => {
     ['good/prose/press.sprout', '\\{Its maker}', '\\{', 'constant.character.escape.sprout-prose'],
     [
       'bad/extension-list/album.sprout',
-      'extension media 1',
-      'media',
+      'extension gallery 1',
+      'gallery',
       'entity.name.namespace.sprout',
     ],
-    ['bad/extension-list/album.sprout', '[media.Image]', 'Image', 'entity.name.type.sprout'],
+    ['bad/extension-list/album.sprout', '[gallery.Image]', 'Image', 'entity.name.type.sprout'],
   ])('%s: in `%s`, `%s` is %s', async (file, line, token, scope) => {
     expect(await scopesAt(file, line, token)).toContain(scope);
   });

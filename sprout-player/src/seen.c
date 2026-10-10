@@ -1,6 +1,6 @@
 /*
  * The visitor's view for the UI (the spec's The runtime > The view): the place, its description
- * as paragraphs, the ways out, who else is there, what is carried, and the chip tree the
+ * as paragraphs, what its extension statements recorded (an image to draw), the ways out, who else is there, what is carried, and the chip tree the
  * sentence builder walks. The flat list of readings the view also holds is not sent: the tree
  * holds every one of them, grouped by verb and by what fills each role.
  */
@@ -17,9 +17,10 @@ static const char *nothing_to_see(player_session *session, const char *words) {
   jb builder;
   sprout_json *root;
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 8);
+  root = jb_object(&builder, 9);
   jb_set(&builder, root, "place", jb_string(&builder, ""));
   jb_set(&builder, root, "description", jb_array(&builder, 0));
+  jb_set(&builder, root, "effects", jb_array(&builder, 0));
   jb_set(&builder, root, "exits", jb_array(&builder, 0));
   jb_set(&builder, root, "occupants", jb_array(&builder, 0));
   jb_set(&builder, root, "carried", jb_array(&builder, 0));
@@ -56,11 +57,12 @@ const char *player_view(player_session *session) {
   whole = sprout_view_tree(arena, &view);
   if (sprout_chip_tree_of(arena, &view, &tree) != SPROUT_OK) builder.ok = false;
   chips = builder.ok ? sprout_chip_tree_json(arena, &tree) : NULL;
-  root = jb_object(&builder, 8);
+  root = jb_object(&builder, 9);
   if (whole == NULL || chips == NULL) builder.ok = false;
   if (builder.ok) {
     jb_set(&builder, root, "place", person != NULL && person->has_container ? jb_str(&builder, person->container) : jb_string(&builder, ""));
     take(&builder, root, whole, "description");
+    take(&builder, root, whole, "effects");
     take(&builder, root, whole, "exits");
     take(&builder, root, whole, "occupants");
     take(&builder, root, whole, "carried");

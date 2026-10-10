@@ -1,0 +1,11 @@
+import * as sprout from 'sprout'
+
+extension media 1
+
+kind Cellar is sprout.Place {
+  describe {
+    text "A damp cellar."
+    media.show("nowhere.png")
+    media.show("pictures/lamp.png", "a lamp")
+  }
+}

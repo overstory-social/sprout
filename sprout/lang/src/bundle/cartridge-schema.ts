@@ -44,6 +44,7 @@ const StaticCapsSchema = z.strictObject({
   kinds: CapSchema,
   files: CapSchema,
   sourceBytes: CapSchema,
+  assetBytes: CapSchema.default(null),
 }) satisfies z.ZodType<StaticCaps>;
 
 /** What a cartridge says about itself, before anything of its world is read. */
@@ -104,8 +105,20 @@ export const CartridgeSchema = z.strictObject({
   table: z.strictObject({ files: z.array(z.string()), entries: z.array(EntrySchema) }),
   /** The static caps the world was checked against. */
   caps: StaticCapsSchema,
-  /** The extensions it pins, by name and major version; the host supplies the code. */
-  extensions: z.array(z.strictObject({ name: z.string(), major: z.number().int() })),
+  /**
+   * The extensions it pins, by name and major version; the host supplies the
+   * code. Each lists the files its values name, which travel beside the
+   * cartridge, with each one's size and hash.
+   */
+  extensions: z.array(
+    z.strictObject({
+      name: z.string(),
+      major: z.number().int(),
+      assets: z
+        .array(z.strictObject({ path: z.string(), bytes: z.number().int(), sha: z.string() }))
+        .optional(),
+    }),
+  ),
 });
 
 /** A cartridge's JSON, read. */

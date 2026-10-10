@@ -2,7 +2,7 @@ import * as sprout from 'sprout'
 import {Person} from 'person'
 import {Painting} from 'painting'
 
-extension media 1
+extension gallery 1
 
 world extension_unnamed_in_file is sprout.World {
   visitors are Person

@@ -43,3 +43,25 @@ describe('a world the server serves', () => {
     });
   });
 });
+
+describe('a world that shows pictures', () => {
+  it('compiles on a server, which installs `media` at major 1, and lists the files it names', () => {
+    const compiled = compileWorld(corpusWorld('media-room'), configFor());
+    if ('refused' in compiled) throw new Error(compiled.refused);
+    const [media] = compiled.world.bundle.extensions;
+    expect(media).toMatchObject({ name: 'media', major: 1, absence: null });
+    expect(media!.installed).not.toBeNull();
+    expect(compiled.world.bundle.assets.map((asset) => asset.path)).toEqual([
+      'cellar.png',
+      'pictures/cabinet-open.png',
+      'pictures/cabinet.png',
+    ]);
+  });
+
+  it('is refused, naming the line, where a file it shows is not in its folder', () => {
+    const compiled = compileWorld(corpusWorld('../bad/media-missing-file'), configFor());
+    expect('refused' in compiled && compiled.refused).toContain(
+      'cellar.sprout:8:16  The file "nowhere.png" is not in this world’s folder.',
+    );
+  });
+});

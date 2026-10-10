@@ -1,4 +1,4 @@
-// An extension is named as its statements are written, `media.show(…)`:
+// An extension is named as its statements are written, `gallery.show(…)`:
 // lower-case, and then its major version.
 import * as sprout from 'sprout'
 import {Person} from 'person'

@@ -64,6 +64,7 @@ const EXPECTED_PASSING = [
   'imports',
   'instance-scope',
   'intents',
+  'media-room',
   'move',
   'narrowing-and',
   'nested-offers',

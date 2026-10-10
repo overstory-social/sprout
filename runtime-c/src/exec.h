@@ -43,7 +43,9 @@ typedef struct sprout_speech {
   const char *library;      /* text: the library whose body said it, where a kind its slots name is read from */
   const char *extension, *statement; /* recorded */
   size_t argument_count;
-  const sprout_value *arguments;     /* recorded: what the statement was given, for the extension to turn into a payload */
+  const sprout_value *arguments;     /* recorded: what the statement was given */
+  sprout_str payload;                /* recorded: the payload as JSON text; empty where the runtime holds no code for the extension */
+  sprout_str transcript;             /* recorded: the words a client that cannot use the payload reads; empty with the payload */
 } sprout_speech;
 
 typedef enum sprout_effect_kind {

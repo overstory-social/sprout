@@ -19,7 +19,7 @@
 // bundle that produced it.
 
 import type { Absent } from './absent.js';
-import type { PinnedExtension } from '../declare/extensions.js';
+import type { AssetFile, PinnedExtension } from '../declare/extensions.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
 import type { Node } from '../source/nodes.js';
@@ -123,6 +123,12 @@ export interface MicroworldSource {
    * published with a piece held back.
    */
   readonly withheld?: readonly string[];
+  /**
+   * The world's folder, for the files an extension's values name: a file by
+   * its path from the folder, or null where there is none. Absent where the
+   * world did not come from a folder, and then no file is checked for.
+   */
+  readonly assets?: (path: string) => AssetFile | null;
 }
 
 /**
@@ -153,6 +159,8 @@ export interface BundleSize {
   readonly files: number;
   /** UTF-8 bytes counted against the source cap, on the same footing. */
   readonly sourceBytes: number;
+  /** Bytes of the asset files its extensions' values name, counted against the asset cap. */
+  readonly assetBytes: number;
   /** UTF-8 bytes of blessed library source, which cost the author nothing. */
   readonly exemptBytes: number;
   /** Kinds counted against the kind cap: the world's own, and any library's the host has not blessed. */
@@ -161,6 +169,17 @@ export interface BundleSize {
   readonly objects: number;
   /** The world's objects that hold actors, counted against the place cap. */
   readonly places: number;
+}
+
+/** A file in the world's folder an extension's value names, and travels beside the cartridge. */
+export interface BundleAsset {
+  /** The extension whose value names it. */
+  readonly extension: string;
+  /** Its path from the world's folder, with `/` between folders. */
+  readonly path: string;
+  readonly bytes: number;
+  /** The SHA-256 of its content, in hex. */
+  readonly sha: string;
 }
 
 /** What compiling a closed bundle produces. */
@@ -253,6 +272,8 @@ export interface Bundle {
    * with the gap in `absent`.
    */
   readonly extensions: readonly PinnedExtension[];
+  /** The files its extensions' values name, by path, each once, as the folder held them at compile. */
+  readonly assets: readonly BundleAsset[];
   readonly libraries: readonly VendoredLibrary[];
   /**
    * The static caps it was checked against: the host's, or at a load

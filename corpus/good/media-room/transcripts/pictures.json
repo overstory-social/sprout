@@ -1,0 +1,22 @@
+{
+  "about": "A picture reads, to a client that cannot draw, as its caption, or as its file name in brackets where it has none: the cellar's picture after its description, the cabinet's caption when it is looked at, and a picture shown by a `do` after the words it came with.",
+  "steps": [
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A damp cellar." },
+      { "reader": "Ines", "kind": "extension", "words": "[cellar.png]" }
+    ] },
+    { "as": "Ines", "type": "examine cabinet", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "An oak cabinet stands against the wall." },
+      { "reader": "Ines", "kind": "extension", "words": "an oak cabinet, its doors shut" }
+    ] },
+    { "as": "Ines", "type": "pull cabinet", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "The doors swing open." },
+      { "reader": "Ines", "kind": "extension", "words": "the cabinet, its doors wide" }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "A damp cellar." },
+      { "reader": "Marta", "kind": "extension", "words": "[cellar.png]" }
+    ] }
+  ]
+}

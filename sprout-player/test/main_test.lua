@@ -5,7 +5,8 @@
 
 local test, equal = harness.test, harness.equal
 
-local function run(scenario)
+local function run(scenario, options)
+  options = options or {}
   -- the Playdate
   local drawn, pressed, calls, seconds = {}, {}, {}, 1000
   local failing = false
@@ -21,12 +22,23 @@ local function run(scenario)
     drawText = function(text) drawn[#drawn + 1] = text end,
     drawLine = function() end,
     setDitherPattern = function() end,
+    image = { new = function(name)
+      if options.pictures == nil or options.pictures[name] == nil then return nil end
+      return {
+        getSize = function() return 100, 60 end,
+        draw = function() drawn[#drawn + 1] = "[picture " .. name .. "]" end,
+        drawScaled = function() drawn[#drawn + 1] = "[picture " .. name .. "]" end,
+      }
+    end },
   }
   local buttons = { kButtonA = "A", kButtonB = "B", kButtonUp = "Up", kButtonDown = "Down", kButtonLeft = "Left", kButtonRight = "Right" }
   _G.playdate = {
     graphics = gfx,
     display = { setRefreshRate = function() end },
-    file = { listFiles = function(path) return path == "/" and { "chip-tree.sproutworld" } or nil end },
+    file = {
+      listFiles = function(path) return path == "/" and { "chip-tree.sproutworld" } or nil end,
+      exists = function(path) return options.pictures ~= nil and options.pictures[path] ~= nil end,
+    },
     getSecondsSinceEpoch = function() return seconds end,
     isCrankDocked = function() return true end,
     getCrankChange = function() return 0 end,
@@ -36,7 +48,7 @@ local function run(scenario)
   for key, value in pairs(buttons) do playdate[key] = value end
 
   -- the engine
-  local view = fixture("chip-tree.view.json")
+  local view = fixture(options.view or "chip-tree.view.json")
   _G.sprout = {
     inspect = function(path) calls[#calls + 1] = "inspect " .. path; return '{"ok":true,"name":"chip_tree","reason":null}' end,
     open = function() return '{"ok":true,"name":"chip_tree","hash":"abc","words":["guard","hall"]}' end,
@@ -105,6 +117,33 @@ test("the shelf lists the cartridge, A opens it, a name is picked, and the reade
     equal(play.shows("There is nothing special about a hall."), true, "the arrival is in the transcript")
     equal(play.shows("chip_tree.hall - exits: north"), true, "the status line")
   end)
+end)
+
+test("a picture the place's description records is drawn above the transcript, with its caption", function()
+  run(function(play)
+    play.frame()
+    play.frame("A")
+    play.frame("A")
+    equal(play.shows("[picture chip-tree.sproutworld.assets/pictures/cabinet]"), true, "the newest picture is drawn")
+    equal(play.shows("an oak cabinet, its doors shut"), true, "with its caption under it")
+    equal(play.shows("There is nothing special about a hall."), true, "and the transcript still reads")
+  end, {
+    view = "media-room.view.json",
+    pictures = {
+      ["chip-tree.sproutworld.assets/cellar"] = true,
+      ["chip-tree.sproutworld.assets/pictures/cabinet"] = true,
+    },
+  })
+end)
+
+test("a world whose picture is not there reads as text alone", function()
+  run(function(play)
+    play.frame()
+    play.frame("A")
+    play.frame("A")
+    equal(play.shows("[picture"), false)
+    equal(play.shows("There is nothing special about a hall."), true)
+  end, { view = "media-room.view.json", pictures = {} })
 end)
 
 test("ask, the guard, the weather is built on the wheel and sent to the engine", function()

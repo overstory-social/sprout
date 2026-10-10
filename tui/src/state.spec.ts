@@ -156,3 +156,41 @@ describe('what the client shows', () => {
     expect(state.troubledAt).toBeNull();
   });
 });
+
+describe('what the client shows of a picture', () => {
+  it('is its transcript line, in the kind of an extension, since the client draws nothing', () => {
+    const state = fold(
+      { t: 'welcome', server: 's', worlds: [{ world: 'media_room', granted: [], declined: [] }] },
+      { t: 'admitted', world: 'media_room', nickname: 'Ines', returning: false },
+      {
+        t: 'effects',
+        seq: 1,
+        last: true,
+        effects: [
+          {
+            as: 'words',
+            kind: 'described',
+            recorded: null,
+            from: 'media_room.cellar',
+            actor: 'Ines',
+            to: 'Ines',
+            paragraphs: ['A damp cellar.'],
+          },
+          {
+            as: 'words',
+            kind: 'extension',
+            recorded: { extension: 'media', statement: 'show' },
+            from: 'media_room.cellar',
+            actor: 'Ines',
+            to: 'Ines',
+            paragraphs: ['[cellar.png]'],
+          },
+        ],
+      },
+    );
+    expect(state.lines.slice(1).map((line) => [line.kind, line.text])).toEqual([
+      ['described', 'A damp cellar.'],
+      ['extension', '[cellar.png]'],
+    ]);
+  });
+});

@@ -45,6 +45,7 @@ export * from './declare/grammar.js';
 export * from './declare/describe.js';
 export * from './declare/world.js';
 export * from './declare/extensions.js';
+export * from './declare/media.js';
 
 export * from './check/bindings.js';
 export * from './check/check.js';

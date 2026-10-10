@@ -13,6 +13,7 @@ import {
 import {
   catalogueFor,
   filledIn,
+  INSTALLED_EXTENSIONS,
   playSteps,
   reportOf,
   readScript,
@@ -27,6 +28,7 @@ import {
 } from '@overstory/sprout-player';
 import { playInteractively, type Io } from '@overstory/sprout-repl';
 
+import { assetsFolder, packAssets } from './assets.js';
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
@@ -49,7 +51,8 @@ export const USAGE = `sprout — a Sprout microworld on the command line
 ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
   sprout pack dir [-o world.sproutworld]
                                       compile strictly, then write the world as a cartridge: one file a
-                                      runtime loads in place of the source; without -o, <name>.sproutworld
+                                      runtime loads in place of the source; without -o, <name>.sproutworld;
+                                      the image files it names are copied into <file>.assets/
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
@@ -134,7 +137,10 @@ function compiled(dir: string, say: (text: string) => void): Bundle | null {
 function playable(path: string, say: (text: string) => void): PlayableWorld | null {
   if (!path.endsWith(CARTRIDGE_EXTENSION)) return compiled(path, say);
   try {
-    return loadCartridge(readFileSync(path), { caps: DEFAULT_LIMITS.caps });
+    return loadCartridge(readFileSync(path), {
+      caps: DEFAULT_LIMITS.caps,
+      installed: INSTALLED_EXTENSIONS,
+    });
   } catch (err) {
     if (!(err instanceof CartridgeUnreadable)) throw err;
     say(`${path}: ${err.message}\n`);
@@ -209,7 +215,11 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const file = out ?? `${checked.manifest.name}${CARTRIDGE_EXTENSION}`;
         const bytes = emitCartridge(checked);
         writeFileSync(file, bytes);
+        const assets = packAssets(dir, checked, file);
         say(`packed ${checked.manifest.name} into ${file}: ${bytes.length} bytes\n`);
+        if (assets > 0) {
+          say(`copied ${assets} asset file${assets === 1 ? '' : 's'} into ${assetsFolder(file)}\n`);
+        }
         return 0;
       }
       case 'parse': {
@@ -285,7 +295,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         return tested.ok ? 0 : 1;
       }
       case 'skill':
-        say(generateSkill({ usage: USAGE }));
+        say(generateSkill({ usage: USAGE, extensions: INSTALLED_EXTENSIONS }));
         return 0;
       case 'client':
         return clientConnect(positional, flags, io);

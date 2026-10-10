@@ -7,7 +7,7 @@ import {
   type Bundle,
   type Diagnostic,
 } from '@overstory/sprout/lang';
-import { readWorld } from '@overstory/sprout-player';
+import { INSTALLED_EXTENSIONS, readWorld } from '@overstory/sprout-player';
 
 // `sprout check`: compile a folder strictly, as publishing would, and
 // report every diagnostic by file, line and column — as a page for a
@@ -30,6 +30,7 @@ export function checkWorld(dir: string): CheckResult {
   const { bundle, diagnostics } = compileBundle(world.source, {
     mode: 'publish',
     blessed: DEFAULT_BLESSED,
+    extensions: INSTALLED_EXTENSIONS,
   });
   const all = inReadingOrder([...world.diagnostics, ...diagnostics]);
   return { ok: bundle !== null, diagnostics: all, bundle };

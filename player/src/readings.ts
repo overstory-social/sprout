@@ -3,6 +3,7 @@ import {
   SEED_MAX,
   SproutList,
   type InstanceId,
+  type Plain,
   type RuntimeBudgets,
   type StoredWorld,
   type WrittenAt,
@@ -82,6 +83,10 @@ export interface TurnEntry {
     readonly visit: string;
     readonly paragraphs: readonly string[];
     readonly written: readonly WrittenAt[];
+    /** An extension's effect: what recorded it, and its payload where the runtime holds the extension. */
+    readonly extension?: string;
+    readonly statement?: string;
+    readonly payload?: Plain;
   }[];
   readonly cutShort: readonly string[];
   readonly delivered?: readonly { readonly object: string; readonly serial: number }[];
@@ -228,6 +233,9 @@ function entryOf(traced: Traced): TurnEntry {
       visit: effect.visit,
       paragraphs: [...effect.paragraphs],
       written: effect.written.map((where) => ({ ...where })),
+      ...(effect.kind === 'extension'
+        ? { extension: effect.extension, statement: effect.statement, payload: effect.payload }
+        : {}),
     })),
     cutShort: [...logged.cut],
     ...(logged.wakes === null

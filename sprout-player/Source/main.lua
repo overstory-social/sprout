@@ -10,7 +10,7 @@ local Sentence <const> = import "sentence"
 local Nickname <const> = import "nickname"
 local Shelf <const> = import "shelf"
 local Engine <const> = import "engine"
-import "images"
+local Images <const> = import "images"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -35,6 +35,7 @@ local reader = nil
 local builder = nil
 local picker = nil
 local opened = nil -- the entry of the cartridge being read
+local images = nil -- its pictures
 local notice = nil -- what opening the world has to tell the visitor before they come in
 local mode = "shelf" -- shelf, nickname, reader, sentence, message
 local message = nil
@@ -52,13 +53,26 @@ local function newReader()
   })
 end
 
-local function refreshStatus()
+-- Shows the picture a turn's lines ask for, or else the one the place's description does: the
+-- newest of each. `images` is the open cartridge's.
+local function showPicture(lines, view)
+  local asked = Images.newest(lines) or Images.newest(view.effects)
+  local picture = asked ~= nil and images ~= nil and images:picture(asked, lineHeight) or nil
+  if picture ~= nil then
+    local shown = picture
+    shown.draw = function(g, y) Images.draw(shown, g, y) end
+  end
+  reader:setPicture(picture, lineHeight)
+end
+
+local function refreshStatus(lines)
   local view = engine:view()
   local here = {}
   for _, one in ipairs(view.occupants) do here[#here + 1] = one.name end
   local exits = {}
   for _, one in ipairs(view.exits) do exits[#exits + 1] = one.direction or one.label end
   reader:setStatus(view.place, here, exits)
+  if lines ~= nil then showPicture(lines, view) end
   return view
 end
 
@@ -68,7 +82,7 @@ end
 
 local function toShelf()
   shelf:refresh()
-  mode, opened, reader, builder, picker = "shelf", nil, nil, nil, nil
+  mode, opened, images, reader, builder, picker = "shelf", nil, nil, nil, nil, nil
   clock:stop()
 end
 
@@ -106,6 +120,7 @@ local function openWorld(entry)
     shelf:unblock(entry.path)
   end
   opened = entry
+  images = Images.new(gfx, pd.file, entry.path)
   notice = loaded.words ~= "" and loaded.words or nil
   clock = Clock.new(loaded.last)
   local candidates = Nickname.available(Nickname.POOL, opening.words, loaded.present)
@@ -135,7 +150,7 @@ local function admit()
   reader:push("client", "You are in " .. opened.title .. " as " .. name .. ".")
   if notice ~= nil then reader:push("notice", notice) end
   told(admission.lines)
-  refreshStatus()
+  refreshStatus(admission.lines)
   clock:start(seconds())
   mode = "reader"
 end
@@ -169,7 +184,7 @@ local function confirm()
     return
   end
   told(result.lines)
-  refreshStatus()
+  refreshStatus(result.lines)
   reader:toNewest()
   builder = nil
   mode = "reader"
@@ -224,7 +239,7 @@ local function updateReader()
     end
     if #(ticked.lines or {}) > 0 then
       told(ticked.lines)
-      refreshStatus()
+      refreshStatus(ticked.lines)
     end
   end
 end

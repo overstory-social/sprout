@@ -1,4 +1,4 @@
-painting.sprout:5:11  The manifest does not pin the extension `media`.
-                      Pin it in the manifest, as in `"extensions": [{ "name": "media", "major": 1 }]`.
+painting.sprout:5:11  The manifest does not pin the extension `gallery`.
+                      Pin it in the manifest, as in `"extensions": [{ "name": "gallery", "major": 1 }]`.
 
 refused: 1 problem

@@ -1,0 +1,7 @@
+cellar.sprout:8:16  The file "nowhere.png" is not in this world’s folder.
+                    Put the file there, with the path from the world’s folder written exactly, or name another.
+
+cellar.sprout:9:16  The file "pictures/lamp.png" is not in this world’s folder.
+                    Put the file there, with the path from the world’s folder written exactly, or name another.
+
+refused: 2 problems

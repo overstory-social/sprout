@@ -144,12 +144,28 @@ bool told_add(sprout_arena *arena, told_list *list, const char *reader, const ch
   return told_put(arena, list, reader, strlen(reader), kind, text, strlen(text));
 }
 
+/* Copies what recorded an extension's effect onto the line that tells it. */
+static bool told_extension(sprout_arena *arena, told *line, const sprout_told_effect *effect) {
+  if (effect == NULL || effect->extension == NULL) return true;
+  line->extension = sprout_arena_copy(arena, effect->extension, strlen(effect->extension));
+  line->statement = sprout_arena_copy(arena, effect->statement, strlen(effect->statement));
+  if (effect->payload.length > 0) {
+    line->payload = sprout_arena_copy(arena, effect->payload.bytes, effect->payload.length);
+    line->payload_length = effect->payload.length;
+    if (line->payload == NULL) return false;
+  }
+  return line->extension != NULL && line->statement != NULL;
+}
+
 bool told_collect(sprout_arena *arena, told_list *list, const sprout_outcome *outcome, const char *visit) {
   size_t i;
   for (i = 0; i < outcome->line_count; i++) {
     const sprout_line *line = &outcome->lines[i];
     if (!told_put(arena, list, line->recipient, line->recipient_length, line_kind_name(line->kind), line->text,
                   line->text_length))
+      return false;
+    if (!told_extension(arena, &list->items[list->count - 1],
+                        line->effect < outcome->effect_count ? &outcome->effects[line->effect] : NULL))
       return false;
   }
   /* An error shown in play names the fault beside the world's `fault` passage, and never its detail. */
@@ -162,10 +178,18 @@ sprout_json *jb_told(jb *builder, const told_list *list) {
   size_t i;
   for (i = 0; i < list->count; i++) {
     const told *line = &list->items[i];
-    sprout_json *one = jb_object(builder, 3);
+    sprout_json *one = jb_object(builder, 6);
     jb_set(builder, one, "reader", jb_text(builder, line->reader, line->reader_length));
     jb_set(builder, one, "kind", jb_string(builder, line->kind));
     jb_set(builder, one, "text", jb_text(builder, line->text, line->text_length));
+    if (line->extension != NULL) {
+      sprout_json *payload = NULL;
+      sprout_json_error error;
+      jb_set(builder, one, "extension", jb_string(builder, line->extension));
+      jb_set(builder, one, "statement", jb_string(builder, line->statement));
+      if (line->payload != NULL && sprout_json_read(builder->arena, line->payload, line->payload_length, &payload, &error) == SPROUT_OK)
+        jb_set(builder, one, "payload", payload);
+    }
     jb_set(builder, array, NULL, one);
   }
   return array;

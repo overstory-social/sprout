@@ -1,0 +1,17 @@
+extension media 1
+
+verb pull { role target  "pull [target]" }
+
+kind Cabinet {
+  grammar { name "cabinet"  nouns "cabinet" }
+  describe {
+    text "An oak cabinet stands against the wall."
+    media.show("pictures/cabinet.png", "an oak cabinet, its doors shut")
+  }
+  as target for pull {
+    do {
+      say "The doors swing open."
+      media.show("pictures/cabinet-open.png", "the cabinet, its doors wide")
+    }
+  }
+}

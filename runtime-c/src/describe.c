@@ -1,7 +1,7 @@
 /*
  * A description, derived (see describe.h). A describe holds exactly what the checker lets it hold:
  * `let`, `if`, `each`, `text` and an extension's statement. Each statement is a step. An extension's
- * statement gives no line of its own, and the C runtime holds no extension to record its effect.
+ * statement gives no line of its own: what it records is kept beside the lines, for the one looking.
  */
 #include "describe.h"
 
@@ -14,6 +14,8 @@ typedef struct described {
   sprout_str thing;
   sprout_spoken *lines;
   size_t count, capacity;
+  sprout_spoken *recorded;
+  size_t recorded_count, recorded_capacity;
 } described;
 
 /* `frame`'s bindings with `name` bound to `bound` on top. */
@@ -65,6 +67,22 @@ static sprout_eval_status give_text(described *d, const sprout_frame *scope, con
   return SPROUT_EVAL_OK;
 }
 
+/* What an extension's statement records, kept beside the lines in the order recorded. */
+static sprout_eval_status give_record(described *d, const sprout_frame *scope, const sprout_node *statement) {
+  sprout_speech said;
+  sprout_spoken *slot;
+  bool recorded;
+  EXPR_NEED(stmt_extension_said(scope, statement, &said, &recorded));
+  if (!recorded) return SPROUT_EVAL_OK;
+  slot = (sprout_spoken *)sprout_exec_grow(scope->turn, (void **)&d->recorded, &d->recorded_count,
+                                           &d->recorded_capacity, sizeof *slot);
+  if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+  slot->by = d->thing;
+  slot->bindings = scope->bindings;
+  slot->said = said;
+  return SPROUT_EVAL_OK;
+}
+
 /* One statement, one step; a `let` adds to the scope, which is its block's. */
 static sprout_eval_status run_statement(described *d, sprout_frame *scope, const sprout_node *statement) {
   const char *kind = sprout_node_text(statement, "kind");
@@ -80,7 +98,7 @@ static sprout_eval_status run_statement(described *d, sprout_frame *scope, const
   if (strcmp(kind, "if") == 0) return run_if(d, scope, statement);
   if (strcmp(kind, "each") == 0) return run_each(d, scope, statement);
   if (strcmp(kind, "text") == 0) return give_text(d, scope, statement);
-  if (strcmp(kind, "extension-statement") == 0) return SPROUT_EVAL_OK;
+  if (strcmp(kind, "extension-statement") == 0) return give_record(d, scope, statement);
   return expr_engine(scope, "a statement reached a `describe`, which only reads and gives words; the checker refuses it.");
 }
 
@@ -154,5 +172,7 @@ sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, 
   EXPR_NEED(run_block(&d, &inside, sprout_node_get(sprout_node_get(describe, "declaration"), "body")));
   out->line_count = d.count;
   out->lines = d.lines;
+  out->recorded_count = d.recorded_count;
+  out->recorded = d.recorded;
   return SPROUT_EVAL_OK;
 }

@@ -78,19 +78,29 @@ function checkArguments(
   const extension = context.extensions!.pinned.get(statement.extension.text)!.installed!;
   const written = `${statement.extension.text}.${statement.name.text}`;
   const { parameters } = declared;
-  if (statement.arguments.length !== parameters.length) {
+  const required = parameters.filter((parameter) => parameter.optional !== true).length;
+  if (statement.arguments.length < required || statement.arguments.length > parameters.length) {
+    const names = parameters.map((p) => p.name);
+    const needed = names.slice(0, required);
+    const extra = names.slice(required);
+    const forms =
+      required < parameters.length
+        ? `\`${written}(${needed.join(', ')})\` or \`${written}(${names.join(', ')})\``
+        : `\`${written}(${names.join(', ')})\``;
     context.diagnostics.refuse(
       statement.at,
       parameters.length === 0
         ? `\`${written}\` takes nothing, and is given ${statement.arguments.length}.`
-        : `\`${written}\` takes ${parameters.length}: ${readable(parameters.map((p) => p.name))}.`,
-      `Write \`${written}(${parameters.map((p) => p.name).join(', ')})\`.`,
+        : required < parameters.length
+          ? `\`${written}\` takes ${needed.map((n) => `the ${n}`).join(' and ')}, and may take ${extra.map((n) => `a ${n}`).join(' and ')} after ${needed.length === 1 ? 'it' : 'them'}.`
+          : `\`${written}\` takes ${parameters.length}: ${readable(names)}.`,
+      `Write ${forms}.`,
     );
     return null;
   }
   const literals: (Plain | undefined)[] = [];
   let ok = true;
-  parameters.forEach((parameter, index) => {
+  parameters.slice(0, statement.arguments.length).forEach((parameter, index) => {
     const argument = statement.arguments[index]!;
     const type = parameterType(extension, parameter);
     if (type === null) {

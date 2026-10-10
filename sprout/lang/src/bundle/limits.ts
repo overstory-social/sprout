@@ -89,6 +89,11 @@ export interface StaticCaps {
    * counts as it.
    */
   readonly sourceBytes: number | null;
+  /**
+   * Total bytes of the files in one world's folder that an extension's
+   * values name, such as an image. As the host says.
+   */
+  readonly assetBytes: number | null;
 }
 
 /** A budget counted while a turn runs. Exhausting one faults the turn. */
@@ -173,6 +178,7 @@ export const DEFAULT_LIMITS: Limits = {
     kinds: null,
     files: null,
     sourceBytes: null,
+    assetBytes: null,
   },
   budgets: {
     steps: 50_000,
@@ -321,6 +327,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     bounds: 'total source bytes in a world, blessed library source exempt',
   },
   {
+    name: 'assetBytes',
+    kind: 'cap',
+    scope: 'world',
+    exceeded: 'refusal',
+    bounds: 'total bytes of the files a world’s extensions name, such as images',
+  },
+  {
     name: 'steps',
     kind: 'budget',
     scope: 'turn',
@@ -439,6 +452,7 @@ const UNBOUNDABLE = new Set<LimitName>([
   'kinds',
   'files',
   'sourceBytes',
+  'assetBytes',
   'peoplePerPlace',
   'extensionEffects',
   'wallClockMs',

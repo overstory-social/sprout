@@ -40,7 +40,8 @@ import {
 } from './exec-cases.js';
 import { CASES } from './exec-cases/index.js';
 import { RANGES } from './exec-cases/ranges.js';
-import { MEDIA } from './extensions.js';
+import type { Extension } from '../declare/extensions.js';
+import { MEDIA } from '../declare/media.js';
 import { read } from './parse.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
@@ -80,7 +81,8 @@ function sourceOf(cases: readonly Case[]): string {
   const held = (kind: string, head: string): string =>
     `kind ${kind}${head} {\n${members(kind).join('\n')}\n}`;
   return [
-    'extension media 2',
+    'extension media 1',
+    'extension slides 1',
     `world ${LIBRARY} is sprout.World {`,
     '  visitors are Person',
     '  visitors arrive at hall',
@@ -204,11 +206,35 @@ function sourceOf(cases: readonly Case[]): string {
   ].join('\n');
 }
 
+/** An extension the world pins and the host that runs it does not install: it compiles here, and the cartridge loads without it. */
+const SLIDES: Extension = {
+  name: 'slides',
+  major: 1,
+  types: [],
+  statements: [
+    {
+      name: 'show',
+      parameters: [{ name: 'deck', type: 'string' }],
+      describe: false,
+      run: ({ arguments: [deck] }) => ({ deck: deck! }),
+      effect: { safeParse: () => ({ success: true }) },
+      transcript: () => 'a slide',
+    },
+  ],
+  skill: '',
+};
+
 const SOURCE = sourceOf(CASES);
 const bundle: Bundle = compiledWorld(
   LIBRARY,
   { [`${LIBRARY}.sprout`]: SOURCE },
-  { pins: [{ name: 'media', major: 2 }], installed: [MEDIA] },
+  {
+    pins: [
+      { name: 'media', major: 1 },
+      { name: 'slides', major: 1 },
+    ],
+    installed: [MEDIA, SLIDES],
+  },
 );
 
 /** Every object a bundle's graph reaches, once, so a case may rewrite a node the checker would not have let through. */

@@ -4,7 +4,7 @@
   "author": "corpus",
   "license": "MIT",
   "level": 1,
-  "extensions": [{ "name": "media", "major": 1 }],
+  "extensions": [{ "name": "gallery", "major": 1 }],
   "libraries": [
     {
       "name": "sprout",

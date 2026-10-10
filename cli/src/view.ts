@@ -89,6 +89,18 @@ export function inspectView(standing: Standing): InspectedView {
   const page = [
     `standing in ${pathOf(world, place)}\n`,
     section('description', view.description, '(it renders nothing)'),
+    ...(view.effects.length === 0
+      ? []
+      : [
+          section(
+            'effects',
+            view.effects.map(
+              (effect) =>
+                `${effect.extension}.${effect.statement} ${JSON.stringify(effect.payload)} reads ${effect.transcript}`,
+            ),
+            'none',
+          ),
+        ]),
     section(
       'ways out',
       view.exits.map((exit) => exitWritten(exit, world)),

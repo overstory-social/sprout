@@ -26,6 +26,7 @@ const CAPS = {
   kinds: null,
   files: null,
   sourceBytes: null,
+  assetBytes: null,
 };
 
 const NOW = new Date('2026-09-18T12:00:00Z');

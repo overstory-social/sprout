@@ -10,4 +10,4 @@ world extension_line_late is sprout.World {
   object hall is sprout.Place
 }
 
-extension media 1
+extension gallery 1

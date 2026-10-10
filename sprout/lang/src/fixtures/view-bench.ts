@@ -10,6 +10,7 @@
 import type { Bundle } from '../bundle/bundle.js';
 import { emitCartridge } from '../bundle/cartridge.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { MEDIA } from '../declare/media.js';
 import type { Catalogue } from '../runtime/catalogue.js';
 import { loadCartridge } from '../runtime/cartridge.js';
 import { arrivalTurn } from '../runtime/arrival.js';
@@ -318,12 +319,14 @@ function readingJson(reading: SeenReading): unknown {
 
 /** A view as the C runtime writes it (`runtime-c/src/view_json.c`). */
 export function viewJson(view: SeenView): unknown {
-  if (view.effects.length > 0) {
-    throw new Error('a view that holds an extension’s effect is the extension’s to render.');
-  }
   return {
     description: view.description,
-    effects: [],
+    effects: view.effects.map(({ extension, statement, payload, transcript }) => ({
+      extension,
+      statement,
+      payload,
+      transcript,
+    })),
     exits: view.exits.map(({ direction, label, to }) => ({ direction, label, to })),
     occupants: view.occupants.map(thingJson),
     carried: view.carried.map(thingJson),
@@ -506,7 +509,7 @@ export function viewGoldens(worlds: readonly (readonly [string, Bundle])[]) {
     };
   });
   const corpus = worlds.map(([name, bundle]) => {
-    const catalogue = loadCartridge(emitCartridge(bundle), { caps: CAPS });
+    const catalogue = loadCartridge(emitCartridge(bundle), { caps: CAPS, installed: [MEDIA] });
     const { state, host, visit } = arrived(catalogue);
     return {
       world: name,

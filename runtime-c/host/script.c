@@ -160,7 +160,7 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
   if (effects == NULL || cuts == NULL) return NULL;
   for (i = 0; i < outcome->effect_count; i++) {
     const sprout_told_effect *effect = &outcome->effects[i];
-    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 6), *notes;
+    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 9), *notes;
     if (one == NULL) return NULL;
     paragraphs = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, effect->line_count);
     notes = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, effect->written_count);
@@ -187,6 +187,16 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
     sprout_json_adopt(one, "visit", jstr_of(p, effect->visit));
     sprout_json_adopt(one, "paragraphs", paragraphs);
     sprout_json_adopt(one, "written", notes);
+    if (effect->extension != NULL) {
+      sprout_json *payload = NULL;
+      sprout_json_error error;
+      if (effect->payload.length > 0 &&
+          sprout_json_read(&p->arena, effect->payload.bytes, effect->payload.length, &payload, &error) != SPROUT_OK)
+        return NULL;
+      sprout_json_adopt(one, "extension", jstr(p, effect->extension));
+      sprout_json_adopt(one, "statement", jstr(p, effect->statement));
+      if (payload != NULL) sprout_json_adopt(one, "payload", payload);
+    }
     sprout_json_adopt(effects, NULL, one);
   }
   for (i = 0; i < outcome->cut_count; i++)

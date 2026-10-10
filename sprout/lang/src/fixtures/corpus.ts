@@ -1,6 +1,6 @@
 // A corpus world compiled as publishing compiles it, from the files of its folder, which a spec
 // reads: its manifest, and the text of every `.sprout` and `.prose` file beside it, by path,
-// with the standard library where the manifest pins it. Spec support: the package build leaves it
+// with the standard library where the manifest pins it, on a host that installs `media`. Spec support: the package build leaves it
 // out.
 
 import { DEFAULT_BLESSED } from '../bundle/blessed.js';
@@ -8,6 +8,7 @@ import { type Bundle } from '../bundle/bundle.js';
 import { compileBundle } from '../bundle/compile/compile.js';
 import { MANIFEST_FILE, parseManifest } from '../bundle/manifest.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
+import { MEDIA } from '../declare/media.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
 
@@ -30,7 +31,7 @@ export function compiledCorpus({ manifest: text, files }: WorldFiles): Bundle {
       files: Object.entries(files).map(([path, source]) => new SourceFile(path, source)),
       libraries: usesStandard ? [STANDARD_LIBRARY] : [],
     },
-    { mode: 'publish', blessed: DEFAULT_BLESSED },
+    { mode: 'publish', blessed: DEFAULT_BLESSED, extensions: [MEDIA] },
   );
   return bundle!;
 }

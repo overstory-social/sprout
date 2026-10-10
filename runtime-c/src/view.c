@@ -174,6 +174,30 @@ static sprout_eval_status say_line(poll *p, sprout_str by, const sprout_speech *
   return append(p, out, &paragraphs);
 }
 
+/* What the description's extension statements recorded, each with the words a client that cannot use it reads; none that render nothing. */
+static sprout_eval_status render_recorded(poll *p, const sprout_description *description, sprout_arena *keep,
+                                          sprout_seen_view *out) {
+  sprout_seen_effect *kept = (sprout_seen_effect *)sprout_arena_take(keep, (description->recorded_count + 1) * sizeof *kept);
+  size_t i, count = 0;
+  if (kept == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < description->recorded_count; i++) {
+    const sprout_spoken *recorded = &description->recorded[i];
+    strs words;
+    memset(&words, 0, sizeof words);
+    EXPR_NEED(say_line(p, recorded->by, &recorded->said, recorded->bindings, false, &words));
+    if (words.count == 0) continue;
+    kept[count].extension = put_text(keep, recorded->said.extension);
+    kept[count].statement = put_text(keep, recorded->said.statement);
+    if (kept[count].extension == NULL || kept[count].statement == NULL || !put(keep, recorded->said.payload, &kept[count].payload) ||
+        !put(keep, words.items[0], &kept[count].transcript))
+      return SPROUT_EVAL_NO_MEMORY;
+    count++;
+  }
+  out->effects = kept;
+  out->effect_count = count;
+  return SPROUT_EVAL_OK;
+}
+
 /* A description as its reader reads it: each line a paragraph or more, or, where none renders, the engine's `unremarkable`. */
 static sprout_eval_status render_description(poll *p, const sprout_description *description, sprout_arena *keep,
                                              sprout_seen_view *out) {
@@ -185,7 +209,8 @@ static sprout_eval_status render_description(poll *p, const sprout_description *
   if (lines.count == 0)
     EXPR_NEED(say_line(p, description->unremarkable.by, &description->unremarkable.said,
                        description->unremarkable.bindings, false, &lines));
-  return keep_strs(keep, &lines, &out->description, &out->description_count);
+  EXPR_NEED(keep_strs(keep, &lines, &out->description, &out->description_count));
+  return render_recorded(p, description, keep, out);
 }
 
 static sprout_eval_status seen_exit(sprout_arena *keep, const char *direction, const char *label, sprout_str to,

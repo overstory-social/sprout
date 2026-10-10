@@ -305,6 +305,7 @@ describe('a bundle records the caps it was checked against, and a load compares 
       places: 100,
       kinds: null,
       sourceBytes: null,
+      assetBytes: null,
       optionsPerEnum: 100,
     });
     expect(capsExceeding(recorded, granted)).toEqual([]);

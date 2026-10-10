@@ -188,6 +188,12 @@ static void put_page(FILE *out, sprout_str world, sprout_str place, const sprout
   if (view->description_count == 0) fputs("  (it renders nothing)\n", out);
   for (i = 0; i < view->description_count; i++)
     fprintf(out, "  %.*s\n", (int)view->description[i].length, view->description[i].bytes);
+  if (view->effect_count > 0) fputs("\neffects\n", out);
+  for (i = 0; i < view->effect_count; i++) {
+    const sprout_seen_effect *effect = &view->effects[i];
+    fprintf(out, "  %s.%s %.*s reads %.*s\n", effect->extension, effect->statement, (int)effect->payload.length,
+            effect->payload.bytes, (int)effect->transcript.length, effect->transcript.bytes);
+  }
   fputs("\nways out\n", out);
   if (view->exit_count == 0) fputs("  none\n", out);
   for (i = 0; i < view->exit_count; i++) {
