@@ -14,7 +14,7 @@ static void the_view_holds_the_place_the_ways_out_and_the_chip_tree(void) {
   player_admit(s, "Marta");
   view = keep(player_view(s));
   reply = parse(view);
-  CHECK(strcmp(string_at(reply, "place"), "chip_tree.hall") == 0, "%.100s", view);
+  CHECK(HAS(view, "\"place\":{\"id\":\"chip_tree.hall\",\"name\":\"a hall\"}"), "the place, by id and as the visitor reads it: %.100s", view);
   CHECK(HAS(view, "\"description\":[\"There is nothing special about a hall.\"]"), "the description");
   CHECK(HAS(view, "\"exits\":[{\"direction\":\"north\",\"label\":\"to the yard\",\"to\":\"chip_tree.yard\"}]"), "the exit");
   CHECK(HAS(view, "\"occupants\":[{\"id\":\"chip_tree.hall.guard\",\"name\":\"a guard\"}]"), "who else is here");
@@ -59,7 +59,7 @@ static void a_visitor_who_is_not_in_the_world_sees_words_and_nothing_to_do(void)
   player_open(s, "chip-tree.sproutworld");
   player_load(s);
   view = keep(player_view(s));
-  CHECK(HAS(view, "You are not in a world.") && HAS(view, "\"place\":\"\""), "before arriving: %s", view);
+  CHECK(HAS(view, "You are not in a world.") && HAS(view, "\"place\":{\"id\":\"\",\"name\":\"\"}"), "before arriving: %s", view);
   player_admit(s, "Marta");
   player_close(s);
   player_open(s, "chip-tree.sproutworld");

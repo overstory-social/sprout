@@ -65,7 +65,7 @@ static void a_returning_visitor_finds_their_place_and_name(void) {
             HAS(loaded, "\"recovered\":false") && HAS(loaded, "\"words\":\"\""), "%s", loaded);
   CHECK(HAS(keep(player_admit(s, "Marta")), "\"admitted\":true"), "arriving again");
   view = keep(player_view(s));
-  CHECK(HAS(view, "\"place\":\"chip_tree.yard\""), "back where they left: %.120s", view);
+  CHECK(HAS(view, "\"place\":{\"id\":\"chip_tree.yard\",\"name\":\"a yard\"}"), "back where they left: %.120s", view);
   end();
 }
 

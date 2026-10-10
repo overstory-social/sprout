@@ -2,7 +2,8 @@
 -- the app and its Data folder and in each one's `worlds/` folder (`listFiles` reads both the
 -- bundle and the Data folder; a copy in Data shadows the app's), and asks the engine whether
 -- each can be shelved. One it refuses is listed greyed with the engine's reason, and cannot be
--- opened. Results are kept by file name and size, so a cartridge is inspected once. After the
+-- opened. A world is titled by its name as words, since a cartridge carries no other title and a
+-- name is an identifier: `printers_shop` is shelved as `Printers Shop`. Results are kept by file name and size, so a cartridge is inspected once. After the
 -- last cartridge comes one more row, "more worlds", which opens the download screen; when the last
 -- try at the network failed, `moreNote` says why and the shelf shows it under that row.
 
@@ -13,6 +14,11 @@ local SUFFIX = ".sproutworld"
 
 local function isCartridge(name)
   return name:sub(-#SUFFIX) == SUFFIX
+end
+
+-- A world's name as words: underscores become spaces, and each word starts with a capital.
+function Shelf.titleOf(name)
+  return (name:gsub("_", " "):gsub("(%a)([%w']*)", function(first, rest) return first:upper() .. rest end))
 end
 
 -- `files` has `listFiles(path)` as `playdate.file` does; `engine` has `inspect(path)`.
@@ -48,7 +54,7 @@ function Shelf:refresh()
       verdict = self.engine:inspect(path)
       self.verdicts[path] = verdict
     end
-    local title = verdict.name or path:match("([^/]+)$"):sub(1, -#SUFFIX - 1)
+    local title = Shelf.titleOf(verdict.name or path:match("([^/]+)$"):sub(1, -#SUFFIX - 1))
     local entry = { path = path, title = title, hash = verdict.hash, ok = verdict.ok, reason = verdict.reason }
     if verdict.ok and self.blocked[path] ~= nil then
       entry.ok, entry.reason, entry.blocked = false, self.blocked[path], true

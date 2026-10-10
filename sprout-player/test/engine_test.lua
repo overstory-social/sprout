@@ -23,7 +23,7 @@ test("each call is decoded from the JSON the C side returns", function()
     open = '{"ok":true,"name":"chip_tree","hash":"abc","words":["guard"]}',
     load = '{"ok":true,"fresh":true,"nickname":null,"present":[],"last":0,"recovered":false,"words":""}',
     admit = '{"admitted":true,"words":"","visit":"visit:player","lines":[{"reader":"visit:player","kind":"described","text":"A hall."}]}',
-    view = '{"place":"hall","description":["A hall."],"exits":[],"occupants":[],"carried":[],"chips":[],"faulted":false}',
+    view = '{"place":{"id":"chip_tree.hall","name":"a hall"},"description":["A hall."],"exits":[],"occupants":[],"carried":[],"chips":[],"faulted":false}',
     tick = '{"ran":false,"lines":[]}',
     save = '{"ok":true,"words":""}',
     close = '{"lines":[]}',
@@ -33,7 +33,7 @@ test("each call is decoded from the JSON the C side returns", function()
   equal(engine:open("a.sproutworld").words[1], "guard")
   equal(engine:load().fresh, true)
   equal(engine:admit("Moss").lines[1].text, "A hall.")
-  equal(engine:view().place, "hall")
+  equal(engine:view().place.name, "a hall")
   equal(engine:tick().ran, false)
   equal(engine:save().ok, true)
   equal(#engine:close().lines, 0)

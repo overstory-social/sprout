@@ -350,6 +350,7 @@ static sprout_eval_status seen_reading(poll *p, sprout_arena *keep, const sprout
 /* The parts a poll derived as its visitor reads them; the description too where `whole`. */
 static sprout_eval_status render_parts(poll *p, const derived *d, bool whole, sprout_arena *keep, sprout_seen_view *out) {
   size_t i;
+  EXPR_NEED(seen_thing(p, keep, p->place, &out->place));
   if (whole) EXPR_NEED(render_description(p, &d->description, keep, out));
   if (d->has_exits) {
     sprout_seen_exit *exits = (sprout_seen_exit *)sprout_arena_take(keep, (d->way_count + 1) * sizeof *exits);
@@ -411,6 +412,7 @@ static bool stands_in_place(const poll *p) {
 
 /* The first attempt: the whole view, or, for a visitor whose place is gone, `displaced` alone. */
 static sprout_eval_status whole_poll(poll *p, derived *d, sprout_arena *keep, sprout_seen_view *out) {
+  if (!put(keep, p->place, &out->place.id)) return SPROUT_EVAL_NO_MEMORY;
   if (!stands_in_place(p)) return engine_words(p, "displaced", true, keep, out);
   EXPR_NEED(derive(p, d));
   return render_parts(p, d, true, keep, out);

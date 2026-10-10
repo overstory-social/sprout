@@ -26,7 +26,7 @@ function Engine:load() return self:decode(self.api.load()) end
 -- Admits the visitor: { admitted, words, lines }. Catch-up runs first and tells nothing.
 function Engine:admit(nickname) return self:decode(self.api.admit(nickname)) end
 
--- The visitor's view: { place, description, exits, occupants, carried, chips }.
+-- The visitor's view: { place = { id, name }, description, exits, occupants, carried, chips }.
 function Engine:view() return self:decode(self.api.view()) end
 
 -- One command turn from a reading the sentence builder made: { committed, lines }.
