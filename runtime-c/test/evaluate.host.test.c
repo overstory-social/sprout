@@ -77,6 +77,12 @@ static void open_world(world *w) {
   w->golden = root;
 }
 
+/* Releases the golden's arena and checks every page went back to the host. */
+static void close_world(world *w) {
+  sprout_arena_reset(&w->arena);
+  CHECK_INT(w->heap.pages, 0);
+}
+
 static const sprout_json *golden_case(const world *w, const char *name) {
   const sprout_json *cases = sprout_json_get(w->golden, "cases");
   size_t i;
@@ -108,6 +114,7 @@ static void a_value_is_printed_with_the_steps_it_took(void) {
   CHECK_INT(r.code, 0);
   CHECK_STR(r.out, expected);
   CHECK_STR(r.err, "");
+  close_world(&w);
 }
 
 static void bound_names_and_a_seed_reach_the_expression(void) {
@@ -140,6 +147,7 @@ static void bound_names_and_a_seed_reach_the_expression(void) {
   r = sproutc(10, argv);
   CHECK_INT(r.code, 0);
   CHECK_STR(r.out, "{\"value\":true}\nsteps 1\n");
+  close_world(&w);
 }
 
 static void a_fault_is_printed_in_the_hosts_words_and_exits_one(void) {
@@ -166,6 +174,7 @@ static void a_fault_is_printed_in_the_hosts_words_and_exits_one(void) {
   CHECK_STR(r.out,
             "fault BudgetExhausted: This turn used more steps than the host allows (25) while running message 0, so it "
             "was stopped and nothing it did was kept.\nsteps 26\n");
+  close_world(&w);
 }
 
 static void a_command_line_it_cannot_follow_exits_two_in_words(void) {
@@ -213,6 +222,7 @@ static void a_node_past_the_graph_is_named(void) {
   r = sproutc(8, argv);
   CHECK_INT(r.code, 2);
   CHECK(strstr(r.err, "there is no entry 99999999.") != NULL);
+  close_world(&w);
 }
 
 int main(void) {
