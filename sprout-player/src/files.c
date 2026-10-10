@@ -3,6 +3,8 @@
 
 #include <string.h>
 
+#include "seeds.h"
+
 #define CHUNK 4096u
 #define TEMP_PATH 256u
 
@@ -59,6 +61,31 @@ char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length) {
   char *bytes = read_from(pd, path, length);
   if (bytes != NULL || !temp_path_of(path, temp)) return bytes;
   return read_from(pd, temp, length);
+}
+
+static bool hash_from(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length) {
+  SDFile *file = pd->file->open(path, kFileRead | kFileReadData);
+  sprout_sha256_context hash;
+  char chunk[CHUNK];
+  size_t total = 0;
+  int got;
+  if (file == NULL) return false;
+  sprout_sha256_begin(&hash);
+  while ((got = pd->file->read(file, chunk, CHUNK)) > 0) {
+    sprout_sha256_feed(&hash, chunk, (size_t)got);
+    total += (size_t)got;
+  }
+  pd->file->close(file);
+  if (got < 0) return false;
+  sprout_sha256_end(&hash, digest);
+  *length = total;
+  return true;
+}
+
+bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length) {
+  char temp[TEMP_PATH];
+  if (hash_from(pd, path, digest, length)) return true;
+  return temp_path_of(path, temp) && hash_from(pd, temp, digest, length);
 }
 
 bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length) {

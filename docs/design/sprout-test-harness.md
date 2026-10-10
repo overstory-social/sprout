@@ -275,9 +275,9 @@ randomisation (large `vm.mmap_rnd_bits`, as on WSL2) can occupy them first, whic
 run at random. Without `setarch` the line gives the remedy, `setarch -R npm run e2e`. 
 
 Shipped worlds and downloads are tested at each seam, with no network. `ed25519.test.c` holds the
-signature check to RFC 8032's vectors (and refuses a changed message, signature or key, an S not
+signature check to all of RFC 8032 section 7.1's vectors (and refuses a key or R of small order or in a non-canonical encoding, a changed message, signature or key, an S not
 below the group order, and a key that is no point); `shipping.test.c` calls `sprout.verify` and
-`sprout.digest` as Lua does, and verifies the signature Node made over the committed index
+`sprout.digest` as Lua does (and digests a 4 MiB file without ever asking the allocator for a block near its size), and verifies the signature Node made over the committed index
 fixture (`sprout-player/test/fixtures/index.json`, signed with the test key in
 `sprout-player/test/`, whose private half is public on purpose and trusted by nothing real);
 `shipped.test.c` shelves every world in the packed `worlds/` folder, so a graduated world the app

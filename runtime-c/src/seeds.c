@@ -17,14 +17,6 @@ static const uint32_t ROUND[64] = {
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-/* A hash in progress: the state, the bytes of the block not yet folded in, and the total length. */
-typedef struct sha {
-  uint32_t state[8];
-  unsigned char block[64];
-  size_t held;
-  uint64_t length;
-} sha;
-
 static uint32_t rotate_right(uint32_t value, unsigned bits) { return (value >> bits) | (value << (32 - bits)); }
 
 /* One 64-byte block folded into the state. */
@@ -73,7 +65,7 @@ static void compress(uint32_t state[8], const unsigned char block[64]) {
   state[7] += h;
 }
 
-static void sha_begin(sha *hash) {
+void sprout_sha256_begin(sprout_sha256_context *hash) {
   static const uint32_t START[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
   memcpy(hash->state, START, sizeof START);
@@ -81,7 +73,7 @@ static void sha_begin(sha *hash) {
   hash->length = 0;
 }
 
-static void sha_feed(sha *hash, const char *bytes, size_t length) {
+void sprout_sha256_feed(sprout_sha256_context *hash, const char *bytes, size_t length) {
   const unsigned char *at = (const unsigned char *)bytes;
   hash->length += length;
   while (length > 0) {
@@ -97,15 +89,15 @@ static void sha_feed(sha *hash, const char *bytes, size_t length) {
   }
 }
 
-static void sha_end(sha *hash, unsigned char digest[32]) {
+void sprout_sha256_end(sprout_sha256_context *hash, unsigned char digest[32]) {
   uint64_t bits = hash->length * 8;
   unsigned char tail[72];
   size_t pad = hash->held < 56 ? 56 - hash->held : 120 - hash->held, i;
   memset(tail, 0, sizeof tail);
   tail[0] = 0x80;
-  sha_feed(hash, (const char *)tail, pad);
+  sprout_sha256_feed(hash, (const char *)tail, pad);
   for (i = 0; i < 8; i++) tail[i] = (unsigned char)(bits >> (56 - 8 * i));
-  sha_feed(hash, (const char *)tail, 8);
+  sprout_sha256_feed(hash, (const char *)tail, 8);
   for (i = 0; i < 8; i++) {
     digest[4 * i] = (unsigned char)(hash->state[i] >> 24);
     digest[4 * i + 1] = (unsigned char)(hash->state[i] >> 16);
@@ -115,32 +107,32 @@ static void sha_end(sha *hash, unsigned char digest[32]) {
 }
 
 void sprout_sha256(const char *bytes, size_t length, unsigned char digest[32]) {
-  sha hash;
-  sha_begin(&hash);
-  sha_feed(&hash, bytes, length);
-  sha_end(&hash, digest);
+  sprout_sha256_context hash;
+  sprout_sha256_begin(&hash);
+  sprout_sha256_feed(&hash, bytes, length);
+  sprout_sha256_end(&hash, digest);
 }
 
 /* Feeds the decimal digits of `number`. */
-static void feed_number(sha *hash, uint64_t number) {
+static void feed_number(sprout_sha256_context *hash, uint64_t number) {
   char digits[24];
   size_t count = sizeof digits;
   do {
     digits[--count] = (char)('0' + (int)(number % 10));
     number /= 10;
   } while (number > 0);
-  sha_feed(hash, digits + count, sizeof digits - count);
+  sprout_sha256_feed(hash, digits + count, sizeof digits - count);
 }
 
 uint32_t sprout_turn_seed(uint64_t seed, const char *path, size_t path_length, uint64_t nth) {
-  sha hash;
+  sprout_sha256_context hash;
   unsigned char digest[32];
-  sha_begin(&hash);
+  sprout_sha256_begin(&hash);
   feed_number(&hash, seed);
-  sha_feed(&hash, " ", 1);
-  sha_feed(&hash, path, path_length);
-  sha_feed(&hash, " ", 1);
+  sprout_sha256_feed(&hash, " ", 1);
+  sprout_sha256_feed(&hash, path, path_length);
+  sprout_sha256_feed(&hash, " ", 1);
   feed_number(&hash, nth);
-  sha_end(&hash, digest);
+  sprout_sha256_end(&hash, digest);
   return (uint32_t)digest[0] << 24 | (uint32_t)digest[1] << 16 | (uint32_t)digest[2] << 8 | (uint32_t)digest[3];
 }

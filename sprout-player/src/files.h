@@ -18,6 +18,12 @@
  */
 char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length);
 
+/*
+ * The SHA-256 of the file at `path` and its size, read a chunk at a time so that the file is never
+ * held in memory; false when it cannot be read. Looks where `player_read_file` looks.
+ */
+bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length);
+
 /* Writes `bytes` as the file at `path`, whole; false when it could not be. */
 bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length);
 

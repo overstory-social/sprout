@@ -1,5 +1,9 @@
 /* shipping.c: the signature check and the file digest Lua asks for, called as Lua calls them. */
+#include <stdlib.h>
+
 #include "support.h"
+
+#include "seeds.h"
 
 #define SIGNATURE_2                                                                                                  \
   "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aee" \
@@ -101,6 +105,29 @@ static void a_file_in_the_data_folder_has_its_sha256_and_size_told(void) {
   end();
 }
 
+static void a_file_far_larger_than_memory_allows_is_digested_a_chunk_at_a_time(void) {
+  enum { SIZE = 4 * 1024 * 1024 + 123 };
+  char full[1000], expected[65], *reply;
+  unsigned char digest[32];
+  char *bytes = (char *)malloc(SIZE);
+  FILE *file;
+  size_t i;
+  begin_bridge("large");
+  for (i = 0; i < SIZE; i++) bytes[i] = (char)((i * 31 + (i >> 8)) & 255);
+  snprintf(full, sizeof full, "%s/large.bin", fake->data);
+  file = fopen(full, "wb");
+  CHECK(file != NULL && fwrite(bytes, 1, SIZE, file) == SIZE, "writing the large file");
+  if (file != NULL) fclose(file);
+  sprout_sha256(bytes, SIZE, digest);
+  for (i = 0; i < 32; i++) snprintf(expected + 2 * i, 3, "%02x", digest[i]);
+  free(bytes);
+  fake->largest = 0;
+  reply = call("sprout.digest", "large.bin");
+  CHECK(HAS(reply, expected) && HAS(reply, "\"bytes\":4194427"), "%s", reply);
+  CHECK(fake->largest < 256 * 1024, "the largest block asked for was %zu bytes, not the file's", fake->largest);
+  end();
+}
+
 static void a_cartridge_in_the_app_folder_is_digested_too(void) {
   char *reply = NULL;
   begin_bridge("app");
@@ -115,6 +142,7 @@ int main(void) {
   the_signature_node_made_over_an_index_verifies_here();
   a_signature_or_key_that_is_not_hexadecimal_of_the_right_length_is_refused_in_words();
   a_file_in_the_data_folder_has_its_sha256_and_size_told();
+  a_file_far_larger_than_memory_allows_is_digested_a_chunk_at_a_time();
   a_cartridge_in_the_app_folder_is_digested_too();
   return finish();
 }

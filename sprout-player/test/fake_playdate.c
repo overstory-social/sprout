@@ -19,6 +19,7 @@ static void *fake_realloc(void *block, size_t bytes) {
     return NULL;
   }
   if (block == NULL) current->pages++;
+  if (bytes > current->largest) current->largest = bytes;
   return realloc(block, bytes);
 }
 

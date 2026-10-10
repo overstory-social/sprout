@@ -31,6 +31,7 @@ typedef struct fake_playdate {
   lua_CFunction functions[FAKE_FUNCTIONS];
   int function_count;
   int pages;
+  size_t largest; /* the largest single block asked of the allocator */
   /* when set, every file opened for writing fails to open, as on a full disk */
   int fail_writes;
 } fake_playdate;

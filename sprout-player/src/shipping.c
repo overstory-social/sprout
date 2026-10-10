@@ -60,10 +60,8 @@ const char *player_digest(player_session *session, const char *path) {
   unsigned char digest[32];
   char hex[65];
   size_t length = 0, i;
-  char *bytes = player_read_file(session->pd, path, &length);
-  if (bytes == NULL) return answer(session, false, "reason", "The file cannot be read.");
-  sprout_sha256(bytes, length, digest);
-  player_free(session->pd, bytes);
+  if (!player_hash_file(session->pd, path, digest, &length))
+    return answer(session, false, "reason", "The file cannot be read.");
   for (i = 0; i < 32; i++) {
     hex[2 * i] = DIGITS[digest[i] >> 4];
     hex[2 * i + 1] = DIGITS[digest[i] & 15];

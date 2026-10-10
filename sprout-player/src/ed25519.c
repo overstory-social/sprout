@@ -401,11 +401,35 @@ static int below_l(const u8 *s) {
   return 0;
 }
 
+/* Whether the 32 bytes encode a y below 2^255 - 19, the only encoding RFC 8032 section 5.1.3 accepts. */
+static int canonical_y(const u8 *e) {
+  int i;
+  if ((e[31] & 0x7f) != 0x7f || e[0] < 0xed) return 1;
+  for (i = 1; i < 31; i++)
+    if (e[i] != 0xff) return 1;
+  return 0;
+}
+
+/* Whether `e` encodes a point on the curve in canonical form that is not of small order (that is,
+   eight times it is not the identity); this is strict verification of both R and the public key. */
+static int strict_point(const u8 e[32]) {
+  static const u8 identity[32] = {1};
+  gf q[4];
+  u8 packed[32];
+  int i;
+  if (!canonical_y(e) || unpackneg(q, e) != 0) return 0;
+  if ((e[31] >> 7) && neq25519(q[0], gf0) == 0) return 0;
+  for (i = 0; i < 3; i++) point_add(q, q);
+  point_pack(packed, q);
+  return differ32(packed, identity) != 0;
+}
+
 int player_ed25519_verify(const u8 signature[64], const u8 *message, size_t length, const u8 public_key[32]) {
   u8 t[32], h[64];
   gf p[4], q[4];
   sha512 c;
   if (!below_l(signature + 32)) return 0;
+  if (!strict_point(signature) || !strict_point(public_key)) return 0;
   if (unpackneg(q, public_key) != 0) return 0;
   sha512_init(&c);
   sha512_update(&c, signature, 32);

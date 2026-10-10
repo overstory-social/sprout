@@ -15,8 +15,9 @@ void player_sha512(const unsigned char *bytes, size_t length, unsigned char dige
 
 /*
  * Whether `signature` (64 bytes: R then S) signs the `length` bytes of `message` under
- * `public_key` (32 bytes). False for any signature whose S is not below the group order, whose R
- * is not the point the message hashes to, or whose key is not a point on the curve.
+ * `public_key` (32 bytes). Verification is strict: false for a signature whose S is not below the
+ * group order, whose R is not the point the message hashes to, whose R or key is not a canonical
+ * encoding of a point on the curve, or whose R or key has small order.
  */
 int player_ed25519_verify(const unsigned char signature[64], const unsigned char *message, size_t length,
                           const unsigned char public_key[32]);
