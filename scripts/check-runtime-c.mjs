@@ -7,7 +7,10 @@
 // -DSPROUT_SANITIZE=ON (AddressSanitizer and UndefinedBehaviorSanitizer) and
 // runs only ctest there, with halt_on_error and leak detection on, so any
 // report fails the script. The gate keeps the plain build to stay fast; the
-// e2e runs the sanitized one.
+// e2e runs the sanitized one. On Linux the sanitized ctest runs under `setarch <machine> -R`
+// when `setarch` is on the PATH, since AddressSanitizer's shadow memory clashes at random with
+// high-entropy address-space randomisation; the script prints one line saying so, or the remedy
+// (`setarch -R npm run e2e`) when `setarch` is missing (player/src/aslr.ts).
 //
 // Run `npm run build` first: the C tests pack every corpus world into a
 // cartridge through the built CLI (`cli/dist`), and the replay uses the built
@@ -33,7 +36,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { runtimeCBuild as build, runtimeCRoot as root } from './runtime-c-build.mjs';
+import { runtimeCBuild as build, runtimeCRoot as root, sanitizedHere } from './runtime-c-build.mjs';
 
 const required = process.argv.includes('--required');
 const sanitize = process.argv.includes('--sanitize');
@@ -142,7 +145,10 @@ if (sanitize) {
     CC: compiler,
   });
   run('cmake', ['--build', dir]);
-  const sanitized = run('ctest', ['--test-dir', dir, '--output-on-failure'], {
+  const launcher = sanitizedHere();
+  if (launcher.line !== '') console.log(launcher.line);
+  const [first, ...before] = [...launcher.prefix, 'ctest'];
+  const sanitized = run(first, [...before, '--test-dir', dir, '--output-on-failure'], {
     ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
     UBSAN_OPTIONS: 'halt_on_error=1:print_stacktrace=1',
   });

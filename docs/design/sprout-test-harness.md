@@ -267,7 +267,14 @@ and write back byte for byte, and the turns built from the view's chips must lea
 world the same lines typed leave (`corpus/good/chip-tree`, `corpus/good/value-first`). The
 whole is also built and run under AddressSanitizer and UndefinedBehaviorSanitizer by
 `node scripts/check-runtime-c.mjs --sanitize`, and the runtime is built at `-O2` under
-`-Werror` by the plain run. Shipped worlds and downloads are tested at each seam, with no network. `ed25519.test.c` holds the
+`-Werror` by the plain run. On Linux the sanitized ctest, and the sanitized `sproutc` the player
+step plays saves through, run under `setarch "$(uname -m)" -R` when `setarch` is on the PATH
+(`player/src/aslr.ts` chooses, and the run prints one line saying which): AddressSanitizer maps
+its shadow memory at fixed addresses, and a kernel with high-entropy address-space
+randomisation (large `vm.mmap_rnd_bits`, as on WSL2) can occupy them first, which fails the
+run at random. Without `setarch` the line gives the remedy, `setarch -R npm run e2e`. 
+
+Shipped worlds and downloads are tested at each seam, with no network. `ed25519.test.c` holds the
 signature check to RFC 8032's vectors (and refuses a changed message, signature or key, an S not
 below the group order, and a key that is no point); `shipping.test.c` calls `sprout.verify` and
 `sprout.digest` as Lua does, and verifies the signature Node made over the committed index
