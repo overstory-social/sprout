@@ -239,10 +239,7 @@ describe('the catalogue of every corpus world, as the C runtime reads it from th
       const bytes = emitCartridge(bundle);
       const recorded = readCartridge(bytes).caps;
       const made = dumpCatalogue(catalogueOf(bundle, DEFAULT_LIMITS.caps), recorded);
-      const loaded = dumpCatalogue(
-        loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }),
-        recorded,
-      );
+      const loaded = dumpCatalogue(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }), recorded);
       // A cartridge writes each verb's synonyms out as the phrases they give, after its own.
       expect({ ...loaded, verbs: [] }, name).toEqual({ ...made, verbs: [] });
       expect(

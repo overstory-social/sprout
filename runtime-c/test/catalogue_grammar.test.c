@@ -5,6 +5,7 @@
  * corpus world; the typed phrases put the world's own verbs first, shadow a
  * library verb of the same name, and read words as a typed line is read.
  */
+#include "catalogue_build.h"
 #include "corpus.h"
 
 static const char *filler_text(const sprout_role *role, char *out) {
@@ -162,29 +163,39 @@ static void the_worlds_own_verbs_are_tried_before_the_standard_librarys(void) {
   sprout_world_free(world);
 }
 
-static void a_comma_in_a_phrase_is_a_word_of_its_own_and_words_are_lower_case(void) {
+static void words_are_lower_case_split_on_white_space_and_a_comma_is_a_word_of_its_own(void) {
   test_heap heap;
-  sprout_host host = corpus_host(&heap);
-  sprout_world *world = corpus_load("comma-commands", &host);
-  size_t i, j, k;
-  bool saw_comma = false;
-  for (i = 0; i < world->phrase_count; i++)
-    for (j = 0; j < world->phrases[i].part_count; j++)
-      for (k = 0; k < world->phrases[i].parts[j].word_count; k++) {
-        const char *word = world->phrases[i].parts[j].words[k];
-        const char *c;
-        if (strcmp(word, ",") == 0) saw_comma = true;
-        else CHECK(strchr(word, ',') == NULL);
-        for (c = word; *c != '\0'; c++) CHECK(!(*c >= 'A' && *c <= 'Z'));
-      }
-  CHECK(saw_comma);
-  sprout_world_free(world);
+  sprout_host host = test_host(&heap);
+  loader l;
+  sprout_arena arena;
+  size_t count;
+  const char **words;
+  char error[64];
+  memset(&l, 0, sizeof l);
+  host.page_bytes = 1024;
+  sprout_arena_init(&arena, &host);
+  l.arena = &arena;
+  l.error = error;
+  l.capacity = sizeof error;
+  CHECK_INT(cat_typed_words(&l, "Ask  the\tBear,about HONEY ,", &count, &words), SPROUT_OK);
+  CHECK_INT(count, 7);
+  CHECK_STR(words[0], "ask");
+  CHECK_STR(words[1], "the");
+  CHECK_STR(words[2], "bear");
+  CHECK_STR(words[3], ",");
+  CHECK_STR(words[4], "about");
+  CHECK_STR(words[5], "honey");
+  CHECK_STR(words[6], ",");
+  CHECK_INT(cat_typed_words(&l, "   ", &count, &words), SPROUT_OK);
+  CHECK_INT(count, 0);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
 }
 
 int main(void) {
   RUN(every_verb_of_every_corpus_world_matches_the_dump);
   RUN(every_typed_phrase_matches_the_dump_in_the_order_it_is_tried);
   RUN(the_worlds_own_verbs_are_tried_before_the_standard_librarys);
-  RUN(a_comma_in_a_phrase_is_a_word_of_its_own_and_words_are_lower_case);
+  RUN(words_are_lower_case_split_on_white_space_and_a_comma_is_a_word_of_its_own);
   return REPORT();
 }

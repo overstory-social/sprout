@@ -154,6 +154,14 @@ bool sprout_state_copy_str(sprout_arena *arena, sprout_str from, sprout_str *to)
 typedef enum sprout_id_form { SPROUT_ID_NONE, SPROUT_ID_WORLD, SPROUT_ID_DECLARED, SPROUT_ID_MINTED } sprout_id_form;
 sprout_id_form sprout_id_form_of(sprout_str world, sprout_str id);
 
+/* A deep copy of a record into `arena`: every string, list and map is the arena's own. */
+sprout_status sprout_stored_instance_copy(sprout_arena *arena, const sprout_stored_instance *from,
+                                          sprout_stored_instance *to);
+sprout_status sprout_stored_visitor_copy(sprout_arena *arena, const sprout_stored_visitor *from,
+                                         sprout_stored_visitor *to);
+/* Orders a record's properties, links and memory by key, as a save writes them. */
+sprout_status sprout_stored_instance_order(sprout_arena *arena, sprout_stored_instance *in);
+
 /* The instance stored under this id, or NULL. */
 sprout_stored_instance *sprout_state_find(const sprout_state *state, sprout_str id);
 /* The visitor stored under this visit, or NULL. */

@@ -140,7 +140,7 @@ static bool is_space(char c) {
 }
 
 /* The words of a phrase's text as the tokeniser reads a typed line: lower case, a comma a word of its own. */
-static sprout_status typed_words(loader *l, const char *text, size_t *count, const char ***words) {
+sprout_status cat_typed_words(loader *l, const char *text, size_t *count, const char ***words) {
   size_t length = strlen(text), n = 0, i, start;
   char *buffer;
   const char **out;
@@ -189,7 +189,7 @@ static sprout_status typed_parts(loader *l, const sprout_phrase *phrase, size_t 
     } else {
       size_t words;
       const char **list;
-      NEED(typed_words(l, phrase->parts[i].text, &words, &list));
+      NEED(cat_typed_words(l, phrase->parts[i].text, &words, &list));
       if (words == 0) continue;
       (*out)[n].word_count = words;
       (*out)[n].words = list;

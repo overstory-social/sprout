@@ -7,7 +7,6 @@ import { compiledCorpusWorld as compiled, CORPUS_WORLDS as WORLDS } from '../fix
 import { catalogueOf } from './catalogue.js';
 import { loadCartridge } from './cartridge.js';
 
-
 describe('a cartridge runs under the host’s caps, not the ones it recorded', () => {
   it('reads the caps the host gives, while the cartridge keeps what it was checked against', () => {
     const bundle = compiled('act');

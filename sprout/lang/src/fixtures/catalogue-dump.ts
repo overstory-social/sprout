@@ -116,7 +116,12 @@ export function dumpCatalogue(catalogue: Catalogue, recorded: StaticCaps): Dumpe
     visitorKind: catalogue.visitorKind === null ? null : kindName(catalogue.visitorKind),
     declared: [...catalogue.declared.values()]
       .sort((a, b) => a.rank - b.rank)
-      .map((one) => [one.id, one.container, one.kind === null ? null : kindName(one.kind), one.rank]),
+      .map((one) => [
+        one.id,
+        one.container,
+        one.kind === null ? null : kindName(one.kind),
+        one.rank,
+      ]),
     kinds: catalogue.lookup.all().map((kind) => kindOf(kind, spawnable.has(kindName(kind)))),
     verbs: catalogue.verbs.all().map((verb) => ({
       name: verbName(verb),
@@ -145,9 +150,7 @@ export function dumpCatalogue(catalogue: Catalogue, recorded: StaticCaps): Dumpe
         one.carries === null ? null : typeKey(one.carries),
       ]),
     words: [...catalogue.words],
-    extensions: [...catalogue.extensions.values()].map(
-      (one) => [one.name, one.major] as const,
-    ),
+    extensions: [...catalogue.extensions.values()].map((one) => [one.name, one.major] as const),
     caps,
   };
 }

@@ -35,7 +35,7 @@ static void expect_default(sprout_arena *arena, const sprout_literal *literal, c
   size_t want_length;
   char got[2048];
   size_t got_length = default_text(literal, got);
-  CHECK(sprout_json_write(arena, expected, &want, &want_length) == SPROUT_OK);
+  corpus_value_text(arena, expected, &want, &want_length);
   CHECK_BYTES(got, got_length, want);
 }
 

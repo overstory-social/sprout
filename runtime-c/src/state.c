@@ -10,6 +10,12 @@
 
 #include "state.h"
 
+#define PASS(expr)                        \
+  do {                                    \
+    sprout_status pass_ = (expr);         \
+    if (pass_ != SPROUT_OK) return pass_; \
+  } while (0)
+
 /* ---- lookups and order ---- */
 
 static int by_instance_id(const void *a, const void *b) {
@@ -130,6 +136,119 @@ sprout_status sprout_state_empty(const sprout_host *host, const char *world_id, 
   return SPROUT_OK;
 }
 
+/* ---- copies and key order ---- */
+
+static sprout_status copy_value(sprout_arena *arena, const sprout_stored_value *from, sprout_stored_value *to) {
+  size_t i;
+  *to = *from;
+  if (from->kind == SPROUT_STRING) {
+    if (!sprout_state_copy_str(arena, from->string, &to->string)) return SPROUT_NO_MEMORY;
+  } else if (from->kind == SPROUT_LIST) {
+    to->items = (sprout_stored_value *)sprout_arena_take(arena, (from->count + 1) * sizeof *to->items);
+    if (to->items == NULL) return SPROUT_NO_MEMORY;
+    for (i = 0; i < from->count; i++) {
+      sprout_status status = copy_value(arena, &from->items[i], &to->items[i]);
+      if (status != SPROUT_OK) return status;
+    }
+  }
+  return SPROUT_OK;
+}
+
+#define COPY_STR(from, to) \
+  do {                     \
+    if (!sprout_state_copy_str(arena, (from), &(to))) return SPROUT_NO_MEMORY; \
+  } while (0)
+
+static sprout_status copy_property(sprout_arena *arena, const sprout_stored_property *from, sprout_stored_property *to) {
+  COPY_STR(from->name, to->name);
+  COPY_STR(from->type, to->type);
+  return copy_value(arena, &from->value, &to->value);
+}
+
+static sprout_status copy_properties(sprout_arena *arena, const sprout_stored_property *from, size_t count,
+                                     sprout_stored_property **to) {
+  size_t i;
+  *to = (sprout_stored_property *)sprout_arena_take(arena, (count + 1) * sizeof **to);
+  if (*to == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < count; i++) PASS(copy_property(arena, &from[i], &(*to)[i]));
+  return SPROUT_OK;
+}
+
+static sprout_status copy_strs(sprout_arena *arena, const sprout_str *from, size_t count, sprout_str **to) {
+  size_t i;
+  *to = (sprout_str *)sprout_arena_take(arena, (count + 1) * sizeof **to);
+  if (*to == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < count; i++) COPY_STR(from[i], (*to)[i]);
+  return SPROUT_OK;
+}
+
+sprout_status sprout_stored_instance_copy(sprout_arena *arena, const sprout_stored_instance *from,
+                                          sprout_stored_instance *to) {
+  size_t i;
+  *to = *from;
+  COPY_STR(from->id, to->id);
+  COPY_STR(from->made_kind, to->made_kind);
+  COPY_STR(from->container, to->container);
+  PASS(copy_strs(arena, from->path, from->path_count, &to->path));
+  PASS(copy_properties(arena, from->properties, from->property_count, &to->properties));
+  to->links = (sprout_stored_link *)sprout_arena_take(arena, (from->link_count + 1) * sizeof *to->links);
+  to->wakes = (sprout_stored_wake *)sprout_arena_take(arena, (from->wake_count + 1) * sizeof *to->wakes);
+  to->memory = (sprout_stored_memory *)sprout_arena_take(arena, (from->memory_count + 1) * sizeof *to->memory);
+  if (to->links == NULL || to->wakes == NULL || to->memory == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < from->link_count; i++) {
+    COPY_STR(from->links[i].name, to->links[i].name);
+    COPY_STR(from->links[i].to, to->links[i].to);
+  }
+  if (from->wake_count > 0) memcpy(to->wakes, from->wakes, from->wake_count * sizeof *to->wakes);
+  for (i = 0; i < from->memory_count; i++) {
+    COPY_STR(from->memory[i].actor, to->memory[i].actor);
+    to->memory[i].count = from->memory[i].count;
+    PASS(copy_properties(arena, from->memory[i].properties, from->memory[i].count, &to->memory[i].properties));
+  }
+  return SPROUT_OK;
+}
+
+sprout_status sprout_stored_visitor_copy(sprout_arena *arena, const sprout_stored_visitor *from,
+                                         sprout_stored_visitor *to) {
+  size_t i;
+  *to = *from;
+  COPY_STR(from->visit, to->visit);
+  COPY_STR(from->nickname, to->nickname);
+  COPY_STR(from->instance, to->instance);
+  COPY_STR(from->last_place, to->last_place);
+  PASS(copy_strs(arena, from->referents, from->referent_count, &to->referents));
+  if (!from->has_reading) return SPROUT_OK;
+  COPY_STR(from->reading.library, to->reading.library);
+  COPY_STR(from->reading.name, to->reading.name);
+  to->reading.bindings = (sprout_stored_binding *)sprout_arena_take(
+      arena, (from->reading.binding_count + 1) * sizeof *to->reading.bindings);
+  if (to->reading.bindings == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < from->reading.binding_count; i++) {
+    const sprout_stored_bound *b = &from->reading.bindings[i].bound;
+    sprout_stored_bound *t = &to->reading.bindings[i].bound;
+    COPY_STR(from->reading.bindings[i].role, to->reading.bindings[i].role);
+    *t = *b;
+    COPY_STR(b->object, t->object);
+    COPY_STR(b->value_string, t->value_string);
+    COPY_STR(b->direction, t->direction);
+    COPY_STR(b->label, t->label);
+    COPY_STR(b->to, t->to);
+    PASS(copy_strs(arena, b->set, b->set_count, &t->set));
+  }
+  return SPROUT_OK;
+}
+
+sprout_status sprout_stored_instance_order(sprout_arena *arena, sprout_stored_instance *in) {
+  size_t j;
+  PASS(sort_records(arena, in->properties, in->property_count, sizeof *in->properties, by_property_name));
+  PASS(sort_records(arena, in->links, in->link_count, sizeof *in->links, by_link_name));
+  PASS(sort_records(arena, in->memory, in->memory_count, sizeof *in->memory, by_actor));
+  for (j = 0; j < in->memory_count; j++)
+    PASS(sort_records(arena, in->memory[j].properties, in->memory[j].count,
+                      sizeof *in->memory[j].properties, by_property_name));
+  return SPROUT_OK;
+}
+
 /* ---- stored values against declared types ---- */
 
 static bool whole(double n) {
@@ -244,12 +363,6 @@ typedef struct opening {
   sprout_dropped *dropped;
   size_t dropped_count, dropped_capacity;
 } opening;
-
-#define PASS(expr)                        \
-  do {                                    \
-    sprout_status pass_ = (expr);         \
-    if (pass_ != SPROUT_OK) return pass_; \
-  } while (0)
 
 static sprout_status drop(opening *o, sprout_str id, sprout_str property, const sprout_str *actor,
                           sprout_drop_reason why) {

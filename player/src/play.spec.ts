@@ -617,7 +617,9 @@ describe('the stored worlds the C runtime reads and writes back', () => {
     type Mutable<T> = { -readonly [K in keyof T]: T[K] };
     type Edit = (stored: Mutable<StoredWorld>, instances: Mutable<StoredInstance>[]) => boolean;
     const live = (instances: Mutable<StoredInstance>[]) =>
-      instances.filter((one) => one.made.from !== 'visitor' && Object.keys(one.properties).length > 0);
+      instances.filter(
+        (one) => one.made.from !== 'visitor' && Object.keys(one.properties).length > 0,
+      );
     const edits: [string, Edit][] = [
       [
         'a declared object with nothing stored',
@@ -636,7 +638,10 @@ describe('the stored worlds the C runtime reads and writes back', () => {
           const one = live(instances)[0];
           if (one === undefined) return false;
           const name = Object.keys(one.properties)[0]!;
-          one.properties = { ...one.properties, [name]: { ...one.properties[name]!, type: 'bogus' } };
+          one.properties = {
+            ...one.properties,
+            [name]: { ...one.properties[name]!, type: 'bogus' },
+          };
           return true;
         },
       ],
@@ -656,7 +661,9 @@ describe('the stored worlds the C runtime reads and writes back', () => {
             Object.values(o.properties).some((p) => p.type === 'integer'),
           );
           if (one === undefined) return false;
-          const name = Object.keys(one.properties).find((n) => one.properties[n]!.type === 'integer')!;
+          const name = Object.keys(one.properties).find(
+            (n) => one.properties[n]!.type === 'integer',
+          )!;
           one.properties = { ...one.properties, [name]: { type: 'integer', value: 4_000_000_000 } };
           return true;
         },
@@ -699,7 +706,9 @@ describe('the stored worlds the C runtime reads and writes back', () => {
         (stored) => {
           if (stored.visitors.length === 0) return false;
           stored.visitors = stored.visitors.map((v, i) =>
-            i === 0 ? { ...v, lastReading: { verb: { library: 'gone', name: 'nothing' }, bindings: [] } } : v,
+            i === 0
+              ? { ...v, lastReading: { verb: { library: 'gone', name: 'nothing' }, bindings: [] } }
+              : v,
           );
           return true;
         },
