@@ -12,6 +12,7 @@ import { hereKindOf } from '../declare/places.js';
 import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkGuard } from './guards.js';
+import { checkHandler } from './handlers.js';
 import { checkPlay } from './roles.js';
 import { checkDescribe } from './describe.js';
 import { checkPassages } from './passages.js';
@@ -90,6 +91,10 @@ function passagesOf(text: string): { said: Diagnostic[]; unheard: string[] } {
       for (const play of plays) if (play.origin === own) checkPlay(play, kind, setting);
     }
     if (kind.describe?.origin === own) checkDescribe(kind.describe, kind, setting);
+    for (const handlers of kind.handlers.values()) {
+      for (const handler of handlers)
+        if (handler.origin === own) checkHandler(handler, kind, setting);
+    }
   }
   const unheard = checkPassages({
     speakers: kinds.all().map((kind) => ({ kind })),
@@ -249,6 +254,47 @@ kind Grip is Hand {
     expect(said.map(([, message]) => message)).toEqual([
       'A passage reads what is there and does no arithmetic.',
     ]);
+  });
+});
+
+describe('a name the body saying a passage can never bind', () => {
+  it('is refused where the body says the passage, naming where the passage reads it', () => {
+    expect(
+      checked(`kind Box {
+  as target for take { do { say taken } }
+  passage taken { You take {target}. }
+}`),
+    ).toEqual([
+      [
+        'shop.sprout:5:33',
+        'The passage `taken` reads `target` at shop.sprout:6:29, and `target` is `self` in `as target for take`.',
+      ],
+    ]);
+  });
+
+  it('is refused at the body through the slots between, naming each passage', () => {
+    expect(
+      checked(`kind Bell { passage ring { Ding for {actor}. } }
+kind Tower {
+  contains
+  on :moved (from, to) { tell peal }
+  passage peal { {for b: Bell in self}{b.ring}{/for} }
+}`),
+    ).toEqual([
+      [
+        'shop.sprout:7:31',
+        'The passage `peal` renders `ring`, which reads `actor` at shop.sprout:4:38, and `actor` is not bound inside `on :moved`: nobody is acting when a message arrives.',
+      ],
+    ]);
+  });
+
+  it('is refused at each body that says the passage', () => {
+    const said = checked(`kind Box {
+  as target for take { do { say grabbed } }
+  as target for peer { do { say grabbed } }
+  passage grabbed { It is {target}. }
+}`);
+    expect(said.map(([at]) => at)).toEqual(['shop.sprout:5:33', 'shop.sprout:6:33']);
   });
 });
 

@@ -14,7 +14,8 @@
 // kind it reaches, with what the engine binds for that line. A passage
 // said from nowhere is checked with `self` alone. A name a passage
 // renders that is bound nowhere it is said from is refused where it is
-// said, and nothing more is said of that passage from there. A passage
+// said, and so is one the saying body can never bind, at that body even
+// through a chain of slots; nothing more is said of that passage from there. A passage
 // said or rendered from a body that draws nothing, or a line the engine
 // says in a poll, may not draw either (`chance.ts`), and a draw in it is
 // refused where it is said, as a name it lacks is.
@@ -25,7 +26,7 @@ import { isLoopVariable } from '../syntax/ast-prose.js';
 import { GUARD_NAMES } from '../syntax/ast.js';
 import { Diagnostics, type Diagnostic } from '../source/diagnostics.js';
 import type { Node } from '../source/nodes.js';
-import type { Span } from '../source/source.js';
+import { locationOf, type Span } from '../source/source.js';
 import { readable } from '../source/words.js';
 import { ENGINE_LINES, type EngineBinds, type EnginePassage } from '../declare/engine-passages.js';
 import { composesKind, kindName, type KindLookup, type KindRef } from '../declare/kinds.js';
@@ -84,6 +85,13 @@ interface Saying {
   readonly from: From;
   /** Why it is said where nothing draws; null where it may draw. */
   readonly undrawn: Undrawn | null;
+  /**
+   * Where a body said or rendered the first passage of the chain this one
+   * is reached by; null for a line the engine says, or one said from nowhere.
+   */
+  readonly root: Span | null;
+  /** The passages between that body and this one, in the order rendered. */
+  readonly through: readonly string[];
 }
 
 /**
@@ -104,6 +112,8 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
             scope: site.scope,
             from: { from: 'said', at: site.at },
             undrawn: site.undrawn,
+            root: site.at,
+            through: [],
           });
         }
       }
@@ -114,7 +124,14 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
         const scope = engineScope(line, passage.at, setting);
         const undrawn: Undrawn | null =
           line.polled === true ? { by: 'poll', line: line.name } : null;
-        say(run, { passage, scope, from: { from: 'engine', line }, undrawn });
+        say(run, {
+          passage,
+          scope,
+          from: { from: 'engine', line },
+          undrawn,
+          root: null,
+          through: [],
+        });
       }
     }
     // A thing's own `contents`, which `examine` says after its description
@@ -127,6 +144,8 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
         scope,
         from: { from: 'engine', line: CONTENTS },
         undrawn: { by: 'contents' },
+        root: null,
+        through: [],
       });
     }
   }
@@ -135,7 +154,14 @@ export function checkPassages(setting: PassageSetting): ReadonlySet<ResolvedPass
   for (const { kind } of setting.speakers) {
     for (const passage of kind.passages.values()) {
       if (!run.reached.has(passage)) {
-        say(run, { passage, scope: Scope.root(), from: { from: 'nowhere' }, undrawn: null });
+        say(run, {
+          passage,
+          scope: Scope.root(),
+          from: { from: 'nowhere' },
+          undrawn: null,
+          root: null,
+          through: [],
+        });
       }
     }
   }
@@ -261,8 +287,13 @@ function say(run: Run, saying: Saying): void {
   run.queue.push(saying);
 }
 
-/** A slot's passage, as every kind composing the slot's own has it. */
-function rendered(run: Run, site: PassageRendered): void {
+/**
+ * A slot's passage, as every kind composing the slot's own has it; `by` is
+ * the saying whose passage holds the slot, where a passage does.
+ */
+function rendered(run: Run, site: PassageRendered, by: Saying | null = null): void {
+  const root = by?.root ?? site.at;
+  const through = by === null || by.root === null ? [] : [...by.through, by.passage.name];
   for (const { kind } of run.setting.speakers) {
     if (!composesKind(kind, site.kind)) continue;
     const passage = kind.passages.get(site.name);
@@ -272,6 +303,8 @@ function rendered(run: Run, site: PassageRendered): void {
         scope: site.scope,
         from: { from: 'rendered', at: site.at },
         undrawn: site.undrawn,
+        root,
+        through,
       });
     }
   }
@@ -280,7 +313,13 @@ function rendered(run: Run, site: PassageRendered): void {
 /** Check what is queued, each passage once for each scope it is said in. */
 function drain(run: Run): void {
   for (let saying = run.queue.pop(); saying !== undefined; saying = run.queue.pop()) {
-    const key = `${signature(saying.scope)}|${undrawnKey(saying.undrawn)}`;
+    // A scope that can never bind some name is checked once for each body
+    // it is reached from, since a passage reading that name is refused there.
+    const root =
+      saying.root !== null && withholdsForGood(saying.scope)
+        ? `|${saying.root.source.name}:${saying.root.start}`
+        : '';
+    const key = `${signature(saying.scope)}|${undrawnKey(saying.undrawn)}${root}`;
     const done = run.done.get(saying.passage) ?? new Set<string>();
     if (done.has(key)) continue;
     done.add(key);
@@ -315,7 +354,8 @@ function undrawnKey(undrawn: Undrawn | null): string {
 }
 
 /** One passage in one scope, with its writer as `self`. */
-function checkSaying(run: Run, { passage, scope, from, undrawn }: Saying): void {
+function checkSaying(run: Run, saying: Saying): void {
+  const { passage, scope, from, undrawn } = saying;
   const speaker = run.writers.get(passage);
   // A passage whose writer did not compose has been said of already.
   if (speaker === undefined) return;
@@ -337,6 +377,7 @@ function checkSaying(run: Run, { passage, scope, from, undrawn }: Saying): void 
       refuseUnbound(run, passage, missing, withSelf, from);
       return;
     }
+    if (refusedWithheld(run, saying, withSelf)) return;
   }
   if (undrawn !== null && refusedDraw(run, passage, from, undrawn)) return;
   const sites: PassageRendered[] = [];
@@ -345,7 +386,45 @@ function checkSaying(run: Run, { passage, scope, from, undrawn }: Saying): void 
     option: (slot) => run.setting.sites.option(slot),
   });
   for (const diagnostic of diagnostics.all) tell(run, diagnostic);
-  for (const site of sites) rendered(run, site);
+  for (const site of sites) rendered(run, site, saying);
+}
+
+/** `a` reads, or `a` renders `b`, which reads: a chain of passages up to the name read. */
+function chainWords(chain: readonly string[]): string {
+  const [first, ...rest] = chain;
+  const renders = rest.map((one, i) => (i === 0 ? ` renders ${one}` : `, which renders ${one}`));
+  return `${first}${renders.join('')}${rest.length === 0 ? ' reads' : ', which reads'}`;
+}
+
+/** Whether `scope` withholds a name that nothing in it can ever bind. */
+function withholdsForGood(scope: Scope): boolean {
+  return scope.withheldNames().some((name) => scope.withheld(name)?.bound.bindable === false);
+}
+
+/**
+ * A name the passage reads that the body it is reached from can never
+ * bind: refused where that body says or renders the chain, naming the
+ * passages between and where the name is written. True where one was.
+ */
+function refusedWithheld(run: Run, saying: Saying, scope: Scope): boolean {
+  if (saying.root === null) return false;
+  const prose = saying.passage.body.prose;
+  const looped = loopedIn(prose);
+  for (const [name, at] of namesRead(prose)) {
+    if (looped.has(name) || scope.lookup(name) !== null) continue;
+    const withheld = scope.withheld(name);
+    if (withheld === null || withheld.bound.bindable) continue;
+    const chain = [...saying.through, saying.passage.name].map((one) => `\`${one}\``);
+    const diagnostics = new Diagnostics();
+    diagnostics.refuse(
+      saying.root,
+      `The passage ${chainWords(chain)} \`${name}\` at ${locationOf(at)}, and ${withheld.unread.message}`,
+      `Give the words here without \`${name}\`, or say ${chain[0]} only where \`${name}\` is bound.`,
+    );
+    for (const diagnostic of diagnostics.all) tell(run, diagnostic);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -434,11 +513,29 @@ function signature(scope: Scope): string {
  * first written.
  */
 function unbound(prose: Prose, context: CheckContext): Map<string, Span> {
+  const looped = loopedIn(prose);
+  const missing = new Map<string, Span>();
+  for (const [name, at] of namesRead(prose)) {
+    if (name === 'self' || looped.has(name) || isLoopVariable(name)) continue;
+    if (context.scope.lookup(name) !== null || context.scope.withheld(name) !== null) continue;
+    if (namesAnObject(name, context.names)) continue;
+    missing.set(name, at);
+  }
+  return missing;
+}
+
+/** The variables a passage's `{for}` loops bind. */
+function loopedIn(prose: Prose): Set<string> {
   const looped = new Set<string>();
-  const used = new Map<string, Span>();
   walkProse(prose, (piece) => {
     if (piece.kind === 'prose-for') looped.add(piece.variable.text);
   });
+  return looped;
+}
+
+/** Each name a passage's slots, conditions and loops read, with where it is first written. */
+function namesRead(prose: Prose): Map<string, Span> {
+  const used = new Map<string, Span>();
   walkProse(prose, (piece) => {
     const exprs: Expr[] =
       piece.kind === 'prose-slot'
@@ -452,14 +549,7 @@ function unbound(prose: Prose, context: CheckContext): Map<string, Span> {
       for (const [name, at] of namesIn(expr)) if (!used.has(name)) used.set(name, at);
     }
   });
-  const missing = new Map<string, Span>();
-  for (const [name, at] of used) {
-    if (name === 'self' || looped.has(name) || isLoopVariable(name)) continue;
-    if (context.scope.lookup(name) !== null || context.scope.withheld(name) !== null) continue;
-    if (namesAnObject(name, context.names)) continue;
-    missing.set(name, at);
-  }
-  return missing;
+  return used;
 }
 
 /** Whether a name reaches an object from where a passage is written. */
