@@ -62,18 +62,17 @@ export function allIn(
   }
   const everyThing =
     isEngineVerb(verb) || onlyTheActorPlays(verb, role, context.kinds, context.budget);
-  const taken = context.candidates
-    .filter(({ instance, carried }) => {
-      context.budget.spend();
-      if (left.has(instance.id) || instance.id === context.actor || instance.id === context.here) {
-        return false;
-      }
-      if (role.carried && !carried) return false;
-      return takes(role, verb, instance, everyThing);
-    })
-    .slice(0, context.budget.limits.setRoleObjects);
-  if (taken.length === 0) return { fills: 'nothing', start: 0, end: words.length };
+  const reached = context.candidates.filter(({ instance, carried }) => {
+    context.budget.spend();
+    if (left.has(instance.id) || instance.id === context.actor || instance.id === context.here) {
+      return false;
+    }
+    if (role.carried && !carried) return false;
+    return takes(role, verb, instance, everyThing);
+  });
+  if (reached.length === 0) return { fills: 'nothing', start: 0, end: words.length };
   if (role.many) {
+    const taken = reached.slice(0, context.budget.limits.setRoleObjects);
     return {
       fills: 'options',
       options: [
@@ -86,9 +85,10 @@ export function allIn(
       ],
     };
   }
+  // A role that takes one thing is capped once the refused are left out (`allowedOf`).
   return {
     fills: 'all',
-    things: taken.map(({ instance, near }) => ({
+    things: reached.map(({ instance, near }) => ({
       bound: { object: instance.id },
       near,
       literal,
@@ -99,12 +99,19 @@ export function allIn(
 
 /**
  * The readings of `all` in a role that takes one thing that are left to
- * run: those whose consent pass allows, asked against the world as the
- * line is read, so `drop all` leaves out what is not in hand and `take
- * all` what already is. Each pass is charged to the turn.
+ * run: the first a set role's figure of those whose consent pass allows,
+ * asked against the world as the line is read, so `drop all` leaves out
+ * what is not in hand and `take all` what already is. Each pass is
+ * charged to the turn, and none is asked past the figure.
  */
 export function allowedOf(readings: readonly Reading[], context: ConsentContext): Reading[] {
-  return readings.filter((reading) => consentPass(reading, context) === null);
+  const cap = context.budget.limits.setRoleObjects;
+  const allowed: Reading[] = [];
+  for (const reading of readings) {
+    if (allowed.length >= cap) break;
+    if (consentPass(reading, context) === null) allowed.push(reading);
+  }
+  return allowed;
 }
 
 /**

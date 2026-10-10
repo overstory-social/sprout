@@ -6,8 +6,8 @@
 // for a role only the actor plays, as `take`'s, every thing that is not a
 // person and not the visitor's own place. The reading runs once for each,
 // in the order the range walk reaches them, and stops at the first
-// refusal its turns meet, wherever in that order it falls. A run of things runs in the
-// order written.
+// refusal its turns meet, wherever in that order it falls. A run of
+// things runs in the order written.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 import {examine} from 'sprout'

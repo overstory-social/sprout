@@ -1,3 +1,4 @@
 import * as sprout from 'sprout'
 
-kind Person is sprout.Visitor { }
+// Hands for more than a set role may bind.
+kind Person is sprout.Visitor { :capacity 16 }
