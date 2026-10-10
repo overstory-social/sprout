@@ -36,6 +36,8 @@ import { SproutList } from './lists.js';
 import { initialState, loadWorld, saveWorld } from './load.js';
 import { owedAfter, owedBy, type Owed } from './move.js';
 import { passRules } from './passes.js';
+import { liveTree } from './live.js';
+import { rangeOf } from './range.js';
 import { actingSink, turnState, type Said } from './reading.js';
 import { runBody, type Speech } from './body.js';
 import { newInstance, type PendingWake } from './state.js';
@@ -484,7 +486,7 @@ const CASES: readonly Case[] = [
     state: 'worn',
   },
   {
-    name: 'a broadcast walks the sender’s range',
+    name: 'a broadcast walks the sender’s range, into a container that passes the message',
     area: 'send',
     body: 'broadcast :ping',
   },
@@ -493,6 +495,11 @@ const CASES: readonly Case[] = [
     area: 'send',
     body: 'broadcast :ping',
     state: 'worn',
+  },
+  {
+    name: 'an each stops at a container that refuses the question',
+    area: 'each',
+    body: 'each thing in glass { self.adjust(:count, 2) }',
   },
   {
     name: 'a cascade past the depth budget faults',
@@ -663,7 +670,7 @@ const CASES: readonly Case[] = [
 
 /** The objects a body names, written from the world so that a walk over one is known. */
 const OBJECTS =
-  /(?<![.:\w"])(hall|shelf|chest|lamp|bell|basket|gate|stubborn|keeper|box|tent|lodge|wardrobe|cell|dog)\b(?![^"]*"[^"]*$)/g;
+  /(?<![.:\w"])(hall|shelf|chest|glass|lamp|bell|basket|gate|stubborn|keeper|box|tent|lodge|wardrobe|cell|dog)\b(?![^"]*"[^"]*$)/g;
 
 const indent = (body: string): string =>
   body
@@ -697,6 +704,7 @@ function sourceOf(cases: readonly Case[]): string {
     '      object coin is Jar',
     '      object bin is Box',
     '    }',
+    '    object glass is Glass { object moth is Moth }',
     '    object lamp is Lamp',
     '    object bell is Bell',
     '    object stubborn is Stubborn',
@@ -776,6 +784,8 @@ function sourceOf(cases: readonly Case[]): string {
     '}',
     'kind Chest { contains  :open false  pass any (self.get(:open)) }',
     'kind Box { contains }',
+    'kind Glass { contains  pass :ping (true)  pass any (false) }',
+    'kind Moth { :drawn false  on :ping (from) { self.set(:drawn, true) } }',
     'kind Basket { contains  accept (item, from) { allow } }',
     'kind Gate { contains  accept (item, from) { if (item.is(Jar)) { allow }\n refuse "Jars only." } }',
     'kind Keeper { contains  release (item, to) { refuse "The keeper holds on." } }',
@@ -1198,6 +1208,49 @@ function run(
   }
 }
 
+/** What one walk asks: the objects in range of `asker` for a message, or for any. */
+interface RangeCase {
+  readonly name: string;
+  readonly asker: Who;
+  /** A message of the bench, or any question when null. */
+  readonly asking: string | null;
+  readonly state: StateName;
+}
+
+const RANGES: readonly RangeCase[] = [
+  { name: 'a runner reaches its place and what the place holds', asker: at('runner'), asking: null, state: 'fresh' },
+  { name: 'a shut chest is reached as a thing, and holds its own', asker: at('runner'), asking: null, state: 'fresh' },
+  { name: 'an open chest passes what it holds', asker: at('runner'), asking: null, state: 'worn' },
+  { name: 'a glass case passes only the message it names', asker: at('runner'), asking: 'ping', state: 'fresh' },
+  { name: 'a container asked about itself reaches its own contents', asker: at('chest'), asking: null, state: 'fresh' },
+  { name: 'what is inside a shut chest reaches the chest as a surface', asker: at('chest', 'coin'), asking: null, state: 'fresh' },
+  { name: 'what is inside an open chest reaches the place outside', asker: at('chest', 'coin'), asking: null, state: 'worn' },
+  { name: 'a person reaches what is in the place', asker: 'visitor', asking: null, state: 'worn' },
+];
+
+/** Run one walk against the oracle: who it reaches, nearest first, and the steps it cost. */
+function walk(one: RangeCase, built: Built, resolve: (to: Who) => InstanceId): Record<string, unknown> {
+  const draft = new Draft(loadWorld(built.stored, catalogue).state);
+  const budget = new Budget(DEFAULT_LIMITS.budgets);
+  const passes = passRules({
+    state: draft,
+    kinds: catalogue.lookup,
+    caps: CAPS,
+    budget,
+    names: catalogue.names,
+  });
+  const asking = one.asking === null ? 'any' : catalogue.messages.qualified(LIBRARY, one.asking)!;
+  const walked = rangeOf(
+    { tree: liveTree(turnState(draft)), passes, budget },
+    resolve(one.asker),
+    asking,
+  );
+  return {
+    reached: walked.reached.map(({ node, via }) => ({ node, via })),
+    steps: budget.spentSteps,
+  };
+}
+
 describe('the statement goldens', () => {
   it('writes what the oracle says for every case', () => {
     const built = states();
@@ -1227,8 +1280,21 @@ describe('the statement goldens', () => {
         ...run(one, i, built[state], resolve),
       };
     });
+    const ranges = RANGES.map((one) => {
+      const named = built[one.state].named;
+      const resolve = (to: Who): InstanceId =>
+        typeof to === 'string' ? (named[to] as InstanceId) : planned(to);
+      return {
+        name: one.name,
+        asker: resolve(one.asker),
+        asking: one.asking === null ? null : `${LIBRARY}.${one.asking}`,
+        state: one.state,
+        ...walk(one, built[one.state], resolve),
+      };
+    });
     const text = `${JSON.stringify(
       {
+        ranges,
         states: Object.fromEntries(
           Object.entries(built).map(([name, one]) => [name, JSON.stringify(one.stored)]),
         ),

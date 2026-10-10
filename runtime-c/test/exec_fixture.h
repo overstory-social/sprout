@@ -17,6 +17,7 @@
 #include "exec.h"
 #include "json.h"
 #include "load.h"
+#include "stmt/stmt.h"
 #include "world.h"
 
 typedef struct exec_bench {
@@ -173,6 +174,31 @@ static inline void exec_case_close(exec_case *c) {
 
 static inline const sprout_node *exec_body_of(const exec_case *c) {
   return &c->world->graph.entries[(size_t)exec_number(c->golden, "node")];
+}
+
+/* The statement a case's body starts with, which a module's test hands to the module that runs it. */
+static inline const sprout_node *exec_first_statement(const exec_case *c) {
+  return sprout_node_get(exec_body_of(c), "statements")->items[0];
+}
+
+/* A run of an acting body in this case's turn, for the function of a statement module a test calls. */
+static inline sprout_run exec_run(exec_case *c) {
+  sprout_run run;
+  memset(&run, 0, sizeof run);
+  run.x = &c->x;
+  run.mode = SPROUT_BODY_ACT;
+  return run;
+}
+
+/* A number property of an instance as the turn stands. */
+static inline double exec_property(exec_case *c, const char *id, const char *name) {
+  sprout_value value;
+  const sprout_stored_instance *instance = sprout_draft_instance(&c->draft, exec_str(id));
+  if (instance == NULL || expr_get(&c->frame, instance, name, &value) != SPROUT_EVAL_OK) {
+    fprintf(stderr, "no property %s of %s\n", name, id);
+    exit(2);
+  }
+  return value.kind == SPROUT_NUMBER ? value.as.number : value.kind == SPROUT_BOOL ? (double)value.as.boolean : -1;
 }
 
 /* ---- comparing what a run recorded with what the oracle recorded ---- */
