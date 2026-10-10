@@ -110,6 +110,23 @@ sprout_eval_status prose_charge(prose_output *output, sprout_str reader, uint64_
 /* A fault that names the budget the meter says is spent. */
 sprout_eval_status prose_budget_fault(sprout_eval_fault *fault, const sprout_meter *meter);
 
+/* ---- written.c: where the words a reader read were written ---- */
+
+/* Where the words a reader read were written: a named passage, or a one-line passage. */
+typedef struct sprout_noted {
+  bool passage;
+  const char *name;   /* a passage: its name */
+  const char *origin; /* a passage: the kind that wrote it, qualified */
+  const char *at;     /* `file:line:column` */
+} sprout_noted;
+
+/* The passages and one-line passages that gave one reader's words so far, each once, in the order they finished. */
+typedef struct prose_notes {
+  sprout_arena *arena;
+  sprout_noted *items;
+  size_t count, capacity;
+} prose_notes;
+
 /* ---- slots.c: passages, slots, conditionals and loops ---- */
 
 /* What a passage is rendered by, and for whom. */
@@ -120,7 +137,17 @@ typedef struct prose_reading {
   sprout_meter *meter;
   sprout_eval_fault *fault;
   sprout_str reader; /* a name for this reader is "you" */
+  prose_notes *notes; /* where the words are noted, or NULL where nobody asks */
 } prose_reading;
+
+/* Notes the passage `passage` (a node with `name`, `origin` and `at`) as having given the reader words, once. */
+void prose_note_passage(const prose_reading *reading, const sprout_node *passage);
+
+/* Notes the one-line passage whose prose is `prose` as having given the reader words, once. */
+void prose_note_line(const prose_reading *reading, const sprout_node *prose);
+
+/* Notes the engine's own line, read where no passage writes it, as having given the reader words, once. */
+void prose_note_engine(const prose_reading *reading);
 
 /* The frame a passage's prose renders in: `self` is its owner, and `draws` is NULL where nothing draws. */
 sprout_frame prose_frame(const prose_reading *reading, sprout_draws *draws, sprout_str self, const char *library,

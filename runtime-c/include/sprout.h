@@ -216,11 +216,26 @@ typedef struct sprout_filling {
   double number;                /* NUMBER */
 } sprout_filling;
 
+/*
+ * A line a host's parser says before the reading's own (the spec's Parsing > Pronouns, Choosing a reading):
+ * the world's `pronoun_correction` for a thing a pronoun named, with the pronoun the thing declares, or the
+ * engine's `meant`, telling the actor which thing a reading drawn from a tie took the words to name.
+ */
+typedef struct sprout_aside {
+  const char *line;    /* `pronoun_correction` or `meant` */
+  const char *thing;   /* the thing it names, by id */
+  const char *pronoun; /* pronoun_correction: the pronoun the thing declares */
+} sprout_aside;
+
 typedef struct sprout_reading {
   const char *verb;  /* by its full identity, `sprout.take` */
   const char *actor; /* the id of the instance performing it */
   size_t filling_count;
-  const sprout_filling *fillings;
+  const sprout_filling *fillings; /* in the order the reading binds its roles, which a visitor's last reading keeps */
+  size_t draw_count;
+  const uint64_t *draws; /* the bounds the host's parser drew below reading the line, in order: the turn's stream begins with them */
+  size_t aside_count;
+  const sprout_aside *asides;
 } sprout_reading;
 
 /* How a reading ended: both passes ran, the consent pass refused, or its actor destroyed itself. */

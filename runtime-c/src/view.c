@@ -63,6 +63,7 @@ static void poll_begin(poll *p) {
   p->reading.meter = &p->meter;
   p->reading.fault = &p->fault;
   p->reading.reader = p->actor;
+  p->reading.notes = NULL;
 }
 
 /* ---- deriving ---- */

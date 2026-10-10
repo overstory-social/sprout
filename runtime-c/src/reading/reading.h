@@ -24,6 +24,8 @@ typedef struct sprout_resolved {
   const sprout_verb *verb;
   sprout_str actor;
   const sprout_filled *roles; /* one for each role of the verb, in the verb's order */
+  size_t bound_count;
+  const size_t *bound_order; /* the roles that are filled, as indices, in the order the host bound them */
 } sprout_resolved;
 
 /* One participant: who, and the role it plays; no role is the actor's own part. */

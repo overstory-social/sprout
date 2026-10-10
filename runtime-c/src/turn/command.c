@@ -31,7 +31,7 @@ static sprout_eval_status remember(turn_run *run, sprout_str visit, const sprout
   const sprout_stored_visitor *before = sprout_draft_visitor(&run->draft, visit);
   sprout_stored_visitor record;
   sprout_stored_binding *bindings;
-  size_t filled = 0, i, n = 0;
+  size_t i, n = 0;
   if (before == NULL) return SPROUT_EVAL_NO_MEMORY;
   record = *before;
   if (reading->verb->role_count > 0 && reading->roles[0].filled) {
@@ -47,13 +47,13 @@ static sprout_eval_status remember(turn_run *run, sprout_str visit, const sprout
       record.referent_count = first->set_count;
     }
   }
-  for (i = 0; i < reading->verb->role_count; i++) filled += reading->roles[i].filled ? 1 : 0;
-  bindings = (sprout_stored_binding *)sprout_arena_take(run->x.turn, (filled + 1) * sizeof *bindings);
+  bindings = (sprout_stored_binding *)sprout_arena_take(run->x.turn, (reading->bound_count + 1) * sizeof *bindings);
   if (bindings == NULL) return SPROUT_EVAL_NO_MEMORY;
-  for (i = 0; i < reading->verb->role_count; i++) {
-    if (!reading->roles[i].filled) continue;
-    bindings[n].role = expr_str(reading->verb->roles[i].name);
-    bindings[n].bound = reading->roles[i].bound;
+  /* Kept in the order the host bound the roles. */
+  for (i = 0; i < reading->bound_count; i++) {
+    size_t role = reading->bound_order[i];
+    bindings[n].role = expr_str(reading->verb->roles[role].name);
+    bindings[n].bound = reading->roles[role].bound;
     n++;
   }
   record.has_reading = true;
@@ -194,6 +194,62 @@ static sprout_status tell_fault(sprout_world *world, sprout_state *state, const 
   return SPROUT_OK;
 }
 
+/* The lines the host's parser says before the reading's own, told to the actor where they stand. */
+static sprout_eval_status asides_told(const sprout_frame *frame, sprout_str actor, const sprout_reading *reading,
+                                      sprout_effect **out, size_t *count) {
+  const sprout_stored_instance *standing = expr_instance(frame, actor);
+  sprout_effect *made = (sprout_effect *)sprout_arena_take(frame->turn, (reading->aside_count + 2) * sizeof *made);
+  size_t i;
+  *out = made;
+  *count = 0;
+  if (made == NULL) return SPROUT_EVAL_NO_MEMORY;
+  if (reading->aside_count == 0) return SPROUT_EVAL_OK;
+  if (standing == NULL || !standing->has_container) return expr_engine(frame, "a visitor is told by the parser, and is away.");
+  for (i = 0; i < reading->aside_count; i++) {
+    const sprout_aside *aside = &reading->asides[i];
+    sprout_effect *effect = &made[*count];
+    sprout_effect_binding *bound;
+    sprout_str *to = (sprout_str *)sprout_arena_take(frame->turn, sizeof *to);
+    size_t n = 0;
+    bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, 4 * sizeof *bound);
+    if (to == NULL || bound == NULL) return SPROUT_EVAL_NO_MEMORY;
+    if (aside->line == NULL || aside->thing == NULL) return expr_engine(frame, "a line the parser says names no thing.");
+    *to = actor;
+    memset(effect, 0, sizeof *effect);
+    effect->kind = SPROUT_EFFECT_NOTICE;
+    effect->to = to;
+    effect->to_count = 1;
+    sprout_engine_said(frame, aside->line, &actor, &standing->container, &effect->by, &effect->said);
+    bound[n].name = "actor";
+    bound[n++].bound = sprout_evaluated_object(actor);
+    bound[n].name = "here";
+    bound[n++].bound = sprout_evaluated_object(standing->container);
+    bound[n].name = "thing";
+    bound[n++].bound = sprout_evaluated_object(expr_str(aside->thing));
+    if (aside->pronoun != NULL) {
+      sprout_value pronoun;
+      if (!sprout_string(frame->turn, aside->pronoun, strlen(aside->pronoun), &pronoun)) return SPROUT_EVAL_NO_MEMORY;
+      bound[n].name = "pronoun";
+      bound[n++].bound = sprout_evaluated_value(pronoun);
+    }
+    effect->bindings = bound;
+    effect->binding_count = n;
+    (*count)++;
+  }
+  return SPROUT_EVAL_OK;
+}
+
+/* What the host's parser drew while it read the line comes first on the turn's stream. */
+static sprout_eval_status parse_draws(const sprout_frame *frame, turn_run *run, const sprout_reading *reading) {
+  size_t i;
+  for (i = 0; i < reading->draw_count; i++) {
+    uint32_t drawn;
+    if (!sprout_draws_below(run->draws, reading->draws[i], &drawn))
+      return expr_engine(frame, "the parser drew below a bound that no draw takes.");
+  }
+  return SPROUT_EVAL_OK;
+}
+
 sprout_status turn_command(sprout_world *world, sprout_state *state, const sprout_host *host,
                            const sprout_turn_input *input, sprout_outcome *outcome) {
   const sprout_stored_visitor *record;
@@ -206,8 +262,8 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   sprout_resolved resolved;
   sprout_permit_refusal refusal;
   sprout_reading_end end = SPROUT_READING_ACTED;
-  sprout_effect lines[2], *answers = NULL;
-  size_t line_count = 0, arrival_count = 0, answer_count = 0;
+  sprout_effect before[2], *asides = NULL;
+  size_t before_count = 0, arrival_count = 0, answer_count = 0, aside_count = 0;
   const sprout_arrived *arrivals = NULL;
   const sprout_effect *engine = NULL;
   bool gone, refused_here = false;
@@ -233,12 +289,10 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   frame = sprout_exec_frame(&run.x, actor, NULL, NULL);
   gone = !turn_stands_in_place(&frame, actor);
   memset(&refusal, 0, sizeof refusal);
+  eval = SPROUT_EVAL_OK;
   if (gone) {
-    eval = displaced(&run, visit, actor, &refused_here, lines, &line_count, &arrivals, &arrival_count);
-    if (eval == SPROUT_EVAL_OK && refused_here) {
-      /* Told what refused them as well; what they typed is not read. */
-      eval = SPROUT_EVAL_OK;
-    }
+    /* What they typed is not read; they are told where they are instead. */
+    eval = displaced(&run, visit, actor, &refused_here, before, &before_count, &arrivals, &arrival_count);
   } else {
     status = sprout_reading_resolve(world, &run.draft, &run.scratch, input->reading, &resolved, outcome->fault.text,
                                     sizeof outcome->fault.text);
@@ -246,34 +300,38 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
       turn_drop(&run);
       return turn_abort(outcome, status);
     }
-    eval = sprout_reading_exits(&frame, &resolved);
+    eval = parse_draws(&frame, &run, input->reading);
+    if (eval == SPROUT_EVAL_OK) eval = asides_told(&frame, actor, input->reading, &asides, &aside_count);
+    if (eval == SPROUT_EVAL_OK) eval = sprout_reading_exits(&frame, &resolved);
     if (eval == SPROUT_EVAL_OK) eval = sprout_perform(&run.x, &frame, &resolved, &end, &refusal);
     if (eval == SPROUT_EVAL_OK) eval = remember(&run, visit, &resolved);
     if (eval == SPROUT_EVAL_OK && end == SPROUT_READING_REFUSED) {
-      eval = refusal_told(&frame, actor, &refusal, &lines[0]);
-      line_count = 1;
-      /* The refusal is the whole of what is told; nothing was queued, and nothing is read in. */
-      run.x.effect_count = 0;
+      /* The refusal ends the turn: nothing was queued, and nothing is read in. */
+      eval = refusal_told(&frame, actor, &refusal, &before[0]);
+      before_count = 1;
     } else if (eval == SPROUT_EVAL_OK) {
       eval = sprout_exec_drain(&run.x);
       if (eval == SPROUT_EVAL_OK) eval = sprout_arrivals_read(&run.x, &frame, &arrivals, &arrival_count);
-      if (eval == SPROUT_EVAL_OK) {
-        eval = sprout_engine_answers(&run.x, &frame, &resolved, &engine, &answer_count);
-        answers = NULL;
-      }
+      if (eval == SPROUT_EVAL_OK) eval = sprout_engine_answers(&run.x, &frame, &resolved, &engine, &answer_count);
     }
   }
   if (eval == SPROUT_EVAL_OK) {
-    if (!gone && end == SPROUT_READING_REFUSED) {
-      /* The consent pass's refusal stands alone. */
-      eval = sprout_lines_assembled(&run.x, lines, line_count, NULL, 0, NULL, 0);
-    } else if (gone) {
-      eval = sprout_lines_assembled(&run.x, lines, line_count, arrivals, arrival_count, NULL, 0);
+    if (gone) {
+      eval = sprout_lines_assembled(&run.x, before, before_count, arrivals, arrival_count, NULL, 0);
+    } else if (end == SPROUT_READING_REFUSED) {
+      /* What the parser said, then the refusal. */
+      sprout_effect *both = (sprout_effect *)sprout_arena_take(run.x.turn, (aside_count + 2) * sizeof *both);
+      if (both == NULL) eval = SPROUT_EVAL_NO_MEMORY;
+      else {
+        memcpy(both, asides, aside_count * sizeof *both);
+        both[aside_count] = before[0];
+        eval = sprout_lines_assembled(&run.x, both, aside_count + 1, NULL, 0, NULL, 0);
+      }
     } else {
-      eval = sprout_lines_assembled(&run.x, NULL, 0, arrivals, arrival_count, engine, answer_count);
+      eval = sprout_lines_assembled(&run.x, asides, aside_count, arrivals, arrival_count, engine, answer_count);
     }
   }
-  (void)answers;
+  (void)refused_here;
   if (eval == SPROUT_EVAL_OK) eval = turn_render(&run, &actor, outcome);
   if (eval == SPROUT_EVAL_OK) {
     status = turn_commit(&run);

@@ -55,6 +55,8 @@ static const char *written(play *p, const sprout_json *node) {
   const char *bytes;
   size_t length;
   if (node == NULL || sprout_json_write(&p->arena, node, &bytes, &length) != SPROUT_OK) return NULL;
+  /* A member of an object is written with its name; the trace wants the value alone. */
+  if (node->key != NULL) bytes += node->key_length + 3;
   return bytes;
 }
 
@@ -156,10 +158,24 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
   if (effects == NULL || cuts == NULL) return NULL;
   for (i = 0; i < outcome->effect_count; i++) {
     const sprout_told_effect *effect = &outcome->effects[i];
-    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 5);
+    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 6), *notes;
     if (one == NULL) return NULL;
     paragraphs = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, effect->line_count);
-    if (paragraphs == NULL) return NULL;
+    notes = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, effect->written_count);
+    if (paragraphs == NULL || notes == NULL) return NULL;
+    for (j = 0; j < effect->written_count; j++) {
+      const sprout_written *noted = &effect->written[j];
+      sprout_json *where = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 3);
+      if (where == NULL) return NULL;
+      if (noted->passage) {
+        sprout_json_adopt(where, "passage", jstr(p, noted->name));
+        sprout_json_adopt(where, "origin", jstr(p, noted->origin));
+        sprout_json_adopt(where, "at", jstr(p, noted->at));
+      } else {
+        sprout_json_adopt(where, "line", jstr(p, noted->at));
+      }
+      sprout_json_adopt(notes, NULL, where);
+    }
     for (j = 0; j < effect->line_count; j++)
       sprout_json_adopt(paragraphs, NULL,
                         jtext(p, outcome->lines[effect->line_first + j].text, outcome->lines[effect->line_first + j].text_length));
@@ -168,6 +184,7 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
     sprout_json_adopt(one, "to", jstr_of(p, effect->to));
     sprout_json_adopt(one, "visit", jstr_of(p, effect->visit));
     sprout_json_adopt(one, "paragraphs", paragraphs);
+    sprout_json_adopt(one, "written", notes);
     sprout_json_adopt(effects, NULL, one);
   }
   for (i = 0; i < outcome->cut_count; i++)
@@ -407,6 +424,33 @@ static const char *fillings_of(play *p, const sprout_json *fillers, sprout_filli
   return NULL;
 }
 
+/* What the parser drew and said while it read the line, as the reading carries it. */
+static const char *parsing_of(play *p, const sproutc_turn_reading *turn, sprout_reading *read) {
+  size_t i;
+  if (turn->draws != NULL && turn->draws->count > 0) {
+    uint64_t *bounds = (uint64_t *)sprout_arena_take(&p->arena, turn->draws->count * sizeof *bounds);
+    if (bounds == NULL) return "the host cannot give the reading memory.";
+    for (i = 0; i < turn->draws->count; i++) bounds[i] = (uint64_t)turn->draws->items[i]->number;
+    read->draw_count = turn->draws->count;
+    read->draws = bounds;
+  }
+  if (turn->asides != NULL && turn->asides->count > 0) {
+    sprout_aside *asides = (sprout_aside *)sprout_arena_take(&p->arena, turn->asides->count * sizeof *asides);
+    if (asides == NULL) return "the host cannot give the reading memory.";
+    for (i = 0; i < turn->asides->count; i++) {
+      const sprout_json *one = turn->asides->items[i], *line = sprout_json_get(one, "line"),
+                        *thing = sprout_json_get(one, "thing"), *pronoun = sprout_json_get(one, "pronoun");
+      if (line == NULL || thing == NULL) return "an aside in the readings file names no line or thing.";
+      asides[i].line = line->bytes;
+      asides[i].thing = thing->bytes;
+      asides[i].pronoun = pronoun == NULL || pronoun->kind != SPROUT_JSON_STRING ? NULL : pronoun->bytes;
+    }
+    read->aside_count = turn->asides->count;
+    read->asides = asides;
+  }
+  return NULL;
+}
+
 /* A turn the parser answered: its lines and its entry, echoed as the readings file holds them. */
 static bool echo(play *p, const sproutc_turn_reading *turn) {
   size_t i;
@@ -450,6 +494,12 @@ static bool command(play *p, const sproutc_step *step) {
       return false;
     }
     memset(&read, 0, sizeof read);
+    why = parsing_of(p, &reading, &read);
+    if (why != NULL) {
+      fprintf(p->err, "sproutc: %s\n", why);
+      p->failure = 1;
+      return false;
+    }
     read.verb = reading.verb;
     read.actor = reading.actor;
     read.filling_count = count;

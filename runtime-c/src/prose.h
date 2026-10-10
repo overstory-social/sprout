@@ -13,14 +13,7 @@
 
 #include "describe.h"
 #include "exec.h"
-
-/* Where the words a reader read were written: a named passage, or a one-line passage. */
-typedef struct sprout_noted {
-  bool passage;
-  const char *name;   /* a passage: its name */
-  const char *origin; /* a passage: the kind that wrote it, qualified */
-  const char *at;     /* `file:line:column` */
-} sprout_noted;
+#include "prose/prose.h"
 
 /* One reader's reading of one line: the paragraphs it renders to for them. */
 typedef struct sprout_told {

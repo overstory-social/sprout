@@ -28,6 +28,8 @@ typedef struct sproutc_turn_reading {
   uint64_t seed;
   bool skip;
   const char *why;  /* when skipped: the parser's answer */
+  const sprout_json *draws;  /* otherwise: the bounds the parser drew below reading the line */
+  const sprout_json *asides; /* otherwise: what the parser said before the reading's own lines */
   const sprout_json *says;   /* the lines a reader read, as the TypeScript runtime told them: the parser's, which this host echoes when it skips the turn */
   const sprout_json *expect; /* the turn as the TypeScript runtime logged it */
   const char *verb; /* otherwise: the verb, qualified */

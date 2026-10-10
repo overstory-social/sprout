@@ -4,10 +4,11 @@ import {
   SproutList,
   type InstanceId,
   type StoredWorld,
+  type WrittenAt,
   type Value,
 } from '@overstory/sprout/lang';
 
-import { freshStage, playStep, type Stage, type Traced } from './play.js';
+import { freshStage, playStep, type Aside, type Stage, type Traced } from './play.js';
 import { lineOf, secondsOf, type Script, type Step } from './script.js';
 import type { PlayableWorld } from './stand.js';
 
@@ -60,7 +61,7 @@ export interface Said {
 /**
  * What the log keeps of one turn that ran, as a runtime working from the log's inputs reproduces it: the
  * seed it drew from, the instant, whom it was for, how it ended, the fault it ended in, the world's last
- * serial, each effect it told (without where its words were written), who it cut short, and, for catch-up,
+ * serial, each effect it told and where its words were written, who it cut short, and, for catch-up,
  * the wakes it delivered, consumed after a fault, and left pending.
  */
 export interface TurnEntry {
@@ -77,6 +78,7 @@ export interface TurnEntry {
     readonly to: string;
     readonly visit: string;
     readonly paragraphs: readonly string[];
+    readonly written: readonly WrittenAt[];
   }[];
   readonly cutShort: readonly string[];
   readonly delivered?: readonly { readonly object: string; readonly serial: number }[];
@@ -109,6 +111,10 @@ export type ReadTurn =
       readonly fillers: readonly ReadFiller[];
       /** Whether the consent pass refused the reading; the reading is still one to run. */
       readonly refused: boolean;
+      /** The bounds the parser drew below reading the line, which a runtime that does not parse draws first. */
+      readonly draws: readonly number[];
+      /** What the parser said before the reading's own lines. */
+      readonly asides: readonly Aside[];
       readonly says: readonly Said[];
       readonly expect: TurnEntry;
     }
@@ -161,8 +167,13 @@ function valueOf(value: Value): ReadValue {
   return value instanceof SproutList ? value.elements.map(valueOf) : null;
 }
 
+/** What fills each role: the roles the reading binds in the order it binds them, then the rest, unbound. */
 function fillersOf(reading: NonNullable<Traced['reading']>): ReadFiller[] {
-  return reading.verb.roles.map((role): ReadFiller => {
+  const names = reading.verb.roles.map((role) => role.name);
+  const bound = [...reading.bindings.keys()];
+  const order = [...bound, ...names.filter((name) => !bound.includes(name))];
+  return order.map((name): ReadFiller => {
+    const role = { name };
     const bound = reading.bindings.get(role.name);
     if (bound === undefined) return { role: role.name, binds: 'unbound' };
     if ('object' in bound) {
@@ -208,6 +219,7 @@ function entryOf(traced: Traced): TurnEntry {
       to: effect.to,
       visit: effect.visit,
       paragraphs: [...effect.paragraphs],
+      written: effect.written.map((where) => ({ ...where })),
     })),
     cutShort: [...logged.cut],
     ...(logged.wakes === null
@@ -236,6 +248,8 @@ function turnOf(stage: Stage, traced: Traced, seed: number): ReadTurn {
       actor: reading.actor,
       fillers: fillersOf(reading),
       refused: traced.refused,
+      draws: [...traced.parseDraws],
+      asides: [...traced.asides],
       ...echo,
     };
   }

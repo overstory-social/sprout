@@ -137,7 +137,7 @@ sprout_status sprout_reading_resolve(const sprout_world *world, const sprout_dra
   const explained *outcome = &explaining;
   const sprout_verb *verb = verb_of(world, reading->verb);
   sprout_filled *roles;
-  size_t i, j;
+  size_t *order, i, j, bound = 0;
   explaining.text = words;
   explaining.size = size;
   if (verb == NULL) {
@@ -149,7 +149,8 @@ sprout_status sprout_reading_resolve(const sprout_world *world, const sprout_dra
     return SPROUT_BAD_INPUT;
   }
   roles = (sprout_filled *)sprout_arena_take(turn, (verb->role_count + 1) * sizeof *roles);
-  if (roles == NULL) return SPROUT_NO_MEMORY;
+  order = (size_t *)sprout_arena_take(turn, (reading->filling_count + 1) * sizeof *order);
+  if (roles == NULL || order == NULL) return SPROUT_NO_MEMORY;
   for (i = 0; i < reading->filling_count; i++) {
     sprout_status status;
     for (j = 0; j < verb->role_count && strcmp(verb->roles[j].name, reading->fillings[i].role) != 0; j++) {}
@@ -159,10 +160,13 @@ sprout_status sprout_reading_resolve(const sprout_world *world, const sprout_dra
     }
     status = filled_from(draft, turn, &verb->roles[j], &reading->fillings[i], &roles[j], outcome);
     if (status != SPROUT_OK) return status;
+    if (roles[j].filled) order[bound++] = j;
   }
   out->verb = verb;
   out->actor = str_of(reading->actor);
   out->roles = roles;
+  out->bound_count = bound;
+  out->bound_order = order;
   return SPROUT_OK;
 }
 

@@ -119,6 +119,21 @@ export interface Traced {
   readonly standing: readonly InstanceId[];
   /** What the log keeps of the turn, which a runtime working from the log's inputs reproduces (`readings.ts`). */
   readonly logged: Logged;
+  /** The bounds the parser drew below while it read the line, in order: the turn's stream begins with them. */
+  readonly parseDraws: readonly number[];
+  /** What the parser said before the reading's own lines. */
+  readonly asides: readonly Aside[];
+}
+
+/**
+ * A line the parser says before the reading's own (the spec's Parsing › Pronouns, Choosing a reading):
+ * the world's `pronoun_correction` for a thing a pronoun named, with the pronoun it declares, or the
+ * engine's `meant`, telling the actor which thing a reading drawn from a tie took the words to name.
+ */
+export interface Aside {
+  readonly line: 'meant' | 'pronoun_correction';
+  readonly thing: InstanceId;
+  readonly pronoun: string | null;
 }
 
 /**
@@ -148,6 +163,8 @@ export interface Stage {
   seed: number;
   readonly visits: Map<string, VisitKey>;
   readonly turns: Traced[];
+  /** The bounds the parser drew below reading the command turn now running. */
+  readonly parsed: number[];
 }
 
 /**
@@ -209,6 +226,8 @@ function trace(
     answered: null,
     refused: false,
     faults: [],
+    parseDraws: [],
+    asides: [],
     ...parts,
     standing: standing(stage),
     logged,
@@ -443,7 +462,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
           stage,
           'command',
           loggedOf(stage, { seed: typed.seed, now: typed.now, who: visit, ...logged }),
-          { as: nickname, typed: typed.text, ...parts },
+          { as: nickname, typed: typed.text, parseDraws: [...stage.parsed], ...parts },
         );
       if (!turn.committed) {
         traceCommand({ outcome: 'faulted' }, { effects: turn.effects, faults: [turn.fault] });
@@ -464,6 +483,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
               : null,
           answered: 'answered' in value ? answeredBy(value.answered) : null,
           refused: 'refused' in value,
+          asides: asidesOf(value),
         },
       );
       // A step of an intent that runs is the host's to log at info.
@@ -561,6 +581,27 @@ function advance(stage: Stage, seconds: number): Made[] {
   return out;
 }
 
+/** The lines the parser said before a committed command's own, in the order it said them. */
+function asidesOf(value: object): Aside[] {
+  if (!('corrected' in value) || !('drawn' in value)) return [];
+  const said = (line: Said, name: Aside['line']): Aside | null => {
+    const thing = line.bindings.get('thing');
+    const pronoun = line.bindings.get('pronoun');
+    if (thing === undefined || thing.binds !== 'object') return null;
+    return {
+      line: name,
+      thing: thing.id,
+      pronoun:
+        pronoun?.binds === 'value' && typeof pronoun.value === 'string' ? pronoun.value : null,
+    };
+  };
+  const drawn = value.drawn as { readonly meant: Said | null } | null;
+  return [
+    ...(value.corrected as readonly Said[]).map((line) => said(line, 'pronoun_correction')),
+    ...(drawn?.meant == null ? [] : [said(drawn.meant, 'meant')]),
+  ].filter((one): one is Aside => one !== null);
+}
+
 /** The engine line the parser answered a command with, by its passage's name, or its words where they are a string. */
 function answeredBy(said: Said): string {
   const { said: speech } = said;
@@ -623,19 +664,31 @@ export function playStep(stage: Stage, step: Step, where: string): Made[] | null
 /** A fresh stage over `world`: as it loads, time at 0, seed 0, nobody yet arrived. */
 export function freshStage(world: PlayableWorld): Stage {
   const catalogue = catalogueFor(world);
-  return {
+  const stage: Stage = {
     host: {
       catalogue,
       budgets: DEFAULT_LIMITS.budgets,
       render: renderEffects,
-      parse: parseCommand,
+      // The parser's draws are noted, since a runtime that does not parse begins its stream with them.
+      parse: (text, actor, context) => {
+        stage.parsed.length = 0;
+        const recording = {
+          below: (n: number): number => {
+            stage.parsed.push(n);
+            return context.draws.below(n);
+          },
+        };
+        return parseCommand(text, actor, { ...context, draws: recording });
+      },
     },
     state: initialState(catalogue),
     now: 0,
     seed: 0,
     visits: new Map(),
     turns: [],
+    parsed: [],
   };
+  return stage;
 }
 
 /**

@@ -33,7 +33,7 @@ set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speec
 set(SPROUT_TURN_MODULES arrival command departure maintenance tick wake)
 
 # Rendering what a turn said, src/prose/<module>.c, each with test/prose_<module>.test.c.
-set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode)
+set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode written)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})

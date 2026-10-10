@@ -93,6 +93,8 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
   if (!prose_slotted(frame->turn, &rendered, &slotted)) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < slotted.count; i++)
     EXPR_NEED(put_words(reading, out, slotted.items[i].kind, slotted.items[i].bytes, slotted.items[i].length));
+  /* Noted only where it gave its reader words to read, after any passage it holds. */
+  if (slotted.count > 0) prose_note_passage(reading, speech.node);
   return SPROUT_EVAL_OK;
 }
 

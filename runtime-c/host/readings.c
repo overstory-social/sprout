@@ -133,6 +133,8 @@ const char *sproutc_readings_turn(const sproutc_step *step, size_t i, sproutc_tu
   }
   turn->verb = text_of(one, "verb");
   turn->actor = text_of(one, "actor");
+  turn->draws = sprout_json_get(one, "draws");
+  turn->asides = sprout_json_get(one, "asides");
   turn->fillers = sprout_json_get(one, "fillers");
   turn->refused = sprout_json_get(one, "refused") != NULL && sprout_json_get(one, "refused")->boolean;
   if (turn->verb == NULL || turn->actor == NULL || turn->fillers == NULL || turn->fillers->kind != SPROUT_JSON_ARRAY)

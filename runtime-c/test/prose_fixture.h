@@ -279,6 +279,7 @@ static inline prose_reading prose_reading_of(prose_case *c, const char *reader) 
   reading.meter = &c->meter;
   reading.fault = &c->fault;
   reading.reader = (sprout_str){reader, strlen(reader)};
+  reading.notes = NULL;
   return reading;
 }
 

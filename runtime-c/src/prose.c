@@ -100,6 +100,12 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   EXPR_NEED(status);
   if (draws != NULL) EXPR_NEED(tape_close(reading, t, draws, first));
   if (!prose_reflow(reading->turn, &rendered, out)) return SPROUT_EVAL_NO_MEMORY;
+  /* Noted only where it gave its reader words to read, after any passage it holds. */
+  if (out->count > 0) {
+    if (said->kind == SPROUT_SPEECH_PASSAGE) prose_note_passage(reading, said->node);
+    else if (said->kind == SPROUT_SPEECH_TEXT) prose_note_line(reading, prose);
+    else if (said->kind == SPROUT_SPEECH_ENGINE) prose_note_engine(reading);
+  }
   return SPROUT_EVAL_OK;
 }
 
@@ -273,6 +279,7 @@ static sprout_eval_status read_by(const prose_reading *reading, sprout_draws *dr
 sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str *actor, sprout_rendered *out) {
   prose_output output;
   prose_reading reading;
+  prose_notes notes;
   sprout_told *told = NULL;
   size_t told_count = 0, told_capacity = 0, e, r;
   memset(&output, 0, sizeof output);
@@ -288,6 +295,7 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
   reading.meter = x->meter;
   reading.fault = x->fault;
   reading.reader = (sprout_str){"", 0};
+  reading.notes = NULL;
   for (e = 0; e < x->effect_count; e++) {
     line_to_render *line;
     /* An extension's effect is the extension's to put into words; the C runtime holds no extension. */
@@ -297,6 +305,9 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       prose_paragraphs paragraphs;
       const sprout_stored_visitor *visitor;
       sprout_told *slot;
+      memset(&notes, 0, sizeof notes);
+      notes.arena = x->turn;
+      reading.notes = &notes;
       reading.reader = x->effects[e].description->to;
       EXPR_NEED(read_description(&reading, x->draws, &output, x->effects[e].description, &paragraphs));
       visitor = sprout_visitor_of(x->draft, reading.reader);
@@ -317,6 +328,11 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       slot->visit = visitor->visit;
       slot->paragraph_count = paragraphs.count;
       slot->paragraphs = paragraphs.items;
+      if (paragraphs.count > 0) {
+        slot->written_count = notes.count;
+        slot->written = notes.items;
+      }
+      reading.notes = NULL;
       continue;
     }
     line = (line_to_render *)sprout_arena_take(x->turn, sizeof *line);
@@ -330,6 +346,9 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       prose_paragraphs paragraphs;
       const sprout_stored_visitor *visitor;
       sprout_told *slot;
+      memset(&notes, 0, sizeof notes);
+      notes.arena = x->turn;
+      reading.notes = &notes;
       reading.reader = line->effect->to[r];
       if (line->effect->has_speaker) EXPR_NEED(framed(&reading, x->draws, &output, line, &paragraphs));
       else EXPR_NEED(read_by(&reading, x->draws, &output, line, &paragraphs));
@@ -352,7 +371,10 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       slot->visit = visitor->visit;
       slot->paragraph_count = paragraphs.count;
       slot->paragraphs = paragraphs.items;
+      slot->written_count = notes.count;
+      slot->written = notes.items;
     }
+    reading.notes = NULL;
   }
   out->has_actor = actor != NULL;
   if (actor != NULL) out->actor = *actor;
