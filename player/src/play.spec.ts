@@ -33,7 +33,7 @@ import {
 import { scriptOf, transcriptOf } from './fixtures/scripts.js';
 import { readScript } from './script.js';
 import { readWorld } from './world.js';
-import { bundleOf, KILN_YARD, LANE } from './fixtures/worlds.js';
+import { bundleOf, KILN_YARD, LANE, RIVER } from './fixtures/worlds.js';
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
 const play = (lines: string): string =>
@@ -509,6 +509,12 @@ describe('a line read as an intent', () => {
 });
 
 describe('the turns a step ran', () => {
+  it('trace every place that holds a visitor, from their own place out', () => {
+    const river = bundleOf('river', RIVER);
+    const played = playSteps(river, scriptOf('@arrive Marta\nMarta> go in'), 'river.json');
+    expect(played[1]!.turns[0]!.standing).toEqual(['river.reach.boat', 'river.reach']);
+  });
+
   it('are traced in order, each with who typed what, what it did, and where everyone then stood', () => {
     const played = playSteps(
       bundle,

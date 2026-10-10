@@ -4,10 +4,12 @@ import {
   departureTurn,
   dueWakes,
   initialState,
+  isPlace,
   maintenanceTurn,
   nicknameRefusal,
   occupiedPlaces,
   parseCommand,
+  readerOf,
   renderActed,
   renderEffects,
   tickTurn,
@@ -99,7 +101,7 @@ export interface PlayedStep {
  * (`report.ts`): its kind; who typed what, for a command; what it said;
  * the handlers and hooks it ran; the reading it performed, the engine
  * line the parser answered with instead, or whether the consent pass
- * refused; its faults, a maintenance turn's one for each part; and where every visitor stood once it was over.
+ * refused; its faults, a maintenance turn's one for each part; and every place that held a visitor once it was over, at any depth.
  */
 export interface Traced {
   readonly turn: 'arrival' | 'departure' | 'command' | 'tick' | 'wake' | 'maintenance';
@@ -124,14 +126,22 @@ export interface Stage {
   readonly turns: Traced[];
 }
 
-/** Where every visitor present stands under `stage`'s state, in arrival order. */
+/**
+ * Every place that holds a visitor present under `stage`'s state, at any
+ * depth out to the world, so one riding a boat is in each river reach the
+ * boat stands in; visitors in arrival order, each from their own place out.
+ */
 function standing(stage: Stage): InstanceId[] {
+  const reader = readerOf(stage.state);
   const places: InstanceId[] = [];
   for (const visit of stage.visits.values()) {
     const record = stage.state.visitors.get(visit);
-    const place =
-      record === undefined ? null : stage.state.instances.get(record.instance)?.container;
-    if (place !== undefined && place !== null) places.push(place);
+    let at =
+      record === undefined ? null : (stage.state.instances.get(record.instance)?.container ?? null);
+    while (at !== null) {
+      if (isPlace(reader, at) && !places.includes(at)) places.push(at);
+      at = stage.state.instances.get(at)?.container ?? null;
+    }
   }
   return places;
 }
