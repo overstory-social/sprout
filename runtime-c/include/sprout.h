@@ -199,6 +199,81 @@ sprout_status sprout_state_write(sprout_state *state, const char **bytes, size_t
 /* Releases a state and everything it holds. */
 void sprout_state_free(sprout_state *state);
 
+/*
+ * A reading (the spec's Verbs, Parsing > The three roles): a verb, who
+ * performs it, and what fills each of its roles, by id. Nothing here is
+ * text: whoever submits it has already read a typed line, or built a reading
+ * from the view's chips. A filling has the fields of the view's filler less
+ * the words a visitor reads, and a value role carries the value chosen.
+ */
+typedef enum sprout_fill {
+  SPROUT_FILL_UNBOUND, /* a tool left out; a set role left out is the empty set */
+  SPROUT_FILL_OBJECT,
+  SPROUT_FILL_SET,
+  SPROUT_FILL_EXIT,
+  SPROUT_FILL_TEXT,    /* a symbol role's option */
+  SPROUT_FILL_NUMBER   /* an integer role's value */
+} sprout_fill;
+
+typedef struct sprout_filling {
+  const char *role;
+  sprout_fill binds;
+  const char *id;               /* OBJECT: the thing; EXIT: where it leads */
+  size_t id_count;
+  const char *const *ids;       /* SET: the things, in the order typed */
+  const char *direction;        /* EXIT: NULL for a link */
+  const char *label;            /* EXIT */
+  const char *text;             /* TEXT */
+  double number;                /* NUMBER */
+} sprout_filling;
+
+typedef struct sprout_reading {
+  const char *verb;  /* by its full identity, `sprout.take` */
+  const char *actor; /* the id of the instance performing it */
+  size_t filling_count;
+  const sprout_filling *fillings;
+} sprout_reading;
+
+/* How a reading ended: both passes ran, the consent pass refused, or its actor destroyed itself. */
+typedef enum sprout_read_end { SPROUT_READ_ACTED, SPROUT_READ_REFUSED, SPROUT_READ_GONE } sprout_read_end;
+
+/*
+ * What a reading came to. `refused` (when the end is SPROUT_READ_REFUSED) is
+ * a JSON object naming `by`, the `role` refused in, the `origin` kind that
+ * wrote the `permit` (null where the engine refused), the words `said` and
+ * the names they render with; `effects` is a JSON array of the lines the
+ * turn said, unrendered, in the order said, each with `effect`, `to`, `by`,
+ * `speaker`, `said` and `bindings`. Both are in the form corpus/goldens/
+ * readings.json holds and live until sprout_reading_outcome_free. On
+ * SPROUT_FAULT, `fault` says why and the world is as it was.
+ */
+typedef struct sprout_reading_outcome {
+  sprout_read_end end;
+  bool faulted;
+  sprout_fault fault;
+  const char *refused;
+  size_t refused_length;
+  const char *effects;
+  size_t effects_length;
+  void *held;
+} sprout_reading_outcome;
+
+/*
+ * Runs one reading through the consent pass and then the effect pass
+ * against a draft of `state`, drains the queue its bodies filled, and
+ * commits the draft: the turn's one write, which a refusal does not make.
+ * `instant` is when the turn runs, in host seconds. A reading the world
+ * cannot take, an unknown verb or role or thing, or a filling the role
+ * does not take, is SPROUT_BAD_INPUT with `fault.text` saying which; a
+ * budget exhausted or a rule broken is SPROUT_FAULT, and nothing is
+ * written. The seed is the host's, drawn once for the turn.
+ */
+sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const sprout_reading *reading,
+                                 uint64_t instant, sprout_reading_outcome *outcome);
+
+/* Releases what an outcome holds. */
+void sprout_reading_outcome_free(sprout_reading_outcome *outcome);
+
 /* Runs one turn. Declared here; the body lands with the engine and returns SPROUT_NOT_YET. */
 sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_turn *turn,
                               sprout_outcome *outcome);

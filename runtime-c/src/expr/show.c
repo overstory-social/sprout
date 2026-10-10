@@ -75,11 +75,9 @@ static sprout_json *strs_json(const sprout_frame *frame, const sprout_str *items
   return node;
 }
 
-sprout_eval_status sprout_eval_show(const sprout_frame *frame, const sprout_evaluated *evaluated, const char **bytes,
-                                    size_t *length) {
+sprout_eval_status sprout_eval_node(const sprout_frame *frame, const sprout_evaluated *evaluated, sprout_json **out) {
   sprout_json *root = container(frame, SPROUT_JSON_OBJECT, 1), *inner = NULL;
   const char *key = "value";
-  sprout_status written;
   if (root == NULL) return SPROUT_EVAL_NO_MEMORY;
   switch (evaluated->binds) {
     case SPROUT_BINDS_VALUE:
@@ -100,6 +98,15 @@ sprout_eval_status sprout_eval_show(const sprout_frame *frame, const sprout_eval
   }
   if (inner == NULL) return SPROUT_EVAL_NO_MEMORY;
   adopt(root, key, inner);
+  *out = root;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_eval_show(const sprout_frame *frame, const sprout_evaluated *evaluated, const char **bytes,
+                                    size_t *length) {
+  sprout_json *root;
+  sprout_status written;
+  EXPR_NEED(sprout_eval_node(frame, evaluated, &root));
   written = sprout_json_write(frame->turn, root, bytes, length);
   if (written == SPROUT_NO_MEMORY) return SPROUT_EVAL_NO_MEMORY;
   if (written != SPROUT_OK) return expr_engine(frame, "a result that is not a whole number reached the printer.");

@@ -113,9 +113,15 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
 /* What the name table says `written` reaches from `self`'s body, read through: in range, or a fault. */
 sprout_eval_status expr_reached_by_name(const sprout_frame *frame, const sprout_node *named, const char *written,
                                         sprout_str *out);
+/* The fault of a name that reaches nothing (`found` false) or `target`, which is out of range, as `written`. */
+sprout_eval_status expr_name_out_of_range(const sprout_frame *frame, const char *written, bool found,
+                                          sprout_str target);
 /* The instance `named` reaches from `self`'s body, whatever its range; *found is false where nothing is decoded there now. */
 sprout_eval_status expr_named_object(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
                                      bool *found);
+/* The same, answered only by what has the name as an identifier, which an exit's destination names. */
+sprout_eval_status expr_named_identifier(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
+                                         bool *found);
 /* `frame` with the name `operand` tests by `is(K)` bound to what it reaches now, where it is one in a kind's body. */
 sprout_eval_status expr_narrowed(const sprout_frame *frame, const sprout_node *operand, sprout_frame *out);
 const sprout_binding *expr_binding(const sprout_frame *frame, const char *name);

@@ -3,14 +3,34 @@
 import { at, type Case } from '../exec-cases.js';
 
 export const READINGS: readonly Case[] = [
-  // An `act` runs a reading on the spot, and the reading pass is C07's: these bodies are
-  // located for the C specs of the statement, and C07 adds the cases that run them.
   {
     name: 'an act names its roles by what they are bound to',
     area: 'act',
     kind: 'Dog',
     self: at('dog'),
     body: 'act sniff (target: lamp)',
-    unrun: true,
+  },
+  {
+    name: 'an act the consent pass refuses is said to whoever hears the actor and ends the body',
+    area: 'act',
+    kind: 'Dog',
+    self: at('dog'),
+    body: 'act bark (target: lamp)\nself.adjust(:sniffed, 5)',
+  },
+  {
+    name: 'an act at what is out of the actor’s range faults the turn',
+    area: 'act',
+    kind: 'Dog',
+    self: at('dog'),
+    bind: { who: at('chest', 'coin') },
+    body: 'act sniff (target: who)',
+  },
+  {
+    name: 'an act is one level deeper against the cascade depth',
+    area: 'act',
+    kind: 'Dog',
+    self: at('dog'),
+    body: 'act sniff (target: lamp)',
+    budgets: { cascadeDepth: 0 },
   },
 ];

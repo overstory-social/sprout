@@ -13,7 +13,7 @@
 
 static sprout_eval_status move(exec_case *c, const char *mover, const char *item, const char *to, sprout_move_end *end,
                                sprout_move_refusal *refusal) {
-  return sprout_move_instance(&c->x, &c->frame, exec_str(mover), exec_str(item), exec_str(to), end, refusal);
+  return sprout_move_instance(&c->x, &c->frame, exec_str(mover), exec_str(item), exec_str(to), SPROUT_REACH_RANGE, NULL, end, refusal);
 }
 
 static const char *container_of(exec_case *c, const char *id) {

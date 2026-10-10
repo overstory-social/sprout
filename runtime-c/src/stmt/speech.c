@@ -28,8 +28,7 @@ sprout_eval_status stmt_say(sprout_run *run, const sprout_frame *frame, const sp
   EXPR_NEED(stmt_acting(run, frame, "`say`"));
   memset(&effect, 0, sizeof effect);
   effect.kind = SPROUT_EFFECT_SAID;
-  effect.to = run->x->heard_by;
-  effect.to_count = run->x->heard_count;
+  EXPR_NEED(sprout_exec_hearers(run->x, frame, &effect.to, &effect.to_count));
   effect.by = frame->self;
   effect.has_speaker = run->x->has_speaker;
   effect.speaker = run->x->speaker;

@@ -476,3 +476,31 @@ done:
   *length = out.length;
   return SPROUT_OK;
 }
+
+sprout_json *sprout_json_make(sprout_arena *arena, sprout_json_kind kind, size_t members) {
+  sprout_json *node = (sprout_json *)sprout_arena_take(arena, sizeof *node);
+  if (node == NULL) return NULL;
+  node->kind = kind;
+  if (kind == SPROUT_JSON_ARRAY || kind == SPROUT_JSON_OBJECT) {
+    node->items = (sprout_json **)sprout_arena_take(arena, (members + 1) * sizeof *node->items);
+    if (node->items == NULL) return NULL;
+  }
+  return node;
+}
+
+sprout_json *sprout_json_text(sprout_arena *arena, const char *bytes, size_t length) {
+  sprout_json *node = sprout_json_make(arena, SPROUT_JSON_STRING, 0);
+  if (node == NULL) return NULL;
+  node->bytes = bytes;
+  node->length = length;
+  return node;
+}
+
+void sprout_json_adopt(sprout_json *parent, const char *key, sprout_json *child) {
+  if (child == NULL) return;
+  child->parent = parent;
+  child->index = parent->count;
+  child->key = key;
+  child->key_length = key == NULL ? 0 : strlen(key);
+  parent->items[parent->count++] = child;
+}

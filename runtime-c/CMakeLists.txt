@@ -9,8 +9,11 @@ add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
   arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  effects eval exec graph guards inflate json lists load move range reading state status stored stored_check
-  stored_write values wakes)
+  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move outcome range
+  reading state status stored stored_check stored_write submit values wakes)
+
+# The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
+set(SPROUT_READING_MODULES carried consent effect wildcards)
 
 # The evaluator's areas, src/expr/<module>.c, each with test/expr_<module>.test.c.
 set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators passes range show spawn)
@@ -29,6 +32,10 @@ endforeach()
 
 foreach(module ${SPROUT_STMT_MODULES})
   list(APPEND SPROUT_SOURCES src/stmt/${module}.c)
+endforeach()
+
+foreach(module ${SPROUT_READING_MODULES})
+  list(APPEND SPROUT_SOURCES src/reading/${module}.c)
 endforeach()
 
 add_library(sprout STATIC ${SPROUT_SOURCES})
@@ -95,6 +102,17 @@ foreach(module ${SPROUT_STMT_MODULES})
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME stmt_${module} COMMAND stmt_${module}.test)
   set_tests_properties(stmt_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+endforeach()
+
+foreach(module ${SPROUT_READING_MODULES})
+  add_executable(reading_${module}.test test/reading_${module}.test.c)
+  target_link_libraries(reading_${module}.test PRIVATE sprout)
+  target_include_directories(reading_${module}.test PRIVATE src test)
+  target_compile_definitions(reading_${module}.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
+  add_test(NAME reading_${module} COMMAND reading_${module}.test)
+  set_tests_properties(reading_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})

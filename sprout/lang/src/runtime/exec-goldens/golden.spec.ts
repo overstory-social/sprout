@@ -19,6 +19,7 @@ const CARTRIDGE = fileURLToPath(
 /** The areas of a case, grouped as the files of `fixtures/exec-cases/` group them. */
 const GROUPS: Record<string, readonly string[]> = {
   'writes to `self` and conditions': ['write', 'if'],
+  'acting a reading': ['act'],
   'walking contents': ['each'],
   'moving things through consent': ['move'],
   'spawning, destroying and links': ['spawn', 'destroy', 'connect'],

@@ -2,8 +2,9 @@
  * Tests for src/stmt/propose.c (the spec's Verbs > Moving something,
  * Acting): a `move` is a proposal the engine puts to everyone with standing;
  * a refusal is said to whoever the body speaks to and ends the body. An `act`
- * is a reading with `self` as the actor and each named role filled, recorded
- * for the reading pass; the body goes on after it.
+ * is a reading with `self` as the actor and each named role filled, run on
+ * the spot by the reading pass; the body goes on after it unless the reading
+ * was refused or the actor is gone.
  */
 #include "exec_fixture.h"
 
@@ -61,11 +62,9 @@ static const char *ran_verb = NULL;
 static size_t ran_roles = 0;
 
 static sprout_eval_status fake_reading(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const char *verb,
-                                       size_t role_count, const sprout_pending_role *roles, sprout_reading_end *end,
-                                       const char **not_built) {
+                                       size_t role_count, const sprout_pending_role *roles, sprout_reading_end *end) {
   (void)x;
   (void)frame;
-  (void)not_built;
   CHECK(sprout_str_same(actor, exec_str("exec_bench.hall.dog")));
   ran_verb = verb;
   ran_roles = role_count;
@@ -79,7 +78,7 @@ static sprout_stopped act_with(exec_bench *b, sprout_reading_end how) {
   exec_case c;
   sprout_run run;
   sprout_stopped stopped;
-  exec_case_open(b, &c, exec_unrun(b, "an act names its roles by what they are bound to"));
+  exec_case_open(b, &c, exec_named(b, "an act names its roles by what they are bound to"));
   c.x.reading = fake_reading;
   ending = how;
   run = exec_run(&c);
@@ -100,17 +99,22 @@ static void an_act_runs_its_reading_on_the_spot_and_the_body_stops_where_the_rea
   exec_bench_close(&b);
 }
 
-static void an_act_before_the_reading_pass_is_built_is_an_engine_error_with_its_words(void) {
+static void an_act_begins_with_the_reading_pass_of_the_engine(void) {
   exec_bench b;
   exec_case c;
-  sprout_run run;
   exec_bench_open(&b);
-  exec_case_open(&b, &c, exec_unrun(&b, "an act names its roles by what they are bound to"));
-  run = exec_run(&c);
-  CHECK_INT(stmt_act(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_ENGINE);
-  CHECK(strstr(c.fault.text, "reading pass is not built yet") != NULL);
+  exec_case_open(&b, &c, exec_named(&b, "an act names its roles by what they are bound to"));
+  CHECK(c.x.reading == sprout_run_reading);
   exec_case_close(&c);
   exec_bench_close(&b);
+}
+
+static void the_golden_act_cases_end_as_the_typescript_runtime_did(void) {
+  exec_bench b;
+  exec_bench_open(&b);
+  CHECK(exec_replay_area(&b, "act") >= 4);
+  exec_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
 }
 
 static void the_golden_move_cases_end_as_the_typescript_runtime_did(void) {
@@ -126,7 +130,8 @@ int main(void) {
   RUN(a_refused_move_is_said_to_whoever_the_body_speaks_to_and_stops_it);
   RUN(a_move_in_a_body_that_decides_is_the_engines_defect);
   RUN(an_act_runs_its_reading_on_the_spot_and_the_body_stops_where_the_reading_says);
-  RUN(an_act_before_the_reading_pass_is_built_is_an_engine_error_with_its_words);
+  RUN(an_act_begins_with_the_reading_pass_of_the_engine);
+  RUN(the_golden_act_cases_end_as_the_typescript_runtime_did);
   RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
   return REPORT();
 }
