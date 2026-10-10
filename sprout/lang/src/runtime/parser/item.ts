@@ -8,10 +8,11 @@
 // against what the item names, and its pronouns name what they named when
 // the line began. What the line bound must still be in reach, or the turn
 // is `not_here`, as a planned turn's is. It is answered as any line's
-// noun is: `not_here` where it names nothing, `not_carrying` where a
-// carried role names only what the actor does not carry, and `cannot`
-// where what it names cannot fill the role, written through a phrase of
-// the verb as the visitor would type it.
+// noun is: `not_here` where it names nothing, `unknown` where a word of
+// it names nothing in the world, `not_carrying` where a carried role
+// names only what the actor does not carry, and `cannot` where what it
+// names cannot fill the role, written through a phrase of the verb as the
+// visitor would type it.
 
 import { typedWords } from '../../declare/addressing.js';
 import { humanisedOption } from '../../declare/enums.js';
@@ -29,6 +30,7 @@ import { boundWords } from './partial.js';
 import { chooseReading, type Ranked } from './rank.js';
 import { inReach } from './planned.js';
 import { reachOf } from './reach.js';
+import { inVocabulary, worldWords } from './vocabulary.js';
 
 /** The item a turn reads: the reading the line planned, the role its words fill, and each value role's words. */
 type ItemOf = NonNullable<ParseContext['item']>;
@@ -98,6 +100,13 @@ export function readItem(
     };
   }
   const [first] = filled.fills === 'outward' || filled.fills === 'unfit' ? filled.things : [];
+  // A word nothing in the world is named by is the grammar's failure, not reach's.
+  if (
+    filled.fills === 'nothing' &&
+    !inVocabulary(typed.slice(filled.start, filled.end), worldWords({ state, address, budget }))
+  ) {
+    return answer(state, 'unknown', actor, here);
+  }
   if (first === undefined) return answer(state, 'not_here', actor, here);
   if (filled.fills === 'outward' && 'object' in first.bound) {
     return answer(state, 'not_carrying', actor, here, { thing: first.bound.object });

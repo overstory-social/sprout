@@ -194,9 +194,11 @@ describe('a run in a role that takes one thing', () => {
     }
   });
 
-  it('is `not_here` where its first item names nothing', () => {
-    const outcome = read('take unicorn and lamp');
+  it('is `not_here` where its first item names nothing, and `unknown` where a word of it names nothing in the world', () => {
+    const outcome = read('take the lamp in the box and lamp');
     expect('answer' in outcome && outcome.answer).toBe('not_here');
+    const unicorn = read('take unicorn and lamp');
+    expect('answer' in unicorn && unicorn.answer).toBe('unknown');
   });
 
   it('is no run in a set role, which binds every item at once', () => {
@@ -228,8 +230,10 @@ describe('`and` before a verb', () => {
   });
 
   it('splits a line whose first command names nothing, which answers it', () => {
+    const boxed = read('take the lamp in the box and take lamp');
+    expect('answer' in boxed && boxed.answer).toBe('not_here');
     const unicorn = read('take unicorn and take lamp');
-    expect('answer' in unicorn && unicorn.answer).toBe('not_here');
+    expect('answer' in unicorn && unicorn.answer).toBe('unknown');
     const dance = read('dance and take lamp');
     expect('answer' in dance && dance.answer).toBe('unknown');
   });

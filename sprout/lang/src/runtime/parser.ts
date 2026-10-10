@@ -32,9 +32,11 @@
 // roles); where an exit role's words name an exit that refuses, its words,
 // or are a direction no exit that applies answers, `no_way` (the spec's
 // Verbs › Exits); where one would with a noun nothing in range answers
-// to, `not_here`, which names nothing, and so where an object's synonym
-// would with its object in reach (`parser/offered.ts`) or an exit role's
-// words are the label of a way out that does not apply here; and otherwise
+// to, where every word of the noun names something in the world
+// (`parser/vocabulary.ts`), `not_here`, which names nothing, and so where
+// an object's synonym would with its object in reach (`parser/offered.ts`)
+// or an exit role's words are the label of a way out that does not apply
+// here; and otherwise
 // `unknown`.
 // Every noun tried, every way of placing the slots, every reading built,
 // every object the range walk visits and every tie drawn is a step, so a
@@ -76,6 +78,7 @@ import { chainPoints, commandAfter, commandBefore, stretchAfter } from './parser
 import { namesOutright } from './parser/runs.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
 import { offeredOutOfReach, type OfferedContext } from './parser/offered.js';
+import { inVocabulary, worldWords } from './parser/vocabulary.js';
 import type { TypedPart, TypedPhrase } from './parser/phrases.js';
 import type { IntentReading } from './intents.js';
 import {
@@ -204,6 +207,16 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
   // A way out the words name that does not go: an exit that refuses, or a direction none answers.
   let noGoing: RefusingExit | Direction | null = null;
   const offered: OfferedContext = { state, address, fill };
+  // A noun that names nothing in reach is `not_here` only where every word
+  // of it names something in the world; the world's words are read once.
+  let vocabulary: ReadonlySet<string> | null = null;
+  const named = (spans: readonly SlotSpan[], fills: readonly Filled[]): boolean =>
+    fills.every((one, at) => {
+      if (one.fills !== 'nothing') return true;
+      const start = spans[at]!.start;
+      vocabulary ??= worldWords({ state, address, budget });
+      return inVocabulary(words.slice(start + one.start, start + one.end), vocabulary);
+    });
   for (const phrase of catalogue.phrases) {
     const filled = new Map<string, Filled>();
     const fillOf = (span: SlotSpan): Filled => {
@@ -234,9 +247,11 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
       }
       if (fills.some((one) => one.fills === 'nothing')) {
         // An object's synonym typed where the object is out of reach.
-        if (phrase.only === null || offeredOutOfReach(phrase, spans, fills, words, offered)) {
-          notHere = true;
-        }
+        const reach =
+          phrase.only === null
+            ? named(spans, fills)
+            : offeredOutOfReach(phrase, spans, fills, words, offered);
+        if (reach) notHere = true;
         continue;
       }
       // One role runs once for each of several things, never two.
@@ -294,7 +309,7 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
       partials.push(...partialsOf(phrase.parts, spans, fills, address, budget));
       if (fills.some((one) => one.fills === 'unfit' || one.fills === 'outward')) continue;
       if (fills.some((one) => one.fills === 'nothing')) {
-        notHere = true;
+        if (named(spans, fills)) notHere = true;
         continue;
       }
       for (const choice of choicesOf(fills)) {

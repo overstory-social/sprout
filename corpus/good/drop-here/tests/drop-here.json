@@ -1,5 +1,5 @@
 {
-  "about": "A trailing `here` after `drop` and the `put … down` forms is the library's phrase words, not part of the noun: each puts the leaflet down where the visitor stands, as `drop the leaflet` does, and is refused as it is when the leaflet is not held. A bare `drop here` names nothing, since `here` is not a word the parser drops.",
+  "about": "A trailing `here` after `drop` and the `put … down` forms is the library's phrase words, not part of the noun: each puts the leaflet down where the visitor stands, as `drop the leaflet` does, and is refused as it is when the leaflet is not held. A bare `drop here` is `unknown`, since `here` is not a word the parser drops and nothing in the world is named by it.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the porch." }
@@ -44,7 +44,7 @@
       { "reader": "Ines", "kind": "told", "words": "Marta puts a leaflet down." }
     ] },
     { "as": "Marta", "type": "drop here", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
     ] }
   ]
 }

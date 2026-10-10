@@ -1,0 +1,26 @@
+// A noun holding a word nothing in the world is named by (the spec's
+// Parsing › When nothing matches). The line is the grammar's failure, not
+// reach's, so it is answered with `unknown`: `take ball again`, `examine
+// through the ball`. Where every word of the noun names something
+// somewhere, as `gong` does from the cellar, or the parser's own `the`
+// and `in` do, a noun that names nothing in reach is still `not_here`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world unknown_word is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { article the  exit down "down" -> cellar }
+    object ball is Toy { grammar { name "ball" } }
+    object box is sprout.Container { grammar { name "box" } }
+  }
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object gong is Toy { grammar { name "gong" } }
+  }
+}
+
+kind Toy { }
