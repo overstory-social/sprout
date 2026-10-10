@@ -35,7 +35,6 @@ import {
   type SeenView,
 } from '../prose/view.js';
 import { compiledWorld } from './bundle.js';
-import { compiledCorpus, CORPUS_WORLDS } from './corpus.js';
 
 const LIBRARY = 'viewbench';
 
@@ -448,8 +447,8 @@ function arrived(catalogue: Catalogue): { state: WorldState; host: TurnHost; vis
   return { state: done.state, host, visit };
 }
 
-/** The goldens: the states the bench cases start from, every case, and every corpus world's view. */
-export function viewGoldens() {
+/** The goldens: the states the bench cases start from, every case, and the view of a visitor arriving in each corpus world. */
+export function viewGoldens(worlds: readonly (readonly [string, Bundle])[]) {
   const cases = BENCH_CASES.map((one) => {
     const state = benchState(one.scene);
     const pollSteps = one.pollSteps ?? DEFAULT_LIMITS.budgets.pollSteps;
@@ -461,8 +460,8 @@ export function viewGoldens() {
       expect: viewCase(state, hostOf(BENCH, pollSteps), one.visit),
     };
   });
-  const corpus = CORPUS_WORLDS.map((name) => {
-    const catalogue = loadCartridge(emitCartridge(compiledCorpus(name)), { caps: CAPS });
+  const corpus = worlds.map(([name, bundle]) => {
+    const catalogue = loadCartridge(emitCartridge(bundle), { caps: CAPS });
     const { state, host, visit } = arrived(catalogue);
     return {
       world: name,

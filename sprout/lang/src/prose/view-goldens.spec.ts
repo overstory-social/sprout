@@ -3,10 +3,13 @@
 // whole: the view of a visitor arriving in every corpus world, and the bench cases for what a view
 // is for (the world and the oracle's poll of it are in `fixtures/view-bench.ts`).
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { MANIFEST_FILE } from '../bundle/manifest.js';
+import { compiledCorpus } from '../fixtures/corpus.js';
 import { BENCH_CASES, goldenText, VIEW_CARTRIDGE, viewGoldens } from '../fixtures/view-bench.js';
 
 const GOLDEN = fileURLToPath(new URL('../../../../corpus/goldens/views.json', import.meta.url));
@@ -14,7 +17,37 @@ const CARTRIDGE = fileURLToPath(
   new URL('../../../../corpus/goldens/views.sproutworld', import.meta.url),
 );
 
-const made = viewGoldens();
+const CORPUS = fileURLToPath(new URL('../../../../corpus/good', import.meta.url));
+
+function filesUnder(root: string, dir = root): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir).sort()) {
+    if (entry.startsWith('.')) continue;
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) out.push(...filesUnder(root, path));
+    else if (entry.endsWith('.sprout') || entry.endsWith('.prose')) out.push(path);
+  }
+  return out;
+}
+
+/** Every corpus world, compiled as publishing compiles it. */
+const worlds = readdirSync(CORPUS)
+  .sort()
+  .map((name) => {
+    const root = join(CORPUS, name);
+    const bundle = compiledCorpus({
+      manifest: readFileSync(join(root, MANIFEST_FILE), 'utf8'),
+      files: Object.fromEntries(
+        filesUnder(root).map((path) => [
+          relative(root, path).split('\\').join('/'),
+          readFileSync(path, 'utf8'),
+        ]),
+      ),
+    });
+    return [name, bundle] as const;
+  });
+
+const made = viewGoldens(worlds);
 if (process.env['SPROUT_WRITE_GOLDENS'] === '1') {
   writeFileSync(GOLDEN, goldenText(made));
   writeFileSync(CARTRIDGE, VIEW_CARTRIDGE);
