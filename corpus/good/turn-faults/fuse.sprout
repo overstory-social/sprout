@@ -1,0 +1,26 @@
+// A fuse burns for a minute when lit, and burns down when it is woken; one that has split along its
+// length faults when it is, and its wake is consumed rather than tried again.
+import {light, crack} from 'turn_faults'
+
+kind Fuse {
+  :cracked false
+
+  as target for light {
+    do {
+      wake in 60 seconds
+      say "You touch a flame to the fuse."
+    }
+  }
+
+  as target for crack {
+    do {
+      self.set(:cracked, true)
+      say "The fuse splits along its length."
+    }
+  }
+
+  on :woke (elapsed) {
+    if (self.get(:cracked) && 2147483647 + 1 > 0) { tell "Nobody hears this." }
+    tell "The fuse burns down."
+  }
+}

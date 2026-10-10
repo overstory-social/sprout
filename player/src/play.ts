@@ -120,6 +120,8 @@ export interface Traced {
   readonly standing: readonly InstanceId[];
   /** What the log keeps of the turn, which a runtime working from the log's inputs reproduces (`readings.ts`). */
   readonly logged: Logged;
+  /** What the parser made of the line, which a turn that faults performs none of; null where it made none. */
+  readonly read: Reading | null;
   /** The bounds the parser drew below while it read the line, in order: the turn's stream begins with them. */
   readonly parseDraws: readonly number[];
   /** What the parser said before the reading's own lines. */
@@ -166,6 +168,8 @@ export interface Stage {
   readonly turns: Traced[];
   /** The bounds the parser drew below reading the command turn now running. */
   readonly parsed: number[];
+  /** What the parser made of the command turn now running, which a turn that faults leaves nowhere else. */
+  read: Reading | null;
 }
 
 /**
@@ -227,6 +231,7 @@ function trace(
     answered: null,
     refused: false,
     faults: [],
+    read: null,
     parseDraws: [],
     asides: [],
     ...parts,
@@ -466,7 +471,10 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
           { as: nickname, typed: typed.text, parseDraws: [...stage.parsed], ...parts },
         );
       if (!turn.committed) {
-        traceCommand({ outcome: 'faulted' }, { effects: turn.effects, faults: [turn.fault] });
+        traceCommand(
+          { outcome: 'faulted' },
+          { effects: turn.effects, faults: [turn.fault], read: stage.read },
+        );
         out.push(...effectLines(stage, turn.effects), faultLine(stage, 'the command', turn.fault));
         return turn;
       }
@@ -676,13 +684,16 @@ export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets
       // The parser's draws are noted, since a runtime that does not parse begins its stream with them.
       parse: (text, actor, context) => {
         stage.parsed.length = 0;
+        stage.read = null;
         const recording = {
           below: (n: number): number => {
             stage.parsed.push(n);
             return context.draws.below(n);
           },
         };
-        return parseCommand(text, actor, { ...context, draws: recording });
+        const parsed = parseCommand(text, actor, { ...context, draws: recording });
+        if ('reading' in parsed) stage.read = parsed.reading;
+        return parsed;
       },
     },
     state: initialState(catalogue),
@@ -691,6 +702,7 @@ export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets
     visits: new Map(),
     turns: [],
     parsed: [],
+    read: null,
   };
   return stage;
 }

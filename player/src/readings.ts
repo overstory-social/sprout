@@ -217,8 +217,9 @@ function entryOf(traced: Traced): TurnEntry {
     seconds: logged.now,
     who: logged.who,
     outcome: logged.outcome === 'closed' ? 'refused' : logged.outcome,
-    fault: traced.faults[0]?.name ?? null,
-    detail: traced.faults[0]?.detail ?? null,
+    // Catch-up keeps the faults of its parts, each against its wake, and none of its own.
+    fault: traced.turn === 'maintenance' ? null : (traced.faults[0]?.name ?? null),
+    detail: traced.turn === 'maintenance' ? null : (traced.faults[0]?.detail ?? null),
     serial: logged.serial,
     effects: traced.effects.map((effect) => ({
       kind: effect.kind,
@@ -245,7 +246,8 @@ function entryOf(traced: Traced): TurnEntry {
 
 function turnOf(stage: Stage, traced: Traced, seed: number): ReadTurn {
   const typed = traced.typed ?? '';
-  const { reading } = traced;
+  // A turn that faulted performed no reading, but the parser made one, and the other runtime runs it.
+  const reading = traced.reading ?? traced.read;
   const echo = { says: saysOf(stage, traced), expect: entryOf(traced) };
   if (reading !== null) {
     return {
