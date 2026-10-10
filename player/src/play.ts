@@ -41,6 +41,7 @@ import {
   type Script,
   type Step,
 } from './script.js';
+import { turnSeed } from './seeds.js';
 import {
   catalogueFor,
   pathOf,
@@ -57,8 +58,9 @@ import {
 // anyone stands in the world, every due wake is delivered live at the
 // instant it falls due; while nobody does, the world waits, and the next
 // arrival's catch-up delivers what fell due (the spec's Time › Absence
-// leaves the choice to the host). Each turn's seed is the script's, 0
-// until it sets one.
+// leaves the choice to the host). A step's seed is the script's, 0 until
+// it sets one; a line's commands after the first take the next seed each,
+// and a tick's or a wake's turn is seeded from it by `turnSeed`.
 //
 // Playing a script gives it back with every step's `expect` filled in
 // with all it made, so a script played is its own golden, and a changed
@@ -394,15 +396,14 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
 
 /**
  * `@tick`: one tick turn for each place a visitor stands in, in the host's
- * order, the first seeded as the stage seeds a turn and each after it with
- * the next seed.
+ * order, each seeded from the stage's seed and the place's path
+ * (`turnSeed`), so two places never draw alike.
  */
 function tick(stage: Stage): Made[] {
   const out: Made[] = [];
-  let seed = stage.seed;
   for (const place of occupiedPlaces(stage.state)) {
+    const seed = turnSeed(stage.seed, pathOf(stage.state.world, place), 0);
     const turn = tickTurn(stage.state, stage.host, { ...inputs(stage), seed, place });
-    seed = (seed + 1) % (SEED_MAX + 1);
     if ('unoccupied' in turn) continue;
     if (!turn.committed) {
       trace(stage, 'tick', { faults: [turn.fault] });
@@ -418,26 +419,28 @@ function tick(stage: Stage): Made[] {
 
 /**
  * `@advance 40 minutes`: time moves on, each wake delivered live at the
- * instant it falls due while anyone stands in the world, seeded as a
- * tick's turns are; while nobody does, wakes wait for the next arrival's
- * catch-up.
+ * instant it falls due while anyone stands in the world, seeded from the
+ * stage's seed, the woken object's path and how many times it has already
+ * woken in this advance (`turnSeed`); while nobody does, wakes wait for the
+ * next arrival's catch-up.
  */
 function advance(stage: Stage, seconds: number): Made[] {
   const until = stage.now + seconds;
   const out: Made[] = [];
-  let seed = stage.seed;
+  const woke = new Map<InstanceId, number>();
   while (occupiedPlaces(stage.state).length > 0) {
     const [next] = dueWakes(stage.state, until);
     if (next === undefined) break;
     stage.now = Math.max(stage.now, next.dueAt);
     const woken = pathOf(stage.state.world, next.object);
+    const nth = woke.get(next.object) ?? 0;
+    woke.set(next.object, nth + 1);
     const turn = wakeTurn(stage.state, stage.host, {
       ...inputs(stage),
-      seed,
+      seed: turnSeed(stage.seed, woken, nth),
       object: next.object,
       serial: next.serial,
     });
-    seed = (seed + 1) % (SEED_MAX + 1);
     if ('unwoken' in turn) continue;
     if (!turn.committed) {
       stage.state = turn.consumed.state;

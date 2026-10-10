@@ -11,6 +11,7 @@ export * from './readings.js';
 export * from './replay.js';
 export * from './report.js';
 export * from './script.js';
+export * from './seeds.js';
 export * from './stand.js';
 export * from './test.js';
 export * from './world.js';
