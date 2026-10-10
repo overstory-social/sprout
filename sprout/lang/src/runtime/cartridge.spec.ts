@@ -13,7 +13,9 @@ import { MANIFEST_FILE, parseManifest } from '../bundle/manifest.js';
 import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { SourceFile } from '../source/source.js';
+import { typedWords } from '../declare/addressing.js';
 import { kindName } from '../declare/kinds.js';
+import { compiledWorld } from '../fixtures/bundle.js';
 import { dumpCatalogue } from '../fixtures/catalogue-dump.js';
 import { catalogueOf } from './catalogue.js';
 import { loadCartridge } from './cartridge.js';
@@ -136,26 +138,35 @@ describe('the catalogue of every corpus world, as the C runtime reads it from th
     expect(text).toBe(readFileSync(file, 'utf8'));
   }, 60_000);
 
-  it('has no phrase, synonym, noun or intent with a character outside ASCII, which the C runtime tokenises', () => {
-    // The C tokeniser lower-cases ASCII letters and splits on ASCII white space only; `typedWords` does
-    // both for every script. Until a cartridge carries the final tokens, this keeps the gap from hiding.
-    const outside = { test: (text: string) => [...text].some((c) => c.codePointAt(0)! > 0x7f) };
-    for (const name of WORLDS) {
-      const catalogue = loadCartridge(emitCartridge(compiled(name)), { caps: DEFAULT_LIMITS.caps });
-      const texts = [
-        ...catalogue.verbs.all().flatMap((verb) => verb.phrases.map((phrase) => phrase.text)),
-        ...catalogue.phrases.flatMap((one) =>
-          one.parts.flatMap((part) => ('words' in part ? part.words : [])),
-        ),
-        ...catalogue.intentPhrases.flatMap((one) =>
-          one.parts.flatMap((part) => ('words' in part ? part.words : [])),
-        ),
-        ...catalogue.words,
-      ];
+  it('carries the words of every phrase final, as the tokeniser reads a typed line', () => {
+    // A reader in another language compares bytes: lower case in every script, split on every
+    // Unicode space, each comma a word of its own, single spaces between.
+    const names = [...WORLDS, 'unicode'];
+    for (const name of names) {
+      const bundle =
+        name === 'unicode'
+          ? compiledWorld('unicode', {
+              'unicode.sprout': `world unicode is sprout.World {
+  visitors are Person
+  visitors arrive at room
+  object room is sprout.Place { grammar { link back "To the Café\u00a0DE LA Gare" } }
+}
+verb peer { role target  "Peer\u00a0AT [target],  ÉMILE   now" }
+`,
+              'person.sprout': 'kind Person is sprout.Visitor { }\n',
+            })
+          : compiled(name);
+      const catalogue = loadCartridge(emitCartridge(bundle), { caps: DEFAULT_LIMITS.caps });
+      const written = [
+        ...catalogue.verbs.all().flatMap((verb) => verb.phrases),
+        ...catalogue.intentPhrases.flatMap(({ intent }) => intent.phrases),
+      ].flatMap((phrase) => phrase.parts.flatMap((part) => (part.part === 'words' ? [part.text] : [])));
       expect(
-        texts.filter((text) => outside.test(text)),
+        written.filter((text) => text !== typedWords(text).join(' ')),
         name,
       ).toEqual([]);
+      if (name === 'unicode') expect(written).toContain('peer at');
+      if (name === 'unicode') expect(written).toContain(', émile now');
     }
   }, 60_000);
 });
