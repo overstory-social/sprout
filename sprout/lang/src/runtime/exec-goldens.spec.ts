@@ -14,11 +14,7 @@ import { describe, expect, it } from 'vitest';
 import type { Bundle } from '../bundle/bundle.js';
 import { readGraph, type Graph } from '../bundle/cartridge-graph.js';
 import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
-import {
-  DEFAULT_LIMITS,
-  type RuntimeBudgets,
-  type StaticCaps,
-} from '../bundle/limits.js';
+import { DEFAULT_LIMITS, type RuntimeBudgets, type StaticCaps } from '../bundle/limits.js';
 import type { NameTable } from '../check/names.js';
 import { MEDIA } from '../fixtures/extensions.js';
 import { compiledWorld } from '../fixtures/bundle.js';
@@ -134,7 +130,11 @@ const CASES: readonly Case[] = [
   { name: 'add an element to a list', area: 'write', body: 'self.add(:wards, :tenmoku)' },
   { name: 'add an element the list holds', area: 'write', body: 'self.add(:wards, :shino)' },
   { name: 'remove an element from a list', area: 'write', body: 'self.remove(:wards, :shino)' },
-  { name: 'remove an element the list lacks', area: 'write', body: 'self.remove(:wards, :tenmoku)' },
+  {
+    name: 'remove an element the list lacks',
+    area: 'write',
+    body: 'self.remove(:wards, :tenmoku)',
+  },
   {
     name: 'a new element in a full list faults',
     area: 'write',
@@ -544,14 +544,23 @@ const CASES: readonly Case[] = [
     body: 'wake in 90 seconds',
     budgets: { shortestWakeSeconds: 120 },
   },
-  { name: 'cancel wakes takes back every pending wake', area: 'wake', body: 'cancel wakes', state: 'worn' },
+  {
+    name: 'cancel wakes takes back every pending wake',
+    area: 'wake',
+    body: 'cancel wakes',
+    state: 'worn',
+  },
   {
     name: 'cancel wakes then wake puts off what was coming',
     area: 'wake',
     body: 'cancel wakes\n wake in 3 minutes',
     state: 'worn',
   },
-  { name: 'cancel wakes with none pending does nothing', area: 'wake', body: 'cancel wakes\n cancel wakes' },
+  {
+    name: 'cancel wakes with none pending does nothing',
+    area: 'wake',
+    body: 'cancel wakes\n cancel wakes',
+  },
   // What is said.
   {
     name: 'a tell reaches the people in the teller’s place',
@@ -675,7 +684,10 @@ const OBJECTS =
 const indent = (body: string): string =>
   body
     .split('\n')
-    .map((line) => `    ${line.trim().replace(OBJECTS, `${LIBRARY}.hall.$1`).replace(`${LIBRARY}.hall.hall`, `${LIBRARY}.hall`)}`)
+    .map(
+      (line) =>
+        `    ${line.trim().replace(OBJECTS, `${LIBRARY}.hall.$1`).replace(`${LIBRARY}.hall.hall`, `${LIBRARY}.hall`)}`,
+    )
     .join('\n');
 
 /** The bench world, with each case's body in the handler or the play it names. */
@@ -765,10 +777,7 @@ function sourceOf(cases: readonly Case[]): string {
     ),
     held('Spark', '').replace('{\n', '{\n  :n 0 min 0 max 9\n'),
     held('Bubble', ''),
-    held('Crate', '').replace(
-      '{\n',
-      '{\n  contains\n  :n 0 min 0 max 9\n  object lid is Jar\n',
-    ),
+    held('Crate', '').replace('{\n', '{\n  contains\n  :n 0 min 0 max 9\n  object lid is Jar\n'),
     held('Dog', ' is sprout.Actor').replace(
       '{\n',
       '{\n  :sniffed 0 min 0 max 99\n  as actor for sniff { do { self.adjust(:sniffed, 1) } }\n',
@@ -946,7 +955,12 @@ function opened(): { draft: Draft; context: LifecycleContext; visitor: InstanceI
 }
 
 /** A visitor with a record, standing at `place`. */
-function arrive(draft: Draft, visit: string, nickname: string, place: readonly string[]): InstanceId {
+function arrive(
+  draft: Draft,
+  visit: string,
+  nickname: string,
+  place: readonly string[],
+): InstanceId {
   const instance = draft.mint();
   draft.add(
     newInstance(
@@ -1053,7 +1067,9 @@ function speechJson(speech: Speech): unknown {
     return { passage: { origin: speech.passage.origin, name: speech.passage.name } };
   if ('absent' in speech) return { absent: speech.absent };
   if ('recorded' in speech)
-    return { recorded: { extension: speech.recorded.extension, statement: speech.recorded.statement } };
+    return {
+      recorded: { extension: speech.recorded.extension, statement: speech.recorded.statement },
+    };
   if (speech.library === 'sprout') {
     if (speech.text === NOT_A_PLACE) return { engine: 'not_a_place' };
     const line = Object.entries(STOCK_LINES).find(([, words]) => words === speech.text);
@@ -1069,7 +1085,9 @@ function saidJson(line: Said): unknown {
     by: line.by,
     speaker: line.speaker,
     said: speechJson(line.said),
-    bindings: Object.fromEntries([...line.bindings].map(([name, one]) => [name, evaluatedJson(one)])),
+    bindings: Object.fromEntries(
+      [...line.bindings].map(([name, one]) => [name, evaluatedJson(one)]),
+    ),
   };
 }
 
@@ -1126,12 +1144,17 @@ function run(
   const { sink: acting, acted } = actingSink(context, 0, hearing);
   const sink = {
     ...acting,
-    act: (actor: InstanceId, performed: { verb: string; library: string; roles: ReadonlyMap<string, Evaluated> }) => {
+    act: (
+      actor: InstanceId,
+      performed: { verb: string; library: string; roles: ReadonlyMap<string, Evaluated> },
+    ) => {
       readings.push({
         actor,
         verb: performed.verb,
         library: performed.library,
-        roles: Object.fromEntries([...performed.roles].map(([name, one]) => [name, evaluatedJson(one)])),
+        roles: Object.fromEntries(
+          [...performed.roles].map(([name, one]) => [name, evaluatedJson(one)]),
+        ),
         after: acted.said.length,
       });
       return 'done' as const;
@@ -1218,18 +1241,52 @@ interface RangeCase {
 }
 
 const RANGES: readonly RangeCase[] = [
-  { name: 'a runner reaches its place and what the place holds', asker: at('runner'), asking: null, state: 'fresh' },
-  { name: 'a shut chest is reached as a thing, and holds its own', asker: at('runner'), asking: null, state: 'fresh' },
+  {
+    name: 'a runner reaches its place and what the place holds',
+    asker: at('runner'),
+    asking: null,
+    state: 'fresh',
+  },
+  {
+    name: 'a shut chest is reached as a thing, and holds its own',
+    asker: at('runner'),
+    asking: null,
+    state: 'fresh',
+  },
   { name: 'an open chest passes what it holds', asker: at('runner'), asking: null, state: 'worn' },
-  { name: 'a glass case passes only the message it names', asker: at('runner'), asking: 'ping', state: 'fresh' },
-  { name: 'a container asked about itself reaches its own contents', asker: at('chest'), asking: null, state: 'fresh' },
-  { name: 'what is inside a shut chest reaches the chest as a surface', asker: at('chest', 'coin'), asking: null, state: 'fresh' },
-  { name: 'what is inside an open chest reaches the place outside', asker: at('chest', 'coin'), asking: null, state: 'worn' },
+  {
+    name: 'a glass case passes only the message it names',
+    asker: at('runner'),
+    asking: 'ping',
+    state: 'fresh',
+  },
+  {
+    name: 'a container asked about itself reaches its own contents',
+    asker: at('chest'),
+    asking: null,
+    state: 'fresh',
+  },
+  {
+    name: 'what is inside a shut chest reaches the chest as a surface',
+    asker: at('chest', 'coin'),
+    asking: null,
+    state: 'fresh',
+  },
+  {
+    name: 'what is inside an open chest reaches the place outside',
+    asker: at('chest', 'coin'),
+    asking: null,
+    state: 'worn',
+  },
   { name: 'a person reaches what is in the place', asker: 'visitor', asking: null, state: 'worn' },
 ];
 
 /** Run one walk against the oracle: who it reaches, nearest first, and the steps it cost. */
-function walk(one: RangeCase, built: Built, resolve: (to: Who) => InstanceId): Record<string, unknown> {
+function walk(
+  one: RangeCase,
+  built: Built,
+  resolve: (to: Who) => InstanceId,
+): Record<string, unknown> {
   const draft = new Draft(loadWorld(built.stored, catalogue).state);
   const budget = new Budget(DEFAULT_LIMITS.budgets);
   const passes = passRules({
@@ -1312,4 +1369,3 @@ describe('the statement goldens', () => {
     expect(Buffer.from(bytes).equals(readFileSync(CARTRIDGE))).toBe(true);
   }, 120_000);
 });
-
