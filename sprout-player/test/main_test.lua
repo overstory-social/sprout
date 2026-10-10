@@ -208,6 +208,19 @@ test("ask, the guard, the weather is built on the wheel and sent to the engine",
   end)
 end)
 
+test("a poll that faulted offers nothing, and A shows what it said instead of a blank wheel", function()
+  run(function(play)
+    play.frame()
+    play.frame("A") -- open the world
+    play.frame("A") -- take the name
+    play.frame("A") -- build a sentence
+    equal(play.shows("Something here is too much to take in."), true, "the fault is told")
+    equal(play.shows("A to go on"), true, "as a message")
+    play.frame("A")
+    equal(play.shows("A: build a sentence"), true, "back in the reader")
+  end, { view = "faulted.view.json" })
+end)
+
 test("B steps back out of the builder to the reader", function()
   run(function(play)
     play.frame()

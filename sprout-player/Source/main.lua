@@ -202,7 +202,14 @@ local function leave()
 end
 
 local function buildSentence()
-  builder = Sentence.new(refreshStatus())
+  local view = refreshStatus()
+  if view.faulted or #view.chips == 0 then
+    -- A poll that faulted offers nothing, and its description is the fault told; a blank wheel
+    -- would say nothing.
+    showMessage(table.concat(view.description, " "), "reader")
+    return
+  end
+  builder = Sentence.new(view)
   mode = "sentence"
 end
 

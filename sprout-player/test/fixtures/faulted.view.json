@@ -1,0 +1,1 @@
+{"place":"chip_tree.hall","description":["Something here is too much to take in."],"exits":[{"direction":"north","label":"to the yard","to":"chip_tree.yard"}],"occupants":[{"id":"chip_tree.hall.guard","name":"a guard"}],"carried":[],"chips":[],"faulted":true}
