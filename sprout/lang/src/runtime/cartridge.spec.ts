@@ -139,7 +139,7 @@ describe('the catalogue of every corpus world, as the C runtime reads it from th
   it('has no phrase, synonym, noun or intent with a character outside ASCII, which the C runtime tokenises', () => {
     // The C tokeniser lower-cases ASCII letters and splits on ASCII white space only; `typedWords` does
     // both for every script. Until a cartridge carries the final tokens, this keeps the gap from hiding.
-    const outside = /[^\x00-\x7f]/;
+    const outside = { test: (text: string) => [...text].some((c) => c.codePointAt(0)! > 0x7f) };
     for (const name of WORLDS) {
       const catalogue = loadCartridge(emitCartridge(compiled(name)), { caps: DEFAULT_LIMITS.caps });
       const texts = [
