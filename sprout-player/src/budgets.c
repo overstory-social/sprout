@@ -7,9 +7,9 @@
 #include "world.h"
 
 void player_budgets(sprout_budgets *b) {
-  /* The spec's Runtime budgets table. */
+  /* The spec's Runtime budgets table, but the poll's, which is the app's own (budgets.h). */
   b->steps = (sprout_limit){true, 50000};
-  b->poll_steps = (sprout_limit){true, 10000};
+  b->poll_steps = (sprout_limit){true, PLAYER_POLL_STEPS};
   b->output = (sprout_limit){true, 8000};
   b->events = (sprout_limit){true, 256};
   b->cascade_depth = (sprout_limit){true, 20};

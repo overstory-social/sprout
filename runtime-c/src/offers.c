@@ -184,17 +184,25 @@ static sprout_eval_status things_for(scene *s, const sprout_verb *verb, const sp
   return SPROUT_EVAL_OK;
 }
 
-/* The ways each role of `verb` can be filled; a role with none leaves the verb without an offer. */
+/*
+ * The ways each role of `verb` can be filled; a role with none leaves the verb without an offer. An
+ * optional tool is offered left out and filled by each thing that fits, as the parser builds both;
+ * a value role only left out, its options written beside the reading.
+ */
 static sprout_eval_status lists_for(scene *s, const sprout_verb *verb, fillings *lists) {
   size_t r;
   for (r = 0; r < verb->role_count; r++) {
     const sprout_role *role = &verb->roles[r];
     if (role->filler == SPROUT_FILLER_EXIT) {
       EXPR_NEED(ways_for(s, &lists[r]));
-    } else if (role->optional || is_value(role)) {
+    } else if (is_value(role)) {
       filling *slot = grow(s->frame, &lists[r]);
       if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
     } else {
+      if (role->optional) {
+        filling *slot = grow(s->frame, &lists[r]);
+        if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+      }
       EXPR_NEED(things_for(s, verb, role, &lists[r]));
     }
   }

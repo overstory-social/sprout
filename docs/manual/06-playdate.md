@@ -2,8 +2,11 @@
 
 The Playdate has no keyboard, so you do not type a command. You build it,
 one choice at a time, by turning the crank. This chapter is for the person
-holding the console. Putting the app on a Playdate is the maintainer's job
-and is in the repository's README.
+holding the console. The app reaches a Playdate the way any game made
+outside the catalogue does: as a `.pdx` folder, zipped and sideloaded from
+your account at play.date, or sent over USB from the Playdate Simulator's
+Device menu. Building that folder is the maintainer's job and is in the
+repository's README.
 
 ## The shelf
 

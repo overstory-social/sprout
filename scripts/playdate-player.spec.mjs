@@ -9,7 +9,14 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { TEST_PUBLIC_KEY, WORLDS_FILE, readGraduated, stageWorlds, writePublicKey } from './playdate-player.mjs';
+import {
+  appPollSteps,
+  readGraduated,
+  stageWorlds,
+  TEST_PUBLIC_KEY,
+  WORLDS_FILE,
+  writePublicKey,
+} from './playdate-player.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '../..');
 const scratch = () => mkdtempSync(join(tmpdir(), 'sprout-shipping-'));
@@ -20,17 +27,52 @@ function listFile(value) {
   return file;
 }
 
-test('the graduated list in the repository names worlds that exist, once each', () => {
+test("the graduated list in the repository ships the worked microworld and the studio's finished world, once each", () => {
   const list = readGraduated(WORLDS_FILE);
-  assert.ok(list.length >= 3);
-  for (const name of ['chip-tree', 'teashop', 'media-room']) {
-    assert.ok(list.some((entry) => entry.file === `${name}.sproutworld`), `${name} ships`);
+  for (const name of ['printers_shop', 'underground_caverns']) {
+    assert.ok(
+      list.some((entry) => entry.file === `${name}.sproutworld`),
+      `${name} ships`,
+    );
   }
   assert.equal(new Set(list.map((entry) => entry.file)).size, list.length);
   for (const entry of list) assert.ok(existsSync(join(entry.dir, 'sprout.json')), entry.world);
+  const caverns = list.find((entry) => entry.file === 'underground_caverns.sproutworld');
+  assert.deepEqual(caverns.plays, ['tests/walkthrough.json'], 'the whole of Zork is a listed play');
 });
 
-test('a world is named by its corpus/good name or by a path from the repository root', () => {
+test('a world may list plays under its folder, and one that is not there is refused by name', () => {
+  const list = readGraduated(
+    listFile({
+      graduated: [{ world: 'chip-tree', title: 'Chip Tree', plays: ['transcripts/chips.json'] }],
+    }),
+  );
+  assert.deepEqual(list[0].plays, ['transcripts/chips.json']);
+  assert.deepEqual(
+    readGraduated(listFile({ graduated: [{ world: 'teashop', title: 'T' }] }))[0].plays,
+    [],
+  );
+  assert.throws(
+    () =>
+      readGraduated(
+        listFile({
+          graduated: [{ world: 'chip-tree', title: 'C', plays: ['transcripts/none.json'] }],
+        }),
+      ),
+    /the play "transcripts\/none.json" of the world "chip-tree" is not at/,
+  );
+  assert.throws(
+    () =>
+      readGraduated(listFile({ graduated: [{ world: 'chip-tree', title: 'C', plays: 'chips' }] })),
+    /"plays" of the world "chip-tree" should be a list/,
+  );
+});
+
+test('the poll budget the plays are held to is the one src/budgets.h defines', () => {
+  assert.ok(Number.isInteger(appPollSteps()) && appPollSteps() > 10_000);
+});
+
+test('a world is named by its corpus/good name or by a path from the repository root, and its cartridge for its manifest', () => {
   const list = readGraduated(
     listFile({
       graduated: [
@@ -42,7 +84,7 @@ test('a world is named by its corpus/good name or by a path from the repository 
   assert.deepEqual(
     list.map((entry) => [entry.file, entry.title]),
     [
-      ['chip-tree.sproutworld', 'Chip Tree'],
+      ['chip_tree.sproutworld', 'Chip Tree'],
       ['teashop.sproutworld', 'Teashop'],
     ],
   );
@@ -53,8 +95,14 @@ test('a list that cannot be used says what to write', () => {
   const cases = [
     ['{', /cannot be read as JSON/],
     [{ worlds: [] }, /should be \{ "graduated"/],
-    [{ graduated: [{ world: 'chip-tree' }] }, /entry 1 of "graduated" needs a "world" and a "title"/],
-    [{ graduated: [{ world: 'no-such-world', title: 'X' }] }, /the world "no-such-world" is not at/],
+    [
+      { graduated: [{ world: 'chip-tree' }] },
+      /entry 1 of "graduated" needs a "world" and a "title"/,
+    ],
+    [
+      { graduated: [{ world: 'no-such-world', title: 'X' }] },
+      /the world "no-such-world" is not at/,
+    ],
     [
       {
         graduated: [
@@ -62,10 +110,11 @@ test('a list that cannot be used says what to write', () => {
           { world: 'corpus/good/chip-tree', title: 'B' },
         ],
       },
-      /the world "chip-tree" is listed twice/,
+      /the world "chip_tree" is listed twice/,
     ],
   ];
-  for (const [value, pattern] of cases) assert.throws(() => readGraduated(listFile(value)), pattern);
+  for (const [value, pattern] of cases)
+    assert.throws(() => readGraduated(listFile(value)), pattern);
 });
 
 test('each listed world is packed with its assets into the folder the app carries', async () => {
@@ -81,30 +130,53 @@ test('each listed world is packed with its assets into the folder the app carrie
   const staged = await stageWorlds({ list, out });
   assert.equal(staged.length, 2);
   for (const file of [
-    'chip-tree.sproutworld',
-    'media-room.sproutworld',
-    'media-room.sproutworld.assets/cellar.png',
-    'media-room.sproutworld.assets/pictures/cabinet.png',
+    'chip_tree.sproutworld',
+    'media_room.sproutworld',
+    'media_room.sproutworld.assets/cellar.png',
+    'media_room.sproutworld.assets/pictures/cabinet.png',
   ]) {
     assert.ok(existsSync(join(out, file)), file);
   }
   assert.equal(existsSync(join(out, 'teashop.sproutworld')), false, 'only what is listed');
-  assert.equal(readFileSync(join(out, 'chip-tree.sproutworld')).subarray(0, 4).toString(), 'SPRT');
+  assert.equal(readFileSync(join(out, 'chip_tree.sproutworld')).subarray(0, 4).toString(), 'SPRT');
 });
 
 test('staging again replaces what an earlier list left', async () => {
   const out = join(scratch(), 'worlds');
-  await stageWorlds({ list: readGraduated(listFile({ graduated: [{ world: 'teashop', title: 'T' }] })), out });
-  await stageWorlds({ list: readGraduated(listFile({ graduated: [{ world: 'chip-tree', title: 'C' }] })), out });
+  await stageWorlds({
+    list: readGraduated(listFile({ graduated: [{ world: 'teashop', title: 'T' }] })),
+    out,
+  });
+  await stageWorlds({
+    list: readGraduated(listFile({ graduated: [{ world: 'chip-tree', title: 'C' }] })),
+    out,
+  });
   assert.equal(existsSync(join(out, 'teashop.sproutworld')), false);
-  assert.equal(existsSync(join(out, 'chip-tree.sproutworld')), true);
+  assert.equal(existsSync(join(out, 'chip_tree.sproutworld')), true);
+});
+
+test('a world folder without a manifest, or with no name in it, is refused by name', () => {
+  const bare = scratch();
+  assert.throws(
+    () => readGraduated(listFile({ graduated: [{ world: bare, title: 'Bare' }] })),
+    /the world ".*" has no readable sprout.json/,
+  );
+  const unnamed = scratch();
+  writeFileSync(join(unnamed, 'sprout.json'), '{ "version": "0.1.0" }');
+  assert.throws(
+    () => readGraduated(listFile({ graduated: [{ world: unnamed, title: 'Unnamed' }] })),
+    /has no "name" in its sprout.json/,
+  );
 });
 
 test('a world that does not pack fails the build and names it', async () => {
   const dir = scratch();
   writeFileSync(join(dir, 'sprout.json'), '{ "name": "broken" }');
   const list = readGraduated(listFile({ graduated: [{ world: dir, title: 'Broken' }] }));
-  await assert.rejects(stageWorlds({ list, out: join(scratch(), 'worlds') }), /Broken .* did not pack/);
+  await assert.rejects(
+    stageWorlds({ list, out: join(scratch(), 'worlds') }),
+    /Broken .* did not pack/,
+  );
 });
 
 test('the public key the app trusts is written as a Lua module from the file named', () => {
@@ -130,6 +202,9 @@ test('a public key file that is not a key is refused', () => {
   for (const text of ['', 'ab', `${'AB'.repeat(32)}`, `${'zz'.repeat(32)}`, `${'ab'.repeat(33)}`]) {
     const keyFile = join(scratch(), 'bad.pub');
     writeFileSync(keyFile, text);
-    assert.throws(() => writePublicKey({ keyFile, into: scratch() }), /should hold the public key as 64 lowercase hexadecimal digits/);
+    assert.throws(
+      () => writePublicKey({ keyFile, into: scratch() }),
+      /should hold the public key as 64 lowercase hexadecimal digits/,
+    );
   }
 });

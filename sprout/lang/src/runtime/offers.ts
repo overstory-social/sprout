@@ -6,9 +6,11 @@
 // alone; a role only the actor plays, and their own part moves, never by
 // the actor's own place; and `go`'s way by each exit and link that applies,
 // a link typed by its label. In the dark a thing role is offered only
-// what the actor carries, and the ways out still. A tool is left out and
-// a value role left unbound, which a body reads only inside `if (bound
-// …)` and a `from` may leave so anyway. Each offer is typed by its verb's
+// what the actor carries, and the ways out still. An optional tool is
+// offered left out and filled by each thing that fits, since the parser
+// builds both, and a value role left unbound, which a body reads only
+// inside `if (bound …)` and a `from` may leave so anyway. Each offer is
+// typed by its verb's
 // first phrase that fits, with the consent pass's answer beside it, or
 // the `inside_itself` its move would meet, and costs a step, so a world
 // too large to list faults as any work does.
@@ -97,9 +99,7 @@ export function offersTo(
           words: exit.direction ?? typedWords(exit.label).join(' '),
         }));
       }
-      if (role.optional || role.filler?.fills === 'symbol' || role.filler?.fills === 'integer') {
-        return [null];
-      }
+      if (role.filler?.fills === 'symbol' || role.filler?.fills === 'integer') return [null];
       const fitting = things.filter(
         (thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)),
       );
@@ -109,12 +109,13 @@ export function offersTo(
         fitting.some((thing) => thing.id === here) &&
         movesItsFiller(verb, role, self, budget) &&
         onlyTheActorPlays(verb, role, context.catalogue.kinds.values(), budget);
-      return fitting
+      const bound = fitting
         .filter((thing) => !ownPlace || thing.id !== here)
         .map((thing) => ({
           bound: role.many ? { set: [thing.id] } : { object: thing.id },
           words: wordsFor(thing, addressing),
         }));
+      return role.optional ? [null, ...bound] : bound;
     });
     for (const filled of product(each)) {
       budget.spend();

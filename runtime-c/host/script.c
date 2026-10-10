@@ -22,6 +22,10 @@ typedef struct play {
   texts says, turns;
   uint64_t now;       /* seconds on the script's clock */
   int failure;        /* an exit code, once a call the host should not have made was refused */
+  bool offered;       /* each command's reading is looked for in the view first */
+  size_t checked;     /* readings the view was asked for */
+  size_t unoffered;   /* of those, the ones it did not offer: the play goes on, and fails at its end */
+  uint64_t widest;    /* the most steps a poll spent */
 } play;
 
 static const char *push(play *p, texts *list, const char *text) {
@@ -479,6 +483,107 @@ static bool echo(play *p, const sproutc_turn_reading *turn) {
   return true;
 }
 
+/* ---- what the view offers ---- */
+
+/* Whether a value role's chosen value is among the options the view writes beside the reading. */
+static bool value_offered(const sprout_seen_reading *reading, const sprout_filling *filling) {
+  size_t i, j;
+  for (i = 0; i < reading->options_count; i++) {
+    const sprout_seen_options *options = &reading->options[i];
+    if (strcmp(options->role, filling->role) != 0) continue;
+    if (filling->binds == SPROUT_FILL_TEXT) {
+      for (j = 0; options->symbol && j < options->option_count; j++)
+        if (sprout_str_is(options->options[j].value, filling->text)) return true;
+    } else {
+      for (j = 0; !options->symbol && j < options->range_count; j++)
+        if (filling->number >= options->ranges[j].min && filling->number <= options->ranges[j].max) return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+/*
+ * Whether `filler`, as the view offers it, is what `filling` has in the role: a thing by id, an exit by
+ * where it leads and its direction, a set by the one member `member`, a value by its options.
+ */
+static bool filler_fits(const sprout_seen_reading *reading, const sprout_seen_filler *filler,
+                        const sprout_filling *filling, const char *member) {
+  switch (filling->binds) {
+    case SPROUT_FILL_UNBOUND:
+      return true;
+    case SPROUT_FILL_OBJECT:
+      return filler->binds == SPROUT_SEEN_OBJECT && sprout_str_is(filler->thing.id, filling->id);
+    case SPROUT_FILL_SET:
+      return filler->binds == SPROUT_SEEN_SET && filler->member_count == 1 && member != NULL &&
+             sprout_str_is(filler->members[0].id, member);
+    case SPROUT_FILL_EXIT:
+      return filler->binds == SPROUT_SEEN_EXIT && sprout_str_is(filler->exit.to, filling->id) &&
+             (filler->exit.direction == NULL) == (filling->direction == NULL) &&
+             (filling->direction == NULL || strcmp(filler->exit.direction, filling->direction) == 0);
+    case SPROUT_FILL_TEXT:
+    case SPROUT_FILL_NUMBER:
+      return filler->binds == SPROUT_SEEN_UNBOUND && value_offered(reading, filling);
+  }
+  return false;
+}
+
+/* Whether some reading the view offers is `read`, with `member` standing for its set role. */
+static bool view_offers(const sprout_seen_view *view, const sprout_reading *read, const char *member) {
+  size_t r, f, g;
+  for (r = 0; r < view->reading_count; r++) {
+    const sprout_seen_reading *reading = &view->readings[r];
+    bool fits = strcmp(reading->verb, read->verb) == 0;
+    for (f = 0; fits && f < read->filling_count; f++) {
+      const sprout_filling *filling = &read->fillings[f];
+      bool found = filling->binds == SPROUT_FILL_UNBOUND;
+      for (g = 0; !found && g < reading->filler_count; g++) {
+        const sprout_seen_filler *filler = &reading->fillers[g];
+        if (strcmp(filler->role, filling->role) == 0) found = filler_fits(reading, filler, filling, member);
+      }
+      fits = found;
+    }
+    if (fits) return true;
+  }
+  return false;
+}
+
+/*
+ * Polls the actor's view and looks for the reading in it, as the sentence builder must to make it.
+ * A set role is offered one member at a time, so each member is looked for on its own. Says which
+ * reading the view does not offer, or that the poll faulted, and counts it; the play goes on.
+ */
+static void offered(play *p, const char *visit, const sprout_reading *read, const char *typed, size_t index) {
+  sprout_seen_view view;
+  const sprout_filling *set = NULL;
+  bool found = true;
+  size_t f, i;
+  p->checked++;
+  if (sprout_view(p->world, p->state, &p->host->record, visit, &view) != SPROUT_OK) {
+    fprintf(p->err, "sproutc: step %zu: the view could not be polled before `%s`.\n", index, typed);
+    p->unoffered++;
+    return;
+  }
+  if (view.steps > p->widest) p->widest = view.steps;
+  for (f = 0; f < read->filling_count; f++)
+    if (read->fillings[f].binds == SPROUT_FILL_SET) set = &read->fillings[f];
+  if (view.faulted) {
+    fprintf(p->err, "sproutc: step %zu: the poll before `%s` faulted (%s), so the view offers nothing.\n", index, typed,
+            view.fault_name == NULL ? "" : view.fault_name);
+    found = false;
+  } else if (set == NULL) {
+    found = view_offers(&view, read, NULL);
+  } else {
+    for (i = 0; found && i < set->id_count; i++) found = view_offers(&view, read, set->ids[i]);
+    if (found && set->id_count == 0) found = view_offers(&view, read, NULL);
+  }
+  if (!found && !view.faulted)
+    fprintf(p->err, "sproutc: step %zu: the view does not offer `%s`, so the sentence builder cannot make it.\n", index,
+            typed);
+  sprout_view_free(&view);
+  if (!found) p->unoffered++;
+}
+
 static bool command(play *p, const sproutc_step *step) {
   char *visit = visit_of(p, step->nickname);
   size_t t;
@@ -522,6 +627,7 @@ static bool command(play *p, const sproutc_step *step) {
     input.reading = &read;
     input.text = reading.typed;
     input.text_length = strlen(reading.typed);
+    if (p->offered) offered(p, visit, &read, reading.typed, step->index);
     if (!run_and_free(p, &input, reading.seed)) return false;
   }
   return true;
@@ -578,7 +684,7 @@ static void trace_step(play *p, const sproutc_step *step, FILE *trace) {
 }
 
 int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *state, sproutc_readings *readings,
-                        FILE *out, FILE *err, FILE *trace) {
+                        const sproutc_play_options *options, FILE *out, FILE *err, FILE *trace) {
   play p;
   size_t i, n = sproutc_readings_count(readings);
   const char *why = budgets_of(host, readings->budgets);
@@ -586,7 +692,9 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
     fprintf(err, "sproutc: %s\n", why);
     return 1;
   }
+  if (options->has_poll_steps) host->record.budgets.poll_steps = (sprout_limit){true, options->poll_steps};
   memset(&p, 0, sizeof p);
+  p.offered = options->offered;
   p.host = host;
   p.world = world;
   p.state = state;
@@ -631,6 +739,11 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
     if (ok) trace_step(&p, &step, trace);
     sprout_arena_reset(&p.arena);
     if (!ok) return p.failure == 0 ? 1 : p.failure;
+  }
+  if (p.offered) {
+    fprintf(out, "--- offered: %zu of %zu readings, the widest poll %llu steps\n", p.checked - p.unoffered, p.checked,
+            (unsigned long long)p.widest);
+    if (p.unoffered > 0) return 1;
   }
   return 0;
 }

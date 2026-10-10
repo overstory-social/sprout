@@ -49,6 +49,15 @@ describe('what an actor is offered', () => {
     expect(typed.filter((one) => engine.includes(one))).toEqual(engine);
   });
 
+  it('offers an optional tool left out and filled by each thing that fits, as the parser builds both', () => {
+    const typed = typedBy(study());
+    expect(typed).toContain('poke lamp');
+    expect(typed).toContain('poke lamp with mirror');
+    expect(typed).toContain('poke mirror with lamp');
+    expect(typed).not.toContain('poke lamp with lamp');
+    expect(typed.indexOf('poke lamp')).toBeLessThan(typed.indexOf('poke lamp with mirror'));
+  });
+
   it('fills a role a thing fills with each thing in range it fits, the actor left out', () => {
     const state = study([
       [MARTA, HALL, 'Marta'],

@@ -117,7 +117,9 @@ node scripts/fuzz-runtime.mjs --corpus --readings 2000       # the C runtime aga
 ```
 
 `sproutc` is the C runtime's desktop host, built under `${TMPDIR}/sprout-runtime-c-<hash>/`:
-`sproutc play <cartridge> [--state f] [--script s]`, `sproutc view <cartridge> --state f [--json]`
+`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n]` (with `--offered` the view is
+polled before each command and must offer the reading, as the Playdate's sentence builder needs),
+`sproutc view <cartridge> --state f [--json]`
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each
 check holds the C runtime to.
@@ -131,28 +133,55 @@ committed here), CMake, a C compiler, and the repository built (`npm ci && npm r
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once (Linux)
 npm run playdate                                             # packs the graduated worlds and builds the pdx
-"$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/simulator/sprout-player.pdx
+"$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 lua5.4 sprout-player/test/run.lua                            # the Lua tests alone, with no SDK
 ```
 
 On macOS or Windows install the SDK from play.date/dev and point `PLAYDATE_SDK_PATH` at it. With
 the variable set, `node scripts/check-runtime-c.mjs` (and so the gate) also builds the Simulator
 target and runs the player's Lua and C tests; with it unset the last line says they were skipped.
-`npm run playdate` also builds the device pdx
-(`sprout-player/build/device/sprout-player_DEVICE.pdx`, which runs in the Simulator too) where
-`arm-none-eabi-gcc` is on the `PATH`; upload it from the Simulator's Device menu. Nothing here has
-run on a screen or a console yet.
+
+`npm run playdate` writes **one pdx** that carries every binary the machine can build, and says
+which: the Simulator library of the platform that built it (`pdex.so` on Linux, `pdex.dylib` on
+macOS), `pdex.dll` for the Windows Simulator where `x86_64-w64-mingw32-gcc` is on the `PATH`
+([llvm-mingw](https://github.com/mstorsjo/llvm-mingw) cross-compiles it from Linux), and
+`pdex.bin` for a console where `arm-none-eabi-gcc` is (Arm's GNU toolchain). A Simulator runs only
+a pdx that holds its own platform's library; the device runs only `pdex.bin`.
+
+**On Debian 12 and WSL2** the Linux SDK's `pdc` and Simulator do not run: they need glibc 2.38,
+and Debian 12 has 2.36. The build still works there with the Windows SDK installed on the host:
+`scripts/playdate-pdc-wsl.sh`, copied over `$PLAYDATE_SDK_PATH/bin/pdc`, forwards `pdc` to the
+Windows one (its header says how), and the pdx is opened in the Windows Simulator, which needs the
+`pdex.dll` above. Copy the pdx to a folder on the Windows side and run it from there, or the
+Simulator leaves its crash-log folder in the checkout:
+
+```sh
+cp -r sprout-player/build/sprout-player.pdx /mnt/c/Users/<you>/sprout-playdate/
+(cd /mnt/c/Users/<you>/sprout-playdate && /mnt/c/Users/<you>/Documents/PlaydateSDK/bin/PlaydateSimulator.exe \
+  'C:\Users\<you>\sprout-playdate\sprout-player.pdx')
+```
+
+In the Simulator the A button is the S key and B is the A key. The app has run this way on the
+Windows Simulator: shelf, nickname picker, reader, sentence builder and turns. It has not yet run on a
+console. To put it on one, with the pdx holding `pdex.bin`: plug the Playdate in over USB and use
+the Simulator's **Device › Upload Game to Device**; or `"$PLAYDATE_SDK_PATH/bin/pdutil" install
+sprout-player.pdx` where the Linux `pdutil` runs; or zip the pdx folder and sideload it from your
+account at play.date, which the console then fetches over Wi-Fi.
 
 A cartridge made by `sprout pack` and copied into the app's Data folder (in the Simulator,
 `$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The pdx
-carries the graduated worlds listed in `sprout-player/worlds.json`; the shelf's last row fetches
-more from a signed index (`node scripts/publish-index.mjs --generate-key <prefix>` makes the
-publisher's key, which never enters this repository; `publish-index.mjs <folder> --base-url <url>
---key <file>` writes the index; the app is built with the public half through
-`SPROUT_INDEX_PUBLIC_KEY`, and `Source/config.lua` or the Data folder's `downloads.json` holds the
-address). The design doc, [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md), has
-the whole of it. For players, see the manual's
-[Playing on the Playdate](docs/manual/06-playdate.md).
+carries the graduated worlds listed in `sprout-player/worlds.json`, today the worked microworld
+`printers_shop` and the studio's finished `underground_caverns`, reached by path in a
+`sprout-studio` checkout beside this one; a world may list `plays`, scripts under its folder the
+build plays through `sproutc` with the view polled first under the app's poll budget, so the pdx
+never ships a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
+shelf's last row fetches more from a signed index
+(`node scripts/publish-index.mjs --generate-key <prefix>` makes the publisher's key, which never
+enters this repository; `publish-index.mjs <folder> --base-url <url> --key <file>` writes the
+index; the app is built with the public half through `SPROUT_INDEX_PUBLIC_KEY`, and
+`Source/config.lua` or the Data folder's `downloads.json` holds the address). The design doc,
+[`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md), has the whole of it. For
+players, see the manual's [Playing on the Playdate](docs/manual/06-playdate.md).
 
 ## Versions, and the language level
 

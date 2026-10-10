@@ -257,6 +257,36 @@ test("a member of a set whose own reading is refused is greyed, with its reason,
   equal(builder:entries()[1].greyed, false)
 end)
 
+test("an optional tool is a step of its own: the things that fit beside \"that's all\"", function()
+  local function leaf(typed) return { choices = {}, leaf = { typed = typed, refused = nil, options = {} } } end
+  local tree = {
+    chips = { { verb = "x.attack", next = { choices = { {
+      filler = { role = "target", binds = "object", id = "x.troll", name = "the troll" },
+      next = {
+        choices = { { filler = { role = "weapon", binds = "object", id = "x.sword", name = "the sword" },
+          next = leaf("attack troll with sword") } },
+        leaf = { typed = "attack troll", refused = nil, options = {} },
+      },
+    } }, leaf = nil } } },
+  }
+  local builder = Sentence.new(tree)
+  choose(builder, "attack")
+  choose(builder, "the troll")
+  same(labels(builder), { "the sword", "that's all" })
+  choose(builder, "the sword")
+  local done, reading = builder:pick()
+  equal(done, "done")
+  equal(reading.verb, "x.attack")
+  equal(reading.fillers[2].id, "x.sword")
+  builder = Sentence.new(tree)
+  choose(builder, "attack")
+  choose(builder, "the troll")
+  choose(builder, "that's all")
+  done, reading = builder:pick()
+  equal(done, "done")
+  equal(#reading.fillers, 1)
+end)
+
 test("going back out of a set forgets the members picked since", function()
   local builder = Sentence.new(view())
   choose(builder, "juggle")

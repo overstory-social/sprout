@@ -20,8 +20,22 @@
 #include "host.h"
 #include "readings.h"
 
-/* Plays every step; 0 when each ran, or an exit code for the first that could not. */
+/*
+ * How a play is held to the view: with `offered`, the view is polled before each command and the
+ * reading must be among what it offers, a set role one member at a time, as the chip tree builds
+ * it; `poll_steps`, where set, is the poll's budget, over any the readings file names.
+ */
+typedef struct sproutc_play_options {
+  bool offered;
+  bool has_poll_steps;
+  uint64_t poll_steps;
+} sproutc_play_options;
+
+/*
+ * Plays every step; 0 when each ran, or an exit code for the first that could not. With `offered`
+ * the last line of `out` says how many readings were checked and the widest poll's steps.
+ */
 int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *state, sproutc_readings *readings,
-                        FILE *out, FILE *err, FILE *trace);
+                        const sproutc_play_options *options, FILE *out, FILE *err, FILE *trace);
 
 #endif
