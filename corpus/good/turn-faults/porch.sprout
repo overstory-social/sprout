@@ -1,0 +1,21 @@
+// A porch that can be barred: while it is, it turns away whoever would come in, a visitor arriving
+// among them, and says why in its own words.
+import * as sprout from 'sprout'
+import {bar} from 'turn_faults'
+
+kind Porch is sprout.Place {
+  :barred false
+
+  accept (item, from) {
+    if (self.get(:barred)) { refuse "The porch door is barred against you." }
+  }
+
+  as target for bar {
+    do {
+      self.set(:barred, true)
+      say "You drop the bar across the porch door."
+    }
+  }
+
+  on :tick (elapsed) { tell "The porch boards creak." }
+}

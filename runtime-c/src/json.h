@@ -69,4 +69,11 @@ void sprout_json_adopt(sprout_json *parent, const char *key, sprout_json *child)
 sprout_status sprout_json_write(sprout_arena *arena, const sprout_json *root, const char **bytes,
                                 size_t *length);
 
+/*
+ * The canonical text of a node alone: for a member of an object, its value without the name the writer puts in
+ * front of it. SPROUT_BAD_INPUT if the writer's form is not the one it expects.
+ */
+sprout_status sprout_json_write_value(sprout_arena *arena, const sprout_json *node, const char **bytes,
+                                      size_t *length);
+
 #endif

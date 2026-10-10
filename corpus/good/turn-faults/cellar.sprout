@@ -1,0 +1,28 @@
+// A cellar that rots: after it does, whatever comes into it or goes out of it, or ticks it, faults the turn that does,
+// since its handlers add past the end of the integers.
+import * as sprout from 'sprout'
+import {rot} from 'turn_faults'
+
+kind Cellar is sprout.Place {
+  :rotten false
+
+  as target for rot {
+    do {
+      self.set(:rotten, true)
+      say "Something gives way inside the walls."
+    }
+  }
+
+  on :entered (item, from) {
+    if (self.get(:rotten) && 2147483647 + 1 > 0) { tell "Nobody hears this." }
+  }
+
+  on :left (item, to) {
+    if (self.get(:rotten) && 2147483647 + 1 > 0) { tell "Nobody hears this." }
+  }
+
+  on :tick (elapsed) {
+    if (self.get(:rotten) && 2147483647 + 1 > 0) { tell "Nobody hears this either." }
+    else { tell "Water drips in the dark." }
+  }
+}

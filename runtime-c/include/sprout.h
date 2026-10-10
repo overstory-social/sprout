@@ -20,7 +20,6 @@
 /* What a call came to. Every status has text from sprout_status_text. */
 typedef enum sprout_status {
   SPROUT_OK = 0,
-  SPROUT_NOT_YET,       /* the call is declared and its body has not landed */
   SPROUT_NO_MEMORY,     /* the host's alloc returned nothing */
   SPROUT_BAD_HOST,      /* the host record is missing something the runtime needs */
   SPROUT_BAD_SEED,      /* a seed outside 0 to 2^32 - 1: the host's defect */
@@ -74,26 +73,21 @@ typedef struct sprout_host {
   sprout_budgets budgets;
 } sprout_host;
 
-/* The kinds of turn (the spec's Runtime budgets). */
+/* The kinds of turn (the spec's The runtime > Turns, Limits > Runtime budgets). */
 typedef enum sprout_turn_kind {
   SPROUT_TURN_COMMAND,
   SPROUT_TURN_TICK,
   SPROUT_TURN_WAKE,
   SPROUT_TURN_MAINTENANCE,
-  SPROUT_TURN_POLL
+  SPROUT_TURN_POLL,
+  SPROUT_TURN_ARRIVAL,
+  SPROUT_TURN_DEPARTURE
 } sprout_turn_kind;
 
 /* A loaded world: its declarations, held in the load arena. */
 typedef struct sprout_world sprout_world;
 /* A world's stored state: its instances and visitors. */
 typedef struct sprout_state sprout_state;
-
-typedef struct sprout_turn {
-  sprout_turn_kind kind;
-  const char *visitor; /* who acted, or NULL for a tick or a wake */
-  const char *command; /* the typed command, for SPROUT_TURN_COMMAND */
-  size_t command_length;
-} sprout_turn;
 
 /* A fault names the budget, the host's figure for it, and the message being run. */
 typedef struct sprout_fault {
@@ -102,33 +96,6 @@ typedef struct sprout_fault {
   uint64_t message; /* the index of the message that exhausted it */
   char text[192];
 } sprout_fault;
-
-/* One line a turn told one person (the spec's The runtime > Effects): a paragraph, for the visit that reads it. */
-typedef struct sprout_line {
-  const char *recipient; /* the visit key, NUL-terminated beyond its length */
-  size_t recipient_length;
-  const char *text; /* UTF-8, NUL-terminated beyond its length */
-  size_t text_length;
-} sprout_line;
-
-/* A visit that read nothing more than it was told, because its output reached the host's figure. */
-typedef struct sprout_cut {
-  const char *recipient;
-  size_t recipient_length;
-} sprout_cut;
-
-/*
- * What a turn came to. The lines and the cuts are the turn's own, in the order told, valid until
- * the turn's memory is released; a faulted turn tells nothing.
- */
-typedef struct sprout_outcome {
-  bool faulted;
-  sprout_fault fault;
-  size_t line_count;
-  const sprout_line *lines;
-  size_t cut_count;
-  const sprout_cut *cuts;
-} sprout_outcome;
 
 /* Text for a status: a sentence a host can show. */
 const char *sprout_status_text(sprout_status status);
@@ -249,11 +216,26 @@ typedef struct sprout_filling {
   double number;                /* NUMBER */
 } sprout_filling;
 
+/*
+ * A line a host's parser says before the reading's own (the spec's Parsing > Pronouns, Choosing a reading):
+ * the world's `pronoun_correction` for a thing a pronoun named, with the pronoun the thing declares, or the
+ * engine's `meant`, telling the actor which thing a reading drawn from a tie took the words to name.
+ */
+typedef struct sprout_aside {
+  const char *line;    /* `pronoun_correction` or `meant` */
+  const char *thing;   /* the thing it names, by id */
+  const char *pronoun; /* pronoun_correction: the pronoun the thing declares */
+} sprout_aside;
+
 typedef struct sprout_reading {
   const char *verb;  /* by its full identity, `sprout.take` */
   const char *actor; /* the id of the instance performing it */
   size_t filling_count;
-  const sprout_filling *fillings;
+  const sprout_filling *fillings; /* in the order the reading binds its roles, which a visitor's last reading keeps */
+  size_t draw_count;
+  const uint64_t *draws; /* the bounds the host's parser drew below reading the line, in order: the turn's stream begins with them */
+  size_t aside_count;
+  const sprout_aside *asides;
 } sprout_reading;
 
 /* How a reading ended: both passes ran, the consent pass refused, or its actor destroyed itself. */
@@ -393,8 +375,232 @@ sprout_status sprout_view(sprout_world *world, sprout_state *state, const sprout
 /* Releases what a view holds. */
 void sprout_view_free(sprout_seen_view *view);
 
-/* Runs one turn. Declared here; the body lands with the engine and returns SPROUT_NOT_YET. */
-sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_turn *turn,
-                              sprout_outcome *outcome);
+/*
+ * Turns (the spec's The runtime > Turns, Effects, The log, Faults; Time; The host contract > Admission and
+ * identity, Time, Storage). Every write turn runs in a draft over the last committed state, under a budget
+ * of its own and one stream of draws begun from its seed, and either commits or is abandoned, leaving the
+ * state exactly as it was. The host runs them one at a time for one world, in the order its clock and its
+ * people give: catch-up as a maintenance turn before it admits anyone, then the arrival; a tick for each
+ * place that holds a visitor; a wake when one falls due while anyone stands in the world; a reading when
+ * a visitor types or chooses one; a departure when one goes away.
+ */
 
+/* What a nickname is refused for (the spec's Names > Nicknames). */
+typedef enum sprout_nickname_reason {
+  SPROUT_NICKNAME_OK,
+  SPROUT_NICKNAME_EMPTY,
+  SPROUT_NICKNAME_NOT_WORDS,
+  SPROUT_NICKNAME_TOO_LONG,
+  SPROUT_NICKNAME_SOURCE_SHAPED,
+  SPROUT_NICKNAME_WORLD_WORD,
+  SPROUT_NICKNAME_RESERVED,
+  SPROUT_NICKNAME_HELD
+} sprout_nickname_reason;
+
+/* Whether a nickname may be admitted, and where it may not, the words the host shows the person and what it collided on. */
+typedef struct sprout_admission {
+  sprout_nickname_reason reason;
+  sprout_str kept; /* the nickname as the world keeps it: its words, single-spaced */
+  sprout_str words;
+  size_t collide_count;
+  const sprout_str *collides;
+  void *held;
+} sprout_admission;
+
+/*
+ * Checks `nickname` for `visit` against the world's word set and the language's reserved words, the host's
+ * length bound and the people present now; moderation is the host's, asked only of a nickname this admits.
+ * Two nicknames are one where they are typed alike, which is lower case; someone away holds nothing.
+ */
+sprout_status sprout_admit(const sprout_world *world, const sprout_state *state, const sprout_host *host,
+                           const char *visit, const char *nickname, size_t nickname_length,
+                           sprout_admission *admission);
+
+/* Releases what an admission holds. */
+void sprout_admission_free(sprout_admission *admission);
+
+/* What the host hands one turn; the seed it draws from is the host's `seed`, drawn once for the turn. */
+typedef struct sprout_turn_input {
+  sprout_turn_kind kind;
+  uint64_t instant;              /* when the turn runs, in host seconds */
+  const char *visit;             /* ARRIVAL, DEPARTURE, COMMAND: the visit key */
+  const char *nickname;          /* ARRIVAL: the nickname sprout_admit admitted */
+  size_t nickname_length;
+  const sprout_reading *reading; /* COMMAND: what the visitor typed or chose, read */
+  const char *text;              /* COMMAND: the typed line, which the log keeps (may be NULL) */
+  size_t text_length;
+  const char *place;             /* TICK: the place ticked, by id; its turn is seeded from the host's seed and the place's path */
+  const char *object;            /* WAKE: the object woken, by id */
+  uint64_t serial;               /* WAKE: the serial the wake was asked under */
+  uint64_t nth;                  /* WAKE: how many times this object has woken in this step of time, from 0 */
+} sprout_turn_input;
+
+/* What a turn came to. */
+typedef enum sprout_turn_result {
+  SPROUT_RESULT_DONE,    /* it ran and committed */
+  SPROUT_RESULT_FAULTED, /* it faulted and was abandoned; `fault` says why */
+  SPROUT_RESULT_REFUSED, /* an arrival the place's `accept` or the host's bound on a crowd refused: nothing is written */
+  SPROUT_RESULT_CLOSED,  /* an arrival to a world that admits no one: nothing ran */
+  SPROUT_RESULT_IDLE     /* nothing to run: a tick's place holds no visitor now, or a wake is no longer pending */
+} sprout_turn_result;
+
+/* The kinds of line a turn tells (the spec's The runtime > Effects). */
+typedef enum sprout_line_kind {
+  SPROUT_LINE_SAID,
+  SPROUT_LINE_TOLD,
+  SPROUT_LINE_REFUSED,
+  SPROUT_LINE_DESCRIBED,
+  SPROUT_LINE_NOTICE,
+  SPROUT_LINE_EXTENSION
+} sprout_line_kind;
+
+/* One paragraph a turn told one person (the spec's The runtime > Effects): the reader's visit, and the effect it belongs to. */
+typedef struct sprout_line {
+  const char *recipient; /* the visit key, NUL-terminated beyond its length */
+  size_t recipient_length;
+  const char *text; /* UTF-8, NUL-terminated beyond length */
+  size_t text_length;
+  sprout_line_kind kind;
+  size_t effect; /* the index of its effect among the outcome's */
+} sprout_line;
+
+/* Where the words of an effect were written: a named passage, or a one-line passage, for an author's tools. */
+typedef struct sprout_written {
+  bool passage;
+  const char *name;   /* a passage: its name */
+  const char *origin; /* a passage: the kind that wrote it, qualified */
+  const char *at;     /* `file:line:column` */
+} sprout_written;
+
+/* One effect a person reads, as the log keeps it: a line a turn said, or a description, rendered for one reader. */
+typedef struct sprout_told_effect {
+  sprout_line_kind kind;
+  sprout_str from; /* the object whose body said it */
+  bool has_actor;
+  sprout_str actor; /* whose turn said it: the person who typed, arrived or left */
+  sprout_str to;    /* the person who reads it */
+  sprout_str visit; /* the visit that is them */
+  size_t line_first, line_count; /* its paragraphs among the outcome's lines */
+  size_t written_count;
+  const sprout_written *written; /* every passage and one-line passage that gave it words, each once, a passage after any it holds */
+} sprout_told_effect;
+
+/* A visit a line would have taken past their output: they read nothing more that turn. */
+typedef struct sprout_cut {
+  const char *recipient;
+  size_t recipient_length;
+} sprout_cut;
+
+/* A wake as a maintenance turn's entry names it, with the fault its part ended in where it faulted. */
+typedef struct sprout_logged_wake {
+  sprout_str object;
+  uint64_t serial;
+  uint64_t asked_at;
+  const char *fault_name;
+  sprout_str fault_detail;
+} sprout_logged_wake;
+
+/*
+ * The entry a write turn that ran leaves in the log (the spec's The runtime > The log): which kind, the
+ * world's last serial once it ended, the seed it drew from, the instant, and whom it was for. What it said
+ * is the outcome's effects; this adds what the entry holds beside them.
+ */
+typedef struct sprout_log_entry {
+  sprout_turn_kind kind;
+  uint64_t serial;
+  uint64_t seed;
+  uint64_t seconds;
+  sprout_str who;      /* the visit, the place or the object; empty for catch-up */
+  sprout_str nickname; /* an arrival: the nickname they came in with */
+  sprout_str text;     /* a command: the line typed */
+  uint64_t wake_serial;
+  bool faulted;
+  const char *fault_name;
+  sprout_str fault_detail;
+  size_t delivered_count, faulted_count, abandoned_count; /* catch-up: the wakes it delivered, consumed after a fault, and left pending */
+  const sprout_logged_wake *delivered, *faulted_wakes, *abandoned;
+} sprout_log_entry;
+
+/*
+ * What a turn came to. The lines, effects and cuts are the turn's own, in the order told, valid until
+ * sprout_outcome_free; a faulted turn tells nothing but what the world says of the fault to the one who
+ * typed. `committed` is that the turn's own draft was committed; `state_changed` that the stored state is
+ * not what it was, which a faulted wake (its consumption) and a faulted departure (the visitor gone
+ * quietly) also do. `words` is what a host tells a person outside the world of an arrival that was
+ * closed or faulted.
+ */
+typedef struct sprout_outcome {
+  sprout_turn_result result;
+  bool committed;
+  bool state_changed;
+  bool faulted;
+  sprout_fault fault;
+  const char *fault_name;
+  const char *words;
+  size_t line_count;
+  const sprout_line *lines;
+  size_t effect_count;
+  const sprout_told_effect *effects;
+  size_t cut_count;
+  const sprout_cut *cuts;
+  bool has_log;
+  sprout_log_entry log;
+  uint64_t elapsed; /* a tick or a wake: the seconds its object was handed as `elapsed` */
+  void *held;
+} sprout_outcome;
+
+/*
+ * Runs one write turn of `input->kind` over the committed `state` at `input->instant`, drawing from the seed and
+ * charging the budgets `host` gives (the spec's Host contract > Storage and Time). SPROUT_OK is that the turn ran or
+ * had nothing to run; a fault is SPROUT_OK with `faulted` set and its draft dropped, so the state is as it was but
+ * for a faulted departure, which still takes the visitor out, and a faulted wake, which is consumed (`state_changed`
+ * says whether it is). A call the host should not have made, a visit not in the world, an instant before a wake is
+ * due or a tick's last, is SPROUT_BAD_INPUT with the words in `outcome->fault.text`, and nothing is written.
+ */
+sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_host *host,
+                              const sprout_turn_input *input, sprout_outcome *outcome);
+
+/* Releases what an outcome holds. */
+void sprout_outcome_free(sprout_outcome *outcome);
+
+/* The ids of every place a visitor stands in, once each in code-unit order: the places a host ticks. */
+typedef struct sprout_places {
+  size_t count;
+  const sprout_str *ids;
+  void *held;
+} sprout_places;
+
+sprout_status sprout_places_occupied(const sprout_world *world, const sprout_state *state, const sprout_host *host,
+                                     sprout_places *places);
+
+void sprout_places_free(sprout_places *places);
+
+/* One pending wake and the object that asked for it. */
+typedef struct sprout_due_wake {
+  sprout_str object;
+  uint64_t serial;
+  uint64_t asked_at;
+  uint64_t due_at;
+} sprout_due_wake;
+
+typedef struct sprout_wakes {
+  size_t count;
+  const sprout_due_wake *wakes;
+  void *held;
+} sprout_wakes;
+
+/*
+ * Every wake due at `until` or before, oldest first (by when it fell due, then the serial it was asked under,
+ * then the object), on an object in the tree: a wake on something carried away waits until it is back.
+ */
+sprout_status sprout_wakes_due(const sprout_world *world, const sprout_state *state, const sprout_host *host,
+                               uint64_t until, sprout_wakes *wakes);
+
+void sprout_wakes_free(sprout_wakes *wakes);
+
+/*
+ * How the world's body writes `id`: its path under the world for a declared object, and the id itself for
+ * anything minted. This is what a tick's or a wake's seed is made from, and how a host names an object in its own log.
+ */
+sprout_str sprout_path_of(const sprout_world *world, sprout_str id);
 #endif

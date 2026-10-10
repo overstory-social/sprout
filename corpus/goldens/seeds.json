@@ -1,0 +1,59 @@
+{
+  "rule": "sha256(\"<seed> <path> <nth>\") first 32 bits",
+  "cases": [
+    {
+      "seed": 0,
+      "path": "yard.kiln",
+      "nth": 0,
+      "turn": 321867433
+    },
+    {
+      "seed": 0,
+      "path": "yard.kiln",
+      "nth": 1,
+      "turn": 4149218795
+    },
+    {
+      "seed": 1,
+      "path": "yard.kiln",
+      "nth": 0,
+      "turn": 2739504437
+    },
+    {
+      "seed": 0,
+      "path": "yard.oven",
+      "nth": 0,
+      "turn": 3972692963
+    },
+    {
+      "seed": 7,
+      "path": "ü",
+      "nth": 1,
+      "turn": 2554717040
+    },
+    {
+      "seed": 4294967295,
+      "path": "reach.boat",
+      "nth": 3,
+      "turn": 3445990349
+    },
+    {
+      "seed": 123456789,
+      "path": "a.b.c.d.e.f",
+      "nth": 40,
+      "turn": 3761320068
+    },
+    {
+      "seed": 42,
+      "path": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "nth": 2,
+      "turn": 973058296
+    },
+    {
+      "seed": 0,
+      "path": "",
+      "nth": 0,
+      "turn": 3589126313
+    }
+  ]
+}

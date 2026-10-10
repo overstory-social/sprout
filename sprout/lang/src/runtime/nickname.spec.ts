@@ -1,13 +1,28 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
+import { emitCartridge } from '../bundle/cartridge.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { compiledWorld } from '../fixtures/bundle.js';
-import { CATALOGUE, harbour, HARBOUR_FILES, INES, MARTA, QUAY } from '../fixtures/arrival.js';
+import {
+  CATALOGUE,
+  harbour,
+  HARBOUR,
+  HARBOUR_FILES,
+  INES,
+  MARTA,
+  QUAY,
+} from '../fixtures/arrival.js';
 import { chooser } from '../fixtures/parse.js';
 import { GONG, STUDY, study, typed } from '../fixtures/parser.js';
 import { catalogueOf } from './catalogue.js';
-import { visitKey } from './ids.js';
-import { initialState } from './load.js';
+import { visitKey, type InstanceId } from './ids.js';
+import { Draft } from './draft.js';
+import { initialState, saveWorld } from './load.js';
+import { newInstance } from './state.js';
 import { RESERVED_WORDS } from '../syntax/reserved.js';
 import { keptNickname, moderated, nicknameRefusal } from './nickname.js';
 
@@ -320,5 +335,142 @@ describe('an admitted nickname, over generated nicknames', () => {
     expect(admitted).toBeGreaterThan(50);
     for (const reason of ['reserved', 'source-shaped', 'world-word'])
       expect(seen).toContain(reason);
+  });
+});
+
+describe('the nicknames the C runtime admits and refuses as this one does', () => {
+  const DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), '../../../../corpus/goldens');
+  const NICKNAMES = [
+    'Marta B',
+    '  Marta \t B\n',
+    '',
+    '   ',
+    'Mar\u0007ta',
+    'Mar\u200bta',
+    'Marta\u202e',
+    'Mårta Ø',
+    'M'.repeat(24),
+    'M'.repeat(25),
+    ':team',
+    ' :team  marta.b :team ',
+    'marta.b',
+    'Dr. Marta',
+    'Marta:B',
+    '.Marta',
+    'When',
+    'Marta IF when if',
+    'Whenever',
+    'Ifrit',
+    'Gull',
+    'Grey Quay',
+    'North Gull north',
+    'Marta, B',
+    'Marta and B',
+    'The Marta',
+    'NE',
+    'Look',
+    'Ines',
+    'INES',
+    '  ines ',
+    'Odo',
+    'ODO',
+    'Marta',
+    'Pell',
+    'ΑΣ',
+    'ας',
+    'ασ',
+    'ΑΣ Β',
+    'Σ',
+    'ΣΑΣ',
+    'ΑΣ.',
+    'ΑΣ, Β',
+    'İstanbul',
+    'istanbul',
+    'Straße',
+    'STRASSE',
+    'ǅ',
+    'Ünï',
+    'ünï',
+    '𐐀𐐁',
+    '𐐨𐐩',
+    'a\u0301Σ',
+    'Ὀδυσσεύς',
+    'ὀδυσσεύς',
+  ];
+  const VISITS = ['v-marta', 'v-ines', 'v-odo', 'v-new'];
+
+  it('are held in the golden, with the cartridge and the stored world they were asked against', () => {
+    // Ines and Pell stand in the harbour, Odo is away; the others are asked as a visitor no one has met.
+    const draft = new Draft(initialState(CATALOGUE));
+    const people: readonly [string, string, InstanceId | null][] = [
+      ['v-marta', 'Marta', null],
+      ['v-ines', 'Ines', QUAY],
+      ['v-odo', 'Odo', null],
+      ['v-pell', 'ΑΣ', QUAY],
+      ['v-quill', 'İSTANBUL', QUAY],
+    ];
+    for (const [key, nickname, where] of people) {
+      const id = draft.mint();
+      const arrival = where === null ? null : draft.nextSerial();
+      draft.add(
+        newInstance(
+          id,
+          { from: 'visitor' },
+          CATALOGUE.visitorKind!,
+          where,
+          arrival,
+          CATALOGUE.caps,
+        ),
+      );
+      draft.putVisitor({
+        visit: visitKey(key),
+        nickname,
+        instance: id,
+        lastPlace: where ?? QUAY,
+        referents: [],
+        lastReading: null,
+      });
+    }
+    const state = draft.commit().state;
+    const cases = VISITS.flatMap((visit) =>
+      [...NICKNAMES, ...(visit === 'v-marta' ? ['marta', 'MARTA  '] : [])].flatMap((nickname) =>
+        [24, 7].map((cap) => {
+          const refused = nicknameRefusal(
+            state,
+            CATALOGUE,
+            { ...BUDGETS, nicknameCharacters: cap },
+            visitKey(visit),
+            nickname,
+          );
+          return { visit, nickname, cap, refused };
+        }),
+      ),
+    );
+    const text = `${JSON.stringify({ world: saveWorld(state), cases }, null, 2)}\n`;
+    const cartridge = emitCartridge(HARBOUR);
+    if (process.env['SPROUT_WRITE_GOLDENS'] === '1') {
+      writeFileSync(join(DIRECTORY, 'nicknames.json'), text);
+      writeFileSync(join(DIRECTORY, 'nicknames.sproutworld'), cartridge);
+    }
+    // The file is formatted by prettier after it is written, so it is compared as data.
+    expect(JSON.parse(text)).toEqual(
+      JSON.parse(readFileSync(join(DIRECTORY, 'nicknames.json'), 'utf8')),
+    );
+    expect(
+      Buffer.from(cartridge).equals(readFileSync(join(DIRECTORY, 'nicknames.sproutworld'))),
+    ).toBe(true);
+    const reasons = new Set(cases.map((one) => one.refused?.reason ?? 'admitted'));
+    for (const reason of [
+      'admitted',
+      'empty',
+      'not-words',
+      'too-long',
+      'source-shaped',
+      'world-word',
+      'reserved',
+      'held',
+    ]) {
+      expect(reasons, reason).toContain(reason);
+    }
   });
 });

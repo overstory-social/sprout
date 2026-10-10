@@ -24,6 +24,8 @@ typedef struct sprout_resolved {
   const sprout_verb *verb;
   sprout_str actor;
   const sprout_filled *roles; /* one for each role of the verb, in the verb's order */
+  size_t bound_count;
+  const size_t *bound_order; /* the roles that are filled, as indices, in the order the host bound them */
 } sprout_resolved;
 
 /* One participant: who, and the role it plays; no role is the actor's own part. */
@@ -60,6 +62,22 @@ sprout_bound_kind sprout_role_takes(const sprout_role *role);
 
 /* The verb written as an `act` or an intent's library writes it: its own library's first, then the standard library's. */
 const sprout_verb *sprout_verb_named(const sprout_world *world, const char *library, const char *name);
+
+/* ---- submit.c: a reading handed in by id ---- */
+
+/*
+ * The reading a host handed over, resolved against the world and the draft: its verb, its actor and what fills
+ * each role. SPROUT_BAD_INPUT, with the words written to `words`, for a reading the world cannot take: an
+ * unknown verb or role or thing, or a filling the role does not take.
+ */
+sprout_status sprout_reading_resolve(const sprout_world *world, const sprout_draft *draft, sprout_arena *turn,
+                                     const sprout_reading *reading, sprout_resolved *out, char *words, size_t size);
+
+/*
+ * An exit a submitted reading names must be one the actor's place has now: its label and destination among the
+ * ways that lead and whose guard admits them. Otherwise it is out of range, as a thing out of range is.
+ */
+sprout_eval_status sprout_reading_exits(const sprout_frame *frame, const sprout_resolved *reading);
 
 /* ---- consent.c ---- */
 

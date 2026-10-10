@@ -24,8 +24,15 @@ typedef struct held {
   sprout_arena anchor, arena;
 } held;
 
-static void problem(sprout_reading_outcome *outcome, const char *before, const char *name, const char *after) {
-  size_t room = sizeof outcome->fault.text, used = 0;
+/* Where the words of a reading the world cannot take are written. */
+typedef struct explained {
+  char *text;
+  size_t size;
+} explained;
+
+static void problem(const explained *to, const char *before, const char *name, const char *after) {
+  char *text = to->text;
+  size_t room = to->size, used = 0;
   const char *parts[3];
   size_t i;
   parts[0] = before;
@@ -34,10 +41,10 @@ static void problem(sprout_reading_outcome *outcome, const char *before, const c
   for (i = 0; i < 3; i++) {
     size_t n = strlen(parts[i]);
     if (n > room - used - 1) n = room - used - 1;
-    memcpy(outcome->fault.text + used, parts[i], n);
+    memcpy(text + used, parts[i], n);
     used += n;
   }
-  outcome->fault.text[used] = '\0';
+  text[used] = '\0';
 }
 
 /* The verb `library.name`, or NULL. */
@@ -67,7 +74,7 @@ static bool is_instance(const sprout_draft *draft, const char *id) {
 }
 
 static sprout_status filled_from(const sprout_draft *draft, sprout_arena *turn, const sprout_role *role,
-                                 const sprout_filling *filling, sprout_filled *out, sprout_reading_outcome *outcome) {
+                                 const sprout_filling *filling, sprout_filled *out, const explained *outcome) {
   size_t i;
   memset(out, 0, sizeof *out);
   if (filling->binds == SPROUT_FILL_UNBOUND) return SPROUT_OK;
@@ -124,11 +131,15 @@ static sprout_status filled_from(const sprout_draft *draft, sprout_arena *turn, 
   return SPROUT_OK;
 }
 
-static sprout_status resolve(const sprout_world *world, const sprout_draft *draft, sprout_arena *turn,
-                             const sprout_reading *reading, sprout_resolved *out, sprout_reading_outcome *outcome) {
+sprout_status sprout_reading_resolve(const sprout_world *world, const sprout_draft *draft, sprout_arena *turn,
+                                     const sprout_reading *reading, sprout_resolved *out, char *words, size_t size) {
+  explained explaining;
+  const explained *outcome = &explaining;
   const sprout_verb *verb = verb_of(world, reading->verb);
   sprout_filled *roles;
-  size_t i, j;
+  size_t *order, i, j, bound = 0;
+  explaining.text = words;
+  explaining.size = size;
   if (verb == NULL) {
     problem(outcome, "no verb is named `", reading->verb, "`.");
     return SPROUT_BAD_INPUT;
@@ -138,7 +149,8 @@ static sprout_status resolve(const sprout_world *world, const sprout_draft *draf
     return SPROUT_BAD_INPUT;
   }
   roles = (sprout_filled *)sprout_arena_take(turn, (verb->role_count + 1) * sizeof *roles);
-  if (roles == NULL) return SPROUT_NO_MEMORY;
+  order = (size_t *)sprout_arena_take(turn, (reading->filling_count + 1) * sizeof *order);
+  if (roles == NULL || order == NULL) return SPROUT_NO_MEMORY;
   for (i = 0; i < reading->filling_count; i++) {
     sprout_status status;
     for (j = 0; j < verb->role_count && strcmp(verb->roles[j].name, reading->fillings[i].role) != 0; j++) {}
@@ -148,10 +160,13 @@ static sprout_status resolve(const sprout_world *world, const sprout_draft *draf
     }
     status = filled_from(draft, turn, &verb->roles[j], &reading->fillings[i], &roles[j], outcome);
     if (status != SPROUT_OK) return status;
+    if (roles[j].filled) order[bound++] = j;
   }
   out->verb = verb;
   out->actor = str_of(reading->actor);
   out->roles = roles;
+  out->bound_count = bound;
+  out->bound_order = order;
   return SPROUT_OK;
 }
 
@@ -161,7 +176,7 @@ static sprout_status resolve(const sprout_world *world, const sprout_draft *draf
  * them, as the parser offers them. Otherwise it is out of range, as a thing
  * out of range is (the spec's Verbs > Exits, Acting).
  */
-static sprout_eval_status exits_are_the_places(const sprout_frame *frame, const sprout_resolved *reading) {
+sprout_eval_status sprout_reading_exits(const sprout_frame *frame, const sprout_resolved *reading) {
   size_t i;
   for (i = 0; i < reading->verb->role_count; i++) {
     const sprout_stored_bound *way = &reading->roles[i].bound;
@@ -277,7 +292,8 @@ sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const
   memset(&fault, 0, sizeof fault);
   if (sprout_draft_open(&draft, &turn, world, state) != SPROUT_DRAFT_OK) status = SPROUT_NO_MEMORY;
   if (status == SPROUT_OK) status = world->host.seed == NULL ? SPROUT_BAD_HOST : sprout_draws_begin(&draws, world->host.seed(world->host.ctx));
-  if (status == SPROUT_OK) status = resolve(world, &draft, &turn, reading, &resolved, outcome);
+  if (status == SPROUT_OK)
+    status = sprout_reading_resolve(world, &draft, &turn, reading, &resolved, outcome->fault.text, sizeof outcome->fault.text);
   if (status != SPROUT_OK) {
     sprout_arena_reset(&turn);
     return status;
@@ -285,7 +301,7 @@ sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const
   sprout_meter_begin(&meter, &world->host, SPROUT_TURN_COMMAND);
   sprout_exec_begin(&x, world, &draft, &turn, &meter, &draws, &fault, instant);
   frame = sprout_exec_frame(&x, resolved.actor, NULL, NULL);
-  run = exits_are_the_places(&frame, &resolved);
+  run = sprout_reading_exits(&frame, &resolved);
   if (run == SPROUT_EVAL_OK) run = sprout_perform(&x, &frame, &resolved, &end, &refusal);
   if (run == SPROUT_EVAL_OK && end != SPROUT_READING_REFUSED) run = sprout_exec_drain(&x);
   if (run == SPROUT_EVAL_NO_MEMORY) {

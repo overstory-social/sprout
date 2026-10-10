@@ -56,6 +56,7 @@ const char *sproutc_readings_open(sproutc_readings *readings, const sprout_host 
     return "the readings file is not format 1: write it again with `scripts/resolve-script.mjs`.";
   }
   readings->steps = sprout_json_get(root, "steps");
+  readings->budgets = sprout_json_get(root, "budgets");
   return NULL;
 }
 
@@ -64,6 +65,7 @@ void sproutc_readings_close(sproutc_readings *readings) {
   free(readings->text);
   readings->text = NULL;
   readings->steps = NULL;
+  readings->budgets = NULL;
 }
 
 size_t sproutc_readings_count(const sproutc_readings *readings) {
@@ -125,14 +127,19 @@ const char *sproutc_readings_turn(const sproutc_step *step, size_t i, sproutc_tu
       !number_of(one, "seed", &turn->seed))
     return "a turn in the readings file is missing its typed text, seed or skip.";
   turn->skip = skip->boolean;
+  turn->says = sprout_json_get(one, "says");
+  turn->expect = sprout_json_get(one, "expect");
   if (turn->skip) {
     turn->why = text_of(one, "why");
     return turn->why == NULL ? "a skipped turn in the readings file does not say why." : NULL;
   }
   turn->verb = text_of(one, "verb");
+  turn->actor = text_of(one, "actor");
+  turn->draws = sprout_json_get(one, "draws");
+  turn->asides = sprout_json_get(one, "asides");
   turn->fillers = sprout_json_get(one, "fillers");
   turn->refused = sprout_json_get(one, "refused") != NULL && sprout_json_get(one, "refused")->boolean;
-  if (turn->verb == NULL || turn->fillers == NULL || turn->fillers->kind != SPROUT_JSON_ARRAY)
-    return "a turn in the readings file has no verb or fillers.";
+  if (turn->verb == NULL || turn->actor == NULL || turn->fillers == NULL || turn->fillers->kind != SPROUT_JSON_ARRAY)
+    return "a turn in the readings file has no verb, actor or fillers.";
   return NULL;
 }

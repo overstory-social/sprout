@@ -119,6 +119,8 @@ static inline const char *prose_effect_name(sprout_effect_kind kind) {
       return "notice";
     case SPROUT_EFFECT_EXTENSION:
       return "extension";
+    case SPROUT_EFFECT_DESCRIBED:
+      return "described";
   }
   return "";
 }
@@ -279,6 +281,7 @@ static inline prose_reading prose_reading_of(prose_case *c, const char *reader) 
   reading.meter = &c->meter;
   reading.fault = &c->fault;
   reading.reader = (sprout_str){reader, strlen(reader)};
+  reading.notes = NULL;
   return reading;
 }
 

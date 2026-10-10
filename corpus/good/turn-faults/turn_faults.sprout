@@ -1,0 +1,41 @@
+// Turns that go wrong and turns that are turned away, each in a world of its own to be told so: a cellar
+// whose handlers fault once it has rotted, fuses one of which is cracked, and a porch that can be barred.
+// A turn that faults is dropped and the world is as it was; a wake that faults is consumed; a departure
+// that faults still lets the visitor go; an arrival the place refuses writes nothing, and one that
+// faults does not let the visitor in.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Porch} from 'porch'
+import {Cellar} from 'cellar'
+import {Fuse} from 'fuse'
+
+world turn_faults is sprout.World {
+  visitors are Person
+  visitors arrive at porch
+
+  object porch is Porch {
+    grammar {
+      article the
+      exit down "down the stair" -> cellar
+    }
+    describe { text "A stone porch, and a steep stair going down." }
+
+    object fuse is Fuse { }
+    object dud is Fuse {
+      grammar { name "dud" }
+    }
+  }
+
+  object cellar is Cellar {
+    grammar {
+      article the
+      exit up "up the stair" -> porch
+    }
+    describe { text "A cold cellar." }
+  }
+}
+
+verb light { role target  "light [target]" }
+verb crack { role target  "crack [target]" }
+verb rot   { role target  "rot [target]" }
+verb bar   { role target  "bar [target]" }

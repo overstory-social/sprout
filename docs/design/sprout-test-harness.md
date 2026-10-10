@@ -143,10 +143,13 @@ runtime and writes, beside it, the reading the TypeScript parser made of each
 typed line (`player/src/readings.ts`); a line the parser answered is marked
 and skipped. The replay prints one line per world and the list of worlds
 that pass, and fails unless that list is `EXPECTED_PASSING` in the script,
-which each later runtime item grows. `scripts/fuzz-runtime.mjs` extends it
+which each later runtime item grows. The replay compares what each reader
+was told, the log's entry for each turn that ran, and the stored world after
+every step. `scripts/fuzz-runtime.mjs` extends it
 over generated input: from a seed it plays offered, refused and unreadable
-lines, ticks and time through both runtimes and writes the first divergence
-as a transcript under the world's `transcripts/`, to be fixed and kept.
+lines, ticks, time and tight budgets through both runtimes and writes the first divergence
+as a transcript under the world's `transcripts/`, to be fixed and kept;
+`npm run e2e` runs about two thousand of its readings over the corpus.
 
 The C unit tests that load worlds and stores are held to goldens the
 TypeScript specs write, in `corpus/goldens/`: `catalogues.json` (every corpus
@@ -197,7 +200,13 @@ fault it raised), and the same for a visitor arriving in every corpus world.
 module beside the replay. `sproutc view` prints the page `sprout view` prints; the
 check script compares the two for every corpus world, on its own line apart from
 the transcript replay, over the stored world the TypeScript runtime writes for
-the arrival (the arrival turn is C10's).
+the arrival.
+
+The turns are tested on `corpus/good/turn-faults`, a world whose handlers fault on
+purpose: `runtime-c/test/turn_<kind>.test.c` runs each kind on it and holds a faulted
+turn to leaving the stored world byte for byte as it was. `seeds.test.c` and
+`nickname.test.c` are held to goldens the TypeScript specs write
+(`seeds.json`, `nicknames.json`, `budgets.json`).
 
 ## Still to build
 

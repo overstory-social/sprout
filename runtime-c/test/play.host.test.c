@@ -1,4 +1,4 @@
-/* Tests for host/play.c: `sproutc play` on an empty-bodied cartridge, with and without a script, and its refusals in words. */
+/* Tests for host/play.c: `sproutc play` on a corpus world, with and without a script, and its refusals in words. */
 #include "play.h"
 #include "cartridge_fixture.h"
 #include "check.h"
@@ -35,7 +35,7 @@ static void put_world(void) {
 }
 
 static char *slurp(const char *path) {
-  static char text[4096];
+  static char text[1 << 17];
   FILE *file = fopen(path, "rb");
   size_t n = file == NULL ? 0 : fread(text, 1, sizeof text - 1, file);
   text[n] = '\0';
@@ -63,18 +63,46 @@ static void the_header_and_manifest_are_printed_and_the_world_loads(void) {
   remove(WORLD);
 }
 
-static void a_script_stops_at_its_first_turn_and_says_so_with_the_not_yet_exit(void) {
-  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--clock", "5"};
+static void a_script_plays_its_steps_through_the_turn_call_and_traces_each(void) {
+  const char *trace = "sproutc-play-test.trace";
+  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--clock", "5", "--trace", (char *)trace};
   const char *readings =
       "{\"format\":1,\"script\":\"s.json\",\"steps\":["
       "{\"index\":0,\"line\":\"# hello\",\"atSeconds\":0,\"seed\":0,\"kind\":\"comment\"},"
-      "{\"index\":1,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"}]}";
+      "{\"index\":1,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
+      "{\"index\":2,\"line\":\"@leave Ines\",\"atSeconds\":5,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
+  static char output[1 << 17];
   put_world();
   put(SCRIPT, "{\"steps\":[]}", 12);
   put(READINGS, readings, strlen(readings));
-  CHECK_INT(run(6, argv), SPROUTC_EXIT_NOT_YET);
-  CHECK(strstr(slurp(OUT), "--- play\n## step 1: @arrive Ines\n!! the runtime has no call for an arrival yet, so the play stops here.\n") != NULL);
-  CHECK(strstr(slurp(OUT), "## step 0") == NULL);
+  CHECK_INT(run(8, argv), 0);
+  strcpy(output, slurp(OUT));
+  CHECK(strstr(output, "--- play\n## step 1: @arrive Ines\nInes (described): Lead and lamp oil.") != NULL);
+  CHECK(strstr(output, "## step 2: @leave Ines\nInes (notice): You leave, and take what you carry with you.\n") != NULL);
+  CHECK(strstr(output, "## step 0") == NULL);
+  strcpy(output, slurp(trace));
+  CHECK(strstr(output, "{\"step\":1,\"says\":[{\"reader\":\"Ines\",\"kind\":\"described\",") == output);
+  CHECK(strstr(output, "{\"kind\":\"maintenance\",\"seed\":0,\"seconds\":0,") != NULL);
+  CHECK(strstr(output, "{\"kind\":\"arrival\",\"seed\":0,\"seconds\":0,\"who\":\"visit:Ines\",\"outcome\":\"done\"") != NULL);
+  CHECK(strstr(output, "\n{\"step\":2,") != NULL);
+  CHECK(strstr(output, "{\"kind\":\"departure\",\"seed\":0,\"seconds\":5,") != NULL);
+  CHECK(strstr(output, "\"world\":{\"world\":\"printers_shop\"") != NULL);
+  remove(WORLD);
+  remove(SCRIPT);
+  remove(READINGS);
+  remove(trace);
+}
+
+static void a_call_the_runtime_refuses_ends_the_play_with_its_words(void) {
+  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
+  const char *readings =
+      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
+      "{\"index\":0,\"line\":\"@leave Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
+  put_world();
+  put(SCRIPT, "{\"steps\":[]}", 12);
+  put(READINGS, readings, strlen(readings));
+  CHECK_INT(run(4, argv), 1);
+  CHECK(strstr(slurp(OUT), "## step 0: @leave Ines\n!! `visit:Ines` has never visited this world.\n") != NULL);
   remove(WORLD);
   remove(SCRIPT);
   remove(READINGS);
@@ -158,7 +186,8 @@ static void a_cartridge_the_runtime_refuses_is_refused_with_its_words(void) {
 
 int main(void) {
   RUN(the_header_and_manifest_are_printed_and_the_world_loads);
-  RUN(a_script_stops_at_its_first_turn_and_says_so_with_the_not_yet_exit);
+  RUN(a_script_plays_its_steps_through_the_turn_call_and_traces_each);
+  RUN(a_call_the_runtime_refuses_ends_the_play_with_its_words);
   RUN(a_stored_world_is_read_opened_and_written_back_and_a_second_pass_changes_nothing);
   RUN(a_store_that_is_not_readable_or_is_another_worlds_is_refused_in_words);
   RUN(a_cartridge_the_runtime_refuses_is_refused_with_its_words);

@@ -1,8 +1,8 @@
 /*
- * The meter. A budget is spent while a turn runs and is exhausted when a
- * charge takes it past the host's figure; with no figure it never is. The
- * fault text says what ran out, the host's figure and which message was
- * running, in words for whoever reads it.
+ * The meter. A budget is spent while a turn runs and is exhausted when a charge takes it past the host's
+ * figure; with no figure it never is. The fault says what ran out in the words the TypeScript runtime tells it
+ * in (`<figure>: <what the turn may do>`, held in corpus/goldens/budgets.json), so the log of either runtime
+ * reads the same, beside the host's figure and the index of the message that was running.
  */
 #include "budget.h"
 
@@ -13,18 +13,12 @@ typedef struct text {
   char *end;
 } text;
 
-/* The pieces of a fault's words; the longest unit and the widest numbers size sprout_fault.text. */
-#define WORDS_BEFORE "This turn used more "
-#define WORDS_AFTER_UNIT " than the host allows ("
-#define WORDS_AFTER_LIMIT ") while running message "
-#define WORDS_END ", so it was stopped and nothing it did was kept."
-#define LONGEST_UNIT "levels of passage inside passage"
+/* The widest words a fault is told in: the longest figure's name and what it allows, and the widest number. */
+#define LONGEST_WORDS "pendingWakesPerObject: one object may have  wakes pending."
 #define MAX_DIGITS 20 /* digits in UINT64_MAX */
 
-_Static_assert(sizeof(((sprout_fault *)0)->text) >=
-                   sizeof(WORDS_BEFORE) + sizeof(LONGEST_UNIT) + sizeof(WORDS_AFTER_UNIT) +
-                       sizeof(WORDS_AFTER_LIMIT) + sizeof(WORDS_END) + 2 * MAX_DIGITS,
-               "a fault's text must hold the longest message the budgets can produce");
+_Static_assert(sizeof(((sprout_fault *)0)->text) >= sizeof(LONGEST_WORDS) + MAX_DIGITS + 64,
+               "a fault's text must hold the longest words the budgets can produce");
 
 static void put(text *out, const char *words) {
   while (*words != '\0' && out->at + 1 < out->end) *out->at++ = *words++;
@@ -44,6 +38,26 @@ static void put_number(text *out, uint64_t number) {
   }
 }
 
+static const char *kind_name(sprout_turn_kind kind) {
+  switch (kind) {
+    case SPROUT_TURN_COMMAND:
+      return "command";
+    case SPROUT_TURN_TICK:
+      return "tick";
+    case SPROUT_TURN_WAKE:
+      return "wake";
+    case SPROUT_TURN_MAINTENANCE:
+      return "maintenance";
+    case SPROUT_TURN_POLL:
+      return "poll";
+    case SPROUT_TURN_ARRIVAL:
+      return "arrival";
+    case SPROUT_TURN_DEPARTURE:
+      return "departure";
+  }
+  return "";
+}
+
 void sprout_meter_begin(sprout_meter *meter, const sprout_host *host, sprout_turn_kind kind) {
   memset(meter, 0, sizeof *meter);
   meter->host = host;
@@ -53,71 +67,83 @@ void sprout_meter_begin(sprout_meter *meter, const sprout_host *host, sprout_tur
 
 void sprout_meter_message(sprout_meter *meter, uint64_t index) { meter->message = index; }
 
-static bool exhaust(sprout_meter *meter, const char *budget, const char *unit, uint64_t limit) {
+/*
+ * Records the fault: the budget's row, the host's figure and the message being run. Its words are
+ * `<name>: <before><figure><after>`, where `<name>` is the TypeScript runtime's name for the figure.
+ */
+static bool exhaust(sprout_meter *meter, const char *budget, const char *name, const char *before, uint64_t limit,
+                    const char *after) {
   text out = {meter->fault.text, meter->fault.text + sizeof meter->fault.text};
   meter->faulted = true;
   meter->fault.budget = budget;
   meter->fault.limit = limit;
   meter->fault.message = meter->message;
   *out.at = '\0';
-  put(&out, WORDS_BEFORE);
-  put(&out, unit);
-  put(&out, WORDS_AFTER_UNIT);
-  put_number(&out, limit);
-  put(&out, WORDS_AFTER_LIMIT);
-  put_number(&out, meter->message);
-  put(&out, WORDS_END);
+  put(&out, name);
+  put(&out, ": ");
+  put(&out, before);
+  if (after != NULL) {
+    put_number(&out, limit);
+    put(&out, after);
+  }
   return false;
 }
 
 /*
- * Spends `count` of a budget held in `*spent`; false when that passes the
- * limit. The charge that passes it is recorded (saturating), as the
- * TypeScript meter records the step that went over, so a faulted turn reads
- * as having spent the figure and one more.
+ * Spends `count` of a budget held in `*spent`; false when that passes the limit. The charge that passes it is
+ * recorded (saturating), as the TypeScript meter records the step that went over, so a faulted turn reads as
+ * having spent the figure and one more.
  */
-static bool spend(sprout_meter *meter, uint64_t *spent, uint64_t count, sprout_limit limit,
-                  const char *budget, const char *unit) {
+static bool spend(sprout_meter *meter, uint64_t *spent, uint64_t count, sprout_limit limit, const char *budget,
+                  const char *name, const char *before, const char *after) {
   if (meter->faulted) return false;
   if (count > UINT64_MAX - *spent) {
     *spent = UINT64_MAX;
-    return exhaust(meter, budget, unit, limit.value);
+    return exhaust(meter, budget, name, before, limit.value, after);
   }
   if (limit.set && *spent + count > limit.value) {
     *spent += count;
-    return exhaust(meter, budget, unit, limit.value);
+    return exhaust(meter, budget, name, before, limit.value, after);
   }
   *spent += count;
   return true;
 }
 
 bool sprout_meter_steps(sprout_meter *meter, uint64_t count) {
+  const char *kind = kind_name(meter->kind);
+  bool vowel = strchr("aeiou", kind[0]) != NULL;
+  char before[48];
+  text words = {before, before + sizeof before};
+  put(&words, vowel ? "an " : "a ");
+  put(&words, kind);
+  put(&words, " turn may take ");
   if (meter->kind == SPROUT_TURN_POLL)
-    return spend(meter, &meter->steps, count, meter->budgets->poll_steps, "steps per poll", "steps");
-  return spend(meter, &meter->steps, count, meter->budgets->steps, "steps", "steps");
+    return spend(meter, &meter->steps, count, meter->budgets->poll_steps, "steps per poll", "pollSteps", before, " steps.");
+  return spend(meter, &meter->steps, count, meter->budgets->steps, "steps", "steps", before, " steps.");
 }
 
 bool sprout_meter_event(sprout_meter *meter) {
-  return spend(meter, &meter->events, 1, meter->budgets->events, "events", "events");
+  return spend(meter, &meter->events, 1, meter->budgets->events, "events", "events", "one turn may send ", " events.");
 }
 
 bool sprout_meter_spawn(sprout_meter *meter) {
-  return spend(meter, &meter->spawns, 1, meter->budgets->spawns, "spawns", "spawns");
+  return spend(meter, &meter->spawns, 1, meter->budgets->spawns, "spawns", "spawnsPerTurn", "one turn may spawn ",
+               " objects.");
 }
 
 bool sprout_meter_effect(sprout_meter *meter) {
-  return spend(meter, &meter->effects, 1, meter->budgets->extension_effects, "effects",
-               "effects from extensions");
+  return spend(meter, &meter->effects, 1, meter->budgets->extension_effects, "effects", "extensionEffects",
+               "one turn may record ", " effects of extensions.");
 }
 
 bool sprout_meter_enter_cascade(sprout_meter *meter) {
-  return spend(meter, &meter->cascade_depth, 1, meter->budgets->cascade_depth, "cascade depth",
-               "levels of cascade");
+  return spend(meter, &meter->cascade_depth, 1, meter->budgets->cascade_depth, "cascade depth", "cascadeDepth",
+               "events may cascade ", " deep.");
 }
 
 bool sprout_meter_enter_passage(sprout_meter *meter) {
-  return spend(meter, &meter->passage_depth, 1, meter->budgets->passage_depth, "passage depth",
-               "levels of passage inside passage");
+  return spend(meter, &meter->passage_depth, 1, meter->budgets->passage_depth, "passage depth", "passageDepth",
+               "passages may invoke one another ", " deep.");
 }
 
 void sprout_meter_leave_cascade(sprout_meter *meter) {
@@ -131,21 +157,24 @@ void sprout_meter_leave_passage(sprout_meter *meter) {
 bool sprout_meter_set_role(sprout_meter *meter, uint64_t objects) {
   uint64_t held = 0;
   return spend(meter, &held, objects, meter->budgets->set_role_objects, "objects bound by one set role",
-               "objects bound by one set role");
+               "setRoleObjects", "one set role may bind ", " objects.");
 }
 
 bool sprout_meter_pending_wakes(sprout_meter *meter, uint64_t pending) {
   uint64_t held = 0;
-  return spend(meter, &held, pending, meter->budgets->pending_wakes, "pending wakes",
-               "pending wakes on one object");
+  return spend(meter, &held, pending, meter->budgets->pending_wakes, "pending wakes", "pendingWakesPerObject",
+               "one object may have ", " wakes pending.");
 }
 
 bool sprout_meter_clock(sprout_meter *meter) {
   sprout_limit limit = meter->budgets->wall_clock_ms;
   if (meter->faulted) return false;
   if (!limit.set || meter->host->now == NULL) return true;
+  /* The backstop has no figure to say: it says what its firing means. */
   if (meter->host->now(meter->host->ctx) > limit.value)
-    return exhaust(meter, "wall clock", "milliseconds", limit.value);
+    return exhaust(meter, "wall clock", "wallClockMs",
+                   "the wall-clock backstop fired, which means the step budget did not catch something.", limit.value,
+                   NULL);
   return true;
 }
 
@@ -155,7 +184,7 @@ sprout_output_result sprout_meter_output(sprout_meter *meter, uint64_t *held, ui
   if (meter->faulted) return SPROUT_OUTPUT_FAULT;
   if (limit.set && (characters > limit.value || *held > limit.value - characters)) {
     if (!is_actor) return SPROUT_OUTPUT_CUT;
-    exhaust(meter, "output", "characters of output", limit.value);
+    exhaust(meter, "output", "output", "one turn may say ", limit.value, " characters to any one person.");
     return SPROUT_OUTPUT_FAULT;
   }
   *held += characters;

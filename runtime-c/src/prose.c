@@ -50,7 +50,20 @@ typedef struct speaking {
   sprout_str by;
   const sprout_speech *said;
   const sprout_binding *bindings;
+  sprout_str hands; /* a refusal's words: the acting visitor whose hands they see into; bytes NULL for none */
 } speaking;
+
+/* The acting visitor whose hands a refusal's words see into: its `actor`, or in a guard its `mover`, where a visitor. */
+static sprout_str hands_of(const prose_reading *reading, const sprout_binding *bindings) {
+  sprout_frame frame = prose_frame(reading, NULL, (sprout_str){"", 0}, NULL, bindings);
+  const sprout_binding *acting = expr_binding(&frame, "actor");
+  const sprout_stored_instance *instance;
+  if (acting == NULL) acting = expr_binding(&frame, "mover");
+  if (acting == NULL || acting->bound.binds != SPROUT_BINDS_OBJECT) return (sprout_str){NULL, 0};
+  instance = expr_instance(&frame, acting->bound.id);
+  if (instance == NULL || instance->made != SPROUT_MADE_VISITOR) return (sprout_str){NULL, 0};
+  return acting->bound.id;
+}
 
 /*
  * The paragraphs `line` renders to for the reader, charged to nobody. A named passage runs one
@@ -69,6 +82,7 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   memset(out, 0, sizeof *out);
   memset(&rendered, 0, sizeof rendered);
   frame = prose_frame(reading, NULL, line->by, NULL, line->bindings);
+  frame.hands = line->hands;
   switch (said->kind) {
     case SPROUT_SPEECH_ABSENT:
     case SPROUT_SPEECH_RECORDED:
@@ -90,6 +104,7 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   }
   draws = tape_open(t, turn_draws, &copy);
   frame = prose_frame(reading, draws, line->by, library, line->bindings);
+  frame.hands = line->hands;
   if (said->kind == SPROUT_SPEECH_PASSAGE) {
     EXPR_NEED(prose_enter_passage(reading));
     status = prose_render(reading, prose, &frame, &rendered);
@@ -100,16 +115,23 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   EXPR_NEED(status);
   if (draws != NULL) EXPR_NEED(tape_close(reading, t, draws, first));
   if (!prose_reflow(reading->turn, &rendered, out)) return SPROUT_EVAL_NO_MEMORY;
+  /* Noted only where it gave its reader words to read, after any passage it holds. */
+  if (out->count > 0) {
+    if (said->kind == SPROUT_SPEECH_PASSAGE) prose_note_passage(reading, said->node);
+    else if (said->kind == SPROUT_SPEECH_TEXT) prose_note_line(reading, prose);
+    else if (said->kind == SPROUT_SPEECH_ENGINE) prose_note_engine(reading);
+  }
   return SPROUT_EVAL_OK;
 }
 
 sprout_eval_status prose_render_speech(const prose_reading *reading, sprout_str by, const sprout_speech *said,
-                                       const sprout_binding *bindings, prose_paragraphs *out) {
+                                       const sprout_binding *bindings, bool refusal, prose_paragraphs *out) {
   speaking line;
   tape t;
   line.by = by;
   line.said = said;
   line.bindings = bindings;
+  line.hands = refusal ? hands_of(reading, bindings) : (sprout_str){NULL, 0};
   memset(&t, 0, sizeof t);
   return rendered_for(reading, NULL, &line, &t, out);
 }
@@ -169,6 +191,7 @@ static sprout_eval_status npc_says(const prose_reading *reading, line_to_render 
   sprout_engine_said(&frame, "npc_says", &line->effect->speaker, place.bytes == NULL ? NULL : &place, &by,
                      &line->frame_speech);
   line->frame.by = by;
+  line->frame.hands = (sprout_str){NULL, 0};
   line->frame.said = &line->frame_speech;
   made = (sprout_binding *)sprout_arena_take(reading->turn, sizeof *made);
   if (made == NULL) return SPROUT_EVAL_NO_MEMORY;
@@ -216,6 +239,51 @@ static sprout_eval_status framed(const prose_reading *reading, sprout_draws *dra
   return SPROUT_EVAL_OK;
 }
 
+/* A growing list of paragraphs in the turn arena. */
+typedef struct paragraph_list {
+  sprout_str *items;
+  size_t count, capacity;
+} paragraph_list;
+
+/*
+ * A description as its reader reads it: each line it gave charged to the reader's output as it is
+ * read, and, where none renders anything, the engine's `unremarkable` in their place. Every line
+ * draws on its own, as the lines of a description are separate lines.
+ */
+static sprout_eval_status read_description(const prose_reading *reading, sprout_draws *draws, prose_output *output,
+                                           const sprout_description *description, prose_paragraphs *out) {
+  paragraph_list list;
+  size_t i, line_count = description->line_count;
+  memset(&list, 0, sizeof list);
+  memset(out, 0, sizeof *out);
+  for (i = 0; i <= line_count; i++) {
+    const sprout_spoken *spoken = i < line_count ? &description->lines[i] : &description->unremarkable;
+    speaking line;
+    tape t;
+    prose_paragraphs paragraphs;
+    bool told;
+    size_t j;
+    if (i == line_count && list.count > 0) break;
+    line.by = spoken->by;
+    line.said = &spoken->said;
+    line.bindings = spoken->bindings;
+    line.hands = (sprout_str){NULL, 0};
+    memset(&t, 0, sizeof t);
+    EXPR_NEED(rendered_for(reading, draws, &line, &t, &paragraphs));
+    EXPR_NEED(prose_charge(output, reading->reader, characters_of(&paragraphs), &told));
+    if (!told) continue;
+    for (j = 0; j < paragraphs.count; j++) {
+      sprout_str *slot = (sprout_str *)sprout_exec_grow(reading->turn, (void **)&list.items, &list.count,
+                                                        &list.capacity, sizeof *slot);
+      if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+      *slot = paragraphs.items[j];
+    }
+  }
+  out->count = list.count;
+  out->items = list.items;
+  return SPROUT_EVAL_OK;
+}
+
 /* A line as the reader reads it, charged to what they may still be told. */
 static sprout_eval_status read_by(const prose_reading *reading, sprout_draws *draws, prose_output *output,
                                   line_to_render *line, prose_paragraphs *out) {
@@ -229,6 +297,7 @@ static sprout_eval_status read_by(const prose_reading *reading, sprout_draws *dr
 sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str *actor, sprout_rendered *out) {
   prose_output output;
   prose_reading reading;
+  prose_notes notes;
   sprout_told *told = NULL;
   size_t told_count = 0, told_capacity = 0, e, r;
   memset(&output, 0, sizeof output);
@@ -244,21 +313,61 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
   reading.meter = x->meter;
   reading.fault = x->fault;
   reading.reader = (sprout_str){"", 0};
+  reading.notes = NULL;
   for (e = 0; e < x->effect_count; e++) {
     line_to_render *line;
     /* An extension's effect is the extension's to put into words; the C runtime holds no extension. */
     if (x->effects[e].kind == SPROUT_EFFECT_EXTENSION) continue;
+    if (x->effects[e].description != NULL) {
+      /* A description is one effect to the one looking, read whether or not it gave words. */
+      prose_paragraphs paragraphs;
+      const sprout_stored_visitor *visitor;
+      sprout_told *slot;
+      memset(&notes, 0, sizeof notes);
+      notes.arena = x->turn;
+      reading.notes = &notes;
+      reading.reader = x->effects[e].description->to;
+      EXPR_NEED(read_description(&reading, x->draws, &output, x->effects[e].description, &paragraphs));
+      visitor = sprout_visitor_of(x->draft, reading.reader);
+      if (visitor == NULL) {
+        sprout_frame frame = prose_frame(&reading, NULL, reading.reader, NULL, NULL);
+        expr_text text = expr_text_begin(&frame);
+        expr_put(&text, "`");
+        expr_put_str(&text, reading.reader);
+        expr_put(&text, "` reads a line, and is not a visitor.");
+        x->fault->name = "Error";
+        return SPROUT_EVAL_ENGINE;
+      }
+      slot = (sprout_told *)sprout_exec_grow(x->turn, (void **)&told, &told_count, &told_capacity, sizeof *slot);
+      if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+      slot->kind = SPROUT_EFFECT_DESCRIBED;
+      slot->from = x->effects[e].description->of;
+      slot->to = reading.reader;
+      slot->visit = visitor->visit;
+      slot->paragraph_count = paragraphs.count;
+      slot->paragraphs = paragraphs.items;
+      if (paragraphs.count > 0) {
+        slot->written_count = notes.count;
+        slot->written = notes.items;
+      }
+      reading.notes = NULL;
+      continue;
+    }
     line = (line_to_render *)sprout_arena_take(x->turn, sizeof *line);
     if (line == NULL) return SPROUT_EVAL_NO_MEMORY;
     line->effect = &x->effects[e];
     line->said.by = line->effect->by;
     line->said.said = &line->effect->said;
     EXPR_NEED(names_in_scope(&reading, line->effect->bindings, line->effect->binding_count, &line->said.bindings));
+    line->said.hands = line->effect->kind == SPROUT_EFFECT_REFUSED ? hands_of(&reading, line->said.bindings) : (sprout_str){NULL, 0};
     if (line->effect->has_speaker) EXPR_NEED(npc_says(&reading, line));
     for (r = 0; r < line->effect->to_count; r++) {
       prose_paragraphs paragraphs;
       const sprout_stored_visitor *visitor;
       sprout_told *slot;
+      memset(&notes, 0, sizeof notes);
+      notes.arena = x->turn;
+      reading.notes = &notes;
       reading.reader = line->effect->to[r];
       if (line->effect->has_speaker) EXPR_NEED(framed(&reading, x->draws, &output, line, &paragraphs));
       else EXPR_NEED(read_by(&reading, x->draws, &output, line, &paragraphs));
@@ -281,40 +390,16 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       slot->visit = visitor->visit;
       slot->paragraph_count = paragraphs.count;
       slot->paragraphs = paragraphs.items;
+      slot->written_count = notes.count;
+      slot->written = notes.items;
     }
+    reading.notes = NULL;
   }
+  out->has_actor = actor != NULL;
+  if (actor != NULL) out->actor = *actor;
   out->told_count = told_count;
   out->told = told;
   out->cut_count = output.cut_count;
   out->cut = output.cut;
   return SPROUT_EVAL_OK;
-}
-
-sprout_status sprout_rendered_outcome(sprout_arena *turn, const sprout_draft *draft, const sprout_rendered *rendered,
-                                      sprout_outcome *outcome) {
-  size_t lines = 0, at = 0, i, j;
-  sprout_line *made;
-  sprout_cut *cuts;
-  for (i = 0; i < rendered->told_count; i++) lines += rendered->told[i].paragraph_count;
-  made = (sprout_line *)sprout_arena_take(turn, (lines + 1) * sizeof *made);
-  cuts = (sprout_cut *)sprout_arena_take(turn, (rendered->cut_count + 1) * sizeof *cuts);
-  if (made == NULL || cuts == NULL) return SPROUT_NO_MEMORY;
-  for (i = 0; i < rendered->told_count; i++)
-    for (j = 0; j < rendered->told[i].paragraph_count; j++, at++) {
-      made[at].recipient = rendered->told[i].visit.bytes;
-      made[at].recipient_length = rendered->told[i].visit.length;
-      made[at].text = rendered->told[i].paragraphs[j].bytes;
-      made[at].text_length = rendered->told[i].paragraphs[j].length;
-    }
-  for (i = 0; i < rendered->cut_count; i++) {
-    const sprout_stored_visitor *visitor = sprout_visitor_of(draft, rendered->cut[i]);
-    if (visitor == NULL) return SPROUT_BAD_INPUT;
-    cuts[i].recipient = visitor->visit.bytes;
-    cuts[i].recipient_length = visitor->visit.length;
-  }
-  outcome->line_count = lines;
-  outcome->lines = made;
-  outcome->cut_count = rendered->cut_count;
-  outcome->cuts = cuts;
-  return SPROUT_OK;
 }

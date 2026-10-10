@@ -1,0 +1,12 @@
+{
+  "about": "A wake that faults is consumed: it is not tried again, and the hour after it brings nothing more of it.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "crack dud" },
+    { "as": "Marta", "type": "light dud" },
+    { "advance": "2 minutes", "expect": [
+      { "level": "error", "text": "the wake of porch.dud faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
+    ] },
+    { "advance": "1 hour", "expect": [] }
+  ]
+}

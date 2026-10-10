@@ -108,7 +108,7 @@ static void the_actors_own_output_past_the_figure_faults_the_turn(void) {
   CHECK(!told);
   CHECK_STR(c.fault.name, "BudgetExhausted");
   CHECK_STR(c.meter.fault.budget, "output");
-  CHECK_STR(c.fault.text, "This turn used more characters of output than the host allows (10) while running message 0, so it was stopped and nothing it did was kept.");
+  CHECK_STR(c.fault.text, "output: one turn may say 10 characters to any one person.");
   CHECK_INT(c.output.cut_count, 0);
   charged_close(&c);
 }

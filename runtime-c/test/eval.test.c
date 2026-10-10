@@ -152,9 +152,7 @@ static void a_deep_expression_faults_at_the_hosts_step_count_in_the_hosts_words(
     CHECK_INT(sprout_eval(&t.frame, &b.world->graph.entries[(size_t)bench_number(one, "node")], &result),
               SPROUT_EVAL_FAULT);
     CHECK_STR(t.fault.name, "BudgetExhausted");
-    CHECK_STR(t.fault.text,
-              "This turn used more steps than the host allows (78) while running message 0, so it was stopped and "
-              "nothing it did was kept.");
+    CHECK_STR(t.fault.text, "steps: a command turn may take 78 steps.");
     CHECK_INT(t.meter.steps, 79);
     bench_turn_close(&t);
     bench_turn_open(&b, &t, "fresh", bench_text(one, "self"), bench_text(one, "library"), 79, -1, -1);

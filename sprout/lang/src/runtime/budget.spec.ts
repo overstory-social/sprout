@@ -1,3 +1,7 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { Budget, BudgetExhausted, type TurnKind } from './budget.js';
@@ -333,5 +337,60 @@ describe('a figure every part of a turn charges stays spent once it runs out', (
     faults(() => budget.cascadeTo(2));
     faults(() => budget.setRole(2));
     expect(budget.exhausted).toBeNull();
+  });
+});
+
+describe('the words a budget fault is told in, which the C runtime says too', () => {
+  const GOLDEN = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../../../corpus/goldens/budgets.json',
+  );
+  const KINDS: TurnKind[] = [
+    'command',
+    'tick',
+    'wake',
+    'maintenance',
+    'arrival',
+    'departure',
+    'poll',
+  ];
+
+  /** What `charge` throws on a budget whose figure `name` is `limit`, for a turn of `kind`. */
+  const said = (name: string, limit: number, kind: TurnKind, charge: (budget: Budget) => void) => {
+    const budget = small({ [name]: limit }, kind);
+    try {
+      charge(budget);
+    } catch (thrown) {
+      expect(thrown).toBeInstanceOf(BudgetExhausted);
+      return { name, kind, limit, words: (thrown as Error).message };
+    }
+    return expect.unreachable(`${name} did not run out`);
+  };
+
+  it('are the same in both runtimes, as the golden holds them', () => {
+    const cases = [
+      ...KINDS.map((kind) =>
+        said(kind === 'poll' ? 'pollSteps' : 'steps', 7, kind, (budget) => budget.spend(8)),
+      ),
+      said('output', 10, 'command', (budget) => budget.say('a', 11)),
+      said('events', 3, 'command', (budget) => {
+        for (let i = 0; i < 4; i++) budget.event();
+      }),
+      said('cascadeDepth', 2, 'command', (budget) => budget.cascadeTo(3)),
+      said('setRoleObjects', 4, 'command', (budget) => budget.setRole(5)),
+      said('spawnsPerTurn', 2, 'command', (budget) => {
+        for (let i = 0; i < 3; i++) budget.spawn();
+      }),
+      said('extensionEffects', 3, 'command', (budget) => {
+        for (let i = 0; i < 4; i++) budget.record();
+      }),
+      said('passageDepth', 2, 'command', (budget) =>
+        budget.passage(() => budget.passage(() => budget.passage(() => null))),
+      ),
+    ];
+    const text = `${JSON.stringify({ cases }, null, 2)}\n`;
+    if (process.env['SPROUT_WRITE_GOLDENS'] === '1') writeFileSync(GOLDEN, text);
+    // The file is formatted by prettier after it is written, so it is compared as data.
+    expect(JSON.parse(text)).toEqual(JSON.parse(readFileSync(GOLDEN, 'utf8')));
   });
 });

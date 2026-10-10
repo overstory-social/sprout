@@ -101,7 +101,7 @@ static const char *shown(const char *qualified) {
 
 /* Fault where an actor among `list` would stand in what holds no actors. */
 static sprout_eval_status holds_each(const sprout_frame *frame, const making *list, size_t count,
-                                     const sprout_kind_def *root, const char *spawned) {
+                                     const sprout_kind_def *root, const char *name, const char *outcome) {
   size_t i;
   for (i = 0; i < count; i++) {
     const sprout_kind_def *one = kind_of(list[i].content);
@@ -112,10 +112,11 @@ static sprout_eval_status holds_each(const sprout_frame *frame, const making *li
       expr_put(&text, one->name);
       expr_put(&text, "`, an actor, would be inside `");
       expr_put(&text, holder->name);
-      expr_put(&text, "`, which holds no actors, so ");
-      expr_put(&text, "`");
-      expr_put(&text, spawned);
-      expr_put(&text, "` could not be spawned.");
+      expr_put(&text, "`, which holds no actors, so `");
+      expr_put(&text, name);
+      expr_put(&text, "` ");
+      expr_put(&text, outcome);
+      expr_put(&text, ".");
       return expr_fail(frame, "LifecycleFault");
     }
   }
@@ -201,7 +202,7 @@ sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name
     return expr_fail(frame, "LifecycleFault");
   }
   EXPR_NEED(contents_of(frame, kind, &list, &count));
-  EXPR_NEED(holds_each(frame, list, count, kind, shown(kind_name)));
+  EXPR_NEED(holds_each(frame, list, count, kind, shown(kind_name), "could not be spawned"));
   for (i = 0; i < 1 + count; i++)
     if (!sprout_meter_spawn(frame->meter)) return expr_budget_fault(frame);
   {
@@ -221,6 +222,38 @@ sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name
     sprout_str into = list[i].holder == NO_HOLDER ? out->id : ids[list[i].holder];
     EXPR_NEED(write_instance(frame, kind_of(list[i].content), SPROUT_MADE_GIVEN, list[i].content, into, &ids[i]));
   }
+  out->count = count;
+  out->contents = ids;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_give_contents(const sprout_frame *frame, sprout_str holder, sprout_spawned *out) {
+  const sprout_stored_instance *instance = expr_instance(frame, holder);
+  making *list;
+  size_t count, i;
+  sprout_str *ids;
+  sprout_limit may_hold;
+  if (instance == NULL) return expr_engine(frame, "a visitor is given what its kind holds, and is not an instance in this world.");
+  EXPR_NEED(contents_of(frame, instance->kind, &list, &count));
+  EXPR_NEED(holds_each(frame, list, count, instance->kind, instance->kind->name,
+                       "could not be made with what its kinds hold"));
+  for (i = 0; i < count; i++)
+    if (!sprout_meter_spawn(frame->meter)) return expr_budget_fault(frame);
+  may_hold = frame->meter->budgets->instances;
+  if (may_hold.set && (uint64_t)sprout_draft_held(frame->draft) + count > may_hold.value) {
+    expr_text text = expr_text_begin(frame);
+    expr_put(&text, "the host will hold no more instances in this world, so `");
+    expr_put(&text, instance->kind->name);
+    expr_put(&text, "` could not be made with what its kinds hold.");
+    return expr_fail(frame, "LifecycleFault");
+  }
+  ids = (sprout_str *)sprout_arena_take(frame->turn, (count + 1) * sizeof *ids);
+  if (ids == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < count; i++) {
+    sprout_str into = list[i].holder == NO_HOLDER ? holder : ids[list[i].holder];
+    EXPR_NEED(write_instance(frame, kind_of(list[i].content), SPROUT_MADE_GIVEN, list[i].content, into, &ids[i]));
+  }
+  out->id = holder;
   out->count = count;
   out->contents = ids;
   return SPROUT_EVAL_OK;

@@ -1,0 +1,64 @@
+{
+  "about": "Turns that go wrong. A fuse cracked before it is lit faults when it is woken, and its wake is consumed rather than tried again; the fuse beside it burns down. A cellar that has rotted faults a tick that reaches it, and a visitor who tries to come into it is told so, and the world is as it was. A visitor who leaves the rotten cellar cannot return to it: the arrival faults and they are not let in, though the next visitor is, at the porch. Catch-up after an absence delivers the wake that does not fault and consumes the one that does, and says nothing of either; a porch that is barred turns the next arrival away in its own words, and writes nothing.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A stone porch, and a steep stair going down." }
+    ] },
+    { "as": "Marta", "type": "light fuse", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You touch a flame to the fuse." }
+    ] },
+    { "as": "Marta", "type": "light dud", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You touch a flame to the fuse." }
+    ] },
+    { "as": "Marta", "type": "crack dud", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The fuse splits along its length." }
+    ] },
+    { "advance": "2 minutes", "expect": [
+      { "level": "info", "text": "porch.fuse woke, 60 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The fuse burns down." },
+      { "level": "error", "text": "the wake of porch.dud faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A cold cellar." }
+    ] },
+    { "as": "Marta", "type": "rot cellar", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Something gives way inside the walls." }
+    ] },
+    { "tick": true, "expect": [
+      { "level": "error", "text": "the tick of cellar faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." },
+      { "level": "error", "text": "the departure faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "level": "prose", "text": "not admitted: Something went wrong as you arrived, and you have not come in." },
+      { "level": "error", "text": "the arrival faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A stone porch, and a steep stair going down." }
+    ] },
+    { "as": "Ines", "type": "down", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Something in this world has gone wrong, and nothing has changed." },
+      { "level": "error", "text": "the command faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
+    ] },
+    { "as": "Ines", "type": "light fuse", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You touch a flame to the fuse." }
+    ] },
+    { "as": "Ines", "type": "light dud", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You touch a flame to the fuse." }
+    ] },
+    { "as": "Ines", "type": "bar porch", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "You drop the bar across the porch door." }
+    ] },
+    { "leave": "Ines", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "You leave, and take what you carry with you." }
+    ] },
+    { "advance": "1 hour", "expect": [] },
+    { "arrive": "Ines", "expect": [
+      { "level": "info", "text": "caught up: porch.fuse woke, 3600 seconds after it asked" },
+      { "level": "error", "text": "a wake in catch-up faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." },
+      { "reader": "Ines", "kind": "refused", "words": "The porch door is barred against you." }
+    ] }
+  ]
+}

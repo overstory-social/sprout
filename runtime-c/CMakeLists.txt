@@ -16,9 +16,9 @@ if(SPROUT_SANITIZE)
 endif()
 
 set(SPROUT_MODULES
-  address arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds chips darkness describe draft draws
-  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move offers options outcome
-  prose range reading state status stored stored_check stored_write submit values view view_json wakes)
+  address answers arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds chips darkness describe draft draws
+  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move offers options
+  nickname outcome prose range reading schedule seeds state status stored stored_check stored_write submit turn values view view_json wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
 set(SPROUT_READING_MODULES carried consent effect sure wildcards)
@@ -29,8 +29,11 @@ set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators pas
 # The statements' areas, src/stmt/<module>.c, each with test/stmt_<module>.test.c.
 set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speech write)
 
+# The turn kinds, src/turn/<module>.c, each with test/turn_<module>.test.c.
+set(SPROUT_TURN_MODULES arrival command departure maintenance tick wake)
+
 # Rendering what a turn said, src/prose/<module>.c, each with test/prose_<module>.test.c.
-set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode)
+set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode written)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
@@ -53,13 +56,17 @@ foreach(module ${SPROUT_PROSE_MODULES})
   list(APPEND SPROUT_SOURCES src/prose/${module}.c)
 endforeach()
 
+foreach(module ${SPROUT_TURN_MODULES})
+  list(APPEND SPROUT_SOURCES src/turn/${module}.c)
+endforeach()
+
 add_library(sprout STATIC ${SPROUT_SOURCES})
 target_include_directories(sprout PUBLIC include PRIVATE src)
 target_link_libraries(sprout PUBLIC m)
 
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
-set(SPROUTC_MODULES cartridge evaluate host play readings viewing)
+set(SPROUTC_MODULES cartridge evaluate host play readings script viewing)
 
 set(SPROUTC_SOURCES "")
 foreach(module ${SPROUTC_MODULES})
@@ -139,6 +146,17 @@ foreach(module ${SPROUT_PROSE_MODULES})
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME prose_${module} COMMAND prose_${module}.test)
   set_tests_properties(prose_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+endforeach()
+
+foreach(module ${SPROUT_TURN_MODULES})
+  add_executable(turn_${module}.test test/turn_${module}.test.c)
+  target_link_libraries(turn_${module}.test PRIVATE sprout)
+  target_include_directories(turn_${module}.test PRIVATE src test)
+  target_compile_definitions(turn_${module}.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
+  add_test(NAME turn_${module} COMMAND turn_${module}.test)
+  set_tests_properties(turn_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})

@@ -11,7 +11,9 @@
 #ifndef SPROUT_PROSE_H
 #define SPROUT_PROSE_H
 
+#include "describe.h"
 #include "exec.h"
+#include "prose/prose.h"
 
 /* One reader's reading of one line: the paragraphs it renders to for them. */
 typedef struct sprout_told {
@@ -21,10 +23,14 @@ typedef struct sprout_told {
   sprout_str visit; /* the visit that person is */
   size_t paragraph_count;
   const sprout_str *paragraphs;
+  size_t written_count;
+  const sprout_noted *written; /* every passage and one-line passage that gave the words, each once, a passage after any it holds */
 } sprout_told;
 
 /* What a turn's lines rendered to, and whom it cut short, in the order it happened. */
 typedef struct sprout_rendered {
+  bool has_actor;
+  sprout_str actor; /* whose turn it is: the person who typed, arrived or left; none in a tick or a wake */
   size_t told_count;
   const sprout_told *told;
   size_t cut_count;
@@ -38,9 +44,5 @@ typedef struct sprout_rendered {
  * host's figure, with the exec's fault filled. Everything is held in the turn's arena.
  */
 sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str *actor, sprout_rendered *out);
-
-/* The same lines and cuts as the host is given them, one line to a paragraph, by visit. */
-sprout_status sprout_rendered_outcome(sprout_arena *turn, const sprout_draft *draft, const sprout_rendered *rendered,
-                                      sprout_outcome *outcome);
 
 #endif

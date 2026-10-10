@@ -64,8 +64,18 @@ static sprout_eval_status contents_of(const sprout_frame *frame, sprout_str node
   return children_of(frame, node, held, count);
 }
 
-sprout_eval_status expr_reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
-                                bool *out) {
+/* Whether `container` lets the question through: the acting visitor's open hands do, where a refusal's words ask. */
+static sprout_eval_status passes_with_hands(const sprout_frame *frame, sprout_str container, const char *asking,
+                                            bool hands, bool *open) {
+  if (hands && frame->hands.bytes != NULL && sprout_str_same(container, frame->hands)) {
+    *open = true;
+    return SPROUT_EVAL_OK;
+  }
+  return expr_passes(frame, container, asking, open);
+}
+
+static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
+                                  bool hands, bool *out) {
   ids chain = {NULL, 0, 0}, below = {NULL, 0, 0};
   sprout_str node;
   size_t meet = 0, at;
@@ -93,28 +103,33 @@ sprout_eval_status expr_reaches(const sprout_frame *frame, sprout_str asker, spr
   if (!have) return SPROUT_EVAL_OK;
   if (below.count == 0) {
     for (at = 1; at < meet; at++) {
-      EXPR_NEED(expr_passes(frame, chain.items[at], asking, &open));
+      EXPR_NEED(passes_with_hands(frame, chain.items[at], asking, hands, &open));
       if (!open) return SPROUT_EVAL_OK;
     }
     *out = true;
     return SPROUT_EVAL_OK;
   }
   for (at = 1; at <= meet; at++) {
-    EXPR_NEED(expr_passes(frame, chain.items[at], asking, &open));
+    EXPR_NEED(passes_with_hands(frame, chain.items[at], asking, hands, &open));
     if (!open) return SPROUT_EVAL_OK;
   }
   for (at = below.count - 1; at >= 1; at--) {
-    EXPR_NEED(expr_passes(frame, below.items[at], asking, &open));
+    EXPR_NEED(passes_with_hands(frame, below.items[at], asking, hands, &open));
     if (!open) return SPROUT_EVAL_OK;
   }
   *out = true;
   return SPROUT_EVAL_OK;
 }
 
+sprout_eval_status expr_reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
+                                bool *out) {
+  return reaches(frame, asker, target, asking, false, out);
+}
+
 sprout_eval_status expr_seen_by(const sprout_frame *frame, sprout_str id, bool *out) {
   *out = false;
   if (!expr_live(frame, id)) return SPROUT_EVAL_OK;
-  return expr_reaches(frame, frame->self, id, NULL, out);
+  return reaches(frame, frame->self, id, NULL, true, out);
 }
 
 sprout_eval_status expr_contents_seen(const sprout_frame *frame, sprout_str container, const sprout_str **seen,

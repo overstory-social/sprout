@@ -65,6 +65,7 @@ typedef struct sprout_frame {
   const char *library;  /* the library or world whose kind wrote the body, for a kind written without one */
   const sprout_binding *bindings;
   sprout_eval_fault *fault; /* filled when an evaluation returns SPROUT_EVAL_FAULT or SPROUT_EVAL_ENGINE */
+  sprout_str hands;     /* a refusal's words: the acting visitor whose hands a range question sees into (the spec's Range), or none */
 } sprout_frame;
 
 sprout_evaluated sprout_evaluated_value(sprout_value value);
@@ -124,5 +125,12 @@ typedef struct sprout_spawned {
  */
 sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind, sprout_str container,
                                 sprout_spawned *out);
+
+/*
+ * Gives `holder`, an instance made this turn that holds nothing yet, its own copy of everything its kinds' bodies
+ * hold, as a spawn of its kind is given them (the spec's Actors and visitors); nothing is sent for any of them.
+ * Faults, writing nothing, as a spawn does.
+ */
+sprout_eval_status sprout_give_contents(const sprout_frame *frame, sprout_str holder, sprout_spawned *out);
 
 #endif

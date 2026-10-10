@@ -28,7 +28,12 @@ typedef struct sproutc_turn_reading {
   uint64_t seed;
   bool skip;
   const char *why;  /* when skipped: the parser's answer */
+  const sprout_json *draws;  /* otherwise: the bounds the parser drew below reading the line */
+  const sprout_json *asides; /* otherwise: what the parser said before the reading's own lines */
+  const sprout_json *says;   /* the lines a reader read, as the TypeScript runtime told them: the parser's, which this host echoes when it skips the turn */
+  const sprout_json *expect; /* the turn as the TypeScript runtime logged it */
   const char *verb; /* otherwise: the verb, qualified */
+  const char *actor; /* otherwise: the id of the instance performing it */
   const sprout_json *fillers;
   bool refused;
 } sproutc_turn_reading;
@@ -49,6 +54,7 @@ typedef struct sproutc_readings {
   sprout_arena arena;
   char *text;
   const sprout_json *steps;
+  const sprout_json *budgets; /* the budgets the script was played under, where not the host's defaults, or NULL */
 } sproutc_readings;
 
 /* Reads the file at `path`; NULL on success, or words for what is wrong with it. */
