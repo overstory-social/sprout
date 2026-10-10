@@ -1,11 +1,58 @@
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_BLESSED } from '../bundle/blessed.js';
 import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
+import { compileBundle } from '../bundle/compile/compile.js';
+import { type Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { MANIFEST_FILE, parseManifest } from '../bundle/manifest.js';
+import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
+import { Diagnostics } from '../source/diagnostics.js';
+import { SourceFile } from '../source/source.js';
 import { kindName } from '../declare/kinds.js';
-import { compiledCorpusWorld as compiled, CORPUS_WORLDS as WORLDS } from '../fixtures/corpus.js';
+import { dumpCatalogue } from '../fixtures/catalogue-dump.js';
 import { catalogueOf } from './catalogue.js';
 import { loadCartridge } from './cartridge.js';
+
+const CORPUS = join(dirname(fileURLToPath(import.meta.url)), '../../../../corpus/good');
+
+function filesUnder(root: string, dir = root): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir).sort()) {
+    if (entry.startsWith('.')) continue;
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) out.push(...filesUnder(root, path));
+    else if (entry.endsWith('.sprout') || entry.endsWith('.prose')) out.push(path);
+  }
+  return out;
+}
+
+/** A corpus world, compiled as publishing compiles it. */
+function compiled(name: string): Bundle {
+  const root = join(CORPUS, name);
+  const diagnostics = new Diagnostics();
+  const manifestFile = new SourceFile(
+    MANIFEST_FILE,
+    readFileSync(join(root, MANIFEST_FILE), 'utf8'),
+  );
+  const manifest = parseManifest(manifestFile, diagnostics)!;
+  const files = filesUnder(root).map(
+    (path) =>
+      new SourceFile(relative(root, path).split('\\').join('/'), readFileSync(path, 'utf8')),
+  );
+  const usesStandard = manifest.libraries.some((pin) => pin.name === STANDARD_LIBRARY.name);
+  const { bundle } = compileBundle(
+    { manifestFile, manifest, files, libraries: usesStandard ? [STANDARD_LIBRARY] : [] },
+    { mode: 'publish', blessed: DEFAULT_BLESSED },
+  );
+  return bundle!;
+}
+
+const WORLDS = readdirSync(CORPUS).sort();
 
 describe('a cartridge runs under the host’s caps, not the ones it recorded', () => {
   it('reads the caps the host gives, while the cartridge keeps what it was checked against', () => {
@@ -51,4 +98,41 @@ describe('a cartridge loads to the catalogue compiling the source makes', () => 
       expect(loaded.optionSlots.size).toBe(made.optionSlots.size);
     });
   }
+});
+
+describe('the catalogue of every corpus world, as the C runtime reads it from the cartridge', () => {
+  const file = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../../../corpus/goldens/catalogues.json',
+  );
+
+  /** One line per world, so a change to one world is one changed line. */
+  const dumps = (): string => {
+    const lines = WORLDS.map((name) => {
+      const bundle = compiled(name);
+      const bytes = emitCartridge(bundle);
+      const recorded = readCartridge(bytes).caps;
+      const made = dumpCatalogue(catalogueOf(bundle, DEFAULT_LIMITS.caps), recorded);
+      const loaded = dumpCatalogue(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }), recorded);
+      // A cartridge writes each verb's synonyms out as the phrases they give, after its own.
+      expect({ ...loaded, verbs: [] }, name).toEqual({ ...made, verbs: [] });
+      expect(
+        loaded.verbs.map((verb) => ({ ...verb, phrases: [] })),
+        name,
+      ).toEqual(made.verbs.map((verb) => ({ ...verb, phrases: [] })));
+      loaded.verbs.forEach((verb, i) =>
+        expect(verb.phrases.slice(0, made.verbs[i]!.phrases.length), name).toEqual(
+          made.verbs[i]!.phrases,
+        ),
+      );
+      return `${JSON.stringify(name)}:${JSON.stringify({ level: bundle.level, ...loaded })}`;
+    });
+    return `{\n${lines.join(',\n')}\n}\n`;
+  };
+
+  it('is the golden: regenerate with SPROUT_WRITE_GOLDENS=1 and read the diff', () => {
+    const text = dumps();
+    if (process.env['SPROUT_WRITE_GOLDENS'] === '1') writeFileSync(file, text);
+    expect(text).toBe(readFileSync(file, 'utf8'));
+  }, 60_000);
 });

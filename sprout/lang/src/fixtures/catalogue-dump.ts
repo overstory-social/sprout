@@ -69,8 +69,6 @@ function defaultOf(literal: Literal): DumpedDefault {
       return { option: literal.name.text };
     case 'list-literal':
       return { list: literal.elements.map(defaultOf) };
-    default:
-      throw new Error(`a default of kind ${literal.kind} reached the dump.`);
   }
 }
 

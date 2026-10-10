@@ -1,18 +1,10 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
-
-import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
 
 import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
 import { kindName } from '../declare/kinds.js';
 import { compiledWorld, SHOP, shop, shopWithheld } from '../fixtures/bundle.js';
-import { dumpCatalogue } from '../fixtures/catalogue-dump.js';
-import { compiledCorpusWorld, CORPUS_GOLDENS, CORPUS_WORLDS } from '../fixtures/corpus.js';
 import { declaredId, type InstanceId } from './ids.js';
 import { catalogueOf } from './catalogue.js';
-import { loadCartridge } from './cartridge.js';
 
 const id = (...path: string[]): InstanceId => declaredId('printers_shop', path);
 
@@ -227,38 +219,4 @@ describe('a catalogue of a world loaded with a gap', () => {
     });
     expect(catalogueOf(bundle, DEFAULT_LIMITS.caps).arrival).toBeNull();
   });
-});
-
-describe('the catalogue of every corpus world, as the C runtime reads it from the cartridge', () => {
-  const file = join(CORPUS_GOLDENS, 'catalogues.json');
-
-  /** One line per world, so a change to one world is one changed line. */
-  const dumps = (): string => {
-    const lines = CORPUS_WORLDS.map((name) => {
-      const bundle = compiledCorpusWorld(name);
-      const bytes = emitCartridge(bundle);
-      const recorded = readCartridge(bytes).caps;
-      const made = dumpCatalogue(catalogueOf(bundle, DEFAULT_LIMITS.caps), recorded);
-      const loaded = dumpCatalogue(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }), recorded);
-      // A cartridge writes each verb's synonyms out as the phrases they give, after its own.
-      expect({ ...loaded, verbs: [] }, name).toEqual({ ...made, verbs: [] });
-      expect(
-        loaded.verbs.map((verb) => ({ ...verb, phrases: [] })),
-        name,
-      ).toEqual(made.verbs.map((verb) => ({ ...verb, phrases: [] })));
-      loaded.verbs.forEach((verb, i) =>
-        expect(verb.phrases.slice(0, made.verbs[i]!.phrases.length), name).toEqual(
-          made.verbs[i]!.phrases,
-        ),
-      );
-      return `${JSON.stringify(name)}:${JSON.stringify({ level: bundle.level, ...loaded })}`;
-    });
-    return `{\n${lines.join(',\n')}\n}\n`;
-  };
-
-  it('is the golden: regenerate with SPROUT_WRITE_GOLDENS=1 and read the diff', () => {
-    const text = dumps();
-    if (process.env['SPROUT_WRITE_GOLDENS'] === '1') writeFileSync(file, text);
-    expect(text).toBe(readFileSync(file, 'utf8'));
-  }, 60_000);
 });
