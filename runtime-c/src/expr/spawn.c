@@ -9,18 +9,13 @@
  */
 #include "expr.h"
 
-/* One content to make: what its kind's body gives, how it was made, and the one of the others that holds it. */
+/* One content to make: what its kind's body gives, and the one of the others that holds it. */
 typedef struct making {
   const sprout_content *content;
   size_t holder; /* an index into the list, or `NO_HOLDER` for the instance given them */
 } making;
 
 #define NO_HOLDER ((size_t)-1)
-
-typedef struct pending {
-  const sprout_content *content;
-  size_t holder;
-} pending;
 
 /* The kind a content is made of: its own anonymous kind. */
 static const sprout_kind_def *kind_of(const sprout_content *content) { return content->kind; }
@@ -40,7 +35,7 @@ static bool grow(const sprout_frame *frame, void **items, size_t *count, size_t 
 
 /* Pushes what a holder of `kind` is given, then `own`, so that popping gives them in that order. */
 static sprout_eval_status push_inside(const sprout_frame *frame, const sprout_kind_def *kind, size_t holder,
-                                      const sprout_content *own, size_t own_count, pending **stack, size_t *count,
+                                      const sprout_content *own, size_t own_count, making **stack, size_t *count,
                                       size_t *capacity) {
   size_t order, i, j, mark = *count;
   const sprout_world *world = frame->world;
@@ -62,7 +57,7 @@ static sprout_eval_status push_inside(const sprout_frame *frame, const sprout_ki
     (*count)++;
   }
   for (i = mark, j = *count; i + 1 < j; i++, j--) {
-    pending swap = (*stack)[i];
+    making swap = (*stack)[i];
     (*stack)[i] = (*stack)[j - 1];
     (*stack)[j - 1] = swap;
   }
@@ -76,13 +71,13 @@ static sprout_eval_status push_inside(const sprout_frame *frame, const sprout_ki
  */
 static sprout_eval_status contents_of(const sprout_frame *frame, const sprout_kind_def *kind, making **made,
                                       size_t *made_count) {
-  pending *stack = NULL;
+  making *stack = NULL;
   size_t stack_count = 0, stack_capacity = 0, capacity = 0;
   making *list = NULL;
   size_t count = 0;
   EXPR_NEED(push_inside(frame, kind, NO_HOLDER, NULL, 0, &stack, &stack_count, &stack_capacity));
   while (stack_count > 0) {
-    pending next = stack[--stack_count];
+    making next = stack[--stack_count];
     if (kind_of(next.content) == NULL) continue;
     if (!grow(frame, (void **)&list, &count, &capacity, sizeof *list)) return SPROUT_EVAL_NO_MEMORY;
     list[count].content = next.content;
@@ -96,23 +91,29 @@ static sprout_eval_status contents_of(const sprout_frame *frame, const sprout_ki
   return SPROUT_EVAL_OK;
 }
 
+/* A kind as a fault names it: its own name, as an author most often writes it. */
+static const char *shown(const char *qualified) {
+  const char *dot = strrchr(qualified, '.');
+  return dot == NULL ? qualified : dot + 1;
+}
+
 /* Fault where an actor among `list` would stand in what holds no actors. */
 static sprout_eval_status holds_each(const sprout_frame *frame, const making *list, size_t count,
-                                     const sprout_kind_def *root, sprout_str object, const char *outcome) {
+                                     const sprout_kind_def *root, const char *spawned) {
   size_t i;
   for (i = 0; i < count; i++) {
     const sprout_kind_def *one = kind_of(list[i].content);
     const sprout_kind_def *holder = list[i].holder == NO_HOLDER ? root : kind_of(list[list[i].holder].content);
     if (one->composes_actor && !holder->contains_actors) {
       expr_text text = expr_text_begin(frame);
-      (void)object;
       expr_put(&text, "`");
       expr_put(&text, one->name);
       expr_put(&text, "`, an actor, would be inside `");
       expr_put(&text, holder->name);
       expr_put(&text, "`, which holds no actors, so ");
-      expr_put(&text, outcome);
-      expr_put(&text, ".");
+      expr_put(&text, "`");
+      expr_put(&text, spawned);
+      expr_put(&text, "` could not be spawned.");
       return expr_fail(frame, "LifecycleFault");
     }
   }
@@ -151,11 +152,6 @@ static sprout_eval_status write_instance(const sprout_frame *frame, const sprout
   return drafted(sprout_draft_add(frame->draft, &record));
 }
 
-static const char *shown(const char *qualified) {
-  const char *dot = strrchr(qualified, '.');
-  return dot == NULL ? qualified : dot + 1;
-}
-
 sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name, sprout_str container,
                                 sprout_spawned *out) {
   const sprout_kind_def *kind = sprout_world_kind(frame->world, kind_name);
@@ -164,7 +160,6 @@ sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name
   size_t count, i;
   sprout_str *ids;
   bool in_range = false;
-  char outcome[160];
   expr_text text;
   if (kind == NULL || !kind->spawnable) {
     text = expr_text_begin(frame);
@@ -203,12 +198,8 @@ sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name
     expr_put(&text, "`, an actor, could not be spawned in it.");
     return expr_fail(frame, "LifecycleFault");
   }
-  outcome[0] = '`';
-  strncpy(outcome + 1, shown(kind_name), sizeof outcome - 40);
-  outcome[sizeof outcome - 40] = '\0';
-  strcat(outcome, "` could not be spawned");
   EXPR_NEED(contents_of(frame, kind, &list, &count));
-  EXPR_NEED(holds_each(frame, list, count, kind, container, outcome));
+  EXPR_NEED(holds_each(frame, list, count, kind, shown(kind_name)));
   for (i = 0; i < 1 + count; i++)
     if (!sprout_meter_spawn(frame->meter)) return expr_budget_fault(frame);
   ids = (sprout_str *)sprout_arena_take(frame->turn, (count + 1) * sizeof *ids);

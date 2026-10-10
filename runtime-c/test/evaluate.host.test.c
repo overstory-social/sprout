@@ -165,7 +165,7 @@ static void a_fault_is_printed_in_the_hosts_words_and_exits_one(void) {
   CHECK_INT(r.code, 1);
   CHECK_STR(r.out,
             "fault BudgetExhausted: This turn used more steps than the host allows (25) while running message 0, so it "
-            "was stopped and nothing it did was kept.\nsteps 25\n");
+            "was stopped and nothing it did was kept.\nsteps 26\n");
 }
 
 static void a_command_line_it_cannot_follow_exits_two_in_words(void) {

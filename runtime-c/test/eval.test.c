@@ -53,6 +53,8 @@ static void replay_case(bench *b, const sprout_json *golden) {
       CHECK_STR(t.meter.fault.budget, fault_budget_name(bench_text(expect, "budget")));
       CHECK_INT(t.meter.fault.limit, bench_number(expect, "limit"));
       CHECK_STR(t.fault.text, t.meter.fault.text);
+      /* The step that went over is recorded, as TypeScript records it. */
+      CHECK_INT(t.meter.steps, bench_number(golden, "steps"));
     } else {
       CHECK_STR(t.fault.text, bench_text(expect, "detail"));
       CHECK_INT(t.meter.steps, bench_number(golden, "steps"));
@@ -153,7 +155,7 @@ static void a_deep_expression_faults_at_the_hosts_step_count_in_the_hosts_words(
     CHECK_STR(t.fault.text,
               "This turn used more steps than the host allows (78) while running message 0, so it was stopped and "
               "nothing it did was kept.");
-    CHECK_INT(t.meter.steps, 78);
+    CHECK_INT(t.meter.steps, 79);
     bench_turn_close(&t);
     bench_turn_open(&b, &t, "fresh", bench_text(one, "self"), bench_text(one, "library"), 79, -1, -1);
     CHECK_INT(sprout_eval(&t.frame, &b.world->graph.entries[(size_t)bench_number(one, "node")], &result),

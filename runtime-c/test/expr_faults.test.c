@@ -78,7 +78,7 @@ static void a_step_past_the_hosts_figure_faults_in_the_meters_words(void) {
   CHECK_STR(h.fault.text,
             "This turn used more steps than the host allows (2) while running message 0, so it was stopped and "
             "nothing it did was kept.");
-  CHECK_INT(h.meter.steps, 2);
+  CHECK_INT(h.meter.steps, 3);
 }
 
 static void with_no_figure_a_step_is_never_refused(void) {

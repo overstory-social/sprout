@@ -169,8 +169,8 @@ whose body it is, the names bound, the seed and the step budget, and what
 words) with the steps it spent. `runtime-c/test/eval.test.c` replays every case
 and every spawn, and `sproutc eval` runs one case from the command line. The
 step budget is held to the host's figure and the host's words, which differ from
-the TypeScript budget's detail, so a budget fault is compared by the budget and
-its figure.
+the TypeScript budget's detail, so a budget fault is compared by the budget, its
+figure and the steps spent, the step that went over included.
 
 ## Still to build
 
