@@ -3,6 +3,7 @@ import {
   SEED_MAX,
   SproutList,
   type InstanceId,
+  type RuntimeBudgets,
   type StoredWorld,
   type WrittenAt,
   type Value,
@@ -71,6 +72,8 @@ export interface TurnEntry {
   readonly who: string | null;
   readonly outcome: 'done' | 'faulted' | 'refused';
   readonly fault: string | null;
+  /** What happened, in the words of the fault's name; null where there was none. */
+  readonly detail: string | null;
   readonly serial: number;
   readonly effects: readonly {
     readonly kind: string;
@@ -86,6 +89,7 @@ export interface TurnEntry {
     readonly object: string;
     readonly serial: number;
     readonly fault: string;
+    readonly detail: string;
   }[];
   readonly abandoned?: readonly { readonly object: string; readonly serial: number }[];
 }
@@ -157,6 +161,8 @@ export type Facts =
 export interface Readings {
   readonly format: 1;
   readonly script: string;
+  /** The budgets the script was played under, where they were not the host's defaults; a runtime playing the readings is set to them. */
+  readonly budgets?: Partial<RuntimeBudgets>;
   readonly steps: readonly ReadStep[];
 }
 
@@ -212,6 +218,7 @@ function entryOf(traced: Traced): TurnEntry {
     who: logged.who,
     outcome: logged.outcome === 'closed' ? 'refused' : logged.outcome,
     fault: traced.faults[0]?.name ?? null,
+    detail: traced.faults[0]?.detail ?? null,
     serial: logged.serial,
     effects: traced.effects.map((effect) => ({
       kind: effect.kind,
@@ -229,6 +236,7 @@ function entryOf(traced: Traced): TurnEntry {
           faulted: logged.wakes.faulted.map(({ wake, fault }) => ({
             ...named(wake),
             fault: fault.name,
+            detail: fault.detail,
           })),
           abandoned: logged.wakes.abandoned.map(named),
         }),
@@ -271,8 +279,13 @@ function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
  * readings the parser made of it; thrown, naming the step, where a step
  * cannot be played.
  */
-export function resolveScript(world: PlayableWorld, script: Script, name: string): Readings {
-  const stage = freshStage(world);
+export function resolveScript(
+  world: PlayableWorld,
+  script: Script,
+  name: string,
+  budgets: Partial<RuntimeBudgets> = {},
+): Readings {
+  const stage = freshStage(world, budgets);
   const steps = script.steps.map((step, i): ReadStep => {
     const begins = { index: i, line: lineOf(step), atSeconds: stage.now, seed: stage.seed };
     const from = stage.turns.length;
@@ -290,11 +303,15 @@ export function resolveScript(world: PlayableWorld, script: Script, name: string
     };
     return { ...begins, ...factsOf(step, turns), after };
   });
-  return { format: 1, script: name, steps };
+  return Object.keys(budgets).length === 0
+    ? { format: 1, script: name, steps }
+    : { format: 1, script: name, budgets, steps };
 }
 
 /** `readings` as the file holds it: one step to a line. */
 export function writeReadings(readings: Readings): string {
   const steps = readings.steps.map((step) => `    ${JSON.stringify(step)}`).join(',\n');
-  return `{\n  "format": 1,\n  "script": ${JSON.stringify(readings.script)},\n  "steps": [\n${steps}\n  ]\n}\n`;
+  const budgets =
+    readings.budgets === undefined ? '' : `  "budgets": ${JSON.stringify(readings.budgets)},\n`;
+  return `{\n  "format": 1,\n  "script": ${JSON.stringify(readings.script)},\n${budgets}  "steps": [\n${steps}\n  ]\n}\n`;
 }

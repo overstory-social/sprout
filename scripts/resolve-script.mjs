@@ -30,10 +30,13 @@ export function playableWorld(path) {
   return checked.bundle;
 }
 
-/** The readings file text for `script` over `world`; thrown, in words, where either cannot be read or played. */
-export function resolveFile(worldPath, scriptPath) {
+/**
+ * The readings file text for `script` over `world`, played under the host's default budgets less any `budgets`
+ * given; thrown, in words, where either cannot be read or played.
+ */
+export function resolveFile(worldPath, scriptPath, budgets = {}) {
   const script = readScript(readFileSync(scriptPath, 'utf8'), scriptPath);
-  return writeReadings(resolveScript(playableWorld(worldPath), script, scriptPath));
+  return writeReadings(resolveScript(playableWorld(worldPath), script, scriptPath, budgets));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

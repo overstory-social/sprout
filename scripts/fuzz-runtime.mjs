@@ -29,6 +29,19 @@ import { playableWorld } from './resolve-script.mjs';
 import { runtimeCBuild } from './runtime-c-build.mjs';
 
 const NICKNAMES = ['Marta', 'Ines', 'Odo', 'Pell'];
+
+// The budgets a play may be held to, so the faults of a turn that spends its figure are fuzzed too: the
+// host's defaults, and then figures small enough that a world's own bodies reach them. Both runtimes are set to
+// the same. The step budget is left at the host's: a command's parsing is charged to it by the TypeScript
+// runtime, which reads the words, and not by the C runtime, which is handed the reading.
+const BUDGETS = [
+  {},
+  { events: 3, cascadeDepth: 2 },
+  { output: 90 },
+  { spawnsPerTurn: 1, passageDepth: 2 },
+  { peoplePerPlace: 1 },
+  { setRoleObjects: 2, events: 6 },
+];
 const UNPARSED = ['xyzzy', 'dance wildly', 'take', 'go sideways', 'again and again'];
 
 /** A small deterministic generator: the same seed gives the same play. */
@@ -94,14 +107,18 @@ export function nextStep(stage, random) {
  * the TypeScript runtime, then compared with `sproutc`. The result says how many readings the play held and,
  * where the runtimes differed, the transcript to keep and the words about it.
  */
-export function fuzzWorld(world, seed, { steps, visitors, readings = Infinity, sproutc }) {
+export function fuzzWorld(
+  world,
+  seed,
+  { steps, visitors, readings = Infinity, sproutc, budgets = {} },
+) {
   const scratch = mkdtempSync(join(tmpdir(), 'sprout-fuzz-'));
   try {
     const cartridge = join(scratch, 'world.sproutworld');
     const script = join(scratch, 'play.json');
     packWorld(world, cartridge);
     const random = generator(seed);
-    const stage = freshStage(playableWorld(world));
+    const stage = freshStage(playableWorld(world), budgets);
     const made = [];
     let typed = 0;
     const play = (step) => {
@@ -113,7 +130,7 @@ export function fuzzWorld(world, seed, { steps, visitors, readings = Infinity, s
     for (const nickname of NICKNAMES.slice(0, Number(visitors))) play({ arrive: nickname });
     for (let i = 0; i < Number(steps) && typed < readings; i++) play(nextStep(stage, random));
     writeFileSync(script, writeScript({ about: `fuzz seed ${seed}`, steps: made }));
-    const result = playAndCompare(sproutc, cartridge, script);
+    const result = playAndCompare(sproutc, cartridge, script, false, budgets);
     if (result.how === 'passed') return { typed, ran: made.length, differs: null };
     const at = /step (\d+)/.exec(result.why);
     const kept = at === null ? made : made.slice(0, Number(at[1]) + 1);
@@ -123,7 +140,7 @@ export function fuzzWorld(world, seed, { steps, visitors, readings = Infinity, s
       differs: {
         words: `${result.how}: ${result.why}`,
         transcript: writeScript({
-          about: `fuzz seed ${seed}: the first step on which the runtimes differ is the last.`,
+          about: `fuzz seed ${seed}${Object.keys(budgets).length === 0 ? '' : ` under the budgets ${JSON.stringify(budgets)}`}: the first step on which the runtimes differ is the last.`,
           steps: kept,
         }),
       },
@@ -154,6 +171,7 @@ function main() {
       const folder = join('corpus/good', name);
       const result = fuzzWorld(folder, base + at, {
         ...options,
+        budgets: BUDGETS[(base + at) % BUDGETS.length],
         steps: Math.max(Number(flags.steps), share * 4),
         readings: share,
       });

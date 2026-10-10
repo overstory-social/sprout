@@ -57,11 +57,11 @@ function transcriptSays(script) {
 /**
  * Plays the script file `script` (its readings are written beside it) over `cartridge` through `sproutc` and
  * compares it with what the TypeScript runtime did, and, where `transcript` is set, with what the script
- * itself expects. `how` is `passed`; `differs`, with the first step that went another way in `why`; or
+ * itself expects, under the host's default budgets less any `budgets` given. `how` is `passed`; `differs`, with the first step that went another way in `why`; or
  * `failed`. `echoed` is how many turns the parser answered and the play echoed.
  */
-export function playAndCompare(sproutc, cartridge, script, transcript = false) {
-  const text = resolveFile(cartridge, script);
+export function playAndCompare(sproutc, cartridge, script, transcript = false, budgets = {}) {
+  const text = resolveFile(cartridge, script, budgets);
   writeFileSync(readingsPath(script), text);
   const readings = JSON.parse(text);
   const tracePath = `${script}.trace`;

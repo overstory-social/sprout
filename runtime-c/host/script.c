@@ -129,11 +129,14 @@ static sprout_json *wakes_json(play *p, size_t count, const sprout_logged_wake *
   sprout_json *list = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, count);
   size_t i;
   for (i = 0; list != NULL && i < count; i++) {
-    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 3);
+    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 4);
     if (one == NULL) return NULL;
     sprout_json_adopt(one, "object", jstr_of(p, wakes[i].object));
     sprout_json_adopt(one, "serial", jnumber(p, (double)wakes[i].serial));
-    if (with_fault) sprout_json_adopt(one, "fault", jstr(p, wakes[i].fault_name == NULL ? "" : wakes[i].fault_name));
+    if (with_fault) {
+      sprout_json_adopt(one, "fault", jstr(p, wakes[i].fault_name == NULL ? "" : wakes[i].fault_name));
+      sprout_json_adopt(one, "detail", jstr_of(p, wakes[i].fault_detail));
+    }
     sprout_json_adopt(list, NULL, one);
   }
   return list;
@@ -141,7 +144,7 @@ static sprout_json *wakes_json(play *p, size_t count, const sprout_logged_wake *
 
 /* The entry the log keeps of a turn that ran, in the shape the TypeScript player records: see player/src/readings.ts. */
 static const char *record_of(play *p, const sprout_turn_input *input, const sprout_outcome *outcome) {
-  sprout_json *record = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 12), *effects, *cuts, *paragraphs;
+  sprout_json *record = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 14), *effects, *cuts, *paragraphs;
   const sprout_log_entry *log = &outcome->log;
   size_t i, j;
   (void)input;
@@ -152,6 +155,7 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
   sprout_json_adopt(record, "who", log->who.length == 0 ? jnull(p) : jstr_of(p, log->who));
   sprout_json_adopt(record, "outcome", jstr(p, outcome_name(outcome->result)));
   sprout_json_adopt(record, "fault", log->faulted ? jstr(p, log->fault_name) : jnull(p));
+  sprout_json_adopt(record, "detail", log->faulted ? jstr_of(p, log->fault_detail) : jnull(p));
   sprout_json_adopt(record, "serial", jnumber(p, (double)log->serial));
   effects = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, outcome->effect_count);
   cuts = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, outcome->cut_count);
@@ -515,6 +519,42 @@ static bool command(play *p, const sproutc_step *step) {
   return true;
 }
 
+/* ---- the budgets ---- */
+
+/* The host's budgets, less any the readings were played under, named as the TypeScript runtime names them. */
+static const char *budgets_of(sproutc_host *host, const sprout_json *given) {
+  sprout_budgets *b = &host->record.budgets;
+  struct {
+    const char *name;
+    sprout_limit *limit;
+  } rows[] = {{"steps", &b->steps},
+              {"pollSteps", &b->poll_steps},
+              {"output", &b->output},
+              {"events", &b->events},
+              {"cascadeDepth", &b->cascade_depth},
+              {"passageDepth", &b->passage_depth},
+              {"setRoleObjects", &b->set_role_objects},
+              {"spawnsPerTurn", &b->spawns},
+              {"shortestWakeSeconds", &b->shortest_wake_seconds},
+              {"pendingWakesPerObject", &b->pending_wakes},
+              {"peoplePerPlace", &b->people_per_place},
+              {"extensionEffects", &b->extension_effects},
+              {"nicknameCharacters", &b->nickname_characters},
+              {"wallClockMs", &b->wall_clock_ms}};
+  size_t i, j;
+  for (i = 0; given != NULL && i < given->count; i++) {
+    bool found = false;
+    for (j = 0; j < sizeof rows / sizeof *rows && !found; j++) {
+      if (strcmp(given->items[i]->key, rows[j].name) != 0) continue;
+      found = true;
+      rows[j].limit->set = given->items[i]->kind == SPROUT_JSON_NUMBER;
+      rows[j].limit->value = rows[j].limit->set ? (uint64_t)given->items[i]->number : 0;
+    }
+    if (!found) return "the readings file sets a budget this host has no row for.";
+  }
+  return NULL;
+}
+
 /* ---- the trace ---- */
 
 static void trace_step(play *p, const sproutc_step *step, FILE *trace) {
@@ -533,6 +573,11 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
                         FILE *out, FILE *err, FILE *trace) {
   play p;
   size_t i, n = sproutc_readings_count(readings);
+  const char *why = budgets_of(host, readings->budgets);
+  if (why != NULL) {
+    fprintf(err, "sproutc: %s\n", why);
+    return 1;
+  }
   memset(&p, 0, sizeof p);
   p.host = host;
   p.world = world;

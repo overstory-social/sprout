@@ -27,6 +27,7 @@ import {
   type Level,
   type Ran,
   type Reading,
+  type RuntimeBudgets,
   type Said,
   type VisitKey,
   type WorldState,
@@ -661,13 +662,16 @@ export function playStep(stage: Stage, step: Step, where: string): Made[] | null
   return advance(stage, seconds);
 }
 
-/** A fresh stage over `world`: as it loads, time at 0, seed 0, nobody yet arrived. */
-export function freshStage(world: PlayableWorld): Stage {
+/**
+ * A fresh stage over `world`: as it loads, time at 0, seed 0, nobody yet arrived, under the host's default
+ * budgets, less any `budgets` given instead.
+ */
+export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets> = {}): Stage {
   const catalogue = catalogueFor(world);
   const stage: Stage = {
     host: {
       catalogue,
-      budgets: DEFAULT_LIMITS.budgets,
+      budgets: { ...DEFAULT_LIMITS.budgets, ...budgets },
       render: renderEffects,
       // The parser's draws are noted, since a runtime that does not parse begins its stream with them.
       parse: (text, actor, context) => {

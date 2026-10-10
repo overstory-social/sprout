@@ -54,6 +54,7 @@ typedef struct sproutc_readings {
   sprout_arena arena;
   char *text;
   const sprout_json *steps;
+  const sprout_json *budgets; /* the budgets the script was played under, where not the host's defaults, or NULL */
 } sproutc_readings;
 
 /* Reads the file at `path`; NULL on success, or words for what is wrong with it. */

@@ -56,6 +56,7 @@ const char *sproutc_readings_open(sproutc_readings *readings, const sprout_host 
     return "the readings file is not format 1: write it again with `scripts/resolve-script.mjs`.";
   }
   readings->steps = sprout_json_get(root, "steps");
+  readings->budgets = sprout_json_get(root, "budgets");
   return NULL;
 }
 
@@ -64,6 +65,7 @@ void sproutc_readings_close(sproutc_readings *readings) {
   free(readings->text);
   readings->text = NULL;
   readings->steps = NULL;
+  readings->budgets = NULL;
 }
 
 size_t sproutc_readings_count(const sproutc_readings *readings) {
