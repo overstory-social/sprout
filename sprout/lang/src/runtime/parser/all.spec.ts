@@ -73,6 +73,12 @@ const ids = (filled: Filled | null) =>
       : filled;
 
 describe('`all` in a slot', () => {
+  it('reads `everything` as `all`, with `except` after it, and `each` as neither', () => {
+    expect(ids(all('everything except the brass key', 'unlock', 'tool'))).toEqual([IRON_KEY]);
+    expect(ids(all('everything', 'unlock', 'tool'))).toEqual(ids(all('all', 'unlock', 'tool')));
+    expect(all('each', 'unlock', 'tool')).toBeNull();
+  });
+
   it('is no `all` where the words do not begin with it, or the role takes a value', () => {
     expect(all('key', 'take', 'target', 'sprout')).toBeNull();
     expect(all('all', 'turn', 'number')).toBeNull();

@@ -1,0 +1,17 @@
+{
+  "about": "`everything` is another word for `all`, with `except` after it as after `all`.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
+    ] },
+    { "as": "Marta", "type": "take everything except coin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a key." }
+    ] },
+    { "as": "Marta", "type": "examine everything", "expect": [
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a key." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a coin." }
+    ] }
+  ]
+}
