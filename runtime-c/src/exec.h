@@ -5,14 +5,16 @@
  * writes only `self`, and records what it says, sends and asks for rather
  * than rendering or delivering it: the words are recorded as passage
  * references with the names in scope, the sends wait in a queue the bus
- * drains breadth-first, and a reading an `act` proposes is recorded for the
- * reading pass. Every charge is against the host's budgets.
+ * drains breadth-first, and a reading an `act` proposes is run on the spot by
+ * the reading pass. Every charge is against the host's budgets.
  *
  * Each module is functions over an exec context, as the evaluator's are over
  * a frame: exec.c runs blocks, stmt/ holds one module per statement area,
  * bus.c the queue, move.c the one place the tree changes, range.c the walk
  * a broadcast and a move's notices make, wakes.c the wakes an object holds,
- * guards.c a consent guard, effects.c what a turn says and who hears it.
+ * guards.c a consent guard, effects.c what a turn says and who hears it,
+ * hearing.c who reads what a reading says, reading.c and reading/ the two
+ * passes of a reading, exits.c the ways out of a place.
  */
 #ifndef SPROUT_EXEC_H
 #define SPROUT_EXEC_H
