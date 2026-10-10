@@ -276,6 +276,8 @@ sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const 
     return expr_unchecked(frame, "a statement that does not write");
   EXPR_NEED(sprout_eval(frame, sprout_node_get(call, "receiver"), &receiver_evaluated));
   EXPR_NEED(expr_as_object(frame, &receiver_evaluated, &receiver));
+  /* The call is a step, and so is the property it names. */
+  EXPR_NEED(expr_spend(frame));
   EXPR_NEED(expr_spend(frame));
   name_node = expr_argument(call, 0);
   if (expr_kind_of(name_node) != EXPR_SYMBOL)
