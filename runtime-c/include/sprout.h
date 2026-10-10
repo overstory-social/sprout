@@ -550,11 +550,12 @@ typedef struct sprout_outcome {
 } sprout_outcome;
 
 /*
- * Runs one write turn of `input->kind` over the committed `state` at `input->instant`, drawing from the seed
- * `host` gives and charging the budgets `host` holds. SPROUT_OK is that the turn ran, or had nothing to run,
- * and the outcome says which; a fault is SPROUT_OK with `faulted` set and the state as it was. A call the host
- * should not have made, a visit not in the world, an instant before a wake is due or a tick's last, is
- * SPROUT_BAD_INPUT with the words in `outcome->fault.text`, and nothing is written.
+ * Runs one write turn of `input->kind` over the committed `state` at `input->instant`, drawing from the seed and
+ * charging the budgets `host` gives (the spec's Host contract > Storage and Time). SPROUT_OK is that the turn ran or
+ * had nothing to run; a fault is SPROUT_OK with `faulted` set and its draft dropped, so the state is as it was but
+ * for a faulted departure, which still takes the visitor out, and a faulted wake, which is consumed (`state_changed`
+ * says whether it is). A call the host should not have made, a visit not in the world, an instant before a wake is
+ * due or a tick's last, is SPROUT_BAD_INPUT with the words in `outcome->fault.text`, and nothing is written.
  */
 sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_host *host,
                               const sprout_turn_input *input, sprout_outcome *outcome);

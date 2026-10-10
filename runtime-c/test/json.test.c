@@ -87,6 +87,24 @@ static void strings_unescape_and_print_the_way_json_stringify_does(void) {
   sprout_arena_reset(&arena);
 }
 
+static void a_member_is_written_alone_as_its_value_and_a_root_as_itself(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  sprout_json *root;
+  const char *out;
+  size_t length;
+  sprout_arena_init(&arena, &host);
+  root = read_ok(&arena, "{\"a\":{\"b\":[1,{\"c\":2}]},\"d\":\"x\"}");
+  CHECK_INT(sprout_json_write_value(&arena, sprout_json_get(root, "a"), &out, &length), SPROUT_OK);
+  CHECK_BYTES(out, length, "{\"b\":[1,{\"c\":2}]}");
+  CHECK_INT(sprout_json_write_value(&arena, sprout_json_get(root, "d"), &out, &length), SPROUT_OK);
+  CHECK_BYTES(out, length, "\"x\"");
+  CHECK_INT(sprout_json_write_value(&arena, root, &out, &length), SPROUT_OK);
+  CHECK_BYTES(out, length, "{\"a\":{\"b\":[1,{\"c\":2}]},\"d\":\"x\"}");
+  sprout_arena_reset(&arena);
+}
+
 static void containers_keep_order_parents_and_empties(void) {
   test_heap heap;
   sprout_host host = test_host(&heap);
@@ -208,6 +226,7 @@ int main(void) {
   RUN(the_stored_world_canon_reads_and_writes_back_byte_for_byte);
   RUN(scalars_read_as_themselves);
   RUN(strings_unescape_and_print_the_way_json_stringify_does);
+  RUN(a_member_is_written_alone_as_its_value_and_a_root_as_itself);
   RUN(containers_keep_order_parents_and_empties);
   RUN(nesting_is_bounded_by_memory_not_by_the_stack);
   RUN(a_refusal_names_the_line_and_column_and_says_what_to_write);

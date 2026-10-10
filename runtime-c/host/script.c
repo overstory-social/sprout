@@ -54,9 +54,7 @@ static sprout_json *jnull(play *p) { return sprout_json_make(&p->arena, SPROUT_J
 static const char *written(play *p, const sprout_json *node) {
   const char *bytes;
   size_t length;
-  if (node == NULL || sprout_json_write(&p->arena, node, &bytes, &length) != SPROUT_OK) return NULL;
-  /* A member of an object is written with its name; the trace wants the value alone. */
-  if (node->key != NULL) bytes += node->key_length + 3;
+  if (node == NULL || sprout_json_write_value(&p->arena, node, &bytes, &length) != SPROUT_OK) return NULL;
   return bytes;
 }
 

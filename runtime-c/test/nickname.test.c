@@ -47,10 +47,7 @@ static void every_nickname_in_the_golden_is_admitted_or_refused_as_the_typescrip
   sprout_arena_init(&arena, &host);
   CHECK_INT(sprout_json_read(&arena, text, length, &root, &error), SPROUT_OK);
   CHECK_INT(sprout_load_explained(&host, cartridge, cartridge_length, &world, &refusal), SPROUT_OK);
-  CHECK_INT(sprout_json_write(&arena, sprout_json_get(root, "world"), &stored, &stored_length), SPROUT_OK);
-  /* A member is written with its name in front, which the stored world does not have. */
-  stored += strlen("world") + 3;
-  stored_length -= strlen("world") + 3;
+  CHECK_INT(sprout_json_write_value(&arena, sprout_json_get(root, "world"), &stored, &stored_length), SPROUT_OK);
   CHECK_INT(sprout_state_read(&host, stored, stored_length, &state, &refusal), SPROUT_OK);
   CHECK_INT(sprout_state_open(state, world, NULL, &refusal), SPROUT_OK);
   cases = sprout_json_get(root, "cases");

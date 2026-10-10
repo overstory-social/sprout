@@ -110,9 +110,12 @@ static bool spend(sprout_meter *meter, uint64_t *spent, uint64_t count, sprout_l
 }
 
 bool sprout_meter_steps(sprout_meter *meter, uint64_t count) {
-  char before[48] = "a ";
-  text words = {before + 2, before + sizeof before};
-  put(&words, kind_name(meter->kind));
+  const char *kind = kind_name(meter->kind);
+  bool vowel = strchr("aeiou", kind[0]) != NULL;
+  char before[48];
+  text words = {before, before + sizeof before};
+  put(&words, vowel ? "an " : "a ");
+  put(&words, kind);
   put(&words, " turn may take ");
   if (meter->kind == SPROUT_TURN_POLL)
     return spend(meter, &meter->steps, count, meter->budgets->poll_steps, "steps per poll", "pollSteps", before, " steps.");

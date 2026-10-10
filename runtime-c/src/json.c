@@ -504,3 +504,16 @@ void sprout_json_adopt(sprout_json *parent, const char *key, sprout_json *child)
   child->key_length = key == NULL ? 0 : strlen(key);
   parent->items[parent->count++] = child;
 }
+
+sprout_status sprout_json_write_value(sprout_arena *arena, const sprout_json *node, const char **bytes, size_t *length) {
+  sprout_status status = sprout_json_write(arena, node, bytes, length);
+  size_t at = 1;
+  if (status != SPROUT_OK || node->parent == NULL || node->parent->kind != SPROUT_JSON_OBJECT) return status;
+  /* The writer puts a member's name, quoted, and a colon in front of its value: skip exactly that. */
+  if (*length == 0 || (*bytes)[0] != '"') return SPROUT_BAD_INPUT;
+  while (at < *length && (*bytes)[at] != '"') at += (*bytes)[at] == '\\' ? 2 : 1;
+  if (at + 1 >= *length || (*bytes)[at + 1] != ':') return SPROUT_BAD_INPUT;
+  *bytes += at + 2;
+  *length -= at + 2;
+  return SPROUT_OK;
+}

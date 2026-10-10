@@ -136,7 +136,7 @@ export class Budget {
       throw new BudgetExhausted(
         this.kind === 'poll' ? 'pollSteps' : 'steps',
         this.allowedSteps,
-        `a ${this.kind} turn may take ${this.allowedSteps} steps.`,
+        `${/^[aeiou]/.test(this.kind) ? 'an' : 'a'} ${this.kind} turn may take ${this.allowedSteps} steps.`,
       );
     }
     if (this.deadline !== null && this.steps >= this.nextClockCheck) {
