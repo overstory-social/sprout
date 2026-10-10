@@ -17,6 +17,12 @@ describe('sanitizedLauncher', () => {
     expect(launcher.line.split('\n')).toHaveLength(1);
   });
 
+  it('treats an unknown machine name as no setarch rather than building an empty argument', () => {
+    const launcher = sanitizedLauncher({ platform: 'linux', machine: '', hasSetarch: true });
+    expect(launcher.prefix).toEqual([]);
+    expect(launcher.line).toContain('setarch -R npm run e2e');
+  });
+
   it('does nothing and says nothing off Linux, even when setarch exists', () => {
     const launcher = sanitizedLauncher({ platform: 'darwin', machine: 'arm64', hasSetarch: true });
     expect(launcher).toEqual({ prefix: [], line: '' });

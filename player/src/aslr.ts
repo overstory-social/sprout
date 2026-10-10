@@ -22,7 +22,7 @@ export interface Launcher {
 /** Chooses how to launch a sanitized command on `host`; only Linux has the problem. */
 export function sanitizedLauncher(host: Host): Launcher {
   if (host.platform !== 'linux') return { prefix: [], line: '' };
-  if (host.hasSetarch) {
+  if (host.hasSetarch && host.machine !== '') {
     return {
       prefix: ['setarch', host.machine, '-R'],
       line: `runtime-c (sanitized): running under \`setarch ${host.machine} -R\` (address-space randomisation off, which AddressSanitizer needs on kernels with high-entropy randomisation)`,
@@ -30,6 +30,6 @@ export function sanitizedLauncher(host: Host): Launcher {
   }
   return {
     prefix: [],
-    line: 'runtime-c (sanitized): `setarch` is not on the PATH, so the sanitized run keeps address-space randomisation on and can fail at random on kernels with high-entropy randomisation; run `setarch -R npm run e2e` there',
+    line: 'runtime-c (sanitized): `setarch` is not on the PATH or the machine name is unknown, so the sanitized run keeps address-space randomisation on and can fail at random on kernels with high-entropy randomisation; run `setarch -R npm run e2e` there',
   };
 }
