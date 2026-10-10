@@ -401,7 +401,12 @@ static void note_fault(const poll *p, sprout_eval_status status, sprout_seen_vie
   }
   view->fault.budget = p->fault.name;
   view->fault.message = p->meter.message;
-  strncpy(view->fault.text, p->fault.text, sizeof view->fault.text - 1);
+  {
+    size_t kept = strlen(p->fault.text);
+    if (kept > sizeof view->fault.text - 1) kept = sizeof view->fault.text - 1;
+    memcpy(view->fault.text, p->fault.text, kept);
+    view->fault.text[kept] = '\0';
+  }
   view->fault_name = p->fault.name;
   (void)status;
 }

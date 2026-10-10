@@ -65,7 +65,7 @@ static sprout_eval_status kind_named(const sprout_frame *frame, const sprout_nod
 static sprout_eval_status sees(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *receiver,
                                sprout_evaluated *out) {
   const sprout_kind_def *kind;
-  const char *name;
+  const char *name = NULL;
   sprout_str from;
   const sprout_str *seen;
   size_t count, i;
@@ -93,7 +93,7 @@ sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *ex
   const sprout_node *argument;
   const sprout_stored_instance *instance;
   const sprout_kind_def *kind;
-  const char *name;
+  const char *name = NULL;
   sprout_str object;
   sprout_value value;
   if (method == NULL) return expr_unchecked(frame, "a call with no method");

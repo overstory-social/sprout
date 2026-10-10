@@ -1,0 +1,50 @@
+local Engine = module("engine")
+local test, equal = harness.test, harness.equal
+
+-- The `sprout` table as the C side registers it: strings in, JSON strings out.
+local function api(replies)
+  local seen = {}
+  local function call(name)
+    return function(argument)
+      seen[#seen + 1] = { name = name, argument = argument }
+      return replies[name]
+    end
+  end
+  local table_ = { seen = seen }
+  for _, name in ipairs({ "inspect", "open", "load", "admit", "view", "turn", "tick", "save", "close" }) do
+    table_[name] = call(name)
+  end
+  return table_
+end
+
+test("each call is decoded from the JSON the C side returns", function()
+  local fake = api({
+    inspect = '{"ok":true,"name":"chip_tree","reason":null}',
+    open = '{"ok":true,"name":"chip_tree","hash":"abc","words":["guard"]}',
+    load = '{"ok":true,"fresh":true,"nickname":null,"present":[],"last":0,"recovered":false,"words":""}',
+    admit = '{"admitted":true,"words":"","visit":"visit:player","lines":[{"reader":"visit:player","kind":"described","text":"A hall."}]}',
+    view = '{"place":"hall","description":["A hall."],"exits":[],"occupants":[],"carried":[],"chips":[],"faulted":false}',
+    tick = '{"ran":false,"lines":[]}',
+    save = '{"ok":true,"words":""}',
+    close = '{"lines":[]}',
+  })
+  local engine = Engine.new(fake, json)
+  equal(engine:inspect("a.sproutworld").name, "chip_tree")
+  equal(engine:open("a.sproutworld").words[1], "guard")
+  equal(engine:load().fresh, true)
+  equal(engine:admit("Moss").lines[1].text, "A hall.")
+  equal(engine:view().place, "hall")
+  equal(engine:tick().ran, false)
+  equal(engine:save().ok, true)
+  equal(#engine:close().lines, 0)
+  equal(fake.seen[1].argument, "a.sproutworld")
+  equal(fake.seen[4].argument, "Moss")
+end)
+
+test("a reading crosses as one JSON string", function()
+  local fake = api({ turn = '{"committed":true,"result":"done","words":null,"lines":[]}' })
+  local engine = Engine.new(fake, json)
+  local result = engine:turn({ verb = "sprout.look", fillers = {} })
+  equal(result.committed, true)
+  equal(fake.seen[1].argument, '{"fillers":[],"verb":"sprout.look"}')
+end)

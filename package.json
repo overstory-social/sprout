@@ -27,6 +27,7 @@
     "conflicts": "node scripts/check-conflicts.mjs",
     "gate": "npm run conflicts && npm run lint && npm run format:check && npm run build && npm test && npm run typecheck:spec && npm run check && node scripts/check-runtime-c.mjs",
     "e2e": "bash scripts/e2e.sh",
+    "playdate": "node scripts/playdate-player.mjs",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "npm run build && changeset publish"

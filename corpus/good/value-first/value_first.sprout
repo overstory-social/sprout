@@ -1,0 +1,16 @@
+// A verb that declares a value role before the role a thing fills: `tune [notch] on [knob]`.
+// A reading binds its roles in the order the verb declares them, so a client that builds a
+// reading from the view's chips, which keep no place for a value role, puts that role back where
+// the verb declared it; the stored reading is the same whichever way the line is made.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Dial} from 'dial'
+
+world value_first is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object dial is Dial
+  }
+}

@@ -64,6 +64,13 @@ add_library(sprout STATIC ${SPROUT_SOURCES})
 target_include_directories(sprout PUBLIC include PRIVATE src)
 target_link_libraries(sprout PUBLIC m)
 
+# The desktop host, `sproutc` and every test are for building this folder on its own. Another
+# project that takes the library as a subdirectory (sprout-player/) turns this OFF and gets only `sprout`.
+option(SPROUT_RUNTIME_TESTS "Build sproutc and the runtime's tests" ON)
+if(NOT SPROUT_RUNTIME_TESTS)
+  return()
+endif()
+
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
 set(SPROUTC_MODULES cartridge evaluate host play readings script viewing)

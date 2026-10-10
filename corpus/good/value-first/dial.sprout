@@ -1,0 +1,8 @@
+verb tune { role notch: integer  role knob  "tune [notch] on [knob]" }
+
+kind Dial {
+  as knob for tune {
+    notch from 0 to 9
+    do { say "Tuned." }
+  }
+}
