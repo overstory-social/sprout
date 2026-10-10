@@ -1,1178 +1,1171 @@
 {
- "states": {
-  "fresh": "{\"world\":\"eval_bench\",\"serial\":2,\"instances\":[{\"id\":\"eval_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"eval_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"score\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.dim\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.probe\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.box\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.nook\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Pat\",\"instance\":\"eval_bench#1\",\"lastPlace\":\"eval_bench.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
-  "worn": "{\"world\":\"eval_bench\",\"serial\":2,\"instances\":[{\"id\":\"eval_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"eval_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"score\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.dim\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.probe\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":7},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"tenmoku\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{\"eval_bench#1\":{\"visits\":{\"type\":\"integer\",\"value\":5}}},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.box\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.nook\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Pat\",\"instance\":\"eval_bench#1\",\"lastPlace\":\"eval_bench.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}"
- },
- "cases": [
-  {
-   "name": "a boolean literal",
-   "text": "true",
-   "node": 291,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 1
-  },
-  {
-   "name": "an integer literal",
-   "text": "7",
-   "node": 503,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 7
-   },
-   "steps": 1
-  },
-  {
-   "name": "a string literal",
-   "text": "\"salt\"",
-   "node": 274,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": "salt"
-   },
-   "steps": 1
-  },
-  {
-   "name": "adds and subtracts",
-   "text": "self.get(:fill) + 4 - 2",
-   "node": 507,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 5
-   },
-   "steps": 7
-  },
-  {
-   "name": "negates a property",
-   "text": "-self.get(:fill)",
-   "node": 515,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": -3
-   },
-   "steps": 4
-  },
-  {
-   "name": "subtracts left to right",
-   "text": "1 - 2 - 3",
-   "node": 520,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": -4
-   },
-   "steps": 5
-  },
-  {
-   "name": "negating zero reads as zero",
-   "text": "-(1 - 1)",
-   "node": 526,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 0
-   },
-   "steps": 4
-  },
-  {
-   "name": "compares below",
-   "text": "2 < 3",
-   "node": 531,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 3
-  },
-  {
-   "name": "compares at most",
-   "text": "3 <= 3",
-   "node": 535,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 3
-  },
-  {
-   "name": "compares above",
-   "text": "3 > 3",
-   "node": 539,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 3
-  },
-  {
-   "name": "compares at least",
-   "text": "2 >= 3",
-   "node": 543,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 3
-  },
-  {
-   "name": "binds ! over < over && over ||",
-   "text": "1 + 2 < 4 && !false || 1 < 0",
-   "node": 547,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 9
-  },
-  {
-   "name": "compares an option with a property",
-   "text": "self.get(:glaze) == :shino",
-   "node": 560,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "compares an option on the left",
-   "text": ":shino != self.get(:glaze)",
-   "node": 566,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 5
-  },
-  {
-   "name": "compares an option property with another option",
-   "text": "self.get(:glaze) == :tenmoku",
-   "node": 572,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "worn",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "compares strings",
-   "text": "self.get(:label) == \"salt\"",
-   "node": 578,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "compares unequal strings",
-   "text": "self.get(:label) != \"sugar\"",
-   "node": 584,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "compares booleans",
-   "text": "self.get(:lid) == true",
-   "node": 590,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "compares two objects by identity",
-   "text": "eval_bench.hall.shelf.jar == eval_bench.hall.shelf.jar",
-   "node": 596,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 13
-  },
-  {
-   "name": "compares two different objects",
-   "text": "eval_bench.hall.shelf.jar != eval_bench.hall.shelf.cup",
-   "node": 598,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 13
-  },
-  {
-   "name": "|| leaves its right unevaluated",
-   "text": "true || self.get(:fill) > 5",
-   "node": 600,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 2
-  },
-  {
-   "name": "&& leaves its right unevaluated",
-   "text": "false && self.get(:fill) > 5",
-   "node": 608,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 2
-  },
-  {
-   "name": "the largest integer",
-   "text": "2147483647 - 1 + 1",
-   "node": 616,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 2147483647
-   },
-   "steps": 5
-  },
-  {
-   "name": "+ past the largest integer",
-   "text": "2147483647 + 1",
-   "node": 622,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "fault": "IntegerOverflow",
-    "detail": "2147483648 is outside the integer range, -2147483648 to 2147483647."
-   },
-   "steps": 3
-  },
-  {
-   "name": "- past the smallest integer",
-   "text": "-2147483647 - 2",
-   "node": 626,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "fault": "IntegerOverflow",
-    "detail": "-2147483649 is outside the integer range, -2147483648 to 2147483647."
-   },
-   "steps": 4
-  },
-  {
-   "name": "get reads the property",
-   "text": "self.get(:fill)",
-   "node": 631,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 3
-   },
-   "steps": 3
-  },
-  {
-   "name": "get reads the state as the turn stands",
-   "text": "self.get(:fill) + 1",
-   "node": 635,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "worn",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 8
-   },
-   "steps": 5
-  },
-  {
-   "name": "get reads an option property",
-   "text": "self.get(:glaze) != :none",
-   "node": 641,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "worn",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "get reads a list",
-   "text": "self.get(:wards)",
-   "node": 647,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": [
-     "shino",
-     "tenmoku"
-    ]
-   },
-   "steps": 3
-  },
-  {
-   "name": "get reads a string",
-   "text": "self.get(:label)",
-   "node": 651,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": "salt"
-   },
-   "steps": 3
-  },
-  {
-   "name": "a list counts its elements",
-   "text": "self.get(:wards).count",
-   "node": 655,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 2
-   },
-   "steps": 4
-  },
-  {
-   "name": "a list includes an element",
-   "text": "self.get(:wards).includes(:tenmoku)",
-   "node": 660,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 5
-  },
-  {
-   "name": "a list does not include another",
-   "text": "self.get(:wards).includes(:none)",
-   "node": 666,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 5
-  },
-  {
-   "name": "count is what a container holds in range",
-   "text": "eval_bench.hall.shelf.count",
-   "node": 672,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 2
-   },
-   "steps": 16
-  },
-  {
-   "name": "count(K) is those of a kind",
-   "text": "eval_bench.hall.shelf.count(Lidded)",
-   "node": 674,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 1
-   },
-   "steps": 17
-  },
-  {
-   "name": "count(K) takes those composing the kind",
-   "text": "eval_bench.hall.shelf.count(Jar)",
-   "node": 677,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 2
-   },
-   "steps": 17
-  },
-  {
-   "name": "count of a place counts what is in range",
-   "text": "eval_bench.hall.count",
-   "node": 680,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 4
-   },
-   "steps": 20
-  },
-  {
-   "name": "is asks whether an instance composes a kind",
-   "text": "eval_bench.hall.shelf.cup.is(Jar)",
-   "node": 682,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 8
-  },
-  {
-   "name": "is asks a kind it does not compose",
-   "text": "eval_bench.hall.shelf.jar.is(Lidded)",
-   "node": 685,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 8
-  },
-  {
-   "name": "holds asks whether a container holds a thing",
-   "text": "eval_bench.hall.shelf.holds(eval_bench.hall.shelf.jar)",
-   "node": 688,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 17
-  },
-  {
-   "name": "holds asks of a thing held elsewhere",
-   "text": "eval_bench.hall.holds(eval_bench.hall.shelf.jar)",
-   "node": 690,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 11
-  },
-  {
-   "name": "self names the object",
-   "text": "self == self",
-   "node": 692,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 3
-  },
-  {
-   "name": "a name reached from the world",
-   "text": "eval_bench.hall == eval_bench.hall",
-   "node": 696,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 9
-  },
-  {
-   "name": "the world by its name",
-   "text": "eval_bench == eval_bench",
-   "node": 698,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 9
-  },
-  {
-   "name": "recall reads the default",
-   "text": "actor.recall(:visits)",
-   "node": 468,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 2
-   },
-   "steps": 3
-  },
-  {
-   "name": "recall reads what was written",
-   "text": "actor.recall(:visits) + 1",
-   "node": 472,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "worn",
-   "bind": {
-    "actor": "eval_bench#1"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": 6
-   },
-   "steps": 5
-  },
-  {
-   "name": "recall reads a boolean default",
-   "text": "actor.recall(:seen)",
-   "node": 478,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 3
-  },
-  {
-   "name": "is reads a visitor",
-   "text": "actor.is(Person)",
-   "node": 482,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 3
-  },
-  {
-   "name": "a bound name is the object",
-   "text": "actor == actor",
-   "node": 486,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 3
-  },
-  {
-   "name": "bound asks of a name given",
-   "text": "bound tool",
-   "node": 490,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1",
-    "tool": "eval_bench.hall.shelf.jar"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 1
-  },
-  {
-   "name": "bound asks of a name not given",
-   "text": "bound tool",
-   "node": 490,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 1
-  },
-  {
-   "name": "bound lets the body read the tool",
-   "text": "bound tool && tool.get(:fill) > 1",
-   "node": 492,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {
-    "actor": "eval_bench#1",
-    "tool": "eval_bench.hall.shelf.jar"
-   },
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 7
-  },
-  {
-   "name": "a name placed nearest",
-   "text": "shelf.is(Shelf) && shelf.count > 1",
-   "node": 702,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 26
-  },
-  {
-   "name": "&& narrows the name on its right",
-   "text": "shelf.is(Shelf) && shelf.count(Jar) == 2",
-   "node": 711,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 27
-  },
-  {
-   "name": "&& narrows a dotted path",
-   "text": "shelf.cup.is(Lidded) && shelf.cup.get(:lid)",
-   "node": 721,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 17
-  },
-  {
-   "name": "a name behind a closed container",
-   "text": "vault.coin.is(Jar)",
-   "node": 727,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "fault": "NameOutOfRange",
-    "detail": "`eval_bench.hall.vault.coin` is out of range of `eval_bench.hall.probe`, so it could not be read through `vault.coin`."
-   },
-   "steps": 9
-  },
-  {
-   "name": "a name reached through a container that passes",
-   "text": "vault.coin.is(Jar)",
-   "node": 727,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "worn",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 11
-  },
-  {
-   "name": "sees finds no lit light",
-   "text": "self.sees(sprout.LightSource, :lit)",
-   "node": 831,
-   "self": "eval_bench.dim",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 7
-  },
-  {
-   "name": "sees finds a lit light",
-   "text": "self.sees(sprout.LightSource, :lit)",
-   "node": 831,
-   "self": "eval_bench.dim",
-   "library": "eval_bench",
-   "state": "worn",
-   "bind": {},
-   "seed": null,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 7
-  },
-  {
-   "name": "chance draws true from the seed",
-   "text": "chance(3)",
-   "node": 730,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": 5,
-   "budget": null,
-   "expect": {
-    "value": true
-   },
-   "steps": 1
-  },
-  {
-   "name": "chance draws false from another seed",
-   "text": "chance(3)",
-   "node": 730,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": 1,
-   "budget": null,
-   "expect": {
-    "value": false
-   },
-   "steps": 1
-  },
-  {
-   "name": "random draws from the seed",
-   "text": "random(6)",
-   "node": 733,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": 2,
-   "budget": null,
-   "expect": {
-    "value": 5
-   },
-   "steps": 1
-  },
-  {
-   "name": "random draws below one",
-   "text": "random(1)",
-   "node": 736,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": 7,
-   "budget": null,
-   "expect": {
-    "value": 0
-   },
-   "steps": 1
-  },
-  {
-   "name": "two draws in order",
-   "text": "random(9) + random(9)",
-   "node": 739,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": 99,
-   "budget": null,
-   "expect": {
-    "value": 4
-   },
-   "steps": 3
-  },
-  {
-   "name": "a deep expression within the step budget",
-   "text": "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
-   "node": 745,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": 200,
-   "expect": {
-    "value": 40
-   },
-   "steps": 79
-  },
-  {
-   "name": "a deep expression past the step budget",
-   "text": "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
-   "node": 745,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": 25,
-   "expect": {
-    "fault": "BudgetExhausted",
-    "budget": "steps",
-    "limit": 25
-   },
-   "steps": 26
-  },
-  {
-   "name": "a name behind a rule is charged to the turn",
-   "text": "vault.coin.is(Jar)",
-   "node": 727,
-   "self": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "bind": {},
-   "seed": null,
-   "budget": 6,
-   "expect": {
-    "fault": "BudgetExhausted",
-    "budget": "steps",
-    "limit": 6
-   },
-   "steps": 7
-  }
- ],
- "spawns": [
-  {
-   "name": "a spawn makes one instance",
-   "kind": "eval_bench.Jar",
-   "container": "eval_bench.hall",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "spawns": null,
-   "expect": {
-    "id": "eval_bench#3",
-    "contents": [],
-    "placed": [
-     {
-      "id": "eval_bench#3",
+  "states": {
+    "fresh": "{\"world\":\"eval_bench\",\"serial\":2,\"instances\":[{\"id\":\"eval_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"eval_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"score\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.dim\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.probe\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.box\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.nook\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Pat\",\"instance\":\"eval_bench#1\",\"lastPlace\":\"eval_bench.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
+    "worn": "{\"world\":\"eval_bench\",\"serial\":2,\"instances\":[{\"id\":\"eval_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"eval_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"score\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.dim.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.dim\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.probe\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":7},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"tenmoku\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{\"eval_bench#1\":{\"visits\":{\"type\":\"integer\",\"value\":5}}},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"lid\":{\"type\":\"boolean\",\"value\":true},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.box\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.hall.vault.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench.hall.vault\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3},\"glaze\":{\"type\":\"eval_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"wards\":{\"type\":\"[eval_bench.Glaze]\",\"value\":[\"shino\",\"tenmoku\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"eval_bench.nook\",\"made\":{\"from\":\"declared\"},\"container\":\"eval_bench\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Pat\",\"instance\":\"eval_bench#1\",\"lastPlace\":\"eval_bench.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}"
+  },
+  "cases": [
+    {
+      "name": "a boolean literal",
+      "text": "true",
+      "node": 291,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 1
+    },
+    {
+      "name": "an integer literal",
+      "text": "7",
+      "node": 503,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 7
+      },
+      "steps": 1
+    },
+    {
+      "name": "a string literal",
+      "text": "\"salt\"",
+      "node": 274,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": "salt"
+      },
+      "steps": 1
+    },
+    {
+      "name": "adds and subtracts",
+      "text": "self.get(:fill) + 4 - 2",
+      "node": 507,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 5
+      },
+      "steps": 7
+    },
+    {
+      "name": "negates a property",
+      "text": "-self.get(:fill)",
+      "node": 515,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": -3
+      },
+      "steps": 4
+    },
+    {
+      "name": "subtracts left to right",
+      "text": "1 - 2 - 3",
+      "node": 520,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": -4
+      },
+      "steps": 5
+    },
+    {
+      "name": "negating zero reads as zero",
+      "text": "-(1 - 1)",
+      "node": 526,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 0
+      },
+      "steps": 4
+    },
+    {
+      "name": "compares below",
+      "text": "2 < 3",
+      "node": 531,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 3
+    },
+    {
+      "name": "compares at most",
+      "text": "3 <= 3",
+      "node": 535,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 3
+    },
+    {
+      "name": "compares above",
+      "text": "3 > 3",
+      "node": 539,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 3
+    },
+    {
+      "name": "compares at least",
+      "text": "2 >= 3",
+      "node": 543,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 3
+    },
+    {
+      "name": "binds ! over < over && over ||",
+      "text": "1 + 2 < 4 && !false || 1 < 0",
+      "node": 547,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 9
+    },
+    {
+      "name": "compares an option with a property",
+      "text": "self.get(:glaze) == :shino",
+      "node": 560,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "compares an option on the left",
+      "text": ":shino != self.get(:glaze)",
+      "node": 566,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 5
+    },
+    {
+      "name": "compares an option property with another option",
+      "text": "self.get(:glaze) == :tenmoku",
+      "node": 572,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "worn",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "compares strings",
+      "text": "self.get(:label) == \"salt\"",
+      "node": 578,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "compares unequal strings",
+      "text": "self.get(:label) != \"sugar\"",
+      "node": 584,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "compares booleans",
+      "text": "self.get(:lid) == true",
+      "node": 590,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "compares two objects by identity",
+      "text": "eval_bench.hall.shelf.jar == eval_bench.hall.shelf.jar",
+      "node": 596,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 13
+    },
+    {
+      "name": "compares two different objects",
+      "text": "eval_bench.hall.shelf.jar != eval_bench.hall.shelf.cup",
+      "node": 598,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 13
+    },
+    {
+      "name": "|| leaves its right unevaluated",
+      "text": "true || self.get(:fill) > 5",
+      "node": 600,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 2
+    },
+    {
+      "name": "&& leaves its right unevaluated",
+      "text": "false && self.get(:fill) > 5",
+      "node": 608,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 2
+    },
+    {
+      "name": "the largest integer",
+      "text": "2147483647 - 1 + 1",
+      "node": 616,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 2147483647
+      },
+      "steps": 5
+    },
+    {
+      "name": "+ past the largest integer",
+      "text": "2147483647 + 1",
+      "node": 622,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "IntegerOverflow",
+        "detail": "2147483648 is outside the integer range, -2147483648 to 2147483647."
+      },
+      "steps": 3
+    },
+    {
+      "name": "- past the smallest integer",
+      "text": "-2147483647 - 2",
+      "node": 626,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "IntegerOverflow",
+        "detail": "-2147483649 is outside the integer range, -2147483648 to 2147483647."
+      },
+      "steps": 4
+    },
+    {
+      "name": "get reads the property",
+      "text": "self.get(:fill)",
+      "node": 631,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 3
+      },
+      "steps": 3
+    },
+    {
+      "name": "get reads the state as the turn stands",
+      "text": "self.get(:fill) + 1",
+      "node": 635,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "worn",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 8
+      },
+      "steps": 5
+    },
+    {
+      "name": "get reads an option property",
+      "text": "self.get(:glaze) != :none",
+      "node": 641,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "worn",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "get reads a list",
+      "text": "self.get(:wards)",
+      "node": 647,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": ["shino", "tenmoku"]
+      },
+      "steps": 3
+    },
+    {
+      "name": "get reads a string",
+      "text": "self.get(:label)",
+      "node": 651,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": "salt"
+      },
+      "steps": 3
+    },
+    {
+      "name": "a list counts its elements",
+      "text": "self.get(:wards).count",
+      "node": 655,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 2
+      },
+      "steps": 4
+    },
+    {
+      "name": "a list includes an element",
+      "text": "self.get(:wards).includes(:tenmoku)",
+      "node": 660,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 5
+    },
+    {
+      "name": "a list does not include another",
+      "text": "self.get(:wards).includes(:none)",
+      "node": 666,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 5
+    },
+    {
+      "name": "count is what a container holds in range",
+      "text": "eval_bench.hall.shelf.count",
+      "node": 672,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 2
+      },
+      "steps": 16
+    },
+    {
+      "name": "count(K) is those of a kind",
+      "text": "eval_bench.hall.shelf.count(Lidded)",
+      "node": 674,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 1
+      },
+      "steps": 17
+    },
+    {
+      "name": "count(K) takes those composing the kind",
+      "text": "eval_bench.hall.shelf.count(Jar)",
+      "node": 677,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 2
+      },
+      "steps": 17
+    },
+    {
+      "name": "count of a place counts what is in range",
+      "text": "eval_bench.hall.count",
+      "node": 680,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 4
+      },
+      "steps": 20
+    },
+    {
+      "name": "is asks whether an instance composes a kind",
+      "text": "eval_bench.hall.shelf.cup.is(Jar)",
+      "node": 682,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 8
+    },
+    {
+      "name": "is asks a kind it does not compose",
+      "text": "eval_bench.hall.shelf.jar.is(Lidded)",
+      "node": 685,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 8
+    },
+    {
+      "name": "holds asks whether a container holds a thing",
+      "text": "eval_bench.hall.shelf.holds(eval_bench.hall.shelf.jar)",
+      "node": 688,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 17
+    },
+    {
+      "name": "holds asks of a thing held elsewhere",
+      "text": "eval_bench.hall.holds(eval_bench.hall.shelf.jar)",
+      "node": 690,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 11
+    },
+    {
+      "name": "self names the object",
+      "text": "self == self",
+      "node": 692,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 3
+    },
+    {
+      "name": "a name reached from the world",
+      "text": "eval_bench.hall == eval_bench.hall",
+      "node": 696,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 9
+    },
+    {
+      "name": "the world by its name",
+      "text": "eval_bench == eval_bench",
+      "node": 698,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 9
+    },
+    {
+      "name": "recall reads the default",
+      "text": "actor.recall(:visits)",
+      "node": 468,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 2
+      },
+      "steps": 3
+    },
+    {
+      "name": "recall reads what was written",
+      "text": "actor.recall(:visits) + 1",
+      "node": 472,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "worn",
+      "bind": {
+        "actor": "eval_bench#1"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 6
+      },
+      "steps": 5
+    },
+    {
+      "name": "recall reads a boolean default",
+      "text": "actor.recall(:seen)",
+      "node": 478,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 3
+    },
+    {
+      "name": "is reads a visitor",
+      "text": "actor.is(Person)",
+      "node": 482,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 3
+    },
+    {
+      "name": "a bound name is the object",
+      "text": "actor == actor",
+      "node": 486,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 3
+    },
+    {
+      "name": "bound asks of a name given",
+      "text": "bound tool",
+      "node": 490,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1",
+        "tool": "eval_bench.hall.shelf.jar"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 1
+    },
+    {
+      "name": "bound asks of a name not given",
+      "text": "bound tool",
+      "node": 490,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 1
+    },
+    {
+      "name": "bound lets the body read the tool",
+      "text": "bound tool && tool.get(:fill) > 1",
+      "node": 492,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {
+        "actor": "eval_bench#1",
+        "tool": "eval_bench.hall.shelf.jar"
+      },
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 7
+    },
+    {
+      "name": "a name placed nearest",
+      "text": "shelf.is(Shelf) && shelf.count > 1",
+      "node": 702,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 26
+    },
+    {
+      "name": "&& narrows the name on its right",
+      "text": "shelf.is(Shelf) && shelf.count(Jar) == 2",
+      "node": 711,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 27
+    },
+    {
+      "name": "&& narrows a dotted path",
+      "text": "shelf.cup.is(Lidded) && shelf.cup.get(:lid)",
+      "node": 721,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 17
+    },
+    {
+      "name": "a name behind a closed container",
+      "text": "vault.coin.is(Jar)",
+      "node": 727,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "NameOutOfRange",
+        "detail": "`eval_bench.hall.vault.coin` is out of range of `eval_bench.hall.probe`, so it could not be read through `vault.coin`."
+      },
+      "steps": 9
+    },
+    {
+      "name": "a name reached through a container that passes",
+      "text": "vault.coin.is(Jar)",
+      "node": 727,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "worn",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 11
+    },
+    {
+      "name": "sees finds no lit light",
+      "text": "self.sees(sprout.LightSource, :lit)",
+      "node": 831,
+      "self": "eval_bench.dim",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 7
+    },
+    {
+      "name": "sees finds a lit light",
+      "text": "self.sees(sprout.LightSource, :lit)",
+      "node": 831,
+      "self": "eval_bench.dim",
+      "library": "eval_bench",
+      "state": "worn",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 7
+    },
+    {
+      "name": "chance draws true from the seed",
+      "text": "chance(3)",
+      "node": 730,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": 5,
+      "budget": null,
+      "expect": {
+        "value": true
+      },
+      "steps": 1
+    },
+    {
+      "name": "chance draws false from another seed",
+      "text": "chance(3)",
+      "node": 730,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": 1,
+      "budget": null,
+      "expect": {
+        "value": false
+      },
+      "steps": 1
+    },
+    {
+      "name": "random draws from the seed",
+      "text": "random(6)",
+      "node": 733,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": 2,
+      "budget": null,
+      "expect": {
+        "value": 5
+      },
+      "steps": 1
+    },
+    {
+      "name": "random draws below one",
+      "text": "random(1)",
+      "node": 736,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": 7,
+      "budget": null,
+      "expect": {
+        "value": 0
+      },
+      "steps": 1
+    },
+    {
+      "name": "two draws in order",
+      "text": "random(9) + random(9)",
+      "node": 739,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": 99,
+      "budget": null,
+      "expect": {
+        "value": 4
+      },
+      "steps": 3
+    },
+    {
+      "name": "a deep expression within the step budget",
+      "text": "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
+      "node": 745,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": 200,
+      "expect": {
+        "value": 40
+      },
+      "steps": 79
+    },
+    {
+      "name": "a deep expression past the step budget",
+      "text": "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
+      "node": 745,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": 25,
+      "expect": {
+        "fault": "BudgetExhausted",
+        "budget": "steps",
+        "limit": 25
+      },
+      "steps": 26
+    },
+    {
+      "name": "a name behind a rule is charged to the turn",
+      "text": "vault.coin.is(Jar)",
+      "node": 727,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": 6,
+      "expect": {
+        "fault": "BudgetExhausted",
+        "budget": "steps",
+        "limit": 6
+      },
+      "steps": 7
+    }
+  ],
+  "spawns": [
+    {
+      "name": "a spawn makes one instance",
       "kind": "eval_bench.Jar",
-      "container": "eval_bench.hall"
-     }
-    ]
-   },
-   "spawned": 1
-  },
-  {
-   "name": "a spawn is given what its kind holds",
-   "kind": "eval_bench.Crate",
-   "container": "eval_bench.hall",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "spawns": null,
-   "expect": {
-    "id": "eval_bench#3",
-    "contents": [
-     "eval_bench#5",
-     "eval_bench#7",
-     "eval_bench#9"
-    ],
-    "placed": [
-     {
-      "id": "eval_bench#3",
+      "container": "eval_bench.hall",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "spawns": null,
+      "expect": {
+        "id": "eval_bench#3",
+        "contents": [],
+        "placed": [
+          {
+            "id": "eval_bench#3",
+            "kind": "eval_bench.Jar",
+            "container": "eval_bench.hall"
+          }
+        ]
+      },
+      "spawned": 1
+    },
+    {
+      "name": "a spawn is given what its kind holds",
       "kind": "eval_bench.Crate",
-      "container": "eval_bench.hall"
-     },
-     {
-      "id": "eval_bench#5",
-      "kind": "eval_bench.lid",
-      "container": "eval_bench#3"
-     },
-     {
-      "id": "eval_bench#7",
-      "kind": "eval_bench.tray",
-      "container": "eval_bench#3"
-     },
-     {
-      "id": "eval_bench#9",
-      "kind": "eval_bench.seed",
-      "container": "eval_bench#7"
-     }
-    ]
-   },
-   "spawned": 4
-  },
-  {
-   "name": "a spawn into a container that holds nothing",
-   "kind": "eval_bench.Jar",
-   "container": "eval_bench.hall.shelf.jar",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "spawns": null,
-   "expect": {
-    "fault": "LifecycleFault",
-    "detail": "`eval_bench.hall.shelf.jar` holds nothing, so `Jar` could not be spawned in it."
-   }
-  },
-  {
-   "name": "a spawn out of range",
-   "kind": "eval_bench.Jar",
-   "container": "eval_bench.hall.vault.box",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "spawns": null,
-   "expect": {
-    "fault": "LifecycleFault",
-    "detail": "`eval_bench.hall.vault.box` is out of range of `eval_bench.hall.probe`, so nothing could be spawned in it."
-   }
-  },
-  {
-   "name": "a spawn within range of an open container",
-   "kind": "eval_bench.Jar",
-   "container": "eval_bench.hall.vault.box",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "worn",
-   "spawns": null,
-   "expect": {
-    "id": "eval_bench#3",
-    "contents": [],
-    "placed": [
-     {
-      "id": "eval_bench#3",
+      "container": "eval_bench.hall",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "spawns": null,
+      "expect": {
+        "id": "eval_bench#3",
+        "contents": ["eval_bench#5", "eval_bench#7", "eval_bench#9"],
+        "placed": [
+          {
+            "id": "eval_bench#3",
+            "kind": "eval_bench.Crate",
+            "container": "eval_bench.hall"
+          },
+          {
+            "id": "eval_bench#5",
+            "kind": "eval_bench.lid",
+            "container": "eval_bench#3"
+          },
+          {
+            "id": "eval_bench#7",
+            "kind": "eval_bench.tray",
+            "container": "eval_bench#3"
+          },
+          {
+            "id": "eval_bench#9",
+            "kind": "eval_bench.seed",
+            "container": "eval_bench#7"
+          }
+        ]
+      },
+      "spawned": 4
+    },
+    {
+      "name": "a spawn into a container that holds nothing",
       "kind": "eval_bench.Jar",
-      "container": "eval_bench.hall.vault.box"
-     }
-    ]
-   },
-   "spawned": 1
-  },
-  {
-   "name": "a spawn charges the instance and each content",
-   "kind": "eval_bench.Crate",
-   "container": "eval_bench.hall",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "spawns": 3,
-   "expect": {
-    "fault": "BudgetExhausted",
-    "budget": "spawnsPerTurn",
-    "limit": 3
-   }
-  },
-  {
-   "name": "a spawn of a kind that is not declared",
-   "kind": "eval_bench.Missing",
-   "container": "eval_bench.hall",
-   "spawner": "eval_bench.hall.probe",
-   "library": "eval_bench",
-   "state": "fresh",
-   "spawns": null,
-   "expect": {
-    "fault": "LifecycleFault",
-    "detail": "`Missing` is absent, so it could not be spawned."
-   }
-  }
- ]
+      "container": "eval_bench.hall.shelf.jar",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "spawns": null,
+      "expect": {
+        "fault": "LifecycleFault",
+        "detail": "`eval_bench.hall.shelf.jar` holds nothing, so `Jar` could not be spawned in it."
+      }
+    },
+    {
+      "name": "a spawn out of range",
+      "kind": "eval_bench.Jar",
+      "container": "eval_bench.hall.vault.box",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "spawns": null,
+      "expect": {
+        "fault": "LifecycleFault",
+        "detail": "`eval_bench.hall.vault.box` is out of range of `eval_bench.hall.probe`, so nothing could be spawned in it."
+      }
+    },
+    {
+      "name": "a spawn within range of an open container",
+      "kind": "eval_bench.Jar",
+      "container": "eval_bench.hall.vault.box",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "worn",
+      "spawns": null,
+      "expect": {
+        "id": "eval_bench#3",
+        "contents": [],
+        "placed": [
+          {
+            "id": "eval_bench#3",
+            "kind": "eval_bench.Jar",
+            "container": "eval_bench.hall.vault.box"
+          }
+        ]
+      },
+      "spawned": 1
+    },
+    {
+      "name": "a spawn charges the instance and each content",
+      "kind": "eval_bench.Crate",
+      "container": "eval_bench.hall",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "spawns": 3,
+      "expect": {
+        "fault": "BudgetExhausted",
+        "budget": "spawnsPerTurn",
+        "limit": 3
+      }
+    },
+    {
+      "name": "a spawn of a kind that is not declared",
+      "kind": "eval_bench.Missing",
+      "container": "eval_bench.hall",
+      "spawner": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "spawns": null,
+      "expect": {
+        "fault": "LifecycleFault",
+        "detail": "`Missing` is absent, so it could not be spawned."
+      }
+    }
+  ]
 }

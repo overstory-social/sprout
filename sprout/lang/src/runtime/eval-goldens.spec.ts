@@ -20,15 +20,9 @@ import { Budget, BudgetExhausted } from './budget.js';
 import { loadCartridge } from './cartridge.js';
 import { Draft } from './draft.js';
 import { Draws } from './draws.js';
-import {
-  boundObject,
-  evaluate,
-  IntegerOverflow,
-  type Evaluated,
-  type Frame,
-} from './evaluate.js';
+import { boundObject, evaluate, IntegerOverflow, type Evaluated, type Frame } from './evaluate.js';
 import { kindName } from '../declare/kinds.js';
-import { declaredId, type InstanceId } from './ids.js';
+import { declaredId, visitKey, type InstanceId } from './ids.js';
 import { LifecycleFault, spawnInstance } from './lifecycle.js';
 import { SproutList } from './lists.js';
 import { initialState, loadWorld, saveWorld } from './load.js';
@@ -336,7 +330,7 @@ function nodeOf(text: string): { index: number; expr: Expr } {
 }
 
 const id = (...path: string[]): InstanceId => declaredId(LIBRARY, path);
-const VISIT = 'visit-1';
+const VISIT = visitKey('visit-1');
 
 /** A draft over a new world with a visitor in the hall, the visitor's id with it. */
 function turn(): { draft: Draft; visitor: InstanceId } {
@@ -576,7 +570,8 @@ describe('the evaluator goldens', () => {
       writeFileSync(GOLDEN, text);
       writeFileSync(CARTRIDGE, bytes);
     }
-    expect(text).toBe(readFileSync(GOLDEN, 'utf8'));
+    // The file is formatted by prettier after it is written, so it is compared as data.
+    expect(JSON.parse(text)).toEqual(JSON.parse(readFileSync(GOLDEN, 'utf8')));
     expect(Buffer.from(bytes).equals(readFileSync(CARTRIDGE))).toBe(true);
   }, 60_000);
 });
