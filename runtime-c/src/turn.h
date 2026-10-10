@@ -62,6 +62,13 @@ sprout_status turn_outcome_begin(const sprout_host *host, sprout_outcome *outcom
 void turn_fault_of(const turn_run *run, sprout_eval_status status, sprout_outcome *outcome);
 
 /*
+ * What a render came to, as the host reads it, copied into `keep`: one line to a paragraph by visit, one
+ * effect to a reader's reading of a line, and whom the render cut short.
+ */
+sprout_eval_status turn_handed(sprout_arena *keep, const sprout_draft *draft, const sprout_rendered *rendered,
+                               sprout_outcome *outcome);
+
+/*
  * Renders what the exec recorded for `actor` (NULL where nobody acted) against the draft and copies the
  * lines, the effects and the cuts into the outcome. A budget spent while rendering is the attempt's fault.
  */

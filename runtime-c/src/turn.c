@@ -153,15 +153,13 @@ static sprout_line_kind line_kind_of(sprout_effect_kind kind) {
   return SPROUT_LINE_DESCRIBED;
 }
 
-sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_outcome *outcome) {
-  sprout_rendered rendered;
-  sprout_arena *keep = turn_keep(outcome);
+sprout_eval_status turn_handed(sprout_arena *keep, const sprout_draft *draft, const sprout_rendered *shown,
+                             sprout_outcome *outcome) {
+  const sprout_rendered rendered = *shown;
   sprout_line *lines;
   sprout_told_effect *effects;
   sprout_cut *cuts;
   size_t total = 0, at = 0, i, j;
-  sprout_eval_status status = sprout_render_effects(&run->x, actor, &rendered);
-  if (status != SPROUT_EVAL_OK) return status;
   for (i = 0; i < rendered.told_count; i++) total += rendered.told[i].paragraph_count;
   lines = (sprout_line *)sprout_arena_take(keep, (total + 1) * sizeof *lines);
   effects = (sprout_told_effect *)sprout_arena_take(keep, (rendered.told_count + 1) * sizeof *effects);
@@ -205,7 +203,7 @@ sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_ou
     }
   }
   for (i = 0; i < rendered.cut_count; i++) {
-    const sprout_stored_visitor *visitor = sprout_visitor_of(&run->draft, rendered.cut[i]);
+    const sprout_stored_visitor *visitor = sprout_visitor_of(draft, rendered.cut[i]);
     sprout_str visit;
     if (visitor == NULL || !keep_str(keep, visitor->visit, &visit)) return SPROUT_EVAL_NO_MEMORY;
     cuts[i].recipient = visit.bytes;
@@ -218,6 +216,13 @@ sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_ou
   outcome->cut_count = rendered.cut_count;
   outcome->cuts = cuts;
   return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_outcome *outcome) {
+  sprout_rendered rendered;
+  sprout_eval_status status = sprout_render_effects(&run->x, actor, &rendered);
+  if (status != SPROUT_EVAL_OK) return status;
+  return turn_handed(turn_keep(outcome), &run->draft, &rendered, outcome);
 }
 
 sprout_status turn_commit(turn_run *run) {

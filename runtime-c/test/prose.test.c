@@ -5,6 +5,7 @@
  * the same readers cut short or the same fault, and the same steps.
  */
 #include "prose_fixture.h"
+#include "turn.h"
 
 static void every_golden_case_renders_as_the_typescript_prose_layer_did(void) {
   prose_bench b;
@@ -43,7 +44,7 @@ static void the_host_is_given_a_line_to_a_paragraph_by_visit_and_whom_it_cut(voi
   actor = prose_str(sprout_json_get(c.golden, "actor"));
   CHECK_INT(sprout_render_effects(&c.x, &actor, &rendered), SPROUT_EVAL_OK);
   memset(&outcome, 0, sizeof outcome);
-  CHECK_INT(sprout_rendered_outcome(&c.turn, &c.draft, &rendered, &outcome), SPROUT_OK);
+  CHECK_INT(turn_handed(&c.turn, &c.draft, &rendered, &outcome), SPROUT_EVAL_OK);
   CHECK_INT(outcome.line_count, 3);
   CHECK_BYTES(outcome.lines[0].recipient, outcome.lines[0].recipient_length, "visit-1");
   CHECK_BYTES(outcome.lines[0].text, outcome.lines[0].text_length, "You hear an echo.");
@@ -65,7 +66,7 @@ static void nobody_reading_a_line_leaves_the_turn_with_nothing_to_hand_the_host(
   CHECK_INT(sprout_render_effects(&c.x, NULL, &rendered), SPROUT_EVAL_OK);
   CHECK_INT(rendered.told_count, 0);
   memset(&outcome, 0, sizeof outcome);
-  CHECK_INT(sprout_rendered_outcome(&c.turn, &c.draft, &rendered, &outcome), SPROUT_OK);
+  CHECK_INT(turn_handed(&c.turn, &c.draft, &rendered, &outcome), SPROUT_EVAL_OK);
   CHECK_INT(outcome.line_count, 0);
   CHECK_INT(outcome.cut_count, 0);
   prose_case_close(&c);

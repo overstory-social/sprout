@@ -98,6 +98,11 @@ sprout_status turn_maintenance(sprout_world *world, sprout_state *state, const s
     bool lost = false;
     /* An earlier wake may have destroyed this one's object, or moved it out of the tree. */
     if (!schedule_pending(state, due[i].object, due[i].serial, &wake)) continue;
+    /* Kept in the scratch, since the state's own memory is rebuilt by the commit of this part. */
+    if (!sprout_state_copy_str(&scratch, wake.object, &wake.object)) {
+      sprout_arena_reset(&scratch);
+      return turn_abort(outcome, SPROUT_NO_MEMORY);
+    }
     elapsed = input->instant - wake.asked_at;
     if (elapsed > INTEGER_LIMIT) {
       sprout_arena_reset(&scratch);

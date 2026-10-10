@@ -161,6 +161,11 @@ sprout_status sprout_places_occupied(const sprout_world *world, const sprout_sta
     place = instance->container;
     for (at = 0; at < n && !sprout_str_same(ids[at], place); at++) {}
     if (at < n) continue;
+    /* Copied, so the list outlives a commit that rebuilds the state's memory. */
+    if (!sprout_state_copy_str(&keep->arena, place, &place)) {
+      held_end(keep);
+      return SPROUT_NO_MEMORY;
+    }
     /* Kept in code-unit order. */
     at = n++;
     while (at > 0 && sprout_str_compare(place, ids[at - 1]) < 0) {
