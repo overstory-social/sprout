@@ -97,6 +97,71 @@ static void a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived
   CHECK_INT(b.heap.pages, 0);
 }
 
+static int seeds_asked, clocks_read;
+static uint64_t counting_seed(void *ctx) {
+  (void)ctx;
+  seeds_asked++;
+  return 1;
+}
+static uint64_t counting_now(void *ctx) {
+  (void)ctx;
+  clocks_read++;
+  return 0;
+}
+
+static void a_poll_draws_nothing_and_reads_no_clock(void) {
+  view_bench b;
+  view_case c;
+  sprout_seen_view view;
+  size_t i;
+  const sprout_json *cases;
+  view_bench_open(&b);
+  cases = sprout_json_get(b.golden, "cases");
+  seeds_asked = clocks_read = 0;
+  for (i = 0; i < cases->count; i++) {
+    view_bench_case_open(&b, &c, cases->items[i]);
+    c.host.seed = counting_seed;
+    c.host.now = counting_now;
+    CHECK_INT(sprout_view(c.world, c.state, &c.host, view_text(cases->items[i], "visit"), &view), SPROUT_OK);
+    sprout_view_free(&view);
+    view_case_close(&c);
+  }
+  CHECK_INT(seeds_asked, 0);
+  CHECK_INT(clocks_read, 0);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
+static void a_poll_that_cannot_afford_unseen_says_the_engines_own_words(void) {
+  view_bench b;
+  view_case c;
+  sprout_seen_view view;
+  view_bench_open(&b);
+  polled(&b, "cannot afford unseen", &c, &view);
+  CHECK(view.faulted);
+  CHECK_BYTES(view.description[0].bytes, view.description[0].length, "Something here is too much to take in.");
+  CHECK_INT(view.exit_count + view.occupant_count + view.carried_count + view.reading_count, 0);
+  sprout_view_free(&view);
+  view_case_close(&c);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
+static void a_poll_whose_kept_parts_cannot_be_rendered_either_keeps_nothing(void) {
+  view_bench b;
+  view_case c;
+  sprout_seen_view view;
+  view_bench_open(&b);
+  polled(&b, "kept parts cannot be rendered", &c, &view);
+  CHECK(view.faulted);
+  CHECK_BYTES(view.description[0].bytes, view.description[0].length, "Too much happens here to take in.");
+  CHECK_INT(view.exit_count + view.occupant_count + view.carried_count + view.reading_count, 0);
+  sprout_view_free(&view);
+  view_case_close(&c);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
 static void a_poll_writes_nothing(void) {
   view_bench b;
   view_case c;
@@ -179,6 +244,9 @@ int main(void) {
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);
   RUN(a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived);
+  RUN(a_poll_draws_nothing_and_reads_no_clock);
+  RUN(a_poll_that_cannot_afford_unseen_says_the_engines_own_words);
+  RUN(a_poll_whose_kept_parts_cannot_be_rendered_either_keeps_nothing);
   RUN(a_poll_writes_nothing);
   RUN(a_visit_the_world_never_saw_and_a_visitor_who_is_away_have_no_view);
   RUN(a_host_that_cannot_give_a_page_is_told_so_and_leaks_nothing);

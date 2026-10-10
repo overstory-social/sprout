@@ -73,6 +73,9 @@ export const VIEW_BENCH: Bundle = compiledWorld(LIBRARY, {
     object tin is Pebble
     object tin_too is Pebble { grammar { name "tin" } }
   }
+  object vault is sprout.Place {
+    object warden is Stern
+  }
   object tower is sprout.Place {
     grammar { link stair "down the Caf\u00e9\u00a0Stair" }
     describe { text "Wind, and a long view." }
@@ -134,6 +137,15 @@ enum Topic { bridge, toll, weather, old_road }
   }
 }
 `,
+  'stern.sprout': `kind Stern is sprout.Actor {
+  passage long { {if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if} }
+  passage longer { {self.long}{self.long}{self.long}{self.long} }
+  passage heavy { {self.longer}{self.longer}{self.longer}{self.longer} }
+  as target for ask {
+    permit { refuse heavy }
+  }
+}
+`,
   'pebble.sprout': 'kind Pebble { }\n',
   'purse.sprout': 'kind Purse { contains }\n',
   'sack.sprout': `kind Sack {
@@ -165,6 +177,7 @@ export const CLOAKROOM = at('cloakroom');
 export const STORE = at('store');
 export const TOWER = at('tower');
 export const CELLAR = at('cellar');
+export const VAULT = at('vault');
 export const GUARD = at('yard', 'guard');
 export const SENTRY = at('gallery', 'sentry');
 export const PEBBLE = at('yard', 'pebble');
@@ -451,6 +464,13 @@ export const BENCH_CASES: readonly Bench[] = [
   ),
   bench('a poll that spends its budget before the exits shows unseen alone', {}, MARTA, 8),
   bench('a poll that spends its budget while rendering keeps every part', {}, MARTA, 244),
+  bench('a poll that cannot afford unseen says the engine’s own words', {}, MARTA, 1),
+  bench(
+    'a poll whose kept parts cannot be rendered either keeps nothing',
+    { standing: [[MARTA, 'Marta', VAULT]] },
+    MARTA,
+    500,
+  ),
 ];
 
 /** A visitor arriving in `catalogue`'s world as the inspectors admit one, and the state they arrive in. */

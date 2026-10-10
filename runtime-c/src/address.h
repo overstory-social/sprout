@@ -3,7 +3,9 @@
  * Nicknames). A thing's name is its grammar block's `name`, or its identifier humanised, or, for a
  * spawn, which has none, its kind's name humanised in lower case; a visitor is called by their
  * nickname as the turn leaves it. The words a visitor types for it and the article the engine puts
- * before it are built on this name.
+ * before it are built on this name. It is shared so that offers.c and the view name things without
+ * importing prose/: inside runtime-c the layers run expr, then stmt and reading, then prose, with
+ * address beside them for whoever needs a name.
  */
 #ifndef SPROUT_ADDRESS_H
 #define SPROUT_ADDRESS_H

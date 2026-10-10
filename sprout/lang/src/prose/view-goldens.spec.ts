@@ -98,6 +98,10 @@ describe('the view goldens', () => {
     // the dark, a displaced visitor and a poll that spent its budget
     expect(view(named('cellar is dark')).description).toEqual(['It is too dark to see.']);
     expect(view(named('not a place')).readings).toEqual([]);
+    expect(view(named('cannot afford unseen')).description).toEqual([
+      'Something here is too much to take in.',
+    ]);
+    expect(view(named('kept parts cannot be rendered')).readings).toEqual([]);
     for (const one of held.cases.filter((c) => c.name.includes('spends its budget'))) {
       expect(one.expect.fault?.name).toBe('BudgetExhausted');
       expect(view(one).description).toEqual(['Too much happens here to take in.']);
