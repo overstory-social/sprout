@@ -12,6 +12,8 @@
 
 #include "draft.h"
 #include "draws.h"
+#include "exits.h"
+#include "expr/expr.h"
 #include "outcome.h"
 #include "reading/reading.h"
 #include "world.h"
@@ -153,6 +155,43 @@ static sprout_status resolve(const sprout_world *world, const sprout_draft *draf
   return SPROUT_OK;
 }
 
+/*
+ * An exit a submitted reading names must be one the actor's place has now:
+ * its label and destination among the ways that lead and whose guard admits
+ * them, as the parser offers them. Otherwise it is out of range, as a thing
+ * out of range is (the spec's Verbs > Exits, Acting).
+ */
+static sprout_eval_status exits_are_the_places(const sprout_frame *frame, const sprout_resolved *reading) {
+  size_t i;
+  for (i = 0; i < reading->verb->role_count; i++) {
+    const sprout_stored_bound *way = &reading->roles[i].bound;
+    const sprout_way *leading;
+    sprout_str place;
+    size_t count, j;
+    bool found = false;
+    if (!reading->roles[i].filled || way->kind != SPROUT_BOUND_EXIT) continue;
+    EXPR_NEED(sprout_place_of(frame, reading->actor, &place));
+    EXPR_NEED(sprout_exits_from(frame, place, &leading, &count));
+    for (j = 0; j < count; j++)
+      if (sprout_str_same(leading[j].to, way->to) && strcmp(leading[j].label, way->label.bytes) == 0 &&
+          (leading[j].direction == NULL ? !way->has_direction
+                                        : way->has_direction && sprout_str_is(way->direction, leading[j].direction)))
+        found = true;
+    if (!found) {
+      expr_text text = expr_text_begin(frame);
+      expr_put(&text, "`");
+      expr_put_str(&text, way->to);
+      expr_put(&text, "` is out of range of `");
+      expr_put_str(&text, reading->actor);
+      expr_put(&text, "`, so `");
+      expr_put(&text, reading->verb->name);
+      expr_put(&text, "` could not be performed with it.");
+      return expr_fail(frame, "ActFault");
+    }
+  }
+  return SPROUT_EVAL_OK;
+}
+
 /* A fault, or an engine error, in the sentence a host logs; the world is as it was. */
 static void fault_of(const sprout_meter *meter, const sprout_eval_fault *fault, sprout_eval_status status,
                      sprout_reading_outcome *outcome) {
@@ -246,7 +285,8 @@ sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const
   sprout_meter_begin(&meter, &world->host, SPROUT_TURN_COMMAND);
   sprout_exec_begin(&x, world, &draft, &turn, &meter, &draws, &fault, instant);
   frame = sprout_exec_frame(&x, resolved.actor, NULL, NULL);
-  run = sprout_perform(&x, &frame, &resolved, &end, &refusal);
+  run = exits_are_the_places(&frame, &resolved);
+  if (run == SPROUT_EVAL_OK) run = sprout_perform(&x, &frame, &resolved, &end, &refusal);
   if (run == SPROUT_EVAL_OK && end != SPROUT_READING_REFUSED) run = sprout_exec_drain(&x);
   if (run == SPROUT_EVAL_NO_MEMORY) {
     sprout_arena_reset(&turn);

@@ -188,6 +188,35 @@ static void a_reading_the_world_cannot_take_is_bad_input_in_words(void) {
   refused_as_bad_input("sprout.take", "bench#1", "target", SPROUT_FILL_NUMBER, NULL, "`target` is not filled with what its verb takes there.");
 }
 
+static void an_exit_the_actors_place_does_not_have_is_out_of_range_and_writes_nothing(void) {
+  submitted s;
+  sprout_filling filling;
+  sprout_reading reading;
+  sprout_reading_outcome outcome;
+  const char *labels[] = {"through the floor", "to the yard", "onward"};
+  const char *directions[] = {"down", "south", NULL};
+  size_t i;
+  memset(&filling, 0, sizeof filling);
+  filling.role = "way";
+  filling.binds = SPROUT_FILL_EXIT;
+  filling.id = "bench.yard";
+  reading.verb = "sprout.go";
+  reading.actor = "bench#1";
+  reading.filling_count = 1;
+  reading.fillings = &filling;
+  seed_now = 1;
+  /* A label the shop lacks, the right label in the wrong direction, and a link nobody has connected. */
+  for (i = 0; i < 3; i++) {
+    filling.label = labels[i];
+    filling.direction = directions[i];
+    submitted_open(&s, "fresh");
+    CHECK_INT(sprout_reading_run(s.world, s.state, &reading, 0, &outcome), SPROUT_FAULT);
+    CHECK_STR(outcome.fault.text, "`bench.yard` is out of range of `bench#1`, so `go` could not be performed with it.");
+    check_written(&s, s.stored);
+    submitted_close(&s);
+  }
+}
+
 static void a_seed_past_the_range_or_a_host_without_one_is_refused(void) {
   submitted s;
   sprout_reading reading;
@@ -263,6 +292,7 @@ static void the_world_a_committed_reading_leaves_is_the_one_the_next_reading_run
 int main(void) {
   RUN(every_golden_reading_submitted_comes_back_as_the_oracle_ended_it);
   RUN(a_reading_the_world_cannot_take_is_bad_input_in_words);
+  RUN(an_exit_the_actors_place_does_not_have_is_out_of_range_and_writes_nothing);
   RUN(a_seed_past_the_range_or_a_host_without_one_is_refused);
   RUN(a_run_with_nothing_to_run_it_on_is_bad_input);
   RUN(the_world_a_committed_reading_leaves_is_the_one_the_next_reading_runs_in);
