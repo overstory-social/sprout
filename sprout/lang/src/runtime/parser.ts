@@ -33,7 +33,8 @@
 // or are a direction no exit that applies answers, `no_way` (the spec's
 // Verbs › Exits); where one would with a noun nothing in range answers
 // to, `not_here`, which names nothing, and so where an object's synonym
-// would with its object in reach (`parser/offered.ts`); and otherwise
+// would with its object in reach (`parser/offered.ts`) or an exit role's
+// words are the label of a way out that does not apply here; and otherwise
 // `unknown`.
 // Every noun tried, every way of placing the slots, every reading built,
 // every object the range walk visits and every tie drawn is a step, so a
@@ -53,7 +54,7 @@ import type { Following, ParseContext, Parser } from './command.js';
 import type { StateReader } from './state.js';
 import { addressOf, type Address, type AddressContext } from './parser/address.js';
 import { answer, refused, type Answer } from './parser/answers.js';
-import type { AppliedWay, RefusingExit } from './parser/exits.js';
+import { wayLabels, type AppliedWay, type RefusingExit } from './parser/exits.js';
 import type { Direction } from '../declare/directions.js';
 import { waysFrom } from './exits.js';
 import {
@@ -131,7 +132,13 @@ export function readCommand(
   if (words.length === 1 && AGAIN.includes(words[0]!)) {
     return again(context.lastReading, actor, here, candidates, context);
   }
-  const fill = { candidates, exits: context.exits, budget, referents: context.referents };
+  const fill = {
+    candidates,
+    exits: context.exits,
+    labels: wayLabels(context.catalogue),
+    budget,
+    referents: context.referents,
+  };
   const reader: LineReader = {
     actor,
     here,

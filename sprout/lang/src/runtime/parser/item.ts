@@ -20,6 +20,7 @@ import { consentPass, type Bound, type Reading } from '../reading.js';
 import type { CommandContext, CommandOutcome } from '../parser.js';
 import { addressOf, type Address } from './address.js';
 import { answer } from './answers.js';
+import { wayLabels } from './exits.js';
 import { numberText } from '../values.js';
 import { fillSlot, valueOf } from './fill.js';
 import type { ParseContext } from '../command.js';
@@ -53,7 +54,13 @@ export function readItem(
   const candidates = reachOf(actor, context);
   // What the line bound must still be in reach, as a planned turn's must.
   if (!inReach(within, candidates, context.exits)) return answer(state, 'not_here', actor, here);
-  const fill = { candidates, exits: context.exits, budget, referents: context.referents };
+  const fill = {
+    candidates,
+    exits: context.exits,
+    labels: wayLabels(context.catalogue),
+    budget,
+    referents: context.referents,
+  };
   const filled = fillSlot(filling, typed, fill);
   const filledWith = (bound: Bound): Reading => {
     const bindings = new Map([...within.bindings, [role, bound]]);

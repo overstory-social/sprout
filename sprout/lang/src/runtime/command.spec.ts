@@ -584,8 +584,9 @@ describe('`go`, through a command turn', () => {
 
   it('follows a link once the world connects it, and the way back the new place connected', () => {
     let state = ways([[MARTA_WAYS, MOUTH]]);
+    // An unset link does not apply, so its label names a way out of reach.
     expect(told(walk(state, 'deeper into the dark'), marta(state))).toEqual([
-      'sprout.World unknown: That is not something you can do here.',
+      'sprout.World not_here: You see nothing like that here.',
     ]);
     const dug = walk(state, 'dig turning of the maze');
     expect(told(dug, marta(state))).toEqual(['The stones give, and a gap opens into more dark.']);
