@@ -286,6 +286,40 @@ static void removing_takes_everything_inside_tombstones_declared_objects_and_nev
   finish(&f);
 }
 
+static void a_subtree_is_what_a_removal_would_take_and_takes_nothing(void) {
+  fixture f;
+  sprout_draft draft;
+  sprout_str *found;
+  size_t count;
+  const char *want[] = {YARD, YARD ".wooden_rib", YARD ".bone_rib", YARD ".press", WORLD "#5"};
+  begin(&f);
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  CHECK_INT(sprout_draft_subtree(&draft, S(YARD), &found, &count), SPROUT_DRAFT_OK);
+  expect_ids(found, count, want, 5);
+  CHECK(sprout_draft_instance(&draft, S(YARD ".press")) != NULL);
+  CHECK(!sprout_draft_tombstoned(&draft, S(YARD)));
+  finish(&f);
+}
+
+static void what_a_removal_took_stays_readable_for_the_rest_of_the_turn_and_is_not_an_instance(void) {
+  fixture f;
+  sprout_draft draft;
+  const sprout_str *removed;
+  size_t count;
+  const sprout_stored_instance *kept;
+  begin(&f);
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  CHECK(sprout_draft_destroyed(&draft, S(YARD ".press")) == NULL);
+  CHECK_INT(sprout_draft_remove(&draft, S(YARD), &removed, &count), SPROUT_DRAFT_OK);
+  kept = sprout_draft_destroyed(&draft, S(YARD ".press"));
+  CHECK(kept != NULL);
+  CHECK(kept != NULL && kept->kind != NULL && kept->has_container);
+  CHECK(sprout_draft_instance(&draft, S(YARD ".press")) == NULL);
+  /* A dormant record is no instance, so none is kept to read. */
+  CHECK(sprout_draft_destroyed(&draft, S(WORLD "#5")) == NULL);
+  finish(&f);
+}
+
 static void a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_draft(void) {
   fixture f;
   sprout_draft draft;
@@ -445,6 +479,8 @@ int main(void) {
   RUN(a_spawn_takes_an_id_nothing_has_had_and_arrives_where_it_is_put);
   RUN(two_drafts_on_one_state_mint_the_same_ids);
   RUN(removing_takes_everything_inside_tombstones_declared_objects_and_never_the_world);
+  RUN(a_subtree_is_what_a_removal_would_take_and_takes_nothing);
+  RUN(what_a_removal_took_stays_readable_for_the_rest_of_the_turn_and_is_not_an_instance);
   RUN(a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_draft);
   RUN(a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_few);
   RUN(every_result_has_words);

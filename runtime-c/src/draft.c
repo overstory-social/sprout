@@ -95,6 +95,13 @@ const sprout_stored_instance *sprout_draft_record(const sprout_draft *draft, spr
   return found != NULL ? found : sprout_state_find(draft->base, id);
 }
 
+const sprout_stored_instance *sprout_draft_destroyed(const sprout_draft *draft, sprout_str id) {
+  size_t i;
+  for (i = 0; i < draft->kept_count; i++)
+    if (sprout_str_same(draft->kept[i].id, id)) return &draft->kept[i];
+  return NULL;
+}
+
 const sprout_stored_instance *sprout_draft_instance(const sprout_draft *draft, sprout_str id) {
   const sprout_stored_instance *found = sprout_draft_record(draft, id);
   return found != NULL && !found->dormant ? found : NULL;
@@ -321,7 +328,7 @@ sprout_draft_result sprout_draft_put_visitor(sprout_draft *draft, const sprout_s
 /* ---- removing ---- */
 
 /* `id` and everything inside it, all the way down: decoded contents in order, then dormant records by id; each once. */
-static sprout_draft_result subtree(const sprout_draft *draft, sprout_str id, sprout_str **out, size_t *count) {
+sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str id, sprout_str **out, size_t *count) {
   sprout_str *found, *pending, *dormant;
   size_t n = 0, top = 0, capacity;
   const sprout_stored_instance **all;
@@ -372,10 +379,16 @@ sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, cons
   NEED(open_check(draft));
   if (sprout_str_same(id, draft->base->world)) return SPROUT_DRAFT_THE_WORLD;
   if (sprout_draft_instance(draft, id) == NULL) return SPROUT_DRAFT_MISSING;
-  NEED(subtree(draft, id, &found, &n));
+  NEED(sprout_draft_subtree(draft, id, &found, &n));
   for (i = 0; i < n; i++) {
     const sprout_stored_instance *one = sprout_draft_record(draft, found[i]);
     sprout_str *slot;
+    if (one != NULL && !one->dormant) {
+      sprout_stored_instance *copy = (sprout_stored_instance *)push(draft->turn, (void **)&draft->kept, &draft->kept_count,
+                                                                    &draft->kept_capacity, sizeof *copy);
+      MEMORY(copy);
+      if (sprout_stored_instance_copy(draft->turn, one, copy) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
+    }
     if (one != NULL && one->made == SPROUT_MADE_DECLARED) {
       slot = (sprout_str *)push(draft->turn, (void **)&draft->buried, &draft->buried_count,
                                 &draft->buried_capacity, sizeof *slot);

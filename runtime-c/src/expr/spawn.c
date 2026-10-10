@@ -4,7 +4,9 @@
  * the object whose body ran the `spawn`, at the kind's defaults, with a copy
  * of everything its kinds' bodies hold. The turn's cap on spawns is charged
  * one for the instance and one for each of its contents, before anything is
- * written, so a fault leaves the draft as it was. The messages a spawn sends
+ * written, so a fault leaves the draft as it was. The host's bound on the
+ * instances a world holds (the spec's Limits > Runtime budgets) faults a spawn
+ * that would pass it. The messages a spawn sends
  * are the bus's.
  */
 #include "expr.h"
@@ -169,7 +171,7 @@ sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name
     return expr_fail(frame, "LifecycleFault");
   }
   EXPR_NEED(expr_reaches(frame, frame->self, container, NULL, &in_range));
-  in_range = in_range && expr_live(frame, container);
+  in_range = in_range && sprout_draft_instance(frame->draft, container) != NULL && expr_live(frame, container);
   if (!in_range) {
     text = expr_text_begin(frame);
     expr_put(&text, "`");
@@ -202,6 +204,16 @@ sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind_name
   EXPR_NEED(holds_each(frame, list, count, kind, shown(kind_name)));
   for (i = 0; i < 1 + count; i++)
     if (!sprout_meter_spawn(frame->meter)) return expr_budget_fault(frame);
+  {
+    sprout_limit may_hold = frame->meter->budgets->instances;
+    if (may_hold.set && (uint64_t)sprout_draft_held(frame->draft) + 1 + count > may_hold.value) {
+      text = expr_text_begin(frame);
+      expr_put(&text, "the host will hold no more instances in this world, so `");
+      expr_put(&text, shown(kind_name));
+      expr_put(&text, "` could not be spawned.");
+      return expr_fail(frame, "LifecycleFault");
+    }
+  }
   ids = (sprout_str *)sprout_arena_take(frame->turn, (count + 1) * sizeof *ids);
   if (ids == NULL) return SPROUT_EVAL_NO_MEMORY;
   EXPR_NEED(write_instance(frame, kind, SPROUT_MADE_SPAWNED, NULL, container, &out->id));

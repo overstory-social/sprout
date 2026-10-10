@@ -76,6 +76,13 @@ const sprout_binding *sprout_bind(const sprout_frame *frame, const char *name, s
 /* What `expr` evaluates to in `frame`. */
 sprout_eval_status sprout_eval(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out);
 
+/*
+ * What a name written as a statement's object, a lone identifier, stands for:
+ * `self`, a binding, or what the name table says it reaches in range of
+ * `self`. One step, as a binding written in an expression is.
+ */
+sprout_eval_status sprout_eval_ident(const sprout_frame *frame, const sprout_node *ident, sprout_evaluated *out);
+
 /* A condition: an expression the checker typed as a boolean. */
 sprout_eval_status sprout_eval_condition(const sprout_frame *frame, const sprout_node *expr, bool *out);
 

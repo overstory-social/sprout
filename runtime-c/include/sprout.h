@@ -51,6 +51,7 @@ typedef struct sprout_budgets {
   sprout_limit nickname_characters;
   sprout_limit wall_clock_ms;         /* the backstop */
   sprout_limit list_elements;         /* the static cap on a list's length */
+  sprout_limit instances;             /* live instances the host will store for one world, dormant ones included */
 } sprout_budgets;
 
 /* The host's side of the contract. A NULL callback the runtime needs is SPROUT_BAD_HOST. */

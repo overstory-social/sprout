@@ -8,9 +8,6 @@
  */
 #include "expr.h"
 
-#define INTEGER_MIN (-2147483648.0)
-#define INTEGER_MAX 2147483647.0
-
 sprout_eval_status expr_as_value(const sprout_frame *frame, const sprout_evaluated *evaluated, sprout_value *out) {
   if (evaluated->binds != SPROUT_BINDS_VALUE) {
     const char *what = evaluated->binds == SPROUT_BINDS_OBJECT ? "an object"

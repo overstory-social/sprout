@@ -8,11 +8,15 @@ set(CMAKE_C_EXTENSIONS OFF)
 add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
-  arena budget catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  eval graph inflate json lists load state status stored stored_check stored_write values)
+  arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
+  effects eval exec graph guards inflate json lists load move range reading state status stored stored_check
+  stored_write values wakes)
 
 # The evaluator's areas, src/expr/<module>.c, each with test/expr_<module>.test.c.
 set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators passes range show spawn)
+
+# The statements' areas, src/stmt/<module>.c, each with test/stmt_<module>.test.c.
+set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speech write)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
@@ -21,6 +25,10 @@ endforeach()
 
 foreach(module ${SPROUT_EXPR_MODULES})
   list(APPEND SPROUT_SOURCES src/expr/${module}.c)
+endforeach()
+
+foreach(module ${SPROUT_STMT_MODULES})
+  list(APPEND SPROUT_SOURCES src/stmt/${module}.c)
 endforeach()
 
 add_library(sprout STATIC ${SPROUT_SOURCES})
@@ -76,6 +84,17 @@ foreach(module ${SPROUT_EXPR_MODULES})
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME expr_${module} COMMAND expr_${module}.test)
   set_tests_properties(expr_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+endforeach()
+
+foreach(module ${SPROUT_STMT_MODULES})
+  add_executable(stmt_${module}.test test/stmt_${module}.test.c)
+  target_link_libraries(stmt_${module}.test PRIVATE sprout)
+  target_include_directories(stmt_${module}.test PRIVATE src test)
+  target_compile_definitions(stmt_${module}.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
+  add_test(NAME stmt_${module} COMMAND stmt_${module}.test)
+  set_tests_properties(stmt_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})

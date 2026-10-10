@@ -8,7 +8,8 @@
 #include "../lists.h"
 
 const sprout_stored_instance *expr_instance(const sprout_frame *frame, sprout_str id) {
-  return sprout_draft_instance(frame->draft, id);
+  const sprout_stored_instance *found = sprout_draft_instance(frame->draft, id);
+  return found != NULL ? found : sprout_draft_destroyed(frame->draft, id);
 }
 
 sprout_eval_status expr_instance_of(const sprout_frame *frame, sprout_str id, const sprout_stored_instance **out) {
