@@ -167,9 +167,10 @@ came) returns `SPROUT_BAD_INPUT` with words and writes nothing.
 **The sanitizers.** `-DSPROUT_SANITIZE=ON` builds the library, the host and
 every test under AddressSanitizer and UndefinedBehaviorSanitizer, with no
 recovery: any report fails. The plain run builds the library at `-O2`, as the
-device does, under `-Wall -Wextra -Werror -pedantic`. A use after free in the draft's commit, a device-crash class
-of defect that the plain tests could not see, is the kind of finding the
-sanitized run exists for.
+device does, under `-Wall -Wextra -Werror -pedantic`. The sanitized run
+catches reads of freed arena memory, leaks, out-of-bounds accesses and
+undefined arithmetic, which the plain tests can miss and which crash a
+device.
 
 **`sproutc`** is the desktop host (`runtime-c/host/`), which may use libc:
 
@@ -186,7 +187,7 @@ sanitized run exists for.
 The TypeScript runtime is the oracle. The C runtime is correct when it does
 what the TypeScript runtime does, and the checks below say how that is
 shown. `npm run gate` runs all of them except the fuzzer; `npm run e2e`
-runs those and the fuzzer, the latter also under the sanitizers.
+runs the plain check, then the sanitized check, then the fuzzer (plain).
 
 - **Goldens under `corpus/goldens/`**, written by TypeScript specs from the
   oracle and replayed by the C tests byte for byte: `catalogues.json`
