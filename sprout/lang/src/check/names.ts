@@ -231,6 +231,55 @@ function typed(named: Named, scope: NameScope): BindingType {
 }
 
 /**
+ * Where `receiver`, read with `reading` in a place's own body, names
+ * another place the compile can see is out of its range, the words
+ * refusing it; null otherwise. Places in the world are out of one
+ * another's range while the world writes no `pass any` that may let
+ * something through (the spec's Range), and a place declared under
+ * another of the world's places is out of range of every place declared
+ * under a different one, so nothing such a read could ever give.
+ */
+export function otherPlaceWords(
+  receiver: Expr,
+  reading: string,
+  context: CheckContext,
+): { message: string; remedy: string } | null {
+  const scope = context.names;
+  if (scope === undefined || scope.vantage.in !== 'tree') return null;
+  const asking = scope.vantage.path;
+  const [name, key] =
+    receiver.kind === 'binding'
+      ? [receiver.name.text, receiver.name]
+      : receiver.kind === 'member'
+        ? [writtenMembers(receiver), receiver]
+        : [null, null];
+  if (name === null || key === null || context.scope.lookup(name) !== null) return null;
+  const named = scope.table.get(key);
+  if (named?.names !== 'declared' || asking.length === 0 || named.path[0] === asking[0]) {
+    return null;
+  }
+  if (worldMayPass(scope.world)) return null;
+  const { placed } = scope.source.tree;
+  const self = placed.get(pathKey(asking));
+  const other = placed.get(pathKey(named.path));
+  if (self?.kind?.containsActors !== true || other?.kind?.containsActors !== true) return null;
+  const world = scope.source.tree.world;
+  const here = asking.join('.');
+  return {
+    message: `\`${name}\` is another place, out of range of \`${here}\`, so \`${name}.${reading}(…)\` can never be read from here: the world lets nothing pass between its places.`,
+    remedy: `Keep the fact on \`${here}\` itself, or on the world, as \`${world}.get(:…)\`, which every place can read, and have \`${name}\` send the world a message when it changes.`,
+  };
+}
+
+/** Whether the world writes a `pass any` that may let something through, which no compile can rule out. */
+function worldMayPass(world: KindRef | null): boolean {
+  const rule = world?.passes.any;
+  if (rule === null || rule === undefined) return false;
+  const written = rule.declaration.rule;
+  return !(written.kind === 'boolean' && written.value === false);
+}
+
+/**
  * Where `receiver` is a name or a dotted path in a kind's body that
  * reaches whatever is nearest each instance, the words for reading
  * through it: say so, and narrow it with `is()`, in a body or in a

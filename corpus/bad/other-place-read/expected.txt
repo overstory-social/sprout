@@ -1,0 +1,7 @@
+other_place_read.sprout:10:48  `yard` is another place, out of range of `hall`, so `yard.get(…)` can never be read from here: the world lets nothing pass between its places.
+                               Keep the fact on `hall` itself, or on the world, as `other_place_read.get(:…)`, which every place can read, and have `yard` send the world a message when it changes.
+
+other_place_read.sprout:11:33  `other_place_read.yard` is another place, out of range of `hall`, so `other_place_read.yard.is(…)` can never be read from here: the world lets nothing pass between its places.
+                               Keep the fact on `hall` itself, or on the world, as `other_place_read.get(:…)`, which every place can read, and have `other_place_read.yard` send the world a message when it changes.
+
+refused: 2 problems

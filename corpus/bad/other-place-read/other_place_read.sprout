@@ -1,0 +1,19 @@
+import * as sprout from 'sprout'
+
+// The hall reads the yard, another place: the world lets nothing pass
+// between its places, so neither read could ever be made.
+world other_place_read is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { exit north "north" -> yard when (yard.get(:open)) }
+    describe { text "A hall.{if other_place_read.yard.is(sprout.Place)} The yard is north.{/if}" }
+  }
+  object yard is sprout.Place {
+    :open true
+    grammar { exit south "south" -> hall }
+  }
+}
+
+kind Person is sprout.Visitor { }
