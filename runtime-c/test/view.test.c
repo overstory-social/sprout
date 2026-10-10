@@ -8,15 +8,6 @@
  */
 #include "view_fixture.h"
 
-static const sprout_json *case_named(const view_bench *b, const char *needle) {
-  const sprout_json *cases = sprout_json_get(b->golden, "cases");
-  size_t i;
-  for (i = 0; i < cases->count; i++)
-    if (strstr(view_text(cases->items[i], "name"), needle) != NULL) return cases->items[i];
-  fprintf(stderr, "the golden has no case with `%s` in its name\n", needle);
-  exit(2);
-}
-
 static void every_bench_case_is_polled_as_the_oracle_polled_it(void) {
   view_bench b;
   const sprout_json *cases;
@@ -57,7 +48,7 @@ static void the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles(
 
 /* The case named, opened and polled. */
 static void polled(view_bench *b, const char *needle, view_case *c, sprout_seen_view *view) {
-  const sprout_json *golden = case_named(b, needle);
+  const sprout_json *golden = view_case_named(b, needle);
   view_bench_case_open(b, c, golden);
   CHECK_INT(sprout_view(c->world, c->state, &c->host, view_text(golden, "visit"), view), SPROUT_OK);
 }
@@ -114,7 +105,7 @@ static void a_poll_writes_nothing(void) {
   size_t before_length, after_length;
   char *kept;
   view_bench_open(&b);
-  view_bench_case_open(&b, &c, case_named(&b, "carries is offered"));
+  view_bench_case_open(&b, &c, view_case_named(&b, "carries is offered"));
   CHECK_INT(sprout_state_write(c.state, &before, &before_length), SPROUT_OK);
   kept = (char *)malloc(before_length + 1);
   memcpy(kept, before, before_length);
@@ -139,7 +130,7 @@ static void a_visit_the_world_never_saw_and_a_visitor_who_is_away_have_no_view(v
   char *edited;
   size_t length;
   view_bench_open(&b);
-  golden = case_named(&b, "link not set");
+  golden = view_case_named(&b, "link not set");
   view_bench_case_open(&b, &c, golden);
   CHECK_INT(sprout_view(c.world, c.state, &c.host, "nobody", &view), SPROUT_BAD_INPUT);
   CHECK(strstr(view.fault.text, "`nobody` has never visited this world.") != NULL);
@@ -170,7 +161,7 @@ static void a_host_that_cannot_give_a_page_is_told_so_and_leaks_nothing(void) {
   long pages;
   sprout_status status;
   view_bench_open(&b);
-  view_bench_case_open(&b, &c, case_named(&b, "carries is offered"));
+  view_bench_case_open(&b, &c, view_case_named(&b, "carries is offered"));
   pages = b.heap.pages;
   b.heap.refuse_after = pages + 2;
   status = sprout_view(c.world, c.state, &c.host, "v-marta", &view);

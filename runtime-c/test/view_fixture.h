@@ -146,6 +146,64 @@ static inline const char *view_canon(sprout_arena *arena, const sprout_json *mem
   return bytes;
 }
 
+/* The bench case with `needle` in its name; the test aborts if there is none. */
+static inline const sprout_json *view_case_named(const view_bench *b, const char *needle) {
+  const sprout_json *cases = sprout_json_get(b->golden, "cases");
+  size_t i;
+  for (i = 0; i < cases->count; i++)
+    if (strstr(view_text(cases->items[i], "name"), needle) != NULL) return cases->items[i];
+  fprintf(stderr, "the golden has no case with `%s` in its name\n", needle);
+  exit(2);
+}
+
+/* A poll's own machinery over a case's state: what a module of the view is handed. */
+typedef struct view_poll {
+  sprout_arena turn;
+  sprout_draft draft;
+  sprout_meter meter;
+  sprout_eval_fault fault;
+  sprout_exec x;
+  sprout_frame frame; /* `self` the visitor */
+  sprout_str actor, place;
+} view_poll;
+
+/* Opens a poll for the visit the case names, under the case's figures, as the first of the view's attempts would. */
+static inline void view_poll_open(const view_bench *b, view_case *c, view_poll *p) {
+  const sprout_stored_visitor *visitor;
+  const sprout_stored_instance *person;
+  const char *visit = view_text(c->golden, "visit");
+  memset(p, 0, sizeof *p);
+  sprout_arena_init(&p->turn, &b->host);
+  sprout_draft_open(&p->draft, &p->turn, c->world, c->state);
+  visitor = sprout_draft_visitor(&p->draft, (sprout_str){visit, strlen(visit)});
+  person = visitor == NULL ? NULL : sprout_draft_instance(&p->draft, visitor->instance);
+  if (person == NULL || !person->has_container) {
+    fprintf(stderr, "the case has no visitor standing anywhere\n");
+    exit(2);
+  }
+  p->actor = visitor->instance;
+  p->place = person->container;
+  sprout_meter_begin(&p->meter, &c->host, SPROUT_TURN_POLL);
+  sprout_exec_begin(&p->x, c->world, &p->draft, &p->turn, &p->meter, NULL, &p->fault, 0);
+  p->frame = sprout_exec_frame(&p->x, p->actor, NULL, NULL);
+}
+
+static inline void view_poll_close(view_poll *p) { sprout_arena_reset(&p->turn); }
+
+/* The verb of this qualified name; the test aborts if the world declares none. */
+static inline const sprout_verb *view_verb(const sprout_world *world, const char *qualified) {
+  size_t i;
+  for (i = 0; i < world->verb_count; i++) {
+    char name[256];
+    snprintf(name, sizeof name, "%s.%s", world->verbs[i]->library, world->verbs[i]->name);
+    if (strcmp(name, qualified) == 0) return world->verbs[i];
+  }
+  fprintf(stderr, "the world declares no verb `%s`\n", qualified);
+  exit(2);
+}
+
+static inline sprout_str view_str(const char *text) { return (sprout_str){text, strlen(text)}; }
+
 /* What a golden case is called: a bench case by its name, a corpus world by its own. */
 static inline const char *view_label(const sprout_json *golden) {
   const sprout_json *name = sprout_json_get(golden, "name");

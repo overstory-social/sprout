@@ -70,6 +70,8 @@ export const VIEW_BENCH: Bundle = compiledWorld(LIBRARY, {
   }
   object store is sprout.Place {
     object big is Sack { object small is Sack }
+    object tin is Pebble
+    object tin_too is Pebble { grammar { name "tin" } }
   }
   object tower is sprout.Place {
     grammar { link stair "down the Caf\u00e9\u00a0Stair" }
@@ -408,7 +410,7 @@ export const BENCH_CASES: readonly Bench[] = [
   bench('a witness that refuses greys the readings it is asked in', {
     standing: [[MARTA, 'Marta', GALLERY]],
   }),
-  bench('stuffing a sack into the one inside it is greyed with inside_itself', {
+  bench('stuffing a sack into the one inside it is greyed with inside_itself, and two tins written alike are two offers', {
     standing: [[MARTA, 'Marta', STORE]],
   }),
   bench('the cellar is dark: only what is carried is offered, and the way out', {
