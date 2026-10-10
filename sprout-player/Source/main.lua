@@ -85,7 +85,7 @@ local function refreshStatus(lines)
   for _, one in ipairs(view.occupants) do here[#here + 1] = one.name end
   local exits = {}
   for _, one in ipairs(view.exits) do exits[#exits + 1] = one.direction or one.label end
-  reader:setStatus(view.place, here, exits)
+  reader:setStatus(view.place.name, here, exits)
   if lines ~= nil then showPicture(lines, view) end
   return view
 end

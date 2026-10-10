@@ -324,8 +324,10 @@ Data folder and in each one's `worlds/` folder (a copy in Data shadows the
 app's). Each is inspected once, by file name and size. One the engine
 refuses (a newer language level, a static cap over the app's, a world too
 big for the console's memory, a damaged file) is listed greyed with the
-engine's reason and cannot be opened. The last row, "more worlds…", opens
-the download screen.
+engine's reason and cannot be opened. A world is titled by its name as
+words, since a cartridge carries no other title: `printers_shop` is shelved
+as `Printers Shop`, and the picker and the reader's first line call it the
+same. The last row, "more worlds…", opens the download screen.
 
 ### Shipped worlds and downloads
 

@@ -26,7 +26,7 @@ static void each_function_hands_lua_one_json_string_and_reads_its_argument(void)
   CHECK(HAS(call("sprout.open", "chip-tree.sproutworld"), "\"ok\":true"), "open reads the path");
   CHECK(HAS(call("sprout.load", NULL), "\"fresh\":true"), "load takes none");
   CHECK(HAS(call("sprout.admit", "Marta"), "\"admitted\":true"), "admit reads the nickname");
-  CHECK(HAS(call("sprout.view", NULL), "\"place\":\"chip_tree.hall\""), "view takes none");
+  CHECK(HAS(call("sprout.view", NULL), "\"place\":{\"id\":\"chip_tree.hall\",\"name\":\"a hall\"}"), "view takes none");
   CHECK(HAS(call("sprout.turn", "{\"verb\":\"sprout.look\",\"fillers\":[]}"), "\"committed\":true"), "turn reads the reading");
   CHECK(HAS(call("sprout.tick", NULL), "\"ran\":"), "tick takes none");
   CHECK(HAS(call("sprout.save", NULL), "\"ok\":true"), "save takes none");

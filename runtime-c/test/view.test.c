@@ -88,6 +88,7 @@ static void a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing
   view_bench_open(&b);
   polled(&b, "not a place any more", &c, &view);
   CHECK(!view.faulted);
+  CHECK_INT(view.place.name.length, 0);
   CHECK_INT(view.description_count, 1);
   CHECK_BYTES(view.description[0].bytes, view.description[0].length, "The place you were standing is gone.");
   CHECK_INT(view.exit_count + view.occupant_count + view.carried_count + view.reading_count, 0);
@@ -108,6 +109,8 @@ static void a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived
   CHECK_STR(view.fault.budget, "steps per poll");
   CHECK_INT(view.fault.limit, 130);
   CHECK_BYTES(view.fault_object.bytes, view.fault_object.length, "viewbench.yard");
+  CHECK_BYTES(view.place.id.bytes, view.place.id.length, "viewbench.yard");
+  CHECK_BYTES(view.place.name.bytes, view.place.name.length, "a yard");
   CHECK_BYTES(view.description[0].bytes, view.description[0].length, "Too much happens here to take in.");
   CHECK_INT(view.exit_count, 5);
   CHECK_INT(view.occupant_count, 1);

@@ -55,7 +55,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
   told = call("sprout.turn", GO_NORTH);
   CHECK(strcmp(line_text(parse(told), 0), "There is nothing special about a yard.") == 0, "%s", told);
   view = call("sprout.view", NULL);
-  CHECK(HAS(view, "\"place\":\"chip_tree.yard\""), "%.100s", view);
+  CHECK(HAS(view, "\"place\":{\"id\":\"chip_tree.yard\",\"name\":\"a yard\"}"), "%.100s", view);
   CHECK(HAS(call("sprout.close", NULL), "You leave, and take what you carry with you."), "leaving");
   keep_copy(state_path, "chip-tree.save.json");
   json_end();

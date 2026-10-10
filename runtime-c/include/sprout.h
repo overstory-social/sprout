@@ -352,6 +352,7 @@ typedef struct sprout_seen_effect {
 } sprout_seen_effect;
 
 typedef struct sprout_seen_view {
+  sprout_seen_thing place; /* the visitor's place, by id and as the visitor reads it; its name is empty where the place is gone */
   size_t description_count;
   const sprout_str *description; /* the place's description as paragraphs; the engine's `unseen` for a poll that faulted */
   size_t effect_count;

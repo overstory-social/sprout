@@ -1,7 +1,8 @@
 /*
- * The visitor's view for the UI (the spec's The runtime > The view): the place, its description
- * as paragraphs, what its extension statements recorded (an image to draw), the ways out, who else is there, what is carried, and the chip tree the
- * sentence builder walks. The flat list of readings the view also holds is not sent: the tree
+ * The visitor's view for the UI (the spec's The runtime > The view): the place, by id and as the
+ * visitor reads it, its description as paragraphs, what its extension statements recorded (an image
+ * to draw), the ways out, who else is there, what is carried, and the chip tree the sentence builder
+ * walks. The flat list of readings the view also holds is not sent: the tree
  * holds every one of them, grouped by verb and by what fills each role.
  */
 #include <string.h>
@@ -11,6 +12,22 @@
 #include "view.h"
 #include "view_json.h"
 
+/* The place of a visitor who is not standing anywhere: an empty id and name. */
+static sprout_json *nowhere(jb *builder) {
+  sprout_json *place = jb_object(builder, 2);
+  jb_set(builder, place, "id", jb_string(builder, ""));
+  jb_set(builder, place, "name", jb_string(builder, ""));
+  return place;
+}
+
+/* The visitor's place as the view names it: `{ id, name }`, as an occupant is given. */
+static sprout_json *place_of(jb *builder, const sprout_seen_view *view) {
+  sprout_json *place = jb_object(builder, 2);
+  jb_set(builder, place, "id", jb_str(builder, view->place.id));
+  jb_set(builder, place, "name", jb_str(builder, view->place.name));
+  return place;
+}
+
 /* A view that is only words: the visitor is not in the world, or the poll could not be made. */
 static const char *nothing_to_see(player_session *session, const char *words) {
   sprout_arena arena;
@@ -18,7 +35,7 @@ static const char *nothing_to_see(player_session *session, const char *words) {
   sprout_json *root;
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
   root = jb_object(&builder, 9);
-  jb_set(&builder, root, "place", jb_string(&builder, ""));
+  jb_set(&builder, root, "place", nowhere(&builder));
   jb_set(&builder, root, "description", jb_array(&builder, 0));
   jb_set(&builder, root, "effects", jb_array(&builder, 0));
   jb_set(&builder, root, "exits", jb_array(&builder, 0));
@@ -42,7 +59,6 @@ const char *player_view(player_session *session) {
   jb builder;
   sprout_json *root, *whole, *chips;
   const sprout_stored_visitor *visitor = session_visitor(session);
-  const sprout_stored_instance *person;
   sprout_status status;
   const char *reply;
   if (session->state == NULL || visitor == NULL || !session_visitor_present(session, visitor))
@@ -53,14 +69,13 @@ const char *player_view(player_session *session) {
   }
   arena = sprout_view_arena(&view);
   jb_begin(&builder, arena);
-  person = sprout_state_find(session->state, visitor->instance);
   whole = sprout_view_tree(arena, &view);
   if (sprout_chip_tree_of(arena, &view, &tree) != SPROUT_OK) builder.ok = false;
   chips = builder.ok ? sprout_chip_tree_json(arena, &tree) : NULL;
   root = jb_object(&builder, 9);
   if (whole == NULL || chips == NULL) builder.ok = false;
   if (builder.ok) {
-    jb_set(&builder, root, "place", person != NULL && person->has_container ? jb_str(&builder, person->container) : jb_string(&builder, ""));
+    jb_set(&builder, root, "place", place_of(&builder, &view));
     take(&builder, root, whole, "description");
     take(&builder, root, whole, "effects");
     take(&builder, root, whole, "exits");
