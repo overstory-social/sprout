@@ -12,7 +12,7 @@
     { "as": "Marta", "type": "take pouch" },
     { "as": "Marta", "type": "put crate in pouch" },
     { "as": "Marta", "type": "help", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You can type: look, examine pouch, examine crate, examine rowboat, inventory, wait, help, take crate, drop pouch, close pouch, close crate, look in pouch, look in crate." }
+      { "reader": "Marta", "kind": "notice", "words": "You can type: look, examine pouch, examine crate, examine rowboat, inventory, wait, help, take crate, take crate from pouch, drop pouch, close pouch, close crate, look in pouch, look in crate." }
     ] },
     { "as": "Marta", "type": "put pouch in crate", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "A pouch cannot go inside itself." }
