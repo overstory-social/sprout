@@ -101,6 +101,11 @@ describe('the words a noun may hold in the world', () => {
     }
   });
 
+  it('are every kind’s name, a library’s too, though nothing is made of it', () => {
+    // Nothing in the attic is lockable.
+    expect(wordsOf().words.has('lockable')).toBe(true);
+  });
+
   it('cost a step for each thing in the world', () => {
     expect(wordsOf().steps).toBeGreaterThanOrEqual(6);
   });

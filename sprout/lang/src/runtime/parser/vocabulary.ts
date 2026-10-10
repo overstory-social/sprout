@@ -1,9 +1,10 @@
 // The words a noun may be made of anywhere in the world (the spec's
 // Parsing › When nothing matches): every word some thing in the world is
 // named by, whatever its reach, or was or could be, destroyed or not yet
-// spawned, and the parser's own words a noun may hold. A noun that names nothing in reach is `not_here` only where each
-// of its words is one of these; a word nothing in the world is named by
-// is the grammar's failure, not reach's, and the line is `unknown`.
+// spawned; every kind's name; and the parser's own words a noun may hold.
+// A noun that names nothing in reach is `not_here` only where each of its
+// words is one of these; a word nothing in the world is named by is the
+// grammar's failure, not reach's, and the line is `unknown`.
 
 import type { KindContent } from '../../declare/contents.js';
 import type { KindRef } from '../../declare/kinds.js';
@@ -23,7 +24,10 @@ import type { InstanceId } from '../ids.js';
 import type { Instance, StateReader } from '../state.js';
 import type { Address } from './address.js';
 
-/** The parser's words a noun may hold: articles and the like, `and`, the relative phrases' words, pronouns, `all`, `everything` and `except`. */
+/**
+ * The parser's words a noun may hold: articles and the like, `and`, the
+ * relative phrases' words, pronouns, `all`, `everything` and `except`.
+ */
 const NOUN_WORDS: readonly string[] = [
   ...DETERMINERS,
   ...CONNECTORS,
@@ -33,7 +37,10 @@ const NOUN_WORDS: readonly string[] = [
   'except',
 ];
 
-/** What reading the world's words needs: the bundle, the turn's state, what each thing is called, and the meter. */
+/**
+ * What reading the world's words needs: the bundle, the turn's state, what
+ * each thing is called, and the meter.
+ */
 export interface VocabularyContext {
   readonly catalogue: Catalogue;
   readonly state: StateReader;
