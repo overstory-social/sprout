@@ -130,6 +130,24 @@ each of its transcripts from the installed CLI, comparing what it prints
 to the golden, runs its tests and its transcripts as tests, which pass,
 and a test that must fail.
 
+### 7. The C runtime's differential layer
+
+`runtime-c/` is tested twice. Its own unit tests (`runtime-c/test`, built by
+CMake and run by ctest) cover each module and the desktop host. The
+differential layer holds the C runtime to the TypeScript one: `sproutc play`
+(`runtime-c/host`) plays a cartridge's script on a fake clock with the
+script's seeds, and `scripts/check-runtime-c.mjs` replays every corpus
+world's transcripts through it. The C side has no parser, so
+`scripts/resolve-script.mjs` first plays each script with the TypeScript
+runtime and writes, beside it, the reading the TypeScript parser made of each
+typed line (`player/src/readings.ts`); a line the parser answered is marked
+and skipped. The replay prints one line per world and the list of worlds
+that pass, and fails unless that list is `EXPECTED_PASSING` in the script,
+which each later runtime item grows. `scripts/fuzz-runtime.mjs` extends it
+over generated input: from a seed it plays offered, refused and unreadable
+lines, ticks and time through both runtimes and writes the first divergence
+as a transcript under the world's `transcripts/`, to be fixed and kept.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same

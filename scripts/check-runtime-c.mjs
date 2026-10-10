@@ -2,20 +2,25 @@
 // line of the result. With no C compiler, cmake or ctest it prints one line
 // saying what is missing and skips, unless `--required` is given (the e2e
 // does), which makes the missing tool a failure. It never skips silently.
+//
+// After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
+// every corpus world with transcripts is packed, its scripts resolved by the
+// TypeScript parser, played through `sproutc`, and diffed with the transcript
+// the TypeScript runtime wrote. It prints one line per world and the list of
+// worlds that pass, and fails when that list is not EXPECTED_PASSING. Each
+// later runtime item adds the worlds its change brings in here.
 
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+
+import { runtimeCBuild as build, runtimeCRoot as root } from './runtime-c-build.mjs';
 
 const required = process.argv.includes('--required');
-const root = join(fileURLToPath(import.meta.url), '../../runtime-c');
-// Built outside the repository, one folder per checkout, so lint and prettier never see it.
-const build = join(
-  tmpdir(),
-  `sprout-runtime-c-${createHash('sha256').update(root).digest('hex').slice(0, 12)}`,
-);
+
+// The corpus worlds whose transcripts the C runtime replays to the byte, sorted.
+// Today none does: the runtime's load and turn are declared and not built.
+const EXPECTED_PASSING = [];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -49,3 +54,42 @@ run('cmake', ['--build', build]);
 const out = run('ctest', ['--test-dir', build, '--output-on-failure']);
 const summary = out.split('\n').find((line) => /tests passed/.test(line)) ?? 'ctest ran';
 console.log(`runtime-c: ${compiler}, ${summary.trim()}`);
+
+// `sproutc play` on a packed corpus world prints the cartridge's header and manifest.
+const sproutc = join(build, 'sproutc');
+const scratch = join(build, 'replay');
+rmSync(scratch, { recursive: true, force: true });
+mkdirSync(scratch, { recursive: true });
+
+let tools;
+try {
+  tools = await import('./replay-runtime-c.mjs');
+} catch (err) {
+  console.log(`runtime-c: FAILED to load the replay (run \`npm run build\` first): ${err.message}`);
+  process.exit(1);
+}
+
+const headerWorld = 'arrival-order';
+tools.packWorld(join('corpus/good', headerWorld), join(scratch, 'header.sproutworld'));
+const header = spawnSync(sproutc, ['play', join(scratch, 'header.sproutworld')], { encoding: 'utf8' });
+if (header.status !== 0 || !/^name: arrival_order$/m.test(header.stdout) || !/^files: 5$/m.test(header.stdout)) {
+  console.log(`runtime-c: FAILED, \`sproutc play\` did not print the header and manifest of ${headerWorld}`);
+  process.stdout.write(header.stdout + header.stderr);
+  process.exit(1);
+}
+
+const results = tools.replayWorlds(sproutc, scratch);
+for (const result of results) {
+  const words = result.words.replace(/\s*\n\s*/g, ' / ');
+  console.log(`runtime-c replay: ${result.name}: ${result.passed ? 'passes' : 'fails'}, ${words}`);
+}
+const passing = results.filter((r) => r.passed).map((r) => r.name);
+console.log(
+  `runtime-c replay: ${passing.length} of ${results.length} worlds pass${passing.length > 0 ? `: ${passing.join(', ')}` : ''}`,
+);
+if (passing.join(',') !== EXPECTED_PASSING.join(',')) {
+  console.log(
+    `runtime-c: FAILED, the worlds that pass are not the expected ones (expected: ${EXPECTED_PASSING.join(', ') || 'none'}); update EXPECTED_PASSING in scripts/check-runtime-c.mjs if the change is meant`,
+  );
+  process.exit(1);
+}
