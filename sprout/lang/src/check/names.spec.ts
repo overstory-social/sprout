@@ -4,6 +4,8 @@ import type { Expr, Ident, MemberExpr, ObjectPath } from '../syntax/ast.js';
 import type { Vantage } from '../declare/names.js';
 import { bodyOf, expression, read, saidBy, VESSEL } from '../fixtures/check.js';
 import { inKind, nameSource } from '../fixtures/names.js';
+import { compileWorld } from '../fixtures/bundle.js';
+import { locationOf } from '../source/source.js';
 import { showBindingType, type BindingType } from './bindings.js';
 import type { CheckContext } from './check.js';
 import {
@@ -293,6 +295,105 @@ describe('an object another file declares, named in the world’s tree', () => {
         'lamp',
         importing(inKind(source, 'shop.Lantern'), () => false),
       ).said,
+    ).toEqual([]);
+  });
+});
+
+describe('a place reading another place', () => {
+  /** The refusals a world of a hall and a yard makes, as line, column and message. */
+  function refused(hall: string, world = ''): string[][] {
+    const { diagnostics } = compileWorld('yards', {
+      'yards.sprout': `world yards is sprout.World {
+  visitors are Person
+  visitors arrive at hall${world}
+  object hall is sprout.Place {
+${hall}
+    object toy is Toy
+    object nook is sprout.Place
+  }
+  object yard is sprout.Place { :open true }
+}
+kind Person is sprout.Visitor { }
+kind Toy { :new true }
+`,
+    });
+    return diagnostics
+      .filter((one) => one.severity === 'refusal')
+      .map((one) => [locationOf(one.at), one.message]);
+  }
+
+  it('is refused at the name, through `get` and `is`, by a name or a path from the world', () => {
+    expect(
+      refused(`    grammar { exit north "north" -> yard when (yards.yard.get(:open)) }
+    describe { text "A hall.{if yard.is(sprout.Place)} A yard lies north.{/if}" }`),
+    ).toEqual([
+      [
+        'yards.sprout:5:48',
+        '`yards.yard` is another place, out of range of `hall`, so `yards.yard.get(…)` can never be read from here: the world lets nothing pass between its places.',
+      ],
+      [
+        'yards.sprout:6:33',
+        '`yard` is another place, out of range of `hall`, so `yard.is(…)` can never be read from here: the world lets nothing pass between its places.',
+      ],
+    ]);
+  });
+
+  it('is taken of a place inside a place, and from one, since either may be moved into range', () => {
+    const { diagnostics } = compileWorld('yards', {
+      'yards.sprout': `world yards is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    object cart is Cart
+    object nook is sprout.Place { describe { text "{if yard.get(:open)}Open.{/if}" } }
+  }
+  object yard is sprout.Place {
+    :open true
+    describe { text "{if hall.cart.get(:full)}A full cart.{/if}" }
+    on :tick (elapsed) { move hall.cart to self }
+  }
+}
+kind Person is sprout.Visitor { }
+kind Cart is sprout.Container { :full true  contains actors }
+`,
+    });
+    expect(diagnostics.filter((one) => one.severity === 'refusal')).toEqual([]);
+  });
+
+  it('says what to write instead, for a fact and for what a place is', () => {
+    const remedies = compileWorld('yards', {
+      'yards.sprout': `world yards is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    describe { text "{if yard.get(:open)}Open.{/if}{if yard.is(sprout.Place)} North.{/if}" }
+  }
+  object yard is sprout.Place { :open true }
+}
+kind Person is sprout.Visitor { }
+`,
+    }).diagnostics.map((one) => one.remedy);
+    expect(remedies).toEqual([
+      'Keep the fact on `hall` itself, or on the world, as `yards.get(:…)`, which every place can read, and have `yard` send the world a message when it changes; or let the world open range between its places with a `pass any` rule.',
+      'Ask what `yard` is from a body where it is in range, or keep a flag on `hall` or on the world that says it, or let the world open range between its places with a `pass any` rule.',
+    ]);
+  });
+
+  it('is taken of what is in the same place, of a thing that may move, and where the world may pass', () => {
+    expect(
+      refused(
+        `    describe { text "{if nook.is(sprout.Place) && toy.get(:new) && yards.get(:open)}All here.{/if}" }`,
+        `
+  :open true`,
+      ),
+    ).toEqual([]);
+    expect(
+      refused(
+        `    describe { text "{if yard.get(:open)}Open.{/if}" }`,
+        `
+  pass any (self.get(:open))
+  :open true`,
+      ),
     ).toEqual([]);
   });
 });
