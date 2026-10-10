@@ -231,13 +231,13 @@ function typed(named: Named, scope: NameScope): BindingType {
 }
 
 /**
- * Where `receiver`, read with `reading` in a place's own body, names
- * another place the compile can see is out of its range, the words
- * refusing it; null otherwise. Places in the world are out of one
- * another's range while the world writes no `pass any` that may let
- * something through (the spec's Range), and a place declared under
- * another of the world's places is out of range of every place declared
- * under a different one, so nothing such a read could ever give.
+ * Where `receiver`, read with `reading` in the own body of a place the
+ * world's body declares, names another such place, the words refusing
+ * it; null otherwise. Those places are out of one another's range while
+ * the world writes no `pass any` that may let something through (the
+ * spec's Range), so such a read could never be made. A place inside
+ * another may be moved, as a cart or a boat is, into range, so neither
+ * end of the read may be one.
  */
 export function otherPlaceWords(
   receiver: Expr,
@@ -255,19 +255,21 @@ export function otherPlaceWords(
         : [null, null];
   if (name === null || key === null || context.scope.lookup(name) !== null) return null;
   const named = scope.table.get(key);
-  if (named?.names !== 'declared' || asking.length === 0 || named.path[0] === asking[0]) {
-    return null;
-  }
-  if (worldMayPass(scope.world)) return null;
+  if (named?.names !== 'declared' || asking.length !== 1 || named.path.length !== 1) return null;
+  if (named.path[0] === asking[0] || worldMayPass(scope.world)) return null;
   const { placed } = scope.source.tree;
   const self = placed.get(pathKey(asking));
   const other = placed.get(pathKey(named.path));
   if (self?.kind?.containsActors !== true || other?.kind?.containsActors !== true) return null;
   const world = scope.source.tree.world;
-  const here = asking.join('.');
+  const here = asking[0]!;
+  const opening = `or let the world open range between its places with a \`pass any\` rule.`;
   return {
     message: `\`${name}\` is another place, out of range of \`${here}\`, so \`${name}.${reading}(…)\` can never be read from here: the world lets nothing pass between its places.`,
-    remedy: `Keep the fact on \`${here}\` itself, or on the world, as \`${world}.get(:…)\`, which every place can read, and have \`${name}\` send the world a message when it changes.`,
+    remedy:
+      reading === 'is'
+        ? `Ask what \`${name}\` is from a body where it is in range, or keep a flag on \`${here}\` or on the world that says it, ${opening}`
+        : `Keep the fact on \`${here}\` itself, or on the world, as \`${world}.get(:…)\`, which every place can read, and have \`${name}\` send the world a message when it changes; ${opening}`,
   };
 }
 

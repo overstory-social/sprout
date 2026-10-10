@@ -338,21 +338,44 @@ kind Toy { :new true }
     ]);
   });
 
-  it('is refused from a place inside a place, of a place under another', () => {
+  it('is taken of a place inside a place, and from one, since either may be moved into range', () => {
     const { diagnostics } = compileWorld('yards', {
       'yards.sprout': `world yards is sprout.World {
   visitors are Person
   visitors arrive at hall
-  object hall is sprout.Place { object nook is sprout.Place { describe { text "{if yard.get(:open)}Open.{/if}" } } }
+  object hall is sprout.Place {
+    object cart is Cart
+    object nook is sprout.Place { describe { text "{if yard.get(:open)}Open.{/if}" } }
+  }
+  object yard is sprout.Place {
+    :open true
+    describe { text "{if hall.cart.get(:full)}A full cart.{/if}" }
+    on :tick (elapsed) { move hall.cart to self }
+  }
+}
+kind Person is sprout.Visitor { }
+kind Cart is sprout.Container { :full true  contains actors }
+`,
+    });
+    expect(diagnostics.filter((one) => one.severity === 'refusal')).toEqual([]);
+  });
+
+  it('says what to write instead, for a fact and for what a place is', () => {
+    const remedies = compileWorld('yards', {
+      'yards.sprout': `world yards is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    describe { text "{if yard.get(:open)}Open.{/if}{if yard.is(sprout.Place)} North.{/if}" }
+  }
   object yard is sprout.Place { :open true }
 }
 kind Person is sprout.Visitor { }
 `,
-    });
-    expect(
-      diagnostics.filter((one) => one.severity === 'refusal').map((one) => one.message),
-    ).toEqual([
-      '`yard` is another place, out of range of `hall.nook`, so `yard.get(…)` can never be read from here: the world lets nothing pass between its places.',
+    }).diagnostics.map((one) => one.remedy);
+    expect(remedies).toEqual([
+      'Keep the fact on `hall` itself, or on the world, as `yards.get(:…)`, which every place can read, and have `yard` send the world a message when it changes; or let the world open range between its places with a `pass any` rule.',
+      'Ask what `yard` is from a body where it is in range, or keep a flag on `hall` or on the world that says it, or let the world open range between its places with a `pass any` rule.',
     ]);
   });
 
